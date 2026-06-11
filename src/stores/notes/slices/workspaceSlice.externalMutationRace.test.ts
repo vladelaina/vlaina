@@ -3,9 +3,11 @@ import { createStore } from 'zustand/vanilla';
 import { createWorkspaceSlice } from './workspaceSlice';
 import type { NotesStore } from '../types';
 
+const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 const storageAdapter = vi.hoisted(() => ({
   stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
 }));
 
 const hoisted = vi.hoisted(() => ({
@@ -116,7 +118,7 @@ describe('workspaceSlice external mutation races', () => {
 
     const open = store.getState().openNote('beta.md');
     await vi.waitFor(() => {
-      expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+      expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     });
 
     await store.getState().applyExternalPathDeletion('beta.md');
@@ -148,7 +150,7 @@ describe('workspaceSlice external mutation races', () => {
 
     const prefetch = store.getState().prefetchNote('beta.md');
     await vi.waitFor(() => {
-      expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+      expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     });
 
     await store.getState().applyExternalPathRename('beta.md', 'gamma.md');

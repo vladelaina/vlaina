@@ -61,6 +61,20 @@ describe('userMessageContent', () => {
     });
   });
 
+  it('keeps relative directory image markdown in user message text', () => {
+    expect(parseUserMessageContent('![local](images/demo.png)\n\nhello')).toEqual({
+      imageSources: [],
+      text: '![local](images/demo.png)\n\nhello',
+    });
+  });
+
+  it('does not trust known relative directory image sources from stored user messages', () => {
+    expect(parseUserMessageContentWithKnownImages('![image](images/demo.png)\n\nhello', ['images/demo.png'])).toEqual({
+      imageSources: [],
+      text: '![image](images/demo.png)\n\nhello',
+    });
+  });
+
   it('keeps code example image markdown in user message text', () => {
     const content = [
       '```md',

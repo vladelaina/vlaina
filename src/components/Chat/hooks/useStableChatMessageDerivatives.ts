@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@/lib/ai/types';
 import {
-  extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  normalizeRenderedMessageImageSources,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
 } from '@/components/Chat/common/messageClipboard';
+import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy';
 
 export interface ChatImageGalleryItem {
   id: string;
@@ -51,10 +51,6 @@ function getDerivativeSignatureValue(value: string): string {
   return `${value.length}:large:${hashString(sampledValue)}`;
 }
 
-function hasKnownImageSources(message: ChatMessage): boolean {
-  return !!message.imageSources && message.imageSources.length > 0;
-}
-
 function messageContentMayContainImageToken(content: string): boolean {
   return content.includes('![') || content.includes('<');
 }
@@ -67,14 +63,12 @@ function buildMessageImageGallery(
     return { items: [], signature: '' };
   }
 
-  const sources = contentMayContainImageToken
-    ? hasKnownImageSources(message)
-      ? message.imageSources
-      : extractRenderedMessageImageSources(message.content || '', {
-          maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-        })
+  const renderableSources = contentMayContainImageToken
+    ? extractChatMessageImageSources(message.content || '', {
+        maxSources: MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+        maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+      })
     : [];
-  const renderableSources = normalizeRenderedMessageImageSources(sources);
 
   if (renderableSources.length === 0) {
     return { items: [], signature: '' };

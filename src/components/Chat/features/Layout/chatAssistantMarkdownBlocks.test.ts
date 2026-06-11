@@ -92,6 +92,22 @@ describe('buildParsedAssistantMarkdown', () => {
     expect(parsed.renderableMarkdown).not.toContain('<img src="https://example.com/real-html.png">');
   });
 
+  it('does not count or strip relative directory images as renderable images', () => {
+    const markdown = [
+      '![local](images/demo.png)',
+      '![stored](demo.png)',
+      '![remote](https://example.com/real.png)',
+    ].join('\n');
+
+    const renderableMarkdown = stripRenderableImageTokens(markdown);
+    const parsed = buildParsedAssistantMarkdown(markdown, renderableMarkdown);
+
+    expect(parsed.imageCount).toBe(2);
+    expect(renderableMarkdown).toContain('![local](images/demo.png)');
+    expect(renderableMarkdown).not.toContain('![stored](demo.png)');
+    expect(renderableMarkdown).not.toContain('![remote](https://example.com/real.png)');
+  });
+
   it('bounds assistant image counting and stripping for pathological image-heavy markdown', () => {
     const markdown = Array.from(
       { length: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES + 1 },

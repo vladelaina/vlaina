@@ -63,6 +63,22 @@ describe('ElectronAdapter', () => {
     expect(mocks.bridge.fs.copyFile).toHaveBeenCalledWith('/tmp/b.md', '/tmp/c.md');
   });
 
+  it('delegates optional binary read byte limits through the electron bridge', async () => {
+    const adapter = new ElectronAdapter();
+
+    await expect(adapter.readBinaryFile('/tmp/a.bin', 2)).resolves.toEqual(new Uint8Array([1, 2]));
+
+    expect(mocks.bridge.fs.readBinaryFile).toHaveBeenCalledWith('/tmp/a.bin', 2);
+  });
+
+  it('delegates optional text read byte limits through the electron bridge', async () => {
+    const adapter = new ElectronAdapter();
+
+    await expect(adapter.readFile('/tmp/a.md', 2)).resolves.toBe('hello');
+
+    expect(mocks.bridge.fs.readTextFile).toHaveBeenCalledWith('/tmp/a.md', 2);
+  });
+
   it('creates parent directories before recursive binary writes', async () => {
     const adapter = new ElectronAdapter();
 

@@ -3,10 +3,12 @@ import { createStore } from 'zustand/vanilla';
 import { MAX_PENDING_NOTE_PREFETCHES, createWorkspaceSlice } from './workspaceSlice';
 import type { NotesStore } from '../types';
 
+const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 const storageAdapter = vi.hoisted(() => ({
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 }));
 
@@ -364,7 +366,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().openNoteByAbsolutePath('/other-vault/docs/../starred.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/other-vault/starred.md');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/other-vault/starred.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({
       path: '/other-vault/starred.md',
       content: '# starred',
@@ -605,7 +607,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().openNote('docs\\alpha.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({
       path: 'docs/alpha.md',
       content: '# alpha',
@@ -748,7 +750,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().prefetchNote('beta.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
     expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
     expect(store.getState().recentNotes).toEqual([]);
@@ -771,7 +773,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().prefetchNote('docs\\beta.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/beta.md');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
     expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
     expect(store.getState().noteContentsCache.has('docs\\beta.md')).toBe(false);
@@ -864,7 +866,7 @@ describe('workspaceSlice tab history', () => {
     await Promise.all([prefetch, open]);
 
     expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
     expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
       content: '# beta',
@@ -904,7 +906,7 @@ describe('workspaceSlice tab history', () => {
     await Promise.all([prefetch, open]);
 
     expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
     expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
       content: '# beta',

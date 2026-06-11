@@ -18,6 +18,7 @@ interface RemoteImageResolveResult {
 export const MAX_REMOTE_IMAGE_CACHE_ENTRIES = 200;
 const MAX_REMOTE_IMAGE_CACHE_BYTES = 48 * 1024 * 1024;
 export const MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES = 8 * 1024 * 1024;
+export const REMOTE_IMAGE_FETCH_TIMEOUT_MS = 15_000;
 const MAX_REMOTE_IMAGE_FETCH_CONCURRENCY = 4;
 const remoteImageCache = new Map<string, RemoteImageCacheEntry>();
 const remoteImageFetchQueue = createAsyncPrefetchQueue(MAX_REMOTE_IMAGE_FETCH_CONCURRENCY);
@@ -74,6 +75,55 @@ function setRemoteImageCacheEntry(url: string, entry: RemoteImageCacheEntry): vo
     evictRemoteImageCacheIfNeeded();
 }
 
+function createRemoteImageFetchTimeout(): { signal?: AbortSignal; clear: () => void } {
+    if (typeof AbortController === 'undefined') {
+        return { clear: () => undefined };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, REMOTE_IMAGE_FETCH_TIMEOUT_MS);
+
+    return {
+        signal: controller.signal,
+        clear: () => clearTimeout(timeoutId),
+    };
+}
+
+async function fetchRemoteImageForCache(safeUrl: string): Promise<RemoteImageResolveResult> {
+    const timeout = createRemoteImageFetchTimeout();
+    try {
+        const response = await fetch(safeUrl, createSafeImageFetchInit({ cache: 'force-cache' }, timeout.signal));
+        if (!response.ok) {
+            return { src: safeUrl };
+        }
+
+        const result = await readBoundedImageBlobResponse(response, {
+            maxBytes: MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES,
+            signal: timeout.signal,
+        });
+        if (result.status === 'too-large') {
+            return { src: safeUrl };
+        }
+
+        const blob = result.blob;
+        if (!blob.type.startsWith('image/')) {
+            return { src: safeUrl };
+        }
+        if (blob.size > MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES) {
+            return { src: safeUrl };
+        }
+
+        return {
+            src: URL.createObjectURL(blob),
+            sizeBytes: blob.size,
+        };
+    } finally {
+        timeout.clear();
+    }
+}
+
 export async function resolveRemoteImageFromMemoryCache(url: string): Promise<string> {
     const safeUrl = normalizePublicRemoteMediaUrl(url);
     if (!safeUrl) {
@@ -105,32 +155,7 @@ export async function resolveRemoteImageFromMemoryCache(url: string): Promise<st
         return safeUrl;
     }
 
-    const promise = remoteImageFetchQueue.run(() => fetch(safeUrl, createSafeImageFetchInit({ cache: 'force-cache' })))
-        .then(async (response) => {
-            if (!response.ok) {
-                return { src: safeUrl };
-            }
-
-            const result = await readBoundedImageBlobResponse(response, {
-                maxBytes: MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES,
-            });
-            if (result.status === 'too-large') {
-                return { src: safeUrl };
-            }
-
-            const blob = result.blob;
-            if (!blob.type.startsWith('image/')) {
-                return { src: safeUrl };
-            }
-            if (blob.size > MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES) {
-                return { src: safeUrl };
-            }
-
-            return {
-                src: URL.createObjectURL(blob),
-                sizeBytes: blob.size,
-            };
-        })
+    const promise = remoteImageFetchQueue.run(() => fetchRemoteImageForCache(safeUrl))
         .catch((): RemoteImageResolveResult => ({ src: safeUrl }))
         .then((result) => {
             const { src, sizeBytes } = result;

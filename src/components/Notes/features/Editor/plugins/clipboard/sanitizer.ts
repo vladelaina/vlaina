@@ -3,12 +3,14 @@ import {
   GITHUB_ALLOWED_LINK_PROTOCOLS,
   GITHUB_ALLOWED_MEDIA_PROTOCOLS,
   GITHUB_DROP_WITH_CONTENT_TAGS,
+  GITHUB_LOADABLE_OR_URL_ATTRIBUTES,
   GITHUB_WRAP_CONTENT_WITH_WHITESPACE_TAGS,
   hasGithubProtocol,
   hasGithubUrlScheme,
   isGithubHtmlAttributeValueAllowed,
   isGithubAllowedAttribute,
   isGithubSrcsetAttribute,
+  isGithubTagSpecificUrlAttribute,
   isGithubUrlAttribute,
   normalizeGithubSrcset,
   normalizeGithubUrl,
@@ -125,6 +127,13 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
 
     const value = element.getAttribute(attributeName);
     if (value === null) {
+      continue;
+    }
+
+    if (
+      GITHUB_LOADABLE_OR_URL_ATTRIBUTES.has(normalizedAttribute)
+      && !isGithubTagSpecificUrlAttribute(tagName, normalizedAttribute)
+    ) {
       continue;
     }
 

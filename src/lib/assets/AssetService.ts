@@ -396,7 +396,7 @@ export class AssetService {
           continue;
         }
 
-        const candidateBytes = await storage.readBinaryFile(candidate.path).catch(() => null);
+        const candidateBytes = await storage.readBinaryFile(candidate.path, MAX_ASSET_SIZE).catch(() => null);
         if (!candidateBytes) {
           continue;
         }

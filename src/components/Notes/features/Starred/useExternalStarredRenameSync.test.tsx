@@ -97,15 +97,45 @@ describe('useExternalStarredRenameSync', () => {
     renderHook(() => useExternalStarredRenameSync());
 
     expect(mocked.watchDesktopPath).toHaveBeenCalledWith(
-      '/vault-b/docs/alpha.md',
+      '/vault-b/docs',
       expect.any(Function),
       { recursive: false },
     );
 
     await act(async () => {
-      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
+      await mocked.handlers.get('/vault-b/docs')?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/beta.md'],
+      });
+    });
+
+    expect(mocked.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+      '/vault-b/docs/alpha.md',
+      '/vault-b/docs/beta.md',
+    );
+  });
+
+  it('pairs split external starred note rename events from the parent watcher', async () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    await act(async () => {
+      await mocked.handlers.get('/vault-b/docs')?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault-b/docs/alpha.md'],
+      });
+      await mocked.handlers.get('/vault-b/docs')?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault-b/docs/beta.md'],
       });
     });
 
@@ -163,7 +193,7 @@ describe('useExternalStarredRenameSync', () => {
     renderHook(() => useExternalStarredRenameSync());
 
     await act(async () => {
-      await mocked.handlers.get('C:/Users/Me/Other/docs/alpha.md')?.({
+      await mocked.handlers.get('C:/Users/Me/Other/docs')?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: [
           'c:/users/me/other/docs/alpha.md',
@@ -192,7 +222,7 @@ describe('useExternalStarredRenameSync', () => {
     renderHook(() => useExternalStarredRenameSync());
 
     await act(async () => {
-      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
+      await mocked.handlers.get('/vault-b/docs')?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/alpha.png'],
       });
@@ -215,7 +245,7 @@ describe('useExternalStarredRenameSync', () => {
     renderHook(() => useExternalStarredRenameSync());
 
     await act(async () => {
-      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
+      await mocked.handlers.get('/vault-b/docs')?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/secret\uFFFD.md'],
       });
@@ -254,7 +284,7 @@ describe('useExternalStarredRenameSync', () => {
     renderHook(() => useExternalStarredRenameSync());
 
     await act(async () => {
-      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
+      await mocked.handlers.get('/vault-b/docs')?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/.vlaina/alpha.md'],
       });
@@ -277,13 +307,13 @@ describe('useExternalStarredRenameSync', () => {
     renderHook(() => useExternalStarredRenameSync());
 
     expect(mocked.watchDesktopPath).toHaveBeenCalledWith(
-      '/vault-b/.notes/alpha.md',
+      '/vault-b/.notes',
       expect.any(Function),
       { recursive: false },
     );
 
     await act(async () => {
-      await mocked.handlers.get('/vault-b/.notes/alpha.md')?.({
+      await mocked.handlers.get('/vault-b/.notes')?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: ['/vault-b/.notes/alpha.md', '/vault-b/.notes/beta.md'],
       });

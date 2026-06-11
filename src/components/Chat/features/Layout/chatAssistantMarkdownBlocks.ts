@@ -3,11 +3,13 @@ import {
   type MarkdownMeasurementBlock,
 } from './chatAssistantMarkdownTypography';
 import {
-  extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  normalizeRenderedMessageImageSources,
-  stripMessageImageTokens,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
 } from '@/components/Chat/common/messageClipboard';
+import {
+  extractChatMessageImageSources,
+  stripChatMessageImageTokens,
+} from '@/lib/ai/chatImageSourcePolicy';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
 import {
   getMarkdownFenceState,
@@ -29,15 +31,14 @@ export type ParsedAssistantMarkdown = {
 };
 
 export function stripRenderableImageTokens(content: string): string {
-  return stripMessageImageTokens(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES });
+  return stripChatMessageImageTokens(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES });
 }
 
 function countRenderableImages(content: string): number {
-  return normalizeRenderedMessageImageSources(
-    extractRenderedMessageImageSources(content, {
-      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-    }),
-  ).length;
+  return extractChatMessageImageSources(content, {
+    maxSources: MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+    maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  }).length;
 }
 
 export function findReusableMarkdownSplitIndex(markdown: string): number {

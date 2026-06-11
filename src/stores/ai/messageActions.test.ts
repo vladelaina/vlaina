@@ -410,6 +410,22 @@ describe('message actions API transcript handling', () => {
     ]);
   });
 
+  it('does not cache relative directory images as user message image sources', () => {
+    seedMessages([]);
+
+    createMessageActions().addMessage({
+      role: 'user',
+      content: [
+        '![local](images/demo.png)',
+        '![stored](demo.png)',
+      ].join('\n'),
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toEqual(['demo.png']);
+  });
+
   it('does not cache video markdown as user message image sources', () => {
     seedMessages([]);
 

@@ -44,7 +44,7 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
     const fileInfo = await storage.stat(selectedPath).catch(() => null);
     if (!fileInfo?.isFile || !isInsertableImageSize(fileInfo.size)) return;
 
-    const bytes = await storage.readBinaryFile(selectedPath);
+    const bytes = await storage.readBinaryFile(selectedPath, MAX_PICKED_IMAGE_BYTES);
     if (!isInsertableImageSize(bytes.byteLength)) return;
     const fileName = getBaseName(selectedPath) || 'image';
     const file = new File([new Uint8Array(bytes)], fileName, {

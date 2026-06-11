@@ -155,7 +155,7 @@ export function createWorkspaceDiskSyncAction(
             return 'ignored';
           }
 
-          const rawDiskContent = await storage.readFile(fullPath);
+          const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
           assertEditorSafeMarkdownContent(rawDiskContent);
           preloadedDiskContent = normalizeSerializedMarkdownDocument(rawDiskContent);
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
@@ -187,7 +187,7 @@ export function createWorkspaceDiskSyncAction(
 
         let nextContent = preloadedDiskContent;
         if (nextContent === null) {
-          const rawDiskContent = await storage.readFile(fullPath);
+          const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
           assertEditorSafeMarkdownContent(rawDiskContent);
           nextContent = normalizeSerializedMarkdownDocument(rawDiskContent);
         }

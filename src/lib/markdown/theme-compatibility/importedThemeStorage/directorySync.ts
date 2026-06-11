@@ -101,7 +101,7 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
         continue;
       }
       stat = statResult;
-      css = await storage.readFile(entry.path);
+      css = await storage.readFile(entry.path, MAX_IMPORTED_THEME_CSS_BYTES);
     } catch {
       continue;
     }

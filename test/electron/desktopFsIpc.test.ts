@@ -102,6 +102,36 @@ describe('desktop filesystem ipc', () => {
     );
   });
 
+  it('honors caller-provided binary read byte limits', async () => {
+    const rootPath = path.join(tempDir, 'vault');
+    const filePath = path.join(rootPath, 'note.md');
+    await mkdir(rootPath, { recursive: true });
+    await writeFile(filePath, 'hello', 'utf8');
+    await authorizeFsPath(rootPath, 'root');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:fs:read-binary')?.({}, filePath, 5)).resolves.toEqual(
+      new Uint8Array([104, 101, 108, 108, 111]),
+    );
+    await expect(handlers.get('desktop:fs:read-binary')?.({}, filePath, 4)).rejects.toThrow(
+      'Desktop file is too large to read',
+    );
+  });
+
+  it('honors caller-provided text read byte limits', async () => {
+    const rootPath = path.join(tempDir, 'vault');
+    const filePath = path.join(rootPath, 'note.md');
+    await mkdir(rootPath, { recursive: true });
+    await writeFile(filePath, 'hello', 'utf8');
+    await authorizeFsPath(rootPath, 'root');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:fs:read-text')?.({}, filePath, 5)).resolves.toBe('hello');
+    await expect(handlers.get('desktop:fs:read-text')?.({}, filePath, 4)).rejects.toThrow(
+      'Desktop file is too large to read',
+    );
+  });
+
   it('rejects invalid binary write payloads through the filesystem bridge', async () => {
     const rootPath = path.join(tempDir, 'vault');
     const filePath = path.join(rootPath, 'note.bin');

@@ -93,7 +93,7 @@ async function readSidebarTagContent(path: string, currentVaultPath: string | nu
     ) {
       return '';
     }
-    const content = await storage.readFile(fullPath);
+    const content = await storage.readFile(fullPath, MAX_TAG_CONTENT_READ_BYTES);
     assertEditorSafeMarkdownContent(content);
     return normalizeSerializedMarkdownDocument(content);
   } catch {

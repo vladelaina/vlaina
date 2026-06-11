@@ -32,9 +32,9 @@ import {
   runWithSessionMutationLocks,
 } from '@/lib/ai/sessionMutationLock'
 import { parseMarkdownAndHtmlImageTokens, type ImageToken } from '@/components/Chat/common/messageImageTokens'
-import { normalizeRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy'
+import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy'
+import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
 import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber'
-import { parseVideoUrl } from '@/lib/markdown/videoUrl'
 
 let switchSessionGeneration = 0;
 const inlineImagePersistenceSessions = new Set<string>()
@@ -139,19 +139,11 @@ function deriveMessageImageSourcesFromContent(content: string): string[] | undef
     return undefined
   }
 
-  const sources: string[] = []
-  for (const token of parseMarkdownAndHtmlImageTokens(content, {
+  const sources = extractChatMessageImageSources(content, {
+    maxSources: MAX_INLINE_IMAGE_PERSISTENCE_SOURCES,
     maxTokens: MAX_INLINE_IMAGE_TOKENS_PER_CONTENT,
-  })) {
-    const source = normalizeRenderableImageSrc(token.src)
-    if (source && !parseVideoUrl(source)) {
-      sources.push(source)
-      if (sources.length >= MAX_INLINE_IMAGE_PERSISTENCE_SOURCES) {
-        break
-      }
-    }
-  }
-
+    persistable: true,
+  })
   return sources.length > 0 ? sources : undefined
 }
 

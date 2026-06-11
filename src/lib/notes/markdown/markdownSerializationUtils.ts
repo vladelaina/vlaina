@@ -186,7 +186,9 @@ function canUseLargePlainMarkdownNormalizationFastPath(text: string): boolean {
     text.includes('Ｘ') ||
     text.includes('✓') ||
     text.includes('✔') ||
-    text.includes('√')
+    text.includes('√') ||
+    text.includes('](mailto:') ||
+    MARKDOWN_SPACE_ENTITY_PATTERN.test(text)
   ) {
     return false;
   }

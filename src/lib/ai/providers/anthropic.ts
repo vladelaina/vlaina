@@ -13,6 +13,7 @@ import {
   MAX_CURRENT_REQUEST_MESSAGE_CHARS,
   sanitizeCurrentRequestTextContent,
 } from '@/lib/ai/requestContext'
+import { stringifyProviderJsonRequestBody } from '@/lib/ai/providerRequestBody'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { normalizeRenderableDataImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
@@ -386,7 +387,7 @@ export async function sendAnthropicMessage({
     const response = await providerFetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: stringifyProviderJsonRequestBody(body),
       signal: controller.signal,
     })
 

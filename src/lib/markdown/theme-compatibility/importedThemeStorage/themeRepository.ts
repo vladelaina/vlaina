@@ -102,7 +102,7 @@ export async function readImportedMarkdownTheme(id: string): Promise<ImportedMar
     ) {
       return null;
     }
-    const css = await storage.readFile(cssPath);
+    const css = await storage.readFile(cssPath, MAX_IMPORTED_THEME_CSS_BYTES);
     if (css.length > MAX_IMPORTED_THEME_CSS_BYTES) {
       return null;
     }

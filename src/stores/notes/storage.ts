@@ -307,7 +307,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
             };
           }
 
-          const content = await storage.readFile(fullPath);
+          const content = await storage.readFile(fullPath, MAX_METADATA_READ_BYTES);
           if (content.length > MAX_METADATA_READ_BYTES) {
             return {
               relativePath,
@@ -457,7 +457,7 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
       return null;
     }
 
-    const content = await storage.readFile(wsPath);
+    const content = await storage.readFile(wsPath, MAX_WORKSPACE_STATE_BYTES);
     if (content.length > MAX_WORKSPACE_STATE_BYTES) {
       return null;
     }

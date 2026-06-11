@@ -42,6 +42,16 @@ function prioritizeListEntries(entries: FileInfo[]): FileInfo[] {
     .map(({ entry }) => entry);
 }
 
+function normalizeReadByteLimit(maxBytes: number | undefined, path: string): number | null {
+  if (maxBytes === undefined) {
+    return null;
+  }
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) {
+    throw new Error(`Invalid binary read limit for ${path}`);
+  }
+  return maxBytes;
+}
+
 export class WebAdapter implements StorageAdapter {
   readonly platform = 'web' as const;
   
@@ -79,18 +89,27 @@ export class WebAdapter implements StorageAdapter {
     return this.dbPromise;
   }
 
-  async readFile(path: string): Promise<string> {
+  async readFile(path: string, maxBytes?: number): Promise<string> {
+    const readLimit = normalizeReadByteLimit(maxBytes, path);
     const file = await this.readStoredFile(path);
     if (!file) {
       throw new Error(`File not found: ${path}`);
     }
 
     if (file.isBinary) {
+      const bytes = new Uint8Array(file.content as Uint8Array);
+      if (readLimit !== null && bytes.byteLength > readLimit) {
+        throw new Error(`File is too large to read: ${path}`);
+      }
       const decoder = new TextDecoder();
-      return decoder.decode(file.content as Uint8Array);
+      return decoder.decode(bytes);
     }
 
-    return file.content as string;
+    const content = file.content as string;
+    if (readLimit !== null && new TextEncoder().encode(content).byteLength > readLimit) {
+      throw new Error(`File is too large to read: ${path}`);
+    }
+    return content;
   }
 
   private async readStoredFile(path: string): Promise<StoredFile | undefined> {
@@ -112,7 +131,8 @@ export class WebAdapter implements StorageAdapter {
     }
   }
 
-  async readBinaryFile(path: string): Promise<Uint8Array> {
+  async readBinaryFile(path: string, maxBytes?: number): Promise<Uint8Array> {
+    const readLimit = normalizeReadByteLimit(maxBytes, path);
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_FILES, 'readonly');
@@ -126,10 +146,20 @@ export class WebAdapter implements StorageAdapter {
           return;
         }
         if (file.isBinary) {
-          resolve(new Uint8Array(file.content as Uint8Array));
+          const bytes = new Uint8Array(file.content as Uint8Array);
+          if (readLimit !== null && bytes.byteLength > readLimit) {
+            reject(new Error(`File is too large to read: ${path}`));
+            return;
+          }
+          resolve(bytes);
         } else {
           const encoder = new TextEncoder();
-          resolve(encoder.encode(file.content as string));
+          const bytes = encoder.encode(file.content as string);
+          if (readLimit !== null && bytes.byteLength > readLimit) {
+            reject(new Error(`File is too large to read: ${path}`));
+            return;
+          }
+          resolve(bytes);
         }
       };
 

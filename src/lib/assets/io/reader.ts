@@ -155,7 +155,7 @@ async function loadPersistentThumbnailBlobUrl(
     }
     const info = await storage.stat(persistentCachePath).catch(() => null);
     assertPreviewableImageSize(info?.size);
-    const bytes = await storage.readBinaryFile(persistentCachePath);
+    const bytes = await storage.readBinaryFile(persistentCachePath, MAX_LOCAL_IMAGE_BYTES);
     assertPreviewableImageSize(bytes.byteLength);
     return URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
   } catch {
@@ -319,7 +319,7 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   const loadPromise = (async () => {
     const loadGeneration = imageCacheGeneration;
     const loadPathGeneration = getImagePathGeneration(fullPath);
-    const data = await storage.readBinaryFile(fullPath);
+    const data = await storage.readBinaryFile(fullPath, MAX_LOCAL_IMAGE_BYTES);
     assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);
     const bytes = prepareImageBytes(fullPath, data);
@@ -420,7 +420,7 @@ export async function loadImageThumbnailAsBlob(
       }
     }
 
-    const data = await storage.readBinaryFile(fullPath);
+    const data = await storage.readBinaryFile(fullPath, MAX_LOCAL_IMAGE_BYTES);
     assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);
     const blobUrl = await createThumbnailBlobUrl(
@@ -473,7 +473,7 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
   try {
     const fileInfo = await storage.stat(fullPath).catch(() => null);
     assertPreviewableImageSize(fileInfo?.size);
-    const data = await storage.readBinaryFile(fullPath);
+    const data = await storage.readBinaryFile(fullPath, MAX_LOCAL_IMAGE_BYTES);
     assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);
 

@@ -249,11 +249,11 @@ const desktopApi = {
     },
   },
   fs: {
-    readBinaryFile(filePath) {
-      return ipcRenderer.invoke('desktop:fs:read-binary', filePath);
+    readBinaryFile(filePath, maxBytes) {
+      return ipcRenderer.invoke('desktop:fs:read-binary', filePath, maxBytes);
     },
-    readTextFile(filePath) {
-      return ipcRenderer.invoke('desktop:fs:read-text', filePath);
+    readTextFile(filePath, maxBytes) {
+      return ipcRenderer.invoke('desktop:fs:read-text', filePath, maxBytes);
     },
     writeBinaryFile(filePath, bytes) {
       return ipcRenderer.invoke('desktop:fs:write-binary', filePath, Array.from(bytes));

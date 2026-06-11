@@ -81,6 +81,17 @@ export const GITHUB_SRCSET_ATTRIBUTES_BY_TAG: Readonly<Record<string, ReadonlySe
   source: new Set(['srcset']),
 };
 
+export const GITHUB_LOADABLE_OR_URL_ATTRIBUTES = new Set([
+  'action',
+  'cite',
+  'formaction',
+  'href',
+  'longdesc',
+  'poster',
+  'src',
+  'srcset',
+]);
+
 export const GITHUB_ALLOWED_RELATIVE_PROTOCOL_MARKERS = new Set(['#', '/']);
 export const GITHUB_ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
 export const GITHUB_ALLOWED_MEDIA_PROTOCOLS = new Set(['http:', 'https:']);
@@ -205,6 +216,10 @@ export function isGithubUrlAttribute(tagName: string, attributeName: string): bo
 
 export function isGithubSrcsetAttribute(tagName: string, attributeName: string): boolean {
   return Boolean(GITHUB_SRCSET_ATTRIBUTES_BY_TAG[tagName]?.has(attributeName.toLowerCase()));
+}
+
+export function isGithubTagSpecificUrlAttribute(tagName: string, attributeName: string): boolean {
+  return isGithubUrlAttribute(tagName, attributeName) || isGithubSrcsetAttribute(tagName, attributeName);
 }
 
 function isGithubSrcsetWhitespace(char: string): boolean {

@@ -1,5 +1,6 @@
 import {
   convertToBase64,
+  createStoredAttachmentFromSource,
   isAttachmentDataUrlWithinSizeLimit,
   type Attachment,
 } from '@/lib/storage/attachmentStorage';
@@ -263,6 +264,11 @@ function inferImageName(src: string, index: number): string {
 }
 
 function imageSourceToAttachment(src: string, index: number): Attachment {
+  const storedAttachment = createStoredAttachmentFromSource(src, `stored-image-${index}`);
+  if (storedAttachment && isImageAttachment(storedAttachment)) {
+    return storedAttachment;
+  }
+
   return {
     id: `stored-image-${index}`,
     path: '',
@@ -291,8 +297,17 @@ function collectStoredUserMessageImages(content: string): {
 
   for (const token of parsedTokens) {
     const rawSrc = token.src?.trim() ?? '';
-    const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
-    if (normalizedSrc && isRenderedImageSource(normalizedSrc)) {
+    const storedAttachment = createStoredAttachmentFromSource(rawSrc, 'stored-image-candidate');
+    if (storedAttachment && isImageAttachment(storedAttachment)) {
+      if (imageSources.length < MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS) {
+        imageSources.push(rawSrc);
+      }
+      tokensToStrip.push(token);
+      continue;
+    }
+
+    const normalizedSrc = normalizeDirectVisionImageUrl(rawSrc);
+    if (normalizedSrc) {
       if (imageSources.length < MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS) {
         imageSources.push(normalizedSrc);
       }

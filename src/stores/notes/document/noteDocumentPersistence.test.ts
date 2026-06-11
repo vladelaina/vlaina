@@ -3,8 +3,10 @@ import { loadNoteDocument, NoteWriteConflictError, saveNoteDocument } from './no
 import { markExpectedExternalChange } from './externalChangeRegistry';
 import { setCachedNoteContent } from './noteContentCache';
 
+const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 const adapter = {
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   stat: vi.fn<
     (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>
@@ -686,7 +688,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.stat).toHaveBeenCalledWith('/external/note.md');
-    expect(adapter.readFile).toHaveBeenCalledWith('/external/note.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/external/note.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.nextCache.has('/external/docs/../note.md')).toBe(false);
     expect(result.nextCache.get('/external/note.md')).toEqual({
       content: '# External',
@@ -731,7 +733,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.stat).toHaveBeenCalledWith('/vault/alpha.md');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Updated after prefetch');
     expect(result.modifiedAt).toBe(200);
 
@@ -753,7 +755,7 @@ describe('saveNoteDocument', () => {
       ]),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Updated by another window');
     expect(result.modifiedAt).toBe(200);
     expect(result.nextCache.get('alpha.md')).toEqual({
@@ -775,7 +777,7 @@ describe('saveNoteDocument', () => {
       }),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Updated by another window');
     expect(result.modifiedAt).toBe(100);
     expect(result.size).toBe(32);

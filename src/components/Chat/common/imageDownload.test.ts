@@ -104,6 +104,8 @@ describe('imageDownload', () => {
 
     await downloadImageWithPrompt('javascript:alert(1)', 'bad');
     await downloadImageWithPrompt('http://127.0.0.1:3000/secret.png', 'local');
+    await downloadImageWithPrompt('images/demo.png', 'relative');
+    await downloadImageWithPrompt('asset://localhost/chat-inline-image/0', 'token');
 
     expect(mocks.fetch).not.toHaveBeenCalled();
     expect(mocks.saveDialog).not.toHaveBeenCalled();

@@ -28,7 +28,7 @@ import {
   parseMarkdownAndHtmlImageTokens,
   type ImageToken,
 } from '@/components/Chat/common/messageImageTokens';
-import { stripMessageImageTokens } from '@/components/Chat/common/messageClipboard';
+import { stripChatMessageImageTokens } from '@/lib/ai/chatImageSourcePolicy';
 import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 
@@ -251,7 +251,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     const videoTokens = getVideoImageTokens(sectionMarkdown);
     const videoTokenCount = videoTokens.length;
     if (videoTokenCount > 0) {
-      const textWithoutMedia = stripMessageImageTokens(
+      const textWithoutMedia = stripChatMessageImageTokens(
         stripVideoImageTokens(sectionMarkdown, videoTokens),
         { maxTokens: MAX_LAYOUT_VIDEO_IMAGE_TOKENS },
       ).trim();

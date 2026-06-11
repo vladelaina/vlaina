@@ -3,10 +3,12 @@ import { createStore } from 'zustand/vanilla';
 import { createWorkspaceSlice } from './workspaceSlice';
 import type { NotesStore } from '../types';
 
+const MAX_NOTE_DISK_SYNC_BYTES = 10 * 1024 * 1024;
+
 const storageAdapter = vi.hoisted(() => ({
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
 }));
 
 const hoisted = vi.hoisted(() => ({
@@ -175,7 +177,7 @@ describe('workspace disk sync internal paths', () => {
     const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
 
     expect(result).toBe('reloaded');
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_NOTE_DISK_SYNC_BYTES);
     expect(store.getState().currentNote).toEqual({ path: '.notes/alpha.md', content: '# updated' });
     expect(store.getState().error).toBeNull();
   });

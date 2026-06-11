@@ -1,6 +1,7 @@
 import { MANAGED_API_BASE } from './constants';
 import { parseManagedError } from './errors';
 import { consumeOpenAIStream } from '@/lib/ai/streaming';
+import { stringifyProviderJsonRequestBody } from '@/lib/ai/providerRequestBody';
 
 const MANAGED_JSON_TIMEOUT_MS = 30_000;
 const MANAGED_STREAM_TIMEOUT_MS = 300_000;
@@ -370,7 +371,7 @@ export async function requestManagedWebStream(
         Accept: 'text/event-stream',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: stringifyProviderJsonRequestBody(body),
     }), timeoutController, signal);
     throwIfManagedRequestAborted(timeoutController, signal);
 

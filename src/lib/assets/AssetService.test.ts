@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssetService, MAX_ASSET_METADATA_STAT_CONCURRENCY } from './AssetService';
 
+const MAX_ASSET_SIZE = 50 * 1024 * 1024;
+
 const mocks = vi.hoisted(() => ({
   storage: {
     exists: vi.fn(),
@@ -445,7 +447,7 @@ describe('AssetService', () => {
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(true);
     expect(result.path).toBe('./assets/alpha.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
@@ -484,7 +486,7 @@ describe('AssetService', () => {
     expect(result.isDuplicate).toBe(true);
     expect(result.path).toBe('./assets/alpha.png');
     expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
@@ -592,7 +594,7 @@ describe('AssetService', () => {
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(false);
     expect(result.path).toBe('./assets/alpha_1.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
@@ -631,7 +633,7 @@ describe('AssetService', () => {
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(false);
     expect(result.path).toBe('./assets/alpha_1.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.computeBufferHash).not.toHaveBeenCalled();
     expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
