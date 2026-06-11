@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  CHAT_COMPOSER_TEXTAREA_SELECTOR,
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
   getOpenBridgePages,
@@ -252,6 +253,20 @@ test.describe('notes floating toolbar coverage', () => {
       await expect(page.locator('.ai-dropdown')).toBeVisible({ timeout: 5_000 });
       await expect(page.locator('.ai-dropdown [data-ai-prompt], .ai-dropdown [data-ai-category]').first())
         .toBeVisible({ timeout: 5_000 });
+      await expect(page.locator('.ai-dropdown [data-ai-command-id="fix-typos"]')).toBeVisible({ timeout: 5_000 });
+      const quoteToChatAction = page.locator('.ai-dropdown .ai-dropdown-category-action[data-ai-command-id="discuss-in-sidebar"]').first();
+      await expect(quoteToChatAction).toBeVisible({ timeout: 5_000 });
+      await expect(quoteToChatAction.locator('.ai-dropdown-item-icon')).toHaveCount(0);
+      await quoteToChatAction.click();
+      await expect(page.locator('[data-notes-chat-floating="true"]')).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('[data-notes-chat-panel="true"]')).toHaveCount(0);
+      await expect(page.locator(`[data-notes-chat-floating="true"] ${CHAT_COMPOSER_TEXTAREA_SELECTOR}`).first())
+        .toHaveValue('AI toolbar menu target', { timeout: 10_000 });
+      await page.locator('[data-notes-chat-floating="true"] [data-chat-view-mode="embedded"] > div').first()
+        .locator('button[aria-label]')
+        .last()
+        .click();
+      await expect(page.locator('[data-notes-chat-floating="true"]')).toHaveCount(0);
       await hideToolbar(page);
 
       const markCases: ToolbarMarkCase[] = [

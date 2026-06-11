@@ -2,7 +2,7 @@ import { AI_PROMPT_GROUPS } from '../../ai/promptCatalog';
 import type { AiMenuGroup } from './types';
 
 const STORAGE_KEY = 'vlaina_editor_ai_menu_usage';
-const SORTED_GROUP_IDS = new Set(['actions', 'tone']);
+const SORTED_GROUP_IDS = new Set(['actions', 'tone', 'translate']);
 const MAX_USAGE_STORAGE_CHARS = 16 * 1024;
 const MAX_USAGE_COUNT = 1_000_000;
 

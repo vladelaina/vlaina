@@ -391,6 +391,18 @@ describe('uiSlice', () => {
     expect(state.pendingNotesChatComposerInsert?.text).toBe('Selected text');
   });
 
+  it('opens the floating notes chat when queuing a floating composer insert request', () => {
+    useUIStore.getState().setNotesChatPanelCollapsed(false);
+    useUIStore.getState().setNotesChatFloatingOpen(false);
+    useUIStore.getState().queueNotesChatComposerInsert('Selected text', 'floating');
+
+    const state = useUIStore.getState();
+    expect(state.notesChatPanelCollapsed).toBe(true);
+    expect(state.notesChatFloatingOpen).toBe(true);
+    expect(state.pendingNotesChatComposerInsert?.text).toBe('Selected text');
+    expect(localStorage.getItem('vlaina_notes_chat_panel_collapsed')).toBe('true');
+  });
+
   it('closes the notes chat floating panel when the side panel opens', () => {
     useUIStore.getState().setNotesChatPanelCollapsed(true);
     useUIStore.getState().setNotesChatFloatingOpen(true);

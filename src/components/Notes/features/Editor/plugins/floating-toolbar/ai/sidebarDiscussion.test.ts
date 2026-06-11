@@ -57,6 +57,7 @@ describe('openSidebarDiscussionForSelection', () => {
     useToastStore.setState({ toasts: [] });
     useUIStore.setState({
       notesChatPanelCollapsed: false,
+      notesChatFloatingOpen: false,
       pendingNotesChatComposerInsert: null,
     });
     useAIUIStore.setState({
@@ -75,14 +76,15 @@ describe('openSidebarDiscussionForSelection', () => {
     vi.mocked(getCurrentMarkdownSerializer).mockReturnValue(null);
   });
 
-  it('queues the normalized selection into the current side chat and hides the toolbar', () => {
+  it('queues the normalized selection into the floating chat and hides the toolbar', () => {
     vi.mocked(getSerializedSelectionText).mockReturnValue('Selected line 1\n\n\nSelected line 2');
     const view = createView();
 
     const opened = openSidebarDiscussionForSelection(view);
 
     expect(opened).toBe(true);
-    expect(useUIStore.getState().notesChatPanelCollapsed).toBe(false);
+    expect(useUIStore.getState().notesChatPanelCollapsed).toBe(true);
+    expect(useUIStore.getState().notesChatFloatingOpen).toBe(true);
     expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('Selected line 1\n\nSelected line 2');
     expect(view.dispatch).toHaveBeenCalledTimes(1);
     expect(view.dispatch).toHaveBeenCalledWith(
@@ -92,16 +94,19 @@ describe('openSidebarDiscussionForSelection', () => {
     );
   });
 
-  it('creates a new session before queuing when the side chat is collapsed', () => {
+  it('opens the floating chat without creating a session when the current session is active', () => {
     useUIStore.setState({
       notesChatPanelCollapsed: true,
+      notesChatFloatingOpen: false,
       pendingNotesChatComposerInsert: null,
     });
     vi.mocked(getSerializedSelectionText).mockReturnValue('Selected line 1');
 
     openSidebarDiscussionForSelection(createView());
 
-    expect(createAIChatSession).toHaveBeenCalledWith('');
+    expect(createAIChatSession).not.toHaveBeenCalled();
+    expect(useUIStore.getState().notesChatPanelCollapsed).toBe(true);
+    expect(useUIStore.getState().notesChatFloatingOpen).toBe(true);
     expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('Selected line 1');
   });
 
@@ -116,10 +121,12 @@ describe('openSidebarDiscussionForSelection', () => {
     openSidebarDiscussionForSelection(createView());
 
     expect(createAIChatSession).toHaveBeenCalledWith('');
+    expect(useUIStore.getState().notesChatPanelCollapsed).toBe(true);
+    expect(useUIStore.getState().notesChatFloatingOpen).toBe(true);
     expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('Selected line 1');
   });
 
-  it('queues serialized block selections into the side chat', () => {
+  it('queues serialized block selections into the floating chat', () => {
     const selectedBlocks = [{ from: 2, to: 8 }];
     const markdownSerializer = vi.fn();
     vi.mocked(getBlockSelectionPluginState).mockReturnValue({ selectedBlocks } as never);

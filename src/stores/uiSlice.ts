@@ -61,6 +61,8 @@ interface PendingNotesChatComposerInsert {
   text: string;
 }
 
+type NotesChatComposerInsertTarget = 'side-panel' | 'floating';
+
 const STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED = 'vlaina_notes_chat_panel_collapsed';
 const STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE = 'vlaina_notes_chat_floating_size';
 
@@ -132,7 +134,7 @@ interface UIStore {
   restoreNotesChatFloatingSize: (size: NotesChatFloatingSize) => void;
   resetNotesChatFloatingSize: () => void;
   pendingNotesChatComposerInsert: PendingNotesChatComposerInsert | null;
-  queueNotesChatComposerInsert: (text: string) => void;
+  queueNotesChatComposerInsert: (text: string, target?: NotesChatComposerInsertTarget) => void;
   consumePendingNotesChatComposerInsert: (id: number) => void;
 }
 
@@ -511,16 +513,17 @@ export const useUIStore = create<UIStore>()((set) => ({
     set({ notesChatFloatingSize: NOTES_CHAT_FLOATING_DEFAULT_SIZE });
   },
   pendingNotesChatComposerInsert: null,
-  queueNotesChatComposerInsert: (text) =>
+  queueNotesChatComposerInsert: (text, target = 'side-panel') =>
     {
-      saveString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, 'false');
+      const openFloating = target === 'floating';
+      saveString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, openFloating ? 'true' : 'false');
       set({
         pendingNotesChatComposerInsert: {
           id: Date.now(),
           text,
         },
-        notesChatPanelCollapsed: false,
-        notesChatFloatingOpen: false,
+        notesChatPanelCollapsed: openFloating,
+        notesChatFloatingOpen: openFloating,
       });
     },
   consumePendingNotesChatComposerInsert: (id) =>
