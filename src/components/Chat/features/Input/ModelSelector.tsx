@@ -78,7 +78,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     triggerText: 'text-[var(--vlaina-sidebar-chat-text-muted)]',
     triggerTextActive: 'text-[var(--vlaina-sidebar-chat-text)]',
     sectionLabel: 'text-[var(--vlaina-sidebar-chat-text-soft)]',
-    divider: 'border-[var(--vlaina-border)]',
+    divider: 'border-[var(--vlaina-color-model-selector-divider)]',
     inputText: 'text-[var(--vlaina-sidebar-chat-text)]',
     inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-chat-text-soft)]',
     settingsButton: 'text-[var(--vlaina-sidebar-chat-text)]',
@@ -92,7 +92,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     triggerText: 'text-[var(--vlaina-sidebar-notes-text-muted)]',
     triggerTextActive: 'text-[var(--vlaina-sidebar-notes-text)]',
     sectionLabel: 'text-[var(--vlaina-sidebar-notes-text-soft)]',
-    divider: 'border-[var(--vlaina-sidebar-notes-menu-border)]',
+    divider: 'border-[var(--vlaina-color-model-selector-divider)]',
     inputText: 'text-[var(--vlaina-sidebar-notes-text)]',
     inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-notes-text-soft)]',
     settingsButton: 'text-[var(--vlaina-sidebar-notes-text)]',
@@ -167,10 +167,10 @@ const ModelOption = memo(({
                 {model.priceTier && (
                     <span
                         className={cn(
-                            "ml-2 rounded-md border px-1 py-0.5 text-[var(--vlaina-font-8)] font-semibold leading-none tracking-[var(--vlaina-tracking-label-xs)]",
+                            "ml-2 inline-flex items-center rounded-md border px-1 py-[var(--vlaina-space-1px)] text-[7px] font-medium leading-none tracking-normal",
                             isSelected
-                              ? "border-[var(--vlaina-color-sidebar-focus-ring)] text-[var(--vlaina-sidebar-row-selected-text)]"
-                              : "border-[var(--vlaina-color-subtle-border-strong)] text-[var(--vlaina-sidebar-chat-text-soft)]"
+                              ? "border-[var(--vlaina-color-sidebar-focus-ring)] text-[var(--vlaina-sidebar-row-selected-text)] opacity-[var(--vlaina-opacity-80)]"
+                              : "border-[var(--vlaina-color-subtle-border)] text-[var(--vlaina-sidebar-chat-text-soft)] opacity-[var(--vlaina-opacity-60)]"
                         )}
                         title={`Price tier ${model.priceTier}`}
                     >

@@ -673,6 +673,7 @@
   --vlaina-color-favorite-fg-muted: rgb(245 158 11 / 0.7);
   --vlaina-color-subtle-border: rgb(0 0 0 / 0.05);
   --vlaina-color-subtle-border-strong: rgb(0 0 0 / 0.1);
+  --vlaina-color-model-selector-divider: var(--vlaina-color-subtle-border);
   --vlaina-color-muted-icon: #9ca3af;
   --vlaina-color-overlay-strong: rgb(0 0 0 / 0.6);
   --vlaina-color-overlay-weak: rgb(0 0 0 / 0.035);
@@ -1057,6 +1058,7 @@
   --vlaina-color-favorite-fg-muted: rgb(251 191 36 / 0.7);
   --vlaina-color-subtle-border: rgb(255 255 255 / 0.08);
   --vlaina-color-subtle-border-strong: rgb(255 255 255 / 0.14);
+  --vlaina-color-model-selector-divider: rgb(255 255 255 / 0.04);
   --vlaina-color-muted-icon: #8b8b93;
   --vlaina-color-overlay-strong: rgb(0 0 0 / 0.72);
   --vlaina-color-overlay-weak: rgb(255 255 255 / 0.045);
