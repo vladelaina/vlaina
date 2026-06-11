@@ -6,8 +6,13 @@
 
 @import '../../../../common/markdown/markdownSurface.css';
 @import './core.css';
+@import './table-block.css';
 @import './crepe-theme.css';
 @import './block-selection.css';
+@import './block-selection-list.css';
+@import './block-selection-rich.css';
+@import './block-selection-table.css';
+@import './block-selection-final.css';
 @import './selection-width.css';
 @import './markdown.css';
 @import './extended.css';
