@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   compactLargeDataImageMarkdown,
   resolveCompactedChatImageSrc,
+  scrubChatInlineDataImageSyntax,
 } from './chatInlineImageTokens';
 
 function createLargeDataImage(payload = 'a') {
@@ -292,6 +293,16 @@ describe('chatInlineImageTokens', () => {
     expect(result.markdown).toContain('[image]');
     expect(result.markdown).not.toContain('data&colon;image&sol;');
     expect(result.markdown).not.toContain('&semi;base64&comma;');
+  });
+
+  it('scrubs html data images hidden behind oversized attributes', () => {
+    const markdown = `<img alt="${'a'.repeat(70_000)}" src="data:image/png;base64,SECRET"> after`;
+
+    const result = scrubChatInlineDataImageSyntax(markdown);
+
+    expect(result).not.toContain('data:image/png;base64,SECRET');
+    expect(result).not.toContain('<img');
+    expect(result).toContain('[image]');
   });
 
   it('does not scrub overflow html images only because non-src attributes mention data images', () => {

@@ -2,9 +2,24 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCurrentVaultExternalPathSync } from './useCurrentVaultExternalPathSync';
 
+type WatchEvent = {
+  type: unknown;
+  paths: string[];
+};
+
 const hoisted = vi.hoisted(() => ({
   syncCurrentVaultExternalPath: vi.fn(),
-  watchDesktopPath: vi.fn(async () => vi.fn(async () => undefined)),
+  watchHandler: null as ((event: WatchEvent) => void | Promise<void>) | null,
+  watchPaths: {
+    normalizedVaultPath: '/home/user/vault',
+    normalizedParentPath: '/home/user',
+    watchParentPath: '/home/user',
+  },
+  renamePaths: null as { oldPath: string | null; newPath: string | null } | null,
+  watchDesktopPath: vi.fn(async (_path: string, handler: (event: WatchEvent) => void | Promise<void>) => {
+    hoisted.watchHandler = handler;
+    return vi.fn(async () => undefined);
+  }),
   releaseWatcher: vi.fn(),
 }));
 
@@ -32,25 +47,31 @@ vi.mock('@/stores/notes/document/externalChangeRegistry', () => ({
 }));
 
 vi.mock('./currentVaultExternalPathSyncUtils', () => ({
-  getVaultExternalWatchPaths: vi.fn(() => ({
-    normalizedVaultPath: '/home/user/vault',
-    normalizedParentPath: '/home/user',
-    watchParentPath: '/home/user',
-  })),
+  getVaultExternalWatchPaths: vi.fn(() => hoisted.watchPaths),
   isDirectChildPath: vi.fn(() => true),
   looksLikeVaultRoot: vi.fn(async () => true),
 }));
 
 vi.mock('./notesExternalSyncUtils', () => ({
-  getAbsoluteRenameWatchPaths: vi.fn(() => null),
-  isCreateWatchEvent: vi.fn(() => false),
-  isRemoveWatchEvent: vi.fn(() => false),
-  normalizeFsPath: (path: string) => path,
+  getAbsoluteRenameWatchPaths: vi.fn(() => hoisted.renamePaths),
+  getFsPathComparisonKey: (path: string) => (
+    /^[a-z]:\//i.test(path) || path.startsWith('//') ? path.toLowerCase() : path
+  ),
+  isCreateWatchEvent: (event: WatchEvent) => typeof event.type !== 'string' && 'create' in event.type,
+  isRemoveWatchEvent: (event: WatchEvent) => typeof event.type !== 'string' && 'remove' in event.type,
+  normalizeFsPath: (path: string) => path.replace(/\\/g, '/'),
 }));
 
 describe('useCurrentVaultExternalPathSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hoisted.watchHandler = null;
+    hoisted.watchPaths = {
+      normalizedVaultPath: '/home/user/vault',
+      normalizedParentPath: '/home/user',
+      watchParentPath: '/home/user',
+    };
+    hoisted.renamePaths = null;
   });
 
   it('watches the vault parent directory non-recursively', async () => {
@@ -65,5 +86,53 @@ describe('useCurrentVaultExternalPathSync', () => {
       expect.any(Function),
       { recursive: false }
     );
+  });
+
+  it('syncs a Windows vault rename when watcher paths differ only by case', async () => {
+    hoisted.watchPaths = {
+      normalizedVaultPath: 'C:/Users/Me/Vault',
+      normalizedParentPath: 'C:/Users/Me',
+      watchParentPath: 'C:/Users/Me',
+    };
+    hoisted.renamePaths = {
+      oldPath: 'c:/users/me/vault',
+      newPath: 'c:/users/me/vault-renamed',
+    };
+
+    renderHook(() => useCurrentVaultExternalPathSync('C:/Users/Me/Vault'));
+
+    await act(async () => {
+      await Promise.resolve();
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['c:/users/me/vault', 'c:/users/me/vault-renamed'],
+      });
+    });
+
+    expect(hoisted.syncCurrentVaultExternalPath).toHaveBeenCalledWith('c:/users/me/vault-renamed');
+  });
+
+  it('matches split Windows vault remove and create events case-insensitively', async () => {
+    hoisted.watchPaths = {
+      normalizedVaultPath: 'C:/Users/Me/Vault',
+      normalizedParentPath: 'C:/Users/Me',
+      watchParentPath: 'C:/Users/Me',
+    };
+
+    renderHook(() => useCurrentVaultExternalPathSync('C:/Users/Me/Vault'));
+
+    await act(async () => {
+      await Promise.resolve();
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'folder' } },
+        paths: ['c:/users/me/vault'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'folder' } },
+        paths: ['c:/users/me/vault-renamed'],
+      });
+    });
+
+    expect(hoisted.syncCurrentVaultExternalPath).toHaveBeenCalledWith('c:/users/me/vault-renamed');
   });
 });

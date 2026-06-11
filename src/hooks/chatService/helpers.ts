@@ -1070,7 +1070,10 @@ function isCurrentVaultImageAttachmentPath(path: string): boolean {
 }
 
 function joinAbsolutePathSync(basePath: string, relativePath: string): string | null {
-  const normalizedBase = normalizeAbsolutePath(basePath.trim()).replace(/[/\\]+$/g, '');
+  const normalizedBasePath = normalizeAbsolutePath(basePath.trim()).replace(/\\/g, '/');
+  const normalizedBase = normalizedBasePath === '/' || /^[A-Za-z]:\/$/i.test(normalizedBasePath)
+    ? normalizedBasePath
+    : normalizedBasePath.replace(/\/+$/g, '');
   const normalizedRelative = normalizeVaultRelativePath(relativePath);
   if (
     !normalizedBase ||
@@ -1083,7 +1086,9 @@ function joinAbsolutePathSync(basePath: string, relativePath: string): string | 
     return null;
   }
 
-  return `${normalizedBase}/${normalizedRelative}`;
+  return normalizedBase.endsWith('/')
+    ? `${normalizedBase}${normalizedRelative}`
+    : `${normalizedBase}/${normalizedRelative}`;
 }
 
 function isStarredFolderImageAttachmentPath(path: string): boolean {

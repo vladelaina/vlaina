@@ -109,7 +109,8 @@ function remapStarredEntriesForAbsoluteRename(
 function isStarredAbsolutePathWithin(path: string, basePath: string): boolean {
   const pathKey = getStarredVaultPathComparisonKey(path);
   const baseKey = getStarredVaultPathComparisonKey(basePath);
-  return pathKey === baseKey || pathKey.startsWith(`${baseKey}/`);
+  const childPrefix = baseKey.endsWith('/') ? baseKey : `${baseKey}/`;
+  return pathKey === baseKey || pathKey.startsWith(childPrefix);
 }
 
 function remapStarredAbsolutePathForRename(path: string, oldPath: string, newPath: string): string {
@@ -128,6 +129,19 @@ function remapStarredAbsolutePathForRename(path: string, oldPath: string, newPat
   return normalizedNewPath.endsWith('/') || suffix.startsWith('/')
     ? `${normalizedNewPath}${suffix}`
     : `${normalizedNewPath}/${suffix}`;
+}
+
+function hasPreservedStarredAbsolutePath(
+  preservedDeletedPaths: ReadonlySet<string>,
+  path: string,
+): boolean {
+  const pathKey = getStarredVaultPathComparisonKey(path);
+  for (const preservedPath of preservedDeletedPaths) {
+    if (getStarredVaultPathComparisonKey(preservedPath) === pathKey) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function pruneStarredEntriesForAbsoluteDeletion(
@@ -149,9 +163,7 @@ function pruneStarredEntriesForAbsoluteDeletion(
     }
 
     const normalizedAbsolutePath = normalizeStarredVaultPath(absolutePath);
-    if ([...preservedDeletedPaths].some((preservedPath) => (
-      getStarredVaultPathComparisonKey(preservedPath) === getStarredVaultPathComparisonKey(normalizedAbsolutePath)
-    ))) {
+    if (hasPreservedStarredAbsolutePath(preservedDeletedPaths, normalizedAbsolutePath)) {
       return true;
     }
 

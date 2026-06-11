@@ -29,6 +29,8 @@ describe('starred entry path helpers', () => {
       .toBe('/vault/docs/alpha.md');
     expect(getStarredEntryAbsolutePath(createEntry('b', 'note', '/', 'docs/alpha.md')))
       .toBe('/docs/alpha.md');
+    expect(getStarredEntryAbsolutePath(createEntry('c', 'note', 'C:/', 'docs/alpha.md')))
+      .toBe('C:/docs/alpha.md');
   });
 
   it('preserves UNC roots when resolving entry absolute paths', () => {

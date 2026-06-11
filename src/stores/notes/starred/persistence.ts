@@ -13,9 +13,9 @@ import {
   type StarredRegistry,
 } from './registry';
 import {
+  getStarredVaultPathComparisonKey,
   isValidStarredVaultPath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
 } from './pathUtils';
 
 const MAX_STARRED_ENTRIES = 5000;
@@ -69,7 +69,7 @@ function normalizeDeletedEntryKey(value: unknown): string | null {
     return null;
   }
 
-  return `${kind}::${normalizeStarredVaultPath(vaultPath)}::${normalizedRelativePath}`;
+  return `${kind}::${getStarredVaultPathComparisonKey(vaultPath)}::${normalizedRelativePath}`;
 }
 
 function normalizeDeletedEntryKeys(value: unknown): string[] {

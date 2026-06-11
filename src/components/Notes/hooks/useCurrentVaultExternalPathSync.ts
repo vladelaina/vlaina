@@ -25,12 +25,20 @@ import {
 } from './externalWatchErrorUtils';
 import {
   getAbsoluteRenameWatchPaths,
+  getFsPathComparisonKey,
   isCreateWatchEvent,
   isRemoveWatchEvent,
   normalizeFsPath,
 } from './notesExternalSyncUtils';
 
 const ROOT_PENDING_RENAME_TTL_MS = 500;
+
+function isSameFsPath(path: string | null | undefined, otherPath: string | null | undefined) {
+  if (!path || !otherPath) {
+    return false;
+  }
+  return getFsPathComparisonKey(path) === getFsPathComparisonKey(otherPath);
+}
 
 export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
   const isPaused = useSyncExternalStore(
@@ -78,12 +86,12 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
     };
 
     const queueVaultRename = (oldPath: string) => {
-      if (oldPath !== normalizedVaultPath) {
+      if (!isSameFsPath(oldPath, normalizedVaultPath)) {
         return;
       }
       pendingRenamesRef.current = queuePendingRename(
         pendingRenamesRef.current,
-        oldPath,
+        normalizedVaultPath,
         Date.now(),
         ROOT_PENDING_RENAME_TTL_MS
       );
@@ -138,14 +146,14 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
               const oldPath = renamePaths.oldPath ? normalizeFsPath(renamePaths.oldPath) : null;
               const newPath = renamePaths.newPath ? normalizeFsPath(renamePaths.newPath) : null;
 
-              if (oldPath === normalizedVaultPath && newPath) {
+              if (isSameFsPath(oldPath, normalizedVaultPath) && newPath) {
                 if (await applyMatchedVaultRename(newPath)) {
                   return;
                 }
                 return;
               }
 
-              if (oldPath === normalizedVaultPath) {
+              if (isSameFsPath(oldPath, normalizedVaultPath)) {
                 queueVaultRename(oldPath);
                 return;
               }
@@ -157,7 +165,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
                 pendingRenamesRef.current = queue;
                 schedulePendingRenameFlush();
 
-                if (matchedOldPath === normalizedVaultPath) {
+                if (isSameFsPath(matchedOldPath, normalizedVaultPath)) {
                   if (await applyMatchedVaultRename(newPath)) {
                     return;
                   }
@@ -167,7 +175,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
               return;
             }
 
-            if (isRemoveWatchEvent(event) && unexpectedPaths.includes(normalizedVaultPath)) {
+            if (isRemoveWatchEvent(event) && unexpectedPaths.some((path) => isSameFsPath(path, normalizedVaultPath))) {
               queueVaultRename(normalizedVaultPath);
               return;
             }
@@ -182,7 +190,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
             pendingRenamesRef.current = queue;
             schedulePendingRenameFlush();
 
-            if (matchedOldPath !== normalizedVaultPath) {
+            if (!isSameFsPath(matchedOldPath, normalizedVaultPath)) {
               return;
             }
             for (const candidatePath of unexpectedPaths) {

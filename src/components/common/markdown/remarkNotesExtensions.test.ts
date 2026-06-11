@@ -123,6 +123,25 @@ describe('remarkNotesInlineExtensions', () => {
     expect(tree.children?.[0].children).toEqual(children);
   });
 
+  it('keeps oversized simple inline html marks as html', () => {
+    const children: MdastNode[] = [
+      { type: 'html', value: `<mark>${'a'.repeat(9000)}</mark>` },
+    ];
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [...children],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree);
+
+    expect(tree.children?.[0].children).toEqual(children);
+  });
+
   it('keeps source positions for later inline transforms after splitting text nodes', () => {
     const markdown = '==mark==\\^literal^ ++under++ ~sub~';
     const tree: MdastNode = {

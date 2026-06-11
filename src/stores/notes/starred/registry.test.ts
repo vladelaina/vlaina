@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createStarredEntry,
   createStarredEntryIfValid,
+  dedupeStarredEntries,
   normalizeStarredEntry,
   remapStarredEntriesForVault,
 } from './registry';
@@ -74,6 +75,33 @@ describe('starred registry helpers', () => {
         addedAt: 1,
       }],
     });
+  });
+
+  it('deduplicates Windows vault paths case-insensitively', () => {
+    expect(dedupeStarredEntries([
+      {
+        id: 'upper',
+        kind: 'note',
+        vaultPath: 'C:/Users/Me/Vault',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+      {
+        id: 'lower',
+        kind: 'note',
+        vaultPath: 'c:/users/me/vault',
+        relativePath: 'docs/alpha.md',
+        addedAt: 2,
+      },
+    ])).toEqual([
+      {
+        id: 'upper',
+        kind: 'note',
+        vaultPath: 'C:/Users/Me/Vault',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ]);
   });
 
   it('rejects starred entries inside hidden app and git directories', () => {

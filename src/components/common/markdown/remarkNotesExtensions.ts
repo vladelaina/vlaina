@@ -46,6 +46,7 @@ export interface RemarkNotesInlineExtensionsOptions {
 
 const MAX_CALLOUT_ICON_VALUE_CHARS = 2048;
 const MAX_CALLOUT_ICON_MARKER_CHARS = 4096;
+const MAX_SIMPLE_INLINE_HTML_MARK_CHARS = 8192;
 export const MAX_INLINE_HTML_CONTAINER_CHILDREN = 1024;
 const CALLOUT_ICON_TEXT_PREFIX = '[!callout-icon:';
 const CALLOUT_ICON_TEXT_SUFFIX = ']';
@@ -392,7 +393,11 @@ function replaceInlineHtmlMark(
     for (let index = 0; index < node.children.length; index += 1) {
       const child = node.children[index];
       if (child.type === 'html' && typeof child.value === 'string') {
-        const match = child.value.trim().match(pattern);
+        const value = child.value.trim();
+        if (value.length > MAX_SIMPLE_INLINE_HTML_MARK_CHARS) {
+          continue;
+        }
+        const match = value.match(pattern);
         if (match && !containsRawHtmlTag(match[1])) {
           const nextNode = createInlineElementNode(type, [
             { type: 'text', value: decodeMarkdownHtmlText(match[1]) },

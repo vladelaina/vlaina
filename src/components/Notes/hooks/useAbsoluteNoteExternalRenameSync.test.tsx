@@ -37,7 +37,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     const index = normalized.lastIndexOf('/');
     return index > 0 ? normalized.slice(0, index) : null;
   },
-  isAbsolutePath: (path: string) => path.startsWith('/'),
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({
@@ -113,6 +113,22 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: ['/external/docs/current.md', '/external/docs/current.png'],
+      });
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+
+    hook.unmount();
+  });
+
+  it('syncs a Windows absolute note renamed to a non-Markdown path with case-varied events', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('C:/Users/Me/Vault/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['c:/users/me/vault/current.md', 'c:/users/me/vault/current.png'],
       });
     });
 
@@ -200,6 +216,25 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
     expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith(
       '/external/docs',
       '/external/archive',
+    );
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('keeps Windows absolute note folder rename sync with case-varied events', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('C:/Users/Me/Vault/docs/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['c:/users/me/vault/docs', 'c:/users/me/vault/archive'],
+      });
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+      'c:/users/me/vault/docs',
+      'c:/users/me/vault/archive',
     );
     expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
 

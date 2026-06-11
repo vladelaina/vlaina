@@ -36,6 +36,25 @@ describe('notes starred storage helpers', () => {
     });
   });
 
+  it('matches Windows current vault starred paths case-insensitively', () => {
+    const entries: StarredEntry[] = [
+      createEntry('1', 'note', 'C:/Users/Me/Vault', 'alpha.md'),
+      createEntry('2', 'folder', 'C:/Users/Me/Vault', 'docs'),
+    ];
+
+    expect(getVaultStarredPaths(entries, 'c:\\users\\me\\vault')).toEqual({
+      notes: ['alpha.md'],
+      folders: ['docs'],
+    });
+
+    const result = remapStarredEntriesForVault(entries, 'c:\\users\\me\\vault', (relativePath) =>
+      relativePath === 'alpha.md' ? 'beta.md' : relativePath
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.entries[0]?.relativePath).toBe('beta.md');
+  });
+
   it('remaps and deduplicates starred entries for one vault only', () => {
     const entries: StarredEntry[] = [
       createEntry('1', 'note', 'C:/vault-a', 'docs/alpha.md'),

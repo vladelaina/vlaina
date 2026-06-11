@@ -16,6 +16,7 @@ const MAX_COMPACTED_INLINE_IMAGES = 1000;
 const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
 const MAX_EXISTING_INLINE_IMAGE_TOKENS = 2000;
 const MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS = 16 * 1024 * 1024;
+const MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS = 64 * 1024;
 const MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES = 4000;
 const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 
@@ -169,21 +170,19 @@ function scrubOverflowHtmlInlineDataImagesInRange(markdown: string, range: Conte
       continue;
     }
 
-    const tagEnd = findHtmlTagEnd(markdown, start, range.end);
+    const tagEnd = findHtmlTagEnd(
+      markdown,
+      start,
+      Math.min(range.end, start + MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS + 1),
+    );
     const tagIsOverflow =
-      tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS;
+      tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS;
     if (tagIsOverflow) {
-      const scanEnd = Math.min(range.end, start + MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS);
-      if (htmlImageTagHasDataImageSrc(markdown.slice(start, scanEnd))) {
-        output += markdown.slice(cursor, start);
-        output += '[image]';
-        cursor = tagEnd !== -1 && tagEnd <= range.end
-          ? tagEnd
-          : getOverflowHtmlImageScrubEnd(markdown, start, range.end);
-        continue;
-      }
-      output += markdown.slice(cursor, start + 4);
-      cursor = start + 4;
+      output += markdown.slice(cursor, start);
+      output += '[image]';
+      cursor = tagEnd !== -1 && tagEnd <= range.end
+        ? tagEnd
+        : getOverflowHtmlImageScrubEnd(markdown, start, range.end);
       continue;
     }
 

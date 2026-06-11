@@ -34,24 +34,48 @@ vi.mock('../pendingEditorMarkdownFlusher', () => ({
   flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
 
-vi.mock('@/lib/storage/adapter', () => ({
-  getBaseName: (path: string) => path.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? '',
-  getParentPath: (path: string) => {
-    const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
-    const index = normalized.lastIndexOf('/');
-    return index > 0 ? normalized.slice(0, index) : null;
-  },
-  getStorageAdapter: () => ({
-    exists: vi.fn(),
-    stat: vi.fn(),
-    readFile: vi.fn(),
-  }),
-  isAbsolutePath: (path: string) => path.startsWith('/'),
-  joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
-  normalizeAbsolutePath: (path: string) => {
-    if (!path.startsWith('/')) return path;
+vi.mock('@/lib/storage/adapter', () => {
+  function getUncRoot(normalizedPath: string): string | null {
+    if (!normalizedPath.startsWith('//') || normalizedPath.startsWith('///')) {
+      return null;
+    }
+
+    const serverEnd = normalizedPath.indexOf('/', 2);
+    if (serverEnd === -1) {
+      return null;
+    }
+
+    const shareStart = serverEnd + 1;
+    const shareEnd = normalizedPath.indexOf('/', shareStart);
+    const share = shareEnd === -1
+      ? normalizedPath.slice(shareStart)
+      : normalizedPath.slice(shareStart, shareEnd);
+
+    if (!share) {
+      return null;
+    }
+
+    return shareEnd === -1 ? normalizedPath : normalizedPath.slice(0, shareEnd);
+  }
+
+  function appendPathParts(root: string, parts: string[]): string {
+    if (parts.length === 0) {
+      return root;
+    }
+
+    return `${root}${root.endsWith('/') ? '' : '/'}${parts.join('/')}`;
+  }
+
+  function normalizeAbsolutePath(path: string): string {
+    const normalized = path.replace(/\\/g, '/');
+    const uncRoot = getUncRoot(normalized);
+    const driveMatch = normalized.match(/^([A-Za-z]:)(?:\/|$)/);
+    const root = uncRoot ?? (driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '');
+    if (!root) return path;
+
     const parts: string[] = [];
-    for (const part of path.split('/')) {
+    const rest = normalized.slice(root.length).replace(/^\/+/, '');
+    for (const part of rest.split('/')) {
       if (!part || part === '.') continue;
       if (part === '..') {
         parts.pop();
@@ -59,9 +83,51 @@ vi.mock('@/lib/storage/adapter', () => ({
       }
       parts.push(part);
     }
-    return `/${parts.join('/')}`;
-  },
-}));
+
+    return appendPathParts(root, parts);
+  }
+
+  return {
+    getBaseName: (path: string) => path.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? '',
+    getParentPath: (path: string) => {
+      const normalized = normalizeAbsolutePath(path).replace(/\/+$/, '');
+      if (!normalized || normalized === '/') {
+        return null;
+      }
+
+      const uncRoot = getUncRoot(normalized);
+      if (uncRoot && normalized === uncRoot) {
+        return null;
+      }
+
+      const index = normalized.lastIndexOf('/');
+      if (index === -1) {
+        return null;
+      }
+
+      const parent = normalized.slice(0, index);
+      if (!parent) {
+        return '/';
+      }
+      if (/^[A-Za-z]:$/.test(parent)) {
+        return `${parent}/`;
+      }
+      return parent;
+    },
+    getStorageAdapter: () => ({
+      exists: vi.fn(),
+      stat: vi.fn(),
+      readFile: vi.fn(),
+    }),
+    isAbsolutePath: (path: string) => (
+      path.startsWith('/') ||
+      /^[A-Za-z]:[\\/]/.test(path) ||
+      /^\\\\[^\\]+\\[^\\]+/.test(path)
+    ),
+    joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+    normalizeAbsolutePath,
+  };
+});
 
 function createFile(path: string, name: string): NoteFile {
   return {
@@ -339,5 +405,28 @@ describe('workspace external actions internal paths', () => {
     expect(store.getState().recentNotes).toEqual(['.notes/beta.md']);
     expect(store.getState().noteContentsCache.has('.notes/beta.md')).toBe(true);
     expect(store.getState().noteContentsCache.has('.notes/alpha.md')).toBe(false);
+  });
+
+  it('remaps absolute starred entries under Windows drive roots', async () => {
+    const store = createNotesStore({
+      starredEntries: [{
+        id: 'drive-root-note',
+        kind: 'note',
+        vaultPath: 'C:/',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      }],
+    });
+
+    await store.getState().applyExternalPathRename('c:/', 'D:/');
+
+    expect(store.getState().starredEntries).toEqual([{
+      id: 'drive-root-note',
+      kind: 'note',
+      vaultPath: 'D:/docs',
+      relativePath: 'alpha.md',
+      addedAt: 1,
+    }]);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
   });
 });

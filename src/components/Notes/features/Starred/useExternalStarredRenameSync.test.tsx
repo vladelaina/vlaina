@@ -44,7 +44,26 @@ vi.mock('@/lib/storage/adapter', () => ({
     const index = normalized.lastIndexOf('/');
     return index > 0 ? normalized.slice(0, index) : null;
   },
-  isAbsolutePath: (path: string) => path.startsWith('/'),
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const driveMatch = normalized.match(/^([A-Za-z]:)(?:\/|$)/);
+    const root = driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '';
+    if (!root) return path;
+
+    const parts: string[] = [];
+    for (const part of normalized.slice(root.length).split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+
+    const nextPath = `${root}${parts.join('/')}`;
+    return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
+  },
   normalizePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/'),
 }));
 
@@ -102,6 +121,23 @@ describe('useExternalStarredRenameSync', () => {
         id: 'starred-current',
         kind: 'note',
         vaultPath: '/vault-a',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    expect(mocked.watchDesktopPath).not.toHaveBeenCalled();
+  });
+
+  it('does not duplicate the current vault watcher for Windows case variants', () => {
+    mocked.vaultState.currentVault = { path: 'c:\\users\\me\\vault' };
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-current-windows',
+        kind: 'note',
+        vaultPath: 'C:/Users/Me/Vault',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       },
