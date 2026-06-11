@@ -10,15 +10,24 @@ import {
 
 let tempRoot;
 
-function createApp({ isPackaged, userDataPath }) {
+function createApp({
+  isPackaged,
+  userDataPath,
+  appDataPath = path.join(path.dirname(userDataPath), 'app-data'),
+  name = 'vlaina',
+}) {
   return {
     isPackaged,
     getPath: vi.fn((name) => {
-      if (name !== 'userData') {
-        throw new Error(`Unexpected path request: ${name}`);
+      if (name === 'userData') {
+        return userDataPath;
       }
-      return userDataPath;
+      if (name === 'appData') {
+        return appDataPath;
+      }
+      throw new Error(`Unexpected path request: ${name}`);
     }),
+    getName: vi.fn(() => name),
     setPath: vi.fn(),
   };
 }
@@ -37,7 +46,7 @@ describe('Electron userData path safety', () => {
     await rm(tempRoot, { recursive: true, force: true });
   });
 
-  it('never changes packaged app userData, even when a dev override env var is present', () => {
+  it('does not apply development userData overrides to a safe packaged app userData path', () => {
     const packagedUserData = path.join(tempRoot, 'packaged-user-data');
     const overrideUserData = path.join(tempRoot, 'override-user-data');
     const app = createApp({ isPackaged: true, userDataPath: packagedUserData });
@@ -55,6 +64,95 @@ describe('Electron userData path safety', () => {
     });
     expect(app.setPath).not.toHaveBeenCalled();
     expect(fs.existsSync(overrideUserData)).toBe(false);
+  });
+
+  it('moves packaged userData away from the Windows install directory without migrating misplaced config', async () => {
+    const installDir = path.join(tempRoot, 'AppData', 'Local', 'Programs', 'vlaina');
+    const packagedUserData = installDir;
+    const roamingAppData = path.join(tempRoot, 'AppData', 'Roaming');
+    const expectedUserData = path.join(roamingAppData, 'vlaina');
+    const app = createApp({
+      isPackaged: true,
+      userDataPath: packagedUserData,
+      appDataPath: roamingAppData,
+    });
+
+    await writeJson(path.join(packagedUserData, '.vlaina', 'store', 'data.json'), {
+      version: 1,
+      data: { settings: { language: 'zh-CN' } },
+    });
+    await writeFile(path.join(packagedUserData, 'Preferences'), '{"theme":"dark"}\n', 'utf8');
+    await fs.promises.mkdir(path.join(packagedUserData, 'Local Storage', 'leveldb'), { recursive: true });
+    await writeFile(
+      path.join(packagedUserData, 'Local Storage', 'leveldb', '000003.log'),
+      'local-storage-state\n',
+      'utf8'
+    );
+    await fs.promises.mkdir(path.join(packagedUserData, 'Cache'), { recursive: true });
+    await writeFile(path.join(packagedUserData, 'Cache', 'cache.bin'), 'cache\n', 'utf8');
+    await writeFile(path.join(packagedUserData, 'SingletonLock'), 'lock\n', 'utf8');
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: path.join(tempRoot, 'repo'),
+      runtime: {
+        execPath: path.join(installDir, 'vlaina.exe'),
+        resourcesPath: path.join(installDir, 'resources'),
+      },
+    });
+
+    expect(result).toEqual({
+      changed: true,
+      userDataPath: expectedUserData,
+      seeded: false,
+    });
+    expect(app.setPath).toHaveBeenCalledWith('userData', expectedUserData);
+    expect(fs.existsSync(expectedUserData)).toBe(true);
+    expect(fs.existsSync(path.join(expectedUserData, '.vlaina'))).toBe(false);
+    expect(fs.existsSync(path.join(expectedUserData, 'Preferences'))).toBe(false);
+    expect(fs.existsSync(path.join(expectedUserData, 'Local Storage'))).toBe(false);
+    expect(fs.existsSync(path.join(expectedUserData, 'Cache'))).toBe(false);
+    expect(fs.existsSync(path.join(expectedUserData, 'SingletonLock'))).toBe(false);
+    expect(fs.existsSync(path.join(packagedUserData, '.vlaina', 'store', 'data.json'))).toBe(true);
+    expect(fs.existsSync(path.join(packagedUserData, 'Preferences'))).toBe(true);
+    expect(fs.existsSync(path.join(packagedUserData, 'Local Storage', 'leveldb', '000003.log'))).toBe(true);
+  });
+
+  it('does not overwrite existing packaged AppData config while moving away from the install directory', async () => {
+    const installDir = path.join(tempRoot, 'AppData', 'Local', 'Programs', 'vlaina');
+    const roamingAppData = path.join(tempRoot, 'AppData', 'Roaming');
+    const expectedUserData = path.join(roamingAppData, 'vlaina');
+    const app = createApp({
+      isPackaged: true,
+      userDataPath: installDir,
+      appDataPath: roamingAppData,
+    });
+
+    await writeJson(path.join(installDir, '.vlaina', 'store', 'data.json'), {
+      data: { settings: { language: 'zh-CN' } },
+    });
+    await writeJson(path.join(expectedUserData, '.vlaina', 'store', 'data.json'), {
+      data: { settings: { language: 'en' } },
+    });
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: path.join(tempRoot, 'repo'),
+      runtime: {
+        execPath: path.join(installDir, 'vlaina.exe'),
+        resourcesPath: path.join(installDir, 'resources'),
+      },
+    });
+
+    expect(result).toEqual({
+      changed: true,
+      userDataPath: expectedUserData,
+      seeded: false,
+    });
+    await expect(readFile(path.join(expectedUserData, '.vlaina', 'store', 'data.json'), 'utf8'))
+      .resolves.toContain('en');
+    await expect(readFile(path.join(expectedUserData, '.vlaina', 'store', 'data.json'), 'utf8'))
+      .resolves.not.toContain('zh-CN');
   });
 
   it('links an isolated development profile to shared app data when both env paths are provided', async () => {
