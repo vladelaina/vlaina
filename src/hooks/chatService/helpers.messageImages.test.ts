@@ -23,7 +23,7 @@ describe('buildStoredUserMessageContent image parsing', () => {
   beforeEach(() => {
     mocks.convertToBase64.mockReset();
     mocks.convertToBase64.mockResolvedValue('data:image/png;base64,REMOTE');
-    useNotesStore.setState({ notesPath: '/vault' });
+    useNotesStore.setState({ notesPath: '/vault', starredEntries: [] });
   });
 
   it('keeps image markdown examples as text instead of vision attachments', async () => {
@@ -286,6 +286,46 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(options?.allowPath?.('/external/other/cover.png')).toBe(false);
     expect(options?.allowPath?.('/external/assets/.vlaina/cover.png')).toBe(false);
     expect(options?.allowPath?.('/outside/cover.png')).toBe(false);
+  });
+
+  it('allows starred external folder image paths rooted at filesystem roots', async () => {
+    useNotesStore.setState({
+      notesPath: '/vault',
+      starredEntries: [
+        {
+          id: 'root-assets',
+          kind: 'folder',
+          vaultPath: '/',
+          relativePath: 'assets',
+          addedAt: 1,
+        },
+        {
+          id: 'drive-assets',
+          kind: 'folder',
+          vaultPath: 'C:/',
+          relativePath: 'Assets',
+          addedAt: 2,
+        },
+      ],
+    });
+
+    await buildMessageImageSources([{
+      id: 'external-image',
+      path: '/assets/cover.png',
+      previewUrl: '',
+      assetUrl: '',
+      name: 'cover.png',
+      type: 'image/png',
+      size: 128,
+    }]);
+
+    const options = mocks.convertToBase64.mock.calls[0]?.[1] as
+      | { allowPath?: (path: string) => boolean }
+      | undefined;
+    expect(options?.allowPath?.('/assets/cover.png')).toBe(true);
+    expect(options?.allowPath?.('/other/cover.png')).toBe(false);
+    expect(options?.allowPath?.('C:/Assets/cover.png')).toBe(true);
+    expect(options?.allowPath?.('C:/Other/cover.png')).toBe(false);
   });
 
   it('rejects image attachment paths from unsafe starred external folder records', async () => {

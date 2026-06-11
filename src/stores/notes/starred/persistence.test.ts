@@ -132,7 +132,7 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([localEntry]);
-    expect(payload.deletedEntryKeys).toEqual(['note::C:/vault-a::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/vault-a::removed.md']);
   });
 
   it('normalizes deleted entry tombstones while merging disk state', async () => {
@@ -165,9 +165,9 @@ describe('starred persistence', () => {
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([localEntry]);
     expect(payload.deletedEntryKeys).toEqual([
-      'note::C:/vault-a::removed.md',
-      'note::C:/vault-a::disk.md',
-      'folder::C:/vault-a::assets',
+      'note::c:/vault-a::removed.md',
+      'note::c:/vault-a::disk.md',
+      'folder::c:/vault-a::assets',
     ]);
   });
 
@@ -190,7 +190,29 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([]);
-    expect(payload.deletedEntryKeys).toEqual(['note::C:/vault-a::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/vault-a::removed.md']);
+  });
+
+  it('matches Windows deleted entry tombstones case-insensitively', async () => {
+    const diskEntry = createEntry('disk', 'note', 'C:/Users/Me/Vault', 'removed.md');
+    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [diskEntry],
+      deletedEntryKeys: ['note::c:/users/me/vault::removed.md'],
+    }));
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const [, content] = adapter.writeFile.mock.calls[0];
+    const payload = JSON.parse(content);
+    expect(payload.entries).toEqual([]);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/users/me/vault::removed.md']);
   });
 
   it('bounds deleted entry tombstone scans while merging disk state', async () => {
@@ -241,7 +263,7 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([validEntry]);
-    expect(payload.deletedEntryKeys).toEqual(['note::C:/vault-a::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/vault-a::removed.md']);
   });
 
   it('prunes invalid entries during load', async () => {

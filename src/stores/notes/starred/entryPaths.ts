@@ -28,8 +28,8 @@ export function getStarredEntryAbsolutePath(entry: StarredEntry): string | null 
     return null;
   }
 
-  return vaultPath === '/'
-    ? `/${relativePath}`
+  return vaultPath.endsWith('/')
+    ? `${vaultPath}${relativePath}`
     : `${vaultPath}/${relativePath}`;
 }
 

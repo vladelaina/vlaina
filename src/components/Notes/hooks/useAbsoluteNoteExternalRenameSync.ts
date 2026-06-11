@@ -11,6 +11,7 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   getAbsoluteRenameWatchPaths,
+  getFsPathComparisonKey,
   hasUnsafeFsPathSegment,
   isMarkdownPath,
   isRemoveWatchEvent,
@@ -25,12 +26,16 @@ function isAbsoluteRenamePathInsideParent(parentPath: string, path: string) {
   return isAbsolutePath(path) && normalizeContainedAssetPath(path, parentPath) !== null;
 }
 
+function isSameFsPath(path: string, otherPath: string) {
+  return getFsPathComparisonKey(path) === getFsPathComparisonKey(otherPath);
+}
+
 function isAbsoluteRenamePathRelevant(watchedNotePath: string, oldPath: string, newPath: string) {
   if (!isAbsolutePath(oldPath) || !isAbsolutePath(newPath)) {
     return false;
   }
 
-  return oldPath === watchedNotePath || isPathWithin(watchedNotePath, oldPath);
+  return isSameFsPath(oldPath, watchedNotePath) || isPathWithin(watchedNotePath, oldPath);
 }
 
 function shouldAvoidNativeAbsoluteNoteWatch(parentPath: string) {
@@ -51,7 +56,9 @@ function shouldAvoidNativeAbsoluteNoteWatch(parentPath: string) {
 }
 
 function isPathWithin(path: string, basePath: string) {
-  return path === basePath || path.startsWith(`${basePath}/`);
+  const pathKey = getFsPathComparisonKey(path);
+  const basePathKey = getFsPathComparisonKey(basePath);
+  return pathKey === basePathKey || pathKey.startsWith(`${basePathKey}/`);
 }
 
 export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | undefined) {
@@ -109,8 +116,8 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
         return;
       }
 
-      const isCurrentFileRename = oldPath === watchedNotePath;
-      const isCurrentFolderRename = oldPath !== watchedNotePath && isPathWithin(watchedNotePath, oldPath);
+      const isCurrentFileRename = isSameFsPath(oldPath, watchedNotePath);
+      const isCurrentFolderRename = !isCurrentFileRename && isPathWithin(watchedNotePath, oldPath);
 
       if (isCurrentFileRename && !isMarkdownPath(newPath)) {
         await syncCurrentNoteFromDisk({ force: true });
@@ -150,7 +157,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
     };
 
     const isCurrentNoteWatchEvent = (paths: string[]) => (
-      paths.some((path) => normalizeFsPath(path) === watchedNotePath)
+      paths.some((path) => isSameFsPath(normalizeFsPath(path), watchedNotePath))
     );
 
     const syncCurrentAbsoluteNote = () => {

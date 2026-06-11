@@ -11,4 +11,14 @@ describe('messageClipboard overflow image scrubbing', () => {
     expect(copied).not.toContain('<img');
     expect(copied).toContain('[image] after');
   });
+
+  it('does not scan unbounded HTML image tags before scrubbing data image sources', () => {
+    const content = `<img alt="${'a'.repeat(70_000)}" src="data:image/png;base64,SECRET"> after`;
+
+    const copied = formatMessageCopyText(content);
+
+    expect(copied).not.toContain('data:image/png;base64,SECRET');
+    expect(copied).not.toContain('<img');
+    expect(copied).toContain('[image]');
+  });
 });
