@@ -63,6 +63,14 @@ export async function runStreamedAssistantMessage({
 
   let lastCommittedContent = '';
   let successContext: StreamedAssistantMessageSuccessContext | null = null;
+  let didClearSessionLoading = false;
+  const clearSessionLoadingIfCurrent = () => {
+    if (didClearSessionLoading || !isCurrentRequest()) {
+      return;
+    }
+    didClearSessionLoading = true;
+    setSessionLoading(sessionId, false);
+  };
   const streamScheduler = createChunkScheduler((nextContent) => {
     if (!isActiveRequest()) {
       return;
@@ -91,6 +99,7 @@ export async function runStreamedAssistantMessage({
       throw new DOMException('Aborted', 'AbortError');
     }
 
+    clearSessionLoadingIfCurrent();
     streamScheduler.flushNow();
     resolveAssistantContent(returnedContent, lastStreamedContent, (content) => {
       lastStreamedContent = content;
@@ -103,6 +112,7 @@ export async function runStreamedAssistantMessage({
       resolvedSessionId: resolveSessionIdAlias(sessionId),
     };
   } catch (error) {
+    clearSessionLoadingIfCurrent();
     streamScheduler.flushNow();
 
     if (isCancelledRequest()) {
@@ -123,9 +133,7 @@ export async function runStreamedAssistantMessage({
     }
   } finally {
     streamScheduler.cancel();
-    if (isCurrentRequest()) {
-      setSessionLoading(sessionId, false);
-    }
+    clearSessionLoadingIfCurrent();
     requestManager.finish(sessionId, controller);
   }
 

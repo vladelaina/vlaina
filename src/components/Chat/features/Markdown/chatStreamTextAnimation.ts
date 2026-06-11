@@ -27,6 +27,7 @@ const MAX_APPEND_WINDOW_MS = themeChatStreamTokens.maxAppendWindowMs;
 const APPEND_WINDOW_RATIO = themeChatStreamTokens.appendWindowRatio;
 const FALLBACK_CONTENT_WIDTH = themeChatStreamTokens.fallbackContentWidthPx;
 export const MAX_CHAT_STREAM_ANIMATION_CHARS = 20_000;
+export const MAX_UNREVEALED_CHAT_STREAM_CHARS = 120;
 
 export interface ChatStreamBlock {
   births: number[];
@@ -88,6 +89,21 @@ function createRevealedStreamBlock(content: string, key: string, renderNow: numb
     nowMs: renderNow,
     revealed: true,
   };
+}
+
+function capUnrevealedBirths(births: number[], renderNow: number): void {
+  let unrevealedCount = 0;
+  for (let index = births.length - 1; index >= 0; index -= 1) {
+    const birth = births[index] ?? renderNow;
+    if (renderNow - birth >= CHAT_STREAM_FADE_MS) {
+      continue;
+    }
+
+    unrevealedCount += 1;
+    if (unrevealedCount > MAX_UNREVEALED_CHAT_STREAM_CHARS) {
+      births[index] = renderNow - CHAT_STREAM_FADE_MS;
+    }
+  }
 }
 
 function scanStableMarkdownSplit(
@@ -297,6 +313,7 @@ export function useChatStreamBlocks(
       previousArrivalTimeRef.current = renderNow;
     }
 
+    capUnrevealedBirths(birthsRef.current, renderNow);
     const lastBirth = birthsRef.current.at(-1) ?? renderNow;
     const stableScan = scanStableMarkdownSplit(content, stableScanRef.current);
     stableScanRef.current = stableScan;

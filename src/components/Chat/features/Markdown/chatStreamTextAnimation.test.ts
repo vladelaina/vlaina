@@ -1,12 +1,18 @@
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildChatStreamSchedule,
   MAX_CHAT_STREAM_ANIMATION_CHARS,
+  MAX_UNREVEALED_CHAT_STREAM_CHARS,
   useChatStreamBlocks,
 } from './chatStreamTextAnimation';
+import { CHAT_STREAM_FADE_MS } from './chatStreamTextPlugin';
 
 describe('useChatStreamBlocks', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('does not count fenced code image syntax as stable gallery images', () => {
     const stable = [
       'Stable paragraph. '.repeat(14),
@@ -139,5 +145,21 @@ describe('useChatStreamBlocks', () => {
         revealed: true,
       }),
     ]);
+  });
+
+  it('caps unrevealed streaming characters so large appends do not reserve a long invisible tail', () => {
+    const nowSpy = vi.spyOn(performance, 'now');
+    nowSpy.mockReturnValue(1000);
+    const { rerender, result } = renderHook(
+      ({ content }) => useChatStreamBlocks(content, true),
+      { initialProps: { content: 'Visible start. ' } },
+    );
+
+    nowSpy.mockReturnValue(1016);
+    rerender({ content: `Visible start. ${'x'.repeat(MAX_UNREVEALED_CHAT_STREAM_CHARS * 2)}` });
+
+    const births = result.current.flatMap((block) => block.births);
+    const unrevealedBirths = births.filter((birth) => 1016 - birth < CHAT_STREAM_FADE_MS);
+    expect(unrevealedBirths).toHaveLength(MAX_UNREVEALED_CHAT_STREAM_CHARS);
   });
 });
