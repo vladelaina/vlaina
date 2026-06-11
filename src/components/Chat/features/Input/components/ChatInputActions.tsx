@@ -12,6 +12,7 @@ interface ChatInputActionsProps {
   isLoading: boolean;
   canSend: boolean;
   canSubmit: boolean;
+  showSendReadyState?: boolean;
   webSearchEnabled: boolean;
   onToggleWebSearch: () => void;
   onRequestComposerFocus: () => void;
@@ -26,6 +27,7 @@ export function ChatInputActions({
   isLoading,
   canSend,
   canSubmit,
+  showSendReadyState,
   webSearchEnabled,
   onToggleWebSearch,
   onRequestComposerFocus,
@@ -36,6 +38,7 @@ export function ChatInputActions({
   const { t } = useI18n();
   const [actionsOpen, setActionsOpen] = useState(false);
   const restoreComposerFocusOnCloseRef = useRef(false);
+  const shouldShowSendReadyState = showSendReadyState ?? canSend;
 
   useEffect(() => {
     if (disabled) {
@@ -193,7 +196,7 @@ export function ChatInputActions({
               'w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity,transform] duration-[var(--vlaina-duration-200)]',
               !disabled && canSubmit
                 ? 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent-hover)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]'
-                : canSend
+                : shouldShowSendReadyState
                   ? 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] opacity-[var(--vlaina-opacity-60)] shadow-[var(--vlaina-shadow-menu-hover)] cursor-default'
                   : 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] opacity-[var(--vlaina-opacity-45)] shadow-[var(--vlaina-shadow-menu-hover)] cursor-default'
             )}

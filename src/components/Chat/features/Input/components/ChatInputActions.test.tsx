@@ -51,4 +51,18 @@ describe('ChatInputActions', () => {
     expect(sendButton.className).toContain('shadow-[var(--vlaina-shadow-menu-hover)]');
     expect(sendButton.className).not.toContain('text-[var(--vlaina-color-text-soft)]');
   });
+
+  it('can keep send visually inactive even when the composer has sendable content', () => {
+    renderActions({
+      canSend: true,
+      canSubmit: false,
+      showSendReadyState: false,
+    });
+
+    const sendButton = screen.getByRole('button', { name: 'common.send' });
+
+    expect(sendButton).toBeDisabled();
+    expect(sendButton.className).toContain('opacity-[var(--vlaina-opacity-45)]');
+    expect(sendButton.className).not.toContain('opacity-[var(--vlaina-opacity-60)]');
+  });
 });

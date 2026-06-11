@@ -75,6 +75,8 @@ describe('ChatInput', () => {
 
     const banner = container.querySelector('[data-managed-quota-banner="true"]');
     expect(banner).not.toBeNull();
+    expect(container.querySelector('[data-chat-input="true"]')?.parentElement).toHaveClass('pb-[var(--vlaina-size-48px)]');
+    expect(banner).toHaveClass('min-h-[var(--vlaina-size-72px)]');
     expect(banner).toHaveClass('bg-[var(--vlaina-color-accent-soft)]');
     expect(banner).not.toHaveClass('border');
   });

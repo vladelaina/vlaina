@@ -52,6 +52,10 @@ interface RecalledChatInputDraft {
   noteMentions?: NoteMentionReference[];
 }
 
+const managedQuotaNoticeFrameClass = 'pb-[var(--vlaina-size-48px)]';
+const managedQuotaNoticeSurfaceClass =
+  'absolute inset-x-0 bottom-0 z-0 flex min-h-[var(--vlaina-size-72px)] flex-wrap items-end justify-center gap-x-1.5 gap-y-1 rounded-[var(--vlaina-radius-26px)] bg-[var(--vlaina-color-accent-soft)] px-6 pb-2.5 pt-[var(--vlaina-size-40px)] text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]';
+
 export const ChatInput = memo(function ChatInput({
   active = true,
   onSend,
@@ -514,11 +518,11 @@ export const ChatInput = memo(function ChatInput({
         onChange={handleHiddenFileInputChange}
       />
 
-      <div className={cn('relative z-[var(--vlaina-z-10)]', isQuotaSendBlocked && 'pb-8')}>
+      <div className={cn('relative z-[var(--vlaina-z-10)]', isQuotaSendBlocked && managedQuotaNoticeFrameClass)}>
         {isQuotaSendBlocked && (
           <div
             data-managed-quota-banner="true"
-            className="absolute inset-x-0 bottom-0 z-0 flex min-h-16 flex-wrap items-end justify-center gap-x-1.5 gap-y-1 rounded-[var(--vlaina-radius-26px)] bg-[var(--vlaina-color-accent-soft)] px-6 pb-2.5 pt-9 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]"
+            className={managedQuotaNoticeSurfaceClass}
           >
             <span>{t('chat.freeRepliesExhausted')}</span>
             <button
@@ -606,8 +610,9 @@ export const ChatInput = memo(function ChatInput({
               onTriggerFileSelect={handleTriggerFileSelect}
               onTriggerMentionSelect={handleTriggerMentionSelect}
               isLoading={isLoading}
-              canSend={isQuotaSendBlocked ? false : canSend}
+              canSend={canSend}
               canSubmit={canSubmit}
+              showSendReadyState={!isQuotaSendBlocked && canSend}
               webSearchEnabled={webSearchEnabled}
               onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
               onRequestComposerFocus={scheduleComposerFocus}
