@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StarredEntry } from '../types';
 
+const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
+
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   stat: vi.fn<
     (path: string) => Promise<{ isDirectory: boolean; isFile: boolean; size?: number } | null>
   >(),
@@ -441,7 +443,7 @@ describe('starred persistence', () => {
     const result = await persistence.loadStarredRegistry();
 
     expect(result.entries).toEqual([]);
-    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json');
+    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json', MAX_STARRED_REGISTRY_BYTES);
   });
 
   it('keeps entries when the target still exists but stat metadata is unavailable', async () => {

@@ -4,6 +4,9 @@ import { createFeatureSlice } from './featureSlice';
 import type { NotesStore } from '../types';
 import { createCachedNoteContentEntry } from '../document/noteContentCache';
 
+const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
+const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
+
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(),
   safeWriteTextFile: vi.fn(),
@@ -260,7 +263,7 @@ describe('featureSlice draft metadata', () => {
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too complex to open safely.');
     });
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_METADATA_UPDATE_NOTE_BYTES);
     expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
     expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
     expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
@@ -647,7 +650,7 @@ describe('featureSlice draft metadata', () => {
     await store.getState().scanAllNotes();
 
     expect(mocks.readFile).toHaveBeenCalledTimes(1);
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/beta.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/beta.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(alphaPath)).toEqual({
       content: '# Alpha cached',
       modifiedAt: 2,
@@ -689,7 +692,7 @@ describe('featureSlice draft metadata', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '# Alpha from disk',
       modifiedAt: 2,
@@ -818,7 +821,7 @@ describe('featureSlice draft metadata', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '',
       modifiedAt: 2,
@@ -853,7 +856,7 @@ describe('featureSlice draft metadata', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/deep.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/deep.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get('deep.md')?.content).toBe('# Deep');
   });
 

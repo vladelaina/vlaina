@@ -3,6 +3,8 @@ import { createStore } from 'zustand/vanilla';
 import { createFeatureSlice } from './featureSlice';
 import type { NotesStore } from '../types';
 
+const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
+
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(),
   safeWriteTextFile: vi.fn(),
@@ -143,8 +145,8 @@ describe('featureSlice internal note paths', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/.journal.md');
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/.journal.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/.vlaina/workspace.md');
     expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/docs/.git/config.md');
     expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/.VLAINA/workspace.md');

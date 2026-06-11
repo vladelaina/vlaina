@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS, NotesTagsSection } from './NotesTagsSection';
 
+const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
+
 const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
   stat: vi.fn(async (): Promise<{ isFile?: boolean; modifiedAt?: number; size?: number } | null> => null),
@@ -92,7 +94,7 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('topic'));
 
     await waitFor(() => {
-      expect(mocked.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+      expect(mocked.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
     });
     expect(mocked.noteIcon).not.toHaveBeenCalled();
     expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
