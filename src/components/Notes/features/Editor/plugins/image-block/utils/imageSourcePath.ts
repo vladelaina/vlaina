@@ -1,6 +1,9 @@
 import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
-import { hasInternalNoteAssetPathSegment } from '@/lib/assets/core/internalAssetPaths';
+import {
+    hasInternalNoteAssetPathSegment,
+    hasInternalNoteAssetUrlPathSegment,
+} from '@/lib/assets/core/internalAssetPaths';
 import {
     getNoteInternalImageAssetPath,
     normalizePublicRemoteMediaUrl,
@@ -85,7 +88,7 @@ function resolveCurrentNoteAssetRoot(
 }
 
 function addNonInternalCandidate(candidates: string[], candidate: string | null): void {
-    if (!candidate || hasInternalNoteAssetPathSegment(candidate) || candidates.includes(candidate)) {
+    if (!candidate || hasInternalNoteAssetUrlPathSegment(candidate) || candidates.includes(candidate)) {
         return;
     }
 
@@ -137,7 +140,7 @@ export async function resolveImageSourcePathCandidates(
     }
 
     const localSrc = getLocalImageSourcePath(safeBaseSrc);
-    if (!localSrc || deps.isAbsolutePath(localSrc) || hasInternalNoteAssetPathSegment(localSrc)) {
+    if (!localSrc || deps.isAbsolutePath(localSrc) || hasInternalNoteAssetUrlPathSegment(localSrc)) {
         return [];
     }
 
@@ -150,11 +153,11 @@ export async function resolveImageSourcePathCandidates(
                 await deps.joinPath(currentNoteDir, localSrc),
                 currentNoteAssetRoot,
             );
-            return candidate && !hasInternalNoteAssetPathSegment(candidate) ? [candidate] : [];
+            return candidate && !hasInternalNoteAssetUrlPathSegment(candidate) ? [candidate] : [];
         }
         if (!notesPath) return [];
         const candidate = normalizeContainedAssetPath(await deps.joinPath(notesPath, localSrc), notesPath);
-        return candidate && !hasInternalNoteAssetPathSegment(candidate) ? [candidate] : [];
+        return candidate && !hasInternalNoteAssetUrlPathSegment(candidate) ? [candidate] : [];
     }
 
     const candidates: string[] = [];

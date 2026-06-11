@@ -141,6 +141,19 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toContain('Tail [Image] after');
   });
 
+  it('does not leak overflow markdown asset image sources after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      'Tail ![secret](asset://localhost/chat-inline-image/1) after',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('asset://localhost/chat-inline-image/1');
+    expect(sanitized[0].content).not.toContain('![secret]');
+    expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
   it('keeps overflow markdown image examples inside history code spans', () => {
     const content = [
       ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
@@ -242,6 +255,19 @@ describe('requestContext', () => {
     const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
 
     expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).not.toContain('<img');
+    expect(sanitized[0].content).toContain('[Image]');
+  });
+
+  it('does not leak overflow HTML blob image sources after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
+      '<img src="blob:https://vlaina.local/secret" alt="secret">',
+    ].join('');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('blob:https://vlaina.local/secret');
     expect(sanitized[0].content).not.toContain('<img');
     expect(sanitized[0].content).toContain('[Image]');
   });

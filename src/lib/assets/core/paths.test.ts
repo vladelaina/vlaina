@@ -84,7 +84,19 @@ describe('asset path resolution', () => {
     await expect(resolveVaultAssetPathCandidates('/vault', '.vlaina/assets/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
+    await expect(resolveVaultAssetPathCandidates('/vault', '%2evlaina/assets/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
     await expect(resolveVaultAssetPathCandidates('/vault', 'docs/.git/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/%2egit/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/%252egit/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'docs%2f.git%2fa.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
     await expect(resolveVaultAssetPathCandidates('/vault', 'docs/.GIT/a.png', 'daily/note.md'))
@@ -93,10 +105,19 @@ describe('asset path resolution', () => {
     await expect(resolveVaultAssetPathCandidates('/vault', './.git/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
+    await expect(resolveVaultAssetPathCandidates('/vault', './docs/%2egit/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
     await expect(resolveVaultAssetPathCandidates('/vault', '.notes/assets/a.png', 'daily/note.md'))
       .resolves.toEqual([
         '/vault/daily/.notes/assets/a.png',
         '/vault/.notes/assets/a.png',
+      ]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', '%2enotes/assets/a.png', 'daily/note.md'))
+      .resolves.toEqual([
+        '/vault/daily/%2enotes/assets/a.png',
+        '/vault/%2enotes/assets/a.png',
       ]);
   });
 

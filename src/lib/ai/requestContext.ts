@@ -41,6 +41,8 @@ const HISTORY_IMAGE_SOURCE_PREFIXES = [
   'data:image/',
   'attachment://',
   'app-file://',
+  'asset://',
+  'blob:',
   'file://',
 ];
 const HISTORY_IMAGE_SOURCE_HINT_PATTERN = /\b(?:data|attachment|app-file|file)(?::|&|&#)/i;

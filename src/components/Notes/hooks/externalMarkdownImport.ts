@@ -1,5 +1,5 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { getBaseName, getParentPath, getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getBaseName, getParentPath, getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import type { StarredKind } from '@/stores/notes/types';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import {
@@ -118,6 +118,7 @@ function isAllowedExternalMarkdownPath(path: string) {
   return !(
     isBlankExternalMarkdownPath(path) ||
     hasExplicitExternalMarkdownNonPathScheme(path) ||
+    !isAbsolutePath(path) ||
     isInsideInternalExternalMarkdownPath(path) ||
     hasUnsafeExternalMarkdownPathSegment(path)
   );

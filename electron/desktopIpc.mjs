@@ -29,6 +29,8 @@ import {
 const { app, BrowserWindow, clipboard, dialog, nativeImage, shell } = electron;
 const activeAiProviderRequests = new Map();
 const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const AI_PROVIDER_HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
+const UNSAFE_AI_PROVIDER_URL_CHARS_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const AI_PROVIDER_TRANSPORT_RETRY_DELAYS_MS = [300];
 const AI_PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
@@ -578,9 +580,28 @@ function normalizeAiProviderUrl(rawUrl) {
     throw new Error('A non-empty AI provider URL is required.');
   }
 
-  const parsed = new URL(rawUrl.trim());
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error(`Unsupported AI provider URL protocol: ${parsed.protocol}`);
+  const trimmed = rawUrl.trim();
+  if (
+    !AI_PROVIDER_HTTP_AUTHORITY_URL_PATTERN.test(trimmed) ||
+    UNSAFE_AI_PROVIDER_URL_CHARS_PATTERN.test(trimmed) ||
+    trimmed.includes('\\')
+  ) {
+    throw new Error('AI provider request URL is not supported.');
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error('AI provider request URL is not supported.');
+  }
+
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new Error('AI provider request URL is not supported.');
   }
 
   return parsed.toString();
