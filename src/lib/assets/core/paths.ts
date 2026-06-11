@@ -1,6 +1,9 @@
 import { getParentPath, getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from './pathContainment';
-import { hasInternalNoteAssetPathSegment } from './internalAssetPaths';
+import {
+  hasInternalNoteAssetPathSegment,
+  hasInternalNoteAssetUrlPathSegment,
+} from './internalAssetPaths';
 
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
@@ -21,12 +24,12 @@ function isSafeRelativeAssetPath(assetPath: string): boolean {
     && !trimmed.startsWith('//')
     && !EXPLICIT_URL_SCHEME_PATTERN.test(trimmed)
     && !isAbsolutePath(trimmed)
-    && !hasInternalNoteAssetPathSegment(trimmed)
+    && !hasInternalNoteAssetUrlPathSegment(trimmed)
   );
 }
 
 function addNonInternalCandidate(candidates: string[], candidate: string | null): void {
-  if (!candidate || hasInternalNoteAssetPathSegment(candidate) || candidates.includes(candidate)) {
+  if (!candidate || hasInternalNoteAssetUrlPathSegment(candidate) || candidates.includes(candidate)) {
     return;
   }
 
@@ -98,7 +101,7 @@ export async function resolveVaultAssetPathCandidates(
       await joinPath(currentNoteDir ?? vaultPath, localAssetPath),
       currentNoteAssetRoot,
     );
-    return candidate && !hasInternalNoteAssetPathSegment(candidate) ? [candidate] : [];
+    return candidate && !hasInternalNoteAssetUrlPathSegment(candidate) ? [candidate] : [];
   }
 
   const candidates: string[] = [];

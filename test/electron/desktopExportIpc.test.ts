@@ -314,6 +314,36 @@ describe('desktop export ipc', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('rejects unsafe AI provider request URLs before fetch', async () => {
+    const { handlers } = registerHarness();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    const startRequest = handlers.get('desktop:ai-provider:request:start');
+
+    await expect(startRequest?.({ sender }, 'request-ambiguous-url', {
+      url: 'https:api.example.com/v1/chat/completions',
+      method: 'POST',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+
+    await expect(startRequest?.({ sender }, 'request-credential-url', {
+      url: 'https://user:pass@api.example.com/v1/chat/completions',
+      method: 'POST',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+
+    await expect(startRequest?.({ sender }, 'request-backslash-url', {
+      url: 'https://api.example.com\\@internal.test/v1/chat/completions',
+      method: 'POST',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+
+    await expect(startRequest?.({ sender }, 'request-bidi-url', {
+      url: 'https://api.example.com/\u202Ecod.exe',
+      method: 'POST',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('rejects unsafe AI provider request ids before opening stream channels', async () => {
     const { handlers } = registerHarness();
     const fetchMock = vi.fn();

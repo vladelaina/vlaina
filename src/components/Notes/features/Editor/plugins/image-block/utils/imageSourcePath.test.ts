@@ -128,7 +128,31 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
+            rawSrc: '%2evlaina/assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
             rawSrc: 'docs/.git/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'docs/%2egit/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'docs/%252egit/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'docs%2f.git%2fdemo.png',
             notesPath: '/vault',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
@@ -146,12 +170,27 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
+            rawSrc: './docs/%2egit/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
             rawSrc: '.notes/assets/demo.png',
             notesPath: '/vault',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([
             '/vault/daily/.notes/assets/demo.png',
             '/vault/.notes/assets/demo.png',
+        ]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: '%2enotes/assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([
+            '/vault/daily/%2enotes/assets/demo.png',
+            '/vault/%2enotes/assets/demo.png',
         ]);
     });
 
