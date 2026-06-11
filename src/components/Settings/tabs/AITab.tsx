@@ -23,7 +23,37 @@ interface PendingDeleteProvider {
 }
 
 function formatChannelBaseUrl(baseUrl: string) {
-  return baseUrl.replace(/^https?:\/\//i, '');
+  const trimmed = baseUrl.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const normalized = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+    return new URL(normalized).host.replace(/^www\./i, '');
+  } catch {
+    return trimmed.replace(/^https?:\/\//i, '').split(/[/?#]/)[0] || trimmed;
+  }
+}
+
+function getChannelBaseUrlTextClassName(label: string) {
+  const length = label.length;
+
+  if (length >= 32) {
+    return 'text-[var(--vlaina-font-8)] tracking-[var(--vlaina-tracking-tight-sm)]';
+  }
+
+  if (length >= 24) {
+    return 'text-[var(--vlaina-font-9)] tracking-[var(--vlaina-tracking-tight-sm)]';
+  }
+
+  if (length >= 18) {
+    return 'text-[var(--vlaina-font-10)]';
+  }
+
+  return 'text-[var(--vlaina-font-xs)]';
 }
 
 function ChannelObject({
@@ -50,6 +80,7 @@ function ChannelObject({
   onDelete?: () => void;
 }) {
   const { t } = useI18n();
+  const baseUrlLabel = baseUrl ? formatChannelBaseUrl(baseUrl) : t('settings.ai.notConfiguredYet');
 
   return (
     <div
@@ -93,10 +124,13 @@ function ChannelObject({
           </div>
         </div>
         <div className={cn(
-          "mt-1 line-clamp-1 pr-7 text-[var(--vlaina-font-xs)]",
+          "mt-1 line-clamp-1 pr-7",
+          getChannelBaseUrlTextClassName(baseUrlLabel),
           active ? "text-[var(--vlaina-sidebar-row-selected-text-soft)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
-        )}>
-          {baseUrl ? formatChannelBaseUrl(baseUrl) : t('settings.ai.notConfiguredYet')}
+        )}
+          title={baseUrl || undefined}
+        >
+          {baseUrlLabel}
         </div>
       </div>
 
@@ -104,8 +138,8 @@ function ChannelObject({
         "flex items-center justify-between px-5 pb-5 text-[var(--vlaina-font-11)] font-bold",
         active ? "text-[var(--vlaina-sidebar-row-selected-text-muted)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
       )}>
-        <span>{t('settings.ai.modelCount', { count: modelCount })}</span>
-        <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+        <span className="shrink-0 whitespace-nowrap leading-none">{t('settings.ai.modelCount', { count: modelCount })}</span>
+        <div className="flex h-7 shrink-0 items-center gap-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <button
             type="button"
             data-settings-ai-action="delete-channel"

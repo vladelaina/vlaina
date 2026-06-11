@@ -137,7 +137,7 @@ function ThemeDropdown({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex h-8 min-w-[var(--vlaina-size-132px)] items-center justify-between gap-3 rounded-full px-2.5 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
+          className="flex h-8 w-[var(--vlaina-size-132px)] max-w-full min-w-0 items-center justify-between gap-3 rounded-full px-2.5 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
         >
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate">{activeThemeName}</span>
@@ -200,19 +200,21 @@ function ThemeAppearanceControl({
 }: ThemeAppearanceControlProps) {
   return (
     <div className={cn(
-      "flex h-11 items-center rounded-[var(--vlaina-radius-22px)] p-1.5",
+      "flex h-11 min-w-0 max-w-full items-center rounded-[var(--vlaina-radius-22px)] p-1.5",
       chatComposerPillSurfaceClass,
     )}>
       <ColorModeToggle colorMode={colorMode} onChange={onColorModeChange} />
       <div className="mx-2 h-5 w-px bg-[var(--vlaina-divider)]" />
-      <ThemeDropdown
-        importedThemeId={importedThemeId}
-        importedThemes={importedThemes}
-        onChange={onThemeChange}
-        onRefresh={onThemeRefresh}
-        onWarmup={onThemeWarmup}
-        onThemePreload={onThemePreload}
-      />
+      <div className="min-w-0 flex-1">
+        <ThemeDropdown
+          importedThemeId={importedThemeId}
+          importedThemes={importedThemes}
+          onChange={onThemeChange}
+          onRefresh={onThemeRefresh}
+          onWarmup={onThemeWarmup}
+          onThemePreload={onThemePreload}
+        />
+      </div>
     </div>
   );
 }
@@ -459,22 +461,22 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
 
       <div
         className={cn(
-          "mb-3 flex items-center justify-between rounded-[var(--vlaina-radius-22px)] px-6 py-4",
+          "mb-3 flex flex-wrap items-center justify-between gap-y-3 rounded-[var(--vlaina-radius-22px)] px-6 py-4",
           isPreviewingFontSize
             ? "border border-transparent !bg-transparent !shadow-[var(--vlaina-shadow-none)] hover:!shadow-[var(--vlaina-shadow-none)]"
             : chatComposerPillSurfaceClass,
         )}
       >
         <div className={cn(
-          "flex-1 pr-8",
+          "min-w-[var(--vlaina-size-160px)] flex-1 pr-8",
           isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
         )}>
-          <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)] mb-0.5">
+          <div className="mb-0.5 whitespace-nowrap text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
             {t('settings.appearance.baseFontSize')}
           </div>
         </div>
         <div className={cn(
-          "flex flex-shrink-0 items-center gap-4",
+          "ml-auto flex flex-shrink-0 items-center gap-4",
         )}>
           {fontSizeSlider}
           <span className={cn(
@@ -504,9 +506,12 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       <SettingsItem
         data-settings-item="appearance-theme"
         title={t('settings.appearance.theme')}
-        className={cn(isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]")}
+        className={cn(
+          "flex-wrap gap-y-3",
+          isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]"
+        )}
       >
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           <ThemeAppearanceControl
             colorMode={colorMode}
             importedThemeId={importedThemeId}
