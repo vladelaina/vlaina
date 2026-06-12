@@ -255,7 +255,7 @@ describe('vaultStoreSupport persistence merging', () => {
     const state = await loadPersistedVaultState();
 
     expect(state.recentVaults).toEqual([]);
-    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json');
+    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json', 256 * 1024);
   });
 });
 

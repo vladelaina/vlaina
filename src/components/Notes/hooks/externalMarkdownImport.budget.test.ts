@@ -165,6 +165,34 @@ describe('importExternalMarkdownEntries budget', () => {
     );
   });
 
+  it('prioritizes top-level markdown drops beyond the priority scan cap', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: false,
+      isFile: true,
+      size: path.endsWith('.md') ? 1024 : undefined,
+    }));
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string) => {
+        const relativePath = folderPath ? `${folderPath}/${name}` : name;
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
+
+    const paths = [
+      ...Array.from({ length: 20_050 }, (_, index) => `/outside/image-${index}.png`),
+      '/outside/alpha.md',
+    ];
+    const result = await importExternalMarkdownEntries('/vault', 'imports', paths);
+
+    expect(result.importedNotePaths).toEqual(['imports/alpha.md']);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/outside/alpha.md');
+    expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
+  });
+
   it('prioritizes folder markdown entries before applying the scan cap', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/docs',
@@ -209,7 +237,7 @@ describe('importExternalMarkdownEntries budget', () => {
     expect(mocks.storage.deleteDir).not.toHaveBeenCalledWith('/vault/imports/docs', true);
   });
 
-  it('skips generated folder names case-insensitively before recursing', async () => {
+  it('keeps generated folder names low priority case-insensitively before recursing', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/project',
       isFile: path.endsWith('.md'),
@@ -252,12 +280,22 @@ describe('importExternalMarkdownEntries budget', () => {
     const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/project']);
 
     expect(result).toEqual({
-      importedNotePaths: ['imports/project/docs/alpha.md'],
-      importedFolderPaths: ['imports/project/docs', 'imports/project'],
+      importedNotePaths: [
+        'imports/project/docs/alpha.md',
+        'imports/project/Node_Modules/hidden.md',
+        'imports/project/Dist/hidden.md',
+      ],
+      importedFolderPaths: [
+        'imports/project/docs',
+        'imports/project/Node_Modules',
+        'imports/project/Dist',
+        'imports/project',
+      ],
       didImport: true,
     });
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/project/Node_Modules', { includeHidden: true });
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/project/Dist', { includeHidden: true });
-    expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/outside/project/docs', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/outside/project/Node_Modules', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/outside/project/Dist', { includeHidden: true });
+    expect(mocks.storage.copyFile).toHaveBeenCalledTimes(3);
   });
 });

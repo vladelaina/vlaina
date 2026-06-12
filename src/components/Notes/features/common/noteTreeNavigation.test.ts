@@ -59,6 +59,29 @@ describe('noteTreeNavigation', () => {
     ]);
   });
 
+  it('ignores unsafe and internal markdown paths', () => {
+    expect(collectNotePathsInTreeOrder([
+      file('../secret.md'),
+      file('/tmp/outside.md'),
+      file('.git/config.md'),
+      file('.vlaina/cache.md'),
+      file('./docs//safe.md'),
+    ])).toEqual([
+      'docs/safe.md',
+    ]);
+  });
+
+  it('does not spend the navigation scan budget on non-markdown siblings before markdown notes', () => {
+    expect(collectNotePathsInTreeOrder([
+      file('early.md'),
+      ...Array.from({ length: 19_999 }, (_value, index) => file(`asset-${index}.png`)),
+      file('late.md'),
+    ])).toEqual([
+      'early.md',
+      'late.md',
+    ]);
+  });
+
   it('collects note paths from deep trees without recursive traversal', () => {
     expect(collectNotePathsInTreeOrder(deepTree(2500))).toEqual(['folder-2500/leaf.md']);
   });

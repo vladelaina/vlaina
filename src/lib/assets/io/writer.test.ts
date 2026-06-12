@@ -82,7 +82,7 @@ describe('atomicWrite', () => {
       expect(mocks.storage.deleteFile).not.toHaveBeenCalled();
     });
 
-    it('bounds the number of temp directory entries scanned during cleanup', async () => {
+    it('does not spend the temp cleanup budget on regular files before temp files', async () => {
       mocks.storage.listDir.mockResolvedValue([
         ...Array.from({ length: MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES }, (_value, index) => ({
           name: `asset-${index}.png`,
@@ -98,9 +98,31 @@ describe('atomicWrite', () => {
         },
       ]);
 
-      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(0);
+      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(1);
 
-      expect(mocks.storage.deleteFile).not.toHaveBeenCalled();
+      expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/assets/late.tmp');
+    });
+
+    it('bounds the number of temp file candidates scanned during cleanup', async () => {
+      mocks.storage.listDir.mockResolvedValue([
+        ...Array.from({ length: MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES }, (_value, index) => ({
+          name: `asset-${index}.png.tmp`,
+          path: `/vault/assets/asset-${index}.png.tmp`,
+          isFile: true,
+          isDirectory: false,
+        })),
+        {
+          name: 'late.tmp',
+          path: '/vault/assets/late.tmp',
+          isFile: true,
+          isDirectory: false,
+        },
+      ]);
+
+      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES);
+
+      expect(mocks.storage.deleteFile).toHaveBeenCalledTimes(MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES);
+      expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith('/vault/assets/late.tmp');
     });
 
     describe('isTempFile', () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildFileTree } from './fileTreeUtils';
+import { buildFileTree, findNode } from './fileTreeUtils';
 import { loadNoteMetadata } from './storage';
 
 const adapter = {
@@ -79,6 +79,110 @@ describe('notes scan budgets', () => {
     ]);
   });
 
+  it('does not spend file tree entry budget on sibling folders before markdown notes', async () => {
+    adapter.listDir.mockResolvedValue([
+      ...Array.from({ length: 5000 }, (_, index) => ({
+        name: `folder-${String(index).padStart(4, '0')}`,
+        path: `/vault-folders/folder-${String(index).padStart(4, '0')}`,
+        isDirectory: true,
+        isFile: false,
+      })),
+      {
+        name: 'late.md',
+        path: '/vault-folders/late.md',
+        isDirectory: false,
+        isFile: true,
+      },
+    ]);
+
+    const tree = await buildFileTree('/vault-folders');
+
+    expect(findNode(tree, 'late.md')).toEqual({
+      id: 'late.md',
+      name: 'late',
+      path: 'late.md',
+      isFolder: false,
+    });
+  });
+
+  it('does not spend file tree directory scan budget on unsafe entries before markdown notes', async () => {
+    adapter.listDir.mockResolvedValue([
+      ...Array.from({ length: 10_000 }, (_, index) => ({
+        name: `../unsafe-${String(index).padStart(4, '0')}`,
+        path: `/vault-unsafe/../unsafe-${String(index).padStart(4, '0')}`,
+        isDirectory: true,
+        isFile: false,
+      })),
+      {
+        name: 'late.md',
+        path: '/vault-unsafe/late.md',
+        isDirectory: false,
+        isFile: true,
+      },
+    ]);
+
+    const tree = await buildFileTree('/vault-unsafe');
+
+    expect(findNode(tree, 'late.md')).toEqual({
+      id: 'late.md',
+      name: 'late',
+      path: 'late.md',
+      isFolder: false,
+    });
+  });
+
+  it('prioritizes regular folders before low-priority generated folders during recursive scans', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-recursive') {
+        return [
+          {
+            name: 'Dist',
+            path: '/vault-recursive/Dist',
+            isDirectory: true,
+            isFile: false,
+          },
+          {
+            name: 'docs',
+            path: '/vault-recursive/docs',
+            isDirectory: true,
+            isFile: false,
+          },
+        ];
+      }
+
+      if (path === '/vault-recursive/Dist') {
+        return Array.from({ length: 5000 }, (_, index) => ({
+          name: `generated-${String(index).padStart(4, '0')}.md`,
+          path: `/vault-recursive/Dist/generated-${String(index).padStart(4, '0')}.md`,
+          isDirectory: false,
+          isFile: true,
+        }));
+      }
+
+      if (path === '/vault-recursive/docs') {
+        return [
+          {
+            name: 'alpha.md',
+            path: '/vault-recursive/docs/alpha.md',
+            isDirectory: false,
+            isFile: true,
+          },
+        ];
+      }
+
+      return [];
+    });
+
+    const tree = await buildFileTree('/vault-recursive');
+
+    expect(findNode(tree, 'docs/alpha.md')).toEqual({
+      id: 'docs/alpha.md',
+      name: 'alpha',
+      path: 'docs/alpha.md',
+      isFolder: false,
+    });
+  });
+
   it('does not spend metadata scan budget on unsupported sibling files before markdown notes', async () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 6000 }, (_, index) => ({
@@ -136,6 +240,43 @@ describe('notes scan budgets', () => {
       notes: {
         'late.md': {
           updatedAt: Date.parse('2026-04-18T00:00:00.000Z'),
+        },
+      },
+    });
+  });
+
+  it('does not spend metadata entry budget on sibling folders before markdown notes', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-metadata-folders') {
+        return [
+          ...Array.from({ length: 5000 }, (_, index) => ({
+            name: `folder-${String(index).padStart(4, '0')}`,
+            isDirectory: true,
+            isFile: false,
+          })),
+          {
+            name: 'late.md',
+            isDirectory: false,
+            isFile: true,
+          },
+        ];
+      }
+
+      return [];
+    });
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-20T00:00:00.000Z"',
+      '---',
+      '',
+      '# Late',
+    ].join('\n'));
+
+    await expect(loadNoteMetadata('/vault-metadata-folders')).resolves.toEqual({
+      version: 2,
+      notes: {
+        'late.md': {
+          updatedAt: Date.parse('2026-04-20T00:00:00.000Z'),
         },
       },
     });

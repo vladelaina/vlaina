@@ -30,6 +30,7 @@ const activeAiProviderRequests = new Map();
 const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const AI_PROVIDER_HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 const UNSAFE_AI_PROVIDER_URL_CHARS_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const UNSAFE_DESKTOP_LIST_ENTRY_NAME_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const AI_PROVIDER_TRANSPORT_RETRY_DELAYS_MS = [300];
 const AI_PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
@@ -37,6 +38,14 @@ const MAX_DESKTOP_FS_READ_BYTES = 64 * 1024 * 1024;
 const MAX_DESKTOP_FS_WRITE_BYTES = MAX_DESKTOP_FS_READ_BYTES;
 const MAX_DESKTOP_FS_LIST_DIR_ENTRIES = 20_000;
 const DESKTOP_MARKDOWN_FILE_EXTENSION_PATTERN = /\.(?:md|markdown|mdown|mkd)$/i;
+const LOW_PRIORITY_DESKTOP_DIRECTORY_NAMES = new Set([
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  '__pycache__',
+]);
 const MAX_AI_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_AI_PROVIDER_REQUEST_BODY_BASE64_CHARS = Math.ceil(MAX_AI_PROVIDER_REQUEST_BODY_BYTES / 3) * 4;
 const MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES = 256 * 1024;
@@ -434,15 +443,27 @@ async function describeDesktopDirectoryEntry(parentPath, entry) {
 }
 
 function getDesktopDirectoryEntryListPriority(entry) {
+  const entryName = String(entry.name);
+  if (
+    !entryName ||
+    entryName === '.' ||
+    entryName === '..' ||
+    entryName.includes('/') ||
+    entryName.includes('\\') ||
+    UNSAFE_DESKTOP_LIST_ENTRY_NAME_PATTERN.test(entryName)
+  ) {
+    return 4;
+  }
+
   if (DESKTOP_MARKDOWN_FILE_EXTENSION_PATTERN.test(entry.name)) {
     return 0;
   }
 
-  if (entry.isDirectory?.()) {
-    return 0;
+  if (entry.isDirectory?.() || entry.isSymbolicLink?.()) {
+    return LOW_PRIORITY_DESKTOP_DIRECTORY_NAMES.has(entryName.toLowerCase()) ? 2 : 1;
   }
 
-  return 1;
+  return 3;
 }
 
 function prioritizeDesktopDirectoryEntriesForListing(entries) {
@@ -928,7 +949,10 @@ export function registerDesktopIpc({
       throw error;
     }
     const result = [];
-    for (const entry of prioritizeDesktopDirectoryEntriesForListing(entries)) {
+    const prioritizedEntries = entries.length > MAX_DESKTOP_FS_LIST_DIR_ENTRIES
+      ? prioritizeDesktopDirectoryEntriesForListing(entries)
+      : entries;
+    for (const entry of prioritizedEntries) {
       if (result.length >= MAX_DESKTOP_FS_LIST_DIR_ENTRIES) {
         break;
       }

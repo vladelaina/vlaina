@@ -57,15 +57,20 @@ export async function writeAssetAtomic(
 export async function cleanupTempFiles(assetsDir: string): Promise<number> {
   const storage = getStorageAdapter();
   let cleanedCount = 0;
-  
+  let scannedTempCandidates = 0;
+
   try {
-    const entries = (await storage.listDir(assetsDir)).slice(0, MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES);
-    
+    const entries = await storage.listDir(assetsDir);
+
     for (const entry of entries) {
       const tempPath = await normalizeTempDirectoryEntryPath(assetsDir, entry);
       if (!tempPath) {
         continue;
       }
+      if (scannedTempCandidates >= MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES) {
+        break;
+      }
+      scannedTempCandidates++;
 
       try {
         await storage.deleteFile(tempPath);

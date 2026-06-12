@@ -9,6 +9,25 @@ describe('WebAdapter', () => {
     adapter = new WebAdapter();
   });
 
+  function mockPrefixScans(
+    files: unknown[],
+    dirs: unknown[] = [],
+    truncated: { files?: boolean; dirs?: boolean } = {},
+  ) {
+    const adapterWithScans = adapter as unknown as {
+      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+    };
+    adapterWithScans.readStoredFilesByPrefix = async () => ({
+      entries: files,
+      truncated: truncated.files ?? false,
+    });
+    adapterWithScans.readStoredDirsByPrefix = async () => ({
+      entries: dirs,
+      truncated: truncated.dirs ?? false,
+    });
+  }
+
   it('copies binary files without decoding them as text', async () => {
     const bytes = new Uint8Array([0xff, 0x00, 0x80, 0x61]);
 
@@ -193,12 +212,8 @@ describe('WebAdapter', () => {
   });
 
   it('caps recursive listing results when prefix scans return many entries', async () => {
-    const adapterWithScans = adapter as unknown as {
-      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-    };
-    adapterWithScans.readStoredFilesByPrefix = async () => ({
-      entries: Array.from(
+    mockPrefixScans(
+      Array.from(
         { length: MAX_WEB_ADAPTER_LIST_ENTRIES + 1 },
         (_, index) => ({
           path: `/vault/docs/file-${index}.md`,
@@ -209,9 +224,7 @@ describe('WebAdapter', () => {
           createdAt: index,
         }),
       ),
-      truncated: false,
-    });
-    adapterWithScans.readStoredDirsByPrefix = async () => ({ entries: [], truncated: false });
+    );
 
     await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(
       MAX_WEB_ADAPTER_LIST_ENTRIES,
@@ -219,12 +232,8 @@ describe('WebAdapter', () => {
   });
 
   it('prioritizes markdown files and directories before applying the list cap', async () => {
-    const adapterWithScans = adapter as unknown as {
-      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-    };
-    adapterWithScans.readStoredFilesByPrefix = async () => ({
-      entries: [
+    mockPrefixScans(
+      [
         ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_, index) => ({
           path: `/vault/asset-${String(index).padStart(5, '0')}.png`,
           content: new Uint8Array([index % 255]),
@@ -242,17 +251,13 @@ describe('WebAdapter', () => {
           createdAt: 1,
         },
       ],
-      truncated: false,
-    });
-    adapterWithScans.readStoredDirsByPrefix = async () => ({
-      entries: [
+      [
         {
           path: '/vault/docs',
           createdAt: 1,
         },
       ],
-      truncated: false,
-    });
+    );
 
     const entries = await adapter.listDir('/vault', { includeHidden: true });
 
@@ -266,6 +271,115 @@ describe('WebAdapter', () => {
     expect(entries).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'asset-19999.png' }),
+      ]),
+    );
+  });
+
+  it('prioritizes markdown files before directories when applying the list cap', async () => {
+    mockPrefixScans(
+      [
+        {
+          path: '/vault/late.md',
+          content: 'late',
+          isBinary: false,
+          size: 4,
+          modifiedAt: 1,
+          createdAt: 1,
+        },
+      ],
+      Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_, index) => ({
+        path: `/vault/folder-${String(index).padStart(5, '0')}`,
+        createdAt: index,
+      })),
+    );
+
+    const entries = await adapter.listDir('/vault', { includeHidden: true });
+
+    expect(entries).toHaveLength(MAX_WEB_ADAPTER_LIST_ENTRIES);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'late.md', path: '/vault/late.md', isFile: true }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'folder-19999' }),
+      ]),
+    );
+  });
+
+  it('keeps generated-looking directories low priority when applying the list cap', async () => {
+    mockPrefixScans(
+      [
+        {
+          path: '/vault/late.md',
+          content: 'late',
+          isBinary: false,
+          size: 4,
+          modifiedAt: 1,
+          createdAt: 1,
+        },
+      ],
+      [
+        ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES - 1 }, (_, index) => ({
+          path: `/vault/folder-${String(index).padStart(5, '0')}`,
+          createdAt: index,
+        })),
+        {
+          path: '/vault/node_modules',
+          createdAt: 1,
+        },
+      ],
+    );
+
+    const entries = await adapter.listDir('/vault', { includeHidden: true });
+
+    expect(entries).toHaveLength(MAX_WEB_ADAPTER_LIST_ENTRIES);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'late.md', path: '/vault/late.md', isFile: true }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'node_modules' }),
+      ]),
+    );
+  });
+
+  it('keeps unsafe markdown-looking names low priority when applying the list cap', async () => {
+    mockPrefixScans(
+      [
+        ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_, index) => ({
+          path: `/vault/unsafe-${String(index).padStart(5, '0')}\u0001.md`,
+          content: 'unsafe',
+          isBinary: false,
+          size: 6,
+          modifiedAt: index,
+          createdAt: index,
+        })),
+        {
+          path: '/vault/late.md',
+          content: 'late',
+          isBinary: false,
+          size: 4,
+          modifiedAt: 1,
+          createdAt: 1,
+        },
+      ],
+    );
+
+    const entries = await adapter.listDir('/vault', { includeHidden: true });
+
+    expect(entries).toHaveLength(MAX_WEB_ADAPTER_LIST_ENTRIES);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'late.md', path: '/vault/late.md', isFile: true }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'unsafe-19999\u0001.md' }),
       ]),
     );
   });
@@ -334,12 +448,8 @@ describe('WebAdapter', () => {
 
   it('does not partially delete recursive directories when a prefix scan is capped', async () => {
     await adapter.writeFile('/vault/docs/a.md', 'hello', { recursive: true });
-    const adapterWithScans = adapter as unknown as {
-      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-    };
-    adapterWithScans.readStoredFilesByPrefix = async () => ({
-      entries: [
+    mockPrefixScans(
+      [
         {
           path: '/vault/docs/a.md',
           content: 'hello',
@@ -349,12 +459,9 @@ describe('WebAdapter', () => {
           createdAt: 1,
         },
       ],
-      truncated: true,
-    });
-    adapterWithScans.readStoredDirsByPrefix = async () => ({
-      entries: [{ path: '/vault/docs', createdAt: 1 }],
-      truncated: false,
-    });
+      [{ path: '/vault/docs', createdAt: 1 }],
+      { files: true },
+    );
 
     await expect(adapter.deleteDir('/vault/docs', true)).rejects.toThrow(
       'Directory is too large to delete safely.',
@@ -364,12 +471,8 @@ describe('WebAdapter', () => {
 
   it('does not partially move recursive directories when a prefix scan is capped', async () => {
     await adapter.writeFile('/vault/docs/a.md', 'hello', { recursive: true });
-    const adapterWithScans = adapter as unknown as {
-      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
-    };
-    adapterWithScans.readStoredFilesByPrefix = async () => ({
-      entries: [
+    mockPrefixScans(
+      [
         {
           path: '/vault/docs/a.md',
           content: 'hello',
@@ -379,12 +482,9 @@ describe('WebAdapter', () => {
           createdAt: 1,
         },
       ],
-      truncated: true,
-    });
-    adapterWithScans.readStoredDirsByPrefix = async () => ({
-      entries: [{ path: '/vault/docs', createdAt: 1 }],
-      truncated: false,
-    });
+      [{ path: '/vault/docs', createdAt: 1 }],
+      { files: true },
+    );
 
     await expect(adapter.rename('/vault/docs', '/vault/archive')).rejects.toThrow(
       'Directory is too large to move safely.',

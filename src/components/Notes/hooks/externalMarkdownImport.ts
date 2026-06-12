@@ -21,7 +21,7 @@ const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
 const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
-const SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
+const LOW_PRIORITY_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
   'dist',
@@ -46,11 +46,12 @@ interface ExternalMarkdownImportBudget {
   visitedEntries: number;
 }
 
-function shouldSkipExternalMarkdownDirectory(name: string) {
-  return (
-    hasInternalNotePathSegment(name) ||
-    SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name.toLowerCase())
-  );
+function shouldHideExternalMarkdownDirectory(name: string) {
+  return hasInternalNotePathSegment(name);
+}
+
+function isLowPriorityExternalMarkdownDirectory(name: string) {
+  return LOW_PRIORITY_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name.toLowerCase());
 }
 
 function prioritizeExternalMarkdownScanEntries<T>(
@@ -58,11 +59,26 @@ function prioritizeExternalMarkdownScanEntries<T>(
   getPriority: (entry: T) => number,
   maxEntries = entries.length,
 ): T[] {
-  const scanEntries = entries.length > maxEntries ? entries.slice(0, maxEntries) : entries;
-  return scanEntries
-    .map((entry, index) => ({ entry, index, priority: getPriority(entry) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ entry }) => entry);
+  const buckets = new Map<number, T[]>();
+  for (const entry of entries) {
+    const priority = getPriority(entry);
+    const bucket = buckets.get(priority) ?? [];
+    if (bucket.length < maxEntries) {
+      bucket.push(entry);
+      buckets.set(priority, bucket);
+    }
+  }
+
+  const prioritized: T[] = [];
+  for (const priority of Array.from(buckets.keys()).sort((left, right) => left - right)) {
+    for (const entry of buckets.get(priority) ?? []) {
+      if (prioritized.length >= maxEntries) {
+        return prioritized;
+      }
+      prioritized.push(entry);
+    }
+  }
+  return prioritized;
 }
 
 function getExternalMarkdownAbsolutePathPriority(path: string) {
@@ -70,10 +86,13 @@ function getExternalMarkdownAbsolutePathPriority(path: string) {
   if (!baseName) {
     return 2;
   }
-  if (isSupportedMarkdownSelection(path) || baseName.lastIndexOf('.') <= 0) {
+  if (isSupportedMarkdownSelection(path)) {
     return 0;
   }
-  return 1;
+  if (baseName.lastIndexOf('.') <= 0) {
+    return 1;
+  }
+  return 2;
 }
 
 function getExternalMarkdownDirectoryEntryPriority(entry: {
@@ -82,12 +101,18 @@ function getExternalMarkdownDirectoryEntryPriority(entry: {
   isFile?: boolean;
 }) {
   if (!isSafeVaultPathSegment(entry.name)) {
-    return 2;
+    return 3;
   }
-  if (entry.isDirectory || (entry.isFile && isSupportedMarkdownSelection(entry.name))) {
+  if (entry.isFile && isSupportedMarkdownSelection(entry.name)) {
     return 0;
   }
-  return 1;
+  if (entry.isDirectory && !isLowPriorityExternalMarkdownDirectory(entry.name)) {
+    return 1;
+  }
+  if (entry.isDirectory) {
+    return 2;
+  }
+  return 3;
 }
 
 function isInsideInternalExternalMarkdownPath(path: string) {
@@ -294,7 +319,7 @@ async function importExternalMarkdownDirectory(
     const sourceEntryPath = await joinPath(sourcePath, entry.name);
 
     if (entry.isDirectory) {
-      if (shouldSkipExternalMarkdownDirectory(entry.name)) {
+      if (shouldHideExternalMarkdownDirectory(entry.name)) {
         continue;
       }
       if (depth >= MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH) {
@@ -378,7 +403,7 @@ export async function importExternalMarkdownEntries(
     }
 
     if (info?.isDirectory) {
-      if (shouldSkipExternalMarkdownDirectory(getBaseName(sourcePath))) {
+      if (shouldHideExternalMarkdownDirectory(getBaseName(sourcePath))) {
         continue;
       }
       if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {

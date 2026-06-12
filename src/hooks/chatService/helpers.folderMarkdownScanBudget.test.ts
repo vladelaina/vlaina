@@ -137,7 +137,45 @@ describe('folder markdown mention scan budgets', () => {
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
-  it('scans user dot markdown while skipping internal and generated folders', async () => {
+  it('does not spend folder mention scan budget on sibling folders before markdown notes', async () => {
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs') {
+        return [
+          ...Array.from({ length: 500 }, (_value, index) => ({
+            name: `folder-${String(index).padStart(3, '0')}`,
+            path: `/vault/docs/folder-${String(index).padStart(3, '0')}`,
+            isDirectory: true,
+            isFile: false,
+          })),
+          {
+            name: 'z-late.md',
+            path: '/vault/docs/z-late.md',
+            isDirectory: false,
+            isFile: true,
+            size: 128,
+          },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.readFile.mockResolvedValue('# Late');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes.slice(1)).toEqual([
+      {
+        path: 'docs/z-late.md',
+        title: 'Docs/z-late',
+        kind: 'note',
+        content: '# Late',
+      },
+    ]);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/z-late.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
+  it('scans user dot markdown and low-priority generated folders while skipping internal folders', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault/docs') {
         return [
@@ -244,6 +282,24 @@ describe('folder markdown mention scan budgets', () => {
         kind: 'note',
         content: '# Alpha',
       },
+      {
+        path: 'docs/Dist/internal.md',
+        title: 'Docs/Dist/internal',
+        kind: 'note',
+        content: '# Internal',
+      },
+      {
+        path: 'docs/node_modules/internal.md',
+        title: 'Docs/node_modules/internal',
+        kind: 'note',
+        content: '# Internal',
+      },
+      {
+        path: 'docs/Node_Modules/internal.md',
+        title: 'Docs/Node_Modules/internal',
+        kind: 'note',
+        content: '# Internal',
+      },
     ]);
     expect(notes[0]?.content).toContain('- .notes (folder)');
     expect(notes[0]?.content).toContain('- .journal.md (file, 128 B)');
@@ -257,8 +313,8 @@ describe('folder markdown mention scan budgets', () => {
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.git');
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.VLAINA');
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.GIT');
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/node_modules');
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/Node_Modules');
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/Dist');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/node_modules', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/Node_Modules', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/Dist', { includeHidden: true });
   });
 });

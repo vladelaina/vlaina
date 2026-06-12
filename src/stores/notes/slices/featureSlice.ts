@@ -94,6 +94,26 @@ function isSearchableMarkdownContent(content: string): boolean {
   }
 }
 
+function getNoteContentScanNodePriority(node: FileTreeNode): number {
+  const normalizedPath = normalizeVaultRelativePath(node.path, { allowEmpty: node.isFolder });
+  if (!normalizedPath || hasInternalNotePathSegment(normalizedPath)) {
+    return 3;
+  }
+
+  if (!node.isFolder && isSupportedMarkdownPath(normalizedPath)) {
+    return 0;
+  }
+
+  return node.isFolder ? 1 : 2;
+}
+
+function prioritizeNoteContentScanNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
+  return nodes
+    .map((node, index) => ({ node, index, priority: getNoteContentScanNodePriority(node) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ node }) => node);
+}
+
 function canReuseScannedNoteCacheEntry(
   cachedEntry: NoteContentCacheEntry,
   fileInfo: { isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null | undefined,
@@ -125,7 +145,7 @@ function collectNoteContentScanPaths(
   isScanActive: () => boolean,
 ): { path: string; fullPath: string }[] {
   const filePaths: { path: string; fullPath: string }[] = [];
-  const stack = [...nodes].reverse();
+  const stack = prioritizeNoteContentScanNodes(nodes).reverse();
   let visitedNodes = 0;
 
   while (
@@ -145,8 +165,9 @@ function collectNoteContentScanPaths(
         continue;
       }
 
-      for (let index = node.children.length - 1; index >= 0; index -= 1) {
-        stack.push(node.children[index]);
+      const prioritizedChildren = prioritizeNoteContentScanNodes(node.children);
+      for (let index = prioritizedChildren.length - 1; index >= 0; index -= 1) {
+        stack.push(prioritizedChildren[index]);
       }
       continue;
     }

@@ -153,8 +153,6 @@ export function buildNotesSidebarTagScopeEntries({
       .map((path) => ({ path }));
   }
 
-  collectNotePaths(rootFolder.children, paths);
-
   const starredFolders = getCurrentVaultStarredFolders(starredEntries, currentVaultPath);
   if (starredFolders.length > 0) {
     collectNotePaths(
@@ -163,6 +161,7 @@ export function buildNotesSidebarTagScopeEntries({
       (path) => starredFolders.some((folderPath) => isPathInsideFolder(path, folderPath)),
     );
   }
+  collectNotePaths(rootFolder.children, paths);
 
   return Array.from(paths)
     .sort((a, b) => a.localeCompare(b))

@@ -92,6 +92,24 @@ function createFileDirent(name: string) {
   };
 }
 
+function createDirectoryDirent(name: string) {
+  return {
+    name,
+    isSymbolicLink: () => false,
+    isDirectory: () => true,
+    isFile: () => false,
+  };
+}
+
+function createSymlinkDirent(name: string) {
+  return {
+    name,
+    isSymbolicLink: () => true,
+    isDirectory: () => false,
+    isFile: () => false,
+  };
+}
+
 describe('desktop filesystem list directory budget', () => {
   it('caps single-directory listings before describing overflow entries', async () => {
     mocks.readdir.mockResolvedValueOnce([
@@ -132,6 +150,103 @@ describe('desktop filesystem list directory budget', () => {
     expect(entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'late.md' }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'asset-19999.png' }),
+      ]),
+    );
+  });
+
+  it('prioritizes markdown entries before directories when applying the single-directory cap', async () => {
+    mocks.readdir.mockResolvedValueOnce([
+      ...Array.from({ length: 20_000 }, (_value, index) =>
+        createDirectoryDirent(`folder-${String(index).padStart(5, '0')}`)
+      ),
+      createFileDirent('late.md'),
+    ]);
+    const { handlers } = registerHarness();
+
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+
+    expect(entries).toHaveLength(20_000);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'late.md' }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'folder-19999' }),
+      ]),
+    );
+  });
+
+  it('keeps generated-looking directories low priority when applying the single-directory cap', async () => {
+    mocks.readdir.mockResolvedValueOnce([
+      ...Array.from({ length: 19_999 }, (_value, index) =>
+        createDirectoryDirent(`folder-${String(index).padStart(5, '0')}`)
+      ),
+      createDirectoryDirent('node_modules'),
+      createFileDirent('late.md'),
+    ]);
+    const { handlers } = registerHarness();
+
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+
+    expect(entries).toHaveLength(20_000);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'late.md' }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'node_modules' }),
+      ]),
+    );
+  });
+
+  it('keeps unsafe markdown-looking names low priority when applying the single-directory cap', async () => {
+    mocks.readdir.mockResolvedValueOnce([
+      ...Array.from({ length: 20_000 }, (_value, index) =>
+        createFileDirent(`unsafe-${String(index).padStart(5, '0')}\u0001.md`)
+      ),
+      createFileDirent('late.md'),
+    ]);
+    const { handlers } = registerHarness();
+
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+
+    expect(entries).toHaveLength(20_000);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'late.md' }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'unsafe-19999\u0001.md' }),
+      ]),
+    );
+  });
+
+  it('keeps symlink directory candidates before ordinary files when applying the single-directory cap', async () => {
+    mocks.readdir.mockResolvedValueOnce([
+      ...Array.from({ length: 20_000 }, (_value, index) =>
+        createFileDirent(`asset-${String(index).padStart(5, '0')}.png`)
+      ),
+      createSymlinkDirent('linked-docs'),
+    ]);
+    const { handlers } = registerHarness();
+
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+
+    expect(entries).toHaveLength(20_000);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'linked-docs' }),
       ]),
     );
     expect(entries).not.toEqual(

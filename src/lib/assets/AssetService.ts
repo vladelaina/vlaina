@@ -27,7 +27,7 @@ export interface AssetConfig {
 }
 
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
-const MAX_ASSET_LIST_DIRECTORY_ENTRIES = 5000;
+export const MAX_ASSET_LIST_DIRECTORY_ENTRIES = 5000;
 export const MAX_ASSET_METADATA_STAT_CONCURRENCY = 8;
 const IMAGE_UPLOAD_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/avif': ['avif'],
@@ -122,6 +122,13 @@ function isSameAssetName(entryName: string, fileName: string): boolean {
   return entryName.toLowerCase() === getOriginalStoredFilename(fileName).toLowerCase();
 }
 
+interface NormalizedAssetDirectoryEntry {
+  name: string;
+  path: string;
+  size?: number;
+  modifiedAt?: number;
+}
+
 function isSafeAssetEntryName(name: string): boolean {
   return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
 }
@@ -136,7 +143,7 @@ function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {
 async function normalizeAssetDirectoryEntry(
   targetDir: string,
   entry: { name: string; path: string; isFile: boolean; size?: number; modifiedAt?: number },
-): Promise<{ name: string; path: string; size?: number; modifiedAt?: number } | null> {
+): Promise<NormalizedAssetDirectoryEntry | null> {
   if (!entry.isFile || !isSafeAssetEntryName(entry.name)) {
     return null;
   }
@@ -157,7 +164,7 @@ async function normalizeAssetDirectoryEntry(
 
 async function hydrateAssetEntryMetadata(
   storage: ReturnType<typeof getStorageAdapter>,
-  entries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }>,
+  entries: NormalizedAssetDirectoryEntry[],
   options: { forceStat?: boolean } = {},
 ) {
   return mapWithConcurrencyLimit(entries, MAX_ASSET_METADATA_STAT_CONCURRENCY, async (entry) => {
@@ -197,8 +204,8 @@ async function mapWithConcurrencyLimit<T, R>(
 async function normalizeAssetDirectoryEntries(
   targetDir: string,
   entries: Array<{ name: string; path: string; isFile: boolean; size?: number; modifiedAt?: number }>,
-): Promise<Array<{ name: string; path: string; size?: number; modifiedAt?: number }>> {
-  const normalizedEntries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }> = [];
+): Promise<NormalizedAssetDirectoryEntry[]> {
+  const normalizedEntries: NormalizedAssetDirectoryEntry[] = [];
   for (const entry of entries) {
     const normalizedEntry = await normalizeAssetDirectoryEntry(targetDir, entry);
     if (normalizedEntry) {
@@ -206,6 +213,36 @@ async function normalizeAssetDirectoryEntries(
     }
   }
   return normalizedEntries;
+}
+
+function isImageAssetDirectoryEntry(entry: NormalizedAssetDirectoryEntry): boolean {
+  return getMimeType(entry.name).startsWith('image/');
+}
+
+function getAssetDirectoryEntryPriority(
+  entry: NormalizedAssetDirectoryEntry,
+  uploadFilename?: string,
+): number {
+  if (uploadFilename && isSameAssetName(entry.name, uploadFilename)) {
+    return 0;
+  }
+
+  return isImageAssetDirectoryEntry(entry) ? 1 : 2;
+}
+
+function selectAssetDirectoryEntries(
+  entries: NormalizedAssetDirectoryEntry[],
+  uploadFilename?: string,
+): NormalizedAssetDirectoryEntry[] {
+  return entries
+    .map((entry, index) => ({
+      entry,
+      index,
+      priority: getAssetDirectoryEntryPriority(entry, uploadFilename),
+    }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES)
+    .map(({ entry }) => entry);
 }
 
 function normalizeSafeSubfolderName(name: string | undefined, fallback: string): string {
@@ -269,11 +306,9 @@ export class AssetService {
       return [];
     }
 
-    const entries = await normalizeAssetDirectoryEntries(
-      targetDir,
-      (await storage.listDir(targetDir)).slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES),
-    );
-    const imageFiles = entries.filter((entry) => getMimeType(entry.name).startsWith('image/'));
+    const normalizedEntries = await normalizeAssetDirectoryEntries(targetDir, await storage.listDir(targetDir));
+    const entries = selectAssetDirectoryEntries(normalizedEntries);
+    const imageFiles = entries.filter(isImageAssetDirectoryEntry);
 
     const assets = imageFiles.map((entry): AssetEntry => ({
       filename: storedPathPrefix + entry.name,
@@ -346,12 +381,12 @@ export class AssetService {
       await storage.mkdir(targetDir, true);
     }
 
-    let existingEntries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }> = [];
+    let existingEntries: NormalizedAssetDirectoryEntry[] = [];
     let existingFiles: string[] = [];
     try {
-      const files = (await storage.listDir(targetDir)).slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES);
-      existingEntries = await normalizeAssetDirectoryEntries(targetDir, files);
-      existingFiles = existingEntries.map(f => f.name);
+      const normalizedEntries = await normalizeAssetDirectoryEntries(targetDir, await storage.listDir(targetDir));
+      existingEntries = selectAssetDirectoryEntries(normalizedEntries, uploadFilename);
+      existingFiles = normalizedEntries.map(f => f.name);
     } catch (error) {
       existingFiles = existingAssets.map(a => a.filename.split('/').pop() || '');
     }
