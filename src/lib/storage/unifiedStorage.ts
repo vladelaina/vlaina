@@ -1,4 +1,4 @@
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, joinPath, type FileInfo } from '@/lib/storage/adapter';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { createPersistenceQueue } from './persistenceEngine';
 import type { AIModel, ChatMessage, PersistedBenchmarkItem, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
@@ -740,6 +740,35 @@ function buildRecoveredSession(sessionId: string, messages: ChatMessage[]): Chat
   };
 }
 
+function collectSafeJsonEntryIds(
+  entries: FileInfo[],
+  maxCandidates: number,
+  isSafeId: (value: unknown) => value is string,
+  shouldInclude: (id: string) => boolean,
+): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    if (ids.length >= maxCandidates) {
+      break;
+    }
+    if (!entry.isFile || !entry.name.endsWith('.json')) {
+      continue;
+    }
+
+    const id = entry.name.slice(0, -5);
+    if (!isSafeId(id) || seen.has(id) || !shouldInclude(id)) {
+      continue;
+    }
+
+    seen.add(id);
+    ids.push(id);
+  }
+
+  return ids;
+}
+
 async function recoverOrphanChatSessions(
   sessionsDir: string,
   existingSessions: ChatSession[],
@@ -750,28 +779,20 @@ async function recoverOrphanChatSessions(
   const entries = await storage.listDir(sessionsDir).catch(() => []);
   const recoveredSessions: ChatSession[] = [];
   const maxRecoveredSessions = Math.max(0, MAX_AI_SESSION_RECORDS - existingSessions.length);
+  const sessionIds = collectSafeJsonEntryIds(
+    entries,
+    MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES,
+    isSafeChatSessionId,
+    (sessionId) => (
+      !existingSessionIds.has(sessionId) &&
+      !deletedSessionIds.has(sessionId) &&
+      !isTemporarySessionId(sessionId)
+    ),
+  );
 
-  for (
-    let entryIndex = 0;
-    entryIndex < entries.length && entryIndex < MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES;
-    entryIndex += 1
-  ) {
+  for (const sessionId of sessionIds) {
     if (recoveredSessions.length >= maxRecoveredSessions) {
       break;
-    }
-    const entry = entries[entryIndex];
-    if (!entry.isFile || !entry.name.endsWith('.json')) {
-      continue;
-    }
-
-    const sessionId = entry.name.slice(0, -5);
-    if (
-      !isSafeChatSessionId(sessionId) ||
-      existingSessionIds.has(sessionId) ||
-      deletedSessionIds.has(sessionId) ||
-      isTemporarySessionId(sessionId)
-    ) {
-      continue;
     }
 
     const messages = await loadSessionJson(sessionId).catch(() => null);
@@ -798,22 +819,16 @@ async function recoverOrphanProviderChannelIds(
   }
 
   const entries = await getStorageAdapter().listDir(channelsDir).catch(() => []);
-  for (
-    let entryIndex = 0;
-    entryIndex < entries.length && entryIndex < MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES;
-    entryIndex += 1
-  ) {
+  const recoveredCandidates = collectSafeJsonEntryIds(
+    entries,
+    MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES,
+    isSafeProviderId,
+    (providerId) => !providerIds.has(providerId) && !deletedProviderIds.has(providerId),
+  );
+
+  for (const providerId of recoveredCandidates) {
     if (providerIds.size >= MAX_AI_PROVIDER_CHANNELS) {
       break;
-    }
-    const entry = entries[entryIndex];
-    if (!entry.isFile || !entry.name.endsWith('.json')) {
-      continue;
-    }
-
-    const providerId = entry.name.slice(0, -5);
-    if (!isSafeProviderId(providerId) || providerIds.has(providerId) || deletedProviderIds.has(providerId)) {
-      continue;
     }
 
     providerIds.add(providerId);
