@@ -6,7 +6,7 @@ const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
 
 const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
-  stat: vi.fn(async (): Promise<{ isFile?: boolean; modifiedAt?: number; size?: number } | null> => null),
+  stat: vi.fn(async (): Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number; size?: number } | null> => null),
   noteIcon: vi.fn(({ icon }: { icon: string }) => <span data-testid="note-icon">{icon}</span>),
   notesPath: '/vault',
 }));
@@ -42,6 +42,7 @@ vi.mock('../IconPicker/NoteIcon', () => ({
 
 vi.mock('../common/collapseTrianglePrimitive', () => ({
   CollapseTriangleAffordance: () => null,
+  getSidebarCollapseTriangleColorClassName: () => '',
 }));
 
 vi.mock('./NotesSidebarRow', () => ({
@@ -75,7 +76,12 @@ describe('NotesTagsSection', () => {
 
   it('does not parse tag note icon metadata that exceeds the limit after read', async () => {
     mocked.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 32 });
-    mocked.readFile.mockResolvedValue(['---', 'vlaina_icon: "💡"', '---', 'x'.repeat(512 * 1024 + 1)].join('\n'));
+    mocked.readFile.mockResolvedValue([
+      '---',
+      'vlaina_icon: "💡"',
+      '---',
+      '你'.repeat(Math.floor(MAX_TAG_NOTE_ICON_METADATA_BYTES / 3) + 1),
+    ].join('\n'));
 
     render(
       <NotesTagsSection
@@ -98,6 +104,32 @@ describe('NotesTagsSection', () => {
     });
     expect(mocked.noteIcon).not.toHaveBeenCalled();
     expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+  });
+
+  it('reads tag note icon metadata with bounded reads when stat has no size', async () => {
+    mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false });
+    mocked.readFile.mockResolvedValue('---\nvlaina_icon: "tag-no-size"\n---\n# Alpha');
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: 'docs/no-size-icon.md', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('tag-no-size');
+    });
+    expect(mocked.readFile).toHaveBeenCalledWith('/vault/docs/no-size-icon.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
   });
 
   it('does not read tag note icon metadata from unsafe relative paths', async () => {

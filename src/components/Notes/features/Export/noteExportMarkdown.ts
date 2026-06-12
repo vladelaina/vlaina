@@ -95,15 +95,20 @@ async function resolveAssetUrl(
     }
 
     const fileInfo = await bridge.fs.stat(absolutePath).catch(() => null);
+    if (!fileInfo || fileInfo.isDirectory === true || fileInfo.isFile === false) {
+      return { url: fallbackSrc, embeddedBytes: 0 };
+    }
     const fileSize = fileInfo?.size;
-    if (typeof fileSize !== 'number' || !isExportableImageSize(fileSize)) {
-      return { url: fallbackSrc, embeddedBytes: 0 };
-    }
-    if (fileSize > MAX_EXPORT_EMBEDDED_IMAGE_BYTES) {
-      return { url: fallbackSrc, embeddedBytes: 0 };
-    }
-    if (fileSize > remainingEmbeddedBytes) {
-      return { url: fallbackSrc, embeddedBytes: 0 };
+    if (typeof fileSize === 'number') {
+      if (!isExportableImageSize(fileSize)) {
+        return { url: fallbackSrc, embeddedBytes: 0 };
+      }
+      if (fileSize > MAX_EXPORT_EMBEDDED_IMAGE_BYTES) {
+        return { url: fallbackSrc, embeddedBytes: 0 };
+      }
+      if (fileSize > remainingEmbeddedBytes) {
+        return { url: fallbackSrc, embeddedBytes: 0 };
+      }
     }
 
     const bytes = await bridge.fs.readBinaryFile(absolutePath, remainingEmbeddedBytes);
@@ -116,7 +121,7 @@ async function resolveAssetUrl(
 
     return {
       url: `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`,
-      embeddedBytes: Math.max(fileSize, bytes.byteLength),
+      embeddedBytes: Math.max(fileSize ?? 0, bytes.byteLength),
     };
   } catch {
     return { url: fallbackSrc, embeddedBytes: 0 };

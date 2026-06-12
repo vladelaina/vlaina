@@ -14,6 +14,7 @@ const GENERIC_INLINE_HTML_TEXT_PATTERN =
   /<(span|kbd)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
 const NESTED_HTML_PATTERN = /<\/?[A-Za-z][^>]*>|<!--|<\?/;
 const THEMATIC_BREAK_PATTERN = /^(?: {0,3})(?:(?:[-*_][ \t]*){3,})$/;
+const FRONTMATTER_SAFE_THEMATIC_BREAK_PATTERN = /^---[ \t]*$/;
 
 function isListItem(line: string): boolean {
   return LIST_ITEM_MARKER_PATTERN.test(line);
@@ -36,7 +37,7 @@ export function normalizeCanonicalMarkdownSpacing(
   options: NormalizeCanonicalMarkdownSpacingOptions = {},
 ): string {
   const compactListGaps = options.compactListGaps ?? true;
-  const normalized = mapMarkdownOutsideProtectedSegments(text, (segment) => {
+  const normalized = mapMarkdownOutsideProtectedSegments(text, (segment, startIndex) => {
     const lines = segment.split('\n');
     const output: string[] = [];
 
@@ -44,6 +45,10 @@ export function normalizeCanonicalMarkdownSpacing(
       const line = lines[index] ?? '';
 
       if (isStandaloneSerializedHorizontalRule(line)) {
+        if (startIndex + index === 0 && !FRONTMATTER_SAFE_THEMATIC_BREAK_PATTERN.test(line)) {
+          output.push(line);
+          continue;
+        }
         output.push('---');
         continue;
       }

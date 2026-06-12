@@ -38,6 +38,7 @@ export interface NotesSidebarTagIndex {
 
 const MAX_SIDEBAR_TAGS = 200;
 const MAX_SIDEBAR_TAG_SCOPE_PATHS = 10_000;
+const MAX_SIDEBAR_TAG_SCOPE_TREE_NODES = 20_000;
 const TAG_CONTENT_SIGNATURE_SAMPLE_CHARS = 256;
 
 function createContentSignature(content: string): string {
@@ -65,9 +66,15 @@ function collectNotePaths(
   folderFilter?: (path: string) => boolean,
 ): void {
   const stack = [...nodes].reverse();
+  let visitedNodes = 0;
 
-  while (stack.length > 0 && bucket.size < MAX_SIDEBAR_TAG_SCOPE_PATHS) {
+  while (
+    stack.length > 0 &&
+    bucket.size < MAX_SIDEBAR_TAG_SCOPE_PATHS &&
+    visitedNodes < MAX_SIDEBAR_TAG_SCOPE_TREE_NODES
+  ) {
     const node = stack.pop()!;
+    visitedNodes += 1;
     if (node.isFolder) {
       const normalizedFolderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
       if (normalizedFolderPath === null || hasInternalNotePathSegment(normalizedFolderPath)) {

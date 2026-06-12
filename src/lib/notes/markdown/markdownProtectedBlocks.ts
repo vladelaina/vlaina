@@ -8,7 +8,7 @@ const FENCE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})(.*)$/;
 const HTML_RAW_BLOCK_OPEN_PATTERN = /^(?: {0,3})<(pre|script|style|textarea|title|xmp|noembed|noframes|plaintext|math|noscript|svg)(?:\s|>|$)/i;
 const INDENTED_CODE_LINE_PATTERN = /^(?: {4,}|\t)/;
 const UTF8_BOM = '\uFEFF';
-const FRONTMATTER_DELIMITER = '---';
+const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
 const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
 const MAX_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_FRONTMATTER_LINES = 2048;
@@ -217,7 +217,7 @@ function isFrontmatterDelimiterLine(
   options: { allowLeadingBom?: boolean } = {},
 ): boolean {
   const candidate = options.allowLeadingBom && line.startsWith(UTF8_BOM) ? line.slice(1) : line;
-  return candidate.length <= MAX_FRONTMATTER_DELIMITER_LINE_CHARS && candidate.trim() === FRONTMATTER_DELIMITER;
+  return candidate.length <= MAX_FRONTMATTER_DELIMITER_LINE_CHARS && FRONTMATTER_DELIMITER_PATTERN.test(candidate);
 }
 
 function isIndentedCodeBlockLine(line: string): boolean {

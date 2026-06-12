@@ -23,6 +23,7 @@ const TAG_SCAN_IDLE_DELAY_MS = 250;
 const TAG_CONTENT_READ_BATCH_SIZE = 8;
 export const MAX_TAG_DIRECT_READ_MISSING_PATHS = 200;
 const MAX_TAG_CONTENT_READ_BYTES = 512 * 1024;
+const tagContentUtf8Encoder = new TextEncoder();
 
 type SidebarTagContentCacheEntry = {
   content: string;
@@ -66,6 +67,13 @@ function isAllowedSidebarTagContentPath(path: string, currentVaultPath: string |
   return isAbsolutePath(path) || normalizeVaultRelativePath(path) !== null;
 }
 
+function isSidebarTagContentWithinReadLimit(content: string): boolean {
+  return (
+    content.length <= MAX_TAG_CONTENT_READ_BYTES &&
+    tagContentUtf8Encoder.encode(content).length <= MAX_TAG_CONTENT_READ_BYTES
+  );
+}
+
 async function readSidebarTagContent(path: string, currentVaultPath: string | null): Promise<string> {
   if (!isAllowedSidebarTagContentPath(path, currentVaultPath)) {
     return '';
@@ -86,14 +94,17 @@ async function readSidebarTagContent(path: string, currentVaultPath: string | nu
   try {
     const fileInfo = await storage.stat(fullPath).catch(() => null);
     if (
+      !fileInfo ||
       fileInfo?.isDirectory === true ||
       fileInfo?.isFile === false ||
-      typeof fileInfo?.size !== 'number' ||
-      fileInfo.size > MAX_TAG_CONTENT_READ_BYTES
+      (typeof fileInfo.size === 'number' && fileInfo.size > MAX_TAG_CONTENT_READ_BYTES)
     ) {
       return '';
     }
     const content = await storage.readFile(fullPath, MAX_TAG_CONTENT_READ_BYTES);
+    if (!isSidebarTagContentWithinReadLimit(content)) {
+      return '';
+    }
     assertEditorSafeMarkdownContent(content);
     return normalizeSerializedMarkdownDocument(content);
   } catch {

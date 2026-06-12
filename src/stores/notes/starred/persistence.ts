@@ -24,6 +24,7 @@ const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
 const MAX_DELETED_ENTRY_KEYS = MAX_STARRED_ENTRIES;
 const MAX_DELETED_ENTRY_KEY_SCAN_ITEMS = 20_000;
 const MAX_DELETED_ENTRY_KEY_CHARS = 4096;
+const starredRegistryUtf8Encoder = new TextEncoder();
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 interface StarredSavePayload {
@@ -139,14 +140,18 @@ async function readRawStarredRegistry(): Promise<StarredRegistry | null> {
 
   const starredInfo = await storage.stat(starredPath).catch(() => null);
   if (
-    typeof starredInfo?.size !== 'number' ||
-    starredInfo.size > MAX_STARRED_REGISTRY_BYTES
+    starredInfo?.isDirectory === true ||
+    starredInfo?.isFile === false ||
+    (
+      typeof starredInfo?.size === 'number' &&
+      starredInfo.size > MAX_STARRED_REGISTRY_BYTES
+    )
   ) {
     return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
   }
 
   const content = await storage.readFile(starredPath, MAX_STARRED_REGISTRY_BYTES);
-  if (content.length > MAX_STARRED_REGISTRY_BYTES) {
+  if (starredRegistryUtf8Encoder.encode(content).length > MAX_STARRED_REGISTRY_BYTES) {
     return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
   }
 

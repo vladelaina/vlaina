@@ -18,7 +18,11 @@ function isInsertableImagePath(path: string) {
 }
 
 function isInsertableImageSize(size: number | null | undefined) {
-  return typeof size === 'number' && size <= MAX_PICKED_IMAGE_BYTES;
+  if (size === null || size === undefined) {
+    return true;
+  }
+
+  return Number.isFinite(size) && size >= 0 && size <= MAX_PICKED_IMAGE_BYTES;
 }
 
 export async function insertImageFromFilePicker(ctx: Ctx) {

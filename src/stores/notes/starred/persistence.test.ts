@@ -114,6 +114,28 @@ describe('starred persistence', () => {
     expect(JSON.parse(content).entries).toEqual([localEntry, diskEntry]);
   });
 
+  it('preserves entries from an unknown-size registry during a stale save', async () => {
+    const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
+    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [diskEntry],
+      deletedEntryKeys: [],
+    }));
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([localEntry]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json', MAX_STARRED_REGISTRY_BYTES);
+    const [, content] = adapter.writeFile.mock.calls[0];
+    expect(JSON.parse(content).entries).toEqual([localEntry, diskEntry]);
+  });
+
   it('does not resurrect explicitly removed entries while merging disk state', async () => {
     const removedEntry = createEntry('removed', 'note', 'C:/vault-a', 'removed.md');
     const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
@@ -423,21 +445,43 @@ describe('starred persistence', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not parse starred registries when stat has no size', async () => {
-    adapter.exists.mockResolvedValue(true);
-    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true });
+  it('loads starred registries when stat has no size', async () => {
+    const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
+    adapter.exists.mockImplementation(async (path: string) => {
+      return (
+        path === '/store/notes-starred.json' ||
+        path === 'C:/vault-a' ||
+        path === 'C:/vault-a/alive.md'
+      );
+    });
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/store/notes-starred.json') {
+        return { isDirectory: false, isFile: true };
+      }
+      if (path === 'C:/vault-a') {
+        return { isDirectory: true, isFile: false };
+      }
+      if (path === 'C:/vault-a/alive.md') {
+        return { isDirectory: false, isFile: true };
+      }
+      return null;
+    });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [validEntry],
+    }));
 
     const persistence = await import('./persistence');
     const result = await persistence.loadStarredRegistry();
 
-    expect(result.entries).toEqual([]);
-    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(result.entries).toEqual([validEntry]);
+    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json', MAX_STARRED_REGISTRY_BYTES);
   });
 
   it('does not parse starred registry content that exceeds the limit after read', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
-    adapter.readFile.mockResolvedValue('x'.repeat(5 * 1024 * 1024 + 1));
+    adapter.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_STARRED_REGISTRY_BYTES / 3) + 1));
 
     const persistence = await import('./persistence');
     const result = await persistence.loadStarredRegistry();

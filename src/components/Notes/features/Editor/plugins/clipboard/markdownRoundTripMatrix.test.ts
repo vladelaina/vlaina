@@ -26,6 +26,11 @@ describe('markdown syntax persistence matrix', () => {
       ].join('\n'),
     },
     {
+      name: 'leading yaml-frontmatter code fence',
+      markdown: ['```yaml-frontmatter', 'title: Demo', '```', '# Heading'].join('\n'),
+      expected: ['```yaml-frontmatter', 'title: Demo', '```', '', '# Heading'].join('\n'),
+    },
+    {
       name: 'math block and inline math',
       markdown: ['Inline math $x + y$.', '', '$$', '\\frac{1}{2}', '$$'].join('\n'),
     },

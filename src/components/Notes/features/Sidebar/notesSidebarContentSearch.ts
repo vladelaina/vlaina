@@ -15,6 +15,7 @@ const MAX_CONTENT_SEARCH_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_CONTENT_SEARCH_FRONTMATTER_LINES = 2048;
 export const MAX_CONTENT_SEARCH_HTML_RANGES = 2000;
 const UTF8_BOM = '\uFEFF';
+const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
 const SANITIZER_DROPPED_RAW_HTML_TAG_PATTERN = /<\/?(?:math|noscript|svg)(?:[\s/>]|$)/i;
 const INVISIBLE_HTML_BLOCK_PATTERN = /^(?: {0,3}>[ \t]?)*(?: {0,3})(?:<!--|<\?|<![A-Z]|<!\[CDATA\[)/im;
 
@@ -173,7 +174,7 @@ function getLeadingFrontmatterRangeForContentSearch(content: string): ContentRan
   const firstLineEnd = content.search(/\r?\n/);
   const firstLine = firstLineEnd === -1 ? content : content.slice(0, firstLineEnd);
   const firstLineWithoutBom = firstLine.startsWith(UTF8_BOM) ? firstLine.slice(1) : firstLine;
-  if (firstLineWithoutBom.trim() !== '---') {
+  if (!FRONTMATTER_DELIMITER_PATTERN.test(firstLineWithoutBom)) {
     return null;
   }
 
@@ -191,7 +192,7 @@ function getLeadingFrontmatterRangeForContentSearch(content: string): ContentRan
     }
     const nextStart = nextLineBreak === -1 ? content.length : nextLineBreak + 1;
 
-    if (line.trim() === '---') {
+    if (FRONTMATTER_DELIMITER_PATTERN.test(line)) {
       return { start: 0, end: nextStart };
     }
 

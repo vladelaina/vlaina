@@ -745,9 +745,13 @@ async function canReadSessionJson(path: string): Promise<boolean> {
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(path).catch(() => null);
   return (
+    Boolean(fileInfo) &&
+    fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
-    typeof fileInfo?.size === 'number' &&
-    fileInfo.size <= MAX_SESSION_MESSAGES_BYTES
+    (
+      typeof fileInfo?.size !== 'number' ||
+      fileInfo.size <= MAX_SESSION_MESSAGES_BYTES
+    )
   );
 }
 

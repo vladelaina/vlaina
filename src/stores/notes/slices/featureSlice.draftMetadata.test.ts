@@ -760,9 +760,9 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.size).toBe(0);
   });
 
-  it('does not read missing full-vault scan notes when stat has no size', async () => {
+  it('reads full-vault scan notes with bounded reads when stat has no size', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
-    mocks.readFile.mockResolvedValue('# Unexpected');
+    mocks.readFile.mockResolvedValue('# Alpha');
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
       notesPath: '/vault',
@@ -787,16 +787,16 @@ describe('featureSlice draft metadata', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
-      content: '',
+      content: '# Alpha',
       modifiedAt: 2,
     });
   });
 
   it('does not cache full-vault scan content that exceeds the searchable note limit after read', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
-    mocks.readFile.mockResolvedValue('x'.repeat(512 * 1024 + 1));
+    mocks.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_SEARCHABLE_NOTE_BYTES / 3) + 1));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
       notesPath: '/vault',

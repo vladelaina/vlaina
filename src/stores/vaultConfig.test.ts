@@ -4,7 +4,7 @@ import { ensureVaultConfig } from './vaultConfig';
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
-  stat: vi.fn<(path: string) => Promise<{ size?: number } | null>>(),
+  stat: vi.fn<(path: string) => Promise<{ isDirectory?: boolean; isFile?: boolean; size?: number } | null>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
   getBasePath: vi.fn<() => Promise<string>>(),
@@ -80,16 +80,20 @@ describe('vaultConfig', () => {
     );
   });
 
-  it('repairs existing config content when stat has no size', async () => {
+  it('reads existing config content when stat has no size', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({});
+    adapter.readFile.mockResolvedValue(JSON.stringify({ version: 1, created: 100, vaultPath: '/old' }));
 
     await ensureVaultConfig('/vault');
 
-    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.readFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      64 * 1024,
+    );
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+      JSON.stringify({ version: 1, created: 100, vaultPath: '/vault' }, null, 2)
     );
   });
 

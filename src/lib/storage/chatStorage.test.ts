@@ -648,18 +648,37 @@ describe('chatStorage auto sync registration', () => {
     unregisterActive();
   });
 
-  it('does not read existing session files while saving when stat has no size', async () => {
+  it('reads existing session files with bounded reads while saving when stat has no size', async () => {
     mocks.storage.exists.mockImplementation(async (path: string) => (
       path === '/appdata/.vlaina/chat/sessions/session-1.json'
     ));
-    mocks.storage.stat.mockResolvedValue({});
+    mocks.storage.stat.mockResolvedValue({ isFile: true });
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      sessionId: 'session-1',
+      updatedAt: 1,
+      messages: [{
+        id: 'm0',
+        role: 'assistant',
+        content: 'persisted',
+        modelId: 'model-1',
+        timestamp: 1,
+      }],
+    }));
 
     await saveSessionJson('session-1', [createMessage('m1')]);
 
-    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      MAX_SESSION_MESSAGES_BYTES,
+    );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
       '/appdata/.vlaina/chat/sessions/session-1.json',
       expect.stringContaining('"m1"'),
+    );
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      expect.stringContaining('"m0"'),
     );
   });
 
@@ -773,13 +792,34 @@ describe('chatStorage auto sync registration', () => {
     expect(maxActiveWrites).toBeLessThanOrEqual(MAX_CHAT_SESSION_FLUSH_CONCURRENCY);
   });
 
-  it('does not load session files when stat has no size', async () => {
+  it('loads session files with bounded reads when stat has no size', async () => {
     mocks.storage.exists.mockResolvedValue(true);
-    mocks.storage.stat.mockResolvedValue({});
+    mocks.storage.stat.mockResolvedValue({ isFile: true });
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      sessionId: 'session-1',
+      updatedAt: 1,
+      messages: [{
+        id: 'm1',
+        role: 'user',
+        content: 'hello',
+        modelId: 'model-1',
+        timestamp: 1,
+      }],
+    }));
 
-    await expect(loadSessionJson('session-1')).resolves.toBeNull();
+    await expect(loadSessionJson('session-1')).resolves.toMatchObject([
+      {
+        id: 'm1',
+        role: 'user',
+        content: 'hello',
+      },
+    ]);
 
-    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      MAX_SESSION_MESSAGES_BYTES,
+    );
   });
 
   it('does not load session content that exceeds the limit after read', async () => {

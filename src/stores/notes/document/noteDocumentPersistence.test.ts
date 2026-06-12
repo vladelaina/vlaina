@@ -567,16 +567,21 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
-  it('rejects loading markdown files before reading when stat has no size', async () => {
+  it('loads markdown files with bounded reads when stat has no size', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.readFile.mockResolvedValue('# Alpha');
 
     await expect(loadNoteDocument({
       notesPath: '/vault',
       path: 'alpha.md',
       cache: new Map(),
-    })).rejects.toThrow('Note file is too large to open.');
+    })).resolves.toMatchObject({
+      content: '# Alpha',
+      modifiedAt: 123,
+      size: null,
+    });
 
-    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
   });
 
   it('rejects cached markdown that is too complex for the editor', async () => {
@@ -840,7 +845,7 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
-  it('does not read changed disk markdown for conflict checks when stat has no size', async () => {
+  it('checks changed disk markdown for conflict checks when stat has no size', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 200 });
     adapter.readFile.mockResolvedValue('# External edit');
 
@@ -851,9 +856,9 @@ describe('saveNoteDocument', () => {
         content: '# Local edit',
       },
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
-    })).rejects.toThrow('Note file is too large to open.');
+    })).rejects.toBeInstanceOf(NoteWriteConflictError);
 
-    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 

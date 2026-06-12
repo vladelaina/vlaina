@@ -119,7 +119,12 @@ function assertReadableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: 
   if (fileInfo?.isDirectory === true || fileInfo?.isFile === false) {
     throw new Error('Note file is too large to open.');
   }
-  assertReadableNoteSize(fileInfo?.size);
+  if (!fileInfo) {
+    throw new Error('Note file is too large to open.');
+  }
+  if (typeof fileInfo.size === 'number') {
+    assertReadableNoteSize(fileInfo.size);
+  }
 }
 
 function assertWritableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined): void {
@@ -139,8 +144,10 @@ function hasKnownFileSizeChanged(cachedSize: number | null | undefined, diskSize
   return typeof cachedSize === 'number' && diskSize !== null && cachedSize !== diskSize;
 }
 
-function shouldVerifyDiskContentWithoutModifiedAt(diskModifiedAt: number | null, diskSize: number | null): boolean {
-  return diskModifiedAt == null && diskSize !== null;
+function shouldVerifyDiskContentWithoutModifiedAt(
+  fileInfo: { isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null } | null | undefined,
+): boolean {
+  return Boolean(fileInfo && fileInfo.isDirectory !== true && fileInfo.isFile !== false && fileInfo.modifiedAt == null);
 }
 
 export function assertEditorSafeMarkdownContent(content: string): void {
@@ -202,7 +209,7 @@ export async function loadNoteDocument({
       }
       const diskModifiedAt = fileInfo?.modifiedAt ?? null;
       const diskSize = getKnownFileSize(fileInfo);
-      const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(diskModifiedAt, diskSize);
+      const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(fileInfo);
       if (
         shouldVerifyMissingModifiedAt ||
         (diskModifiedAt != null && diskModifiedAt !== cachedModifiedAt) ||
@@ -277,7 +284,7 @@ export async function saveNoteDocument({
   const cachedEntry = cache.get(notePath);
   const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
   const knownFileSizeChanged = hasKnownFileSizeChanged(cachedEntry?.size, diskSize);
-  const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(diskModifiedAt, diskSize);
+  const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(fileInfoBeforeWrite);
   const shouldCompareDiskContent =
     cachedEntry !== undefined &&
     (diskModifiedAt != null || knownFileSizeChanged || shouldVerifyMissingModifiedAt) &&

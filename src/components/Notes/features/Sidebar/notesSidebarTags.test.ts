@@ -270,6 +270,47 @@ describe('notesSidebarTags', () => {
     ]);
   });
 
+  it('caps tag scope tree traversal when no markdown notes are found', () => {
+    let lateChildrenAccessed = false;
+    const lateFolder = {
+      id: 'late',
+      name: 'late',
+      path: 'late',
+      isFolder: true,
+      expanded: true,
+      get children() {
+        lateChildrenAccessed = true;
+        return [{
+          id: 'late/alpha.md',
+          name: 'alpha.md',
+          path: 'late/alpha.md',
+          isFolder: false as const,
+        }];
+      },
+    };
+    const largeRoot: FolderNode = {
+      id: 'root-large',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        ...Array.from({ length: 20_000 }, (_value, index) => ({
+          id: `empty-${index}`,
+          name: `empty-${index}`,
+          path: `empty-${index}`,
+          isFolder: true as const,
+          expanded: true,
+          children: [],
+        })),
+        lateFolder,
+      ],
+    };
+
+    expect(buildNotesSidebarTagScopeEntries({ rootFolder: largeRoot })).toEqual([]);
+    expect(lateChildrenAccessed).toBe(false);
+  });
+
   it('uses current vault starred notes as tag scope when no folder tree is loaded', () => {
     const entries = buildNotesSidebarTagScopeEntries({
       rootFolder: null,

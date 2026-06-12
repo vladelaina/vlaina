@@ -46,6 +46,10 @@ interface ExternalMarkdownImportBudget {
   visitedEntries: number;
 }
 
+interface PreparedExternalMarkdownFileImport {
+  contentToWrite: string | null;
+}
+
 function shouldHideExternalMarkdownDirectory(name: string) {
   return hasInternalNotePathSegment(name);
 }
@@ -203,6 +207,7 @@ async function importExternalMarkdownFile(
   sourcePath: string,
   vaultPath: string,
   targetFolderPath: string | undefined,
+  preparedImport: PreparedExternalMarkdownFileImport,
 ) {
   const storage = getStorageAdapter();
   let resolvedPath: Awaited<ReturnType<typeof resolveUniquePath>>;
@@ -220,14 +225,27 @@ async function importExternalMarkdownFile(
 
   markExpectedExternalChange(fullPath);
   try {
-    await storage.copyFile(sourcePath, fullPath);
+    if (preparedImport.contentToWrite === null) {
+      await storage.copyFile(sourcePath, fullPath);
+    } else {
+      await storage.writeFile(fullPath, preparedImport.contentToWrite);
+    }
 
     const copiedInfo = await storage.stat(fullPath).catch(() => null);
-    if (
-      copiedInfo?.isFile &&
-      typeof copiedInfo.size === 'number' &&
-      copiedInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
-    ) {
+    if (copiedInfo?.isFile) {
+      if (typeof copiedInfo.size === 'number' && copiedInfo.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
+        try { await storage.deleteFile(fullPath); } catch {}
+        return null;
+      }
+
+      if (preparedImport.contentToWrite === null && typeof copiedInfo.size !== 'number') {
+        const copiedContent = await storage.readFile(fullPath, MAX_EXTERNAL_MARKDOWN_FILE_SIZE).catch(() => null);
+        if (copiedContent === null || copiedContent.length > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
+          try { await storage.deleteFile(fullPath); } catch {}
+          return null;
+        }
+      }
+
       return relativePath;
     }
 
@@ -239,24 +257,39 @@ async function importExternalMarkdownFile(
   }
 }
 
-async function isImportableExternalMarkdownFile(
+async function prepareImportableExternalMarkdownFile(
   sourcePath: string,
   fileInfo: { isFile?: boolean; size?: number } | null | undefined,
-) {
+): Promise<PreparedExternalMarkdownFileImport | null> {
   if (!fileInfo?.isFile || !isSupportedMarkdownSelection(sourcePath)) {
-    return false;
+    return null;
   }
 
   if (typeof fileInfo.size === 'number') {
-    return fileInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE;
+    return fileInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+      ? { contentToWrite: null }
+      : null;
   }
 
-  const sourceInfo = await getStorageAdapter().stat(sourcePath).catch(() => null);
-  return Boolean(
-    sourceInfo?.isFile &&
-    typeof sourceInfo.size === 'number' &&
-    sourceInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
-  );
+  const storage = getStorageAdapter();
+  const sourceInfo = await storage.stat(sourcePath).catch(() => null);
+  if (sourceInfo?.isFile === false || sourceInfo?.isDirectory === true) {
+    return null;
+  }
+  if (typeof sourceInfo?.size === 'number') {
+    return sourceInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+      ? { contentToWrite: null }
+      : null;
+  }
+
+  try {
+    const content = await storage.readFile(sourcePath, MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
+    return content.length <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+      ? { contentToWrite: content }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 async function importExternalMarkdownDirectory(
@@ -349,11 +382,12 @@ async function importExternalMarkdownDirectory(
     }
     budget.visitedEntries += 1;
 
-    if (!await isImportableExternalMarkdownFile(sourceEntryPath, entry)) {
+    const preparedImport = await prepareImportableExternalMarkdownFile(sourceEntryPath, entry);
+    if (!preparedImport) {
       continue;
     }
 
-    const importedPath = await importExternalMarkdownFile(sourceEntryPath, vaultPath, relativePath);
+    const importedPath = await importExternalMarkdownFile(sourceEntryPath, vaultPath, relativePath, preparedImport);
     if (importedPath) {
       importedNotePaths.push(importedPath);
       copiedMarkdownCount += 1;
@@ -429,7 +463,8 @@ export async function importExternalMarkdownEntries(
     }
     budget.visitedEntries += 1;
 
-    if (!await isImportableExternalMarkdownFile(sourcePath, info)) {
+    const preparedImport = await prepareImportableExternalMarkdownFile(sourcePath, info);
+    if (!preparedImport) {
       continue;
     }
 
@@ -437,6 +472,7 @@ export async function importExternalMarkdownEntries(
       sourcePath,
       vaultPath,
       targetFolderPath || undefined,
+      preparedImport,
     );
     if (importedPath) {
       importedNotePaths.push(importedPath);

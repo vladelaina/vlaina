@@ -82,6 +82,22 @@ describe('notesSidebarContentSearch', () => {
     ]);
   });
 
+  it('searches indented leading thematic breaks as normal markdown', () => {
+    const content = [
+      '  ---',
+      'visible target',
+      '  ---',
+    ].join('\n');
+
+    expect(getNotesSidebarContentMatches(content, 'target')).toEqual([
+      {
+        matchIndex: 8,
+        ordinal: 0,
+        snippet: 'visible target',
+      },
+    ]);
+  });
+
   it('searches decoded markdown character references as visible text', () => {
     const content = 'Fish &amp; Chips and &#x1F363; are visible';
 

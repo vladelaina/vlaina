@@ -448,6 +448,14 @@ describe('loadMentionedNotes', () => {
     ]);
   });
 
+  it('ignores malformed non-array note mentions at runtime', async () => {
+    const notes = await loadMentionedNotes({ path: 'docs/alpha.md', title: 'Alpha' });
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('normalizes and caps note mentions before loading references', async () => {
     mocks.storage.stat.mockResolvedValue({
       isFile: true,
@@ -482,6 +490,8 @@ describe('loadMentionedNotes', () => {
     mocks.storage.readFile.mockImplementation(async (path: string) => `# ${path.split('/').pop()}`);
 
     const notes = await loadMentionedNotes([
+      { path: null, title: 'Malformed' } as unknown as NoteMentionReference,
+      { path: 'docs/bad-title.md', title: null } as unknown as NoteMentionReference,
       { path: '../secret.md', title: 'Outside' },
       { path: 'docs/.vlaina/config.md', title: 'Internal' },
       { path: 'docs/not-note.txt', title: 'Text', kind: 'note' },
@@ -492,9 +502,9 @@ describe('loadMentionedNotes', () => {
     ]);
 
     expect(notes.map((note) => note.path)).toEqual([
+      'docs/bad-title.md',
       'docs/alpha.md',
       'docs/beta.md',
-      'docs/gamma.md',
     ]);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/not-note.txt', MAX_NOTE_MENTION_READ_BYTES);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/delta.md', MAX_NOTE_MENTION_READ_BYTES);
@@ -762,7 +772,7 @@ describe('loadMentionedNotes', () => {
     ]);
   });
 
-  it('does not read note mention files when stat has no size', async () => {
+  it('does not read note mention files when stat is unavailable', async () => {
     mocks.storage.stat.mockResolvedValue(null);
     mocks.storage.readFile.mockResolvedValue('# Unexpected');
 
@@ -773,6 +783,32 @@ describe('loadMentionedNotes', () => {
     expect(notes).toEqual([]);
     expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/alpha.md');
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('loads note mention files with bounded reads when stat has no size', async () => {
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false });
+    mocks.storage.readFile.mockResolvedValue('# Alpha');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/alpha.md', title: 'Alpha' },
+    ]);
+
+    expect(notes).toEqual([
+      { path: 'docs/alpha.md', title: 'Alpha', content: '# Alpha' },
+    ]);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
+  it('does not load note mention content that exceeds the byte limit after read', async () => {
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false });
+    mocks.storage.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_NOTE_MENTION_READ_BYTES / 3) + 1));
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/alpha.md', title: 'Alpha' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('does not load oversized current or cached note mention content', async () => {
@@ -797,6 +833,28 @@ describe('loadMentionedNotes', () => {
     ]);
 
     expect(notes).toEqual([]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('trusts empty cached note mention content instead of reading stale disk content', async () => {
+    mocks.notesState.noteContentsCache = new Map([
+      ['docs/empty.md', { content: '', modifiedAt: 7 }],
+      ['docs/blank.md', { content: '   \n', modifiedAt: 8 }],
+    ]);
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 16,
+    });
+    mocks.storage.readFile.mockResolvedValue('# Stale disk content');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/empty.md', title: 'Empty' },
+      { path: 'docs/blank.md', title: 'Blank' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 

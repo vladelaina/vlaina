@@ -3,6 +3,7 @@ import { ensureSystemDirectory, getVaultSystemStorePath } from './notes/systemSt
 
 const CONFIG_FILE_NAME = 'config.json';
 const MAX_VAULT_CONFIG_BYTES = 64 * 1024;
+const utf8Encoder = new TextEncoder();
 
 function createVaultConfig(vaultPath: string) {
   return {
@@ -40,7 +41,14 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
 
   try {
     const fileInfo = await storage.stat(configFilePath).catch(() => null);
-    if (typeof fileInfo?.size !== 'number' || fileInfo.size > MAX_VAULT_CONFIG_BYTES) {
+    if (
+      fileInfo?.isDirectory === true ||
+      fileInfo?.isFile === false ||
+      (
+        typeof fileInfo?.size === 'number' &&
+        fileInfo.size > MAX_VAULT_CONFIG_BYTES
+      )
+    ) {
       await storage.writeFile(
         configFilePath,
         JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
@@ -49,7 +57,7 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
     }
 
     const content = await storage.readFile(configFilePath, MAX_VAULT_CONFIG_BYTES);
-    if (content.length > MAX_VAULT_CONFIG_BYTES) {
+    if (utf8Encoder.encode(content).length > MAX_VAULT_CONFIG_BYTES) {
       await storage.writeFile(
         configFilePath,
         JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)

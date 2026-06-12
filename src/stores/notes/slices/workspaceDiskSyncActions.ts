@@ -32,8 +32,11 @@ function canReadDiskSyncNote(fileInfo: {
   return (
     fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
-    typeof fileInfo?.size === 'number' &&
-    fileInfo.size <= MAX_NOTE_DISK_SYNC_BYTES
+    Boolean(fileInfo) &&
+    (
+      typeof fileInfo?.size !== 'number' ||
+      fileInfo.size <= MAX_NOTE_DISK_SYNC_BYTES
+    )
   );
 }
 
@@ -122,7 +125,7 @@ export function createWorkspaceDiskSyncAction(
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
         const nextSize = getKnownFileSize(fileInfo);
         const knownSizeChanged = hasKnownFileSizeChanged(cachedSize, nextSize);
-        const shouldVerifyDiskContent = fileInfo?.modifiedAt == null && nextSize !== null;
+        const shouldVerifyDiskContent = fileInfo != null && fileInfo.modifiedAt == null;
         if (!options?.force && !shouldVerifyDiskContent && nextModifiedAt === cachedModifiedAt && !knownSizeChanged) {
           return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
         }

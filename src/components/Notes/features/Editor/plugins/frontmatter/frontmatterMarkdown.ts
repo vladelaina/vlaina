@@ -3,6 +3,9 @@ const UTF8_BOM = '\uFEFF';
 const FRONTMATTER_OPEN_PATTERN = /^---[ \t]*$/;
 const FRONTMATTER_CLOSE_PATTERN = /^---[ \t]*$/;
 const FRONTMATTER_LANGUAGE = 'yaml-frontmatter';
+const FRONTMATTER_INTERNAL_META = 'vlaina-internal-frontmatter';
+const FRONTMATTER_INTERNAL_OPEN_PATTERN =
+  new RegExp(`^\`\`\`${FRONTMATTER_LANGUAGE}[ \\t]+${FRONTMATTER_INTERNAL_META}[ \\t]*$`);
 const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
 const MAX_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_FRONTMATTER_LINES = 2048;
@@ -127,11 +130,10 @@ function splitLeadingFrontmatter(markdown: string): FrontmatterSections | null {
 }
 
 function splitLeadingInternalFrontmatter(markdown: string): FrontmatterSections | null {
-  const openFence = `\`\`\`${FRONTMATTER_LANGUAGE}`;
   return splitLeadingDelimitedBlock(
     markdown,
-    (line) => line.trim() === openFence,
-    (line) => line.trim() === '```',
+    (line) => FRONTMATTER_INTERNAL_OPEN_PATTERN.test(line),
+    (line) => line === '```',
   );
 }
 
@@ -145,7 +147,7 @@ function buildFrontmatterBlock(
     return body;
   }
 
-  const opening = fenced ? `\`\`\`${FRONTMATTER_LANGUAGE}` : '---';
+  const opening = fenced ? `\`\`\`${FRONTMATTER_LANGUAGE} ${FRONTMATTER_INTERNAL_META}` : '---';
   const closing = fenced ? '```' : '---';
   const frontmatter = [opening, ...frontmatterLines, closing].join('\n');
 
@@ -199,13 +201,23 @@ export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceM
 }
 
 export function isFrontmatterShortcutText(text: string): boolean {
-  return text.trim() === '---';
+  return FRONTMATTER_OPEN_PATTERN.test(text);
 }
 
 export function isFrontmatterFenceLanguage(language: unknown): boolean {
   return typeof language === 'string' && language.trim().toLowerCase() === FRONTMATTER_LANGUAGE;
 }
 
+export function isInternalFrontmatterFence(language: unknown, meta: unknown): boolean {
+  return isFrontmatterFenceLanguage(language) &&
+    typeof meta === 'string' &&
+    meta.trim() === FRONTMATTER_INTERNAL_META;
+}
+
 export function getFrontmatterFenceLanguage(): string {
   return FRONTMATTER_LANGUAGE;
+}
+
+export function getFrontmatterFenceMeta(): string {
+  return FRONTMATTER_INTERNAL_META;
 }

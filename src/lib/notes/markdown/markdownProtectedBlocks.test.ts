@@ -60,6 +60,24 @@ describe('markdown protected blocks', () => {
     ).toBe(['***', 'Body'].join('\n'));
   });
 
+  it('treats indented leading frontmatter-like delimiters as normal markdown', () => {
+    const markdown = [
+      ' ---',
+      'title: Alpha',
+      ' ---',
+      '- Body',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      ' ***',
+      'title: Alpha',
+      ' ***',
+      '* Body',
+    ].join('\n'));
+  });
+
   it('does not transform fenced code blocks and resumes after the closing fence', () => {
     const markdown = [
       'Before - item',

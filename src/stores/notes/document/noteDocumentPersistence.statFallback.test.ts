@@ -47,6 +47,24 @@ describe('note document stat fallback validation', () => {
     expect(result.size).toBe(8);
   });
 
+  it('reloads clean cached markdown when stat has no modified timestamp or size', async () => {
+    adapter.stat.mockResolvedValue({ isFile: true });
+    adapter.readFile.mockResolvedValue('# Disked');
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached', null, {
+        updateBaseline: true,
+      }),
+    });
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(result.content).toBe('# Disked');
+    expect(result.modifiedAt).toBeNull();
+    expect(result.size).toBeNull();
+  });
+
   it('checks disk content before saving when stat has size but no modified timestamp', async () => {
     adapter.stat.mockResolvedValue({ isFile: true, size: 8 });
     adapter.readFile.mockResolvedValue('# Disked');
@@ -60,6 +78,25 @@ describe('note document stat fallback validation', () => {
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached', null, {
         updateBaseline: true,
         size: 8,
+      }),
+    })).rejects.toBeInstanceOf(NoteWriteConflictError);
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('checks disk content before saving when stat has no modified timestamp or size', async () => {
+    adapter.stat.mockResolvedValue({ isFile: true });
+    adapter.readFile.mockResolvedValue('# Disked');
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Local',
+      },
+      cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached', null, {
+        updateBaseline: true,
       }),
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
 

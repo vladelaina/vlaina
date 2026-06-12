@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
     exists: vi.fn<(path: string) => Promise<boolean>>(),
     mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
     readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
-    stat: vi.fn<(path: string) => Promise<{ size?: number } | null>>(),
+    stat: vi.fn<(path: string) => Promise<{ isDirectory?: boolean; isFile?: boolean; size?: number } | null>>(),
     writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   },
 }));
@@ -40,13 +40,26 @@ describe('AssetHashIndex', () => {
     mocks.storage.writeFile.mockResolvedValue(undefined);
   });
 
-  it('does not read hash index files when stat has no size', async () => {
+  it('reads hash index files when stat has no size', async () => {
     mocks.storage.stat.mockResolvedValue({});
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: {
+        'image.png': {
+          filename: 'image.png',
+          hash: 'abc',
+          size: 10,
+          modifiedAt: 1,
+          mimeType: 'image/png',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    }));
 
     const index = await loadAssetHashIndex('/vault');
 
-    expect(index.entries).toEqual({});
-    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+    expect(index.entries['image.png']?.hash).toBe('abc');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.system/asset-hash-index.json', 2 * 1024 * 1024);
   });
 
   it('does not parse hash index content that exceeds the limit after read', async () => {

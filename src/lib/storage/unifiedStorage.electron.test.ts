@@ -47,10 +47,13 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
+  MAX_AI_PROVIDER_CHANNEL_BYTES,
   MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS,
   MAX_AI_PROVIDER_CHANNEL_MODELS,
   MAX_AI_PROVIDER_CHANNELS,
+  MAX_AI_SESSIONS_BYTES,
   MAX_AI_SESSION_RECORDS,
+  MAX_MAIN_DATA_BYTES,
   registerUnifiedStorageAutoSyncTrigger,
   saveUnifiedDataImmediate,
   setUnifiedStorageAutoSyncTrigger,
@@ -806,7 +809,7 @@ describe('unifiedStorage electron save', () => {
     expect(payload.data.deletedCustomIconIds).toEqual(['/app/.vlaina/assets/icons/deleted.png']);
   });
 
-  it('does not read existing main data during save when stat has no size', async () => {
+  it('reads existing main data during save when stat has no size', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.stat.mockImplementation(async (path: string) => (
       path.endsWith('/.vlaina/data.json')
@@ -814,6 +817,23 @@ describe('unifiedStorage electron save', () => {
         : { isFile: true, isDirectory: false, size: 1024 }
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [
+              { id: '/app/.vlaina/assets/icons/existing.png', url: 'img:/app/.vlaina/assets/icons/existing.png', name: 'existing.png', createdAt: 20 },
+            ],
+            deletedCustomIconIds: [],
+          },
+        });
+      }
+
       if (path.endsWith('/chat/sessions.json')) {
         return JSON.stringify({
           version: 1,
@@ -858,12 +878,13 @@ describe('unifiedStorage electron save', () => {
       },
     });
 
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/data.json');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/data.json', MAX_MAIN_DATA_BYTES);
     const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
       String(path).endsWith('/.vlaina/data.json'),
     );
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
+      '/app/.vlaina/assets/icons/existing.png',
       '/app/.vlaina/assets/icons/local.png',
     ]);
   });
@@ -1374,7 +1395,7 @@ describe('unifiedStorage electron save', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
-  it('does not read AI sessions metadata when stat has no size', async () => {
+  it('reads AI sessions metadata when stat has no size', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.stat.mockImplementation(async (path: string) => (
       path.endsWith('/chat/sessions.json')
@@ -1396,16 +1417,39 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [
+              { id: 'session-a', title: 'Session A', modelId: '', createdAt: 1, updatedAt: 2 },
+            ],
+            selectedModelId: null,
+            unreadSessionIds: ['session-a'],
+            currentSessionId: 'session-a',
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
       throw new Error(`Unexpected read: ${path}`);
     });
 
     const data = await loadUnifiedData();
 
-    expect(data.ai?.sessions).toEqual([]);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions.json');
+    expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-a']);
+    expect(data.ai?.currentSessionId).toBe('session-a');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions.json', MAX_AI_SESSIONS_BYTES);
   });
 
-  it('does not read provider channel files when stat has no size', async () => {
+  it('reads provider channel files when stat has no size', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.stat.mockImplementation(async (path: string) => (
       path.endsWith('/chat/channels/good-provider.json')
@@ -1447,13 +1491,42 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
+      if (path.endsWith('/chat/channels/good-provider.json')) {
+        return JSON.stringify({
+          version: 1,
+          providerId: 'good-provider',
+          updatedAt: 1,
+          data: {
+            provider: {
+              id: 'good-provider',
+              name: 'Good Provider',
+              type: 'newapi',
+              apiHost: 'https://example.com',
+              apiKey: '',
+              enabled: true,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+            models: [
+              { apiModelId: 'model-a', providerId: 'good-provider', enabled: true, createdAt: 1 },
+            ],
+            benchmarkResults: { items: {}, overall: 'idle', updatedAt: 1 },
+            fetchedModels: ['model-a'],
+          },
+        });
+      }
+
       throw new Error(`Unexpected read: ${path}`);
     });
 
     const data = await loadUnifiedData();
 
-    expect(data.ai?.providers).toEqual([]);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/good-provider.json');
+    expect(data.ai?.providers.map((provider) => provider.id)).toEqual(['good-provider']);
+    expect(data.ai?.models.map((model) => model.providerId)).toEqual(['good-provider']);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/channels/good-provider.json',
+      MAX_AI_PROVIDER_CHANNEL_BYTES,
+    );
   });
 
   it('recovers visible sessions from message files when AI session metadata is invalid', async () => {

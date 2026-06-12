@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { serializeSelectionToClipboardText } from './selectionSerialization';
+import {
+  getFrontmatterFenceLanguage,
+  getFrontmatterFenceMeta,
+} from '../frontmatter/frontmatterMarkdown';
 
 describe('selectionSerialization frontmatter', () => {
   it('serializes leading frontmatter back to markdown fences', () => {
@@ -8,7 +12,7 @@ describe('selectionSerialization frontmatter', () => {
       content: { size: 1 },
     };
     const serializer = vi.fn(
-      () => '```yaml-frontmatter\ntitle: demo\nsummary: test\n```\n\nBody\n'
+      () => `\`\`\`${getFrontmatterFenceLanguage()} ${getFrontmatterFenceMeta()}\ntitle: demo\nsummary: test\n\`\`\`\n\nBody\n`
     );
     const state: any = {
       selection: {

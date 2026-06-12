@@ -54,6 +54,30 @@ describe('note frontmatter metadata', () => {
     });
   });
 
+  it('ignores indented thematic breaks instead of treating them as frontmatter', () => {
+    const markdown = [
+      '    ---',
+      '    vlaina_icon: "hidden"',
+      '    ---',
+      '',
+      '# Body',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({});
+    expect(stripManagedFrontmatter(markdown)).toBe(markdown);
+    expect(
+      writeNoteMetadataToMarkdown(markdown, {
+        updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
+      })
+    ).toBe([
+      '---',
+      'vlaina_updated: 2026-04-16 08:00:00 +08:00',
+      '---',
+      '',
+      markdown,
+    ].join('\n'));
+  });
+
   it('preserves user frontmatter and appends managed fields at the bottom', () => {
     const markdown = [
       '---',

@@ -110,6 +110,40 @@ describe('featureSlice scan cache validation', () => {
     expect(store.getState().noteContentsCache.get(notePath)?.size).toBe(7);
   });
 
+  it('does not reuse scanned note content when stat has no modified time or size', async () => {
+    mocks.stat.mockResolvedValue({ isFile: true });
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: notePath,
+            name: 'alpha.md',
+            path: notePath,
+            isFolder: false,
+          },
+        ],
+      },
+      noteContentsCache: new Map([
+        [notePath, createCachedNoteContentEntry('# Cache', null)],
+      ]),
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: '# Disk!',
+      modifiedAt: null,
+    });
+    expect(store.getState().noteContentsCache.get(notePath)?.size).toBeNull();
+  });
+
   it('does not spend full-vault scan traversal priority on non-markdown siblings before markdown notes', async () => {
     const store = createNotesStore({
       rootFolder: {

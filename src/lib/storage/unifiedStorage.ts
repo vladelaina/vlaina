@@ -696,14 +696,17 @@ async function readBoundedTextFile(
   const fileInfo = await storage.stat(path).catch(() => null);
   if (
     fileInfo?.isFile === false ||
-    typeof fileInfo?.size !== 'number' ||
-    fileInfo.size > maxBytes
+    fileInfo?.isDirectory === true ||
+    (
+      typeof fileInfo?.size === 'number' &&
+      fileInfo.size > maxBytes
+    )
   ) {
     return null;
   }
 
   const content = await storage.readFile(path, maxBytes);
-  return content.length <= maxBytes ? content : null;
+  return isSerializedWithinLimit(content, maxBytes) ? content : null;
 }
 
 function buildRecoveredSessionTitle(messages: ChatMessage[]): string {

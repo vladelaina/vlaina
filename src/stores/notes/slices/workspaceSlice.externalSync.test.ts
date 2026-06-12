@@ -828,23 +828,25 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().noteContentsCache.get('docs/alpha.md')?.size).toBe(7);
   });
 
-  it('does not force reload the current note when stat has no size', async () => {
+  it('reloads the current note with bounded reads when stat has no size or modified time', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
-    storageAdapter.readFile.mockResolvedValue('# unexpected');
+    storageAdapter.stat.mockResolvedValue({ isFile: true });
+    storageAdapter.readFile.mockResolvedValue('# updated');
 
     const store = createNotesStore({
       currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      currentNoteDiskRevision: 3,
       openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
     });
 
-    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+    const result = await store.getState().syncCurrentNoteFromDisk();
 
-    expect(result).toBe('ignored');
-    expect(storageAdapter.readFile).not.toHaveBeenCalled();
-    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
-    expect(store.getState().error).toBe('Current note is too large to reload from disk.');
+    expect(result).toBe('reloaded');
+    expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# updated' });
+    expect(store.getState().currentNoteDiskRevision).toBe(4);
+    expect(store.getState().error).toBeNull();
   });
 
   it('does not reload externally changed markdown that is too complex for the editor', async () => {
