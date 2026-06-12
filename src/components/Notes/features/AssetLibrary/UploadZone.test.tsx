@@ -53,6 +53,29 @@ describe('UploadZone', () => {
     });
   });
 
+  it('rejects image files with invalid size metadata before uploading', async () => {
+    render(
+      <UploadZone
+        onUploadComplete={vi.fn()}
+        currentNotePath="note.md"
+        compact
+      />,
+    );
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+
+    const file = new File(['cover'], 'cover.png', { type: 'image/png' });
+    Object.defineProperty(file, 'size', {
+      configurable: true,
+      value: Number.NaN,
+    });
+    fireEvent.change(input!, { target: { files: [file] } });
+
+    expect(await screen.findByText('File exceeds maximum size of 50MB')).toBeInTheDocument();
+    expect(mocks.uploadAsset).not.toHaveBeenCalled();
+  });
+
   it('keeps compact idle upload zones icon-only with themed border styling', () => {
     const { container } = render(
       <UploadZone

@@ -19,6 +19,7 @@ const MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES = 10_000;
 const MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES = MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES * 2;
 const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
 const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
+const externalMarkdownImportUtf8Encoder = new TextEncoder();
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 const LOW_PRIORITY_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
@@ -56,6 +57,27 @@ function shouldHideExternalMarkdownDirectory(name: string) {
 
 function isLowPriorityExternalMarkdownDirectory(name: string) {
   return LOW_PRIORITY_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name.toLowerCase());
+}
+
+function isExternalMarkdownContentWithinReadLimit(content: string): boolean {
+  return (
+    content.length <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE &&
+    externalMarkdownImportUtf8Encoder.encode(content).length <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+  );
+}
+
+function isKnownExternalMarkdownFileSizeWithinLimit(size: number): boolean {
+  return (
+    Number.isFinite(size) &&
+    size >= 0 &&
+    size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+  );
+}
+
+function hasInvalidExternalMarkdownFileSize(
+  info: { size?: number | null } | null | undefined,
+): boolean {
+  return typeof info?.size === 'number' && !isKnownExternalMarkdownFileSizeWithinLimit(info.size);
 }
 
 function prioritizeExternalMarkdownScanEntries<T>(
@@ -233,14 +255,14 @@ async function importExternalMarkdownFile(
 
     const copiedInfo = await storage.stat(fullPath).catch(() => null);
     if (copiedInfo?.isFile) {
-      if (typeof copiedInfo.size === 'number' && copiedInfo.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
+      if (hasInvalidExternalMarkdownFileSize(copiedInfo)) {
         try { await storage.deleteFile(fullPath); } catch {}
         return null;
       }
 
       if (preparedImport.contentToWrite === null && typeof copiedInfo.size !== 'number') {
         const copiedContent = await storage.readFile(fullPath, MAX_EXTERNAL_MARKDOWN_FILE_SIZE).catch(() => null);
-        if (copiedContent === null || copiedContent.length > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
+        if (copiedContent === null || !isExternalMarkdownContentWithinReadLimit(copiedContent)) {
           try { await storage.deleteFile(fullPath); } catch {}
           return null;
         }
@@ -266,7 +288,7 @@ async function prepareImportableExternalMarkdownFile(
   }
 
   if (typeof fileInfo.size === 'number') {
-    return fileInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+    return isKnownExternalMarkdownFileSizeWithinLimit(fileInfo.size)
       ? { contentToWrite: null }
       : null;
   }
@@ -277,14 +299,14 @@ async function prepareImportableExternalMarkdownFile(
     return null;
   }
   if (typeof sourceInfo?.size === 'number') {
-    return sourceInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+    return isKnownExternalMarkdownFileSizeWithinLimit(sourceInfo.size)
       ? { contentToWrite: null }
       : null;
   }
 
   try {
     const content = await storage.readFile(sourcePath, MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
-    return content.length <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+    return isExternalMarkdownContentWithinReadLimit(content)
       ? { contentToWrite: content }
       : null;
   } catch {

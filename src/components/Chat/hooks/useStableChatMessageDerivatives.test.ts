@@ -1,7 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
-import { useStableChatMessageDerivatives } from './useStableChatMessageDerivatives';
+import {
+  MAX_CHAT_DERIVATIVE_SIGNATURE_HASH_CHARS,
+  useStableChatMessageDerivatives,
+} from './useStableChatMessageDerivatives';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 
 function createMessage(id: string, role: ChatMessage['role'], content: string): ChatMessage {
@@ -171,6 +174,29 @@ describe('useStableChatMessageDerivatives', () => {
     expect(performance.now() - startedAt).toBeLessThan(250);
   });
 
+  it('updates the gallery when large sampled image signatures match but sources differ', async () => {
+    const edge = 'a'.repeat(MAX_CHAT_DERIVATIVE_SIGNATURE_HASH_CHARS);
+    const firstSrc = `data:image/png;base64,${edge}${'A'.repeat(128)}${edge}`;
+    const secondSrc = `data:image/png;base64,${edge}${'B'.repeat(128)}${edge}`;
+    const assistant = createMessage('a1', 'assistant', `![image](<${firstSrc}>)`);
+    const view = renderHook(({ messages }) => useStableChatMessageDerivatives(messages), {
+      initialProps: { messages: [assistant] as ChatMessage[] },
+    });
+
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([{ id: 'a1:0', src: firstSrc }]));
+    const firstImageGallery = view.result.current.imageGallery;
+    view.rerender({
+      messages: [{
+        ...assistant,
+        content: `![image](<${secondSrc}>)`,
+        versions: [{ content: `![image](<${secondSrc}>)`, createdAt: assistant.timestamp, kind: 'original' as const, subsequentMessages: [] }],
+      }],
+    });
+
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([{ id: 'a1:0', src: secondSrc }]));
+    expect(view.result.current.imageGallery).not.toBe(firstImageGallery);
+  });
+
   it('updates the gallery when same-length image sources differ after a long shared prefix', async () => {
     const prefix = `https://example.com/${'shared-path-'.repeat(10)}`;
     const firstSrc = `${prefix}A.png`;
@@ -230,6 +256,29 @@ describe('useStableChatMessageDerivatives', () => {
     });
 
     expect(firstContent).toHaveLength(secondContent.length);
+    await waitFor(() => expect(view.result.current.sentUserMessages).toEqual([secondContent]));
+    expect(view.result.current.sentUserMessages).not.toBe(firstSentUserMessages);
+  });
+
+  it('updates sent user messages when large sampled signatures match but content differs', async () => {
+    const edge = 'shared text '.repeat(800);
+    const firstContent = `${edge}${'A'.repeat(128)}${edge}`;
+    const secondContent = `${edge}${'B'.repeat(128)}${edge}`;
+    const user = createMessage('u1', 'user', firstContent);
+    const view = renderHook(({ messages }) => useStableChatMessageDerivatives(messages), {
+      initialProps: { messages: [user] as ChatMessage[] },
+    });
+
+    await waitFor(() => expect(view.result.current.sentUserMessages).toEqual([firstContent]));
+    const firstSentUserMessages = view.result.current.sentUserMessages;
+    view.rerender({
+      messages: [{
+        ...user,
+        content: secondContent,
+        versions: [{ content: secondContent, createdAt: user.timestamp, kind: 'original' as const, subsequentMessages: [] }],
+      }],
+    });
+
     await waitFor(() => expect(view.result.current.sentUserMessages).toEqual([secondContent]));
     expect(view.result.current.sentUserMessages).not.toBe(firstSentUserMessages);
   });

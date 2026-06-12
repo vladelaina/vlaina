@@ -445,6 +445,21 @@ describe('starred persistence', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not parse starred registries with invalid known stat sizes', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockImplementation(async (path: string) => (
+      path === '/store/notes-starred.json'
+        ? { isDirectory: false, isFile: true, size: -1 }
+        : null
+    ));
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([]);
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('loads starred registries when stat has no size', async () => {
     const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
     adapter.exists.mockImplementation(async (path: string) => {

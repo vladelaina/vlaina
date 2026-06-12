@@ -108,15 +108,28 @@ function canReadStarredIconMetadata(fileInfo: {
   isDirectory?: boolean;
   size?: number | null;
 } | null | undefined) {
+  const size = fileInfo?.size;
   return (
     Boolean(fileInfo) &&
     fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
     (
-      typeof fileInfo?.size !== 'number' ||
-      fileInfo.size <= MAX_STARRED_ICON_METADATA_BYTES
+      typeof size !== 'number' ||
+      (Number.isFinite(size) && size >= 0 && size <= MAX_STARRED_ICON_METADATA_BYTES)
     )
   );
+}
+
+function getKnownStarredIconMetadataSize(fileInfo: { size?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.size === 'number' && Number.isFinite(fileInfo.size) && fileInfo.size >= 0
+    ? fileInfo.size
+    : null;
+}
+
+function getKnownStarredIconModifiedAt(fileInfo: { modifiedAt?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.modifiedAt === 'number' && Number.isFinite(fileInfo.modifiedAt)
+    ? fileInfo.modifiedAt
+    : null;
 }
 
 function isStarredIconMetadataWithinReadLimit(content: string): boolean {
@@ -153,8 +166,8 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
           const fullPath = await joinPath(pathContext.vaultPath, pathContext.relativePath);
           const storage = getStorageAdapter();
           const fileInfo = await storage.stat(fullPath).catch(() => null);
-          const modifiedAt = fileInfo?.modifiedAt ?? null;
-          const size = fileInfo?.size ?? null;
+          const modifiedAt = getKnownStarredIconModifiedAt(fileInfo);
+          const size = getKnownStarredIconMetadataSize(fileInfo);
           if (!canReadStarredIconMetadata(fileInfo)) {
             setStarredIconCacheEntry(cacheKey, {
               modifiedAt,

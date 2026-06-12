@@ -248,4 +248,20 @@ describe('avatarManager request cleanup', () => {
 
     expect(hoisted.loadImageAsBase64).toHaveBeenCalledWith('/app-data/.vlaina/system/avatar_octocat.webp');
   });
+
+  it('ignores invalid local avatar modified times when selecting the newest cache file', async () => {
+    hoisted.exists.mockImplementation(async (path: string) => path.endsWith('.png') || path.endsWith('.webp'));
+    hoisted.stat.mockImplementation(async (path: string) => ({
+      name: path.split('/').pop() || '',
+      path,
+      isDirectory: false,
+      isFile: true,
+      modifiedAt: path.endsWith('.png') ? Number.POSITIVE_INFINITY : 10,
+    }));
+    hoisted.loadImageAsBase64.mockResolvedValueOnce('data:image/webp;base64,LOCAL');
+
+    await expect(getLocalAvatarUrl('octocat')).resolves.toBe('data:image/webp;base64,LOCAL');
+
+    expect(hoisted.loadImageAsBase64).toHaveBeenCalledWith('/app-data/.vlaina/system/avatar_octocat.webp');
+  });
 });

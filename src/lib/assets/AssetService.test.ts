@@ -376,6 +376,33 @@ describe('AssetService', () => {
     expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
+  it('rejects uploads with invalid file size metadata before reading bytes', async () => {
+    const arrayBuffer = vi.fn(async () => new Uint8Array([1, 2, 3]).buffer);
+    const file = {
+      name: 'invalid.png',
+      type: 'image/png',
+      size: -1,
+      lastModified: 1,
+      arrayBuffer,
+    } as unknown as File;
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('File size is invalid. Limit is 50MB.');
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
+  });
+
   it('stores note-subfolder uploads beside an absolute external note even when a vault is open', async () => {
     const file = createImageFile('external.png');
 
@@ -956,6 +983,39 @@ describe('AssetService', () => {
         size: 123,
         mimeType: 'image/jpeg',
         uploadedAt: '2026-05-08T01:47:54.000Z',
+      },
+    ]);
+  });
+
+  it('sanitizes invalid asset directory metadata while listing images', async () => {
+    mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '/vault/docs/assets/cover.png',
+        isFile: true,
+        isDirectory: false,
+        size: -1,
+        modifiedAt: Number.POSITIVE_INFINITY,
+      },
+    ]);
+
+    const assets = await AssetService.list(
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+    );
+
+    expect(assets).toEqual([
+      {
+        filename: './assets/cover.png',
+        hash: '',
+        size: 0,
+        mimeType: 'image/png',
+        uploadedAt: '',
       },
     ]);
   });

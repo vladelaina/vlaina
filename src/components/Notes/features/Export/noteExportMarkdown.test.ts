@@ -635,6 +635,20 @@ describe('resolveExportMarkdownAssetSources', () => {
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('does not inline local note images with invalid negative stat sizes', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/invalid.png');
+    mocks.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: -1 });
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      '![invalid](img:invalid.png)',
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe('![invalid](img:invalid.png)');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('does not read local note images when stat is unavailable', async () => {
     mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.stat.mockResolvedValue(null);
@@ -794,6 +808,28 @@ describe('resolveExportMarkdownAssetSources', () => {
     mocks.stat
       .mockResolvedValueOnce({ size: MAX_EXPORT_EMBEDDED_IMAGE_BYTES - 1 })
       .mockResolvedValueOnce({ size: 2 });
+    mocks.readBinaryFile.mockResolvedValueOnce(new Uint8Array([104, 105]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      ['![one](img:one.png)', '![two](img:two.png)'].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![one](data:image/png;base64,aGk=)',
+      '![two](img:two.png)',
+    ].join('\n'));
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not read unknown-size image refs after the embedded image budget is exhausted', async () => {
+    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/vault/docs/assets/${assetPath}`,
+    );
+    mocks.stat
+      .mockResolvedValueOnce({ isFile: true, isDirectory: false, size: MAX_EXPORT_EMBEDDED_IMAGE_BYTES })
+      .mockResolvedValueOnce({ isFile: true, isDirectory: false });
     mocks.readBinaryFile.mockResolvedValueOnce(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(

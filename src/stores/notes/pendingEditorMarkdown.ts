@@ -1,7 +1,7 @@
 import { normalizeEditorRuntimeMarkdownArtifacts } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { setCachedNoteContent } from './document/noteContentCache';
+import { getCachedNoteModifiedAt, setCachedNoteContent } from './document/noteContentCache';
 import { setNoteTabDirtyState } from './document/noteTabState';
 
 export {
@@ -33,7 +33,7 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
     return false;
   }
 
-  const modifiedAt = state.noteContentsCache.get(notePath)?.modifiedAt ?? null;
+  const modifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, notePath);
   useNotesStore.setState((latest) => {
     const isCurrentNote = latest.currentNote?.path === notePath;
     const nextCurrentNote = isCurrentNote && latest.currentNote

@@ -224,4 +224,29 @@ describe('createNoteImpl', () => {
 
     vi.useRealTimers();
   });
+
+  it('does not expose invalid created note file stats', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: Number.POSITIVE_INFINITY, size: -1 });
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'alpha.md',
+      fullPath: '/vault/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await createNoteImpl('/vault', undefined, 'alpha', '# Alpha', {
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        children: [],
+        expanded: true,
+      },
+      recentNotes: [],
+      noteMetadata: null,
+    });
+
+    expect(result.modifiedAt).toBeNull();
+    expect(result.size).toBeNull();
+  });
 });

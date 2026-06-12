@@ -33,6 +33,21 @@ function revokeObjectUrl(objectUrl: string | undefined): void {
     URL.revokeObjectURL(objectUrl);
 }
 
+function getKnownRemoteImageCacheSize(size: number | null | undefined): number | undefined {
+    return typeof size === 'number' && Number.isFinite(size) && size >= 0
+        ? size
+        : undefined;
+}
+
+function isRemoteImageBlobSizeWithinLimit(size: number): boolean {
+    const knownSize = getKnownRemoteImageCacheSize(size);
+    return knownSize !== undefined && knownSize <= MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES;
+}
+
+function getRemoteImageCacheEntrySizeBytes(entry: RemoteImageCacheEntry | undefined): number {
+    return getKnownRemoteImageCacheSize(entry?.sizeBytes) ?? 0;
+}
+
 function evictRemoteImageCacheIfNeeded(): void {
     while (
         remoteImageCache.size > MAX_REMOTE_IMAGE_CACHE_ENTRIES
@@ -52,7 +67,7 @@ function evictOldestResolvedRemoteImageCacheEntry(): boolean {
 
     const [url, entry] = evictableEntry;
     revokeObjectUrl(entry.objectUrl);
-    remoteImageCacheBytes -= entry.sizeBytes ?? 0;
+    remoteImageCacheBytes -= getRemoteImageCacheEntrySizeBytes(entry);
     remoteImageCache.delete(url);
     return true;
 }
@@ -69,8 +84,8 @@ function setRemoteImageCacheEntry(url: string, entry: RemoteImageCacheEntry): vo
     if (existing?.objectUrl && existing.objectUrl !== entry.objectUrl) {
         revokeObjectUrl(existing.objectUrl);
     }
-    remoteImageCacheBytes -= existing?.sizeBytes ?? 0;
-    remoteImageCacheBytes += entry.sizeBytes ?? 0;
+    remoteImageCacheBytes -= getRemoteImageCacheEntrySizeBytes(existing);
+    remoteImageCacheBytes += getRemoteImageCacheEntrySizeBytes(entry);
     remoteImageCache.set(url, entry);
     evictRemoteImageCacheIfNeeded();
 }
@@ -111,7 +126,7 @@ async function fetchRemoteImageForCache(safeUrl: string): Promise<RemoteImageRes
         if (!blob.type.startsWith('image/')) {
             return { src: safeUrl };
         }
-        if (blob.size > MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES) {
+        if (!isRemoteImageBlobSizeWithinLimit(blob.size)) {
             return { src: safeUrl };
         }
 

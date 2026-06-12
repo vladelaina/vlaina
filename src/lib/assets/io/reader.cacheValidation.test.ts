@@ -57,8 +57,35 @@ describe('asset image reader cache validation', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-url');
   });
 
+  it('does not reuse cached full image blobs when stat has an invalid modified time', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: Number.POSITIVE_INFINITY, size: 3 });
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:first-url')
+      .mockReturnValueOnce('blob:second-url');
+
+    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:first-url');
+    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:second-url');
+
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-url');
+  });
+
   it('does not reuse cached thumbnails when stat has size but no modified time', async () => {
     hoisted.stat.mockResolvedValue({ size: 48 });
+    hoisted.readBinaryFile.mockResolvedValue(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:first-thumb-url')
+      .mockReturnValueOnce('blob:second-thumb-url');
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:first-thumb-url');
+    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:second-thumb-url');
+
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-thumb-url');
+  });
+
+  it('does not reuse cached thumbnails when stat has an invalid modified time', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: Number.NaN, size: 48 });
     hoisted.readBinaryFile.mockResolvedValue(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
     vi.mocked(URL.createObjectURL)
       .mockReturnValueOnce('blob:first-thumb-url')

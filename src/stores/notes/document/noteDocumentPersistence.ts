@@ -110,7 +110,12 @@ function assertStoredNotePathAllowed(path: string): void {
 }
 
 function assertReadableNoteSize(size: number | null | undefined): void {
-  if (typeof size !== 'number' || size > MAX_NOTE_DOCUMENT_BYTES) {
+  if (
+    typeof size !== 'number' ||
+    !Number.isFinite(size) ||
+    size < 0 ||
+    size > MAX_NOTE_DOCUMENT_BYTES
+  ) {
     throw new Error('Note file is too large to open.');
   }
 }
@@ -137,7 +142,15 @@ function assertWritableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: 
 }
 
 function getKnownFileSize(fileInfo: { size?: number | null } | null | undefined): number | null {
-  return typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+  return typeof fileInfo?.size === 'number' && Number.isFinite(fileInfo.size) && fileInfo.size >= 0
+    ? fileInfo.size
+    : null;
+}
+
+function getKnownModifiedAt(fileInfo: { modifiedAt?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.modifiedAt === 'number' && Number.isFinite(fileInfo.modifiedAt)
+    ? fileInfo.modifiedAt
+    : null;
 }
 
 function hasKnownFileSizeChanged(cachedSize: number | null | undefined, diskSize: number | null): boolean {
@@ -147,7 +160,7 @@ function hasKnownFileSizeChanged(cachedSize: number | null | undefined, diskSize
 function shouldVerifyDiskContentWithoutModifiedAt(
   fileInfo: { isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null } | null | undefined,
 ): boolean {
-  return Boolean(fileInfo && fileInfo.isDirectory !== true && fileInfo.isFile !== false && fileInfo.modifiedAt == null);
+  return Boolean(fileInfo && fileInfo.isDirectory !== true && fileInfo.isFile !== false && getKnownModifiedAt(fileInfo) === null);
 }
 
 export function assertEditorSafeMarkdownContent(content: string): void {
@@ -207,7 +220,7 @@ export async function loadNoteDocument({
       if (fileInfo == null || fileInfo.isDirectory === true || fileInfo.isFile === false) {
         assertReadableNoteFileInfo(fileInfo);
       }
-      const diskModifiedAt = fileInfo?.modifiedAt ?? null;
+      const diskModifiedAt = getKnownModifiedAt(fileInfo);
       const diskSize = getKnownFileSize(fileInfo);
       const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(fileInfo);
       if (
@@ -251,7 +264,7 @@ export async function loadNoteDocument({
   const content = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
   assertEditorSafeMarkdownContent(content);
   const normalizedContent = normalizeSerializedMarkdownDocument(content);
-  const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const modifiedAt = getKnownModifiedAt(fileInfo);
   const size = getKnownFileSize(fileInfo);
 
   return {
@@ -278,7 +291,7 @@ export async function saveNoteDocument({
   const fileInfoBeforeWrite = await storage.stat(fullPath);
   assertWritableNoteFileInfo(fileInfoBeforeWrite);
   assertEditorSafeMarkdownContent(currentNote.content);
-  const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
+  const diskModifiedAt = getKnownModifiedAt(fileInfoBeforeWrite);
   const diskSize = getKnownFileSize(fileInfoBeforeWrite);
   const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
   const cachedEntry = cache.get(notePath);
@@ -354,7 +367,7 @@ export async function saveNoteDocument({
       markExpectedExternalChange(fullPath);
 
       const fileInfo = await storage.stat(fullPath);
-      const modifiedAt = fileInfo?.modifiedAt ?? null;
+      const modifiedAt = getKnownModifiedAt(fileInfo);
       const size = getKnownFileSize(fileInfo);
 
       return {
@@ -380,7 +393,7 @@ export async function saveNoteDocument({
   markExpectedExternalChange(fullPath);
 
   const fileInfo = await storage.stat(fullPath);
-  const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const modifiedAt = getKnownModifiedAt(fileInfo);
   const size = getKnownFileSize(fileInfo);
 
   return {

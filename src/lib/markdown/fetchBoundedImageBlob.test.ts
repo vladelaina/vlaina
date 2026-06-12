@@ -93,6 +93,25 @@ describe('fetchBoundedImageBlob', () => {
     });
   });
 
+  it('rejects non-streaming responses with invalid blob sizes', async () => {
+    const blob = vi.fn(async () => ({
+      type: 'image/png',
+      size: -1,
+      arrayBuffer: vi.fn(),
+    } as unknown as Blob));
+
+    await expect(readBoundedImageBlobResponse({
+      headers: new Headers({
+        'content-length': '3',
+        'content-type': 'image/png',
+      }),
+      blob,
+    } as unknown as Response)).resolves.toEqual({
+      status: 'too-large',
+      blob: null,
+    });
+  });
+
   it('cancels pending streamed reads when the signal aborts', async () => {
     const controller = new AbortController();
     const cancel = vi.fn(async () => undefined);

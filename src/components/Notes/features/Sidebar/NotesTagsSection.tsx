@@ -153,6 +153,18 @@ function isTagNoteIconMetadataWithinReadLimit(content: string): boolean {
   );
 }
 
+function getKnownTagNoteIconMetadataSize(fileInfo: { size?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.size === 'number' && Number.isFinite(fileInfo.size) && fileInfo.size >= 0
+    ? fileInfo.size
+    : null;
+}
+
+function getKnownTagNoteIconModifiedAt(fileInfo: { modifiedAt?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.modifiedAt === 'number' && Number.isFinite(fileInfo.modifiedAt)
+    ? fileInfo.modifiedAt
+    : null;
+}
+
 async function readTagNoteIconFromStorage(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
   if (
     hasInternalNotePathSegment(path) ||
@@ -174,13 +186,16 @@ async function readTagNoteIconFromStorage(path: string, vaultPath: string | null
 
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(fullPath).catch(() => null);
-  const modifiedAt = fileInfo?.modifiedAt ?? null;
-  const size = fileInfo?.size ?? null;
+  const modifiedAt = getKnownTagNoteIconModifiedAt(fileInfo);
+  const size = getKnownTagNoteIconMetadataSize(fileInfo);
   if (
     !fileInfo ||
     fileInfo?.isDirectory === true ||
     fileInfo?.isFile === false ||
-    (typeof size === 'number' && size > MAX_TAG_NOTE_ICON_METADATA_BYTES)
+    (
+      typeof fileInfo.size === 'number' &&
+      (!Number.isFinite(fileInfo.size) || fileInfo.size < 0 || fileInfo.size > MAX_TAG_NOTE_ICON_METADATA_BYTES)
+    )
   ) {
     return { modifiedAt, size, icon: null };
   }

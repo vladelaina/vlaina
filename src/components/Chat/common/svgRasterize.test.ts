@@ -100,6 +100,33 @@ describe('svgRasterize', () => {
     expect(arrayBuffer).not.toHaveBeenCalled();
   });
 
+  it('rejects invalid SVG blob sizes before reading them into memory', async () => {
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
+    const blob = {
+      type: 'image/svg+xml',
+      size: Number.POSITIVE_INFINITY,
+      arrayBuffer,
+    } as unknown as Blob;
+
+    await expect(rasterizeSvgBlobToPngBlob(blob)).resolves.toBeNull();
+
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
+
+  it('rejects SVG blobs when the read byte length exceeds the rasterization limit', async () => {
+    const ImageMock = vi.fn();
+    vi.stubGlobal('Image', ImageMock);
+    const blob = {
+      type: 'image/svg+xml',
+      size: 1,
+      arrayBuffer: vi.fn(async () => new Uint8Array(MAX_INLINE_IMAGE_BYTES + 1).buffer),
+    } as unknown as Blob;
+
+    await expect(rasterizeSvgBlobToPngBlob(blob)).resolves.toBeNull();
+
+    expect(ImageMock).not.toHaveBeenCalled();
+  });
+
   it('rejects oversized rasterized PNG data URLs', async () => {
     vi.stubGlobal('Image', class {
       onload: (() => void) | null = null;

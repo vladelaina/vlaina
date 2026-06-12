@@ -28,6 +28,16 @@ describe('WebAdapter', () => {
     });
   }
 
+  async function putRawStoredFile(file: unknown) {
+    const db = await (adapter as unknown as { getDB: () => Promise<IDBDatabase> }).getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('files', 'readwrite');
+      const request = tx.objectStore('files').put(file);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   it('copies binary files without decoding them as text', async () => {
     const bytes = new Uint8Array([0xff, 0x00, 0x80, 0x61]);
 
@@ -39,6 +49,33 @@ describe('WebAdapter', () => {
       isFile: true,
       size: bytes.length,
     });
+  });
+
+  it('normalizes corrupted stored file metadata when statting and listing', async () => {
+    await putRawStoredFile({
+      path: '/vault/corrupt.md',
+      content: 'hello',
+      isBinary: false,
+      size: -1,
+      modifiedAt: Number.NaN,
+      createdAt: 1,
+    });
+
+    await expect(adapter.stat('/vault/corrupt.md')).resolves.toMatchObject({
+      isFile: true,
+      size: 5,
+      modifiedAt: undefined,
+    });
+
+    await expect(adapter.listDir('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        name: 'corrupt.md',
+        path: '/vault/corrupt.md',
+        isFile: true,
+        size: 5,
+        modifiedAt: undefined,
+      }),
+    ]);
   });
 
   it('renames binary files without decoding them as text', async () => {

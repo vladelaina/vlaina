@@ -2,16 +2,28 @@ import type { NoteContentCacheEntry } from '../types';
 
 export type NoteContentCache = Map<string, NoteContentCacheEntry>;
 
+function getKnownCacheModifiedAt(modifiedAt: number | null | undefined): number | null {
+  return typeof modifiedAt === 'number' && Number.isFinite(modifiedAt)
+    ? modifiedAt
+    : null;
+}
+
+function getKnownCacheSize(size: number | null | undefined): number | null {
+  return typeof size === 'number' && Number.isFinite(size) && size >= 0
+    ? size
+    : null;
+}
+
 export function getCachedNoteContent(cache: NoteContentCache, path: string): string | undefined {
   return cache.get(path)?.content;
 }
 
 export function getCachedNoteModifiedAt(cache: NoteContentCache, path: string): number | null {
-  return cache.get(path)?.modifiedAt ?? null;
+  return getKnownCacheModifiedAt(cache.get(path)?.modifiedAt);
 }
 
 export function getCachedNoteSize(cache: NoteContentCache, path: string): number | null {
-  return cache.get(path)?.size ?? null;
+  return getKnownCacheSize(cache.get(path)?.size);
 }
 
 export function createCachedNoteContentEntry(
@@ -19,9 +31,9 @@ export function createCachedNoteContentEntry(
   modifiedAt: number | null,
   options: { size?: number | null } = {}
 ): NoteContentCacheEntry {
-  const entry: NoteContentCacheEntry = { content, modifiedAt };
+  const entry: NoteContentCacheEntry = { content, modifiedAt: getKnownCacheModifiedAt(modifiedAt) };
   defineHiddenCacheMetadata(entry, {
-    size: Object.prototype.hasOwnProperty.call(options, 'size') ? options.size ?? null : undefined,
+    size: Object.prototype.hasOwnProperty.call(options, 'size') ? getKnownCacheSize(options.size) : undefined,
   });
   return entry;
 }
@@ -63,6 +75,7 @@ export function setCachedNoteContent(
   options: { updateBaseline?: boolean; baselineContent?: string; freshUntil?: number; size?: number | null } = {}
 ): NoteContentCache {
   const current = cache.get(path);
+  const nextModifiedAt = getKnownCacheModifiedAt(modifiedAt);
   const savedContent = options.baselineContent ?? (options.updateBaseline
     ? content
     : current?.savedContent ?? current?.content ?? content);
@@ -70,12 +83,16 @@ export function setCachedNoteContent(
   const nextFreshUntil = options.freshUntil;
   const hasNextSize = Object.prototype.hasOwnProperty.call(options, 'size')
     || current?.size !== undefined;
-  const nextSize = Object.prototype.hasOwnProperty.call(options, 'size')
-    ? options.size ?? null
-    : current?.size;
+  const nextSize = hasNextSize
+    ? (
+        Object.prototype.hasOwnProperty.call(options, 'size')
+          ? getKnownCacheSize(options.size)
+          : getKnownCacheSize(current?.size)
+      )
+    : undefined;
   if (
     current?.content === content &&
-    current.modifiedAt === modifiedAt &&
+    getKnownCacheModifiedAt(current.modifiedAt) === nextModifiedAt &&
     current.size === nextSize &&
     current.savedContent === nextSavedContent &&
     current.freshUntil === nextFreshUntil
@@ -84,7 +101,7 @@ export function setCachedNoteContent(
   }
 
   const nextCache = new Map(cache);
-  const nextEntry: NoteContentCacheEntry = { content, modifiedAt };
+  const nextEntry: NoteContentCacheEntry = { content, modifiedAt: nextModifiedAt };
   defineHiddenCacheMetadata(nextEntry, {
     size: hasNextSize ? nextSize : undefined,
     savedContent: nextSavedContent,

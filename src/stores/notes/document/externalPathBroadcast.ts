@@ -332,10 +332,11 @@ async function readEventFileContent(eventPath: string) {
   if (
     fileInfo?.isDirectory === true ||
     fileInfo?.isFile === false ||
-    (
-      typeof fileInfo?.size === 'number' &&
+    (typeof fileInfo?.size === 'number' && (
+      !Number.isFinite(fileInfo.size) ||
+      fileInfo.size < 0 ||
       fileInfo.size > MAX_EVENT_FILE_BYTES
-    )
+    ))
   ) {
     return null;
   }

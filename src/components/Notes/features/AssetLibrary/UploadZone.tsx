@@ -6,6 +6,7 @@ import { useI18n } from '@/lib/i18n';
 import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
+const MAX_ASSET_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 interface ExtendedUploadZoneProps extends UploadZoneProps {
   currentNotePath?: string;
@@ -50,7 +51,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       return;
     }
 
-    if (file.size > 50 * 1024 * 1024) {
+    if (!Number.isFinite(file.size) || file.size < 0 || file.size > MAX_ASSET_UPLOAD_BYTES) {
       setStatus('error');
       setMessage(t('asset.fileExceedsMaxSize', { size: '50MB' }));
       scheduleReset(3000);

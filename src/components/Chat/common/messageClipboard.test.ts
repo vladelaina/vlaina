@@ -624,6 +624,26 @@ describe("messageClipboard", () => {
     expect(writeMock).not.toHaveBeenCalled();
   });
 
+  it("does not copy rasterized SVG output with invalid size metadata", async () => {
+    const svgBlob = new Blob(["<svg></svg>"], { type: "image/svg+xml" });
+    const invalidPngBlob = {
+      type: "image/png",
+      size: -1,
+    } as unknown as Blob;
+    const writeMock = vi.spyOn(navigator.clipboard, "write");
+    svgMocks.rasterizeSvgBlobToPngBlob.mockResolvedValue(invalidPngBlob);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(createFetchedImageResponse(svgBlob)),
+    );
+
+    const copied = await copyImageSourceToClipboard("https://a.com/diagram.svg");
+
+    expect(copied).toBe(false);
+    expect(svgMocks.rasterizeSvgBlobToPngBlob).toHaveBeenCalledWith(svgBlob);
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to text copy when image copy fails", async () => {
     const writeTextMock = vi.spyOn(navigator.clipboard, "writeText");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));

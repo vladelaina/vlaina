@@ -7,8 +7,12 @@ function isSvgFile(file: File): boolean {
         || /\.svg$/i.test(file.name);
 }
 
+function isFileByteLengthWithinLimit(size: number, maxBytes: number): boolean {
+    return Number.isFinite(size) && size >= 0 && size <= maxBytes;
+}
+
 export async function readUploadPreviewDataUrl(file: File): Promise<string | null> {
-    if (file.size > MAX_ICON_UPLOAD_PREVIEW_BYTES) {
+    if (!isFileByteLengthWithinLimit(file.size, MAX_ICON_UPLOAD_PREVIEW_BYTES)) {
         return null;
     }
 

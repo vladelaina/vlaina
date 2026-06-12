@@ -41,11 +41,32 @@ const IMAGE_UPLOAD_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/x-icon': ['ico'],
 };
 
+function getKnownAssetSize(size: number | null | undefined): number | undefined {
+  return typeof size === 'number' && Number.isFinite(size) && size >= 0
+    ? size
+    : undefined;
+}
+
+function createAssetSizeError(size: number | null | undefined): string {
+  const knownSize = getKnownAssetSize(size);
+  return knownSize === undefined
+    ? 'File size is invalid. Limit is 50MB.'
+    : `File is too large (${(knownSize / 1024 / 1024).toFixed(1)}MB). Limit is 50MB.`;
+}
+
+function getKnownAssetModifiedAt(modifiedAt: number | null | undefined): number | undefined {
+  return typeof modifiedAt === 'number' && Number.isFinite(modifiedAt)
+    ? modifiedAt
+    : undefined;
+}
+
 function isIndexedAssetFresh(
   entry: { size?: number; modifiedAt?: number | null },
   indexed: { size: number; modifiedAt: number | null },
 ) {
-  return typeof entry.size === 'number' && entry.size === indexed.size && typeof entry.modifiedAt === 'number' && entry.modifiedAt === indexed.modifiedAt;
+  const size = getKnownAssetSize(entry.size);
+  const modifiedAt = getKnownAssetModifiedAt(entry.modifiedAt);
+  return size !== undefined && size === indexed.size && modifiedAt !== undefined && modifiedAt === indexed.modifiedAt;
 }
 
 async function saveAssetHashIndexBestEffort(
@@ -157,8 +178,8 @@ async function normalizeAssetDirectoryEntry(
   return {
     name: entry.name,
     path: containedPath,
-    size: entry.size,
-    modifiedAt: entry.modifiedAt,
+    size: getKnownAssetSize(entry.size),
+    modifiedAt: getKnownAssetModifiedAt(entry.modifiedAt),
   };
 }
 
@@ -168,15 +189,19 @@ async function hydrateAssetEntryMetadata(
   options: { forceStat?: boolean } = {},
 ) {
   return mapWithConcurrencyLimit(entries, MAX_ASSET_METADATA_STAT_CONCURRENCY, async (entry) => {
-    if (!options.forceStat && typeof entry.size === 'number' && typeof entry.modifiedAt === 'number') {
+    const entrySize = getKnownAssetSize(entry.size);
+    const entryModifiedAt = getKnownAssetModifiedAt(entry.modifiedAt);
+    if (!options.forceStat && entrySize !== undefined && entryModifiedAt !== undefined) {
       return entry;
     }
 
     const info = await storage.stat(entry.path).catch(() => null);
+    const infoSize = getKnownAssetSize(info?.size);
+    const infoModifiedAt = getKnownAssetModifiedAt(info?.modifiedAt);
     return {
       ...entry,
-      size: options.forceStat ? info?.size : (typeof entry.size === 'number' ? entry.size : info?.size),
-      modifiedAt: options.forceStat ? info?.modifiedAt : (typeof entry.modifiedAt === 'number' ? entry.modifiedAt : info?.modifiedAt),
+      size: options.forceStat ? infoSize : entrySize ?? infoSize,
+      modifiedAt: options.forceStat ? infoModifiedAt : entryModifiedAt ?? infoModifiedAt,
     };
   });
 }
@@ -328,13 +353,13 @@ export class AssetService {
     existingAssets: AssetEntry[],
     onProgress?: (progress: number) => void
   ): Promise<UploadResult> {
-    
-    if (file.size > MAX_ASSET_SIZE) {
-      return { 
-        success: false, 
-        path: null, 
-        isDuplicate: false, 
-        error: `File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Limit is 50MB.`
+    const initialUploadSize = getKnownAssetSize(file.size);
+    if (initialUploadSize === undefined || initialUploadSize > MAX_ASSET_SIZE) {
+      return {
+        success: false,
+        path: null,
+        isDuplicate: false,
+        error: createAssetSizeError(file.size),
       };
     }
     
@@ -361,7 +386,7 @@ export class AssetService {
       }
       return preparedUploadBytesPromise;
     };
-    let uploadSize = file.size;
+    let uploadSize = initialUploadSize;
     if (uploadMimeType === 'image/svg+xml') {
       const preparedBytes = await readPreparedUploadBytes();
       if (preparedBytes.byteLength > MAX_ASSET_SIZE) {
@@ -444,7 +469,7 @@ export class AssetService {
           filename: candidateFilename,
           hash: candidateHash,
           size: candidate.size ?? 0,
-          modifiedAt: candidate.modifiedAt ?? null,
+          modifiedAt: getKnownAssetModifiedAt(candidate.modifiedAt) ?? null,
           mimeType: getMimeType(candidate.name),
           updatedAt: new Date().toISOString(),
         });
@@ -520,7 +545,7 @@ export class AssetService {
         filename: storedFilename,
         hash: fileHash,
         size: uploadSize,
-        modifiedAt: writtenInfo?.modifiedAt ?? null,
+        modifiedAt: getKnownAssetModifiedAt(writtenInfo?.modifiedAt) ?? null,
         mimeType: newEntry.mimeType,
         updatedAt: newEntry.uploadedAt,
       });

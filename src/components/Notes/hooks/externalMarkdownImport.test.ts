@@ -205,6 +205,24 @@ describe('importExternalMarkdownEntries', () => {
     expect(mocks.storage.copyFile).not.toHaveBeenCalled();
   });
 
+  it('skips external markdown files with invalid known source sizes', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: -1,
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/invalid.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
   it('imports a markdown file with bounded reads when source size is unavailable', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isFile: path === '/outside/no-size.md' || path === '/vault/imports/no-size.md',
@@ -226,6 +244,30 @@ describe('importExternalMarkdownEntries', () => {
     });
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/outside/no-size.md', MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
     expect(mocks.storage.writeFile).toHaveBeenCalledWith('/vault/imports/no-size.md', '# No size');
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('skips markdown file imports that exceed the byte limit after bounded read', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isFile: path === '/outside/no-size.md',
+      isDirectory: false,
+    }));
+    mocks.storage.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_EXTERNAL_MARKDOWN_FILE_SIZE / 3) + 1));
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/no-size.md',
+      fullPath: '/vault/imports/no-size.md',
+      fileName: 'no-size.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/no-size.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/outside/no-size.md', MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
+    expect(mocks.storage.writeFile).not.toHaveBeenCalled();
     expect(mocks.storage.copyFile).not.toHaveBeenCalled();
   });
 
@@ -691,6 +733,29 @@ describe('importExternalMarkdownEntries', () => {
     });
     expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/huge.md', '/vault/imports/huge.md');
     expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/imports/huge.md');
+  });
+
+  it('removes copied markdown when the target size is invalid', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: false,
+      isFile: true,
+      size: path.startsWith('/vault/') ? -1 : 1024,
+    }));
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/invalid.md',
+      fullPath: '/vault/imports/invalid.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/invalid.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/invalid.md', '/vault/imports/invalid.md');
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/imports/invalid.md');
   });
 
   it('keeps generated folders low priority without hiding markdown imports', async () => {

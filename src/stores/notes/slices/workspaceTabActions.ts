@@ -31,6 +31,12 @@ type WorkspaceTabActions = Pick<
   | 'getDisplayName'
 >;
 
+function getKnownClosedTabModifiedAt(modifiedAt: number | null | undefined): number | null {
+  return typeof modifiedAt === 'number' && Number.isFinite(modifiedAt)
+    ? modifiedAt
+    : null;
+}
+
 export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): WorkspaceTabActions {
   return {
     updateDraftNoteName: (path: string, name: string) => {
@@ -353,7 +359,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
             get().noteContentsCache,
             entry.tab.path,
             entry.content ?? '',
-            entry.modifiedAt ?? null,
+            getKnownClosedTabModifiedAt(entry.modifiedAt),
           );
           const nextTabs = alreadyOpen
             ? get().openTabs

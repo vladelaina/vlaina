@@ -470,7 +470,28 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
-  it('rejects allowed attachment paths before reading them when stat has no size', async () => {
+  it('rejects allowed attachment paths with invalid known stat sizes before reading them', async () => {
+    mocks.adapter.stat.mockResolvedValueOnce({
+      size: -1,
+    });
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/vault/assets/invalid.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'invalid.png',
+      type: 'image/png',
+      size: 2,
+    }, {
+      allowPath: (path) => path.startsWith('/vault/'),
+    })).rejects.toThrow('Cannot convert attachment to Base64');
+
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/vault/assets/invalid.png');
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('reads allowed attachment paths when stat has no size but bounded read succeeds', async () => {
     mocks.adapter.stat.mockResolvedValueOnce({
       name: 'file.png',
       path: '/vault/assets/file.png',
@@ -488,10 +509,10 @@ describe('attachmentStorage', () => {
       size: 2,
     }, {
       allowPath: (path) => path.startsWith('/vault/'),
-    })).rejects.toThrow('Cannot convert attachment to Base64');
+    })).resolves.toBe('data:image/png;base64,SEk=');
 
     expect(mocks.adapter.stat).toHaveBeenCalledWith('/vault/assets/file.png');
-    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/vault/assets/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
   });
 
   it('rejects oversized stored attachment URLs before reading them when stat has a size', async () => {
@@ -513,7 +534,26 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
-  it('rejects stored attachment URLs before reading them when stat has no size', async () => {
+  it('rejects stored attachment URLs with invalid known stat sizes before reading them', async () => {
+    mocks.adapter.stat.mockResolvedValueOnce({
+      size: -1,
+    });
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '',
+      previewUrl: 'attachment://invalid.png',
+      assetUrl: 'attachment://invalid.png',
+      name: 'invalid.png',
+      type: 'image/png',
+      size: 2,
+    })).rejects.toThrow('Attachment image is too large.');
+
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/invalid.png');
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('reads stored attachment URLs when stat has no size but bounded read succeeds', async () => {
     mocks.adapter.stat.mockResolvedValueOnce(null);
 
     await expect(convertToBase64({
@@ -524,10 +564,13 @@ describe('attachmentStorage', () => {
       name: 'file.png',
       type: 'image/png',
       size: 2,
-    })).rejects.toThrow('Attachment image is too large.');
+    })).resolves.toBe('data:image/png;base64,SEk=');
 
     expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png');
-    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/attachments/file.png',
+      MAX_ATTACHMENT_IMAGE_BYTES,
+    );
   });
 
   it('resolves stored attachment URLs from the attachments directory when converting to base64', async () => {

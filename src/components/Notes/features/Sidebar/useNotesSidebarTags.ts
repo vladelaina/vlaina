@@ -97,7 +97,10 @@ async function readSidebarTagContent(path: string, currentVaultPath: string | nu
       !fileInfo ||
       fileInfo?.isDirectory === true ||
       fileInfo?.isFile === false ||
-      (typeof fileInfo.size === 'number' && fileInfo.size > MAX_TAG_CONTENT_READ_BYTES)
+      (
+        typeof fileInfo.size === 'number' &&
+        (!Number.isFinite(fileInfo.size) || fileInfo.size < 0 || fileInfo.size > MAX_TAG_CONTENT_READ_BYTES)
+      )
     ) {
       return '';
     }

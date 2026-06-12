@@ -29,6 +29,18 @@ function prepareGlobalAssetBytes(bytes: Uint8Array, mimeType: string): Uint8Arra
   return mimeType === 'image/svg+xml' ? sanitizeSvgBytes(bytes) : bytes;
 }
 
+function getKnownGlobalAssetSize(size: number | null | undefined): number | undefined {
+  return typeof size === 'number' && Number.isFinite(size) && size >= 0
+    ? size
+    : undefined;
+}
+
+function getKnownGlobalAssetModifiedAt(modifiedAt: number | null | undefined): number | undefined {
+  return typeof modifiedAt === 'number' && Number.isFinite(modifiedAt)
+    ? modifiedAt
+    : undefined;
+}
+
 function isSafeGlobalAssetEntryName(name: string): boolean {
   return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
 }
@@ -54,11 +66,16 @@ async function normalizeGlobalIconEntry(
     return null;
   }
 
+  const size = getKnownGlobalAssetSize(entry.size);
+  if (typeof entry.size === 'number' && size === undefined) {
+    return null;
+  }
+
   return {
     name: entry.name,
     path: containedPath,
-    size: entry.size,
-    modifiedAt: entry.modifiedAt,
+    size,
+    modifiedAt: getKnownGlobalAssetModifiedAt(entry.modifiedAt),
   };
 }
 
@@ -73,7 +90,7 @@ function assertGlobalAssetFile(file: File): void {
     throw new Error('Only image files can be saved as custom icons.');
   }
 
-  if (file.size > MAX_GLOBAL_ASSET_BYTES) {
+  if (!Number.isFinite(file.size) || file.size < 0 || file.size > MAX_GLOBAL_ASSET_BYTES) {
     throw new Error('Custom icon image is too large.');
   }
 }
@@ -129,7 +146,7 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
         file &&
         !file.name.startsWith('.') &&
         GLOBAL_ICON_FILENAME_PATTERN.test(file.name) &&
-        (typeof file.size !== 'number' || file.size <= MAX_GLOBAL_ASSET_BYTES)
+        (file.size === undefined || file.size <= MAX_GLOBAL_ASSET_BYTES)
       ) {
         imageFiles.push(file);
       }

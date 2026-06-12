@@ -14,6 +14,13 @@ async function sha256(data: BufferSource): Promise<string> {
   return bufferToHex(hashBuffer);
 }
 
+function getKnownFileByteLength(file: File): number {
+  if (!Number.isSafeInteger(file.size) || file.size < 0) {
+    throw new Error('Invalid file size for hash computation.');
+  }
+  return file.size;
+}
+
 export async function computeFileHash(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const fullHash = await sha256(buffer);
@@ -21,17 +28,18 @@ export async function computeFileHash(file: File): Promise<string> {
 }
 
 export async function computeQuickHash(file: File): Promise<string> {
-  const sizeStr = file.size.toString(16).padStart(16, '0');
-  
-  const previewSize = Math.min(file.size, PRECHECK_SIZE);
+  const fileSize = getKnownFileByteLength(file);
+  const sizeStr = fileSize.toString(16).padStart(16, '0');
+
+  const previewSize = Math.min(fileSize, PRECHECK_SIZE);
   const previewBuffer = await file.slice(0, previewSize).arrayBuffer();
   const previewHash = await sha256(previewBuffer);
-  
+
   return `${sizeStr}-${previewHash.substring(0, HASH_LENGTH)}`;
 }
 
 export function isLargeFile(file: File): boolean {
-  return file.size > LARGE_FILE_THRESHOLD;
+  return Number.isFinite(file.size) && file.size > LARGE_FILE_THRESHOLD;
 }
 
 export async function computeBufferHash(buffer: Uint8Array): Promise<string> {

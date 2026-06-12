@@ -346,6 +346,25 @@ describe('desktop account commands', () => {
     expect(mocks.account.managedImageEdit).not.toHaveBeenCalled();
   });
 
+  it('rejects managed image edit Blobs whose read bytes exceed the limit', async () => {
+    const blob = new Blob(['x'], { type: 'multipart/form-data; boundary=test' });
+    Object.defineProperty(blob, 'size', {
+      configurable: true,
+      value: 1,
+    });
+    Object.defineProperty(blob, 'arrayBuffer', {
+      configurable: true,
+      value: vi.fn(async () => new ArrayBuffer(MAX_MANAGED_DESKTOP_BODY_BYTES + 1)),
+    });
+
+    await expect(accountCommands.managedImageEdit(
+      blob,
+      { 'Content-Type': 'multipart/form-data; boundary=test' },
+    )).rejects.toThrow('Managed desktop binary request body is too large.');
+
+    expect(mocks.account.managedImageEdit).not.toHaveBeenCalled();
+  });
+
   it('does not start managed image generation requests when the signal is already aborted', async () => {
     const controller = new AbortController();
     controller.abort();

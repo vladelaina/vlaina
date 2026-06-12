@@ -110,6 +110,40 @@ describe('featureSlice scan cache validation', () => {
     expect(store.getState().noteContentsCache.get(notePath)?.size).toBe(7);
   });
 
+  it('does not reuse scanned note content when stat has an invalid modified time', async () => {
+    mocks.stat.mockResolvedValue({ isFile: true, modifiedAt: Number.POSITIVE_INFINITY, size: 7 });
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: notePath,
+            name: 'alpha.md',
+            path: notePath,
+            isFolder: false,
+          },
+        ],
+      },
+      noteContentsCache: new Map([
+        [notePath, createCachedNoteContentEntry('# Cache', 2, { size: 7 })],
+      ]),
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: '# Disk!',
+      modifiedAt: null,
+    });
+    expect(store.getState().noteContentsCache.get(notePath)?.size).toBe(7);
+  });
+
   it('does not reuse scanned note content when stat has no modified time or size', async () => {
     mocks.stat.mockResolvedValue({ isFile: true });
     const notePath = 'docs/alpha.md';
@@ -140,6 +174,41 @@ describe('featureSlice scan cache validation', () => {
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '# Disk!',
       modifiedAt: null,
+    });
+    expect(store.getState().noteContentsCache.get(notePath)?.size).toBeNull();
+  });
+
+  it('does not read or reuse scanned note content when stat size is invalid', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: -1 });
+    mocks.readFile.mockResolvedValue('# Disk!');
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: notePath,
+            name: 'alpha.md',
+            path: notePath,
+            isFolder: false,
+          },
+        ],
+      },
+      noteContentsCache: new Map([
+        [notePath, createCachedNoteContentEntry('# Cache', 2, { size: -1 })],
+      ]),
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: '',
+      modifiedAt: 2,
     });
     expect(store.getState().noteContentsCache.get(notePath)?.size).toBeNull();
   });

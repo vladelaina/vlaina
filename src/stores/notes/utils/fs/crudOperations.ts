@@ -8,6 +8,18 @@ import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../.
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { resolveVaultRelativeFullPath } from './vaultPathContainment';
 
+type CreatedNoteFileInfo = { modifiedAt?: number | null; size?: number | null } | null | undefined;
+
+function getKnownCreatedNoteModifiedAt(fileInfo: CreatedNoteFileInfo): number | null {
+    const modifiedAt = fileInfo?.modifiedAt;
+    return typeof modifiedAt === 'number' && Number.isFinite(modifiedAt) ? modifiedAt : null;
+}
+
+function getKnownCreatedNoteSize(fileInfo: CreatedNoteFileInfo): number | null {
+    const size = fileInfo?.size;
+    return typeof size === 'number' && Number.isFinite(size) && size >= 0 ? size : null;
+}
+
 export async function createNoteImpl(
     notesPath: string,
     folderPath: string | undefined,
@@ -62,8 +74,8 @@ export async function createNoteImpl(
         relativePath,
         fileName,
         content: initialContent,
-        modifiedAt: fileInfo?.modifiedAt ?? null,
-        size: typeof fileInfo?.size === 'number' ? fileInfo.size : null,
+        modifiedAt: getKnownCreatedNoteModifiedAt(fileInfo),
+        size: getKnownCreatedNoteSize(fileInfo),
         updatedMetadata,
         newChildren,
     };

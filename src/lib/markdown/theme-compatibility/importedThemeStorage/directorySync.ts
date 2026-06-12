@@ -4,6 +4,9 @@ import { isStandaloneMarkdownThemeCss } from '../platformDetection';
 import type { ImportedMarkdownThemeMetadata } from '../types';
 import { cachedThemeCssExists, deleteImportedThemeFiles } from './cssAssets';
 import {
+  getKnownImportedThemeModifiedAt,
+  hasInvalidImportedThemeFileSize,
+  isKnownImportedThemeFileSizeWithinLimit,
   MAX_IMPORTED_THEME_CSS_BYTES,
   MAX_IMPORTED_THEME_DIRECTORY_CSS_FILES,
 } from './constants';
@@ -26,23 +29,32 @@ interface SyncableThemeCssEntry {
   css: string;
 }
 
+const importedThemeDirectoryCssUtf8Encoder = new TextEncoder();
+
 export interface ImportedMarkdownThemesDirectorySyncResult {
   directoryPath: string;
   themes: ImportedMarkdownThemeMetadata[];
   activeThemeId: string | null;
 }
 
+function isImportedThemeDirectoryCssWithinReadLimit(css: string): boolean {
+  return (
+    css.length <= MAX_IMPORTED_THEME_CSS_BYTES &&
+    importedThemeDirectoryCssUtf8Encoder.encode(css).length <= MAX_IMPORTED_THEME_CSS_BYTES
+  );
+}
+
 async function resolveCssThemeEntryInfo(entry: FileInfo): Promise<FileInfo | null> {
   if (typeof entry.size === 'number') {
-    return entry.size <= MAX_IMPORTED_THEME_CSS_BYTES ? entry : null;
+    return isKnownImportedThemeFileSizeWithinLimit(entry.size, MAX_IMPORTED_THEME_CSS_BYTES) ? entry : null;
   }
 
   const info = await getStorageAdapter().stat(entry.path).catch(() => null);
   if (
     !info ||
     info.isFile === false ||
-    typeof info.size !== 'number' ||
-    info.size > MAX_IMPORTED_THEME_CSS_BYTES
+    info.isDirectory === true ||
+    hasInvalidImportedThemeFileSize(info, MAX_IMPORTED_THEME_CSS_BYTES)
   ) {
     return null;
   }
@@ -50,7 +62,7 @@ async function resolveCssThemeEntryInfo(entry: FileInfo): Promise<FileInfo | nul
   return {
     ...entry,
     size: info.size,
-    modifiedAt: info.modifiedAt ?? entry.modifiedAt,
+    modifiedAt: getKnownImportedThemeModifiedAt(info.modifiedAt) ?? getKnownImportedThemeModifiedAt(entry.modifiedAt),
   };
 }
 
@@ -59,7 +71,7 @@ function selectActiveSyncedThemeId(
   themes: ImportedMarkdownThemeMetadata[]
 ): string | null {
   const selectedEntry = [...entries].sort((a, b) => {
-    const modifiedDiff = (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0);
+    const modifiedDiff = (getKnownImportedThemeModifiedAt(b.modifiedAt) ?? 0) - (getKnownImportedThemeModifiedAt(a.modifiedAt) ?? 0);
     return modifiedDiff || a.name.localeCompare(b.name);
   })[0];
 
@@ -94,9 +106,10 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
     try {
       const statResult = await storage.stat(entry.path).catch(() => null);
       if (
+        !statResult ||
         statResult?.isFile === false ||
-        typeof statResult?.size !== 'number' ||
-        statResult.size > MAX_IMPORTED_THEME_CSS_BYTES
+        statResult?.isDirectory === true ||
+        hasInvalidImportedThemeFileSize(statResult, MAX_IMPORTED_THEME_CSS_BYTES)
       ) {
         continue;
       }
@@ -105,7 +118,7 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
     } catch {
       continue;
     }
-    if (css.length > MAX_IMPORTED_THEME_CSS_BYTES) {
+    if (!isImportedThemeDirectoryCssWithinReadLimit(css)) {
       continue;
     }
 

@@ -738,8 +738,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
   const shouldFocusEmptyDraftBody = isDraftNote && !isNewlyCreated && isEmptyContent;
   const useLazyBlockVisibility = useMemo(
-    () => shouldUseLazyBlockVisibility(initialContent),
-    [initialContent],
+    () => shouldUseLazyBlockVisibility(currentNoteContent),
+    [currentNoteDiskRevision, currentNotePath],
   );
 
   const focusEditorBody = useCallback(() => {

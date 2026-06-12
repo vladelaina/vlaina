@@ -131,6 +131,26 @@ describe('image block file utils', () => {
         expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
     });
 
+    it('does not restore image blobs with invalid size metadata', async () => {
+        const arrayBuffer = vi.fn();
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '2',
+                'content-type': 'image/png',
+            }),
+            blob: async () => ({
+                type: 'image/png',
+                size: -1,
+                arrayBuffer,
+            }),
+        })));
+
+        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+
+        expect(arrayBuffer).not.toHaveBeenCalled();
+        expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
+    });
+
     it('stops reading streamed restore blobs once they exceed the image limit', async () => {
         const cancel = vi.fn(async () => undefined);
         const reader = {

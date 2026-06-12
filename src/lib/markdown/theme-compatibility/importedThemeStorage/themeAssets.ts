@@ -9,6 +9,7 @@ import {
   type RelativeMarkdownThemeCssUrl,
 } from '../cssUrls';
 import {
+  hasInvalidImportedThemeFileSize,
   MAX_IMPORTED_THEME_ASSET_BYTES,
   MAX_IMPORTED_THEME_ASSETS,
 } from './constants';
@@ -42,8 +43,8 @@ async function copyImportedThemeAsset({
     const info = await storage.stat(sourceAssetPath).catch(() => null);
     if (
       info?.isFile === false ||
-      typeof info?.size !== 'number' ||
-      info.size > MAX_IMPORTED_THEME_ASSET_BYTES
+      info?.isDirectory === true ||
+      hasInvalidImportedThemeFileSize(info, MAX_IMPORTED_THEME_ASSET_BYTES)
     ) {
       return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
     }

@@ -40,6 +40,10 @@ function readContentLength(response: Response): number | null {
   return Number.isFinite(size) && size >= 0 ? size : null;
 }
 
+function isByteLengthWithinLimit(size: number, maxBytes: number): boolean {
+  return Number.isFinite(size) && size >= 0 && size <= maxBytes;
+}
+
 async function cancelResponseBody(response: Response): Promise<void> {
   try {
     await response.body?.cancel();
@@ -128,7 +132,7 @@ async function readResponseStreamBlob(
 
     const blob = await raceWithAbort(response.blob(), signal);
     throwIfAborted(signal);
-    return blob.size <= maxBytes ? blob : null;
+    return isByteLengthWithinLimit(blob.size, maxBytes) ? blob : null;
   }
 
   const chunks: Uint8Array[] = [];
@@ -193,7 +197,7 @@ export async function readBoundedImageBlobResponse(
   }
 
   const blob = await readResponseStreamBlob(response, maxBytes, contentLength, signal);
-  if (!blob || blob.size > maxBytes) {
+  if (!blob || !isByteLengthWithinLimit(blob.size, maxBytes)) {
     return { status: 'too-large', blob: null };
   }
 

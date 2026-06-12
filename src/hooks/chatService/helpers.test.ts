@@ -799,6 +799,18 @@ describe('loadMentionedNotes', () => {
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
+  it('does not read note mention files with invalid known stat sizes', async () => {
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: -1 });
+    mocks.storage.readFile.mockResolvedValue('# Unexpected');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/alpha.md', title: 'Alpha' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not load note mention content that exceeds the byte limit after read', async () => {
     mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false });
     mocks.storage.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_NOTE_MENTION_READ_BYTES / 3) + 1));
@@ -1267,7 +1279,7 @@ describe('loadMentionedFolderImageAttachments', () => {
     expect(attachments).toEqual([]);
   });
 
-  it('skips folder image candidates when size is unavailable', async () => {
+  it('keeps folder image candidates when size is unavailable', async () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
@@ -1283,7 +1295,17 @@ describe('loadMentionedFolderImageAttachments', () => {
     ]);
 
     expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/assets/cover.png');
-    expect(attachments).toEqual([]);
+    expect(attachments).toEqual([
+      {
+        id: 'folder-image:/vault/assets/cover.png',
+        path: '/vault/assets/cover.png',
+        previewUrl: '',
+        assetUrl: '',
+        name: 'cover.png',
+        type: 'image/png',
+        size: 0,
+      },
+    ]);
   });
 
   it('builds folder image paths from the resolved folder path instead of entry paths', async () => {

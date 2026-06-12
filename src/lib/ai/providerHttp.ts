@@ -104,7 +104,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function assertDesktopProviderRequestBodySize(byteLength: number): void {
-  if (!Number.isFinite(byteLength) || byteLength > MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES) {
+  if (!Number.isFinite(byteLength) || byteLength < 0 || byteLength > MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES) {
     throw new Error('Desktop AI provider request body is too large.');
   }
 }
@@ -238,7 +238,9 @@ async function normalizeDesktopRequestBody(body: BodyInit | null | undefined, si
   }
   if (body instanceof Blob) {
     assertDesktopProviderRequestBodySize(body.size);
-    return { bodyBase64: bytesToBase64(new Uint8Array(await readBlobAsArrayBuffer(body, signal))) };
+    const bytes = new Uint8Array(await readBlobAsArrayBuffer(body, signal));
+    assertDesktopProviderRequestBodySize(bytes.byteLength);
+    return { bodyBase64: bytesToBase64(bytes) };
   }
   if (body instanceof ArrayBuffer) {
     assertDesktopProviderRequestBodySize(body.byteLength);

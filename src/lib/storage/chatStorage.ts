@@ -750,7 +750,11 @@ async function canReadSessionJson(path: string): Promise<boolean> {
     fileInfo?.isFile !== false &&
     (
       typeof fileInfo?.size !== 'number' ||
-      fileInfo.size <= MAX_SESSION_MESSAGES_BYTES
+      (
+        Number.isFinite(fileInfo.size) &&
+        fileInfo.size >= 0 &&
+        fileInfo.size <= MAX_SESSION_MESSAGES_BYTES
+      )
     )
   );
 }

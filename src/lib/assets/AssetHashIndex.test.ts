@@ -72,6 +72,16 @@ describe('AssetHashIndex', () => {
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.system/asset-hash-index.json', 2 * 1024 * 1024);
   });
 
+  it('does not read hash index files with invalid known stat sizes', async () => {
+    mocks.storage.stat.mockResolvedValue({ size: -1 });
+    mocks.storage.readFile.mockRejectedValue(new Error('Invalid stat size should not be read'));
+
+    const index = await loadAssetHashIndex('/vault');
+
+    expect(index.entries).toEqual({});
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('loads bounded hash index files', async () => {
     mocks.storage.stat.mockResolvedValue({ size: 256 });
     mocks.storage.readFile.mockResolvedValue(JSON.stringify({
@@ -91,6 +101,27 @@ describe('AssetHashIndex', () => {
     const index = await loadAssetHashIndex('/vault');
 
     expect(index.entries['image.png']?.hash).toBe('abc');
+  });
+
+  it('normalizes invalid entry modified timestamps when loading hash indexes', async () => {
+    mocks.storage.stat.mockResolvedValue({ size: 256 });
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: {
+        'image.png': {
+          filename: 'image.png',
+          hash: 'abc',
+          size: 10,
+          modifiedAt: Number.POSITIVE_INFINITY,
+          mimeType: 'image/png',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    }));
+
+    const index = await loadAssetHashIndex('/vault');
+
+    expect(index.entries['image.png']?.modifiedAt).toBeNull();
   });
 
   it('drops hash index entries with oversized fields', async () => {
