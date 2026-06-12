@@ -93,14 +93,14 @@
   opacity: var(--vlaina-opacity-0);
   transition: opacity var(--vlaina-duration-150), background-color var(--vlaina-duration-150);
   border-radius: var(--vlaina-radius-4px);
-  color: var(--vlaina-text-tertiary);
+  color: var(--vlaina-collapse-triangle-editor-fg);
   user-select: none;
   pointer-events: auto;
   z-index: var(--vlaina-z-2);
 }
 
 .heading-toggle-btn:hover {
-  color: var(--vlaina-accent);
+  color: var(--vlaina-collapse-triangle-hover-fg);
 }
 
 .milkdown h1:hover .heading-toggle-btn,

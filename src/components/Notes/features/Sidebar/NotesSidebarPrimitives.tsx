@@ -1,6 +1,9 @@
 import { Fragment, forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import {
+  CollapseTriangleAffordance,
+  getSidebarCollapseTriangleColorClassName,
+} from '../common/collapseTrianglePrimitive';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import {
   SidebarList,
@@ -122,7 +125,10 @@ export function NotesSidebarSection({
                   collapsed={!expanded}
                   visibility="hover-unless-collapsed"
                   size={themeIconTokens.sizeXs}
-                  className="h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] shrink-0 text-[var(--vlaina-sidebar-notes-icon)] group-hover:text-[var(--vlaina-sidebar-notes-icon-hover)] group-focus-within:text-[var(--vlaina-sidebar-notes-icon-hover)]"
+                  className={cn(
+                    'h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] shrink-0',
+                    getSidebarCollapseTriangleColorClassName({ groupHover: true }),
+                  )}
                 />
               ) : null}
             </div>

@@ -12,7 +12,10 @@ import {
   getSidebarTextClass,
   SIDEBAR_LABEL_TEXT_METRICS_CLASS,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
-import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import {
+  CollapseTriangleAffordance,
+  getSidebarCollapseTriangleColorClassName,
+} from '../common/collapseTrianglePrimitive';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { TreeItemShell } from './components/TreeItemShell';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
@@ -221,8 +224,10 @@ export const FolderItem = memo(function FolderItem({
               collapsed={!node.expanded}
               visibility="always"
               size={themeIconTokens.sizeSm}
-              className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
-              iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
+              className={cn(
+                'absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]',
+                getSidebarCollapseTriangleColorClassName({ rowHover: true }),
+              )}
             />
           ) : null}
         </span>

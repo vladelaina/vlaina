@@ -162,6 +162,19 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('transform: none !important;');
   });
 
+  it('routes editor collapse triangle colors through shared tokens', () => {
+    const themeCss = readThemeStyle();
+    const markdownCss = readStyleFile('markdown.css');
+    const extendedCss = readStyleFile('extended.css');
+
+    expect(themeCss).toContain('--vlaina-collapse-triangle-editor-fg: var(--vlaina-text-tertiary);');
+    expect(themeCss).toContain('--vlaina-collapse-triangle-hover-fg: var(--vlaina-sidebar-row-selected-text);');
+    expect(markdownCss).toContain('color: var(--vlaina-collapse-triangle-editor-fg);');
+    expect(markdownCss).toContain('color: var(--vlaina-collapse-triangle-hover-fg);');
+    expect(extendedCss).toContain('color: var(--vlaina-collapse-triangle-editor-fg);');
+    expect(extendedCss).toContain('color: var(--vlaina-collapse-triangle-hover-fg);');
+  });
+
   it('uses the editor block handle token for the visible drag handle', () => {
     const css = readStyleFile('core.css');
     const themeCss = readThemeStyle();

@@ -958,6 +958,12 @@
   --vlaina-sidebar-notes-menu-border: var(--vlaina-color-menu-border);
   --vlaina-sidebar-notes-menu-shadow: var(--vlaina-shadow-menu);
   --vlaina-sidebar-notes-fade: var(--vlaina-sidebar-fade);
+
+  --vlaina-collapse-triangle-editor-fg: var(--vlaina-text-tertiary);
+  --vlaina-collapse-triangle-sidebar-fg: var(--vlaina-sidebar-notes-file-icon);
+  --vlaina-collapse-triangle-sidebar-soft-fg: var(--vlaina-sidebar-notes-text-soft);
+  --vlaina-collapse-triangle-hover-fg: var(--vlaina-sidebar-row-selected-text);
+  --vlaina-collapse-triangle-active-fg: var(--vlaina-sidebar-row-selected-text);
 }
 
 .app-ring-offset-1 {

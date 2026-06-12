@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import { CollapseTriangleAffordance, CollapseTriangleIcon } from './collapseTrianglePrimitive';
+import {
+  CollapseTriangleAffordance,
+  CollapseTriangleIcon,
+  getSidebarCollapseTriangleColorClassName,
+} from './collapseTrianglePrimitive';
 
 describe('CollapseTriangleIcon', () => {
   it('rotates when collapsed', () => {
@@ -32,5 +36,14 @@ describe('CollapseTriangleAffordance', () => {
 
     expect(wrapper?.getAttribute('class') ?? '').toContain('opacity-[var(--vlaina-opacity-0)]');
     expect(wrapper?.getAttribute('class') ?? '').toContain('group-hover:opacity-[var(--vlaina-opacity-100)]');
+  });
+
+  it('centralizes sidebar triangle color classes', () => {
+    const className = getSidebarCollapseTriangleColorClassName({ soft: true, rowHover: true });
+
+    expect(className).toContain('text-[color:var(--vlaina-collapse-triangle-sidebar-soft-fg)]');
+    expect(className).toContain('group-hover/sidebar-row:text-[color:var(--vlaina-collapse-triangle-hover-fg)]');
+    expect(className).toContain('group-focus-within/sidebar-row:text-[color:var(--vlaina-collapse-triangle-hover-fg)]');
+    expect(className).toContain('hover:text-[color:var(--vlaina-collapse-triangle-hover-fg)]');
   });
 });

@@ -3,12 +3,14 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import {
   getSidebarLabelClass,
-  getSidebarSoftTextClass,
   SIDEBAR_LABEL_TEXT_METRICS_CLASS,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { useNotesOutline } from './useNotesOutline';
-import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
+import {
+  CollapseTriangleAffordance,
+  getSidebarCollapseTriangleColorClassName,
+} from '../../common/collapseTrianglePrimitive';
 import {
   NotesSidebarPillEmptyHint,
   NotesSidebarScrollArea,
@@ -143,10 +145,11 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                   size={themeIconTokens.sizeXs}
                   className={cn(
                     'transition-[color,opacity] duration-[var(--vlaina-duration-150)] group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]',
-                    isActive ? 'text-[var(--vlaina-sidebar-row-selected-text)]' : getSidebarSoftTextClass('notes'),
-                    isActive
-                      ? 'group-hover/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)] group-focus-within/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)] hover:text-[var(--vlaina-sidebar-row-selected-text)]'
-                      : 'group-hover/sidebar-row:text-[var(--vlaina-sidebar-notes-text)] group-focus-within/sidebar-row:text-[var(--vlaina-sidebar-notes-text)] hover:text-[var(--vlaina-sidebar-notes-text)]',
+                    getSidebarCollapseTriangleColorClassName({
+                      active: isActive,
+                      soft: !isActive,
+                      rowHover: true,
+                    }),
                   )}
                 />
               </button>

@@ -17,7 +17,10 @@ import { RootFolderMenu } from './RootFolderMenu';
 import { FileTreeItem } from '../FileTree';
 import { shouldVirtualizeFileTree, VirtualizedFileTree } from '../FileTree/VirtualizedFileTree';
 import { countVisibleFileTreeRows } from '../FileTree/virtualFileTree';
-import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import {
+  CollapseTriangleAffordance,
+  getSidebarCollapseTriangleColorClassName,
+} from '../common/collapseTrianglePrimitive';
 import { getSidebarContextMenuPosition } from '../common/sidebarMenuPosition';
 import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
 import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTreeDropState';
@@ -309,8 +312,10 @@ export function RootFolderRow({
                 collapsed={!expanded}
                 visibility="always"
                 size={themeIconTokens.sizeSm}
-                className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
-                iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
+                className={cn(
+                  'absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]',
+                  getSidebarCollapseTriangleColorClassName({ rowHover: true }),
+                )}
               />
             ) : null}
           </span>

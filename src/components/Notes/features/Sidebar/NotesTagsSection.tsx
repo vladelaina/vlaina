@@ -3,7 +3,10 @@ import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { stripMarkdownExtension } from '@/lib/notes/displayName';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import type { NotesSidebarTagEntry, NotesSidebarTagPath } from './notesSidebarTags';
-import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import {
+  CollapseTriangleAffordance,
+  getSidebarCollapseTriangleColorClassName,
+} from '../common/collapseTrianglePrimitive';
 import { useI18n } from '@/lib/i18n';
 import { Icon } from '@/components/ui/icons';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
@@ -15,6 +18,7 @@ import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { themeIconTokens } from '@/styles/themeTokens';
+import { cn } from '@/lib/utils';
 
 const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
 const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
@@ -255,8 +259,10 @@ export function NotesTagsSection({
               collapsed={!expanded}
               visibility="always"
               size={themeIconTokens.sizeSm}
-              className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
-              iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
+              className={cn(
+                'absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]',
+                getSidebarCollapseTriangleColorClassName({ rowHover: true }),
+              )}
             />
           </span>
         }
@@ -287,8 +293,10 @@ export function NotesTagsSection({
                       collapsed={!expandedTags.has(entry.tag)}
                       visibility="always"
                       size={themeIconTokens.sizeSm}
-                      className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
-                      iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
+                      className={cn(
+                        'absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]',
+                        getSidebarCollapseTriangleColorClassName({ rowHover: true }),
+                      )}
                     />
                   </span>
                 }

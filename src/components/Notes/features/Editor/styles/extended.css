@@ -549,14 +549,14 @@ body.editor-block-drag-active .milkdown .video-block video {
   opacity: var(--vlaina-opacity-0);
   transition: opacity var(--vlaina-duration-150), background-color var(--vlaina-duration-150), transform var(--vlaina-duration-150);
   border-radius: var(--vlaina-radius-4px);
-  color: var(--vlaina-text-tertiary);
+  color: var(--vlaina-collapse-triangle-editor-fg);
   user-select: none;
 }
 
 /* Show button more prominently on hover */
 .milkdown .editor-collapse-btn:hover {
   opacity: var(--vlaina-opacity-100);
-  color: var(--vlaina-accent);
+  color: var(--vlaina-collapse-triangle-hover-fg);
 }
 
 /* List Item Hover Logic:

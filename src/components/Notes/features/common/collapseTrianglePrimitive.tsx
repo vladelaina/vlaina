@@ -5,6 +5,34 @@ import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 type CollapseTriangleVisibility = 'always' | 'hover' | 'hover-unless-collapsed';
 
+export const COLLAPSE_TRIANGLE_SIDEBAR_COLOR_CLASS = 'text-[color:var(--vlaina-collapse-triangle-sidebar-fg)]';
+export const COLLAPSE_TRIANGLE_SIDEBAR_SOFT_COLOR_CLASS = 'text-[color:var(--vlaina-collapse-triangle-sidebar-soft-fg)]';
+export const COLLAPSE_TRIANGLE_ACTIVE_COLOR_CLASS = 'text-[color:var(--vlaina-collapse-triangle-active-fg)]';
+export const COLLAPSE_TRIANGLE_SIDEBAR_ROW_HOVER_COLOR_CLASS = 'group-hover/sidebar-row:text-[color:var(--vlaina-collapse-triangle-hover-fg)] group-focus-within/sidebar-row:text-[color:var(--vlaina-collapse-triangle-hover-fg)] hover:text-[color:var(--vlaina-collapse-triangle-hover-fg)]';
+export const COLLAPSE_TRIANGLE_GROUP_HOVER_COLOR_CLASS = 'group-hover:text-[color:var(--vlaina-collapse-triangle-hover-fg)] group-focus-within:text-[color:var(--vlaina-collapse-triangle-hover-fg)]';
+
+export function getSidebarCollapseTriangleColorClassName({
+  active = false,
+  soft = false,
+  rowHover = false,
+  groupHover = false,
+}: {
+  active?: boolean;
+  soft?: boolean;
+  rowHover?: boolean;
+  groupHover?: boolean;
+} = {}) {
+  return cn(
+    active
+      ? COLLAPSE_TRIANGLE_ACTIVE_COLOR_CLASS
+      : soft
+        ? COLLAPSE_TRIANGLE_SIDEBAR_SOFT_COLOR_CLASS
+        : COLLAPSE_TRIANGLE_SIDEBAR_COLOR_CLASS,
+    rowHover && COLLAPSE_TRIANGLE_SIDEBAR_ROW_HOVER_COLOR_CLASS,
+    groupHover && COLLAPSE_TRIANGLE_GROUP_HOVER_COLOR_CLASS,
+  );
+}
+
 interface CollapseTriangleIconProps extends SVGAttributes<SVGSVGElement> {
   collapsed?: boolean;
   size?: number;
