@@ -84,7 +84,10 @@ function isSidebarBlankStartTarget(target: HTMLElement): boolean {
 }
 
 export function isIgnoredBlankAreaDragBoxTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest(NO_EDITOR_DRAG_BOX_SELECTOR);
+  return target instanceof Element && (
+    !!target.closest(NO_EDITOR_DRAG_BOX_SELECTOR) ||
+    !!target.closest(COVER_REGION_SELECTOR)
+  );
 }
 
 export function isPointInTrailingTextSelectionGutter(

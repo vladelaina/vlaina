@@ -5,6 +5,7 @@ import {
   NOTE_COVER_CROPPER_SELECTOR,
   NOTE_COVER_IMAGE_SELECTOR,
   NOTE_COVER_REGION_SELECTOR,
+  SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
   collectEditorDomMetrics,
   createVaultFilesFixture,
@@ -14,12 +15,20 @@ import {
   measureScrollFrames,
   openVaultInNotes,
   scrollNoteToTop,
+  startMainThreadFrameProbe,
+  stopMainThreadFrameProbe,
   waitForEditorAnimationFrame,
 } from './notesE2E';
 
 const COVER_ASSET_PATH = 'assets/e2e-cover.svg';
 const COVER_HEIGHT = 220;
 const COVER_INITIAL_Y = 35;
+const SWITCH_COVER_COUNT = 10;
+const SWITCH_COVER_ASSET_PATHS = Array.from(
+  { length: SWITCH_COVER_COUNT },
+  (_value, index) => `assets/e2e-cover-switch-${index.toString().padStart(2, '0')}.svg`,
+);
+const SWITCH_COVER_GRID_FILENAMES = SWITCH_COVER_ASSET_PATHS.map((assetPath) => `./${assetPath}`);
 
 const COVER_SVG = [
   '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">',
@@ -38,6 +47,41 @@ const COVER_SVG = [
   '</svg>',
 ].join('');
 
+const SWITCH_COVER_PALETTES = [
+  ['#0f766e', '#f97316', '#f8fafc'],
+  ['#1d4ed8', '#22c55e', '#facc15'],
+  ['#be123c', '#06b6d4', '#f8fafc'],
+  ['#7c3aed', '#84cc16', '#f97316'],
+  ['#0369a1', '#eab308', '#f43f5e'],
+  ['#15803d', '#2563eb', '#f5f5f4'],
+  ['#b45309', '#14b8a6', '#f8fafc'],
+  ['#4338ca', '#fb7185', '#fde68a'],
+  ['#0f172a', '#2dd4bf', '#facc15'],
+  ['#a21caf', '#38bdf8', '#fef3c7'],
+];
+
+function createSwitchCoverSvg(index: number): string {
+  const [primary, secondary, accent] = SWITCH_COVER_PALETTES[index % SWITCH_COVER_PALETTES.length]!;
+  const label = `SWITCH ${index.toString().padStart(2, '0')}`;
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">',
+    '<defs>',
+    `<linearGradient id="g-${index}" x1="0" y1="0" x2="1" y2="1">`,
+    `<stop offset="0" stop-color="${primary}"/>`,
+    `<stop offset="0.55" stop-color="${secondary}"/>`,
+    `<stop offset="1" stop-color="${accent}"/>`,
+    '</linearGradient>',
+    '</defs>',
+    `<rect width="1200" height="400" fill="url(#g-${index})"/>`,
+    `<circle cx="${220 + index * 26}" cy="95" r="135" fill="${accent}" opacity="0.24"/>`,
+    `<rect x="${780 - index * 18}" y="210" width="330" height="92" rx="30" fill="#020617" opacity="0.24"/>`,
+    `<text x="90" y="165" font-family="Arial, sans-serif" font-size="74" font-weight="700" fill="${accent}">${label}</text>`,
+    '<rect x="90" y="220" width="560" height="28" rx="14" fill="#ffffff" opacity="0.38"/>',
+    '<rect x="90" y="270" width="420" height="24" rx="12" fill="#020617" opacity="0.22"/>',
+    '</svg>',
+  ].join('');
+}
+
 type CoverFixture = {
   notePath: string;
   vaultPath: string;
@@ -51,10 +95,10 @@ type CoverFrontmatter = {
   y: number | null;
 };
 
-function createCoveredMarkdown(title: string, paragraphCount = 80): string {
+function createCoveredMarkdown(title: string, paragraphCount = 80, coverAssetPath = COVER_ASSET_PATH): string {
   return [
     '---',
-    `vlaina_cover: "${COVER_ASSET_PATH}"`,
+    `vlaina_cover: "${coverAssetPath}"`,
     'vlaina_cover_x: 50',
     `vlaina_cover_y: ${COVER_INITIAL_Y}`,
     `vlaina_cover_height: ${COVER_HEIGHT}`,
@@ -98,19 +142,24 @@ async function openCoverFixture(
     filename: string;
     title: string;
     paragraphCount?: number;
+    coverAssetPath?: string;
+    assetFiles?: Array<{ filename: string; content: string }>;
   },
 ): Promise<CoverFixture> {
+  const assetFiles = input.assetFiles ?? [
+    {
+      filename: COVER_ASSET_PATH,
+      content: COVER_SVG,
+    },
+  ];
   const fixture = await createVaultFilesFixture(page, {
     name: input.filename.replace(/\.md$/i, ''),
     files: [
       {
         filename: input.filename,
-        content: createCoveredMarkdown(input.title, input.paragraphCount),
+        content: createCoveredMarkdown(input.title, input.paragraphCount, input.coverAssetPath),
       },
-      {
-        filename: COVER_ASSET_PATH,
-        content: COVER_SVG,
-      },
+      ...assetFiles,
     ],
   });
 
@@ -253,6 +302,119 @@ async function clickCoverCenter(page: Page) {
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
 }
 
+async function getCoverClickSelectionState(page: Page) {
+  return page.evaluate(({ editorSelector, selectedBlockSelector }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const selection = (window as any).__vlainaE2E.getEditorSelectionSummary?.() ?? null;
+    const selectedBlocks = Array.from(document.querySelectorAll<HTMLElement>(selectedBlockSelector))
+      .map((block) => ({
+        tagName: block.tagName,
+        text: block.textContent?.trim().slice(0, 120) ?? '',
+      }));
+
+    return {
+      selectedBlockCount: selectedBlocks.length,
+      selectedBlocks,
+      blockSelectionActive: editor?.classList.contains('editor-block-selection-active') ?? false,
+      selection,
+    };
+  }, {
+    editorSelector: EDITOR_SELECTOR,
+    selectedBlockSelector: SELECTED_BLOCK_SELECTOR,
+  });
+}
+
+async function getCoverSwitchDiagnostics(page: Page) {
+  return page.evaluate(({ imageSelector, cropperSelector, selectedBlockSelector }) => {
+    const image = document.querySelector<HTMLImageElement>(imageSelector);
+    const cropper = document.querySelector<HTMLElement>(cropperSelector);
+    const cropperRect = cropper?.getBoundingClientRect();
+
+    return {
+      imageSrc: image?.src ?? '',
+      imageSrcIsBlob: image?.src.startsWith('blob:') ?? false,
+      naturalWidth: image?.naturalWidth ?? 0,
+      naturalHeight: image?.naturalHeight ?? 0,
+      cropperWidth: Math.round(cropperRect?.width ?? 0),
+      cropperHeight: Math.round(cropperRect?.height ?? 0),
+      sourceFallbackCount: document.querySelectorAll('[data-note-source-fallback="true"]').length,
+      selectedBlockCount: document.querySelectorAll(selectedBlockSelector).length,
+    };
+  }, {
+    imageSelector: NOTE_COVER_IMAGE_SELECTOR,
+    cropperSelector: NOTE_COVER_CROPPER_SELECTOR,
+    selectedBlockSelector: SELECTED_BLOCK_SELECTOR,
+  });
+}
+
+async function waitForCoverAssetGridItem(page: Page, gridFilename: string) {
+  const item = page.locator(`[data-filename="${gridFilename}"]`).first();
+  await expect(item).toBeVisible({ timeout: 10_000 });
+  return item;
+}
+
+async function openCoverPickerForAsset(page: Page, gridFilename: string) {
+  await clickCoverCenter(page);
+  await waitForEditorAnimationFrame(page);
+  return waitForCoverAssetGridItem(page, gridFilename);
+}
+
+async function hoverCoverAssetPreview(page: Page, gridFilename: string) {
+  const previous = await getCoverSwitchDiagnostics(page);
+  const item = await waitForCoverAssetGridItem(page, gridFilename);
+  const box = await item.boundingBox();
+  expect(box).not.toBeNull();
+  const startedAt = await page.evaluate(() => performance.now());
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+
+  let diagnostics = previous;
+  await expect.poll(async () => {
+    diagnostics = await getCoverSwitchDiagnostics(page);
+    return (
+      diagnostics.imageSrc.length > 0 &&
+      diagnostics.imageSrc !== previous.imageSrc &&
+      diagnostics.imageSrcIsBlob &&
+      diagnostics.naturalWidth === 1200 &&
+      diagnostics.naturalHeight === 400
+    );
+  }, { timeout: 10_000 }).toBe(true);
+  await waitForEditorAnimationFrame(page);
+  const endedAt = await page.evaluate(() => performance.now());
+
+  return {
+    gridFilename,
+    visualSwitchMs: Math.round((endedAt - startedAt) * 10) / 10,
+    diagnostics,
+  };
+}
+
+async function selectCoverAssetFromPicker(page: Page, gridFilename: string) {
+  const previous = await getCoverSwitchDiagnostics(page);
+  const item = await openCoverPickerForAsset(page, gridFilename);
+  const startedAt = await page.evaluate(() => performance.now());
+  await item.click();
+
+  let diagnostics = previous;
+  await expect.poll(async () => {
+    diagnostics = await getCoverSwitchDiagnostics(page);
+    return (
+      diagnostics.imageSrc.length > 0 &&
+      diagnostics.imageSrc !== previous.imageSrc &&
+      diagnostics.imageSrcIsBlob &&
+      diagnostics.naturalWidth === 1200 &&
+      diagnostics.naturalHeight === 400
+    );
+  }, { timeout: 10_000 }).toBe(true);
+  await waitForEditorAnimationFrame(page);
+  const endedAt = await page.evaluate(() => performance.now());
+
+  return {
+    gridFilename,
+    visualSwitchMs: Math.round((endedAt - startedAt) * 10) / 10,
+    diagnostics,
+  };
+}
+
 test.describe('notes top cover e2e coverage', () => {
   test.setTimeout(120_000);
 
@@ -299,11 +461,25 @@ test.describe('notes top cover e2e coverage', () => {
         y: COVER_INITIAL_Y,
       });
 
+      const beforeCoverClickSelection = await getCoverClickSelectionState(page);
+      expect(beforeCoverClickSelection.selectedBlockCount).toBe(0);
+      expect(beforeCoverClickSelection.blockSelectionActive).toBe(false);
+
       await clickCoverCenter(page);
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
       const removeButton = page.getByRole('button', { name: /^(Remove|移除)$/ });
       await expect(removeButton).toBeVisible({ timeout: 10_000 });
       await expect(page.getByRole('button', { name: /^(Library|图库|圖庫)$/ })).toBeVisible();
       await expect(page.getByRole('button', { name: /^(Upload|上传|上傳)$/ })).toBeVisible();
+
+      const afterCoverClickSelection = await getCoverClickSelectionState(page);
+      console.info('[notes-cover-picker-click-selection]', afterCoverClickSelection);
+      expect(afterCoverClickSelection.selectedBlockCount).toBe(0);
+      expect(afterCoverClickSelection.selectedBlocks).toEqual([]);
+      expect(afterCoverClickSelection.blockSelectionActive).toBe(false);
+      expect(afterCoverClickSelection.selection).toEqual(beforeCoverClickSelection.selection);
+      expect(afterCoverClickSelection.selection?.selectedText ?? '').toBe('');
 
       await removeButton.click();
       await expect(page.locator(NOTE_COVER_REGION_SELECTOR)).toHaveCount(0, { timeout: 10_000 });
@@ -311,6 +487,116 @@ test.describe('notes top cover e2e coverage', () => {
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final cover performance sentinel');
       expect(pageErrors).toEqual([]);
     } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('rapidly previews and switches among multiple cover assets without performance regressions', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-cover-rapid-switching');
+    const frameProbeKey = '__vlainaCoverRapidSwitchingProbe';
+    let frameProbeRunning = false;
+    let page: Page | null = null;
+
+    try {
+      await app.firstWindow();
+      [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1360, height: 900 });
+      const pageErrors: string[] = [];
+      page.on('pageerror', (error) => {
+        pageErrors.push(error.message);
+        console.info(`[notes-cover-rapid-switching:pageerror] ${error.message}`);
+      });
+      page.on('console', (message) => {
+        const text = message.text();
+        if (text.includes('[notes-milkdown-timing:')) {
+          console.info(text);
+        }
+      });
+
+      await page.evaluate(() => (window as any).__vlainaE2E.setUIPreferences({
+        imageStorageMode: 'subfolder',
+        imageSubfolderName: 'assets',
+      }));
+
+      const switchAssetFiles = SWITCH_COVER_ASSET_PATHS.map((filename, index) => ({
+        filename,
+        content: createSwitchCoverSvg(index),
+      }));
+      const { notePath } = await openCoverFixture(page, {
+        filename: 'cover-rapid-switching.md',
+        title: 'Cover Rapid Switching E2E',
+        paragraphCount: 120,
+        coverAssetPath: SWITCH_COVER_ASSET_PATHS[0],
+        assetFiles: switchAssetFiles,
+      });
+      await waitForCoverReady(page);
+
+      await clickCoverCenter(page);
+      await expect(page.getByRole('button', { name: /^(Library|图库|圖庫)$/ })).toBeVisible({ timeout: 10_000 });
+      await waitForCoverAssetGridItem(page, SWITCH_COVER_GRID_FILENAMES[SWITCH_COVER_GRID_FILENAMES.length - 1]!);
+
+      const hoverTargets = SWITCH_COVER_GRID_FILENAMES.slice(1, 6);
+      const commitTargets = SWITCH_COVER_GRID_FILENAMES.slice(6, 10);
+      await startMainThreadFrameProbe(page, frameProbeKey);
+      frameProbeRunning = true;
+
+      const hoverMetrics = [];
+      for (const target of hoverTargets) {
+        hoverMetrics.push(await hoverCoverAssetPreview(page, target));
+      }
+
+      await page.keyboard.press('Escape');
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+
+      const commitMetrics = [];
+      for (const target of commitTargets) {
+        commitMetrics.push(await selectCoverAssetFromPicker(page, target));
+      }
+
+      const frameProbe = await stopMainThreadFrameProbe(page, frameProbeKey);
+      frameProbeRunning = false;
+      const finalTarget = commitTargets[commitTargets.length - 1]!;
+      const finalFrontmatter = await expectCoverFrontmatter(
+        page,
+        notePath,
+        (frontmatter) => frontmatter.assetPath === finalTarget,
+      );
+      const finalDiagnostics = await getCoverSwitchDiagnostics(page);
+      const allSwitchMetrics = [...hoverMetrics, ...commitMetrics];
+      const visualSwitchTimes = allSwitchMetrics.map((entry) => entry.visualSwitchMs);
+      const maxVisualSwitchMs = Math.max(...visualSwitchTimes);
+      const avgVisualSwitchMs = visualSwitchTimes.reduce((sum, value) => sum + value, 0) / visualSwitchTimes.length;
+
+      console.info('[notes-cover-rapid-switching]', {
+        hoverMetrics,
+        commitMetrics,
+        frameProbe,
+        finalFrontmatter,
+        finalDiagnostics,
+        maxVisualSwitchMs,
+        avgVisualSwitchMs: Math.round(avgVisualSwitchMs * 10) / 10,
+      });
+
+      expect(hoverMetrics).toHaveLength(5);
+      expect(commitMetrics).toHaveLength(4);
+      expect(finalFrontmatter.assetPath).toBe(finalTarget);
+      expect(finalDiagnostics.imageSrcIsBlob).toBe(true);
+      expect(finalDiagnostics.naturalWidth).toBe(1200);
+      expect(finalDiagnostics.naturalHeight).toBe(400);
+      expect(finalDiagnostics.sourceFallbackCount).toBe(0);
+      expect(finalDiagnostics.selectedBlockCount).toBe(0);
+      expect(maxVisualSwitchMs).toBeLessThan(3_000);
+      expect(avgVisualSwitchMs).toBeLessThan(1_500);
+      expect(frameProbe.p95FrameMs).toBeLessThan(100);
+      expect(frameProbe.maxFrameMs).toBeLessThan(300);
+      expect(frameProbe.longFramesOver100).toBeLessThanOrEqual(3);
+      expect(frameProbe.maxLongTaskMs).toBeLessThan(300);
+      expect(pageErrors).toEqual([]);
+    } finally {
+      if (frameProbeRunning && page && !page.isClosed()) {
+        await stopMainThreadFrameProbe(page, frameProbeKey).catch(() => undefined);
+      }
       await cleanupIsolatedElectron(app, userDataRoot);
     }
   });
