@@ -210,7 +210,7 @@ function CommunityPills({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-2 px-2">
       <GithubPill />
       <DiscordPill />
       <CommunityQrPill
@@ -236,7 +236,7 @@ function DeveloperNotePanel() {
   const noteText = (key: MessageKey, values?: MessageValues) => renderRichText(t(key, values));
 
   return (
-    <div className="rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
+    <div className="min-w-0 rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)] max-[640px]:p-4">
       <div className="space-y-4 text-[var(--vlaina-font-sm)] leading-7 text-[var(--vlaina-sidebar-notes-text)]">
         <p className="text-[var(--vlaina-font-h4)] font-semibold leading-8 text-[var(--vlaina-sidebar-notes-text)]">
           {noteText('settings.about.note.intro')}
@@ -351,12 +351,12 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
   })();
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-7 py-2">
+    <div className="space-y-8" data-settings-tab-panel="about">
+      <div className="flex min-w-0 items-center gap-7 py-2 max-[640px]:gap-4">
         <img
           src={appLogoUrl}
           alt="vlaina"
-          className="h-32 w-32 shrink-0 rounded-[var(--vlaina-radius-28px)] object-contain"
+          className="h-32 w-32 shrink-0 rounded-[var(--vlaina-radius-28px)] object-contain max-[640px]:h-20 max-[640px]:w-20 max-[640px]:rounded-[var(--vlaina-radius-20px)]"
           draggable={false}
         />
         <div className="min-w-0 pt-1">
@@ -379,12 +379,12 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
           description={statusLabel || undefined}
           className="hover:!shadow-[var(--vlaina-shadow-raised-soft)]"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={checkForUpdates}
               disabled={status === 'checking'}
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
+              className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
             >
               <RefreshCw size={themeIconTokens.sizeSidebar} className={cn(status === 'checking' && 'animate-spin')} />
               {t('common.check')}
@@ -394,7 +394,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
                 type="button"
                 onClick={openUpdateDownload}
                 title={updateInfo?.platformAssetName || undefined}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)]"
+                className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)]"
               >
                 <ExternalLink size={themeIconTokens.sizeSidebar} />
                 {t('settings.about.updateAction')}
@@ -414,7 +414,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
           <button
             type="button"
             onClick={() => void openExternalHref(privacyPolicyUrl)}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)]"
+            className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)]"
           >
             <ExternalLink size={themeIconTokens.sizeSidebar} />
             {t('common.open')}

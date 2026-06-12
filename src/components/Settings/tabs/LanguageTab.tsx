@@ -41,7 +41,7 @@ export function LanguageTab() {
     <div className="max-w-3xl pb-10" data-settings-tab-panel="language">
       <SettingsSectionHeader>{t('account.language')}</SettingsSectionHeader>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,var(--vlaina-size-220px)),1fr))] gap-3">
         {options.map((option) => {
           const selected = languagePreference === option.value;
           return (

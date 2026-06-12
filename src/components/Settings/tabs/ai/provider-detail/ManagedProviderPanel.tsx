@@ -27,18 +27,18 @@ export function ManagedProviderPanel({
   const { t } = useI18n();
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-4">
-      <section className="rounded-2xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-6">
+    <div className="mx-auto flex max-w-5xl min-w-0 flex-col gap-4">
+      <section className="min-w-0 rounded-2xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-6 max-[640px]:p-4">
         <div className="space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-2">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+            <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1 space-y-2">
               <h3 className="text-sm font-semibold text-[var(--vlaina-sidebar-notes-text)]">{t('settings.ai.managedTitle')}</h3>
               <p className="text-xs text-[var(--vlaina-sidebar-notes-text-soft)]">
                 {t('settings.ai.managedDescription')}
               </p>
               <p className="text-xs text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.baseUrl', { url: MANAGED_API_BASE })}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               {isConnected ? (
                 <>
                   <button
@@ -72,14 +72,14 @@ export function ManagedProviderPanel({
             />
           ) : null}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,var(--vlaina-size-220px)),1fr))] gap-3">
             <div className="rounded-xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-row-soft)] p-4">
               <div className="text-[var(--vlaina-font-11)] font-semibold uppercase tracking-[var(--vlaina-tracking-label-2xl)] text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.status')}</div>
               <div className="mt-2 text-sm font-medium text-[var(--vlaina-sidebar-notes-text)]">
                 {isConnected ? t('settings.ai.connected') : t('settings.ai.notConnected')}
               </div>
             </div>
-            <div className="rounded-xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-row-soft)] p-4 md:col-span-2">
+            <div className="rounded-xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-row-soft)] p-4">
               <div className="text-[var(--vlaina-font-11)] font-semibold uppercase tracking-[var(--vlaina-tracking-label-2xl)] text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.account')}</div>
               <div className="mt-2 text-sm font-medium text-[var(--vlaina-sidebar-notes-text)]">
                 {isConnected ? t('settings.ai.signedIn') : t('settings.ai.signInRequired')}

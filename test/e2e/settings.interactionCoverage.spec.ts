@@ -6,6 +6,8 @@ import {
 } from './notesE2E';
 
 const SETTINGS_MODAL_SELECTOR = '[data-settings-modal="true"]';
+type SettingsTab = 'markdown' | 'appearance' | 'language' | 'ai' | 'about';
+const RESPONSIVE_SETTINGS_TABS: SettingsTab[] = ['markdown', 'appearance', 'language', 'ai', 'about'];
 
 async function openSettings(page: Page) {
   await page.evaluate(() => {
@@ -14,12 +16,91 @@ async function openSettings(page: Page) {
   await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toBeVisible({ timeout: 30_000 });
 }
 
-async function openSettingsTab(page: Page, tab: 'markdown' | 'appearance' | 'language' | 'ai' | 'about') {
+async function openSettingsTab(page: Page, tab: SettingsTab) {
   await page.locator(`[data-settings-tab="${tab}"]`).click();
   await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toHaveAttribute('data-settings-active-tab', tab, {
     timeout: 10_000,
   });
   await expect(page.locator(`[data-settings-tab-panel="${tab}"]`)).toBeVisible({ timeout: 10_000 });
+}
+
+async function collectSettingsLayoutMetrics(page: Page, tab: SettingsTab) {
+  return page.evaluate(({ modalSelector, activeTab }) => {
+    const toRect = (element: Element | null) => {
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        right: Math.round(rect.right),
+        bottom: Math.round(rect.bottom),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      };
+    };
+
+    const isVisibleElement = (element: HTMLElement) => {
+      const style = window.getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      if (Number(style.opacity) === 0) return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+
+    const modal = document.querySelector<HTMLElement>(modalSelector);
+    const panel = document.querySelector<HTMLElement>(`[data-settings-tab-panel="${activeTab}"]`);
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const documentScrollWidth = Math.max(
+      document.documentElement.scrollWidth,
+      document.body.scrollWidth,
+    );
+
+    const horizontalOverflowElements = modal
+      ? Array.from(modal.querySelectorAll<HTMLElement>('*'))
+          .filter((element) => {
+            if (!isVisibleElement(element)) return false;
+            const rect = element.getBoundingClientRect();
+            return rect.left < -1 || rect.right > viewportWidth + 1;
+          })
+          .slice(0, 8)
+          .map((element) => ({
+            tag: element.tagName.toLowerCase(),
+            className: String(element.getAttribute('class') || '').slice(0, 180),
+            dataSettingsItem: element.getAttribute('data-settings-item'),
+            dataSettingsSection: element.getAttribute('data-settings-section'),
+            dataSettingsControl: element.getAttribute('data-settings-control'),
+            rect: toRect(element),
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+          }))
+      : [];
+
+    return {
+      viewportWidth,
+      viewportHeight,
+      documentScrollWidth,
+      modal: toRect(modal),
+      panel: toRect(panel),
+      horizontalOverflowElements,
+    };
+  }, { modalSelector: SETTINGS_MODAL_SELECTOR, activeTab: tab });
+}
+
+async function expectSettingsTabFitsSmallViewport(page: Page, tab: SettingsTab) {
+  const metrics = await collectSettingsLayoutMetrics(page, tab);
+  console.info(`[settings-small-${tab}]`, metrics);
+
+  expect(metrics.documentScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+  expect(metrics.modal).not.toBeNull();
+  expect(metrics.panel).not.toBeNull();
+  expect(metrics.modal!.left).toBeGreaterThanOrEqual(-1);
+  expect(metrics.modal!.right).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+  expect(metrics.modal!.top).toBeGreaterThanOrEqual(-1);
+  expect(metrics.modal!.bottom).toBeLessThanOrEqual(metrics.viewportHeight + 1);
+  expect(metrics.panel!.width).toBeGreaterThan(280);
+  expect(metrics.panel!.height).toBeGreaterThan(40);
+  expect(metrics.horizontalOverflowElements).toEqual([]);
 }
 
 async function getUnifiedData(page: Page) {
@@ -181,6 +262,30 @@ test.describe('settings modal interaction coverage', () => {
 
       await page.locator('[data-settings-action="close"]').click();
       await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toHaveCount(0, { timeout: 10_000 });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps every settings tab usable at the minimum desktop window size', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('settings-small-window-layout');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 800, height: 600 });
+
+      await openSettings(page);
+
+      for (const tab of RESPONSIVE_SETTINGS_TABS) {
+        await openSettingsTab(page, tab);
+        await expectSettingsTabFitsSmallViewport(page, tab);
+      }
+
+      await openSettingsTab(page, 'ai');
+      await page.locator('[data-settings-ai-action="new-channel"]').first().click();
+      await expect(page.locator('[data-settings-provider-field="name"]')).toBeVisible({ timeout: 10_000 });
+      await expectSettingsTabFitsSmallViewport(page, 'ai');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

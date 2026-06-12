@@ -92,7 +92,7 @@ export function ProviderQuickAdd({
   };
 
   return (
-    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
       <div className="relative">
         <SettingsTextInput
           type="text"

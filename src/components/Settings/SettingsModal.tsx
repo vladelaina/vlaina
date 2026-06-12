@@ -108,7 +108,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
             overlayClassName={isAppearanceFontPreviewing ? 'bg-transparent' : undefined}
           />
 
-          <div className="fixed inset-0 flex items-center justify-center z-[var(--vlaina-z-100)] pointer-events-none p-4">
+          <div className="fixed inset-0 flex items-center justify-center z-[var(--vlaina-z-100)] pointer-events-none p-4 max-[640px]:p-2">
             <div
               className="app-drag-region absolute top-0 left-0 right-0 h-14 z-[var(--vlaina-z-105)] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
               onMouseDown={(e) => {
@@ -141,7 +141,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                 ease: themeMotionTokens.settingsModalEase,
               }}
               className={cn(
-                "relative w-[var(--vlaina-size-1080px)] h-[var(--vlaina-size-720px)] max-w-full max-h-[var(--vlaina-size-90vh)] rounded-[var(--vlaina-radius-32px)] flex overflow-hidden pointer-events-auto select-none transition-[background-color,box-shadow] duration-[var(--vlaina-duration-100)]",
+                "relative flex h-[var(--vlaina-size-720px)] max-h-[calc(100vh_-_var(--vlaina-size-32px))] w-[var(--vlaina-size-1080px)] max-w-full min-w-0 overflow-hidden rounded-[var(--vlaina-radius-32px)] pointer-events-auto select-none transition-[background-color,box-shadow] duration-[var(--vlaina-duration-100)] max-[900px]:flex-col max-[640px]:max-h-[calc(100vh_-_var(--vlaina-size-16px))] max-[640px]:rounded-[var(--vlaina-radius-24px)]",
                 isAppearanceFontPreviewing
                   ? "bg-transparent shadow-[var(--vlaina-shadow-none)] ring-0"
                   : "bg-[var(--vlaina-color-setting-panel)] shadow-[var(--vlaina-shadow-2xl)] ring-1 ring-[var(--vlaina-color-subtle-border)]",
@@ -180,26 +180,26 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
 
               {/* Sidebar Section */}
               <div className={cn(
-                "w-[var(--vlaina-size-260px)] flex-shrink-0 bg-[var(--vlaina-sidebar-notes-surface)] flex flex-col border-r border-[var(--vlaina-color-border-shell)] transition-opacity duration-[var(--vlaina-duration-100)]",
+                "flex w-[var(--vlaina-size-260px)] flex-shrink-0 flex-col border-r border-[var(--vlaina-color-border-shell)] bg-[var(--vlaina-sidebar-notes-surface)] transition-opacity duration-[var(--vlaina-duration-100)] max-[900px]:w-full max-[900px]:border-r-0 max-[900px]:border-b max-[900px]:flex-none",
                 isAppearanceFontPreviewing && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
               )}>
-                <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10">
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex-1 overflow-y-auto app-scrollbar">
+                <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10 max-[900px]:px-3 max-[900px]:pb-3 max-[900px]:pt-12">
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    <div className="flex-1 overflow-y-auto app-scrollbar max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:scrollbar-hidden">
                       {sidebarGroups.map((group) => (
-                        <div key={group.titleKey} className="mb-8 last:mb-0">
-                          <div className="space-y-[var(--vlaina-space-y-6px)]">
+                        <div key={group.titleKey} className="mb-8 last:mb-0 max-[900px]:mb-0">
+                          <div className="space-y-[var(--vlaina-space-y-6px)] max-[900px]:flex max-[900px]:gap-2 max-[900px]:space-y-0">
                             {group.items.map((item) => {
                               const isActive = activeTab === item.id;
                               return (
-                                <div key={item.id} className="group/chat-sidebar-row flex items-center">
+                                <div key={item.id} className="group/chat-sidebar-row flex items-center max-[900px]:shrink-0">
                                   <button
                                     type="button"
                                     data-settings-tab={item.id}
                                     data-active={isActive ? 'true' : undefined}
                                     onClick={() => setActiveTab(item.id)}
                                     className={cn(
-                                      "flex min-h-[var(--vlaina-size-44px)] w-full items-center gap-3.5 px-4 py-3 text-sm leading-none transition-all duration-[var(--vlaina-duration-300)] ease-out rounded-[var(--vlaina-radius-18px)]",
+                                      "flex min-h-[var(--vlaina-size-44px)] w-full items-center gap-3.5 rounded-[var(--vlaina-radius-18px)] px-4 py-3 text-sm leading-none transition-all duration-[var(--vlaina-duration-300)] ease-out max-[900px]:w-auto max-[900px]:gap-2.5 max-[900px]:whitespace-nowrap max-[900px]:px-3.5",
                                       isActive
                                         ? "bg-[var(--vlaina-sidebar-row-selected-bg)] text-[var(--vlaina-sidebar-row-selected-text)] font-[var(--vlaina-font-weight-semibold-plus)] shadow-[var(--vlaina-shadow-selection-soft)]"
                                         : "text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] font-medium"
@@ -234,7 +234,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
 
               {/* Main Content Section */}
               <div className={cn(
-                "flex-1 flex flex-col min-w-0 relative transition-[background-color,backdrop-filter] duration-[var(--vlaina-duration-100)]",
+                "relative flex min-h-0 min-w-0 flex-1 flex-col transition-[background-color,backdrop-filter] duration-[var(--vlaina-duration-100)]",
                 isAppearanceFontPreviewing
                   ? "bg-transparent backdrop-blur-[var(--vlaina-backdrop-blur-none)]"
                   : "bg-[var(--vlaina-color-setting-content)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]",
@@ -244,11 +244,11 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                     "w-full mx-auto",
                     activeTab === 'ai' 
                       ? "h-full" 
-                      : "px-16 py-14 max-w-[var(--vlaina-size-860px)]"
+                      : "max-w-[var(--vlaina-size-860px)] px-16 py-14 max-[900px]:px-6 max-[900px]:py-6 max-[640px]:px-4 max-[640px]:py-5"
                   )}>
                     <div className={cn(
                       "animate-in fade-in slide-in-from-bottom-3 duration-[var(--vlaina-duration-75)] ease-out",
-                      activeTab === 'ai' ? "h-full" : "space-y-10"
+                      activeTab === 'ai' ? "h-full min-h-0" : "space-y-10"
                     )}>
                       {activeTab === 'about' && <AboutTab community={communitySettings} />}
                       {activeTab === 'markdown' && <MarkdownTab />}

@@ -331,7 +331,7 @@ export function AITab() {
 
   return (
     <div
-      className="h-full bg-[var(--vlaina-color-setting-panel)] text-[var(--vlaina-sidebar-notes-text)]"
+      className="h-full min-h-0 bg-[var(--vlaina-color-setting-panel)] text-[var(--vlaina-sidebar-notes-text)]"
       data-settings-tab-panel="ai"
     >
       <ConfirmDialog
@@ -345,7 +345,7 @@ export function AITab() {
         onConfirm={confirmDeleteCustomProvider}
       />
 
-      <div className="h-full px-6 py-6 overflow-y-auto">
+      <div className="h-full min-h-0 overflow-y-auto px-6 py-6 max-[900px]:px-4 max-[900px]:py-5">
         <AIBehaviorSettings />
 
         <section className="mx-auto max-w-5xl">
@@ -377,7 +377,7 @@ export function AITab() {
                 }}
                 className="mb-5"
               >
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,var(--vlaina-size-180px)),1fr))] gap-3">
                   {customProviders.map((provider) => (
                     (() => {
                       const draft = providerDrafts[provider.id];

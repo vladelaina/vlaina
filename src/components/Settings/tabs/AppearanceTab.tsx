@@ -73,7 +73,7 @@ function ColorModeToggle({ colorMode, onChange }: ColorModeToggleProps) {
   const colorModeIndex = Math.max(0, COLOR_MODE_OPTIONS.findIndex((option) => option.value === colorMode));
 
   return (
-    <div className="relative flex h-8 w-[var(--vlaina-size-126px)] items-center">
+    <div className="relative flex h-8 w-[var(--vlaina-size-126px)] shrink-0 items-center">
       <span
         aria-hidden="true"
         className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-out"
@@ -200,12 +200,12 @@ function ThemeAppearanceControl({
 }: ThemeAppearanceControlProps) {
   return (
     <div className={cn(
-      "flex h-11 min-w-0 max-w-full items-center rounded-[var(--vlaina-radius-22px)] p-1.5",
+      "flex h-11 min-w-0 max-w-full items-center rounded-[var(--vlaina-radius-22px)] p-1.5 max-[520px]:h-auto max-[520px]:w-full max-[520px]:flex-wrap max-[520px]:gap-1.5",
       chatComposerPillSurfaceClass,
     )}>
       <ColorModeToggle colorMode={colorMode} onChange={onColorModeChange} />
-      <div className="mx-2 h-5 w-px bg-[var(--vlaina-divider)]" />
-      <div className="min-w-0 flex-1">
+      <div className="mx-2 h-5 w-px bg-[var(--vlaina-divider)] max-[520px]:hidden" />
+      <div className="min-w-0 flex-1 max-[520px]:w-full max-[520px]:flex-none">
         <ThemeDropdown
           importedThemeId={importedThemeId}
           importedThemes={importedThemes}
@@ -436,7 +436,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       onChange={handleFontSizeChange}
       onPointerDown={beginFontSizePreview}
       onMouseDown={beginFontSizePreview}
-      className="appearance-font-size-slider h-1.5 w-44 cursor-pointer appearance-none rounded-lg accent-[var(--vlaina-sidebar-row-selected-text)]"
+      className="appearance-font-size-slider h-1.5 w-full min-w-0 cursor-pointer appearance-none rounded-lg accent-[var(--vlaina-sidebar-row-selected-text)]"
       style={{
         '--vlaina-appearance-font-size-progress': progressPercent,
         '--vlaina-gradient-appearance-font-size-slider': buildFontSizeSliderBackground(progressPercent),
@@ -461,14 +461,14 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
 
       <div
         className={cn(
-          "mb-3 flex flex-wrap items-center justify-between gap-y-3 rounded-[var(--vlaina-radius-22px)] px-6 py-4",
+          "mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4",
           isPreviewingFontSize
             ? "border border-transparent !bg-transparent !shadow-[var(--vlaina-shadow-none)] hover:!shadow-[var(--vlaina-shadow-none)]"
             : chatComposerPillSurfaceClass,
         )}
       >
         <div className={cn(
-          "min-w-[var(--vlaina-size-160px)] flex-1 pr-8",
+          "min-w-[min(100%,var(--vlaina-size-160px))] flex-1 pr-4 max-[640px]:w-full max-[640px]:pr-0",
           isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
         )}>
           <div className="mb-0.5 whitespace-nowrap text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
@@ -476,9 +476,11 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
           </div>
         </div>
         <div className={cn(
-          "ml-auto flex flex-shrink-0 items-center gap-4",
+          "ml-auto flex min-w-0 flex-shrink-0 items-center gap-4 max-[640px]:ml-0 max-[640px]:w-full max-[640px]:flex-wrap",
         )}>
-          {fontSizeSlider}
+          <div className="min-w-[var(--vlaina-size-180px)] flex-1 max-[640px]:min-w-0">
+            {fontSizeSlider}
+          </div>
           <span className={cn(
             "w-10 text-sm font-medium text-right tabular-nums text-[var(--vlaina-sidebar-notes-text)]",
             isPreviewingFontSize && "pointer-events-none",
@@ -511,7 +513,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
           isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]"
         )}
       >
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 max-[640px]:w-full max-[640px]:justify-start">
           <ThemeAppearanceControl
             colorMode={colorMode}
             importedThemeId={importedThemeId}

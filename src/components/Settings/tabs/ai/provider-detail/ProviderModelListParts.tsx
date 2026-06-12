@@ -77,7 +77,7 @@ export function ActionButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-full border border-transparent bg-transparent text-[var(--vlaina-font-xs)] font-semibold transition-colors duration-[var(--vlaina-duration-200)]',
+        'inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border border-transparent bg-transparent text-[var(--vlaina-font-xs)] font-semibold transition-colors duration-[var(--vlaina-duration-200)]',
         compact ? 'h-8 px-3' : 'h-9 px-4',
         chatComposerPillSurfaceClass,
         muted
@@ -90,7 +90,7 @@ export function ActionButton({
       ) : icon ? (
         <Icon name={icon} size="xs" />
       ) : null}
-      {label}
+      <span className="truncate">{label}</span>
     </button>
   );
 }
@@ -113,9 +113,9 @@ export function SectionHeader({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 px-1">
-      <div className="flex items-center gap-2">
-      <div className="text-[var(--vlaina-font-11)] font-bold uppercase tracking-[var(--vlaina-tracking-label-lg)] text-[var(--vlaina-sidebar-notes-text-soft)]">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-1">
+      <div className="flex min-w-0 items-center gap-2">
+      <div className="min-w-0 truncate text-[var(--vlaina-font-11)] font-bold uppercase tracking-[var(--vlaina-tracking-label-lg)] text-[var(--vlaina-sidebar-notes-text-soft)]">
         {label}
       </div>
       <button
@@ -141,7 +141,7 @@ export function SectionHeader({
           type="button"
           disabled={actionDisabled}
           onClick={onAction}
-          className="h-6 rounded-full px-2.5 text-[var(--vlaina-font-11)] font-bold text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]"
+          className="h-6 shrink-0 rounded-full px-2.5 text-[var(--vlaina-font-11)] font-bold text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]"
         >
           {actionLabel}
         </button>
@@ -167,7 +167,7 @@ export function ModelRow({
 }) {
   const tone = getHealthTone(health);
   const className = cn(
-    'flex items-center gap-3 rounded-[var(--vlaina-radius-20px)] border border-transparent px-4 py-3 text-left transition-all duration-[var(--vlaina-duration-200)]',
+    'flex min-w-0 items-center gap-3 rounded-[var(--vlaina-radius-20px)] border border-transparent px-4 py-3 text-left transition-all duration-[var(--vlaina-duration-200)]',
     selected && tone === 'neutral' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--vlaina-sidebar-notes-text)]',
     selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--vlaina-sidebar-notes-text)]',
     selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--vlaina-sidebar-notes-text)]',

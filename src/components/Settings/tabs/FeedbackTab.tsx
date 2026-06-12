@@ -89,7 +89,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
     <div className="space-y-8">
       <div>
         <SettingsSectionHeader>{t('settings.feedback.title')}</SettingsSectionHeader>
-        <div className="rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
+        <div className="min-w-0 rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)] max-[640px]:p-4">
           <div className="space-y-4">
             <textarea
               value={message}
@@ -106,7 +106,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
+                className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
               >
                 <Send size={themeIconTokens.sizeSidebar} />
                 {submitting ? t('settings.feedback.submitting') : t('settings.feedback.submit')}

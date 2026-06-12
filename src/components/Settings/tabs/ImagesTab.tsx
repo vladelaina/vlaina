@@ -94,8 +94,8 @@ export function ImagesTab() {
         <div className="w-full" data-settings-section="images">
             <SettingsSectionHeader>{t('settings.images.images')}</SettingsSectionHeader>
 
-            <div className="mb-4 flex items-center justify-between px-2">
-                <div className="flex items-center gap-1.5">
+            <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-2 px-2">
+                <div className="flex min-w-0 items-center gap-1.5">
                     <span className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">
                         {t('settings.images.storageLocation')}
                     </span>
@@ -109,7 +109,7 @@ export function ImagesTab() {
                         <Icon name="common.refresh" className="size-3.5" />
                     </button>
                 </div>
-                <code className="rounded-full bg-[var(--vlaina-bg-tertiary)] px-3 py-1 text-[var(--vlaina-font-11)] text-[var(--vlaina-sidebar-notes-text-soft)]">
+                <code className="max-w-full truncate rounded-full bg-[var(--vlaina-bg-tertiary)] px-3 py-1 text-[var(--vlaina-font-11)] text-[var(--vlaina-sidebar-notes-text-soft)]">
                     {storagePreview}
                 </code>
             </div>
@@ -169,7 +169,7 @@ export function ImagesTab() {
                                 value={imageVaultSubfolderName}
                                 onChange={(e) => setImageVaultSubfolderName(e.target.value)}
                                 placeholder="assets"
-                                className="w-48"
+                                className="w-48 max-[640px]:w-full"
                                 inputClassName="h-9 px-4 rounded-xl text-[var(--vlaina-font-13)]"
                                 shellClassName="rounded-xl shadow-[var(--vlaina-shadow-none)]"
                             />
@@ -187,7 +187,7 @@ export function ImagesTab() {
                                 value={imageSubfolderName}
                                 onChange={(e) => setImageSubfolderName(e.target.value)}
                                 placeholder="assets"
-                                className="w-48"
+                                className="w-48 max-[640px]:w-full"
                                 inputClassName="h-9 px-4 rounded-xl text-[var(--vlaina-font-13)]"
                                 shellClassName="rounded-xl shadow-[var(--vlaina-shadow-none)]"
                             />

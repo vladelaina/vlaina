@@ -13,7 +13,7 @@ interface SegmentedControlProps {
 
 export function SegmentedControl({ options, value, onChange }: SegmentedControlProps) {
     return (
-        <div className="flex p-0.5 bg-[var(--vlaina-color-setting-control)] rounded-lg border border-[var(--vlaina-color-menu-border)]">
+        <div className="flex min-w-0 flex-wrap p-0.5 bg-[var(--vlaina-color-setting-control)] rounded-lg border border-[var(--vlaina-color-menu-border)]">
             {options.map((option) => {
                 const isActive = value === option.value;
                 return (
@@ -21,7 +21,7 @@ export function SegmentedControl({ options, value, onChange }: SegmentedControlP
                         key={option.value}
                         onClick={() => onChange(option.value)}
                         className={cn(
-                            "relative flex items-center justify-center gap-2 px-3 py-1.5 text-[var(--vlaina-font-13)] font-medium rounded-[var(--vlaina-radius-6px)] transition-all z-[var(--vlaina-z-10)] flex-1",
+                            "relative z-[var(--vlaina-z-10)] flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[var(--vlaina-radius-6px)] px-3 py-1.5 text-[var(--vlaina-font-13)] font-medium transition-all",
                             isActive
                                 ? "text-[var(--vlaina-sidebar-row-selected-text)]"
                                 : "text-[var(--vlaina-sidebar-chat-text)] hover:text-[var(--vlaina-sidebar-chat-text)]"
@@ -96,19 +96,19 @@ export function SettingsItem({
     return (
         <div
             data-settings-item={dataSettingsItem}
-            className={cn("flex items-center justify-between px-6 py-4 mb-3 rounded-[var(--vlaina-radius-22px)]", chatComposerPillSurfaceClass, className)}
+            className={cn("mb-3 flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4", chatComposerPillSurfaceClass, className)}
         >
-            <div className="flex-1 pr-8">
+            <div className="min-w-[min(100%,var(--vlaina-size-220px))] flex-1 pr-4 max-[640px]:w-full max-[640px]:pr-0">
                 <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)] mb-0.5">
                     {title}
                 </div>
                 {description && (
-                    <div className="text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text-soft)] leading-normal max-w-[var(--vlaina-size-420px)]">
+                    <div className="max-w-[var(--vlaina-size-420px)] text-[var(--vlaina-font-xs)] leading-normal text-[var(--vlaina-sidebar-notes-text-soft)] max-[640px]:max-w-full">
                         {description}
                     </div>
                 )}
             </div>
-            <div className="flex-shrink-0">
+            <div className="min-w-0 flex-shrink-0 max-[640px]:w-full">
                 {children}
             </div>
         </div>

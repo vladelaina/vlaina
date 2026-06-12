@@ -324,7 +324,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
   }
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-4">
+    <div className="mx-auto flex max-w-5xl min-w-0 flex-col gap-4">
       <ProviderConnectionFields
         providerId={initialProvider.id}
         name={name}

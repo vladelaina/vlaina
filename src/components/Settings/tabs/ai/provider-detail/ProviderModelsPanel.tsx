@@ -95,9 +95,9 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
     props.onAddAllVisible(availableModels);
   };
   return (
-    <section className="space-y-4">
-      <div className={cn("overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1", chatComposerPillSurfaceClass)}>
-        <div className="space-y-5 px-6 py-6">
+    <section className="min-w-0 space-y-4">
+      <div className={cn("min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1", chatComposerPillSurfaceClass)}>
+        <div className="space-y-5 px-6 py-6 max-[640px]:px-4">
           {hasFetchedModels ? (
             <div className="flex flex-wrap items-center gap-2">
               <ActionButton
@@ -120,8 +120,8 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
               />
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 text-[var(--vlaina-font-sm)] font-bold text-[var(--vlaina-sidebar-notes-text)]">{t('settings.ai.models')}</div>
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0 flex-1 text-[var(--vlaina-font-sm)] font-bold text-[var(--vlaina-sidebar-notes-text)]">{t('settings.ai.models')}</div>
               <button
                 type="button"
                 disabled={!props.canUseConnectionActions || props.isFetchingModels}
@@ -170,7 +170,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
           ) : null}
 
           {hasFetchedModels ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,var(--vlaina-size-300px)),1fr))] gap-6">
               <div className="space-y-3">
                 <SectionHeader
                   label={t('settings.ai.selectedModels')}

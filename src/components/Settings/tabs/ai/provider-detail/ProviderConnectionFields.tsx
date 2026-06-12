@@ -174,16 +174,16 @@ export function ProviderConnectionFields({
   };
 
   return (
-    <section className={cn("overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1 mb-2", chatComposerPillSurfaceClass)}>
+    <section className={cn("mb-2 min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1", chatComposerPillSurfaceClass)}>
       <div className="flex flex-col">
         {/* Channel Label */}
-        <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
-          <div className="w-32 shrink-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-4 border-b border-transparent px-7 py-5 max-[640px]:px-4">
+          <div className="w-32 shrink-0 max-[640px]:w-full">
             <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
               {t('settings.ai.channelName')}
             </div>
           </div>
-          <div className="flex-1">
+          <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1">
             <SettingsTextInput
               type="text"
               data-settings-provider-field="name"
@@ -192,7 +192,7 @@ export function ProviderConnectionFields({
               onFocus={(event) => selectDefaultChannelName(event.currentTarget)}
               onClick={(event) => selectDefaultChannelName(event.currentTarget)}
               placeholder={t('settings.ai.newChannel')}
-              className="w-full max-w-[var(--vlaina-size-520px)]"
+              className="w-full max-w-[var(--vlaina-size-520px)] max-[640px]:max-w-full"
               inputClassName={providerInputClassName}
               shellClassName={providerInputShellClassName}
             />
@@ -200,13 +200,13 @@ export function ProviderConnectionFields({
         </div>
 
         {/* Base URL */}
-        <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
-          <div className="w-32 shrink-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-4 border-b border-transparent px-7 py-5 max-[640px]:px-4">
+          <div className="w-32 shrink-0 max-[640px]:w-full">
             <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
               {t('settings.ai.baseUrl', { url: '' }).replace(/[:：]\s*$/, '')}
             </div>
           </div>
-          <div className="flex-1">
+          <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1">
             <SettingsTextInput
               type="text"
               data-settings-provider-field="api-host"
@@ -220,7 +220,7 @@ export function ProviderConnectionFields({
               spellCheck={false}
               data-lpignore="true"
               data-1p-ignore="true"
-              className="w-full max-w-[var(--vlaina-size-520px)]"
+              className="w-full max-w-[var(--vlaina-size-520px)] max-[640px]:max-w-full"
               inputClassName={providerInputClassName}
               shellClassName={providerInputShellClassName}
             />
@@ -228,13 +228,13 @@ export function ProviderConnectionFields({
         </div>
 
         {/* API Key */}
-        <div className="flex items-center gap-4 px-7 py-5">
-          <div className="w-32 shrink-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-4 px-7 py-5 max-[640px]:px-4">
+          <div className="w-32 shrink-0 max-[640px]:w-full">
             <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
               {t('settings.ai.apiKey')}
             </div>
           </div>
-          <div className="flex-1">
+          <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1">
             <SettingsTextInput
               ref={apiKeyInputRef}
               type="text"
@@ -254,7 +254,7 @@ export function ProviderConnectionFields({
               data-lpignore="true"
               data-1p-ignore="true"
               style={getApiKeyInputStyle(apiKeyDisplayValue, apiKeyTextWidthPx)}
-              className="w-full max-w-[var(--vlaina-size-520px)]"
+              className="w-full max-w-[var(--vlaina-size-520px)] max-[640px]:max-w-full"
               inputClassName={cn(providerInputClassName, 'pr-[var(--vlaina-space-575rem)] font-mono')}
               shellClassName={providerInputShellClassName}
               trailing={

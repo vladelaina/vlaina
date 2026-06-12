@@ -20,13 +20,13 @@ export const SettingsTextInput = forwardRef<HTMLInputElement, SettingsTextInputP
     ref
   ) {
     return (
-      <div className={cn(fieldShellClassName, 'relative flex items-center', shellClassName, className)}>
+      <div className={cn(fieldShellClassName, 'relative flex min-w-0 items-center', shellClassName, className)}>
         {leading ? <div className="pointer-events-none absolute left-4 top-1/2 z-[var(--vlaina-z-10)] -translate-y-1/2">{leading}</div> : null}
         <input
           ref={ref}
           spellCheck={false}
           className={cn(
-            'block h-11 w-full rounded-2xl border-0 bg-transparent px-4 text-[var(--vlaina-font-sm)] text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
+            'block h-11 w-full min-w-0 rounded-2xl border-0 bg-transparent px-4 text-[var(--vlaina-font-sm)] text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
             leading && 'pl-11',
             trailing && 'pr-20',
             inputClassName
@@ -73,14 +73,14 @@ export const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextarea
     });
 
     return (
-      <div className={cn(fieldShellClassName, shellClassName, className)}>
+      <div className={cn(fieldShellClassName, 'min-w-0', shellClassName, className)}>
         <textarea
           ref={attachRef}
           value={value}
           onChange={onChange}
           spellCheck={false}
           className={cn(
-            'block w-full rounded-2xl border-0 bg-transparent px-4 py-3 text-[var(--vlaina-font-sm)] leading-6 text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
+            'block w-full min-w-0 rounded-2xl border-0 bg-transparent px-4 py-3 text-[var(--vlaina-font-sm)] leading-6 text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-sidebar-chat-text-soft)] focus:ring-0',
             autoGrow && 'min-h-0 resize-none overflow-y-auto',
             textareaClassName
           )}
