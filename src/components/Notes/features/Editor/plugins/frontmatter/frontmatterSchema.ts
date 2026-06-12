@@ -1,8 +1,9 @@
 import { $node } from '@milkdown/kit/utils';
 import { type DOMOutputSpec, type Node } from '@milkdown/kit/prose/model';
 import {
+  getFrontmatterFenceMeta,
   getFrontmatterFenceLanguage,
-  isFrontmatterFenceLanguage,
+  isInternalFrontmatterFence,
 } from './frontmatterMarkdown';
 
 export function serializeFrontmatterNode(_node: Node): DOMOutputSpec {
@@ -31,7 +32,7 @@ export const frontmatterSchema = $node('frontmatter', () => ({
   ],
   toDOM: serializeFrontmatterNode,
   parseMarkdown: {
-    match: (node) => node.type === 'code' && isFrontmatterFenceLanguage(node.lang),
+    match: (node) => node.type === 'code' && isInternalFrontmatterFence(node.lang, node.meta),
     runner: (state, node, type) => {
       state.openNode(type);
       if (node.value) {
@@ -45,6 +46,7 @@ export const frontmatterSchema = $node('frontmatter', () => ({
     runner: (state, node) => {
       state.addNode('code', undefined, node.textContent, {
         lang: getFrontmatterFenceLanguage(),
+        meta: getFrontmatterFenceMeta(),
       });
     },
   },

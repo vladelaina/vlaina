@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { importExternalMarkdownEntries, resolveExternalMarkdownEntriesForStarred } from './externalMarkdownImport';
 
+const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
+
 const mocks = vi.hoisted(() => {
   const storage = {
     stat: vi.fn(),
     copyFile: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
     mkdir: vi.fn(),
     listDir: vi.fn(),
     deleteFile: vi.fn(),
@@ -59,6 +63,8 @@ describe('importExternalMarkdownEntries', () => {
   beforeEach(() => {
     mocks.storage.stat.mockReset();
     mocks.storage.copyFile.mockReset();
+    mocks.storage.readFile.mockReset();
+    mocks.storage.writeFile.mockReset();
     mocks.storage.mkdir.mockReset();
     mocks.storage.listDir.mockReset();
     mocks.storage.deleteFile.mockReset();
@@ -197,6 +203,79 @@ describe('importExternalMarkdownEntries', () => {
       didImport: false,
     });
     expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('imports a markdown file with bounded reads when source size is unavailable', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isFile: path === '/outside/no-size.md' || path === '/vault/imports/no-size.md',
+      isDirectory: false,
+    }));
+    mocks.storage.readFile.mockResolvedValue('# No size');
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/no-size.md',
+      fullPath: '/vault/imports/no-size.md',
+      fileName: 'no-size.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/no-size.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/no-size.md'],
+      importedFolderPaths: [],
+      didImport: true,
+    });
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/outside/no-size.md', MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith('/vault/imports/no-size.md', '# No size');
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('verifies copied markdown with a bounded read when copied size is unavailable', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isFile: path === '/outside/alpha.md' || path === '/vault/imports/alpha.md',
+      isDirectory: false,
+      ...(path === '/outside/alpha.md' ? { size: 1024 } : {}),
+    }));
+    mocks.storage.readFile.mockResolvedValue('# Alpha');
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/alpha.md',
+      fullPath: '/vault/imports/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/alpha.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/alpha.md'],
+      importedFolderPaths: [],
+      didImport: true,
+    });
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/alpha.md', '/vault/imports/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/imports/alpha.md', MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
+  });
+
+  it('deletes copied markdown when copied size is unavailable and bounded verification fails', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isFile: path === '/outside/alpha.md' || path === '/vault/imports/alpha.md',
+      isDirectory: false,
+      ...(path === '/outside/alpha.md' ? { size: 1024 } : {}),
+    }));
+    mocks.storage.readFile.mockRejectedValue(new Error('File is too large to read'));
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/alpha.md',
+      fullPath: '/vault/imports/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/alpha.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/alpha.md', '/vault/imports/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/imports/alpha.md', MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/imports/alpha.md');
   });
 
   it('keeps importing later files when one top-level path cannot be statted', async () => {
@@ -555,28 +634,41 @@ describe('importExternalMarkdownEntries', () => {
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/docs/..');
   });
 
-  it('skips folder markdown entries when size cannot be verified', async () => {
+  it('imports folder markdown entries with bounded reads when size cannot be verified', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
-      isDirectory: path === '/outside/docs',
-      isFile: path !== '/outside/docs',
+      isDirectory: path === '/outside/docs' || path === '/vault/archive/docs',
+      isFile: path !== '/outside/docs' && path !== '/vault/archive/docs',
     }));
     mocks.storage.listDir.mockResolvedValue([
-      { name: 'huge.md', isFile: true, isDirectory: false },
+      { name: 'no-size.md', isFile: true, isDirectory: false },
     ]);
-    mocks.resolveUniquePath.mockResolvedValue({
-      relativePath: 'archive/docs',
-      fullPath: '/vault/archive/docs',
-    });
+    mocks.storage.readFile.mockResolvedValue('# No size');
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+        const relativePath = folderPath
+          ? `${folderPath}/${name}`
+          : isDirectory
+            ? `archive/${name}`
+            : name;
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
 
     const result = await importExternalMarkdownEntries('/vault', 'archive', ['/outside/docs']);
 
     expect(result).toEqual({
-      importedNotePaths: [],
-      importedFolderPaths: [],
-      didImport: false,
+      importedNotePaths: ['archive/docs/no-size.md'],
+      importedFolderPaths: ['archive/docs'],
+      didImport: true,
     });
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/outside/docs/no-size.md', MAX_EXTERNAL_MARKDOWN_FILE_SIZE);
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith('/vault/archive/docs/no-size.md', '# No size');
     expect(mocks.storage.copyFile).not.toHaveBeenCalled();
-    expect(mocks.storage.deleteDir).toHaveBeenCalledWith('/vault/archive/docs', true);
+    expect(mocks.storage.deleteDir).not.toHaveBeenCalledWith('/vault/archive/docs', true);
   });
 
   it('removes copied markdown when the target size exceeds the import limit', async () => {

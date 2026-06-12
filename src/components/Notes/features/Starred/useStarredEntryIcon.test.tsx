@@ -6,7 +6,7 @@ const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
 
 const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
-  stat: vi.fn(async (): Promise<{ modifiedAt?: number; size?: number } | null> => null),
+  stat: vi.fn(async (): Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number; size?: number } | null> => null),
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -145,7 +145,12 @@ describe('useStarredEntryIcon', () => {
 
   it('skips starred note metadata that exceeds the limit after read', async () => {
     mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });
-    mocked.readFile.mockResolvedValue(['---', 'vlaina_icon: "💡"', '---', 'x'.repeat(512 * 1024 + 1)].join('\n'));
+    mocked.readFile.mockResolvedValue([
+      '---',
+      'vlaina_icon: "💡"',
+      '---',
+      '你'.repeat(Math.floor(MAX_STARRED_ICON_METADATA_BYTES / 3) + 1),
+    ].join('\n'));
 
     const { result } = renderHook(() =>
       useStarredEntryIcon({
@@ -166,7 +171,7 @@ describe('useStarredEntryIcon', () => {
     expect(result.current).toBeUndefined();
   });
 
-  it('skips starred note metadata reads when stat has no size', async () => {
+  it('skips starred note metadata reads when stat is unavailable', async () => {
     mocked.stat.mockResolvedValue(null);
 
     const { result } = renderHook(() =>
@@ -184,6 +189,26 @@ describe('useStarredEntryIcon', () => {
     });
     expect(result.current).toBeUndefined();
     expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('loads starred note metadata with bounded reads when stat has no size', async () => {
+    mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false });
+    mocked.readFile.mockResolvedValue('---\nvlaina_icon: "no-size"\n---\n# Alpha');
+
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-no-size',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/no-size.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await waitFor(() => {
+      expect(result.current).toBe('no-size');
+    });
+    expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/no-size.md', MAX_STARRED_ICON_METADATA_BYTES);
   });
 
   it('does not read icon metadata from stale internal starred entries', async () => {

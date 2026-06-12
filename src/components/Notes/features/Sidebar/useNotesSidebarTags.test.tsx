@@ -89,7 +89,7 @@ describe('useNotesSidebarTags', () => {
     mocked.stat.mockResolvedValue(null);
   });
 
-  it('does not read missing sidebar tag content when stat has no size', async () => {
+  it('does not read missing sidebar tag content when stat is unavailable', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
 
     renderHook(() => useNotesSidebarTags({
@@ -103,6 +103,26 @@ describe('useNotesSidebarTags', () => {
       expect(mocked.stat).toHaveBeenCalledWith('/vault/alpha.md');
     });
     expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('reads missing sidebar tag content with bounded reads when stat has no size', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false });
+    mocked.readFile.mockResolvedValue('Alpha #topic');
+
+    const { result } = renderHook(() => useNotesSidebarTags({
+      rootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault',
+    }));
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_TAG_CONTENT_READ_BYTES);
+    });
+    await waitFor(() => {
+      expect(result.current.tags.map((entry) => entry.tag)).toEqual(['topic']);
+    });
   });
 
   it('does not read oversized missing sidebar tag content', async () => {
@@ -262,7 +282,7 @@ describe('useNotesSidebarTags', () => {
   it('does not index sidebar tag content that is too complex after read', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
     mocked.stat.mockResolvedValue({ isFile: true, size: 16 });
-    mocked.readFile.mockResolvedValue(`#hidden ${'x'.repeat(512 * 1024 + 1)}`);
+    mocked.readFile.mockResolvedValue(`#hidden ${'你'.repeat(Math.floor(MAX_TAG_CONTENT_READ_BYTES / 3) + 1)}`);
 
     const { result } = renderHook(() => useNotesSidebarTags({
       rootFolder,

@@ -9,6 +9,7 @@ const MAX_INDEX_FILENAME_CHARS = 4096;
 const MAX_INDEX_HASH_CHARS = 256;
 const MAX_INDEX_MIME_TYPE_CHARS = 256;
 const MAX_INDEX_UPDATED_AT_CHARS = 128;
+const utf8Encoder = new TextEncoder();
 
 export interface AssetHashIndexEntry {
   filename: string;
@@ -104,12 +105,19 @@ export async function loadAssetHashIndex(vaultPath: string): Promise<AssetHashIn
     const storage = getStorageAdapter();
     const indexPath = await getIndexPath(vaultPath);
     const info = await storage.stat(indexPath).catch(() => null);
-    if (typeof info?.size !== 'number' || info.size > MAX_INDEX_BYTES) {
+    if (
+      info?.isDirectory === true ||
+      info?.isFile === false ||
+      (
+        typeof info?.size === 'number' &&
+        info.size > MAX_INDEX_BYTES
+      )
+    ) {
       return createEmptyIndex();
     }
 
     const content = await storage.readFile(indexPath, MAX_INDEX_BYTES);
-    if (content.length > MAX_INDEX_BYTES) {
+    if (utf8Encoder.encode(content).length > MAX_INDEX_BYTES) {
       return createEmptyIndex();
     }
 

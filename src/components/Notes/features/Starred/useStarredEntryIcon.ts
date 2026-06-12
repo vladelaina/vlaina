@@ -11,6 +11,7 @@ import type { StarredEntry } from '@/stores/notes/types';
 const MAX_STARRED_ICON_CACHE_ENTRIES = 300;
 const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
 const MAX_CONCURRENT_STARRED_ICON_READS = 4;
+const starredIconUtf8Encoder = new TextEncoder();
 
 interface StarredIconCacheEntry {
   modifiedAt: number | null;
@@ -108,10 +109,20 @@ function canReadStarredIconMetadata(fileInfo: {
   size?: number | null;
 } | null | undefined) {
   return (
+    Boolean(fileInfo) &&
     fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
-    typeof fileInfo?.size === 'number' &&
-    fileInfo.size <= MAX_STARRED_ICON_METADATA_BYTES
+    (
+      typeof fileInfo?.size !== 'number' ||
+      fileInfo.size <= MAX_STARRED_ICON_METADATA_BYTES
+    )
+  );
+}
+
+function isStarredIconMetadataWithinReadLimit(content: string): boolean {
+  return (
+    content.length <= MAX_STARRED_ICON_METADATA_BYTES &&
+    starredIconUtf8Encoder.encode(content).length <= MAX_STARRED_ICON_METADATA_BYTES
   );
 }
 
@@ -165,7 +176,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
           }
 
           const content = await storage.readFile(fullPath, MAX_STARRED_ICON_METADATA_BYTES);
-          const nextIcon = content.length <= MAX_STARRED_ICON_METADATA_BYTES
+          const nextIcon = isStarredIconMetadataWithinReadLimit(content)
             ? readNoteMetadataFromMarkdown(content).icon ?? null
             : null;
           setStarredIconCacheEntry(cacheKey, {

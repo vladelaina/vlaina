@@ -329,10 +329,17 @@ async function readStoredEvents(eventPath: string) {
 async function readEventFileContent(eventPath: string) {
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(eventPath).catch(() => null);
-  if (typeof fileInfo?.size !== 'number' || fileInfo.size > MAX_EVENT_FILE_BYTES) {
+  if (
+    fileInfo?.isDirectory === true ||
+    fileInfo?.isFile === false ||
+    (
+      typeof fileInfo?.size === 'number' &&
+      fileInfo.size > MAX_EVENT_FILE_BYTES
+    )
+  ) {
     return null;
   }
 
   const content = await storage.readFile(eventPath, MAX_EVENT_FILE_BYTES).catch(() => null);
-  return content && content.length <= MAX_EVENT_FILE_BYTES ? content : null;
+  return content && new TextEncoder().encode(content).length <= MAX_EVENT_FILE_BYTES ? content : null;
 }

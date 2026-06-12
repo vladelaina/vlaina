@@ -59,4 +59,24 @@ describe('markdown serialization frontmatter', () => {
   it('removes a UTF-8 BOM from markdown without frontmatter', () => {
     expect(normalizeSerializedMarkdownDocument('\uFEFF# Title')).toBe('# Title');
   });
+
+  it('normalizes content between indented frontmatter-like delimiters as normal markdown', () => {
+    const markdown = [
+      ' ---',
+      'url: http\\://example.test',
+      ' ---',
+      '',
+      '1.正文',
+      '2.继续',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe([
+      ' ---',
+      'url: http://example.test',
+      '---',
+      '',
+      '1. 正文',
+      '2. 继续',
+    ].join('\n'));
+  });
 });

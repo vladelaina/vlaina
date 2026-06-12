@@ -6,8 +6,8 @@ import {
 } from './externalPathBroadcast';
 
 const adapter = {
-  readFile: vi.fn<(path: string) => Promise<string>>(),
-  stat: vi.fn<(path: string) => Promise<{ size?: number } | null>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
+  stat: vi.fn<(path: string) => Promise<{ isDirectory?: boolean; isFile?: boolean; size?: number } | null>>(),
   writeFile: vi.fn<(path: string, content: string, options?: { recursive?: boolean }) => Promise<void>>(),
 };
 
@@ -41,12 +41,32 @@ describe('external path broadcast persistence', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
-  it('ignores event files when stat has no size', async () => {
+  it('reads event files when stat has no size', async () => {
     adapter.stat.mockResolvedValue({});
+    adapter.readFile.mockResolvedValue(JSON.stringify([
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'n1',
+        stamp: 1,
+        notesPath: '/vault',
+        oldPath: 'docs/a.md',
+        newPath: 'docs/b.md',
+      },
+    ]));
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        nonce: 'n1',
+        oldPath: 'docs/a.md',
+        newPath: 'docs/b.md',
+      }),
+    ]);
 
-    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.readFile).toHaveBeenCalledWith(
+      expect.stringContaining('/external-path-events.json'),
+      256 * 1024,
+    );
   });
 
   it('ignores event file content that exceeds the limit after read', async () => {

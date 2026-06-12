@@ -270,7 +270,7 @@ describe('notes metadata storage', () => {
       { name: 'huge.md', isFile: true },
     ]);
     adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 32 });
-    adapter.readFile.mockResolvedValue('x'.repeat(5 * 1024 * 1024 + 1));
+    adapter.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_METADATA_READ_BYTES / 3) + 1));
 
     await expect(loadNoteMetadata('/vault-huge-after-read')).resolves.toEqual({
       version: 2,
@@ -551,12 +551,21 @@ describe('notes metadata storage', () => {
     });
   });
 
-  it('does not read workspace state files when stat has no size', async () => {
+  it('reads workspace state files when stat has no size', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue(null);
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      currentNotePath: 'docs/alpha.md',
+      expandedFolders: ['docs'],
+      fileTreeSortMode: 'name-asc',
+    }));
 
-    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
-    expect(adapter.readFile).not.toHaveBeenCalled();
+    await expect(loadWorkspaceState('/vault-a')).resolves.toEqual({
+      currentNotePath: 'docs/alpha.md',
+      expandedFolders: ['docs'],
+      fileTreeSortMode: 'name-asc',
+    });
+    expect(adapter.readFile).toHaveBeenCalledWith(expect.stringContaining('/workspace.json'), 256 * 1024);
   });
 
   it('does not read oversized workspace state files', async () => {

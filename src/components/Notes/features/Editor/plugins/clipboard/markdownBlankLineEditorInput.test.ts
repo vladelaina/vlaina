@@ -4,6 +4,10 @@ import {
   preserveMarkdownBlankLinesForEditor,
   preserveMarkdownBlankLinesForPaste,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import {
+  getFrontmatterFenceLanguage,
+  getFrontmatterFenceMeta,
+} from '../frontmatter/frontmatterMarkdown';
 
 const LEGACY_EMPTY_LINE_PLACEHOLDER = '\u200B';
 const MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
@@ -212,10 +216,11 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   });
 
   it('does not add placeholders inside normalized frontmatter fences', () => {
-    const markdown = ['```yaml-frontmatter', 'title: Demo', '', 'summary: Test', '```', '', '# Heading'].join('\n');
+    const opening = `\`\`\`${getFrontmatterFenceLanguage()} ${getFrontmatterFenceMeta()}`;
+    const markdown = [opening, 'title: Demo', '', 'summary: Test', '```', '', '# Heading'].join('\n');
     const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
 
-    expect(editorInput).toContain(['```yaml-frontmatter', 'title: Demo', '', 'summary: Test', '```'].join('\n'));
+    expect(editorInput).toContain([opening, 'title: Demo', '', 'summary: Test', '```'].join('\n'));
     expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 

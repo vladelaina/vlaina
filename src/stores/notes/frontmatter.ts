@@ -19,6 +19,7 @@ const KEY_UPDATED = `${MANAGED_FRONTMATTER_PREFIX}updated`;
 const FRONTMATTER_TIMESTAMP_OFFSET_MINUTES = 8 * 60;
 const MAX_NOTE_ICON_CHARS = 4096;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
 
 const MANAGED_KEYS = new Set([
   KEY_COVER,
@@ -50,6 +51,10 @@ function normalizeLineEndings(value: string): string {
 
 function stripLeadingBom(value: string): string {
   return value.startsWith(UTF8_BOM) ? value.slice(1) : value;
+}
+
+function isFrontmatterDelimiterLine(line: string): boolean {
+  return FRONTMATTER_DELIMITER_PATTERN.test(line);
 }
 
 function readLine(value: string, start: number, maxContentEnd = value.length): ReadLineResult {
@@ -96,7 +101,7 @@ function splitLeadingFrontmatter(markdown: string, options?: { includeBody?: boo
   const source = stripLeadingBom(markdown);
   const firstLine = readLine(source, 0, MAX_FRONTMATTER_DELIMITER_LINE_CHARS + 1);
 
-  if (firstLine.truncated || firstLine.line.trim() !== FRONTMATTER_DELIMITER) {
+  if (firstLine.truncated || !isFrontmatterDelimiterLine(firstLine.line)) {
     return {
       lines: [],
       body: options?.includeBody ? normalizeLineEndings(source) : '',
@@ -114,7 +119,7 @@ function splitLeadingFrontmatter(markdown: string, options?: { includeBody?: boo
       break;
     }
 
-    if (line.line.trim() === FRONTMATTER_DELIMITER) {
+    if (isFrontmatterDelimiterLine(line.line)) {
       return {
         lines,
         body: options?.includeBody ? normalizeLineEndings(source.slice(line.nextStart)) : '',

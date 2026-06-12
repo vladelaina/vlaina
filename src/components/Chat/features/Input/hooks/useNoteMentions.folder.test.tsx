@@ -231,6 +231,35 @@ describe('useNoteMentions folder candidates', () => {
     });
   });
 
+  it('ignores malformed restored mentions without dropping valid recalled mentions', async () => {
+    const textarea = document.createElement('textarea');
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('');
+      const textareaRef = useRef<HTMLTextAreaElement>(textarea);
+      return useNoteMentionState({
+        value: message,
+        onValueChange: setMessage,
+        textareaRef,
+        syncMentions: ({ mentions }) => mentions,
+      });
+    });
+
+    act(() => {
+      result.current.restoreMentions([
+        { path: null, title: 'Broken' } as any,
+        { path: ' docs/alpha.md ', title: null } as any,
+        { path: 'docs/beta.md', title: ' Beta ' },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.mentions).toEqual([
+        { path: 'docs/alpha.md', title: 'docs/alpha.md', kind: 'note' },
+        { path: 'docs/beta.md', title: 'Beta', kind: 'note' },
+      ]);
+    });
+  });
+
   it('does not restore ambiguous typed folder mentions with duplicate titles', async () => {
     hoisted.storeRef.state = {
       ...hoisted.storeRef.state,

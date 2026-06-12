@@ -84,6 +84,28 @@ describe('collectMentionFolderMarkdownNodes', () => {
     ]);
   });
 
+  it('caps empty folder traversal when no markdown notes are found', () => {
+    let lateChildrenAccessed = false;
+    const lateFolder = {
+      id: 'docs/late',
+      name: 'late',
+      path: 'docs/late',
+      isFolder: true,
+      expanded: true,
+      get children() {
+        lateChildrenAccessed = true;
+        return [note('docs/late/alpha.md')];
+      },
+    } as FileTreeNode;
+    const nodes = [
+      ...Array.from({ length: 6000 }, (_value, index) => folder(`docs/empty-${index}`, [])),
+      lateFolder,
+    ];
+
+    expect(collectMentionFolderMarkdownNodes(nodes, { maxResults: 10000 })).toEqual([]);
+    expect(lateChildrenAccessed).toBe(false);
+  });
+
   it('does not let early folder markdown fill the result limit before sibling markdown', () => {
     const nodes = [
       folder('docs/nested', Array.from({ length: 20 }, (_value, index) => note(`docs/nested/${index}.md`))),

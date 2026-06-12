@@ -17,6 +17,10 @@ import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
 import { codePlugin } from '../code';
 import { calloutPlugin } from '../callout';
+import {
+  getFrontmatterFenceLanguage,
+  getFrontmatterFenceMeta,
+} from '../frontmatter/frontmatterMarkdown';
 
 function createMockState(): EditorState {
   const doc = {
@@ -251,7 +255,7 @@ describe('serializeSelectedBlocksToText', () => {
   it('serializes leading frontmatter block selections back to markdown fences', () => {
     const state = createMockState();
     const markdownSerializer = vi.fn((doc: any) => {
-      if (doc.range === '1-2') return '```yaml-frontmatter\ntitle: demo\n```';
+      if (doc.range === '1-2') return `\`\`\`${getFrontmatterFenceLanguage()} ${getFrontmatterFenceMeta()}\ntitle: demo\n\`\`\``;
       return 'Body';
     });
 

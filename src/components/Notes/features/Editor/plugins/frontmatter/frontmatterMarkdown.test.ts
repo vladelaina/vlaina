@@ -1,22 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getFrontmatterFenceMeta,
   getFrontmatterFenceLanguage,
+  isInternalFrontmatterFence,
   isFrontmatterFenceLanguage,
   isFrontmatterShortcutText,
   normalizeLeadingFrontmatterMarkdown,
   serializeLeadingFrontmatterMarkdown,
 } from './frontmatterMarkdown';
 
+function frontmatterFenceOpen(): string {
+  return `\`\`\`${getFrontmatterFenceLanguage()} ${getFrontmatterFenceMeta()}`;
+}
+
 describe('frontmatterMarkdown', () => {
   it('normalizes leading yaml frontmatter into an internal fenced block', () => {
     expect(normalizeLeadingFrontmatterMarkdown('---\ntitle: Demo\n---\n# Heading')).toBe(
-      `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`,
+      `${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n# Heading`,
     );
   });
 
   it('normalizes leading yaml frontmatter after a UTF-8 BOM', () => {
     expect(normalizeLeadingFrontmatterMarkdown('\uFEFF---\ntitle: Demo\n---\n# Heading')).toBe(
-      `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`,
+      `${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n# Heading`,
     );
   });
 
@@ -25,7 +31,7 @@ describe('frontmatterMarkdown', () => {
       normalizeLeadingFrontmatterMarkdown(
         '---\ntitle: Demo\nvlaina_cover: "@biva/1"\nvlaina_icon: "🧏‍♂️"\n---\n# Heading'
       )
-    ).toBe(`\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`);
+    ).toBe(`${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n# Heading`);
   });
 
   it('removes spacer blank lines that only exist above hidden vlaina-managed frontmatter', () => {
@@ -42,12 +48,12 @@ describe('frontmatterMarkdown', () => {
           '# Heading',
         ].join('\n'),
       )
-    ).toBe(`\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`);
+    ).toBe(`${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n# Heading`);
   });
 
   it('keeps user-authored empty leading frontmatter blocks visible', () => {
     expect(normalizeLeadingFrontmatterMarkdown('---\n---\n# Heading')).toBe(
-      `\`\`\`${getFrontmatterFenceLanguage()}\n\`\`\`\n# Heading`
+      `${frontmatterFenceOpen()}\n\`\`\`\n# Heading`
     );
   });
 
@@ -60,7 +66,7 @@ describe('frontmatterMarkdown', () => {
   it('serializes the internal fenced block back to markdown frontmatter', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
-        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`,
+        `${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n# Heading`,
       ),
     ).toBe('---\ntitle: Demo\n---\n# Heading');
   });
@@ -68,7 +74,7 @@ describe('frontmatterMarkdown', () => {
   it('removes serializer padding after the internal frontmatter block', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
-        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n\n# Heading`,
+        `${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n\n# Heading`,
       ),
     ).toBe('---\ntitle: Demo\n---\n# Heading');
   });
@@ -76,7 +82,7 @@ describe('frontmatterMarkdown', () => {
   it('preserves user-authored body blank lines after frontmatter', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
-        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n\n\n# Heading`,
+        `${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n\n\n# Heading`,
       ),
     ).toBe('---\ntitle: Demo\n---\n\n# Heading');
   });
@@ -93,7 +99,7 @@ describe('frontmatterMarkdown', () => {
   it('merges hidden vlaina-managed frontmatter back during serialization', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
-        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`,
+        `${frontmatterFenceOpen()}\ntitle: Demo\n\`\`\`\n# Heading`,
         '---\ntitle: Demo\nvlaina_cover: "@biva/1"\nvlaina_updated: "2026-04-16T00:00:00.000Z"\n---\n# Heading',
       ),
     ).toBe(
@@ -104,7 +110,7 @@ describe('frontmatterMarkdown', () => {
   it('keeps visible frontmatter spacing stable when hidden metadata is merged back', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
-        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\nsummary: Test\n\`\`\`\n\n# Heading`,
+        `${frontmatterFenceOpen()}\ntitle: Demo\nsummary: Test\n\`\`\`\n\n# Heading`,
         '---\ntitle: Demo\nsummary: Test\n\nvlaina_cover: "@biva/1"\n---\n\n# Heading',
       ),
     ).toBe(
@@ -125,10 +131,24 @@ describe('frontmatterMarkdown', () => {
 
   it('recognizes frontmatter shortcut and fence language', () => {
     expect(isFrontmatterShortcutText('---')).toBe(true);
-    expect(isFrontmatterShortcutText(' --- ')).toBe(true);
+    expect(isFrontmatterShortcutText('--- \t')).toBe(true);
+    expect(isFrontmatterShortcutText(' --- ')).toBe(false);
     expect(isFrontmatterShortcutText('--')).toBe(false);
     expect(isFrontmatterFenceLanguage(getFrontmatterFenceLanguage())).toBe(true);
+    expect(isInternalFrontmatterFence(getFrontmatterFenceLanguage(), getFrontmatterFenceMeta())).toBe(true);
+    expect(isInternalFrontmatterFence(getFrontmatterFenceLanguage(), null)).toBe(false);
     expect(isFrontmatterFenceLanguage('yaml')).toBe(false);
+  });
+
+  it('leaves user-authored leading yaml-frontmatter code blocks as markdown', () => {
+    const markdown = [
+      `\`\`\`${getFrontmatterFenceLanguage()}`,
+      'title: Demo',
+      '```',
+      '# Heading',
+    ].join('\n');
+
+    expect(serializeLeadingFrontmatterMarkdown(markdown)).toBe(markdown);
   });
 
   it('leaves oversized unclosed leading frontmatter candidates as markdown', () => {
@@ -143,7 +163,7 @@ describe('frontmatterMarkdown', () => {
 
   it('leaves oversized unclosed internal frontmatter candidates as markdown', () => {
     const markdown = [
-      `\`\`\`${getFrontmatterFenceLanguage()}`,
+      frontmatterFenceOpen(),
       ...Array.from({ length: 2050 }, (_, index) => `line_${index}: value`),
       '# Heading',
     ].join('\n');

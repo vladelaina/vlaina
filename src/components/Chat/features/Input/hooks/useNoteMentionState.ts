@@ -51,6 +51,10 @@ function getMentionBoundaryEnd(value: string, part: MentionPreviewRange): number
   return value[part.end] === ' ' ? part.end + 1 : part.end;
 }
 
+function normalizeMentionText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 interface UseNoteMentionStateOptions {
   value: string;
   onValueChange: (value: string) => void;
@@ -311,8 +315,8 @@ export function useNoteMentionState({
     const seenPaths = new Set<string>();
     const restoredMentions: NoteMentionReference[] = [];
     for (const mention of nextMentions) {
-      const path = mention.path.trim();
-      const title = mention.title.trim() || path;
+      const path = normalizeMentionText(mention?.path);
+      const title = normalizeMentionText(mention?.title) || path;
       if (!path || !title || seenPaths.has(path)) {
         continue;
       }
@@ -422,8 +426,8 @@ export function useNoteMentionState({
       const validMentions = nextMentions
         .map((mention) => ({
           ...mention,
-          path: mention.path.trim(),
-          title: mention.title.trim() || mention.path.trim(),
+          path: normalizeMentionText(mention?.path),
+          title: normalizeMentionText(mention?.title) || normalizeMentionText(mention?.path),
         }))
         .filter((mention) => mention.path && mention.title);
       if (validMentions.length === 0) {

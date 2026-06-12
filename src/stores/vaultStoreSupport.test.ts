@@ -118,7 +118,7 @@ describe('vaultStoreSupport persistence merging', () => {
         currentVaultId: 'vault-other',
         deletedVaultPaths: [],
       })),
-      stat: vi.fn(async () => ({ size: 256 })),
+      stat: vi.fn(async () => ({ isDirectory: false, isFile: true })),
       writeFile: vi.fn(async () => undefined),
       mkdir: vi.fn(async () => undefined),
     };
@@ -143,6 +143,7 @@ describe('vaultStoreSupport persistence merging', () => {
 
     const writeCalls = storage.writeFile.mock.calls as unknown as Array<[string, string]>;
     const payload = JSON.parse(String(writeCalls[0]?.[1]));
+    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json', 256 * 1024);
     expect(payload.recentVaults.map((vault: { id: string }) => vault.id)).toEqual([
       'vault-local',
       'vault-other',
@@ -195,7 +196,7 @@ describe('vaultStoreSupport persistence merging', () => {
     expect(payload.currentVaultId).toBeNull();
   });
 
-  it('does not read vault state files when stat has no size', async () => {
+  it('reads vault state files when stat has no size', async () => {
     vi.useFakeTimers();
     const storage = {
       getBasePath: vi.fn(async () => '/app'),
@@ -226,8 +227,10 @@ describe('vaultStoreSupport persistence merging', () => {
     const { loadPersistedVaultState } = await import('./vaultStoreSupport');
     const state = await loadPersistedVaultState();
 
-    expect(state.recentVaults).toEqual([]);
-    expect(storage.readFile).not.toHaveBeenCalled();
+    expect(state.recentVaults).toEqual([
+      { id: 'vault-other', name: 'Other', path: '/vault/other', lastOpened: 2 },
+    ]);
+    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json', 256 * 1024);
   });
 
   it('does not parse vault state files that exceed the limit after read', async () => {
@@ -235,7 +238,7 @@ describe('vaultStoreSupport persistence merging', () => {
     const storage = {
       getBasePath: vi.fn(async () => '/app'),
       exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
-      readFile: vi.fn(async () => 'x'.repeat(256 * 1024 + 1)),
+      readFile: vi.fn(async () => '你'.repeat(Math.floor((256 * 1024) / 3) + 1)),
       stat: vi.fn(async () => ({ size: 256 })),
       writeFile: vi.fn(async () => undefined),
       mkdir: vi.fn(async () => undefined),

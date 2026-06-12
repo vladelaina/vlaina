@@ -24,6 +24,7 @@ const MAX_METADATA_SCAN_DEPTH = 24;
 const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
 const MAX_RECENT_NOTES_STORAGE_CHARS = 64 * 1024;
 const MAX_WORKSPACE_STATE_BYTES = 256 * 1024;
+const utf8Encoder = new TextEncoder();
 const LOW_PRIORITY_METADATA_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
@@ -211,9 +212,22 @@ function isReadableBoundedFile(
   return (
     fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
-    typeof fileInfo?.size === 'number' &&
-    fileInfo.size <= maxBytes
+    (
+      typeof fileInfo?.size !== 'number' ||
+      fileInfo.size <= maxBytes
+    )
   );
+}
+
+function isReadableBoundedMarkdownFile(
+  fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
+  maxBytes: number,
+): boolean {
+  if (!fileInfo || fileInfo.isDirectory === true || fileInfo.isFile === false) {
+    return false;
+  }
+
+  return typeof fileInfo.size !== 'number' || fileInfo.size <= maxBytes;
 }
 
 async function collectMarkdownPaths(
@@ -299,7 +313,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const modifiedAt = fileInfo?.modifiedAt ?? null;
           const size = fileInfo?.size ?? null;
-          if (!isReadableBoundedFile(fileInfo, MAX_METADATA_READ_BYTES)) {
+          if (!isReadableBoundedMarkdownFile(fileInfo, MAX_METADATA_READ_BYTES)) {
             return {
               relativePath,
               metadata: {},
@@ -317,7 +331,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           }
 
           const content = await storage.readFile(fullPath, MAX_METADATA_READ_BYTES);
-          if (content.length > MAX_METADATA_READ_BYTES) {
+          if (utf8Encoder.encode(content).length > MAX_METADATA_READ_BYTES) {
             return {
               relativePath,
               metadata: {},
@@ -467,7 +481,7 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
     }
 
     const content = await storage.readFile(wsPath, MAX_WORKSPACE_STATE_BYTES);
-    if (content.length > MAX_WORKSPACE_STATE_BYTES) {
+    if (utf8Encoder.encode(content).length > MAX_WORKSPACE_STATE_BYTES) {
       return null;
     }
     return normalizeWorkspaceState(JSON.parse(content));

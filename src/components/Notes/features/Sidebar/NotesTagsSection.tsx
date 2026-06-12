@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
 const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
 export const MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS = 4;
+const tagNoteIconUtf8Encoder = new TextEncoder();
 
 interface TagNoteIconCacheEntry {
   modifiedAt: number | null;
@@ -145,6 +146,13 @@ function getFreshTagNoteIconCacheEntry(
   return cached;
 }
 
+function isTagNoteIconMetadataWithinReadLimit(content: string): boolean {
+  return (
+    content.length <= MAX_TAG_NOTE_ICON_METADATA_BYTES &&
+    tagNoteIconUtf8Encoder.encode(content).length <= MAX_TAG_NOTE_ICON_METADATA_BYTES
+  );
+}
+
 async function readTagNoteIconFromStorage(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
   if (
     hasInternalNotePathSegment(path) ||
@@ -169,10 +177,10 @@ async function readTagNoteIconFromStorage(path: string, vaultPath: string | null
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   const size = fileInfo?.size ?? null;
   if (
+    !fileInfo ||
     fileInfo?.isDirectory === true ||
     fileInfo?.isFile === false ||
-    typeof size !== 'number' ||
-    size > MAX_TAG_NOTE_ICON_METADATA_BYTES
+    (typeof size === 'number' && size > MAX_TAG_NOTE_ICON_METADATA_BYTES)
   ) {
     return { modifiedAt, size, icon: null };
   }
@@ -183,7 +191,7 @@ async function readTagNoteIconFromStorage(path: string, vaultPath: string | null
   }
 
   const content = await storage.readFile(fullPath, MAX_TAG_NOTE_ICON_METADATA_BYTES);
-  if (content.length > MAX_TAG_NOTE_ICON_METADATA_BYTES) {
+  if (!isTagNoteIconMetadataWithinReadLimit(content)) {
     return { modifiedAt, size, icon: null };
   }
 

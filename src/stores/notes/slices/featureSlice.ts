@@ -54,6 +54,7 @@ const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
 const MAX_NOTE_CONTENT_SCAN_PATHS = 5000;
 const MAX_NOTE_CONTENT_SCAN_TREE_NODES = 20_000;
 const ICON_SYMBOL_SCHEME_PATTERN = /^icon:/i;
+const searchableNoteUtf8Encoder = new TextEncoder();
 
 function canReadBoundedMarkdownFile(
   fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
@@ -62,8 +63,11 @@ function canReadBoundedMarkdownFile(
   return (
     fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
-    typeof fileInfo?.size === 'number' &&
-    fileInfo.size <= maxBytes
+    Boolean(fileInfo) &&
+    (
+      typeof fileInfo?.size !== 'number' ||
+      fileInfo.size <= maxBytes
+    )
   );
 }
 
@@ -83,6 +87,9 @@ function isSafeStoredNotePath(path: string): boolean {
 
 function isSearchableMarkdownContent(content: string): boolean {
   if (content.length > MAX_SEARCHABLE_NOTE_BYTES) {
+    return false;
+  }
+  if (searchableNoteUtf8Encoder.encode(content).length > MAX_SEARCHABLE_NOTE_BYTES) {
     return false;
   }
 

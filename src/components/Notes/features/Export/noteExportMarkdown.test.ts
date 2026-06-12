@@ -635,7 +635,7 @@ describe('resolveExportMarkdownAssetSources', () => {
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
-  it('does not read local note images when stat has no size', async () => {
+  it('does not read local note images when stat is unavailable', async () => {
     mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.stat.mockResolvedValue(null);
 
@@ -647,6 +647,24 @@ describe('resolveExportMarkdownAssetSources', () => {
 
     expect(markdown).toBe('![demo](img:demo.png)');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('inlines local note images with bounded reads when stat has no size', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.stat.mockResolvedValue({ isFile: true, isDirectory: false });
+    mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      '![demo](img:demo.png)',
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe('![demo](data:image/png;base64,aGk=)');
+    expect(mocks.readBinaryFile).toHaveBeenCalledWith(
+      '/vault/docs/assets/demo.png',
+      MAX_EXPORT_EMBEDDED_IMAGE_BYTES,
+    );
   });
 
   it('does not inline non-image local note assets', async () => {

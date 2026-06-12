@@ -19,6 +19,7 @@ export const CURRENT_VAULT_KEY = 'vlaina-current-vault';
 const VAULT_STATE_FILE = 'vault-state.json';
 const VAULT_STATE_VERSION = 1;
 const MAX_VAULT_STATE_BYTES = 256 * 1024;
+const vaultStateUtf8Encoder = new TextEncoder();
 const MAX_RECENT_VAULTS_STORAGE_CHARS = 64 * 1024;
 const MAX_CURRENT_VAULT_ID_STORAGE_CHARS = 4096;
 const MAX_VAULT_ID_CHARS = 256;
@@ -144,11 +145,18 @@ async function readVaultStateFile(): Promise<PersistedVaultState | null> {
       return null;
     }
     const fileInfo = await storage.stat(statePath).catch(() => null);
-    if (typeof fileInfo?.size !== 'number' || fileInfo.size > MAX_VAULT_STATE_BYTES) {
+    if (
+      fileInfo?.isDirectory === true ||
+      fileInfo?.isFile === false ||
+      (
+        typeof fileInfo?.size === 'number' &&
+        fileInfo.size > MAX_VAULT_STATE_BYTES
+      )
+    ) {
       return null;
     }
     const content = await storage.readFile(statePath, MAX_VAULT_STATE_BYTES);
-    if (content.length > MAX_VAULT_STATE_BYTES) {
+    if (vaultStateUtf8Encoder.encode(content).length > MAX_VAULT_STATE_BYTES) {
       return null;
     }
     return parseVaultStateFile(JSON.parse(content));

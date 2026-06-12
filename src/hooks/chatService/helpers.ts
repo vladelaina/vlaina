@@ -55,12 +55,14 @@ const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
+const noteMentionUtf8Encoder = new TextEncoder();
 export const MAX_MENTIONED_NOTES_CONTEXT_CHARS = 120_000;
 const MAX_FOLDER_MENTION_NOTES = 20;
 const MAX_FOLDER_MENTION_NOTE_CANDIDATES = MAX_FOLDER_MENTION_NOTES * 5;
 export const MAX_CHAT_MENTION_LOAD_CONCURRENCY = 5;
 const MAX_FOLDER_MARKDOWN_SCAN_DEPTH = 6;
 const MAX_FOLDER_MARKDOWN_SCAN_ENTRIES = 500;
+const MAX_FOLDER_MARKDOWN_TREE_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_LISTING_ENTRIES = 80;
 const MAX_FOLDER_LISTING_SCAN_ENTRIES = 5000;
@@ -156,18 +158,26 @@ function isPotentiallyLoadableMentionReference(
   return explicitKind !== 'note' || isSupportedMarkdownPath(mention.path);
 }
 
-function normalizeNoteMentionsForLoading(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
+function normalizeNoteMentionsForLoading(noteMentions: unknown): NoteMentionReference[] {
+  const mentionList = Array.isArray(noteMentions) ? noteMentions : [];
   const explicitKindsByPath = new Map<string, 'note' | 'folder'>();
-  const scanLimit = Math.min(noteMentions.length, MAX_NOTE_MENTION_SCAN_ITEMS);
+  const scanLimit = Math.min(mentionList.length, MAX_NOTE_MENTION_SCAN_ITEMS);
   for (let index = 0; index < scanLimit; index += 1) {
-    const mention = noteMentions[index];
-    if (!mention || (mention.kind !== 'note' && mention.kind !== 'folder')) {
+    const mention = mentionList[index];
+    if (
+      !mention ||
+      typeof mention.path !== 'string' ||
+      (mention.kind !== 'note' && mention.kind !== 'folder')
+    ) {
       continue;
     }
-    explicitKindsByPath.set(mention.path.trim(), mention.kind);
+    const path = mention.path.trim();
+    if (path) {
+      explicitKindsByPath.set(path, mention.kind);
+    }
   }
 
-  return dedupeNoteMentions(noteMentions)
+  return dedupeNoteMentions(mentionList)
     .map((mention) => {
       const explicitKind = explicitKindsByPath.get(mention.path);
       return explicitKind ? { ...mention, kind: explicitKind } : {
@@ -582,6 +592,13 @@ function canUseCachedMentionContent(cached: { modifiedAt?: number | null; size?:
   return !(cached.modifiedAt == null && Object.prototype.hasOwnProperty.call(cached, 'size'));
 }
 
+function isNoteMentionContentWithinReadLimit(content: string): boolean {
+  return (
+    content.length <= MAX_NOTE_MENTION_READ_BYTES &&
+    noteMentionUtf8Encoder.encode(content).length <= MAX_NOTE_MENTION_READ_BYTES
+  );
+}
+
 async function readResolvedMentionedNoteContent(
   resolvedPath: { cachePath: string; fullPath: string },
   cacheAliases: readonly string[] = [],
@@ -595,16 +612,18 @@ async function readResolvedMentionedNoteContent(
 
   if (notesState.currentNote && cachePaths.includes(notesState.currentNote.path)) {
     const content = notesState.currentNote.content || '';
-    return content.length <= MAX_NOTE_MENTION_READ_BYTES ? content : '';
+    return isNoteMentionContentWithinReadLimit(content) ? content : '';
   }
 
   for (const cachePath of cachePaths) {
     const cached = notesState.noteContentsCache.get(cachePath);
-    if (cached && cached.content.length > MAX_NOTE_MENTION_READ_BYTES) {
-      return '';
-    }
-    if (cached?.content.trim() && canUseCachedMentionContent(cached)) {
-      return cached.content;
+    if (cached) {
+      if (!isNoteMentionContentWithinReadLimit(cached.content)) {
+        return '';
+      }
+      if (canUseCachedMentionContent(cached)) {
+        return cached.content;
+      }
     }
   }
 
@@ -612,14 +631,15 @@ async function readResolvedMentionedNoteContent(
   try {
     const fileInfo = await storage.stat(resolvedPath.fullPath).catch(() => null);
     if (
+      !fileInfo ||
+      fileInfo.isDirectory === true ||
       fileInfo?.isFile === false ||
-      typeof fileInfo?.size !== 'number' ||
-      fileInfo.size > MAX_NOTE_MENTION_READ_BYTES
+      (typeof fileInfo.size === 'number' && fileInfo.size > MAX_NOTE_MENTION_READ_BYTES)
     ) {
       return '';
     }
     const content = await storage.readFile(resolvedPath.fullPath, MAX_NOTE_MENTION_READ_BYTES);
-    return typeof content === 'string' && content.length <= MAX_NOTE_MENTION_READ_BYTES
+    return typeof content === 'string' && isNoteMentionContentWithinReadLimit(content)
       ? content
       : '';
   } catch {
@@ -647,9 +667,11 @@ export function collectMentionFolderMarkdownNodes(
     depth: 0,
   }];
   let visitedEntries = 0;
+  let scannedEntries = 0;
 
   while (
     stack.length > 0 &&
+    scannedEntries < MAX_FOLDER_MARKDOWN_TREE_SCAN_ENTRIES &&
     visitedEntries < MAX_FOLDER_MARKDOWN_SCAN_ENTRIES &&
     result.length < maxResults
   ) {
@@ -662,6 +684,7 @@ export function collectMentionFolderMarkdownNodes(
     const node = frame.nodes[frame.index];
     frame.index += 1;
     if (!node) continue;
+    scannedEntries += 1;
 
     if (node.isFolder) {
       if (
@@ -1046,7 +1069,7 @@ async function loadMentionReference(
 }
 
 export async function loadMentionedNotes(
-  noteMentions: NoteMentionReference[]
+  noteMentions: unknown
 ): Promise<Array<NoteMentionReference & { content: string }>> {
   flushCurrentPendingEditorMarkdown();
   const normalizedMentions = normalizeNoteMentionsForLoading(noteMentions);
@@ -1058,7 +1081,7 @@ export async function loadMentionedNotes(
 }
 
 export async function loadMentionedFolderImageAttachments(
-  noteMentions: NoteMentionReference[]
+  noteMentions: unknown
 ): Promise<Attachment[]> {
   const normalizedMentions = normalizeNoteMentionsForLoading(noteMentions);
   const attachments = (await mapWithConcurrencyLimit(
