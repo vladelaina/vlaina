@@ -12,6 +12,7 @@ const MAX_MARKDOWN_IMAGE_LABEL_SCAN_CHARS = 1024 * 1024;
 const MAX_MARKDOWN_IMAGE_TOTAL_LABEL_SCAN_CHARS = 4 * 1024 * 1024;
 const MAX_DATA_IMAGE_PREFIX_SCAN_CHARS = 128;
 const MAX_INLINE_CODE_PROTECTION_RANGES = 4000;
+const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
 
 export interface OverflowDataImageScrubOptions {
   replacement: string;
@@ -173,10 +174,14 @@ function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number)
     return true;
   }
 
-  const decodedPrefix = decodeMarkdownHtmlText(
+  const decodedPrefix = unescapeMarkdownLinkDestination(decodeMarkdownHtmlText(
     content.slice(cursor, Math.min(content.length, cursor + MAX_DATA_IMAGE_PREFIX_SCAN_CHARS))
-  );
+  ));
   return hasAsciiCaseInsensitiveInRange(decodedPrefix, DATA_IMAGE_PREFIX, 0, DATA_IMAGE_PREFIX.length);
+}
+
+function unescapeMarkdownLinkDestination(value: string): string {
+  return value.replace(MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN, '$1');
 }
 
 function getOverflowDataImageScrubEnd(content: string, targetStart: number, rangeEnd: number): number {

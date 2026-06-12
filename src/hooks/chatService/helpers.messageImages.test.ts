@@ -247,6 +247,23 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(JSON.stringify(result)).not.toContain('&semi;base64&comma;');
   });
 
+  it('scrubs skipped escaped-scheme oversized data images after parsed image tokens', async () => {
+    const oversizedSource = String.raw`data\:image/png;base64,${'A'.repeat(1024 * 1024 + 16)}`;
+    const content = [
+      '![image](<data:image/png;base64,REAL>)',
+      `![huge](<${oversizedSource}>)`,
+      'Describe this.',
+    ].join('\n');
+
+    const result = await buildStoredUserMessageContent(content);
+
+    expect(result).toEqual([
+      { type: 'text', text: 'Describe this.' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,REAL' } },
+    ]);
+    expect(JSON.stringify(result)).not.toContain(String.raw`data\:image/`);
+  });
+
   it('converts vault image attachment paths instead of storing them as managed attachment references', async () => {
     const result = await buildMessageImageSources([{
       id: 'vault-image',

@@ -15,6 +15,7 @@ const IMAGE_PROTOCOL_WHITELIST = new Set([
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const RELATIVE_PREFIXES = ['./', '../'];
 const SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const IMAGE_EXTENSION_PATTERN = /\.(?:png|jpe?g|webp|gif|bmp|avif)(?:[?#].*)?$/i;
 const MAX_RENDERABLE_IMAGE_SRC_CHARS = 4096;
 const MAX_RENDERABLE_IMAGE_SRCSET_CHARS = 64 * 1024;
@@ -46,7 +47,8 @@ function hasUnsafeBackslashUrlSyntax(value: string): boolean {
   return value.includes('\\') && (
     value.startsWith('\\') ||
     value.startsWith('//') ||
-    SCHEME_PATTERN.test(value)
+    SCHEME_PATTERN.test(value) ||
+    BACKSLASH_ESCAPED_SCHEME_PATTERN.test(value)
   );
 }
 

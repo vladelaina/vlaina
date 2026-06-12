@@ -369,6 +369,7 @@ export function normalizeGithubSrcset(value: string): string | null {
   const trimmed = value.trimStart();
   if (!trimmed || /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(trimmed)) return null;
 
+  const candidates: string[] = [];
   let candidateStart = 0;
   let candidateCount = 0;
   for (let index = 0; index <= trimmed.length; index += 1) {
@@ -388,16 +389,23 @@ export function normalizeGithubSrcset(value: string): string | null {
     }
 
     const parts = getGithubSrcsetCandidateParts(candidate);
-    if (!parts || !isSafeGithubPlainRelativeMediaUrl(parts[0])) {
+    if (!parts) {
       return null;
     }
+    const normalizedSource = normalizeGithubUrl(parts[0], GITHUB_ALLOWED_MEDIA_PROTOCOLS, {
+      allowPlainRelative: true,
+      allowProtocolRelative: true,
+      blockLocalNetwork: true,
+    });
+    if (!normalizedSource) return null;
     if (
       parts[1]
       && !GITHUB_SRCSET_DESCRIPTOR_PATTERN.test(parts[1])
     ) {
       return null;
     }
+    candidates.push(parts[1] ? `${normalizedSource} ${parts[1]}` : normalizedSource);
   }
 
-  return candidateCount > 0 ? trimmed : null;
+  return candidateCount > 0 ? candidates.join(', ') : null;
 }

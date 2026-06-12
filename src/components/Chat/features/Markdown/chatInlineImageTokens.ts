@@ -20,12 +20,17 @@ const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
 const MAX_EXISTING_INLINE_IMAGE_TOKENS = 2000;
 const MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS = 64 * 1024;
 const MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES = 4000;
-const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
+const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?:\\*:|&|&#)/i;
 
 export interface CompactedChatMarkdownImages {
   markdown: string;
   imageSrcByToken: Map<string, string>;
   replaced: number;
+}
+
+interface ExistingInlineImageTokenScan {
+  exhausted: boolean;
+  tokens: Set<string>;
 }
 
 function normalizeCompactableImageSrc(src: string): string | null {
@@ -39,14 +44,19 @@ function createToken(index: number): string {
   return `${INLINE_IMAGE_TOKEN_PREFIX}${index}`;
 }
 
-function getExistingInlineImageTokens(markdown: string): Set<string> {
+function getExistingInlineImageTokens(markdown: string): ExistingInlineImageTokenScan {
   const tokens = new Set<string>();
   const pattern = /asset:\/\/localhost\/chat-inline-image\/\d+/g;
+  let scannedMatches = 0;
   let match: RegExpExecArray | null;
-  while (tokens.size < MAX_EXISTING_INLINE_IMAGE_TOKENS && (match = pattern.exec(markdown)) !== null) {
+  while ((match = pattern.exec(markdown)) !== null) {
+    scannedMatches += 1;
+    if (scannedMatches > MAX_EXISTING_INLINE_IMAGE_TOKENS) {
+      return { exhausted: true, tokens };
+    }
     tokens.add(match[0]);
   }
-  return tokens;
+  return { exhausted: false, tokens };
 }
 
 function createAvailableToken(index: number, unavailableTokens: Set<string>): { token: string; nextIndex: number } {
@@ -79,8 +89,17 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
     };
   }
 
+  const existingTokenScan = getExistingInlineImageTokens(markdown);
+  if (existingTokenScan.exhausted) {
+    return {
+      markdown: scrubChatInlineDataImageSyntax(markdown),
+      imageSrcByToken: new Map(),
+      replaced: 0,
+    };
+  }
+
   const imageSrcByToken = new Map<string, string>();
-  const unavailableTokens = getExistingInlineImageTokens(markdown);
+  const unavailableTokens = existingTokenScan.tokens;
   let tokenIndex = 0;
   let replaced = 0;
   const tokens = parseMarkdownAndHtmlImageTokens(markdown, {

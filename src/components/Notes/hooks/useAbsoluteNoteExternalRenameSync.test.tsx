@@ -38,6 +38,28 @@ vi.mock('@/lib/storage/adapter', () => ({
     return index > 0 ? normalized.slice(0, index) : null;
   },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const driveMatch = normalized.match(/^([A-Za-z]:)(?:\/|$)/);
+    const root = driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '';
+    if (!root) return path;
+
+    const parts: string[] = [];
+    const rest = normalized.slice(root.length).replace(/^\/+/, '');
+    for (const part of rest.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+
+    const nextPath = parts.length > 0
+      ? `${root}${root.endsWith('/') ? '' : '/'}${parts.join('/')}`
+      : root;
+    return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
+  },
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({

@@ -133,6 +133,13 @@ export function dropUnsafeRawHtmlContent(node: HastNode): void {
       continue;
     }
 
+    visitedNodes += 1;
+    if (visitedNodes > MAX_RAW_HTML_HAST_NODES) {
+      children.splice(current.index);
+      stack.pop();
+      continue;
+    }
+
     if (!syncTextRawHtmlState(child, rawHtmlState)) {
       children.splice(current.index, 1);
       continue;
@@ -151,13 +158,6 @@ export function dropUnsafeRawHtmlContent(node: HastNode): void {
 
     if (!sanitizeRawHtmlNode(child, rawHtmlState) || isDroppedRawHtmlElement(child)) {
       children.splice(current.index, 1);
-      continue;
-    }
-
-    visitedNodes += 1;
-    if (visitedNodes > MAX_RAW_HTML_HAST_NODES) {
-      children.splice(current.index);
-      stack.pop();
       continue;
     }
 

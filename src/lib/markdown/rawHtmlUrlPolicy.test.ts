@@ -23,8 +23,11 @@ describe('sanitizeRawHtmlUrlProperties', () => {
       ['https://example.com/safe.png', 'https://example.com/safe.png'],
       ['//example.com/safe.png', 'https://example.com/safe.png'],
       ['data:image/png;base64,aGk=', 'data:image/png;base64,aGk='],
+      [String.raw`data\:image/png;base64,aGk=`, null],
+      [String.raw`https\://example.com/safe.png`, null],
       ['asset://localhost/chat-inline-image/0', 'asset://localhost/chat-inline-image/0'],
       ['attachment://demo%20image.png', 'attachment://demo%20image.png'],
+      [String.raw`attachment\://demo%20image.png`, null],
       ['.notes/public.png', '.notes/public.png'],
     ] as const;
 
@@ -43,6 +46,8 @@ describe('sanitizeRawHtmlUrlProperties', () => {
     const cases = [
       ['//127.0.0.1:3000/secret.webp 1x', null],
       ['https://user:pass@example.com/secret.webp 1x', null],
+      [String.raw`https\://example.com/safe.webp 1x`, null],
+      [String.raw`data\:image/png;base64,aGk= 1x`, null],
       ['.vlaina/private.webp 1x', null],
       ['docs/%252egit/private.webp 1x', null],
       ['images/safe.webp 1x, https://example.com/safe@2x.webp 2x', 'images/safe.webp 1x, https://example.com/safe@2x.webp 2x'],

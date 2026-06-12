@@ -119,6 +119,10 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("data:text/html;base64,PHNjcmlwdD4=")).toBeNull();
     expect(normalizeRenderableImageSrc("data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+")).toBeNull();
     expect(normalizeRenderableImageSrc("data:image/png,not-base64")).toBeNull();
+    expect(normalizeRenderableImageSrc(String.raw`data\:image/png;base64,abc`)).toBeNull();
+    expect(normalizeRenderableImageSrc(String.raw`https\://example.com/image.png`)).toBeNull();
+    expect(normalizeRenderableImageSrc(String.raw`attachment\://demo.png`)).toBeNull();
+    expect(normalizeRenderableImageSrc(String.raw`blob\:https://example.com/id`)).toBeNull();
   });
 
   it("rejects relative image paths inside internal note folders", () => {
@@ -206,6 +210,8 @@ describe("normalizeRenderableImageSrcset", () => {
     expect(normalizeRenderableImageSrcset("https:example.com/a.webp 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset("http:/example.com/a.webp 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset(String.raw`//example.com\a.webp 1x`)).toBeNull();
+    expect(normalizeRenderableImageSrcset(String.raw`data\:image/png;base64,abc 1x`)).toBeNull();
+    expect(normalizeRenderableImageSrcset(String.raw`https\://example.com/a.webp 1x`)).toBeNull();
     expect(normalizeRenderableImageSrcset("javascript:alert(1) 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset("data:image/svg+xml;base64,PHN2Zz4= 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset(`${createOversizedDataImageSrc()} 1x`)).toBeNull();

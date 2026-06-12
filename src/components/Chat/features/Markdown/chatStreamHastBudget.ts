@@ -9,16 +9,22 @@ export function getChatStreamHastChildren(node: any): any[] {
 
 export function canTransformChatStreamHast(tree: any): boolean {
   const stack = [{ depth: 0, node: tree }];
-  let nodes = 0;
+  let scheduledNodes = 1;
+  let visitedNodes = 0;
 
   while (stack.length > 0) {
     const { depth, node } = stack.pop()!;
-    nodes += 1;
-    if (nodes > MAX_CHAT_STREAM_HAST_NODES || depth > MAX_CHAT_STREAM_HAST_DEPTH) {
+    visitedNodes += 1;
+    if (visitedNodes > MAX_CHAT_STREAM_HAST_NODES || depth > MAX_CHAT_STREAM_HAST_DEPTH) {
       return false;
     }
 
     const children = getChatStreamHastChildren(node);
+    scheduledNodes += children.length;
+    if (scheduledNodes > MAX_CHAT_STREAM_HAST_NODES) {
+      return false;
+    }
+
     for (let index = children.length - 1; index >= 0; index -= 1) {
       stack.push({ depth: depth + 1, node: children[index] });
     }

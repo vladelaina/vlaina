@@ -53,7 +53,6 @@ function finalizeCreatedNote({
   content,
   fileName,
   updatedMetadata,
-  folderPath,
   recentNotes,
   modifiedAt,
   size,
@@ -69,7 +68,6 @@ function finalizeCreatedNote({
   content: CreateNoteResult['content'];
   fileName: CreateNoteResult['fileName'];
   updatedMetadata: CreateNoteResult['updatedMetadata'];
-  folderPath?: string;
   recentNotes: NotesStore['recentNotes'];
   modifiedAt: CreateNoteResult['modifiedAt'];
   size: CreateNoteResult['size'];
@@ -79,9 +77,12 @@ function finalizeCreatedNote({
   currentNote: NotesStore['currentNote'];
   currentRootFolder: NonNullable<NotesStore['rootFolder']>;
 }) {
+  const parentPath = relativePath.includes('/')
+    ? relativePath.slice(0, relativePath.lastIndexOf('/'))
+    : undefined;
   const nextRootFolder = buildSortedRootFolder(
     currentRootFolder,
-    addNodeToTree(currentRootFolder.children, folderPath, {
+    addNodeToTree(currentRootFolder.children, parentPath, {
       id: relativePath,
       name: getNoteTitleFromPath(fileName),
       path: relativePath,
@@ -205,7 +206,6 @@ export function createFileSystemCreateActions(
           content: result.content,
           fileName: result.fileName,
           updatedMetadata: latestMetadata,
-          folderPath,
           recentNotes: latestRecentNotes,
           modifiedAt: result.modifiedAt,
           size: result.size,
@@ -263,7 +263,6 @@ export function createFileSystemCreateActions(
           content: result.content,
           fileName: result.fileName,
           updatedMetadata: latestMetadata,
-          folderPath,
           recentNotes: latestRecentNotes,
           modifiedAt: result.modifiedAt,
           size: result.size,

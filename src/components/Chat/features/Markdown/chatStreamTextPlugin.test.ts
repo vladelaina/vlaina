@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
+import { canTransformChatStreamHast } from './chatStreamHastBudget';
 
 describe('createChatStreamTextPlugin', () => {
   it('leaves completed paragraph text as a plain text node', () => {
@@ -362,5 +363,16 @@ describe('createChatStreamTextPlugin', () => {
     })(tree);
 
     expect(paragraph.children[0]).toBe(originalChild);
+  });
+
+  it('rejects over-wide trees before touching late children', () => {
+    const children = new Array(20_001);
+    Object.defineProperty(children, 20_000, {
+      get() {
+        throw new Error('late child should not be read after the budget is exhausted');
+      },
+    });
+
+    expect(canTransformChatStreamHast({ children, type: 'root' })).toBe(false);
   });
 });

@@ -250,6 +250,7 @@ describe('requestContext', () => {
     const content = [
       'Tail ![asset](asset://localhost/chat-inline-image/1',
       'Next ![blob](blob:https://vlaina.local/secret',
+      'Local ![private](http://127.0.0.1:3000/secret.png',
       'Done',
     ].join('\n');
 
@@ -257,9 +258,39 @@ describe('requestContext', () => {
 
     expect(sanitized[0].content).not.toContain('asset://localhost/chat-inline-image/1');
     expect(sanitized[0].content).not.toContain('blob:https://vlaina.local/secret');
+    expect(sanitized[0].content).not.toContain('http://127.0.0.1:3000/secret.png');
+    expect(sanitized[0].content).toContain('Tail [Image]');
+    expect(sanitized[0].content).toContain('Next [Image]');
+    expect(sanitized[0].content).toContain('Local [Image]');
+    expect(sanitized[0].content).toContain('Done');
+  });
+
+  it('does not leak malformed markdown image sources with escaped scheme punctuation', () => {
+    const content = [
+      String.raw`Tail ![asset](attachment\://secret.png`,
+      String.raw`Next ![data](data\:image/png;base64,SECRET`,
+      'Done',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain(String.raw`attachment\://secret.png`);
+    expect(sanitized[0].content).not.toContain(String.raw`data\:image/png;base64,SECRET`);
     expect(sanitized[0].content).toContain('Tail [Image]');
     expect(sanitized[0].content).toContain('Next [Image]');
     expect(sanitized[0].content).toContain('Done');
+  });
+
+  it('does not leak escaped malformed markdown image sources after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      String.raw`Tail ![secret](attachment\://secret.png after`,
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain(String.raw`attachment\://secret.png`);
+    expect(sanitized[0].content).toContain('Tail [Image]');
   });
 
   it('does not leak overflow HTML image sources after the history scan budget is reached', () => {
@@ -284,6 +315,19 @@ describe('requestContext', () => {
     const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
 
     expect(sanitized[0].content).not.toContain('blob:https://vlaina.local/secret');
+    expect(sanitized[0].content).not.toContain('<img');
+    expect(sanitized[0].content).toContain('[Image]');
+  });
+
+  it('does not leak overflow HTML local-network image sources after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
+      '<img src="http://127.0.0.1:3000/secret.png" alt="secret">',
+    ].join('');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('http://127.0.0.1:3000/secret.png');
     expect(sanitized[0].content).not.toContain('<img');
     expect(sanitized[0].content).toContain('[Image]');
   });
@@ -346,6 +390,7 @@ describe('requestContext', () => {
     const content = [
       'Before <img src="asset://localhost/chat-inline-image/2"',
       'After <img src="blob:https://vlaina.local/secret"',
+      'Local <img src="http://127.0.0.1:3000/secret.png"',
       'Done',
     ].join('\n');
 
@@ -353,8 +398,10 @@ describe('requestContext', () => {
 
     expect(sanitized[0].content).not.toContain('asset://localhost/chat-inline-image/2');
     expect(sanitized[0].content).not.toContain('blob:https://vlaina.local/secret');
+    expect(sanitized[0].content).not.toContain('http://127.0.0.1:3000/secret.png');
     expect(sanitized[0].content).toContain('Before [Image]');
     expect(sanitized[0].content).toContain('After [Image]');
+    expect(sanitized[0].content).toContain('Local [Image]');
     expect(sanitized[0].content).toContain('Done');
   });
 

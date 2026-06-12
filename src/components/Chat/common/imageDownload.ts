@@ -12,6 +12,7 @@ const IMAGE_EXT_BY_MIME: Record<string, string> = {
   "image/gif": "gif",
   "image/bmp": "bmp",
 };
+const RASTER_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
 const MAX_DOWNLOAD_FILENAME_STEM_CHARS = 180;
 
 function sanitizeFileStem(value: string): string {
@@ -94,6 +95,10 @@ function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
   return Number.isFinite(size) && size >= 0 && size <= maxBytes;
 }
 
+function isRasterImageExtension(extension: string | null | undefined): boolean {
+  return RASTER_IMAGE_EXTENSIONS.has((extension || "").replace(/^\./, "").toLowerCase());
+}
+
 export async function downloadImageWithPrompt(src: string, alt?: string): Promise<void> {
   const resolvedSrc = await resolveSafeChatImageSource(src, "download-image");
   if (!resolvedSrc) {
@@ -119,8 +124,10 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
   }
 
   const filename = resolveFilename(alt, src, blob?.type || "");
+  const sourceExt = extensionFromSource(src)?.toLowerCase() || extensionFromSource(resolvedSrc)?.toLowerCase();
+  const shouldSaveBlobWithoutMime = !!blob && !blob.type && isRasterImageExtension(sourceExt);
 
-  if (blob?.type.startsWith("image/")) {
+  if (blob?.type.startsWith("image/") || shouldSaveBlobWithoutMime) {
     if (!isBlobByteLengthWithinLimit(blob.size, MAX_CHAT_IMAGE_FETCH_BYTES)) {
       return;
     }
@@ -140,8 +147,7 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
     return;
   }
 
-  const sourceExt = extensionFromSource(src)?.toLowerCase() || extensionFromSource(resolvedSrc)?.toLowerCase();
-  if (sourceExt === "svg") {
+  if (blob || sourceExt === "svg") {
     return;
   }
 

@@ -19,6 +19,7 @@ import {
 } from '@/lib/markdown/markdownRanges';
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
 import { normalizeApiTranscriptMessages } from './apiTranscript';
 
 const ERROR_TAG_GLOBAL_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/gi;
@@ -45,7 +46,9 @@ const HISTORY_IMAGE_SOURCE_PREFIXES = [
   'blob:',
   'file://',
 ];
-const HISTORY_IMAGE_SOURCE_HINT_PATTERN = /\b(?:data|attachment|app-file|asset|blob|file)(?::|&|&#)/i;
+const HISTORY_IMAGE_SOURCE_HINT_PATTERN = /\b(?:https?|data|attachment|app-file|asset|blob|file)(?:\\*:|&|&#)/i;
+const HISTORY_UNSAFE_IMAGE_SOURCE_HINT_PATTERN = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/|\/|[A-Za-z]:[\\/])/;
+const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
   const utcMs = now.getTime();
@@ -306,15 +309,15 @@ function getHistoryMarkdownImageTarget(rawTarget: string): string {
 
   if (trimmed.startsWith('<')) {
     const closingAngle = trimmed.indexOf('>');
-    return decodeMarkdownHtmlText(
+    return unescapeHistoryMarkdownImageTarget(decodeMarkdownHtmlText(
       closingAngle === -1 ? trimmed.slice(1) : trimmed.slice(1, closingAngle)
-    ).trim();
+    )).trim();
   }
 
   const targetEnd = trimmed.search(/\s/);
-  return decodeMarkdownHtmlText(
+  return unescapeHistoryMarkdownImageTarget(decodeMarkdownHtmlText(
     targetEnd === -1 ? trimmed : trimmed.slice(0, targetEnd)
-  ).trim();
+  )).trim();
 }
 
 function getOverflowHistoryMarkdownImageScrubEnd(content: string, targetStart: number, rangeEnd: number): number {
@@ -328,10 +331,17 @@ function getOverflowHistoryMarkdownImageScrubEnd(content: string, targetStart: n
 }
 
 function isHistoryImageSource(value: string): boolean {
-  const decoded = decodeMarkdownHtmlText(value).trimStart();
-  return HISTORY_IMAGE_SOURCE_PREFIXES.some((prefix) =>
+  const decoded = unescapeHistoryMarkdownImageTarget(decodeMarkdownHtmlText(value)).trimStart();
+  if (HISTORY_IMAGE_SOURCE_PREFIXES.some((prefix) =>
     hasAsciiCaseInsensitiveAt(decoded, prefix, 0)
-  );
+  )) {
+    return true;
+  }
+  return !normalizeRenderableImageSrc(decoded) && HISTORY_UNSAFE_IMAGE_SOURCE_HINT_PATTERN.test(decoded);
+}
+
+function unescapeHistoryMarkdownImageTarget(value: string): string {
+  return value.replace(MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN, '$1');
 }
 
 function hasAsciiCaseInsensitiveAt(content: string, needle: string, start: number): boolean {

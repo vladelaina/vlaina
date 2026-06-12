@@ -15,6 +15,8 @@ describe('vaultStoreSupport broadcast channel guards', () => {
     expect(parseVaultBroadcastMessage({ type: 'query', requestId: '', vaultPath: '/vault' })).toBeNull();
     expect(parseVaultBroadcastMessage({ type: 'query', requestId: 'r'.repeat(129), vaultPath: '/vault' })).toBeNull();
     expect(parseVaultBroadcastMessage({ type: 'query', requestId: 'req-1', vaultPath: 'v'.repeat(4097) })).toBeNull();
+    expect(parseVaultBroadcastMessage({ type: 'query', requestId: 'req-1', vaultPath: 'relative/vault' })).toBeNull();
+    expect(parseVaultBroadcastMessage({ type: 'query', requestId: 'req-1', vaultPath: '/vault/unsafe\u202Egnp' })).toBeNull();
     expect(parseVaultBroadcastMessage({ type: 'response', requestId: 'req-1', responseLabel: 'L'.repeat(513) })).toBeNull();
     expect(parseVaultBroadcastMessage({ type: 'unknown', requestId: 'req-1' })).toBeNull();
   });
@@ -327,6 +329,19 @@ describe('vaultStoreSupport local storage guards', () => {
       { id: 'vault-b', name: 'B', path: '/vault/b', lastOpened: 2 },
     ]))).toEqual([
       { id: 'vault-b', name: 'B', path: '/vault/b', lastOpened: 2 },
+    ]);
+  });
+
+  it('rejects unsafe and non-absolute recent vault paths', async () => {
+    const { parseRecentVaultsStorageValue } = await import('./vaultStoreSupport');
+
+    expect(parseRecentVaultsStorageValue(JSON.stringify([
+      { id: 'vault-relative', name: 'Relative', path: 'vault/relative', lastOpened: 1 },
+      { id: 'vault-bidi', name: 'Bidi', path: '/vault/unsafe\u202Egnp', lastOpened: 2 },
+      { id: 'vault-control', name: 'Control', path: '/vault/unsafe\0hidden', lastOpened: 3 },
+      { id: 'vault-valid', name: 'Valid', path: '\\vault\\valid\\', lastOpened: 4 },
+    ]))).toEqual([
+      { id: 'vault-valid', name: 'Valid', path: '/vault/valid', lastOpened: 4 },
     ]);
   });
 });

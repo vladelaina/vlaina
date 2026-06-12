@@ -56,6 +56,61 @@ describe('resolveExportMarkdownAssetSources', () => {
     );
   });
 
+  it('embeds serialized relative note image sources as data URLs', async () => {
+    mocks.resolveExistingVaultAssetPath
+      .mockResolvedValueOnce('/vault/docs/assets/demo.png')
+      .mockResolvedValueOnce('/vault/docs/assets/cover.jpg');
+    mocks.readBinaryFile
+      .mockResolvedValueOnce(new Uint8Array([104, 105]))
+      .mockResolvedValueOnce(new Uint8Array([1, 2]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '<img src="./assets/demo.png" alt="demo">',
+        '![cover](assets/cover.jpg)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '<img src="data:image/png;base64,aGk=" alt="demo">',
+      '![cover](data:image/jpeg;base64,AQI=)',
+    ].join('\n'));
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+      1,
+      '/vault',
+      './assets/demo.png',
+      'docs/demo.md',
+    );
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+      2,
+      '/vault',
+      'assets/cover.jpg',
+      'docs/demo.md',
+    );
+  });
+
+  it('does not resolve relative note image refs that point into internal notes folders', async () => {
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '<img src=".vlaina/secret.png" alt="vlaina">',
+        '![git](docs/.git/secret.png)',
+        '![encoded](docs/%252egit/secret.png)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '<img src=".vlaina/secret.png" alt="vlaina">',
+      '![git](docs/.git/secret.png)',
+      '![encoded](docs/%252egit/secret.png)',
+    ].join('\n'));
+    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('embeds case-insensitive internal note image refs as data URLs', async () => {
     mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));

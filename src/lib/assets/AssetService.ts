@@ -29,6 +29,7 @@ export interface AssetConfig {
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
 export const MAX_ASSET_LIST_DIRECTORY_ENTRIES = 5000;
 export const MAX_ASSET_METADATA_STAT_CONCURRENCY = 8;
+const UNSAFE_ASSET_ENTRY_NAME_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const IMAGE_UPLOAD_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/avif': ['avif'],
   'image/bmp': ['bmp'],
@@ -151,7 +152,11 @@ interface NormalizedAssetDirectoryEntry {
 }
 
 function isSafeAssetEntryName(name: string): boolean {
-  return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
+  return Boolean(name)
+    && name !== '.'
+    && name !== '..'
+    && !/[\\/]/.test(name)
+    && !UNSAFE_ASSET_ENTRY_NAME_CHARS.test(name);
 }
 
 function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {

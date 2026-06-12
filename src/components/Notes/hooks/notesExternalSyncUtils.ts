@@ -2,6 +2,7 @@ import type { DesktopWatchEvent } from '@/lib/desktop/watch';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   isSafeVaultPathSegment,
@@ -9,7 +10,8 @@ import {
 } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 export function normalizeFsPath(path: string): string {
-  return normalizeNotePathKey(path) ?? path;
+  const normalizedPath = isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
+  return normalizeNotePathKey(normalizedPath) ?? normalizedPath;
 }
 
 export function getFsPathComparisonKey(path: string): string {

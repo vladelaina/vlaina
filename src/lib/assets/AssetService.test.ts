@@ -1113,6 +1113,13 @@ describe('AssetService', () => {
         isDirectory: false,
         size: 10,
       },
+      {
+        name: 'cover\u202Egnp.jpg',
+        path: '/vault/docs/assets/cover\u202Egnp.jpg',
+        isFile: true,
+        isDirectory: false,
+        size: 10,
+      },
     ]);
 
     const assets = await AssetService.list(

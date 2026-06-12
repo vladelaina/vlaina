@@ -98,6 +98,13 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                 return;
             }
 
+            const mime = inferAttachmentMimeTypeFromFilename(filename);
+            if (!mime.startsWith('image/')) {
+                setError(true);
+                onResolvedSrcRef.current?.(null);
+                return;
+            }
+
             try {
                 const storage = getStorageAdapter();
                 const basePath = await storage.getBasePath();
@@ -107,7 +114,6 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                 const data = await storage.readBinaryFile(attachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
                 assertStoredAttachmentSize(data.byteLength);
                 const base64 = uint8ArrayToBase64(data);
-                const mime = inferAttachmentMimeTypeFromFilename(filename);
 
                 const nextSrc = await normalizeDisplaySrc(`data:${mime};base64,${base64}`);
                 if (!active) return;

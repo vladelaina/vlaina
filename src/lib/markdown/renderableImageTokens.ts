@@ -76,7 +76,7 @@ function scrubOverflowRenderableInlineDataImageSyntax(
 }
 
 function hasDataImageHint(content: string): boolean {
-  return /\bdata(?::|&|&#)/i.test(content);
+  return /\bdata(?:\\*:|&|&#)/i.test(content);
 }
 
 function scrubOverflowHtmlDataImages(content: string, replacement: string): string {

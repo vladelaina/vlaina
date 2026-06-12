@@ -118,6 +118,7 @@ const BLOCK_MARKDOWN_SIGNAL_PATTERN = /(^|\n)\s{0,3}(#{1,6}[ \t]+|[-+*][ \t]+|\d
 const SETEXT_HEADING_SIGNAL_PATTERN = /(^|\n)[^\n]+\n {0,3}(?:=+|-+)[ \t]*(?:\n|$)/;
 const HARD_BREAK_SIGNAL_PATTERN = /(\\| {2,})\n|<br\s*\/?>/i;
 const INLINE_MARKDOWN_SIGNAL_PATTERN = /(\[\^[^\]]+\]|\[[^\]]+\]\([^)]+\)|`[^`\n]+`|\$[^$\n]+\$|==[^=\n]+==|\+\+[^+\n]+\+\+|<(?:mark|sup|sub|u)\b[\s\S]*?<\/(?:mark|sup|sub|u)>|<span\b[^>]*style=["'][^"']*(?:color|background-color)\s*:[^"']*["'][\s\S]*?<\/span>|\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|\*[^*\n]+\*|_[^_\n]+_)/i;
+const DEFINITION_LIST_SIGNAL_PATTERN = /(^|\n)[^\n]{1,79}\n(?:[ \t]*\n)?[ \t]{0,3}:[ \t]+\S/m;
 const MARKDOWN_FENCE_OPEN_PATTERN = /^```(?:markdown|md|mdx)\s*$/i;
 const PLAIN_FENCE_CLOSE_PATTERN = /^```$/;
 const ORDERED_LIST_MARKER_PATTERN = /^(\s{0,3})(\d+)[.)][ \t]+/;
@@ -278,6 +279,7 @@ export const looksLikeMarkdownForPaste = (value: string): boolean => {
         || BLOCK_MARKDOWN_SIGNAL_PATTERN.test(normalized)
         || SETEXT_HEADING_SIGNAL_PATTERN.test(normalized)
         || HARD_BREAK_SIGNAL_PATTERN.test(normalized)
+        || DEFINITION_LIST_SIGNAL_PATTERN.test(normalized)
         || INLINE_MARKDOWN_SIGNAL_PATTERN.test(normalized)
     );
 };

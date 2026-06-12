@@ -1,6 +1,6 @@
 import { ensureMarkdownFileName } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import { getBaseName, getParentPath, joinPath, normalizePath, relativePath } from '@/lib/storage/adapter';
+import { getBaseName, getParentPath, joinPath, normalizeAbsolutePath, normalizePath } from '@/lib/storage/adapter';
 import { saveDialog } from '@/lib/storage/dialog';
 import { translate } from '@/lib/i18n/runtime';
 import type { DraftNoteEntry } from './types';
@@ -54,14 +54,21 @@ export function resolveDraftSaveLocation(
   selectedPath: string,
   notesPath: string,
 ): { absolutePath: string; relativePath: string | null } {
-  const normalizedSelectedPath = normalizePath(selectedPath, true);
-  const normalizedNotesPath = normalizePath(notesPath, true).replace(/\/+$/, '');
+  const normalizedSelectedPath = normalizeAbsolutePath(normalizePath(selectedPath, true)).replace(/\\/g, '/');
+  const normalizedNotesPath = normalizeAbsolutePath(normalizePath(notesPath, true)).replace(/\\/g, '/');
+  const normalizedVaultRoot = normalizedNotesPath === '/'
+    ? '/'
+    : normalizedNotesPath.replace(/\/+$/, '');
+  const selectedPathKey = getDraftSavePathComparisonKey(normalizedSelectedPath);
+  const vaultRootKey = getDraftSavePathComparisonKey(normalizedVaultRoot);
+  const vaultPrefixKey = vaultRootKey === '/' ? '/' : `${vaultRootKey}/`;
 
   if (
-    normalizedNotesPath &&
-    normalizedSelectedPath.startsWith(`${normalizedNotesPath}/`)
+    vaultRootKey &&
+    selectedPathKey !== vaultRootKey &&
+    selectedPathKey.startsWith(vaultPrefixKey)
   ) {
-    const vaultRelativePath = relativePath(normalizedNotesPath, normalizedSelectedPath);
+    const vaultRelativePath = normalizedSelectedPath.slice(vaultRootKey === '/' ? 1 : normalizedVaultRoot.length + 1);
     if (hasInternalNotePathSegment(vaultRelativePath)) {
       throw new Error('Path must not be inside an internal notes folder.');
     }
@@ -76,4 +83,10 @@ export function resolveDraftSaveLocation(
     absolutePath: selectedPath,
     relativePath: null,
   };
+}
+
+function getDraftSavePathComparisonKey(path: string): string {
+  return /^[A-Za-z]:(?:\/|$)/.test(path) || path.startsWith('//')
+    ? path.toLowerCase()
+    : path;
 }

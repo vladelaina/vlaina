@@ -107,6 +107,7 @@ describe('assetStorage', () => {
       { name: 'ok.png', path: '/app/.vlaina/assets/icons/ok.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 1 },
       { name: '../secret.png', path: '/app/.vlaina/assets/secret.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 2 },
       { name: 'escape.png', path: '/app/.vlaina/assets/icons/../escape.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 3 },
+      { name: 'unsafe\u202Egnp.png', path: '/app/.vlaina/assets/icons/unsafe\u202Egnp.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 4 },
     ]);
 
     await expect(scanGlobalIcons()).resolves.toEqual([

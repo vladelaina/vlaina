@@ -75,6 +75,18 @@ it('should keep safe bare relative source srcset candidates in github html', () 
   expect(result).toContain('srcset="safe.webp 1x, safe@2x.webp 2x"')
 })
 
+it('should keep public remote source srcset candidates in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<source srcset="https://example.com/safe.webp 1x, //cdn.example.com/safe@2x.webp 2x">',
+    '<source srcset="https://user:pass@example.com/secret.webp 1x">',
+    '<source srcset="//127.0.0.1:3000/secret.webp 1x">',
+  ].join(''))
+
+  expect(result).toBe(
+    '<source srcset="https://example.com/safe.webp 1x, https://cdn.example.com/safe@2x.webp 2x"><source><source>',
+  )
+})
+
 it('should keep media with sanitized source src without querying the subtree', () => {
   const querySelector = vi.spyOn(Element.prototype, 'querySelector')
   const result = sanitizeGithubHtml('<audio><source src="https://example.com/safe.mp3"></audio>')

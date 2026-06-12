@@ -32,7 +32,7 @@ const MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS = 512 * 1024;
 const MAX_COPY_HTML_IMAGE_TAG_CHARS = 20_000;
 const MAX_COPY_HTML_IMAGE_TAG_END_SCAN_CHARS = 64 * 1024;
 const MAX_COPY_INLINE_CODE_PROTECTION_RANGES = 4000;
-const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
+const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?:\\*:|&|&#)/i;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);

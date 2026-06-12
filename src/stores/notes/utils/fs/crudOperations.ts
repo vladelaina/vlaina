@@ -1,4 +1,4 @@
-import { resolveUniquePath } from './pathOperations';
+import { getParentPath, resolveUniquePath } from './pathOperations';
 import { safeWriteTextFile, createEmptyMetadataFile, setNoteEntry } from '../../storage';
 import { addNodeToTree } from '../../fileTreeUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
@@ -66,8 +66,9 @@ export async function createNoteImpl(
         isFolder: false as const
     };
 
-    const newChildren = currentStore.rootFolder 
-        ? addNodeToTree(currentStore.rootFolder.children, folderPath, newNode)
+    const parentPath = getParentPath(relativePath) || undefined;
+    const newChildren = currentStore.rootFolder
+        ? addNodeToTree(currentStore.rootFolder.children, parentPath, newNode)
         : [];
 
     return {

@@ -164,4 +164,18 @@ describe('rawHtmlSanitizer', () => {
 
     expect(tree.children.length).toBeLessThanOrEqual(20_000);
   });
+
+  it('counts dropped raw html nodes toward the traversal budget', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        ...Array.from({ length: 20_050 }, () => ({ type: 'raw', value: '<script>alert(1)</script>' })),
+        { type: 'raw', value: '<img src="https://example.com/after-budget.png">' },
+      ],
+    };
+
+    dropUnsafeRawHtmlContent(tree);
+
+    expect(stringify(tree)).not.toContain('after-budget.png');
+  });
 });
