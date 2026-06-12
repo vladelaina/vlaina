@@ -9,6 +9,7 @@ import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useI18n } from '@/lib/i18n';
 import { getInvalidFileNameReason } from '@/stores/notes/noteUtils';
 import { useToastStore } from '@/stores/useToastStore';
+import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { themeTextAreaTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface TitleInputProps {
@@ -48,6 +49,12 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
 
     input.style.height = themeTextAreaTokens.heightAuto;
     input.style.height = `${input.scrollHeight}px`;
+    input.scrollTop = 0;
+    input.scrollLeft = 0;
+
+    if (input.ownerDocument.activeElement === input) {
+      requestNativeCaretOverlayRefresh();
+    }
   }, []);
 
   const scheduleResizeTitleInput = useCallback(() => {
@@ -119,13 +126,15 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       titleActionFrameRef.current = requestAnimationFrame(() => {
         titleActionFrameRef.current = null;
         if (inputRef.current) {
+          resizeTitleInput();
           inputRef.current.focus();
           const titleLength = inputRef.current.value.length;
           inputRef.current.setSelectionRange(titleLength, titleLength);
+          requestNativeCaretOverlayRefresh();
         }
       });
     }
-  }, [autoFocus, initialTitle, notePath]);
+  }, [autoFocus, initialTitle, notePath, resizeTitleInput]);
 
   useEffect(() => {
     if (inputRef.current === document.activeElement || isCommittingRef.current) {
@@ -293,7 +302,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[var(--vlaina-font-h1)] font-bold leading-[var(--vlaina-leading-title)] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-[var(--vlaina-color-white)]"
+      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[var(--vlaina-note-title-font-size)] font-bold leading-[var(--vlaina-leading-title)] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-[var(--vlaina-color-white)]"
       placeholder={t('notes.untitled')}
     />
   );
