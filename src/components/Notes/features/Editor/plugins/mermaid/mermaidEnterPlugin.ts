@@ -28,6 +28,33 @@ function getMermaidEnterViewportPosition(view: EditorView) {
   }
 }
 
+function scheduleMermaidEditorOpen(
+  view: EditorView,
+  meta: ReturnType<typeof createOpenMermaidEditorState>
+): void {
+  const openEditor = () => {
+    if (typeof view.state.doc?.nodeAt === 'function') {
+      const currentNode = view.state.doc.nodeAt(meta.nodePos);
+      if (!currentNode || currentNode.type.name !== 'mermaid') {
+        return;
+      }
+    }
+
+    view.dispatch(
+      view.state.tr
+        .setMeta(mermaidEditorPluginKey, meta)
+        .setMeta('addToHistory', false)
+    );
+  };
+
+  if (typeof queueMicrotask === 'function') {
+    queueMicrotask(openEditor);
+    return;
+  }
+
+  void Promise.resolve().then(openEditor);
+}
+
 export function handleMermaidFenceEnter(view: EditorView): boolean {
   const { state } = view;
   const { selection, schema } = state;
@@ -74,21 +101,21 @@ export function handleMermaidFenceEnter(view: EditorView): boolean {
 
   const paragraphPos = $from.before();
   const paragraphEnd = paragraphPos + $from.parent.nodeSize;
-  const tr = state.tr
-    .replaceWith(paragraphPos, paragraphEnd, mermaidType.create({ code: starterCode }))
-    .setMeta(
-      mermaidEditorPluginKey,
-      createOpenMermaidEditorState({
-        code: starterCode,
-        position: getMermaidEnterViewportPosition(view),
-        nodePos: paragraphPos,
-        openSource: 'new-empty-block',
-      })
-    )
-    .scrollIntoView();
+  const openEditorMeta = createOpenMermaidEditorState({
+    code: starterCode,
+    position: getMermaidEnterViewportPosition(view),
+    nodePos: paragraphPos,
+    openSource: 'new-empty-block',
+  });
+  const tr = state.tr.replaceWith(
+    paragraphPos,
+    paragraphEnd,
+    mermaidType.create({ code: starterCode })
+  );
 
   markMermaidUserInput(view);
   view.dispatch(tr);
+  scheduleMermaidEditorOpen(view, openEditorMeta);
   return true;
 }
 

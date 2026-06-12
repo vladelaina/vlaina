@@ -8,9 +8,44 @@ import {
 import { themeOffscreenTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
 const SOURCE_CLASS = 'editor-block-drag-source';
+const SOURCE_TEXTLIKE_CLASS = 'editor-block-drag-source-textlike';
+const SOURCE_HAS_NEXT_CLASS = 'editor-block-drag-source-has-next';
+const SOURCE_HAS_PREVIOUS_CLASS = 'editor-block-drag-source-has-previous';
+const SOURCE_PARENT_MARKER_CLASS = 'editor-block-drag-source-parent-marker';
 const PREVIEW_CLASS = 'editor-block-drag-preview';
 const PREVIEW_LAYER_CLASS = 'editor-block-drag-preview-layer';
 const MIN_PREVIEW_WIDTH = 80;
+const DRAG_SOURCE_TEXTLIKE_SELECTOR = [
+  'p',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'blockquote',
+  'hr',
+  '.md-hr',
+  'li',
+  'dl',
+  'dt',
+  'dd',
+  '.definition-list',
+  '.definition-term',
+  '.definition-desc',
+  '.footnote-def',
+  '.toc-block',
+  '.callout',
+  "[data-type='html-block']",
+].join(',');
+const DRAG_SOURCE_DIRECT_RICH_CHILD_SELECTOR = [
+  '.code-block-container',
+  '.image-block-container',
+  '.video-block',
+  "[data-type='math-block']",
+  '.mermaid-block',
+  '.milkdown-table-block',
+].join(',');
 
 export const MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS = 20_000;
 export const MAX_BLOCK_DRAG_PREVIEW_MATCHED_ELEMENTS = 5_000;
@@ -217,18 +252,78 @@ function collectBlockDragSourceElements(view: EditorView, ranges: readonly Block
   return elements;
 }
 
+function collectBlockDragSourceParentMarkerElements(view: EditorView, sourceElements: readonly HTMLElement[]): HTMLElement[] {
+  const elements: HTMLElement[] = [];
+  for (const source of sourceElements) {
+    if (source.matches('li, blockquote')) {
+      continue;
+    }
+    const parent = source.closest('li, blockquote');
+    if (!(parent instanceof HTMLElement) || !view.dom.contains(parent) || sourceElements.includes(parent)) {
+      continue;
+    }
+    if (!elements.includes(parent)) {
+      elements.push(parent);
+    }
+  }
+  return elements;
+}
+
+function isTextLikeBlockDragSourceElement(element: HTMLElement): boolean {
+  if (!element.matches(DRAG_SOURCE_TEXTLIKE_SELECTOR)) {
+    return false;
+  }
+  return !Array.from(element.children).some((child) => (
+    child instanceof HTMLElement && child.matches(DRAG_SOURCE_DIRECT_RICH_CHILD_SELECTOR)
+  ));
+}
+
+function addBlockDragSourceClasses(sourceElements: readonly HTMLElement[]) {
+  const sourceSet = new Set(sourceElements);
+  for (const element of sourceElements) {
+    element.classList.add(SOURCE_CLASS);
+    if (isTextLikeBlockDragSourceElement(element)) {
+      element.classList.add(SOURCE_TEXTLIKE_CLASS);
+    }
+
+    const next = element.nextElementSibling;
+    if (next instanceof HTMLElement && sourceSet.has(next)) {
+      element.classList.add(SOURCE_HAS_NEXT_CLASS);
+    }
+
+    const previous = element.previousElementSibling;
+    if (previous instanceof HTMLElement && sourceSet.has(previous)) {
+      element.classList.add(SOURCE_HAS_PREVIOUS_CLASS);
+    }
+  }
+}
+
+function removeBlockDragSourceClasses(sourceElements: readonly HTMLElement[]) {
+  for (const element of sourceElements) {
+    element.classList.remove(
+      SOURCE_CLASS,
+      SOURCE_TEXTLIKE_CLASS,
+      SOURCE_HAS_NEXT_CLASS,
+      SOURCE_HAS_PREVIOUS_CLASS,
+    );
+  }
+}
+
 export function createBlockDragSourceMarker({
   view,
   ranges,
 }: BlockDragSourceMarkerOptions): BlockDragSourceMarkerHandle | null {
   const sourceElements = collectBlockDragSourceElements(view, ranges);
   if (sourceElements.length === 0) return null;
+  const parentMarkerElements = collectBlockDragSourceParentMarkerElements(view, sourceElements);
 
-  sourceElements.forEach((element) => element.classList.add(SOURCE_CLASS));
+  addBlockDragSourceClasses(sourceElements);
+  parentMarkerElements.forEach((element) => element.classList.add(SOURCE_PARENT_MARKER_CLASS));
 
   return {
     destroy: () => {
-      sourceElements.forEach((element) => element.classList.remove(SOURCE_CLASS));
+      removeBlockDragSourceClasses(sourceElements);
+      parentMarkerElements.forEach((element) => element.classList.remove(SOURCE_PARENT_MARKER_CLASS));
     },
   };
 }
@@ -525,10 +620,13 @@ export function createBlockDragPreview({
   const sourceClassElements = items
     .map((item) => item.sourceClassElement)
     .filter((element): element is HTMLElement => element !== null);
+  const sourceParentMarkerElements = collectBlockDragSourceParentMarkerElements(view, sourceClassElements);
   sourceClassElements.forEach((element) => element.classList.add(SOURCE_CLASS));
+  sourceParentMarkerElements.forEach((element) => element.classList.add(SOURCE_PARENT_MARKER_CLASS));
 
   const destroy = () => {
     sourceClassElements.forEach((element) => element.classList.remove(SOURCE_CLASS));
+    sourceParentMarkerElements.forEach((element) => element.classList.remove(SOURCE_PARENT_MARKER_CLASS));
     preview.remove();
   };
 

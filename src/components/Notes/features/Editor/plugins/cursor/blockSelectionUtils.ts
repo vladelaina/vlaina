@@ -28,6 +28,9 @@ export interface BlockRectYIndex {
   sortedByTop: readonly BlockRect[];
 }
 
+export const LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD = 128;
+const LARGE_BLOCK_SELECTION_DECORATION_CLASS = 'editor-block-selected md-focus editor-block-selected-large-item';
+
 export function createDragSelectionRect(
   startX: number,
   startY: number,
@@ -306,6 +309,56 @@ interface ContainedListChildSelection {
 
 interface BlockSelectionDecorationContext {
   displayRangeKeys: ReadonlySet<string>;
+  hasNextDisplayRangeKeys: ReadonlySet<string>;
+  hasPreviousDisplayRangeKeys: ReadonlySet<string>;
+}
+
+const RICH_BLOCK_SELECTION_NODE_NAMES = new Set([
+  'code_block',
+  'frontmatter',
+  'image',
+  'math_block',
+  'mermaid',
+  'table',
+  'video',
+]);
+
+const PARENT_MARKER_SELECTION_NODE_NAMES = new Set([
+  'blockquote',
+  'list_item',
+]);
+
+function nodeHasDirectChildType(node: EditorState['doc'], childTypeName: string): boolean {
+  const childCount = typeof node.childCount === 'number' ? node.childCount : 0;
+  for (let index = 0; index < childCount; index += 1) {
+    if (node.child(index)?.type.name === childTypeName) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getBlockSelectionStructuralClass(
+  doc: EditorState['doc'],
+  range: BlockRange,
+  isNodeRange: boolean,
+): string {
+  if (!isNodeRange) return '';
+
+  const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
+  try {
+    const nodeAfter = doc.resolve(safeFrom).nodeAfter;
+    if (!nodeAfter) return '';
+    if (nodeAfter.type.name === 'list_item' && nodeHasDirectChildType(nodeAfter, 'code_block')) {
+      return 'editor-block-selected-has-direct-code-block';
+    }
+    if (nodeAfter.type.name === 'paragraph' && nodeHasDirectChildType(nodeAfter, 'image')) {
+      return 'editor-block-selected-has-direct-image';
+    }
+  } catch {
+  }
+
+  return '';
 }
 
 function resolveContainedListChildSelection(
@@ -366,6 +419,48 @@ function isNodeDecorationRange(doc: EditorState['doc'], range: BlockRange): bool
   }
 }
 
+function resolveParentMarkerDecorationRanges(
+  doc: EditorState['doc'],
+  range: BlockRange,
+  selectedRangeKeys: ReadonlySet<string>,
+): BlockRange[] {
+  const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
+  const result: BlockRange[] = [];
+
+  try {
+    const $from = doc.resolve(safeFrom);
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+      const node = $from.node(depth);
+      if (!PARENT_MARKER_SELECTION_NODE_NAMES.has(node.type.name)) {
+        continue;
+      }
+
+      const from = $from.before(depth);
+      const to = from + node.nodeSize;
+      if (selectedRangeKeys.has(getBlockRangeKey(from, to))) {
+        continue;
+      }
+      result.push({ from, to });
+    }
+  } catch {
+  }
+
+  return result;
+}
+
+function isTextLikeDecorationRange(doc: EditorState['doc'], range: BlockRange, isNodeRange: boolean): boolean {
+  if (!isNodeRange) return true;
+
+  const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
+  try {
+    const nodeAfter = doc.resolve(safeFrom).nodeAfter;
+    if (!nodeAfter) return true;
+    return !RICH_BLOCK_SELECTION_NODE_NAMES.has(nodeAfter.type.name);
+  } catch {
+    return true;
+  }
+}
+
 function isHardBreakNodeName(name: string): boolean {
   return name === 'hardbreak' || name === 'hard_break';
 }
@@ -414,30 +509,78 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
   if (blocks.length === 0) return DecorationSet.empty;
 
   const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
+  const useLargeSelectionRendering = displayRanges.length >= LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD;
+  const displayRangeKeys = new Set(displayRanges.map((range) => getBlockRangeKey(range.from, range.to)));
+  const hasNextDisplayRangeKeys = new Set<string>();
+  const hasPreviousDisplayRangeKeys = new Set<string>();
+  if (!useLargeSelectionRendering) {
+    for (let index = 0; index < displayRanges.length - 1; index += 1) {
+      const current = displayRanges[index];
+      const next = displayRanges[index + 1];
+      if (!current || !next || current.to !== next.from) continue;
+      hasNextDisplayRangeKeys.add(getBlockRangeKey(current.from, current.to));
+      hasPreviousDisplayRangeKeys.add(getBlockRangeKey(next.from, next.to));
+    }
+  }
   const context: BlockSelectionDecorationContext = {
-    displayRangeKeys: new Set(displayRanges.map((range) => getBlockRangeKey(range.from, range.to))),
+    displayRangeKeys,
+    hasNextDisplayRangeKeys,
+    hasPreviousDisplayRangeKeys,
+  };
+  const parentMarkerDecorations = new Map<string, Decoration>();
+
+  const addParentMarkerDecorations = (range: BlockRange) => {
+    if (useLargeSelectionRendering) return;
+    for (const parentRange of resolveParentMarkerDecorationRanges(doc, range, displayRangeKeys)) {
+      parentMarkerDecorations.set(
+        getBlockRangeKey(parentRange.from, parentRange.to),
+        Decoration.node(parentRange.from, parentRange.to, { class: 'editor-block-selected-parent-marker' }),
+      );
+    }
   };
 
   const decorations = displayRanges.flatMap((range) => {
     const isNodeRange = isNodeDecorationRange(doc, range);
+    if (useLargeSelectionRendering) {
+      if (isNodeRange) {
+        return [Decoration.node(range.from, range.to, { class: LARGE_BLOCK_SELECTION_DECORATION_CLASS })];
+      }
+      const inlineRange = trimTrailingHardBreakFromInlineRange(doc, range);
+      return inlineRange ? [Decoration.inline(inlineRange.from, inlineRange.to, {
+        class: LARGE_BLOCK_SELECTION_DECORATION_CLASS,
+      })] : [];
+    }
+
+    const rangeKey = getBlockRangeKey(range.from, range.to);
     const isInlineLineSelection = !isNodeRange && isPartialParagraphRange(doc, range);
+    const isTextLikeSelection = isTextLikeDecorationRange(doc, range, isNodeRange);
+    const structuralClass = getBlockSelectionStructuralClass(doc, range, isNodeRange);
     const attrs = {
       class: [
         getBlockSelectionDecorationClass(doc, range, displayRanges, context),
+        isTextLikeSelection ? 'editor-block-selected-textlike' : '',
+        structuralClass,
+        context.hasNextDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-next' : '',
+        context.hasPreviousDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-previous' : '',
         isInlineLineSelection ? 'editor-block-selected-inline-line' : '',
       ].filter(Boolean).join(' '),
     };
     if (isNodeRange) {
+      addParentMarkerDecorations(range);
       return [Decoration.node(range.from, range.to, attrs)];
     }
 
     const inlineRange = trimTrailingHardBreakFromInlineRange(doc, range);
     if (!inlineRange) return [];
 
+    addParentMarkerDecorations(range);
     return [Decoration.inline(inlineRange.from, inlineRange.to, attrs)];
   });
 
-  return DecorationSet.create(doc, decorations);
+  return DecorationSet.create(doc, [
+    ...decorations,
+    ...parentMarkerDecorations.values(),
+  ]);
 }
 
 export function mapBlockRangesThroughTransaction(blocks: readonly BlockRange[], tr: Transaction): BlockRange[] {

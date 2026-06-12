@@ -61,16 +61,22 @@ describe("editor block drag interaction styles", () => {
     expect(dragSourceSurfaceRule).not.toContain('--vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);');
     expect(css).not.toContain('opacity: var(--vlaina-opacity-38);');
     expect(coreCss).not.toContain('.milkdown .ProseMirror .editor-block-drag-source {');
-    expect(css).toContain(':is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(');
-    expect(css).toContain('body.editor-block-drag-active .milkdown .ProseMirror :where(');
+    expect(css).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
+    expect(css).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike,');
+    expect(css).not.toContain(':is(.ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(');
+    expect(css).not.toContain('.editor-block-drag-source):not(:has(> :where(');
+    expect(css).toContain('body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-textlike {');
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('box-shadow: none !important;');
     expect(dragSourceForegroundRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),');
-    expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source:not(.code-block-container):not(.mermaid-block),');
-    expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
-    expect(dragSourceMarkerRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror li:has(> p.editor-block-selected)::marker,');
+    expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike,');
+    expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
+    expect(css).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-next,');
+    expect(css).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-previous,');
+    expect(dragSourceMarkerRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror li.editor-block-selected-parent-marker::marker,');
     expect(dragSourceMarkerRule).toContain('.milkdown .ProseMirror li.editor-block-drag-source::marker,');
-    expect(dragSourceMarkerRule).toContain('.milkdown .ProseMirror li:has(> p.editor-block-drag-source)::marker {');
+    expect(dragSourceMarkerRule).toContain('.milkdown .ProseMirror li.editor-block-drag-source-parent-marker::marker {');
+    expect(dragSourceMarkerRule).not.toContain('li:has(> p.editor-block-drag-source)');
   });
 
   it('keeps block handle dragging on a grabbing cursor', () => {

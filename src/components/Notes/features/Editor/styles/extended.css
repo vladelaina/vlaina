@@ -46,7 +46,7 @@
   background: var(--vlaina-color-pill-surface) !important;
 }
 
-.milkdown .ProseMirror .editor-tag-token:has(+ .editor-tag-token) {
+.milkdown .ProseMirror .editor-tag-token.editor-tag-token-has-next {
   margin-right: 0 !important;
   padding-right: 0 !important;
   border-right-width: 0 !important;
@@ -58,7 +58,7 @@
   border-left-width: 0 !important;
 }
 
-.milkdown .ProseMirror .editor-tag-token.editor-text-selection-overlay:has(+ .editor-tag-token) {
+.milkdown .ProseMirror .editor-tag-token.editor-text-selection-overlay.editor-tag-token-has-next {
   margin-right: 0 !important;
   padding-right: 0 !important;
   border-right-width: 0 !important;
@@ -561,15 +561,13 @@ body.editor-block-drag-active .milkdown .video-block video {
 
 /* List Item Hover Logic:
    1. Use > to only target the direct button of this LI (fixes hovering parent showing children)
-   2. Use :not(:has(...)) to avoid showing parent button when hovering its nested list child
+   2. The list collapse plugin marks parents while their direct nested list is hovered
 */
 .milkdown li:hover>.editor-collapse-btn {
   opacity: var(--vlaina-opacity-100);
 }
 
-/* Refinement: If hovering nested list, hide parent button (requires :has support) */
-.milkdown li:has(> ul:hover)>.editor-collapse-btn,
-.milkdown li:has(> ol:hover)>.editor-collapse-btn {
+.milkdown li.editor-list-nested-list-hover>.editor-collapse-btn {
   opacity: var(--vlaina-opacity-0);
 }
 

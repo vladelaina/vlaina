@@ -17,7 +17,7 @@ describe("editor text selection and link styles", () => {
     const css = readStyleFile('selection-width.css');
 
     expect(css).toContain(
-      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.editor-block-selected):not(.editor-editable-markdown-blank-line):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container)) {'
+      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.editor-block-selected):not(.editor-editable-markdown-blank-line):not(.editor-empty-paragraph):not(.editor-paragraph-has-image-block) {'
     );
     expect(css).toContain('width: fit-content;');
     expect(css).toContain('max-width: 100%;');
@@ -26,7 +26,7 @@ describe("editor text selection and link styles", () => {
   it('keeps temporary tail empty paragraphs at the default block width for bottom typing', () => {
     const css = readStyleFile('selection-width.css');
 
-    expect(css).toContain(':not(:has(> br.ProseMirror-trailingBreak:only-child))');
+    expect(css).toContain(':not(.editor-empty-paragraph)');
   });
 
   it('uses tabular numeric glyphs so digit-only line selections have equal width', () => {
@@ -91,8 +91,8 @@ describe("editor text selection and link styles", () => {
     const blockSelectionCss = readBlockSelectionStyle();
     const selectionCss = readStyleFile('selection-width.css');
 
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),');
-    expect(blockSelectionCss).toContain(".milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {");
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
+    expect(blockSelectionCss).toContain(".milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {");
     expect(blockSelectionCss).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);');
     expect(selectionCss).toContain(
       '.milkdown .ProseMirror.editor-text-selection-overlay-active .editor-atomic-selected,'

@@ -87,18 +87,27 @@ describe("editor rich block selection styles", () => {
     const blockSelectionCss = readBlockSelectionStyle();
     const codeCss = readStyleFile('code-block.css');
 
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container) {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block {');
     expect(blockSelectionCss).toContain('--vlaina-list-contained-block-selection-bleed-y: var(--vlaina-block-selection-list-contained-bleed-y);');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container)::after {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block::after {');
     expect(blockSelectionCss).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
     expect(blockSelectionCss).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
     expect(blockSelectionCss).toContain('bottom: calc(-1 * var(--vlaina-list-contained-block-selection-bleed-y));');
     expect(blockSelectionCss).toContain('height: calc(var(--vlaina-list-contained-block-selection-bleed-y) + var(--vlaina-space-8px));');
     expect(blockSelectionCss).toContain('border-bottom-right-radius: var(--vlaina-radius-8px);');
     expect(blockSelectionCss).toContain('border-bottom-left-radius: var(--vlaina-radius-8px);');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container) > * {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block > * {');
+    expect(blockSelectionCss).not.toContain('li.editor-block-selected:has(> .code-block-container)');
     expect(codeCss).not.toContain('display: flow-root;');
     expect(codeCss).not.toContain('overflow: visible;');
+  });
+
+  it('sizes selected image parent blocks without selected-state child scans', () => {
+    const blockSelectionCss = readBlockSelectionStyle();
+
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {');
+    expect(blockSelectionCss).toContain('--vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);');
+    expect(blockSelectionCss).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });
 
   it('keeps rich child blocks at their original colors during block selection', () => {
@@ -137,7 +146,7 @@ describe("editor rich block selection styles", () => {
     expect(mathCss).not.toContain('.milkdown .ProseMirror .editor-block-selected-contained:is(');
     expect(mathCss).not.toContain('.milkdown .ProseMirror li :is(');
     expect(mathCss).toContain('.mermaid-block');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
     expect(blockSelectionCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
     expect(blockSelectionCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected * {');
     expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected,\n.milkdown .ProseMirror.editor-block-selection-pending');
@@ -184,7 +193,9 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).toContain('--vlaina-block-selection-scrollbar-reserve: var(--vlaina-block-selection-scrollbar-reserve-default);');
     expect(blockSelectionCss).toContain('background: transparent !important;');
     expect(blockSelectionCss).toContain('border-radius: var(--vlaina-radius-8px);');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]),');
+    expect(blockSelectionCss).not.toContain('.milkdown-table-block.editor-block-selected:has(');
+    expect(blockSelectionCss).not.toContain('.milkdown-table-block.ProseMirror-selectednode:has(');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-table-block-zero-min-width,');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-top-reserve: var(--vlaina-block-selection-bleed-y);');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-scrollbar-reserve: var(--table-block-scrollbar-reserve, var(--vlaina-block-selection-table-scrollbar-reserve));');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected::before,');
@@ -193,8 +204,8 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).toContain('bottom: calc(var(--vlaina-block-selection-scrollbar-reserve, var(--vlaina-block-selection-scrollbar-reserve-default)) - var(--vlaina-block-selection-bleed-y));');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected > *,');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode > * {');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll,');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-table-block-zero-min-width .table-scroll,');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode.editor-table-block-zero-min-width .table-scroll {');
     expect(blockSelectionCss).toContain('margin-top: calc(-1 * var(--vlaina-block-selection-bleed-y));');
     expect(blockSelectionCss).toContain('margin-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));');
     expect(blockSelectionCss).toContain('padding-top: var(--vlaina-block-selection-bleed-y);');
@@ -202,14 +213,14 @@ describe("editor rich block selection styles", () => {
     expect(
       extractCssRule(
         blockSelectionCss,
-        '.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll,'
+        '.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-table-block-zero-min-width .table-scroll,'
       )
     ).not.toContain('background: var(--vlaina-block-selection-color);');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-scroll-track,');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-scroll-track {');
     expect(blockSelectionCss).toContain('position: relative;');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before,');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-table-block-zero-min-width .table-content-host::before,');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode.editor-table-block-zero-min-width .table-content-host::before {');
     expect(blockSelectionCss).toContain("content: '';");
     expect(blockSelectionCss).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y));');
     expect(blockSelectionCss).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');

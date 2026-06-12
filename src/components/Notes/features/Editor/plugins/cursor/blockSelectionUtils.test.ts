@@ -14,6 +14,7 @@ import {
   getDisplayBlockRangesForDecorations,
   getBlockRangesKey,
   isRectIntersecting,
+  LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD,
   normalizeBlockRanges,
   preferNestedBlockRanges,
   preferNestedBlockRangesUnlessHeaderIntersects,
@@ -385,7 +386,7 @@ describe('blockSelectionUtils', () => {
     }))).toEqual([{
       from: 1,
       to: 6,
-      class: 'editor-block-selected md-focus editor-block-selected-inline-line',
+      class: 'editor-block-selected md-focus editor-block-selected-textlike editor-block-selected-inline-line',
     }]);
     expect(view.state.doc.resolve(7).nodeBefore?.type.name).toBe('hardbreak');
 
@@ -409,7 +410,7 @@ describe('blockSelectionUtils', () => {
     const decorations = createBlockSelectionDecorations(view.state.doc, [{ from: 1, to: hardBreakPos + 1 }]);
 
     expect(decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
-      'editor-block-selected md-focus editor-block-selected-inline-line',
+      'editor-block-selected md-focus editor-block-selected-textlike editor-block-selected-inline-line',
     ]);
 
     await editor.destroy();
@@ -434,6 +435,107 @@ describe('blockSelectionUtils', () => {
       from: decoration.from,
       to: decoration.to,
     }))).toEqual([{ from: lineFrom, to: lineTo }]);
+
+    await editor.destroy();
+  });
+
+  it('marks adjacent text-like blocks without relying on CSS sibling scans', async () => {
+    const editor = await createEditor(['alpha', '', 'bravo', '', 'charlie'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const ranges: Array<{ from: number; to: number }> = [];
+    view.state.doc.forEach((node, offset) => {
+      ranges.push({ from: offset, to: offset + node.nodeSize });
+    });
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges.slice(0, 2));
+    const classes = decorations.find().map((decoration: Decoration) =>
+      String((decoration.type as any).attrs?.class ?? '')
+    );
+
+    expect(classes[0]).toContain('editor-block-selected-textlike');
+    expect(classes[0]).toContain('editor-block-selected-has-next');
+    expect(classes[0]).not.toContain('editor-block-selected-has-previous');
+    expect(classes[1]).toContain('editor-block-selected-textlike');
+    expect(classes[1]).toContain('editor-block-selected-has-previous');
+    expect(classes[1]).not.toContain('editor-block-selected-has-next');
+
+    await editor.destroy();
+  });
+
+  it('keeps large selections on the lightweight decoration path', async () => {
+    const markdown = Array.from(
+      { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD },
+      (_, index) => `paragraph ${index}`
+    ).join('\n\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const ranges: Array<{ from: number; to: number }> = [];
+    view.state.doc.forEach((node, offset) => {
+      ranges.push({ from: offset, to: offset + node.nodeSize });
+    });
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    const classes = decorations.find().map((decoration: Decoration) =>
+      String((decoration.type as any).attrs?.class ?? '')
+    );
+
+    expect(classes).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
+    expect(classes[0]).toBe('editor-block-selected md-focus editor-block-selected-large-item');
+    expect(classes.some((className) => className.includes('editor-block-selected-textlike'))).toBe(false);
+    expect(classes.some((className) => className.includes('editor-block-selected-has-next'))).toBe(false);
+    expect(classes.some((className) => className.includes('editor-block-selected-has-previous'))).toBe(false);
+    expect(classes.some((className) => className.includes('editor-block-selected-parent-marker'))).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('marks parent containers for marker styling without relying on CSS child scans', async () => {
+    const editor = await createEditor(['- alpha', '', '> bravo'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    let listItemRange: { from: number; to: number } | null = null;
+    let listParagraphRange: { from: number; to: number } | null = null;
+    let blockquoteRange: { from: number; to: number } | null = null;
+    let quoteParagraphRange: { from: number; to: number } | null = null;
+
+    view.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'list_item' && node.textContent === 'alpha') {
+        listItemRange = { from: pos, to: pos + node.nodeSize };
+      }
+      if (node.type.name === 'paragraph' && node.textContent === 'alpha') {
+        listParagraphRange = { from: pos, to: pos + node.nodeSize };
+      }
+      if (node.type.name === 'blockquote' && node.textContent === 'bravo') {
+        blockquoteRange = { from: pos, to: pos + node.nodeSize };
+      }
+      if (node.type.name === 'paragraph' && node.textContent === 'bravo') {
+        quoteParagraphRange = { from: pos, to: pos + node.nodeSize };
+      }
+    });
+
+    expect(listItemRange).not.toBeNull();
+    expect(listParagraphRange).not.toBeNull();
+    expect(blockquoteRange).not.toBeNull();
+    expect(quoteParagraphRange).not.toBeNull();
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, [
+      listParagraphRange!,
+      quoteParagraphRange!,
+    ]);
+    const classesByRange = new Map(decorations.find().map((decoration: Decoration) => [
+      `${decoration.from}:${decoration.to}`,
+      String((decoration.type as any).attrs?.class ?? ''),
+    ]));
+
+    expect(classesByRange.get(`${listParagraphRange!.from}:${listParagraphRange!.to}`))
+      .toContain('editor-block-selected');
+    expect(classesByRange.get(`${listItemRange!.from}:${listItemRange!.to}`))
+      .toContain('editor-block-selected-parent-marker');
+    expect(classesByRange.get(`${listItemRange!.from}:${listItemRange!.to}`)?.split(/\s+/))
+      .not.toContain('editor-block-selected');
+    expect(classesByRange.get(`${quoteParagraphRange!.from}:${quoteParagraphRange!.to}`))
+      .toContain('editor-block-selected');
+    expect(classesByRange.get(`${blockquoteRange!.from}:${blockquoteRange!.to}`))
+      .toContain('editor-block-selected-parent-marker');
 
     await editor.destroy();
   });
@@ -501,11 +603,11 @@ describe('blockSelectionUtils', () => {
     ).toBe('editor-block-selected md-focus');
   });
 
-  it('builds block selection decorations for large selections', async () => {
+  it('builds detailed block selection decorations below the lightweight threshold', async () => {
     const editor = await createEditor('');
     const view = editor.ctx.get(editorViewCtx);
     const { schema } = view.state;
-    const list = schema.nodes.bullet_list.create(null, Array.from({ length: 80 }, (_, index) =>
+    const list = schema.nodes.bullet_list.create(null, Array.from({ length: 40 }, (_, index) =>
       schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
         schema.nodes.paragraph.create(null, schema.text(`item ${index}`)),
         schema.nodes.code_block.create(null, schema.text(`code ${index}`)),
@@ -522,13 +624,53 @@ describe('blockSelectionUtils', () => {
     });
 
     const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    const classesByRange = new Map(decorations.find().map((decoration: Decoration) => [
+      `${decoration.from}:${decoration.to}`,
+      String((decoration.type as any).attrs?.class ?? ''),
+    ]));
     expect(decorations.find()).toHaveLength(ranges.length);
+    let foundSelectedListItemWithCodeBlock = false;
+    for (const range of ranges) {
+      const classes = classesByRange.get(`${range.from}:${range.to}`) ?? '';
+      if (!classes.includes('editor-block-selected') || classes.includes('editor-block-selected-contained')) {
+        continue;
+      }
+      expect(classes).toContain('editor-block-selected-has-direct-code-block');
+      foundSelectedListItemWithCodeBlock = true;
+      break;
+    }
+    expect(foundSelectedListItemWithCodeBlock).toBe(true);
     expect(
       decorations.find().some((decoration: Decoration) => {
         const classes = String((decoration.type as any).attrs?.class ?? '').split(/\s+/);
         return classes.includes('editor-block-selected') && classes.includes('editor-block-selected-contained');
       }),
     ).toBe(true);
+
+    await editor.destroy();
+  });
+
+  it('marks selected rich parents without relying on CSS child scans', async () => {
+    const editor = await createEditor('![](./demo.png) caption');
+    const view = editor.ctx.get(editorViewCtx);
+    const paragraphRange = (() => {
+      let range: { from: number; to: number } | null = null;
+      view.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'paragraph') {
+          range = { from: pos, to: pos + node.nodeSize };
+          return false;
+        }
+        return true;
+      });
+      return range;
+    })();
+
+    expect(paragraphRange).not.toBeNull();
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, [paragraphRange!]);
+    const classes = String((decorations.find()[0]?.type as any)?.attrs?.class ?? '');
+
+    expect(classes).toContain('editor-block-selected-has-direct-image');
 
     await editor.destroy();
   });

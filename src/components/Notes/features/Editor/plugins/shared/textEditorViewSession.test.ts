@@ -15,7 +15,10 @@ interface TestRefs extends TextEditorSessionRefs {
   initialValue: string;
 }
 
-function createSessionHarness(args?: { previewInputDebounceMs?: number }) {
+function createSessionHarness(args?: {
+  preferStatePositionOnInitialRender?: (state: TestState) => boolean;
+  previewInputDebounceMs?: number;
+}) {
   const editorDom = document.createElement('div');
   document.body.appendChild(editorDom);
   const anchor = document.createElement('div');
@@ -36,6 +39,7 @@ function createSessionHarness(args?: { previewInputDebounceMs?: number }) {
   const previewCancel = vi.fn();
   const cancelSession = vi.fn();
   const saveSession = vi.fn();
+  const getAnchorViewportPosition = vi.fn(() => ({ x: 10, y: 20 }));
   const session = createTextEditorViewSession<TestState, TestRefs>({
     editorView: {
       dom: editorDom,
@@ -60,7 +64,8 @@ function createSessionHarness(args?: { previewInputDebounceMs?: number }) {
       nextRefs.draftValue = '';
     },
     resolveAnchorElement: () => anchor,
-    getAnchorViewportPosition: () => ({ x: 10, y: 20 }),
+    getAnchorViewportPosition,
+    preferStatePositionOnInitialRender: args?.preferStatePositionOnInitialRender,
     previewInput,
     previewInputDebounceMs: args?.previewInputDebounceMs ?? 25,
     previewCancel,
@@ -72,6 +77,7 @@ function createSessionHarness(args?: { previewInputDebounceMs?: number }) {
     anchor,
     cancelSession,
     editorDom,
+    getAnchorViewportPosition,
     previewCancel,
     previewInput,
     refs,
@@ -159,6 +165,19 @@ describe('createTextEditorViewSession', () => {
     session.destroy();
   });
 
+  it('marks editor user input when the popup textarea changes', () => {
+    const { editorDom, refs, session } = createSessionHarness({ previewInputDebounceMs: 1_000 });
+    const userInputListener = vi.fn();
+    editorDom.addEventListener('editor:block-user-input', userInputListener);
+
+    session.update();
+    typeInTextarea(refs.textareaElement!, 'draft');
+
+    expect(userInputListener).toHaveBeenCalledTimes(1);
+
+    session.destroy();
+  });
+
   it('writes resolved popup width variables onto the popup container', () => {
     vi.stubGlobal('innerWidth', 1280);
     const { editorDom, session } = createSessionHarness();
@@ -191,6 +210,32 @@ describe('createTextEditorViewSession', () => {
     session.update();
 
     expect(document.activeElement).toBe(refs.textareaElement);
+
+    session.destroy();
+  });
+
+  it('can defer initial anchor measurement and use the state position first', () => {
+    const frameCallbacks: FrameRequestCallback[] = [];
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    });
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const { getAnchorViewportPosition, session } = createSessionHarness({
+      preferStatePositionOnInitialRender: () => true,
+    });
+
+    session.update();
+
+    expect(getAnchorViewportPosition).not.toHaveBeenCalled();
+    expect(requestAnimationFrame).toHaveBeenCalled();
+
+    for (const callback of [...frameCallbacks]) {
+      callback(0);
+    }
+
+    expect(getAnchorViewportPosition).toHaveBeenCalledTimes(1);
 
     session.destroy();
   });

@@ -82,6 +82,46 @@ function isMermaidRenderCodeTooLarge(code: string) {
   return code.length > MAX_MERMAID_RENDER_CODE_CHARS;
 }
 
+function isLikelyIncompleteMermaidRenderCode(code: string) {
+  const closingStack: string[] = [];
+  let quotedBy: string | null = null;
+  let escaped = false;
+
+  for (const char of code) {
+    if (quotedBy) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (char === quotedBy) {
+        quotedBy = null;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === '`') {
+      quotedBy = char;
+      continue;
+    }
+
+    if (char === '{') {
+      closingStack.push('}');
+    } else if (char === '[') {
+      closingStack.push(']');
+    } else if (char === '(') {
+      closingStack.push(')');
+    } else if (closingStack[closingStack.length - 1] === char) {
+      closingStack.pop();
+    }
+  }
+
+  return quotedBy !== null || closingStack.length > 0;
+}
+
 async function renderMermaidHtml(
   code: string,
   render: MermaidRender
@@ -131,6 +171,9 @@ export async function resolveMermaidMarkup(
 ) {
   if (isMermaidRenderCodeTooLarge(code)) {
     return sanitizeMermaidMarkup(mermaidRenderTooLargeMarkup());
+  }
+  if (isLikelyIncompleteMermaidRenderCode(code)) {
+    return sanitizeMermaidMarkup(mermaidRenderErrorMarkup());
   }
 
   if (render) {
@@ -188,6 +231,11 @@ export async function renderMermaidEditorLivePreview(args: {
 
   if (isMermaidRenderCodeTooLarge(renderCodeSnapshot)) {
     anchor.innerHTML = sanitizeMermaidMarkup(mermaidRenderTooLargeMarkup());
+    onRendered?.();
+    return true;
+  }
+  if (isLikelyIncompleteMermaidRenderCode(renderCodeSnapshot)) {
+    anchor.innerHTML = sanitizeMermaidMarkup(mermaidRenderErrorMarkup());
     onRendered?.();
     return true;
   }

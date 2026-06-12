@@ -3,6 +3,7 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
+  TAG_TOKEN_HAS_NEXT_CLASS,
   collectTagTokenDecorationsInRange,
   MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS,
   MAX_TAG_TOKEN_EDGE_RECTS,
@@ -115,6 +116,23 @@ describe('tagTokenPlugin', () => {
       text: '#project',
       className: expect.stringContaining('editor-tag-token'),
     }]);
+
+    await editor.destroy();
+  });
+
+  it('marks tag tokens that have another token in the same paragraph', async () => {
+    const editor = await createEditor(['#one #two', '', '#three'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const decorations = tagTokenPluginKey.getState(view.state)?.find() ?? [];
+
+    expect(decorations.map((decoration: Decoration) => ({
+      text: view.state.doc.textBetween(decoration.from, decoration.to),
+      hasNext: ((decoration.type as any).attrs?.class ?? '').includes(TAG_TOKEN_HAS_NEXT_CLASS),
+    }))).toEqual([
+      { text: '#one', hasNext: true },
+      { text: '#two', hasNext: false },
+      { text: '#three', hasNext: false },
+    ]);
 
     await editor.destroy();
   });

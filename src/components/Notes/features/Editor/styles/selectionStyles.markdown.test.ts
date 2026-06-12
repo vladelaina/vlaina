@@ -5,12 +5,12 @@ describe("editor markdown presentation styles", () => {
   it('collapses paragraph line box around standalone image blocks', () => {
     const css = readStyleFile('markdown.css');
 
-    expect(css).toContain('.milkdown p:has(> .image-block-container) {');
+    expect(css).toContain('.milkdown p.editor-paragraph-has-image-block {');
     expect(css).toContain('font-size: var(--vlaina-font-0);');
     expect(css).toContain('line-height: var(--vlaina-leading-0);');
     expect(css).toContain('margin-top: var(--vlaina-space-1rem);');
     expect(css).toContain('margin-bottom: var(--vlaina-space-1rem);');
-    expect(css).toContain('.milkdown p:has(> .image-block-container) > .image-block-container {');
+    expect(css).toContain('.milkdown p.editor-paragraph-has-image-block > .image-block-container {');
     expect(css).toContain('display: block;');
     expect(css).toContain('width: 100%;');
     expect(css).toContain('margin-top: 0;');
@@ -54,6 +54,14 @@ describe("editor markdown presentation styles", () => {
 
     expect(css).not.toContain('.milkdown .autolink {');
     expect(css).not.toContain('text-underline-offset: 4px;');
+  });
+
+  it('uses explicit tag token run classes instead of sibling :has selectors', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('.milkdown .ProseMirror .editor-tag-token.editor-tag-token-has-next {');
+    expect(css).toContain('.milkdown .ProseMirror .editor-tag-token.editor-text-selection-overlay.editor-tag-token-has-next {');
+    expect(css).not.toContain('.editor-tag-token:has(+ .editor-tag-token)');
   });
 
   it('keeps table-of-contents links from underlining on hover', () => {

@@ -48,6 +48,7 @@ export function createMathEditorViewSession(args: {
     },
     resolveAnchorElement: (_state, nodeDom) => resolveMathAnchorElement(null, nodeDom),
     getAnchorViewportPosition: getMathAnchorViewportPosition,
+    preferStatePositionOnInitialRender: (state) => state.openSource === 'new-empty-block',
     previewInput({ state, value, resolveAnchor, scheduleResize }) {
       renderMathEditorLivePreview({
         anchor: resolveAnchor(),

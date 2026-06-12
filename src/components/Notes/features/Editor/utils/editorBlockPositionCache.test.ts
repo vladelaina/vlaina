@@ -634,7 +634,7 @@ describe('editorBlockPositionCache', () => {
     }
   });
 
-  it('does not return block targets from a stale scroll snapshot', () => {
+  it('reuses same-document block targets across scroll changes with adjusted viewport rects', () => {
     const scrollRoot = document.createElement('div');
     scrollRoot.setAttribute('data-note-scroll-root', 'true');
     scrollRoot.scrollTop = 20;
@@ -645,8 +645,16 @@ describe('editorBlockPositionCache', () => {
     scrollRoot.appendChild(dom);
     document.body.appendChild(scrollRoot);
 
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      nodeSize: 4,
+      forEach: () => {},
+    };
     const doc = {
       content: { size: 4 },
+      forEach: (callback: (node: typeof paragraphNode, offset: number) => void) => {
+        callback(paragraphNode, 0);
+      },
       resolve: () => ({
         nodeAfter: { type: { name: 'paragraph' }, nodeSize: 4 },
       }),
@@ -682,8 +690,9 @@ describe('editorBlockPositionCache', () => {
     try {
       scrollRoot.scrollTop = 80;
 
-      expect(getCachedEditorBlockTargets(view as any)).toBeNull();
-      expect(getCachedEditorBlockTargetByPos(view as any, 0)).toBeNull();
+      expect(getCachedEditorBlockTargets(view as any)?.[0]?.rect.top).toBe(-50);
+      expect(getCachedEditorBlockTargets(view as any)?.[0]?.rect.bottom).toBe(-30);
+      expect(getCachedEditorBlockTargetByPos(view as any, 0)?.rect.top).toBe(-50);
     } finally {
       clearCurrentEditorBlockPositionSnapshot();
       scrollRoot.remove();

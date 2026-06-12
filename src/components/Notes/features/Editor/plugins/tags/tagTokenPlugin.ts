@@ -16,6 +16,7 @@ import {
 } from '../shared/transactionStepText';
 
 export const tagTokenPluginKey = new PluginKey<DecorationSet>('editorTagToken');
+export const TAG_TOKEN_HAS_NEXT_CLASS = 'editor-tag-token-has-next';
 
 const TAG_TOKEN_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)/gu;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
@@ -29,6 +30,12 @@ const TAG_TOKEN_TRIGGER_TEXT_PATTERN = /#/u;
 
 type TagTokenUpdateRange = {
   from: number;
+  to: number;
+};
+
+type TagTokenDecorationCandidate = {
+  from: number;
+  parent: unknown;
   to: number;
 };
 
@@ -82,33 +89,52 @@ export function resolveTagTokenEdgeOffset(
 }
 
 export function createTagTokenDecorations(doc: any): DecorationSet {
-  const decorations: Decoration[] = [];
+  const candidates: TagTokenDecorationCandidate[] = [];
 
   scanProseDescendants(doc, (node, pos, parent) => {
-    if (decorations.length >= MAX_TAG_TOKEN_DECORATIONS) {
+    if (candidates.length >= MAX_TAG_TOKEN_DECORATIONS) {
       return STOP_PROSE_SCAN;
     }
 
     if (node.isText) {
-      collectTagTokenDecorationsFromTextNode(node, pos, parent, decorations);
+      collectTagTokenCandidatesFromTextNode(node, pos, parent, candidates);
     }
 
-    return decorations.length < MAX_TAG_TOKEN_DECORATIONS ? undefined : STOP_PROSE_SCAN;
+    return candidates.length < MAX_TAG_TOKEN_DECORATIONS ? undefined : STOP_PROSE_SCAN;
   }, MAX_TAG_TOKEN_DOC_SCAN_NODES);
 
+  const decorations = createTagTokenDecorationsFromCandidates(candidates);
   return decorations.length > 0
     ? DecorationSet.create(doc, decorations)
     : DecorationSet.empty;
 }
 
-function collectTagTokenDecorationsFromTextNode(
+function createTagTokenDecorationsFromCandidates(candidates: readonly TagTokenDecorationCandidate[]): Decoration[] {
+  return candidates.map((candidate, index) => {
+    const next = candidates[index + 1];
+    const hasNext = Boolean(next && next.parent === candidate.parent);
+    return Decoration.inline(candidate.from, candidate.to, {
+      class: [
+        'editor-tag-token tag cm-hashtag cm-meta v-tag',
+        hasNext ? TAG_TOKEN_HAS_NEXT_CLASS : '',
+        chatComposerPillSurfaceClass,
+      ].filter(Boolean).join(' '),
+      'data-editor-tag-token': 'true',
+    }, {
+      inclusiveStart: false,
+      inclusiveEnd: false,
+    });
+  });
+}
+
+function collectTagTokenCandidatesFromTextNode(
   node: any,
   pos: number,
   parent: any,
-  decorations: Decoration[],
+  candidates: TagTokenDecorationCandidate[],
   maxDecorations = MAX_TAG_TOKEN_DECORATIONS,
 ): void {
-  if (decorations.length >= maxDecorations) return;
+  if (candidates.length >= maxDecorations) return;
 
   const parentType = parent?.type?.name;
   if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
@@ -128,16 +154,12 @@ function collectTagTokenDecorationsFromTextNode(
       continue;
     }
 
-    decorations.push(
-      Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-        class: `editor-tag-token tag cm-hashtag cm-meta v-tag ${chatComposerPillSurfaceClass}`,
-        'data-editor-tag-token': 'true',
-      }, {
-        inclusiveStart: false,
-        inclusiveEnd: false,
-      }),
-    );
-    if (decorations.length >= maxDecorations) {
+    candidates.push({
+      from: pos + match.index,
+      parent,
+      to: pos + match.index + match[0].length,
+    });
+    if (candidates.length >= maxDecorations) {
       break;
     }
   }
@@ -149,22 +171,22 @@ export function collectTagTokenDecorationsInRange(
   to: number,
   maxDecorations = MAX_TAG_TOKEN_DECORATIONS,
 ): Decoration[] {
-  const decorations: Decoration[] = [];
+  const candidates: TagTokenDecorationCandidate[] = [];
   const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
   const start = Math.max(0, Math.min(from, docSize));
   const end = Math.max(start, Math.min(to, docSize));
   if (start >= end || typeof doc.nodesBetween !== 'function') {
-    return decorations;
+    return [];
   }
 
   doc.nodesBetween(start, end, (node: any, pos: number, parent: any) => {
-    if (decorations.length >= maxDecorations) return false;
+    if (candidates.length >= maxDecorations) return false;
     if (!node.isText) return true;
-    collectTagTokenDecorationsFromTextNode(node, pos, parent, decorations, maxDecorations);
-    return decorations.length < maxDecorations;
+    collectTagTokenCandidatesFromTextNode(node, pos, parent, candidates, maxDecorations);
+    return candidates.length < maxDecorations;
   });
 
-  return decorations;
+  return createTagTokenDecorationsFromCandidates(candidates);
 }
 
 function addTextblockRangeAt(doc: any, pos: number, ranges: TagTokenUpdateRange[]): void {

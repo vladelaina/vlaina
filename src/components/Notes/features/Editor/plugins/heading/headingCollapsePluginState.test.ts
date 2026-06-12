@@ -56,13 +56,13 @@ describe('headingCollapsePluginState', () => {
         await editor.destroy();
     });
 
-    it('rescans when input can move existing heading toggle positions', async () => {
+    it('maps ordinary heading text insertion without rebuilding heading decorations', async () => {
         const editor = await createEditor('# Heading\n\nBody');
         const view = editor.ctx.get(editorViewCtx);
         const pluginState = buildHeadingCollapsePluginState(view.state.doc, new Set(), () => undefined);
         const tr = view.state.tr.insertText('prefix ', 1);
 
-        expect(canMapHeadingCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(false);
+        expect(canMapHeadingCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(true);
 
         await editor.destroy();
     });

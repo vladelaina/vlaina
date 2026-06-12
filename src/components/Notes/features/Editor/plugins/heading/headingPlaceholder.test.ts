@@ -111,11 +111,29 @@ describe('getHeadingPlaceholder', () => {
         await editor.destroy();
     });
 
-    it('rescans heading placeholders when editing a heading', async () => {
+    it('maps heading placeholders for ordinary insertion inside a non-empty heading', async () => {
         const editor = await createEditor('# Heading\n\nBody');
         const view = editor.ctx.get(editorViewCtx);
         const oldState = view.state;
         const tr = oldState.tr.insertText('prefix ', 1);
+
+        expect(
+            transactionMayAffectHeadingPlaceholders(
+                createHeadingPlaceholderDecorations(oldState.doc),
+                tr,
+                oldState.doc,
+                tr.doc,
+            ),
+        ).toBe(false);
+
+        await editor.destroy();
+    });
+
+    it('rescans heading placeholders when deleting heading text can create an empty heading', async () => {
+        const editor = await createEditor('# Heading\n\nBody');
+        const view = editor.ctx.get(editorViewCtx);
+        const oldState = view.state;
+        const tr = oldState.tr.delete(1, 8);
 
         expect(
             transactionMayAffectHeadingPlaceholders(

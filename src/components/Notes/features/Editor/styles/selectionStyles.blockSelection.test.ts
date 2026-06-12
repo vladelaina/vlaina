@@ -25,13 +25,14 @@ describe("editor block selection styles", () => {
     expect(css).not.toContain('list-style-type: none !important;');
   });
 
-  it('tints native list markers when the list item or its paragraph child carries selection', () => {
+  it('tints native list markers when the list item or its parent marker class carries selection', () => {
     const css = readBlockSelectionStyle();
 
     expect(css).toContain('.milkdown .ProseMirror li.editor-block-selected::marker,');
-    expect(css).toContain('.milkdown .ProseMirror li:has(> p.editor-block-selected)::marker {');
+    expect(css).toContain('.milkdown .ProseMirror li.editor-block-selected-parent-marker::marker {');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg);');
     expect(css).not.toContain('li:has(> .code-block-container.editor-block-selected)::marker');
+    expect(css).not.toContain('li:has(> p.editor-block-selected)::marker');
   });
 
   it('tints task checkboxes with the selected block foreground', () => {
@@ -39,7 +40,7 @@ describe("editor block selection styles", () => {
     const markdownCss = readStyleFile('markdown.css');
 
     expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"].editor-block-selected::before,');
-    expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"]:has(> p.editor-block-selected)::before,');
+    expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"].editor-block-selected-parent-marker::before,');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected li[data-item-type="task"]::before {');
     expect(css).toContain('border-color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(css).toContain('background-color: transparent !important;');
@@ -79,7 +80,7 @@ describe("editor block selection styles", () => {
     const css = readBlockSelectionStyle();
 
     expect(css).toContain('.milkdown .ProseMirror blockquote.editor-block-selected::before,');
-    expect(css).toContain('.milkdown .ProseMirror blockquote:has(> .editor-block-selected)::before,');
+    expect(css).toContain('.milkdown .ProseMirror blockquote.editor-block-selected-parent-marker::before,');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected blockquote::before {');
     expect(css).toContain('background: var(--vlaina-editor-block-selection-fg) !important;');
   });
@@ -89,19 +90,19 @@ describe("editor block selection styles", () => {
     const themeCss = readThemeStyle();
     const textBlockRule = extractCssRule(
       css,
-      '.milkdown .ProseMirror :where(\n  p,'
+      '.milkdown .ProseMirror .editor-block-selected-textlike,'
     );
     const textBlockFillRule = extractCssRule(
       css,
-      ".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected::after"
+      '.milkdown .ProseMirror .editor-block-selected-textlike::after,'
     );
     const adjacentBottomRule = extractCssRule(
       css,
-      ".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected:has(+ :is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source))"
+      '.milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-next,'
     );
     const adjacentTopRule = extractCssRule(
       css,
-      '.milkdown .ProseMirror :is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source) + :where('
+      '.milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-previous,'
     );
 
     expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected {');
@@ -118,28 +119,13 @@ describe("editor block selection styles", () => {
     expect(themeCss).toContain('--vlaina-z-behind: -1;');
     expect(css).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);');
     expect(css).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);');
-    expect(textBlockRule).toContain('):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(');
-    expect(textBlockRule).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected");
-    for (const selector of [
-      'p,',
-      'h1,',
-      'h6,',
-      'blockquote,',
-      'hr,',
-      'li,',
-      'dl,',
-      'dt,',
-      'dd,',
-      '.definition-list,',
-      '.definition-term,',
-      '.definition-desc,',
-      '.footnote-def,',
-      '.toc-block,',
-      '.callout,',
-      "[data-type='html-block']",
-    ]) {
-      expect(textBlockRule).toContain(selector);
-    }
+    expect(textBlockRule).toContain('.editor-block-selected-textlike');
+    expect(textBlockRule).toContain('.editor-block-drag-source-textlike');
+    expect(textBlockRule).toContain('.editor-native-selected-textlike');
+    expect(css).not.toContain('.ProseMirror-selectednode:not(:has(> :where(');
+    expect(css).not.toContain('.ProseMirror-selectednode):not(:has(> :where(');
+    expect(css).not.toContain(':has(+ .ProseMirror-selectednode)');
+    expect(textBlockRule).not.toContain('.editor-block-drag-source):not(:has(> :where(');
     expect(textBlockRule).toContain('isolation: isolate;');
     expect(textBlockRule).toContain('position: relative;');
     expect(textBlockRule).toContain('background-color: transparent;');
@@ -150,44 +136,41 @@ describe("editor block selection styles", () => {
     expect(textBlockFillRule).toContain('bottom: var(--vlaina-block-selection-fill-bottom);');
     expect(textBlockFillRule).toContain('z-index: var(--vlaina-z-behind);');
     expect(textBlockFillRule).toContain('background: var(--vlaina-block-selection-color);');
-    expect(adjacentBottomRule).toContain(':has(+ :is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source))');
+    expect(adjacentBottomRule).toContain('.editor-block-selected-has-next');
     expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
+    expect(adjacentTopRule).toContain('.editor-block-selected-has-previous');
     expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
   });
 
-  it('keeps repeated text-like block selection selector lists in sync', () => {
+  it('uses a lightweight paint path for large block selections', () => {
+    const css = readBlockSelectionStyle();
+    const largeSelectionRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected,'
+    );
+    const largeSelectionFillRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-textlike::after'
+    );
+
+    expect(largeSelectionRule).toContain('background-color: var(--vlaina-block-selection-color);');
+    expect(largeSelectionRule).toContain('box-shadow: none !important;');
+    expect(largeSelectionRule).toContain('box-decoration-break: slice;');
+    expect(largeSelectionRule).toContain('contain: paint;');
+    expect(largeSelectionRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);');
+    expect(largeSelectionFillRule).toContain('display: none !important;');
+    expect(css).toContain('.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike,');
+  });
+
+  it('uses explicit native selected text-like classes instead of repeated selector lists', () => {
     const css = readBlockSelectionStyle();
     const textLikeLists = extractSelectorListsContaining(css, ':where', '.definition-list');
-    const firstList = textLikeLists[0];
 
-    expect(textLikeLists.length).toBeGreaterThanOrEqual(5);
-    expect(firstList).toEqual([
-      'p',
-      'h1',
-      'h2',
-      'h3',
-      'h4',
-      'h5',
-      'h6',
-      'blockquote',
-      'hr',
-      '.md-hr',
-      'li',
-      'dl',
-      'dt',
-      'dd',
-      '.definition-list',
-      '.definition-term',
-      '.definition-desc',
-      '.footnote-def',
-      '.toc-block',
-      '.callout',
-      "[data-type='html-block']",
-    ]);
-
-    for (const list of textLikeLists) {
-      expect(list).toEqual(firstList);
-    }
+    expect(textLikeLists).toHaveLength(0);
+    expect(css).toContain('.milkdown .ProseMirror .editor-native-selected-textlike {');
+    expect(css).toContain('.milkdown .ProseMirror .editor-native-selected-textlike::after {');
+    expect(css).toContain('.milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-next {');
+    expect(css).toContain('.milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-previous {');
   });
 
   it('renders markdown source blank lines as editor-only blank line blocks', () => {
@@ -203,7 +186,7 @@ describe("editor block selection styles", () => {
     );
     const trailingBreakBlankLineRule = extractCssRule(
       markdownCss,
-      '.milkdown .ProseMirror > p:has(> br.ProseMirror-trailingBreak:only-child):not(.is-editor-empty)'
+      '.milkdown .ProseMirror > p.editor-empty-paragraph:not(.is-editor-empty)'
     );
 
     expect(editorBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
@@ -215,9 +198,10 @@ describe("editor block selection styles", () => {
     expect(trailingBreakBlankLineRule).toContain('min-height: var(--vlaina-height-markdown-blank-line);');
     expect(trailingBreakBlankLineRule).toContain('margin: var(--vlaina-space-0);');
     expect(trailingBreakBlankLineRule).toContain('padding: var(--vlaina-space-0);');
-    expect(blockSelectionCss).toContain("[data-type='html-block']\n):is(.editor-block-selected, .ProseMirror-selectednode)");
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-native-selected-textlike {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
     expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {");
-    expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected::after {");
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike::after,');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);');
     expect(blockSelectionCss).toContain('top: var(--vlaina-block-selection-fill-top);');
     expect(blockSelectionCss).toContain('bottom: var(--vlaina-block-selection-fill-bottom);');
@@ -288,7 +272,8 @@ describe("editor block selection styles", () => {
     expect(css).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
     expect(css).toContain('--vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);');
     expect(css).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
-    expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected:has(> .image-block-container) {');
+    expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {');
+    expect(css).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });
 
   it('keeps structural markdown block selection styles centralized', () => {
@@ -313,9 +298,10 @@ describe("editor block selection styles", () => {
     expect(hrSelectedFillRule).toContain('bottom: var(--vlaina-block-selection-fill-bottom);');
     expect(hrSelectedFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
     expect(blockSelectionCss).toContain('box-shadow: var(--vlaina-shadow-hr-selected);');
-    expect(blockSelectionCss).toContain('.footnote-def,');
-    expect(blockSelectionCss).toContain('.toc-block,');
-    expect(blockSelectionCss).toContain('.callout,');
+    expect(blockSelectionCss).toContain('.editor-native-selected-textlike');
+    expect(blockSelectionCss).not.toContain('.footnote-def,');
+    expect(blockSelectionCss).not.toContain('.toc-block,');
+    expect(blockSelectionCss).not.toContain('.callout,');
     expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected");
     expect(markdownCss).not.toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode::before');
   });

@@ -340,6 +340,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     configureMarkdownListener,
     createUserInputMarker,
     setEditorGetter,
+    shouldSerializeEditorMarkdown,
   } = usePendingMarkdownAutosave({
     currentNotePath,
     currentNoteDiskRevision,
@@ -554,7 +555,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
         const handleMarkdownUpdated = configureMarkdownListener(ctx, initialContent);
         ctx.update(prosePluginsCtx, (plugins) => plugins.concat(
-          createDeferredMarkdownUpdatePlugin(ctx, handleMarkdownUpdated)
+          createDeferredMarkdownUpdatePlugin(ctx, handleMarkdownUpdated, {
+            shouldSerialize: shouldSerializeEditorMarkdown,
+          })
         ));
         logE2EMilkdownTiming('config', {
           notePath: currentNotePath,

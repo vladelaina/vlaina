@@ -31,6 +31,7 @@ import { clipboardPlugin } from '../plugins/clipboard/clipboardPlugin';
 import { imageBlockPlugin } from '../plugins/image-block';
 import { imageUploadPlugin } from '../plugins/image-upload/imageUploadPlugin';
 import { textSelectionOverlayPlugin } from '../plugins/selection/textSelectionOverlayPlugin';
+import { nativeSelectedNodeClassesPlugin } from '../plugins/selection/nativeSelectedNodeClasses';
 import { editorFindPlugin } from '../plugins/find/editorFindPlugin';
 import { blankAreaDragBoxPlugin } from '../plugins/cursor/blankAreaDragBoxPlugin';
 import { blockControlsPlugin } from '../plugins/cursor/blockControlsPlugin';
@@ -46,6 +47,8 @@ import { titleNavigationPlugin } from '../plugins/cursor/titleNavigationPlugin';
 import { typewriterModePlugin } from '../plugins/cursor/typewriterModePlugin';
 import { editorShortcutsPlugin } from '../plugins/editorShortcutsPlugin';
 import { tagTokenPlugin } from '../plugins/tags/tagTokenPlugin';
+import { structuralStyleDecorationsPlugin } from '../plugins/structural/structuralStyleDecorations';
+import { typoraCompatibilityDomClassesPlugin } from '../plugins/structural/typoraCompatibilityDomClasses';
 import { themeCompatibilityDecorationsPlugin } from '../themeCompatibilityDecorations';
 
 export const customPluginGroups = [
@@ -111,7 +114,9 @@ export const customPluginGroups = [
       taskListClickPlugin,
       listTabIndentPlugin,
       listCollapsePlugin,
+      structuralStyleDecorationsPlugin,
       themeCompatibilityDecorationsPlugin,
+      typoraCompatibilityDomClassesPlugin,
       clipboardPlugin,
       imageUploadPlugin,
       ...imageBlockPlugin,
@@ -121,6 +126,7 @@ export const customPluginGroups = [
     name: 'interaction-overlays',
     plugins: [
       textSelectionOverlayPlugin,
+      nativeSelectedNodeClassesPlugin,
       editorFindPlugin,
       tagTokenPlugin,
       nativeDragGuardPlugin,

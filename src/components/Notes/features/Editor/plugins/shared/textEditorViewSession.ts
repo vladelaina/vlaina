@@ -8,6 +8,7 @@ import {
 } from './textEditorPopupDom';
 import { resolveTextEditorPopupPlacement } from './textEditorPopupPlacement';
 import { themeDomStyleTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { markEditorUserInput } from './userInputEvents';
 
 export interface TextEditorSessionState {
   isOpen: boolean;
@@ -58,6 +59,7 @@ export interface CreateTextEditorViewSessionArgs<
   resetRefs: (refs: TRefs) => void;
   resolveAnchorElement: (state: TState | undefined, nodeDom: Node | null) => HTMLElement | null;
   getAnchorViewportPosition: (anchorElement: HTMLElement | null) => { x: number; y: number };
+  preferStatePositionOnInitialRender?: (state: TState) => boolean;
   previewInput: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
   previewInputDebounceMs?: number;
   previewCancel: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
@@ -84,6 +86,7 @@ export function createTextEditorViewSession<
     resetRefs,
     resolveAnchorElement,
     getAnchorViewportPosition,
+    preferStatePositionOnInitialRender,
     previewInput,
     previewInputDebounceMs = themeUiFeedbackTokens.editorTextEditorLivePreviewDebounceMs,
     previewCancel,
@@ -97,6 +100,7 @@ export function createTextEditorViewSession<
   let focusTextareaTimer: number | null = null;
   let previewInputTimer: number | null = null;
   let textareaResizeFrame: number | null = null;
+  let anchorPositionFrame: number | null = null;
   let pendingPreviewInputArgs: TextEditorPreviewArgs<TState, TRefs> | null = null;
   const scrollRoot = getScrollRoot(editorView);
   const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
@@ -237,7 +241,11 @@ export function createTextEditorViewSession<
     return anchor ? getAnchorViewportPosition(anchor) : state.position;
   };
 
-  const updateEditorPosition = (state: TState, options?: { deferResize?: boolean }) => {
+  const updateEditorPosition = (state: TState, options?: {
+    deferAnchorUpdate?: boolean;
+    deferResize?: boolean;
+    useStatePosition?: boolean;
+  }) => {
     if (!editorElement) {
       return;
     }
@@ -245,7 +253,7 @@ export function createTextEditorViewSession<
     const nextPosition = resolveTextEditorPopupPlacement({
       editorView,
       positionRoot,
-      viewportPosition: resolveViewportPosition(state),
+      viewportPosition: options?.useStatePosition ? state.position : resolveViewportPosition(state),
     });
     const popupWidth = `${Math.round(nextPosition.width)}px`;
     editorElement.style.setProperty('--vlaina-text-editor-popup-width', popupWidth);
@@ -262,7 +270,9 @@ export function createTextEditorViewSession<
       resizeTextareaToContent();
     }
 
-    anchorResizeTracker.update();
+    if (!options?.deferAnchorUpdate) {
+      anchorResizeTracker.update();
+    }
   };
 
   const anchorResizeTracker = createTextEditorPopupAnchorResizeTracker({
@@ -274,6 +284,28 @@ export function createTextEditorViewSession<
       }
     },
   });
+
+  const scheduleAnchorPositionRefresh = () => {
+    if (typeof window === 'undefined') {
+      const state = getEditorState();
+      if (state?.isOpen) {
+        updateEditorPosition(state);
+      }
+      return;
+    }
+
+    if (anchorPositionFrame !== null) {
+      return;
+    }
+
+    anchorPositionFrame = window.requestAnimationFrame(() => {
+      anchorPositionFrame = null;
+      const state = getEditorState();
+      if (state?.isOpen) {
+        updateEditorPosition(state, { deferResize: true });
+      }
+    });
+  };
 
   const focusTextareaNow = () => {
     const nextTextarea = refs.textareaElement;
@@ -332,6 +364,7 @@ export function createTextEditorViewSession<
       placeholder,
       onResizeRequest: scheduleTextareaResize,
       onInput(nextValue) {
+        markEditorUserInput(editorView);
         setDraftValue(refs, nextValue);
         schedulePreviewInput({
           state,
@@ -383,7 +416,15 @@ export function createTextEditorViewSession<
         didRenderEditor = true;
       }
 
-      updateEditorPosition(state, { deferResize: didRenderEditor });
+      const useInitialStatePosition = didRenderEditor && Boolean(preferStatePositionOnInitialRender?.(state));
+      updateEditorPosition(state, {
+        deferAnchorUpdate: useInitialStatePosition,
+        deferResize: didRenderEditor,
+        useStatePosition: useInitialStatePosition,
+      });
+      if (useInitialStatePosition) {
+        scheduleAnchorPositionRefresh();
+      }
     },
     destroy() {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -393,6 +434,9 @@ export function createTextEditorViewSession<
       if (focusTextareaTimer !== null && typeof window !== 'undefined') {
         window.clearTimeout(focusTextareaTimer);
       }
+      if (anchorPositionFrame !== null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(anchorPositionFrame);
+      }
       clearPendingTextareaResize();
       clearPendingPreviewInput();
       anchorResizeTracker.destroy();
@@ -400,6 +444,7 @@ export function createTextEditorViewSession<
       suppressOutsideMouseDown = false;
       suppressOutsideMouseDownTimer = null;
       focusTextareaTimer = null;
+      anchorPositionFrame = null;
     },
   };
 }

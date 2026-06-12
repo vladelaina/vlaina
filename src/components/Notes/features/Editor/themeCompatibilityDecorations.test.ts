@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as ProseModel from '@milkdown/kit/prose/model';
 import {
+  MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS,
   MAX_THEME_COMPATIBILITY_DECORATIONS,
+  applyThemeCompatibilityDecorationsState,
   buildCompatibilityDecorations,
   createThemeCompatibilityDecorationRebuildController,
   docChangeMayAffectThemeCompatibilityDecorations,
@@ -44,6 +46,24 @@ const schema = new SchemaCtor({
       toDOM: () => ['div', { 'data-type': 'frontmatter' }, 0],
       parseDOM: [{ tag: 'div[data-type="frontmatter"]', preserveWhitespace: 'full' }],
     },
+    math_block: {
+      group: 'block',
+      content: 'text*',
+      code: true,
+      isolating: true,
+      marks: '',
+      toDOM: () => ['div', { 'data-type': 'math-block' }, 0],
+      parseDOM: [{ tag: 'div[data-type="math-block"]', preserveWhitespace: 'full' }],
+    },
+    mermaid: {
+      group: 'block',
+      content: 'text*',
+      code: true,
+      isolating: true,
+      marks: '',
+      toDOM: () => ['div', { 'data-type': 'mermaid' }, 0],
+      parseDOM: [{ tag: 'div[data-type="mermaid"]', preserveWhitespace: 'full' }],
+    },
     bullet_list: {
       group: 'block',
       content: 'list_item+',
@@ -76,6 +96,14 @@ function codeBlock(text: string) {
 
 function frontmatter(text: string) {
   return schema.nodes.frontmatter.create(null, textNode(text));
+}
+
+function mathBlock(text: string) {
+  return schema.nodes.math_block.create(null, textNode(text));
+}
+
+function mermaidBlock(text: string) {
+  return schema.nodes.mermaid.create(null, textNode(text));
 }
 
 function topLevelNodePos(doc: any, typeName: string): number {
@@ -136,6 +164,36 @@ describe('docChangeMayAffectThemeCompatibilityDecorations', () => {
     expect(docChangeMayAffectThemeCompatibilityDecorations(oldDoc, nextDoc)).toBe(false);
   });
 
+  it('skips math block source edits', () => {
+    const oldDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      mathBlock('\\frac{1}{2}'),
+      paragraph('After'),
+    ]);
+    const nextDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      mathBlock('\\frac{1}{2 + x}'),
+      paragraph('After'),
+    ]);
+
+    expect(docChangeMayAffectThemeCompatibilityDecorations(oldDoc, nextDoc)).toBe(false);
+  });
+
+  it('skips Mermaid block source edits', () => {
+    const oldDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      mermaidBlock('graph TD\\nA --> B'),
+      paragraph('After'),
+    ]);
+    const nextDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      mermaidBlock('graph TD\\nA --> B\\nB --> C'),
+      paragraph('After'),
+    ]);
+
+    expect(docChangeMayAffectThemeCompatibilityDecorations(oldDoc, nextDoc)).toBe(false);
+  });
+
   it('rebuilds for ordinary paragraph edits', () => {
     const oldDoc = schema.nodes.doc.create(null, [
       paragraph('Caption'),
@@ -180,6 +238,34 @@ describe('transactionMayAffectThemeCompatibilityDecorations', () => {
       oldDoc,
       nextDoc,
       transactionWithChangedRange(changedPos, changedPos + 1)
+    )).toBe(false);
+  });
+
+  it('uses changed transaction ranges to skip math and Mermaid source edits', () => {
+    const oldDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      mathBlock('\\frac{1}{2}'),
+      mermaidBlock('graph TD\\nA --> B'),
+      paragraph('After'),
+    ]);
+    const nextDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      mathBlock('\\frac{1}{2 + x}'),
+      mermaidBlock('graph TD\\nA --> B\\nB --> C'),
+      paragraph('After'),
+    ]);
+    const mathPos = topLevelNodePos(oldDoc, 'math_block') + 1 + '\\frac{1}{2'.length;
+    const mermaidPos = topLevelNodePos(oldDoc, 'mermaid') + 1 + 'graph TD\\nA --> B'.length;
+
+    expect(transactionMayAffectThemeCompatibilityDecorations(
+      oldDoc,
+      nextDoc,
+      transactionWithChangedRange(mathPos, mathPos)
+    )).toBe(false);
+    expect(transactionMayAffectThemeCompatibilityDecorations(
+      oldDoc,
+      nextDoc,
+      transactionWithChangedRange(mermaidPos, mermaidPos)
     )).toBe(false);
   });
 
@@ -236,6 +322,116 @@ describe('buildCompatibilityDecorations', () => {
   });
 });
 
+describe('applyThemeCompatibilityDecorationsState', () => {
+  it('reuses decorations for selection-only transactions', () => {
+    const doc = schema.nodes.doc.create(null, [
+      paragraph('Caption'),
+      codeBlock('const value = 1;'),
+    ]);
+    const previousDecorations = buildCompatibilityDecorations(doc);
+    const previous = {
+      decorationMaxTo: Math.max(0, ...previousDecorations.find().map((decoration) => decoration.to)),
+      decorationCount: previousDecorations.find().length,
+      decorations: previousDecorations,
+      rebuildVersion: 2,
+    };
+
+    const next = applyThemeCompatibilityDecorationsState(
+      {
+        docChanged: false,
+        getMeta: () => undefined,
+        mapping: transactionWithChangedRange(1, 1).mapping,
+      } as any,
+      previous,
+      doc,
+      doc,
+    );
+
+    expect(next).toBe(previous);
+  });
+
+  it('clears large decoration sets for edits that overlap existing decorations', () => {
+    const oldDoc = schema.nodes.doc.create(null, [
+      schema.nodes.bullet_list.create(null, Array.from({ length: MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS + 10 }, () => (
+        schema.nodes.list_item.create(null, [paragraph('item')])
+      ))),
+      paragraph('Tail'),
+    ]);
+    const nextDoc = schema.nodes.doc.create(null, [
+      schema.nodes.bullet_list.create(null, Array.from({ length: MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS + 10 }, () => (
+        schema.nodes.list_item.create(null, [paragraph('item')])
+      ))),
+      paragraph('Tail changed'),
+    ]);
+    const previousDecorations = buildCompatibilityDecorations(oldDoc);
+    const previousDecorationCount = previousDecorations.find().length;
+
+    expect(previousDecorationCount).toBeGreaterThanOrEqual(MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS);
+
+    const next = applyThemeCompatibilityDecorationsState(
+      {
+        docChanged: true,
+        getMeta: () => undefined,
+        mapping: transactionWithChangedRange(2, 2).mapping,
+      } as any,
+      {
+        decorationMaxTo: Math.max(...previousDecorations.find().map((decoration) => decoration.to)),
+        decorationCount: previousDecorationCount,
+        decorations: previousDecorations,
+        rebuildVersion: 2,
+      },
+      oldDoc,
+      nextDoc,
+    );
+
+    expect(next.decorations.find()).toHaveLength(0);
+    expect(next.decorationCount).toBe(0);
+    expect(next.rebuildVersion).toBe(3);
+  });
+
+  it('keeps large decoration sets for edits after the existing decorated range', () => {
+    const oldDoc = schema.nodes.doc.create(null, [
+      schema.nodes.bullet_list.create(null, Array.from({ length: MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS + 10 }, () => (
+        schema.nodes.list_item.create(null, [paragraph('item')])
+      ))),
+      paragraph('Tail'),
+    ]);
+    const nextDoc = schema.nodes.doc.create(null, [
+      schema.nodes.bullet_list.create(null, Array.from({ length: MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS + 10 }, () => (
+        schema.nodes.list_item.create(null, [paragraph('item')])
+      ))),
+      paragraph('Tail changed'),
+    ]);
+    const previousDecorations = buildCompatibilityDecorations(oldDoc);
+    const previousDecorationCount = previousDecorations.find().length;
+    const previousDecorationMaxTo = Math.max(...previousDecorations.find().map((decoration) => decoration.to));
+
+    expect(previousDecorationCount).toBeGreaterThanOrEqual(MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS);
+    expect(previousDecorationMaxTo).toBeLessThan(oldDoc.content.size - 'Tail'.length);
+
+    const next = applyThemeCompatibilityDecorationsState(
+      {
+        docChanged: true,
+        getMeta: () => undefined,
+        mapping: transactionWithChangedRange(oldDoc.content.size - 'Tail'.length, oldDoc.content.size).mapping,
+      } as any,
+      {
+        decorationMaxTo: previousDecorationMaxTo,
+        decorationCount: previousDecorationCount,
+        decorations: previousDecorations,
+        rebuildVersion: 2,
+      },
+      oldDoc,
+      nextDoc,
+    );
+
+    expect(next.decorations).toBe(previousDecorations);
+    expect(next.decorationCount).toBe(previousDecorationCount);
+    expect(next.decorationMaxTo).toBe(previousDecorationMaxTo);
+    expect(next.rebuildVersion).toBe(3);
+  });
+});
+
 describe('createThemeCompatibilityDecorationRebuildController', () => {
   it('dispatches one rebuild after typing settles', () => {
     vi.useFakeTimers();
@@ -248,6 +444,27 @@ describe('createThemeCompatibilityDecorationRebuildController', () => {
     controller.schedule();
     vi.advanceTimersByTime(120);
     controller.schedule();
+    vi.advanceTimersByTime(159);
+
+    expect(dispatchRebuild).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+
+    expect(dispatchRebuild).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('defers a pending rebuild while user input continues', () => {
+    vi.useFakeTimers();
+    const dispatchRebuild = vi.fn();
+    const controller = createThemeCompatibilityDecorationRebuildController({
+      delayMs: 160,
+      dispatchRebuild,
+    });
+
+    controller.schedule();
+    vi.advanceTimersByTime(120);
+    controller.deferIfPending();
     vi.advanceTimersByTime(159);
 
     expect(dispatchRebuild).not.toHaveBeenCalled();

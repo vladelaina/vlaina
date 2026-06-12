@@ -1,9 +1,13 @@
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDeferredMarkdownUpdateController } from './deferredMarkdownUpdatePlugin';
+import {
+  LARGE_DOC_DEFERRED_MARKDOWN_NODE_SIZE,
+  LARGE_DOC_DEFERRED_MARKDOWN_SERIALIZE_DELAY_MS,
+  createDeferredMarkdownUpdateController,
+} from './deferredMarkdownUpdatePlugin';
 
-function doc(id: string): ProseNode {
-  return { id } as unknown as ProseNode;
+function doc(id: string, size = 0): ProseNode {
+  return { id, content: { size } } as unknown as ProseNode;
 }
 
 describe('createDeferredMarkdownUpdateController', () => {
@@ -54,6 +58,53 @@ describe('createDeferredMarkdownUpdateController', () => {
 
     vi.advanceTimersByTime(120);
     expect(onMarkdownUpdated).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses a longer quiet window before serializing large documents', () => {
+    const onMarkdownUpdated = vi.fn();
+    const serializeDoc = vi.fn((value: unknown) => `markdown:${(value as { id: string }).id}`);
+    const controller = createDeferredMarkdownUpdateController({
+      delayMs: 120,
+      onMarkdownUpdated,
+      serializeDoc,
+    });
+
+    controller.schedule(doc('large', LARGE_DOC_DEFERRED_MARKDOWN_NODE_SIZE));
+    vi.advanceTimersByTime(LARGE_DOC_DEFERRED_MARKDOWN_SERIALIZE_DELAY_MS - 1);
+
+    expect(serializeDoc).not.toHaveBeenCalled();
+    expect(onMarkdownUpdated).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+
+    expect(serializeDoc).toHaveBeenCalledTimes(1);
+    expect(onMarkdownUpdated).toHaveBeenCalledWith('markdown:large');
+  });
+
+  it('skips scheduling and flushing when serialization is not needed', () => {
+    const onMarkdownUpdated = vi.fn();
+    const serializeDoc = vi.fn((value: unknown) => `markdown:${(value as { id: string }).id}`);
+    let shouldSerialize = false;
+    const controller = createDeferredMarkdownUpdateController({
+      delayMs: 120,
+      onMarkdownUpdated,
+      serializeDoc,
+      shouldSerialize: () => shouldSerialize,
+    });
+
+    controller.schedule(doc('initial-load'));
+    vi.advanceTimersByTime(120);
+    controller.flush();
+
+    expect(serializeDoc).not.toHaveBeenCalled();
+    expect(onMarkdownUpdated).not.toHaveBeenCalled();
+
+    shouldSerialize = true;
+    controller.schedule(doc('user-edit'));
+    vi.advanceTimersByTime(120);
+
+    expect(serializeDoc).toHaveBeenCalledTimes(1);
+    expect(onMarkdownUpdated).toHaveBeenCalledWith('markdown:user-edit');
   });
 
   it('drops pending work after destroy', () => {

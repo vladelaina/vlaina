@@ -1,5 +1,5 @@
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, type Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
@@ -11,18 +11,33 @@ import { buildTyporaCompatibilityDecorations } from './themeCompatibilityDecorat
 
 export { listContainsTaskItems };
 
-export const MAX_THEME_COMPATIBILITY_DECORATIONS = 6000;
+export const MAX_THEME_COMPATIBILITY_DECORATIONS = 2500;
+export const MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS = 800;
 export const MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const DEFAULT_THEME_COMPATIBILITY_DECORATION_DEBOUNCE_MS =
   themeUiFeedbackTokens.editorThemeCompatibilityDecorationDebounceMs;
-interface ThemeCompatibilityDecorationsState {
+export interface ThemeCompatibilityDecorationsState {
   decorations: DecorationSet;
+  decorationCount: number;
+  decorationMaxTo: number;
   rebuildVersion: number;
 }
 
 export const themeCompatibilityDecorationsPluginKey = new PluginKey<ThemeCompatibilityDecorationsState>('themeCompatibilityDecorations');
 
-const THEME_COMPATIBILITY_SAFE_CONTENT_NODES = new Set(['code_block', 'frontmatter']);
+const THEME_COMPATIBILITY_SAFE_CONTENT_NODES = new Set([
+  'code_block',
+  'frontmatter',
+  'math_block',
+  'mermaid',
+  'mermaid_block',
+]);
+const THEME_COMPATIBILITY_USER_INPUT_EVENTS = [
+  'beforeinput',
+  'keydown',
+  'compositionupdate',
+  'paste',
+] as const;
 const REBUILD_THEME_COMPATIBILITY_DECORATIONS_META = { type: 'rebuild' } as const;
 
 export function buildCompatibilityDecorations(doc: any): DecorationSet {
@@ -121,12 +136,20 @@ export function createThemeCompatibilityDecorationRebuildController({
     pendingTimer = setTimeout(flush, Math.max(0, delayMs));
   };
 
+  const deferIfPending = () => {
+    if (pendingTimer === null) {
+      return;
+    }
+    schedule();
+  };
+
   const destroy = () => {
     destroyed = true;
     clearPendingTimer();
   };
 
   return {
+    deferIfPending,
     destroy,
     flush,
     schedule,
@@ -137,9 +160,81 @@ function createThemeCompatibilityDecorationsState(
   doc: ProseNode,
   rebuildVersion: number
 ): ThemeCompatibilityDecorationsState {
+  const decorations = buildCompatibilityDecorations(doc);
+  const decorationRanges = decorations.find();
   return {
-    decorations: buildCompatibilityDecorations(doc),
+    decorationCount: decorationRanges.length,
+    decorationMaxTo: decorationRanges.reduce((maxTo, decoration) => Math.max(maxTo, decoration.to), 0),
+    decorations,
     rebuildVersion,
+  };
+}
+
+function transactionChangesAfterThemeCompatibilityDecorations(
+  tr: unknown,
+  decorationMaxTo: number
+): boolean {
+  if (decorationMaxTo <= 0) {
+    return false;
+  }
+
+  const ranges = getTransactionChangedRanges(tr);
+  return ranges.length > 0 && ranges.every((range) => (
+    range.oldFrom >= decorationMaxTo &&
+    range.newFrom >= decorationMaxTo
+  ));
+}
+
+export function applyThemeCompatibilityDecorationsState(
+  tr: Transaction,
+  previous: ThemeCompatibilityDecorationsState,
+  oldDoc: ProseNode,
+  newDoc: ProseNode,
+): ThemeCompatibilityDecorationsState {
+  if (tr.getMeta(themeCompatibilityDecorationsPluginKey)?.type === 'rebuild') {
+    return createThemeCompatibilityDecorationsState(
+      newDoc,
+      previous.rebuildVersion
+    );
+  }
+
+  if (!tr.docChanged) {
+    return previous;
+  }
+
+  const mayAffectDecorations = transactionMayAffectThemeCompatibilityDecorations(oldDoc, newDoc, tr);
+  if (!mayAffectDecorations) {
+    return {
+      decorationCount: previous.decorationCount,
+      decorationMaxTo: previous.decorationMaxTo,
+      decorations: previous.decorations.map(tr.mapping, newDoc),
+      rebuildVersion: previous.rebuildVersion,
+    };
+  }
+
+  if (transactionChangesAfterThemeCompatibilityDecorations(tr, previous.decorationMaxTo)) {
+    return {
+      decorationCount: previous.decorationCount,
+      decorationMaxTo: previous.decorationMaxTo,
+      decorations: previous.decorations,
+      rebuildVersion: previous.rebuildVersion + 1,
+    };
+  }
+
+  if (previous.decorationCount >= MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS) {
+    return {
+      decorationCount: 0,
+      decorationMaxTo: 0,
+      decorations: DecorationSet.empty,
+      rebuildVersion: previous.rebuildVersion + 1,
+    };
+  }
+
+  return {
+    decorationCount: previous.decorationCount,
+    decorationMaxTo: previous.decorationMaxTo,
+    decorations: previous.decorations.map(tr.mapping, newDoc),
+    rebuildVersion: previous.rebuildVersion + 1,
   };
 }
 
@@ -151,24 +246,7 @@ export const themeCompatibilityDecorationsPlugin = $prose(() => {
         return createThemeCompatibilityDecorationsState(state.doc, 0);
       },
       apply(tr, previous, oldState, newState) {
-        if (tr.getMeta(themeCompatibilityDecorationsPluginKey)?.type === 'rebuild') {
-          return createThemeCompatibilityDecorationsState(
-            newState.doc,
-            previous.rebuildVersion
-          );
-        }
-        if (!tr.docChanged) {
-          return {
-            decorations: previous.decorations.map(tr.mapping, tr.doc),
-            rebuildVersion: previous.rebuildVersion,
-          };
-        }
-        return {
-          decorations: previous.decorations.map(tr.mapping, newState.doc),
-          rebuildVersion: transactionMayAffectThemeCompatibilityDecorations(oldState.doc, newState.doc, tr)
-            ? previous.rebuildVersion + 1
-            : previous.rebuildVersion,
-        };
+        return applyThemeCompatibilityDecorationsState(tr, previous, oldState.doc, newState.doc);
       },
     },
     view(editorView: EditorView) {
@@ -184,6 +262,14 @@ export const themeCompatibilityDecorationsPlugin = $prose(() => {
           );
         },
       });
+      const deferPendingRebuild = () => {
+        controller.deferIfPending();
+      };
+      editorView.dom.addEventListener('editor:block-user-input', deferPendingRebuild);
+      editorView.dom.addEventListener('editor:image-user-input', deferPendingRebuild);
+      for (const eventName of THEME_COMPATIBILITY_USER_INPUT_EVENTS) {
+        editorView.dom.addEventListener(eventName, deferPendingRebuild, true);
+      }
 
       return {
         update(nextView, prevState) {
@@ -203,6 +289,11 @@ export const themeCompatibilityDecorationsPlugin = $prose(() => {
           controller.schedule();
         },
         destroy() {
+          editorView.dom.removeEventListener('editor:block-user-input', deferPendingRebuild);
+          editorView.dom.removeEventListener('editor:image-user-input', deferPendingRebuild);
+          for (const eventName of THEME_COMPATIBILITY_USER_INPUT_EVENTS) {
+            editorView.dom.removeEventListener(eventName, deferPendingRebuild, true);
+          }
           controller.destroy();
         },
       };

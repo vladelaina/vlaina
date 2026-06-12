@@ -8,7 +8,6 @@ import {
 import {
     getTransactionChangedRanges,
     transactionInsertedTextMatches,
-    transactionTouchesDecorations,
 } from '../shared/transactionStepText';
 import { transactionInsertedTextMayAffectHeadingStructure } from './headingStructureChange';
 
@@ -104,10 +103,6 @@ export function canMapHeadingCollapsePluginState(
     ) {
         return false;
     }
-    if (transactionTouchesDecorations(pluginState.decorations, tr)) {
-        return false;
-    }
-
     return true;
 }
 

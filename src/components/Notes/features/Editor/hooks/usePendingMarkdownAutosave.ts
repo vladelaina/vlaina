@@ -420,9 +420,15 @@ export function usePendingMarkdownAutosave({
     };
   }, []);
 
+  const shouldSerializeEditorMarkdown = useCallback(() => (
+    hasEditorUserInput.current &&
+    userInputVersionRef.current > handledUserInputVersionRef.current
+  ), []);
+
   return {
     configureMarkdownListener,
     createUserInputMarker,
     setEditorGetter,
+    shouldSerializeEditorMarkdown,
   };
 }

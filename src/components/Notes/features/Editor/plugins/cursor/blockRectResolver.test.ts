@@ -377,6 +377,94 @@ describe('createBlockRectResolver', () => {
     }
   });
 
+  it('reuses cached target rects for drag-selection hit testing across scroll changes', () => {
+    const scrollRoot = document.createElement('div');
+    scrollRoot.setAttribute('data-note-scroll-root', 'true');
+    scrollRoot.scrollTop = 20;
+    withRect(scrollRoot, { left: 0, top: 10, width: 700, height: 400 });
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = '1';
+    dom.append(paragraph);
+    scrollRoot.appendChild(dom);
+    document.body.appendChild(scrollRoot);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(paragraph, { left: 60, top: 40, width: 10, height: 24 });
+
+    const doc = createDoc([createNode('paragraph', 3)]);
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM: () => paragraph,
+      domAtPos: () => ({ node: paragraph.firstChild as Node }),
+    };
+
+    const blocks = [{
+      from: 0,
+      to: 3,
+      element: paragraph,
+      rect: paragraph.getBoundingClientRect(),
+      documentLeft: 60,
+      documentRight: 70,
+      documentTop: 50,
+      documentBottom: 74,
+      tagName: 'P',
+      headingLevel: null,
+      headingId: null,
+      headingText: null,
+    }];
+
+    setCurrentEditorBlockPositionSnapshot({
+      version: 1,
+      view: view as any,
+      doc: doc as any,
+      editorRoot: dom,
+      scrollRoot,
+      scrollLeft: 0,
+      scrollTop: 20,
+      blocks,
+      blockIndex: new Map(blocks.map((block) => [`${block.from}:${block.to}`, block])),
+      headings: [],
+    });
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => {
+      throw new Error('drag selection rects should not measure text ranges while auto-scrolling');
+    };
+    Object.defineProperty(paragraph, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => {
+        throw new Error('drag selection rects should not remeasure block DOM while auto-scrolling');
+      },
+    });
+
+    try {
+      scrollRoot.scrollTop = 80;
+      expect(getFreshCachedEditorBlockTargets(view as any, scrollRoot)?.[0]?.rect.top).toBe(-20);
+
+      const resolver = createBlockRectResolver({
+        view: view as any,
+        scrollRootSelector: '[data-note-scroll-root="true"]',
+      });
+
+      expect(resolver.getSelectionBlockRects()).toEqual([
+        {
+          from: 0,
+          to: 3,
+          left: 20,
+          top: -20,
+          right: 620,
+          bottom: 4,
+          allowInsideTrailingClick: true,
+        },
+      ]);
+    } finally {
+      document.createRange = originalCreateRange;
+      clearCurrentEditorBlockPositionSnapshot();
+      scrollRoot.remove();
+    }
+  });
+
   it('skips live block rect scans for very large documents without cached targets', () => {
     const dom = document.createElement('div');
     document.body.appendChild(dom);

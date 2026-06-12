@@ -23,8 +23,8 @@
   box-shadow: none !important;
 }
 
-.milkdown .ProseMirror .milkdown-table-block.editor-block-selected:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]),
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]) {
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-table-block-zero-min-width,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode.editor-table-block-zero-min-width {
   --vlaina-block-selection-top-reserve: var(--vlaina-block-selection-bleed-y);
   --vlaina-block-selection-scrollbar-reserve: var(--table-block-scrollbar-reserve, var(--vlaina-block-selection-table-scrollbar-reserve));
 }
@@ -49,8 +49,8 @@
   z-index: var(--vlaina-z-1);
 }
 
-.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll {
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-table-block-zero-min-width .table-scroll,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode.editor-table-block-zero-min-width .table-scroll {
   margin-top: calc(-1 * var(--vlaina-block-selection-bleed-y));
   margin-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
   padding-top: var(--vlaina-block-selection-bleed-y);
@@ -71,8 +71,8 @@
   z-index: var(--vlaina-z-0);
 }
 
-.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before {
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-table-block-zero-min-width .table-content-host::before,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode.editor-table-block-zero-min-width .table-content-host::before {
   content: '';
   position: absolute;
   top: calc(-1 * var(--vlaina-block-selection-bleed-y));

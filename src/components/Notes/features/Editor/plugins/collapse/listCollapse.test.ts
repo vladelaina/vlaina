@@ -3,9 +3,11 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import {
+  LIST_NESTED_LIST_HOVER_CLASS,
   MAX_LIST_COLLAPSE_CHILD_SCAN_NODES,
   buildListCollapsePluginState,
   canMapListCollapsePluginState,
+  collectNestedListHoverParents,
   findNestedListCollapseRange,
   listCollapsePlugin,
 } from './listCollapse';
@@ -78,6 +80,27 @@ describe('listCollapsePlugin', () => {
 
     expect(findNestedListCollapseRange(listItem, 10)).toBeNull();
     expect(accessed).toBe(MAX_LIST_COLLAPSE_CHILD_SCAN_NODES);
+  });
+
+  it('collects nested-list hover parents without CSS :has selectors', () => {
+    const root = document.createElement('div');
+    root.innerHTML = [
+      '<ul>',
+      '  <li id="parent">Parent',
+      '    <ul id="nested">',
+      '      <li id="child">Child</li>',
+      '    </ul>',
+      '  </li>',
+      '</ul>',
+    ].join('');
+    document.body.appendChild(root);
+
+    const child = root.querySelector('#child');
+    const parent = root.querySelector('#parent');
+    const parents = collectNestedListHoverParents(root, child);
+
+    expect(parents).toEqual([parent]);
+    expect(LIST_NESTED_LIST_HOVER_CLASS).toBe('editor-list-nested-list-hover');
   });
 
   it('does not create hidden toggles for flat list items', async () => {

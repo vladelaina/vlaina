@@ -13,6 +13,7 @@ import {
 
 export const MAX_HEADING_PLACEHOLDER_DECORATIONS = 1000;
 const HEADING_PLACEHOLDER_LINE_BREAK_PATTERN = /[\n\r]/u;
+const HEADING_PLACEHOLDER_MARKER_PATTERN = /#/u;
 
 export const getHeadingPlaceholder = (rawLevel: number): string => {
     return getDefaultHeadingPlaceholderText(rawLevel);
@@ -72,13 +73,32 @@ function transactionTouchesHeadingContext(oldDoc: any, newDoc: any, tr: unknown)
     ));
 }
 
+function decorationSetIsEmpty(previous: DecorationSetLike): boolean {
+    return previous.find().length === 0;
+}
+
+function transactionIsPureInsertion(tr: unknown): boolean {
+    const ranges = getTransactionChangedRanges(tr);
+    return ranges.length > 0 && ranges.every((range) => range.oldFrom === range.oldTo);
+}
+
 export function transactionMayAffectHeadingPlaceholders(
     previous: DecorationSetLike,
     tr: unknown,
     oldDoc: any,
     newDoc: any,
 ): boolean {
-    return transactionInsertedTextMatches(tr, HEADING_PLACEHOLDER_LINE_BREAK_PATTERN)
+    const insertsLineBreak = transactionInsertedTextMatches(tr, HEADING_PLACEHOLDER_LINE_BREAK_PATTERN);
+    if (
+        !insertsLineBreak
+        && decorationSetIsEmpty(previous)
+        && transactionIsPureInsertion(tr)
+        && !transactionInsertedTextMatches(tr, HEADING_PLACEHOLDER_MARKER_PATTERN)
+    ) {
+        return false;
+    }
+
+    return insertsLineBreak
         || transactionTouchesDecorations(previous, tr)
         || transactionTouchesHeadingContext(oldDoc, newDoc, tr);
 }
