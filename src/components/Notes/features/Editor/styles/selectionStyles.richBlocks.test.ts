@@ -121,7 +121,9 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).not.toContain('.milkdown .ProseMirror .editor-block-selected:is(');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected :is(');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-contained:is(');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li :is(');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected :is(');
+    expect(blockSelectionCss).toContain(').editor-block-selected-contained {');
+    expect(blockSelectionCss).not.toContain('.milkdown .ProseMirror li :is(\n  .image-block-container,\n  .video-block,\n  [data-type=\'math-block\'],\n  [data-type=\'math-inline\'],\n  .mermaid-block,\n  .milkdown-table-block,\n  table\n).editor-block-selected {');
     expect(blockSelectionCss).toContain('.image-block-container,');
     expect(blockSelectionCss).toContain('.video-block,');
     expect(blockSelectionCss).toContain("[data-type='math-block'],");
@@ -135,7 +137,7 @@ describe("editor rich block selection styles", () => {
     expect(mathCss).not.toContain('.milkdown .ProseMirror .editor-block-selected:is(');
     expect(mathCss).toContain('.milkdown .ProseMirror .editor-block-selected :is(');
     expect(mathCss).not.toContain('.milkdown .ProseMirror .editor-block-selected-contained:is(');
-    expect(mathCss).not.toContain('.milkdown .ProseMirror li :is(');
+    expect(mathCss).not.toContain('.milkdown .ProseMirror li.editor-block-selected :is(');
     expect(mathCss).toContain('.mermaid-block');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),');
     expect(blockSelectionCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
@@ -143,7 +145,7 @@ describe("editor rich block selection styles", () => {
     expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected,\n.milkdown .ProseMirror.editor-block-selection-pending');
     expect(mathCss).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {');
     expect(mathCss).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
-    expect(richChildLists).toHaveLength(3);
+    expect(richChildLists).toHaveLength(4);
     for (const list of richChildLists) {
       expect(list).toEqual(expectedRichChildList);
     }

@@ -12,7 +12,7 @@
 }
 
 .milkdown .ProseMirror li[data-item-type="task"].editor-block-selected::before,
-.milkdown .ProseMirror li[data-item-type="task"]:has(> p.editor-block-selected)::before,
+.milkdown .ProseMirror li[data-item-type="task"]:has(> p:first-of-type.editor-block-selected)::before,
 .milkdown .ProseMirror .editor-block-selected li[data-item-type="task"]::before {
   border-color: var(--vlaina-editor-block-selection-fg) !important;
   background-color: transparent !important;
@@ -136,6 +136,25 @@
 .milkdown .ProseMirror li :is(ul, ol) li[data-item-type="task"] .editor-block-selected {
   --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-120px);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror li > :not(:is(
+  p:first-of-type,
+  ul,
+  ol,
+  .editor-collapse-btn
+)):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source) {
+  background-color: var(--vlaina-block-selection-color);
+  box-shadow: var(--vlaina-block-selection-shadow);
+}
+
+.milkdown .ProseMirror li > :not(:is(
+  p:first-of-type,
+  ul,
+  ol,
+  .editor-collapse-btn
+)):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source)::after {
+  display: none;
 }
 
 .milkdown .ProseMirror li.editor-block-selected .editor-block-selected {

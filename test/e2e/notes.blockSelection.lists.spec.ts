@@ -18,6 +18,159 @@ import {
 test.describe("notes block selection list handles", () => {
   test.setTimeout(90_000);
 
+  test('keeps ordered-list markers visible when selecting continuation paragraphs', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-ordered-continuation-marker-selection');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const { notePath } = await page.evaluate(() =>
+        (window as any).__vlainaE2E.createNotesFixture({
+          filename: 'ordered-continuation-marker-selection.md',
+          content: [
+            '# Ordered Continuation Marker Selection',
+            '',
+            '1. YAML Front Matter parent marker sentinel',
+            '',
+            '   frontmatter metadata continuation sentinel',
+            '',
+            '2. Source mode parent marker sentinel',
+            '',
+            '   source mode continuation sentinel',
+            '',
+          ].join('\n'),
+        })
+      );
+
+      await page.evaluate((pathToOpen) => (window as any).__vlainaE2E.openAbsoluteNote(pathToOpen), notePath);
+      await expect(page.locator(EDITOR_SELECTOR)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} ol > li`, { hasText: 'YAML Front Matter parent marker sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'frontmatter metadata continuation sentinel' })).toBeVisible();
+
+      await selectNoteBlocksByMatchers(page, [{ exact: 'frontmatter metadata continuation sentinel' }]);
+
+      const visual = await page.evaluate(() => {
+        const item = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror ol > li'))
+          .find((element) => element.textContent?.includes('YAML Front Matter parent marker sentinel')) ?? null;
+        const selected = item
+          ? Array.from(item.children).find((child): child is HTMLElement => (
+            child instanceof HTMLElement &&
+            child.classList.contains('editor-block-selected') &&
+            Boolean(child.textContent?.includes('frontmatter metadata continuation sentinel'))
+          )) ?? null
+          : null;
+        if (!item || !selected) return null;
+
+        const colorProbe = document.createElement('span');
+        colorProbe.style.color = 'var(--vlaina-editor-block-selection-fg)';
+        colorProbe.style.backgroundColor = 'var(--vlaina-block-selection-color-default)';
+        document.body.appendChild(colorProbe);
+        const selectedForeground = getComputedStyle(colorProbe).color;
+        const selectedBackground = getComputedStyle(colorProbe).backgroundColor;
+        colorProbe.remove();
+
+        const bleedProbe = document.createElement('span');
+        bleedProbe.style.marginLeft = 'calc(-1 * var(--vlaina-block-selection-bleed-x-start))';
+        selected.appendChild(bleedProbe);
+        const resolvedSelectionBleedLeft = Number.parseFloat(getComputedStyle(bleedProbe).marginLeft || 'NaN');
+        bleedProbe.remove();
+
+        return {
+          itemText: item.textContent?.trim() ?? '',
+          markerColor: getComputedStyle(item, '::marker').color,
+          resolvedSelectionBleedLeft,
+          selectedBackground,
+          selectedBackgroundColor: getComputedStyle(selected).backgroundColor,
+          selectedForeground,
+          selectedTagName: selected.tagName,
+          selectedText: selected.textContent?.trim() ?? '',
+        };
+      });
+
+      expect(visual).not.toBeNull();
+      expect(visual!.itemText).toContain('YAML Front Matter parent marker sentinel');
+      expect(visual!.selectedText).toBe('frontmatter metadata continuation sentinel');
+      expect(visual!.selectedTagName).toBe('P');
+      expect(visual!.markerColor).not.toBe(visual!.selectedForeground);
+      expect(visual!.selectedBackgroundColor).toBe(visual!.selectedBackground);
+      expect(Math.abs(visual!.resolvedSelectionBleedLeft)).toBeGreaterThanOrEqual(72);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps standalone rich child blocks inside lists visibly selected', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-list-rich-child-selection-surface');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const { notePath } = await page.evaluate(() =>
+        (window as any).__vlainaE2E.createNotesFixture({
+          filename: 'list-rich-child-selection-surface.md',
+          content: [
+            '# List Rich Child Selection Surface',
+            '',
+            '- Code rich parent',
+            '  ```ts',
+            '  const listCodeSelectionSentinel = true;',
+            '  ```',
+            '',
+            '- Math rich parent',
+            '  $$',
+            '  listMathSelectionSentinel = 1',
+            '  $$',
+            '',
+            '- Mermaid rich parent',
+            '  ```mermaid',
+            '  flowchart TD',
+            '    ListStart[listMermaidSelectionSentinel] --> ListEnd[Done]',
+            '  ```',
+            '',
+            '- Table rich parent',
+            '',
+            '  | Label | Value |',
+            '  | --- | --- |',
+            '  | listTableSelectionSentinel | 1 |',
+            '',
+          ].join('\n'),
+        })
+      );
+
+      await page.evaluate((pathToOpen) => (window as any).__vlainaE2E.openAbsoluteNote(pathToOpen), notePath);
+      await expect(page.locator(EDITOR_SELECTOR)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'listCodeSelectionSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="math-block"]`, { hasText: 'listMathSelectionSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .mermaid-block`, { hasText: 'listMermaidSelectionSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .milkdown-table-block`, { hasText: 'listTableSelectionSentinel' })).toBeVisible();
+
+      for (const sample of [
+        { label: 'list-code-child', sentinel: 'listCodeSelectionSentinel', expectedClass: 'code-block-container' },
+        { label: 'list-math-child', sentinel: 'listMathSelectionSentinel', expectedType: 'math-block' },
+        { label: 'list-mermaid-child', sentinel: 'listMermaidSelectionSentinel', expectedClass: 'mermaid-block' },
+        { label: 'list-table-child', sentinel: 'listTableSelectionSentinel', expectedClass: 'milkdown-table-block' },
+      ]) {
+        const selected = await selectShortestSelectableBlockContaining(page, sample.sentinel);
+        expect(selected.ok, `${sample.label}: ${JSON.stringify(selected)}`).toBe(true);
+
+        const visual = await measureSelectedBlockSelectionSurface(page, sample.sentinel);
+        expect(visual, `${sample.label}: missing selected visual`).not.toBeNull();
+        if (sample.expectedClass) {
+          expect(visual!.className, `${sample.label}: selected class`).toContain(sample.expectedClass);
+        }
+        if (sample.expectedType) {
+          expect(visual!.dataType, `${sample.label}: selected data-type`).toBe(sample.expectedType);
+        }
+        expect(
+          visual!.surfaceColors,
+          `${sample.label}: selected block should have a visible selection surface\n${JSON.stringify(visual, null, 2)}`,
+        ).toContain(visual!.expectedBackground);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps child-row handles on the outer edge when a parent list group is selected', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-parent-list-group-drag-handle');
 
@@ -214,3 +367,88 @@ test.describe("notes block selection list handles", () => {
     }
   });
 });
+
+async function selectShortestSelectableBlockContaining(
+  page: import('@playwright/test').Page,
+  sentinel: string,
+): Promise<{
+  ok: boolean;
+  index: number;
+  count: number;
+  selectedText: string;
+  candidates: Array<{ index: number; text: string; tagName: string }>;
+}> {
+  return page.evaluate(async (targetSentinel) => {
+    const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+      text: string;
+      tagName: string;
+    }>;
+    const candidates = blocks
+      .map((block, index) => ({ index, text: block.text, tagName: block.tagName }))
+      .filter((block) => block.text.includes(targetSentinel))
+      .sort((left, right) => (
+        left.text.length - right.text.length ||
+        left.index - right.index
+      ));
+    const target = candidates[0] ?? null;
+    const count = target
+      ? await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([target.index])
+      : 0;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    return {
+      ok: Boolean(target && count === 1),
+      index: target?.index ?? -1,
+      count,
+      selectedText: target?.text ?? '',
+      candidates,
+    };
+  }, sentinel);
+}
+
+async function measureSelectedBlockSelectionSurface(
+  page: import('@playwright/test').Page,
+  sentinel: string,
+): Promise<{
+  tagName: string;
+  className: string;
+  dataType: string | null;
+  backgroundColor: string;
+  beforeBackgroundColor: string;
+  afterBackgroundColor: string;
+  boxShadow: string;
+  expectedBackground: string;
+  surfaceColors: string[];
+} | null> {
+  return page.evaluate((targetSentinel) => {
+    const selected = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .editor-block-selected'))
+      .find((element) => element.textContent?.includes(targetSentinel)) ?? null;
+    if (!selected) return null;
+
+    const probe = document.createElement('span');
+    probe.style.backgroundColor = 'var(--vlaina-block-selection-color-default)';
+    document.body.appendChild(probe);
+    const expectedBackground = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+
+    const styles = getComputedStyle(selected);
+    const beforeStyles = getComputedStyle(selected, '::before');
+    const afterStyles = getComputedStyle(selected, '::after');
+    const surfaceColors = [
+      styles.backgroundColor,
+      beforeStyles.backgroundColor,
+      afterStyles.backgroundColor,
+    ].filter((color) => color && color !== 'rgba(0, 0, 0, 0)');
+
+    return {
+      tagName: selected.tagName,
+      className: selected.className,
+      dataType: selected.getAttribute('data-type'),
+      backgroundColor: styles.backgroundColor,
+      beforeBackgroundColor: beforeStyles.backgroundColor,
+      afterBackgroundColor: afterStyles.backgroundColor,
+      boxShadow: styles.boxShadow,
+      expectedBackground,
+      surfaceColors,
+    };
+  }, sentinel);
+}
