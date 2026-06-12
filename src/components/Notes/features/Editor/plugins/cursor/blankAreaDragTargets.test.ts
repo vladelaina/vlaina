@@ -8,6 +8,7 @@ import {
 import {
   MAX_BLANK_AREA_TEXT_HIT_CHARS,
   isExternalTextLineGutterNativeSelectionTarget,
+  isIgnoredBlankAreaDragBoxTarget,
   isPointInTrailingTextSelectionGutter,
   resolveBlankAreaDragStartZone,
   resolveTextLinePointerHit,
@@ -85,6 +86,21 @@ describe('blankAreaDragTargets', () => {
     expect(isPointInTrailingTextSelectionGutter(lineRect, 210, 50)).toBe(false);
     expect(isPointInTrailingTextSelectionGutter(lineRect, 310, 50)).toBe(false);
     expect(isPointInTrailingTextSelectionGutter(lineRect, 250, 90)).toBe(false);
+  });
+
+  it('ignores cover targets for document-level blank-area drag handling', () => {
+    const coverRegion = document.createElement('div');
+    coverRegion.setAttribute('data-note-cover-region', 'true');
+    const coverChild = document.createElement('button');
+    coverRegion.append(coverChild);
+    document.body.append(coverRegion);
+
+    try {
+      expect(isIgnoredBlankAreaDragBoxTarget(coverRegion)).toBe(true);
+      expect(isIgnoredBlankAreaDragBoxTarget(coverChild)).toBe(true);
+    } finally {
+      coverRegion.remove();
+    }
   });
 
   it('skips text line hit measurement for oversized roots without reading aggregate text', () => {
