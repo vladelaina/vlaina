@@ -143,16 +143,23 @@ describe('chatInlineImageTokens', () => {
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/1', result.imageSrcByToken)).toBe(src);
   });
 
-  it('bounds existing inline image token collection before compacting new images', () => {
+  it('scrubs large data images instead of reusing an unscanned existing token', () => {
     const src = createLargeDataImage('l');
     const existing = Array.from(
-      { length: 2500 },
-      (_, index) => `asset://localhost/chat-inline-image/${index}`
-    ).join(' ');
+      { length: 2001 },
+      (_, index) => `![existing ${index}](<asset://localhost/chat-inline-image/${index}>)`,
+    ).join('\n');
     const result = compactLargeDataImageMarkdown(`${existing}\n![large](<${src}>)`);
 
-    expect(result.replaced).toBe(1);
-    expect(result.markdown).toContain('![large](<asset://localhost/chat-inline-image/2000>)');
+    expect(result.replaced).toBe(0);
+    expect(result.imageSrcByToken.size).toBe(0);
+    expect(result.markdown).toContain('![existing 2000](<asset://localhost/chat-inline-image/2000>)');
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain(src);
+    expect(resolveCompactedChatImageSrc(
+      'asset://localhost/chat-inline-image/2000',
+      result.imageSrcByToken,
+    )).toBe('asset://localhost/chat-inline-image/2000');
   });
 
   it('does not compact escaped image markdown', () => {
@@ -207,6 +214,20 @@ describe('chatInlineImageTokens', () => {
     expect(result.markdown).toContain('[image]');
     expect(result.markdown).not.toContain('data&colon;image&sol;');
     expect(result.markdown).not.toContain('&semi;base64&comma;');
+  });
+
+  it('scrubs overflow escaped-scheme markdown data images after the scan budget is reached', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const escapedSrc = createLargeDataImage('v').replace('data:image/', String.raw`data\:image/`);
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `![overflow](<${escapedSrc}>)`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain(String.raw`data\:image/`);
   });
 
   it('keeps code markdown data images when scrubbing after the scan budget is reached', () => {

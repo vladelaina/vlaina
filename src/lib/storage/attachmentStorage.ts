@@ -29,6 +29,10 @@ export function createStoredAttachmentFromSource(src: string, id = 'stored-attac
     if (!filename) {
         return null;
     }
+    const type = inferAttachmentMimeTypeFromFilename(filename);
+    if (!type.startsWith('image/')) {
+        return null;
+    }
 
     const trimmed = src.trim();
     return {
@@ -37,7 +41,7 @@ export function createStoredAttachmentFromSource(src: string, id = 'stored-attac
         previewUrl: trimmed,
         assetUrl: trimmed,
         name: filename,
-        type: inferAttachmentMimeTypeFromFilename(filename),
+        type,
         size: 0,
     };
 }
@@ -116,6 +120,50 @@ function getAttachmentFilename(fileName: string, mimeType: string): string {
 
 function prepareAttachmentImageBytes(bytes: Uint8Array, mimeType: string): Uint8Array {
     return mimeType === 'image/svg+xml' ? sanitizeSvgBytes(bytes) : bytes;
+}
+
+function normalizeSupportedAttachmentMimeType(value: string): string | null {
+    const rawMimeType = value.split(';')[0]?.trim().toLowerCase() ?? '';
+    const mimeType = rawMimeType === 'image/jpg' ? 'image/jpeg' : rawMimeType;
+    return Object.prototype.hasOwnProperty.call(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME, mimeType)
+        ? mimeType
+        : null;
+}
+
+function encodeAttachmentDataUrl(bytes: Uint8Array, mimeType: string): string {
+    return `data:${mimeType};base64,${uint8ArrayToBase64(bytes)}`;
+}
+
+function prepareAttachmentOutputBytes(bytes: Uint8Array, mimeType: string): {
+    bytes: Uint8Array;
+    mimeType: string;
+} {
+    const outputMimeType = normalizeSupportedAttachmentMimeType(mimeType) ?? mimeType;
+    const outputBytes = prepareAttachmentImageBytes(bytes, outputMimeType);
+    assertAttachmentImageSize(outputBytes.byteLength);
+    return {
+        bytes: outputBytes,
+        mimeType: outputMimeType,
+    };
+}
+
+function sanitizeInlineAttachmentDataUrl(dataUrl: string): string | null {
+    if (!isAttachmentDataUrlWithinSizeLimit(dataUrl)) {
+        return null;
+    }
+
+    const decoded = dataUrlToBytes(dataUrl);
+    const mimeType = decoded ? normalizeSupportedAttachmentMimeType(decoded.mimeType) : null;
+    if (!decoded || !mimeType) {
+        return null;
+    }
+
+    if (mimeType !== 'image/svg+xml') {
+        return dataUrl;
+    }
+
+    const prepared = prepareAttachmentOutputBytes(decoded.bytes, mimeType);
+    return encodeAttachmentDataUrl(prepared.bytes, prepared.mimeType);
 }
 
 function assertAttachmentImageSize(byteLength: number | null | undefined): void {
@@ -378,10 +426,11 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 export async function convertToBase64(attachment: Attachment, options: ConvertAttachmentOptions = {}): Promise<string> {
     if (/^data:/i.test(attachment.previewUrl.trim())) {
-        if (!isAttachmentDataUrlWithinSizeLimit(attachment.previewUrl)) {
+        const sanitizedDataUrl = sanitizeInlineAttachmentDataUrl(attachment.previewUrl);
+        if (!sanitizedDataUrl) {
             throw new Error('Attachment image is too large.');
         }
-        return attachment.previewUrl;
+        return sanitizedDataUrl;
     }
 
     const storage = getStorageAdapter();
@@ -394,9 +443,8 @@ export async function convertToBase64(attachment: Attachment, options: ConvertAt
                 const info = await storage.stat(readablePath).catch(() => null);
                 assertReadableAttachmentInfo(info);
                 const data = await storage.readBinaryFile(readablePath, MAX_ATTACHMENT_IMAGE_BYTES);
-                assertAttachmentImageSize(data.byteLength);
-                const base64 = uint8ArrayToBase64(data);
-                return `data:${attachment.type};base64,${base64}`;
+                const prepared = prepareAttachmentOutputBytes(data, attachment.type);
+                return encodeAttachmentDataUrl(prepared.bytes, prepared.mimeType);
             }
         } catch (e) {
         }
@@ -411,9 +459,8 @@ export async function convertToBase64(attachment: Attachment, options: ConvertAt
         const info = await storage.stat(attachmentPath).catch(() => null);
         assertReadableAttachmentInfo(info);
         const data = await storage.readBinaryFile(attachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
-        assertAttachmentImageSize(data.byteLength);
-        const base64 = uint8ArrayToBase64(data);
-        return `data:${attachment.type};base64,${base64}`;
+        const prepared = prepareAttachmentOutputBytes(data, attachment.type);
+        return encodeAttachmentDataUrl(prepared.bytes, prepared.mimeType);
     }
 
     throw new Error('Cannot convert attachment to Base64');

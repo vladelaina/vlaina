@@ -1,8 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
-import { editorViewCtx, parserCtx } from '@milkdown/kit/core';
+import { cleanup, render } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { editorViewCtx, parserCtx, serializerCtx } from '@milkdown/kit/core';
 import * as ProseModel from '@milkdown/kit/prose/model';
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import {
+  MilkdownEditorInner,
   createLargePlainMarkdownDocJSON,
   normalizeInitialEditorSelection,
   replaceEditorMarkdown,
@@ -13,6 +16,84 @@ import {
   blankAreaDragBoxPluginKey,
   CLEAR_BLOCKS_ACTION,
 } from './plugins/cursor/blockSelectionPluginState';
+
+const mocks = vi.hoisted(() => {
+  const notesState = {
+    currentNote: { path: 'small.md', content: '# Small' } as { path: string; content: string } | null,
+    currentNoteDiskRevision: 1,
+    updateContent: vi.fn(),
+    saveNote: vi.fn().mockResolvedValue(undefined),
+    isNewlyCreated: false,
+    notesPath: '/vault',
+  };
+  const editorState = {
+    activeEditor: null as any,
+    serializedMarkdown: '# Small',
+  };
+
+  return { editorState, notesState };
+});
+
+vi.mock('@milkdown/react', () => ({
+  MilkdownProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  Milkdown: () => <div data-testid="milkdown-runtime" />,
+  useEditor: () => ({ get: () => mocks.editorState.activeEditor }),
+}));
+
+vi.mock('next-themes', () => ({
+  useTheme: () => ({ resolvedTheme: 'light' }),
+}));
+
+vi.mock('@/stores/useNotesStore', () => ({
+  useNotesStore: Object.assign(
+    (selector: (state: typeof mocks.notesState) => unknown) => selector(mocks.notesState),
+    {
+      getState: () => mocks.notesState,
+      subscribe: () => () => {},
+    },
+  ),
+}));
+
+vi.mock('@/stores/unified/useUnifiedStore', () => ({
+  useUnifiedStore: (selector: (state: {
+    data: {
+      settings: {
+        markdown: {
+          appearance: { importedThemeId: null };
+          typewriterMode: boolean;
+        };
+      };
+    };
+  }) => unknown) => selector({
+    data: {
+      settings: {
+        markdown: {
+          appearance: { importedThemeId: null },
+          typewriterMode: false,
+        },
+      },
+    },
+  }),
+}));
+
+vi.mock('@/components/markdown-theme/useImportedMarkdownThemePlatform', () => ({
+  useImportedMarkdownThemePlatform: () => null,
+}));
+
+vi.mock('./hooks/useEditorSave', () => ({
+  useEditorSave: () => ({
+    debouncedSave: vi.fn(),
+    flushSave: vi.fn(),
+  }),
+}));
+
+vi.mock('./hooks/usePendingMarkdownAutosave', () => ({
+  usePendingMarkdownAutosave: () => ({
+    configureMarkdownListener: () => () => {},
+    createUserInputMarker: () => () => {},
+    setEditorGetter: vi.fn(),
+  }),
+}));
 
 const ProseSchema = (ProseModel as unknown as {
   Schema: new (spec: Record<string, unknown>) => {
@@ -46,6 +127,55 @@ function createContext(parser: (markdown: string) => unknown) {
 
   return { ctx, dispatch, nodeFromJSON, replace, view };
 }
+
+function createLargePlainMarkdown(): string {
+  return [
+    '# Large Fast Path',
+    '',
+    ...Array.from({ length: 1100 }, (_, index) => `Paragraph ${index} ${'plain text '.repeat(90)}`),
+  ].join('\n\n');
+}
+
+function createMockActiveEditor() {
+  const dispatch = vi.fn();
+  const replace = vi.fn(() => ({ step: 'replace' }));
+  const parser = vi.fn((markdown: string) => ({ content: { type: 'parsed-doc-content', markdown } }));
+  const view = {
+    dom: document.createElement('div'),
+    dispatch,
+    state: {
+      doc: { content: { size: 12 } },
+      tr: { replace },
+    },
+  };
+  const ctx = {
+    get: vi.fn((token: unknown) => {
+      if (token === editorViewCtx) return view;
+      if (token === parserCtx) return parser;
+      if (token === serializerCtx) return () => mocks.editorState.serializedMarkdown;
+      throw new Error('Unexpected token');
+    }),
+  };
+  const action = vi.fn((callback: (ctx: unknown) => unknown) => callback(ctx));
+  const editor = { action, ctx };
+  mocks.editorState.activeEditor = editor;
+  return { action, dispatch, parser, replace };
+}
+
+beforeEach(() => {
+  mocks.notesState.currentNote = { path: 'small.md', content: '# Small' };
+  mocks.notesState.currentNoteDiskRevision = 1;
+  mocks.notesState.updateContent.mockClear();
+  mocks.notesState.saveNote.mockClear();
+  mocks.notesState.isNewlyCreated = false;
+  mocks.notesState.notesPath = '/vault';
+  mocks.editorState.activeEditor = null;
+  mocks.editorState.serializedMarkdown = '# Small';
+});
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('replaceEditorMarkdown', () => {
   it('returns false without dispatching when the parser throws', () => {
@@ -186,6 +316,37 @@ describe('replaceEditorMarkdown', () => {
   });
 });
 
+describe('MilkdownEditorInner lazy block visibility', () => {
+  it('recomputes lazy block visibility when switching to a large plain note', () => {
+    const { container, rerender } = render(<MilkdownEditorInner />);
+    const getShell = () => container.querySelector<HTMLElement>('[data-note-content-root="true"]');
+
+    expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBeNull();
+
+    mocks.notesState.currentNote = { path: 'large.md', content: createLargePlainMarkdown() };
+    mocks.notesState.currentNoteDiskRevision = 2;
+    rerender(<MilkdownEditorInner showBodyLineNumbers />);
+
+    expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBe('true');
+  });
+});
+
+describe('MilkdownEditorInner external content sync', () => {
+  it('replaces same-revision store content when the editor still has stale startup markdown', () => {
+    const editor = createMockActiveEditor();
+    const { rerender } = render(<MilkdownEditorInner />);
+
+    expect(editor.replace).not.toHaveBeenCalled();
+
+    mocks.notesState.currentNote = { path: 'small.md', content: '# Updated' };
+    rerender(<MilkdownEditorInner showBodyLineNumbers />);
+
+    expect(editor.parser).toHaveBeenCalledWith('# Updated');
+    expect(editor.replace).toHaveBeenCalledTimes(1);
+    expect(editor.dispatch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('createDocumentStartTextSelection', () => {
   it('skips a leading atomic block and places the cursor in the first text block', () => {
     const schema = new ProseSchema({
@@ -322,11 +483,35 @@ describe('createLargePlainMarkdownDocJSON', () => {
     expect(createLargePlainMarkdownDocJSON(markdown)).toBeNull();
   });
 
+  it('rejects large markdown with GFM autolink literals', () => {
+    const paragraph = 'plain text '.repeat(120);
+    const cases = [
+      `Paragraph with https://example.com/path ${paragraph}`,
+      `Paragraph with www.example.com ${paragraph}`,
+      `Paragraph with hello@example.com ${paragraph}`,
+      `# Heading with https://example.com`,
+    ];
+
+    for (const line of cases) {
+      const markdown = [
+        '# Large Autolink Document',
+        '',
+        ...Array.from({ length: 1100 }, (_value, index) => (
+          index === 100 ? line : `Paragraph ${index} ${paragraph}`
+        )),
+      ].join('\n\n');
+
+      expect(markdown.length).toBeGreaterThan(1_000_000);
+      expect(createLargePlainMarkdownDocJSON(markdown)).toBeNull();
+    }
+  });
+
   it('rejects large markdown with structural list and rule syntax', () => {
     const paragraph = 'plain text '.repeat(120);
     const cases = [
       `- item ${paragraph}`,
       `1. item ${paragraph}`,
+      `: definition ${paragraph}`,
       `---`,
       `----`,
       `****`,

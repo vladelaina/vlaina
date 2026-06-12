@@ -345,6 +345,7 @@ function normalizeSrcset(value: string) {
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed)) return null
 
+  const candidates: string[] = []
   let candidateStart = 0
   let candidateCount = 0
   for (let index = 0; index <= trimmed.length; index += 1) {
@@ -361,12 +362,20 @@ function normalizeSrcset(value: string) {
       return null
 
     const parts = getSrcsetCandidateParts(candidate)
-    if (!parts || hasProtocol(parts[0]) || parts[0].startsWith('//') || normalizeUrl(parts[0], mediaProtocols, { blockLocalNetwork: true, allowPlainRelative: true }) !== parts[0])
+    if (!parts)
+      return null
+    const normalizedSource = normalizeUrl(parts[0], mediaProtocols, {
+      blockLocalNetwork: true,
+      allowPlainRelative: true,
+      allowProtocolRelative: true,
+    })
+    if (!normalizedSource)
       return null
     if (parts[1] && !srcsetDescriptorPattern.test(parts[1]))
       return null
+    candidates.push(parts[1] ? `${normalizedSource} ${parts[1]}` : normalizedSource)
   }
-  return candidateCount > 0 ? trimmed : null
+  return candidateCount > 0 ? candidates.join(', ') : null
 }
 
 function sanitizeChildren(source: Element | DocumentFragment, target: Element | DocumentFragment, context: SanitizeContext, depth: number) {

@@ -126,6 +126,16 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('does not create stored attachments from non-image filenames', () => {
+    expect(createStoredAttachmentFromSource('secret.txt')).toBeNull();
+    expect(createStoredAttachmentFromSource('attachment://secret.txt')).toBeNull();
+    expect(createStoredAttachmentFromSource('demo.png')).toMatchObject({
+      assetUrl: 'demo.png',
+      name: 'demo.png',
+      type: 'image/png',
+    });
+  });
+
   it('rejects oversized image attachments before reading or writing them', async () => {
     const file = new File(['small'], 'huge.png', { type: 'image/png' });
     Object.defineProperty(file, 'size', {
@@ -367,6 +377,23 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('sanitizes existing SVG preview data when converting to base64', async () => {
+    const unsafeSvg = '<svg><script>alert(1)</script><path /></svg>';
+    const safeSvg = '<svg><path /></svg>';
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '',
+      previewUrl: `data:image/svg+xml;base64,${window.btoa(unsafeSvg)}`,
+      assetUrl: '',
+      name: 'diagram.svg',
+      type: 'image/svg+xml',
+      size: unsafeSvg.length,
+    })).resolves.toBe(`data:image/svg+xml;base64,${window.btoa(safeSvg)}`);
+
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('creates stored attachment metadata only from safe stored sources', () => {
     expect(createStoredAttachmentFromSource('demo.jpg', 'image')).toMatchObject({
       id: 'image',
@@ -399,6 +426,27 @@ describe('attachmentStorage', () => {
     })).resolves.toBe('data:image/png;base64,SEk=');
 
     expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
+  });
+
+  it('sanitizes managed SVG attachment files when converting to base64', async () => {
+    const unsafeSvg = '<svg><script>alert(1)</script><path /></svg>';
+    const safeSvg = '<svg><path /></svg>';
+    mocks.adapter.readBinaryFile.mockResolvedValueOnce(new TextEncoder().encode(unsafeSvg));
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/appdata/.vlaina/attachments/diagram.svg',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'diagram.svg',
+      type: 'image/svg+xml',
+      size: unsafeSvg.length,
+    })).resolves.toBe(`data:image/svg+xml;base64,${window.btoa(safeSvg)}`);
+
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/attachments/diagram.svg',
+      MAX_ATTACHMENT_IMAGE_BYTES,
+    );
   });
 
   it('reads explicitly allowed attachment paths when preview data is not inline', async () => {

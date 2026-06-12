@@ -28,6 +28,7 @@ const MAX_VAULT_PATH_CHARS = 4096;
 const MAX_VAULT_BROADCAST_LABEL_CHARS = 512;
 const MAX_VAULT_BROADCAST_REQUEST_ID_CHARS = 128;
 export const MAX_PENDING_VAULT_BROADCAST_QUERIES = 100;
+const UNSAFE_VAULT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 const MAX_RECENT_VAULTS = 5;
 
@@ -251,6 +252,32 @@ function normalizeVaultTimestamp(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
 }
 
+function isAbsoluteVaultPath(path: string): boolean {
+  return (
+    path.startsWith('/') ||
+    /^[A-Za-z]:\//.test(path) ||
+    /^\/\/[^/]+\/[^/]+/.test(path)
+  );
+}
+
+function normalizeSafeVaultPath(path: string): string | null {
+  if (!path || path.length > MAX_VAULT_PATH_CHARS || UNSAFE_VAULT_PATH_CHARS.test(path)) {
+    return null;
+  }
+
+  const normalizedPath = normalizeVaultPath(path);
+  if (
+    !normalizedPath ||
+    normalizedPath.length > MAX_VAULT_PATH_CHARS ||
+    UNSAFE_VAULT_PATH_CHARS.test(normalizedPath) ||
+    !isAbsoluteVaultPath(normalizedPath)
+  ) {
+    return null;
+  }
+
+  return normalizedPath;
+}
+
 export function normalizeVaultInfo(vault: VaultInfo): VaultInfo;
 export function normalizeVaultInfo(vault: unknown): VaultInfo | null;
 export function normalizeVaultInfo(vault: unknown): VaultInfo | null {
@@ -262,12 +289,15 @@ export function normalizeVaultInfo(vault: unknown): VaultInfo | null {
   if (
     typeof candidate.path !== 'string' ||
     candidate.path.length === 0 ||
-    candidate.path.length > MAX_VAULT_PATH_CHARS
+      candidate.path.length > MAX_VAULT_PATH_CHARS
   ) {
     return null;
   }
 
-  const normalizedPath = normalizeVaultPath(candidate.path);
+  const normalizedPath = normalizeSafeVaultPath(candidate.path);
+  if (!normalizedPath) {
+    return null;
+  }
   const id = typeof candidate.id === 'string' && candidate.id.length <= MAX_VAULT_ID_CHARS
     ? candidate.id
     : generateVaultId();
@@ -408,7 +438,8 @@ export function parseVaultBroadcastMessage(value: unknown): VaultBroadcastMessag
 
   if (data.type === 'query') {
     const vaultPath = normalizeBroadcastString(data.vaultPath, MAX_VAULT_PATH_CHARS);
-    return vaultPath ? { type: 'query', requestId, vaultPath: normalizeVaultPath(vaultPath) } : null;
+    const normalizedVaultPath = vaultPath ? normalizeSafeVaultPath(vaultPath) : null;
+    return normalizedVaultPath ? { type: 'query', requestId, vaultPath: normalizedVaultPath } : null;
   }
 
   if (data.type === 'response') {
@@ -468,7 +499,10 @@ export function setupBroadcastChannel() {
 }
 
 export async function queryVaultOpenInOtherWindow(path: string): Promise<string | null> {
-  const normalizedPath = normalizeVaultPath(path);
+  const normalizedPath = normalizeSafeVaultPath(path);
+  if (!normalizedPath) {
+    return null;
+  }
   const requestId = `req-${crypto.randomUUID()}`;
   setupBroadcastChannel();
   if (pendingQueries.size >= MAX_PENDING_VAULT_BROADCAST_QUERIES) {

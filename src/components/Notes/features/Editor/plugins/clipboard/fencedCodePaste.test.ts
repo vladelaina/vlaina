@@ -187,6 +187,12 @@ describe('looksLikeMarkdownForPaste', () => {
         expect(looksLikeMarkdownForPaste('[^1]: Footnote body')).toBe(true);
     });
 
+    it('detects definition list markdown', () => {
+        expect(looksLikeMarkdownForPaste(['Term', ': Definition'].join('\n'))).toBe(true);
+        expect(looksLikeMarkdownForPaste(['Term', '', ': Definition'].join('\n'))).toBe(true);
+        expect(looksLikeMarkdownForPaste(['Term', '', '\\: Definition'].join('\n'))).toBe(false);
+    });
+
     it('detects custom inline markdown marks', () => {
         expect(looksLikeMarkdownForPaste('==highlight==')).toBe(true);
         expect(looksLikeMarkdownForPaste('++underline++')).toBe(true);

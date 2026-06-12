@@ -17,6 +17,7 @@ const hoisted = vi.hoisted(() => ({
 }));
 
 vi.mock('./pathOperations', () => ({
+  getParentPath: (path: string) => path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '',
   resolveUniquePath: hoisted.resolveUniquePath,
 }));
 
@@ -248,5 +249,47 @@ describe('createNoteImpl', () => {
 
     expect(result.modifiedAt).toBeNull();
     expect(result.size).toBeNull();
+  });
+
+  it('adds created notes to the normalized result parent in returned tree children', async () => {
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'archive/alpha.md',
+      fullPath: '/vault/archive/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await createNoteImpl('/vault', 'archive/.', 'alpha', '# Alpha', {
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        children: [{
+          id: 'archive',
+          name: 'archive',
+          path: 'archive',
+          isFolder: true,
+          children: [],
+          expanded: false,
+        }],
+        expanded: true,
+      },
+      recentNotes: [],
+      noteMetadata: null,
+    });
+
+    expect(adapter.mkdir).toHaveBeenCalledWith('/vault/archive', true);
+    expect(result.newChildren).toEqual([
+      expect.objectContaining({
+        path: 'archive',
+        children: [
+          expect.objectContaining({
+            path: 'archive/alpha.md',
+            name: 'alpha',
+          }),
+        ],
+        expanded: true,
+      }),
+    ]);
   });
 });

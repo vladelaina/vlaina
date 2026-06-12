@@ -119,6 +119,55 @@ describe('fileSystemSlice create state races', () => {
     expect(harness.getState().recentNotes).toEqual(['Untitled.md', 'beta.md', 'old.md']);
   });
 
+  it('adds created notes to the normalized result parent path', async () => {
+    hoisted.createNoteImpl.mockResolvedValue({
+      relativePath: 'archive/Untitled.md',
+      fileName: 'Untitled.md',
+      content: '',
+      modifiedAt: 1,
+      size: 0,
+      updatedMetadata: {
+        version: 2,
+        notes: {
+          'archive/Untitled.md': { createdAt: 1, updatedAt: 1 },
+        },
+      },
+      newChildren: [],
+    });
+    const harness = createSliceHarness({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{
+          id: 'archive',
+          name: 'archive',
+          path: 'archive',
+          isFolder: true,
+          expanded: false,
+          children: [],
+        }],
+      },
+    });
+
+    await harness.getState().createNote('archive/.');
+
+    expect(harness.getState().rootFolder.children).toEqual([
+      expect.objectContaining({
+        path: 'archive',
+        children: [
+          expect.objectContaining({
+            path: 'archive/Untitled.md',
+            name: 'Untitled',
+          }),
+        ],
+        expanded: true,
+      }),
+    ]);
+  });
+
   it('uses the latest tree sort mode when folder creation is in flight', async () => {
     let resolveMkdir: () => void;
     hoisted.resolveUniquePath.mockResolvedValue({

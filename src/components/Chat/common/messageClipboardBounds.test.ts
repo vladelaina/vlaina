@@ -109,6 +109,21 @@ describe('messageClipboard bounded image parsing', () => {
     expect(copied).not.toContain('&semi;base64&comma;');
   });
 
+  it('scrubs escaped-scheme overflow inline data images from bounded copy text fallback', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      String.raw`B ![third](data\:image/png;base64,def)`,
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+    ].join('\n'));
+    expect(copied).not.toContain(String.raw`data\:image`);
+  });
+
   it('keeps overflow inline data image examples inside code spans', () => {
     const content = [
       'A ![first](https://example.com/first.png)',

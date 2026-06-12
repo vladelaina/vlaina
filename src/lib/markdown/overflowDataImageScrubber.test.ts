@@ -50,6 +50,15 @@ describe('overflowDataImageScrubber', () => {
     })).toBe('[image]');
   });
 
+  it('scrubs markdown data image targets with escaped scheme punctuation', () => {
+    const content = String.raw`![real](<data\:image/png;base64,abc>)`;
+
+    expect(scrubOverflowMarkdownDataImages(content, {
+      replacement: '[image]',
+      maxTargetChars: 4096,
+    })).toBe('[image]');
+  });
+
   it('scrubs markdown data images with long labels', () => {
     const content = `![${'a'.repeat(2048)}](<data:image/png;base64,abc>)`;
 

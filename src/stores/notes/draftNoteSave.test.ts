@@ -21,8 +21,26 @@ vi.mock('@/lib/storage/adapter', () => ({
     return index <= 0 ? '' : path.slice(0, index);
   },
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const driveMatch = normalized.match(/^([A-Za-z]:)(?:\/|$)/);
+    const root = driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '';
+    if (!root) return path;
+
+    const parts: string[] = [];
+    const rest = normalized.slice(root.length).replace(/^\/+/, '');
+    for (const part of rest.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+
+    return parts.length > 0 ? `${root}${parts.join('/')}` : root;
+  },
   normalizePath: (path: string) => path,
-  relativePath: (base: string, target: string) => target.slice(base.replace(/\/+$/, '').length + 1),
 }));
 
 describe('draft note save', () => {
@@ -46,6 +64,28 @@ describe('draft note save', () => {
     expect(resolveDraftSaveLocation('/vault/.notes/alpha.md', '/vault')).toEqual({
       absolutePath: '/vault/.notes/alpha.md',
       relativePath: '.notes/alpha.md',
+    });
+  });
+
+  it('normalizes selected paths before deciding whether they are inside the vault', () => {
+    expect(resolveDraftSaveLocation('/vault/docs/../alpha.md', '/vault')).toEqual({
+      absolutePath: '/vault/docs/../alpha.md',
+      relativePath: 'alpha.md',
+    });
+    expect(resolveDraftSaveLocation('/vault/../secret.md', '/vault')).toEqual({
+      absolutePath: '/vault/../secret.md',
+      relativePath: null,
+    });
+  });
+
+  it('resolves root vault and Windows case variants as vault-relative save locations', () => {
+    expect(resolveDraftSaveLocation('/alpha.md', '/')).toEqual({
+      absolutePath: '/alpha.md',
+      relativePath: 'alpha.md',
+    });
+    expect(resolveDraftSaveLocation('c:/Vault/docs/alpha.md', 'C:/Vault')).toEqual({
+      absolutePath: 'c:/Vault/docs/alpha.md',
+      relativePath: 'docs/alpha.md',
     });
   });
 

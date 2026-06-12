@@ -8,6 +8,7 @@ const MAX_GLOBAL_ASSET_BYTES = 10 * 1024 * 1024;
 export const MAX_GLOBAL_ICON_SCAN_ENTRIES = 10_000;
 export const MAX_GLOBAL_ICON_SCAN_RESULTS = 2000;
 const GLOBAL_ICON_FILENAME_PATTERN = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
+const UNSAFE_GLOBAL_ASSET_ENTRY_NAME_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const GLOBAL_ICON_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/gif': ['gif'],
   'image/jpeg': ['jpg', 'jpeg'],
@@ -42,7 +43,11 @@ function getKnownGlobalAssetModifiedAt(modifiedAt: number | null | undefined): n
 }
 
 function isSafeGlobalAssetEntryName(name: string): boolean {
-  return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
+  return Boolean(name)
+    && name !== '.'
+    && name !== '..'
+    && !/[\\/]/.test(name)
+    && !UNSAFE_GLOBAL_ASSET_ENTRY_NAME_CHARS.test(name);
 }
 
 function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {

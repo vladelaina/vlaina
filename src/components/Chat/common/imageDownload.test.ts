@@ -129,33 +129,35 @@ describe('imageDownload', () => {
     }));
   });
 
-  it('falls back to browser anchor download when fetch returns a non-image blob', async () => {
+  it('does not anchor-download fetched responses with explicit non-image MIME types', async () => {
     mocks.fetch.mockResolvedValue(imageResponse(new Blob(['<html>not an image</html>'], { type: 'text/html' })));
     const appendSpy = vi.spyOn(document.body, 'appendChild');
     const removeSpy = vi.spyOn(document.body, 'removeChild');
-    const appendCallsBefore = appendSpy.mock.calls.length;
-    const removeCallsBefore = removeSpy.mock.calls.length;
-    const clickSpy = vi.fn();
-    const originalCreateElement = document.createElement.bind(document);
-    const createSpy = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
-      const element = originalCreateElement(tagName) as HTMLAnchorElement;
-      if (tagName === 'a') {
-        element.click = clickSpy;
-      }
-      return element;
-    }) as typeof document.createElement);
 
     await downloadImageWithPrompt('https://example.com/not-image.png', 'not-image');
 
     expect(mocks.saveDialog).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
-    expect(clickSpy).toHaveBeenCalledTimes(1);
-    expect(appendSpy.mock.calls.length - appendCallsBefore).toBe(1);
-    expect(removeSpy.mock.calls.length - removeCallsBefore).toBe(1);
+    expect(appendSpy).not.toHaveBeenCalled();
+    expect(removeSpy).not.toHaveBeenCalled();
 
-    createSpy.mockRestore();
     appendSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+
+  it('saves bounded image responses with image extensions even when MIME metadata is missing', async () => {
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1, 2])], { type: '' })));
+
+    await downloadImageWithPrompt('https://example.com/image.webp', 'photo');
+
+    expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
+      defaultPath: 'photo.webp',
+      filters: [{ name: 'Images', extensions: ['webp', 'png', 'jpg', 'jpeg', 'gif', 'bmp'] }],
+    }));
+    expect(mocks.writeDesktopBinaryFile).toHaveBeenCalledWith(
+      '/downloads/custom-image.png',
+      expect.any(Uint8Array),
+    );
   });
 
   it('resolves bare stored attachment filenames before downloading', async () => {

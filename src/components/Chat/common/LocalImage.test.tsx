@@ -126,6 +126,17 @@ describe('LocalImage', () => {
     expect(image).toHaveAttribute('src', 'data:image/png;base64,PHN2Zz4=');
   });
 
+  it('rejects non-image stored attachment filenames before reading storage', async () => {
+    render(<LocalImage src="attachment://secret.txt" alt="secret" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(screen.queryByAltText('secret')).not.toBeInTheDocument();
+    expect(mocks.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('shows unavailable state for oversized stored attachments before reading them', async () => {
     mocks.stat.mockResolvedValueOnce({ size: 10 * 1024 * 1024 + 1 });
 

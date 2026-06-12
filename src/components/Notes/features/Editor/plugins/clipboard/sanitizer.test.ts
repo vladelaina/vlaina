@@ -174,6 +174,18 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('mailto:');
   });
 
+  it('keeps public remote source srcset candidates', () => {
+    const result = sanitizeHtml([
+      '<source srcset="https://example.com/safe.webp 1x, //cdn.example.com/safe@2x.webp 2x">',
+      '<source srcset="https://user:pass@example.com/secret.webp 1x">',
+      '<source srcset="//127.0.0.1:3000/secret.webp 1x">',
+    ].join(''));
+
+    expect(result).toBe(
+      '<source srcset="https://example.com/safe.webp 1x, https://cdn.example.com/safe@2x.webp 2x"><source><source>',
+    );
+  });
+
   it('blocks local-network image sources that would be auto-loaded on open', () => {
     const result = sanitizeHtml([
       '<img src="http://localhost:3000/secret.png">',

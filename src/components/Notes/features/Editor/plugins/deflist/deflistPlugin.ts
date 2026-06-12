@@ -1,10 +1,13 @@
 // Definition list plugin
 // Supports: term\n: definition syntax
 
+import { remarkPluginsCtx, schemaTimerCtx } from '@milkdown/core';
+import { createTimer, type MilkdownPlugin } from '@milkdown/ctx';
 import { $node, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
+import { remarkDefinitionLists } from '@/components/common/markdown/definitionListMarkdown';
 import {
     DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     SKIP_PROSE_DESCENDANTS,
@@ -18,6 +21,29 @@ import {
     transactionTouchesDecorations,
     type DecorationSetLike,
 } from '../shared/transactionStepText';
+
+const definitionListsRemarkReady = createTimer('definitionListsRemarkReady');
+
+export const remarkDefinitionListsPlugin: MilkdownPlugin = (ctx) => {
+    ctx.record(definitionListsRemarkReady);
+    ctx.update(schemaTimerCtx, (timers) => timers.concat(definitionListsRemarkReady));
+
+    return async () => {
+        const remarkPlugin = {
+            plugin: remarkDefinitionLists,
+            options: undefined,
+        };
+
+        ctx.update(remarkPluginsCtx, (plugins) => plugins.concat(remarkPlugin as any));
+        ctx.done(definitionListsRemarkReady);
+
+        return () => {
+            ctx.update(remarkPluginsCtx, (plugins) => plugins.filter((plugin) => plugin !== (remarkPlugin as any)));
+            ctx.update(schemaTimerCtx, (timers) => timers.filter((timer) => timer !== definitionListsRemarkReady));
+            ctx.clearTimer(definitionListsRemarkReady);
+        };
+    };
+};
 
 // Definition List container
 export const definitionListSchema = $node('definition_list', () => ({
@@ -311,6 +337,7 @@ export const deflistVisualPlugin = $prose(() => {
 
 // Combined definition list plugin
 export const deflistPlugin = [
+    remarkDefinitionListsPlugin,
     definitionListSchema,
     definitionTermSchema,
     definitionDescSchema,

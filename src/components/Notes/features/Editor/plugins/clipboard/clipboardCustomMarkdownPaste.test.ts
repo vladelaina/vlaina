@@ -13,6 +13,7 @@ import { codePlugin } from '../code';
 import { highlightPlugin } from '../highlight';
 import { colorMarksPlugin } from '../floating-toolbar';
 import { videoPlugin } from '../video';
+import { deflistPlugin } from '../deflist';
 
 function simulatePasteText(view: any, text: string): boolean {
   const event = {
@@ -47,7 +48,8 @@ async function createPasteEditor() {
     .use(codePlugin)
     .use(highlightPlugin)
     .use(colorMarksPlugin)
-    .use(videoPlugin);
+    .use(videoPlugin)
+    .use(deflistPlugin);
 
   await editor.create();
   return editor;
@@ -208,6 +210,22 @@ describe('clipboard custom markdown paste', () => {
 
     expect(simulatePasteText(view, '![Alt](image.png "Title")')).toBe(true);
     expect(view.state.doc.firstChild?.firstChild?.type.name).toBe('image');
+
+    await editor.destroy();
+  });
+
+  it('recognizes pasted definition list markdown', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, ['Term', ': Definition'].join('\n'))).toBe(true);
+
+    const definitionList = view.state.doc.firstChild;
+    expect(definitionList?.type.name).toBe('definition_list');
+    expect(definitionList?.child(0).type.name).toBe('definition_term');
+    expect(definitionList?.child(0).textContent).toBe('Term');
+    expect(definitionList?.child(1).type.name).toBe('definition_desc');
+    expect(definitionList?.child(1).textContent).toBe('Definition');
 
     await editor.destroy();
   });

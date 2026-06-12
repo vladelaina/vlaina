@@ -8,6 +8,7 @@ import {
   isIgnoredWatchPath,
   isMarkdownPath,
   isRemoveWatchEvent,
+  normalizeFsPath,
   toVaultRelativePath,
 } from './notesExternalSyncUtils';
 
@@ -21,6 +22,21 @@ describe('notesExternalSyncUtils', () => {
     expect(renamePaths).toEqual({
       oldPath: 'C:/vault/docs',
       newPath: 'C:/vault/archive',
+    });
+  });
+
+  it('normalizes dot segments in absolute rename paths', () => {
+    expect(normalizeFsPath('/vault/docs/../alpha.md')).toBe('/vault/alpha.md');
+    expect(normalizeFsPath('docs/../alpha.md')).toBe('docs/../alpha.md');
+
+    const renamePaths = getAbsoluteRenameWatchPaths({
+      type: { modify: { kind: 'rename', mode: 'both' } },
+      paths: ['/vault/docs/../alpha.md', '/vault/archive/./alpha.md'],
+    });
+
+    expect(renamePaths).toEqual({
+      oldPath: '/vault/alpha.md',
+      newPath: '/vault/archive/alpha.md',
     });
   });
 

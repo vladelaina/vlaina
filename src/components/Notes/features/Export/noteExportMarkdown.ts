@@ -2,7 +2,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { mapMarkdownOutsideProtectedSegments } from '@/lib/notes/markdown/markdownProtectedBlocks';
-import { getNoteInternalImageAssetPath } from '@/lib/notes/markdown/urlSecurity';
+import { getNoteInternalImageAssetPath, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import {
   MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
   findExportMarkdownAssetSourceTokensWithOptions,
@@ -67,6 +67,28 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function getExportLocalImageAssetPath(src: string): string | null {
+  const safeSrc = sanitizeNoteMediaSrc(src);
+  if (!safeSrc) {
+    return null;
+  }
+
+  const internalAssetPath = getNoteInternalImageAssetPath(safeSrc);
+  if (internalAssetPath) {
+    return hasInternalNoteAssetUrlPathSegment(internalAssetPath) ? null : internalAssetPath;
+  }
+
+  if (
+    safeSrc.startsWith('//') ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:/i.test(safeSrc) ||
+    hasInternalNoteAssetUrlPathSegment(safeSrc)
+  ) {
+    return null;
+  }
+
+  return safeSrc;
+}
+
 async function resolveAssetUrl(
   src: string,
   notesPath: string,
@@ -74,8 +96,8 @@ async function resolveAssetUrl(
   remainingEmbeddedBytes: number,
   fallbackSrc = src,
 ): Promise<ResolvedExportAssetUrl> {
-  const assetPath = getNoteInternalImageAssetPath(src);
-  if (!assetPath || !notesPath || hasInternalNoteAssetUrlPathSegment(assetPath)) {
+  const assetPath = getExportLocalImageAssetPath(src);
+  if (!assetPath || !notesPath) {
     return { url: fallbackSrc, embeddedBytes: 0 };
   }
 

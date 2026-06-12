@@ -128,8 +128,13 @@ function logE2EMilkdownTiming(label: string, detail: Record<string, unknown>): v
 const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
 const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|&]/;
+const FAST_PARSE_GFM_AUTOLINK_TEXT_PATTERN = /(?:https?:\/\/|www\.|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i;
 const FAST_PARSE_HEADING_PATTERN = /^(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/;
-const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|(?:[-*_][ \t]*){3,}$|=+[ \t]*$)/;
+const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|:\s+|(?:[-*_][ \t]*){3,}$|=+[ \t]*$)/;
+
+function needsFullMarkdownInlineParsing(text: string): boolean {
+  return FAST_PARSE_DISALLOWED_TEXT_PATTERN.test(text) || FAST_PARSE_GFM_AUTOLINK_TEXT_PATTERN.test(text);
+}
 
 export function shouldUseLazyBlockVisibility(markdown: string): boolean {
   return createLargePlainMarkdownDocJSON(markdown) !== null;
@@ -173,7 +178,7 @@ export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJS
     const headingMatch = FAST_PARSE_HEADING_PATTERN.exec(line);
     if (headingMatch) {
       const text = (headingMatch[2] ?? '').replace(/(?:^|[ \t]+)#+[ \t]*$/, '').trimEnd();
-      if (!text || FAST_PARSE_DISALLOWED_TEXT_PATTERN.test(text)) {
+      if (!text || needsFullMarkdownInlineParsing(text)) {
         return null;
       }
       content.push({
@@ -192,7 +197,7 @@ export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJS
     if (
       /^\s/.test(line)
       || FAST_PARSE_STRUCTURAL_LINE_PATTERN.test(line)
-      || FAST_PARSE_DISALLOWED_TEXT_PATTERN.test(line)
+      || needsFullMarkdownInlineParsing(line)
     ) {
       return null;
     }
@@ -327,6 +332,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const activatedEditorRef = useRef<ActiveMilkdownEditor | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const activationCleanupRef = useRef<(() => void) | null>(null);
+  const lazyBlockVisibilityRef = useRef<{ key: string; value: boolean } | null>(null);
   const [activatedRevision, setActivatedRevision] = useState(0);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
   const markLocalMarkdownCommitted = useCallback((content: string) => {
@@ -622,15 +628,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
       const view = editor.ctx.get(editorViewCtx) as EditorView;
       const isSameNotePath = lastAppliedNote.path === currentNotePath;
-      if (isSameNotePath && lastAppliedNote.diskRevision === currentNoteDiskRevision) {
-        lastAppliedNoteRef.current = {
-          path: currentNotePath,
-          diskRevision: currentNoteDiskRevision,
-          content: currentNoteContent,
-        };
-        return;
-      }
       let liveSerializer: ((doc: unknown) => string) | null = null;
+      let shouldPreserveSameRevisionWithoutReplace = false;
       try {
         liveSerializer = editor.ctx.get(serializerCtx) as (doc: unknown) => string;
       } catch {
@@ -651,8 +650,20 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
             return;
           }
         } catch {
-          // Fall through to the replace path when serialization is unavailable.
+          shouldPreserveSameRevisionWithoutReplace = true;
         }
+      }
+      if (
+        isSameNotePath &&
+        lastAppliedNote.diskRevision === currentNoteDiskRevision &&
+        (!liveSerializer || shouldPreserveSameRevisionWithoutReplace)
+      ) {
+        lastAppliedNoteRef.current = {
+          path: currentNotePath,
+          diskRevision: currentNoteDiskRevision,
+          content: currentNoteContent,
+        };
+        return;
       }
       const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
       const scrollTop = isSameNotePath ? scrollRoot?.scrollTop ?? null : null;
@@ -740,10 +751,14 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [currentNoteContent]);
 
   const shouldFocusEmptyDraftBody = isDraftNote && !isNewlyCreated && isEmptyContent;
-  const useLazyBlockVisibility = useMemo(
-    () => shouldUseLazyBlockVisibility(currentNoteContent),
-    [currentNoteDiskRevision, currentNotePath],
-  );
+  const lazyBlockVisibilityKey = `${currentNotePath ?? ''}\0${currentNoteDiskRevision}`;
+  if (lazyBlockVisibilityRef.current?.key !== lazyBlockVisibilityKey) {
+    lazyBlockVisibilityRef.current = {
+      key: lazyBlockVisibilityKey,
+      value: shouldUseLazyBlockVisibility(currentNoteContent),
+    };
+  }
+  const useLazyBlockVisibility = lazyBlockVisibilityRef.current.value;
 
   const focusEditorBody = useCallback(() => {
     try {
