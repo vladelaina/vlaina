@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   CHAT_COMPOSER_TEXTAREA_SELECTOR,
   EDITOR_SELECTOR,
@@ -12,6 +12,7 @@ import {
 const TOOLBAR_SELECTOR = '.floating-toolbar.visible';
 const LIVE_EDITOR_SELECTOR = `${EDITOR_SELECTOR}:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])`;
 const PREVIEW_OVERLAY_SELECTOR = '.toolbar-applied-preview-overlay';
+const VISIBLE_LINK_TOOLTIP_SELECTOR = '.link-tooltip-container:not(.hidden)';
 const LARGE_PREVIEW_DOC_MIN_LENGTH = 300_000;
 
 type ToolbarMarkCase = {
@@ -208,6 +209,30 @@ async function expectSelectionOverlay(page: Page, text: string) {
   }).toBe(true);
 }
 
+function visibleLinkTooltip(page: Page): Locator {
+  return page.locator(VISIBLE_LINK_TOOLTIP_SELECTOR).first();
+}
+
+async function clickLinkToolbarAndWaitForEditor(page: Page): Promise<{
+  tooltip: Locator;
+  input: Locator;
+}> {
+  await clickToolbarAction(page, 'link');
+  const tooltip = visibleLinkTooltip(page);
+  await expect(tooltip).toBeVisible({ timeout: 10_000 });
+  const input = tooltip.locator('textarea').first();
+  await expect(input).toBeVisible({ timeout: 5_000 });
+  await expect(input).toBeFocused({ timeout: 5_000 });
+  return { tooltip, input };
+}
+
+async function clickVisibleLinkTooltipAction(page: Page, index = 0): Promise<void> {
+  const action = visibleLinkTooltip(page).locator('.link-tooltip-action-btn').nth(index);
+  await expect(action).toBeVisible({ timeout: 5_000 });
+  await action.click();
+  await waitForEditorAnimationFrame(page);
+}
+
 function createToolbarCoverageMarkdown() {
   const targets = [
     'AI toolbar menu target',
@@ -394,29 +419,22 @@ test.describe('notes floating toolbar coverage', () => {
       const mouseLinkTarget = 'Mouse link focus target';
       const mouseLinkHref = 'mouse-link-focus';
       await dragSelectEditorText(page, mouseLinkTarget);
-      await clickToolbarAction(page, 'link');
-      const mouseLinkInput = page.locator('.link-tooltip-container textarea').first();
-      await expect(mouseLinkInput).toBeVisible({ timeout: 5_000 });
-      await expect(mouseLinkInput).toBeFocused({ timeout: 5_000 });
+      const { input: mouseLinkInput } = await clickLinkToolbarAndWaitForEditor(page);
       await expectSelectionOverlay(page, mouseLinkTarget);
       await page.keyboard.type(mouseLinkHref);
       await expect(mouseLinkInput).toHaveValue(mouseLinkHref);
-      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
-      await waitForEditorAnimationFrame(page);
+      await clickVisibleLinkTooltipAction(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${mouseLinkHref}"]`, { hasText: mouseLinkTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, mouseLinkTarget, 'link')).toBe(true);
 
       const linkOutsideTarget = 'Link outside close target';
       await selectEditorText(page, linkOutsideTarget);
-      await clickToolbarAction(page, 'link');
-      const blankCloseLinkInput = page.locator('.link-tooltip-container textarea').first();
-      await expect(blankCloseLinkInput).toBeVisible({ timeout: 5_000 });
+      const { input: blankCloseLinkInput } = await clickLinkToolbarAndWaitForEditor(page);
       await expect(blankCloseLinkInput).toHaveAttribute('placeholder', 'URL...');
-      await expect(blankCloseLinkInput).toBeFocused({ timeout: 5_000 });
       await expectSelectionOverlay(page, linkOutsideTarget);
       await clickEditorBlankArea(page);
-      await expect(blankCloseLinkInput).not.toBeVisible({ timeout: 5_000 });
+      await expect(page.locator(VISIBLE_LINK_TOOLTIP_SELECTOR)).toHaveCount(0, { timeout: 5_000 });
       await expect(page.locator(TOOLBAR_SELECTOR)).not.toBeVisible({ timeout: 5_000 });
       await expect.poll(() => page.evaluate(() => {
         const summary = (window as any).__vlainaE2E.getEditorSelectionSummary();
@@ -427,9 +445,7 @@ test.describe('notes floating toolbar coverage', () => {
       const linkTarget = 'Link toolbar target';
       const linkUrl = 'https://example.com/notes-floating-toolbar-link';
       await selectEditorText(page, linkTarget);
-      await clickToolbarAction(page, 'link');
-      const linkInput = page.locator('.link-tooltip-container textarea').first();
-      await expect(linkInput).toBeVisible({ timeout: 5_000 });
+      const { input: linkInput } = await clickLinkToolbarAndWaitForEditor(page);
       await page.keyboard.type(linkUrl);
       await expect(linkInput).toHaveValue(linkUrl);
       await linkInput.press('Enter');
@@ -441,13 +457,10 @@ test.describe('notes floating toolbar coverage', () => {
       const linkCheckTarget = 'Link check button target';
       const linkCheckUrl = 'https://example.com/notes-floating-toolbar-check';
       await selectEditorText(page, linkCheckTarget);
-      await clickToolbarAction(page, 'link');
-      const linkCheckInput = page.locator('.link-tooltip-container textarea').first();
-      await expect(linkCheckInput).toBeVisible({ timeout: 5_000 });
+      const { input: linkCheckInput } = await clickLinkToolbarAndWaitForEditor(page);
       await page.keyboard.type(linkCheckUrl);
       await expect(linkCheckInput).toHaveValue(linkCheckUrl);
-      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
-      await waitForEditorAnimationFrame(page);
+      await clickVisibleLinkTooltipAction(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkCheckUrl}"]`, { hasText: linkCheckTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, linkCheckTarget, 'link')).toBe(true);
@@ -455,13 +468,10 @@ test.describe('notes floating toolbar coverage', () => {
       const linkPlainTarget = 'Link plain href target';
       const linkPlainHref = 'workspace-note';
       await selectEditorText(page, linkPlainTarget);
-      await clickToolbarAction(page, 'link');
-      const linkPlainInput = page.locator('.link-tooltip-container textarea').first();
-      await expect(linkPlainInput).toBeVisible({ timeout: 5_000 });
+      const { input: linkPlainInput } = await clickLinkToolbarAndWaitForEditor(page);
       await page.keyboard.type(linkPlainHref);
       await expect(linkPlainInput).toHaveValue(linkPlainHref);
-      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
-      await waitForEditorAnimationFrame(page);
+      await clickVisibleLinkTooltipAction(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkPlainHref}"]`, { hasText: linkPlainTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, linkPlainTarget, 'link')).toBe(true);
@@ -474,15 +484,14 @@ test.describe('notes floating toolbar coverage', () => {
       ).first();
       await expect(existingLink).toBeVisible({ timeout: 5_000 });
       await existingLink.hover();
-      await expect(page.locator('.link-tooltip-container .link-tooltip-viewer')).toBeVisible({ timeout: 5_000 });
-      await page.locator('.link-tooltip-container .link-tooltip-action-btn').nth(1).click();
-      const existingLinkInput = page.locator('.link-tooltip-container textarea').first();
+      await expect(visibleLinkTooltip(page).locator('.link-tooltip-viewer')).toBeVisible({ timeout: 5_000 });
+      await clickVisibleLinkTooltipAction(page, 1);
+      const existingLinkInput = visibleLinkTooltip(page).locator('textarea').first();
       await expect(existingLinkInput).toBeVisible({ timeout: 5_000 });
       await existingLinkInput.press('Control+A');
       await page.keyboard.type(existingLinkUpdatedHref);
       await expect(existingLinkInput).toHaveValue(existingLinkUpdatedHref);
-      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
-      await waitForEditorAnimationFrame(page);
+      await clickVisibleLinkTooltipAction(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${existingLinkUpdatedHref}"]`, { hasText: existingLinkTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} p`, { hasText: `${existingLinkTarget}! trailing sentinel.` }))

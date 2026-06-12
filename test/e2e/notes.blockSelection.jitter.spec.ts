@@ -3,6 +3,7 @@ import {
   EDITOR_SELECTOR,
   SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
+  getBlankAreaDragTarget,
   getOpenBridgePages,
   launchIsolatedElectron,
 } from "./notesE2E";
@@ -225,47 +226,13 @@ test.describe("notes block selection blank-space jitter", () => {
       await openBlockSelectionFixture(page);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
 
-      const point = await page.evaluate((editorSelector) => {
-        const editor = document.querySelector<HTMLElement>(editorSelector);
-        const scrollRoot = editor?.closest<HTMLElement>('[data-note-scroll-root="true"]');
-        const finalBlock = Array.from(document.querySelectorAll<HTMLElement>(`${editorSelector} p`))
-          .find((element) => element.textContent?.includes('Final paragraph'));
-        if (!editor || !scrollRoot || !finalBlock) return null;
+      const target = await getBlankAreaDragTarget(page, 'Final paragraph');
+      expect(target).not.toBeNull();
+      expect(target!.hitInsideEditor).toBe(false);
 
-        finalBlock.scrollIntoView({ block: 'center', inline: 'nearest' });
-        const editorRect = editor.getBoundingClientRect();
-        const blockRect = finalBlock.getBoundingClientRect();
-        const scrollRootRect = scrollRoot.getBoundingClientRect();
-        const range = document.createRange();
-        range.selectNodeContents(finalBlock);
-        const textRight = Array.from(range.getClientRects())
-          .reduce((right, rect) => Math.max(right, rect.right), blockRect.left);
-        range.detach();
-
-        const preferredX = Math.max(editorRect.right + 56, textRight + 64);
-        const x = preferredX <= scrollRootRect.right - 36
-          ? preferredX
-          : scrollRootRect.right - 36;
-        const y = blockRect.top + blockRect.height / 2;
-        const hit = document.elementFromPoint(x, y);
-        return {
-          x,
-          y,
-          outsideTextGutter: x > textRight + 48,
-          hitInsideEditor: hit instanceof Node && editor.contains(hit),
-          hitInsideScrollRoot: hit instanceof Node && scrollRoot.contains(hit),
-          moveX: Math.max(blockRect.left + 48, editorRect.right - 120),
-          moveY: y + 4,
-        };
-      }, EDITOR_SELECTOR);
-      expect(point).not.toBeNull();
-      expect(point!.outsideTextGutter).toBe(true);
-      expect(point!.hitInsideEditor).toBe(false);
-      expect(point!.hitInsideScrollRoot).toBe(true);
-
-      await page.mouse.move(point!.x, point!.y);
+      await page.mouse.move(target!.startX, target!.startY);
       await page.mouse.down();
-      await page.mouse.move(point!.moveX, point!.moveY, { steps: 10 });
+      await page.mouse.move(target!.endX, target!.endY, { steps: 16 });
       await page.mouse.up();
 
       await expectSelectedParagraphs(page, ['Final paragraph']);
