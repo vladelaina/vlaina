@@ -91,7 +91,8 @@ test.describe('multi-window note document sync', () => {
       );
       await main.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath);
       await main.evaluate(() => (window as any).__vlainaE2E.createWindow({ viewMode: 'notes' }));
-      const [, second] = await getOpenBridgePages(app, 2);
+      const pages = await getOpenBridgePages(app, 2);
+      const second = pages.find((page) => page !== main) ?? pages[1];
       await second.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath);
 
       await main.evaluate(() =>

@@ -85,8 +85,17 @@ export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator)
   if (!rect) {
     throw new Error('Could not resolve block geometry');
   }
-  await page.mouse.move(Math.max(8, rect.x - 18), rect.y + rect.height / 2);
+  const targetCenterY = rect.y + rect.height / 2;
+  await page.mouse.move(Math.max(8, rect.x - 18), targetCenterY);
   await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
+  await expect.poll(async () => page.evaluate(({ controlsSelector, expectedCenterY }) => {
+    const controls = document.querySelector<HTMLElement>(controlsSelector);
+    if (!controls) return Number.POSITIVE_INFINITY;
+    const controlsRect = controls.getBoundingClientRect();
+    return Math.abs((controlsRect.top + controlsRect.height / 2) - expectedCenterY);
+  }, { controlsSelector: BLOCK_CONTROLS_SELECTOR, expectedCenterY: targetCenterY }), {
+    message: 'Expected block controls to align with the hovered block',
+  }).toBeLessThanOrEqual(2);
 }
 
 export async function measureVisibleHandleGeometry(

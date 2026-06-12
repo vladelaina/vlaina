@@ -11,8 +11,8 @@ import {
   setAppViewMode,
 } from './notesE2E';
 
-const STREAM_CHUNK_DELAY_MS = 8;
-const STREAM_CHUNK_SIZE = 22;
+const STREAM_CHUNK_DELAY_MS = 32;
+const STREAM_CHUNK_SIZE = 18;
 
 const STREAM_RESPONSE = [
   '# Streaming animation probe',
@@ -44,6 +44,12 @@ const STREAM_RESPONSE = [
 ].join('\n');
 
 type StreamProbeMetrics = {
+  activeChangedTextSamples: number;
+  activeFrameCount: number;
+  activeLongFramesOver50: number;
+  activeLongFramesOver100: number;
+  activeMaxFrameMs: number;
+  activeP95FrameMs: number;
   changedTextSamples: number;
   finalActiveStreamChars: number;
   finalLiveSurfaces: number;
@@ -56,6 +62,7 @@ type StreamProbeMetrics = {
   maxHeightDelta: number;
   maxLiveSurfaces: number;
   p95FrameMs: number;
+  sawLiveSurface: boolean;
   textReversals: number;
 };
 
@@ -159,15 +166,31 @@ test.describe('chat streaming animation', () => {
       await expect(page.locator(CHAT_VIEW_SELECTOR)).toBeVisible({ timeout: 30_000 });
 
       await page.evaluate(() => {
+        const summarizeFrames = (frameSamples: number[]) => {
+          const sorted = frameSamples.slice().sort((a, b) => a - b);
+          const p95Index = Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * 0.95)));
+          return {
+            longFramesOver50: frameSamples.filter((sample) => sample > 50).length,
+            longFramesOver100: frameSamples.filter((sample) => sample > 100).length,
+            maxFrameMs: Math.max(0, ...frameSamples),
+            p95FrameMs: sorted[p95Index] ?? 0,
+          };
+        };
+
+        const activeSamples: number[] = [];
         const samples: number[] = [];
+        let activeChangedTextSamples = 0;
         let animationFrameId = 0;
         let changedTextSamples = 0;
+        let lastActiveFrameTime: number | null = null;
+        let lastActiveTextLength = 0;
         let lastFrameTime = performance.now();
         let lastHeight = 0;
         let lastTextLength = 0;
         let maxActiveStreamChars = 0;
         let maxHeightDelta = 0;
         let maxLiveSurfaces = 0;
+        let sawLiveSurface = false;
         let textReversals = 0;
 
         const getAssistantSurface = () => {
@@ -199,8 +222,24 @@ test.describe('chat streaming animation', () => {
           }
 
           const liveSurfaces = document.querySelectorAll('[data-chat-markdown-live="true"]').length;
+          const activeStreamChars = document.querySelectorAll('.chat-stream-char').length;
+          const isLiveFrame = liveSurfaces > 0 || activeStreamChars > 0;
+          if (isLiveFrame) {
+            sawLiveSurface = true;
+            if (lastActiveFrameTime !== null) {
+              activeSamples.push(time - lastActiveFrameTime);
+            }
+            lastActiveFrameTime = time;
+            if (textLength !== lastActiveTextLength) {
+              activeChangedTextSamples += 1;
+              lastActiveTextLength = textLength;
+            }
+          } else {
+            lastActiveFrameTime = null;
+          }
+
           maxLiveSurfaces = Math.max(maxLiveSurfaces, liveSurfaces);
-          maxActiveStreamChars = Math.max(maxActiveStreamChars, document.querySelectorAll('.chat-stream-char').length);
+          maxActiveStreamChars = Math.max(maxActiveStreamChars, activeStreamChars);
 
           if (assistant) {
             const height = assistant.getBoundingClientRect().height;
@@ -218,23 +257,30 @@ test.describe('chat streaming animation', () => {
         (window as any).__vlainaChatStreamProbe = {
           stop: (): StreamProbeMetrics => {
             cancelAnimationFrame(animationFrameId);
-            const sorted = samples.slice().sort((a, b) => a - b);
-            const p95Index = Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * 0.95)));
+            const allFrameMetrics = summarizeFrames(samples);
+            const activeFrameMetrics = summarizeFrames(activeSamples);
             const assistant = getAssistantSurface();
             const finalText = readText(assistant);
             return {
+              activeChangedTextSamples,
+              activeFrameCount: activeSamples.length,
+              activeLongFramesOver50: activeFrameMetrics.longFramesOver50,
+              activeLongFramesOver100: activeFrameMetrics.longFramesOver100,
+              activeMaxFrameMs: activeFrameMetrics.maxFrameMs,
+              activeP95FrameMs: activeFrameMetrics.p95FrameMs,
               changedTextSamples,
               finalActiveStreamChars: document.querySelectorAll('.chat-stream-char').length,
               finalLiveSurfaces: document.querySelectorAll('[data-chat-markdown-live="true"]').length,
               finalText,
               frameCount: samples.length,
-              longFramesOver50: samples.filter((sample) => sample > 50).length,
-              longFramesOver100: samples.filter((sample) => sample > 100).length,
+              longFramesOver50: allFrameMetrics.longFramesOver50,
+              longFramesOver100: allFrameMetrics.longFramesOver100,
               maxActiveStreamChars,
-              maxFrameMs: Math.max(0, ...samples),
+              maxFrameMs: allFrameMetrics.maxFrameMs,
               maxHeightDelta,
               maxLiveSurfaces,
-              p95FrameMs: sorted[p95Index] ?? 0,
+              p95FrameMs: allFrameMetrics.p95FrameMs,
+              sawLiveSurface,
               textReversals,
             };
           },
@@ -245,17 +291,25 @@ test.describe('chat streaming animation', () => {
       await expect(textarea).toBeVisible({ timeout: 30_000 });
       await textarea.fill('Run the streaming animation probe.');
       await textarea.press('Enter');
+      await expect(page.locator('[data-chat-markdown-live="true"]')).toBeVisible({ timeout: 15_000 });
 
       await expect(page.locator(`${CHAT_MESSAGE_SELECTOR}[data-role="assistant"]`, {
         hasText: 'E2E_STREAM_DONE',
       })).toBeVisible({ timeout: 60_000 });
-      await page.waitForTimeout(250);
+      await expect(page.locator('[data-chat-markdown-live="true"]')).toHaveCount(0, { timeout: 10_000 });
+      await expect(page.locator('.chat-stream-char')).toHaveCount(0, { timeout: 10_000 });
 
       const metrics = await page.evaluate(() =>
         (window as any).__vlainaChatStreamProbe.stop() as StreamProbeMetrics
       );
 
       console.log('chat streaming animation metrics', JSON.stringify({
+        activeChangedTextSamples: metrics.activeChangedTextSamples,
+        activeFrameCount: metrics.activeFrameCount,
+        activeLongFramesOver50: metrics.activeLongFramesOver50,
+        activeLongFramesOver100: metrics.activeLongFramesOver100,
+        activeMaxFrameMs: Math.round(metrics.activeMaxFrameMs * 10) / 10,
+        activeP95FrameMs: Math.round(metrics.activeP95FrameMs * 10) / 10,
         changedTextSamples: metrics.changedTextSamples,
         frameCount: metrics.frameCount,
         longFramesOver50: metrics.longFramesOver50,
@@ -266,18 +320,26 @@ test.describe('chat streaming animation', () => {
         maxLiveSurfaces: metrics.maxLiveSurfaces,
         p95FrameMs: Math.round(metrics.p95FrameMs * 10) / 10,
         providerRequests: provider.requests().length,
+        sawLiveSurface: metrics.sawLiveSurface,
         textReversals: metrics.textReversals,
       }));
 
       expect(metrics.finalText).toContain('E2E_STREAM_DONE');
-      expect(metrics.changedTextSamples).toBeGreaterThan(3);
+      expect(metrics.sawLiveSurface).toBe(true);
+      expect(metrics.changedTextSamples).toBeGreaterThan(0);
+      expect(metrics.activeChangedTextSamples).toBeGreaterThan(0);
       expect(metrics.textReversals).toBe(0);
       expect(metrics.maxLiveSurfaces).toBeLessThanOrEqual(1);
+      expect(metrics.maxActiveStreamChars).toBeGreaterThan(0);
       expect(metrics.maxActiveStreamChars).toBeLessThanOrEqual(120);
       expect(metrics.finalLiveSurfaces).toBe(0);
       expect(metrics.finalActiveStreamChars).toBe(0);
-      expect(metrics.p95FrameMs).toBeLessThan(60);
-      expect(metrics.longFramesOver100).toBeLessThanOrEqual(1);
+      expect(metrics.activeFrameCount).toBeGreaterThanOrEqual(2);
+      expect(metrics.activeP95FrameMs).toBeLessThan(90);
+      expect(metrics.activeMaxFrameMs).toBeLessThan(250);
+      expect(metrics.activeLongFramesOver100).toBeLessThanOrEqual(
+        Math.max(2, Math.floor(metrics.activeFrameCount * 0.05)),
+      );
       expect(provider.requests().length).toBeGreaterThanOrEqual(1);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

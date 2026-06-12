@@ -200,6 +200,64 @@ export async function openMarkdownFixture(
   throw lastError;
 }
 
+export async function openAbsoluteNote(
+  page: Page,
+  notePath: string,
+): Promise<{
+  storeOpenMs: number;
+  openActionWallMs: number;
+  currentNoteContentLength: number;
+  currentNotePath: string | null;
+}> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const openStartedAt = Date.now();
+      const openTiming = await page.evaluate((pathToOpen) =>
+        (window as any).__vlainaE2E.openAbsoluteNoteWithTiming(pathToOpen), notePath);
+      const openActionWallMs = Date.now() - openStartedAt;
+
+      await expect.poll(async () => page.evaluate((expectedPath) => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const state = (window as any).__vlainaE2E.getNotesState();
+        return {
+          currentNotePath: state.currentNote?.path ?? null,
+          hasEditor: Boolean(editor),
+          hasSourceFallback: Boolean(document.querySelector('[data-note-source-fallback="true"]')),
+          selectableCount: (window as any).__vlainaE2E.getNoteSelectableBlocks().length,
+          expectedPath,
+        };
+      }, notePath), { timeout: 30_000 }).toMatchObject({
+        currentNotePath: notePath,
+        hasEditor: true,
+        hasSourceFallback: false,
+        selectableCount: expect.any(Number),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator(NOTE_SOURCE_FALLBACK_SELECTOR)).toHaveCount(0);
+
+      return {
+        storeOpenMs: Math.round(openTiming.totalMs),
+        openActionWallMs,
+        currentNoteContentLength: openTiming.currentNoteContentLength,
+        currentNotePath: openTiming.currentNotePath,
+      };
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const canRetryDestroyedContext = message.includes('Execution context was destroyed');
+      if (attempt === 2 || !canRetryDestroyedContext) {
+        throw error;
+      }
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => {});
+      await waitForE2EBridge(page).catch(() => {});
+    }
+  }
+
+  throw lastError;
+}
+
 export async function setAppViewMode(page: Page, mode: 'notes' | 'chat'): Promise<void> {
   await page.evaluate((nextMode) => (window as any).__vlainaE2E.setAppViewMode(nextMode), mode);
   if (mode === 'notes') {
@@ -707,10 +765,31 @@ export async function collectEditorVisibilityProblems(page: Page, limit = 50) {
   }, { editorSelector: EDITOR_SELECTOR, maxProblems: limit });
 }
 
+function isNavigationContextError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('Execution context was destroyed') ||
+    message.includes('Cannot find context with specified id') ||
+    message.includes('Most likely because of a navigation');
+}
+
 export async function waitForEditorAnimationFrame(page: Page): Promise<void> {
-  await page.evaluate(() => new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  }));
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.evaluate(() => new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }));
+      return;
+    } catch (error) {
+      lastError = error;
+      if (page.isClosed() || !isNavigationContextError(error) || attempt === 2) {
+        throw error;
+      }
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined);
+      await waitForE2EBridge(page).catch(() => undefined);
+    }
+  }
+  throw lastError;
 }
 
 export type MainThreadFrameProbeResult = {

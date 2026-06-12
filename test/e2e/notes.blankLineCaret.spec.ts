@@ -7,6 +7,7 @@ import {
   createVaultFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
+  openAbsoluteNote,
   openMarkdownFixture,
   openVaultInNotes,
   selectNoteBlocksByText,
@@ -175,7 +176,7 @@ test.describe('notes blank line caret interaction', () => {
       expect(await selectNoteBlocksByText(page, ['Alpha stale block selection source'])).toBe(1);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(1);
 
-      await page.evaluate((pathToOpen) => (window as any).__vlainaE2E.openAbsoluteNote(pathToOpen), fixture.notePaths[1]);
+      await openAbsoluteNote(page, fixture.notePaths[1]);
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Beta leading blank line sentinel', {
         timeout: 30_000,
       });
@@ -222,7 +223,7 @@ test.describe('notes blank line caret interaction', () => {
         page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor())
       ).resolves.toBe(true);
 
-      await page.evaluate((pathToOpen) => (window as any).__vlainaE2E.openAbsoluteNote(pathToOpen), fixture.notePaths[1]);
+      await openAbsoluteNote(page, fixture.notePaths[1]);
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Beta focused leading blank line sentinel', {
         timeout: 30_000,
       });

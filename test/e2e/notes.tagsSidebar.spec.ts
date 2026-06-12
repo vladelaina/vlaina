@@ -84,42 +84,66 @@ async function waitForTagRows(page: Page, minCount: number): Promise<void> {
   }).toBeGreaterThanOrEqual(minCount);
 }
 
+function isNavigationContextError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('Execution context was destroyed') ||
+    message.includes('Cannot find context with specified id') ||
+    message.includes('Most likely because of a navigation');
+}
+
+async function waitForTagsSidebarAfterNavigation(page: Page): Promise<void> {
+  await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined);
+  await expect(page.locator(TAGS_ROOT_SELECTOR)).toHaveCount(1, { timeout: 30_000 });
+  await waitAnimationFrames(page, 2).catch(() => undefined);
+}
+
 async function measureSidebarScrollFrames(page: Page, frames = 45) {
-  return page.evaluate(async ({ selector, frameCount }) => {
-    const scrollRoot = document.querySelector<HTMLElement>(selector);
-    if (!scrollRoot || scrollRoot.scrollHeight <= scrollRoot.clientHeight) {
-      return null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await page.evaluate(async ({ selector, frameCount }) => {
+        const scrollRoot = document.querySelector<HTMLElement>(selector);
+        if (!scrollRoot || scrollRoot.scrollHeight <= scrollRoot.clientHeight) {
+          return null;
+        }
+
+        scrollRoot.scrollTop = 0;
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+        const frameDeltas: number[] = [];
+        const startedAt = performance.now();
+        let lastFrameAt = startedAt;
+        const maxScrollTop = scrollRoot.scrollHeight - scrollRoot.clientHeight;
+        for (let index = 1; index <= frameCount; index += 1) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          const now = performance.now();
+          frameDeltas.push(now - lastFrameAt);
+          scrollRoot.scrollTop = Math.round((maxScrollTop * index) / frameCount);
+          lastFrameAt = now;
+        }
+
+        const sortedDeltas = [...frameDeltas].sort((a, b) => a - b);
+        const pick = (ratio: number) =>
+          sortedDeltas[Math.min(sortedDeltas.length - 1, Math.max(0, Math.ceil(sortedDeltas.length * ratio) - 1))] ?? 0;
+        const avg = frameDeltas.reduce((sum, value) => sum + value, 0) / Math.max(1, frameDeltas.length);
+        return {
+          frames: frameCount,
+          totalMs: Math.round(performance.now() - startedAt),
+          avgFrameMs: Math.round(avg * 10) / 10,
+          p95FrameMs: Math.round(pick(0.95) * 10) / 10,
+          maxFrameMs: Math.round(Math.max(...frameDeltas) * 10) / 10,
+          finalScrollTop: Math.round(scrollRoot.scrollTop),
+          maxScrollTop: Math.round(maxScrollTop),
+        };
+      }, { selector: NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR, frameCount: frames });
+    } catch (error) {
+      if (!isNavigationContextError(error) || attempt === 3) {
+        throw error;
+      }
+      await waitForTagsSidebarAfterNavigation(page);
     }
+  }
 
-    scrollRoot.scrollTop = 0;
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-    const frameDeltas: number[] = [];
-    const startedAt = performance.now();
-    let lastFrameAt = startedAt;
-    const maxScrollTop = scrollRoot.scrollHeight - scrollRoot.clientHeight;
-    for (let index = 1; index <= frameCount; index += 1) {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      const now = performance.now();
-      frameDeltas.push(now - lastFrameAt);
-      scrollRoot.scrollTop = Math.round((maxScrollTop * index) / frameCount);
-      lastFrameAt = now;
-    }
-
-    const sortedDeltas = [...frameDeltas].sort((a, b) => a - b);
-    const pick = (ratio: number) =>
-      sortedDeltas[Math.min(sortedDeltas.length - 1, Math.max(0, Math.ceil(sortedDeltas.length * ratio) - 1))] ?? 0;
-    const avg = frameDeltas.reduce((sum, value) => sum + value, 0) / Math.max(1, frameDeltas.length);
-    return {
-      frames: frameCount,
-      totalMs: Math.round(performance.now() - startedAt),
-      avgFrameMs: Math.round(avg * 10) / 10,
-      p95FrameMs: Math.round(pick(0.95) * 10) / 10,
-      maxFrameMs: Math.round(Math.max(...frameDeltas) * 10) / 10,
-      finalScrollTop: Math.round(scrollRoot.scrollTop),
-      maxScrollTop: Math.round(maxScrollTop),
-    };
-  }, { selector: NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR, frameCount: frames });
+  return null;
 }
 
 async function collectTagSidebarMetrics(page: Page) {
