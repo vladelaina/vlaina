@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TitleInput } from './TitleInput';
+import { NATIVE_CARET_OVERLAY_REFRESH_EVENT } from '@/hooks/useNativeCaretOverlay';
 
 const notesState = {
   renameNote: vi.fn(async () => undefined),
@@ -92,6 +93,32 @@ describe('TitleInput', () => {
     });
 
     expect(input.style.height).toBe('44px');
+  });
+
+  it('resets stale internal title scroll before refreshing the focused caret overlay', async () => {
+    width = 360;
+    scrollHeight = 44;
+    const caretRefreshListener = vi.fn();
+    document.addEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, caretRefreshListener);
+
+    try {
+      render(<TitleInput notePath="/vault/test.md" initialTitle="Long title" />);
+
+      const input = screen.getByDisplayValue('Long title') as HTMLTextAreaElement;
+      input.focus();
+      input.scrollTop = 28;
+      input.scrollLeft = 6;
+
+      await act(async () => {
+        fireEvent.change(input, { target: { value: '' } });
+      });
+
+      expect(input.scrollTop).toBe(0);
+      expect(input.scrollLeft).toBe(0);
+      expect(caretRefreshListener).toHaveBeenCalled();
+    } finally {
+      document.removeEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, caretRefreshListener);
+    }
   });
 
   it.each([
