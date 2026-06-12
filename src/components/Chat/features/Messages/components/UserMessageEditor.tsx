@@ -181,11 +181,18 @@ export function UserMessageEditor({
           onCompositionStart={() => setIsComposing(true)}
           onCompositionEnd={() => setIsComposing(false)}
           onKeyDown={handleKeyDown}
-          onSelect={(event) => setCaretIndex(event.currentTarget.selectionStart ?? 0)}
-          onClick={(event) => setCaretIndex(event.currentTarget.selectionStart ?? 0)}
+          onSelect={(event) => setCaretIndex(
+            event.currentTarget.selectionStart ?? 0,
+            event.currentTarget.selectionEnd ?? event.currentTarget.selectionStart ?? 0,
+          )}
+          onClick={(event) => setCaretIndex(
+            event.currentTarget.selectionStart ?? 0,
+            event.currentTarget.selectionEnd ?? event.currentTarget.selectionStart ?? 0,
+          )}
           onBlur={handleCaretBlur}
           onPaste={handleTextareaPaste}
           onScroll={(event) => setTextareaScrollTop(event.currentTarget.scrollTop)}
+          onFocusMentionEnd={setCaretIndex}
           onRemoveMention={removeMention}
         />
 

@@ -455,8 +455,190 @@ describe('useNoteMentions', () => {
       expect(handled).toBe(true);
     });
 
-    expect(result.current.message.trim()).toBe('');
+    expect(result.current.message).toBe('');
     expect(result.current.mentionPreviewParts.some((part) => part.type === 'mention')).toBe(false);
+  });
+
+  it('removes a mention token on Delete when the caret is inside it', () => {
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@To');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      result.current.applyMentionCandidate({
+        path: 'Today.md',
+        title: 'Today',
+        kind: 'note',
+        isCurrent: true,
+      });
+    });
+
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'Delete',
+        currentTarget: { selectionStart: 2, selectionEnd: 2 },
+        preventDefault: vi.fn(),
+      } as any);
+      expect(handled).toBe(true);
+    });
+
+    expect(result.current.message).toBe('');
+    expect(result.current.mentionPreviewParts.some((part) => part.type === 'mention')).toBe(false);
+  });
+
+  it('keeps the caret outside a mention token when the caret moves inside it', () => {
+    const textarea = document.createElement('textarea');
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@To');
+      const textareaRef = useRef<HTMLTextAreaElement>(textarea);
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      result.current.applyMentionCandidate({
+        path: 'Today.md',
+        title: 'Today',
+        kind: 'note',
+        isCurrent: true,
+      });
+    });
+
+    textarea.value = result.current.message;
+
+    act(() => {
+      result.current.handleCaretChange(2);
+    });
+
+    expect(result.current.message).toBe('@Today ');
+    expect(result.current.showMentionPicker).toBe(false);
+    expect(textarea.selectionStart).toBe(7);
+    expect(textarea.selectionEnd).toBe(7);
+  });
+
+  it('jumps over mention tokens with horizontal arrow keys', () => {
+    const textarea = document.createElement('textarea');
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@To');
+      const textareaRef = useRef<HTMLTextAreaElement>(textarea);
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      result.current.applyMentionCandidate({
+        path: 'Today.md',
+        title: 'Today',
+        kind: 'note',
+        isCurrent: true,
+      });
+    });
+
+    textarea.value = result.current.message;
+    textarea.setSelectionRange(7, 7);
+
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'ArrowLeft',
+        currentTarget: textarea,
+        preventDefault: vi.fn(),
+      } as any);
+      expect(handled).toBe(true);
+    });
+
+    expect(textarea.selectionStart).toBe(0);
+    expect(textarea.selectionEnd).toBe(0);
+
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'ArrowRight',
+        currentTarget: textarea,
+        preventDefault: vi.fn(),
+      } as any);
+      expect(handled).toBe(true);
+    });
+
+    expect(textarea.selectionStart).toBe(7);
+    expect(textarea.selectionEnd).toBe(7);
+  });
+
+  it('does not intercept modified horizontal arrow keys', () => {
+    const textarea = document.createElement('textarea');
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@To');
+      const textareaRef = useRef<HTMLTextAreaElement>(textarea);
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      result.current.applyMentionCandidate({
+        path: 'Today.md',
+        title: 'Today',
+        kind: 'note',
+        isCurrent: true,
+      });
+    });
+
+    textarea.value = result.current.message;
+    textarea.setSelectionRange(7, 7);
+
+    const preventDefault = vi.fn();
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'ArrowLeft',
+        shiftKey: true,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        currentTarget: textarea,
+        preventDefault,
+      } as any);
+      expect(handled).toBe(false);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(textarea.selectionStart).toBe(7);
+    expect(textarea.selectionEnd).toBe(7);
   });
 
   it('moves the active mention candidate with arrow keys', () => {
@@ -487,7 +669,7 @@ describe('useNoteMentions', () => {
       expect(handled).toBe(true);
     });
 
-    expect(result.current.activeCandidatePath).toBe('Projects');
+    expect(result.current.activeCandidatePath).toBe('Archive.md');
 
     act(() => {
       const handled = result.current.handleMentionKeyDown({
@@ -499,9 +681,9 @@ describe('useNoteMentions', () => {
       expect(handled).toBe(true);
     });
 
-    expect(result.current.message).toBe('@Projects/ ');
+    expect(result.current.message).toBe('@Archive ');
     expect(result.current.noteMentions).toEqual([
-      { path: 'Projects', title: 'Projects/', kind: 'folder' },
+      { path: 'Archive.md', title: 'Archive', kind: 'note' },
     ]);
   });
 
