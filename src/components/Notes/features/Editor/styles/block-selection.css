@@ -85,9 +85,9 @@ body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:no
 }
 
 body.editor-block-drag-active .milkdown .ProseMirror li.editor-block-selected::marker,
-body.editor-block-drag-active .milkdown .ProseMirror li:has(> p.editor-block-selected)::marker,
+body.editor-block-drag-active .milkdown .ProseMirror li:has(> p:first-of-type.editor-block-selected)::marker,
 .milkdown .ProseMirror li.editor-block-drag-source::marker,
-.milkdown .ProseMirror li:has(> p.editor-block-drag-source)::marker {
+.milkdown .ProseMirror li:has(> p:first-of-type.editor-block-drag-source)::marker {
   color: var(--vlaina-editor-block-selection-fg);
 }
 
@@ -362,6 +362,6 @@ body.editor-block-drag-active .milkdown .ProseMirror > [data-type='html-block'][
 }
 
 .milkdown .ProseMirror li.editor-block-selected::marker,
-.milkdown .ProseMirror li:has(> p.editor-block-selected)::marker {
+.milkdown .ProseMirror li:has(> p:first-of-type.editor-block-selected)::marker {
   color: var(--vlaina-editor-block-selection-fg);
 }

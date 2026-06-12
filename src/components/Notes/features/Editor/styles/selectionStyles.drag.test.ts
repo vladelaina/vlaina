@@ -68,9 +68,11 @@ describe("editor block drag interaction styles", () => {
     expect(dragSourceForegroundRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),');
     expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source:not(.code-block-container):not(.mermaid-block),');
     expect(dragSourceForegroundRule).toContain('.milkdown .ProseMirror .editor-block-drag-source *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
-    expect(dragSourceMarkerRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror li:has(> p.editor-block-selected)::marker,');
+    expect(dragSourceMarkerRule).toContain('body.editor-block-drag-active .milkdown .ProseMirror li:has(> p:first-of-type.editor-block-selected)::marker,');
     expect(dragSourceMarkerRule).toContain('.milkdown .ProseMirror li.editor-block-drag-source::marker,');
-    expect(dragSourceMarkerRule).toContain('.milkdown .ProseMirror li:has(> p.editor-block-drag-source)::marker {');
+    expect(dragSourceMarkerRule).toContain('.milkdown .ProseMirror li:has(> p:first-of-type.editor-block-drag-source)::marker {');
+    expect(dragSourceMarkerRule).not.toContain('li:has(> p.editor-block-selected)::marker');
+    expect(dragSourceMarkerRule).not.toContain('li:has(> p.editor-block-drag-source)::marker');
   });
 
   it('keeps block handle dragging on a grabbing cursor', () => {
