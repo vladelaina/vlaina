@@ -5,6 +5,7 @@ export {
 
 const STANDALONE_OPENING_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/;
 const THEMATIC_BREAK_PATTERN = /^(\s*)([-*_])(?:\s*\2){2,}\s*$/;
+const SETEXT_HYPHEN_UNDERLINE_PATTERN = /^ {0,3}-+[ \t]*$/;
 const GENERIC_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
 const normalizeLineEnding = (value: string) => value.replace(/\r\n?/g, '\n');
@@ -61,6 +62,15 @@ function isFenceClose(line: string, fence: FenceState): boolean {
 function isNonBlankContentLine(line: string | undefined): boolean {
     if (line === undefined || line.trim().length === 0) return false;
     return getFenceState(line) === null;
+}
+
+function looksLikeSetextHeadingUnderline(line: string, previousLine: string | undefined): boolean {
+    const previous = previousLine?.trim();
+    if (!previous || !SETEXT_HYPHEN_UNDERLINE_PATTERN.test(line)) return false;
+    if (BLOCK_START_PATTERN.test(previousLine ?? '')) return false;
+
+    const markerLength = line.replace(/[^-]/g, '').length;
+    return markerLength === previous.length;
 }
 
 export const parseStandaloneFencedCodeBlock = (value: string): FencedCodePayload | null => {
@@ -166,15 +176,16 @@ export const normalizeStandaloneThematicBreaksForPaste = (value: string): string
         const nextLine = lines[index + 1];
         const previousIsContent = isNonBlankContentLine(previousLine);
         const nextIsContent = isNonBlankContentLine(nextLine);
+        const isSetextHeadingUnderline = looksLikeSetextHeadingUnderline(line, previousLine);
         const lastResultLine = result[result.length - 1];
 
-        if (previousIsContent && lastResultLine !== '') {
+        if (previousIsContent && !isSetextHeadingUnderline && lastResultLine !== '') {
             result.push('');
         }
 
         result.push(line);
 
-        if (nextIsContent) {
+        if (!isSetextHeadingUnderline && nextIsContent) {
             result.push('');
         }
     }

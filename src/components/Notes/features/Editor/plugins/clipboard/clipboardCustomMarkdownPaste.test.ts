@@ -67,6 +67,37 @@ describe('clipboard custom markdown paste', () => {
     await editor.destroy();
   });
 
+  it('does not turn pasted frontmatter delimiters into extra horizontal rules', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    const markdown = [
+      '---',
+      'title: Demo',
+      '---',
+      '',
+      '# Heading',
+      '',
+      '---',
+      '',
+      '***',
+      '',
+      '___',
+    ].join('\n');
+
+    expect(simulatePasteText(view, markdown)).toBe(true);
+
+    const nodeNames: string[] = [];
+    view.state.doc.forEach((node) => {
+      nodeNames.push(node.type.name);
+    });
+
+    expect(nodeNames[0]).toBe('frontmatter');
+    expect(nodeNames.filter((name) => name === 'hr')).toHaveLength(3);
+
+    await editor.destroy();
+  });
+
   it('recognizes pasted callout markdown as a callout block', async () => {
     const editor = await createPasteEditor();
     const view = editor.ctx.get(editorViewCtx);

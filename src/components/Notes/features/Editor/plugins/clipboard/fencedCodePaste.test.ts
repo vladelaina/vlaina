@@ -324,6 +324,16 @@ describe('normalizeStandaloneThematicBreaksForPaste', () => {
         expect(normalizeStandaloneThematicBreaksForPaste('Title\n---')).toBe('Title\n\n---');
     });
 
+    it('keeps a long hyphen underline as a setext heading marker', () => {
+        expect(normalizeStandaloneThematicBreaksForPaste([
+            'Setext Heading Level Two Sentinel',
+            '---------------------------------',
+        ].join('\n'))).toBe([
+            'Setext Heading Level Two Sentinel',
+            '---------------------------------',
+        ].join('\n'));
+    });
+
     it('keeps existing blank-line-separated thematic breaks unchanged', () => {
         expect(normalizeStandaloneThematicBreaksForPaste('---\n\nBody\n\n---')).toBe('---\n\nBody\n\n---');
     });
