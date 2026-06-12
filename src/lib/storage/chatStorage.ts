@@ -130,7 +130,7 @@ function serializeBoundedSessionMessages(sessionId: string, messages: ChatMessag
   let lastFit = 0;
   let nextCount = 1;
   while (nextCount <= messages.length) {
-    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(0, nextCount));
+    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(messages.length - nextCount));
     if (!isWithinSessionMessagesByteLimit(candidate)) {
       break;
     }
@@ -147,7 +147,7 @@ function serializeBoundedSessionMessages(sessionId: string, messages: ChatMessag
   let high = Math.min(nextCount - 1, messages.length);
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(0, mid));
+    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(messages.length - mid));
     if (isWithinSessionMessagesByteLimit(candidate)) {
       best = candidate;
       low = mid + 1;

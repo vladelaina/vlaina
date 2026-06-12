@@ -25,6 +25,7 @@ import { createNotesExternalSyncTimers } from './notesExternalSyncTimers';
 import { classifyWatchEventPaths, hasBlockedRenameEndpoint } from './notesExternalWatchEventDebug';
 
 const PENDING_RENAME_TTL_MS = 180;
+export const MAX_PENDING_EXTERNAL_PATH_EVENTS = 2048;
 
 type SyncCurrentNoteFromDisk = ReturnType<typeof useNotesStore.getState>['syncCurrentNoteFromDisk'];
 
@@ -224,6 +225,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     pendingCreatesRef,
     reconcileInFlightRef,
   } = options;
+  let pendingPathQueueOverflowed = false;
 
   const { applyExternalDeletion, reconcileCurrentNote } = createCurrentNoteExternalSync({
     syncCurrentNoteFromDisk,
@@ -236,6 +238,14 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     pendingRenamesRef,
   });
   const isActiveNotesPath = () => useNotesStore.getState().notesPath === notesPath;
+  const capPendingPathQueue = <Entry>(queue: Entry[]): Entry[] => {
+    if (queue.length <= MAX_PENDING_EXTERNAL_PATH_EVENTS) {
+      return queue;
+    }
+
+    pendingPathQueueOverflowed = true;
+    return queue.slice(queue.length - MAX_PENDING_EXTERNAL_PATH_EVENTS);
+  };
   const isKnownFolderPath = (path: string) => {
     const state = useNotesStore.getState();
     const rootFolder = state.rootFolder;
@@ -357,11 +367,13 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       pendingCreatesRef.current,
       now
     );
+    const hadPendingQueueOverflow = pendingPathQueueOverflowed;
+    pendingPathQueueOverflowed = false;
     pendingRenamesRef.current = queue;
     pendingCreatesRef.current = createQueue;
     schedulePendingRenameFlush();
 
-    if (expiredPaths.length === 0 && expiredCreates.length === 0) {
+    if (expiredPaths.length === 0 && expiredCreates.length === 0 && !hadPendingQueueOverflow) {
       return false;
     }
 
@@ -383,11 +395,11 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       await handleRelevantPaths(expiredCreates, false);
     }
 
-    if (expiredPaths.length > 0) {
+    if (expiredPaths.length > 0 || hadPendingQueueOverflow) {
       scheduleFileTreeReload();
     }
 
-    return expiredPaths.length > 0 || expiredCreates.length > 0;
+    return expiredPaths.length > 0 || expiredCreates.length > 0 || hadPendingQueueOverflow;
   };
 
   const handleRelevantPaths = async (
@@ -422,13 +434,13 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
           continue;
         }
 
-        pendingRenamesRef.current = queuePendingRename(
+        pendingRenamesRef.current = capPendingPathQueue(queuePendingRename(
           pendingRenamesRef.current,
           relativePath,
           Date.now(),
           PENDING_RENAME_TTL_MS,
           pathKind
-        );
+        ));
         schedulePendingRenameFlush();
         continue;
       }
@@ -490,13 +502,13 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
         continue;
       }
 
-      pendingCreatesRef.current = queuePendingCreate(
+      pendingCreatesRef.current = capPendingPathQueue(queuePendingCreate(
         pendingCreatesRef.current,
         relativePath,
         Date.now(),
         PENDING_RENAME_TTL_MS,
         pathKind
-      );
+      ));
     }
 
     schedulePendingRenameFlush();
@@ -645,12 +657,12 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
           return;
         }
       } else if (oldPath) {
-        pendingRenamesRef.current = queuePendingRename(
+        pendingRenamesRef.current = capPendingPathQueue(queuePendingRename(
           pendingRenamesRef.current,
           oldPath,
           Date.now(),
           PENDING_RENAME_TTL_MS
-        );
+        ));
         schedulePendingRenameFlush();
         return;
       } else if (newPath) {
@@ -670,12 +682,12 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
             return;
           }
         } else {
-          pendingCreatesRef.current = queuePendingCreate(
+          pendingCreatesRef.current = capPendingPathQueue(queuePendingCreate(
             pendingCreatesRef.current,
             newPath,
             Date.now(),
             PENDING_RENAME_TTL_MS
-          );
+          ));
           schedulePendingRenameFlush();
           return;
         }
