@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatMessage } from '@/lib/ai/types'
+import type { Attachment } from '@/lib/storage/attachmentStorage'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
 
@@ -10,7 +11,7 @@ const mocked = vi.hoisted(() => ({
   loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
   hasSessionJson: vi.fn(async () => false),
   deleteAttachment: vi.fn(async () => {}),
-  createStoredAttachmentFromSource: vi.fn((src: string) => ({
+  createStoredAttachmentFromSource: vi.fn((src: string): Attachment | null => ({
     id: 'stored-attachment',
     path: '',
     previewUrl: src,

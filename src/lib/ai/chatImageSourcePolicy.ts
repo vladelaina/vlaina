@@ -14,6 +14,8 @@ interface ChatMessageImageSourceOptions {
   persistable?: boolean;
 }
 
+type NormalizedImageToken = ImageToken & { src: string };
+
 function isImageAttachmentMimeType(type: string | null | undefined): boolean {
   return type?.trim().toLowerCase().startsWith('image/') ?? false;
 }
@@ -89,7 +91,7 @@ export function getChatMessageImageTokens(
       const src = normalizeChatMessageImageSourceForMode(token.src, options.persistable === true);
       return src ? { ...token, src } : null;
     })
-    .filter((token): token is ImageToken => token !== null);
+    .filter((token): token is NormalizedImageToken => token !== null);
 }
 
 export function extractChatMessageImageSources(

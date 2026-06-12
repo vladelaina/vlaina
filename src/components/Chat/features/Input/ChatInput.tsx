@@ -580,14 +580,21 @@ export const ChatInput = memo(function ChatInput({
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
               onKeyDown={handleTextareaKeyDown}
-              onSelect={(e) => handleCaretChange(e.currentTarget.selectionStart ?? 0)}
-              onClick={(e) => handleCaretChange(e.currentTarget.selectionStart ?? 0)}
+              onSelect={(e) => handleCaretChange(
+                e.currentTarget.selectionStart ?? 0,
+                e.currentTarget.selectionEnd ?? e.currentTarget.selectionStart ?? 0,
+              )}
+              onClick={(e) => handleCaretChange(
+                e.currentTarget.selectionStart ?? 0,
+                e.currentTarget.selectionEnd ?? e.currentTarget.selectionStart ?? 0,
+              )}
               onBlur={handleCaretBlur}
               onPaste={handleTextareaPaste}
               onScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
               placeholder={!hasSelectedModel ? t('chat.selectModelPlaceholder') : t('chat.composerPlaceholder')}
               mentionPreviewParts={mentionPreviewParts}
               textareaScrollTop={textareaScrollTop}
+              onFocusMentionEnd={handleCaretChange}
               onRemoveMention={removeNoteMention}
             />
 

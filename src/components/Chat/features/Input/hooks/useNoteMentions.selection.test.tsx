@@ -58,7 +58,7 @@ function renderMentions(initialMessage: string) {
       handleMessageChange: setMessage,
     });
 
-    return { ...controller, message };
+    return { ...controller, message, textarea: textareaRef.current };
   });
 }
 
@@ -182,5 +182,60 @@ describe('useNoteMentions selection deletion', () => {
     expect(result.current.noteMentions).toEqual([
       { path: 'Archive.md', title: 'Archive', kind: 'note' },
     ]);
+  });
+
+  it('preserves non-collapsed selections instead of turning them into a caret', () => {
+    const { result } = renderMentions('@To hello');
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      result.current.applyMentionCandidate({
+        path: 'Today.md',
+        title: 'Today',
+        kind: 'note',
+        isCurrent: true,
+      });
+    });
+
+    const textarea = result.current.textarea;
+    textarea.value = result.current.message;
+    textarea.setSelectionRange(0, result.current.message.length);
+
+    act(() => {
+      result.current.handleCaretChange(0, result.current.message.length);
+    });
+
+    expect(result.current.showMentionPicker).toBe(false);
+    expect(textarea.selectionStart).toBe(0);
+    expect(textarea.selectionEnd).toBe(result.current.message.length);
+  });
+
+  it('removes a mention together with the explicit trailing space range', () => {
+    const { result } = renderMentions('@To hello');
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      result.current.applyMentionCandidate({
+        path: 'Today.md',
+        title: 'Today',
+        kind: 'note',
+        isCurrent: true,
+      });
+    });
+
+    expect(result.current.message).toBe('@Today hello');
+
+    act(() => {
+      result.current.removeNoteMention('Today.md', 0, '@Today '.length);
+    });
+
+    expect(result.current.message).toBe('hello');
+    expect(result.current.noteMentions).toEqual([]);
   });
 });

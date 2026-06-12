@@ -38,8 +38,18 @@ type IndexedNoteMentionCandidate = NoteMentionCandidate & {
   lowerPath: string;
 };
 
+type MentionPreviewRange = MentionPreviewPart & { mention: NoteMentionReference };
+
 const MAX_VISIBLE_NOTE_MENTION_CANDIDATES = 30;
 const MAX_VISIBLE_FOLDER_MENTION_CANDIDATES = 12;
+
+function isMentionPreviewRange(part: MentionPreviewPart): part is MentionPreviewRange {
+  return part.type === 'mention' && !!part.mention;
+}
+
+function getMentionBoundaryEnd(value: string, part: MentionPreviewRange): number {
+  return value[part.end] === ' ' ? part.end + 1 : part.end;
+}
 
 interface UseNoteMentionStateOptions {
   value: string;
@@ -202,7 +212,7 @@ export function useNoteMentionState({
       }
     }
 
-    return [...currentNoteCandidates, ...folderCandidates, ...linkedNoteCandidates];
+    return [...currentNoteCandidates, ...linkedNoteCandidates, ...folderCandidates];
   }, [allNoteCandidates, mentionTrigger]);
 
   const currentPageCandidates = useMemo(
@@ -237,6 +247,14 @@ export function useNoteMentionState({
   const showMentionPicker = !!mentionTrigger && (
     filteredCandidates.length > 0
     || mentionPickerStatus === 'loading'
+  );
+  const mentionPreviewParts = useMemo<MentionPreviewPart[]>(
+    () => buildMentionPreviewParts(value, mentions),
+    [mentions, value],
+  );
+  const mentionRanges = useMemo(
+    () => mentionPreviewParts.filter(isMentionPreviewRange),
+    [mentionPreviewParts],
   );
 
   useEffect(() => {
@@ -308,16 +326,43 @@ export function useNoteMentionState({
     setMentions(restoredMentions);
   }, []);
 
+  const setTextareaCaretIndex = useCallback((nextCaretIndex: number) => {
+    setCaretIndex(nextCaretIndex);
+    const input = textareaRef.current;
+    if (!input) {
+      return;
+    }
+
+    if (!focusVisibleTextareaAt(input, nextCaretIndex)) {
+      input.setSelectionRange(nextCaretIndex, nextCaretIndex);
+    }
+  }, [textareaRef]);
+
+  const getAtomicMentionCaretIndex = useCallback(
+    (nextCaretIndex: number) => {
+      const target = mentionRanges.find((part) =>
+        nextCaretIndex > part.start && nextCaretIndex < getMentionBoundaryEnd(value, part)
+      );
+      return target ? getMentionBoundaryEnd(value, target) : nextCaretIndex;
+    },
+    [mentionRanges, value],
+  );
+
   const handleValueChange = useCallback((nextValue: string, nextCaretIndex?: number) => {
     onValueChange(nextValue);
     if (typeof nextCaretIndex === 'number') {
-      setCaretIndex(nextCaretIndex);
+      setTextareaCaretIndex(nextCaretIndex);
     }
-  }, [onValueChange]);
+  }, [onValueChange, setTextareaCaretIndex]);
 
-  const handleCaretChange = useCallback((nextCaretIndex: number) => {
-    setCaretIndex(nextCaretIndex);
-  }, []);
+  const handleCaretChange = useCallback((nextCaretIndex: number, nextSelectionEnd = nextCaretIndex) => {
+    if (nextCaretIndex !== nextSelectionEnd) {
+      setCaretIndex(-1);
+      return;
+    }
+
+    setTextareaCaretIndex(getAtomicMentionCaretIndex(nextCaretIndex));
+  }, [getAtomicMentionCaretIndex, setTextareaCaretIndex]);
 
   const handleCaretBlur = useCallback(() => {
     requestAnimationFrame(() => {
@@ -433,19 +478,10 @@ export function useNoteMentionState({
     [mentionTrigger, onValueChange, textareaRef, value],
   );
 
-  const mentionPreviewParts = useMemo<MentionPreviewPart[]>(
-    () => buildMentionPreviewParts(value, mentions),
-    [mentions, value],
-  );
-
   const handleMentionKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
       const selectionStart = event.currentTarget.selectionStart ?? 0;
       const selectionEnd = event.currentTarget.selectionEnd ?? 0;
-      const mentionRanges = mentionPreviewParts.filter(
-        (part): part is MentionPreviewPart & { mention: NoteMentionReference } =>
-          part.type === 'mention' && !!part.mention,
-      );
 
       if (event.key === 'Backspace' || event.key === 'Delete') {
         if (selectionStart !== selectionEnd) {
@@ -470,7 +506,11 @@ export function useNoteMentionState({
         );
         if (targetPart) {
           event.preventDefault();
-          removeMention(targetPart.mention.path, targetPart.start);
+          removeMention(
+            targetPart.mention.path,
+            targetPart.start,
+            getMentionBoundaryEnd(value, targetPart),
+          );
           return true;
         }
 
@@ -489,6 +529,31 @@ export function useNoteMentionState({
             );
             return true;
           }
+        }
+      }
+
+      const isPlainHorizontalArrow =
+        !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey;
+
+      if (isPlainHorizontalArrow && selectionStart === selectionEnd && event.key === 'ArrowLeft') {
+        const targetPart = mentionRanges.find((part) =>
+          selectionStart > part.start && selectionStart <= getMentionBoundaryEnd(value, part)
+        );
+        if (targetPart) {
+          event.preventDefault();
+          setTextareaCaretIndex(targetPart.start);
+          return true;
+        }
+      }
+
+      if (isPlainHorizontalArrow && selectionStart === selectionEnd && event.key === 'ArrowRight') {
+        const targetPart = mentionRanges.find((part) =>
+          selectionStart >= part.start && selectionStart < getMentionBoundaryEnd(value, part)
+        );
+        if (targetPart) {
+          event.preventDefault();
+          setTextareaCaretIndex(getMentionBoundaryEnd(value, targetPart));
+          return true;
         }
       }
 
@@ -551,11 +616,13 @@ export function useNoteMentionState({
       applyMentionCandidate,
       deleteSelectionRange,
       filteredCandidates,
-      mentionPreviewParts,
+      mentionRanges,
       mentions,
       removeLastMentionOnBoundary,
       removeMention,
+      setTextareaCaretIndex,
       showMentionPicker,
+      value,
     ],
   );
 

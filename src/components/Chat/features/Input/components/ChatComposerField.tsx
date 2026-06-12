@@ -29,7 +29,8 @@ interface ChatComposerFieldProps {
   onBlur: () => void;
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onScroll: (event: React.UIEvent<HTMLTextAreaElement>) => void;
-  onRemoveMention: (path: string) => void;
+  onFocusMentionEnd: (rangeEnd: number) => void;
+  onRemoveMention: (path: string, rangeStart?: number, rangeEnd?: number) => void;
   disabled?: boolean;
 }
 
@@ -48,6 +49,7 @@ export function ChatComposerField({
   onBlur,
   onPaste,
   onScroll,
+  onFocusMentionEnd,
   onRemoveMention,
   disabled = false,
 }: ChatComposerFieldProps) {
@@ -79,6 +81,7 @@ export function ChatComposerField({
         <MentionPreviewOverlay
           mentionPreviewParts={mentionPreviewParts}
           textareaScrollTop={textareaScrollTop}
+          onFocusMentionEnd={onFocusMentionEnd}
           onRemoveMention={onRemoveMention}
         />
       </div>
