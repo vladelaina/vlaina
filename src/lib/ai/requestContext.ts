@@ -45,7 +45,7 @@ const HISTORY_IMAGE_SOURCE_PREFIXES = [
   'blob:',
   'file://',
 ];
-const HISTORY_IMAGE_SOURCE_HINT_PATTERN = /\b(?:data|attachment|app-file|file)(?::|&|&#)/i;
+const HISTORY_IMAGE_SOURCE_HINT_PATTERN = /\b(?:data|attachment|app-file|asset|blob|file)(?::|&|&#)/i;
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
   const utcMs = now.getTime();
@@ -240,6 +240,13 @@ function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: Conte
       continue;
     }
 
+    const target = getHistoryMarkdownImageTarget(content.slice(labelEnd + 2, targetEnd));
+    if (target && parseVideoUrl(target)) {
+      output += content.slice(cursor, targetEnd + 1);
+      cursor = targetEnd + 1;
+      continue;
+    }
+
     output += content.slice(cursor, start);
     output += IMAGE_PLACEHOLDER;
     cursor = targetEnd + 1;
@@ -289,6 +296,25 @@ function isHistoryMarkdownImageTargetAt(content: string, targetStart: number): b
     }
   }
   return isHistoryImageSource(content.slice(cursor, cursor + 128));
+}
+
+function getHistoryMarkdownImageTarget(rawTarget: string): string {
+  const trimmed = rawTarget.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('<')) {
+    const closingAngle = trimmed.indexOf('>');
+    return decodeMarkdownHtmlText(
+      closingAngle === -1 ? trimmed.slice(1) : trimmed.slice(1, closingAngle)
+    ).trim();
+  }
+
+  const targetEnd = trimmed.search(/\s/);
+  return decodeMarkdownHtmlText(
+    targetEnd === -1 ? trimmed : trimmed.slice(0, targetEnd)
+  ).trim();
 }
 
 function getOverflowHistoryMarkdownImageScrubEnd(content: string, targetStart: number, rangeEnd: number): number {
@@ -396,9 +422,9 @@ function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
   const contentWithoutUiErrors = msg.role === 'assistant'
     ? rawContent.replace(ERROR_TAG_GLOBAL_REGEX, '').trim()
     : rawContent;
-  const apiTranscript = normalizeApiTranscriptMessages(
+  const apiTranscript = sanitizeApiTranscriptTextReferences(normalizeApiTranscriptMessages(
     msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript
-  );
+  ));
 
   return {
     ...msg,
@@ -408,6 +434,44 @@ function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
     apiTranscript,
     versions: stripVersionApiTranscripts(msg.versions),
   };
+}
+
+function sanitizeApiTranscriptContent(
+  content: ApiTranscriptMessage['content'],
+): ApiTranscriptMessage['content'] {
+  if (typeof content === 'string') {
+    return sanitizeRequestTextImageReferences(content);
+  }
+
+  if (!Array.isArray(content)) {
+    return content;
+  }
+
+  return content.map((part) => {
+    if (part.type !== 'text') {
+      return part;
+    }
+    return {
+      ...part,
+      text: sanitizeRequestTextImageReferences(part.text),
+    };
+  });
+}
+
+function sanitizeApiTranscriptTextReferences(
+  transcript: ApiTranscriptMessage[] | undefined,
+): ApiTranscriptMessage[] | undefined {
+  if (!transcript) {
+    return undefined;
+  }
+
+  return transcript.map((message) => ({
+    ...message,
+    content: sanitizeApiTranscriptContent(message.content),
+    ...(typeof message.reasoning_content === 'string'
+      ? { reasoning_content: sanitizeRequestTextImageReferences(message.reasoning_content) }
+      : {}),
+  }));
 }
 
 function stripVersionApiTranscripts(versions: ChatMessage['versions']): ChatMessage['versions'] {

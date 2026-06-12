@@ -57,6 +57,7 @@ const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
 export const MAX_MENTIONED_NOTES_CONTEXT_CHARS = 120_000;
 const MAX_FOLDER_MENTION_NOTES = 20;
+const MAX_FOLDER_MENTION_NOTE_CANDIDATES = MAX_FOLDER_MENTION_NOTES * 5;
 export const MAX_CHAT_MENTION_LOAD_CONCURRENCY = 5;
 const MAX_FOLDER_MARKDOWN_SCAN_DEPTH = 6;
 const MAX_FOLDER_MARKDOWN_SCAN_ENTRIES = 500;
@@ -634,8 +635,12 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
   return readResolvedMentionedNoteContent(resolvedPath, [notePath]);
 }
 
-export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
+export function collectMentionFolderMarkdownNodes(
+  nodes: readonly FileTreeNode[],
+  options: { maxResults?: number } = {},
+): FileTreeNode[] {
   const result: FileTreeNode[] = [];
+  const maxResults = Math.max(0, Math.floor(options.maxResults ?? MAX_FOLDER_MENTION_NOTES));
   const stack: Array<{ nodes: readonly FileTreeNode[]; index: number; depth: number }> = [{
     nodes: prioritizeMentionFolderMarkdownNodes(nodes),
     index: 0,
@@ -646,7 +651,7 @@ export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]
   while (
     stack.length > 0 &&
     visitedEntries < MAX_FOLDER_MARKDOWN_SCAN_ENTRIES &&
-    result.length < MAX_FOLDER_MENTION_NOTES
+    result.length < maxResults
   ) {
     const frame = stack[stack.length - 1];
     if (frame.index >= frame.nodes.length) {
@@ -706,11 +711,12 @@ async function collectFolderMarkdownScanEntries(
   budget: FolderMarkdownScanBudget,
   depth = 0,
   result: FolderMarkdownScanEntry[] = [],
+  maxResults = MAX_FOLDER_MENTION_NOTES,
 ): Promise<FolderMarkdownScanEntry[]> {
   if (
     depth > MAX_FOLDER_MARKDOWN_SCAN_DEPTH ||
     budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
-    result.length >= MAX_FOLDER_MENTION_NOTES
+    result.length >= maxResults
   ) {
     return result;
   }
@@ -733,7 +739,7 @@ async function collectFolderMarkdownScanEntries(
       }
       if (
         budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
-        result.length >= MAX_FOLDER_MENTION_NOTES
+        result.length >= maxResults
       ) {
         break;
       }
@@ -748,6 +754,7 @@ async function collectFolderMarkdownScanEntries(
         budget,
         depth + 1,
         result,
+        maxResults,
       );
       continue;
     }
@@ -755,7 +762,7 @@ async function collectFolderMarkdownScanEntries(
     if (isMarkdownFile) {
       if (
         budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
-        result.length >= MAX_FOLDER_MENTION_NOTES
+        result.length >= maxResults
       ) {
         break;
       }
@@ -799,6 +806,9 @@ async function loadScannedFolderMarkdownReferences(
     folderPath.cachePath,
     '',
     { visitedEntries: 0 },
+    0,
+    [],
+    MAX_FOLDER_MENTION_NOTE_CANDIDATES,
   );
   const loaded = await mapWithConcurrencyLimit(
     entries,
@@ -818,7 +828,9 @@ async function loadScannedFolderMarkdownReferences(
       };
     },
   );
-  return loaded.filter((note) => note.content.length > 0);
+  return loaded
+    .filter((note) => note.content.length > 0)
+    .slice(0, MAX_FOLDER_MENTION_NOTES);
 }
 
 function formatFolderEntrySize(size: number | undefined): string {
@@ -1002,7 +1014,9 @@ async function loadMentionReference(
     return [];
   }
 
-  const markdownNodes = collectMentionFolderMarkdownNodes(folderNode.children);
+  const markdownNodes = collectMentionFolderMarkdownNodes(folderNode.children, {
+    maxResults: MAX_FOLDER_MENTION_NOTE_CANDIDATES,
+  });
   const listing = await loadFolderListingReference(mention);
   if (markdownNodes.length === 0) {
     const scannedReferences = await loadScannedFolderMarkdownReferences(mention);
@@ -1025,7 +1039,9 @@ async function loadMentionReference(
       };
     },
   );
-  const markdownReferences = loaded.filter((note) => note.content.length > 0);
+  const markdownReferences = loaded
+    .filter((note) => note.content.length > 0)
+    .slice(0, MAX_FOLDER_MENTION_NOTES);
   return listing ? [listing, ...markdownReferences] : markdownReferences;
 }
 

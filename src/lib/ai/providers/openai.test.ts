@@ -2398,6 +2398,44 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(bodyText).not.toContain('app-file://');
   });
 
+  it('does not replay local image markdown from hidden API transcript text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'continue',
+      [{
+        id: 'm1',
+        role: 'assistant',
+        content: 'Visible previous answer',
+        apiTranscript: [{
+          role: 'assistant',
+          content: 'Visible ![asset](asset://localhost/chat-inline-image/1',
+          reasoning_content: 'Plan <img src="blob:https://vlaina.local/secret"',
+        }],
+        modelId: 'deepseek-chat',
+        timestamp: 1,
+        versions: [{ content: 'Visible previous answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      }],
+      buildModel({ apiModelId: 'deepseek-chat', name: 'DeepSeek Chat' }),
+      buildProvider({ name: 'DeepSeek', apiHost: 'https://api.deepseek.com', endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages[0]).toEqual({
+      role: 'assistant',
+      content: 'Visible [Image]',
+      reasoning_content: 'Plan [Image]',
+    });
+    expect(bodyText).not.toContain('asset://localhost/chat-inline-image/1');
+    expect(bodyText).not.toContain('blob:https://vlaina.local/secret');
+  });
+
   it('does not replay hidden reasoning transcript for generic OpenAI-compatible providers', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),

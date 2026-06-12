@@ -23,4 +23,24 @@ describe('notesSidebarSearchResults content budgets', () => {
     expect(queryNotesSidebarSearch(index, 'needle', getNoteContent)).toEqual([]);
     expect(getNoteContent).toHaveBeenCalledTimes(NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES);
   });
+
+  it('does not spend content search entry budget on uncached notes', () => {
+    const cachedPath = `notes/${String(NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES).padStart(5, '0')}.md`;
+    const index = Array.from(
+      { length: NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES + 1 },
+      (_, index) => ({
+        path: `notes/${String(index).padStart(5, '0')}.md`,
+        name: `note-${index}.md`,
+        preview: '',
+      }),
+    );
+    const getNoteContent = vi.fn((path: string) =>
+      path === cachedPath ? 'needle' : undefined
+    );
+
+    expect(queryNotesSidebarSearch(index, 'needle', getNoteContent).map((result) => result.path)).toEqual([
+      cachedPath,
+    ]);
+    expect(getNoteContent).toHaveBeenCalledTimes(NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES + 1);
+  });
 });

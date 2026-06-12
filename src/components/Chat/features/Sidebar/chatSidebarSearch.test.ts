@@ -49,6 +49,26 @@ describe('chatSidebarSearch', () => {
     expect(filtered.map((session) => session.id)).toEqual(['session-b']);
   });
 
+  it('bounds the sidebar search query before matching', () => {
+    const filtered = filterChatSidebarSessions(sessions, `${'x'.repeat(256)}alpha`);
+
+    expect(filtered).toEqual([]);
+  });
+
+  it('bounds session title text used for sidebar search entries', () => {
+    const filtered = filterChatSidebarSessions([
+      {
+        id: 'session-long',
+        title: `${'x'.repeat(4096)}needle`,
+        modelId: 'model',
+        updatedAt: 1,
+        createdAt: 1,
+      },
+    ], 'needle');
+
+    expect(filtered).toEqual([]);
+  });
+
   it('filters out temporary sessions before sorting', () => {
     const visible = getVisibleChatSidebarSessions([
       ...sessions,

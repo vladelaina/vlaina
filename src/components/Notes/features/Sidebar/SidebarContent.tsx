@@ -202,6 +202,7 @@ export function SidebarContent({
     rootFolder: displayRootFolder,
     getDisplayName,
     noteContentsCache,
+    noteContentsCacheRevision,
     scanAllNotes,
     cancelNoteContentScan,
     pruneNoteContentsCacheToOpenNotes,

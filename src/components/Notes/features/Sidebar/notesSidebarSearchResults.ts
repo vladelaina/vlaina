@@ -274,11 +274,13 @@ export function queryNotesSidebarSearch(
       break;
     }
 
-    searchedContentEntries += 1;
     const content = getNoteContent(entry.path);
-    if (content) {
-      searchedContentChars += Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS);
+    if (!content) {
+      continue;
     }
+
+    searchedContentEntries += 1;
+    searchedContentChars += Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS);
 
     const contentMatches = getNotesSidebarContentMatches(content, lowerQuery);
     for (const contentMatch of contentMatches) {
