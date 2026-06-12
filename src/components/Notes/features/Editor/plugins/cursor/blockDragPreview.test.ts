@@ -125,10 +125,100 @@ describe('createBlockDragPreview', () => {
 
     expect(marker).not.toBeNull();
     expect(block.classList.contains('editor-block-drag-source')).toBe(true);
+    expect(block.classList.contains('editor-block-drag-source-textlike')).toBe(true);
 
     marker?.destroy();
 
     expect(block.classList.contains('editor-block-drag-source')).toBe(false);
+    expect(block.classList.contains('editor-block-drag-source-textlike')).toBe(false);
+  });
+
+  it('marks parent list items for dragged child marker styling without CSS child scans', () => {
+    const editorRoot = document.createElement('div');
+    const list = document.createElement('ul');
+    const item = document.createElement('li');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selected child';
+    paragraph.classList.add('editor-block-selected');
+    item.appendChild(paragraph);
+    list.appendChild(item);
+    editorRoot.appendChild(list);
+    document.body.appendChild(editorRoot);
+
+    const marker = createBlockDragSourceMarker({
+      view: {
+        dom: editorRoot,
+        state: { doc: { content: { size: 0 } } },
+      } as any,
+      ranges: [],
+    });
+
+    expect(marker).not.toBeNull();
+    expect(paragraph.classList.contains('editor-block-drag-source')).toBe(true);
+    expect(paragraph.classList.contains('editor-block-drag-source-textlike')).toBe(true);
+    expect(item.classList.contains('editor-block-drag-source-parent-marker')).toBe(true);
+
+    marker?.destroy();
+
+    expect(paragraph.classList.contains('editor-block-drag-source')).toBe(false);
+    expect(paragraph.classList.contains('editor-block-drag-source-textlike')).toBe(false);
+    expect(item.classList.contains('editor-block-drag-source-parent-marker')).toBe(false);
+  });
+
+  it('marks adjacent text-like drag sources without CSS sibling scans', () => {
+    const editorRoot = document.createElement('div');
+    const first = document.createElement('p');
+    const second = document.createElement('p');
+    first.textContent = 'First';
+    second.textContent = 'Second';
+    first.classList.add('editor-block-selected');
+    second.classList.add('editor-block-selected');
+    editorRoot.append(first, second);
+    document.body.appendChild(editorRoot);
+
+    const marker = createBlockDragSourceMarker({
+      view: {
+        dom: editorRoot,
+        state: { doc: { content: { size: 0 } } },
+      } as any,
+      ranges: [],
+    });
+
+    expect(marker).not.toBeNull();
+    expect(first.classList.contains('editor-block-drag-source-textlike')).toBe(true);
+    expect(first.classList.contains('editor-block-drag-source-has-next')).toBe(true);
+    expect(second.classList.contains('editor-block-drag-source-textlike')).toBe(true);
+    expect(second.classList.contains('editor-block-drag-source-has-previous')).toBe(true);
+
+    marker?.destroy();
+
+    expect(first.classList.contains('editor-block-drag-source-has-next')).toBe(false);
+    expect(second.classList.contains('editor-block-drag-source-has-previous')).toBe(false);
+  });
+
+  it('does not mark rich child paragraphs as text-like drag sources', () => {
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const image = document.createElement('span');
+    image.className = 'image-block-container';
+    paragraph.classList.add('editor-block-selected');
+    paragraph.appendChild(image);
+    editorRoot.appendChild(paragraph);
+    document.body.appendChild(editorRoot);
+
+    const marker = createBlockDragSourceMarker({
+      view: {
+        dom: editorRoot,
+        state: { doc: { content: { size: 0 } } },
+      } as any,
+      ranges: [],
+    });
+
+    expect(marker).not.toBeNull();
+    expect(paragraph.classList.contains('editor-block-drag-source')).toBe(true);
+    expect(paragraph.classList.contains('editor-block-drag-source-textlike')).toBe(false);
+
+    marker?.destroy();
   });
 
   it('preserves the handle-to-block gap instead of snapping under the pointer', () => {

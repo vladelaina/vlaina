@@ -114,7 +114,7 @@
   overflow-x: auto;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock):has(:is(iframe, video, object, embed)) {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.md-htmlblock.vlook-media-html-block, [data-type='html-block'].md-htmlblock.vlook-media-html-block) {
   min-height: var(--typora-vlook-html-min-height);
   border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
 }

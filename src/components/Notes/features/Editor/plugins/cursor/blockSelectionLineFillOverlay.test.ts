@@ -11,6 +11,7 @@ import {
   MAX_BLOCK_SELECTION_LINE_FILL_DOM_RECTS,
   MAX_BLOCK_SELECTION_LINE_FILL_RANGES,
 } from './blockSelectionLineFillOverlay';
+import { LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD } from './blockSelectionUtils';
 
 async function createEditor(markdown: string) {
   const editor = Editor.make()
@@ -184,6 +185,28 @@ describe('blockSelectionLineFillOverlay', () => {
       selectWholeDocument(view);
 
       expect(collectSelectedHardBreakLineRanges(view)).toHaveLength(MAX_BLOCK_SELECTION_LINE_FILL_RANGES);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('skips line-fill range collection for large block selections', async () => {
+    const markdown = Array.from(
+      { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD },
+      (_, index) => `line-${index}\\\nwrapped-${index}`
+    ).join('\n\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      const paragraphRanges = getParagraphRanges(view);
+      expect(paragraphRanges).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
+      dispatchBlockSelectionAction(view, {
+        type: 'set-blocks',
+        blocks: paragraphRanges,
+      });
+
+      expect(collectSelectedHardBreakLineRanges(view)).toEqual([]);
     } finally {
       await editor.destroy();
     }

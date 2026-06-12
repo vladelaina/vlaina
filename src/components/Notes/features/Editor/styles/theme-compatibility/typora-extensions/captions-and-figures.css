@@ -98,7 +98,7 @@
   min-width: var(--typora-vlook-table-first-cell-min-width, 8em);
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-caption.table, figure.table-figure:not(:has(.v-caption)), .milkdown-table-block.table-figure:not(:has(.v-caption))) {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-caption.table, figure.table-figure.editor-typora-table-figure-without-caption, .milkdown-table-block.table-figure.editor-typora-table-figure-without-caption) {
   display: block;
   overflow: auto;
 }

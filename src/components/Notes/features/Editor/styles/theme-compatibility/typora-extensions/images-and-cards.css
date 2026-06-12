@@ -52,12 +52,12 @@
   position: relative;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write p:has(> .image-block-container) {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write p.editor-paragraph-has-image-block {
   display: block;
   margin-block: 0.5em 0;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write p:has(> .image-block-container + .image-block-container) > .image-block-container {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write p.editor-paragraph-has-multiple-image-blocks > .image-block-container {
   margin-inline-end: var(--vlaina-space-20px, 20px);
   margin-block-end: var(--vlaina-space-20px, 20px);
 }
@@ -246,24 +246,24 @@
   border-radius: var(--typora-block-radius);
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote.vlook-post-card {
   padding: 0;
   border: none;
   border-radius: var(--typora-block-radius);
   overflow: hidden;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) > p {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote.vlook-post-card > p {
   margin: 0;
   background: transparent;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) .image-block-container {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote.vlook-post-card .image-block-container {
   width: 100% !important;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) + blockquote,
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote p:has(.image-block-container[src*='#card']) + blockquote {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote.vlook-post-card + blockquote,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote p.v-card-image + blockquote {
   margin-block-start: 0;
   padding: var(--vlaina-space-10px);
   color: var(--df, inherit);

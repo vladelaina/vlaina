@@ -350,12 +350,16 @@ function resolveViewportRectFromDocumentPosition(
   scrollLeft: number,
   scrollTop: number,
 ): DOMRect {
-  if (!scrollRootRect || block.documentLeft === undefined || block.documentRight === undefined) {
+  if (!scrollRootRect) {
     return block.rect;
   }
 
-  const left = block.documentLeft + scrollRootRect.left - scrollLeft;
-  const right = block.documentRight + scrollRootRect.left - scrollLeft;
+  const left = block.documentLeft === undefined
+    ? block.rect.left
+    : block.documentLeft + scrollRootRect.left - scrollLeft;
+  const right = block.documentRight === undefined
+    ? block.rect.right
+    : block.documentRight + scrollRootRect.left - scrollLeft;
   const top = block.documentTop + scrollRootRect.top - scrollTop;
   const bottom = block.documentBottom + scrollRootRect.top - scrollTop;
   return {
@@ -422,17 +426,25 @@ export function subscribeCurrentEditorBlockPositionSnapshot(
   };
 }
 
-function isFreshSnapshotForView(
+function isSnapshotForView(
   snapshot: EditorBlockPositionSnapshot,
   view: EditorView,
-): boolean {
+): { scrollRoot: HTMLElement | null; scrollLeft: number; scrollTop: number } | null {
   const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
-  return snapshot.view === view
-    && snapshot.doc === view.state.doc
-    && snapshot.editorRoot === view.dom
-    && snapshot.scrollRoot === scrollRoot
-    && snapshot.scrollLeft === (scrollRoot?.scrollLeft ?? 0)
-    && snapshot.scrollTop === (scrollRoot?.scrollTop ?? 0);
+  if (
+    snapshot.view !== view
+    || snapshot.doc !== view.state.doc
+    || snapshot.editorRoot !== view.dom
+    || snapshot.scrollRoot !== scrollRoot
+  ) {
+    return null;
+  }
+
+  return {
+    scrollRoot,
+    scrollLeft: scrollRoot?.scrollLeft ?? 0,
+    scrollTop: scrollRoot?.scrollTop ?? 0,
+  };
 }
 
 function getSnapshotScrollRootRect(snapshot: EditorBlockPositionSnapshot): DOMRect | null {
@@ -441,8 +453,9 @@ function getSnapshotScrollRootRect(snapshot: EditorBlockPositionSnapshot): DOMRe
 
 function mapSnapshotBlockToTarget(
   block: EditorBlockPositionEntry,
-  snapshot: EditorBlockPositionSnapshot,
   scrollRootRect: DOMRect | null,
+  scrollLeft: number,
+  scrollTop: number,
 ): SelectableBlockTarget {
   return {
     range: {
@@ -453,8 +466,8 @@ function mapSnapshotBlockToTarget(
     rect: resolveViewportRectFromDocumentPosition(
       block,
       scrollRootRect,
-      snapshot.scrollLeft,
-      snapshot.scrollTop,
+      scrollLeft,
+      scrollTop,
     ),
   };
 }
@@ -483,7 +496,8 @@ export function getCachedEditorBlockTargets(
   ranges?: readonly { from: number; to: number }[],
 ): SelectableBlockTarget[] | null {
   const snapshot = currentSnapshot;
-  if (!snapshot || !isFreshSnapshotForView(snapshot, view)) {
+  const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
+  if (!snapshot || !snapshotView) {
     return null;
   }
 
@@ -494,7 +508,12 @@ export function getCachedEditorBlockTargets(
     : snapshot.blocks;
 
   const scrollRootRect = getSnapshotScrollRootRect(snapshot);
-  return filteredBlocks.map((block) => mapSnapshotBlockToTarget(block, snapshot, scrollRootRect));
+  return filteredBlocks.map((block) => mapSnapshotBlockToTarget(
+    block,
+    scrollRootRect,
+    snapshotView.scrollLeft,
+    snapshotView.scrollTop,
+  ));
 }
 
 export function getFreshCachedEditorBlockTargets(
@@ -502,16 +521,22 @@ export function getFreshCachedEditorBlockTargets(
   scrollRoot: HTMLElement | null,
 ): SelectableBlockTarget[] | null {
   const snapshot = currentSnapshot;
+  const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
   if (
     !snapshot
-    || !isFreshSnapshotForView(snapshot, view)
+    || !snapshotView
     || snapshot.scrollRoot !== scrollRoot
   ) {
     return null;
   }
 
   const scrollRootRect = getSnapshotScrollRootRect(snapshot);
-  return snapshot.blocks.map((block) => mapSnapshotBlockToTarget(block, snapshot, scrollRootRect));
+  return snapshot.blocks.map((block) => mapSnapshotBlockToTarget(
+    block,
+    scrollRootRect,
+    snapshotView.scrollLeft,
+    snapshotView.scrollTop,
+  ));
 }
 
 export function getCachedEditorBlockTargetByPos(
@@ -519,7 +544,8 @@ export function getCachedEditorBlockTargetByPos(
   blockPos: number,
 ): SelectableBlockTarget | null {
   const snapshot = currentSnapshot;
-  if (!snapshot || !isFreshSnapshotForView(snapshot, view)) {
+  const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
+  if (!snapshot || !snapshotView) {
     return null;
   }
 
@@ -539,8 +565,8 @@ export function getCachedEditorBlockTargetByPos(
     rect: resolveViewportRectFromDocumentPosition(
       block,
       getSnapshotScrollRootRect(snapshot),
-      snapshot.scrollLeft,
-      snapshot.scrollTop,
+      snapshotView.scrollLeft,
+      snapshotView.scrollTop,
     ),
   };
 }
@@ -551,13 +577,14 @@ export function getCachedEditorBlockTargetNearY(
   predicate?: (block: EditorBlockPositionEntry) => boolean,
 ): SelectableBlockTarget | null {
   const snapshot = currentSnapshot;
-  if (!snapshot || !isFreshSnapshotForView(snapshot, view) || snapshot.blocks.length === 0) {
+  const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
+  if (!snapshot || !snapshotView || snapshot.blocks.length === 0) {
     return null;
   }
 
   const scrollRootRect = getSnapshotScrollRootRect(snapshot);
   const documentY = scrollRootRect
-    ? clientY - scrollRootRect.top + snapshot.scrollTop
+    ? clientY - scrollRootRect.top + snapshotView.scrollTop
     : clientY;
   const firstAfterIndex = findFirstBlockStartingAfter(snapshot.blocks, documentY);
   let directStartIndex = Math.max(0, firstAfterIndex - 1);
@@ -573,7 +600,12 @@ export function getCachedEditorBlockTargetNearY(
     if (block.documentTop > documentY) break;
     if (block.documentBottom < documentY) continue;
     if (predicate && !predicate(block)) continue;
-    return mapSnapshotBlockToTarget(block, snapshot, scrollRootRect);
+    return mapSnapshotBlockToTarget(
+      block,
+      scrollRootRect,
+      snapshotView.scrollLeft,
+      snapshotView.scrollTop,
+    );
   }
 
   let previous: EditorBlockPositionEntry | null = null;
@@ -599,7 +631,12 @@ export function getCachedEditorBlockTargetNearY(
     ? Math.abs(documentY - (next.documentTop + (next.documentBottom - next.documentTop) / 2))
     : Number.POSITIVE_INFINITY;
   const nearest = previousDistance <= nextDistance ? previous : next;
-  return nearest ? mapSnapshotBlockToTarget(nearest, snapshot, scrollRootRect) : null;
+  return nearest ? mapSnapshotBlockToTarget(
+    nearest,
+    scrollRootRect,
+    snapshotView.scrollLeft,
+    snapshotView.scrollTop,
+  ) : null;
 }
 
 export function getCachedEditorBlockTargetsNearY(
@@ -609,13 +646,14 @@ export function getCachedEditorBlockTargetsNearY(
   predicate?: (block: EditorBlockPositionEntry) => boolean,
 ): SelectableBlockTarget[] | null {
   const snapshot = currentSnapshot;
-  if (!snapshot || !isFreshSnapshotForView(snapshot, view) || snapshot.blocks.length === 0) {
+  const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
+  if (!snapshot || !snapshotView || snapshot.blocks.length === 0) {
     return null;
   }
 
   const scrollRootRect = getSnapshotScrollRootRect(snapshot);
   const documentY = scrollRootRect
-    ? clientY - scrollRootRect.top + snapshot.scrollTop
+    ? clientY - scrollRootRect.top + snapshotView.scrollTop
     : clientY;
   const firstAfterIndex = findFirstBlockStartingAfter(snapshot.blocks, documentY);
   let startIndex = Math.max(0, firstAfterIndex - 1);
@@ -624,8 +662,8 @@ export function getCachedEditorBlockTargetsNearY(
     const rect = resolveViewportRectFromDocumentPosition(
       previous,
       scrollRootRect,
-      snapshot.scrollLeft,
-      snapshot.scrollTop,
+      snapshotView.scrollLeft,
+      snapshotView.scrollTop,
     );
     if (!isNearRect(rect, clientY)) break;
     startIndex -= 1;
@@ -637,8 +675,8 @@ export function getCachedEditorBlockTargetsNearY(
     const rect = resolveViewportRectFromDocumentPosition(
       block,
       scrollRootRect,
-      snapshot.scrollLeft,
-      snapshot.scrollTop,
+      snapshotView.scrollLeft,
+      snapshotView.scrollTop,
     );
     if (!isNearRect(rect, clientY)) {
       if (block.documentTop > documentY) break;

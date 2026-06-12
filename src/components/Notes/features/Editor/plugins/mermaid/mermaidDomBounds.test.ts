@@ -60,6 +60,26 @@ describe('mermaid DOM render bounds', () => {
     expect(onRendered).toHaveBeenCalledTimes(1);
   });
 
+  it('short-circuits visibly incomplete live previews before rendering', async () => {
+    const anchor = document.createElement('div');
+    const render = vi.fn(async () => '<svg data-rendered="unexpected"></svg>');
+    const onRendered = vi.fn();
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'graph TD\nA --> B{unfinished',
+      render,
+      onRendered,
+    });
+
+    expect(render).not.toHaveBeenCalled();
+    expect(anchor.querySelector('.mermaid-error')?.textContent).toContain(
+      'Mermaid Error'
+    );
+    expect(anchor.querySelector('svg')).toBeNull();
+    expect(onRendered).toHaveBeenCalledTimes(1);
+  });
+
   it('bounds legacy data-code fallback reads', () => {
     const element = document.createElement('div');
     element.dataset.code = 'x'.repeat(MAX_LEGACY_MERMAID_DATA_CODE_CHARS + 1);

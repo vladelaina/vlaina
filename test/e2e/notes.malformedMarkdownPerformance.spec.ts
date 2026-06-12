@@ -59,6 +59,23 @@ type EditorDispatchProfileSummary = {
   }>;
 };
 
+type MalformedTypingSummary = {
+  maxTypingDecorationPropTotalMs: number;
+  maxTypingDispatchMs: number;
+  maxTypingFrameMs: number;
+  maxTypingLongTaskMs: number;
+  maxTypingMs: number;
+  maxTypingP95DispatchMs: number;
+  maxTypingP95FrameMs: number;
+  maxTypingPluginApplyTotalMs: number;
+  maxTypingUpdateStateInnerTotalMs: number;
+  slowestTyping: MalformedInputMetric[];
+  slowestTypingByDispatch: MalformedInputMetric[];
+  slowestTypingByFrame: MalformedInputMetric[];
+  totalTypingLongFramesOver100: number;
+  totalTypingMs: number;
+};
+
 function createMalformedMarkdownSection(index: number): string {
   const unclosedBracketRun = '['.repeat(6 + (index % 6));
   const pipeRun = Array.from({ length: 18 }, (_, column) => (
@@ -101,6 +118,69 @@ function createMalformedMarkdown(sectionCount: number): string {
     sections.push(createMalformedMarkdownSection(index));
   }
   sections.push('Final malformed markdown performance sentinel.');
+  return sections.join('\n');
+}
+
+function createTyporaLikeImportedMarkdown(sectionCount: number): string {
+  const blankLine = '<!--vlaina-markdown-blank-line-->';
+  const sections = [
+    '---',
+    'vlaina_cover: "./assets/13.jpg"',
+    'vlaina_cover_x: 50',
+    'vlaina_cover_y: 35.92496673701899',
+    'vlaina_cover_height: 200',
+    'vlaina_cover_scale: 1',
+    'vlaina_icon: "🍓"',
+    'vlaina_created: 2026-05-02 21:41:13 +08:00',
+    'vlaina_updated: 2026-06-11 18:32:29 +08:00',
+    '---',
+    '',
+    '# Typora-like Imported Markdown Performance',
+    '',
+    '[toc]',
+    '',
+    '[TOC]',
+    '',
+  ];
+
+  for (let index = 0; index < sectionCount; index += 1) {
+    sections.push(
+      `${index + 1}. Typora compatibility note ${index} with unsupported ++underline++, ==highlight==, content^sup^, content~sub~, old chart syntax, and broken [link ${index}(https://example.invalid/${index}`,
+      '',
+      blankLine,
+      blankLine,
+      '',
+      `## 常用快捷键 ${index}\\\\`,
+      '',
+      blankLine,
+      blankLine,
+      '',
+      `| 功能 ${index} | 操作步骤 | Windows | macOS | dangling |`,
+      '| --- | ----------- | ------------- | --------- | :----- |',
+      `| 源代码模式 | 视图->源代码模式 | Ctrl+/ | command+/ | extra-${index} | overflow |`,
+      `| 表格坏行 | https\\:/[/example.com](https://example.com/${index}) | **bold | *italic* |`,
+      '',
+      `> > > nested quote ${index} with [!callout-icon:%ZZ] and unmatched **strong marker`,
+      '',
+      `<video src="./assets/${index}.mp4" /><audio src="./assets/${index}.mp3"></audio><iframe src="https://example.invalid/${index}"></iframe>`,
+      '',
+      `[^bad-${index}: footnote-like text without closing label`,
+      '',
+      `- [ ] task ${index}`,
+      `  - [x] nested task ${index}`,
+      '',
+      '```txt',
+      `old flow syntax ${index}: st=>start cond=>condition 对象A->对象B: missing renderer`,
+      '```',
+      '',
+      blankLine,
+      '',
+      `Final Typora-like imported section sentinel ${index}.`,
+      '',
+    );
+  }
+
+  sections.push('Final Typora-like imported markdown performance sentinel.');
   return sections.join('\n');
 }
 
@@ -175,6 +255,43 @@ async function typeMalformedFragments(page: Page): Promise<MalformedInputMetric[
   return metrics;
 }
 
+function summarizeMalformedTypingMetrics(typingMetrics: MalformedInputMetric[]): MalformedTypingSummary {
+  const slowestTyping = [...typingMetrics]
+    .sort((left, right) => right.durationMs - left.durationMs)
+    .slice(0, 5);
+  const slowestTypingByFrame = [...typingMetrics]
+    .sort((left, right) => right.maxFrameMs - left.maxFrameMs)
+    .slice(0, 3);
+  const slowestTypingByDispatch = [...typingMetrics]
+    .sort((left, right) => (
+      (right.dispatchProfile?.maxDispatchMs ?? 0) - (left.dispatchProfile?.maxDispatchMs ?? 0)
+    ))
+    .slice(0, 3);
+
+  return {
+    maxTypingDecorationPropTotalMs: Math.max(
+      ...typingMetrics.map((metric) => metric.dispatchProfile?.decorationPropTotalMs ?? 0),
+    ),
+    maxTypingDispatchMs: Math.max(...typingMetrics.map((metric) => metric.dispatchProfile?.maxDispatchMs ?? 0)),
+    maxTypingFrameMs: Math.max(...typingMetrics.map((metric) => metric.maxFrameMs)),
+    maxTypingLongTaskMs: Math.max(...typingMetrics.map((metric) => metric.maxLongTaskMs)),
+    maxTypingMs: Math.max(...typingMetrics.map((metric) => metric.durationMs)),
+    maxTypingP95DispatchMs: Math.max(...typingMetrics.map((metric) => metric.dispatchProfile?.p95DispatchMs ?? 0)),
+    maxTypingP95FrameMs: Math.max(...typingMetrics.map((metric) => metric.p95FrameMs)),
+    maxTypingPluginApplyTotalMs: Math.max(
+      ...typingMetrics.map((metric) => metric.dispatchProfile?.pluginApplyTotalMs ?? 0),
+    ),
+    maxTypingUpdateStateInnerTotalMs: Math.max(
+      ...typingMetrics.map((metric) => metric.dispatchProfile?.updateStateInnerTotalMs ?? 0),
+    ),
+    slowestTyping,
+    slowestTypingByDispatch,
+    slowestTypingByFrame,
+    totalTypingLongFramesOver100: typingMetrics.reduce((sum, metric) => sum + metric.longFramesOver100, 0),
+    totalTypingMs: typingMetrics.reduce((sum, metric) => sum + metric.durationMs, 0),
+  };
+}
+
 test.describe('notes malformed markdown performance', () => {
   test.setTimeout(180_000);
 
@@ -206,32 +323,7 @@ test.describe('notes malformed markdown performance', () => {
       const postDomMetrics = await collectEditorDomMetrics(page);
       const postScrollMetrics = await measureScrollFrames(page, 24);
       const postBlockScanMetrics = await measureRepeatedBlockScan(page, 12);
-      const slowestTyping = [...typingMetrics]
-        .sort((left, right) => right.durationMs - left.durationMs)
-        .slice(0, 5);
-      const slowestTypingByFrame = [...typingMetrics]
-        .sort((left, right) => right.maxFrameMs - left.maxFrameMs)
-        .slice(0, 3);
-      const slowestTypingByDispatch = [...typingMetrics]
-        .sort((left, right) => (
-          (right.dispatchProfile?.maxDispatchMs ?? 0) - (left.dispatchProfile?.maxDispatchMs ?? 0)
-        ))
-        .slice(0, 3);
-      const maxTypingMs = Math.max(...typingMetrics.map((metric) => metric.durationMs));
-      const totalTypingMs = typingMetrics.reduce((sum, metric) => sum + metric.durationMs, 0);
-      const maxTypingFrameMs = Math.max(...typingMetrics.map((metric) => metric.maxFrameMs));
-      const totalTypingLongFramesOver100 = typingMetrics.reduce((sum, metric) => sum + metric.longFramesOver100, 0);
-      const maxTypingLongTaskMs = Math.max(...typingMetrics.map((metric) => metric.maxLongTaskMs));
-      const maxTypingDispatchMs = Math.max(...typingMetrics.map((metric) => metric.dispatchProfile?.maxDispatchMs ?? 0));
-      const maxTypingPluginApplyTotalMs = Math.max(
-        ...typingMetrics.map((metric) => metric.dispatchProfile?.pluginApplyTotalMs ?? 0),
-      );
-      const maxTypingDecorationPropTotalMs = Math.max(
-        ...typingMetrics.map((metric) => metric.dispatchProfile?.decorationPropTotalMs ?? 0),
-      );
-      const maxTypingUpdateStateInnerTotalMs = Math.max(
-        ...typingMetrics.map((metric) => metric.dispatchProfile?.updateStateInnerTotalMs ?? 0),
-      );
+      const typingSummary = summarizeMalformedTypingMetrics(typingMetrics);
 
       console.info('[notes-malformed-markdown-performance]', {
         sourceLength: content.length,
@@ -242,21 +334,12 @@ test.describe('notes malformed markdown performance', () => {
         postDomMetrics,
         postScrollMetrics,
         postBlockScanMetrics,
-        maxTypingMs,
-        maxTypingFrameMs,
-        maxTypingLongTaskMs,
-        maxTypingDispatchMs,
-        maxTypingPluginApplyTotalMs,
-        maxTypingDecorationPropTotalMs,
-        maxTypingUpdateStateInnerTotalMs,
-        totalTypingLongFramesOver100,
-        totalTypingMs,
-        slowestTyping,
+        ...typingSummary,
       });
       console.info('[notes-malformed-markdown-slowest-json]', JSON.stringify({
-        slowestTyping,
-        slowestTypingByFrame,
-        slowestTypingByDispatch,
+        slowestTyping: typingSummary.slowestTyping,
+        slowestTypingByFrame: typingSummary.slowestTypingByFrame,
+        slowestTypingByDispatch: typingSummary.slowestTypingByDispatch,
       }));
 
       expect(opened.storeOpenMs).toBeLessThan(30_000);
@@ -268,11 +351,88 @@ test.describe('notes malformed markdown performance', () => {
       expect(postBlockScanMetrics.p95Ms).toBeLessThan(250);
       expect(openScrollMetrics?.maxFrameMs ?? 0).toBeLessThan(1_500);
       expect(postScrollMetrics?.maxFrameMs ?? 0).toBeLessThan(1_500);
-      expect(maxTypingMs).toBeLessThan(10_000);
-      expect(maxTypingFrameMs).toBeLessThan(1_500);
-      expect(maxTypingLongTaskMs).toBeLessThan(1_500);
-      expect(totalTypingLongFramesOver100).toBeLessThan(30);
-      expect(totalTypingMs).toBeLessThan(35_000);
+      expect(typingSummary.maxTypingMs).toBeLessThan(10_000);
+      expect(typingSummary.maxTypingFrameMs).toBeLessThan(1_500);
+      expect(typingSummary.maxTypingLongTaskMs).toBeLessThan(1_500);
+      expect(typingSummary.totalTypingLongFramesOver100).toBeLessThan(30);
+      expect(typingSummary.totalTypingMs).toBeLessThan(35_000);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps Typora-like imported markdown bounded outside block selection', async () => {
+    const content = createTyporaLikeImportedMarkdown(70);
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-malformed-typora-like-performance');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      page.on('console', (message) => {
+        const text = message.text();
+        if (text.includes('[notes-milkdown-timing:')) {
+          console.info(text);
+        }
+      });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'malformed-typora-like-performance-e2e.md',
+        content,
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Typora-like Imported Markdown Performance');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final Typora-like imported markdown performance sentinel');
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks().length),
+        { timeout: 30_000 },
+      ).toBeGreaterThanOrEqual(900);
+
+      const openDomMetrics = await collectEditorDomMetrics(page);
+      const openScrollMetrics = await measureScrollFrames(page, 36);
+      const openBlockScanMetrics = await measureRepeatedBlockScan(page, 12);
+      const typingMetrics = await typeMalformedFragments(page);
+      const postDomMetrics = await collectEditorDomMetrics(page);
+      const postScrollMetrics = await measureScrollFrames(page, 24);
+      const postBlockScanMetrics = await measureRepeatedBlockScan(page, 12);
+      const typingSummary = summarizeMalformedTypingMetrics(typingMetrics);
+
+      console.info('[notes-malformed-typora-like-performance]', {
+        sourceLength: content.length,
+        opened,
+        openDomMetrics,
+        openScrollMetrics,
+        openBlockScanMetrics,
+        postDomMetrics,
+        postScrollMetrics,
+        postBlockScanMetrics,
+        ...typingSummary,
+      });
+      console.info('[notes-malformed-typora-like-slowest-json]', JSON.stringify({
+        slowestTyping: typingSummary.slowestTyping,
+        slowestTypingByFrame: typingSummary.slowestTypingByFrame,
+        slowestTypingByDispatch: typingSummary.slowestTypingByDispatch,
+      }));
+
+      expect(opened.storeOpenMs).toBeLessThan(30_000);
+      expect(openDomMetrics.countsBySelector.sourceFallback).toBe(0);
+      expect(postDomMetrics.countsBySelector.sourceFallback).toBe(0);
+      expect(openDomMetrics.countsBySelector.markdownBlankLines).toBeGreaterThan(200);
+      expect(openDomMetrics.countsBySelector.tables).toBeGreaterThan(50);
+      expect(openDomMetrics.countsBySelector.taskItems).toBeGreaterThan(100);
+      expect(openDomMetrics.countsBySelector.codeBlocks).toBeGreaterThan(50);
+      expect(openDomMetrics.selectableBlockCount).toBeGreaterThanOrEqual(900);
+      expect(postDomMetrics.editorTextLength).toBeGreaterThan(openDomMetrics.editorTextLength);
+      expect(openBlockScanMetrics.p95Ms).toBeLessThan(250);
+      expect(postBlockScanMetrics.p95Ms).toBeLessThan(250);
+      expect(openScrollMetrics?.maxFrameMs ?? 0).toBeLessThan(1_500);
+      expect(postScrollMetrics?.maxFrameMs ?? 0).toBeLessThan(1_500);
+      expect(typingSummary.maxTypingMs).toBeLessThan(10_000);
+      expect(typingSummary.maxTypingP95DispatchMs).toBeLessThan(250);
+      expect(typingSummary.maxTypingDispatchMs).toBeLessThan(750);
+      expect(typingSummary.maxTypingFrameMs).toBeLessThan(1_500);
+      expect(typingSummary.maxTypingP95FrameMs).toBeLessThan(300);
+      expect(typingSummary.maxTypingLongTaskMs).toBeLessThan(1_500);
+      expect(typingSummary.totalTypingLongFramesOver100).toBeLessThan(120);
+      expect(typingSummary.totalTypingMs).toBeLessThan(60_000);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

@@ -1,9 +1,13 @@
 import { PluginKey, type EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { DecorationSet } from '@milkdown/kit/prose/view';
-import type { BlockRange } from './blockSelectionUtils';
+import {
+  LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD,
+  type BlockRange,
+} from './blockSelectionUtils';
 
 const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
+const BLOCK_SELECTION_LARGE_CLASS = 'editor-block-selection-large';
 
 export interface BlankAreaDragBoxState {
   selectedBlocks: BlockRange[];
@@ -44,11 +48,16 @@ export function clearBlockSelection(view: EditorView): void {
   dispatchBlockSelectionAction(view, CLEAR_BLOCKS_ACTION);
 }
 
-export function setBlockSelectionVisualState(view: EditorView, active: boolean): void {
-  if (view.dom.classList.contains(BLOCK_SELECTION_ACTIVE_CLASS) === active) return;
+export function isLargeBlockSelection(selectedBlocks: readonly BlockRange[]): boolean {
+  return selectedBlocks.length >= LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD;
+}
+
+export function setBlockSelectionVisualState(view: EditorView, active: boolean, large = false): void {
   view.dom.classList.toggle(BLOCK_SELECTION_ACTIVE_CLASS, active);
+  view.dom.classList.toggle(BLOCK_SELECTION_LARGE_CLASS, active && large);
 }
 
 export function syncBlockSelectionVisualState(view: EditorView): void {
-  setBlockSelectionVisualState(view, hasSelectedBlocks(view.state));
+  const { selectedBlocks } = getBlockSelectionPluginState(view.state);
+  setBlockSelectionVisualState(view, selectedBlocks.length > 0, isLargeBlockSelection(selectedBlocks));
 }

@@ -1,0 +1,241 @@
+import { describe, expect, it } from 'vitest';
+import * as ProseModel from '@milkdown/kit/prose/model';
+import * as ProseState from '@milkdown/kit/prose/state';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import type { Decoration } from '@milkdown/kit/prose/view';
+import {
+  STRUCTURAL_EMPTY_PARAGRAPH_CLASS,
+  STRUCTURAL_LIST_ITEM_ALIGN_CENTER_CLASS,
+  STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS,
+  STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
+  STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS,
+  applyStructuralStyleDecorationsState,
+  createStructuralStyleDecorations,
+  getStructuralDecorationContextRanges,
+  getStructuralStyleDecorationClass,
+} from './structuralStyleDecorations';
+
+const SchemaCtor = (ProseModel as any).Schema;
+const EditorStateCtor = (ProseState as any).EditorState;
+const schema = new SchemaCtor({
+  nodes: {
+    doc: { content: 'block+' },
+    paragraph: {
+      group: 'block',
+      content: 'inline*',
+      attrs: {
+        align: { default: 'left' },
+      },
+      toDOM: (node: any) => {
+        const align = node.attrs.align;
+        return align && align !== 'left'
+          ? ['p', { 'data-text-align': align }, 0]
+          : ['p', 0];
+      },
+      parseDOM: [{ tag: 'p' }],
+    },
+    image: {
+      inline: true,
+      group: 'inline',
+      atom: true,
+      attrs: {
+        src: { default: null },
+      },
+      toDOM: () => ['span', { class: 'image-block-container' }],
+      parseDOM: [{ tag: 'span.image-block-container' }],
+    },
+    bullet_list: {
+      group: 'block',
+      content: 'list_item+',
+      toDOM: () => ['ul', 0],
+      parseDOM: [{ tag: 'ul' }],
+    },
+    list_item: {
+      content: 'paragraph block*',
+      attrs: {
+        checked: { default: null },
+      },
+      toDOM: () => ['li', 0],
+      parseDOM: [{ tag: 'li' }],
+    },
+    text: { group: 'inline' },
+  },
+});
+
+function textNode(text: string) {
+  return text ? schema.text(text) : undefined;
+}
+
+function paragraph(text = '', attrs?: Record<string, unknown>) {
+  return schema.nodes.paragraph.create(attrs, textNode(text));
+}
+
+function image() {
+  return schema.nodes.image.create({ src: 'image.png' });
+}
+
+function paragraphWithChildren(children: unknown[], attrs?: Record<string, unknown>) {
+  return schema.nodes.paragraph.create(attrs, children as any);
+}
+
+function listItem(child: ProseNode) {
+  return schema.nodes.list_item.create(null, [child]);
+}
+
+function docWith(nodes: ProseNode[]) {
+  return schema.nodes.doc.create(null, nodes);
+}
+
+function decorationClasses(doc: ProseNode): string[] {
+  return createStructuralStyleDecorations(doc)
+    .find()
+    .map((decoration: Decoration) => (decoration.type as any).attrs?.class);
+}
+
+function findTextPosition(doc: ProseNode, text: string, edge: 'start' | 'end'): number {
+  let result = -1;
+  doc.descendants((node, pos) => {
+    if (!node.isText) {
+      return true;
+    }
+    const index = (node.text ?? '').indexOf(text);
+    if (index < 0) {
+      return true;
+    }
+    result = pos + index + (edge === 'end' ? text.length : 0);
+    return false;
+  });
+
+  if (result < 0) {
+    throw new Error(`Text not found: ${text}`);
+  }
+  return result;
+}
+
+function findNodePosition(doc: ProseNode, typeName: string): number {
+  let result = -1;
+  doc.descendants((node, pos) => {
+    if (node.type.name !== typeName) {
+      return true;
+    }
+    result = pos;
+    return false;
+  });
+  if (result < 0) {
+    throw new Error(`Node not found: ${typeName}`);
+  }
+  return result;
+}
+
+describe('structuralStyleDecorations', () => {
+  it('marks paragraphs that need image or empty paragraph presentation classes', () => {
+    expect(getStructuralStyleDecorationClass(paragraph())).toBe(STRUCTURAL_EMPTY_PARAGRAPH_CLASS);
+    expect(getStructuralStyleDecorationClass(paragraphWithChildren([image()]))).toBe(
+      STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
+    );
+    expect(getStructuralStyleDecorationClass(paragraphWithChildren([image(), image()]))).toBe(
+      `${STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS} ${STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS}`,
+    );
+  });
+
+  it('marks list items based on direct child text alignment', () => {
+    expect(getStructuralStyleDecorationClass(listItem(paragraph('centered', { align: 'center' })))).toBe(
+      STRUCTURAL_LIST_ITEM_ALIGN_CENTER_CLASS,
+    );
+    expect(getStructuralStyleDecorationClass(listItem(paragraph('right', { align: 'right' })))).toBe(
+      STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS,
+    );
+  });
+
+  it('creates structural style decorations for images, empty paragraphs, and aligned list items', () => {
+    const doc = docWith([
+      schema.nodes.bullet_list.create(null, [
+        listItem(paragraph('centered', { align: 'center' })),
+        listItem(paragraph('right', { align: 'right' })),
+      ]),
+      paragraphWithChildren([image()]),
+      paragraphWithChildren([image(), image()]),
+      paragraph(),
+      paragraph('plain'),
+    ]);
+
+    expect(decorationClasses(doc).sort()).toEqual([
+      STRUCTURAL_LIST_ITEM_ALIGN_CENTER_CLASS,
+      STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS,
+      STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
+      `${STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS} ${STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS}`,
+      STRUCTURAL_EMPTY_PARAGRAPH_CLASS,
+    ].sort());
+  });
+
+  it('limits incremental updates to the changed structural context', () => {
+    const doc = docWith([
+      schema.nodes.bullet_list.create(null, [
+        listItem(paragraph('centered', { align: 'center' })),
+      ]),
+      paragraph('target text'),
+    ]);
+    const targetPos = findTextPosition(doc, 'target text', 'end');
+    const ranges = getStructuralDecorationContextRanges(doc, targetPos, targetPos);
+
+    expect(ranges).toHaveLength(1);
+    expect(doc.nodeAt(ranges[0].from)?.type.name).toBe('paragraph');
+  });
+
+  it('adds paragraph image classes incrementally when an image is inserted', () => {
+    const state = EditorStateCtor.create({
+      schema,
+      doc: docWith([paragraph('Target')]),
+    });
+    const previousDecorations = createStructuralStyleDecorations(state.doc);
+    const tr = state.tr.insert(findTextPosition(state.doc, 'Target', 'end'), image());
+
+    const next = applyStructuralStyleDecorationsState(tr, {
+      decorationCount: previousDecorations.find().length,
+      decorations: previousDecorations,
+    }, tr.doc);
+
+    expect(next.decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
+      STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
+    ]);
+  });
+
+  it('reuses structural decorations for selection-only transactions', () => {
+    const state = EditorStateCtor.create({
+      schema,
+      doc: docWith([paragraphWithChildren([image()]), paragraph('Target')]),
+    });
+    const decorations = createStructuralStyleDecorations(state.doc);
+    const previous = {
+      decorationCount: decorations.find().length,
+      decorations,
+    };
+
+    const next = applyStructuralStyleDecorationsState(
+      state.tr.setMeta('selection-only', true),
+      previous,
+      state.doc,
+    );
+
+    expect(next).toBe(previous);
+  });
+
+  it('removes stale structural classes incrementally when an image is deleted', () => {
+    const state = EditorStateCtor.create({
+      schema,
+      doc: docWith([paragraphWithChildren([image()])]),
+    });
+    const previousDecorations = createStructuralStyleDecorations(state.doc);
+    const imagePos = findNodePosition(state.doc, 'image');
+    const tr = state.tr.delete(imagePos, imagePos + 1);
+
+    const next = applyStructuralStyleDecorationsState(tr, {
+      decorationCount: previousDecorations.find().length,
+      decorations: previousDecorations,
+    }, tr.doc);
+
+    expect(next.decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
+      STRUCTURAL_EMPTY_PARAGRAPH_CLASS,
+    ]);
+  });
+});

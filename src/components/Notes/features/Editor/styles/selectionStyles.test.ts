@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readStyleFile, readThemeCompatibilityStyle } from "./selectionStylesTestUtils";
+import { readEditorStyleSourceFiles, readStyleFile, readThemeCompatibilityStyle } from "./selectionStylesTestUtils";
 
 describe("editor style theme compatibility", () => {
   it('keeps the Typora compatibility bridge scoped to imported external themes', () => {
@@ -34,6 +34,10 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain(`${scope} #write .v-tab-group {`);
     expect(css).toContain(`${scope} #write .v-tab-box {`);
     expect(css).toContain(`${scope} #write .v-post-card.vlook-post-card {`);
+    expect(css).toContain(`${scope} #write blockquote.vlook-post-card {`);
+    expect(css).toContain(`${scope} #write :is(.md-htmlblock.vlook-media-html-block, [data-type='html-block'].md-htmlblock.vlook-media-html-block) {`);
+    expect(css).toContain('.milkdown-table-block.table-figure.editor-typora-table-figure-without-caption');
+    expect(css).toContain(`${scope} #write .v-btn-group.editor-typora-button-group-has-selected {`);
     expect(css).toContain(`${scope} #write :is(blockquote, details, .md-alert) {`);
     expect(css).toContain(`${scope} #write table :is(th, td).td-span {`);
     expect(css).toContain(`${scope} #write .vlook-caption-gap {`);
@@ -54,6 +58,15 @@ describe("editor style theme compatibility", () => {
     expect(css).not.toContain("#write .md-hr + :is(blockquote, details, .md-alert)");
     expect(css).not.toContain("#write hr + :is(blockquote, details, .md-alert)");
     expect(css).not.toContain(":has(+ :is(ul, ol))");
+    expect(css).not.toContain(":has(");
+  });
+
+  it('does not use CSS :has selectors in editor styles', () => {
+    const offenders = readEditorStyleSourceFiles()
+      .filter(({ source }) => source.includes(':has('))
+      .map(({ path }) => path);
+
+    expect(offenders).toEqual([]);
   });
 
   it('scopes body line number gutter styles behind the markdown body line number class', () => {

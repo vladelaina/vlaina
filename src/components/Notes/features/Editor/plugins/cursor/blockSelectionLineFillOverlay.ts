@@ -1,5 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { getBlockSelectionPluginState } from './blockSelectionPluginState';
+import { getBlockSelectionPluginState, isLargeBlockSelection } from './blockSelectionPluginState';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange, type RectBounds } from './blockSelectionUtils';
 
 const LINE_FILL_LAYER_CLASS = 'editor-block-selection-line-fill-layer';
@@ -221,6 +221,7 @@ function collectSelectedHardBreakLineRangesFromNode(
 export function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
   const { selectedBlocks } = getBlockSelectionPluginState(view.state);
   if (selectedBlocks.length === 0) return [];
+  if (isLargeBlockSelection(selectedBlocks)) return [];
 
   const ranges: BlockRange[] = [];
   const selectedRanges = normalizeBlockRanges(selectedBlocks);
@@ -320,7 +321,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   const update = (updatedView: EditorView) => {
     currentView = updatedView;
     const { selectedBlocks } = getBlockSelectionPluginState(updatedView.state);
-    if (selectedBlocks.length === 0) {
+    if (selectedBlocks.length === 0 || isLargeBlockSelection(selectedBlocks)) {
       lastDoc = updatedView.state.doc;
       lastSelectedBlocks = selectedBlocks;
       lastSelectionKey = '';

@@ -76,14 +76,13 @@ export function handleMathBlockShortcutEnter(view: EditorView): boolean {
     .setMeta(
       mathEditorPluginKey,
       createOpenMathEditorState({
-      latex: '',
-      displayMode: true,
-      position: getMathBlockEnterViewportPosition(view),
-      nodePos: paragraphPos,
-      openSource: 'new-empty-block',
-    })
-    )
-    .scrollIntoView();
+        latex: '',
+        displayMode: true,
+        position: getMathBlockEnterViewportPosition(view),
+        nodePos: paragraphPos,
+        openSource: 'new-empty-block',
+      })
+    );
 
   markMathUserInput(view);
   view.dispatch(tr);

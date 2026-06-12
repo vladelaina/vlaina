@@ -12,7 +12,7 @@
 }
 
 .milkdown .ProseMirror li[data-item-type="task"].editor-block-selected::before,
-.milkdown .ProseMirror li[data-item-type="task"]:has(> p:first-of-type.editor-block-selected)::before,
+.milkdown .ProseMirror li[data-item-type="task"].editor-block-selected-parent-marker::before,
 .milkdown .ProseMirror .editor-block-selected li[data-item-type="task"]::before {
   border-color: var(--vlaina-editor-block-selection-fg) !important;
   background-color: transparent !important;
@@ -24,7 +24,7 @@
 }
 
 .milkdown .ProseMirror blockquote.editor-block-selected::before,
-.milkdown .ProseMirror blockquote:has(> .editor-block-selected)::before,
+.milkdown .ProseMirror blockquote.editor-block-selected-parent-marker::before,
 .milkdown .ProseMirror .editor-block-selected blockquote::before {
   background: var(--vlaina-editor-block-selection-fg) !important;
 }
@@ -166,13 +166,13 @@
   display: none;
 }
 
-.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container) {
+.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block {
   --vlaina-list-contained-block-selection-bleed-y: var(--vlaina-block-selection-list-contained-bleed-y);
   position: relative;
   z-index: var(--vlaina-z-0);
 }
 
-.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container)::after {
+.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block::after {
   content: '';
   position: absolute;
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
@@ -186,7 +186,7 @@
   pointer-events: none;
 }
 
-.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container) > * {
+.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block > * {
   position: relative;
   z-index: var(--vlaina-z-1);
 }

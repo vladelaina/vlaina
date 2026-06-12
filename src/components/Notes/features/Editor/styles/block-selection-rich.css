@@ -13,7 +13,7 @@
   box-shadow: var(--vlaina-block-selection-shadow);
 }
 
-.milkdown .ProseMirror p.editor-block-selected:has(> .image-block-container) {
+.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {
   --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);
 }
 

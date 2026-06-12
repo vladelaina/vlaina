@@ -3,7 +3,7 @@
   font-feature-settings: "tnum";
 }
 
-.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.editor-block-selected):not(.editor-editable-markdown-blank-line):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container)) {
+.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.editor-block-selected):not(.editor-editable-markdown-blank-line):not(.editor-empty-paragraph):not(.editor-paragraph-has-image-block) {
   width: fit-content;
   max-width: 100%;
 }

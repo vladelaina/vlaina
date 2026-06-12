@@ -41,6 +41,11 @@ function createView(args?: {
   };
   const view = {
     state: {
+      doc: {
+        nodeAt: vi.fn(() => ({
+          type: { name: 'mermaid' },
+        })),
+      },
       selection: {
         empty,
         from: 8,
@@ -81,8 +86,13 @@ function createView(args?: {
   };
 }
 
+async function flushScheduledEditorOpen() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 describe('mermaidEnterPlugin', () => {
-  it('converts a mermaid fence into a diagram block and opens the editor', () => {
+  it('converts a mermaid fence into a diagram block and schedules the editor open', async () => {
     const { view, tr, dispatch, mermaidType } = createView({ throwOnTextContent: true });
 
     expect(handleMermaidFenceEnter(view as never)).toBe(true);
@@ -92,6 +102,12 @@ describe('mermaidEnterPlugin', () => {
       type: 'mermaid',
       attrs: { code: '' },
     });
+    expect(tr.setMeta).not.toHaveBeenCalled();
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenNthCalledWith(1, tr);
+
+    await flushScheduledEditorOpen();
+
     expect(tr.setMeta).toHaveBeenCalledWith(mermaidEditorPluginKey, {
       isOpen: true,
       code: '',
@@ -99,7 +115,9 @@ describe('mermaidEnterPlugin', () => {
       nodePos: 4,
       openSource: 'new-empty-block',
     });
-    expect(dispatch).toHaveBeenCalledWith(tr);
+    expect(tr.setMeta).toHaveBeenCalledWith('addToHistory', false);
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenNthCalledWith(2, tr);
   });
 
   it('supports flow as a diagram fence alias', () => {
@@ -109,11 +127,12 @@ describe('mermaidEnterPlugin', () => {
     expect(mermaidType.create).toHaveBeenCalledWith({ code: 'flowchart TD\n' });
   });
 
-  it('supports tilde Mermaid fences', () => {
+  it('supports tilde Mermaid fences', async () => {
     const { view, tr, mermaidType } = createView({ text: '~~~sequence' });
 
     expect(handleMermaidFenceEnter(view as never)).toBe(true);
     expect(mermaidType.create).toHaveBeenCalledWith({ code: 'sequenceDiagram\n' });
+    await flushScheduledEditorOpen();
     expect(tr.setMeta).toHaveBeenCalledWith(
       mermaidEditorPluginKey,
       expect.objectContaining({
@@ -133,10 +152,11 @@ describe('mermaidEnterPlugin', () => {
     }
   });
 
-  it('falls back to a safe popup position when coordinates cannot be resolved', () => {
+  it('falls back to a safe popup position when coordinates cannot be resolved', async () => {
     const { view, tr } = createView({ coordsAtPosThrows: true });
 
     expect(handleMermaidFenceEnter(view as never)).toBe(true);
+    await flushScheduledEditorOpen();
     expect(tr.setMeta).toHaveBeenCalledWith(
       mermaidEditorPluginKey,
       expect.objectContaining({

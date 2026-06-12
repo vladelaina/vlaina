@@ -78,51 +78,23 @@ body.editor-block-drag-active .milkdown .ProseMirror .ProseMirror-selectednode,
 
 body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),
 body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),
-.milkdown .ProseMirror .editor-block-drag-source:not(.code-block-container):not(.mermaid-block),
-.milkdown .ProseMirror .editor-block-drag-source *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+.milkdown .ProseMirror .editor-block-drag-source-textlike,
+.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
   color: var(--vlaina-editor-block-selection-fg);
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
 }
 
 body.editor-block-drag-active .milkdown .ProseMirror li.editor-block-selected::marker,
-body.editor-block-drag-active .milkdown .ProseMirror li:has(> p:first-of-type.editor-block-selected)::marker,
+body.editor-block-drag-active .milkdown .ProseMirror li.editor-block-selected-parent-marker::marker,
 .milkdown .ProseMirror li.editor-block-drag-source::marker,
-.milkdown .ProseMirror li:has(> p:first-of-type.editor-block-drag-source)::marker {
+.milkdown .ProseMirror li.editor-block-drag-source-parent-marker::marker {
   color: var(--vlaina-editor-block-selection-fg);
 }
 
 /* Text-like Markdown blocks use an inset fill so adjacent selected rows keep a visible gap. */
-.milkdown .ProseMirror :where(
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  hr,
-  .md-hr,
-  li,
-  dl,
-  dt,
-  dd,
-  .definition-list,
-  .definition-term,
-  .definition-desc,
-  .footnote-def,
-  .toc-block,
-  .callout,
-  [data-type='html-block']
-):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(
-  .code-block-container,
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  .mermaid-block,
-  .milkdown-table-block
-))),
-.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+.milkdown .ProseMirror .editor-block-selected-textlike,
+.milkdown .ProseMirror .editor-block-drag-source-textlike,
+.milkdown .ProseMirror .editor-native-selected-textlike {
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
@@ -141,37 +113,9 @@ body.editor-block-drag-active .milkdown .ProseMirror li:has(> p:first-of-type.ed
   transition: none !important;
 }
 
-.milkdown .ProseMirror :where(
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  hr,
-  .md-hr,
-  li,
-  dl,
-  dt,
-  dd,
-  .definition-list,
-  .definition-term,
-  .definition-desc,
-  .footnote-def,
-  .toc-block,
-  .callout,
-  [data-type='html-block']
-):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(
-  .code-block-container,
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  .mermaid-block,
-  .milkdown-table-block
-)))::after,
-.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected::after {
+.milkdown .ProseMirror .editor-block-selected-textlike::after,
+.milkdown .ProseMirror .editor-block-drag-source-textlike::after,
+.milkdown .ProseMirror .editor-native-selected-textlike::after {
   content: '';
   position: absolute;
   top: var(--vlaina-block-selection-fill-top);
@@ -184,107 +128,40 @@ body.editor-block-drag-active .milkdown .ProseMirror li:has(> p:first-of-type.ed
   pointer-events: none;
 }
 
-body.editor-block-drag-active .milkdown .ProseMirror :where(
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  hr,
-  .md-hr,
-  li,
-  dl,
-  dt,
-  dd,
-  .definition-list,
-  .definition-term,
-  .definition-desc,
-  .footnote-def,
-  .toc-block,
-  .callout,
-  [data-type='html-block']
-):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(
-  .code-block-container,
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  .mermaid-block,
-  .milkdown-table-block
-))),
-body.editor-block-drag-active .milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected,
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-textlike {
+  background-color: var(--vlaina-block-selection-color);
+  box-shadow: none !important;
+  box-decoration-break: slice;
+  -webkit-box-decoration-break: slice;
+  color: var(--vlaina-editor-block-selection-fg);
+  contain: paint;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
+}
+
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected::before,
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected::after,
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-textlike::after {
+  display: none !important;
+}
+
+body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected-textlike,
+body.editor-block-drag-active .milkdown .ProseMirror .editor-block-drag-source-textlike,
+body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-textlike {
   background-color: transparent !important;
   box-shadow: none !important;
 }
 
 /* Only the shared edges between adjacent selected blocks are pulled inward. */
-.milkdown .ProseMirror :where(
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  hr,
-  .md-hr,
-  li,
-  dl,
-  dt,
-  dd,
-  .definition-list,
-  .definition-term,
-  .definition-desc,
-  .footnote-def,
-  .toc-block,
-  .callout,
-  [data-type='html-block']
-):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(
-  .code-block-container,
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  .mermaid-block,
-  .milkdown-table-block
-))):has(+ :is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source)),
-.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected:has(+ :is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source)) {
+.milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-next,
+.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-next,
+.milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-next {
   --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
 }
 
-.milkdown .ProseMirror :is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source) + :where(
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  hr,
-  .md-hr,
-  li,
-  dl,
-  dt,
-  dd,
-  .definition-list,
-  .definition-term,
-  .definition-desc,
-  .footnote-def,
-  .toc-block,
-  .callout,
-  [data-type='html-block']
-):is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source):not(:has(> :where(
-  .code-block-container,
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  .mermaid-block,
-  .milkdown-table-block
-))),
-.milkdown .ProseMirror :is(.editor-block-selected, .ProseMirror-selectednode, .editor-block-drag-source) + [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+.milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-previous,
+.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-previous,
+.milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-previous {
   --vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
 }
 
@@ -321,47 +198,18 @@ body.editor-block-drag-active .milkdown .ProseMirror > [data-type='html-block'][
 }
 
 /* Selection foreground for text-like blocks and their inline descendants. */
-.milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),
-.milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike,
+.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
   color: var(--vlaina-editor-block-selection-fg);
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
 }
 
-.milkdown .ProseMirror :where(
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  hr,
-  .md-hr,
-  li,
-  dl,
-  dt,
-  dd,
-  .definition-list,
-  .definition-term,
-  .definition-desc,
-  .footnote-def,
-  .toc-block,
-  .callout,
-  [data-type='html-block']
-):is(.editor-block-selected, .ProseMirror-selectednode):not(:has(> :where(
-  .code-block-container,
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  .mermaid-block,
-  .milkdown-table-block
-))) *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+.milkdown .ProseMirror .editor-native-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
   color: var(--vlaina-editor-block-selection-fg);
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
 }
 
 .milkdown .ProseMirror li.editor-block-selected::marker,
-.milkdown .ProseMirror li:has(> p:first-of-type.editor-block-selected)::marker {
+.milkdown .ProseMirror li.editor-block-selected-parent-marker::marker {
   color: var(--vlaina-editor-block-selection-fg);
 }
