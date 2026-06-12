@@ -233,6 +233,36 @@ describe('vaultStoreSupport persistence merging', () => {
     expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json', 256 * 1024);
   });
 
+  it('does not read vault state files with invalid known stat sizes', async () => {
+    vi.useFakeTimers();
+    const storage = {
+      getBasePath: vi.fn(async () => '/app'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      readFile: vi.fn(async () => {
+        throw new Error('Invalid stat size should not be read');
+      }),
+      stat: vi.fn(async () => ({ size: -1 })),
+      writeFile: vi.fn(async () => undefined),
+      mkdir: vi.fn(async () => undefined),
+    };
+    vi.doMock('@/lib/storage/adapter', () => ({
+      getStorageAdapter: () => storage,
+      joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
+      getBaseName: (path: string) => path.split('/').pop() || '',
+      getParentPath: (path: string) => path.split('/').slice(0, -1).join('/'),
+    }));
+    vi.doMock('@/lib/storage/paths', () => ({
+      ensureDirectories: () => Promise.resolve(),
+      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+    }));
+
+    const { loadPersistedVaultState } = await import('./vaultStoreSupport');
+    const state = await loadPersistedVaultState();
+
+    expect(state.recentVaults).toEqual([]);
+    expect(storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not parse vault state files that exceed the limit after read', async () => {
     vi.useFakeTimers();
     const storage = {

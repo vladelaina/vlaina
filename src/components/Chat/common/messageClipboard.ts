@@ -219,6 +219,10 @@ function getOverflowHtmlImageScrubEnd(content: string, start: number, rangeEnd: 
   );
 }
 
+function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
+  return Number.isFinite(size) && size >= 0 && size <= maxBytes;
+}
+
 export function formatMessageCopyText(content: string, options?: ImageTokenParseOptions): string {
   const normalizedContent = stripThinkingContent(stripWebSearchStatusMarkup(stripErrorTags(content)));
   const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(normalizedContent, options));
@@ -273,7 +277,7 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
       }
       blob = rasterizedBlob;
     }
-    if (blob.size > MAX_CHAT_IMAGE_FETCH_BYTES) {
+    if (!isBlobByteLengthWithinLimit(blob.size, MAX_CHAT_IMAGE_FETCH_BYTES)) {
       return false;
     }
     const ClipboardItemCtor = (window as any).ClipboardItem;

@@ -96,8 +96,15 @@ function uint8ArrayToBase64(data: Uint8Array): string {
   return window.btoa(binary);
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
+function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
+  return Number.isFinite(size) && size >= 0 && size <= maxBytes;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string | null> {
   return blob.arrayBuffer().then((buffer) => {
+    if (!isBlobByteLengthWithinLimit(buffer.byteLength, MAX_INLINE_IMAGE_BYTES)) {
+      return null;
+    }
     const mimeType = isSvgImageMimeType(blob.type) ? blob.type : 'image/svg+xml';
     return `data:${mimeType};base64,${uint8ArrayToBase64(new Uint8Array(buffer))}`;
   });
@@ -130,11 +137,15 @@ export async function rasterizeSvgBlobToPngBlob(blob: Blob): Promise<Blob | null
   if (!isSvgImageMimeType(blob.type)) {
     return blob;
   }
-  if (blob.size > MAX_INLINE_IMAGE_BYTES) {
+  if (!isBlobByteLengthWithinLimit(blob.size, MAX_INLINE_IMAGE_BYTES)) {
     return null;
   }
 
-  const rasterizedDataUrl = await rasterizeSvgDataUrlToPng(await blobToDataUrl(blob));
+  const svgDataUrl = await blobToDataUrl(blob);
+  if (!svgDataUrl) {
+    return null;
+  }
+  const rasterizedDataUrl = await rasterizeSvgDataUrlToPng(svgDataUrl);
   if (!rasterizedDataUrl || isSvgDataUrl(rasterizedDataUrl)) {
     return null;
   }

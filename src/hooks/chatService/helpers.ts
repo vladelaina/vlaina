@@ -599,6 +599,24 @@ function isNoteMentionContentWithinReadLimit(content: string): boolean {
   );
 }
 
+function canReadNoteMentionFile(
+  fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
+): boolean {
+  if (!fileInfo || fileInfo.isDirectory === true || fileInfo.isFile === false) {
+    return false;
+  }
+
+  if (typeof fileInfo.size !== 'number') {
+    return true;
+  }
+
+  return (
+    Number.isFinite(fileInfo.size) &&
+    fileInfo.size >= 0 &&
+    fileInfo.size <= MAX_NOTE_MENTION_READ_BYTES
+  );
+}
+
 async function readResolvedMentionedNoteContent(
   resolvedPath: { cachePath: string; fullPath: string },
   cacheAliases: readonly string[] = [],
@@ -630,12 +648,7 @@ async function readResolvedMentionedNoteContent(
   const storage = getStorageAdapter();
   try {
     const fileInfo = await storage.stat(resolvedPath.fullPath).catch(() => null);
-    if (
-      !fileInfo ||
-      fileInfo.isDirectory === true ||
-      fileInfo?.isFile === false ||
-      (typeof fileInfo.size === 'number' && fileInfo.size > MAX_NOTE_MENTION_READ_BYTES)
-    ) {
+    if (!canReadNoteMentionFile(fileInfo)) {
       return '';
     }
     const content = await storage.readFile(resolvedPath.fullPath, MAX_NOTE_MENTION_READ_BYTES);
@@ -951,12 +964,11 @@ function createFolderImageAttachment(entry: { path: string; name: string; size?:
   };
 }
 
-function isFolderImageAttachmentSize(size: number | null | undefined): boolean {
-  return (
-    typeof size === 'number' &&
-    Number.isFinite(size) &&
-    size >= 0 &&
-    size <= MAX_FOLDER_IMAGE_ATTACHMENT_BYTES
+function isKnownFolderImageAttachmentOversized(size: number | null | undefined): boolean {
+  return typeof size === 'number' && (
+    !Number.isFinite(size) ||
+    size < 0 ||
+    size > MAX_FOLDER_IMAGE_ATTACHMENT_BYTES
   );
 }
 
@@ -1000,7 +1012,7 @@ async function loadFolderImageAttachmentsForMention(
       continue;
     }
     const size = typeof stat?.size === 'number' ? stat.size : entry.size;
-    if (!isFolderImageAttachmentSize(size)) {
+    if (isKnownFolderImageAttachmentOversized(size)) {
       continue;
     }
     attachments.push(createFolderImageAttachment({

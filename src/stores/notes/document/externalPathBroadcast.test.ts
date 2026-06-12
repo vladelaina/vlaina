@@ -41,6 +41,14 @@ describe('external path broadcast persistence', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('ignores event files with invalid known stat sizes before reading them', async () => {
+    adapter.stat.mockResolvedValue({ size: -1 });
+
+    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('reads event files when stat has no size', async () => {
     adapter.stat.mockResolvedValue({});
     adapter.readFile.mockResolvedValue(JSON.stringify([

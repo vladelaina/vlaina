@@ -697,10 +697,11 @@ async function readBoundedTextFile(
   if (
     fileInfo?.isFile === false ||
     fileInfo?.isDirectory === true ||
-    (
-      typeof fileInfo?.size === 'number' &&
+    (typeof fileInfo?.size === 'number' && (
+      !Number.isFinite(fileInfo.size) ||
+      fileInfo.size < 0 ||
       fileInfo.size > maxBytes
-    )
+    ))
   ) {
     return null;
   }

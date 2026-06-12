@@ -14,6 +14,8 @@ import {
 } from '../document/externalChangeRegistry';
 import { setCachedNoteContent } from '../document/noteContentCache';
 
+const MAX_NOTE_DISK_SYNC_BYTES = 10 * 1024 * 1024;
+
 const hoisted = vi.hoisted(() => ({
   persistRecentNotes: vi.fn(),
   saveStarredRegistry: vi.fn(),
@@ -828,6 +830,29 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().noteContentsCache.get('docs/alpha.md')?.size).toBe(7);
   });
 
+  it('reloads the current note when stat has an invalid modified time', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: Number.POSITIVE_INFINITY, size: 7 });
+    storageAdapter.readFile.mockResolvedValue('# omega');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      currentNoteDiskRevision: 3,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: setCachedNoteContent(new Map(), 'docs/alpha.md', '# alpha', 1, {
+        updateBaseline: true,
+        size: 7,
+      }),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk();
+
+    expect(result).toBe('reloaded');
+    expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# omega' });
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')?.modifiedAt).toBe(1);
+  });
+
   it('reloads the current note with bounded reads when stat has no size or modified time', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true });
@@ -871,6 +896,55 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
     expect(store.getState().currentNoteDiskRevision).toBe(0);
     expect(store.getState().error).toBe('Note file is too complex to open safely.');
+  });
+
+  it('does not reload externally changed markdown that exceeds the disk sync byte limit after read', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({
+      isFile: true,
+      modifiedAt: 2,
+      size: 16,
+    });
+    storageAdapter.readFile.mockResolvedValue(
+      '你'.repeat(Math.floor(MAX_NOTE_DISK_SYNC_BYTES / 3) + 1),
+    );
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_DISK_SYNC_BYTES);
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().currentNoteDiskRevision).toBe(0);
+    expect(store.getState().error).toBe('Current note is too large to reload from disk.');
+  });
+
+  it('does not reload externally changed markdown with invalid negative stat sizes', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({
+      isFile: true,
+      modifiedAt: 2,
+      size: -1,
+    });
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().currentNoteDiskRevision).toBe(0);
+    expect(store.getState().error).toBe('Current note is too large to reload from disk.');
   });
 
   it('ignores expected self-write events while the current note is clean', async () => {

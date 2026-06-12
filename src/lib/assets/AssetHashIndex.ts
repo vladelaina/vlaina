@@ -60,7 +60,9 @@ function normalizeEntry(value: unknown): AssetHashIndexEntry | null {
     filename: entry.filename,
     hash: entry.hash,
     size: entry.size,
-    modifiedAt: typeof entry.modifiedAt === 'number' ? entry.modifiedAt : null,
+    modifiedAt: typeof entry.modifiedAt === 'number' && Number.isFinite(entry.modifiedAt)
+      ? entry.modifiedAt
+      : null,
     mimeType: entry.mimeType,
     updatedAt: entry.updatedAt,
   };
@@ -108,10 +110,11 @@ export async function loadAssetHashIndex(vaultPath: string): Promise<AssetHashIn
     if (
       info?.isDirectory === true ||
       info?.isFile === false ||
-      (
-        typeof info?.size === 'number' &&
+      (typeof info?.size === 'number' && (
+        !Number.isFinite(info.size) ||
+        info.size < 0 ||
         info.size > MAX_INDEX_BYTES
-      )
+      ))
     ) {
       return createEmptyIndex();
     }

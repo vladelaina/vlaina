@@ -7,9 +7,9 @@
  * Validates: Requirements 3.5
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as fc from 'fast-check';
-import { computeBufferHash } from './hashing';
+import { computeBufferHash, computeQuickHash, isLargeFile } from './hashing';
 
 describe('hashService', () => {
   describe('Property 5: Hash Format Correctness', () => {
@@ -87,6 +87,24 @@ describe('hashService', () => {
       expect(hash.length).toBe(16);
       // SHA-256 of "hello world" starts with b94d27b9...
       expect(hash).toBe('b94d27b9934d3e08');
+    });
+  });
+
+  describe('file size guards', () => {
+    it('rejects invalid quick hash file sizes before reading bytes', async () => {
+      const file = {
+        size: -1,
+        slice: vi.fn(),
+      } as unknown as File;
+
+      await expect(computeQuickHash(file)).rejects.toThrow('Invalid file size for hash computation.');
+
+      expect(file.slice).not.toHaveBeenCalled();
+    });
+
+    it('does not classify invalid file sizes as large', () => {
+      expect(isLargeFile({ size: Number.POSITIVE_INFINITY } as File)).toBe(false);
+      expect(isLargeFile({ size: -1 } as File)).toBe(false);
     });
   });
 });

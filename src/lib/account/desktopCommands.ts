@@ -47,7 +47,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function assertManagedDesktopBinaryBodySize(byteLength: number): void {
-  if (!Number.isFinite(byteLength) || byteLength > MAX_MANAGED_DESKTOP_BINARY_BODY_BYTES) {
+  if (!Number.isFinite(byteLength) || byteLength < 0 || byteLength > MAX_MANAGED_DESKTOP_BINARY_BODY_BYTES) {
     throw new Error('Managed desktop binary request body is too large.');
   }
 }
@@ -151,8 +151,10 @@ async function serializeBinaryBodyForDesktop(body: BodyInit, headers: Record<str
   }
 
   assertManagedDesktopBinaryBodySize(body.size);
+  const bytes = new Uint8Array(await readBlobAsArrayBuffer(body, signal));
+  assertManagedDesktopBinaryBodySize(bytes.byteLength);
   return {
-    bodyBase64: bytesToBase64(new Uint8Array(await readBlobAsArrayBuffer(body, signal))),
+    bodyBase64: bytesToBase64(bytes),
     headers,
   };
 }

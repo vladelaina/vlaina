@@ -82,6 +82,23 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('normalizes invalid modified timestamps after saving markdown', async () => {
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: Number.NaN, size: 16 });
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Alpha',
+      },
+      cache: new Map(),
+    });
+
+    expect(result.modifiedAt).toBeNull();
+    expect(result.nextCache.get('alpha.md')?.modifiedAt).toBeNull();
+  });
+
   it('refreshes the expected external change marker after writing to cover delayed watch events', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -552,6 +569,18 @@ describe('saveNoteDocument', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('rejects loading markdown files with invalid negative stat sizes before reading content', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: -1 });
+
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'invalid-size.md',
+      cache: new Map(),
+    })).rejects.toThrow('Note file is too large to open.');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('rejects saving when the target path is known to be a directory', async () => {
     adapter.stat.mockResolvedValue({ isDirectory: true, isFile: false, modifiedAt: 123, size: 0 });
 
@@ -582,6 +611,20 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+  });
+
+  it('normalizes invalid modified timestamps when loading markdown', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: Number.POSITIVE_INFINITY, size: 16 });
+    adapter.readFile.mockResolvedValue('# Alpha');
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+
+    expect(result.modifiedAt).toBeNull();
+    expect(result.nextCache.get('alpha.md')?.modifiedAt).toBeNull();
   });
 
   it('rejects cached markdown that is too complex for the editor', async () => {

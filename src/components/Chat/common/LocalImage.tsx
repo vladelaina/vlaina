@@ -39,8 +39,24 @@ async function normalizeDisplaySrc(src: string): Promise<string | null> {
     return isSvgDataUrl(src) ? await rasterizeSvgDataUrlToPng(src) : src;
 }
 
-function assertStoredAttachmentSize(size: number | null | undefined): void {
-    if (typeof size !== 'number' || size > MAX_ATTACHMENT_IMAGE_BYTES) {
+function assertStoredAttachmentSize(size: number): void {
+    if (!Number.isFinite(size) || size < 0 || size > MAX_ATTACHMENT_IMAGE_BYTES) {
+        throw new Error('Attachment image is too large.');
+    }
+}
+
+function assertReadableStoredAttachmentInfo(
+    info: { isDirectory?: boolean; isFile?: boolean; size?: number } | null | undefined,
+): void {
+    if (
+        info?.isFile === false ||
+        info?.isDirectory === true ||
+        (typeof info?.size === 'number' && (
+            !Number.isFinite(info.size) ||
+            info.size < 0 ||
+            info.size > MAX_ATTACHMENT_IMAGE_BYTES
+        ))
+    ) {
         throw new Error('Attachment image is too large.');
     }
 }
@@ -87,7 +103,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                 const basePath = await storage.getBasePath();
                 const attachmentPath = await getPrimaryAttachmentPath(basePath, filename);
                 const info = await storage.stat(attachmentPath).catch(() => null);
-                assertStoredAttachmentSize(info?.size);
+                assertReadableStoredAttachmentInfo(info);
                 const data = await storage.readBinaryFile(attachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
                 assertStoredAttachmentSize(data.byteLength);
                 const base64 = uint8ArrayToBase64(data);

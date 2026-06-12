@@ -119,7 +119,28 @@ function prepareAttachmentImageBytes(bytes: Uint8Array, mimeType: string): Uint8
 }
 
 function assertAttachmentImageSize(byteLength: number | null | undefined): void {
-    if (typeof byteLength !== 'number' || byteLength > MAX_ATTACHMENT_IMAGE_BYTES) {
+    if (
+        typeof byteLength !== 'number' ||
+        !Number.isFinite(byteLength) ||
+        byteLength < 0 ||
+        byteLength > MAX_ATTACHMENT_IMAGE_BYTES
+    ) {
+        throw new Error('Attachment image is too large.');
+    }
+}
+
+function assertReadableAttachmentInfo(
+    info: { isDirectory?: boolean; isFile?: boolean; size?: number } | null | undefined,
+): void {
+    if (
+        info?.isFile === false ||
+        info?.isDirectory === true ||
+        (typeof info?.size === 'number' && (
+            !Number.isFinite(info.size) ||
+            info.size < 0 ||
+            info.size > MAX_ATTACHMENT_IMAGE_BYTES
+        ))
+    ) {
         throw new Error('Attachment image is too large.');
     }
 }
@@ -371,7 +392,7 @@ export async function convertToBase64(attachment: Attachment, options: ConvertAt
             const readablePath = managedPath || ((await options.allowPath?.(attachment.path)) ? attachment.path : null);
             if (readablePath) {
                 const info = await storage.stat(readablePath).catch(() => null);
-                assertAttachmentImageSize(info?.size);
+                assertReadableAttachmentInfo(info);
                 const data = await storage.readBinaryFile(readablePath, MAX_ATTACHMENT_IMAGE_BYTES);
                 assertAttachmentImageSize(data.byteLength);
                 const base64 = uint8ArrayToBase64(data);
@@ -388,7 +409,7 @@ export async function convertToBase64(attachment: Attachment, options: ConvertAt
         const basePath = await storage.getBasePath();
         const attachmentPath = await getPrimaryAttachmentPath(basePath, storedFilename);
         const info = await storage.stat(attachmentPath).catch(() => null);
-        assertAttachmentImageSize(info?.size);
+        assertReadableAttachmentInfo(info);
         const data = await storage.readBinaryFile(attachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
         assertAttachmentImageSize(data.byteLength);
         const base64 = uint8ArrayToBase64(data);

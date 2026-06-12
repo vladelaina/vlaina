@@ -30,7 +30,7 @@ function isExportableImagePath(path: string): boolean {
 }
 
 function isExportableImageSize(size: number | null | undefined): boolean {
-  return typeof size === 'number' && size <= MAX_EXPORT_IMAGE_BYTES;
+  return typeof size === 'number' && Number.isFinite(size) && size >= 0 && size <= MAX_EXPORT_IMAGE_BYTES;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -81,6 +81,10 @@ async function resolveAssetUrl(
 
   const bridge = getElectronBridge();
   if (!bridge) {
+    return { url: fallbackSrc, embeddedBytes: 0 };
+  }
+
+  if (remainingEmbeddedBytes <= 0) {
     return { url: fallbackSrc, embeddedBytes: 0 };
   }
 

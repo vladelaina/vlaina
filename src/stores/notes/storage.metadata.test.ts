@@ -239,6 +239,25 @@ describe('notes metadata storage', () => {
     expect(adapter.readFile).toHaveBeenCalledTimes(1);
   });
 
+  it('does not cache metadata using invalid modified timestamps', async () => {
+    adapter.listDir.mockResolvedValue([
+      { name: 'alpha.md', isFile: true },
+    ]);
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-17T00:00:00.000Z"',
+      '---',
+      '',
+      '# Alpha',
+    ].join('\n'));
+    adapter.stat.mockResolvedValue({ modifiedAt: Number.POSITIVE_INFINITY, size: 80 });
+
+    await loadNoteMetadata('/vault-invalid-mtime');
+    await loadNoteMetadata('/vault-invalid-mtime');
+
+    expect(adapter.readFile).toHaveBeenCalledTimes(2);
+  });
+
   it('does not read metadata when file stats are unavailable', async () => {
     adapter.listDir.mockResolvedValue([
       { name: 'alpha.md', isFile: true },
@@ -259,6 +278,19 @@ describe('notes metadata storage', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 6 * 1024 * 1024 });
 
     await expect(loadNoteMetadata('/vault-huge')).resolves.toEqual({
+      version: 2,
+      notes: {},
+    });
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read markdown metadata when stat reports an invalid negative size', async () => {
+    adapter.listDir.mockResolvedValue([
+      { name: 'invalid.md', isFile: true },
+    ]);
+    adapter.stat.mockResolvedValue({ modifiedAt: 7, size: -1 });
+
+    await expect(loadNoteMetadata('/vault-invalid-size')).resolves.toEqual({
       version: 2,
       notes: {},
     });
@@ -571,6 +603,14 @@ describe('notes metadata storage', () => {
   it('does not read oversized workspace state files', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: 300 * 1024 });
+
+    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read workspace state files with invalid negative stat sizes', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: -1 });
 
     await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
     expect(adapter.readFile).not.toHaveBeenCalled();

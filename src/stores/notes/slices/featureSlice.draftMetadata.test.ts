@@ -269,6 +269,25 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
   });
 
+  it('rejects uncached disk metadata source content with invalid stat size before reading', async () => {
+    const notePath = 'docs/alpha.md';
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: -1 });
+    mocks.readFile.mockResolvedValue('# Alpha');
+    const store = createNotesStore({
+      notesPath: '/vault',
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(store.getState().error).toBe('Note file is too large to update metadata.');
+    });
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
+    expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
+  });
+
   it('merges vault metadata updates with newer disk edits instead of overwriting them', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));

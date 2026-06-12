@@ -142,10 +142,11 @@ async function readRawStarredRegistry(): Promise<StarredRegistry | null> {
   if (
     starredInfo?.isDirectory === true ||
     starredInfo?.isFile === false ||
-    (
-      typeof starredInfo?.size === 'number' &&
+    (typeof starredInfo?.size === 'number' && (
+      !Number.isFinite(starredInfo.size) ||
+      starredInfo.size < 0 ||
       starredInfo.size > MAX_STARRED_REGISTRY_BYTES
-    )
+    ))
   ) {
     return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
   }

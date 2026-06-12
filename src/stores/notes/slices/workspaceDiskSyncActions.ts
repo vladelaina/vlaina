@@ -18,6 +18,7 @@ import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdo
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 
 const MAX_NOTE_DISK_SYNC_BYTES = 10 * 1024 * 1024;
+const diskSyncUtf8Encoder = new TextEncoder();
 
 function isCurrentDiskSyncTarget(get: NotesGet, notesPath: string, notePath: string) {
   const state = get();
@@ -29,23 +30,51 @@ function canReadDiskSyncNote(fileInfo: {
   isDirectory?: boolean;
   size?: number | null;
 } | null | undefined): boolean {
+  const size = fileInfo?.size;
   return (
     fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
     Boolean(fileInfo) &&
     (
-      typeof fileInfo?.size !== 'number' ||
-      fileInfo.size <= MAX_NOTE_DISK_SYNC_BYTES
+      typeof size !== 'number' ||
+      (Number.isFinite(size) && size >= 0 && size <= MAX_NOTE_DISK_SYNC_BYTES)
     )
   );
 }
 
 function getKnownFileSize(fileInfo: { size?: number | null } | null | undefined): number | null {
-  return typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+  return typeof fileInfo?.size === 'number' && Number.isFinite(fileInfo.size) && fileInfo.size >= 0
+    ? fileInfo.size
+    : null;
+}
+
+function getKnownModifiedAt(fileInfo: { modifiedAt?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.modifiedAt === 'number' && Number.isFinite(fileInfo.modifiedAt)
+    ? fileInfo.modifiedAt
+    : null;
 }
 
 function hasKnownFileSizeChanged(cachedSize: number | null, diskSize: number | null): boolean {
   return cachedSize !== null && diskSize !== null && cachedSize !== diskSize;
+}
+
+function assertDiskSyncContentWithinReadLimit(content: string): void {
+  if (
+    content.length > MAX_NOTE_DISK_SYNC_BYTES ||
+    diskSyncUtf8Encoder.encode(content).length > MAX_NOTE_DISK_SYNC_BYTES
+  ) {
+    throw new Error('Current note is too large to reload from disk.');
+  }
+}
+
+async function readNormalizedDiskSyncContent(
+  storage: { readFile: (path: string, maxBytes?: number) => Promise<string> },
+  fullPath: string,
+): Promise<string> {
+  const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
+  assertDiskSyncContentWithinReadLimit(rawDiskContent);
+  assertEditorSafeMarkdownContent(rawDiskContent);
+  return normalizeSerializedMarkdownDocument(rawDiskContent);
 }
 
 export function createWorkspaceDiskSyncAction(
@@ -122,10 +151,10 @@ export function createWorkspaceDiskSyncAction(
           return 'deleted-conflict';
         }
 
-        const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
+        const nextModifiedAt = getKnownModifiedAt(fileInfo) ?? cachedModifiedAt ?? null;
         const nextSize = getKnownFileSize(fileInfo);
         const knownSizeChanged = hasKnownFileSizeChanged(cachedSize, nextSize);
-        const shouldVerifyDiskContent = fileInfo != null && fileInfo.modifiedAt == null;
+        const shouldVerifyDiskContent = fileInfo != null && getKnownModifiedAt(fileInfo) === null;
         if (!options?.force && !shouldVerifyDiskContent && nextModifiedAt === cachedModifiedAt && !knownSizeChanged) {
           return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
         }
@@ -158,9 +187,7 @@ export function createWorkspaceDiskSyncAction(
             return 'ignored';
           }
 
-          const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
-          assertEditorSafeMarkdownContent(rawDiskContent);
-          preloadedDiskContent = normalizeSerializedMarkdownDocument(rawDiskContent);
+          preloadedDiskContent = await readNormalizedDiskSyncContent(storage, fullPath);
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
             return 'ignored';
           }
@@ -190,9 +217,7 @@ export function createWorkspaceDiskSyncAction(
 
         let nextContent = preloadedDiskContent;
         if (nextContent === null) {
-          const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
-          assertEditorSafeMarkdownContent(rawDiskContent);
-          nextContent = normalizeSerializedMarkdownDocument(rawDiskContent);
+          nextContent = await readNormalizedDiskSyncContent(storage, fullPath);
         }
         if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
           return 'ignored';

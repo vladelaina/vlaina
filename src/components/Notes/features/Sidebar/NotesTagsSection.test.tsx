@@ -132,6 +132,31 @@ describe('NotesTagsSection', () => {
     expect(mocked.readFile).toHaveBeenCalledWith('/vault/docs/no-size-icon.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
   });
 
+  it('does not read tag note icon metadata when stat reports an invalid negative size', async () => {
+    mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false, modifiedAt: 1, size: -1 });
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: 'docs/invalid-size-icon.md', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read tag note icon metadata from unsafe relative paths', async () => {
     render(
       <NotesTagsSection
@@ -401,6 +426,57 @@ describe('NotesTagsSection', () => {
     );
 
     fireEvent.click(await screen.findByText('no-mtime-cache-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('second');
+    });
+    expect(mocked.readFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reuse cached tag note icon metadata when stat has an invalid modified time', async () => {
+    mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+
+    const first = render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'invalid-mtime-cache-topic',
+            count: 1,
+            paths: [{ path: 'docs/invalid-mtime-tag-icon.md', query: '#invalid-mtime-cache-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('invalid-mtime-cache-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('first');
+    });
+    first.unmount();
+
+    mocked.noteIcon.mockClear();
+    mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'invalid-mtime-cache-topic',
+            count: 1,
+            paths: [{ path: 'docs/invalid-mtime-tag-icon.md', query: '#invalid-mtime-cache-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('invalid-mtime-cache-topic'));
 
     await waitFor(() => {
       expect(screen.getByTestId('note-icon')).toHaveTextContent('second');

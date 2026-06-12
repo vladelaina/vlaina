@@ -73,10 +73,22 @@ describe('assetStorage', () => {
     expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('rejects custom icon uploads with invalid file sizes before writing bytes', async () => {
+    const file = new File(['x'], 'invalid.png', { type: 'image/png' });
+    Object.defineProperty(file, 'size', { value: -1 });
+
+    await expect(saveGlobalAsset(file, 'icons')).rejects.toThrow(
+      'Custom icon image is too large.'
+    );
+
+    expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('filters unsupported and oversized icon files while scanning', async () => {
     adapter.listDir.mockResolvedValue([
       { name: 'ok.png', path: '/app/.vlaina/assets/icons/ok.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 1 },
       { name: 'huge.svg', path: '/app/.vlaina/assets/icons/huge.svg', isDirectory: false, isFile: true, size: 11 * 1024 * 1024, modifiedAt: 2 },
+      { name: 'invalid.webp', path: '/app/.vlaina/assets/icons/invalid.webp', isDirectory: false, isFile: true, size: -1, modifiedAt: 3 },
       { name: 'secret.md', path: '/app/.vlaina/assets/icons/secret.md', isDirectory: false, isFile: true, size: 100, modifiedAt: 3 },
     ]);
 

@@ -60,15 +60,37 @@ function canReadBoundedMarkdownFile(
   fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
   maxBytes: number,
 ): boolean {
+  if (!fileInfo || fileInfo.isDirectory === true || fileInfo.isFile === false) {
+    return false;
+  }
+
+  if (typeof fileInfo.size !== 'number') {
+    return true;
+  }
+
   return (
-    fileInfo?.isDirectory !== true &&
-    fileInfo?.isFile !== false &&
-    Boolean(fileInfo) &&
-    (
-      typeof fileInfo?.size !== 'number' ||
-      fileInfo.size <= maxBytes
-    )
+    Number.isFinite(fileInfo.size) &&
+    fileInfo.size >= 0 &&
+    fileInfo.size <= maxBytes
   );
+}
+
+function getKnownMarkdownFileSize(
+  fileInfo: { size?: number | null } | null | undefined,
+): number | null {
+  return typeof fileInfo?.size === 'number' &&
+    Number.isFinite(fileInfo.size) &&
+    fileInfo.size >= 0
+    ? fileInfo.size
+    : null;
+}
+
+function getKnownMarkdownModifiedAt(
+  fileInfo: { modifiedAt?: number | null } | null | undefined,
+): number | null {
+  return typeof fileInfo?.modifiedAt === 'number' && Number.isFinite(fileInfo.modifiedAt)
+    ? fileInfo.modifiedAt
+    : null;
 }
 
 function hasUnsafeNotePathSegment(path: string): boolean {
@@ -129,8 +151,8 @@ function canReuseScannedNoteCacheEntry(
     return false;
   }
 
-  const modifiedAt = fileInfo?.modifiedAt ?? null;
-  const size = typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+  const modifiedAt = getKnownMarkdownModifiedAt(fileInfo);
+  const size = getKnownMarkdownFileSize(fileInfo);
   if (modifiedAt === null) {
     return false;
   }
@@ -701,8 +723,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
               if (!isScanActive()) {
                 return { path, content: '', modifiedAt: null, size: null };
               }
-              modifiedAt = fileInfo?.modifiedAt ?? null;
-              size = typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+              modifiedAt = getKnownMarkdownModifiedAt(fileInfo);
+              size = getKnownMarkdownFileSize(fileInfo);
               const cachedEntry = noteContentsCache.get(path);
               if (cachedEntry && canReuseScannedNoteCacheEntry(cachedEntry, fileInfo)) {
                 return { path, content: cachedEntry.content, modifiedAt, size };

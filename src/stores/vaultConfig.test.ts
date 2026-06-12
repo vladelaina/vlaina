@@ -80,6 +80,19 @@ describe('vaultConfig', () => {
     );
   });
 
+  it('repairs existing config content with invalid known stat size without reading it', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: -1 });
+
+    await ensureVaultConfig('/vault');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+    );
+  });
+
   it('reads existing config content when stat has no size', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({});

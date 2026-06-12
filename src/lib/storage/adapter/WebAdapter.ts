@@ -156,6 +156,21 @@ function getStoredFileByteLength(file: StoredFile): number {
   return getTextByteLength(file.content as string);
 }
 
+function getStoredFileModifiedAt(file: StoredFile): number | undefined {
+  return Number.isFinite(file.modifiedAt) ? file.modifiedAt : undefined;
+}
+
+function createStoredFileInfo(file: StoredFile, path = file.path): FileInfo {
+  return {
+    name: path.split('/').pop() || '',
+    path,
+    isDirectory: false,
+    isFile: true,
+    size: getStoredFileByteLength(file),
+    modifiedAt: getStoredFileModifiedAt(file),
+  };
+}
+
 export class WebAdapter implements StorageAdapter {
   readonly platform = 'web' as const;
   
@@ -548,27 +563,13 @@ export class WebAdapter implements StorageAdapter {
       if (isHiddenPath(parts)) continue;
 
       if (parts.length === 1) {
-        addEntry({
-          name: file.path.split('/').pop() || '',
-          path: file.path,
-          isDirectory: false,
-          isFile: true,
-          size: file.size,
-          modifiedAt: file.modifiedAt,
-        });
+        addEntry(createStoredFileInfo(file));
         continue;
       }
 
       if (options?.recursive) {
         addImplicitDirectories(parts.slice(0, -1));
-        addEntry({
-          name: file.path.split('/').pop() || '',
-          path: file.path,
-          isDirectory: false,
-          isFile: true,
-          size: file.size,
-          modifiedAt: file.modifiedAt,
-        });
+        addEntry(createStoredFileInfo(file));
       } else {
         addEntry({
           name: parts[0],
@@ -692,16 +693,9 @@ export class WebAdapter implements StorageAdapter {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => resolve(undefined);
     });
-    
+
     if (file) {
-      return {
-        name: normalizedPath.split('/').pop() || '',
-        path: normalizedPath,
-        isDirectory: false,
-        isFile: true,
-        size: file.size,
-        modifiedAt: file.modifiedAt,
-      };
+      return createStoredFileInfo(file, normalizedPath);
     }
     
     const dir = await new Promise<StoredDir | undefined>((resolve) => {

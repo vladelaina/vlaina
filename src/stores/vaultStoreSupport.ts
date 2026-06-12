@@ -148,10 +148,11 @@ async function readVaultStateFile(): Promise<PersistedVaultState | null> {
     if (
       fileInfo?.isDirectory === true ||
       fileInfo?.isFile === false ||
-      (
-        typeof fileInfo?.size === 'number' &&
+      (typeof fileInfo?.size === 'number' && (
+        !Number.isFinite(fileInfo.size) ||
+        fileInfo.size < 0 ||
         fileInfo.size > MAX_VAULT_STATE_BYTES
-      )
+      ))
     ) {
       return null;
     }

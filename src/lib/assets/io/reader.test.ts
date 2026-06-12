@@ -69,14 +69,12 @@ describe('asset image reader cache', () => {
     expect(getCachedBlobUrl('/vault/assets/cover.png')).toBeUndefined();
   });
 
-  it('rejects full image blob reads when file metadata has no size', async () => {
+  it('reads full image blobs when file metadata has no size but bounded read succeeds', async () => {
     hoisted.stat.mockResolvedValueOnce(null);
 
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).rejects.toThrow(
-      'Image asset is too large to preview.',
-    );
+    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:test-url');
 
-    expect(hoisted.readBinaryFile).not.toHaveBeenCalled();
+    expect(hoisted.readBinaryFile).toHaveBeenCalledWith('/vault/assets/cover.png', expect.any(Number));
   });
 
   it('reloads and revokes a cached blob URL when file metadata changes', async () => {
@@ -177,6 +175,16 @@ describe('asset image reader cache', () => {
     expect(hoisted.readBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('rejects image files with invalid known stat sizes before reading them', async () => {
+    hoisted.stat.mockResolvedValueOnce({ modifiedAt: 1, size: -1 });
+
+    await expect(loadImageAsBlob('/vault/assets/invalid.png')).rejects.toThrow(
+      'Image asset is too large to preview.',
+    );
+
+    expect(hoisted.readBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('sanitizes SVG images before creating blob URLs', async () => {
     const svg = [
       '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">',
@@ -223,6 +231,7 @@ describe('asset image reader cache', () => {
       '<text>ok</text>',
       '</svg>',
     ].join('');
+    hoisted.stat.mockResolvedValueOnce(null);
     hoisted.readBinaryFile.mockResolvedValueOnce(encodeTextBytes(svg));
 
     const dataUrl = await loadImageAsBase64('/vault/assets/icon.svg');
@@ -555,14 +564,12 @@ describe('asset image reader cache', () => {
     vi.stubGlobal('Image', originalImage);
   });
 
-  it('rejects thumbnail reads when file metadata has no size', async () => {
+  it('reads thumbnails when file metadata has no size but bounded read succeeds', async () => {
     hoisted.stat.mockResolvedValueOnce(null);
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).rejects.toThrow(
-      'Image asset is too large to preview.',
-    );
+    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:test-url');
 
-    expect(hoisted.readBinaryFile).not.toHaveBeenCalled();
+    expect(hoisted.readBinaryFile).toHaveBeenCalledWith('/vault/assets/icon.svg', expect.any(Number));
   });
 
   it('does not fall back to a full image load when a thumbnail load finishes after clearing', async () => {

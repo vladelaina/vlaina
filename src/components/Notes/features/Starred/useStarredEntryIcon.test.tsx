@@ -123,6 +123,45 @@ describe('useStarredEntryIcon', () => {
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
 
+  it('does not reuse a cached starred note icon when stat has an invalid modified time', async () => {
+    mocked.stat.mockResolvedValueOnce({ modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+
+    const first = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-invalid-mtime',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/invalid-mtime.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await waitFor(() => {
+      expect(first.result.current).toBe('first');
+    });
+    first.unmount();
+
+    mocked.stat.mockResolvedValueOnce({ modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+
+    const second = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-invalid-mtime',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/invalid-mtime.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    expect(second.result.current).toBeUndefined();
+    await waitFor(() => {
+      expect(second.result.current).toBe('second');
+    });
+    expect(mocked.readFile).toHaveBeenCalledTimes(2);
+  });
+
   it('skips oversized starred note metadata reads', async () => {
     mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 600 * 1024 });
 
@@ -138,6 +177,26 @@ describe('useStarredEntryIcon', () => {
 
     await waitFor(() => {
       expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/large.md');
+    });
+    expect(result.current).toBeUndefined();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('skips starred note metadata reads when stat reports an invalid negative size', async () => {
+    mocked.stat.mockResolvedValue({ modifiedAt: 1, size: -1 });
+
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-invalid-size',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/invalid-size.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await waitFor(() => {
+      expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/invalid-size.md');
     });
     expect(result.current).toBeUndefined();
     expect(mocked.readFile).not.toHaveBeenCalled();

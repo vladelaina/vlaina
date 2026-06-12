@@ -7,7 +7,7 @@ import {
   type ImportedMarkdownThemeMetadata,
   type MarkdownThemePlatform,
 } from '../types';
-import { MAX_IMPORTED_THEME_CSS_BYTES } from './constants';
+import { hasInvalidImportedThemeFileSize, MAX_IMPORTED_THEME_CSS_BYTES } from './constants';
 import { deleteImportedThemeFiles, writeImportedThemeCss } from './cssAssets';
 import {
   findThemeBySourcePath,
@@ -20,6 +20,8 @@ import {
 } from './metadata';
 import { getImportedMarkdownThemesDirectoryPath, getThemeCssPath } from './paths';
 import { readThemeIndex, writeThemeIndex } from './themeIndex';
+
+const importedThemeCssUtf8Encoder = new TextEncoder();
 
 export async function upsertImportedMarkdownThemeCss({
   name,
@@ -97,13 +99,13 @@ export async function readImportedMarkdownTheme(id: string): Promise<ImportedMar
     const info = await storage.stat(cssPath).catch(() => null);
     if (
       info?.isFile === false ||
-      typeof info?.size !== 'number' ||
-      info.size > MAX_IMPORTED_THEME_CSS_BYTES
+      info?.isDirectory === true ||
+      hasInvalidImportedThemeFileSize(info, MAX_IMPORTED_THEME_CSS_BYTES)
     ) {
       return null;
     }
     const css = await storage.readFile(cssPath, MAX_IMPORTED_THEME_CSS_BYTES);
-    if (css.length > MAX_IMPORTED_THEME_CSS_BYTES) {
+    if (importedThemeCssUtf8Encoder.encode(css).length > MAX_IMPORTED_THEME_CSS_BYTES) {
       return null;
     }
     return {

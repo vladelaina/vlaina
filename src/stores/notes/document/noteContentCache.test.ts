@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { limitCachedNoteContents, markCachedNoteFresh, setCachedNoteContent } from './noteContentCache';
+import {
+  createCachedNoteContentEntry,
+  getCachedNoteModifiedAt,
+  getCachedNoteSize,
+  limitCachedNoteContents,
+  markCachedNoteFresh,
+  setCachedNoteContent,
+} from './noteContentCache';
 
 describe('noteContentCache', () => {
   it('reuses the existing map when cached content is unchanged', () => {
@@ -41,6 +48,22 @@ describe('noteContentCache', () => {
     expect(nextCache).not.toBe(cache);
     expect(entry).toEqual({ content: '# Alpha', modifiedAt: 7 });
     expect(entry?.size).toBe(12);
+  });
+
+  it('normalizes invalid timestamp and size metadata', () => {
+    const entry = createCachedNoteContentEntry('# Alpha', Number.NaN, {
+      size: -1,
+    });
+
+    expect(entry).toEqual({ content: '# Alpha', modifiedAt: null });
+    expect(entry.size).toBeNull();
+
+    const cache = setCachedNoteContent(new Map(), 'docs/alpha.md', '# Alpha', Number.POSITIVE_INFINITY, {
+      size: Number.NaN,
+    });
+
+    expect(getCachedNoteModifiedAt(cache, 'docs/alpha.md')).toBeNull();
+    expect(getCachedNoteSize(cache, 'docs/alpha.md')).toBeNull();
   });
 
   it('returns a new map when cached disk size changes', () => {

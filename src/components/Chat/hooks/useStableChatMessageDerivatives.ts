@@ -51,6 +51,26 @@ function getDerivativeSignatureValue(value: string): string {
   return `${value.length}:large:${hashString(sampledValue)}`;
 }
 
+function areImageGalleryItemsEqual(
+  left: readonly ChatImageGalleryItem[],
+  right: readonly ChatImageGalleryItem[],
+): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((item, index) => {
+    const other = right[index];
+    return other !== undefined && item.id === other.id && item.src === other.src;
+  });
+}
+
+function areStringItemsEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((item, index) => item === right[index]);
+}
+
 function messageContentMayContainImageToken(content: string): boolean {
   return content.includes('![') || content.includes('<');
 }
@@ -239,8 +259,12 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
         items: sentUserItems,
         signature: sentUserSignatureParts.join('\u0001'),
       };
-      const imageChanged = nextImageGallery.signature !== stateRef.current.imageGallery.signature;
-      const sentChanged = nextSentUserMessages.signature !== stateRef.current.sentUserMessages.signature;
+      const imageChanged =
+        nextImageGallery.signature !== stateRef.current.imageGallery.signature ||
+        !areImageGalleryItemsEqual(nextImageGallery.items, stateRef.current.imageGallery.items);
+      const sentChanged =
+        nextSentUserMessages.signature !== stateRef.current.sentUserMessages.signature ||
+        !areStringItemsEqual(nextSentUserMessages.items, stateRef.current.sentUserMessages.items);
 
       if (imageChanged) {
         stateRef.current.imageGallery = nextImageGallery;

@@ -374,6 +374,18 @@ describe('unifiedStorage load bounds', () => {
     expect(data.ai?.providers).toEqual([]);
   });
 
+  it('ignores main data with invalid known stat size before reading', async () => {
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: -1 });
+    mocks.storage.readFile.mockRejectedValue(new Error('Invalid stat size should not be read'));
+
+    const data = await loadUnifiedData();
+
+    expect(data.settings.timezone.city).toBe('Beijing');
+    expect(data.ai?.providers).toEqual([]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('bounds settings string fields loaded from main data', async () => {
     const longCity = `${'c'.repeat(MAX_SETTINGS_TIMEZONE_CITY_CHARS)}x`;
     const longThemeId = `${'t'.repeat(MAX_SETTINGS_UI_THEME_ID_CHARS)}x`;

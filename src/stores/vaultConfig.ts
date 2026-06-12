@@ -44,10 +44,11 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
     if (
       fileInfo?.isDirectory === true ||
       fileInfo?.isFile === false ||
-      (
-        typeof fileInfo?.size === 'number' &&
+      (typeof fileInfo?.size === 'number' && (
+        !Number.isFinite(fileInfo.size) ||
+        fileInfo.size < 0 ||
         fileInfo.size > MAX_VAULT_CONFIG_BYTES
-      )
+      ))
     ) {
       await storage.writeFile(
         configFilePath,

@@ -209,12 +209,13 @@ function isReadableBoundedFile(
   fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
   maxBytes: number,
 ): boolean {
+  const size = fileInfo?.size;
   return (
     fileInfo?.isDirectory !== true &&
     fileInfo?.isFile !== false &&
     (
-      typeof fileInfo?.size !== 'number' ||
-      fileInfo.size <= maxBytes
+      typeof size !== 'number' ||
+      (Number.isFinite(size) && size >= 0 && size <= maxBytes)
     )
   );
 }
@@ -227,7 +228,24 @@ function isReadableBoundedMarkdownFile(
     return false;
   }
 
-  return typeof fileInfo.size !== 'number' || fileInfo.size <= maxBytes;
+  const size = fileInfo.size;
+  return typeof size !== 'number' || (Number.isFinite(size) && size >= 0 && size <= maxBytes);
+}
+
+function getKnownReadableFileSize(
+  fileInfo: { size?: number | null } | null | undefined,
+): number | null {
+  return typeof fileInfo?.size === 'number' && Number.isFinite(fileInfo.size) && fileInfo.size >= 0
+    ? fileInfo.size
+    : null;
+}
+
+function getKnownReadableModifiedAt(
+  fileInfo: { modifiedAt?: number | null } | null | undefined,
+): number | null {
+  return typeof fileInfo?.modifiedAt === 'number' && Number.isFinite(fileInfo.modifiedAt)
+    ? fileInfo.modifiedAt
+    : null;
 }
 
 async function collectMarkdownPaths(
@@ -311,8 +329,8 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
         batch.map(async (relativePath) => {
           const fullPath = await joinPath(vaultPath, relativePath);
           const fileInfo = await storage.stat(fullPath).catch(() => null);
-          const modifiedAt = fileInfo?.modifiedAt ?? null;
-          const size = fileInfo?.size ?? null;
+          const modifiedAt = getKnownReadableModifiedAt(fileInfo);
+          const size = getKnownReadableFileSize(fileInfo);
           if (!isReadableBoundedMarkdownFile(fileInfo, MAX_METADATA_READ_BYTES)) {
             return {
               relativePath,

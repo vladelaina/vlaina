@@ -138,6 +138,25 @@ describe('remoteImageMemoryCache', () => {
         expect(URL.createObjectURL).not.toHaveBeenCalled();
     });
 
+    it('does not cache remote image blobs with invalid size metadata', async () => {
+        const url = 'https://example.com/invalid-size.png';
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            ok: true,
+            headers: new Headers({
+                'content-length': '2',
+                'content-type': 'image/png',
+            }),
+            blob: async () => ({
+                type: 'image/png',
+                size: -1,
+            }),
+        })));
+
+        await expect(resolveRemoteImageFromMemoryCache(url)).resolves.toBe(url);
+
+        expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+
     it('falls back to the safe remote URL when remote image fetches time out', async () => {
         vi.useFakeTimers();
         const url = 'https://example.com/timeout.png';

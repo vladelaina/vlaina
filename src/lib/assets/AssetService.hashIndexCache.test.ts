@@ -87,6 +87,22 @@ describe('AssetService hash index cache validation', () => {
   });
 
   it('does not trust same-size hash index entries when mtime is unavailable', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => {
+      if (path === '/vault/.system/asset-hash-index.json') {
+        return { name: 'asset-hash-index.json', path, isFile: true, isDirectory: false, size: 220 };
+      }
+      if (path === '/vault/docs/assets/alpha.png') {
+        return { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5 };
+      }
+      return {
+        name: path.split('/').pop() ?? '',
+        path,
+        isFile: true,
+        isDirectory: false,
+        size: 5,
+        modifiedAt: Number.POSITIVE_INFINITY,
+      };
+    });
     const file = {
       name: 'alpha.png',
       type: 'image/png',
@@ -110,5 +126,9 @@ describe('AssetService hash index cache validation', () => {
     expect(result.isDuplicate).toBe(false);
     expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).toHaveBeenCalled();
+    const lastWriteCall = mocks.storage.writeFile.mock.calls[mocks.storage.writeFile.mock.calls.length - 1];
+    const savedIndex = JSON.parse(String(lastWriteCall?.[1] ?? '{}'));
+    const uploadedEntry = Object.values(savedIndex.entries).find((entry: any) => entry.hash === 'same-hash') as any;
+    expect(uploadedEntry.modifiedAt).toBeNull();
   });
 });

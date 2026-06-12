@@ -15,6 +15,27 @@ describe('uploadPreviewDataUrl', () => {
         expect(file.arrayBuffer).not.toHaveBeenCalled();
     });
 
+    it('rejects icon preview files with invalid size metadata before reading bytes', async () => {
+        const OriginalFileReader = globalThis.FileReader;
+        const FileReaderMock = vi.fn();
+        try {
+            vi.stubGlobal('FileReader', FileReaderMock);
+            const file = {
+                name: 'invalid.png',
+                type: 'image/png',
+                size: Number.NaN,
+                arrayBuffer: vi.fn(),
+            } as unknown as File;
+
+            await expect(readUploadPreviewDataUrl(file)).resolves.toBeNull();
+
+            expect(file.arrayBuffer).not.toHaveBeenCalled();
+            expect(FileReaderMock).not.toHaveBeenCalled();
+        } finally {
+            vi.stubGlobal('FileReader', OriginalFileReader);
+        }
+    });
+
     it('sanitizes SVG previews before returning a data URL', async () => {
         const svg = [
             '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">',

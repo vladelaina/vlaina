@@ -299,6 +299,28 @@ describe('imageDownload', () => {
     appendSpy.mockRestore();
   });
 
+  it('does not save rasterized SVG output with invalid size metadata', async () => {
+    const svgBlob = new Blob(['<svg></svg>'], { type: 'image/svg+xml' });
+    const invalidPngBlob = {
+      type: 'image/png',
+      size: -1,
+      arrayBuffer: vi.fn(),
+    } as unknown as Blob;
+    mocks.fetch.mockResolvedValue(imageResponse(svgBlob));
+    mocks.rasterizeSvgBlobToPngBlob.mockResolvedValue(invalidPngBlob);
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+
+    await downloadImageWithPrompt('https://example.com/diagram.svg', 'diagram');
+
+    expect(mocks.rasterizeSvgBlobToPngBlob).toHaveBeenCalledWith(svgBlob);
+    expect(invalidPngBlob.arrayBuffer).not.toHaveBeenCalled();
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    expect(appendSpy).not.toHaveBeenCalled();
+
+    appendSpy.mockRestore();
+  });
+
   it('does not hang when fallback image blob reading is aborted', async () => {
     const originalArrayBufferDescriptor = Object.getOwnPropertyDescriptor(Blob.prototype, 'arrayBuffer');
     try {

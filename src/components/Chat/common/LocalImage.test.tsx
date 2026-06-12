@@ -139,17 +139,31 @@ describe('LocalImage', () => {
     expect(screen.queryByAltText('huge')).not.toBeInTheDocument();
   });
 
-  it('shows unavailable state for stored attachments without a stat size before reading them', async () => {
-    mocks.stat.mockResolvedValueOnce(null);
+  it('shows unavailable state for stored attachments with invalid known stat sizes before reading them', async () => {
+    mocks.stat.mockResolvedValueOnce({ size: -1 });
 
-    render(<LocalImage src="attachment://missing-size.png" alt="missing" />);
+    render(<LocalImage src="attachment://invalid.png" alt="invalid" />);
 
     await waitFor(() => {
       expect(screen.getByText('Image unavailable')).toBeInTheDocument();
     });
-    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/missing-size.png');
+    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/invalid.png');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
-    expect(screen.queryByAltText('missing')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('invalid')).not.toBeInTheDocument();
+  });
+
+  it('reads stored attachments when stat has no size but bounded read succeeds', async () => {
+    mocks.stat.mockResolvedValueOnce(null);
+
+    render(<LocalImage src="attachment://missing-size.png" alt="missing" />);
+
+    const image = await screen.findByAltText('missing');
+    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/missing-size.png');
+    expect(mocks.readBinaryFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/attachments/missing-size.png',
+      MAX_ATTACHMENT_IMAGE_BYTES,
+    );
+    expect(image).toHaveAttribute('src', 'data:image/png;base64,PHN2Zz4=');
   });
 
   it('shows unavailable state when SVG rasterization fails', async () => {

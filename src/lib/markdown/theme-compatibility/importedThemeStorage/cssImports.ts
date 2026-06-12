@@ -8,11 +8,18 @@ import {
   rebaseRelativeMarkdownThemeCssUrls,
 } from '../cssUrls';
 import {
+  hasInvalidImportedThemeFileSize,
   MAX_IMPORTED_THEME_CSS_BYTES,
   MAX_IMPORTED_THEME_CSS_IMPORT_DEPTH,
   MAX_IMPORTED_THEME_CSS_IMPORTS,
 } from './constants';
 import { isThemeRelativePathInsideDirectory, normalizeThemePath } from './metadata';
+
+const importedThemeCssImportUtf8Encoder = new TextEncoder();
+
+function isImportedThemeCssWithinReadLimit(css: string): boolean {
+  return importedThemeCssImportUtf8Encoder.encode(css).byteLength <= MAX_IMPORTED_THEME_CSS_BYTES;
+}
 
 export async function inlineRelativeThemeCssImports(
   css: string,
@@ -60,13 +67,13 @@ export async function inlineRelativeThemeCssImports(
       const info = await storage.stat(importedPath).catch(() => null);
       if (
         info?.isFile === false ||
-        typeof info?.size !== 'number' ||
-        info.size > MAX_IMPORTED_THEME_CSS_BYTES
+        info?.isDirectory === true ||
+        hasInvalidImportedThemeFileSize(info, MAX_IMPORTED_THEME_CSS_BYTES)
       ) {
         continue;
       }
       const importedCss = await storage.readFile(importedPath, MAX_IMPORTED_THEME_CSS_BYTES);
-      if (importedCss.length > MAX_IMPORTED_THEME_CSS_BYTES) {
+      if (!isImportedThemeCssWithinReadLimit(importedCss)) {
         continue;
       }
       const inlinedImportedCss = await inlineRelativeThemeCssImports(

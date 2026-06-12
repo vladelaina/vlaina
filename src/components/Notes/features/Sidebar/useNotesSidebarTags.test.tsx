@@ -142,6 +142,23 @@ describe('useNotesSidebarTags', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read missing sidebar tag content when stat reports an invalid negative size', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    mocked.stat.mockResolvedValue({ isFile: true, size: -1 });
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault',
+    }));
+
+    await waitFor(() => {
+      expect(mocked.stat).toHaveBeenCalledWith('/vault/alpha.md');
+    });
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read unsafe file tree paths while loading missing sidebar tag content', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
     const unsafeRootFolder: FolderNode = {

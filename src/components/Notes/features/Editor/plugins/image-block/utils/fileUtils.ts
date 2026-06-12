@@ -19,6 +19,10 @@ function prepareRestoredImageBytes(bytes: Uint8Array, mimeType: string): Uint8Ar
     return mimeType === 'image/svg+xml' ? sanitizeSvgBytes(bytes) : bytes;
 }
 
+function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
+    return Number.isFinite(size) && size >= 0 && size <= maxBytes;
+}
+
 function getSafeLocalImageSource(src: string): string | null {
     const baseSrc = getImageSourceBase(src);
     const safeSrc = sanitizeNoteMediaSrc(baseSrc);
@@ -63,7 +67,7 @@ export async function ensureImageFileExists(
         const blob = result.blob;
         const mimeType = normalizeBlobMimeType(blob.type);
         if (!mimeType.startsWith('image/')) return;
-        if (blob.size > MAX_RESTORED_IMAGE_BYTES) return;
+        if (!isBlobByteLengthWithinLimit(blob.size, MAX_RESTORED_IMAGE_BYTES)) return;
 
         const arrayBuffer = await blob.arrayBuffer();
         const uint8Array = prepareRestoredImageBytes(new Uint8Array(arrayBuffer), mimeType);

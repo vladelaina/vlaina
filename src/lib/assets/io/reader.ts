@@ -94,8 +94,40 @@ function assertPreviewableImagePath(fullPath: string): void {
   }
 }
 
+function isPreviewableImageSize(size: number): boolean {
+  return Number.isFinite(size) && size >= 0 && size <= MAX_LOCAL_IMAGE_BYTES;
+}
+
+function getKnownPreviewableImageSize(
+  info: { size?: number | null } | null | undefined,
+): number | null {
+  return typeof info?.size === 'number' && isPreviewableImageSize(info.size)
+    ? info.size
+    : null;
+}
+
+function getKnownPreviewableModifiedAt(
+  info: { modifiedAt?: number | null } | null | undefined,
+): number | null {
+  return typeof info?.modifiedAt === 'number' && Number.isFinite(info.modifiedAt)
+    ? info.modifiedAt
+    : null;
+}
+
 function assertPreviewableImageSize(size: number | null | undefined): void {
-  if (typeof size !== 'number' || size > MAX_LOCAL_IMAGE_BYTES) {
+  if (typeof size !== 'number' || !isPreviewableImageSize(size)) {
+    throw new Error('Image asset is too large to preview.');
+  }
+}
+
+function assertPreviewableImageInfo(
+  info: { isDirectory?: boolean; isFile?: boolean; size?: number | null } | null | undefined,
+): void {
+  if (
+    info?.isFile === false ||
+    info?.isDirectory === true ||
+    (typeof info?.size === 'number' && !isPreviewableImageSize(info.size))
+  ) {
     throw new Error('Image asset is too large to preview.');
   }
 }
@@ -154,7 +186,7 @@ async function loadPersistentThumbnailBlobUrl(
       return null;
     }
     const info = await storage.stat(persistentCachePath).catch(() => null);
-    assertPreviewableImageSize(info?.size);
+    assertPreviewableImageInfo(info);
     const bytes = await storage.readBinaryFile(persistentCachePath, MAX_LOCAL_IMAGE_BYTES);
     assertPreviewableImageSize(bytes.byteLength);
     return URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
@@ -292,9 +324,9 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
 
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(fullPath).catch(() => null);
-  const modifiedAt = fileInfo?.modifiedAt ?? null;
-  const size = fileInfo?.size ?? null;
-  assertPreviewableImageSize(size);
+  const modifiedAt = getKnownPreviewableModifiedAt(fileInfo);
+  const size = getKnownPreviewableImageSize(fileInfo);
+  assertPreviewableImageInfo(fileInfo);
   const canValidateCache = modifiedAt !== null;
   const cached = blobUrlCache.get(fullPath);
   if (cached && canValidateCache && cached.modifiedAt === modifiedAt && cached.size === size) {
@@ -365,9 +397,9 @@ export async function loadImageThumbnailAsBlob(
 
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(fullPath).catch(() => null);
-  const modifiedAt = fileInfo?.modifiedAt ?? null;
-  const size = fileInfo?.size ?? null;
-  assertPreviewableImageSize(size);
+  const modifiedAt = getKnownPreviewableModifiedAt(fileInfo);
+  const size = getKnownPreviewableImageSize(fileInfo);
+  assertPreviewableImageInfo(fileInfo);
   const canValidateCache = modifiedAt !== null;
   const maxEdgePx = normalizeThumbnailMaxEdgePx(options?.maxEdgePx);
   const allowMainThreadFallback = options?.allowMainThreadFallback ?? true;
@@ -472,7 +504,7 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
 
   try {
     const fileInfo = await storage.stat(fullPath).catch(() => null);
-    assertPreviewableImageSize(fileInfo?.size);
+    assertPreviewableImageInfo(fileInfo);
     const data = await storage.readBinaryFile(fullPath, MAX_LOCAL_IMAGE_BYTES);
     assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);

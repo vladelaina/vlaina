@@ -822,6 +822,16 @@ describe('chatStorage auto sync registration', () => {
     );
   });
 
+  it('does not load session files with invalid known stat sizes', async () => {
+    mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.stat.mockResolvedValue({ isFile: true, size: -1 });
+    mocks.storage.readFile.mockRejectedValue(new Error('Invalid stat size should not be read'));
+
+    await expect(loadSessionJson('session-1')).resolves.toBeNull();
+
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not load session content that exceeds the limit after read', async () => {
     mocks.storage.exists.mockResolvedValue(true);
     mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });

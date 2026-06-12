@@ -100,9 +100,16 @@ function normalizeAvatarMimeType(value: string | null | undefined): string | nul
 }
 
 function assertAvatarImageSize(size: number | null | undefined): void {
-    if (typeof size === 'number' && size > MAX_AVATAR_IMAGE_BYTES) {
+    if (
+        typeof size === 'number' &&
+        (!Number.isFinite(size) || size < 0 || size > MAX_AVATAR_IMAGE_BYTES)
+    ) {
         throw new Error('Avatar image is too large.');
     }
+}
+
+function getKnownAvatarModifiedAt(modifiedAt: number | null | undefined): number {
+    return typeof modifiedAt === 'number' && Number.isFinite(modifiedAt) ? modifiedAt : 0;
 }
 
 function rememberFailedDownload(downloadKey: string): void {
@@ -213,7 +220,7 @@ export async function getLocalAvatarUrl(username: string): Promise<string | null
             const info = await storage.stat(avatarPath).catch(() => null);
             return {
                 path: avatarPath,
-                modifiedAt: info?.modifiedAt ?? 0,
+                modifiedAt: getKnownAvatarModifiedAt(info?.modifiedAt),
             };
         }));
         const latest = candidates
