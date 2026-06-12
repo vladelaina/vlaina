@@ -6,6 +6,17 @@ export interface ChatSidebarSearchEntry {
   searchText: string;
 }
 
+const MAX_CHAT_SIDEBAR_SEARCH_QUERY_CHARS = 256;
+const MAX_CHAT_SIDEBAR_SEARCH_FIELD_CHARS = 4096;
+
+function getChatSidebarSearchQuery(query: string): string {
+  return query.trim().slice(0, MAX_CHAT_SIDEBAR_SEARCH_QUERY_CHARS).toLowerCase();
+}
+
+function getChatSidebarSearchField(value: string | undefined): string {
+  return (value || 'New').slice(0, MAX_CHAT_SIDEBAR_SEARCH_FIELD_CHARS).toLowerCase();
+}
+
 export function getVisibleChatSidebarSessions(sessions: ChatSession[]) {
   return sessions.filter((session) => !isTemporarySession(session));
 }
@@ -28,12 +39,12 @@ export function getNavigableChatSidebarSessions(sessions: ChatSession[]) {
 export function buildChatSidebarSearchEntries(sessions: ChatSession[]): ChatSidebarSearchEntry[] {
   return sessions.map((session) => ({
     session,
-    searchText: (session.title || 'New').toLowerCase(),
+    searchText: getChatSidebarSearchField(session.title),
   }));
 }
 
 export function queryChatSidebarSessions(entries: ChatSidebarSearchEntry[], query: string) {
-  const trimmedQuery = query.trim().toLowerCase();
+  const trimmedQuery = getChatSidebarSearchQuery(query);
   if (!trimmedQuery) {
     return [];
   }

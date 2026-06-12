@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     currentNote: null,
     noteContentsCache: new Map<string, { content: string }>(),
     notesPath: '/vault',
-    rootFolder: null,
+    rootFolder: null as any,
     starredEntries: [],
     getDisplayName: vi.fn((path: string) => path),
   },
@@ -173,6 +173,109 @@ describe('folder markdown mention scan budgets', () => {
       },
     ]);
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/z-late.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
+  it('does not spend folder mention note output slots on oversized disk markdown candidates', async () => {
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs') {
+        return [
+          ...Array.from({ length: 20 }, (_value, index) => ({
+            name: `bad-${String(index).padStart(2, '0')}.md`,
+            path: `/vault/docs/bad-${String(index).padStart(2, '0')}.md`,
+            isDirectory: false,
+            isFile: true,
+            size: MAX_NOTE_MENTION_READ_BYTES + 1,
+          })),
+          {
+            name: 'valid.md',
+            path: '/vault/docs/valid.md',
+            isDirectory: false,
+            isFile: true,
+            size: 128,
+          },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.stat.mockImplementation(async (path: string) => (
+      path.includes('/bad-')
+        ? { isFile: true, isDirectory: false, size: MAX_NOTE_MENTION_READ_BYTES + 1 }
+        : { isFile: true, isDirectory: false, size: 128 }
+    ));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs/valid.md') return '# Valid';
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes.slice(1)).toEqual([
+      {
+        path: 'docs/valid.md',
+        title: 'Docs/valid',
+        kind: 'note',
+        content: '# Valid',
+      },
+    ]);
+    expect(mocks.storage.readFile.mock.calls.some(([path]) => String(path).includes('/bad-'))).toBe(false);
+  });
+
+  it('does not spend file tree folder mention note slots on oversized markdown candidates', async () => {
+    mocks.notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [{
+        id: 'docs',
+        name: 'docs',
+        path: 'docs',
+        isFolder: true,
+        expanded: true,
+        children: [
+          ...Array.from({ length: 20 }, (_value, index) => ({
+            id: `docs/bad-${String(index).padStart(2, '0')}.md`,
+            name: `bad-${String(index).padStart(2, '0')}.md`,
+            path: `docs/bad-${String(index).padStart(2, '0')}.md`,
+            isFolder: false as const,
+          })),
+          {
+            id: 'docs/valid.md',
+            name: 'valid.md',
+            path: 'docs/valid.md',
+            isFolder: false as const,
+          },
+        ],
+      }],
+    };
+    mocks.notesState.getDisplayName = vi.fn((path: string) => path.split('/').pop() ?? path);
+    mocks.storage.listDir.mockResolvedValue([]);
+    mocks.storage.stat.mockImplementation(async (path: string) => (
+      path.includes('/bad-')
+        ? { isFile: true, isDirectory: false, size: MAX_NOTE_MENTION_READ_BYTES + 1 }
+        : { isFile: true, isDirectory: false, size: 128 }
+    ));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs/valid.md') return '# Valid';
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes.slice(1)).toEqual([
+      {
+        path: 'docs/valid.md',
+        title: 'Docs/valid.md',
+        kind: 'note',
+        content: '# Valid',
+      },
+    ]);
+    expect(mocks.storage.readFile.mock.calls.some(([path]) => String(path).includes('/bad-'))).toBe(false);
   });
 
   it('scans user dot markdown and low-priority generated folders while skipping internal folders', async () => {

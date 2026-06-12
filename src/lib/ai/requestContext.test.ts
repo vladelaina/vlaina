@@ -246,6 +246,22 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toContain('after');
   });
 
+  it('does not leak malformed local markdown image sources below the token scan budget', () => {
+    const content = [
+      'Tail ![asset](asset://localhost/chat-inline-image/1',
+      'Next ![blob](blob:https://vlaina.local/secret',
+      'Done',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('asset://localhost/chat-inline-image/1');
+    expect(sanitized[0].content).not.toContain('blob:https://vlaina.local/secret');
+    expect(sanitized[0].content).toContain('Tail [Image]');
+    expect(sanitized[0].content).toContain('Next [Image]');
+    expect(sanitized[0].content).toContain('Done');
+  });
+
   it('does not leak overflow HTML image sources after the history scan budget is reached', () => {
     const content = [
       ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
@@ -324,6 +340,22 @@ describe('requestContext', () => {
     const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
 
     expect(sanitized[0].content).toContain('<img src="https://example.com/real.png" alt="data:image/png;base64,not-src">');
+  });
+
+  it('does not leak malformed local HTML image sources below the tag scan budget', () => {
+    const content = [
+      'Before <img src="asset://localhost/chat-inline-image/2"',
+      'After <img src="blob:https://vlaina.local/secret"',
+      'Done',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('asset://localhost/chat-inline-image/2');
+    expect(sanitized[0].content).not.toContain('blob:https://vlaina.local/secret');
+    expect(sanitized[0].content).toContain('Before [Image]');
+    expect(sanitized[0].content).toContain('After [Image]');
+    expect(sanitized[0].content).toContain('Done');
   });
 
   it('sanitizes malformed structured history content at runtime', () => {
@@ -569,6 +601,45 @@ describe('requestContext', () => {
 
     expect(result[0]?.apiTranscript?.[0]?.content).toBe('transcript-15');
     expect(result[0]?.apiTranscript?.at(-1)?.content).toBe('transcript-78');
+  });
+
+  it('sanitizes local image references inside hidden API transcript text', () => {
+    const result = buildRequestHistory({
+      history: [
+        createMessage({
+          role: 'assistant',
+          content: 'Visible answer',
+          apiTranscript: [
+            {
+              role: 'assistant',
+              content: 'Visible ![asset](asset://localhost/chat-inline-image/1',
+              reasoning_content: 'Plan <img src="blob:https://vlaina.local/secret"',
+            },
+            {
+              role: 'assistant',
+              content: [
+                { type: 'text', text: 'Part <img src="attachment://secret.png">' },
+                { type: 'image_url', image_url: { url: 'https://example.com/safe.png' } },
+              ],
+            },
+          ],
+        }),
+      ],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    const transcriptText = JSON.stringify(result[0]?.apiTranscript);
+    expect(transcriptText).not.toContain('asset://localhost/chat-inline-image/1');
+    expect(transcriptText).not.toContain('blob:https://vlaina.local/secret');
+    expect(transcriptText).not.toContain('attachment://secret.png');
+    expect(result[0]?.apiTranscript?.[0]?.content).toContain('Visible [Image]');
+    expect(result[0]?.apiTranscript?.[0]?.reasoning_content).toContain('Plan [Image]');
+    expect(result[0]?.apiTranscript?.[1]?.content).toEqual([
+      { type: 'text', text: 'Part [Image]' },
+      { type: 'image_url', image_url: { url: 'https://example.com/safe.png' } },
+    ]);
   });
 
   it('moves active version transcripts to the bounded top-level request field', () => {

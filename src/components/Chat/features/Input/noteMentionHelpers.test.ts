@@ -173,6 +173,33 @@ describe('collectMentionCandidates', () => {
       notePath: 'folder-2500/leaf.md',
     });
   });
+
+  it('does not spend the mention candidate tree budget on unsupported files before markdown notes', () => {
+    const candidates: NoteMentionCandidate[] = [];
+
+    collectMentionCandidates([
+      ...Array.from({ length: 20_000 }, (_value, index) => ({
+        id: `asset-${index}.png`,
+        name: `asset-${index}.png`,
+        path: `asset-${index}.png`,
+        isFolder: false as const,
+      })),
+      {
+        id: 'late.md',
+        name: 'late.md',
+        path: 'late.md',
+        isFolder: false,
+      },
+    ], candidates);
+
+    expect(candidates).toContainEqual({
+      path: 'late.md',
+      title: '',
+      kind: 'note',
+      isCurrent: false,
+      notePath: 'late.md',
+    });
+  });
 });
 
 describe('mention label matching', () => {

@@ -134,4 +134,56 @@ describe('useSidebarContentSearchResults', () => {
       expect(scanAllNotes).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('does not repeatedly rescan unchanged oversized content indexes after a completed scan', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    const cancelNoteContentScan = vi.fn();
+    const pruneNoteContentsCacheToOpenNotes = vi.fn();
+    const rootFolder = createRootFolder(1001, 'alpha');
+    const getDisplayName = (path: string) => path.split('/').pop() ?? path;
+
+    const { result, rerender } = renderHook(
+      ({ cache, revision }) => useSidebarContentSearchResults({
+        rootFolder,
+        getDisplayName,
+        noteContentsCache: cache,
+        noteContentsCacheRevision: revision,
+        scanAllNotes,
+        cancelNoteContentScan,
+        pruneNoteContentsCacheToOpenNotes,
+        searchQuery: 'needle',
+        isSearchOpen: true,
+      }),
+      {
+        initialProps: {
+          cache: new Map<string, { content: string }>(),
+          revision: 0,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(scanAllNotes).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(result.current.isContentScanPending).toBe(false);
+    });
+
+    rerender({
+      cache: new Map([['docs/alpha-0.md', { content: 'plain text' }]]),
+      revision: 0,
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(scanAllNotes).toHaveBeenCalledTimes(1);
+
+    rerender({
+      cache: new Map([['docs/alpha-0.md', { content: 'plain text' }]]),
+      revision: 1,
+    });
+    await waitFor(() => {
+      expect(scanAllNotes).toHaveBeenCalledTimes(2);
+    });
+  });
 });

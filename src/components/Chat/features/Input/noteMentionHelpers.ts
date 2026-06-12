@@ -34,8 +34,28 @@ export const MAX_MENTION_TITLE_SCAN_ITEMS = 5_000;
 export const MAX_MENTION_TITLE_SCAN_CHARS = 128 * 1024;
 export const MAX_MENTION_TITLE_CHARS = 512;
 
+function getMentionCandidateNodePriority(node: FileTreeNode): number {
+  if (hasInternalNotePathSegment(node.path)) {
+    return 3;
+  }
+  if (!node.isFolder && isSupportedMarkdownPath(node.path)) {
+    return 0;
+  }
+  if (node.isFolder) {
+    return 1;
+  }
+  return 2;
+}
+
+function prioritizeMentionCandidateNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
+  return nodes
+    .map((node, index) => ({ node, index, priority: getMentionCandidateNodePriority(node) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ node }) => node);
+}
+
 export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMentionCandidate[]): void {
-  const stack = [...nodes].reverse();
+  const stack = prioritizeMentionCandidateNodes(nodes).reverse();
   let visitedNodes = 0;
 
   while (stack.length > 0 && visitedNodes < MAX_MENTION_CANDIDATE_TREE_NODES) {
@@ -53,8 +73,9 @@ export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMent
         kind: 'folder',
         isCurrent: false,
       });
-      for (let index = node.children.length - 1; index >= 0; index -= 1) {
-        stack.push(node.children[index]);
+      const prioritizedChildren = prioritizeMentionCandidateNodes(node.children);
+      for (let index = prioritizedChildren.length - 1; index >= 0; index -= 1) {
+        stack.push(prioritizedChildren[index]);
       }
     } else if (isSupportedMarkdownPath(node.path) && !hasInternalNotePathSegment(node.path)) {
       result.push({
