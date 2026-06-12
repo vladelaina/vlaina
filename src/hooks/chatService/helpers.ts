@@ -85,7 +85,7 @@ const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
   svg: 'image/svg+xml',
   webp: 'image/webp',
 };
-const SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([
+const LOW_PRIORITY_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
   'dist',
@@ -141,6 +141,20 @@ export function normalizeNoteMentions(noteMentions: NoteMentionReference[]): Not
   return dedupeNoteMentions(noteMentions).slice(0, MAX_NOTE_MENTION_COUNT);
 }
 
+function isPotentiallyLoadableMentionReference(
+  mention: NoteMentionReference,
+  explicitKind: 'note' | 'folder' | undefined,
+): boolean {
+  if (
+    hasUnsafeMentionPathSegment(mention.path) ||
+    isInsideInternalFolderMarkdownPath(mention.path)
+  ) {
+    return false;
+  }
+
+  return explicitKind !== 'note' || isSupportedMarkdownPath(mention.path);
+}
+
 function normalizeNoteMentionsForLoading(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
   const explicitKindsByPath = new Map<string, 'note' | 'folder'>();
   const scanLimit = Math.min(noteMentions.length, MAX_NOTE_MENTION_SCAN_ITEMS);
@@ -153,14 +167,18 @@ function normalizeNoteMentionsForLoading(noteMentions: NoteMentionReference[]): 
   }
 
   return dedupeNoteMentions(noteMentions)
-    .slice(0, MAX_NOTE_MENTION_COUNT)
     .map((mention) => {
       const explicitKind = explicitKindsByPath.get(mention.path);
       return explicitKind ? { ...mention, kind: explicitKind } : {
         path: mention.path,
         title: mention.title,
       };
-    });
+    })
+    .filter((mention) => isPotentiallyLoadableMentionReference(
+      mention,
+      explicitKindsByPath.get(mention.path),
+    ))
+    .slice(0, MAX_NOTE_MENTION_COUNT);
 }
 
 export function isImageAttachment(attachment: Attachment): boolean {
@@ -477,11 +495,12 @@ function isSafeFolderMarkdownEntryName(name: string): boolean {
   return isSafeVaultPathSegment(name);
 }
 
-function shouldSkipFolderMarkdownDirectory(name: string): boolean {
-  return (
-    hasInternalNotePathSegment(name) ||
-    SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name.toLowerCase())
-  );
+function shouldHideFolderMarkdownDirectory(name: string): boolean {
+  return hasInternalNotePathSegment(name);
+}
+
+function isLowPriorityFolderMarkdownDirectory(name: string): boolean {
+  return LOW_PRIORITY_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name.toLowerCase());
 }
 
 function prioritizeFolderScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
@@ -494,14 +513,53 @@ function prioritizeFolderScanEntries<T extends { name: string; isDirectory?: boo
     .map(({ entry }) => entry);
 }
 
+function prioritizeFolderMarkdownScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
+  entries: readonly T[],
+): T[] {
+  return entries
+    .map((entry, index) => ({ entry, index, priority: getFolderMarkdownScanPriority(entry) }))
+    .sort((left, right) =>
+      left.priority - right.priority ||
+      left.entry.name.localeCompare(right.entry.name) ||
+      left.index - right.index
+    )
+    .map(({ entry }) => entry);
+}
+
 function getFolderMarkdownScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
   if (!isSafeFolderMarkdownEntryName(entry.name)) {
-    return 2;
+    return 3;
   }
-  if (entry.isDirectory || (entry.isFile && isSupportedMarkdownPath(entry.name))) {
+  if (entry.isFile && isSupportedMarkdownPath(entry.name)) {
     return 0;
   }
-  return 1;
+  if (entry.isDirectory && !isLowPriorityFolderMarkdownDirectory(entry.name)) {
+    return 1;
+  }
+  if (entry.isDirectory) {
+    return 2;
+  }
+  return 3;
+}
+
+function getMentionFolderMarkdownNodeScanPriority(node: FileTreeNode): number {
+  if (!node.isFolder && isSupportedMarkdownPath(node.path)) {
+    return 0;
+  }
+  if (node.isFolder && !isLowPriorityFolderMarkdownDirectory(node.name)) {
+    return 1;
+  }
+  if (node.isFolder) {
+    return 2;
+  }
+  return 3;
+}
+
+function prioritizeMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
+  return nodes
+    .map((node, index) => ({ node, index, priority: getMentionFolderMarkdownNodeScanPriority(node) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ node }) => node);
 }
 
 function getFolderListingScanPriority(entry: { name: string }) {
@@ -579,7 +637,7 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
 export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
   const result: FileTreeNode[] = [];
   const stack: Array<{ nodes: readonly FileTreeNode[]; index: number; depth: number }> = [{
-    nodes,
+    nodes: prioritizeMentionFolderMarkdownNodes(nodes),
     index: 0,
     depth: 0,
   }];
@@ -601,9 +659,8 @@ export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]
     if (!node) continue;
 
     if (node.isFolder) {
-      visitedEntries += 1;
       if (
-        shouldSkipFolderMarkdownDirectory(node.name) ||
+        shouldHideFolderMarkdownDirectory(node.name) ||
         isInsideInternalFolderMarkdownPath(node.path)
       ) {
         continue;
@@ -611,7 +668,7 @@ export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]
       if (frame.depth >= MAX_FOLDER_MARKDOWN_SCAN_DEPTH) {
         continue;
       }
-      stack.push({ nodes: node.children, index: 0, depth: frame.depth + 1 });
+      stack.push({ nodes: prioritizeMentionFolderMarkdownNodes(node.children), index: 0, depth: frame.depth + 1 });
       continue;
     }
 
@@ -660,10 +717,9 @@ async function collectFolderMarkdownScanEntries(
 
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderFullPath, { includeHidden: true }).catch(() => []);
-  const visibleEntries = prioritizeFolderScanEntries(entries, getFolderMarkdownScanPriority)
+  const visibleEntries = prioritizeFolderMarkdownScanEntries(entries)
     .slice(0, MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES)
-    .filter((entry) => isSafeFolderMarkdownEntryName(entry.name))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter((entry) => isSafeFolderMarkdownEntryName(entry.name));
 
   for (const entry of visibleEntries) {
     const isMarkdownFile = entry.isFile && isSupportedMarkdownPath(entry.name);
@@ -672,7 +728,7 @@ async function collectFolderMarkdownScanEntries(
     }
 
     if (entry.isDirectory) {
-      if (shouldSkipFolderMarkdownDirectory(entry.name)) {
+      if (shouldHideFolderMarkdownDirectory(entry.name)) {
         continue;
       }
       if (

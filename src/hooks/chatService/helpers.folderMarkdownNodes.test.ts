@@ -23,7 +23,7 @@ function folder(path: string, children: FileTreeNode[]): FileTreeNode {
 }
 
 describe('collectMentionFolderMarkdownNodes', () => {
-  it('keeps depth-first markdown order', () => {
+  it('prioritizes sibling markdown before nested folder markdown', () => {
     const nodes = [
       note('docs/a.md'),
       folder('docs/nested', [
@@ -35,8 +35,8 @@ describe('collectMentionFolderMarkdownNodes', () => {
 
     expect(collectMentionFolderMarkdownNodes(nodes).map((node) => node.path)).toEqual([
       'docs/a.md',
-      'docs/nested/c.markdown',
       'docs/d.mdown',
+      'docs/nested/c.markdown',
     ]);
   });
 
@@ -73,7 +73,31 @@ describe('collectMentionFolderMarkdownNodes', () => {
     ]);
   });
 
-  it('includes user dot markdown while skipping internal and generated folders', () => {
+  it('does not spend the scan budget on sibling folders before markdown notes', () => {
+    const nodes = [
+      ...Array.from({ length: 500 }, (_value, index) => folder(`docs/folder-${index}`, [])),
+      note('docs/z-alpha.md'),
+    ];
+
+    expect(collectMentionFolderMarkdownNodes(nodes).map((node) => node.path)).toEqual([
+      'docs/z-alpha.md',
+    ]);
+  });
+
+  it('does not let early folder markdown fill the result limit before sibling markdown', () => {
+    const nodes = [
+      folder('docs/nested', Array.from({ length: 20 }, (_value, index) => note(`docs/nested/${index}.md`))),
+      note('docs/z-alpha.md'),
+    ];
+
+    const paths = collectMentionFolderMarkdownNodes(nodes).map((node) => node.path);
+
+    expect(paths).toHaveLength(20);
+    expect(paths[0]).toBe('docs/z-alpha.md');
+    expect(paths).not.toContain('docs/nested/19.md');
+  });
+
+  it('includes user dot markdown and low-priority generated folders while skipping internal folders', () => {
     const nodes = [
       note('docs/.journal.md'),
       folder('docs/.notes', [
@@ -105,6 +129,9 @@ describe('collectMentionFolderMarkdownNodes', () => {
     expect(collectMentionFolderMarkdownNodes(nodes).map((node) => node.path)).toEqual([
       'docs/.journal.md',
       'docs/.notes/alpha.md',
+      'docs/node_modules/package.md',
+      'docs/Node_Modules/package.md',
+      'docs/Dist/bundle.md',
     ]);
   });
 });

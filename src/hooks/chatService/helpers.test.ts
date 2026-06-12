@@ -473,6 +473,33 @@ describe('loadMentionedNotes', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
+  it('does not let unloadable mentions spend the note mention limit before valid markdown', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 8,
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => `# ${path.split('/').pop()}`);
+
+    const notes = await loadMentionedNotes([
+      { path: '../secret.md', title: 'Outside' },
+      { path: 'docs/.vlaina/config.md', title: 'Internal' },
+      { path: 'docs/not-note.txt', title: 'Text', kind: 'note' },
+      { path: 'docs/alpha.md', title: 'Alpha' },
+      { path: 'docs/beta.md', title: 'Beta' },
+      { path: 'docs/gamma.md', title: 'Gamma' },
+      { path: 'docs/delta.md', title: 'Delta' },
+    ]);
+
+    expect(notes.map((note) => note.path)).toEqual([
+      'docs/alpha.md',
+      'docs/beta.md',
+      'docs/gamma.md',
+    ]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/not-note.txt', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/delta.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
   it('bounds note mention metadata before loading references', async () => {
     mocks.storage.stat.mockResolvedValue({
       isFile: true,

@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   storage: {
     exists: vi.fn<(path: string) => Promise<boolean>>(),
     mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
-    readFile: vi.fn<(path: string) => Promise<string>>(),
+    readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
     stat: vi.fn<(path: string) => Promise<{ size?: number } | null>>(),
     writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   },
@@ -56,7 +56,7 @@ describe('AssetHashIndex', () => {
     const index = await loadAssetHashIndex('/vault');
 
     expect(index.entries).toEqual({});
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.system/asset-hash-index.json');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.system/asset-hash-index.json', 2 * 1024 * 1024);
   });
 
   it('loads bounded hash index files', async () => {

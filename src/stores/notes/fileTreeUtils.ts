@@ -10,7 +10,7 @@ const MAX_FILE_TREE_DIRECTORY_SCAN_ENTRIES = 10_000;
 const MAX_FILE_TREE_DEPTH = 24;
 const MAX_FILE_TREE_DERIVED_NODES = 20_000;
 const MAX_GIT_REPOSITORY_DETECTION_CONCURRENCY = 8;
-const SKIPPED_DIRECTORY_NAMES = new Set([
+const LOW_PRIORITY_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
   'dist',
@@ -21,7 +21,6 @@ const SKIPPED_DIRECTORY_NAMES = new Set([
 interface FileTreeBuildBudget {
   scannedEntries: number;
   visitedEntries: number;
-  skippedFolderCount: number;
   listedFolderCount: number;
 }
 
@@ -56,8 +55,8 @@ interface FileTreeRoute {
   targetNodes: FileTreeNode[];
 }
 
-function shouldSkipDirectory(name: string) {
-  return SKIPPED_DIRECTORY_NAMES.has(name.toLowerCase());
+function isLowPriorityDirectory(name: string) {
+  return LOW_PRIORITY_DIRECTORY_NAMES.has(name.toLowerCase());
 }
 
 function shouldHideDirectory(name: string) {
@@ -65,11 +64,35 @@ function shouldHideDirectory(name: string) {
 }
 
 function getFileTreeScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
-  if (entry.isDirectory === true || (entry.isFile === true && isSupportedMarkdownPath(entry.name))) {
+  if (!isSafeVaultPathSegment(entry.name)) {
+    return 3;
+  }
+
+  if (entry.isFile === true && isSupportedMarkdownPath(entry.name)) {
     return 0;
   }
 
-  return 1;
+  if (entry.isDirectory === true && !isLowPriorityDirectory(entry.name)) {
+    return 1;
+  }
+
+  if (entry.isDirectory === true) {
+    return 2;
+  }
+
+  return 3;
+}
+
+function getFileTreeNodeScanPriority(node: FileTreeNode): number {
+  if (!node.isFolder && isSupportedMarkdownPath(node.path)) {
+    return 0;
+  }
+
+  if (node.isFolder) {
+    return isLowPriorityDirectory(node.name) ? 2 : 1;
+  }
+
+  return 3;
 }
 
 function prioritizeFileTreeScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
@@ -166,7 +189,7 @@ export async function buildFileTreeLevel(
     async (entry): Promise<FileTreeNode> => {
       if (entry.isDirectory) {
         const entryFullPath = await joinPath(fullPath, entry.name);
-        const isGitRepository = shouldSkipDirectory(entry.name)
+        const isGitRepository = isLowPriorityDirectory(entry.name)
           ? false
           : await isGitRepositoryDirectory(entryFullPath);
         return {
@@ -219,13 +242,15 @@ async function buildFileTreeWithBudget(
     return nodes;
   }
 
-  for (let index = 0; index < nodes.length; index += 1) {
-    const node = nodes[index];
+  const scanOrder = nodes
+    .map((node, index) => ({ node, index, priority: getFileTreeNodeScanPriority(node) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index);
+
+  for (const { node, index } of scanOrder) {
     if (!node.isFolder) {
       continue;
     }
-    if (shouldSkipDirectory(node.name) || budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) {
-      budget.skippedFolderCount += 1;
+    if (budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) {
       continue;
     }
 
@@ -243,7 +268,6 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
   const budget: FileTreeBuildBudget = {
     scannedEntries: 0,
     visitedEntries: 0,
-    skippedFolderCount: 0,
     listedFolderCount: 1,
   };
   const nodes = await buildFileTreeWithBudget(basePath, relativePath, budget);

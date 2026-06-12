@@ -279,7 +279,7 @@ describe('notes metadata storage', () => {
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-huge-after-read/huge.md', MAX_METADATA_READ_BYTES);
   });
 
-  it('does not recurse into heavy generated folders during metadata scans', async () => {
+  it('keeps generated folders low priority without hiding markdown metadata', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault-heavy') {
         return [
@@ -319,14 +319,23 @@ describe('notes metadata storage', () => {
     await expect(loadNoteMetadata('/vault-heavy')).resolves.toEqual({
       version: 2,
       notes: {
+        'Dist/bundle.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
         'docs/alpha.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+        'node_modules/package.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+        'Node_Modules/package.md': {
           updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
         },
       },
     });
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/node_modules');
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/Node_Modules');
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/Dist');
+    expect(adapter.listDir).toHaveBeenCalledWith('/vault-heavy/node_modules', { includeHidden: true });
+    expect(adapter.listDir).toHaveBeenCalledWith('/vault-heavy/Node_Modules', { includeHidden: true });
+    expect(adapter.listDir).toHaveBeenCalledWith('/vault-heavy/Dist', { includeHidden: true });
   });
 
   it('prioritizes markdown and folders before capping non-markdown metadata scanning', async () => {

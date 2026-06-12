@@ -6,8 +6,18 @@ const STORE_FILES = 'files';
 const STORE_DIRS = 'directories';
 const PREFIX_RANGE_SUFFIX = '\uffff';
 const MARKDOWN_FILE_EXTENSION_PATTERN = /\.(?:md|markdown|mdown|mkd)$/i;
+const UNSAFE_LIST_ENTRY_NAME_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 export const MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES = 20_000;
 export const MAX_WEB_ADAPTER_LIST_ENTRIES = 20_000;
+export const MAX_WEB_ADAPTER_FILE_BYTES = 64 * 1024 * 1024;
+const LOW_PRIORITY_WEB_ADAPTER_DIRECTORY_NAMES = new Set([
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  '__pycache__',
+]);
 
 interface StoredFile {
   path: string;
@@ -28,11 +38,44 @@ interface PrefixScanResult<T> {
   truncated: boolean;
 }
 
+interface PrefixScanOptions {
+  prioritizeForListing?: boolean;
+}
+
+function getWebAdapterPathBaseName(path: string): string {
+  return path.split('/').filter(Boolean).pop() ?? '';
+}
+
+function isUnsafeListEntryName(name: string): boolean {
+  return (
+    !name ||
+    name === '.' ||
+    name === '..' ||
+    name.includes('/') ||
+    name.includes('\\') ||
+    UNSAFE_LIST_ENTRY_NAME_PATTERN.test(name)
+  );
+}
+
+function hasUnsafeListPathSegment(path: string): boolean {
+  return path
+    .split('/')
+    .filter(Boolean)
+    .some(isUnsafeListEntryName);
+}
+
 function getListEntryPriority(entry: FileInfo): number {
-  if (entry.isDirectory || MARKDOWN_FILE_EXTENSION_PATTERN.test(entry.name)) {
+  if (isUnsafeListEntryName(entry.name)) {
+    return 4;
+  }
+
+  if (entry.isFile && MARKDOWN_FILE_EXTENSION_PATTERN.test(entry.name)) {
     return 0;
   }
-  return 1;
+  if (entry.isDirectory) {
+    return LOW_PRIORITY_WEB_ADAPTER_DIRECTORY_NAMES.has(entry.name.toLowerCase()) ? 2 : 1;
+  }
+  return 3;
 }
 
 function prioritizeListEntries(entries: FileInfo[]): FileInfo[] {
@@ -40,6 +83,45 @@ function prioritizeListEntries(entries: FileInfo[]): FileInfo[] {
     .map((entry, index) => ({ entry, index, priority: getListEntryPriority(entry) }))
     .sort((left, right) => left.priority - right.priority || left.index - right.index)
     .map(({ entry }) => entry);
+}
+
+function getStoredFileListingScanPriority(file: StoredFile): number {
+  if (hasUnsafeListPathSegment(file.path)) {
+    return 4;
+  }
+  return MARKDOWN_FILE_EXTENSION_PATTERN.test(getWebAdapterPathBaseName(file.path)) ? 0 : 3;
+}
+
+function getStoredDirListingScanPriority(dir: StoredDir): number {
+  const name = getWebAdapterPathBaseName(dir.path);
+  if (hasUnsafeListPathSegment(dir.path)) {
+    return 4;
+  }
+  return LOW_PRIORITY_WEB_ADAPTER_DIRECTORY_NAMES.has(name.toLowerCase()) ? 2 : 1;
+}
+
+function addPrioritizedPrefixEntry<T>(
+  buckets: T[][],
+  entry: T,
+  priority: number,
+  limit: number,
+  selectedCount: number,
+): number {
+  const bucketIndex = Math.max(0, Math.min(buckets.length - 1, priority));
+  buckets[bucketIndex].push(entry);
+  let nextCount = selectedCount + 1;
+  for (let index = buckets.length - 1; nextCount > limit && index >= 0; index -= 1) {
+    const bucket = buckets[index];
+    while (nextCount > limit && bucket.length > 0) {
+      bucket.pop();
+      nextCount -= 1;
+    }
+  }
+  return nextCount;
+}
+
+function flattenPrioritizedPrefixEntries<T>(buckets: T[][]): T[] {
+  return buckets.flat();
 }
 
 function normalizeReadByteLimit(maxBytes: number | undefined, path: string): number | null {
@@ -50,6 +132,28 @@ function normalizeReadByteLimit(maxBytes: number | undefined, path: string): num
     throw new Error(`Invalid binary read limit for ${path}`);
   }
   return maxBytes;
+}
+
+function getTextByteLength(content: string): number {
+  return new Blob([content]).size;
+}
+
+function assertWritableWebByteLength(byteLength: number, path: string): void {
+  if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > MAX_WEB_ADAPTER_FILE_BYTES) {
+    throw new Error(`Web content is too large to write: ${path}`);
+  }
+}
+
+function getStoredFileByteLength(file: StoredFile): number {
+  if (Number.isSafeInteger(file.size) && file.size >= 0) {
+    return file.size;
+  }
+
+  if (file.isBinary) {
+    return new Uint8Array(file.content as Uint8Array).byteLength;
+  }
+
+  return getTextByteLength(file.content as string);
 }
 
 export class WebAdapter implements StorageAdapter {
@@ -123,6 +227,22 @@ export class WebAdapter implements StorageAdapter {
     });
   }
 
+  private decodeStoredFileAsText(file: StoredFile): string {
+    if (!file.isBinary) {
+      return file.content as string;
+    }
+
+    return new TextDecoder().decode(new Uint8Array(file.content as Uint8Array));
+  }
+
+  private encodeStoredFileAsBytes(file: StoredFile): Uint8Array {
+    if (file.isBinary) {
+      return new Uint8Array(file.content as Uint8Array);
+    }
+
+    return new TextEncoder().encode(file.content as string);
+  }
+
   private async writeStoredFile(path: string, file: StoredFile): Promise<void> {
     if (file.isBinary) {
       await this.writeBinaryFile(path, new Uint8Array(file.content as Uint8Array));
@@ -177,12 +297,22 @@ export class WebAdapter implements StorageAdapter {
       }
     }
 
+    const incomingByteLength = getTextByteLength(content);
+    assertWritableWebByteLength(incomingByteLength, normalizedPath);
+
     let finalContent = content;
+    let finalByteLength = incomingByteLength;
     if (options?.append) {
-      try {
-        const existing = await this.readFile(normalizedPath);
+      const existingFile = await this.readStoredFile(normalizedPath);
+      if (existingFile) {
+        assertWritableWebByteLength(
+          getStoredFileByteLength(existingFile) + incomingByteLength,
+          normalizedPath,
+        );
+        const existing = this.decodeStoredFileAsText(existingFile);
         finalContent = existing + content;
-      } catch {
+        finalByteLength = getTextByteLength(finalContent);
+        assertWritableWebByteLength(finalByteLength, normalizedPath);
       }
     }
 
@@ -195,7 +325,7 @@ export class WebAdapter implements StorageAdapter {
         path: normalizedPath,
         content: finalContent,
         isBinary: false,
-        size: new Blob([finalContent]).size,
+        size: finalByteLength,
         modifiedAt: Date.now(),
         createdAt: Date.now(),
       };
@@ -216,15 +346,24 @@ export class WebAdapter implements StorageAdapter {
       }
     }
 
-    let finalContent = new Uint8Array(content);
+    const incomingContent = new Uint8Array(content);
+    assertWritableWebByteLength(incomingContent.byteLength, normalizedPath);
+
+    let finalContent = incomingContent;
     if (options?.append) {
-      try {
-        const existing = await this.readBinaryFile(normalizedPath);
-        const combined = new Uint8Array(existing.length + content.length);
+      const existingFile = await this.readStoredFile(normalizedPath);
+      if (existingFile) {
+        assertWritableWebByteLength(
+          getStoredFileByteLength(existingFile) + incomingContent.byteLength,
+          normalizedPath,
+        );
+        const existing = this.encodeStoredFileAsBytes(existingFile);
+        const finalByteLength = existing.byteLength + incomingContent.byteLength;
+        assertWritableWebByteLength(finalByteLength, normalizedPath);
+        const combined = new Uint8Array(finalByteLength);
         combined.set(existing);
-        combined.set(content, existing.length);
+        combined.set(incomingContent, existing.byteLength);
         finalContent = combined;
-      } catch {
       }
     }
 
@@ -374,8 +513,8 @@ export class WebAdapter implements StorageAdapter {
     const seenPaths = new Set<string>();
 
     const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
-    const fileScan = await this.readStoredFilesByPrefix(prefix);
-    const dirScan = await this.readStoredDirsByPrefix(prefix);
+    const fileScan = await this.readStoredFilesByPrefix(prefix, { prioritizeForListing: true });
+    const dirScan = await this.readStoredDirsByPrefix(prefix, { prioritizeForListing: true });
     const files = fileScan.entries;
     const dirs = dirScan.entries;
 
@@ -468,6 +607,10 @@ export class WebAdapter implements StorageAdapter {
           isFile: false,
         });
       }
+    }
+
+    if (results.length <= MAX_WEB_ADAPTER_LIST_ENTRIES) {
+      return results;
     }
 
     return prioritizeListEntries(results).slice(0, MAX_WEB_ADAPTER_LIST_ENTRIES);
@@ -650,17 +793,41 @@ export class WebAdapter implements StorageAdapter {
     throw new Error(`Directory is too large to ${operation} safely.`);
   }
 
-  private async readStoredFilesByPrefix(prefix: string): Promise<PrefixScanResult<StoredFile>> {
+  private async readStoredFilesByPrefix(
+    prefix: string,
+    options: PrefixScanOptions = {},
+  ): Promise<PrefixScanResult<StoredFile>> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_FILES, 'readonly');
       const store = tx.objectStore(STORE_FILES);
       if (typeof store.openCursor !== 'function') {
-        const fallbackRequest = store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
+        const fallbackRequest = options.prioritizeForListing
+          ? store.getAll(this.createPrefixRange(prefix))
+          : store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
         fallbackRequest.onsuccess = () => {
           const files = (fallbackRequest.result || []) as StoredFile[];
+          const entries = files.filter((file) => file.path.startsWith(prefix));
+          if (options.prioritizeForListing) {
+            const buckets: StoredFile[][] = [[], [], [], [], []];
+            let selectedCount = 0;
+            for (const file of entries) {
+              selectedCount = addPrioritizedPrefixEntry(
+                buckets,
+                file,
+                getStoredFileListingScanPriority(file),
+                MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+                selectedCount,
+              );
+            }
+            resolve({
+              entries: flattenPrioritizedPrefixEntries(buckets),
+              truncated: entries.length > MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+            });
+            return;
+          }
           resolve({
-            entries: files.filter((file) => file.path.startsWith(prefix)),
+            entries,
             truncated: files.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
           });
         };
@@ -670,19 +837,38 @@ export class WebAdapter implements StorageAdapter {
 
       const request = store.openCursor(this.createPrefixRange(prefix));
       const files: StoredFile[] = [];
+      const buckets: StoredFile[][] = [[], [], [], [], []];
+      let selectedCount = 0;
+      let scannedCount = 0;
 
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) {
-          resolve({ entries: files, truncated: false });
+          resolve({
+            entries: options.prioritizeForListing ? flattenPrioritizedPrefixEntries(buckets) : files,
+            truncated: options.prioritizeForListing
+              ? scannedCount > MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES
+              : false,
+          });
           return;
         }
 
         const file = cursor.value as StoredFile;
         if (file.path.startsWith(prefix)) {
-          files.push(file);
+          if (options.prioritizeForListing) {
+            scannedCount += 1;
+            selectedCount = addPrioritizedPrefixEntry(
+              buckets,
+              file,
+              getStoredFileListingScanPriority(file),
+              MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+              selectedCount,
+            );
+          } else {
+            files.push(file);
+          }
         }
-        if (files.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
+        if (!options.prioritizeForListing && files.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
           resolve({ entries: files, truncated: true });
           return;
         }
@@ -692,7 +878,10 @@ export class WebAdapter implements StorageAdapter {
     });
   }
 
-  private async readStoredDirsByPrefix(prefix: string): Promise<PrefixScanResult<StoredDir>> {
+  private async readStoredDirsByPrefix(
+    prefix: string,
+    options: PrefixScanOptions = {},
+  ): Promise<PrefixScanResult<StoredDir>> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_DIRS, 'readonly');
@@ -700,11 +889,32 @@ export class WebAdapter implements StorageAdapter {
       const dirs: StoredDir[] = [];
       const descendantPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
       if (typeof store.openCursor !== 'function') {
-        const fallbackRequest = store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
+        const fallbackRequest = options.prioritizeForListing
+          ? store.getAll(this.createPrefixRange(prefix))
+          : store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
         fallbackRequest.onsuccess = () => {
           const fallbackDirs = (fallbackRequest.result || []) as StoredDir[];
+          const entries = fallbackDirs.filter((dir) => dir.path === prefix || dir.path.startsWith(descendantPrefix));
+          if (options.prioritizeForListing) {
+            const buckets: StoredDir[][] = [[], [], [], [], []];
+            let selectedCount = 0;
+            for (const dir of entries) {
+              selectedCount = addPrioritizedPrefixEntry(
+                buckets,
+                dir,
+                getStoredDirListingScanPriority(dir),
+                MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+                selectedCount,
+              );
+            }
+            resolve({
+              entries: flattenPrioritizedPrefixEntries(buckets),
+              truncated: entries.length > MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+            });
+            return;
+          }
           resolve({
-            entries: fallbackDirs.filter((dir) => dir.path === prefix || dir.path.startsWith(descendantPrefix)),
+            entries,
             truncated: fallbackDirs.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
           });
         };
@@ -713,19 +923,38 @@ export class WebAdapter implements StorageAdapter {
       }
 
       const request = store.openCursor(this.createPrefixRange(prefix));
+      const buckets: StoredDir[][] = [[], [], [], [], []];
+      let selectedCount = 0;
+      let scannedCount = 0;
 
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) {
-          resolve({ entries: dirs, truncated: false });
+          resolve({
+            entries: options.prioritizeForListing ? flattenPrioritizedPrefixEntries(buckets) : dirs,
+            truncated: options.prioritizeForListing
+              ? scannedCount > MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES
+              : false,
+          });
           return;
         }
 
         const dir = cursor.value as StoredDir;
         if (dir.path === prefix || dir.path.startsWith(descendantPrefix)) {
-          dirs.push(dir);
+          if (options.prioritizeForListing) {
+            scannedCount += 1;
+            selectedCount = addPrioritizedPrefixEntry(
+              buckets,
+              dir,
+              getStoredDirListingScanPriority(dir),
+              MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+              selectedCount,
+            );
+          } else {
+            dirs.push(dir);
+          }
         }
-        if (dirs.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
+        if (!options.prioritizeForListing && dirs.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
           resolve({ entries: dirs, truncated: true });
           return;
         }

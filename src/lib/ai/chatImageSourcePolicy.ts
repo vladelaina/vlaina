@@ -84,12 +84,14 @@ export function getChatMessageImageTokens(
   content: string,
   options: ChatMessageImageSourceOptions = {},
 ): ImageToken[] {
-  return parseMarkdownAndHtmlImageTokens(content, { maxTokens: options.maxTokens })
-    .map((token) => {
-      const src = normalizeChatMessageImageSourceForMode(token.src, options.persistable === true);
-      return src ? { ...token, src } : null;
-    })
-    .filter((token): token is ImageToken => token !== null);
+  const tokens: ImageToken[] = [];
+  for (const token of parseMarkdownAndHtmlImageTokens(content, { maxTokens: options.maxTokens })) {
+    const src = normalizeChatMessageImageSourceForMode(token.src, options.persistable === true);
+    if (src) {
+      tokens.push({ ...token, src });
+    }
+  }
+  return tokens;
 }
 
 export function extractChatMessageImageSources(

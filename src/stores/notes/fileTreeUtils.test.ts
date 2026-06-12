@@ -99,7 +99,7 @@ describe('fileTreeUtils structural sharing', () => {
     mocks.exists.mockResolvedValue(false);
   });
 
-  it('does not recurse into heavy generated folders while building the tree', async () => {
+  it('keeps generated folders low priority without hiding their markdown notes', async () => {
     mocks.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault') {
         return [
@@ -139,9 +139,10 @@ describe('fileTreeUtils structural sharing', () => {
 
     const tree = await buildFileTree('/vault');
 
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/node_modules');
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/Node_Modules');
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/Dist');
+    expect(mocks.listDir).toHaveBeenCalledWith('/vault/docs', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/vault/node_modules', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/vault/Node_Modules', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/vault/Dist', { includeHidden: true });
     expect(mocks.exists).not.toHaveBeenCalledWith('/vault/node_modules/.git');
     expect(mocks.exists).not.toHaveBeenCalledWith('/vault/Node_Modules/.git');
     expect(mocks.exists).not.toHaveBeenCalledWith('/vault/Dist/.git');
@@ -153,7 +154,14 @@ describe('fileTreeUtils structural sharing', () => {
         path: 'Dist',
         isFolder: true,
         expanded: false,
-        children: [],
+        children: [
+          {
+            id: 'Dist/bundle.md',
+            name: 'bundle',
+            path: 'Dist/bundle.md',
+            isFolder: false,
+          },
+        ],
       },
       {
         id: 'docs',
@@ -176,7 +184,14 @@ describe('fileTreeUtils structural sharing', () => {
         path: 'node_modules',
         isFolder: true,
         expanded: false,
-        children: [],
+        children: [
+          {
+            id: 'node_modules/package.md',
+            name: 'package',
+            path: 'node_modules/package.md',
+            isFolder: false,
+          },
+        ],
       },
       {
         id: 'Node_Modules',
@@ -184,7 +199,14 @@ describe('fileTreeUtils structural sharing', () => {
         path: 'Node_Modules',
         isFolder: true,
         expanded: false,
-        children: [],
+        children: [
+          {
+            id: 'Node_Modules/package.md',
+            name: 'package',
+            path: 'Node_Modules/package.md',
+            isFolder: false,
+          },
+        ],
       },
     ]);
   });

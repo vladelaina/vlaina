@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AssetService, MAX_ASSET_METADATA_STAT_CONCURRENCY } from './AssetService';
+import {
+  AssetService,
+  MAX_ASSET_LIST_DIRECTORY_ENTRIES,
+  MAX_ASSET_METADATA_STAT_CONCURRENCY,
+} from './AssetService';
 
 const MAX_ASSET_SIZE = 50 * 1024 * 1024;
 
@@ -956,24 +960,21 @@ describe('AssetService', () => {
     ]);
   });
 
-  it('caps asset library directory scanning for very large folders', async () => {
+  it('caps asset library image results for very large folders', async () => {
     mocks.storage.exists.mockResolvedValue(true);
-    const unscannedEntry = {
-      get name() {
-        throw new Error('unscanned asset entry name was read');
-      },
-      path: '/vault/docs/assets/image-5000.png',
-      isFile: true,
-      isDirectory: false,
-    };
     mocks.storage.listDir.mockResolvedValue([
-      ...Array.from({ length: 5000 }, (_, index) => ({
+      ...Array.from({ length: MAX_ASSET_LIST_DIRECTORY_ENTRIES }, (_, index) => ({
         name: `image-${String(index).padStart(4, '0')}.png`,
         path: `/vault/docs/assets/image-${String(index).padStart(4, '0')}.png`,
         isFile: true,
         isDirectory: false,
       })),
-      unscannedEntry,
+      {
+        name: 'image-5000.png',
+        path: '/vault/docs/assets/image-5000.png',
+        isFile: true,
+        isDirectory: false,
+      },
     ]);
 
     const assets = await AssetService.list(
@@ -985,7 +986,7 @@ describe('AssetService', () => {
       },
     );
 
-    expect(assets).toHaveLength(5000);
+    expect(assets).toHaveLength(MAX_ASSET_LIST_DIRECTORY_ENTRIES);
     expect(assets.map((asset) => asset.filename)).not.toContain('./assets/image-5000.png');
   });
 

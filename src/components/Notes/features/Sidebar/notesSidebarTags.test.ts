@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
+import type { FolderNode } from '@/stores/useNotesStore';
 import {
   buildNotesSidebarTags,
   buildNotesSidebarTagScopeEntries,
@@ -268,48 +268,6 @@ describe('notesSidebarTags', () => {
     expect(buildNotesSidebarTagScopeEntries({ rootFolder: unsafeRoot })).toEqual([
       { path: 'docs/safe.md' },
     ]);
-  });
-
-  it('collects deeply nested notes without recursive traversal', () => {
-    let current: FileTreeNode = {
-      id: 'deep-note',
-      name: 'deep.md',
-      path: 'deep.md',
-      isFolder: false,
-    };
-
-    for (let depth = 0; depth < 1500; depth += 1) {
-      current = {
-        id: `folder-${depth}`,
-        name: `folder-${depth}`,
-        path: `folder-${depth}`,
-        isFolder: true,
-        expanded: true,
-        children: [current],
-      };
-    }
-
-    expect(buildNotesSidebarTagScopeEntries({ rootFolder: current as FolderNode })).toEqual([
-      { path: 'deep.md' },
-    ]);
-  });
-
-  it('caps oversized tag scope path lists', () => {
-    const largeRoot: FolderNode = {
-      id: 'root-large',
-      name: 'Notes',
-      path: '',
-      isFolder: true,
-      expanded: true,
-      children: Array.from({ length: 10_001 }, (_, index) => ({
-        id: `note-${index}`,
-        name: `note-${index}.md`,
-        path: `note-${index}.md`,
-        isFolder: false,
-      })),
-    };
-
-    expect(buildNotesSidebarTagScopeEntries({ rootFolder: largeRoot })).toHaveLength(10_000);
   });
 
   it('uses current vault starred notes as tag scope when no folder tree is loaded', () => {

@@ -48,7 +48,7 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
       return;
     }
 
-    const content = await storage.readFile(configFilePath);
+    const content = await storage.readFile(configFilePath, MAX_VAULT_CONFIG_BYTES);
     if (content.length > MAX_VAULT_CONFIG_BYTES) {
       await storage.writeFile(
         configFilePath,

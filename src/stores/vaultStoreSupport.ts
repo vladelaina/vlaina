@@ -147,7 +147,7 @@ async function readVaultStateFile(): Promise<PersistedVaultState | null> {
     if (typeof fileInfo?.size !== 'number' || fileInfo.size > MAX_VAULT_STATE_BYTES) {
       return null;
     }
-    const content = await storage.readFile(statePath);
+    const content = await storage.readFile(statePath, MAX_VAULT_STATE_BYTES);
     if (content.length > MAX_VAULT_STATE_BYTES) {
       return null;
     }

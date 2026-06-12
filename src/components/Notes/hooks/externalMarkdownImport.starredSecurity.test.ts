@@ -84,14 +84,14 @@ describe('resolveExternalMarkdownEntriesForStarred security', () => {
 
     expect(result).toEqual([
       {
-        kind: 'folder',
-        vaultPath: '/outside',
-        relativePath: '.notes',
-      },
-      {
         kind: 'note',
         vaultPath: '/outside',
         relativePath: '.journal.md',
+      },
+      {
+        kind: 'folder',
+        vaultPath: '/outside',
+        relativePath: '.notes',
       },
     ]);
   });

@@ -3,7 +3,7 @@ import { ensureVaultConfig } from './vaultConfig';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   stat: vi.fn<(path: string) => Promise<{ size?: number } | null>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
@@ -100,7 +100,10 @@ describe('vaultConfig', () => {
 
     await ensureVaultConfig('/vault');
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json');
+    expect(adapter.readFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      64 * 1024,
+    );
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)

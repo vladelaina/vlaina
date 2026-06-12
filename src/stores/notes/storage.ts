@@ -24,7 +24,7 @@ const MAX_METADATA_SCAN_DEPTH = 24;
 const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
 const MAX_RECENT_NOTES_STORAGE_CHARS = 64 * 1024;
 const MAX_WORKSPACE_STATE_BYTES = 256 * 1024;
-const SKIPPED_METADATA_DIRECTORY_NAMES = new Set([
+const LOW_PRIORITY_METADATA_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
   'dist',
@@ -163,8 +163,8 @@ export function createEmptyMetadataFile(): MetadataFile {
   return { version: CURRENT_METADATA_VERSION, notes: {} };
 }
 
-function shouldSkipMetadataDirectory(name: string) {
-  return SKIPPED_METADATA_DIRECTORY_NAMES.has(name.toLowerCase());
+function isLowPriorityMetadataDirectory(name: string) {
+  return LOW_PRIORITY_METADATA_DIRECTORY_NAMES.has(name.toLowerCase());
 }
 
 function shouldHideMetadataDirectory(name: string) {
@@ -172,11 +172,23 @@ function shouldHideMetadataDirectory(name: string) {
 }
 
 function getMetadataScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
-  if (entry.isDirectory === true || (entry.isFile === true && isSupportedMarkdownPath(entry.name))) {
+  if (!isSafeVaultPathSegment(entry.name)) {
+    return 3;
+  }
+
+  if (entry.isFile === true && isSupportedMarkdownPath(entry.name)) {
     return 0;
   }
 
-  return 1;
+  if (entry.isDirectory === true && !isLowPriorityMetadataDirectory(entry.name)) {
+    return 1;
+  }
+
+  if (entry.isDirectory === true) {
+    return 2;
+  }
+
+  return 3;
 }
 
 function prioritizeMetadataScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
@@ -244,9 +256,6 @@ async function collectMarkdownPaths(
 
     if (entry.isDirectory === true) {
       if (shouldHideMetadataDirectory(entry.name)) {
-        continue;
-      }
-      if (shouldSkipMetadataDirectory(entry.name)) {
         continue;
       }
       if (depth >= MAX_METADATA_SCAN_DEPTH) {
