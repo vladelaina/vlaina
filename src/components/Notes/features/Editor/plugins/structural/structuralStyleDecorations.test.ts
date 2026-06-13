@@ -182,6 +182,28 @@ describe('structuralStyleDecorations', () => {
     expect(doc.nodeAt(ranges[0].from)?.type.name).toBe('paragraph');
   });
 
+  it('falls back to a full-document structural range when context scanning is exhausted', () => {
+    let scanned = 0;
+    const fakeDoc = {
+      content: { size: 300 },
+      resolve: () => ({
+        depth: 0,
+        nodeAfter: null,
+        nodeBefore: null,
+      }),
+      nodesBetween: (_from: number, _to: number, callback: (node: any, pos: number) => boolean | void) => {
+        for (let index = 0; index < 5; index += 1) {
+          scanned += 1;
+          const shouldContinue = callback({ type: { name: 'text' }, nodeSize: 1 }, index * 20);
+          if (shouldContinue === false) break;
+        }
+      },
+    } as unknown as ProseNode;
+
+    expect(getStructuralDecorationContextRanges(fakeDoc, 0, 200, 1)).toEqual([{ from: 0, to: 300 }]);
+    expect(scanned).toBe(2);
+  });
+
   it('adds paragraph image classes incrementally when an image is inserted', () => {
     const state = EditorStateCtor.create({
       schema,

@@ -38,6 +38,26 @@ describe('svgSanitizer', () => {
     expect(text?.getAttribute('style') || '').not.toContain('example.test');
   });
 
+  it('drops SVG style elements that can load external resources', () => {
+    const content = renderSanitizedSvg([
+      '<svg xmlns="http://www.w3.org/2000/svg">',
+      '<style>.safe { fill: red; }</style>',
+      '<style>@import "https://example.test/theme.css"; .bad { fill: red; }</style>',
+      '<style>.bad { filter: url(https://example.test/filter.svg#drop); }</style>',
+      '<style>.local { filter: url(#local-filter); }</style>',
+      '<text class="safe local">safe</text>',
+      '</svg>',
+    ].join(''));
+
+    const styles = Array.from(content.querySelectorAll('style')).map((style) => style.textContent || '');
+
+    expect(styles).toHaveLength(2);
+    expect(styles.join('\n')).toContain('.safe');
+    expect(styles.join('\n')).toContain('url(#local-filter)');
+    expect(styles.join('\n')).not.toContain('@import');
+    expect(styles.join('\n')).not.toContain('example.test');
+  });
+
   it('drops SVG markup that exceeds the sanitizer depth budget', () => {
     const markup = `${'<svg><g>'.repeat(210)}<image href="https://example.test/a.png"></image>${'</g></svg>'.repeat(210)}`;
 

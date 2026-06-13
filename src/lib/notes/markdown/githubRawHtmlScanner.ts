@@ -7,6 +7,8 @@ export interface RawHtmlTag {
 }
 
 const MAX_RAW_HTML_TAG_END_SCAN_CHARS = 64 * 1024;
+const MAX_RAW_HTML_TAG_NAME_CHARS = 128;
+const MAX_RAW_HTML_CONTAINER_MARKUP_SCANS = 20_000;
 
 function isAsciiAlpha(char: string | undefined): boolean {
   if (char === undefined) return false;
@@ -32,7 +34,7 @@ function isTagBoundary(char: string | undefined): boolean {
   return code === 32 || code === 9 || code === 10 || code === 12 || code === 13;
 }
 
-function readRawHtmlTagStart(content: string, start: number): { closing: boolean; name: string } | null {
+function readRawHtmlTagStart(content: string, start: number): { closing: boolean; name: string; overlongName?: boolean } | null {
   if (content[start] !== '<') return null;
 
   let cursor = start + 1;
@@ -44,6 +46,13 @@ function readRawHtmlTagStart(content: string, start: number): { closing: boolean
   cursor += 1;
   while (isHtmlNameChar(content[cursor])) {
     cursor += 1;
+    if (cursor - nameStart > MAX_RAW_HTML_TAG_NAME_CHARS) {
+      return {
+        closing,
+        name: content.slice(nameStart, nameStart + MAX_RAW_HTML_TAG_NAME_CHARS).toLowerCase(),
+        overlongName: true,
+      };
+    }
   }
 
   if (!isTagBoundary(content[cursor])) return null;
@@ -121,6 +130,15 @@ export function parseRawHtmlTag(content: string, start: number): RawHtmlTag | nu
 
   const tagStart = readRawHtmlTagStart(content, start);
   if (!tagStart) return null;
+  if (tagStart.overlongName) {
+    return {
+      closing: tagStart.closing,
+      end: getMalformedRawHtmlTagEnd(content, start),
+      malformed: true,
+      name: tagStart.name,
+      selfClosing: true,
+    };
+  }
 
   const scanEnd = getRawHtmlTagScanEnd(content, start);
   const tagEnd = findRawHtmlTagEnd(content, start, scanEnd);
@@ -171,9 +189,14 @@ export function scanRawHtmlContainer(
 ): { closeEnd: number | null; depth: number } {
   let cursor = start;
   let depth = Math.max(1, initialDepth);
+  let scannedMarkupStarts = 0;
   while (cursor < content.length) {
     const nextTagStart = content.indexOf('<', cursor);
     if (nextTagStart === -1) {
+      return { closeEnd: null, depth };
+    }
+    scannedMarkupStarts += 1;
+    if (scannedMarkupStarts > MAX_RAW_HTML_CONTAINER_MARKUP_SCANS) {
       return { closeEnd: null, depth };
     }
 

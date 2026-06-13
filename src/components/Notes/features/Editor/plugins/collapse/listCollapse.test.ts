@@ -10,6 +10,7 @@ import {
   collectNestedListHoverParents,
   findNestedListCollapseRange,
   listCollapsePlugin,
+  rangeTouchesListCollapseStructure,
 } from './listCollapse';
 
 async function createEditor(markdown: string, options: { gfm?: boolean } = {}) {
@@ -80,6 +81,29 @@ describe('listCollapsePlugin', () => {
 
     expect(findNestedListCollapseRange(listItem, 10)).toBeNull();
     expect(accessed).toBe(MAX_LIST_COLLAPSE_CHILD_SCAN_NODES);
+  });
+
+  it('treats exhausted list structure range scans as touching list structure', () => {
+    let scanned = 0;
+    const doc = {
+      content: { size: 300 },
+      nodeAt: () => null,
+      resolve: () => ({
+        depth: 0,
+        nodeAfter: null,
+        nodeBefore: null,
+      }),
+      nodesBetween: (_from: number, _to: number, callback: (node: any) => boolean | void) => {
+        for (let index = 0; index < 5; index += 1) {
+          scanned += 1;
+          const shouldContinue = callback({ type: { name: 'paragraph' } });
+          if (shouldContinue === false) break;
+        }
+      },
+    };
+
+    expect(rangeTouchesListCollapseStructure(doc, 0, 200, 1)).toBe(true);
+    expect(scanned).toBe(2);
   });
 
   it('collects nested-list hover parents without CSS :has selectors', () => {

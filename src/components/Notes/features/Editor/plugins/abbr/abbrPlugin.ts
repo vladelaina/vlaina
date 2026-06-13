@@ -29,6 +29,7 @@ const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
 export const MAX_ABBR_TITLE_CHARS = 4096;
 export const MAX_ABBR_DECORATIONS = 1000;
 export const MAX_ABBR_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_ABBR_UPDATE_RANGE_SCAN_NODES = MAX_ABBR_DOC_SCAN_NODES;
 export const MAX_ABBR_TEXT_SCAN_CHARS = 100_000;
 export const MAX_ABBR_CHANGED_CONTEXT_CHARS = 512;
 const ABBR_DEFINITION_TRIGGER_PATTERN = /(?:^\*\[|[\n\r]\*\[)/u;
@@ -175,6 +176,7 @@ export function findAbbrUsagesInRange(
   definitions: AbbrDefinition[],
   from: number,
   to: number,
+  maxScanNodes = MAX_ABBR_DOC_SCAN_NODES,
 ): { start: number; end: number; fullText: string }[] {
   const usages: { start: number; end: number; fullText: string }[] = [];
   if (definitions.length === 0 || typeof doc.nodesBetween !== 'function') return usages;
@@ -188,7 +190,10 @@ export function findAbbrUsagesInRange(
   const pattern = createAbbrUsagePattern(definitions);
   if (!pattern) return usages;
 
+  let scannedNodes = 0;
   doc.nodesBetween(start, end, (node: BoundedProseScanNode, pos: number, parent: BoundedProseScanNode) => {
+    scannedNodes += 1;
+    if (scannedNodes > maxScanNodes) return false;
     if (usages.length >= MAX_ABBR_DECORATIONS) return false;
     if (!node.isText || shouldSkipTextNode(node, parent)) return true;
 
@@ -358,9 +363,14 @@ function mergeAbbrUpdateRanges(ranges: AbbrUpdateRange[]): AbbrUpdateRange[] {
   return merged;
 }
 
-function collectAbbrUpdateRanges(doc: any, tr: unknown): AbbrUpdateRange[] {
+function collectAbbrUpdateRanges(
+  doc: any,
+  tr: unknown,
+  maxScanNodes = MAX_ABBR_UPDATE_RANGE_SCAN_NODES,
+): AbbrUpdateRange[] {
   const ranges: AbbrUpdateRange[] = [];
   const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  let scannedNodes = 0;
 
   for (const range of getTransactionChangedRanges(tr)) {
     const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
@@ -370,7 +380,13 @@ function collectAbbrUpdateRanges(doc: any, tr: unknown): AbbrUpdateRange[] {
     addTextblockRangeAt(doc, to, ranges);
 
     if (to > from && typeof doc.nodesBetween === 'function') {
+      let exhausted = false;
       doc.nodesBetween(from, to, (node: any, pos: number) => {
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) {
+          exhausted = true;
+          return false;
+        }
         if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
         ranges.push({
           from: pos + 1,
@@ -378,6 +394,9 @@ function collectAbbrUpdateRanges(doc: any, tr: unknown): AbbrUpdateRange[] {
         });
         return true;
       });
+      if (exhausted) {
+        return [{ from: 0, to: docSize }];
+      }
     }
   }
 

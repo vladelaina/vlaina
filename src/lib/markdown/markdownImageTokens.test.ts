@@ -453,4 +453,34 @@ describe('markdownImageTokens', () => {
       'https://example.com/real-html.png',
     ]);
   });
+
+  it('protects image syntax inside tags with overlong names without scanning the full name', () => {
+    const badLine = [
+      `<${'a'.repeat(200)}`,
+      'data-md="![hidden](https://example.com/hidden.png)"',
+      'data-html="<img src=\'https://example.com/hidden-html.png\'>"',
+    ].join(' ');
+    const markdown = [
+      badLine,
+      '![real](https://example.com/real.png)',
+      '<img src="https://example.com/real-html.png">',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+      'https://example.com/real-html.png',
+    ]);
+  });
+
+  it('conservatively protects over-budget raw HTML containers', () => {
+    const markdown = [
+      '<svg>',
+      '<g></g>'.repeat(20_050),
+      '</svg>',
+      '![real](https://example.com/real.png)',
+      '<img src="https://example.com/real-html.png">',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: 1 })).toEqual([]);
+  });
 });

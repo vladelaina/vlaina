@@ -17,6 +17,8 @@ describe('sanitizeRawHtmlUrlProperties', () => {
       ['file:///etc/passwd', null],
       ['/etc/passwd', null],
       ['http://127.0.0.1:3000/secret.png', null],
+      ['http://[fe90::1]/secret.png', null],
+      ['http://[fec0::1]/secret.png', null],
       ['https://user:pass@example.com/secret.png', null],
       ['.vlaina/private.png', null],
       ['docs/%252egit/private.png', null],

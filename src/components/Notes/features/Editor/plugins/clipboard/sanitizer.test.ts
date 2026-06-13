@@ -381,6 +381,8 @@ describe('sanitizeHtml', () => {
     expect(sanitizeHtml('<iframe src="http://192.168.1.8/embed"></iframe>')).toBe('');
     expect(sanitizeHtml('<iframe src="http://169.254.10.2/embed"></iframe>')).toBe('');
     expect(sanitizeHtml('<iframe src="http://[fe80::1]/embed"></iframe>')).toBe('');
+    expect(sanitizeHtml('<iframe src="http://[fe90::1]/embed"></iframe>')).toBe('');
+    expect(sanitizeHtml('<iframe src="http://[fec0::1]/embed"></iframe>')).toBe('');
     expect(sanitizeHtml('<iframe src="http://[fd12:3456:789a::1]/embed"></iframe>')).toBe('');
   });
 

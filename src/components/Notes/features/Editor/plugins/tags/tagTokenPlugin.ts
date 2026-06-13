@@ -23,6 +23,7 @@ const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
 export const MAX_TAG_TOKEN_DECORATIONS = 1000;
 export const MAX_TAG_TOKEN_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_TAG_TOKEN_UPDATE_RANGE_SCAN_NODES = MAX_TAG_TOKEN_DOC_SCAN_NODES;
 const MAX_TAG_TOKEN_CHARS = 128;
 export const MAX_TAG_TOKEN_EDGE_RECTS = 1024;
 export const MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS = MAX_TAG_TOKEN_CHARS + 8;
@@ -170,6 +171,7 @@ export function collectTagTokenDecorationsInRange(
   from: number,
   to: number,
   maxDecorations = MAX_TAG_TOKEN_DECORATIONS,
+  maxScanNodes = MAX_TAG_TOKEN_DOC_SCAN_NODES,
 ): Decoration[] {
   const candidates: TagTokenDecorationCandidate[] = [];
   const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
@@ -179,7 +181,10 @@ export function collectTagTokenDecorationsInRange(
     return [];
   }
 
+  let scannedNodes = 0;
   doc.nodesBetween(start, end, (node: any, pos: number, parent: any) => {
+    scannedNodes += 1;
+    if (scannedNodes > maxScanNodes) return false;
     if (candidates.length >= maxDecorations) return false;
     if (!node.isText) return true;
     collectTagTokenCandidatesFromTextNode(node, pos, parent, candidates, maxDecorations);
@@ -229,9 +234,14 @@ function mergeTagTokenUpdateRanges(ranges: TagTokenUpdateRange[]): TagTokenUpdat
   return merged;
 }
 
-export function collectTagTokenUpdateRanges(doc: any, tr: unknown): TagTokenUpdateRange[] {
+export function collectTagTokenUpdateRanges(
+  doc: any,
+  tr: unknown,
+  maxScanNodes = MAX_TAG_TOKEN_UPDATE_RANGE_SCAN_NODES,
+): TagTokenUpdateRange[] {
   const ranges: TagTokenUpdateRange[] = [];
   const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  let scannedNodes = 0;
 
   for (const range of getTransactionChangedRanges(tr)) {
     const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
@@ -241,7 +251,13 @@ export function collectTagTokenUpdateRanges(doc: any, tr: unknown): TagTokenUpda
     addTextblockRangeAt(doc, to, ranges);
 
     if (to > from && typeof doc.nodesBetween === 'function') {
+      let exhausted = false;
       doc.nodesBetween(from, to, (node: any, pos: number) => {
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) {
+          exhausted = true;
+          return false;
+        }
         if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
         ranges.push({
           from: pos + 1,
@@ -249,6 +265,9 @@ export function collectTagTokenUpdateRanges(doc: any, tr: unknown): TagTokenUpda
         });
         return true;
       });
+      if (exhausted) {
+        return [{ from: 0, to: docSize }];
+      }
     }
   }
 

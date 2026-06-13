@@ -38,6 +38,9 @@ describe('urlSecurity', () => {
     expect(isLocalNetworkHttpUrl('http://127.1/image.png')).toBe(true);
     expect(isLocalNetworkHttpUrl('http://10.1/image.png')).toBe(true);
     expect(isLocalNetworkHttpUrl('http://[::]/image.png')).toBe(true);
+    expect(isLocalNetworkHttpUrl('http://[fe90::1]/image.png')).toBe(true);
+    expect(isLocalNetworkHttpUrl('http://[febf::1]/image.png')).toBe(true);
+    expect(isLocalNetworkHttpUrl('http://[fec0::1]/image.png')).toBe(true);
     expect(isLocalNetworkHttpUrl('http://[ff02::1]/image.png')).toBe(true);
     expect(isLocalNetworkHttpUrl('http://[::7f00:1]/image.png')).toBe(true);
     expect(isLocalNetworkHttpUrl('http://[::ffff:0:7f00:1]/image.png')).toBe(true);
@@ -57,6 +60,8 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteMediaSrc('http://0x7f000001/image.png')).toBeNull();
     expect(sanitizeNoteMediaSrc('http://127.1/image.png')).toBeNull();
     expect(sanitizeNoteMediaSrc('http://10.1/image.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('http://[fe90::1]/image.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('http://[fec0::1]/image.png')).toBeNull();
     expect(sanitizeNoteMediaSrc('http://[::7f00:1]/image.png')).toBeNull();
     expect(sanitizeNoteMediaSrc('http://[::ffff:0:7f00:1]/image.png')).toBeNull();
     expect(sanitizeNoteMediaSrc(String.raw`http:\127.0.0.1\image.png`)).toBeNull();

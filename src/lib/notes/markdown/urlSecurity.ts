@@ -103,6 +103,9 @@ function isPrivateIPv6(hostname: string): boolean {
   if (!normalized.includes(':')) {
     return false;
   }
+  const firstHextet = Number.parseInt(normalized.split(':', 1)[0] || '0', 16);
+  const isLinkLocal = Number.isFinite(firstHextet) && (firstHextet & 0xffc0) === 0xfe80;
+  const isDeprecatedSiteLocal = Number.isFinite(firstHextet) && (firstHextet & 0xffc0) === 0xfec0;
   if (
     hasPrivateEmbeddedIPv4(normalized, '::ffff:')
     || hasPrivateEmbeddedIPv4(normalized, '::ffff:0:')
@@ -113,7 +116,8 @@ function isPrivateIPv6(hostname: string): boolean {
   return (
     normalized === '::'
     || normalized === '::1'
-    || normalized.startsWith('fe80:')
+    || isLinkLocal
+    || isDeprecatedSiteLocal
     || normalized.startsWith('fc')
     || normalized.startsWith('fd')
     || normalized.startsWith('ff')

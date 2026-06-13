@@ -55,6 +55,30 @@ describe('katexSourceSanitizer', () => {
     }
   });
 
+  it('removes HTML source annotations case-insensitively', () => {
+    const html = '<span><annotation encoding="APPLICATION/X-TEX">secret</annotation><span>visible</span></span>';
+
+    const sanitized = removeKatexSourceAnnotationsFromHtml(html);
+
+    expect(sanitized).toContain('visible');
+    expect(sanitized).not.toContain('APPLICATION/X-TEX');
+    expect(sanitized).not.toContain('secret');
+  });
+
+  it('falls back when HTML source annotation DOM scanning exceeds the node budget', () => {
+    const html = [
+      '<span>',
+      Array.from({ length: 20_050 }, (_, index) => `<i>${index}</i>`).join(''),
+      '<annotation encoding=application/x-tex>secret</annotation>',
+      '</span>',
+    ].join('');
+
+    const sanitized = removeKatexSourceAnnotationsFromHtml(html);
+
+    expect(sanitized).not.toContain('application/x-tex');
+    expect(sanitized).not.toContain('secret');
+  });
+
   it('removes HTML source annotations without materializing selector results', () => {
     const querySelectorAllSpy = vi.spyOn(DocumentFragment.prototype, 'querySelectorAll');
     const html = '<span><annotation encoding="application/x-tex">secret</annotation><span>visible</span></span>';

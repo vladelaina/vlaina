@@ -42,6 +42,17 @@ function createDeepTree(depth: number): FileTreeNode[] {
   return [current];
 }
 
+function createTrackedChildren(children: FileTreeNode[], onChildRead: () => void): FileTreeNode[] {
+  return new Proxy(children, {
+    get(target, property, receiver) {
+      if (typeof property === 'string' && /^\d+$/.test(property)) {
+        onChildRead();
+      }
+      return Reflect.get(target, property, receiver);
+    },
+  });
+}
+
 describe('fileTreeUtils deep updates', () => {
   it('updates deep file paths without recursive traversal', () => {
     const tree = createDeepTree(2500);
@@ -174,5 +185,35 @@ describe('fileTreeUtils deep updates', () => {
       'notes/readme.md',
       'docs-old/readme.md',
     ]);
+  });
+
+  it('restores and rewrites wide folders without rescanning completed siblings', () => {
+    let childReads = 0;
+    const children = createTrackedChildren(
+      Array.from({ length: 512 }, (_, index): FileTreeNode => ({
+        id: `docs/note-${index}.md`,
+        name: `note-${index}`,
+        path: `docs/note-${index}.md`,
+        isFolder: false,
+      })),
+      () => {
+        childReads += 1;
+      },
+    );
+    const tree: FileTreeNode[] = [{
+      id: 'docs',
+      name: 'docs',
+      path: 'docs',
+      isFolder: true,
+      expanded: false,
+      children,
+    }];
+
+    const restored = restoreExpandedState(tree, new Set(['docs']));
+    const updated = deepUpdateNodePath(restored[0], 'docs', 'notes');
+
+    expect(restored[0]).toMatchObject({ expanded: true });
+    expect(updated.isFolder ? updated.children.at(-1)?.path : '').toBe('notes/note-511.md');
+    expect(childReads).toBeLessThan(512 * 6);
   });
 });

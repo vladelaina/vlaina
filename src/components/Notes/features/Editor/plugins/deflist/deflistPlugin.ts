@@ -271,16 +271,27 @@ function nearbyBlockMayAffectDefinitionList(doc: Node, pos: number): boolean {
     return false;
 }
 
-function changedRangeContainsDefinitionDescriptionParagraph(doc: Node, tr: unknown): boolean {
+export function changedRangeContainsDefinitionDescriptionParagraph(
+    doc: Node,
+    tr: unknown,
+    maxScanNodes = MAX_DEFLIST_VISUAL_DOC_SCAN_NODES,
+): boolean {
     if (typeof doc.nodesBetween !== 'function') return false;
     const ranges = getTransactionChangedRanges(tr);
+    let scannedNodes = 0;
     for (const range of ranges) {
         const from = Math.max(0, Math.min(range.newFrom, range.newTo, doc.content.size));
         const to = Math.max(from, Math.min(Math.max(range.newFrom, range.newTo), doc.content.size));
         if (to <= from) continue;
 
         let found = false;
+        let exhausted = false;
         doc.nodesBetween(from, to, (node) => {
+            scannedNodes += 1;
+            if (scannedNodes > maxScanNodes) {
+                exhausted = true;
+                return false;
+            }
             if (isDefinitionDescriptionParagraph(node)) {
                 found = true;
                 return false;
@@ -288,6 +299,7 @@ function changedRangeContainsDefinitionDescriptionParagraph(doc: Node, tr: unkno
             return !found;
         });
         if (found) return true;
+        if (exhausted) return true;
     }
 
     return false;

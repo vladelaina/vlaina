@@ -145,7 +145,6 @@ const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 export const MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS = 16 * 1024;
 const MAX_GITHUB_SRCSET_CANDIDATES = 128;
-const GITHUB_RELATIVE_SRCSET_PROTOCOLS = new Set<string>();
 
 export function isGithubHtmlAttributeValueAllowed(value: string): boolean {
   return value.length <= MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS;
@@ -396,9 +395,9 @@ export function normalizeGithubSrcset(value: string): string | null {
     if (!parts) {
       return null;
     }
-    const normalizedSource = normalizeGithubUrl(parts[0], GITHUB_RELATIVE_SRCSET_PROTOCOLS, {
+    const normalizedSource = normalizeGithubUrl(parts[0], GITHUB_ALLOWED_MEDIA_PROTOCOLS, {
       allowPlainRelative: true,
-      allowProtocolRelative: false,
+      allowProtocolRelative: true,
       blockLocalNetwork: true,
     });
     if (!normalizedSource) return null;

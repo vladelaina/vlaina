@@ -11,7 +11,8 @@ const MAX_KATEX_SOURCE_HTML_CHARS = 2 * 1024 * 1024;
 const MAX_KATEX_SOURCE_HTML_DEPTH = 200;
 const MAX_KATEX_SOURCE_HTML_NODES = 20_000;
 const KATEX_SOURCE_ANNOTATION_PATTERN =
-  /<annotation\b(?=[^>]*\bencoding=(["'])application\/x-tex\1)[^>]*>[\s\S]*?<\/annotation>/gi;
+  /<annotation\b(?=[^>]*\bencoding\s*=\s*(?:"application\/x-tex"|'application\/x-tex'|application\/x-tex(?:[\s/>]|$)))[^>]*>[\s\S]*?<\/annotation>/gi;
+const KATEX_SOURCE_ANNOTATION_MARKER_PATTERN = /application\/x-tex/i;
 
 function readPropertyString(properties: Record<string, unknown> | undefined, name: string) {
   const value = properties?.[name];
@@ -30,7 +31,7 @@ function isKatexSourceAnnotation(node: HastNode) {
 }
 
 export function removeKatexSourceAnnotationsFromHtml(html: string) {
-  if (!html.includes('application/x-tex')) {
+  if (!KATEX_SOURCE_ANNOTATION_MARKER_PATTERN.test(html)) {
     return html;
   }
 
@@ -40,37 +41,47 @@ export function removeKatexSourceAnnotationsFromHtml(html: string) {
 
   const template = document.createElement('template');
   template.innerHTML = html;
-  removeKatexSourceAnnotationsFromDom(template.content);
+  if (!removeKatexSourceAnnotationsFromDom(template.content)) {
+    return html.replace(KATEX_SOURCE_ANNOTATION_PATTERN, '');
+  }
   return template.innerHTML;
 }
 
-function removeKatexSourceAnnotationsFromDom(root: DocumentFragment): void {
+function removeKatexSourceAnnotationsFromDom(root: DocumentFragment): boolean {
   const stack: Array<{ node: Node; depth: number }> = [{ node: root, depth: 0 }];
-  let visitedNodes = 0;
+  let discoveredNodes = 1;
 
   while (stack.length > 0) {
     const { node, depth } = stack.pop() as { node: Node; depth: number };
-    visitedNodes += 1;
-    if (visitedNodes > MAX_KATEX_SOURCE_HTML_NODES) {
-      return;
-    }
-
     if (depth >= MAX_KATEX_SOURCE_HTML_DEPTH) {
+      if (node.hasChildNodes()) {
+        return false;
+      }
       continue;
     }
 
-    for (let child = node.lastChild; child; child = child.previousSibling) {
+    for (let child = node.lastChild; child;) {
+      const previousSibling = child.previousSibling;
+      discoveredNodes += 1;
+      if (discoveredNodes > MAX_KATEX_SOURCE_HTML_NODES) {
+        return false;
+      }
+
       if (
         child.nodeType === Node.ELEMENT_NODE &&
         (child as Element).tagName.toLowerCase() === 'annotation' &&
         (child as Element).getAttribute('encoding')?.toLowerCase() === 'application/x-tex'
       ) {
         child.parentNode?.removeChild(child);
+        child = previousSibling;
         continue;
       }
       stack.push({ node: child, depth: depth + 1 });
+      child = previousSibling;
     }
   }
+
+  return true;
 }
 
 export function removeKatexSourceAnnotationsFromHast(node: HastNode): void {

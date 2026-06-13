@@ -5,6 +5,7 @@ import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 import { URL_PATTERNS } from '../utils/constants';
 import { sanitizeEditorExternalLinkHref } from '../utils/linkHref';
 import {
+    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../../shared/boundedProseNodeScan';
@@ -12,6 +13,8 @@ import { getTransactionChangedRanges } from '../../shared/transactionStepText';
 
 export const autolinkPluginKey = new PluginKey('autolink');
 export const MAX_AUTOLINK_DECORATIONS = 1000;
+export const MAX_AUTOLINK_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_AUTOLINK_UPDATE_RANGE_SCAN_NODES = MAX_AUTOLINK_DOC_SCAN_NODES;
 export const MAX_AUTOLINK_TEXT_SCAN_CHARS = 1024 * 1024;
 export const MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 export const MAX_AUTOLINK_CHANGED_CONTEXT_CHARS = 512;
@@ -191,7 +194,7 @@ export function collectAutolinkDecorations(doc: any): Decoration[] {
         }
 
         return decorations.length < MAX_AUTOLINK_DECORATIONS ? undefined : STOP_PROSE_SCAN;
-    });
+    }, MAX_AUTOLINK_DOC_SCAN_NODES);
 
     return decorations;
 }
@@ -205,6 +208,7 @@ export function collectAutolinkDecorationsInRange(
     from: number,
     to: number,
     maxDecorations = MAX_AUTOLINK_DECORATIONS,
+    maxScanNodes = MAX_AUTOLINK_DOC_SCAN_NODES,
 ): Decoration[] {
     const decorations: Decoration[] = [];
     const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
@@ -214,7 +218,10 @@ export function collectAutolinkDecorationsInRange(
         return decorations;
     }
 
+    let scannedNodes = 0;
     doc.nodesBetween(start, end, (node: any, pos: number, parent: any) => {
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) return false;
         if (decorations.length >= maxDecorations) return false;
         if (!node.isText) return true;
         collectAutolinkDecorationsFromTextNode(doc, node, pos, parent, decorations, maxDecorations);
@@ -359,9 +366,14 @@ function mergeAutolinkUpdateRanges(ranges: AutolinkUpdateRange[]): AutolinkUpdat
     return merged;
 }
 
-export function collectAutolinkUpdateRanges(doc: any, tr: unknown): AutolinkUpdateRange[] {
+export function collectAutolinkUpdateRanges(
+    doc: any,
+    tr: unknown,
+    maxScanNodes = MAX_AUTOLINK_UPDATE_RANGE_SCAN_NODES,
+): AutolinkUpdateRange[] {
     const ranges: AutolinkUpdateRange[] = [];
     const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+    let scannedNodes = 0;
 
     for (const range of getTransactionChangedRanges(tr)) {
         const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
@@ -371,7 +383,13 @@ export function collectAutolinkUpdateRanges(doc: any, tr: unknown): AutolinkUpda
         addTextblockRangeAt(doc, to, ranges);
 
         if (to > from && typeof doc.nodesBetween === 'function') {
+            let exhausted = false;
             doc.nodesBetween(from, to, (node: any, pos: number) => {
+                scannedNodes += 1;
+                if (scannedNodes > maxScanNodes) {
+                    exhausted = true;
+                    return false;
+                }
                 if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
                 ranges.push({
                     from: pos + 1,
@@ -379,6 +397,9 @@ export function collectAutolinkUpdateRanges(doc: any, tr: unknown): AutolinkUpda
                 });
                 return true;
             });
+            if (exhausted) {
+                return [{ from: 0, to: docSize }];
+            }
         }
     }
 

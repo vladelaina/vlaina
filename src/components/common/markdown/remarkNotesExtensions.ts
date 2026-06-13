@@ -53,6 +53,7 @@ const CALLOUT_ICON_TEXT_SUFFIX = ']';
 const CALLOUT_ICON_COMMENT_PREFIX = '<!--callout-icon:';
 const CALLOUT_ICON_COMMENT_SUFFIX = '-->';
 const INLINE_HTML_CONTAINER_SEARCH_EXCEEDED = -2;
+const INLINE_HTML_CLOSE_TAG_PATTERN = /^<\/([A-Za-z][A-Za-z0-9-]*)>$/i;
 
 function iconDataFromCalloutValue(value: string | null | undefined) {
   return value && value.length <= MAX_CALLOUT_ICON_VALUE_CHARS ? value : '💡';
@@ -244,35 +245,57 @@ function createInlineElementNode(type: string, children: MdastNode[]): MdastNode
 }
 
 function findClosingHtmlChildIndex(
-  children: readonly MdastNode[],
   startIndex: number,
-  tagName: string
+  tagName: string,
+  closeIndexesByTag: Map<string, number[]>,
+  childrenLength: number
 ): number {
-  const closePattern = new RegExp(`^</${tagName}>$`, 'i');
-  const maxIndex = Math.min(children.length - 1, startIndex + MAX_INLINE_HTML_CONTAINER_CHILDREN + 1);
+  const maxIndex = Math.min(childrenLength - 1, startIndex + MAX_INLINE_HTML_CONTAINER_CHILDREN + 1);
+  const closeIndexes = closeIndexesByTag.get(tagName.toLowerCase());
+  if (!closeIndexes) {
+    return maxIndex < childrenLength - 1 ? INLINE_HTML_CONTAINER_SEARCH_EXCEEDED : -1;
+  }
 
-  for (let index = startIndex + 1; index <= maxIndex; index += 1) {
+  let left = 0;
+  let right = closeIndexes.length;
+  while (left < right) {
+    const mid = (left + right) >> 1;
+    if (closeIndexes[mid] <= startIndex) left = mid + 1;
+    else right = mid;
+  }
+
+  const closeIndex = closeIndexes[left];
+  if (closeIndex === undefined || closeIndex > maxIndex) {
+    return maxIndex < childrenLength - 1 ? INLINE_HTML_CONTAINER_SEARCH_EXCEEDED : -1;
+  }
+
+  return closeIndex;
+}
+
+function buildInlineHtmlCloseIndexes(children: readonly MdastNode[]): Map<string, number[]> {
+  const closeIndexesByTag = new Map<string, number[]>();
+  for (let index = 0; index < children.length; index += 1) {
     const candidate = children[index];
     if (
       candidate.type === 'html' &&
-      typeof candidate.value === 'string' &&
-      closePattern.test(candidate.value.trim())
+      typeof candidate.value === 'string'
     ) {
-      return index;
+      const closeMatch = INLINE_HTML_CLOSE_TAG_PATTERN.exec(candidate.value.trim());
+      const tagName = closeMatch?.[1]?.toLowerCase();
+      if (!tagName) continue;
+      const closeIndexes = closeIndexesByTag.get(tagName);
+      if (closeIndexes) closeIndexes.push(index);
+      else closeIndexesByTag.set(tagName, [index]);
     }
   }
-
-  if (maxIndex < children.length - 1) {
-    return INLINE_HTML_CONTAINER_SEARCH_EXCEEDED;
-  }
-
-  return -1;
+  return closeIndexesByTag;
 }
 
 function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
   function visit(node: MdastNode): void {
     if (!node.children?.length) return;
 
+    let closeIndexesByTag: Map<string, number[]> | null = null;
     const missingCloseTags = new Set<string>();
     for (let index = 0; index < node.children.length; index += 1) {
       const child = node.children[index];
@@ -289,7 +312,8 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
       if (!tagName) continue;
       if (missingCloseTags.has(tagName)) continue;
 
-      const closeIndex = findClosingHtmlChildIndex(node.children, index, tagName);
+      closeIndexesByTag ??= buildInlineHtmlCloseIndexes(node.children);
+      const closeIndex = findClosingHtmlChildIndex(index, tagName, closeIndexesByTag, node.children.length);
       if (closeIndex === INLINE_HTML_CONTAINER_SEARCH_EXCEEDED) {
         continue;
       }
@@ -317,6 +341,7 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
 
       if (nextNode) {
         node.children.splice(index, closeIndex - index + 1, nextNode);
+        closeIndexesByTag = null;
       }
     }
   }
@@ -435,9 +460,14 @@ function replaceInlineHtmlContainerMark(
   tagName: string,
   allowOpenAttributes = true
 ) {
+  const openPattern = allowOpenAttributes
+    ? new RegExp(`^<${tagName}\\b[^>]*>$`, 'i')
+    : new RegExp(`^<${tagName}>$`, 'i');
+
   function visit(node: MdastNode): void {
     if (!node.children?.length) return;
 
+    let closeIndexesByTag: Map<string, number[]> | null = null;
     let missingClose = false;
     for (let index = 0; index < node.children.length; index += 1) {
       const child = node.children[index];
@@ -446,15 +476,13 @@ function replaceInlineHtmlContainerMark(
         continue;
       }
 
-      const openPattern = allowOpenAttributes
-        ? new RegExp(`^<${tagName}\\b[^>]*>$`, 'i')
-        : new RegExp(`^<${tagName}>$`, 'i');
       if (!openPattern.test(child.value.trim())) {
         continue;
       }
       if (missingClose) continue;
 
-      const closeIndex = findClosingHtmlChildIndex(node.children, index, tagName);
+      closeIndexesByTag ??= buildInlineHtmlCloseIndexes(node.children);
+      const closeIndex = findClosingHtmlChildIndex(index, tagName, closeIndexesByTag, node.children.length);
       if (closeIndex === INLINE_HTML_CONTAINER_SEARCH_EXCEEDED) {
         continue;
       }
@@ -471,6 +499,7 @@ function replaceInlineHtmlContainerMark(
         continue;
       }
       node.children.splice(index, closeIndex - index + 1, createInlineElementNode(type, content));
+      closeIndexesByTag = null;
     }
   }
 

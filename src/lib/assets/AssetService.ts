@@ -29,6 +29,7 @@ export interface AssetConfig {
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
 export const MAX_ASSET_LIST_DIRECTORY_ENTRIES = 5000;
 export const MAX_ASSET_METADATA_STAT_CONCURRENCY = 8;
+const ASSET_DIRECTORY_ENTRY_PRIORITY_BUCKETS = 3;
 const UNSAFE_ASSET_ENTRY_NAME_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const IMAGE_UPLOAD_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/avif': ['avif'],
@@ -264,15 +265,14 @@ function selectAssetDirectoryEntries(
   entries: NormalizedAssetDirectoryEntry[],
   uploadFilename?: string,
 ): NormalizedAssetDirectoryEntry[] {
-  return entries
-    .map((entry, index) => ({
-      entry,
-      index,
-      priority: getAssetDirectoryEntryPriority(entry, uploadFilename),
-    }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES)
-    .map(({ entry }) => entry);
+  const buckets = Array.from(
+    { length: ASSET_DIRECTORY_ENTRY_PRIORITY_BUCKETS },
+    () => [] as NormalizedAssetDirectoryEntry[],
+  );
+  for (const entry of entries) {
+    buckets[getAssetDirectoryEntryPriority(entry, uploadFilename)]?.push(entry);
+  }
+  return buckets.flat().slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES);
 }
 
 function normalizeSafeSubfolderName(name: string | undefined, fallback: string): string {

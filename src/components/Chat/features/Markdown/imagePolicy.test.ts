@@ -156,6 +156,8 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("http://127.1/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://2130706433/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://192.168.1.8/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("http://[fe90::1]/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("http://[fec0::1]/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://[::ffff:7f00:1]/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://[::7f00:1]/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://[::ffff:0:7f00:1]/secret.png")).toBeNull();

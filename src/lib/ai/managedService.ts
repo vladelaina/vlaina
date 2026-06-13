@@ -34,6 +34,8 @@ import {
   stringifyProviderJsonRequestBody,
 } from './providerRequestBody';
 
+const MAX_MANAGED_CHAT_MESSAGES = 64
+
 export {
   MANAGED_API_BASE,
   MANAGED_AUTH_REQUIRED_ERROR,
@@ -112,6 +114,18 @@ function sanitizeManagedChatMessage(message: unknown): unknown {
   return nextMessage
 }
 
+function selectManagedChatMessages(messages: unknown[]): unknown[] {
+  if (messages.length <= MAX_MANAGED_CHAT_MESSAGES) {
+    return messages
+  }
+
+  const first = messages[0]
+  if (isRecord(first) && first.role === 'system') {
+    return [first, ...messages.slice(-(MAX_MANAGED_CHAT_MESSAGES - 1))]
+  }
+  return messages.slice(-MAX_MANAGED_CHAT_MESSAGES)
+}
+
 function sanitizeManagedChatCompletionBody(body: object): Record<string, unknown> {
   const nextBody = isRecord(body) ? body : {}
   if (!Array.isArray(nextBody.messages)) {
@@ -119,7 +133,7 @@ function sanitizeManagedChatCompletionBody(body: object): Record<string, unknown
   }
   return {
     ...nextBody,
-    messages: nextBody.messages.map(sanitizeManagedChatMessage),
+    messages: selectManagedChatMessages(nextBody.messages).map(sanitizeManagedChatMessage),
   }
 }
 
