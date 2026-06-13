@@ -1,7 +1,7 @@
 import { removeNodeFromTree } from '../../fileTreeUtils';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { assertNonInternalNotePath } from './internalNotePaths';
-import { deleteNoteItemToRecoverableLocation } from './trashOperations';
+import { deleteNoteItemToPendingTrash } from './trashOperations';
 import { resolveVaultRelativeFullPath } from './vaultPathContainment';
 import type {
   DeleteOperationResult,
@@ -18,7 +18,7 @@ export async function deleteNoteImpl(
   const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
   assertNonInternalNotePath(safePath);
   markExpectedExternalChange(fullPath);
-  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, safePath, 'file');
+  const trashedItem = await deleteNoteItemToPendingTrash(notesPath, safePath, 'file');
 
   const { openTabs, currentNote, rootFolder } = currentStore;
 
@@ -37,7 +37,7 @@ export async function deleteNoteImpl(
     updatedTabs,
     nextAction,
     newChildren,
-    recoverableDelete,
+    trashedItem,
   };
 }
 
@@ -49,7 +49,7 @@ export async function deleteFolderImpl(
   const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
   assertNonInternalNotePath(safePath);
   markExpectedExternalChange(fullPath, true);
-  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, safePath, 'folder');
+  const trashedItem = await deleteNoteItemToPendingTrash(notesPath, safePath, 'folder');
 
   const { openTabs, currentNote, rootFolder } = currentStore;
 
@@ -69,6 +69,6 @@ export async function deleteFolderImpl(
     updatedTabs,
     nextAction,
     newChildren,
-    recoverableDelete,
+    trashedItem,
   };
 }

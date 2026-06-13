@@ -33,6 +33,11 @@ describe('shortcut storage', () => {
     expect(getShortcutKeys('saveNote')).toEqual(['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G']);
   });
 
+  it('uses non-conflicting note tab defaults', () => {
+    expect(getShortcutKeys('newTab')).toEqual(['Ctrl', 'Shift', 'T']);
+    expect(getShortcutKeys('reopenClosedTab')).toEqual(['Ctrl', 'Alt', 'T']);
+  });
+
   it('ignores oversized localStorage shortcut payloads', () => {
     const defaultKeys = DEFAULT_SHORTCUTS.find((shortcut) => shortcut.id === 'toggleDrawer')?.keys;
     localStorage.setItem('vlaina-shortcuts', JSON.stringify([{ id: 'toggleDrawer', keys: ['Alt', 'D'] }]) + 'x'.repeat(32 * 1024));

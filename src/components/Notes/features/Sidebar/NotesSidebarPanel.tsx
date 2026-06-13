@@ -18,7 +18,7 @@ interface NotesSidebarPanelProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
   currentNotePath?: string | null;
-  createNote: () => Promise<unknown>;
+  createNote: (folderPath?: string) => Promise<unknown>;
   createFolder: (path: string) => Promise<string | null>;
   isPeeking?: boolean;
   active?: boolean;

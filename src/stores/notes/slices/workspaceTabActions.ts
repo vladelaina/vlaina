@@ -1,7 +1,7 @@
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { updateDisplayName } from '../displayNameUtils';
-import { resolveDraftNoteTitle } from '../draftNote';
+import { hasDraftUnsavedChanges, resolveDraftNoteTitle } from '../draftNote';
 import { openStoredNotePath } from '../openNotePath';
 import { removeCachedNoteContent, setCachedNoteContent } from '../document/noteContentCache';
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
@@ -15,6 +15,27 @@ import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
+
+type NotesState = ReturnType<NotesGet>;
+
+function getDraftContentSnapshot(state: NotesState, path: string): string {
+  return state.currentNote?.path === path
+    ? state.currentNote.content
+    : state.noteContentsCache.get(path)?.content ?? '';
+}
+
+function draftHasUnsavedChanges(state: NotesState, path: string): boolean {
+  const draftNote = state.draftNotes[path];
+  if (!draftNote) {
+    return false;
+  }
+
+  return hasDraftUnsavedChanges({
+    draftName: draftNote.name,
+    content: getDraftContentSnapshot(state, path),
+    metadata: state.noteMetadata?.notes[path],
+  });
+}
 
 type WorkspaceTabActions = Pick<
   WorkspaceSlice,
@@ -56,7 +77,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       });
     },
 
-    discardDraftNote: (path: string) => {
+    discardDraftNote: (path, options) => {
       const {
         draftNotes,
         openTabs,
@@ -66,6 +87,8 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         isDirty,
         recentlyClosedTabs,
       } = get();
+      const preserveHistory = options?.preserveHistory ?? true;
+      const activateFallback = options?.activateFallback ?? true;
       const draftNote = draftNotes[path];
       if (!draftNote) {
         return;
@@ -84,7 +107,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       set({
         draftNotes: nextDraftNotes,
         openTabs: updatedTabs,
-        recentlyClosedTabs: closedTab
+        recentlyClosedTabs: preserveHistory && closedTab
           ? pushRecentlyClosedTab(recentlyClosedTabs, closedTab, closedTabIndex, {
               draftNote,
               content: contentSnapshot,
@@ -98,7 +121,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         pendingDraftDiscardPath: pendingDraftDiscardPath === path ? null : pendingDraftDiscardPath,
       });
 
-      if (isCurrentDraft) {
+      if (isCurrentDraft && activateFallback) {
         const lastTab = updatedTabs[updatedTabs.length - 1];
         if (lastTab) {
           void openStoredNotePath(lastTab.path, {
@@ -137,20 +160,13 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       const currentTab = stateAfterFlush.openTabs.find((tab) => tab.path === path);
 
       if (draftNote) {
-        const draftContent =
-          stateAfterFlush.currentNote?.path === path
-            ? stateAfterFlush.currentNote.content
-            : stateAfterFlush.noteContentsCache.get(path)?.content ?? '';
-        const hasUnsavedDraftContent =
-          Boolean(stateAfterFlush.isDirty) ||
-          Boolean(currentTab?.isDirty) ||
-          Boolean(draftNote.name.trim()) ||
-          Boolean(draftContent.trim());
-
-        if (hasUnsavedDraftContent) {
+        if (draftHasUnsavedChanges(stateAfterFlush, path)) {
           set({ pendingDraftDiscardPath: path });
           return;
         }
+
+        stateAfterFlush.discardDraftNote(path, { preserveHistory: false });
+        return;
       } else if (stateAfterFlush.isDirty || currentTab?.isDirty) {
         await stateAfterFlush.saveNote();
         const stateAfterSave = get();
@@ -200,18 +216,10 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       const closingTab = openTabs.find((tab) => tab.path === path);
       const draftNote = draftNotes[path];
       if (draftNote) {
-        const draftContent = currentNote?.path === path
-          ? currentNote.content
-          : noteContentsCache.get(path)?.content ?? '';
-        const hasUnsavedDraftContent =
-          Boolean(closingTab?.isDirty) ||
-          Boolean(draftNote.name.trim()) ||
-          Boolean(draftContent.trim());
-
-        if (hasUnsavedDraftContent) {
+        if (draftHasUnsavedChanges(get(), path)) {
           set({ pendingDraftDiscardPath: path });
         } else {
-          get().discardDraftNote(path);
+          get().discardDraftNote(path, { preserveHistory: false });
         }
         return;
       }

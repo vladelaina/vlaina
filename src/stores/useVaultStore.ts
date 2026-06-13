@@ -7,6 +7,10 @@ import {
   saveStarredRegistry,
 } from '@/stores/notes/starred';
 import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
+import {
+  flushPendingDeletedItemsToSystemTrash,
+  flushStalePendingTrashForVault,
+} from '@/stores/notes/utils/fs/trashOperations';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
@@ -316,6 +320,7 @@ function resetNotesWorkspaceForVaultTransition(
 
   useNotesStore.getState().clearAssetUrlCache();
   const currentNotesState = useNotesStore.getState();
+  void flushPendingDeletedItemsToSystemTrash(currentNotesState.pendingDeletedItems);
   const transitionRootFolder: NotesStore['rootFolder'] = options.preserveSidebarTree
     ? currentNotesState.rootFolder ?? {
         id: '',
@@ -352,6 +357,7 @@ function resetNotesWorkspaceForVaultTransition(
     isLoadingAssets: false,
     uploadProgress: null,
   });
+  void flushStalePendingTrashForVault(notesPath);
 }
 
 export const useVaultStore = create<VaultStore>()((set, get) => ({

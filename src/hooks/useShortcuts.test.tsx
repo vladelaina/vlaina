@@ -260,7 +260,7 @@ describe('useShortcuts', () => {
     }
   });
 
-  it('restores the last deleted item for Ctrl+Z outside editable content', async () => {
+  it('restores the last pending deleted item for Ctrl+Z outside editable content', async () => {
     const restoreLastDeletedItem = vi.fn().mockResolvedValue('alpha.md');
     useNotesStore.setState({
       pendingDeletedItems: [{
@@ -268,7 +268,7 @@ describe('useShortcuts', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,
@@ -303,7 +303,7 @@ describe('useShortcuts', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,
@@ -382,6 +382,44 @@ describe('useShortcuts', () => {
     await Promise.resolve();
 
     expect(toggleDrawer).not.toHaveBeenCalled();
+  });
+
+  it('creates a notes draft with Ctrl+Shift+T and leaves Ctrl+T free', async () => {
+    const createNote = vi.fn().mockResolvedValue('draft:test');
+    useNotesStore.setState({
+      createNote,
+      currentNote: { path: 'docs/current.md', content: '# current' },
+      draftNotes: {},
+    });
+
+    renderHook(() => useShortcuts());
+
+    const oldEvent = new KeyboardEvent('keydown', {
+      key: 't',
+      code: 'KeyT',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(oldEvent);
+    await Promise.resolve();
+
+    expect(oldEvent.defaultPrevented).toBe(false);
+    expect(createNote).not.toHaveBeenCalled();
+
+    const newEvent = new KeyboardEvent('keydown', {
+      key: 'T',
+      code: 'KeyT',
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(newEvent);
+    await Promise.resolve();
+
+    expect(newEvent.defaultPrevented).toBe(true);
+    expect(createNote).toHaveBeenCalledWith('docs', { asDraft: true });
   });
 
   it('keeps user-configured copy shortcuts from stealing editable copy', async () => {

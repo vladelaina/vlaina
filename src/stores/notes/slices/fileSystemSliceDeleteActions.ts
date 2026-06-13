@@ -2,7 +2,12 @@ import { addNodeToTree, removeNodeFromTree } from '../fileTreeUtils';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../starred';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { deleteFolderImpl, deleteNoteImpl } from '../utils/fs/deleteOperations';
-import { restoreNoteItemFromRecoverableLocation } from '../utils/fs/trashOperations';
+import {
+  cancelPendingSystemTrash,
+  isPendingSystemTrashCommitting,
+  restoreNoteItemFromPendingTrash,
+  schedulePendingSystemTrash,
+} from '../utils/fs/trashOperations';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { createEmptyMetadataFile, remapMetadataEntries, setNoteEntry } from '../storage';
 import {
@@ -172,6 +177,30 @@ export function createFileSystemDeleteActions(
   set: FileSystemSliceSet,
   get: FileSystemSliceGet,
 ): Pick<FileSystemSlice, 'deleteNote' | 'deleteFolder' | 'restoreLastDeletedItem'> {
+  const schedulePendingDeleteCommit = (
+    pendingDeletedItem: ReturnType<FileSystemSliceGet>['pendingDeletedItems'][number],
+  ) => {
+    schedulePendingSystemTrash(
+      pendingDeletedItem,
+      async (committedItem) => {
+        const latestState = get();
+        if (!latestState.pendingDeletedItems.some((item) => item.id === committedItem.id)) {
+          return;
+        }
+        set({
+          pendingDeletedItems: latestState.pendingDeletedItems.filter((item) => item.id !== committedItem.id),
+        });
+      },
+      async (failedItem, error) => {
+        const latestState = get();
+        if (!latestState.pendingDeletedItems.some((item) => item.id === failedItem.id)) {
+          return;
+        }
+        set({ error: error instanceof Error ? error.message : 'Failed to move deleted item to system trash' });
+      },
+    );
+  };
+
   return {
     deleteNote: async (path: string) => {
       let operationNotesPath = get().notesPath;
@@ -222,7 +251,7 @@ export function createFileSystemDeleteActions(
           return;
         }
         const latestState = get();
-        const deletedPath = result.recoverableDelete.originalPath;
+        const deletedPath = result.trashedItem.originalPath;
         const {
           nextRecentNotes,
           nextDisplayNames,
@@ -285,6 +314,13 @@ export function createFileSystemDeleteActions(
               latestState.noteContentsCache.get(latestCurrentNote.path)?.modifiedAt ?? null,
             )
           : prunedNoteContentsCache;
+        const pendingDeletedItem = {
+          ...result.trashedItem,
+          previousCurrentNote: currentNote,
+          previousIsDirty: latestState.isDirty,
+          deletedStarredEntries,
+          deletedMetadata,
+        };
 
         set({
           openTabs: nextOpenTabs,
@@ -298,13 +334,7 @@ export function createFileSystemDeleteActions(
           rootFolder: nextRootFolder ?? latestRootFolder,
           pendingDeletedItems: [
             ...latestState.pendingDeletedItems,
-            {
-              ...result.recoverableDelete,
-              previousCurrentNote: currentNote,
-              previousIsDirty: latestState.isDirty,
-              deletedStarredEntries,
-              deletedMetadata,
-            },
+            pendingDeletedItem,
           ],
           ...(preserveDirtyDeletedCurrentNote
             ? {
@@ -316,6 +346,7 @@ export function createFileSystemDeleteActions(
               ? { currentNote: null, isDirty: false }
               : {}),
         });
+        schedulePendingDeleteCommit(pendingDeletedItem);
 
         persistWorkspaceSnapshot(notesPath, {
           rootFolder: nextRootFolder ?? latestRootFolder,
@@ -384,7 +415,7 @@ export function createFileSystemDeleteActions(
           return;
         }
         const latestState = get();
-        const deletedPath = result.recoverableDelete.originalPath;
+        const deletedPath = result.trashedItem.originalPath;
         const {
           nextRecentNotes,
           nextDisplayNames,
@@ -447,6 +478,13 @@ export function createFileSystemDeleteActions(
               latestState.noteContentsCache.get(latestCurrentNote.path)?.modifiedAt ?? null,
             )
           : prunedNoteContentsCache;
+        const pendingDeletedItem = {
+          ...result.trashedItem,
+          previousCurrentNote: currentNote,
+          previousIsDirty: latestState.isDirty,
+          deletedStarredEntries,
+          deletedMetadata,
+        };
 
         set({
           starredEntries: nextStarred.entries,
@@ -460,13 +498,7 @@ export function createFileSystemDeleteActions(
           rootFolder: nextRootFolder ?? latestRootFolder,
           pendingDeletedItems: [
             ...latestState.pendingDeletedItems,
-            {
-              ...result.recoverableDelete,
-              previousCurrentNote: currentNote,
-              previousIsDirty: latestState.isDirty,
-              deletedStarredEntries,
-              deletedMetadata,
-            },
+            pendingDeletedItem,
           ],
           ...(preserveDirtyDeletedCurrentNote
             ? {
@@ -478,6 +510,7 @@ export function createFileSystemDeleteActions(
               ? { currentNote: null, isDirty: false }
               : {}),
         });
+        schedulePendingDeleteCommit(pendingDeletedItem);
 
         persistWorkspaceSnapshot(notesPath, {
           rootFolder: nextRootFolder ?? latestRootFolder,
@@ -508,8 +541,14 @@ export function createFileSystemDeleteActions(
         return null;
       }
 
+      const cancelledPendingCommit = cancelPendingSystemTrash(pendingDeletedItem.id);
+      if (!cancelledPendingCommit && isPendingSystemTrashCommitting(pendingDeletedItem.id)) {
+        set({ error: 'Deleted item is already moving to system trash.' });
+        return null;
+      }
+
       try {
-        const result = await restoreNoteItemFromRecoverableLocation(notesPath, pendingDeletedItem);
+        const result = await restoreNoteItemFromPendingTrash(notesPath, pendingDeletedItem);
         if (!isActiveNotesPath(get, notesPath)) {
           return result.restoredPath;
         }
@@ -601,6 +640,9 @@ export function createFileSystemDeleteActions(
       } catch (error) {
         if (notesPath && !isActiveNotesPath(get, notesPath)) {
           return null;
+        }
+        if (!isPendingSystemTrashCommitting(pendingDeletedItem.id)) {
+          schedulePendingDeleteCommit(pendingDeletedItem);
         }
         set({ error: error instanceof Error ? error.message : 'Failed to restore deleted item' });
         return null;

@@ -1626,15 +1626,15 @@ describe('NotesView', () => {
     }
   });
 
-  it('reopens the last closed tab on Ctrl+Shift+T', async () => {
+  it('reopens the last closed tab on Ctrl+Alt+T', async () => {
     notesState.currentNote = { path: 'docs/current.md', content: '# current' };
     shortcutMatchesMock.mockImplementation((event, binding) => (
-      binding === 'reopenClosedTab' && event.key.toLowerCase() === 't' && event.ctrlKey && event.shiftKey
+      binding === 'reopenClosedTab' && event.key.toLowerCase() === 't' && event.ctrlKey && event.altKey
     ));
 
     render(<NotesView />);
 
-    fireEvent.keyDown(document, { key: 'T', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: 'T', ctrlKey: true, altKey: true });
 
     await waitFor(() => {
       expect(notesState.reopenClosedTab).toHaveBeenCalledTimes(1);

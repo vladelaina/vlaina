@@ -46,6 +46,11 @@ async function ensureCurrentNoteSaved(get: FileSystemSliceGet, options?: { skipD
   return get();
 }
 
+function getStateAfterFlushingCurrentNote(get: FileSystemSliceGet) {
+  flushCurrentPendingEditorMarkdown();
+  return get();
+}
+
 function finalizeCreatedNote({
   set,
   notesPath,
@@ -129,21 +134,19 @@ export function createFileSystemCreateActions(
 > {
   return {
     createNote: async (folderPath?: string, options?: { asDraft?: boolean }) => {
-      let {
-        notesPath,
-        openTabs,
-        rootFolder,
-        currentNote,
-        fileTreeSortMode,
-        noteContentsCache,
-        noteMetadata,
-        draftNotes,
-        displayNames,
-        currentNoteRevision,
-      } = await ensureCurrentNoteSaved(get, { skipDraft: true });
-
+      let notesPathForError = '';
       try {
         if (options?.asDraft) {
+          const {
+            notesPath,
+            openTabs,
+            currentNote,
+            noteContentsCache,
+            draftNotes,
+            displayNames,
+            currentNoteRevision,
+          } = getStateAfterFlushingCurrentNote(get);
+          notesPathForError = notesPath;
           const { draftPath, nextState } = createBlankDraftState({
             folderPath,
             originNotesPath: notesPath || '',
@@ -158,6 +161,20 @@ export function createFileSystemCreateActions(
           set(nextState);
           return draftPath;
         }
+
+        let {
+          notesPath,
+          openTabs,
+          rootFolder,
+          currentNote,
+          fileTreeSortMode,
+          noteContentsCache,
+          noteMetadata,
+          draftNotes,
+          displayNames,
+          currentNoteRevision,
+        } = await ensureCurrentNoteSaved(get, { skipDraft: true });
+        notesPathForError = notesPath;
 
         if (!notesPath) {
           const currentVaultPath = getCurrentVaultPath();
@@ -178,6 +195,7 @@ export function createFileSystemCreateActions(
           }
 
           notesPath = currentVaultPath;
+          notesPathForError = notesPath;
           await ensureNotesFolder(notesPath);
           set({ notesPath });
         }
@@ -216,7 +234,7 @@ export function createFileSystemCreateActions(
           currentRootFolder: latestRootFolder,
         });
       } catch (error) {
-        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+        if (notesPathForError && !isActiveNotesPath(get, notesPathForError)) {
           throw error;
         }
         set({ error: error instanceof Error ? error.message : 'Failed to create note' });

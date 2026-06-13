@@ -133,7 +133,7 @@ describe('createFileSystemSlice draft flows', () => {
     });
   });
 
-  it('flushes pending editor markdown before deciding whether to save on create', async () => {
+  it('flushes pending editor markdown without saving before draft create', async () => {
     const harness = createSliceHarness({
       notesPath: '/vault',
       currentNote: { path: 'alpha.md', content: 'Old alpha' },
@@ -158,7 +158,15 @@ describe('createFileSystemSlice draft flows', () => {
     await harness.getState().createNote(undefined, { asDraft: true });
 
     expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
-    expect(harness.getState().saveNote).toHaveBeenCalledTimes(1);
+    expect(harness.getState().saveNote).not.toHaveBeenCalled();
+    expect(harness.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      expect.objectContaining({ path: expect.stringMatching(/^draft:/), name: '', isDirty: false }),
+    ]);
+    expect(harness.getState().noteContentsCache.get('alpha.md')).toEqual({
+      content: 'New alpha',
+      modifiedAt: 1,
+    });
   });
 
   it('can create an in-memory draft even when a vault is selected', async () => {
@@ -182,23 +190,20 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.saveNote).not.toHaveBeenCalled();
   });
 
-  it('creates an in-memory draft without replacing the dirty current tab when saving does not clear dirty state', async () => {
+  it('creates an in-memory draft without waiting for a dirty current note save', async () => {
     const harness = createSliceHarness({
       notesPath: '/vault',
       currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
       isDirty: true,
       openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
       noteContentsCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }]]),
-      saveNote: vi.fn(async () => {
-        harness.getState().isDirty = true;
-        harness.getState().openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: true }];
-      }),
+      saveNote: vi.fn(() => new Promise<void>(() => {})),
     });
 
     const draftPath = await harness.getState().createNote(undefined, { asDraft: true });
     const state = harness.getState();
 
-    expect(state.saveNote).toHaveBeenCalledTimes(1);
+    expect(state.saveNote).not.toHaveBeenCalled();
     expect(draftPath).toMatch(/^draft:/);
     expect(state.currentNote).toEqual({ path: draftPath, content: '' });
     expect(state.openTabs).toEqual([

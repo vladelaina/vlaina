@@ -5,7 +5,10 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import {
+  chatComposerGhostIconButtonClass,
+  chatComposerPillSurfaceClass,
+} from '@/components/Chat/features/Input/composerStyles';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { useNoteLabelDescriptor } from '../common/noteDisambiguation';
@@ -240,6 +243,7 @@ export function NotesTabRow() {
   const createNote = useNotesStore((s) => s.createNote);
   const reorderTabs = useNotesStore((s) => s.reorderTabs);
   const hasOpenedFolder = Boolean(currentVaultPath && notesPath === currentVaultPath && rootFolderPath === currentVaultPath);
+  const hasOpenTabs = openTabs.length > 0;
 
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
 
@@ -254,7 +258,7 @@ export function NotesTabRow() {
       useNotesStore.getState().draftNotes,
       currentNotePath,
     );
-    createNote(folderPath);
+    createNote(folderPath, { asDraft: true });
   }, [currentNotePath, createNote]);
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -277,40 +281,42 @@ export function NotesTabRow() {
 
   return (
     <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
-      <div
-        className={cn(
-          'app-no-drag flex h-8 max-w-full min-w-0 items-center rounded-full px-1.5 transition-all duration-[var(--vlaina-duration-200)]',
-          chatComposerPillSurfaceClass,
-        )}
-      >
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+      {hasOpenTabs ? (
+        <div
+          className={cn(
+            'app-no-drag flex h-8 max-w-full min-w-0 items-center rounded-full px-1.5 transition-all duration-[var(--vlaina-duration-200)]',
+            chatComposerPillSurfaceClass,
+          )}
         >
-          <SortableContext items={openTabs.map((tab) => tab.path)} strategy={horizontalListSortingStrategy}>
-            <div className="flex min-w-0 items-center overflow-x-auto">
-              {openTabs.map((tab, index) => (
-                <SortableTab
-                  key={tab.path}
-                  tab={tab}
-                  isActive={currentNotePath === tab.path}
-                  onClose={closeTab}
-                  onClick={(path) => void openNote(path)}
-                  showSeparator={index > 0}
-                />
-              ))}
-            </div>
-          </SortableContext>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={openTabs.map((tab) => tab.path)} strategy={horizontalListSortingStrategy}>
+              <div className="flex min-w-0 items-center overflow-x-auto">
+                {openTabs.map((tab, index) => (
+                  <SortableTab
+                    key={tab.path}
+                    tab={tab}
+                    isActive={currentNotePath === tab.path}
+                    onClose={closeTab}
+                    onClick={(path) => void openNote(path)}
+                    showSeparator={index > 0}
+                  />
+                ))}
+              </div>
+            </SortableContext>
 
-          <NotesDragOverlay>
-            {activeTab ? (
-              <TabOverlay tab={activeTab} isActive={currentNotePath === activeTab.path} />
-            ) : null}
-          </NotesDragOverlay>
-        </DndContext>
-      </div>
+            <NotesDragOverlay>
+              {activeTab ? (
+                <TabOverlay tab={activeTab} isActive={currentNotePath === activeTab.path} />
+              ) : null}
+            </NotesDragOverlay>
+          </DndContext>
+        </div>
+      ) : null}
 
       {hasOpenedFolder ? (
         <Tooltip delayDuration={themeUiFeedbackTokens.defaultTooltipDelayMs}>
@@ -318,7 +324,14 @@ export function NotesTabRow() {
             <button
               type="button"
               onClick={handleCreateNote}
-              className="notes-tab-row-new-note-button app-no-drag pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--vlaina-color-tab-muted-fg)] opacity-[var(--vlaina-opacity-0)] transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)] hover:bg-[var(--vlaina-color-control-hover-bg)] hover:text-[var(--vlaina-color-control-hover-fg)]"
+              className={cn(
+                'notes-tab-row-new-note-button app-no-drag flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all',
+                hasOpenTabs
+                  ? 'pointer-events-none opacity-[var(--vlaina-opacity-0)] group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)]'
+                  : 'pointer-events-auto opacity-[var(--vlaina-opacity-100)]',
+                chatComposerGhostIconButtonClass,
+                'text-[var(--vlaina-color-tab-muted-fg)]'
+              )}
             >
               <Icon name="common.add" className="h-4 w-4" />
             </button>
@@ -334,7 +347,7 @@ export function NotesTabRow() {
           >
             <span>{t('sidebar.newNote')}</span>
             <ShortcutKeys
-              keys={['Ctrl', 'T']}
+              keys={['Ctrl', 'Shift', 'T']}
               keyClassName="rounded-md bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)]"
             />
           </TooltipContent>

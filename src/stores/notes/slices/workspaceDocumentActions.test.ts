@@ -367,6 +367,25 @@ describe('workspace document actions', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('skips non-explicit saves for an empty untitled draft', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: '# ' },
+      isDirty: true,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([['draft:blank', { content: '# ', modifiedAt: null }]]),
+    });
+
+    await store.getState().saveNote({ explicit: false });
+
+    expect(mocks.chooseDraftSavePath).not.toHaveBeenCalled();
+    expect(mocks.saveNoteDocument).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: '# ' });
+    expect(store.getState().draftNotes['draft:blank']).toEqual({ parentPath: null, name: '' });
+  });
+
   it('dispatches an open target after saving a draft outside the current vault', async () => {
     mocks.chooseDraftSavePath.mockResolvedValue('/home/vladelaina/sdf.md');
     mocks.saveNoteDocument.mockResolvedValue({

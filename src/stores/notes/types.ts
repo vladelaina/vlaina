@@ -1,5 +1,5 @@
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
-import type { RecoverableDeletedItem } from './utils/fs/trashOperations';
+import type { PendingSystemTrashItem } from './utils/fs/trashOperations';
 
 export interface NoteFile {
   id: string;
@@ -85,7 +85,7 @@ export interface DraftNoteEntry {
   kind?: 'scratch' | 'vault';
 }
 
-export interface PendingDeletedItemState extends RecoverableDeletedItem {
+export interface PendingDeletedItemState extends PendingSystemTrashItem {
   previousCurrentNote: CurrentNoteState | null;
   previousIsDirty: boolean;
   deletedStarredEntries: StarredEntry[];
@@ -160,7 +160,7 @@ export interface NotesActions {
   moveItem: (sourcePath: string, targetFolderPath: string) => Promise<void>;
   updateContent: (content: string) => void;
   updateDraftNoteName: (path: string, name: string) => void;
-  discardDraftNote: (path: string) => void;
+  discardDraftNote: (path: string, options?: { preserveHistory?: boolean; activateFallback?: boolean }) => void;
   cancelPendingDraftDiscard: () => void;
   confirmPendingDraftDiscard: () => Promise<void>;
   closeNote: () => Promise<void>;

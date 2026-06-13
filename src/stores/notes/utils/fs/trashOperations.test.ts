@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import {
-  MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES,
-  deleteNoteItemToRecoverableLocation,
-  restoreNoteItemFromRecoverableLocation,
+  cancelPendingSystemTrash,
+  deleteNoteItemToPendingTrash,
+  flushStalePendingTrashForVault,
+  isPendingSystemTrashCommitting,
+  movePendingDeletedItemToSystemTrash,
+  restoreNoteItemFromPendingTrash,
 } from './trashOperations';
 
 const hoisted = vi.hoisted(() => ({
+  ensureSystemDirectory: vi.fn(),
   mkdir: vi.fn(),
   rename: vi.fn(),
   exists: vi.fn(),
@@ -13,7 +18,22 @@ const hoisted = vi.hoisted(() => ({
   deleteFile: vi.fn(),
   deleteDir: vi.fn(),
   listDir: vi.fn(),
+  moveDesktopItemToTrash: vi.fn(),
   markExpectedExternalChange: vi.fn(),
+}));
+
+vi.mock('@/lib/desktop/trash', () => ({
+  moveDesktopItemToTrash: hoisted.moveDesktopItemToTrash,
+}));
+
+vi.mock('../../systemStoragePaths', () => ({
+  ensureSystemDirectory: hoisted.ensureSystemDirectory,
+  getVaultSystemStorePath: async (_vaultPath: string, ...segments: string[]) =>
+    ['/app/.vlaina/store/notes/vaults/vault-test', ...segments].join('/'),
+}));
+
+vi.mock('../../document/externalChangeRegistry', () => ({
+  markExpectedExternalChange: hoisted.markExpectedExternalChange,
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -27,19 +47,17 @@ vi.mock('@/lib/storage/adapter', () => ({
     deleteFile: hoisted.deleteFile,
     deleteDir: hoisted.deleteDir,
     listDir: hoisted.listDir,
-    getBasePath: vi.fn(async () => '/app'),
   }),
 }));
 
-vi.mock('../../document/externalChangeRegistry', () => ({
-  markExpectedExternalChange: hoisted.markExpectedExternalChange,
-}));
+const mockedMoveDesktopItemToTrash = vi.mocked(moveDesktopItemToTrash);
 
-describe('deleteNoteItemToRecoverableLocation', () => {
+describe('pending note trash operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(Date, 'now').mockReturnValue(1000);
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    hoisted.ensureSystemDirectory.mockResolvedValue(undefined);
     hoisted.mkdir.mockResolvedValue(undefined);
     hoisted.rename.mockResolvedValue(undefined);
     hoisted.exists.mockResolvedValue(false);
@@ -47,55 +65,46 @@ describe('deleteNoteItemToRecoverableLocation', () => {
     hoisted.deleteFile.mockResolvedValue(undefined);
     hoisted.deleteDir.mockResolvedValue(undefined);
     hoisted.listDir.mockResolvedValue([]);
-    hoisted.markExpectedExternalChange.mockClear();
+    hoisted.moveDesktopItemToTrash.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it('moves note files into the system recoverable trash area', async () => {
-    const result = await deleteNoteItemToRecoverableLocation('/vault', 'docs/note.md', 'file');
+  it('moves note files to a pending trash location first', async () => {
+    const result = await deleteNoteItemToPendingTrash('/vault', 'docs/note.md', 'file');
 
     expect(result).toEqual({
       id: '1000-i',
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/note.md',
+      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/note.md',
       deletedAt: 1000,
     });
-    expect(hoisted.mkdir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i',
-      true
+    expect(hoisted.ensureSystemDirectory).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i',
     );
     expect(hoisted.rename).toHaveBeenCalledWith(
       '/vault/docs/note.md',
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/note.md',
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/note.md',
     );
+    expect(mockedMoveDesktopItemToTrash).not.toHaveBeenCalled();
   });
 
-  it('rejects recoverable deletes inside internal folders', async () => {
-    await expect(deleteNoteItemToRecoverableLocation('/vault', '.vlaina/workspace.md', 'file'))
-      .rejects.toThrow('Path must not be inside an internal notes folder.');
-    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs/.GIT/config.md', 'file'))
-      .rejects.toThrow('Path must not be inside an internal notes folder.');
-
-    expect(hoisted.mkdir).not.toHaveBeenCalled();
-    expect(hoisted.rename).not.toHaveBeenCalled();
-  });
-
-  it('restores deleted files to a non-conflicting path', async () => {
+  it('restores pending files to a non-conflicting path', async () => {
     hoisted.exists
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(false);
 
-    const result = await restoreNoteItemFromRecoverableLocation('/vault', {
+    const result = await restoreNoteItemFromPendingTrash('/vault', {
       id: 'delete-1',
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/note.md',
+      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
       deletedAt: 1000,
     });
 
@@ -105,163 +114,184 @@ describe('deleteNoteItemToRecoverableLocation', () => {
     });
     expect(hoisted.mkdir).toHaveBeenCalledWith('/vault/docs', true);
     expect(hoisted.rename).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/note.md',
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
       '/vault/docs/note 1.md',
     );
-    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/note.md'
-    );
     expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs/note 1.md');
+    expect(hoisted.deleteDir).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      true,
+    );
   });
 
-  it('restores deleted folders to a non-conflicting path', async () => {
-    hoisted.exists
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+  it('commits pending items to the system trash', async () => {
+    const stagingPath = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/docs';
 
-    const result = await restoreNoteItemFromRecoverableLocation('/vault', {
+    await movePendingDeletedItemToSystemTrash({
       id: 'delete-1',
       kind: 'folder',
       originalPath: 'docs',
       originalFullPath: '/vault/docs',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/docs',
+      stagingPath,
       deletedAt: 1000,
     });
 
-    expect(result).toEqual({
-      restoredPath: 'docs 1',
-      restoredFullPath: '/vault/docs 1',
-    });
-    expect(hoisted.rename).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/docs',
-      '/vault/docs 1',
+    expect(hoisted.exists).toHaveBeenCalledWith('/vault/docs');
+    expect(hoisted.rename).toHaveBeenCalledWith(stagingPath, '/vault/docs');
+    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs', true);
+    expect(mockedMoveDesktopItemToTrash).toHaveBeenCalledWith('/vault/docs');
+    expect(mockedMoveDesktopItemToTrash).not.toHaveBeenCalledWith(stagingPath);
+    expect(hoisted.deleteDir).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      true,
     );
   });
 
-  it('rejects restores into internal folders', async () => {
-    await expect(restoreNoteItemFromRecoverableLocation('/vault', {
+  it('commits staged items directly when the original path has been reused', async () => {
+    hoisted.exists.mockResolvedValueOnce(true);
+    const stagingPath = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md';
+
+    await movePendingDeletedItemToSystemTrash({
       id: 'delete-1',
       kind: 'file',
-      originalPath: 'docs/.git/config.md',
-      originalFullPath: '/vault/docs/.git/config.md',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/config.md',
+      originalPath: 'docs/note.md',
+      originalFullPath: '/vault/docs/note.md',
+      stagingPath,
       deletedAt: 1000,
-    })).rejects.toThrow('Restore target must not be inside an internal notes folder.');
-    await expect(restoreNoteItemFromRecoverableLocation('/vault', {
-      id: 'delete-2',
-      kind: 'file',
-      originalPath: '.VLAINA/workspace.md',
-      originalFullPath: '/vault/.VLAINA/workspace.md',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-2/workspace.md',
-      deletedAt: 1000,
-    })).rejects.toThrow('Restore target must not be inside an internal notes folder.');
+    });
 
     expect(hoisted.rename).not.toHaveBeenCalled();
+    expect(mockedMoveDesktopItemToTrash).toHaveBeenCalledWith(stagingPath);
+    expect(hoisted.deleteDir).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      true,
+    );
   });
 
-  it('skips unsafe entry names when copying folders to recoverable trash', async () => {
+  it('rolls moved items back to pending trash if system trash fails at the original path', async () => {
+    const stagingPath = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/docs';
+    mockedMoveDesktopItemToTrash.mockRejectedValue(new Error('trash failed'));
+
+    await expect(movePendingDeletedItemToSystemTrash({
+      id: 'delete-1',
+      kind: 'folder',
+      originalPath: 'docs',
+      originalFullPath: '/vault/docs',
+      stagingPath,
+      deletedAt: 1000,
+    })).rejects.toThrow('trash failed');
+
+    expect(hoisted.rename).toHaveBeenNthCalledWith(1, stagingPath, '/vault/docs');
+    expect(hoisted.rename).toHaveBeenNthCalledWith(2, '/vault/docs', stagingPath);
+    expect(hoisted.deleteDir).not.toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      true,
+    );
+  });
+
+  it('keeps stale pending trash when moving it to system trash fails', async () => {
+    const pendingRoot = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash';
+    const stagingDir = `${pendingRoot}/delete-1`;
+    hoisted.exists.mockImplementation(async (path: string) => path === pendingRoot);
+    hoisted.listDir.mockImplementation(async (path: string) => {
+      if (path === pendingRoot) {
+        return [{ name: 'delete-1', isDirectory: true, isFile: false }];
+      }
+      if (path === stagingDir) {
+        return [{ name: 'docs', isDirectory: true, isFile: false }];
+      }
+      return [];
+    });
+    mockedMoveDesktopItemToTrash.mockRejectedValue(new Error('trash failed'));
+
+    await flushStalePendingTrashForVault('/vault');
+
+    expect(mockedMoveDesktopItemToTrash).toHaveBeenCalledWith(`${stagingDir}/docs`);
+    expect(hoisted.deleteDir).not.toHaveBeenCalledWith(stagingDir, true);
+  });
+
+  it('deletes stale pending trash containers only after all staged entries move', async () => {
+    const pendingRoot = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash';
+    const stagingDir = `${pendingRoot}/delete-1`;
+    hoisted.exists.mockImplementation(async (path: string) => path === pendingRoot);
+    hoisted.listDir.mockImplementation(async (path: string) => {
+      if (path === pendingRoot) {
+        return [{ name: 'delete-1', isDirectory: true, isFile: false }];
+      }
+      if (path === stagingDir) {
+        return [{ name: 'docs', isDirectory: true, isFile: false }];
+      }
+      return [];
+    });
+
+    await flushStalePendingTrashForVault('/vault');
+
+    expect(mockedMoveDesktopItemToTrash).toHaveBeenCalledWith(`${stagingDir}/docs`);
+    expect(hoisted.deleteDir).toHaveBeenCalledWith(stagingDir, true);
+  });
+
+  it('rejects unsafe folder copy fallback entries without deleting the original folder', async () => {
     hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
     hoisted.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault/docs') {
         return [
+          { name: 'bad/evil.md', isDirectory: false, isFile: true },
           { name: 'safe.md', isDirectory: false, isFile: true },
-          { name: '.git', isDirectory: true, isFile: false },
-          { name: '.vlaina', isDirectory: true, isFile: false },
-          { name: '.GIT', isDirectory: true, isFile: false },
-          { name: '.VLAINA', isDirectory: true, isFile: false },
-          { name: '../secret.md', isDirectory: false, isFile: true },
-          { name: 'nested/evil.md', isDirectory: false, isFile: true },
-          { name: 'bad\\evil.md', isDirectory: false, isFile: true },
-          { name: '..', isDirectory: true, isFile: false },
         ];
       }
-
       return [];
     });
 
-    await deleteNoteItemToRecoverableLocation('/vault', 'docs', 'folder');
+    await expect(deleteNoteItemToPendingTrash('/vault', 'docs', 'folder'))
+      .rejects.toThrow('Pending trash folder copy encountered an unsafe directory entry.');
 
     expect(hoisted.copyFile).toHaveBeenCalledWith(
       '/vault/docs/safe.md',
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/docs/safe.md',
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/docs/safe.md',
     );
-    expect(hoisted.listDir).toHaveBeenCalledWith('/vault/docs', { includeHidden: true });
-    expect(hoisted.copyFile).not.toHaveBeenCalledWith('/vault/docs/../secret.md', expect.any(String));
-    expect(hoisted.copyFile).not.toHaveBeenCalledWith('/vault/docs/nested/evil.md', expect.any(String));
-    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.git');
-    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.vlaina');
-    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.GIT');
-    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.VLAINA');
-    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/..');
-    expect(hoisted.deleteDir).toHaveBeenCalledWith('/vault/docs', true);
-  });
-
-  it('cleans partial trash file copies when a file copy fallback fails', async () => {
-    hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
-    hoisted.copyFile.mockRejectedValue(new Error('Copy failed'));
-
-    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs/note.md', 'file')).rejects.toThrow(
-      'Copy failed'
-    );
-
-    expect(hoisted.deleteFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/note.md'
-    );
-    expect(hoisted.deleteFile).not.toHaveBeenCalledWith('/vault/docs/note.md');
-  });
-
-  it('cleans partial trash folder copies when a folder copy fallback fails', async () => {
-    hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
-    hoisted.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
-        return [
-          { name: 'first.md', isDirectory: false, isFile: true },
-          { name: 'second.md', isDirectory: false, isFile: true },
-        ];
-      }
-
-      return [];
-    });
-    hoisted.copyFile.mockImplementation(async (sourcePath: string) => {
-      if (sourcePath.endsWith('/second.md')) {
-        throw new Error('Copy failed');
-      }
-    });
-
-    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs', 'folder')).rejects.toThrow(
-      'Copy failed'
-    );
-
     expect(hoisted.deleteDir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/docs',
-      true
+      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/docs',
+      true,
     );
     expect(hoisted.deleteDir).not.toHaveBeenCalledWith('/vault/docs', true);
   });
 
-  it('aborts recoverable folder copy fallback after the entry budget is exhausted', async () => {
-    hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
-    hoisted.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
-        return Array.from({ length: MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES + 1 }, (_value, index) => ({
-          name: `note-${index}.md`,
-          isDirectory: false,
-          isFile: true,
-        }));
-      }
+  it('exposes pending items as committing while system trash is in flight', async () => {
+    let resolveExists: ((value: boolean) => void) | null = null;
+    hoisted.exists.mockImplementation(() => new Promise<boolean>((resolve) => {
+      resolveExists = resolve;
+    }));
 
-      return [];
+    const commit = movePendingDeletedItemToSystemTrash({
+      id: 'delete-1',
+      kind: 'file',
+      originalPath: 'docs/note.md',
+      originalFullPath: '/vault/docs/note.md',
+      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
+      deletedAt: 1000,
     });
 
-    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs', 'folder')).rejects.toThrow(
-      'Recoverable folder copy exceeded the maximum entry count.'
-    );
+    const completeExists = resolveExists as ((value: boolean) => void) | null;
+    expect(completeExists).toBeTypeOf('function');
+    expect(isPendingSystemTrashCommitting('delete-1')).toBe(true);
+    expect(cancelPendingSystemTrash('delete-1')).toBe(false);
 
-    expect(hoisted.copyFile).toHaveBeenCalledTimes(MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES);
-    expect(hoisted.deleteDir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/docs',
-      true
-    );
-    expect(hoisted.deleteDir).not.toHaveBeenCalledWith('/vault/docs', true);
+    if (!completeExists) {
+      throw new Error('exists mock was not called');
+    }
+    completeExists(true);
+    await commit;
+
+    expect(isPendingSystemTrashCommitting('delete-1')).toBe(false);
+  });
+
+  it('rejects deletes inside internal folders before staging', async () => {
+    await expect(deleteNoteItemToPendingTrash('/vault', '.vlaina/workspace.md', 'file'))
+      .rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(deleteNoteItemToPendingTrash('/vault', 'docs/.GIT/config.md', 'file'))
+      .rejects.toThrow('Path must not be inside an internal notes folder.');
+
+    expect(hoisted.ensureSystemDirectory).not.toHaveBeenCalled();
+    expect(hoisted.rename).not.toHaveBeenCalled();
   });
 });

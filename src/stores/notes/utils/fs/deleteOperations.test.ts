@@ -3,13 +3,13 @@ import type { FolderNode, NoteFile } from '../../types';
 import { deleteFolderImpl, deleteNoteImpl } from './deleteOperations';
 
 const hoisted = vi.hoisted(() => ({
-  deleteNoteItemToRecoverableLocation: vi.fn(),
+  deleteNoteItemToPendingTrash: vi.fn(),
   markExpectedExternalChange: vi.fn(),
   saveStarredRegistry: vi.fn(),
 }));
 
 vi.mock('./trashOperations', () => ({
-  deleteNoteItemToRecoverableLocation: hoisted.deleteNoteItemToRecoverableLocation,
+  deleteNoteItemToPendingTrash: hoisted.deleteNoteItemToPendingTrash,
 }));
 
 vi.mock('../../document/externalChangeRegistry', () => ({
@@ -52,17 +52,17 @@ function createFolder(path: string, children: Array<FolderNode | NoteFile>): Fol
 describe('deleteOperations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hoisted.deleteNoteItemToRecoverableLocation.mockResolvedValue({
+    hoisted.deleteNoteItemToPendingTrash.mockResolvedValue({
       id: 'delete-1',
       kind: 'file',
       originalPath: 'docs/remove.md',
       originalFullPath: '/vault/docs/remove.md',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/remove.md',
+      stagingPath: '/app/pending-trash/delete-1/remove.md',
       deletedAt: 1,
     });
   });
 
-  it('moves deleted notes through the recoverable delete helper', async () => {
+  it('moves deleted notes through the pending trash helper', async () => {
     await deleteNoteImpl('/vault', 'docs/remove.md', {
       rootFolder: createFolder('', [createFolder('docs', [createFile('docs/remove.md')])]),
       currentNote: null,
@@ -72,7 +72,7 @@ describe('deleteOperations', () => {
     });
 
     expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs/remove.md');
-    expect(hoisted.deleteNoteItemToRecoverableLocation).toHaveBeenCalledWith(
+    expect(hoisted.deleteNoteItemToPendingTrash).toHaveBeenCalledWith(
       '/vault',
       'docs/remove.md',
       'file'
@@ -88,7 +88,7 @@ describe('deleteOperations', () => {
       noteMetadata: null,
     })).rejects.toThrow('Path must stay inside the current vault.');
 
-    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
+    expect(hoisted.deleteNoteItemToPendingTrash).not.toHaveBeenCalled();
   });
 
   it('rejects note delete paths inside internal folders', async () => {
@@ -108,7 +108,7 @@ describe('deleteOperations', () => {
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
 
     expect(hoisted.markExpectedExternalChange).not.toHaveBeenCalled();
-    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
+    expect(hoisted.deleteNoteItemToPendingTrash).not.toHaveBeenCalled();
   });
 
   it('does not auto-open an adjacent file when deleting the current note with no remaining tabs', async () => {
@@ -149,7 +149,7 @@ describe('deleteOperations', () => {
     expect(result.nextAction).toEqual({ type: 'open', path: 'docs/keep.md' });
   });
 
-  it('moves deleted folders through the recoverable delete helper', async () => {
+  it('moves deleted folders through the pending trash helper', async () => {
     await deleteFolderImpl('/vault', 'docs', {
       rootFolder: createFolder('', [createFolder('docs', [createFile('docs/remove.md')])]),
       currentNote: null,
@@ -159,7 +159,7 @@ describe('deleteOperations', () => {
     });
 
     expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs', true);
-    expect(hoisted.deleteNoteItemToRecoverableLocation).toHaveBeenCalledWith(
+    expect(hoisted.deleteNoteItemToPendingTrash).toHaveBeenCalledWith(
       '/vault',
       'docs',
       'folder'
@@ -175,7 +175,7 @@ describe('deleteOperations', () => {
       noteMetadata: null,
     })).rejects.toThrow('Path must stay inside the current vault.');
 
-    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
+    expect(hoisted.deleteNoteItemToPendingTrash).not.toHaveBeenCalled();
   });
 
   it('rejects folder delete paths inside internal folders', async () => {
@@ -195,16 +195,16 @@ describe('deleteOperations', () => {
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
 
     expect(hoisted.markExpectedExternalChange).not.toHaveBeenCalled();
-    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
+    expect(hoisted.deleteNoteItemToPendingTrash).not.toHaveBeenCalled();
   });
 
   it('does not auto-open an adjacent file when deleting the folder that contains the current note', async () => {
-    hoisted.deleteNoteItemToRecoverableLocation.mockResolvedValueOnce({
+    hoisted.deleteNoteItemToPendingTrash.mockResolvedValueOnce({
       id: 'delete-1',
       kind: 'folder',
       originalPath: 'docs',
       originalFullPath: '/vault/docs',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/docs',
+      stagingPath: '/app/pending-trash/delete-1/docs',
       deletedAt: 1,
     });
 
