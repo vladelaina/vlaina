@@ -9,6 +9,7 @@ import {
 } from './notesE2E';
 
 const MARKDOWN_FONT_SIZE_STYLE_ID = 'vlaina-markdown-font-size-style';
+const APPEARANCE_FONT_SIZE_SLIDER_SELECTOR = '[data-settings-control="appearance-font-size"]';
 
 function createVeryLargePlainMarkdown(paragraphCount: number): {
   content: string;
@@ -287,7 +288,7 @@ async function openAppearanceSettings(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.dispatchEvent(new CustomEvent('open-settings', { detail: { tab: 'appearance' } }));
   });
-  await expect(page.locator('input[type="range"]').first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(APPEARANCE_FONT_SIZE_SLIDER_SELECTOR).first()).toBeVisible({ timeout: 10_000 });
 }
 
 async function measureFontSizeSliderDrag(page: Page): Promise<{
@@ -296,9 +297,10 @@ async function measureFontSizeSliderDrag(page: Page): Promise<{
   sliderGestureMs: number;
   styleMutationCount: number;
   fontSize: number;
+  sliderValue: number;
 }> {
   await openAppearanceSettings(page);
-  const slider = page.locator('input[type="range"]').first();
+  const slider = page.locator(APPEARANCE_FONT_SIZE_SLIDER_SELECTOR).first();
   const box = await slider.boundingBox();
   if (!box) {
     throw new Error('Font size slider box not found');
@@ -313,11 +315,13 @@ async function measureFontSizeSliderDrag(page: Page): Promise<{
   const sliderGestureMs = Date.now() - startedAt;
   const frames = await framesPromise;
   const uiState = await page.evaluate(() => (window as any).__vlainaE2E.getUIState());
+  const sliderValue = Number(await slider.inputValue());
 
   return {
     ...frames,
     sliderGestureMs,
     fontSize: uiState.fontSize,
+    sliderValue,
   };
 }
 
@@ -357,6 +361,7 @@ test.describe('large markdown interaction performance', () => {
       expect(selectionMetrics.duringPointerOverlayCount).toBe(0);
       expect(selectionMetrics.finalOverlayCount).toBe(0);
       expect(selectionMetrics.finalPointerNative).toBe(true);
+      expect(sliderMetrics.sliderValue).toBeGreaterThan(17);
       expect(sliderMetrics.fontSize).toBeGreaterThan(17);
       expect(sliderMetrics.sliderGestureMs).toBeLessThan(2_500);
       expect(sliderMetrics.maxFrameMs).toBeLessThan(450);

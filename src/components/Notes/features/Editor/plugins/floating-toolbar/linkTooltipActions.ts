@@ -6,6 +6,33 @@ import { showTextSelectionOverlayForTransaction } from '../selection/textSelecti
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from './types';
 
+function reassertSelectionOverlayForLinkTooltip(view: EditorView, from: number, to: number): void {
+  if (!(view.dom instanceof HTMLElement)) {
+    return;
+  }
+
+  const ownerWindow = view.dom.ownerDocument.defaultView;
+  if (!ownerWindow) {
+    return;
+  }
+
+  ownerWindow.requestAnimationFrame(() => {
+    if (!view.dom.isConnected) {
+      return;
+    }
+
+    const { selection } = view.state;
+    if (selection.empty || selection.from !== from || selection.to !== to) {
+      return;
+    }
+
+    view.dispatch(
+      showTextSelectionOverlayForTransaction(view.state.tr)
+        .setMeta('addToHistory', false)
+    );
+  });
+}
+
 export function openLinkTooltipFromSelection(
   view: EditorView,
   options?: {
@@ -49,4 +76,5 @@ export function openLinkTooltipFromSelection(
     });
 
   view.dispatch(tr);
+  reassertSelectionOverlayForLinkTooltip(view, from, to);
 }

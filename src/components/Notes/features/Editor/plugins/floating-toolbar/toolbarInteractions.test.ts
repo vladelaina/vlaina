@@ -13,6 +13,10 @@ const previewMocks = vi.hoisted(() => ({
   commitFormatPreview: vi.fn(),
 }));
 
+const commandMocks = vi.hoisted(() => ({
+  toggleMark: vi.fn(),
+}));
+
 const stateMocks = vi.hoisted(() => ({
   selectionNear: vi.fn(),
   textSelectionCreate: vi.fn(),
@@ -40,12 +44,21 @@ vi.mock('./previewStyles', () => ({
   hasFormatPreview: vi.fn((action: string) => ['bold', 'italic', 'underline', 'strike', 'code', 'highlight', 'link'].includes(action)),
 }));
 
+vi.mock('./commands', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./commands')>();
+  return {
+    ...actual,
+    toggleMark: commandMocks.toggleMark,
+  };
+});
+
 describe('toolbar interactions', () => {
   beforeEach(() => {
     previewMocks.applyFormatPreview.mockReset();
     previewMocks.clearFormatPreview.mockReset();
     previewMocks.commitFormatPreview.mockReset();
     previewMocks.commitFormatPreview.mockReturnValue(false);
+    commandMocks.toggleMark.mockReset();
     stateMocks.selectionNear.mockReset();
     stateMocks.textSelectionCreate.mockReset();
     stateMocks.selectionNear.mockReturnValue({ type: 'near-selection' });
@@ -264,6 +277,62 @@ describe('toolbar interactions', () => {
     expect(tr.setMeta).toHaveBeenCalledWith('addToHistory', false);
     expect(view.dispatch).toHaveBeenCalledWith(tr);
     expect(view.focus).toHaveBeenCalled();
+
+    delegation.destroy();
+  });
+
+  it('clears an unmatched preview before applying a direct format button', () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    const callOrder: string[] = [];
+    button.dataset.action = 'bold';
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+    previewMocks.commitFormatPreview.mockImplementation(() => {
+      callOrder.push('commit');
+      return false;
+    });
+    previewMocks.clearFormatPreview.mockImplementation(() => {
+      callOrder.push('clear');
+    });
+    commandMocks.toggleMark.mockImplementation(() => {
+      callOrder.push('toggle');
+    });
+
+    const tr = {
+      setMeta: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+    };
+    const view = {
+      state: {
+        doc: {
+          content: {
+            size: 40,
+          },
+        },
+        selection: {
+          from: 4,
+          to: 13,
+          empty: false,
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as any;
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(previewMocks.commitFormatPreview).toHaveBeenCalledWith(view, 'bold', false);
+    expect(previewMocks.clearFormatPreview).toHaveBeenCalledWith(view);
+    expect(commandMocks.toggleMark).toHaveBeenCalledWith(view, 'strong');
+    expect(callOrder.slice(0, 3)).toEqual(['commit', 'clear', 'toggle']);
 
     delegation.destroy();
   });

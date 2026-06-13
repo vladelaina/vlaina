@@ -20,6 +20,7 @@ import {
   commitBgColorPreview,
   commitBlockPreview,
   commitFormatPreview,
+  commitTextColorPreview,
   hasBlockPreview,
   hasFormatPreview,
 } from './previewStyles';
@@ -179,6 +180,23 @@ function createOversizedPreviewView(): any {
   return createPreviewGuardView({ docSize: 1024 * 1024 + 1 });
 }
 
+function createOversizedPreviewViewWithSelection(): any {
+  const view = createOversizedPreviewView();
+  const doc = view.state.doc;
+  const tr: any = {
+    setMeta: vi.fn(() => tr),
+  };
+
+  doc.eq = vi.fn((other) => other === doc);
+  view.state.selection = { empty: false, from: 1, to: 7 };
+  view.state.tr = tr;
+
+  return {
+    tr,
+    view,
+  };
+}
+
 describe('previewStyles', () => {
   it('covers every toolbar format button and block dropdown item with the applied preview path', () => {
     expect(FORMAT_BUTTONS.map((button) => button.action).filter((action) => !hasFormatPreview(action))).toEqual([]);
@@ -320,6 +338,312 @@ describe('previewStyles', () => {
 
     expect(view.dom.parentElement?.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
     expect(view.dom.style.display).toBe('');
+  });
+
+  it('uses a lightweight color selection preview for oversized documents', () => {
+    const view = createOversizedPreviewView();
+
+    applyTextColorPreview(view, '#866ec6');
+
+    expect(view.dom.parentElement?.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
+    expect(view.dom.classList.contains('toolbar-selection-hidden-preview')).toBe(true);
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('text');
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(view.dom.style.getPropertyValue('--vlaina-toolbar-preview-text-color')).toBe('#866ec6');
+    expect(view.dom.style.display).toBe('');
+
+    clearFormatPreview(view);
+
+    expect(view.dom.classList.contains('toolbar-selection-hidden-preview')).toBe(false);
+    expect(view.dom.hasAttribute('data-toolbar-color-preview')).toBe(false);
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(view.dom.style.getPropertyValue('--vlaina-toolbar-preview-text-color')).toBe('');
+
+    applyBgColorPreview(view, '#fca9bd');
+
+    expect(view.dom.parentElement?.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
+    expect(view.dom.classList.contains('toolbar-selection-hidden-preview')).toBe(true);
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('bg');
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(view.dom.style.getPropertyValue('--vlaina-toolbar-preview-bg-color')).toBe('#fca9bd');
+
+    clearFormatPreview(view);
+  });
+
+  it('masks only the selected range during lightweight text color previews over background marks', () => {
+    const view = createOversizedPreviewView();
+    const overlay = document.createElement('span');
+    const bgMark = document.createElement('mark');
+    overlay.className = 'editor-text-selection-overlay';
+    overlay.textContent = 'target';
+    bgMark.dataset.bgColor = '#fca9bd';
+    bgMark.style.setProperty('background-color', '#fca9bd', 'important');
+    bgMark.append(overlay);
+    view.dom.append(bgMark);
+    const originalOverlayStyle = overlay.style.cssText;
+    const originalBgMarkStyle = bgMark.style.cssText;
+
+    applyTextColorPreview(view, '#866ec6');
+
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('text');
+    expect(view.dom.getAttribute('data-toolbar-color-preview-removes-counterpart')).toBe('true');
+    expect(bgMark.style.cssText).toBe(originalBgMarkStyle);
+
+    clearFormatPreview(view);
+
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(overlay.style.cssText).toBe(originalOverlayStyle);
+    expect(bgMark.style.cssText).toBe(originalBgMarkStyle);
+  });
+
+  it('does not add a fallback surface behind plain text color previews', () => {
+    const view = createOversizedPreviewView();
+    const overlay = document.createElement('span');
+    overlay.className = 'editor-text-selection-overlay';
+    overlay.textContent = 'target';
+    view.dom.append(overlay);
+
+    applyTextColorPreview(view, '#866ec6');
+
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('text');
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(overlay.style.getPropertyValue('background-color')).toBe('');
+    expect(overlay.style.getPropertyValue('box-shadow')).toBe('');
+
+    clearFormatPreview(view);
+  });
+
+  it('keeps unselected background marks intact during lightweight text color previews', () => {
+    const view = createOversizedPreviewView();
+    const selectedOverlay = document.createElement('mark');
+    selectedOverlay.className = 'editor-text-selection-overlay';
+    selectedOverlay.dataset.bgColor = '#fca9bd';
+    selectedOverlay.style.setProperty('background-color', '#fca9bd', 'important');
+    selectedOverlay.textContent = 'selected';
+    const unselectedMark = document.createElement('mark');
+    unselectedMark.dataset.bgColor = '#fca9bd';
+    unselectedMark.style.setProperty('background-color', '#fca9bd', 'important');
+    unselectedMark.textContent = 'unselected';
+    view.dom.append(selectedOverlay, unselectedMark);
+    const originalUnselectedStyle = unselectedMark.style.cssText;
+
+    applyTextColorPreview(view, '#866ec6');
+
+    expect(selectedOverlay.style.getPropertyValue('background-color')).not.toBe('transparent');
+    expect(selectedOverlay.style.getPropertyValue('box-shadow')).not.toBe('none');
+    expect(unselectedMark.style.cssText).toBe(originalUnselectedStyle);
+
+    clearFormatPreview(view);
+  });
+
+  it('masks the preview background when a selected background mark is also the selection overlay', () => {
+    const view = createOversizedPreviewView();
+    const bgOverlay = document.createElement('mark');
+    bgOverlay.className = 'editor-text-selection-overlay';
+    bgOverlay.dataset.bgColor = '#fca9bd';
+    bgOverlay.style.setProperty('background-color', '#fca9bd', 'important');
+    bgOverlay.textContent = 'target';
+    view.dom.append(bgOverlay);
+    const originalBgOverlayStyle = bgOverlay.style.cssText;
+
+    applyTextColorPreview(view, '#866ec6');
+
+    expect(bgOverlay.style.getPropertyValue('background-color')).not.toBe('transparent');
+    expect(bgOverlay.style.getPropertyValue('box-shadow')).not.toBe('none');
+
+    clearFormatPreview(view);
+
+    expect(bgOverlay.style.cssText).toBe(originalBgOverlayStyle);
+  });
+
+  it('temporarily hides existing text color marks during lightweight background previews', () => {
+    const view = createOversizedPreviewView();
+    const overlay = document.createElement('span');
+    const textMark = document.createElement('span');
+    overlay.className = 'editor-text-selection-overlay';
+    textMark.dataset.textColor = '#866ec6';
+    textMark.style.setProperty('color', '#866ec6', 'important');
+    textMark.style.setProperty('-webkit-text-fill-color', '#866ec6', 'important');
+    textMark.textContent = 'target';
+    overlay.append(textMark);
+    view.dom.append(overlay);
+    const originalOverlayStyle = overlay.style.cssText;
+    const originalTextMarkStyle = textMark.style.cssText;
+
+    applyBgColorPreview(view, '#fca9bd');
+
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('bg');
+    expect(view.dom.getAttribute('data-toolbar-color-preview-removes-counterpart')).toBe('true');
+    expect(overlay.style.getPropertyValue('color'))
+      .toBe('var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor))');
+    expect(textMark.style.getPropertyValue('color'))
+      .toBe('var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor))');
+    expect(textMark.style.getPropertyValue('-webkit-text-fill-color'))
+      .toBe('var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor))');
+
+    clearFormatPreview(view);
+
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(overlay.style.cssText).toBe(originalOverlayStyle);
+    expect(textMark.style.cssText).toBe(originalTextMarkStyle);
+  });
+
+  it('reuses existing background mark spacing during lightweight background previews', () => {
+    const view = createOversizedPreviewView();
+    const bgMark = document.createElement('mark');
+    const overlay = document.createElement('span');
+    bgMark.dataset.bgColor = '#fde68a';
+    bgMark.style.setProperty('--vlaina-bg-color-mark-bg', '#fde68a');
+    bgMark.style.setProperty('background-color', 'var(--vlaina-bg-color-mark-bg)', 'important');
+    bgMark.style.setProperty('padding', 'var(--vlaina-space-05em) 0');
+    bgMark.style.setProperty(
+      'box-shadow',
+      'var(--vlaina-space-015em) 0 0 var(--vlaina-bg-color-mark-bg), calc(var(--vlaina-space-015em) * -1) 0 0 var(--vlaina-bg-color-mark-bg)'
+    );
+    overlay.className = 'editor-text-selection-overlay';
+    overlay.textContent = 'target';
+    bgMark.append(overlay);
+    view.dom.append(bgMark);
+    const originalBgMarkStyle = bgMark.style.cssText;
+    const originalOverlayStyle = overlay.style.cssText;
+
+    applyBgColorPreview(view, '#fca9bd');
+
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('bg');
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(overlay.style.getPropertyValue('background-color')).toBe('transparent');
+    expect(overlay.style.getPropertyValue('box-shadow')).toBe('none');
+    expect(overlay.style.getPropertyValue('padding')).toBe('0px');
+    expect(bgMark.style.getPropertyValue('--vlaina-bg-color-mark-bg')).toBe('#fca9bd');
+    expect(bgMark.style.getPropertyValue('background-color')).toBe('var(--vlaina-bg-color-mark-bg)');
+    expect(bgMark.style.getPropertyValue('padding')).toContain('var(--vlaina-space-05em) 0');
+    expect(bgMark.style.getPropertyValue('box-shadow')).toContain('var(--vlaina-bg-color-mark-bg)');
+
+    clearFormatPreview(view);
+
+    expect(overlay.style.cssText).toBe(originalOverlayStyle);
+    expect(bgMark.style.cssText).toBe(originalBgMarkStyle);
+  });
+
+  it('does not redispatch selection overlays when a lightweight color preview can reuse existing overlay nodes', () => {
+    const { tr, view } = createOversizedPreviewViewWithSelection();
+    const overlay = document.createElement('span');
+    overlay.className = 'editor-text-selection-overlay';
+    overlay.textContent = 'target';
+    view.dom.append(overlay);
+
+    applyBgColorPreview(view, '#fca9bd');
+
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(tr.setMeta).not.toHaveBeenCalled();
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('bg');
+    expect(view.dom.style.getPropertyValue('--vlaina-toolbar-preview-bg-color')).toBe('#fca9bd');
+
+    clearFormatPreview(view);
+  });
+
+  it('reuses matching lightweight background previews without rebuilding selection decorations', () => {
+    const { tr, view } = createOversizedPreviewViewWithSelection();
+    const overlay = document.createElement('span');
+    const textMark = document.createElement('span');
+    view.dom.classList.add('editor-pointer-native-selection');
+    overlay.className = 'editor-text-selection-overlay';
+    textMark.dataset.textColor = '#866ec6';
+    textMark.style.setProperty('color', '#866ec6', 'important');
+    textMark.textContent = 'target';
+    overlay.append(textMark);
+    view.dom.append(overlay);
+
+    applyBgColorPreview(view, '#fca9bd');
+
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    expect(tr.setMeta).toHaveBeenCalledWith('editorTextSelectionPointerNative', false);
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('bg');
+    expect(view.dom.style.getPropertyValue('--vlaina-toolbar-preview-bg-color')).toBe('#fca9bd');
+    const firstOverlayStyle = overlay.style.cssText;
+    const firstTextMarkStyle = textMark.style.cssText;
+
+    view.dispatch.mockClear();
+    tr.setMeta.mockClear();
+
+    applyBgColorPreview(view, '#fca9bd');
+
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(tr.setMeta).not.toHaveBeenCalled();
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('bg');
+    expect(view.dom.style.getPropertyValue('--vlaina-toolbar-preview-bg-color')).toBe('#fca9bd');
+    expect(overlay.style.cssText).toBe(firstOverlayStyle);
+    expect(textMark.style.cssText).toBe(firstTextMarkStyle);
+
+    view.state.selection = { empty: false, from: 2, to: 7 };
+
+    applyBgColorPreview(view, '#fca9bd');
+
+    expect(view.dispatch).toHaveBeenCalledTimes(1);
+
+    clearFormatPreview(view);
+  });
+
+  it('keeps counterpart colors intact for lightweight default color previews', () => {
+    const view = createOversizedPreviewView();
+    const overlay = document.createElement('span');
+    const bgMark = document.createElement('mark');
+    overlay.className = 'editor-text-selection-overlay';
+    bgMark.dataset.bgColor = '#fca9bd';
+    bgMark.style.setProperty('background-color', '#fca9bd', 'important');
+    overlay.append(bgMark);
+    view.dom.append(overlay);
+    const originalOverlayStyle = overlay.style.cssText;
+    const originalBgMarkStyle = bgMark.style.cssText;
+
+    applyTextColorPreview(view, null);
+
+    expect(view.dom.getAttribute('data-toolbar-color-preview')).toBe('text');
+    expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(overlay.style.cssText).toBe(originalOverlayStyle);
+    expect(bgMark.style.cssText).toBe(originalBgMarkStyle);
+
+    clearFormatPreview(view);
+  });
+
+  it('switches pointer-native selections back to overlay decorations for lightweight color previews', () => {
+    const host = document.createElement('div');
+    const dom = document.createElement('div');
+    const tr: any = {
+      setMeta: vi.fn(() => tr),
+    };
+    const view: any = {
+      dispatch: vi.fn(() => {
+        const overlay = document.createElement('span');
+        overlay.className = 'editor-text-selection-overlay';
+        overlay.textContent = 'target';
+        dom.append(overlay);
+      }),
+      dom,
+      state: {
+        doc: {
+          content: { size: 1024 * 1024 + 1 },
+          eq: vi.fn(() => false),
+        },
+        selection: { empty: false },
+        tr,
+      },
+    };
+    dom.className = 'ProseMirror editor-pointer-native-selection';
+    host.append(dom);
+    document.body.append(host);
+
+    applyTextColorPreview(view, '#866ec6');
+
+    expect(tr.setMeta).toHaveBeenCalledWith('editorTextSelectionPointerNative', false);
+    expect(tr.setMeta).toHaveBeenCalledWith('addToHistory', false);
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+    expect(dom.style.getPropertyValue('--vlaina-toolbar-preview-text-color')).toBe('#866ec6');
+    expect(dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
+    expect(dom.querySelector<HTMLElement>('.editor-text-selection-overlay')?.style.backgroundColor).toBe('');
+
+    clearFormatPreview(view);
+    host.remove();
   });
 
   it('skips applied preview rendering for DOM-heavy documents even when text size is small', () => {
@@ -630,17 +954,41 @@ describe('previewStyles', () => {
 
     applyTextColorPreview(view, '#ef4444');
     let overlay = host.querySelector('.toolbar-applied-preview-overlay');
+    expect(overlay?.classList.contains('toolbar-selection-hidden-preview')).toBe(true);
     expect(overlay?.querySelector('[style*="#ef4444"], [style*="239, 68, 68"]')).toBeInstanceOf(HTMLElement);
     expect(view.state.doc).toBe(originalDoc);
 
     applyBgColorPreview(view, '#fde68a');
     overlay = host.querySelector('.toolbar-applied-preview-overlay');
+    expect(overlay?.classList.contains('toolbar-selection-hidden-preview')).toBe(true);
     const bgPreviewMark = overlay?.querySelector<HTMLElement>('[style*="#fde68a"], [style*="253, 230, 138"]');
     expect(bgPreviewMark).toBeInstanceOf(HTMLElement);
-    expect(bgPreviewMark?.style.padding).toBe('');
+    expect(bgPreviewMark?.style.cssText).toContain('padding: var(--vlaina-space-05em) 0');
+    expect(bgPreviewMark?.style.cssText).toContain('--vlaina-bg-color-mark-bg: #fde68a');
+    expect(bgPreviewMark?.style.cssText).toContain('box-shadow: var(--vlaina-space-015em) 0 0 var(--vlaina-bg-color-mark-bg)');
     expect(view.state.doc).toBe(originalDoc);
 
     clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('hides the selected text while previewing a color that does not change the document', async () => {
+    const { editor, host, view } = await createEditor('color me');
+    const originalDoc = view.state.doc;
+    selectText(view, 'color');
+
+    applyTextColorPreview(view, null);
+
+    const overlay = host.querySelector('.toolbar-applied-preview-overlay');
+    expect(overlay).toBeInstanceOf(HTMLElement);
+    expect(overlay?.classList.contains('toolbar-selection-hidden-preview')).toBe(true);
+    expect(view.dom.style.display).toBe('none');
+    expect(view.state.doc).toBe(originalDoc);
+    expect(commitTextColorPreview(view, null)).toBe(false);
+    expect(host.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
+    expect(view.dom.style.display).toBe('');
+
     await editor.destroy();
     host.remove();
   });
@@ -799,7 +1147,9 @@ describe('previewStyles', () => {
 
     const bgMark = view.dom.querySelector<HTMLElement>('[style*="#fde68a"], [style*="253, 230, 138"]');
     expect(bgMark).toBeInstanceOf(HTMLElement);
-    expect(bgMark?.style.padding).toBe('');
+    expect(bgMark?.style.cssText).toContain('padding: var(--vlaina-space-05em) 0');
+    expect(bgMark?.style.cssText).toContain('--vlaina-bg-color-mark-bg: #fde68a');
+    expect(bgMark?.style.cssText).toContain('box-shadow: var(--vlaina-space-015em) 0 0 var(--vlaina-bg-color-mark-bg)');
 
     clearFormatPreview(view);
     await editor.destroy();

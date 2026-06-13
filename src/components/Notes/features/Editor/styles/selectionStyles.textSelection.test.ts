@@ -111,6 +111,42 @@ describe("editor text selection and link styles", () => {
     );
   });
 
+  it('hides editor selection paint inside toolbar preview clones', () => {
+    const css = readStyleFile('selection-width.css');
+
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview::selection,');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview .editor-text-selection-overlay::selection,');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview .editor-text-selection-overlay *::selection {');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-applied-preview-overlay.toolbar-selection-hidden-preview,');
+    expect(css).toContain('user-select: none !important;');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview],');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview] .editor-text-selection-overlay,');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview] .editor-text-selection-overlay * {');
+    expect(css).not.toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview] * {');
+    expect(css).not.toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"] *::selection');
+    expect(css).not.toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"] *::selection');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview .editor-text-selection-overlay {');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview .cm-selectionBackground {');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"] .editor-text-selection-overlay {');
+    expect(css).toContain('color: var(--vlaina-toolbar-preview-text-color, inherit) !important;');
+    expect(css).not.toContain('box-shadow: 0 0 0 1em');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay {');
+    expect(css).toContain('background: var(--vlaina-bg-primary, var(--background, transparent)) !important;');
+    expect(css).toContain('padding: var(--vlaina-space-05em) 0 !important;');
+    expect(css).not.toContain(':has(.editor-text-selection-overlay)');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay :is(mark[data-bg-color], span[data-bg-color]) {');
+    expect(css).toContain('background: transparent !important;');
+    expect(css).toContain('box-shadow: none !important;');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"] .editor-text-selection-overlay {');
+    expect(css).toContain('background-color: var(--vlaina-toolbar-preview-bg-color, transparent) !important;');
+    expect(css).toContain('border-radius: var(--vlaina-radius-0125rem) !important;');
+    expect(css).toContain('var(--vlaina-space-015em) 0 0 var(--vlaina-toolbar-preview-bg-color, transparent),');
+    expect(css).toContain('calc(var(--vlaina-space-015em) * -1) 0 0 var(--vlaina-toolbar-preview-bg-color, transparent) !important;');
+    expect(css).toContain('padding: var(--vlaina-space-05em) 0 !important;');
+    expect(css).toContain('.milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay,');
+    expect(css).toContain('color: var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor)) !important;');
+  });
+
   it('hides carets inside inline content while block selection is active', () => {
     const blockSelectionCss = readBlockSelectionStyle();
 
