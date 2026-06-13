@@ -857,6 +857,7 @@ export function registerDesktopIpc({
       isDirectory: info.isDirectory(),
       isFile: info.isFile(),
       size: info.size,
+      createdAt: info.birthtimeMs,
       modifiedAt: info.mtimeMs,
     };
   });
@@ -988,6 +989,7 @@ export function registerDesktopIpc({
         isDirectory: info.isDirectory(),
         isFile: info.isFile(),
         size: info.size,
+        createdAt: info.birthtimeMs,
         modifiedAt: info.mtimeMs,
       };
     } catch {

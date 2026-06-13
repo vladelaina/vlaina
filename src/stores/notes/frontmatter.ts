@@ -9,25 +9,30 @@ const MAX_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_FRONTMATTER_LINES = 2048;
 const MANAGED_FRONTMATTER_PREFIX = 'vlaina_';
 const KEY_COVER = `${MANAGED_FRONTMATTER_PREFIX}cover`;
+const KEY_COVER_LAYOUT = `${MANAGED_FRONTMATTER_PREFIX}cover_layout`;
 const KEY_COVER_X = `${MANAGED_FRONTMATTER_PREFIX}cover_x`;
 const KEY_COVER_Y = `${MANAGED_FRONTMATTER_PREFIX}cover_y`;
 const KEY_COVER_HEIGHT = `${MANAGED_FRONTMATTER_PREFIX}cover_height`;
 const KEY_COVER_SCALE = `${MANAGED_FRONTMATTER_PREFIX}cover_scale`;
 const KEY_ICON = `${MANAGED_FRONTMATTER_PREFIX}icon`;
+const KEY_ICON_SIZE = `${MANAGED_FRONTMATTER_PREFIX}icon_size`;
 const KEY_CREATED = `${MANAGED_FRONTMATTER_PREFIX}created`;
 const KEY_UPDATED = `${MANAGED_FRONTMATTER_PREFIX}updated`;
-const FRONTMATTER_TIMESTAMP_OFFSET_MINUTES = 8 * 60;
 const MAX_NOTE_ICON_CHARS = 4096;
+const MIN_NOTE_ICON_SIZE = 20;
+const MAX_NOTE_ICON_SIZE = 150;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
 
 const MANAGED_KEYS = new Set([
   KEY_COVER,
+  KEY_COVER_LAYOUT,
   KEY_COVER_X,
   KEY_COVER_Y,
   KEY_COVER_HEIGHT,
   KEY_COVER_SCALE,
   KEY_ICON,
+  KEY_ICON_SIZE,
   KEY_CREATED,
   KEY_UPDATED,
 ]);
@@ -173,44 +178,143 @@ function parseYamlScalar(rawValue: string): string | number | null {
   return trimmed;
 }
 
-function parseTimestamp(value: string | number | null): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value !== 'string' || !value) {
-    return undefined;
-  }
-
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function quoteYamlString(value: string): string {
+function quoteInlineFieldValue(value: string): string {
   return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-}
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
-export function formatNoteFrontmatterTimestamp(timestamp: number): string {
-  const date = new Date(timestamp + FRONTMATTER_TIMESTAMP_OFFSET_MINUTES * 60 * 1000);
-  const timezoneOffsetMinutes = FRONTMATTER_TIMESTAMP_OFFSET_MINUTES;
-  const offsetSign = '+';
-  const absoluteOffsetMinutes = timezoneOffsetMinutes;
-  const offsetHours = Math.floor(absoluteOffsetMinutes / 60);
-  const offsetMinutes = absoluteOffsetMinutes % 60;
-
-  return [
-    `${date.getUTCFullYear()}-${padDatePart(date.getUTCMonth() + 1)}-${padDatePart(date.getUTCDate())}`,
-    `${padDatePart(date.getUTCHours())}:${padDatePart(date.getUTCMinutes())}:${padDatePart(date.getUTCSeconds())}`,
-    `${offsetSign}${padDatePart(offsetHours)}:${padDatePart(offsetMinutes)}`,
-  ].join(' ');
 }
 
 function normalizeCover(cover: NoteCoverMetadata | null | undefined): NoteCoverMetadata | undefined {
   return normalizeNoteCoverMetadata(cover);
+}
+
+type CoverLayoutMetadata = Omit<NoteCoverMetadata, 'assetPath'>;
+
+function parseInlineFields(value: string | number | null | undefined): Map<string, string> {
+  const fields = new Map<string, string>();
+  if (typeof value !== 'string') {
+    return fields;
+  }
+
+  let index = 0;
+  while (index < value.length) {
+    while (index < value.length && /[\s,;]/.test(value[index] ?? '')) {
+      index += 1;
+    }
+    const nameStart = index;
+    while (index < value.length && /[A-Za-z0-9_-]/.test(value[index] ?? '')) {
+      index += 1;
+    }
+    if (index === nameStart || value[index] !== '=') {
+      while (index < value.length && !/[\s,;]/.test(value[index] ?? '')) {
+        index += 1;
+      }
+      continue;
+    }
+
+    const name = value.slice(nameStart, index).toLowerCase();
+    index += 1;
+    let parsedValue = '';
+    const quote = value[index];
+    if (quote === '"' || quote === "'") {
+      index += 1;
+      while (index < value.length) {
+        const character = value[index];
+        if (character === quote) {
+          index += 1;
+          break;
+        }
+        if (quote === '"' && character === '\\' && index + 1 < value.length) {
+          parsedValue += value[index + 1];
+          index += 2;
+          continue;
+        }
+        parsedValue += character;
+        index += 1;
+      }
+    } else {
+      const valueStart = index;
+      while (index < value.length && !/[\s,;]/.test(value[index] ?? '')) {
+        index += 1;
+      }
+      parsedValue = value.slice(valueStart, index);
+    }
+
+    fields.set(name, parsedValue);
+  }
+
+  return fields;
+}
+
+function getInlineString(fields: Map<string, string>, key: string): string | undefined {
+  const value = fields.get(key);
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function getInlineNumber(fields: Map<string, string>, key: string): number | undefined {
+  const value = fields.get(key);
+  if (value === undefined) {
+    return undefined;
+  }
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
+function parseCoverLayout(value: string | number | null | undefined): CoverLayoutMetadata {
+  if (typeof value !== 'string') {
+    return {};
+  }
+
+  const layout: CoverLayoutMetadata = {};
+  for (const token of value.trim().split(/[\s,;]+/)) {
+    const match = /^(x|y|height|scale)=(-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?)$/i.exec(token);
+    if (!match) {
+      continue;
+    }
+
+    const numericValue = Number(match[2]);
+    if (!Number.isFinite(numericValue)) {
+      continue;
+    }
+
+    const name = match[1]?.toLowerCase();
+    if (name === 'x') {
+      layout.positionX = numericValue;
+    } else if (name === 'y') {
+      layout.positionY = numericValue;
+    } else if (name === 'height') {
+      layout.height = numericValue;
+    } else if (name === 'scale') {
+      layout.scale = numericValue;
+    }
+  }
+
+  return layout;
+}
+
+function getParsedNumber(
+  parsedValues: Map<string, string | number | null>,
+  key: string,
+): number | undefined {
+  const value = parsedValues.get(key);
+  return typeof value === 'number' ? value : undefined;
+}
+
+function formatCoverLayout(cover: NoteCoverMetadata): string | null {
+  const parts = [`asset=${quoteInlineFieldValue(cover.assetPath)}`];
+
+  if (cover.positionX !== undefined) parts.push(`x=${cover.positionX}`);
+  if (cover.positionY !== undefined) parts.push(`y=${cover.positionY}`);
+  if (cover.height !== undefined) parts.push(`height=${cover.height}`);
+  if (cover.scale !== undefined) parts.push(`scale=${cover.scale}`);
+
+  return parts.join(' ');
+}
+
+function formatIconValue(icon: string, iconSize: number | undefined): string {
+  const parts = [`value=${quoteInlineFieldValue(icon)}`];
+  if (iconSize !== undefined) {
+    parts.push(`size=${iconSize}`);
+  }
+  return parts.join(' ');
 }
 
 function normalizeIcon(icon: unknown): string | undefined {
@@ -226,6 +330,15 @@ function normalizeIcon(icon: unknown): string | undefined {
   return trimmed;
 }
 
+function normalizeIconSize(size: unknown): number | undefined {
+  const value = typeof size === 'number' ? size : Number(size);
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.min(MAX_NOTE_ICON_SIZE, Math.max(MIN_NOTE_ICON_SIZE, value));
+}
+
 export function normalizeNoteMetadataEntry(
   entry: Partial<NoteMetadataEntry> | null | undefined
 ): NoteMetadataEntry {
@@ -238,6 +351,10 @@ export function normalizeNoteMetadataEntry(
 
   if (icon) {
     normalized.icon = icon;
+    const iconSize = normalizeIconSize(entry.iconSize);
+    if (iconSize !== undefined) {
+      normalized.iconSize = iconSize;
+    }
   }
 
   const cover = normalizeCover(entry.cover);
@@ -278,41 +395,55 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
   const coverValue = parsedValues.get(KEY_COVER);
   const normalized: NoteMetadataEntry = {};
 
-  const icon = normalizeIcon(parsedValues.get(KEY_ICON));
+  const rawIconValue = parsedValues.get(KEY_ICON);
+  const iconFields = parseInlineFields(rawIconValue);
+  const hasQuotedIconValueField = typeof rawIconValue === 'string' && /^\s*value\s*=\s*["']/.test(rawIconValue);
+  const hasFusedIconSize = getInlineNumber(iconFields, 'size') !== undefined;
+  const fusedIconValue = hasQuotedIconValueField || hasFusedIconSize
+    ? getInlineString(iconFields, 'value')
+    : undefined;
+  const iconValue = fusedIconValue ?? rawIconValue;
+  const icon = normalizeIcon(iconValue);
   if (icon) {
     normalized.icon = icon;
+    const iconSize = normalizeIconSize(
+      fusedIconValue !== undefined
+        ? getInlineNumber(iconFields, 'size')
+        : parsedValues.get(KEY_ICON_SIZE)
+    );
+    if (iconSize !== undefined) {
+      normalized.iconSize = iconSize;
+    }
   }
 
   if (typeof coverValue === 'string' && coverValue) {
-    normalized.cover = normalizeCover({
-      assetPath: coverValue,
-      positionX:
-        typeof parsedValues.get(KEY_COVER_X) === 'number'
-          ? (parsedValues.get(KEY_COVER_X) as number)
-          : undefined,
-      positionY:
-        typeof parsedValues.get(KEY_COVER_Y) === 'number'
-          ? (parsedValues.get(KEY_COVER_Y) as number)
-          : undefined,
-      height:
-        typeof parsedValues.get(KEY_COVER_HEIGHT) === 'number'
-          ? (parsedValues.get(KEY_COVER_HEIGHT) as number)
-          : undefined,
-      scale:
-        typeof parsedValues.get(KEY_COVER_SCALE) === 'number'
-          ? (parsedValues.get(KEY_COVER_SCALE) as number)
-          : undefined,
-    });
-  }
-
-  const createdAt = parseTimestamp(parsedValues.get(KEY_CREATED) ?? null);
-  if (createdAt !== undefined) {
-    normalized.createdAt = createdAt;
-  }
-
-  const updatedAt = parseTimestamp(parsedValues.get(KEY_UPDATED) ?? null);
-  if (updatedAt !== undefined) {
-    normalized.updatedAt = updatedAt;
+    const coverFields = parseInlineFields(coverValue);
+    const legacyCoverLayout = parseCoverLayout(parsedValues.get(KEY_COVER_LAYOUT));
+    const coverLayout = {
+      positionX: getInlineNumber(coverFields, 'x') ?? legacyCoverLayout.positionX,
+      positionY: getInlineNumber(coverFields, 'y') ?? legacyCoverLayout.positionY,
+      height: getInlineNumber(coverFields, 'height') ?? legacyCoverLayout.height,
+      scale: getInlineNumber(coverFields, 'scale') ?? legacyCoverLayout.scale,
+    };
+    const hasFusedCoverLayout = ['x', 'y', 'height', 'scale']
+      .some((key) => getInlineNumber(coverFields, key) !== undefined);
+    const hasQuotedCoverAssetField = /^\s*asset\s*=\s*["']/.test(coverValue);
+    const inlineCoverAssetPath = getInlineString(coverFields, 'asset');
+    const coverAssetPath =
+      inlineCoverAssetPath !== undefined && (hasQuotedCoverAssetField || hasFusedCoverLayout)
+        ? inlineCoverAssetPath
+        : !hasFusedCoverLayout
+          ? coverValue
+          : undefined;
+    if (coverAssetPath) {
+      normalized.cover = normalizeCover({
+        assetPath: coverAssetPath,
+        positionX: coverLayout.positionX ?? getParsedNumber(parsedValues, KEY_COVER_X),
+        positionY: coverLayout.positionY ?? getParsedNumber(parsedValues, KEY_COVER_Y),
+        height: coverLayout.height ?? getParsedNumber(parsedValues, KEY_COVER_HEIGHT),
+        scale: coverLayout.scale ?? getParsedNumber(parsedValues, KEY_COVER_SCALE),
+      });
+    }
   }
 
   return normalizeNoteMetadataEntry(normalized);
@@ -350,7 +481,10 @@ export function stripUpdatedFrontmatter(markdown: string): string {
   }
 
   const comparableFrontmatterLines = trimTrailingBlankLines(
-    lines.filter((line) => parseTopLevelKey(line) !== KEY_UPDATED),
+    lines.filter((line) => {
+      const key = parseTopLevelKey(line);
+      return key !== KEY_CREATED && key !== KEY_UPDATED;
+    }),
   );
 
   if (comparableFrontmatterLines.length === 0) {
@@ -380,23 +514,11 @@ export function writeNoteMetadataToMarkdown(
   const cover = normalizedEntry.cover;
 
   if (cover?.assetPath) {
-    managedLines.push(`${KEY_COVER}: ${quoteYamlString(cover.assetPath)}`);
-    if (cover.positionX !== undefined) managedLines.push(`${KEY_COVER_X}: ${cover.positionX}`);
-    if (cover.positionY !== undefined) managedLines.push(`${KEY_COVER_Y}: ${cover.positionY}`);
-    if (cover.height !== undefined) managedLines.push(`${KEY_COVER_HEIGHT}: ${cover.height}`);
-    if (cover.scale !== undefined) managedLines.push(`${KEY_COVER_SCALE}: ${cover.scale}`);
+    managedLines.push(`${KEY_COVER}: ${formatCoverLayout(cover)}`);
   }
 
   if (normalizedEntry.icon) {
-    managedLines.push(`${KEY_ICON}: ${quoteYamlString(normalizedEntry.icon)}`);
-  }
-
-  if (normalizedEntry.createdAt !== undefined) {
-    managedLines.push(`${KEY_CREATED}: ${formatNoteFrontmatterTimestamp(normalizedEntry.createdAt)}`);
-  }
-
-  if (normalizedEntry.updatedAt !== undefined) {
-    managedLines.push(`${KEY_UPDATED}: ${formatNoteFrontmatterTimestamp(normalizedEntry.updatedAt)}`);
+    managedLines.push(`${KEY_ICON}: ${formatIconValue(normalizedEntry.icon, normalizedEntry.iconSize)}`);
   }
 
   const nextFrontmatterLines = [...preservedLines];
@@ -406,7 +528,7 @@ export function writeNoteMetadataToMarkdown(
   nextFrontmatterLines.push(...managedLines);
 
   if (nextFrontmatterLines.length === 0) {
-    return hasFrontmatter ? body : normalizeLineEndings(markdown);
+    return hasFrontmatter ? removeLeadingBlankLine(body) : normalizeLineEndings(markdown);
   }
 
   const frontmatterBlock = [

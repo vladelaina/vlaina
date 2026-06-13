@@ -25,7 +25,7 @@ interface NoteHeaderProps {
 export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), onAddCover }: NoteHeaderProps) {
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
-    const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
+    const setNoteIconSize = useNotesStore(s => s.setNoteIconSize);
     const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
     const noteMetadata = useNotesStore(s => s.noteMetadata);
     const draftTitle = useNotesStore(
@@ -43,8 +43,8 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
 
     const iconSize = useNotesStore(
         useCallback(state => {
-            return state.noteIconSize;
-        }, [])
+            return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.iconSize ?? state.noteIconSize;
+        }, [currentNotePath])
     );
 
     const notesPath = useNotesStore(s => s.notesPath);
@@ -83,7 +83,7 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
 
     const handleSizeConfirm = (size: number) => {
         if (currentNotePath) {
-            setGlobalIconSize(size);
+            setNoteIconSize(currentNotePath, size);
         }
     };
 

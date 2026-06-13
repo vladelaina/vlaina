@@ -31,6 +31,7 @@ export interface NoteCoverMetadata {
 
 export interface NoteMetadataEntry {
   icon?: string;
+  iconSize?: number;
   cover?: NoteCoverMetadata;
   createdAt?: number;
   updatedAt?: number;

@@ -1,5 +1,5 @@
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
-import { createEmptyMetadataFile, setNoteEntry } from '../storage';
+import { createEmptyMetadataFile, mergeNoteMetadataWithFileInfo, setNoteEntry } from '../storage';
 import {
   getCachedNoteModifiedAt,
   getCachedNoteSize,
@@ -269,7 +269,7 @@ export function createWorkspaceDiskSyncAction(
         const nextMetadata = setNoteEntry(
           latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
           currentNote.path,
-          readNoteMetadataFromMarkdown(nextContent)
+          mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(nextContent), fileInfo)
         );
         const latestRootFolder = latestState.rootFolder ?? rootFolder;
         const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;

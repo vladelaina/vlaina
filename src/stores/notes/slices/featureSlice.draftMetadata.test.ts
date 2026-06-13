@@ -206,6 +206,33 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('writes note icon size into frontmatter for a saved note', async () => {
+    const notePath = 'docs/alpha.md';
+    const sourceContent = [
+      '---',
+      'vlaina_icon: "sparkles"',
+      '---',
+      '',
+      '# Alpha',
+    ].join('\n');
+    mocks.readFile.mockResolvedValue(sourceContent);
+    const store = createNotesStore({
+      currentNote: { path: notePath, content: sourceContent },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: sourceContent, modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteIconSize(notePath, 84);
+
+    await vi.waitFor(() => {
+      expect(mocks.safeWriteTextFile).toHaveBeenCalled();
+    });
+
+    const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
+    expect(writtenContent).toContain('vlaina_icon: value="sparkles" size=84');
+    expect(store.getState().noteMetadata?.notes[notePath]?.iconSize).toBe(84);
+  });
+
   it('writes metadata for a Windows absolute note opened without a vault', async () => {
     const notePath = 'C:\\notes\\alpha.md';
     const store = createNotesStore({
@@ -313,7 +340,7 @@ describe('featureSlice draft metadata', () => {
     });
 
     const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
-    expect(writtenContent).toContain('vlaina_icon: "sparkles"');
+    expect(writtenContent).toContain('vlaina_icon: value="sparkles"');
     expect(writtenContent).toContain('Disk body');
     expect(writtenContent).not.toContain('Original body');
     expect(store.getState().currentNote?.content).toBe(writtenContent);

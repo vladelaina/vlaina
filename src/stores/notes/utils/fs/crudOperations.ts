@@ -1,5 +1,10 @@
 import { getParentPath, resolveUniquePath } from './pathOperations';
-import { safeWriteTextFile, createEmptyMetadataFile, setNoteEntry } from '../../storage';
+import {
+    mergeNoteMetadataWithFileInfo,
+    safeWriteTextFile,
+    createEmptyMetadataFile,
+    setNoteEntry,
+} from '../../storage';
 import { addNodeToTree } from '../../fileTreeUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
@@ -44,16 +49,14 @@ export async function createNoteImpl(
     }
 
     const normalizedContent = normalizeSerializedMarkdownDocument(content);
-    const now = Date.now();
     const initialMetadata = readNoteMetadataFromMarkdown(normalizedContent);
-    const { content: initialContent, metadata } = updateNoteMetadataInMarkdown(normalizedContent, {
-        createdAt: initialMetadata.createdAt ?? now,
-        updatedAt: initialMetadata.updatedAt ?? now,
-    });
+    const { content: initialContent, metadata: frontmatterMetadata } =
+        updateNoteMetadataInMarkdown(normalizedContent, initialMetadata);
 
     markExpectedExternalChange(fullPath);
     await safeWriteTextFile(fullPath, initialContent);
     const fileInfo = await adapter.stat?.(fullPath);
+    const metadata = mergeNoteMetadataWithFileInfo(frontmatterMetadata, fileInfo);
 
     const updatedMetadata = setNoteEntry(currentStore.noteMetadata ?? createEmptyMetadataFile(), relativePath, {
         ...metadata,

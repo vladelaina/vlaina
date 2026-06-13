@@ -73,6 +73,7 @@ describe('notes metadata storage', () => {
           'vlaina_cover_height: 260',
           'vlaina_cover_scale: 1.4',
           'vlaina_icon: "🐱"',
+          'vlaina_icon_size: 84',
           'vlaina_created: "2026-04-15T00:00:00.000Z"',
           'vlaina_updated: "2026-04-16T00:00:00.000Z"',
           '---',
@@ -104,11 +105,11 @@ describe('notes metadata storage', () => {
             scale: 1.4,
           },
           icon: '🐱',
-          createdAt: Date.parse('2026-04-15T00:00:00.000Z'),
-          updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
+          iconSize: 84,
+          updatedAt: 1,
         },
         'docs/beta.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
       },
     });
@@ -126,7 +127,12 @@ describe('notes metadata storage', () => {
 
     await expect(loadNoteMetadata('/vault-extensions')).resolves.toEqual({
       version: 2,
-      notes: {},
+      notes: {
+        'alpha.md': { updatedAt: 1 },
+        'beta.markdown': { updatedAt: 2 },
+        'gamma.mdown': { updatedAt: 2 },
+        'delta.mkd': { updatedAt: 2 },
+      },
     });
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/alpha.md', MAX_METADATA_READ_BYTES);
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/beta.markdown', MAX_METADATA_READ_BYTES);
@@ -172,10 +178,10 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {
         '.journal.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
         '.notes/alpha.md': {
-          updatedAt: Date.parse('2026-04-18T00:00:00.000Z'),
+          updatedAt: 1,
         },
       },
     });
@@ -210,7 +216,10 @@ describe('notes metadata storage', () => {
 
     await expect(loadNoteMetadata('/vault-unsafe')).resolves.toEqual({
       version: 2,
-      notes: {},
+      notes: {
+        'alpha.md': { updatedAt: 1 },
+        'docs/beta.md': { updatedAt: 2 },
+      },
     });
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-unsafe/..');
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/alpha.md', MAX_METADATA_READ_BYTES);
@@ -279,7 +288,9 @@ describe('notes metadata storage', () => {
 
     await expect(loadNoteMetadata('/vault-huge')).resolves.toEqual({
       version: 2,
-      notes: {},
+      notes: {
+        'huge.md': { updatedAt: 7 },
+      },
     });
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
@@ -292,7 +303,9 @@ describe('notes metadata storage', () => {
 
     await expect(loadNoteMetadata('/vault-invalid-size')).resolves.toEqual({
       version: 2,
-      notes: {},
+      notes: {
+        'invalid.md': { updatedAt: 7 },
+      },
     });
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
@@ -306,7 +319,9 @@ describe('notes metadata storage', () => {
 
     await expect(loadNoteMetadata('/vault-huge-after-read')).resolves.toEqual({
       version: 2,
-      notes: {},
+      notes: {
+        'huge.md': { updatedAt: 7 },
+      },
     });
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-huge-after-read/huge.md', MAX_METADATA_READ_BYTES);
   });
@@ -352,16 +367,16 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {
         'Dist/bundle.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
         'docs/alpha.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 1,
         },
         'node_modules/package.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
         'Node_Modules/package.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
       },
     });
@@ -398,10 +413,10 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {
         'late-folder/nested.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
         'late.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
       },
     });
@@ -447,10 +462,10 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {
         'root.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 2,
         },
         'docs/inside.md': {
-          updatedAt: Date.parse('2026-04-18T00:00:00.000Z'),
+          updatedAt: 2,
         },
       },
     });

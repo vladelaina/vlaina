@@ -208,7 +208,7 @@ describe('notes scan budgets', () => {
       version: 2,
       notes: {
         'alpha.md': {
-          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+          updatedAt: 1,
         },
       },
     });
@@ -239,7 +239,7 @@ describe('notes scan budgets', () => {
       version: 2,
       notes: {
         'late.md': {
-          updatedAt: Date.parse('2026-04-18T00:00:00.000Z'),
+          updatedAt: 1,
         },
       },
     });
@@ -276,7 +276,7 @@ describe('notes scan budgets', () => {
       version: 2,
       notes: {
         'late.md': {
-          updatedAt: Date.parse('2026-04-20T00:00:00.000Z'),
+          updatedAt: 1,
         },
       },
     });
@@ -313,7 +313,7 @@ describe('notes scan budgets', () => {
       version: 2,
       notes: {
         [deepRelativePath]: {
-          updatedAt: Date.parse('2026-04-19T00:00:00.000Z'),
+          updatedAt: 1,
         },
       },
     });

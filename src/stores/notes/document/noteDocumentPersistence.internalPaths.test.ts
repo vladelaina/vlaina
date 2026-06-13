@@ -209,7 +209,6 @@ describe('note document internal paths', () => {
         content: '# Alpha',
       },
       cache: new Map(),
-      updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
     })).resolves.toMatchObject({
       content: expect.stringContaining('# Alpha'),
     });
@@ -245,7 +244,6 @@ describe('note document internal paths', () => {
           content: '# Alpha',
         },
         cache: new Map(),
-        updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
       })).resolves.toMatchObject({
         content: expect.stringContaining('# Alpha'),
       });

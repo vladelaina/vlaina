@@ -30,7 +30,6 @@ describe('resolvePendingMarkdownUpdate', () => {
     const expected = [
       '---',
       'vlaina_cover: "@biva/2"',
-      'vlaina_updated: "2026-05-06T08:40:49.601Z"',
       '---',
       '# 官网测试',
       '',
@@ -84,7 +83,6 @@ describe('resolvePendingMarkdownUpdate', () => {
     const expected = [
       '---',
       'vlaina_icon: "🫧"',
-      'vlaina_updated: "2026-05-06T08:40:49.601Z"',
       '---',
       '# 官网测试',
       '',

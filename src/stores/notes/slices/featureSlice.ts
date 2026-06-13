@@ -9,6 +9,7 @@ import {
   loadGlobalNoteIconSize,
   loadRecentNotes,
   loadNoteMetadata,
+  mergeNoteMetadataWithFileInfo,
   persistGlobalNoteIconSize,
 } from '../storage';
 import {
@@ -290,6 +291,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     modifiedAt: number | null,
     size: number | null,
     optimisticContent = content,
+    metadata?: NoteMetadataEntry,
   ) => {
     const latestState = get();
     const latestCurrentNote = latestState.currentNote;
@@ -301,8 +303,19 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       latestContent !== undefined &&
       latestContent !== optimisticContent;
     const nextContent = hasNewerContent ? latestContent : content;
+    const nextMetadata = metadata
+      ? replaceNoteEntry(
+          latestState.noteMetadata ?? createEmptyMetadataFile(),
+          path,
+          mergeNoteMetadataWithFileInfo(metadata, {
+            createdAt: metadata.createdAt ?? latestState.noteMetadata?.notes[path]?.createdAt,
+            modifiedAt,
+          }),
+        )
+      : latestState.noteMetadata;
 
     set({
+      noteMetadata: nextMetadata,
       noteContentsCache: setCachedNoteContent(
         latestState.noteContentsCache,
         path,
@@ -325,7 +338,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     path: string,
     content: string,
     vaultPath: string,
-    updatedAt: number,
   ) => {
     const fullPath = isAbsolutePath(path)
       ? path
@@ -338,6 +350,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         content,
         modifiedAt: getCachedNoteModifiedAt(get().noteContentsCache, path),
         size: get().noteContentsCache.get(path)?.size ?? null,
+        metadata: undefined,
       };
     }
 
@@ -345,12 +358,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       notesPath: vaultPath,
       currentNote: { path, content },
       cache: get().noteContentsCache,
-      updatedAt,
     });
     return {
       content: result.content,
       modifiedAt: result.modifiedAt,
       size: result.size,
+      metadata: result.metadata,
     };
   };
 
@@ -433,13 +446,16 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         }
 
         const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
-        const metadataUpdatedAt = Date.now();
-        const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, {
-          ...updates,
-          updatedAt: metadataUpdatedAt,
-        });
-        const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
         const cachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, path);
+        const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, updates);
+        const nextMetadata = replaceNoteEntry(
+          metadataBase,
+          path,
+          mergeNoteMetadataWithFileInfo(metadata, {
+            createdAt: metadataBase.notes[path]?.createdAt,
+            modifiedAt: cachedModifiedAt ?? metadataBase.notes[path]?.updatedAt,
+          }),
+        );
         const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
         set({
@@ -455,8 +471,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         }
 
         try {
-          const result = await writeNoteContent(path, content, '', metadataUpdatedAt);
-          applyCompletedMetadataWrite(path, result.content, result.modifiedAt, result.size, content);
+          const result = await writeNoteContent(path, content, '');
+          applyCompletedMetadataWrite(path, result.content, result.modifiedAt, result.size, content, result.metadata ?? metadata);
         } catch (error) {
           markMetadataWriteFailedDirty(path, error);
         }
@@ -474,10 +490,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         }
 
         const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
-        const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, {
-          ...updates,
-          updatedAt: Date.now(),
-        });
+        const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, updates);
         const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
         const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
 
@@ -545,20 +558,22 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     }
 
     const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
-    const metadataUpdatedAt = Date.now();
-    const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, {
-      ...updates,
-      updatedAt: metadataUpdatedAt,
-    });
-    const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
+    const cachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, path);
+    const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, updates);
     const isDraftNote = isDraftMetadataTarget;
+    const nextMetadataEntry = isDraftNote
+      ? metadata
+      : mergeNoteMetadataWithFileInfo(metadata, {
+          createdAt: metadataBase.notes[path]?.createdAt,
+          modifiedAt: cachedModifiedAt ?? metadataBase.notes[path]?.updatedAt,
+        });
+    const nextMetadata = replaceNoteEntry(metadataBase, path, nextMetadataEntry);
     const nextRootFolder = buildSortedRootFolder(
       latestState.rootFolder,
       latestState.rootFolder?.children ?? [],
       latestState.fileTreeSortMode,
       nextMetadata
     );
-    const cachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, path);
     const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
     if (!isActiveVaultRequest(vaultPathAtStart)) {
@@ -595,11 +610,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     }
 
     try {
-      const result = await writeNoteContent(path, content, vaultPathAtStart, metadataUpdatedAt);
+      const result = await writeNoteContent(path, content, vaultPathAtStart);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
         return;
       }
-      applyCompletedMetadataWrite(path, result.content, result.modifiedAt, result.size, content);
+      applyCompletedMetadataWrite(path, result.content, result.modifiedAt, result.size, content, result.metadata ?? metadata);
     } catch (error) {
       markMetadataWriteFailedDirty(path, error);
     }
@@ -1042,8 +1057,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       });
     },
 
-    getNoteIconSize: (_path: string) => {
-      return get().noteIconSize;
+    getNoteIconSize: (path: string) => {
+      const state = get();
+      return state.noteMetadata?.notes[path]?.iconSize ?? state.noteIconSize;
     },
 
     setGlobalIconSize: (size: number) => {
@@ -1051,9 +1067,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       set({ noteIconSize: normalized });
     },
 
-    setNoteIconSize: (_path: string, size: number) => {
-      const normalized = persistGlobalNoteIconSize(size);
-      set({ noteIconSize: normalized });
+    setNoteIconSize: (path: string, size: number) => {
+      void updateSingleNoteMetadata(path, { iconSize: size });
     },
   };
 };

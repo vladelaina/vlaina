@@ -165,6 +165,10 @@ function getStoredFileModifiedAt(file: StoredFile): number | undefined {
   return Number.isFinite(file.modifiedAt) ? file.modifiedAt : undefined;
 }
 
+function getStoredFileCreatedAt(file: StoredFile | null | undefined): number | undefined {
+  return file && Number.isFinite(file.createdAt) ? file.createdAt : undefined;
+}
+
 function createStoredFileInfo(file: StoredFile, path = file.path): FileInfo {
   return {
     name: path.split('/').pop() || '',
@@ -172,6 +176,7 @@ function createStoredFileInfo(file: StoredFile, path = file.path): FileInfo {
     isDirectory: false,
     isFile: true,
     size: getStoredFileByteLength(file),
+    createdAt: getStoredFileCreatedAt(file),
     modifiedAt: getStoredFileModifiedAt(file),
   };
 }
@@ -320,10 +325,10 @@ export class WebAdapter implements StorageAdapter {
     const incomingByteLength = getTextByteLength(content);
     assertWritableWebByteLength(incomingByteLength, normalizedPath);
 
+    const existingFile = await this.readStoredFile(normalizedPath);
     let finalContent = content;
     let finalByteLength = incomingByteLength;
     if (options?.append) {
-      const existingFile = await this.readStoredFile(normalizedPath);
       if (existingFile) {
         assertWritableWebByteLength(
           getStoredFileByteLength(existingFile) + incomingByteLength,
@@ -347,7 +352,7 @@ export class WebAdapter implements StorageAdapter {
         isBinary: false,
         size: finalByteLength,
         modifiedAt: Date.now(),
-        createdAt: Date.now(),
+        createdAt: getStoredFileCreatedAt(existingFile) ?? Date.now(),
       };
       
       const request = store.put(file);
@@ -369,9 +374,9 @@ export class WebAdapter implements StorageAdapter {
     const incomingContent = new Uint8Array(content);
     assertWritableWebByteLength(incomingContent.byteLength, normalizedPath);
 
+    const existingFile = await this.readStoredFile(normalizedPath);
     let finalContent = incomingContent;
     if (options?.append) {
-      const existingFile = await this.readStoredFile(normalizedPath);
       if (existingFile) {
         assertWritableWebByteLength(
           getStoredFileByteLength(existingFile) + incomingContent.byteLength,
@@ -398,7 +403,7 @@ export class WebAdapter implements StorageAdapter {
         isBinary: true,
         size: finalContent.length,
         modifiedAt: Date.now(),
-        createdAt: Date.now(),
+        createdAt: getStoredFileCreatedAt(existingFile) ?? Date.now(),
       };
       
       const request = store.put(file);

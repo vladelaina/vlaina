@@ -1,5 +1,6 @@
 import { getStorageAdapter, isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import {
+  mergeNoteMetadataWithFileInfo,
   safeWriteTextFile,
 } from '../storage';
 import type { CurrentNoteState, NoteMetadataEntry } from '../types';
@@ -37,7 +38,6 @@ interface SaveNoteDocumentOptions {
   notesPath: string;
   currentNote: CurrentNoteState;
   cache: NoteContentCache;
-  updatedAt?: number;
 }
 
 export interface LoadedNoteDocument {
@@ -45,6 +45,7 @@ export interface LoadedNoteDocument {
   modifiedAt: number | null;
   size: number | null;
   nextCache: NoteContentCache;
+  metadata: NoteMetadataEntry;
 }
 
 export interface SavedNoteDocument {
@@ -236,6 +237,7 @@ export async function loadNoteDocument({
           content: normalizedDiskContent,
           modifiedAt: diskModifiedAt,
           size: diskSize,
+          metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfo),
           nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
             updateBaseline: true,
             size: diskSize,
@@ -249,6 +251,7 @@ export async function loadNoteDocument({
       content: normalizedCachedContent,
       modifiedAt: cachedModifiedAt,
       size: cachedEntry?.size ?? null,
+      metadata: readNoteMetadataFromMarkdown(normalizedCachedContent),
       nextCache: normalizedCachedContent === cachedContent
         ? cache
         : setCachedNoteContent(cache, notePath, normalizedCachedContent, cachedModifiedAt, {
@@ -271,6 +274,7 @@ export async function loadNoteDocument({
     content: normalizedContent,
     modifiedAt,
     size,
+    metadata: mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedContent), fileInfo),
     nextCache: setCachedNoteContent(cache, notePath, normalizedContent, modifiedAt, {
       updateBaseline: true,
       size,
@@ -282,7 +286,6 @@ export async function saveNoteDocument({
   notesPath,
   currentNote,
   cache,
-  updatedAt,
 }: SaveNoteDocumentOptions): Promise<SavedNoteDocument> {
   const storage = getStorageAdapter();
   const notePath = normalizeStoredNotePath(currentNote.path);
@@ -306,6 +309,31 @@ export async function saveNoteDocument({
       diskModifiedAt !== cachedModifiedAt ||
       knownFileSizeChanged ||
       shouldVerifyMissingModifiedAt);
+  const writeNormalizedContent = async (sourceContent: string): Promise<SavedNoteDocument> => {
+    const { content } = updateNoteMetadataInMarkdown(sourceContent, {});
+    assertEditorSafeMarkdownContent(content);
+
+    markExpectedExternalChange(fullPath);
+    await safeWriteTextFile(fullPath, content);
+    markExpectedExternalChange(fullPath);
+
+    const fileInfo = await storage.stat(fullPath);
+    const modifiedAt = getKnownModifiedAt(fileInfo);
+    const size = getKnownFileSize(fileInfo);
+    const metadata = mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(content), fileInfo);
+
+    return {
+      content,
+      metadata,
+      modifiedAt,
+      size,
+      nextCache: setCachedNoteContent(cache, notePath, content, modifiedAt, {
+        updateBaseline: true,
+        size,
+      }),
+    };
+  };
+
   if (shouldCompareDiskContent && cachedEntry !== undefined) {
     assertReadableNoteFileInfo(fileInfoBeforeWrite);
     const diskContent = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
@@ -318,7 +346,11 @@ export async function saveNoteDocument({
     const comparableCurrentContent = stripUpdatedFrontmatter(normalizedCurrentContent);
     const comparableCachedContent = stripUpdatedFrontmatter(normalizedCachedContent);
     if (normalizedDiskContent === normalizedCurrentContent) {
-      const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
+      const cleanedDiskContent = updateNoteMetadataInMarkdown(normalizedDiskContent, {}).content;
+      if (cleanedDiskContent !== normalizedDiskContent) {
+        return writeNormalizedContent(normalizedDiskContent);
+      }
+      const metadata = mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfoBeforeWrite);
       return {
         content: normalizedDiskContent,
         metadata,
@@ -337,7 +369,11 @@ export async function saveNoteDocument({
       comparableDiskContent === comparableCurrentContent &&
       comparableCachedContent === comparableCurrentContent
     ) {
-      const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
+      const cleanedDiskContent = updateNoteMetadataInMarkdown(normalizedDiskContent, {}).content;
+      if (cleanedDiskContent !== normalizedDiskContent) {
+        return writeNormalizedContent(normalizedDiskContent);
+      }
+      const metadata = mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(normalizedDiskContent), fileInfoBeforeWrite);
       return {
         content: normalizedDiskContent,
         metadata,
@@ -357,53 +393,9 @@ export async function saveNoteDocument({
       if (mergedContent == null) {
         throw new NoteWriteConflictError();
       }
-      const { content, metadata } = updateNoteMetadataInMarkdown(mergedContent, {
-        updatedAt: updatedAt ?? Date.now(),
-      });
-      assertEditorSafeMarkdownContent(content);
-
-      markExpectedExternalChange(fullPath);
-      await safeWriteTextFile(fullPath, content);
-      markExpectedExternalChange(fullPath);
-
-      const fileInfo = await storage.stat(fullPath);
-      const modifiedAt = getKnownModifiedAt(fileInfo);
-      const size = getKnownFileSize(fileInfo);
-
-      return {
-        content,
-        metadata,
-        modifiedAt,
-        size,
-        nextCache: setCachedNoteContent(cache, notePath, content, modifiedAt, {
-          updateBaseline: true,
-          size,
-        }),
-      };
+      return writeNormalizedContent(mergedContent);
     }
   }
 
-  const { content, metadata } = updateNoteMetadataInMarkdown(normalizedCurrentContent, {
-    updatedAt: updatedAt ?? Date.now(),
-  });
-  assertEditorSafeMarkdownContent(content);
-
-  markExpectedExternalChange(fullPath);
-  await safeWriteTextFile(fullPath, content);
-  markExpectedExternalChange(fullPath);
-
-  const fileInfo = await storage.stat(fullPath);
-  const modifiedAt = getKnownModifiedAt(fileInfo);
-  const size = getKnownFileSize(fileInfo);
-
-  return {
-    content,
-    metadata,
-    modifiedAt,
-    size,
-    nextCache: setCachedNoteContent(cache, notePath, content, modifiedAt, {
-      updateBaseline: true,
-      size,
-    }),
-  };
+  return writeNormalizedContent(normalizedCurrentContent);
 }
