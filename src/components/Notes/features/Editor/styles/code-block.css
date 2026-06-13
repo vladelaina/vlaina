@@ -35,10 +35,27 @@
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  isolation: isolate;
+  overflow: visible !important;
   background-color: var(--vlaina-block-selection-color);
   border-radius: var(--vlaina-radius-1rem);
   box-shadow: var(--vlaina-block-selection-shadow);
   transition: none;
+}
+
+.milkdown .code-block-container.ProseMirror-selectednode::after,
+.milkdown .code-block-container.editor-block-selected::after {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-behind);
+  display: block !important;
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
 }
 
 .milkdown .code-block-container.editor-block-selected,
@@ -51,6 +68,15 @@
 .milkdown .code-block-container.editor-block-selected-contained {
   background: var(--vlaina-code-block-background);
   background-color: var(--vlaina-code-block-background);
+}
+
+.milkdown .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),
+.milkdown .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected-contained,
+.milkdown .ProseMirror.editor-block-selection-pending .editor-block-selected .code-block-container:not(.editor-block-selected),
+.milkdown .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected-contained {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode .cm-gutters,
@@ -239,4 +265,70 @@
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
   transition: none !important;
+}
+
+.milkdown .ProseMirror.editor-block-selection-large .code-block-container.editor-block-selected.editor-block-selected-large-rich {
+  isolation: isolate;
+  box-shadow: none !important;
+  contain: none;
+}
+
+.milkdown .ProseMirror.editor-block-selection-large .code-block-container.editor-block-selected.editor-block-selected-large-rich::after {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-behind);
+  display: block !important;
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror.editor-block-selection-active :is(
+  .code-block-container.editor-block-selected,
+  .editor-block-selected .code-block-container,
+  .code-block-container.editor-block-selected-contained
+) :is(
+  .code-block-chrome-header,
+  .code-block-editable,
+  .code-block-lazy-preview,
+  .code-block-lazy-line-numbers,
+  .cm-editor,
+  .cm-scroller,
+  .cm-content,
+  .cm-line,
+  .cm-activeLine,
+  .cm-activeLineGutter,
+  .cm-gutters,
+  .cm-gutter,
+  .cm-gutterElement,
+  .cm-lineNumbers,
+  .cm-gutter-filler
+),
+.milkdown .ProseMirror.editor-block-selection-pending :is(
+  .code-block-container.editor-block-selected,
+  .editor-block-selected .code-block-container,
+  .code-block-container.editor-block-selected-contained
+) :is(
+  .code-block-chrome-header,
+  .code-block-editable,
+  .code-block-lazy-preview,
+  .code-block-lazy-line-numbers,
+  .cm-editor,
+  .cm-scroller,
+  .cm-content,
+  .cm-line,
+  .cm-activeLine,
+  .cm-activeLineGutter,
+  .cm-gutters,
+  .cm-gutter,
+  .cm-gutterElement,
+  .cm-lineNumbers,
+  .cm-gutter-filler
+) {
+  background: transparent !important;
+  background-color: transparent !important;
 }

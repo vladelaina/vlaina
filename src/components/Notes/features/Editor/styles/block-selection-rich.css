@@ -8,9 +8,29 @@
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
-  background-color: var(--vlaina-block-selection-color);
+  isolation: isolate;
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  background-color: transparent;
   border-radius: var(--vlaina-radius-8px);
+  box-shadow: none;
+}
+
+.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode::before,
+.milkdown .ProseMirror .image-block-container.editor-block-selected::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-behind);
+  display: block !important;
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
   box-shadow: var(--vlaina-block-selection-shadow);
+  pointer-events: none;
 }
 
 .milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {

@@ -153,6 +153,22 @@ describe("editor block selection styles", () => {
       css,
       '.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-textlike::after'
     );
+    const largeTextlikeSelectionRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike {'
+    );
+    const largeTextlikeSelectionFillRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike::after {'
+    );
+    const largeRichSelectionRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-rich {'
+    );
+    const largeRichSelectionFillRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-rich::after {'
+    );
 
     expect(largeSelectionRule).toContain('background-color: var(--vlaina-block-selection-color);');
     expect(largeSelectionRule).toContain('box-shadow: none !important;');
@@ -160,6 +176,21 @@ describe("editor block selection styles", () => {
     expect(largeSelectionRule).toContain('contain: paint;');
     expect(largeSelectionRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);');
     expect(largeSelectionFillRule).toContain('display: none !important;');
+    expect(largeTextlikeSelectionRule).toContain('background-color: transparent;');
+    expect(largeTextlikeSelectionRule).toContain('box-decoration-break: clone;');
+    expect(largeTextlikeSelectionRule).toContain('contain: none;');
+    expect(largeTextlikeSelectionFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
+    expect(largeTextlikeSelectionFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
+    expect(largeTextlikeSelectionFillRule).toContain('display: block !important;');
+    expect(largeTextlikeSelectionFillRule).toContain('background: var(--vlaina-block-selection-color);');
+    expect(largeRichSelectionRule).toContain('isolation: isolate;');
+    expect(largeRichSelectionRule).toContain('contain: none;');
+    expect(largeRichSelectionFillRule).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y));');
+    expect(largeRichSelectionFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
+    expect(largeRichSelectionFillRule).toContain('bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));');
+    expect(largeRichSelectionFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
+    expect(largeRichSelectionFillRule).toContain('display: block !important;');
+    expect(largeRichSelectionFillRule).toContain('background: var(--vlaina-block-selection-color);');
     expect(css).toContain('.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike,');
   });
 
@@ -280,12 +311,31 @@ describe("editor block selection styles", () => {
 
   it('uses rich vertical bleed for image block selection overlays', () => {
     const css = readBlockSelectionStyle();
+    const imageSelectionRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode,'
+    );
+    const imageSelectionFillRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode::before,'
+    );
 
     expect(css).toContain('.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode,');
     expect(css).toContain('.milkdown .ProseMirror .image-block-container.editor-block-selected {');
     expect(css).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
     expect(css).toContain('--vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);');
-    expect(css).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
+    expect(imageSelectionRule).toContain('display: block !important;');
+    expect(imageSelectionRule).toContain('width: 100% !important;');
+    expect(imageSelectionRule).toContain('min-width: 100% !important;');
+    expect(imageSelectionRule).toContain('background-color: transparent;');
+    expect(imageSelectionRule).toContain('box-shadow: none;');
+    expect(imageSelectionFillRule).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y));');
+    expect(imageSelectionFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
+    expect(imageSelectionFillRule).toContain('bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));');
+    expect(imageSelectionFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
+    expect(imageSelectionFillRule).toContain('display: block !important;');
+    expect(imageSelectionFillRule).toContain('background: var(--vlaina-block-selection-color);');
+    expect(imageSelectionFillRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
     expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {');
     expect(css).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });

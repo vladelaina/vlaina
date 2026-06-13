@@ -480,11 +480,42 @@ describe('blockSelectionUtils', () => {
     );
 
     expect(classes).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
-    expect(classes[0]).toBe('editor-block-selected md-focus editor-block-selected-large-item');
+    expect(classes[0]).toBe('editor-block-selected md-focus editor-block-selected-large-item editor-block-selected-large-textlike');
     expect(classes.some((className) => className.includes('editor-block-selected-textlike'))).toBe(false);
+    expect(classes.every((className) => className.includes('editor-block-selected-large-textlike'))).toBe(true);
     expect(classes.some((className) => className.includes('editor-block-selected-has-next'))).toBe(false);
     expect(classes.some((className) => className.includes('editor-block-selected-has-previous'))).toBe(false);
     expect(classes.some((className) => className.includes('editor-block-selected-parent-marker'))).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('marks rich blocks on the large selection path so they keep a visible selection surface', async () => {
+    const markdown = [
+      ...Array.from(
+        { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD - 1 },
+        (_, index) => `paragraph ${index}`,
+      ),
+      '```js\nconst value = 1;\n```',
+    ].join('\n\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const ranges: Array<{ from: number; to: number }> = [];
+    view.state.doc.forEach((node, offset) => {
+      ranges.push({ from: offset, to: offset + node.nodeSize });
+    });
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    const classes = decorations.find().map((decoration: Decoration) =>
+      String((decoration.type as any).attrs?.class ?? '')
+    );
+
+    expect(classes).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
+    expect(classes.filter((className) => className.includes('editor-block-selected-large-rich'))).toHaveLength(1);
+    expect(classes.at(-1)).toBe('editor-block-selected md-focus editor-block-selected-large-item editor-block-selected-large-rich');
+    expect(classes.slice(0, -1).every((className) => className.includes('editor-block-selected-large-textlike'))).toBe(true);
+    expect(classes.some((className) => className.includes('editor-block-selected-has-next'))).toBe(false);
+    expect(classes.some((className) => className.includes('editor-block-selected-has-previous'))).toBe(false);
 
     await editor.destroy();
   });

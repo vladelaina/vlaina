@@ -5,3 +5,18 @@
 @import './theme-compatibility/base.css';
 @import './theme-compatibility/typora.css';
 @import './theme-compatibility/typora-extensions.css';
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected {
+  background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  background-color: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected-contained,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .editor-block-selected .code-block-container:not(.editor-block-selected),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected-contained {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}

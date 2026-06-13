@@ -4,10 +4,11 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { blankAreaDragBoxPlugin } from './blankAreaDragBoxPlugin';
-import { dispatchBlockSelectionAction } from './blockSelectionPluginState';
+import { blankAreaDragBoxPluginKey, dispatchBlockSelectionAction } from './blockSelectionPluginState';
 import {
   collectRangeRows,
   collectSelectedHardBreakLineRanges,
+  createBlockSelectionLineFillOverlay,
   MAX_BLOCK_SELECTION_LINE_FILL_DOM_RECTS,
   MAX_BLOCK_SELECTION_LINE_FILL_RANGES,
 } from './blockSelectionLineFillOverlay';
@@ -43,7 +44,24 @@ function getParagraphRanges(view: EditorView) {
   return ranges;
 }
 
+function mockRect(element: Element, rect: Partial<DOMRect>) {
+  const fullRect = {
+    x: rect.left ?? 0,
+    y: rect.top ?? 0,
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 0,
+    height: 0,
+    toJSON: () => ({}),
+    ...rect,
+  } as DOMRect;
+  vi.spyOn(element, 'getBoundingClientRect').mockReturnValue(fullRect);
+}
+
 afterEach(() => {
+  vi.restoreAllMocks();
   document.body.innerHTML = '';
 });
 
@@ -210,5 +228,51 @@ describe('blockSelectionLineFillOverlay', () => {
     } finally {
       await editor.destroy();
     }
+  });
+
+  it('adds line fills for selected image blocks with collapsed node-view rects', () => {
+    const host = document.createElement('div');
+    const editorDom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const image = document.createElement('div');
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          content: { size: 1 },
+          childCount: 0,
+          child: vi.fn(),
+          resolve: vi.fn(() => ({ nodeBefore: null })),
+        },
+        [blankAreaDragBoxPluginKey.key]: {
+          selectedBlocks: [{ from: 0, to: 1 }],
+        },
+      },
+    } as unknown as EditorView;
+
+    document.body.appendChild(host);
+    host.appendChild(editorDom);
+    paragraph.className = 'editor-paragraph-has-image-block';
+    image.className = 'image-block-container editor-block-selected';
+    image.style.setProperty('--vlaina-block-selection-bleed-x-start', '72px');
+    image.style.setProperty('--vlaina-block-selection-bleed-x-end', '72px');
+    paragraph.appendChild(image);
+    editorDom.appendChild(paragraph);
+
+    mockRect(host, { left: 100, top: 20, right: 600, bottom: 420, width: 500, height: 400 });
+    mockRect(editorDom, { left: 100, top: 20, right: 600, bottom: 420, width: 500, height: 400 });
+    mockRect(paragraph, { left: 100, top: 80, right: 600, bottom: 180, width: 500, height: 100 });
+    mockRect(image, { left: 100, top: 96, right: 100, bottom: 156, width: 0, height: 60 });
+
+    const overlay = createBlockSelectionLineFillOverlay(view);
+    const fill = host.querySelector<HTMLElement>('.editor-block-selection-line-fill');
+
+    expect(fill).not.toBeNull();
+    expect(fill?.style.left).toBe('-72px');
+    expect(fill?.style.top).toBe('76px');
+    expect(fill?.style.width).toBe('644px');
+    expect(fill?.style.height).toBe('60px');
+
+    overlay.destroy();
   });
 });

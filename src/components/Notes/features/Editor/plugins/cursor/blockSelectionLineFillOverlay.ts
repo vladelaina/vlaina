@@ -11,6 +11,7 @@ export const MAX_BLOCK_SELECTION_LINE_FILL_RANGES = 512;
 const MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE = 128;
 const MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS = 1024;
 export const MAX_BLOCK_SELECTION_LINE_FILL_DOM_RECTS = 1024;
+const SELECTED_IMAGE_BLOCK_SELECTOR = '.image-block-container.editor-block-selected';
 
 interface LineFillOverlay {
   update: (view: EditorView) => void;
@@ -44,8 +45,10 @@ function readCssPx(style: CSSStyleDeclaration, property: string, fallback = 0): 
   return Number.isFinite(value) ? value : fallback;
 }
 
-function resolveBlockSelectionBleedXEnd(paragraph: HTMLElement): number {
-  const selectedElement = paragraph.querySelector<HTMLElement>('.editor-block-selected') ?? paragraph;
+function resolveBlockSelectionBleedXEnd(element: HTMLElement): number {
+  const selectedElement = element.classList.contains('editor-block-selected')
+    ? element
+    : element.querySelector<HTMLElement>('.editor-block-selected') ?? element;
   return readCssPx(
     window.getComputedStyle(selectedElement),
     '--vlaina-block-selection-bleed-x-end',
@@ -53,8 +56,10 @@ function resolveBlockSelectionBleedXEnd(paragraph: HTMLElement): number {
   );
 }
 
-function resolveBlockSelectionBleedXStart(paragraph: HTMLElement): number {
-  const selectedElement = paragraph.querySelector<HTMLElement>('.editor-block-selected') ?? paragraph;
+function resolveBlockSelectionBleedXStart(element: HTMLElement): number {
+  const selectedElement = element.classList.contains('editor-block-selected')
+    ? element
+    : element.querySelector<HTMLElement>('.editor-block-selected') ?? element;
   return readCssPx(
     window.getComputedStyle(selectedElement),
     '--vlaina-block-selection-bleed-x-start',
@@ -300,6 +305,66 @@ function resolveParagraphElement(view: EditorView, range: BlockRange): HTMLEleme
   }
 }
 
+function appendLineFillElement(
+  doc: Document,
+  layer: HTMLElement,
+  hostRect: DOMRect,
+  fillStart: number,
+  fillRight: number,
+  top: number,
+  bottom: number,
+): boolean {
+  if (fillRight - fillStart <= 0.5 || bottom - top <= 0.5) return false;
+
+  const fill = doc.createElement('div');
+  fill.className = LINE_FILL_CLASS;
+  fill.style.left = `${fillStart - hostRect.left}px`;
+  fill.style.top = `${top - hostRect.top}px`;
+  fill.style.width = `${fillRight - fillStart}px`;
+  fill.style.height = `${bottom - top}px`;
+  layer.appendChild(fill);
+  return true;
+}
+
+function resolveImageFillAnchor(view: EditorView, image: HTMLElement): HTMLElement {
+  const paragraph = image.closest('p');
+  return paragraph instanceof HTMLElement && view.dom.contains(paragraph) ? paragraph : image;
+}
+
+function appendSelectedImageBlockLineFills(
+  view: EditorView,
+  doc: Document,
+  layer: HTMLElement,
+  hostRect: DOMRect,
+  viewportRect: RectBounds | null,
+  availableElements: number,
+): number {
+  if (availableElements <= 0) return 0;
+
+  const images = Array.from(view.dom.querySelectorAll<HTMLElement>(SELECTED_IMAGE_BLOCK_SELECTOR));
+  let createdFills = 0;
+
+  for (const image of images) {
+    if (createdFills >= availableElements) break;
+
+    const anchor = resolveImageFillAnchor(view, image);
+    const anchorRect = anchor.getBoundingClientRect();
+    if (!isRectNearViewport(anchorRect, viewportRect)) continue;
+
+    const imageRect = image.getBoundingClientRect();
+    const rowTop = imageRect.height > 0 ? imageRect.top : anchorRect.top;
+    const rowBottom = imageRect.height > 0 ? imageRect.bottom : anchorRect.bottom;
+    const fillStart = anchorRect.left - resolveBlockSelectionBleedXStart(anchor);
+    const fillRight = resolveLineFillRight(view, anchor, anchorRect);
+
+    if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, rowTop, rowBottom)) {
+      createdFills += 1;
+    }
+  }
+
+  return createdFills;
+}
+
 export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillOverlay {
   const doc = view.dom.ownerDocument;
   const host = view.dom.parentElement ?? view.dom;
@@ -364,18 +429,20 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       const rows = collectRangeRows(updatedView, range);
       for (const row of rows) {
         if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
-        if (fillRight - fillStart <= 0.5) continue;
-
-        const fill = doc.createElement('div');
-        fill.className = LINE_FILL_CLASS;
-        fill.style.left = `${fillStart - hostRect.left}px`;
-        fill.style.top = `${row.top - hostRect.top}px`;
-        fill.style.width = `${fillRight - fillStart}px`;
-        fill.style.height = `${row.bottom - row.top}px`;
-        layer.appendChild(fill);
-        createdFills += 1;
+        if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, row.top, row.bottom)) {
+          createdFills += 1;
+        }
       }
     }
+
+    createdFills += appendSelectedImageBlockLineFills(
+      updatedView,
+      doc,
+      layer,
+      hostRect,
+      viewportRect,
+      MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS - createdFills,
+    );
   };
 
   const scheduleViewportUpdate = () => {

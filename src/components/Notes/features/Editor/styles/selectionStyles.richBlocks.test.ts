@@ -69,7 +69,14 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('background: var(--vlaina-code-block-background) !important;');
     expect(css).toContain('background-color: var(--vlaina-code-block-background) !important;');
     expect(css).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
+    expect(css).toContain('isolation: isolate;');
+    expect(css).toContain('overflow: visible !important;');
     expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
+    expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode::after,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-selected::after {');
+    expect(css).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));');
+    expect(css).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
+    expect(css).toContain('display: block !important;');
     expect(css).toContain('transition: none;');
     expect(css).toContain('.milkdown .code-block-container {');
     expect(css).toContain('transition: none;');
@@ -100,6 +107,55 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).not.toContain('li.editor-block-selected:has(> .code-block-container)');
     expect(codeCss).not.toContain('display: flow-root;');
     expect(codeCss).not.toContain('overflow: visible;');
+  });
+
+  it('lets selected code block internals reveal the block selection surface while selecting blocks', () => {
+    const codeCss = readStyleFile('code-block.css');
+    const rule = extractCssRule(
+      codeCss,
+      '.milkdown .ProseMirror.editor-block-selection-active :is('
+    );
+    const containedRule = extractCssRule(
+      codeCss,
+      '.milkdown .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),'
+    );
+    const largeCodeRule = extractCssRule(
+      codeCss,
+      '.milkdown .ProseMirror.editor-block-selection-large .code-block-container.editor-block-selected.editor-block-selected-large-rich {'
+    );
+    const largeCodeFillRule = extractCssRule(
+      codeCss,
+      '.milkdown .ProseMirror.editor-block-selection-large .code-block-container.editor-block-selected.editor-block-selected-large-rich::after {'
+    );
+
+    expect(rule).toContain('.code-block-container.editor-block-selected,');
+    expect(rule).toContain('.editor-block-selected .code-block-container,');
+    expect(rule).toContain('.code-block-container.editor-block-selected-contained');
+    expect(rule).toContain('.code-block-chrome-header,');
+    expect(rule).toContain('.code-block-editable,');
+    expect(rule).toContain('.code-block-lazy-preview,');
+    expect(rule).toContain('.code-block-lazy-line-numbers,');
+    expect(rule).toContain('.cm-editor,');
+    expect(rule).toContain('.cm-scroller,');
+    expect(rule).toContain('.cm-content,');
+    expect(rule).toContain('.cm-line,');
+    expect(rule).toContain('.cm-gutters,');
+    expect(rule).toContain('background: transparent !important;');
+    expect(rule).toContain('background-color: transparent !important;');
+    expect(codeCss).toContain('.milkdown .ProseMirror.editor-block-selection-pending :is(');
+    expect(containedRule).toContain('.code-block-container.editor-block-selected-contained');
+    expect(containedRule).toContain('background: transparent !important;');
+    expect(containedRule).toContain('background-color: transparent !important;');
+    expect(containedRule).toContain('box-shadow: none !important;');
+    expect(largeCodeRule).toContain('isolation: isolate;');
+    expect(largeCodeRule).toContain('box-shadow: none !important;');
+    expect(largeCodeRule).toContain('contain: none;');
+    expect(largeCodeFillRule).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y));');
+    expect(largeCodeFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
+    expect(largeCodeFillRule).toContain('bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));');
+    expect(largeCodeFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
+    expect(largeCodeFillRule).toContain('display: block !important;');
+    expect(largeCodeFillRule).toContain('background: var(--vlaina-block-selection-color);');
   });
 
   it('sizes selected image parent blocks without selected-state child scans', () => {

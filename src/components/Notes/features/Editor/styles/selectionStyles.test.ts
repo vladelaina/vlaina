@@ -61,6 +61,17 @@ describe("editor style theme compatibility", () => {
     expect(css).not.toContain(":has(");
   });
 
+  it('keeps external theme code block backgrounds from covering block selection paint', () => {
+    const css = readThemeCompatibilityStyle();
+
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected,");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected {");
+    expect(css).toContain("background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected-contained {");
+    expect(css).toContain("box-shadow: none !important;");
+  });
+
   it('does not use CSS :has selectors in editor styles', () => {
     const offenders = readEditorStyleSourceFiles()
       .filter(({ source }) => source.includes(':has('))

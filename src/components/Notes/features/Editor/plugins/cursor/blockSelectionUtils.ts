@@ -30,6 +30,8 @@ export interface BlockRectYIndex {
 
 export const LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD = 128;
 const LARGE_BLOCK_SELECTION_DECORATION_CLASS = 'editor-block-selected md-focus editor-block-selected-large-item';
+const LARGE_TEXTLIKE_BLOCK_SELECTION_DECORATION_CLASS = `${LARGE_BLOCK_SELECTION_DECORATION_CLASS} editor-block-selected-large-textlike`;
+const LARGE_RICH_BLOCK_SELECTION_DECORATION_CLASS = `${LARGE_BLOCK_SELECTION_DECORATION_CLASS} editor-block-selected-large-rich`;
 
 export function createDragSelectionRect(
   startX: number,
@@ -542,12 +544,15 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
   const decorations = displayRanges.flatMap((range) => {
     const isNodeRange = isNodeDecorationRange(doc, range);
     if (useLargeSelectionRendering) {
+      const className = isTextLikeDecorationRange(doc, range, isNodeRange)
+        ? LARGE_TEXTLIKE_BLOCK_SELECTION_DECORATION_CLASS
+        : LARGE_RICH_BLOCK_SELECTION_DECORATION_CLASS;
       if (isNodeRange) {
-        return [Decoration.node(range.from, range.to, { class: LARGE_BLOCK_SELECTION_DECORATION_CLASS })];
+        return [Decoration.node(range.from, range.to, { class: className })];
       }
       const inlineRange = trimTrailingHardBreakFromInlineRange(doc, range);
       return inlineRange ? [Decoration.inline(inlineRange.from, inlineRange.to, {
-        class: LARGE_BLOCK_SELECTION_DECORATION_CLASS,
+        class: className,
       })] : [];
     }
 
