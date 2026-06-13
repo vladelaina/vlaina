@@ -4,6 +4,7 @@ import type { RelativeMarkdownThemeCssUrl } from './types';
 import { isRelativeCssAssetUrl, renderCssUrl, splitCssUrlSuffix } from './urlIdentity';
 
 export const MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY = 8;
+type MarkdownThemeCssUrlResolution = string | null | false;
 
 export async function rebaseRelativeMarkdownThemeCssUrls(
   css: string,
@@ -20,14 +21,9 @@ export async function rebaseRelativeMarkdownThemeCssUrls(
 
 export async function rewriteRelativeMarkdownThemeCssUrls(
   css: string,
-  sourcePath: string | null | undefined,
-  resolveAssetUrl: (asset: RelativeMarkdownThemeCssUrl) => Promise<string | null>
+  _sourcePath: string | null | undefined,
+  resolveAssetUrl: (asset: RelativeMarkdownThemeCssUrl) => Promise<MarkdownThemeCssUrlResolution>
 ): Promise<string> {
-  const sourceDir = sourcePath ? getParentPath(sourcePath) : null;
-  if (!sourceDir) {
-    return css;
-  }
-
   const tokens = findCssUrlTokens(css);
   if (tokens.length === 0) {
     return css;
@@ -47,6 +43,9 @@ export async function rewriteRelativeMarkdownThemeCssUrls(
       const { path, suffix } = splitCssUrlSuffix(token.url);
       try {
         const resolvedUrl = await resolveAssetUrl({ url: token.url, path, suffix });
+        if (resolvedUrl === false) {
+          return renderCssUrl('');
+        }
         return resolvedUrl ? renderCssUrl(resolvedUrl) : token.raw;
       } catch {
         return token.raw;

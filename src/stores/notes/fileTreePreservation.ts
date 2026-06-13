@@ -3,6 +3,7 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { sortFileTree } from './fileTreeSorting';
 import { findNode } from './fileTreeUtils';
 import type { FileTreeNode } from './types';
+import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath } from './utils/fs/vaultPathContainment';
 
 function buildMissingPathChain(pathSegments: string[], fullPath: string, parentPath: string): FileTreeNode {
@@ -39,7 +40,7 @@ function buildMissingPathChain(pathSegments: string[], fullPath: string, parentP
 
 export function ensureFileNodeInTree(nodes: FileTreeNode[], path: string): FileTreeNode[] {
   const normalizedPath = normalizeVaultRelativePath(path);
-  if (!normalizedPath || !isSupportedMarkdownPath(normalizedPath)) {
+  if (!normalizedPath || hasInternalNotePathSegment(normalizedPath) || !isSupportedMarkdownPath(normalizedPath)) {
     return nodes;
   }
 

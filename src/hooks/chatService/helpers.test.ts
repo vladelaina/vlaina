@@ -182,7 +182,7 @@ describe('chat service helpers', () => {
     expect(result.content).not.toContain('file://');
   });
 
-  it('stores file attachment asset URLs without exposing file URLs in chat content', async () => {
+  it('does not resolve file attachment asset URLs without a trusted attachment path', async () => {
     const result = await buildMessageImageSources([
       createAttachment({
         path: '',
@@ -191,8 +191,7 @@ describe('chat service helpers', () => {
       }),
     ]);
 
-    expect(result.imageSources).toEqual(['attachment://demo%20image.png']);
-    expect(result.content).toBe('![image](<attachment://demo%20image.png>)');
+    expect(result).toEqual({ content: '', imageSources: [] });
     expect(result.content).not.toContain('file://');
   });
 
@@ -672,6 +671,7 @@ describe('loadMentionedNotes', () => {
           children: [
             { id: 'docs/alpha.markdown', name: 'alpha.markdown', path: 'docs/alpha.markdown', isFolder: false },
             { id: 'docs/beta.mdown', name: 'beta.mdown', path: 'docs/beta.mdown', isFolder: false },
+            { id: 'docs/gamma.mkd', name: 'gamma.mkd', path: 'docs/gamma.mkd', isFolder: false },
             { id: 'docs/skip.txt', name: 'skip.txt', path: 'docs/skip.txt', isFolder: false },
           ],
         },
@@ -680,6 +680,7 @@ describe('loadMentionedNotes', () => {
     mocks.notesState.noteContentsCache = new Map([
       ['docs/alpha.markdown', { content: '# Alpha' }],
       ['docs/beta.mdown', { content: '# Beta' }],
+      ['docs/gamma.mkd', { content: '# Gamma' }],
     ]);
 
     const notes = await loadMentionedNotes([
@@ -689,6 +690,7 @@ describe('loadMentionedNotes', () => {
     expect(notes.slice(1)).toEqual([
       { path: 'docs/alpha.markdown', title: 'Docs/alpha.markdown', kind: 'note', content: '# Alpha' },
       { path: 'docs/beta.mdown', title: 'Docs/beta.mdown', kind: 'note', content: '# Beta' },
+      { path: 'docs/gamma.mkd', title: 'Docs/gamma.mkd', kind: 'note', content: '# Gamma' },
     ]);
   });
 
@@ -705,6 +707,7 @@ describe('loadMentionedNotes', () => {
       if (path === '/vault/docs/nested') {
         return [
           { name: 'beta.mdown', path: '/vault/docs/nested/beta.mdown', isDirectory: false, isFile: true },
+          { name: 'gamma.mkd', path: '/vault/docs/nested/gamma.mkd', isDirectory: false, isFile: true },
           { name: 'huge.md', path: '/vault/docs/nested/huge.md', isDirectory: false, isFile: true },
         ];
       }
@@ -718,6 +721,7 @@ describe('loadMentionedNotes', () => {
     mocks.storage.readFile.mockImplementation(async (path: string) => {
       if (path === '/vault/docs/alpha.markdown') return '# Alpha';
       if (path === '/vault/docs/nested/beta.mdown') return '# Beta';
+      if (path === '/vault/docs/nested/gamma.mkd') return '# Gamma';
       return '# Unexpected';
     });
 
@@ -733,6 +737,7 @@ describe('loadMentionedNotes', () => {
     expect(notes.slice(1)).toEqual([
       { path: 'docs/alpha.markdown', title: 'Docs/alpha', kind: 'note', content: '# Alpha' },
       { path: 'docs/nested/beta.mdown', title: 'Docs/nested/beta', kind: 'note', content: '# Beta' },
+      { path: 'docs/nested/gamma.mkd', title: 'Docs/nested/gamma', kind: 'note', content: '# Gamma' },
     ]);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/outside/ignored.markdown', MAX_NOTE_MENTION_READ_BYTES);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/nested/huge.md', MAX_NOTE_MENTION_READ_BYTES);

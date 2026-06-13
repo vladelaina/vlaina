@@ -13,16 +13,8 @@ import {
   MAX_IMPORTED_THEME_ASSET_BYTES,
   MAX_IMPORTED_THEME_ASSETS,
 } from './constants';
-import { isThemeRelativePathInsideDirectory, sanitizeAssetFilename } from './metadata';
+import { normalizeThemeRelativePathInsideDirectory, sanitizeAssetFilename } from './metadata';
 import { getThemeAssetPath } from './paths';
-
-async function resolveOriginalThemeAssetUrl(
-  sourceDir: string,
-  asset: RelativeMarkdownThemeCssUrl
-): Promise<string | null> {
-  const sourceAssetPath = await joinPath(sourceDir, asset.path);
-  return `${await toFileUrl(sourceAssetPath)}${asset.suffix}`;
-}
 
 async function copyImportedThemeAsset({
   themeId,
@@ -34,7 +26,7 @@ async function copyImportedThemeAsset({
   sourceDir: string;
   asset: RelativeMarkdownThemeCssUrl;
   assetFilename: string;
-}): Promise<string | null> {
+}): Promise<string | false> {
   const sourceAssetPath = await joinPath(sourceDir, asset.path);
   const targetAssetPath = await getThemeAssetPath(themeId, assetFilename);
   const storage = getStorageAdapter();
@@ -46,16 +38,16 @@ async function copyImportedThemeAsset({
       info?.isDirectory === true ||
       hasInvalidImportedThemeFileSize(info, MAX_IMPORTED_THEME_ASSET_BYTES)
     ) {
-      return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
+      return false;
     }
     const bytes = await storage.readBinaryFile(sourceAssetPath, MAX_IMPORTED_THEME_ASSET_BYTES);
     if (bytes.byteLength > MAX_IMPORTED_THEME_ASSET_BYTES) {
-      return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
+      return false;
     }
     await storage.writeBinaryFile(targetAssetPath, bytes, { recursive: true });
     return `${await toFileUrl(targetAssetPath)}${asset.suffix}`;
   } catch {
-    return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
+    return false;
   }
 }
 
@@ -71,22 +63,24 @@ export async function rewriteImportedThemeAssetUrls(
     css,
     sourcePath,
     async (asset) => {
-      if (!sourceDir) return null;
-      if (!isThemeRelativePathInsideDirectory(sourceDir, asset.path)) {
-        return null;
+      if (!sourceDir) return false;
+      const safeAssetPath = normalizeThemeRelativePathInsideDirectory(sourceDir, asset.path);
+      if (!safeAssetPath) {
+        return false;
       }
-      if (copiedAssetFilenames.size >= MAX_IMPORTED_THEME_ASSETS && !copiedAssetFilenames.has(asset.path)) {
-        return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
+      const safeAsset = { ...asset, path: safeAssetPath };
+      if (copiedAssetFilenames.size >= MAX_IMPORTED_THEME_ASSETS && !copiedAssetFilenames.has(safeAssetPath)) {
+        return false;
       }
 
-      const assetFilename = copiedAssetFilenames.get(asset.path)
-        ?? sanitizeAssetFilename(asset.path, copiedAssetFilenames.size);
-      copiedAssetFilenames.set(asset.path, assetFilename);
+      const assetFilename = copiedAssetFilenames.get(safeAssetPath)
+        ?? sanitizeAssetFilename(safeAssetPath, copiedAssetFilenames.size);
+      copiedAssetFilenames.set(safeAssetPath, assetFilename);
 
       return copyImportedThemeAsset({
         themeId,
         sourceDir,
-        asset,
+        asset: safeAsset,
         assetFilename,
       });
     }

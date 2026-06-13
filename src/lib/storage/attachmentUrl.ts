@@ -1,4 +1,3 @@
-const ATTACHMENT_DIR_MARKER = '/attachments/';
 const ATTACHMENT_FILENAME_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 export const MAX_ATTACHMENT_FILENAME_CHARS = 512;
 export const MAX_ATTACHMENT_FILENAME_ENCODED_CHARS = 2048;
@@ -45,18 +44,14 @@ export function isAppFileAttachmentUrl(url: URL): boolean {
 }
 
 export function isStoredAttachmentSrc(src: string | null | undefined): boolean {
-  const trimmed = src?.trim() ?? '';
-  if (trimmed.length > MAX_ATTACHMENT_SOURCE_CHARS) {
-    return false;
-  }
-  const lower = trimmed.toLowerCase();
-  return lower.startsWith('attachment://') || lower.startsWith('app-file://attachment/');
+  return extractStoredAttachmentFilename(src) !== null;
 }
 
 export function extractStoredAttachmentFilename(src: string | null | undefined): string | null {
   const trimmed = src?.trim() ?? '';
   if (!trimmed) return null;
   if (trimmed.length > MAX_ATTACHMENT_SOURCE_CHARS) return null;
+  if (trimmed.includes('\\')) return null;
   const lower = trimmed.toLowerCase();
 
   if (lower.startsWith('attachment://')) {
@@ -67,19 +62,7 @@ export function extractStoredAttachmentFilename(src: string | null | undefined):
     return decodeAttachmentFilename(stripUrlSuffix(trimmed.slice('app-file://attachment/'.length)));
   }
 
-  if (/^[^/\\]+\.[a-z0-9]+$/i.test(trimmed)) {
-    return sanitizeAttachmentFilename(trimmed);
-  }
-
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol !== 'file:') return null;
-    const markerIndex = url.pathname.lastIndexOf(ATTACHMENT_DIR_MARKER);
-    if (markerIndex === -1) return null;
-    return decodeAttachmentFilename(url.pathname.slice(markerIndex + ATTACHMENT_DIR_MARKER.length));
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 export function inferAttachmentMimeTypeFromFilename(filename: string): string {

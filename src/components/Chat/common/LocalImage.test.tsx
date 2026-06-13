@@ -114,16 +114,15 @@ describe('LocalImage', () => {
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
-  it('keeps bare image filenames mapped to stored attachments', async () => {
+  it('does not map bare image filenames to stored attachments', async () => {
     render(<LocalImage src="demo.png" alt="attachment" />);
 
-    const image = await screen.findByAltText('attachment');
-    expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'demo.png');
-    expect(mocks.readBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/demo.png',
-      MAX_ATTACHMENT_IMAGE_BYTES,
-    );
-    expect(image).toHaveAttribute('src', 'data:image/png;base64,PHN2Zz4=');
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(screen.queryByAltText('attachment')).not.toBeInTheDocument();
+    expect(mocks.joinPath).not.toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'demo.png');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('rejects non-image stored attachment filenames before reading storage', async () => {

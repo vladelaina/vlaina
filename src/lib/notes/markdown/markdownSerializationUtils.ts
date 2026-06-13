@@ -113,11 +113,11 @@ const FAST_NORMALIZATION_MIN_LENGTH = 1_000_000;
 const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
 const ESCAPED_URL_SCHEME_PATTERN = /\b(https?)\\:(?=\/\/)/gi;
 const MARKDOWN_AUTOLINK_LITERAL_PATTERN =
-  /<((?:https?:\/\/|mailto:)[^\s<>"']+|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)>/g;
+  /<((?:https?:\/\/|mailto:)[^\s<>"']+|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)>/gi;
 const EMAIL_ADDRESS_SOURCE = String.raw`[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+`;
 const MAILTO_EMAIL_MARKDOWN_LINK_PATTERN = new RegExp(
   String.raw`(^|[^!])\[(${EMAIL_ADDRESS_SOURCE})\]\(mailto:(${EMAIL_ADDRESS_SOURCE})\)`,
-  'g'
+  'gi'
 );
 const FAST_NORMALIZATION_STRUCTURAL_LINE_PATTERN =
   /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||#{1,6}[ \t]*$|[-*_][ \t]*[-*_][ \t]*[-*_]|=+[ \t]*$)/;
@@ -187,7 +187,7 @@ function canUseLargePlainMarkdownNormalizationFastPath(text: string): boolean {
     text.includes('✓') ||
     text.includes('✔') ||
     text.includes('√') ||
-    text.includes('](mailto:') ||
+    containsAsciiCaseInsensitive(text, '](mailto:') ||
     MARKDOWN_SPACE_ENTITY_PATTERN.test(text)
   ) {
     return false;

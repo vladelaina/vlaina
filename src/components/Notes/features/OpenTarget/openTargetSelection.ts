@@ -4,6 +4,7 @@ import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNote
 import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 
 export interface ResolvedOpenNoteTarget {
@@ -26,7 +27,10 @@ function normalizeMarkdownSelectionPath(path: string): string {
 
 function hasExplicitNonPathScheme(path: string): boolean {
   const trimmed = path.trim();
-  return EXPLICIT_URL_SCHEME_PATTERN.test(trimmed) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed);
+  return (
+    (EXPLICIT_URL_SCHEME_PATTERN.test(trimmed) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed)) ||
+    BACKSLASH_ESCAPED_SCHEME_PATTERN.test(trimmed)
+  );
 }
 
 function hasUnsafeMarkdownSelectionPathSegment(path: string): boolean {

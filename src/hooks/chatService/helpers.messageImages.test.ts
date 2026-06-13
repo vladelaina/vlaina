@@ -179,6 +179,17 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(convertToBase64).not.toHaveBeenCalled();
   });
 
+  it('keeps bare image filenames as text instead of stored vision attachments', async () => {
+    const content = [
+      '![bare](demo.png)',
+      '',
+      'Describe this.',
+    ].join('\n');
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toBe(content);
+    expect(convertToBase64).not.toHaveBeenCalled();
+  });
+
   it('converts stored attachment image references into vision attachments on resend paths', async () => {
     const content = [
       '![stored](<attachment://demo%20image.png>)',
@@ -444,7 +455,7 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(options?.allowPath?.('/external/docs/.git/assets/cover.png')).toBe(false);
   });
 
-  it('keeps managed attachment URLs as stored references when building message images', async () => {
+  it('does not resolve file attachment asset URLs without a trusted attachment path', async () => {
     const result = await buildMessageImageSources([{
       id: 'stored-image',
       path: '',
@@ -455,10 +466,7 @@ describe('buildStoredUserMessageContent image parsing', () => {
       size: 128,
     }]);
 
-    expect(result).toEqual({
-      content: '![image](<attachment://demo%20image.png>)',
-      imageSources: ['attachment://demo%20image.png'],
-    });
+    expect(result).toEqual({ content: '', imageSources: [] });
     expect(convertToBase64).not.toHaveBeenCalled();
   });
 });

@@ -135,6 +135,8 @@ describe('openTargetSelection', () => {
     expect(isSupportedMarkdownSelection('http://127.0.0.1/private.md')).toBe(false);
     expect(isSupportedMarkdownSelection('file:///vault/docs/readme.md')).toBe(false);
     expect(isSupportedMarkdownSelection('asset://localhost/readme.md')).toBe(false);
+    expect(isSupportedMarkdownSelection(String.raw`https\://example.com/docs/readme.md`)).toBe(false);
+    expect(isSupportedMarkdownSelection(String.raw`file\:///vault/docs/readme.md`)).toBe(false);
   });
 
   it('rejects markdown selections with unsafe path characters', () => {

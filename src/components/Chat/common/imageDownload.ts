@@ -147,7 +147,7 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
     return;
   }
 
-  if (blob || sourceExt === "svg") {
+  if (blob || sourceExt === "svg" || !isRasterImageExtension(sourceExt)) {
     return;
   }
 

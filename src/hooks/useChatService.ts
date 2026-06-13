@@ -5,7 +5,7 @@ import {
   deleteAttachment,
   type Attachment,
 } from '@/lib/storage/attachmentStorage';
-import { extractStoredAttachmentFilename, isStoredAttachmentSrc } from '@/lib/storage/attachmentUrl';
+import { isStoredAttachmentSrc } from '@/lib/storage/attachmentUrl';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
@@ -244,8 +244,7 @@ async function makeTemporaryAttachmentsEphemeral(
       const hasPersistentReference =
         !!attachment.path ||
         isStoredAttachmentSrc(attachment.previewUrl) ||
-        isStoredAttachmentSrc(attachment.assetUrl) ||
-        isStoredAttachmentFileUrl(attachment.assetUrl);
+        isStoredAttachmentSrc(attachment.assetUrl);
 
       if (!hasPersistentReference) {
         return attachment;
@@ -275,19 +274,6 @@ async function makeTemporaryAttachmentsEphemeral(
   );
 
   return ephemeralAttachments.filter((attachment): attachment is Attachment => attachment !== null);
-}
-
-function isStoredAttachmentFileUrl(src: string | null | undefined): boolean {
-  const trimmed = src?.trim() ?? '';
-  if (!trimmed) {
-    return false;
-  }
-
-  try {
-    return new URL(trimmed).protocol === 'file:' && extractStoredAttachmentFilename(trimmed) !== null;
-  } catch {
-    return false;
-  }
 }
 
 export function useChatService() {
@@ -529,7 +515,9 @@ export function useChatService() {
           ensureRequestActive();
           const imageMarkdown = builtImages.content;
           messageImageSources = builtImages.imageSources;
-          storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
+          storageContent = imageMarkdown
+            ? imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '')
+            : userMessageText;
         }
 
         if (!storageContent.trim() && normalizedMentions.length > 0) {

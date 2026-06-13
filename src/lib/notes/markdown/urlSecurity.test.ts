@@ -116,6 +116,16 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteMediaSrc('http:/example.com/image.png')).toBeNull();
   });
 
+  it('rejects backslash-escaped URL schemes', () => {
+    expect(isPublicRemoteMediaUrl(String.raw`https\://example.com/image.png`)).toBe(false);
+    expect(normalizePublicRemoteMediaUrl(String.raw`https\://example.com/image.png`)).toBeNull();
+    expect(sanitizeNoteLinkHref(String.raw`https\://example.com/path`)).toBeNull();
+    expect(sanitizeNoteLinkHref(String.raw`mailto\:user@example.test`)).toBeNull();
+    expect(sanitizeNoteMediaSrc(String.raw`data\:image/png;base64,aGk=`)).toBeNull();
+    expect(sanitizeNoteMediaSrc(String.raw`img\:assets/demo.png`)).toBeNull();
+    expect(sanitizeNoteMediaSrc(String.raw`blob\:https://example.com/id`)).toBeNull();
+  });
+
   it('allows only relative internal image asset refs', () => {
     expect(getNoteInternalImageAssetPath('img:assets/demo.png')).toBe('assets/demo.png');
     expect(getNoteInternalImageAssetPath('IMG:assets/demo.png?cache=1')).toBe('assets/demo.png?cache=1');

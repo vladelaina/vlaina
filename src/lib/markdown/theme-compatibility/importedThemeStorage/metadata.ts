@@ -9,6 +9,7 @@ import {
   normalizeImportedMarkdownThemeId,
   type ImportedMarkdownThemeMetadata,
 } from '../types';
+import { decodeCssEscapesForUrl } from '../cssUrls/cssEscapes';
 import { CSS_EXTENSION } from './constants';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -90,24 +91,40 @@ export function normalizeThemePath(path: string): string {
   return normalizePath(path, true).replace(/\/+$/, '');
 }
 
-export function isThemeRelativePathInsideDirectory(directoryPath: string, relativePath: string): boolean {
-  if (!directoryPath || !relativePath) return false;
-  if (relativePath.startsWith('/') || /^[A-Za-z]:[\\/]/.test(relativePath) || /^\\\\[^\\]+\\[^\\]+/.test(relativePath)) {
-    return false;
+const UNSAFE_THEME_RELATIVE_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+
+export function normalizeThemeRelativePathInsideDirectory(
+  directoryPath: string,
+  relativePath: string
+): string | null {
+  if (!directoryPath || !relativePath) return null;
+  const decodedPath = decodeCssEscapesForUrl(relativePath).trim().replace(/\\/g, '/');
+  if (
+    !decodedPath ||
+    UNSAFE_THEME_RELATIVE_PATH_CHARS.test(decodedPath) ||
+    decodedPath.startsWith('/') ||
+    /^[A-Za-z]:[\\/]/.test(decodedPath) ||
+    /^\/\/[^/]+\/[^/]+/.test(decodedPath)
+  ) {
+    return null;
   }
 
   const parts: string[] = [];
-  for (const part of relativePath.replace(/\\/g, '/').split('/')) {
+  for (const part of decodedPath.split('/')) {
     if (!part || part === '.') continue;
     if (part === '..') {
-      if (parts.length === 0) return false;
+      if (parts.length === 0) return null;
       parts.pop();
       continue;
     }
     parts.push(part);
   }
 
-  return parts.length > 0;
+  return parts.length > 0 ? decodedPath : null;
+}
+
+export function isThemeRelativePathInsideDirectory(directoryPath: string, relativePath: string): boolean {
+  return normalizeThemeRelativePathInsideDirectory(directoryPath, relativePath) !== null;
 }
 
 export function isSameThemePath(left: string | null | undefined, right: string | null | undefined): boolean {

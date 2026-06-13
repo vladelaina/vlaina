@@ -53,7 +53,18 @@ vi.mock('@/lib/desktop/watch', () => ({
 
 vi.mock('@/lib/storage/adapter', () => ({
   isAbsolutePath: (path: string) => path.startsWith('/'),
-  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/'),
+  normalizeAbsolutePath: (path: string) => {
+    const parts: string[] = [];
+    for (const part of path.replace(/\\/g, '/').split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return `/${parts.join('/')}`;
+  },
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({
@@ -740,6 +751,44 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
     expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/new.md');
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('does not reload the tree for a standalone non-Markdown file create after the rename window expires', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/image.png'],
+      });
+      await vi.advanceTimersByTimeAsync(401);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('does not reload the tree for a standalone non-Markdown file remove after the rename window expires', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/image.png'],
+      });
+      await vi.advanceTimersByTimeAsync(401);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
 
     hook.unmount();
   });

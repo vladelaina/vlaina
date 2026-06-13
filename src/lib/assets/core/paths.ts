@@ -6,6 +6,7 @@ import {
 } from './internalAssetPaths';
 
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const MAX_LOCAL_ASSET_PATH_CHARS = 16 * 1024;
 
@@ -23,8 +24,16 @@ function isSafeRelativeAssetPath(assetPath: string): boolean {
     && !trimmed.startsWith('\\')
     && !trimmed.startsWith('//')
     && !EXPLICIT_URL_SCHEME_PATTERN.test(trimmed)
+    && !BACKSLASH_ESCAPED_SCHEME_PATTERN.test(trimmed)
     && !isAbsolutePath(trimmed)
     && !hasInternalNoteAssetUrlPathSegment(trimmed)
+  );
+}
+
+function hasUnsafeCurrentNotePath(currentNotePath: string | undefined): boolean {
+  return Boolean(
+    currentNotePath
+    && (currentNotePath.length > MAX_LOCAL_ASSET_PATH_CHARS || CONTROL_OR_BIDI_PATTERN.test(currentNotePath))
   );
 }
 
@@ -70,7 +79,7 @@ export async function resolveVaultAssetPathCandidates(
   assetPath: string,
   currentNotePath?: string,
 ): Promise<string[]> {
-  if (hasInternalNoteAssetPathSegment(currentNotePath)) {
+  if (hasInternalNoteAssetPathSegment(currentNotePath) || hasUnsafeCurrentNotePath(currentNotePath)) {
     return [];
   }
 

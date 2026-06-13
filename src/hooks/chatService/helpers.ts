@@ -27,7 +27,10 @@ import {
   joinPath,
   normalizeAbsolutePath,
 } from '@/lib/storage/adapter';
-import { extractStoredAttachmentFilename } from '@/lib/storage/attachmentUrl';
+import {
+  extractStoredAttachmentFilename,
+  sanitizeAttachmentFilename,
+} from '@/lib/storage/attachmentUrl';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { findNode } from '@/stores/notes/fileTreeUtils';
 import type { FileTreeNode } from '@/stores/notes/types';
@@ -212,6 +215,25 @@ export function isImageAttachment(attachment: Attachment): boolean {
   return IMAGE_NAME_REGEX.test(name);
 }
 
+function extractTrustedManagedAttachmentPathFilename(path: string | null | undefined): string | null {
+  const normalizedPath = path?.trim().replace(/\\/g, '/') ?? '';
+  if (!normalizedPath) {
+    return null;
+  }
+
+  const segments = normalizedPath.split('/').filter(Boolean);
+  const filename = sanitizeAttachmentFilename(segments.at(-1) ?? '');
+  if (
+    !filename ||
+    segments.at(-2)?.toLowerCase() !== 'attachments' ||
+    segments.at(-3)?.toLowerCase() !== '.vlaina'
+  ) {
+    return null;
+  }
+
+  return filename;
+}
+
 export function getAttachmentMessageImageSrc(attachment: Attachment): string {
   const mimeType = attachment.type?.trim().toLowerCase() ?? '';
   const previewUrl = attachment.previewUrl?.trim() ?? '';
@@ -221,12 +243,29 @@ export function getAttachmentMessageImageSrc(attachment: Attachment): string {
     if (storedFilename) {
       return `attachment://${encodeURIComponent(storedFilename)}`;
     }
+  }
+
+  const trustedPathFilename = extractTrustedManagedAttachmentPathFilename(attachment.path);
+  if (trustedPathFilename) {
+    return `attachment://${encodeURIComponent(trustedPathFilename)}`;
+  }
+
+  if (assetUrl) {
     return assetUrl;
   }
   if (mimeType === 'image/svg+xml' && /^data:image\//i.test(previewUrl)) {
     return previewUrl;
   }
   return previewUrl;
+}
+
+function hasConvertibleAttachmentReference(attachment: Attachment, rawSrc: string): boolean {
+  return Boolean(
+    attachment.path?.trim() ||
+    extractStoredAttachmentFilename(attachment.previewUrl) ||
+    extractStoredAttachmentFilename(attachment.assetUrl) ||
+    isSvgDataUrl(rawSrc)
+  );
 }
 
 export function toImageMarkdown(src: string): string {
@@ -1155,12 +1194,16 @@ export async function normalizeVisionAttachment(
   }
 
   try {
-    const directImageUrl = normalizeDirectVisionImageUrl(getAttachmentMessageImageSrc(attachment));
+    const rawSrc = getAttachmentMessageImageSrc(attachment);
+    const directImageUrl = normalizeDirectVisionImageUrl(rawSrc);
     if (directImageUrl) {
       return {
         type: 'image_url',
         image_url: { url: directImageUrl },
       };
+    }
+    if (!hasConvertibleAttachmentReference(attachment, rawSrc)) {
+      return null;
     }
 
     const base64 = await convertToBase64(attachment, {

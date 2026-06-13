@@ -354,13 +354,13 @@ describe('useStableChatMessageDerivatives', () => {
     ]));
   });
 
-  it('excludes relative directory images from the assistant gallery', async () => {
+  it('excludes relative and bare images from the assistant gallery', async () => {
     const assistant = createMessage(
       'a1',
       'assistant',
       [
         '![local](images/demo.png)',
-        '![stored](demo.png)',
+        '![bare](demo.png)',
         '![remote](https://example.com/real.png)',
       ].join('\n'),
     );
@@ -375,8 +375,7 @@ describe('useStableChatMessageDerivatives', () => {
     );
 
     await waitFor(() => expect(view.result.current.imageGallery).toEqual([
-      { id: 'a1:0', src: 'demo.png' },
-      { id: 'a1:1', src: 'https://example.com/real.png' },
+      { id: 'a1:0', src: 'https://example.com/real.png' },
     ]));
   });
 

@@ -1050,6 +1050,35 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(result).toBe('');
   });
 
+  it('drops unsafe generated image URLs before composing markdown', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: [
+          { url: 'javascript:alert(1)', revised_prompt: 'script' },
+          { url: 'http://127.0.0.1:3000/secret.png', revised_prompt: 'local' },
+          { url: 'https://user:pass@example.com/secret.png', revised_prompt: 'credentials' },
+          { url: 'file:///tmp/secret.png', revised_prompt: 'file' },
+          { url: 'data:image/svg+xml;base64,PHN2Zz4=', revised_prompt: 'svg' },
+          { url: 'https://cdn.example.com/safe.png', revised_prompt: 'Safe image' },
+        ],
+      }), { status: 200 }),
+    ));
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'draw',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    );
+
+    expect(result).toBe('![Safe image](<https://cdn.example.com/safe.png>)');
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('127.0.0.1');
+    expect(result).not.toContain('file:///');
+    expect(result).not.toContain('data:image/svg+xml');
+  });
+
   it('bounds generated image alt text from revised prompts', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
       new Response(JSON.stringify({
@@ -1299,6 +1328,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       [
         { type: 'text', text: 'describe these ![stored](attachment://safe.png)' },
         { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
+        { type: 'image_url', image_url: { url: 'https://example.test/no-detail.png', detail: 'full' } },
         { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
         { type: 'image_url', image_url: { url: 'https://user:pass@example.test/secret.png' } },
         { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png' } },
@@ -1320,6 +1350,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         content: [
           { type: 'text', text: 'describe these [Image]' },
           { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
+          { type: 'image_url', image_url: { url: 'https://example.test/no-detail.png' } },
           { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
         ],
       },

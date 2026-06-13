@@ -14,6 +14,8 @@ const imageResolutionMocks = vi.hoisted(() => ({
   actualResolveSafeChatImageSource: null as null | ((src: string, id?: string) => Promise<string | null>),
   resolveSafeChatImageSource: vi.fn(),
 }));
+const TRANSPARENT_IMAGE_DATA_URL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 vi.mock('react-easy-crop', () => ({
   default: (props: { image?: string; setImageRef?: (ref: { current: HTMLImageElement | null }) => void }) => {
@@ -123,14 +125,14 @@ describe('ChatImageViewer', () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
-  it('resolves bare stored attachment filenames before rendering the cropper image', async () => {
+  it('resolves stored attachment sources before rendering the cropper image', async () => {
     vi.mocked(convertToBase64).mockResolvedValue('data:image/jpeg;base64,VIEWER');
     const onOpenChange = vi.fn();
 
     render(
       <ChatImageViewer
         open
-        src="demo.jpg"
+        src="attachment://demo.jpg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -141,8 +143,8 @@ describe('ChatImageViewer', () => {
       expect(image).toHaveAttribute('src', 'data:image/jpeg;base64,VIEWER');
     });
     expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
-      previewUrl: 'demo.jpg',
-      assetUrl: 'demo.jpg',
+      previewUrl: 'attachment://demo.jpg',
+      assetUrl: 'attachment://demo.jpg',
       name: 'demo.jpg',
       type: 'image/jpeg',
     }));
@@ -155,7 +157,7 @@ describe('ChatImageViewer', () => {
     render(
       <ChatImageViewer
         open
-        src="diagram.svg"
+        src="attachment://diagram.svg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -187,6 +189,28 @@ describe('ChatImageViewer', () => {
     );
   });
 
+  it('does not pass inline SVG data directly to the cropper image while rasterizing', async () => {
+    const onOpenChange = vi.fn();
+    const svgSrc = 'data:image/svg+xml;base64,PHN2Zz4=';
+    svgMocks.rasterizeSvgDataUrlToPng.mockReturnValueOnce(new Promise(() => {}));
+
+    render(
+      <ChatImageViewer
+        open
+        src={svgSrc}
+        alt="preview"
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    const image = await screen.findByTestId('mock-cropper-image');
+    expect(image).toHaveAttribute('src', TRANSPARENT_IMAGE_DATA_URL);
+    expect(image).not.toHaveAttribute('src', svgSrc);
+    await waitFor(() => {
+      expect(svgMocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith(svgSrc);
+    });
+  });
+
   it('does not pass relative directory image sources to the cropper image', async () => {
     const onOpenChange = vi.fn();
 
@@ -208,6 +232,30 @@ describe('ChatImageViewer', () => {
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
     );
     expect(image).not.toHaveAttribute('src', 'images/demo.png');
+  });
+
+  it('does not pass bare image filenames to the cropper image', async () => {
+    const onOpenChange = vi.fn();
+
+    render(
+      <ChatImageViewer
+        open
+        src="demo.png"
+        alt="preview"
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    const image = await screen.findByTestId('mock-cropper-image');
+    await waitFor(() => {
+      expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledTimes(1);
+    });
+    expect(image).toHaveAttribute(
+      'src',
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+    );
+    expect(image).not.toHaveAttribute('src', 'demo.png');
+    expect(convertToBase64).not.toHaveBeenCalled();
   });
 
   it('still matches short decoded gallery image sources', async () => {
@@ -315,7 +363,7 @@ describe('ChatImageViewer', () => {
     const view = render(
       <ChatImageViewer
         open
-        src="cache-demo.jpg"
+        src="attachment://cache-demo.jpg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -328,7 +376,7 @@ describe('ChatImageViewer', () => {
     view.rerender(
       <ChatImageViewer
         open={false}
-        src="cache-demo.jpg"
+        src="attachment://cache-demo.jpg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -336,7 +384,7 @@ describe('ChatImageViewer', () => {
     view.rerender(
       <ChatImageViewer
         open
-        src="cache-demo.jpg"
+        src="attachment://cache-demo.jpg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -355,7 +403,7 @@ describe('ChatImageViewer', () => {
     const view = render(
       <ChatImageViewer
         open
-        src="oversized-cache-demo.jpg"
+        src="attachment://oversized-cache-demo.jpg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -368,7 +416,7 @@ describe('ChatImageViewer', () => {
     view.rerender(
       <ChatImageViewer
         open={false}
-        src="oversized-cache-demo.jpg"
+        src="attachment://oversized-cache-demo.jpg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -376,7 +424,7 @@ describe('ChatImageViewer', () => {
     view.rerender(
       <ChatImageViewer
         open
-        src="oversized-cache-demo.jpg"
+        src="attachment://oversized-cache-demo.jpg"
         alt="preview"
         onOpenChange={onOpenChange}
       />,
@@ -427,13 +475,13 @@ describe('ChatImageViewer', () => {
     render(
       <ChatImageViewer
         open
-        src="current.jpg"
+        src="attachment://current.jpg"
         alt="preview"
         currentImageId="current"
         gallery={[
-          { id: 'previous', src: 'previous.jpg' },
-          { id: 'current', src: 'current.jpg' },
-          { id: 'next', src: 'next.jpg' },
+          { id: 'previous', src: 'attachment://previous.jpg' },
+          { id: 'current', src: 'attachment://current.jpg' },
+          { id: 'next', src: 'attachment://next.jpg' },
         ]}
         onOpenChange={() => {}}
       />,
@@ -442,8 +490,8 @@ describe('ChatImageViewer', () => {
     await waitFor(() => {
       expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledTimes(3);
     });
-    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('current.jpg', 'viewer-image');
-    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('previous.jpg', 'viewer-image');
-    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('next.jpg', 'viewer-image');
+    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('attachment://current.jpg', 'viewer-image');
+    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('attachment://previous.jpg', 'viewer-image');
+    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('attachment://next.jpg', 'viewer-image');
   });
 });

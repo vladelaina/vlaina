@@ -21,6 +21,7 @@ const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
 const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
 const externalMarkdownImportUtf8Encoder = new TextEncoder();
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 const LOW_PRIORITY_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
   'node_modules',
@@ -151,7 +152,10 @@ function isBlankExternalMarkdownPath(path: string) {
 
 function hasExplicitExternalMarkdownNonPathScheme(path: string) {
   const trimmed = path.trim();
-  return EXPLICIT_URL_SCHEME_PATTERN.test(trimmed) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed);
+  return (
+    (EXPLICIT_URL_SCHEME_PATTERN.test(trimmed) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed)) ||
+    BACKSLASH_ESCAPED_SCHEME_PATTERN.test(trimmed)
+  );
 }
 
 function hasUnsafeExternalMarkdownPathSegment(path: string) {

@@ -84,20 +84,22 @@ export function matchPendingRename(
 export function flushExpiredPendingRenames(
   queue: PendingRenameEntry[],
   now: number
-): { queue: PendingRenameEntry[]; expiredPaths: string[] } {
+): { queue: PendingRenameEntry[]; expiredPaths: string[]; expiredEntries: PendingRenameEntry[] } {
   const expiredPaths: string[] = [];
+  const expiredEntries: PendingRenameEntry[] = [];
   const nextQueue: PendingRenameEntry[] = [];
 
   for (const entry of queue) {
     if (entry.expiresAt <= now) {
       expiredPaths.push(entry.oldPath);
+      expiredEntries.push(entry);
       continue;
     }
 
     nextQueue.push(entry);
   }
 
-  return { queue: nextQueue, expiredPaths };
+  return { queue: nextQueue, expiredPaths, expiredEntries };
 }
 
 export function getNextPendingRenameDelay(queue: PendingRenameEntry[], now: number): number | null {

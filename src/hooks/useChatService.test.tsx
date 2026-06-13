@@ -544,9 +544,8 @@ describe('useChatService session context isolation', () => {
     expect(userMessage?.content).not.toContain('APP-FILE://');
   });
 
-  it('converts case-insensitive file attachment URLs to ephemeral data URLs in temporary chat', async () => {
+  it('does not convert file attachment URLs without a persistent attachment path in temporary chat', async () => {
     seedTemporaryChatState();
-    vi.mocked(convertToBase64).mockResolvedValueOnce(TEMPORARY_IMAGE_DATA_URL);
     const attachment = createAttachment({
       previewUrl: '',
       assetUrl: 'FILE:///appdata/.vlaina/attachments/demo.png',
@@ -562,11 +561,11 @@ describe('useChatService session context isolation', () => {
       expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
     });
 
-    expect(convertToBase64).toHaveBeenCalledWith(attachment, expect.any(Object));
-    expect(deleteAttachment).toHaveBeenCalledWith(attachment);
+    expect(convertToBase64).not.toHaveBeenCalled();
+    expect(deleteAttachment).not.toHaveBeenCalled();
     const messages = useUnifiedStore.getState().data.ai?.messages['temp-session-1'] || [];
     const userMessage = messages.find((message) => message.role === 'user');
-    expect(userMessage?.content).toBe(`![image](<${TEMPORARY_IMAGE_DATA_URL}>)\n\ndescribe it`);
+    expect(userMessage?.content).toBe('describe it');
     expect(userMessage?.content).not.toContain('FILE://');
   });
 

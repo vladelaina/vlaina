@@ -10,6 +10,7 @@ import { hasInternalImageUrlPathSegment, hasUrlCredentials } from '../__internal
 
 const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
 const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
+const backslashEscapedSchemePattern = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/
 const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
 const safeLinkSchemes = new Set(['http:', 'https:', 'mailto:'])
 const maxLinkHrefChars = 16 * 1024
@@ -21,7 +22,8 @@ function hasUnsafeBackslashUrlSyntax(value: string) {
   return value.includes('\\') && (
     value.startsWith('\\') ||
     value.startsWith('//') ||
-    schemePattern.test(value)
+    schemePattern.test(value) ||
+    backslashEscapedSchemePattern.test(value)
   )
 }
 

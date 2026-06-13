@@ -187,6 +187,20 @@ describe('note frontmatter metadata', () => {
     ].join('\n'))).toEqual({
       icon: 'sparkles',
     });
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      String.raw`vlaina_cover: "img\:assets/cover.webp"`,
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      String.raw`vlaina_cover: "data\:image/png;base64,aGk="`,
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
   });
 
   it('drops managed cover paths inside internal folders while keeping user dot folders', () => {

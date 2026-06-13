@@ -49,6 +49,13 @@ vi.mock('@/lib/storage/adapter', () => ({
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.filter(Boolean).join('/')),
   normalizePath: (path: string) => path.replace(/\\/g, '/'),
+  relativePath: (from: string, to: string) => {
+    const normalizedFrom = from.replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalizedTo = to.replace(/\\/g, '/');
+    return normalizedTo.startsWith(`${normalizedFrom}/`)
+      ? normalizedTo.slice(normalizedFrom.length + 1)
+      : normalizedTo;
+  },
   toFileUrl: (path: string) => Promise.resolve(`file://${path}`),
 }));
 

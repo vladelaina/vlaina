@@ -104,9 +104,16 @@ function stripExternalSvgResourceReferences(markup: string) {
 
   const template = document.createElement('template');
   template.innerHTML = markup;
-  const shouldStripResourceReferences = /url\s*\(|href\s*=/i.test(markup);
+  const shouldStripResourceReferences = /url\s*\(|href\s*=|@import/i.test(markup);
   const withinBudget = walkBudgetedSvgElements(template.content, (element) => {
     if (!shouldStripResourceReferences) {
+      return;
+    }
+
+    if (element.localName.toLowerCase() === 'style') {
+      if (containsExternalSvgStyleElementReference(element.textContent || '')) {
+        element.remove();
+      }
       return;
     }
 
@@ -166,6 +173,10 @@ function containsExternalSvgUrlReference(value: string) {
     }
   }
   return false;
+}
+
+function containsExternalSvgStyleElementReference(value: string) {
+  return /@import/i.test(value) || containsExternalSvgUrlReference(value);
 }
 
 function isLocalSvgReference(value: string) {

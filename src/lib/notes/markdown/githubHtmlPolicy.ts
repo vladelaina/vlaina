@@ -142,6 +142,7 @@ export const GITHUB_ALLOWED_STYLE_PROPERTIES = new Set([
 
 const GITHUB_SRCSET_DESCRIPTOR_PATTERN = /^\d+(?:\.\d+)?(?:w|x)$/;
 const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
+const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 export const MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS = 16 * 1024;
 const MAX_GITHUB_SRCSET_CANDIDATES = 128;
 const GITHUB_RELATIVE_SRCSET_PROTOCOLS = new Set<string>();
@@ -278,7 +279,8 @@ function hasUnsafeGithubBackslashUrlSyntax(value: string): boolean {
   return value.includes('\\') && (
     value.startsWith('\\') ||
     value.startsWith('//') ||
-    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) ||
+    BACKSLASH_ESCAPED_SCHEME_PATTERN.test(value)
   );
 }
 

@@ -274,6 +274,10 @@ function normalizeProviderImageUrl(value: string): string | null {
     : null;
 }
 
+function normalizeImageDetail(value: unknown): 'auto' | 'low' | 'high' | null {
+  return value === 'auto' || value === 'low' || value === 'high' ? value : null;
+}
+
 function sanitizeCurrentMessageContent(content: ChatMessageContent): ChatMessageContent {
   if (!Array.isArray(content)) {
     return sanitizeCurrentRequestTextContent(content);
@@ -296,11 +300,12 @@ function sanitizeCurrentMessageContent(content: ChatMessageContent): ChatMessage
       return [];
     }
 
+    const detail = normalizeImageDetail(part.image_url.detail);
     return [{
       type: 'image_url',
       image_url: {
         url,
-        ...(part.image_url.detail ? { detail: part.image_url.detail } : {}),
+        ...(detail ? { detail } : {}),
       },
     }];
   });
@@ -406,8 +411,7 @@ function normalizeGeneratedImageUrl(value: unknown): string {
     return ''
   }
 
-  const trimmed = value.trim()
-  return trimmed.length <= 16 * 1024 ? trimmed : ''
+  return normalizeProviderImageUrl(value) ?? ''
 }
 
 function normalizeGeneratedImageBase64(value: unknown): string {

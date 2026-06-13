@@ -1,4 +1,10 @@
 const MARKDOWN_ESCAPED_PUNCTUATION_PATTERN = /\\([!-/:-@[-`{-~])/g;
+const MAX_MARKDOWN_LINK_STRIP_DEPTH = 128;
+const MAX_MARKDOWN_LINK_STRIP_NESTED_SCAN_CHARS = 4 * 1024 * 1024;
+
+interface StripMarkdownLinksState {
+  nestedScannedChars: number;
+}
 
 function unescapeMarkdownPunctuation(value: string): string {
   return value.replace(MARKDOWN_ESCAPED_PUNCTUATION_PATTERN, '$1');
@@ -122,6 +128,25 @@ export function stripMarkdownLinks(
   value: string,
   options: StripMarkdownLinksOptions = {},
 ): string {
+  return stripMarkdownLinksInternal(value, options, 0, { nestedScannedChars: 0 });
+}
+
+function stripMarkdownLinksInternal(
+  value: string,
+  options: StripMarkdownLinksOptions,
+  depth: number,
+  state: StripMarkdownLinksState,
+): string {
+  if (depth > MAX_MARKDOWN_LINK_STRIP_DEPTH) {
+    return '';
+  }
+  if (depth > 1) {
+    state.nestedScannedChars += value.length;
+    if (state.nestedScannedChars > MAX_MARKDOWN_LINK_STRIP_NESTED_SCAN_CHARS) {
+      return '';
+    }
+  }
+
   const parts: string[] = [];
   let cursor = 0;
   let lastIndex = 0;
@@ -159,7 +184,12 @@ export function stripMarkdownLinks(
 
     parts.push(value.slice(lastIndex, cursor));
     if (!isImage || preserveImageAlt) {
-      parts.push(stripMarkdownLinks(value.slice(labelStart, labelEnd), options));
+      parts.push(stripMarkdownLinksInternal(
+        value.slice(labelStart, labelEnd),
+        options,
+        depth + 1,
+        state,
+      ));
     }
     lastIndex = targetEnd;
     cursor = targetEnd;

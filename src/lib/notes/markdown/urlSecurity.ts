@@ -3,6 +3,7 @@ import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAs
 
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const SCHEME_PATTERN = /^([A-Za-z][A-Za-z0-9+.-]*):/;
+const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 const UNIX_ABSOLUTE_PATH_PATTERN = /^\//;
 const SAFE_LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
@@ -21,7 +22,8 @@ function hasUnsafeBackslashUrlSyntax(value: string): boolean {
   return value.includes('\\') && (
     value.startsWith('\\') ||
     value.startsWith('//') ||
-    SCHEME_PATTERN.test(value)
+    SCHEME_PATTERN.test(value) ||
+    BACKSLASH_ESCAPED_SCHEME_PATTERN.test(value)
   );
 }
 

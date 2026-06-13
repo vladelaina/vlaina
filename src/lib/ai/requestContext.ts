@@ -48,6 +48,10 @@ const HISTORY_IMAGE_SOURCE_PREFIXES = [
 ];
 const HISTORY_IMAGE_SOURCE_HINT_PATTERN = /\b(?:https?|data|attachment|app-file|asset|blob|file)(?:\\*:|&|&#)/i;
 const HISTORY_UNSAFE_IMAGE_SOURCE_HINT_PATTERN = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/|\/|[A-Za-z]:[\\/])/;
+const HISTORY_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const HISTORY_WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
+const HISTORY_LOCAL_IMAGE_PATH_PATTERN = /^(?:\.{1,2}[\\/]|\/|[^/\\]+[\\/].+|[^/\\]+\.(?:png|jpe?g|webp|gif|bmp|avif|svg)(?:[?#].*)?$)/i;
+const HISTORY_HTML_IMAGE_TAG_HINT_PATTERN = /<\s*img\b/i;
 const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
@@ -337,6 +341,14 @@ function isHistoryImageSource(value: string): boolean {
   )) {
     return true;
   }
+  if (
+    HISTORY_WINDOWS_ABSOLUTE_PATH_PATTERN.test(decoded) ||
+    (!HISTORY_URL_SCHEME_PATTERN.test(decoded) &&
+      !decoded.startsWith('//') &&
+      HISTORY_LOCAL_IMAGE_PATH_PATTERN.test(decoded))
+  ) {
+    return true;
+  }
   return !normalizeRenderableImageSrc(decoded) && HISTORY_UNSAFE_IMAGE_SOURCE_HINT_PATTERN.test(decoded);
 }
 
@@ -370,6 +382,10 @@ function scrubOverflowHistoryImageSyntax(content: string): string {
   return scrubOverflowHistoryMarkdownImages(scrubOverflowHistoryHtmlImages(content));
 }
 
+function hasRemainingHistoryImageSyntax(content: string): boolean {
+  return content.includes('![') || HISTORY_HTML_IMAGE_TAG_HINT_PATTERN.test(content);
+}
+
 function replaceHistoryImageTokens(content: string): string {
   const tokens = parseMarkdownAndHtmlImageTokens(content, {
     maxTokens: MAX_REQUEST_HISTORY_IMAGE_TOKENS,
@@ -378,6 +394,7 @@ function replaceHistoryImageTokens(content: string): string {
   if (
     tokens.length >= MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
     HISTORY_IMAGE_SOURCE_HINT_PATTERN.test(replaced) ||
+    hasRemainingHistoryImageSyntax(replaced) ||
     countNeedleOccurrences(content, '![', MAX_REQUEST_HISTORY_IMAGE_TOKENS) > MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
     countNeedleOccurrences(content, '<', MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS) > MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS
   ) {

@@ -75,6 +75,26 @@ describe('mermaidSanitizer', () => {
     expect(text?.getAttribute('style') || '').not.toContain('example.test');
   });
 
+  it('drops Mermaid SVG style elements that can load external resources', () => {
+    const content = renderMarkup([
+      '<svg>',
+      '<style>.safe { fill: red; }</style>',
+      '<style>@import url("https://example.test/mermaid.css"); .bad { fill: red; }</style>',
+      '<style>.bad { filter: url(https://example.test/filter.svg#drop); }</style>',
+      '<style>.local { filter: url(#local-filter); }</style>',
+      '<text class="safe local">safe</text>',
+      '</svg>',
+    ].join(''));
+
+    const styles = Array.from(content.querySelectorAll('style')).map((style) => style.textContent || '');
+
+    expect(styles).toHaveLength(2);
+    expect(styles.join('\n')).toContain('.safe');
+    expect(styles.join('\n')).toContain('url(#local-filter)');
+    expect(styles.join('\n')).not.toContain('@import');
+    expect(styles.join('\n')).not.toContain('example.test');
+  });
+
   it('keeps Mermaid foreignObject labels as inert SVG text', () => {
     const content = renderMarkup([
       '<svg>',
