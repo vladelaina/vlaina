@@ -53,6 +53,7 @@ vi.mock('@/lib/desktop/watch', () => ({
 
 vi.mock('@/lib/storage/adapter', () => ({
   isAbsolutePath: (path: string) => path.startsWith('/'),
+  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/'),
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({

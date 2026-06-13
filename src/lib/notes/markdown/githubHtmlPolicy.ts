@@ -144,6 +144,7 @@ const GITHUB_SRCSET_DESCRIPTOR_PATTERN = /^\d+(?:\.\d+)?(?:w|x)$/;
 const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 export const MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS = 16 * 1024;
 const MAX_GITHUB_SRCSET_CANDIDATES = 128;
+const GITHUB_RELATIVE_SRCSET_PROTOCOLS = new Set<string>();
 
 export function isGithubHtmlAttributeValueAllowed(value: string): boolean {
   return value.length <= MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS;
@@ -377,7 +378,8 @@ export function normalizeGithubSrcset(value: string): string | null {
       continue;
     }
 
-    const candidate = trimmed.slice(candidateStart, index).trim();
+    const rawCandidate = trimmed.slice(candidateStart, index);
+    const candidate = rawCandidate.trim();
     candidateStart = index + 1;
     if (!candidate) {
       continue;
@@ -392,9 +394,9 @@ export function normalizeGithubSrcset(value: string): string | null {
     if (!parts) {
       return null;
     }
-    const normalizedSource = normalizeGithubUrl(parts[0], GITHUB_ALLOWED_MEDIA_PROTOCOLS, {
+    const normalizedSource = normalizeGithubUrl(parts[0], GITHUB_RELATIVE_SRCSET_PROTOCOLS, {
       allowPlainRelative: true,
-      allowProtocolRelative: true,
+      allowProtocolRelative: false,
       blockLocalNetwork: true,
     });
     if (!normalizedSource) return null;
@@ -404,7 +406,12 @@ export function normalizeGithubSrcset(value: string): string | null {
     ) {
       return null;
     }
-    candidates.push(parts[1] ? `${normalizedSource} ${parts[1]}` : normalizedSource);
+    const trailingWhitespace = rawCandidate.match(/\s*$/)?.[0] ?? '';
+    candidates.push(
+      parts[1]
+        ? `${normalizedSource} ${parts[1]}${trailingWhitespace}`
+        : `${normalizedSource}${trailingWhitespace}`
+    );
   }
 
   return candidateCount > 0 ? candidates.join(', ') : null;

@@ -134,6 +134,17 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
       GITHUB_LOADABLE_OR_URL_ATTRIBUTES.has(normalizedAttribute)
       && !isGithubTagSpecificUrlAttribute(tagName, normalizedAttribute)
     ) {
+      if (normalizedAttribute === 'action') {
+        const normalizedUrl = normalizeGithubUrl(value, GITHUB_ALLOWED_LINK_PROTOCOLS, {
+          allowPlainRelative: true,
+          allowProtocolRelative: false,
+          blockLocalNetwork: true,
+        });
+        if (normalizedUrl) {
+          sanitized.setAttribute(normalizedAttribute, normalizedUrl);
+        }
+        continue;
+      }
       continue;
     }
 

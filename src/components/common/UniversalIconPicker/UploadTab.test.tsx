@@ -85,10 +85,12 @@ describe('UploadTab', () => {
       '<circle cx="1" cy="1" r="1"></circle>',
       '</svg>',
     ].join('');
+    const svgBytes = new TextEncoder().encode(svg);
     const file = {
       name: 'icon.svg',
       type: 'image/svg+xml',
-      arrayBuffer: vi.fn(async () => new TextEncoder().encode(svg).buffer),
+      size: svgBytes.byteLength,
+      arrayBuffer: vi.fn(async () => svgBytes.buffer),
     } as unknown as File;
 
     render(<UploadTab onSelect={() => {}} onPreview={() => {}} onClose={() => {}} customIcons={[]} />);

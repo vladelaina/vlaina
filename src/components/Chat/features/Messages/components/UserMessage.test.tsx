@@ -34,6 +34,7 @@ vi.mock('@/components/Chat/common/LocalImage', () => ({
 
 vi.mock('@/components/Chat/common/messageClipboard', () => ({
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES: 2000,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES: 1000,
   copyMessageContentToClipboard: vi.fn(async () => {}),
   extractMarkdownImageSources: vi.fn(() => []),
   extractRenderedMarkdownImageSources: vi.fn(() => []),
