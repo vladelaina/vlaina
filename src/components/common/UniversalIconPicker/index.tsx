@@ -84,9 +84,12 @@ export function UniversalIconPicker({
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
   const lastRandomIconRef = useRef<string | null>(null);
 
-  const recentEmojis = useMemo(() =>
-    recentIcons.filter(i => !/^icon:/i.test(i) && !/^img:/i.test(i)).slice(0, MAX_RECENT_EMOJIS),
-    [recentIcons]
+  const visibleRecentIcons = useMemo(() =>
+    (emojiOnly
+      ? recentIcons.filter(i => !/^icon:/i.test(i) && !/^img:/i.test(i))
+      : recentIcons
+    ).slice(0, MAX_RECENT_EMOJIS),
+    [emojiOnly, recentIcons]
   );
 
   const handleTabChange = useCallback((tab: TabType) => {
@@ -328,7 +331,7 @@ export function UniversalIconPicker({
           <EmojiTab
             skinTone={skinTone}
             setSkinTone={handleSkinToneChangeInternal}
-            recentEmojis={recentEmojis}
+            recentIcons={visibleRecentIcons}
             onSelect={handleEmojiSelect}
             onPreview={onPreview}
             currentIcon={currentIcon}
@@ -338,6 +341,7 @@ export function UniversalIconPicker({
             onPreviewSkinTone={onPreviewSkinTone}
             searchQuery={emojiSearchQuery}
             alwaysShowCategories={alwaysShowEmojiCategories}
+            imageLoader={imageLoader}
           />
         ) : (
           <UploadTab

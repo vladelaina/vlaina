@@ -127,7 +127,7 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
   const sourceExt = extensionFromSource(src)?.toLowerCase() || extensionFromSource(resolvedSrc)?.toLowerCase();
   const shouldSaveBlobWithoutMime = !!blob && !blob.type && isRasterImageExtension(sourceExt);
 
-  if (blob?.type.startsWith("image/") || shouldSaveBlobWithoutMime) {
+  if (blob && (blob.type.startsWith("image/") || shouldSaveBlobWithoutMime)) {
     if (!isBlobByteLengthWithinLimit(blob.size, MAX_CHAT_IMAGE_FETCH_BYTES)) {
       return;
     }

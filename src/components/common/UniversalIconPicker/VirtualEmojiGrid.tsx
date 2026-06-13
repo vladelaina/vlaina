@@ -9,34 +9,38 @@ import {
   type EmojiItem,
 } from './constants';
 import { useI18n } from '@/lib/i18n';
-import { themeDomStyleTokens, themeEmojiPickerTokens, themeRenderingTokens } from '@/styles/themeTokens';
+import { themeDomStyleTokens, themeEmojiPickerTokens, themeIconTokens, themeRenderingTokens } from '@/styles/themeTokens';
+import { UniversalIcon } from './UniversalIcon';
 
 const DEFAULT_EMOJI_CATEGORY_ID = 'people';
+const GRID_ICON_SIZE = themeIconTokens.sizeMd;
 
-interface EmojiRowProps {
-  emojis: string[];
+interface IconRowProps {
+  icons: string[];
+  imageLoader?: (src: string) => Promise<string>;
 }
 
-const EmojiRow = memo(
-  function EmojiRow({ emojis }: EmojiRowProps) {
+const IconRow = memo(
+  function IconRow({ icons, imageLoader }: IconRowProps) {
     return (
       <div className="px-2 grid grid-cols-9 gap-0.5">
-        {emojis.map((emoji, i) => (
+        {icons.map((icon, i) => (
           <button
             key={i}
-            data-emoji={emoji}
+            data-icon={icon}
             className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-[var(--vlaina-bg-hover)]"
           >
-            {emoji}
+            <UniversalIcon icon={icon} size={GRID_ICON_SIZE} imageLoader={imageLoader} />
           </button>
         ))}
       </div>
     );
   },
   (prev, next) => {
-    if (prev.emojis.length !== next.emojis.length) return false;
-    for (let i = 0; i < prev.emojis.length; i++) {
-      if (prev.emojis[i] !== next.emojis[i]) return false;
+    if (prev.imageLoader !== next.imageLoader) return false;
+    if (prev.icons.length !== next.icons.length) return false;
+    for (let i = 0; i < prev.icons.length; i++) {
+      if (prev.icons[i] !== next.icons[i]) return false;
     }
     return true;
   }
@@ -47,9 +51,10 @@ interface VirtualEmojiGridProps {
   skinTone: number;
   onSelect: (emoji: string) => void;
   onPreview?: (emoji: string | null) => void;
-  recentEmojis: string[];
+  recentIcons: string[];
   categoryId: string;
   categoryName: string;
+  imageLoader?: (src: string) => Promise<string>;
 }
 
 export function VirtualEmojiGrid({
@@ -57,9 +62,10 @@ export function VirtualEmojiGrid({
   skinTone,
   onSelect,
   onPreview,
-  recentEmojis,
+  recentIcons,
   categoryId,
   categoryName,
+  imageLoader,
 }: VirtualEmojiGridProps) {
   const { t } = useI18n();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -78,34 +84,34 @@ export function VirtualEmojiGrid({
     });
   }, [emojis, skinTone]);
 
-  const recentWithSkin = useMemo(() => {
-    return recentEmojis.map(emoji => {
-      const item = EMOJI_MAP.get(emoji);
-      if (!item) return emoji;
+  const recentIconsWithSkin = useMemo(() => {
+    return recentIcons.map(icon => {
+      const item = EMOJI_MAP.get(icon);
+      if (!item) return icon;
       if (skinTone === 0 || !item.skins || item.skins.length <= skinTone) {
         return item.native;
       }
       return item.skins[skinTone]?.native || item.native;
     });
-  }, [recentEmojis, skinTone]);
+  }, [recentIcons, skinTone]);
 
   const rows = useMemo(() => {
-    const result: { type: 'title' | 'emojis'; content: string | string[] }[] = [];
+    const result: { type: 'title' | 'icons'; content: string | string[] }[] = [];
 
-    if (recentWithSkin.length > 0) {
+    if (recentIconsWithSkin.length > 0) {
       result.push({ type: 'title', content: t('icon.categoryRecent') });
-      for (let i = 0; i < recentWithSkin.length; i += EMOJI_PER_ROW) {
-        result.push({ type: 'emojis', content: recentWithSkin.slice(i, i + EMOJI_PER_ROW) });
+      for (let i = 0; i < recentIconsWithSkin.length; i += EMOJI_PER_ROW) {
+        result.push({ type: 'icons', content: recentIconsWithSkin.slice(i, i + EMOJI_PER_ROW) });
       }
     }
 
     result.push({ type: 'title', content: categoryName });
     for (let i = 0; i < emojisWithSkin.length; i += EMOJI_PER_ROW) {
-      result.push({ type: 'emojis', content: emojisWithSkin.slice(i, i + EMOJI_PER_ROW) });
+      result.push({ type: 'icons', content: emojisWithSkin.slice(i, i + EMOJI_PER_ROW) });
     }
 
     return result;
-  }, [emojisWithSkin, recentWithSkin, categoryName, t]);
+  }, [emojisWithSkin, recentIconsWithSkin, categoryName, t]);
 
   const rowSizeGetter = useMemo(() => {
     return (index: number) => rows[index].type === 'title' ? themeEmojiPickerTokens.virtualTitleRowHeightPx : EMOJI_SIZE + ROW_GAP;
@@ -121,8 +127,8 @@ export function VirtualEmojiGrid({
   useEffect(() => {
     if (categoryId === DEFAULT_EMOJI_CATEGORY_ID) {
       virtualizer.scrollToIndex(0, { align: 'start' });
-    } else if (recentWithSkin.length > 0) {
-      const recentRows = Math.ceil(recentWithSkin.length / EMOJI_PER_ROW) + 1;
+    } else if (recentIconsWithSkin.length > 0) {
+      const recentRows = Math.ceil(recentIconsWithSkin.length / EMOJI_PER_ROW) + 1;
       virtualizer.scrollToIndex(recentRows, { align: 'start' });
     } else {
       virtualizer.scrollToIndex(0, { align: 'start' });
@@ -137,11 +143,11 @@ export function VirtualEmojiGrid({
 
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const button = target.closest('[data-emoji]') as HTMLElement;
-      const emoji = button?.dataset.emoji || null;
-      if (emoji !== lastPreviewRef.current) {
-        lastPreviewRef.current = emoji;
-        onPreviewRef.current?.(emoji);
+      const button = target.closest('[data-icon]') as HTMLElement;
+      const icon = button?.dataset.icon || null;
+      if (icon !== lastPreviewRef.current) {
+        lastPreviewRef.current = icon;
+        onPreviewRef.current?.(icon);
       }
     };
 
@@ -154,9 +160,9 @@ export function VirtualEmojiGrid({
 
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const button = target.closest('[data-emoji]') as HTMLElement;
-      if (button?.dataset.emoji) {
-        onSelectRef.current(button.dataset.emoji);
+      const button = target.closest('[data-icon]') as HTMLElement;
+      if (button?.dataset.icon) {
+        onSelectRef.current(button.dataset.icon);
       }
     };
 
@@ -203,7 +209,7 @@ export function VirtualEmojiGrid({
                   {row.content as string}
                 </div>
               ) : (
-                <EmojiRow emojis={row.content as string[]} />
+                <IconRow icons={row.content as string[]} imageLoader={imageLoader} />
               )}
             </div>
           );
@@ -245,10 +251,10 @@ export function VirtualSearchResults({
   }, [results, skinTone]);
 
   const rows = useMemo(() => {
-    const result: { type: 'title' | 'emojis'; content: string | string[] }[] = [];
+    const result: { type: 'title' | 'icons'; content: string | string[] }[] = [];
     result.push({ type: 'title', content: t('icon.searchResults', { count: results.length }) });
     for (let i = 0; i < emojisWithSkin.length; i += EMOJI_PER_ROW) {
-      result.push({ type: 'emojis', content: emojisWithSkin.slice(i, i + EMOJI_PER_ROW) });
+      result.push({ type: 'icons', content: emojisWithSkin.slice(i, i + EMOJI_PER_ROW) });
     }
     return result;
   }, [emojisWithSkin, results.length, t]);
@@ -270,11 +276,11 @@ export function VirtualSearchResults({
 
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const button = target.closest('[data-emoji]') as HTMLElement;
-      const emoji = button?.dataset.emoji || null;
-      if (emoji !== lastPreviewRef.current) {
-        lastPreviewRef.current = emoji;
-        onPreviewRef.current?.(emoji);
+      const button = target.closest('[data-icon]') as HTMLElement;
+      const icon = button?.dataset.icon || null;
+      if (icon !== lastPreviewRef.current) {
+        lastPreviewRef.current = icon;
+        onPreviewRef.current?.(icon);
       }
     };
 
@@ -287,9 +293,9 @@ export function VirtualSearchResults({
 
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const button = target.closest('[data-emoji]') as HTMLElement;
-      if (button?.dataset.emoji) {
-        onSelectRef.current(button.dataset.emoji);
+      const button = target.closest('[data-icon]') as HTMLElement;
+      if (button?.dataset.icon) {
+        onSelectRef.current(button.dataset.icon);
       }
     };
 
@@ -344,7 +350,7 @@ export function VirtualSearchResults({
                   {row.content as string}
                 </div>
               ) : (
-                <EmojiRow emojis={row.content as string[]} />
+                <IconRow icons={row.content as string[]} />
               )}
             </div>
           );

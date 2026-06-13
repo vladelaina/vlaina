@@ -26,7 +26,7 @@ const EMOJI_CATEGORY_LABEL_KEYS: Record<string, MessageKey> = {
 interface EmojiTabProps {
   skinTone: number;
   setSkinTone: (tone: number) => void;
-  recentEmojis: string[];
+  recentIcons: string[];
   onSelect: (emoji: string) => void;
   onPreview?: (emoji: string | null) => void;
   
@@ -38,12 +38,13 @@ interface EmojiTabProps {
   onCategoryChange: (categoryId: string) => void;
   searchQuery?: string;
   alwaysShowCategories?: boolean;
+  imageLoader?: (src: string) => Promise<string>;
 }
 
 export function EmojiTab({
   skinTone,
   setSkinTone,
-  recentEmojis,
+  recentIcons,
   onSelect,
   onPreview,
   onSkinToneChange,
@@ -53,6 +54,7 @@ export function EmojiTab({
   onCategoryChange,
   searchQuery: externalSearchQuery,
   alwaysShowCategories = false,
+  imageLoader,
 }: EmojiTabProps) {
   const { t } = useI18n();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -235,9 +237,10 @@ export function EmojiTab({
           skinTone={effectiveSkinTone}
           onSelect={onSelect}
           onPreview={handlePreview}
-          recentEmojis={recentEmojis}
+          recentIcons={recentIcons}
           categoryId={currentCategory.id}
           categoryName={t(EMOJI_CATEGORY_LABEL_KEYS[currentCategory.id] ?? 'icon.categorySmileysPeople')}
+          imageLoader={imageLoader}
         />
       )}
 

@@ -88,6 +88,7 @@ describe('UploadTab', () => {
     const file = {
       name: 'icon.svg',
       type: 'image/svg+xml',
+      size: svg.length,
       arrayBuffer: vi.fn(async () => new TextEncoder().encode(svg).buffer),
     } as unknown as File;
 
