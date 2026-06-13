@@ -22,6 +22,7 @@ describe('i18n messages', () => {
       'settings.tabs.markdown',
       'settings.about.github',
       'settings.about.discord',
+      'settings.about.slack',
       'vault.pathPlaceholder',
       'icon.emoji',
     ]);
