@@ -189,6 +189,7 @@ export class LinkTooltipView {
             return;
         }
 
+        this.timers.clearAll();
         this.dom.removeAttribute('data-editing');
 
         this.dom.classList.add('hidden');
@@ -233,6 +234,16 @@ export class LinkTooltipView {
         }
     }
 
+    focusTooltipEditor() {
+        const input = this.dom.querySelector<HTMLTextAreaElement>('textarea');
+        if (!input?.isConnected) return;
+
+        input.focus({ preventScroll: true });
+        if (document.activeElement === input) {
+            input.select();
+        }
+    }
+
     showAtPosition(from: number, to: number, autoFocus: boolean) {
         const selectedText = getBoundedTextBetween(this.view.state.doc, from, to, '');
 
@@ -258,6 +269,10 @@ export class LinkTooltipView {
         try {
             this.applyPosition(this.activeAnchor);
             this.timers.scheduleRaf(() => this.reposition());
+            if (autoFocus) {
+                this.timers.scheduleFocus(() => this.focusTooltipEditor(), 0);
+                this.timers.scheduleRaf(() => this.focusTooltipEditor());
+            }
         } catch {
         }
     }

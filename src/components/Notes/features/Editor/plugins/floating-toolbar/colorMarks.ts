@@ -41,7 +41,10 @@ export const textColorMark = $mark('textColor', () => ({
     return [
       'span',
       {
-        ...(color ? { 'data-text-color': color, style: `color: ${color}` } : {}),
+        ...(color ? {
+          'data-text-color': color,
+          style: `color: ${color} !important; -webkit-text-fill-color: ${color} !important`,
+        } : {}),
       },
       0,
     ];
@@ -109,7 +112,7 @@ export const bgColorMark = $mark('bgColor', () => ({
         ...(color
           ? {
               'data-bg-color': color,
-              style: `background-color: ${color}; border-radius: var(--vlaina-radius-0125rem); box-decoration-break: clone; -webkit-box-decoration-break: clone;`,
+              style: `--vlaina-bg-color-mark-bg: ${color}; background-color: var(--vlaina-bg-color-mark-bg) !important; border-radius: var(--vlaina-radius-0125rem); box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: var(--vlaina-space-05em) 0; box-shadow: var(--vlaina-space-015em) 0 0 var(--vlaina-bg-color-mark-bg), calc(var(--vlaina-space-015em) * -1) 0 0 var(--vlaina-bg-color-mark-bg);`,
             }
           : {}),
       },

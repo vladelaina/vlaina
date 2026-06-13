@@ -157,6 +157,22 @@ describe('ColorPicker', () => {
     expect(previewMocks.applyColorPickerIdlePreview).toHaveBeenCalledTimes(1);
   });
 
+  it('does not run the idle preview when entering the picker directly on a swatch', () => {
+    const container = document.createElement('div');
+    const view = createView();
+    document.body.appendChild(container);
+
+    renderColorPicker(container, view, { textColor: null, bgColor: null } as never, vi.fn());
+
+    const picker = container.querySelector<HTMLElement>('.color-picker');
+    const textColorButton = container.querySelector<HTMLElement>('[data-type="text"] .color-picker-item:not(.color-picker-item-default)');
+
+    picker?.dispatchEvent(new MouseEvent('mouseenter'));
+    textColorButton?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+
+    expect(previewMocks.applyColorPickerIdlePreview).not.toHaveBeenCalled();
+  });
+
   it('clears the preview before applying a selected color and after leaving the picker', () => {
     const container = document.createElement('div');
     const view = createView();

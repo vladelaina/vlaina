@@ -142,6 +142,10 @@ export function createToolbarEventDelegation(
       }
     }
 
+    if (preservePreviewDuringApply) {
+      clearFormatPreview(currentView);
+    }
+
     void actionController.handleAction(currentView, action)
       .then((shouldHideToolbar) => {
         const view = currentView;

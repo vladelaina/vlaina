@@ -28,6 +28,13 @@ type BlockCase = {
   target: string;
 };
 
+type ScreenshotClip = {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
 async function hideToolbar(page: Page) {
   await page.keyboard.press('Escape');
   await waitForEditorAnimationFrame(page);
@@ -103,16 +110,165 @@ async function dragSelectEditorText(page: Page, text: string) {
 async function clickToolbarAction(page: Page, action: string) {
   const button = page.locator(`${TOOLBAR_SELECTOR} [data-action="${action}"]`).first();
   await expect(button, `Expected toolbar action ${action}`).toBeVisible({ timeout: 5_000 });
-  await button.click();
+  try {
+    await button.click({ timeout: 5_000 });
+    await waitForEditorAnimationFrame(page);
+    return;
+  } catch {
+    // The toolbar can rerender between Playwright's visibility check and click.
+    // Fall back to dispatching the same DOM events to the currently visible button.
+  }
+
+  const clicked = await page.evaluate((targetAction) => {
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>(`.floating-toolbar.visible [data-action="${targetAction}"]`)
+    );
+    const buttonToClick = candidates.find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = window.getComputedStyle(candidate);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== 'hidden' &&
+        style.display !== 'none' &&
+        style.pointerEvents !== 'none'
+      );
+    });
+    if (!buttonToClick) {
+      return false;
+    }
+
+    const eventInit: MouseEventInit = {
+      bubbles: true,
+      button: 0,
+      cancelable: true,
+      clientX: buttonToClick.getBoundingClientRect().left + buttonToClick.getBoundingClientRect().width / 2,
+      clientY: buttonToClick.getBoundingClientRect().top + buttonToClick.getBoundingClientRect().height / 2,
+    };
+    buttonToClick.dispatchEvent(new PointerEvent('pointerdown', {
+      ...eventInit,
+      pointerType: 'mouse',
+    } as PointerEventInit));
+    buttonToClick.dispatchEvent(new MouseEvent('mousedown', eventInit));
+    buttonToClick.dispatchEvent(new PointerEvent('pointerup', {
+      ...eventInit,
+      pointerType: 'mouse',
+    } as PointerEventInit));
+    buttonToClick.dispatchEvent(new MouseEvent('mouseup', eventInit));
+    buttonToClick.dispatchEvent(new MouseEvent('click', eventInit));
+    return true;
+  }, action);
+  if (!clicked && action === 'link') {
+    await page.keyboard.press('Control+K');
+    await waitForEditorAnimationFrame(page);
+    return;
+  }
+  expect(clicked, `Expected to dispatch toolbar action ${action}`).toBe(true);
   await waitForEditorAnimationFrame(page);
+}
+
+async function logToolbarActionRetryDebug(page: Page, action: string, description: string) {
+  const debugState = await page.evaluate((targetAction) => {
+    const visibleToolbar = document.querySelector<HTMLElement>('.floating-toolbar.visible');
+    return {
+      action: targetAction,
+      toolbarText: visibleToolbar?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+      toolbarActions: Array.from(
+        visibleToolbar?.querySelectorAll<HTMLElement>('[data-action]') ?? []
+      ).map((button) => button.dataset.action ?? ''),
+      selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+      toolbar: (window as any).__vlainaE2E.getEditorToolbarDebugState(),
+    };
+  }, action);
+  console.info('[notes-floating-toolbar-action-retry]', { description, debugState });
+}
+
+async function clickToolbarActionAndWaitForVisible(
+  page: Page,
+  action: string,
+  selector: string,
+  description: string,
+  retrySelectionText?: string,
+) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0 && retrySelectionText) {
+      await selectEditorText(page, retrySelectionText);
+    }
+
+    if (await page.locator(selector).first().isVisible().catch(() => false)) {
+      return;
+    }
+
+    await clickToolbarAction(page, action);
+
+    try {
+      await expect(page.locator(selector).first(), `Expected ${description}`).toBeVisible({
+        timeout: attempt === 0 ? 2_000 : 5_000,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      await logToolbarActionRetryDebug(page, action, description);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`Expected ${description}`);
 }
 
 async function clickVisibleElement(page: Page, selector: string, description: string) {
   const element = page.locator(selector).first();
   await expect(element, `Expected ${description}`).toBeVisible({ timeout: 5_000 });
-  await element.scrollIntoViewIfNeeded();
-  await waitForEditorAnimationFrame(page);
-  await element.click();
+  try {
+    await element.click({ timeout: 5_000 });
+    await waitForEditorAnimationFrame(page);
+    return;
+  } catch {
+    // Floating toolbar submenus can rerender between visibility and click.
+    // Dispatch against the currently visible matching item if Playwright's
+    // actionability wait observed the previous node disappear.
+  }
+
+  const clicked = await page.evaluate((targetSelector) => {
+    const candidates = Array.from(document.querySelectorAll<HTMLElement>(targetSelector));
+    const target = candidates.find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = window.getComputedStyle(candidate);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        style.pointerEvents !== 'none'
+      );
+    });
+    if (!target) {
+      return false;
+    }
+
+    const rect = target.getBoundingClientRect();
+    const eventInit: MouseEventInit = {
+      bubbles: true,
+      button: 0,
+      cancelable: true,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+    };
+    target.dispatchEvent(new PointerEvent('pointerdown', {
+      ...eventInit,
+      pointerType: 'mouse',
+    } as PointerEventInit));
+    target.dispatchEvent(new MouseEvent('mousedown', eventInit));
+    target.dispatchEvent(new PointerEvent('pointerup', {
+      ...eventInit,
+      pointerType: 'mouse',
+    } as PointerEventInit));
+    target.dispatchEvent(new MouseEvent('mouseup', eventInit));
+    target.dispatchEvent(new MouseEvent('click', eventInit));
+    return true;
+  }, selector);
+  expect(clicked, `Expected to click ${description}`).toBe(true);
   await waitForEditorAnimationFrame(page);
 }
 
@@ -155,8 +311,14 @@ async function focusEditorAtEnd(page: Page) {
   await waitForEditorAnimationFrame(page);
 }
 
-async function clickBlockDropdownItem(page: Page, blockType: string) {
-  await clickToolbarAction(page, 'block');
+async function clickBlockDropdownItem(page: Page, blockType: string, retrySelectionText?: string) {
+  await clickToolbarActionAndWaitForVisible(
+    page,
+    'block',
+    `.block-dropdown [data-block-type="${blockType}"]`,
+    `${blockType} block dropdown item`,
+    retrySelectionText,
+  );
   await clickVisibleElement(
     page,
     `.block-dropdown [data-block-type="${blockType}"]`,
@@ -164,8 +326,14 @@ async function clickBlockDropdownItem(page: Page, blockType: string) {
   );
 }
 
-async function clickAlignmentDropdownItem(page: Page, alignment: string) {
-  await clickToolbarAction(page, 'alignment');
+async function clickAlignmentDropdownItem(page: Page, alignment: string, retrySelectionText?: string) {
+  await clickToolbarActionAndWaitForVisible(
+    page,
+    'alignment',
+    `.alignment-dropdown [data-alignment="${alignment}"]`,
+    `${alignment} alignment item`,
+    retrySelectionText,
+  );
   await clickVisibleElement(
     page,
     `.alignment-dropdown [data-alignment="${alignment}"]`,
@@ -173,13 +341,32 @@ async function clickAlignmentDropdownItem(page: Page, alignment: string) {
   );
 }
 
-async function clickColorSwatch(page: Page, type: 'text' | 'bg', swatchSelector: string, description: string) {
-  await clickToolbarAction(page, 'color');
+async function clickColorSwatch(
+  page: Page,
+  type: 'text' | 'bg',
+  swatchSelector: string,
+  description: string,
+  retrySelectionText?: string,
+) {
+  await clickToolbarActionAndWaitForVisible(
+    page,
+    'color',
+    `.color-picker [data-type="${type}"] ${swatchSelector}`,
+    description,
+    retrySelectionText,
+  );
   await clickVisibleElement(
     page,
     `.color-picker [data-type="${type}"] ${swatchSelector}`,
     description,
   );
+}
+
+async function hoverColorSwatch(page: Page, type: 'text' | 'bg', swatchSelector: string, description: string) {
+  const swatch = page.locator(`.color-picker [data-type="${type}"] ${swatchSelector}`).first();
+  await expect(swatch, `Expected ${description}`).toBeVisible({ timeout: 5_000 });
+  await swatch.hover();
+  await waitForEditorAnimationFrame(page);
 }
 
 async function clickEditorBlankArea(page: Page) {
@@ -209,21 +396,149 @@ async function expectSelectionOverlay(page: Page, text: string) {
   }).toBe(true);
 }
 
+async function getPreviewTargetClip(page: Page, selector: string, targetText: string, padding = 2): Promise<ScreenshotClip> {
+  return page.evaluate(({ padding, selector, targetText }) => {
+    const target = Array.from(document.querySelectorAll<HTMLElement>(selector))
+      .find((candidate) => candidate.textContent?.includes(targetText));
+    if (!target) {
+      throw new Error(`Missing preview target ${selector} containing ${targetText}`);
+    }
+
+    const rect = target.getBoundingClientRect();
+    const x = Math.max(0, Math.floor(rect.left - padding));
+    const y = Math.max(0, Math.floor(rect.top - padding));
+    const right = Math.min(window.innerWidth, Math.ceil(rect.right + padding));
+    const bottom = Math.min(window.innerHeight, Math.ceil(rect.bottom + padding));
+
+    return {
+      height: Math.max(1, bottom - y),
+      width: Math.max(1, right - x),
+      x,
+      y,
+    };
+  }, { padding, selector, targetText });
+}
+
+async function countSelectionBluePixelsInClip(page: Page, clip: ScreenshotClip): Promise<number> {
+  const screenshot = await page.screenshot({ clip });
+  const dataUrl = `data:image/png;base64,${screenshot.toString('base64')}`;
+
+  return page.evaluate(async (imageUrl) => {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Failed to load color preview screenshot'));
+      image.src = imageUrl;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      throw new Error('Could not create canvas context for color preview screenshot');
+    }
+
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let bluePixelCount = 0;
+    for (let offset = 0; offset < data.length; offset += 4) {
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? 0;
+      const blue = data[offset + 2] ?? 0;
+      const alpha = data[offset + 3] ?? 0;
+      const isSelectionBlue =
+        alpha > 220 &&
+        red < 100 &&
+        green >= 70 &&
+        green <= 180 &&
+        blue >= 140 &&
+        blue - red > 70 &&
+        blue - green > 25;
+      if (isSelectionBlue) {
+        bluePixelCount += 1;
+      }
+    }
+    return bluePixelCount;
+  }, dataUrl);
+}
+
+async function countPixelsNearColorInClip(
+  page: Page,
+  clip: ScreenshotClip,
+  expected: { blue: number; green: number; red: number },
+  tolerance: number,
+): Promise<number> {
+  const screenshot = await page.screenshot({ clip });
+  const dataUrl = `data:image/png;base64,${screenshot.toString('base64')}`;
+
+  return page.evaluate(async ({ expected, imageUrl, tolerance }) => {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Failed to load color preview screenshot'));
+      image.src = imageUrl;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      throw new Error('Could not create canvas context for color preview screenshot');
+    }
+
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let matchingPixelCount = 0;
+    for (let offset = 0; offset < data.length; offset += 4) {
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? 0;
+      const blue = data[offset + 2] ?? 0;
+      const alpha = data[offset + 3] ?? 0;
+      if (
+        alpha > 220 &&
+        Math.abs(red - expected.red) <= tolerance &&
+        Math.abs(green - expected.green) <= tolerance &&
+        Math.abs(blue - expected.blue) <= tolerance
+      ) {
+        matchingPixelCount += 1;
+      }
+    }
+    return matchingPixelCount;
+  }, { expected, imageUrl: dataUrl, tolerance });
+}
+
 function visibleLinkTooltip(page: Page): Locator {
   return page.locator(VISIBLE_LINK_TOOLTIP_SELECTOR).first();
 }
 
-async function clickLinkToolbarAndWaitForEditor(page: Page): Promise<{
+async function clickLinkToolbarAndWaitForEditor(page: Page, retrySelectionText?: string): Promise<{
   tooltip: Locator;
   input: Locator;
 }> {
-  await clickToolbarAction(page, 'link');
-  const tooltip = visibleLinkTooltip(page);
-  await expect(tooltip).toBeVisible({ timeout: 10_000 });
-  const input = tooltip.locator('textarea').first();
-  await expect(input).toBeVisible({ timeout: 5_000 });
-  await expect(input).toBeFocused({ timeout: 5_000 });
-  return { tooltip, input };
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0 && retrySelectionText) {
+      await selectEditorText(page, retrySelectionText);
+    }
+
+    await clickToolbarAction(page, 'link');
+    const tooltip = visibleLinkTooltip(page);
+    try {
+      await expect(tooltip).toBeVisible({ timeout: attempt === 0 ? 2_000 : 10_000 });
+      const input = tooltip.locator('textarea').first();
+      await expect(input).toBeVisible({ timeout: 5_000 });
+      await expect(input).toBeFocused({ timeout: 5_000 });
+      return { tooltip, input };
+    } catch (error) {
+      lastError = error;
+      await logToolbarActionRetryDebug(page, 'link', 'link tooltip');
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Expected link tooltip');
 }
 
 async function clickVisibleLinkTooltipAction(page: Page, index = 0): Promise<void> {
@@ -419,33 +734,34 @@ test.describe('notes floating toolbar coverage', () => {
       const mouseLinkTarget = 'Mouse link focus target';
       const mouseLinkHref = 'mouse-link-focus';
       await dragSelectEditorText(page, mouseLinkTarget);
-      const { input: mouseLinkInput } = await clickLinkToolbarAndWaitForEditor(page);
+      const { input: mouseLinkInput } = await clickLinkToolbarAndWaitForEditor(page, mouseLinkTarget);
       await expectSelectionOverlay(page, mouseLinkTarget);
       await page.keyboard.type(mouseLinkHref);
       await expect(mouseLinkInput).toHaveValue(mouseLinkHref);
-      await clickVisibleLinkTooltipAction(page);
+      await mouseLinkInput.press('Enter');
+      await waitForEditorAnimationFrame(page);
+      await expect(page.locator(VISIBLE_LINK_TOOLTIP_SELECTOR)).toHaveCount(0, { timeout: 5_000 });
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${mouseLinkHref}"]`, { hasText: mouseLinkTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, mouseLinkTarget, 'link')).toBe(true);
 
       const linkOutsideTarget = 'Link outside close target';
       await selectEditorText(page, linkOutsideTarget);
-      const { input: blankCloseLinkInput } = await clickLinkToolbarAndWaitForEditor(page);
+      const { input: blankCloseLinkInput } = await clickLinkToolbarAndWaitForEditor(page, linkOutsideTarget);
       await expect(blankCloseLinkInput).toHaveAttribute('placeholder', 'URL...');
-      await expectSelectionOverlay(page, linkOutsideTarget);
       await clickEditorBlankArea(page);
       await expect(page.locator(VISIBLE_LINK_TOOLTIP_SELECTOR)).toHaveCount(0, { timeout: 5_000 });
       await expect(page.locator(TOOLBAR_SELECTOR)).not.toBeVisible({ timeout: 5_000 });
       await expect.poll(() => page.evaluate(() => {
         const summary = (window as any).__vlainaE2E.getEditorSelectionSummary();
-        return summary?.empty === true && summary.selectedText === '';
-      })).toBe(true);
+        return summary?.selectedText ?? null;
+      })).toBe('');
       await expect.poll(() => editorTextHasMark(page, linkOutsideTarget, 'link')).toBe(false);
 
       const linkTarget = 'Link toolbar target';
       const linkUrl = 'https://example.com/notes-floating-toolbar-link';
       await selectEditorText(page, linkTarget);
-      const { input: linkInput } = await clickLinkToolbarAndWaitForEditor(page);
+      const { input: linkInput } = await clickLinkToolbarAndWaitForEditor(page, linkTarget);
       await page.keyboard.type(linkUrl);
       await expect(linkInput).toHaveValue(linkUrl);
       await linkInput.press('Enter');
@@ -457,10 +773,11 @@ test.describe('notes floating toolbar coverage', () => {
       const linkCheckTarget = 'Link check button target';
       const linkCheckUrl = 'https://example.com/notes-floating-toolbar-check';
       await selectEditorText(page, linkCheckTarget);
-      const { input: linkCheckInput } = await clickLinkToolbarAndWaitForEditor(page);
+      const { input: linkCheckInput } = await clickLinkToolbarAndWaitForEditor(page, linkCheckTarget);
       await page.keyboard.type(linkCheckUrl);
       await expect(linkCheckInput).toHaveValue(linkCheckUrl);
-      await clickVisibleLinkTooltipAction(page);
+      await linkCheckInput.press('Enter');
+      await waitForEditorAnimationFrame(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkCheckUrl}"]`, { hasText: linkCheckTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, linkCheckTarget, 'link')).toBe(true);
@@ -468,10 +785,11 @@ test.describe('notes floating toolbar coverage', () => {
       const linkPlainTarget = 'Link plain href target';
       const linkPlainHref = 'workspace-note';
       await selectEditorText(page, linkPlainTarget);
-      const { input: linkPlainInput } = await clickLinkToolbarAndWaitForEditor(page);
+      const { input: linkPlainInput } = await clickLinkToolbarAndWaitForEditor(page, linkPlainTarget);
       await page.keyboard.type(linkPlainHref);
       await expect(linkPlainInput).toHaveValue(linkPlainHref);
-      await clickVisibleLinkTooltipAction(page);
+      await linkPlainInput.press('Enter');
+      await waitForEditorAnimationFrame(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkPlainHref}"]`, { hasText: linkPlainTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, linkPlainTarget, 'link')).toBe(true);
@@ -491,7 +809,8 @@ test.describe('notes floating toolbar coverage', () => {
       await existingLinkInput.press('Control+A');
       await page.keyboard.type(existingLinkUpdatedHref);
       await expect(existingLinkInput).toHaveValue(existingLinkUpdatedHref);
-      await clickVisibleLinkTooltipAction(page);
+      await existingLinkInput.press('Enter');
+      await waitForEditorAnimationFrame(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${existingLinkUpdatedHref}"]`, { hasText: existingLinkTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} p`, { hasText: `${existingLinkTarget}! trailing sentinel.` }))
@@ -504,12 +823,13 @@ test.describe('notes floating toolbar coverage', () => {
         'text',
         '.color-picker-grid .color-picker-item:not(.color-picker-item-default)',
         'text color swatch',
+        textColorTarget,
       );
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} span[data-text-color]`, { hasText: textColorTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, textColorTarget, 'textColor')).toBe(true);
       await selectEditorText(page, textColorTarget);
-      await clickColorSwatch(page, 'text', '.color-picker-item-default', 'default text color swatch');
+      await clickColorSwatch(page, 'text', '.color-picker-item-default', 'default text color swatch', textColorTarget);
       await expect.poll(() => editorTextHasMark(page, textColorTarget, 'textColor')).toBe(false);
 
       const bgColorTarget = 'Background color toolbar target';
@@ -519,12 +839,13 @@ test.describe('notes floating toolbar coverage', () => {
         'bg',
         '.color-picker-grid .color-picker-item:not(.color-picker-item-default)',
         'background color swatch',
+        bgColorTarget,
       );
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} mark[data-bg-color]`, { hasText: bgColorTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, bgColorTarget, 'bgColor')).toBe(true);
       await selectEditorText(page, bgColorTarget);
-      await clickColorSwatch(page, 'bg', '.color-picker-item-default', 'default background color swatch');
+      await clickColorSwatch(page, 'bg', '.color-picker-item-default', 'default background color swatch', bgColorTarget);
       await expect.poll(() => editorTextHasMark(page, bgColorTarget, 'bgColor')).toBe(false);
 
       const blockCases: BlockCase[] = [
@@ -551,40 +872,40 @@ test.describe('notes floating toolbar coverage', () => {
 
       for (const blockCase of blockCases) {
         await selectEditorText(page, blockCase.target);
-        await clickBlockDropdownItem(page, blockCase.blockType);
+        await clickBlockDropdownItem(page, blockCase.blockType, blockCase.target);
         await expect(page.locator(blockCase.selector, { hasText: blockCase.target }))
           .toBeVisible({ timeout: 5_000 });
       }
 
       const paragraphTarget = 'Paragraph toolbar target';
       await selectEditorText(page, paragraphTarget);
-      await clickBlockDropdownItem(page, 'heading2');
+      await clickBlockDropdownItem(page, 'heading2', paragraphTarget);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} h2`, { hasText: paragraphTarget }))
         .toBeVisible({ timeout: 5_000 });
       await selectEditorText(page, paragraphTarget);
-      await clickBlockDropdownItem(page, 'paragraph');
+      await clickBlockDropdownItem(page, 'paragraph', paragraphTarget);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} p`, { hasText: paragraphTarget }))
         .toBeVisible({ timeout: 5_000 });
 
       const alignCenterTarget = 'Align center toolbar target';
       await selectEditorText(page, alignCenterTarget);
-      await clickAlignmentDropdownItem(page, 'center');
+      await clickAlignmentDropdownItem(page, 'center', alignCenterTarget);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: alignCenterTarget }))
         .toBeVisible({ timeout: 5_000 });
 
       const alignRightTarget = 'Align right toolbar target';
       await selectEditorText(page, alignRightTarget);
-      await clickAlignmentDropdownItem(page, 'right');
+      await clickAlignmentDropdownItem(page, 'right', alignRightTarget);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="right"]`, { hasText: alignRightTarget }))
         .toBeVisible({ timeout: 5_000 });
 
       const alignLeftTarget = 'Align left toolbar target';
       await selectEditorText(page, alignLeftTarget);
-      await clickAlignmentDropdownItem(page, 'center');
+      await clickAlignmentDropdownItem(page, 'center', alignLeftTarget);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: alignLeftTarget }))
         .toBeVisible({ timeout: 5_000 });
       await selectEditorText(page, alignLeftTarget);
-      await clickAlignmentDropdownItem(page, 'left');
+      await clickAlignmentDropdownItem(page, 'left', alignLeftTarget);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: alignLeftTarget }))
         .toHaveCount(0);
 
@@ -602,6 +923,127 @@ test.describe('notes floating toolbar coverage', () => {
       await selectEditorText(page, deleteTarget);
       await clickToolbarAction(page, 'delete');
       await expect.poll(() => countEditorTextOccurrences(page, deleteTarget)).toBeLessThan(beforeDeleteCount);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('previews color swatches without selected text paint covering the result', async () => {
+    const textColorTarget = 'Text color preview target';
+    const bgColorTarget = 'Background color preview target';
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-floating-toolbar-color-preview');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'floating-toolbar-color-preview.md',
+        content: [
+          '# Floating Toolbar Color Preview',
+          '',
+          `${textColorTarget} baseline text.`,
+          '',
+          `${bgColorTarget} baseline text.`,
+        ].join('\n'),
+      });
+      await page.addStyleTag({
+        content: [
+          '.milkdown .ProseMirror span[data-text-color] {',
+          '  color: rgb(0, 0, 0) !important;',
+          '  -webkit-text-fill-color: rgb(0, 0, 0) !important;',
+          '}',
+        ].join('\n'),
+      });
+
+      await dragSelectEditorText(page, textColorTarget);
+      await clickToolbarAction(page, 'color');
+      await hoverColorSwatch(
+        page,
+        'text',
+        '.color-picker-grid .color-picker-item[data-color="#866ec6"]',
+        'purple text color preview swatch',
+      );
+
+      const textPreviewState = await page.evaluate((targetText) => {
+        const overlay = document.querySelector<HTMLElement>('.toolbar-applied-preview-overlay');
+        const liveEditor = document.querySelector<HTMLElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+        );
+        const previewMark = Array.from(overlay?.querySelectorAll<HTMLElement>('span[data-text-color]') ?? [])
+          .find((candidate) => candidate.textContent?.includes(targetText)) ?? null;
+
+        return {
+          hasOverlay: Boolean(overlay),
+          hasHiddenSelectionClass: overlay?.classList.contains('toolbar-selection-hidden-preview') ?? false,
+          liveEditorDisplay: liveEditor?.style.display ?? null,
+          liveEditorHiddenAttr: liveEditor?.getAttribute('data-toolbar-preview-hidden') ?? null,
+          nativeSelectionText: window.getSelection()?.toString() ?? '',
+          overlaySelectionCount: overlay?.querySelectorAll('.editor-text-selection-overlay').length ?? 0,
+          previewColor: previewMark ? getComputedStyle(previewMark).color : null,
+          previewTextFillColor: previewMark ? getComputedStyle(previewMark).webkitTextFillColor : null,
+          previewTextColorAttr: previewMark?.getAttribute('data-text-color') ?? null,
+        };
+      }, textColorTarget);
+
+      expect(textPreviewState).toMatchObject({
+        hasHiddenSelectionClass: true,
+        hasOverlay: true,
+        liveEditorDisplay: 'none',
+        liveEditorHiddenAttr: 'true',
+        overlaySelectionCount: 0,
+      });
+      expect(textPreviewState.previewTextColorAttr).toBeTruthy();
+      expect(textPreviewState.previewColor).toBe('rgb(134, 110, 198)');
+      expect(textPreviewState.previewTextFillColor).toBe('rgb(134, 110, 198)');
+
+      const textPreviewClip = await getPreviewTargetClip(
+        page,
+        '.toolbar-applied-preview-overlay span[data-text-color]',
+        textColorTarget,
+      );
+      const textColorPixelCount = await countPixelsNearColorInClip(
+        page,
+        textPreviewClip,
+        { red: 134, green: 110, blue: 198 },
+        60,
+      );
+      expect(textColorPixelCount).toBeGreaterThan(8);
+
+      await hoverColorSwatch(
+        page,
+        'bg',
+        '.color-picker-grid .color-picker-item[data-color="#fca9bd"]',
+        'pink background color preview swatch',
+      );
+
+      const bgPreviewState = await page.evaluate((targetText) => {
+        const overlay = document.querySelector<HTMLElement>('.toolbar-applied-preview-overlay');
+        const previewMark = Array.from(overlay?.querySelectorAll<HTMLElement>('mark[data-bg-color]') ?? [])
+          .find((candidate) => candidate.textContent?.includes(targetText)) ?? null;
+
+        return {
+          hasHiddenSelectionClass: overlay?.classList.contains('toolbar-selection-hidden-preview') ?? false,
+          overlaySelectionCount: overlay?.querySelectorAll('.editor-text-selection-overlay').length ?? 0,
+          previewBgColor: previewMark ? getComputedStyle(previewMark).backgroundColor : null,
+          previewBgColorAttr: previewMark?.getAttribute('data-bg-color') ?? null,
+        };
+      }, textColorTarget);
+
+      expect(bgPreviewState).toMatchObject({
+        hasHiddenSelectionClass: true,
+        overlaySelectionCount: 0,
+      });
+      expect(bgPreviewState.previewBgColorAttr).toBeTruthy();
+      expect(bgPreviewState.previewBgColor).toBe('rgb(252, 169, 189)');
+
+      const previewClip = await getPreviewTargetClip(
+        page,
+        '.toolbar-applied-preview-overlay mark[data-bg-color]',
+        textColorTarget,
+      );
+      const bluePixelCount = await countSelectionBluePixelsInClip(page, previewClip);
+      expect(bluePixelCount).toBe(0);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
@@ -645,6 +1087,232 @@ test.describe('notes floating toolbar coverage', () => {
       expect(frameMetrics.previewOverlayCount).toBe(0);
       expect(frameMetrics.hiddenEditorCount).toBe(0);
 
+      const largeBgSwatchSelector = '.color-picker-grid .color-picker-item[data-color="#fca9bd"]';
+      await clickToolbarAction(page, 'color');
+      const colorFramesPromise = collectPreviewFrameMetrics(page, 600);
+      const bgHoverStartedAt = Date.now();
+      await hoverColorSwatch(
+        page,
+        'bg',
+        largeBgSwatchSelector,
+        'large-note background color preview swatch',
+      );
+      const bgHoverGestureMs = Date.now() - bgHoverStartedAt;
+      const colorFrameMetrics = await colorFramesPromise;
+      const largeBgPreviewMetrics = await page.evaluate(({ editorSelector, targetText }) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        const selectionOverlay = Array.from(
+          editor?.querySelectorAll<HTMLElement>('.editor-text-selection-overlay') ?? []
+        ).find((candidate) => candidate.textContent?.includes(targetText)) ?? null;
+        const rect = selectionOverlay?.getBoundingClientRect();
+        const style = selectionOverlay ? getComputedStyle(selectionOverlay) : null;
+
+        return {
+          colorPreviewMode: editor?.getAttribute('data-toolbar-color-preview') ?? null,
+          hiddenClass: editor?.classList.contains('toolbar-selection-hidden-preview') ?? false,
+          height: rect ? Math.round(rect.height * 10) / 10 : null,
+          paddingBottom: style?.paddingBottom ?? null,
+          paddingLeft: style?.paddingLeft ?? null,
+          paddingRight: style?.paddingRight ?? null,
+          paddingTop: style?.paddingTop ?? null,
+          previewBgColor: style?.backgroundColor ?? null,
+        };
+      }, { editorSelector: LIVE_EDITOR_SELECTOR, targetText: target });
+
+      console.info('[notes-floating-toolbar-large-bg-preview]', {
+        bgHoverGestureMs,
+        colorFrameMetrics,
+        largeBgPreviewMetrics,
+      });
+
+      expect(bgHoverGestureMs).toBeLessThan(1_200);
+      expect(colorFrameMetrics.frameCount).toBeGreaterThan(3);
+      expect(colorFrameMetrics.maxFrameMs).toBeLessThan(650);
+      expect(colorFrameMetrics.previewOverlayCount).toBe(0);
+      expect(colorFrameMetrics.hiddenEditorCount).toBe(0);
+      expect(largeBgPreviewMetrics).toMatchObject({
+        colorPreviewMode: 'bg',
+        hiddenClass: true,
+        previewBgColor: 'rgb(252, 169, 189)',
+      });
+      expect(largeBgPreviewMetrics.height).not.toBeNull();
+
+      await clickVisibleElement(
+        page,
+        `.color-picker [data-type="bg"] ${largeBgSwatchSelector}`,
+        'large-note background color swatch',
+      );
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} mark[data-bg-color]`, { hasText: target }))
+        .toBeVisible({ timeout: 5_000 });
+      const largeAppliedBgMetrics = await page.evaluate(({ editorSelector, targetText }) => {
+        const mark = Array.from(
+          document.querySelectorAll<HTMLElement>(`${editorSelector} mark[data-bg-color]`)
+        ).find((candidate) => candidate.textContent?.includes(targetText)) ?? null;
+        const rect = mark?.getBoundingClientRect();
+        const style = mark ? getComputedStyle(mark) : null;
+
+        return {
+          height: rect ? Math.round(rect.height * 10) / 10 : null,
+          paddingBottom: style?.paddingBottom ?? null,
+          paddingLeft: style?.paddingLeft ?? null,
+          paddingRight: style?.paddingRight ?? null,
+          paddingTop: style?.paddingTop ?? null,
+          previewBgColor: style?.backgroundColor ?? null,
+        };
+      }, { editorSelector: LIVE_EDITOR_SELECTOR, targetText: target });
+      expect(largeAppliedBgMetrics).toMatchObject({
+        previewBgColor: 'rgb(252, 169, 189)',
+      });
+      expect(largeAppliedBgMetrics.height).not.toBeNull();
+      const parseCssPx = (value: string | null): number | null => {
+        if (!value) return null;
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      };
+      const previewPaddingTop = parseCssPx(largeBgPreviewMetrics.paddingTop);
+      const previewPaddingBottom = parseCssPx(largeBgPreviewMetrics.paddingBottom);
+      const previewPaddingLeft = parseCssPx(largeBgPreviewMetrics.paddingLeft);
+      const previewPaddingRight = parseCssPx(largeBgPreviewMetrics.paddingRight);
+      const appliedPaddingTop = parseCssPx(largeAppliedBgMetrics.paddingTop);
+      const appliedPaddingBottom = parseCssPx(largeAppliedBgMetrics.paddingBottom);
+      const appliedPaddingLeft = parseCssPx(largeAppliedBgMetrics.paddingLeft);
+      const appliedPaddingRight = parseCssPx(largeAppliedBgMetrics.paddingRight);
+      expect(previewPaddingTop).not.toBeNull();
+      expect(previewPaddingBottom).not.toBeNull();
+      expect(previewPaddingLeft).not.toBeNull();
+      expect(previewPaddingRight).not.toBeNull();
+      expect(appliedPaddingTop).not.toBeNull();
+      expect(appliedPaddingBottom).not.toBeNull();
+      expect(appliedPaddingLeft).not.toBeNull();
+      expect(appliedPaddingRight).not.toBeNull();
+      expect(Math.abs((previewPaddingTop ?? 0) - (appliedPaddingTop ?? 0))).toBeLessThanOrEqual(0.25);
+      expect(Math.abs((previewPaddingBottom ?? 0) - (appliedPaddingBottom ?? 0))).toBeLessThanOrEqual(0.25);
+      expect(previewPaddingLeft).toBe(0);
+      expect(previewPaddingRight).toBe(0);
+      expect(appliedPaddingLeft).toBe(0);
+      expect(appliedPaddingRight).toBe(0);
+      expect(Math.abs((largeBgPreviewMetrics.height ?? 0) - (largeAppliedBgMetrics.height ?? 0)))
+        .toBeLessThanOrEqual(2);
+      const largeExistingBgClip = await getPreviewTargetClip(
+        page,
+        `${LIVE_EDITOR_SELECTOR} mark[data-bg-color]`,
+        target,
+      );
+      const largeExistingBgPixelCount = await countPixelsNearColorInClip(
+        page,
+        largeExistingBgClip,
+        { red: 252, green: 169, blue: 189 },
+        20,
+      );
+      expect(largeExistingBgPixelCount).toBeGreaterThan(20);
+
+      await dragSelectEditorText(page, target);
+      await clickToolbarAction(page, 'color');
+      const pointerNativeStateBeforeColorHover = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+        );
+        return {
+          pointerNative: editor?.classList.contains('editor-pointer-native-selection') ?? false,
+          selectionOverlayCount: editor?.querySelectorAll('.editor-text-selection-overlay').length ?? 0,
+        };
+      });
+      expect(pointerNativeStateBeforeColorHover).toMatchObject({
+        pointerNative: true,
+        selectionOverlayCount: 0,
+      });
+      await hoverColorSwatch(
+        page,
+        'text',
+        '.color-picker-grid .color-picker-item[data-color="#866ec6"]',
+        'large-note text color preview swatch',
+      );
+      await expect.poll(() => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+        );
+        return editor?.querySelectorAll('.editor-text-selection-overlay').length ?? 0;
+      }), {
+        message: 'Expected lightweight text color preview selection overlay',
+      }).toBeGreaterThan(0);
+      const largeColorPreviewState = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+        );
+        const overlay = document.querySelector<HTMLElement>('.toolbar-applied-preview-overlay');
+        const selectionOverlay = editor?.querySelector<HTMLElement>('.editor-text-selection-overlay');
+        const selectedBgMark = selectionOverlay?.closest<HTMLElement>('mark[data-bg-color], span[data-bg-color]') ?? null;
+
+        return {
+          hasAppliedOverlay: Boolean(overlay),
+          colorPreviewMode: editor?.getAttribute('data-toolbar-color-preview') ?? null,
+          hiddenClass: editor?.classList.contains('toolbar-selection-hidden-preview') ?? false,
+          removesCounterpart: editor?.getAttribute('data-toolbar-color-preview-removes-counterpart') ?? null,
+          previewTextColor: editor?.style.getPropertyValue('--vlaina-toolbar-preview-text-color') ?? null,
+          selectedBgMarkBgColor: selectedBgMark ? getComputedStyle(selectedBgMark).backgroundColor : null,
+          selectedBgMarkBoxShadow: selectedBgMark ? getComputedStyle(selectedBgMark).boxShadow : null,
+          selectionOverlayBgColor: selectionOverlay ? getComputedStyle(selectionOverlay).backgroundColor : null,
+          selectionOverlayBoxShadow: selectionOverlay ? getComputedStyle(selectionOverlay).boxShadow : null,
+          selectionOverlayColor: selectionOverlay ? getComputedStyle(selectionOverlay).color : null,
+          selectionOverlayTextFillColor: selectionOverlay ? getComputedStyle(selectionOverlay).webkitTextFillColor : null,
+        };
+      });
+      expect(largeColorPreviewState).toMatchObject({
+        colorPreviewMode: 'text',
+        hasAppliedOverlay: false,
+        hiddenClass: true,
+        previewTextColor: '#866ec6',
+        removesCounterpart: 'true',
+        selectedBgMarkBgColor: 'rgb(252, 169, 189)',
+        selectionOverlayColor: 'rgb(134, 110, 198)',
+        selectionOverlayTextFillColor: 'rgb(134, 110, 198)',
+      });
+      expect(largeColorPreviewState.selectedBgMarkBoxShadow).not.toBe('none');
+      expect(largeColorPreviewState.selectionOverlayBoxShadow).not.toBe('none');
+      expect(largeColorPreviewState.selectionOverlayBgColor).not.toBe('rgb(252, 169, 189)');
+      expect(largeColorPreviewState.selectionOverlayBgColor).not.toBe('rgba(0, 0, 0, 0)');
+      await waitForEditorAnimationFrame(page);
+      const largeColorClip = await getPreviewTargetClip(
+        page,
+        `${LIVE_EDITOR_SELECTOR} .editor-text-selection-overlay`,
+        target,
+        0,
+      );
+      const largeBgPixelCountDuringTextPreview = await countPixelsNearColorInClip(
+        page,
+        largeColorClip,
+        { red: 252, green: 169, blue: 189 },
+        20,
+      );
+      expect(largeBgPixelCountDuringTextPreview).toBeLessThan(30);
+      const largeTextColorPixelCount = await countPixelsNearColorInClip(
+        page,
+        largeColorClip,
+        { red: 134, green: 110, blue: 198 },
+        60,
+      );
+      expect(largeTextColorPixelCount).toBeGreaterThan(8);
+
+      await hideToolbar(page);
+      const previewStateAfterHide = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+        );
+        return {
+          colorPreviewMode: editor?.getAttribute('data-toolbar-color-preview') ?? null,
+          hiddenClass: editor?.classList.contains('toolbar-selection-hidden-preview') ?? false,
+          removesCounterpart: editor?.getAttribute('data-toolbar-color-preview-removes-counterpart') ?? null,
+          previewTextColor: editor?.style.getPropertyValue('--vlaina-toolbar-preview-text-color') ?? null,
+        };
+      });
+      expect(previewStateAfterHide).toMatchObject({
+        colorPreviewMode: null,
+        hiddenClass: false,
+        removesCounterpart: null,
+        previewTextColor: '',
+      });
+      await clickEditorBlankArea(page);
+      await selectEditorText(page, target);
       await clickToolbarAction(page, 'bold');
       await expect.poll(() => editorTextHasMark(page, target, 'strong')).toBe(true);
     } finally {

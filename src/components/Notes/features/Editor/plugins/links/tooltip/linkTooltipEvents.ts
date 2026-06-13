@@ -1,4 +1,7 @@
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { floatingToolbarKey } from '../../floating-toolbar/floatingToolbarKey';
+import { TOOLBAR_ACTIONS } from '../../floating-toolbar/types';
 import { openEditorLinkHref } from '../utils/openEditorLinkHref';
 
 const MOUSE_CLICK_SUPPRESSION_MS = 500;
@@ -26,6 +29,49 @@ type LinkTooltipEventHandlers = {
     setKeyboardInteraction: (value: boolean) => void;
     hasActiveLink: () => boolean;
 };
+
+function collapseEditorSelectionAtPointer(view: EditorView, event: MouseEvent): void {
+    const { selection } = view.state;
+    if (selection.empty) {
+        return;
+    }
+
+    const coordsPos = view.posAtCoords({
+        left: event.clientX,
+        top: event.clientY,
+    })?.pos;
+    const maxPos = view.state.doc.content.size;
+    const tr = view.state.tr;
+    const doc = tr.doc ?? view.state.doc;
+    const cursorPositions = Array.from(new Set(
+        [coordsPos, selection.to]
+            .filter((pos): pos is number => typeof pos === 'number')
+            .map((pos) => Math.max(0, Math.min(pos, maxPos)))
+    ));
+
+    let didSetSelection = false;
+    for (const cursorPos of cursorPositions) {
+        try {
+            tr.setSelection(TextSelection.create(doc, cursorPos));
+            didSetSelection = true;
+            break;
+        } catch {
+        }
+    }
+
+    if (!didSetSelection) {
+        const fallbackPos = Math.max(0, Math.min(selection.to, maxPos));
+        tr.setSelection(Selection.near(doc.resolve(fallbackPos), -1));
+    }
+
+    view.dom.ownerDocument.defaultView?.getSelection()?.removeAllRanges();
+    view.dispatch(
+        tr
+            .setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
+            .setMeta('addToHistory', false)
+    );
+    view.focus();
+}
 
 export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): () => void {
     const {
@@ -75,6 +121,13 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         const link = resolveTooltipEligibleLink(event.target as HTMLElement);
         if (!link) {
             setKeyboardInteraction(false);
+            if (!dom.classList.contains('hidden')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                hide(true);
+                collapseEditorSelectionAtPointer(view, event);
+            }
             return;
         }
 

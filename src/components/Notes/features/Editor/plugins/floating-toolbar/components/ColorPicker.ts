@@ -94,7 +94,6 @@ export function renderColorPicker(
     </div>
   `;
 
-  picker.addEventListener('mouseenter', applyIdlePreviewFromPanelEvent);
   picker.addEventListener('mouseover', applyIdlePreviewFromPanelEvent);
 
   picker.querySelector('[data-type="text"]')?.querySelectorAll('.color-picker-item').forEach((btn) => {

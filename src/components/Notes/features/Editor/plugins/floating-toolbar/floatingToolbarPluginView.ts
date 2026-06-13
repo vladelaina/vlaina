@@ -1087,6 +1087,7 @@ export function createFloatingToolbarPluginView(
     }
 
     abortActiveAiSelectionReview(editorView);
+    clearFormatPreview(editorView);
     editorView.dispatch(
       editorView.state.tr.setMeta(toolbarKey, {
         type: TOOLBAR_ACTIONS.HIDE,

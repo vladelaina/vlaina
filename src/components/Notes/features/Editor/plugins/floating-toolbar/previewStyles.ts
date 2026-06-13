@@ -17,6 +17,7 @@ import {
 } from './commands';
 import type { BlockType, TextAlignment } from './types';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { showTextSelectionOverlayForTransaction } from '../selection/textSelectionOverlayPlugin';
 
 const FORMAT_MARKS: Record<string, string> = {
   bold: 'strong',
@@ -30,6 +31,26 @@ const FORMAT_MARKS: Record<string, string> = {
 // Large notes should not clone the full editor DOM for hover-only previews.
 const MAX_APPLIED_PREVIEW_DOC_SIZE = 256 * 1024;
 const MAX_APPLIED_PREVIEW_DOM_ELEMENTS = 2_500;
+const TOOLBAR_SELECTION_HIDDEN_PREVIEW_CLASS = 'toolbar-selection-hidden-preview';
+const TOOLBAR_COLOR_PREVIEW_ATTRIBUTE = 'data-toolbar-color-preview';
+const TOOLBAR_COLOR_PREVIEW_REMOVES_COUNTERPART_ATTRIBUTE = 'data-toolbar-color-preview-removes-counterpart';
+const TOOLBAR_PREVIEW_TEXT_COLOR_VAR = '--vlaina-toolbar-preview-text-color';
+const TOOLBAR_PREVIEW_BG_COLOR_VAR = '--vlaina-toolbar-preview-bg-color';
+const TEXT_SELECTION_OVERLAY_CLASS = 'editor-text-selection-overlay';
+const POINTER_NATIVE_SELECTION_CLASS = 'editor-pointer-native-selection';
+const BG_COLOR_MARK_SELECTOR = 'mark[data-bg-color], span[data-bg-color]';
+const TEXT_COLOR_MARK_SELECTOR = 'span[data-text-color]';
+const TOOLBAR_PREVIEW_DEFAULT_TEXT_COLOR = 'var(--vlaina-sidebar-notes-text, var(--vlaina-text-primary, currentColor))';
+const BG_COLOR_MARK_BG_VAR = '--vlaina-bg-color-mark-bg';
+const BG_COLOR_MARK_PAINT_SHADOW = `var(--vlaina-space-015em) 0 0 var(${BG_COLOR_MARK_BG_VAR}), calc(var(--vlaina-space-015em) * -1) 0 0 var(${BG_COLOR_MARK_BG_VAR})`;
+const TOOLBAR_PREVIEW_SURFACE_BG = 'var(--vlaina-bg-primary)';
+const TOOLBAR_PREVIEW_SURFACE_SHADOW = `var(--vlaina-space-015em) 0 0 ${TOOLBAR_PREVIEW_SURFACE_BG}, calc(var(--vlaina-space-015em) * -1) 0 0 ${TOOLBAR_PREVIEW_SURFACE_BG}`;
+
+type SelectionColorPreviewSignature = {
+  empty: boolean;
+  from: number;
+  to: number;
+} | null;
 
 let previewOverlay: {
   key: string;
@@ -37,6 +58,16 @@ let previewOverlay: {
   originalDoc: EditorState['doc'];
   originalViewDisplay: string;
   previewState: EditorState;
+  viewDom: HTMLElement;
+} | null = null;
+let selectionColorPreview: {
+  key: string;
+  originalDoc: EditorState['doc'];
+  selection: SelectionColorPreviewSignature;
+  styleMutations: Array<{
+    cssText: string;
+    node: HTMLElement;
+  }>;
   viewDom: HTMLElement;
 } | null = null;
 
@@ -62,7 +93,10 @@ export function hasBlockPreview(blockType: BlockType): boolean {
 }
 
 export function hasActiveAppliedPreview(view: EditorView): boolean {
-  return Boolean(previewOverlay && previewOverlay.viewDom === view.dom);
+  return Boolean(
+    (previewOverlay && previewOverlay.viewDom === view.dom) ||
+    (selectionColorPreview && selectionColorPreview.viewDom === view.dom)
+  );
 }
 
 function hasMatchingPreview(view: EditorView, key: string): boolean {
@@ -72,6 +106,68 @@ function hasMatchingPreview(view: EditorView, key: string): boolean {
     previewOverlay.key === key &&
     view.state.doc.eq(previewOverlay.originalDoc)
   );
+}
+
+function getSelectionColorPreviewSignature(view: EditorView): SelectionColorPreviewSignature {
+  const selection = view.state.selection;
+  if (
+    !selection ||
+    typeof selection.from !== 'number' ||
+    typeof selection.to !== 'number' ||
+    typeof selection.empty !== 'boolean'
+  ) {
+    return null;
+  }
+
+  return {
+    empty: selection.empty,
+    from: selection.from,
+    to: selection.to,
+  };
+}
+
+function hasSameSelectionColorPreviewSignature(
+  current: SelectionColorPreviewSignature,
+  previous: SelectionColorPreviewSignature
+): boolean {
+  if (!current || !previous) {
+    return current === previous;
+  }
+
+  return (
+    current.empty === previous.empty &&
+    current.from === previous.from &&
+    current.to === previous.to
+  );
+}
+
+function hasMatchingSelectionColorPreview(view: EditorView, key: string): boolean {
+  if (
+    !selectionColorPreview ||
+    selectionColorPreview.viewDom !== view.dom ||
+    selectionColorPreview.key !== key ||
+    !view.state.doc.eq(selectionColorPreview.originalDoc) ||
+    !hasSameSelectionColorPreviewSignature(
+      getSelectionColorPreviewSignature(view),
+      selectionColorPreview.selection
+    )
+  ) {
+    return false;
+  }
+
+  return selectionColorPreview.styleMutations.every(({ node }) => node.isConnected);
+}
+
+function refreshMatchingSelectionColorPreview(view: EditorView, key: string): boolean {
+  if (!hasMatchingSelectionColorPreview(view, key)) {
+    return false;
+  }
+
+  if (view.dom instanceof HTMLElement) {
+    clearNativeSelectionForPreviewFrames(view.dom);
+  }
+
+  return true;
 }
 
 function canRenderAppliedPreview(view: EditorView): boolean {
@@ -120,6 +216,56 @@ function createAppliedPreviewDom(
   };
 }
 
+function clearNativeSelectionForPreview(view: EditorView): void {
+  view.dom.ownerDocument.defaultView?.getSelection()?.removeAllRanges();
+}
+
+function clearNativeSelectionForPreviewFrames(viewDom: HTMLElement): void {
+  const ownerWindow = viewDom.ownerDocument.defaultView;
+  if (!ownerWindow) {
+    return;
+  }
+
+  const clear = () => {
+    if (
+      viewDom.isConnected &&
+      (
+        selectionColorPreview?.viewDom === viewDom ||
+        previewOverlay?.viewDom === viewDom
+      )
+    ) {
+      ownerWindow.getSelection()?.removeAllRanges();
+    }
+  };
+
+  clear();
+  queueMicrotask(clear);
+  ownerWindow.requestAnimationFrame(clear);
+  ownerWindow.setTimeout(clear, 0);
+  ownerWindow.setTimeout(clear, 50);
+}
+
+function showTextSelectionOverlayForPreview(view: EditorView): void {
+  if (
+    view.dom instanceof HTMLElement &&
+    !view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS) &&
+    view.dom.getElementsByClassName(TEXT_SELECTION_OVERLAY_CLASS).length > 0
+  ) {
+    return;
+  }
+
+  const selection = view.state.selection;
+  const tr = view.state.tr;
+  if (!selection || selection.empty || typeof tr?.setMeta !== 'function') {
+    return;
+  }
+
+  view.dispatch(
+    showTextSelectionOverlayForTransaction(tr)
+      .setMeta('addToHistory', false)
+  );
+}
+
 function renderAppliedPreview(
   view: EditorView,
   key: string,
@@ -143,12 +289,12 @@ function renderAppliedPreview(
 
   const preview = createAppliedPreviewDom(view, apply);
   if (!preview) {
-    return false;
+    return renderSelectionHiddenPreview(view, key);
   }
 
   const parent = view.dom.parentElement;
   const previewDom = preview.dom;
-  previewDom.classList.add('toolbar-applied-preview-overlay');
+  previewDom.classList.add('toolbar-applied-preview-overlay', TOOLBAR_SELECTION_HIDDEN_PREVIEW_CLASS);
   previewDom.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
 
   previewOverlay = {
@@ -163,6 +309,221 @@ function renderAppliedPreview(
   parent.insertBefore(previewDom, view.dom);
   view.dom.style.display = themeStyleResetTokens.displayNone;
   view.dom.setAttribute('data-toolbar-preview-hidden', 'true');
+  clearNativeSelectionForPreview(view);
+  return true;
+}
+
+function clearSelectionColorPreview(): void {
+  if (!selectionColorPreview) {
+    return;
+  }
+
+  const { viewDom } = selectionColorPreview;
+  if (viewDom.isConnected) {
+    viewDom.classList.remove(TOOLBAR_SELECTION_HIDDEN_PREVIEW_CLASS);
+    viewDom.removeAttribute(TOOLBAR_COLOR_PREVIEW_ATTRIBUTE);
+    viewDom.removeAttribute(TOOLBAR_COLOR_PREVIEW_REMOVES_COUNTERPART_ATTRIBUTE);
+    viewDom.style.removeProperty(TOOLBAR_PREVIEW_TEXT_COLOR_VAR);
+    viewDom.style.removeProperty(TOOLBAR_PREVIEW_BG_COLOR_VAR);
+  }
+  selectionColorPreview.styleMutations.forEach(({ cssText, node }) => {
+    if (node.isConnected) {
+      node.style.cssText = cssText;
+    }
+  });
+  selectionColorPreview = null;
+}
+
+function getTextSelectionOverlayElements(viewDom: HTMLElement): HTMLElement[] {
+  const overlays = viewDom.getElementsByClassName(TEXT_SELECTION_OVERLAY_CLASS);
+  const elements: HTMLElement[] = [];
+  for (let index = 0; index < overlays.length; index += 1) {
+    const overlay = overlays.item(index);
+    if (overlay instanceof HTMLElement) {
+      elements.push(overlay);
+    }
+  }
+
+  return elements;
+}
+
+function recordStyleMutation(
+  mutations: Array<{ cssText: string; node: HTMLElement }>,
+  node: HTMLElement
+): void {
+  if (mutations.some((mutation) => mutation.node === node)) {
+    return;
+  }
+
+  mutations.push({
+    cssText: node.style.cssText,
+    node,
+  });
+}
+
+function collectSelectedMarkElements(
+  viewDom: HTMLElement,
+  overlay: HTMLElement,
+  selector: string
+): HTMLElement[] {
+  const selectedMarks = new Set<HTMLElement>();
+  if (overlay.matches(selector)) {
+    selectedMarks.add(overlay);
+  }
+
+  const closestMark = overlay.closest(selector);
+  if (
+    closestMark instanceof HTMLElement &&
+    viewDom.contains(closestMark)
+  ) {
+    selectedMarks.add(closestMark);
+  }
+
+  overlay.querySelectorAll<HTMLElement>(selector).forEach((mark) => {
+    selectedMarks.add(mark);
+  });
+
+  return Array.from(selectedMarks);
+}
+
+function hasSelectedMarkElement(
+  viewDom: HTMLElement,
+  overlay: HTMLElement,
+  selector: string
+): boolean {
+  if (overlay.matches(selector)) {
+    return true;
+  }
+
+  const closestMark = overlay.closest(selector);
+  if (closestMark instanceof HTMLElement && viewDom.contains(closestMark)) {
+    return true;
+  }
+
+  return overlay.querySelector(selector) !== null;
+}
+
+function collectSelectedDescendantMarkElements(
+  overlay: HTMLElement,
+  selector: string
+): HTMLElement[] {
+  return Array.from(overlay.querySelectorAll<HTMLElement>(selector));
+}
+
+function applySelectionColorPreviewInlineStyles(
+  viewDom: HTMLElement,
+  type: 'bg' | 'idle' | 'text',
+  color: string | null
+): {
+  removesCounterpart: boolean;
+  styleMutations: Array<{ cssText: string; node: HTMLElement }>;
+} {
+  const mutations: Array<{ cssText: string; node: HTMLElement }> = [];
+  let removesCounterpart = false;
+  const overlays = getTextSelectionOverlayElements(viewDom);
+
+  overlays.forEach((overlay) => {
+    if (type === 'text' && color) {
+      if (!hasSelectedMarkElement(viewDom, overlay, BG_COLOR_MARK_SELECTOR)) {
+        return;
+      }
+
+      removesCounterpart = true;
+      recordStyleMutation(mutations, overlay);
+      overlay.style.setProperty('background', TOOLBAR_PREVIEW_SURFACE_BG, 'important');
+      overlay.style.setProperty('background-color', TOOLBAR_PREVIEW_SURFACE_BG, 'important');
+      overlay.style.setProperty('border-radius', 'var(--vlaina-radius-0125rem)', 'important');
+      overlay.style.setProperty('box-shadow', TOOLBAR_PREVIEW_SURFACE_SHADOW, 'important');
+      overlay.style.setProperty('padding', 'var(--vlaina-space-05em) 0', 'important');
+      collectSelectedDescendantMarkElements(overlay, BG_COLOR_MARK_SELECTOR).forEach((mark) => {
+        recordStyleMutation(mutations, mark);
+        mark.style.setProperty('background', 'transparent', 'important');
+        mark.style.setProperty('background-color', 'transparent', 'important');
+        mark.style.setProperty('box-shadow', 'none', 'important');
+      });
+      return;
+    }
+
+    if (type === 'bg' && color) {
+      const selectedBgMarks = collectSelectedMarkElements(viewDom, overlay, BG_COLOR_MARK_SELECTOR);
+      if (selectedBgMarks.length > 0) {
+        recordStyleMutation(mutations, overlay);
+        overlay.style.setProperty('background', 'transparent', 'important');
+        overlay.style.setProperty('background-color', 'transparent', 'important');
+        overlay.style.setProperty('box-shadow', 'none', 'important');
+        overlay.style.setProperty('padding', '0', 'important');
+        selectedBgMarks.forEach((mark) => {
+          recordStyleMutation(mutations, mark);
+          mark.style.setProperty(BG_COLOR_MARK_BG_VAR, color);
+          mark.style.setProperty('background-color', `var(${BG_COLOR_MARK_BG_VAR})`, 'important');
+          mark.style.setProperty('box-shadow', BG_COLOR_MARK_PAINT_SHADOW, 'important');
+          mark.style.setProperty('padding', 'var(--vlaina-space-05em) 0');
+        });
+      }
+
+      const selectedTextMarks = collectSelectedMarkElements(viewDom, overlay, TEXT_COLOR_MARK_SELECTOR);
+      if (selectedTextMarks.length === 0) {
+        return;
+      }
+
+      removesCounterpart = true;
+      recordStyleMutation(mutations, overlay);
+      overlay.style.setProperty('color', TOOLBAR_PREVIEW_DEFAULT_TEXT_COLOR, 'important');
+      overlay.style.setProperty('-webkit-text-fill-color', TOOLBAR_PREVIEW_DEFAULT_TEXT_COLOR, 'important');
+      selectedTextMarks.forEach((mark) => {
+        recordStyleMutation(mutations, mark);
+        mark.style.setProperty('color', TOOLBAR_PREVIEW_DEFAULT_TEXT_COLOR, 'important');
+        mark.style.setProperty('-webkit-text-fill-color', TOOLBAR_PREVIEW_DEFAULT_TEXT_COLOR, 'important');
+      });
+    }
+  });
+
+  return {
+    removesCounterpart,
+    styleMutations: mutations,
+  };
+}
+
+function renderSelectionColorPreview(
+  view: EditorView,
+  type: 'bg' | 'idle' | 'text',
+  color: string | null,
+  key: string
+): boolean {
+  if (!(view.dom instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (hasMatchingSelectionColorPreview(view, key)) {
+    clearNativeSelectionForPreviewFrames(view.dom);
+    return true;
+  }
+
+  clearPreviewOverlay();
+  clearSelectionColorPreview();
+  showTextSelectionOverlayForPreview(view);
+
+  view.dom.classList.add(TOOLBAR_SELECTION_HIDDEN_PREVIEW_CLASS);
+  view.dom.setAttribute(TOOLBAR_COLOR_PREVIEW_ATTRIBUTE, type);
+  if (type === 'text' && color) {
+    view.dom.style.setProperty(TOOLBAR_PREVIEW_TEXT_COLOR_VAR, color);
+  }
+  if (type === 'bg' && color) {
+    view.dom.style.setProperty(TOOLBAR_PREVIEW_BG_COLOR_VAR, color);
+  }
+  const previewStyles = applySelectionColorPreviewInlineStyles(view.dom, type, color);
+  if (previewStyles.removesCounterpart) {
+    view.dom.setAttribute(TOOLBAR_COLOR_PREVIEW_REMOVES_COUNTERPART_ATTRIBUTE, 'true');
+  }
+
+  selectionColorPreview = {
+    key,
+    originalDoc: view.state.doc,
+    selection: getSelectionColorPreviewSignature(view),
+    styleMutations: previewStyles.styleMutations,
+    viewDom: view.dom,
+  };
+  clearNativeSelectionForPreviewFrames(view.dom);
   return true;
 }
 
@@ -184,7 +545,7 @@ function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
   clearPreviewOverlay();
 
   const previewDom = renderAppliedPreviewDocument(view.state, view.dom, view.dom.ownerDocument);
-  previewDom.classList.add('toolbar-applied-preview-overlay', 'toolbar-selection-hidden-preview');
+  previewDom.classList.add('toolbar-applied-preview-overlay', TOOLBAR_SELECTION_HIDDEN_PREVIEW_CLASS);
   previewDom.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
 
   previewOverlay = {
@@ -199,6 +560,7 @@ function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
   view.dom.parentElement.insertBefore(previewDom, view.dom);
   view.dom.style.display = themeStyleResetTokens.displayNone;
   view.dom.setAttribute('data-toolbar-preview-hidden', 'true');
+  clearNativeSelectionForPreview(view);
   return true;
 }
 
@@ -322,11 +684,17 @@ export function applyTextColorPreview(view: EditorView, color: string | null): v
   if (hasMatchingPreview(view, key)) {
     return;
   }
+  if (refreshMatchingSelectionColorPreview(view, key)) {
+    return;
+  }
 
   clearFormatPreview(view);
-  renderAppliedPreview(view, key, (previewView) => {
+  const didRenderAppliedPreview = renderAppliedPreview(view, key, (previewView) => {
     setTextColor(previewView, color);
   });
+  if (!didRenderAppliedPreview) {
+    renderSelectionColorPreview(view, 'text', color, key);
+  }
 }
 
 export function applyBgColorPreview(view: EditorView, color: string | null): void {
@@ -334,15 +702,31 @@ export function applyBgColorPreview(view: EditorView, color: string | null): voi
   if (hasMatchingPreview(view, key)) {
     return;
   }
+  if (refreshMatchingSelectionColorPreview(view, key)) {
+    return;
+  }
 
   clearFormatPreview(view);
-  renderAppliedPreview(view, key, (previewView) => {
+  const didRenderAppliedPreview = renderAppliedPreview(view, key, (previewView) => {
     setBgColor(previewView, color);
   });
+  if (!didRenderAppliedPreview) {
+    renderSelectionColorPreview(view, 'bg', color, key);
+  }
 }
 
 export function applyColorPickerIdlePreview(view: EditorView): void {
-  renderSelectionHiddenPreview(view, 'colorPicker:idle');
+  const key = 'colorPicker:idle';
+  if (hasMatchingPreview(view, key)) {
+    return;
+  }
+  if (refreshMatchingSelectionColorPreview(view, key)) {
+    return;
+  }
+
+  if (!renderSelectionHiddenPreview(view, key)) {
+    renderSelectionColorPreview(view, 'idle', null, key);
+  }
 }
 
 export function applyAlignmentPreview(view: EditorView, alignment: TextAlignment): void {
@@ -392,4 +776,5 @@ export function commitBlockPreview(view: EditorView, blockType: BlockType): bool
 export function clearFormatPreview(view: EditorView): void {
   void view;
   clearPreviewOverlay();
+  clearSelectionColorPreview();
 }
