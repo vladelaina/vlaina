@@ -95,6 +95,15 @@ describe('ReadOnlyMermaidBlock', () => {
     await Promise.all(renders);
   });
 
+  it('converts read-only Mermaid render failures to sanitized error markup', async () => {
+    vi.mocked(renderMermaid).mockRejectedValueOnce(new Error('render failed'));
+
+    await expect(resolveReadOnlyMermaidMarkup('sequenceDiagram\nAlice->Bob: hi')).resolves.toContain(
+      'mermaid-error'
+    );
+    expect(getPendingReadOnlyMermaidRenderCount()).toBe(0);
+  });
+
   it('rejects oversized Mermaid code before using render caches', async () => {
     const markup = await resolveReadOnlyMermaidMarkup('x'.repeat(MAX_MERMAID_CODE_CHARS + 1));
 

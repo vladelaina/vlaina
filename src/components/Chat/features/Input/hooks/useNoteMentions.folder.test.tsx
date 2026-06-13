@@ -221,6 +221,9 @@ describe('useNoteMentions folder candidates', () => {
     act(() => {
       result.current.appendNoteMentions([
         { path: 'docs/assets', title: 'assets/', kind: 'folder' },
+        { path: 'docs/plain.txt', title: 'Text', kind: 'note' },
+        { path: 'file:///tmp/secret.md', title: 'File URL', kind: 'note' },
+        { path: 'docs/.vlaina/config.md', title: 'Internal', kind: 'note' },
       ]);
     });
 
@@ -248,6 +251,10 @@ describe('useNoteMentions folder candidates', () => {
       result.current.restoreMentions([
         { path: null, title: 'Broken' } as any,
         { path: ' docs/alpha.md ', title: null } as any,
+        { path: 'docs/plain.txt', title: 'Text', kind: 'note' },
+        { path: 'https://example.com/secret.md', title: 'Remote' },
+        { path: 'docs/.vlaina/config.md', title: 'Internal' },
+        { path: 'assets', title: 'assets/', kind: 'folder' },
         { path: 'docs/beta.md', title: ' Beta ' },
       ]);
     });
@@ -255,6 +262,7 @@ describe('useNoteMentions folder candidates', () => {
     await waitFor(() => {
       expect(result.current.mentions).toEqual([
         { path: 'docs/alpha.md', title: 'docs/alpha.md', kind: 'note' },
+        { path: 'assets', title: 'assets/', kind: 'folder' },
         { path: 'docs/beta.md', title: 'Beta', kind: 'note' },
       ]);
     });

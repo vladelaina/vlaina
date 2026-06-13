@@ -1,3 +1,7 @@
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
+import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+
 export interface NoteMentionReference {
   path: string;
   title: string;
@@ -7,9 +11,32 @@ export interface NoteMentionReference {
 export const MAX_NOTE_MENTION_SCAN_ITEMS = 1_000;
 export const MAX_NOTE_MENTION_PATH_CHARS = 2_048;
 export const MAX_NOTE_MENTION_TITLE_CHARS = 512;
+const URL_LIKE_MENTION_PATH_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:[/\\]/;
+const WINDOWS_DRIVE_MENTION_PATH_PATTERN = /^[A-Za-z]:[/\\]/;
 
 function normalizeMentionText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+export function isPotentiallyLoadableNoteMentionReference(
+  mention: { path?: unknown },
+  explicitKind?: NoteMentionReference['kind'],
+): boolean {
+  const path = normalizeMentionText(mention.path);
+  if (
+    !path ||
+    path.length > MAX_NOTE_MENTION_PATH_CHARS ||
+    (
+      URL_LIKE_MENTION_PATH_PATTERN.test(path) &&
+      !WINDOWS_DRIVE_MENTION_PATH_PATTERN.test(path)
+    ) ||
+    hasUnsafeVaultPathSegment(path) ||
+    hasInternalNotePathSegment(path)
+  ) {
+    return false;
+  }
+
+  return explicitKind !== 'note' || isSupportedMarkdownPath(path);
 }
 
 export function dedupeNoteMentions(

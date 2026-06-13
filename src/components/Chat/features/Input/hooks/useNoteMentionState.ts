@@ -7,7 +7,10 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from 'react';
-import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import {
+  isPotentiallyLoadableNoteMentionReference,
+  type NoteMentionReference,
+} from '@/lib/ai/noteMentions';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { getCurrentVaultPath, setCurrentVaultPath } from '@/stores/notes/storage';
@@ -53,6 +56,10 @@ function getMentionBoundaryEnd(value: string, part: MentionPreviewRange): number
 
 function normalizeMentionText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeMentionKind(value: unknown): NonNullable<NoteMentionReference['kind']> {
+  return value === 'folder' ? 'folder' : 'note';
 }
 
 interface UseNoteMentionStateOptions {
@@ -131,6 +138,9 @@ export function useNoteMentionState({
         ? relativePath
         : getStarredEntryAbsolutePath({ ...entry, relativePath });
       if (!path) {
+        continue;
+      }
+      if (!isPotentiallyLoadableNoteMentionReference({ path }, entry.kind)) {
         continue;
       }
       if (seenPaths.has(path)) {
@@ -317,14 +327,20 @@ export function useNoteMentionState({
     for (const mention of nextMentions) {
       const path = normalizeMentionText(mention?.path);
       const title = normalizeMentionText(mention?.title) || path;
-      if (!path || !title || seenPaths.has(path)) {
+      const kind = normalizeMentionKind(mention?.kind);
+      if (
+        !path ||
+        !title ||
+        seenPaths.has(path) ||
+        !isPotentiallyLoadableNoteMentionReference({ path }, kind)
+      ) {
         continue;
       }
       seenPaths.add(path);
       restoredMentions.push({
         path,
         title,
-        kind: mention.kind === 'folder' ? 'folder' : 'note',
+        kind,
       });
     }
     setMentions(restoredMentions);
@@ -425,11 +441,15 @@ export function useNoteMentionState({
     (nextMentions: NoteMentionReference[]) => {
       const validMentions = nextMentions
         .map((mention) => ({
-          ...mention,
           path: normalizeMentionText(mention?.path),
           title: normalizeMentionText(mention?.title) || normalizeMentionText(mention?.path),
+          kind: normalizeMentionKind(mention?.kind),
         }))
-        .filter((mention) => mention.path && mention.title);
+        .filter((mention) =>
+          mention.path &&
+          mention.title &&
+          isPotentiallyLoadableNoteMentionReference({ path: mention.path }, mention.kind)
+        );
       if (validMentions.length === 0) {
         return;
       }

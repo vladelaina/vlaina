@@ -73,8 +73,12 @@ export async function resolveReadOnlyMermaidMarkup(code: string) {
 }
 
 async function renderReadOnlyMermaid(code: string) {
-  const markup = await renderMermaidMarkup(code, generateMermaidId());
-  return sanitizeMermaidMarkup(markup);
+  try {
+    const markup = await renderMermaidMarkup(code, generateMermaidId());
+    return sanitizeMermaidMarkup(markup);
+  } catch {
+    return sanitizeMermaidMarkup(mermaidRenderErrorMarkup());
+  }
 }
 
 interface ReadOnlyMermaidBlockProps {

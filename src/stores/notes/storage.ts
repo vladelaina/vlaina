@@ -44,16 +44,6 @@ interface MetadataScanBudget {
   visitedEntries: number;
 }
 
-interface PrioritizedMetadataEntry {
-  entry: {
-    name: string;
-    isDirectory?: boolean;
-    isFile?: boolean;
-  };
-  index: number;
-  priority: number;
-}
-
 const metadataCacheByVault = new Map<string, Map<string, CachedMetadataEntry>>();
 
 function setMetadataVaultCache(vaultPath: string, cache: Map<string, CachedMetadataEntry>) {
@@ -195,14 +185,11 @@ function getMetadataScanPriority(entry: { name: string; isDirectory?: boolean; i
 function prioritizeMetadataScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
   entries: readonly T[],
 ): T[] {
-  return entries
-    .map<PrioritizedMetadataEntry>((entry, index) => ({
-      entry,
-      index,
-      priority: getMetadataScanPriority(entry),
-    }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ entry }) => entry as T);
+  const priorityBuckets: T[][] = [[], [], [], []];
+  for (const entry of entries) {
+    priorityBuckets[getMetadataScanPriority(entry)]?.push(entry);
+  }
+  return priorityBuckets.flat();
 }
 
 function isReadableBoundedFile(

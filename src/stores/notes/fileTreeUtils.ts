@@ -30,16 +30,6 @@ interface FileTreeLevelEntry {
   isDirectory: boolean;
 }
 
-interface PrioritizedStorageEntry {
-  entry: {
-    name: string;
-    isDirectory?: boolean;
-    isFile?: boolean;
-  };
-  index: number;
-  priority: number;
-}
-
 type FolderTreeNode = Extract<FileTreeNode, { isFolder: true }>;
 
 interface FolderRouteEntry {
@@ -98,14 +88,11 @@ function getFileTreeNodeScanPriority(node: FileTreeNode): number {
 function prioritizeFileTreeScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
   entries: readonly T[],
 ): T[] {
-  return entries
-    .map<PrioritizedStorageEntry>((entry, index) => ({
-      entry,
-      index,
-      priority: getFileTreeScanPriority(entry),
-    }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ entry }) => entry as T);
+  const priorityBuckets: T[][] = [[], [], [], []];
+  for (const entry of entries) {
+    priorityBuckets[getFileTreeScanPriority(entry)]?.push(entry);
+  }
+  return priorityBuckets.flat();
 }
 
 async function mapWithConcurrencyLimit<T, R>(
