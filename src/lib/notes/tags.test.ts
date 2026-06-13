@@ -159,4 +159,11 @@ describe('note tags', () => {
 
     expect(extractNoteTags(content)).toEqual(['visible', 'after']);
   });
+
+  it('bounds malformed markdown link scans while keeping later tags visible', () => {
+    const malformedLinks = Array.from({ length: 400 }, () => '[').join('');
+    const content = `${malformedLinks}\n[hidden](https://example.test/#fragment)\n#visible`;
+
+    expect(extractNoteTags(content)).toEqual(['visible']);
+  });
 });

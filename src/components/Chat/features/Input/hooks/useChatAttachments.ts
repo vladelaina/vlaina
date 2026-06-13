@@ -114,6 +114,13 @@ async function settleWithConcurrencyLimit<T, R>(
   return results;
 }
 
+function deleteAttachmentQuietly(attachment: Attachment): void {
+  try {
+    void Promise.resolve(deleteAttachment(attachment)).catch(() => {});
+  } catch {
+  }
+}
+
 export function useChatAttachments() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -121,10 +128,18 @@ export function useChatAttachments() {
   const dragDepthRef = useRef(0);
   const attachmentsRef = useRef<Attachment[]>([]);
   const pendingAttachmentSaveCountRef = useRef(0);
+  const attachmentGenerationRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    attachmentGenerationRef.current += 1;
+    attachmentsRef.current = [];
+  }, []);
 
   const hasFileTransfer = useCallback((transfer: DataTransfer | null | undefined) => {
     if (!transfer) {
@@ -146,6 +161,7 @@ export function useChatAttachments() {
   );
 
   const processFiles = useCallback(async (files: File[]) => {
+    const generation = attachmentGenerationRef.current;
     const remainingSlots = Math.max(
       MAX_CHAT_ATTACHMENT_INPUT_FILES
       - attachmentsRef.current.length
@@ -184,11 +200,36 @@ export function useChatAttachments() {
     });
 
     if (newAttachments.length > 0) {
+      if (!isMountedRef.current || generation !== attachmentGenerationRef.current) {
+        newAttachments.forEach((attachment) => {
+          deleteAttachmentQuietly(attachment);
+        });
+        return;
+      }
+
       setAttachments((prev) => {
+        if (generation !== attachmentGenerationRef.current) {
+          newAttachments.forEach((attachment) => {
+            deleteAttachmentQuietly(attachment);
+          });
+          return prev;
+        }
+
         const availableSlots = Math.max(MAX_CHAT_ATTACHMENT_INPUT_FILES - prev.length, 0);
-        return availableSlots > 0
-          ? [...prev, ...newAttachments.slice(0, availableSlots)]
-          : prev;
+        if (availableSlots <= 0) {
+          newAttachments.forEach((attachment) => {
+            deleteAttachmentQuietly(attachment);
+          });
+          return prev;
+        }
+
+        const acceptedAttachments = newAttachments.slice(0, availableSlots);
+        newAttachments.slice(availableSlots).forEach((attachment) => {
+          deleteAttachmentQuietly(attachment);
+        });
+        const nextAttachments = [...prev, ...acceptedAttachments];
+        attachmentsRef.current = nextAttachments;
+        return nextAttachments;
       });
     }
   }, []);
@@ -218,7 +259,7 @@ export function useChatAttachments() {
       setIsDragging(false);
       const files = collectChatAttachmentFiles(event.dataTransfer?.files);
       if (files.length > 0) {
-        void processFiles(files);
+        void processFiles(files).catch(() => undefined);
       }
     };
 
@@ -302,27 +343,33 @@ export function useChatAttachments() {
   }, [hasFileDrag]);
 
   const removeAttachment = useCallback((id: string) => {
-    const removedAttachment = attachments.find((item) => item.id === id);
-    setAttachments((prev) => prev.filter((item) => item.id !== id));
+    const removedAttachment = attachmentsRef.current.find((item) => item.id === id);
+    setAttachments((prev) => {
+      const nextAttachments = prev.filter((item) => item.id !== id);
+      attachmentsRef.current = nextAttachments;
+      return nextAttachments;
+    });
     if (removedAttachment) {
-      void (async () => {
-        await deleteAttachment(removedAttachment);
-      })().catch(() => {});
+      deleteAttachmentQuietly(removedAttachment);
     }
-  }, [attachments]);
+  }, []);
 
   const clearAttachments = useCallback(() => {
+    attachmentGenerationRef.current += 1;
+    attachmentsRef.current = [];
     setAttachments([]);
   }, []);
 
   const restoreAttachments = useCallback((nextAttachments: Attachment[]) => {
+    attachmentGenerationRef.current += 1;
     const restoredAttachments = nextAttachments.slice(0, MAX_CHAT_ATTACHMENT_INPUT_FILES);
     const restoredIds = new Set(restoredAttachments.map((attachment) => attachment.id));
+    attachmentsRef.current = restoredAttachments;
     setAttachments((prev) => {
       prev
         .filter((attachment) => !restoredIds.has(attachment.id))
         .forEach((attachment) => {
-          void deleteAttachment(attachment).catch(() => {});
+          deleteAttachmentQuietly(attachment);
         });
       return restoredAttachments;
     });

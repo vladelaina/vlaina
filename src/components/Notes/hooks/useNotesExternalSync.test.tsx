@@ -187,6 +187,24 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('isolates rejected scheduled file tree reloads', async () => {
+    hoisted.notesState.loadFileTree.mockRejectedValueOnce(new Error('reload failed'));
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: 'modify',
+        paths: ['/vault/docs/other.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/other.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
   it('handles user dotfile note changes as normal markdown events', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 
@@ -793,6 +811,23 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('isolates rejected pending deletion flushes', async () => {
+    hoisted.notesState.applyExternalPathDeletion.mockRejectedValueOnce(new Error('delete failed'));
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/stale.md'],
+      });
+      await vi.advanceTimersByTimeAsync(181);
+    });
+
+    expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/stale.md');
+
+    hook.unmount();
+  });
+
   it('reconciles a single create event as a rename when the tree diff matches one', async () => {
     vi.mocked(detectExternalTreePathChanges).mockReturnValueOnce({
       hasChanges: true,
@@ -931,6 +966,50 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
     expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/other.md');
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('continues handling note paths when vault event file replay fails', async () => {
+    hoisted.readNotesExternalPathEvents.mockRejectedValueOnce(new Error('event file unavailable'));
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'data', mode: 'any' } },
+        paths: [
+          '/vault/__vlaina_system__/external-path-events.json',
+          '/vault/docs/other.md',
+        ],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/vault', {
+      afterStamp: expect.any(Number),
+    });
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/other.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('isolates rejected semantic rename broadcasts', async () => {
+    hoisted.notesState.applyExternalPathRename.mockRejectedValueOnce(new Error('rename failed'));
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      hoisted.renameBroadcastHandler?.({
+        nonce: 'rename-event-rejected',
+        oldPath: 'docs/alpha.md',
+        newPath: 'docs/beta.md',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
 
     hook.unmount();
   });

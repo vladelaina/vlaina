@@ -103,7 +103,14 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
         return false;
       }
 
-      if (!(await looksLikeVaultRoot(newPath))) {
+      let isVaultRoot = false;
+      try {
+        isVaultRoot = await looksLikeVaultRoot(newPath);
+      } catch {
+        return false;
+      }
+
+      if (!isVaultRoot) {
         return false;
       }
       if (disposed) {
@@ -202,7 +209,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
           { recursive: false }
         );
         if (disposed) {
-          void stopWatching();
+          void stopWatching().catch(() => undefined);
           return;
         }
 
@@ -217,7 +224,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       }
     };
 
-    void run();
+    void run().catch(() => undefined);
 
     return () => {
       disposed = true;
@@ -226,7 +233,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
         pendingRenameTimerRef.current = null;
       }
       pendingRenamesRef.current = [];
-      void unwatch?.();
+      void unwatch?.().catch(() => undefined);
       releaseWatcher?.();
     };
   }, [isPaused, syncCurrentVaultExternalPath, vaultPath]);

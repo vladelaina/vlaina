@@ -8,6 +8,8 @@ const MAX_NOTE_TAG_TOKEN_CHARS = 128;
 const MAX_NOTE_TAG_OCCURRENCES = 2000;
 const MAX_NOTE_TAG_MATCHES = 10_000;
 const MAX_EXCLUDED_RANGES = 50_000;
+const MAX_MARKDOWN_LINK_PART_SCAN_CHARS = 64 * 1024;
+const MAX_FAILED_MARKDOWN_LINK_PART_SCAN_CHARS = 4 * MAX_MARKDOWN_LINK_PART_SCAN_CHARS;
 const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
 const MAX_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_FRONTMATTER_LINES = 2048;
@@ -330,16 +332,25 @@ function collectHtmlTagRanges(content: string, ranges: NoteMarkdownExcludedRange
 }
 
 function collectMarkdownLinkTargetRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
+  let remainingFailedPartScanChars = MAX_FAILED_MARKDOWN_LINK_PART_SCAN_CHARS;
   for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '[' || isEscaped(content, index)) {
       continue;
     }
+    if (remainingFailedPartScanChars <= 0) {
+      break;
+    }
+
+    const labelScanEnd = getMarkdownLinkPartScanEnd(content, index);
     const labelEnd = scanBalancedLabelEnd(content, index);
     if (labelEnd === null || content[labelEnd + 1] !== '(') {
+      remainingFailedPartScanChars -= Math.max(0, (labelEnd ?? labelScanEnd) - index);
       continue;
     }
+    const targetScanEnd = getMarkdownLinkPartScanEnd(content, labelEnd + 1);
     const targetEnd = scanLinkTargetEnd(content, labelEnd + 1);
     if (targetEnd === null) {
+      remainingFailedPartScanChars -= Math.max(0, targetScanEnd - (labelEnd + 1));
       continue;
     }
     pushExcludedRange(ranges, { from: labelEnd + 1, to: targetEnd + 1 });
@@ -347,9 +358,14 @@ function collectMarkdownLinkTargetRanges(content: string, ranges: NoteMarkdownEx
   }
 }
 
+function getMarkdownLinkPartScanEnd(content: string, start: number): number {
+  return Math.min(content.length, start + MAX_MARKDOWN_LINK_PART_SCAN_CHARS);
+}
+
 function scanBalancedLabelEnd(content: string, start: number): number | null {
   let depth = 0;
-  for (let index = start; index < content.length; index += 1) {
+  const scanEnd = getMarkdownLinkPartScanEnd(content, start);
+  for (let index = start; index < scanEnd; index += 1) {
     if (isEscaped(content, index)) {
       continue;
     }
@@ -370,7 +386,8 @@ function scanBalancedLabelEnd(content: string, start: number): number | null {
 function scanLinkTargetEnd(content: string, openParenIndex: number): number | null {
   let depth = 0;
   let quote: string | null = null;
-  for (let index = openParenIndex; index < content.length; index += 1) {
+  const scanEnd = getMarkdownLinkPartScanEnd(content, openParenIndex);
+  for (let index = openParenIndex; index < scanEnd; index += 1) {
     const character = content[index] ?? '';
     if (isEscaped(content, index)) {
       continue;

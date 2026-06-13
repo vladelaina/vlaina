@@ -193,7 +193,7 @@ export function NotesView({
     setChatPanelCollapsed(true);
   }, [setChatPanelCollapsed]);
   const openFloatingChat = useCallback(() => {
-    void preloadEmbeddedChatViewModule();
+    void preloadEmbeddedChatViewModule().catch(() => undefined);
     setChatPanelCollapsed(true);
     setChatFloatingOpen(true);
   }, [setChatFloatingOpen, setChatPanelCollapsed]);
@@ -287,10 +287,10 @@ export function NotesView({
       if (!cancelled) {
         setIsEmbeddedChatViewReady(true);
       }
-    });
+    }).catch(() => undefined);
 
     const timeoutId = window.setTimeout(() => {
-      void preloadMarkdownEditor();
+      void preloadMarkdownEditor().catch(() => undefined);
     }, 0);
 
     return () => {
@@ -435,7 +435,7 @@ export function NotesView({
       }
     };
 
-    void navigateToStarredTarget();
+    void navigateToStarredTarget().catch(() => undefined);
   }, [
     currentVault,
     pendingStarredNavigation,
@@ -746,7 +746,7 @@ export function NotesView({
           const path = pendingDeleteCurrentNotePath;
           setPendingDeleteCurrentNotePath(null);
           if (path) {
-            void deleteNote(path);
+            void deleteNote(path).catch(() => undefined);
           }
         }}
       />

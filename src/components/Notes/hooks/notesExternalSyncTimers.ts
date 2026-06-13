@@ -25,7 +25,7 @@ export function createNotesExternalSyncTimers(options: CreateNotesExternalSyncTi
 
     reloadTimerRef.current = window.setTimeout(() => {
       reloadTimerRef.current = null;
-      void loadFileTree(true);
+      void loadFileTree(true).catch(() => undefined);
     }, FILE_TREE_RELOAD_DEBOUNCE_MS);
   };
 

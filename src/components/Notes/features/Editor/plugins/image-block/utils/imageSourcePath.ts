@@ -9,7 +9,7 @@ import {
     normalizePublicRemoteMediaUrl,
     sanitizeNoteMediaSrc,
 } from '@/lib/notes/markdown/urlSecurity';
-import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 interface ImageSourcePathDeps {
     getParentPath: (path: string) => string | null;
@@ -100,11 +100,7 @@ function hasUnsafeImagePathSegment(path: string | null | undefined): boolean {
         return false;
     }
 
-    return path
-        .replace(/\\/g, '/')
-        .split('/')
-        .filter(Boolean)
-        .some((segment) => segment !== '.' && segment !== '..' && !isSafeVaultPathSegment(segment));
+    return hasUnsafeVaultPathSegment(path, { allowNavigationSegments: true });
 }
 
 export async function resolveImageSourcePath(

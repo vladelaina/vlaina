@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_EXTERNAL_DROP_FILE_SCAN,
+  MAX_EXTERNAL_DROP_PATH_CHARS,
   MAX_EXTERNAL_DROP_TYPE_SCAN,
   getDroppedExternalPaths,
   hasDataTransferType,
@@ -39,6 +40,17 @@ describe('external drop payload helpers', () => {
     expect(paths[0]).toBe('/outside/note-0.md');
     expect(paths.at(-1)).toBe(`/outside/note-${MAX_EXTERNAL_DROP_FILE_SCAN - 1}.md`);
     expect(accessed).toBe(MAX_EXTERNAL_DROP_FILE_SCAN);
+  });
+
+  it('skips oversized dropped path strings before downstream handling', () => {
+    const files = [
+      { path: `/outside/${'a'.repeat(MAX_EXTERNAL_DROP_PATH_CHARS)}.md` },
+      { path: '/outside/alpha.md' },
+    ];
+
+    expect(getDroppedExternalPaths(createDataTransfer({ files: files as unknown as FileList }))).toEqual([
+      '/outside/alpha.md',
+    ]);
   });
 
   it('does not scan drag type lists beyond the safety cap', () => {

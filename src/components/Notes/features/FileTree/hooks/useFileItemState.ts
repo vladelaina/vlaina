@@ -45,7 +45,7 @@ export function useFileItemState(node: NoteFile, dragEnabled = true) {
       if (!openInNewTab) {
         suppressNextCurrentNoteSidebarReveal(node.path);
       }
-      void openNote(node.path, openInNewTab);
+      void openNote(node.path, openInNewTab).catch(() => undefined);
     },
     [currentNotePath, node.path, openNote]
   );

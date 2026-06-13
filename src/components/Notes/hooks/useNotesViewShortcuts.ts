@@ -116,14 +116,14 @@ export function useNotesViewShortcuts({
           if (!nextPath) {
             return;
           }
-          void openNote(nextPath);
+          void openNote(nextPath).catch(() => undefined);
           return;
         }
 
         const nextPath = getAdjacentTreeNotePath(notePathsInTreeOrder, currentNotePath, 'next');
         if (nextPath) {
           focusSidebarPath(nextPath);
-          void openNote(nextPath);
+          void openNote(nextPath).catch(() => undefined);
         }
         return;
       }
@@ -143,27 +143,27 @@ export function useNotesViewShortcuts({
           if (!nextPath) {
             return;
           }
-          void openNote(nextPath);
+          void openNote(nextPath).catch(() => undefined);
           return;
         }
 
         const nextPath = getAdjacentTreeNotePath(notePathsInTreeOrder, currentNotePath, 'previous');
         if (nextPath) {
           focusSidebarPath(nextPath);
-          void openNote(nextPath);
+          void openNote(nextPath).catch(() => undefined);
         }
         return;
       }
 
       if (matchesShortcutBinding(event, 'closeCurrentTab') && currentNotePath) {
         event.preventDefault();
-        void closeTab(currentNotePath);
+        void closeTab(currentNotePath).catch(() => undefined);
         return;
       }
 
       if (matchesShortcutBinding(event, 'reopenClosedTab')) {
         event.preventDefault();
-        void reopenClosedTab();
+        void reopenClosedTab().catch(() => undefined);
       }
     };
 

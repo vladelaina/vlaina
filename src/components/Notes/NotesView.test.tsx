@@ -238,7 +238,7 @@ vi.mock('@/lib/notes/openMarkdownFileText', () => ({
 
 vi.mock('./features/OpenTarget/openTargetSelection', () => ({
   getSingleOpenSelection: vi.fn(),
-  isSupportedMarkdownSelection: vi.fn((path: string) => path.toLowerCase().endsWith('.md')),
+  isSupportedMarkdownSelection: vi.fn((path: string) => /\.(?:md|markdown|mdown|mkd)$/i.test(path)),
   resolveOpenNoteTarget: vi.fn((path: string) => ({
     vaultPath: '/vault',
     notePath: path.split('/').pop() || path,
@@ -1078,6 +1078,45 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
     });
+  });
+
+  it('opens a dropped .markdown file when the workspace is blank', async () => {
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'alpha.markdown',
+      path: '/vault/alpha.markdown',
+      isDirectory: false,
+      isFile: true,
+    });
+
+    render(<NotesView />);
+
+    await act(async () => {
+      dispatchWindowDragEvent('drop', ['/vault/alpha.markdown']);
+    });
+
+    await waitFor(() => {
+      expect(notesState.openNote).toHaveBeenCalledWith('alpha.markdown');
+    });
+  });
+
+  it('rejects a dropped folder when authorization returns a relative path', async () => {
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'docs',
+      path: 'relative/docs',
+      isDirectory: true,
+      isFile: false,
+    });
+
+    render(<NotesView />);
+
+    await act(async () => {
+      dispatchWindowDragEvent('drop', ['/tmp/docs']);
+    });
+
+    await waitFor(() => {
+      expect(messageDialog).toHaveBeenCalled();
+    });
+    expect(mocks.vaultState.openVault).not.toHaveBeenCalled();
   });
 
   it('opens a markdown file from the Electron file association event', async () => {

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     saveDialog: vi.fn(async () => '/downloads/demo.png'),
     writeDesktopBinaryFile: vi.fn(async () => undefined),
     writeTextToClipboard: vi.fn(async () => true),
+    rasterizeSvgBlobToPngBlob: vi.fn(),
 }));
 
 vi.mock('@/lib/i18n', () => ({
@@ -30,11 +31,17 @@ vi.mock('../utils/fileUtils', () => ({
     ensureImageFileExists: mocks.ensureImageFileExists,
 }));
 
+vi.mock('@/lib/markdown/svgRasterize', () => ({
+    isSvgImageMimeType: (value: string | null | undefined) =>
+        (value ?? '').split(';')[0].trim().toLowerCase() === 'image/svg+xml',
+    rasterizeSvgBlobToPngBlob: mocks.rasterizeSvgBlobToPngBlob,
+}));
+
 vi.mock('../commands/imageNodeCommands', () => ({
     deleteImageNodeAtPos: vi.fn(),
 }));
 
-function renderImageActions() {
+function renderImageActions(overrides: Partial<Parameters<typeof useImageActions>[0]> = {}) {
     return renderHook(() =>
         useImageActions({
             node: { attrs: { src: 'assets/demo.png', alt: 'demo' } } as never,
@@ -49,6 +56,7 @@ function renderImageActions() {
             setCropParams: vi.fn(),
             setIsActive: vi.fn(),
             setHeight: vi.fn(),
+            ...overrides,
         })
     );
 }
@@ -69,6 +77,7 @@ describe('useImageActions', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.unstubAllGlobals();
+        mocks.rasterizeSvgBlobToPngBlob.mockImplementation(async (blob: Blob) => blob);
     });
 
     it('falls back to copying source text when resolved content is not an image', async () => {
@@ -122,6 +131,42 @@ describe('useImageActions', () => {
         expect(copied).toBe(true);
         expect(clipboardWrite).toHaveBeenCalledTimes(1);
         expect(mocks.writeTextToClipboard).not.toHaveBeenCalled();
+    });
+
+    it('rasterizes SVG content before copying it to the clipboard', async () => {
+        const clipboardWrite = vi.fn(async () => undefined);
+        const pngBlob = new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' });
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { write: clipboardWrite },
+        });
+        vi.stubGlobal('ClipboardItem', vi.fn(function ClipboardItem(items) {
+            return { items };
+        }));
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '11',
+                'content-type': 'image/svg+xml',
+            }),
+            blob: async () => new Blob(['<svg></svg>'], { type: 'image/svg+xml' }),
+        })));
+        mocks.rasterizeSvgBlobToPngBlob.mockResolvedValueOnce(pngBlob);
+        const { result } = renderImageActions();
+
+        let copied = false;
+        await act(async () => {
+            copied = await result.current.handleCopy();
+        });
+
+        expect(copied).toBe(true);
+        expect(mocks.rasterizeSvgBlobToPngBlob).toHaveBeenCalledWith(expect.any(Blob));
+        expect(clipboardWrite).toHaveBeenCalledWith([
+            expect.objectContaining({
+                items: {
+                    'image/png': pngBlob,
+                },
+            }),
+        ]);
     });
 
     it('does not copy oversized resolved image responses', async () => {
@@ -190,6 +235,62 @@ describe('useImageActions', () => {
             '/downloads/demo.png',
             expect.any(Uint8Array),
         );
+    });
+
+    it('rasterizes SVG content before writing downloaded image bytes', async () => {
+        const pngBytes = new Uint8Array([7, 8, 9]);
+        const pngBlob = new Blob([pngBytes], { type: 'image/png' });
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '11',
+                'content-type': 'image/svg+xml',
+            }),
+            blob: async () => new Blob(['<svg></svg>'], { type: 'image/svg+xml' }),
+        })));
+        mocks.rasterizeSvgBlobToPngBlob.mockResolvedValueOnce(pngBlob);
+        const { result } = renderImageActions();
+
+        await act(async () => {
+            await result.current.handleDownload();
+        });
+
+        expect(mocks.rasterizeSvgBlobToPngBlob).toHaveBeenCalledWith(expect.any(Blob));
+        expect(mocks.writeDesktopBinaryFile).toHaveBeenCalledWith(
+            '/downloads/demo.png',
+            pngBytes,
+        );
+    });
+
+    it('does not fall back to downloading original SVG content when writing rasterized bytes fails', async () => {
+        const pngBlob = new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' });
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '11',
+                'content-type': 'image/svg+xml',
+            }),
+            blob: async () => new Blob(['<svg></svg>'], { type: 'image/svg+xml' }),
+        })));
+        mocks.rasterizeSvgBlobToPngBlob.mockResolvedValueOnce(pngBlob);
+        mocks.writeDesktopBinaryFile.mockRejectedValueOnce(new Error('disk unavailable'));
+        const { result } = renderImageActions({
+            node: { attrs: { src: 'assets/demo.svg', alt: 'demo' } } as never,
+            baseSrc: 'assets/demo.svg',
+        });
+        const appendSpy = vi.spyOn(document.body, 'appendChild');
+        const removeSpy = vi.spyOn(document.body, 'removeChild');
+
+        try {
+            await act(async () => {
+                await result.current.handleDownload();
+            });
+
+            expect(mocks.writeDesktopBinaryFile).toHaveBeenCalled();
+            expect(appendSpy).not.toHaveBeenCalled();
+            expect(removeSpy).not.toHaveBeenCalled();
+        } finally {
+            appendSpy.mockRestore();
+            removeSpy.mockRestore();
+        }
     });
 
     it('does not hang when fallback downloaded image reading is aborted', async () => {

@@ -42,7 +42,13 @@ describe('externalTextDropCursorPlugin drag payload detection', () => {
   });
 
   it('detects heading drops from the custom chat heading mime type', () => {
-    expect(hasHeadingDropPayload(createTransfer([CHAT_HEADING_DRAG_MIME]))).toBe(true);
+    expect(hasHeadingDropPayload(createTransfer([CHAT_HEADING_DRAG_MIME], (type) => (
+      type === CHAT_HEADING_DRAG_MIME ? JSON.stringify({ level: 2, text: 'Heading' }) : ''
+    )))).toBe(true);
+  });
+
+  it('does not detect invalid custom chat heading payloads', () => {
+    expect(hasHeadingDropPayload(createTransfer([CHAT_HEADING_DRAG_MIME], () => 'not-json'))).toBe(false);
   });
 
   it('detects single heading drops from html payloads', () => {
@@ -64,6 +70,22 @@ describe('externalTextDropCursorPlugin drag payload detection', () => {
 
     expect(hasHeadingDropPayload(createTransfer(types, () => {
       throw new Error('HTML should not be parsed for oversized drag type lists');
+    }))).toBe(false);
+  });
+
+  it('does not parse custom heading payloads after the drag type scan cap is exhausted', () => {
+    const types = {
+      length: MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN + 1,
+      item(index: number) {
+        if (index >= MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN) {
+          throw new Error('Read past drag type scan cap');
+        }
+        return index === 0 ? CHAT_HEADING_DRAG_MIME : 'application/octet-stream';
+      },
+    };
+
+    expect(hasHeadingDropPayload(createTransfer(types, () => {
+      throw new Error('Custom payload should not be parsed for oversized drag type lists');
     }))).toBe(false);
   });
 });

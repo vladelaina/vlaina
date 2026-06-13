@@ -118,7 +118,7 @@ export function createToolbarRenderer(
               return;
             }
             controller.render(aiGroup, view, () => hideToolbar(view));
-          });
+          }).catch(() => undefined);
         }
       }
 
@@ -128,7 +128,7 @@ export function createToolbarRenderer(
             return;
           }
           controller.render(toolbarElement, view, state, () => hideToolbar(view));
-        });
+        }).catch(() => undefined);
       }
 
       if (state.subMenu === 'block') {

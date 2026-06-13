@@ -83,11 +83,11 @@ export const imageAssetLifecyclePlugin = $prose(() => {
             const { deletedAssets, insertedAssets } = diffImageAssetKeySets(oldAssets, newAssets);
 
             deletedAssets.forEach((src) => {
-                void moveImageToTrash(src, notesPath, currentNote?.path);
+                void Promise.resolve(moveImageToTrash(src, notesPath, currentNote?.path)).catch(() => undefined);
             });
 
             insertedAssets.forEach((src) => {
-                void restoreImageFromTrash(src, notesPath, currentNote?.path);
+                void Promise.resolve(restoreImageFromTrash(src, notesPath, currentNote?.path)).catch(() => undefined);
             });
 
             return null;

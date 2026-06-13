@@ -13,11 +13,14 @@ export interface NotesOverlayOpenDetail {
 
 export function notifyNotesOverlayOpen(source: NotesOverlaySource) {
   const dispatch = () => {
-    document.dispatchEvent(
-      new CustomEvent<NotesOverlayOpenDetail>(NOTES_OVERLAY_OPEN_EVENT, {
-        detail: { source },
-      })
-    );
+    try {
+      document.dispatchEvent(
+        new CustomEvent<NotesOverlayOpenDetail>(NOTES_OVERLAY_OPEN_EVENT, {
+          detail: { source },
+        })
+      );
+    } catch {
+    }
   };
 
   if (typeof queueMicrotask === 'function') {
@@ -25,7 +28,7 @@ export function notifyNotesOverlayOpen(source: NotesOverlaySource) {
     return;
   }
 
-  void Promise.resolve().then(dispatch);
+  void Promise.resolve().then(dispatch).catch(() => undefined);
 }
 
 export function onNotesOverlayOpen(

@@ -230,7 +230,7 @@ export function useNotesSidebarExternalDropImport({
           (result.importedNotePaths[0] ? getParentRelativePath(result.importedNotePaths[0]) : importTargetPath);
 
         revealFolder(revealPath);
-      })();
+      })().catch(() => undefined);
     };
 
     window.addEventListener('dragenter', handleDragEnter);

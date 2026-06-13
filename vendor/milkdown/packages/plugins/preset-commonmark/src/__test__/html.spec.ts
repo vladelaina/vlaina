@@ -399,6 +399,27 @@ it('should line-bound overlong sanitizer-only raw html tags during sanitization'
   expect(result).not.toContain('x'.repeat(1024))
 })
 
+it('should line-bound overlong raw html tag names inside dropped containers', () => {
+  const badLine = `<svg><${'a'.repeat(200)}></svg><img src="https://example.com/hidden.png">`
+  const result = sanitizeGithubHtml([
+    badLine,
+    '<img src="https://example.com/real.png">',
+  ].join('\n'))
+
+  expect(result).toBe('')
+  expect(result).not.toContain('hidden.png')
+  expect(result).not.toContain('real.png')
+})
+
+it('should cap excessive raw html container tag scans during sanitization', () => {
+  const noisyContainer = `<svg>${'<x/>'.repeat(20_001)}</svg><img src="https://example.com/real.png">`
+
+  const result = sanitizeGithubHtml(noisyContainer)
+
+  expect(result).toBe('')
+  expect(result).not.toContain('real.png')
+})
+
 it('should cap deeply nested github html during sanitization', () => {
   const payload = `${'<div>'.repeat(250)}<p onclick="evil()">deep</p>${'</div>'.repeat(250)}`
 

@@ -137,6 +137,59 @@ describe('folder markdown mention scan budgets', () => {
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
+  it('applies the folder mention listing scan cap across nested directories', async () => {
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs') {
+        return [
+          {
+            name: 'a',
+            path: '/vault/docs/a',
+            isDirectory: true,
+            isFile: false,
+          },
+          {
+            name: 'b',
+            path: '/vault/docs/b',
+            isDirectory: true,
+            isFile: false,
+          },
+        ];
+      }
+
+      if (path === '/vault/docs/a') {
+        return Array.from({ length: 4999 }, (_value, index) => ({
+          name: `asset-${String(index).padStart(4, '0')}.png`,
+          path: `/vault/docs/a/asset-${String(index).padStart(4, '0')}.png`,
+          isDirectory: false,
+          isFile: true,
+          size: 1024,
+        }));
+      }
+
+      if (path === '/vault/docs/b') {
+        return [
+          {
+            name: 'late.md',
+            path: '/vault/docs/b/late.md',
+            isDirectory: false,
+            isFile: true,
+            size: 128,
+          },
+        ];
+      }
+
+      return [];
+    });
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes.slice(1)).toEqual([]);
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/b', { includeHidden: true });
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/b/late.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
   it('does not spend folder mention scan budget on sibling folders before markdown notes', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault/docs') {

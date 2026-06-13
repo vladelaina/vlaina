@@ -322,6 +322,29 @@ describe('useStarredSectionEntries', () => {
     expect(mocked.notesState.openNote).not.toHaveBeenCalledWith('docs/old.md', false);
   });
 
+  it('isolates rejected starred note opens', async () => {
+    mocked.notesState.openNote.mockRejectedValueOnce(new Error('open failed'));
+    mocked.notesState.starredEntries = [
+      {
+        id: 'note-5',
+        kind: 'note',
+        vaultPath: '/vault-a',
+        relativePath: 'docs/broken.md',
+        addedAt: 1,
+      },
+    ];
+
+    const { result } = renderHook(() => useStarredSectionEntries());
+
+    await act(async () => {
+      result.current.entries[0]?.onOpen();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocked.notesState.openNote).toHaveBeenCalledWith('docs/broken.md', false);
+  });
+
   it('does not open a cross-vault starred folder', async () => {
     mocked.notesState.starredEntries = [
       {

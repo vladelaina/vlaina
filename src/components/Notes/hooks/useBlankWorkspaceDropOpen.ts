@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { getStorageAdapter, type FileInfo } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath, normalizeAbsolutePath, type FileInfo } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
+import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
@@ -32,6 +34,23 @@ async function statDroppedPath(path: string): Promise<FileInfo | null> {
   }
 
   return getStorageAdapter().stat(path);
+}
+
+function getAuthorizedDroppedPath(info: FileInfo | null, fallbackPath: string) {
+  return info?.path?.trim() || fallbackPath;
+}
+
+function normalizeSafeDroppedVaultPath(path: string): string | null {
+  const normalizedPath = normalizeAbsolutePath(path.trim());
+  if (
+    !isAbsolutePath(normalizedPath) ||
+    hasInternalNotePathSegment(normalizedPath) ||
+    hasUnsafeVaultPathSegment(normalizedPath)
+  ) {
+    return null;
+  }
+
+  return normalizedPath;
 }
 
 export function useBlankWorkspaceDropOpen({
@@ -129,13 +148,22 @@ export function useBlankWorkspaceDropOpen({
         try {
           const droppedPath = paths[0];
           const info = await statDroppedPath(droppedPath);
-          const authorizedPath = info?.path?.trim() || droppedPath;
+          const authorizedPath = getAuthorizedDroppedPath(info, droppedPath);
           if (cancelled) {
             return;
           }
 
           if (info?.isDirectory) {
-            const opened = await openVault(authorizedPath);
+            const authorizedVaultPath = normalizeSafeDroppedVaultPath(authorizedPath);
+            if (!authorizedVaultPath) {
+              await messageDialog(t('notes.dropFolderOrMarkdown'), {
+                title: t('notes.unsupportedDrop'),
+                kind: 'warning',
+              });
+              return;
+            }
+
+            const opened = await openVault(authorizedVaultPath);
             if (!opened && !cancelled) {
               await messageDialog(t('notes.openDroppedFolderFailed'), {
                 title: t('notes.openFailed'),
@@ -162,7 +190,7 @@ export function useBlankWorkspaceDropOpen({
             });
           }
         }
-      })();
+      })().catch(() => undefined);
     };
 
     window.addEventListener('dragenter', handleDragEnter, true);

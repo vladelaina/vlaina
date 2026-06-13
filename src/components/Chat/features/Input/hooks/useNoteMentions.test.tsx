@@ -146,6 +146,39 @@ describe('useNoteMentions', () => {
     expect(hoisted.loadFileTree).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores note tree load failures while opening mentions', async () => {
+    hoisted.loadFileTree.mockRejectedValueOnce(new Error('load failed'));
+    hoisted.storeRef.state = {
+      ...hoisted.storeRef.state,
+      rootFolder: null,
+      notesPath: '',
+      isLoading: false,
+    };
+
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(1);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.showMentionPicker).toBe(true);
+    expect(result.current.mentionPickerStatus).toBe('loading');
+    expect(hoisted.loadFileTree).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps a bare mention trigger quiet when no vault is available', () => {
     hoisted.resetCurrentVaultPath(null);
     hoisted.vaultStoreRef.state = {

@@ -33,7 +33,7 @@ export function NotesSidebarWrapper({
       return;
     }
 
-    void loadStarred('');
+    void loadStarred('').catch(() => undefined);
   }, [currentVault, loadStarred, starredLoaded]);
 
   const isCurrentVaultRootPending = Boolean(

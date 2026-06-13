@@ -348,6 +348,62 @@ describe('workspace external actions internal paths', () => {
     expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 
+  it('ignores external renames with URL-like endpoints at the action boundary', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [createFile('docs/alpha.md', 'alpha')]),
+      ]),
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      recentNotes: ['docs/alpha.md'],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'docs/alpha.md': { createdAt: 1 },
+        },
+      },
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'http://example.test/beta.md');
+    await store.getState().applyExternalPathRename('ftp://example.test/alpha.md', 'docs/beta.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
+    expect(store.getState().noteContentsCache.has('http://example.test/beta.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('docs/beta.md')).toBe(false);
+    expect(store.getState().noteMetadata?.notes['http://example.test/beta.md']).toBeUndefined();
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('ignores external deletions with URL-like paths at the action boundary', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [createFile('docs/alpha.md', 'alpha')]),
+      ]),
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      recentNotes: ['docs/alpha.md'],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    await store.getState().applyExternalPathDeletion('http://example.test/docs/alpha.md');
+    await store.getState().applyExternalPathDeletion('https\\://example.test/docs/alpha.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
+    expect(store.getState().noteContentsCache.has('docs/alpha.md')).toBe(true);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
   it('treats renames into normalized internal paths as external deletions', async () => {
     const store = createNotesStore({
       rootFolder: createFolder('', 'Notes', [

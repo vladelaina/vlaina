@@ -110,6 +110,7 @@ describe('remoteImageMemoryCache', () => {
             cache: 'force-cache',
             credentials: 'omit',
             referrerPolicy: 'no-referrer',
+            redirect: 'error',
             signal: expect.any(AbortSignal),
         });
     });
@@ -175,6 +176,7 @@ describe('remoteImageMemoryCache', () => {
             cache: 'force-cache',
             credentials: 'omit',
             referrerPolicy: 'no-referrer',
+            redirect: 'error',
             signal: expect.any(AbortSignal),
         });
 

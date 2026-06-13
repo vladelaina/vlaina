@@ -20,6 +20,7 @@ export function createSafeImageFetchInit(fetchInit?: RequestInit, signal?: Abort
   }
   init.credentials = 'omit';
   init.referrerPolicy = 'no-referrer';
+  init.redirect = 'error';
   return init;
 }
 

@@ -146,6 +146,19 @@ describe('session inline image persistence', () => {
     await vi.runOnlyPendingTimersAsync()
   })
 
+  it('isolates parser failures from scheduled inline image persistence', async () => {
+    const { createSessionActions } = await import('./sessionActions')
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementationOnce(() => {
+      throw new Error('parse failed')
+    })
+    seedSession([createMessage('m1', '![image](<data:image/png;base64,INLINE>)')])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runAllTimersAsync()
+
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+  })
+
   it('bounds queued inline image persistence across different sessions', async () => {
     const {
       MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS,

@@ -188,7 +188,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
       if (!cancelled) {
         setHomePath(path);
       }
-    });
+    }).catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -238,7 +238,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const handleFolderClick = (targetPath: string) => {
     setNotesSidebarView('workspace');
     if (displayInfo.isAbsolute) {
-      void openAbsoluteDirectoryInSidebar(targetPath);
+      void openAbsoluteDirectoryInSidebar(targetPath).catch(() => undefined);
       return;
     }
 
@@ -249,7 +249,8 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const handleRootClick = () => {
     setNotesSidebarView('workspace');
     if (displayInfo.isAbsolute) {
-      void openAbsoluteDirectoryInSidebar(displayInfo.rootPath || getParentPath(notePath) || notePath);
+      void openAbsoluteDirectoryInSidebar(displayInfo.rootPath || getParentPath(notePath) || notePath)
+        .catch(() => undefined);
       return;
     }
 
@@ -274,7 +275,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
 
       const parentPath = getParentPath(notePath);
       if (parentPath) {
-        void openAbsoluteDirectoryInSidebar(parentPath);
+        void openAbsoluteDirectoryInSidebar(parentPath).catch(() => undefined);
       }
       return;
     }

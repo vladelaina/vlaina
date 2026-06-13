@@ -203,7 +203,7 @@ export function emitNotesExternalPathRename(input: {
   } catch {
   }
 
-  void appendNotesExternalPathEvent(event);
+  void appendNotesExternalPathEvent(event).catch(() => undefined);
 }
 
 export function subscribeNotesExternalPathRename(
@@ -329,6 +329,10 @@ async function readStoredEvents(eventPath: string) {
 async function readEventFileContent(eventPath: string) {
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(eventPath).catch(() => null);
+  if (!fileInfo) {
+    return null;
+  }
+
   if (
     fileInfo?.isDirectory === true ||
     fileInfo?.isFile === false ||

@@ -192,7 +192,7 @@ export function MarkdownEditor({
       const preload = () => {
         void import('./plugins/mermaid/mermaidRenderer').then((mod) => {
           mod.prewarmMermaidRenderer();
-        });
+        }).catch(() => undefined);
       };
 
       if (typeof window.requestIdleCallback === 'function') {
@@ -573,13 +573,13 @@ function MarkdownSourceFallback({
     clearPendingSave();
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
-      void saveNote({ explicit: false });
+      void saveNote({ explicit: false }).catch(() => undefined);
     }, themeEditorLayoutTokens.autoSaveDebounceMs);
   }, [clearPendingSave, saveNote]);
 
   const flushSave = useCallback(() => {
     clearPendingSave();
-    void saveNote({ explicit: false });
+    void saveNote({ explicit: false }).catch(() => undefined);
   }, [clearPendingSave, saveNote]);
 
   return (

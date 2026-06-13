@@ -167,6 +167,125 @@ describe('useChatAttachments', () => {
     expect(deleteAttachment).not.toHaveBeenCalled();
   });
 
+  it('does not re-add attachments that finish saving after attachments are cleared', async () => {
+    const lateAttachment = createAttachment({
+      id: 'late',
+      path: '/appdata/.vlaina/attachments/late.png',
+    });
+    let resolveSave!: (attachment: Attachment) => void;
+    mocks.saveAttachment.mockImplementationOnce(
+      () => new Promise<Attachment>((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const { result } = renderHook(() => useChatAttachments());
+
+    let fileChangeRequest!: Promise<void>;
+    await act(async () => {
+      fileChangeRequest = result.current.handleFileChange({
+        target: {
+          files: [new File(['late'], 'late.png', { type: 'image/png' })],
+          value: 'selected',
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+      await vi.waitFor(() => {
+        expect(saveAttachment).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    act(() => {
+      result.current.clearAttachments();
+    });
+
+    await act(async () => {
+      resolveSave(lateAttachment);
+      await fileChangeRequest;
+    });
+
+    expect(result.current.attachments).toEqual([]);
+    expect(deleteAttachment).toHaveBeenCalledWith(lateAttachment);
+  });
+
+  it('keeps restored attachments when older pending saves finish later', async () => {
+    const staleAttachment = createAttachment({
+      id: 'stale',
+      path: '/appdata/.vlaina/attachments/stale.png',
+    });
+    const restoredAttachment = createAttachment({
+      id: 'restored',
+      path: '/appdata/.vlaina/attachments/restored.png',
+      name: 'restored.png',
+    });
+    let resolveSave!: (attachment: Attachment) => void;
+    mocks.saveAttachment.mockImplementationOnce(
+      () => new Promise<Attachment>((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const { result } = renderHook(() => useChatAttachments());
+
+    let fileChangeRequest!: Promise<void>;
+    await act(async () => {
+      fileChangeRequest = result.current.handleFileChange({
+        target: {
+          files: [new File(['stale'], 'stale.png', { type: 'image/png' })],
+          value: 'selected',
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+      await vi.waitFor(() => {
+        expect(saveAttachment).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    act(() => {
+      result.current.restoreAttachments([restoredAttachment]);
+    });
+
+    await act(async () => {
+      resolveSave(staleAttachment);
+      await fileChangeRequest;
+    });
+
+    expect(result.current.attachments).toEqual([restoredAttachment]);
+    expect(deleteAttachment).toHaveBeenCalledWith(staleAttachment);
+  });
+
+  it('cleans up attachments that finish saving after the hook unmounts', async () => {
+    const lateAttachment = createAttachment({
+      id: 'late-unmounted',
+      path: '/appdata/.vlaina/attachments/late-unmounted.png',
+    });
+    let resolveSave!: (attachment: Attachment) => void;
+    mocks.saveAttachment.mockImplementationOnce(
+      () => new Promise<Attachment>((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const { result, unmount } = renderHook(() => useChatAttachments());
+
+    let fileChangeRequest!: Promise<void>;
+    await act(async () => {
+      fileChangeRequest = result.current.handleFileChange({
+        target: {
+          files: [new File(['late'], 'late-unmounted.png', { type: 'image/png' })],
+          value: 'selected',
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+      await vi.waitFor(() => {
+        expect(saveAttachment).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    unmount();
+
+    await act(async () => {
+      resolveSave(lateAttachment);
+      await fileChangeRequest;
+    });
+
+    expect(deleteAttachment).toHaveBeenCalledWith(lateAttachment);
+  });
+
   it('limits oversized file selections before saving attachments', async () => {
     const files: File[] = [];
     for (let index = 0; index < MAX_CHAT_ATTACHMENT_INPUT_FILES + 5; index += 1) {

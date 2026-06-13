@@ -242,7 +242,10 @@ function hasUnsafeExternalPathSegment(path: string): boolean {
 
 function isAllowedExternalActionPath(path: string): boolean {
   const normalizedPath = isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
-  if (hasInternalNotePathSegment(normalizedPath) || hasUnsafeExternalPathSegment(normalizedPath)) {
+  if (
+    hasInternalNotePathSegment(normalizedPath) ||
+    hasUnsafeExternalPathSegment(normalizedPath)
+  ) {
     return false;
   }
 
@@ -340,7 +343,7 @@ export function createWorkspaceExternalActions(
       const starredChanged = vaultStarredResult.changed || starredResult.changed;
 
       if (starredChanged) {
-        void saveStarredRegistry(starredResult.entries);
+        void Promise.resolve(saveStarredRegistry(starredResult.entries)).catch(() => undefined);
       }
       if (nextRecentNotes !== recentNotes) {
         persistRecentNotes(nextRecentNotes);
@@ -454,7 +457,7 @@ export function createWorkspaceExternalActions(
 
       const starredChanged = starredResult.changed || absoluteStarredResult.changed;
       if (starredChanged) {
-        void saveStarredRegistry(absoluteStarredResult.entries);
+        void Promise.resolve(saveStarredRegistry(absoluteStarredResult.entries)).catch(() => undefined);
       }
       if (nextRecentNotes !== recentNotes) {
         persistRecentNotes(nextRecentNotes);

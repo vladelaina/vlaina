@@ -10,6 +10,7 @@ let mermaidCounter = 0;
 type ConsoleMethodName = 'debug' | 'error' | 'info' | 'log' | 'warn';
 
 export const MAX_MERMAID_CODE_CHARS = 20_000;
+export const MERMAID_RENDER_TIMEOUT_MS = 5000;
 const MERMAID_INIT_CONFIG = {
   startOnLoad: false,
   securityLevel: 'strict',
@@ -59,7 +60,7 @@ async function getMermaid() {
 }
 
 export function prewarmMermaidRenderer() {
-  void getMermaid();
+  void getMermaid().catch(() => undefined);
 }
 
 function createMermaidRenderConfig() {
@@ -91,6 +92,28 @@ async function withoutThirdPartyConsoleOutput<T>(action: () => Promise<T>): Prom
   }
 }
 
+function runWithTimeout<T>(action: () => Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      callback();
+    };
+    const timeout = setTimeout(() => {
+      finish(() => reject(new Error('Mermaid render timed out.')));
+    }, timeoutMs);
+
+    Promise.resolve()
+      .then(action)
+      .then(
+        (value) => finish(() => resolve(value)),
+        (error) => finish(() => reject(error)),
+      );
+  });
+}
+
 export function generateMermaidId(): string {
   return `mermaid-${Date.now()}-${mermaidCounter++}`;
 }
@@ -109,7 +132,7 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
   try {
     mermaid.initialize(createMermaidRenderConfig());
     const { svg } = await withoutThirdPartyConsoleOutput<{ svg: string }>(() =>
-      mermaid.render(id, code)
+      runWithTimeout(() => mermaid.render(id, code), MERMAID_RENDER_TIMEOUT_MS)
     );
     return normalizeMermaidRenderMarkup(svg);
   } catch {

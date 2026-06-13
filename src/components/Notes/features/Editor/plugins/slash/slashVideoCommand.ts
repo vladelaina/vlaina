@@ -156,7 +156,7 @@ export function openVideoPrompt(ctx: Ctx) {
               nextSrc: resolved.resolvedUrl,
             });
         }
-      });
+      }).catch(() => undefined);
     },
   });
 }

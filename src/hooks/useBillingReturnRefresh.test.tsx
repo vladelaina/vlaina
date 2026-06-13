@@ -138,6 +138,19 @@ describe('useBillingReturnRefresh', () => {
     expect(mocks.refreshBudget).not.toHaveBeenCalled()
   })
 
+  it('isolates rejected entitlement refresh promises after return', async () => {
+    mocks.checkStatus.mockRejectedValueOnce(new Error('status failed'))
+    mocks.refreshBudget.mockRejectedValueOnce(new Error('budget failed'))
+    markBillingReturnRefreshPending()
+
+    renderHook(() => useBillingReturnRefresh())
+
+    expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
+    await flushPromises()
+    await flushPromises()
+    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1)
+  })
+
   it('allows another billing return after a later checkout click in the same app session', async () => {
     const { unmount } = renderHook(() => useBillingReturnRefresh())
 

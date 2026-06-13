@@ -1,5 +1,11 @@
 import DOMPurify from 'dompurify';
 import { themeColorTokens, themeMermaidTokens } from '@/styles/themeTokens';
+import {
+  containsExternalSvgStyleElementReference,
+  containsExternalSvgUrlReference,
+  isLocalSvgReference,
+  removeExternalSvgStyleDeclarations,
+} from '@/lib/markdown/svgResourceReferences';
 
 const MAX_MERMAID_SANITIZE_DEPTH = 200;
 const MAX_MERMAID_SANITIZE_NODES = 20_000;
@@ -104,12 +110,7 @@ function stripExternalSvgResourceReferences(markup: string) {
 
   const template = document.createElement('template');
   template.innerHTML = markup;
-  const shouldStripResourceReferences = /url\s*\(|href\s*=|@import/i.test(markup);
   const withinBudget = walkBudgetedSvgElements(template.content, (element) => {
-    if (!shouldStripResourceReferences) {
-      return;
-    }
-
     if (element.localName.toLowerCase() === 'style') {
       if (containsExternalSvgStyleElementReference(element.textContent || '')) {
         element.remove();
@@ -152,8 +153,13 @@ function removeExternalHref(element: Element) {
 }
 
 function sanitizeSvgStyleAttribute(style: string) {
+  const filteredStyle = removeExternalSvgStyleDeclarations(style);
+  if (!filteredStyle) {
+    return '';
+  }
+
   const scratch = document.createElement('span');
-  scratch.setAttribute('style', style);
+  scratch.setAttribute('style', filteredStyle);
 
   for (let index = scratch.style.length - 1; index >= 0; index -= 1) {
     const propertyName = scratch.style.item(index);
@@ -161,26 +167,8 @@ function sanitizeSvgStyleAttribute(style: string) {
       scratch.style.removeProperty(propertyName);
     }
   }
-  return scratch.getAttribute('style') || '';
-}
-
-function containsExternalSvgUrlReference(value: string) {
-  const urlPattern = /url\s*\(\s*(['"]?)(.*?)\1\s*\)/gi;
-  let match: RegExpExecArray | null;
-  while ((match = urlPattern.exec(value)) !== null) {
-    if (!isLocalSvgReference(match[2] || '')) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function containsExternalSvgStyleElementReference(value: string) {
-  return /@import/i.test(value) || containsExternalSvgUrlReference(value);
-}
-
-function isLocalSvgReference(value: string) {
-  return value.trim().startsWith('#');
+  const serialized = scratch.style.cssText || scratch.getAttribute('style') || filteredStyle;
+  return containsExternalSvgUrlReference(serialized) ? '' : serialized;
 }
 
 function replaceMermaidForeignObjectLabels(markup: string) {

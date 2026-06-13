@@ -350,7 +350,11 @@ export function useNoteMentionState({
       setCurrentVaultPath(effectiveVaultPath);
     }
     requestedTreeLoadTriggerRef.current = mentionTriggerKey;
-    void loadFileTree();
+    try {
+      void Promise.resolve(loadFileTree()).catch(() => undefined);
+    } catch {
+      // Keep mention loading best-effort; the store can retry on the next trigger.
+    }
   }, [effectiveVaultPath, loadFileTree, mentionTrigger, mentionTriggerKey, notesLoading, notesRootFolder]);
 
   useEffect(() => {

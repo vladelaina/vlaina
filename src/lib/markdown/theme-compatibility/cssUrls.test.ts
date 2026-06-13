@@ -157,6 +157,39 @@ describe('themeCssUrls', () => {
     expect(rewritten).toContain(`.item-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS} { background: url(./asset-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS}.png); }`);
   });
 
+  it('handles many unclosed CSS url() functions without repeated tail scans', async () => {
+    const css = Array.from(
+      { length: 50_000 },
+      (_value, index) => `.item-${index} { background: url(./asset-${index}.png; }`,
+    ).join('\n');
+    const rewriteRequests: string[] = [];
+
+    await expect(
+      rewriteRelativeMarkdownThemeCssUrls(
+        css,
+        '/downloads/theme.css',
+        async ({ path }) => {
+          rewriteRequests.push(path);
+          return `file:///rewritten/${path}`;
+        },
+      )
+    ).resolves.toBe(css);
+
+    expect(rewriteRequests).toEqual([]);
+  });
+
+  it('continues URL sanitization after a malformed quoted url() value', () => {
+    const css = [
+      '.malformed { background: url("./asset.png" broken); }',
+      '.unsafe { background: url(javascript:alert(1)); }',
+    ].join('\n');
+
+    expect(sanitizeUnsafeMarkdownThemeCssUrls(css)).toBe([
+      '.malformed { background: url("./asset.png" broken); }',
+      '.unsafe { background: url(""); }',
+    ].join('\n'));
+  });
+
   it('sanitizes oversized unsafe CSS URL values', () => {
     const oversizedUnsafeUrl = `javascript:${'a'.repeat(MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS + 1)}`;
     const oversizedRelativeUrl = `./${'a'.repeat(MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS + 1)}.png`;

@@ -286,7 +286,7 @@ export function useCoverImageController({
     onSelectCover: handleCoverSelect,
     onPreview: handlePreview,
     onRemoveCover: () => {
-      void handlePreview(null);
+      void handlePreview(null).catch(() => undefined);
       setIsImageReady(false);
       onUpdate(null, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT);
     },

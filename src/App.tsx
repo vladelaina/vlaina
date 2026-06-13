@@ -165,7 +165,7 @@ function App() {
               onClose={() => setIsCloseDraftConfirmOpen(false)}
               onConfirm={() => {
                 setIsCloseDraftConfirmOpen(false);
-                void continueWindowClose({ skipDraftConfirm: true });
+                void continueWindowClose({ skipDraftConfirm: true }).catch(() => undefined);
               }}
               onCancelAction={async () => {
                 setIsCloseDraftConfirmOpen(false);

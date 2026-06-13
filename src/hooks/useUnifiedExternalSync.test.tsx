@@ -275,6 +275,29 @@ describe('useUnifiedExternalSync', () => {
     hook.unmount();
   });
 
+  it('isolates rejected debounced unified reloads', async () => {
+    const reloadFromDisk = vi.fn(async () => {
+      throw new Error('reload failed');
+    });
+    useUnifiedStore.setState({ reloadFromDisk });
+
+    const hook = renderHook(() => useUnifiedExternalSync());
+
+    await act(async () => {
+      hoisted.listener?.({
+        kind: 'unified',
+        sourceId: 'other-window',
+        stamp: 8,
+        nonce: 'n8',
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(reloadFromDisk).toHaveBeenCalledTimes(1);
+
+    hook.unmount();
+  });
+
   it('reloads local UI preferences after an external ui-preferences sync event', async () => {
     const reloadFromDisk = vi.fn(async () => undefined);
     useUnifiedStore.setState({ reloadFromDisk });
@@ -319,6 +342,34 @@ describe('useUnifiedExternalSync', () => {
         stamp: 6,
         nonce: 'n6',
       });
+      await Promise.resolve();
+    });
+
+    expect(loadStarred).toHaveBeenCalledWith('/vault-a');
+    expect(reloadFromDisk).not.toHaveBeenCalled();
+    expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('isolates rejected starred-note reloads', async () => {
+    const reloadFromDisk = vi.fn(async () => undefined);
+    const loadStarred = vi.fn(async () => {
+      throw new Error('starred failed');
+    });
+    useUnifiedStore.setState({ reloadFromDisk });
+    useNotesStore.setState({ notesPath: '/vault-a', loadStarred });
+
+    const hook = renderHook(() => useUnifiedExternalSync());
+
+    await act(async () => {
+      hoisted.listener?.({
+        kind: 'notes-starred',
+        sourceId: 'other-window',
+        stamp: 9,
+        nonce: 'n9',
+      });
+      await Promise.resolve();
       await Promise.resolve();
     });
 

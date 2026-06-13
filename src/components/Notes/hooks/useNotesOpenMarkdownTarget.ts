@@ -96,7 +96,7 @@ export function useNotesOpenMarkdownTarget({
       }
     };
 
-    void openPendingShortcutNote();
+    void openPendingShortcutNote().catch(() => undefined);
 
     return () => {
       cancelled = true;
@@ -248,7 +248,7 @@ export function useNotesOpenMarkdownTarget({
 
   useEffect(() => {
     return subscribeOpenMarkdownTargetEvent((absolutePath) => {
-      void openMarkdownTarget(absolutePath);
+      void openMarkdownTarget(absolutePath).catch(() => undefined);
     });
   }, [openMarkdownTarget]);
 

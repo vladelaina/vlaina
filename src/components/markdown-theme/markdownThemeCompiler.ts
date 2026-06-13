@@ -99,7 +99,7 @@ function assertCompiledThemeCssSafe(compiled: CompiledImportedMarkdownThemeStyle
 }
 
 export function preloadMarkdownThemeCompiler(): void {
-  void loadMarkdownThemeCompilerModules();
+  void loadMarkdownThemeCompilerModules().catch(() => undefined);
 }
 
 export function preloadCompiledImportedMarkdownThemeStyles(id: string): void {

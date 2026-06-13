@@ -83,7 +83,7 @@ function registerAccountPersistenceListener(): void {
 
   window.addEventListener('storage', (event) => {
     if (event.key === ACCOUNT_STATUS_REFRESH_KEY) {
-      void useAccountSessionStore.getState().checkStatus();
+      void useAccountSessionStore.getState().checkStatus().catch(() => undefined);
       return;
     }
 
@@ -104,7 +104,7 @@ function registerAccountPersistenceListener(): void {
       hasCheckedStatus: false,
       error: null,
     });
-    void useAccountSessionStore.getState().hydrateAvatar();
+    void useAccountSessionStore.getState().hydrateAvatar().catch(() => undefined);
   });
 
   persistenceListenerRegistered = true;
@@ -123,7 +123,7 @@ function applyPersistedAccountIdentity(identity: Partial<AccountSessionStore>): 
     hasCheckedStatus: false,
     error: null,
   });
-  void useAccountSessionStore.getState().hydrateAvatar();
+  void useAccountSessionStore.getState().hydrateAvatar().catch(() => undefined);
 }
 
 function registerAccountBroadcastListener(): void {

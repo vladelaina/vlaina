@@ -130,6 +130,28 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
     hook.unmount();
   });
 
+  it('continues handling current-note paths when event file replay fails', async () => {
+    hoisted.readNotesExternalPathEvents.mockRejectedValueOnce(new Error('event file unavailable'));
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: 'modify',
+        paths: [
+          '/external/docs/__vlaina_system__/external-path-events.json',
+          '/external/docs/current.md',
+        ],
+      });
+    });
+
+    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/external/docs', {
+      afterStamp: expect.any(Number),
+    });
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+
+    hook.unmount();
+  });
+
   it('keeps absolute rename sync behavior for rename watch events', async () => {
     const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
 

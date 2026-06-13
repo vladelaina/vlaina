@@ -117,17 +117,22 @@ export function hasHeadingDropPayload(dataTransfer: DataTransfer | null | undefi
   const types = dataTransfer.types;
   if (!types) return false;
   const length = Math.min(types.length, MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN);
+  let hasCustomPayload = false;
   let hasHtml = false;
 
   for (let index = 0; index < length; index += 1) {
     const type = getDataTransferType(types, index);
-    if (type === CHAT_HEADING_DRAG_MIME) return true;
+    if (type === CHAT_HEADING_DRAG_MIME) {
+      hasCustomPayload = true;
+    }
     if (type === 'text/html') {
       hasHtml = true;
     }
   }
 
-  return hasHtml && types.length <= MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN && Boolean(getSingleHeadingFromHtml(dataTransfer));
+  if (types.length > MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN) return false;
+  if (hasCustomPayload && parseChatHeadingDragPayload(dataTransfer.getData(CHAT_HEADING_DRAG_MIME))) return true;
+  return hasHtml && Boolean(getSingleHeadingFromHtml(dataTransfer));
 }
 
 function isInternalTextSelectionDrag(view: EditorView): boolean {

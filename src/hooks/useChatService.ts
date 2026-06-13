@@ -34,7 +34,6 @@ import {
   buildMentionedNotesContext,
   buildMessageImageSources,
   buildStoredUserMessageContent,
-  MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
   isAllowedChatImageAttachmentPath,
   loadMentionedNotes,
   loadMentionedFolderImageAttachments,
@@ -42,6 +41,7 @@ import {
   normalizeVisionAttachment,
   refreshManagedBudgetIfNeeded,
   isImageAttachment,
+  limitChatMessageImageAttachments,
 } from './chatService/helpers';
 import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
@@ -213,7 +213,7 @@ function markManagedAuthPromptForError(sessionId: string, error: unknown, manage
 async function mapWithConcurrencyLimit<T, R>(
   items: readonly T[],
   limit: number,
-  mapper: (item: T) => Promise<R>,
+  mapper: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
@@ -223,7 +223,7 @@ async function mapWithConcurrencyLimit<T, R>(
       while (nextIndex < items.length) {
         const index = nextIndex;
         nextIndex += 1;
-        results[index] = await mapper(items[index]!);
+        results[index] = await mapper(items[index]!, index);
       }
     },
   );
@@ -235,11 +235,12 @@ async function mapWithConcurrencyLimit<T, R>(
 async function makeTemporaryAttachmentsEphemeral(
   attachments: Attachment[],
   signal?: AbortSignal,
+  onAttachmentConverted?: (index: number, attachment: Attachment) => void,
 ): Promise<Attachment[]> {
   const ephemeralAttachments = await mapWithConcurrencyLimit(
     attachments,
     MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY,
-    async (attachment) => {
+    async (attachment, index) => {
       throwIfChatRequestAborted(signal);
       const hasPersistentReference =
         !!attachment.path ||
@@ -263,13 +264,15 @@ async function makeTemporaryAttachmentsEphemeral(
         return null;
       }
 
-      await deleteAttachment(attachment);
-      return {
+      const ephemeralAttachment = {
         ...attachment,
         path: '',
         assetUrl: '',
         previewUrl,
       };
+      onAttachmentConverted?.(index, ephemeralAttachment);
+      await deleteAttachment(attachment);
+      return ephemeralAttachment;
     },
   );
 
@@ -415,7 +418,7 @@ export function useChatService() {
   const sendMessage = useCallback(
     async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[] = []) => {
       const isTextEmpty = !text || text.trim().length === 0;
-      const normalizedAttachments = (attachments || []).slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
+      const normalizedAttachments = limitChatMessageImageAttachments(attachments || []);
       const hasNoAttachments = normalizedAttachments.length === 0;
       const normalizedMentions = normalizeNoteMentions(noteMentions);
       const hasNoMentions = normalizedMentions.length === 0;
@@ -503,7 +506,17 @@ export function useChatService() {
         const isTemporaryTarget =
           isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
         const requestAttachments = isTemporaryTarget
-          ? await makeTemporaryAttachmentsEphemeral(normalizedAttachments, requestController.signal)
+          ? await makeTemporaryAttachmentsEphemeral(
+              normalizedAttachments,
+              requestController.signal,
+              (index, attachment) => {
+                const nextAttachments = [...composerRequest.submittedAttachments];
+                if (nextAttachments[index]) {
+                  nextAttachments[index] = attachment;
+                  composerRequest.submittedAttachments = nextAttachments;
+                }
+              },
+            )
           : normalizedAttachments;
         composerRequest.submittedAttachments = requestAttachments;
         ensureRequestActive();
@@ -600,7 +613,10 @@ export function useChatService() {
               : requestText;
 
             let apiMessageContent: ChatMessageContent = textPayload;
-            const apiAttachments = [...requestAttachments, ...mentionedFolderImages];
+            const apiAttachments = limitChatMessageImageAttachments([
+              ...requestAttachments,
+              ...mentionedFolderImages,
+            ]);
             if (apiAttachments.length > 0) {
               const parts: ChatMessageContentPart[] = [];
               if (textPayload) {

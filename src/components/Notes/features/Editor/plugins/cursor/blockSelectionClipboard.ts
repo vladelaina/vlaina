@@ -6,6 +6,6 @@ export function setClipboardText(event: ClipboardEvent, text: string): void {
     event.clipboardData.setData('text/plain', text);
     return;
   }
-  void writeTextToClipboard(text);
+  void writeTextToClipboard(text).catch(() => undefined);
 }
 export { writeTextToClipboard };

@@ -5,7 +5,7 @@ import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdo
 import { assertEditorSafeMarkdownContent } from '@/stores/notes/document/noteDocumentPersistence';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
-  isSafeVaultPathSegment,
+  hasUnsafeVaultPathSegment,
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
 } from '@/stores/notes/utils/fs/vaultPathContainment';
@@ -41,11 +41,7 @@ function isFreshSidebarTagContentEntry(
 }
 
 function hasUnsafeSidebarTagPathSegment(path: string): boolean {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .filter(Boolean)
-    .some((segment) => !isSafeVaultPathSegment(segment));
+  return hasUnsafeVaultPathSegment(path);
 }
 
 function isAllowedSidebarTagContentPath(path: string, currentVaultPath: string | null): boolean {
@@ -336,7 +332,7 @@ export function useNotesSidebarTags({
       });
     };
 
-    void loadMissingContent();
+    void loadMissingContent().catch(() => undefined);
 
     return () => {
       cancelled = true;

@@ -93,6 +93,26 @@ describe('mermaidRenderer', () => {
     expect(html).not.toContain('secret');
   });
 
+  it('times out stuck third-party renders and restores console output', async () => {
+    vi.useFakeTimers();
+    try {
+      render.mockImplementationOnce(() => new Promise(() => undefined));
+      const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      const { MERMAID_RENDER_TIMEOUT_MS, renderMermaid } = await import('./mermaidRenderer');
+
+      const renderRequest = renderMermaid('graph TD\nA-->B', 'diagram-timeout');
+      await vi.advanceTimersByTimeAsync(MERMAID_RENDER_TIMEOUT_MS);
+
+      const html = await renderRequest;
+      expect(html).toContain('Mermaid Error: Unable to render diagram.');
+
+      console.log('after timeout');
+      expect(consoleLog).toHaveBeenCalledWith('after timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('replaces Mermaid syntax-error SVGs with the compact app error block', async () => {
     render.mockResolvedValueOnce({
       svg: '<svg viewBox="0 0 2412 512"><text class="error-text">Syntax error in text</text></svg>',

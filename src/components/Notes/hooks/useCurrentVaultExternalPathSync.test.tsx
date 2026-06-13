@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCurrentVaultExternalPathSync } from './useCurrentVaultExternalPathSync';
+import { looksLikeVaultRoot } from './currentVaultExternalPathSyncUtils';
 
 type WatchEvent = {
   type: unknown;
@@ -112,6 +113,26 @@ describe('useCurrentVaultExternalPathSync', () => {
     });
 
     expect(hoisted.syncCurrentVaultExternalPath).toHaveBeenCalledWith('c:/users/me/vault-renamed');
+  });
+
+  it('ignores candidate vault roots when storage checks fail', async () => {
+    hoisted.renamePaths = {
+      oldPath: '/home/user/vault',
+      newPath: '/home/user/vault-renamed',
+    };
+    vi.mocked(looksLikeVaultRoot).mockRejectedValueOnce(new Error('stat failed'));
+
+    renderHook(() => useCurrentVaultExternalPathSync('/home/user/vault'));
+
+    await act(async () => {
+      await Promise.resolve();
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/home/user/vault', '/home/user/vault-renamed'],
+      });
+    });
+
+    expect(hoisted.syncCurrentVaultExternalPath).not.toHaveBeenCalled();
   });
 
   it('matches split Windows vault remove and create events case-insensitively', async () => {

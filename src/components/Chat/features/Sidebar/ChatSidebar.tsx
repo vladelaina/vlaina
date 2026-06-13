@@ -151,7 +151,7 @@ export const ChatSidebar = memo(function ChatSidebar({
     if (isUnread) {
       markSessionRead(sessionId);
     }
-    void aiActions.switchSession(sessionId);
+    void Promise.resolve(aiActions.switchSession(sessionId)).catch(() => undefined);
     onRequestClose?.();
   }, [markSessionRead, onRequestClose]);
 
@@ -248,9 +248,9 @@ export const ChatSidebar = memo(function ChatSidebar({
         onClose={() => setDeleteId(null)}
         onConfirm={() => {
           if (deleteId) {
-            void aiActions.deleteSession(deleteId).then(() => {
+            void Promise.resolve(aiActions.deleteSession(deleteId)).then(() => {
               scheduleComposerFocusAfterSidebarAction();
-            });
+            }).catch(() => undefined);
           }
         }}
         title={t('sidebar.deleteChatTitle')}

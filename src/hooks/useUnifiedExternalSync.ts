@@ -151,7 +151,7 @@ export function useUnifiedExternalSync() {
 
       reloadTimerRef.current = window.setTimeout(() => {
         reloadTimerRef.current = null;
-        void runReload();
+        void runReload().catch(() => undefined);
       }, RELOAD_DEBOUNCE_MS);
     };
 
@@ -163,7 +163,7 @@ export function useUnifiedExternalSync() {
 
       if (event.kind === 'notes-starred') {
         const notesState = useNotesStore.getState();
-        void notesState.loadStarred(notesState.notesPath ?? '');
+        void notesState.loadStarred(notesState.notesPath ?? '').catch(() => undefined);
         return;
       }
 

@@ -105,6 +105,10 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
         return;
       }
       setMarkup(nextMarkup);
+    }).catch(() => {
+      if (!cancelled) {
+        setFailed(true);
+      }
     });
 
     return () => {

@@ -231,6 +231,33 @@ describe('useExternalStarredRenameSync', () => {
     expect(mocked.notesState.applyExternalPathRename).not.toHaveBeenCalled();
   });
 
+  it('isolates rejected external starred rename applications', async () => {
+    mocked.notesState.applyExternalPathRename.mockRejectedValueOnce(new Error('rename failed'));
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    await act(async () => {
+      await mocked.handlers.get('/vault-b/docs')?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/beta.md'],
+      });
+    });
+
+    expect(mocked.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+      '/vault-b/docs/alpha.md',
+      '/vault-b/docs/beta.md',
+    );
+  });
+
   it('does not remap external starred notes through unsafe rename endpoints', async () => {
     mocked.notesState.starredEntries = [
       {
@@ -323,5 +350,30 @@ describe('useExternalStarredRenameSync', () => {
       '/vault-b/.notes/alpha.md',
       '/vault-b/.notes/beta.md',
     );
+  });
+
+  it('isolates rejected external starred watcher cleanup', async () => {
+    mocked.unwatch.mockRejectedValueOnce(new Error('unwatch failed'));
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    const hook = renderHook(() => useExternalStarredRenameSync());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    hook.unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mocked.unwatch).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  readdir: vi.fn(),
+  opendir: vi.fn(),
   assertAuthorizedFsPath: vi.fn(async (filePath: string) => filePath),
   assertAuthorizedFsRenameTarget: vi.fn(),
   assertAuthorizedFsWatchPath: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('node:fs/promises', () => {
     mkdtemp: vi.fn(),
     mkdir: vi.fn(),
     open: vi.fn(),
-    readdir: mocks.readdir,
+    opendir: mocks.opendir,
     readFile: vi.fn(),
     rename: vi.fn(),
     rm: vi.fn(),
@@ -110,9 +110,40 @@ function createSymlinkDirent(name: string) {
   };
 }
 
+type MockDirectoryEntry = {
+  name: string;
+  isSymbolicLink?: () => boolean;
+  isDirectory?: () => boolean;
+  isFile?: () => boolean;
+};
+
+function createDirectoryHandle(entries: MockDirectoryEntry[]) {
+  let nextIndex = 0;
+  const close = vi.fn(async () => {});
+  return {
+    close,
+    get yieldedCount() {
+      return nextIndex;
+    },
+    [Symbol.asyncIterator]() {
+      return {
+        next: async () => {
+          if (nextIndex >= entries.length) {
+            return { done: true, value: undefined };
+          }
+          const value = entries[nextIndex];
+          nextIndex += 1;
+          return { done: false, value };
+        },
+        return: async () => ({ done: true, value: undefined }),
+      };
+    },
+  };
+}
+
 describe('desktop filesystem list directory budget', () => {
   it('caps single-directory listings before describing overflow entries', async () => {
-    mocks.readdir.mockResolvedValueOnce([
+    mocks.opendir.mockResolvedValueOnce(createDirectoryHandle([
       ...Array.from({ length: 20_000 }, (_value, index) =>
         createFileDirent(`note-${String(index).padStart(5, '0')}.md`)
       ),
@@ -122,7 +153,7 @@ describe('desktop filesystem list directory budget', () => {
           throw new Error('overflow entry should not be described');
         },
       },
-    ]);
+    ]));
     const { handlers } = registerHarness();
 
     const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
@@ -136,12 +167,12 @@ describe('desktop filesystem list directory budget', () => {
   });
 
   it('prioritizes markdown entries before applying the single-directory cap', async () => {
-    mocks.readdir.mockResolvedValueOnce([
+    mocks.opendir.mockResolvedValueOnce(createDirectoryHandle([
       ...Array.from({ length: 20_000 }, (_value, index) =>
         createFileDirent(`asset-${String(index).padStart(5, '0')}.png`)
       ),
       createFileDirent('late.md'),
-    ]);
+    ]));
     const { handlers } = registerHarness();
 
     const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
@@ -160,12 +191,12 @@ describe('desktop filesystem list directory budget', () => {
   });
 
   it('prioritizes markdown entries before directories when applying the single-directory cap', async () => {
-    mocks.readdir.mockResolvedValueOnce([
+    mocks.opendir.mockResolvedValueOnce(createDirectoryHandle([
       ...Array.from({ length: 20_000 }, (_value, index) =>
         createDirectoryDirent(`folder-${String(index).padStart(5, '0')}`)
       ),
       createFileDirent('late.md'),
-    ]);
+    ]));
     const { handlers } = registerHarness();
 
     const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
@@ -184,13 +215,13 @@ describe('desktop filesystem list directory budget', () => {
   });
 
   it('keeps generated-looking directories low priority when applying the single-directory cap', async () => {
-    mocks.readdir.mockResolvedValueOnce([
+    mocks.opendir.mockResolvedValueOnce(createDirectoryHandle([
       ...Array.from({ length: 19_999 }, (_value, index) =>
         createDirectoryDirent(`folder-${String(index).padStart(5, '0')}`)
       ),
       createDirectoryDirent('node_modules'),
       createFileDirent('late.md'),
-    ]);
+    ]));
     const { handlers } = registerHarness();
 
     const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
@@ -209,12 +240,12 @@ describe('desktop filesystem list directory budget', () => {
   });
 
   it('keeps unsafe markdown-looking names low priority when applying the single-directory cap', async () => {
-    mocks.readdir.mockResolvedValueOnce([
+    mocks.opendir.mockResolvedValueOnce(createDirectoryHandle([
       ...Array.from({ length: 20_000 }, (_value, index) =>
         createFileDirent(`unsafe-${String(index).padStart(5, '0')}\u0001.md`)
       ),
       createFileDirent('late.md'),
-    ]);
+    ]));
     const { handlers } = registerHarness();
 
     const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
@@ -233,12 +264,12 @@ describe('desktop filesystem list directory budget', () => {
   });
 
   it('keeps symlink directory candidates before ordinary files when applying the single-directory cap', async () => {
-    mocks.readdir.mockResolvedValueOnce([
+    mocks.opendir.mockResolvedValueOnce(createDirectoryHandle([
       ...Array.from({ length: 20_000 }, (_value, index) =>
         createFileDirent(`asset-${String(index).padStart(5, '0')}.png`)
       ),
       createSymlinkDirent('linked-docs'),
-    ]);
+    ]));
     const { handlers } = registerHarness();
 
     const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
@@ -252,6 +283,28 @@ describe('desktop filesystem list directory budget', () => {
     expect(entries).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'asset-19999.png' }),
+      ]),
+    );
+  });
+
+  it('stops scanning oversized directories at a bounded budget', async () => {
+    const directoryHandle = createDirectoryHandle([
+      ...Array.from({ length: 40_000 }, (_value, index) =>
+        createFileDirent(`asset-${String(index).padStart(5, '0')}.png`)
+      ),
+      createFileDirent('unscanned.md'),
+    ]);
+    mocks.opendir.mockResolvedValueOnce(directoryHandle);
+    const { handlers } = registerHarness();
+
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+
+    expect(entries).toHaveLength(20_000);
+    expect(directoryHandle.yieldedCount).toBe(40_000);
+    expect(directoryHandle.close).toHaveBeenCalledTimes(1);
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'unscanned.md' }),
       ]),
     );
   });

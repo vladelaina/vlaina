@@ -6,7 +6,7 @@ import {
   mkdtemp,
   mkdir,
   open,
-  readdir,
+  opendir,
   rename,
   rm,
   stat,
@@ -37,6 +37,7 @@ const AI_PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 const MAX_DESKTOP_FS_READ_BYTES = 64 * 1024 * 1024;
 const MAX_DESKTOP_FS_WRITE_BYTES = MAX_DESKTOP_FS_READ_BYTES;
 const MAX_DESKTOP_FS_LIST_DIR_ENTRIES = 20_000;
+const MAX_DESKTOP_FS_LIST_DIR_SCAN_ENTRIES = MAX_DESKTOP_FS_LIST_DIR_ENTRIES * 2;
 const DESKTOP_MARKDOWN_FILE_EXTENSION_PATTERN = /\.(?:md|markdown|mdown|mkd)$/i;
 const LOW_PRIORITY_DESKTOP_DIRECTORY_NAMES = new Set([
   'node_modules',
@@ -471,6 +472,23 @@ function prioritizeDesktopDirectoryEntriesForListing(entries) {
     .map((entry, index) => ({ entry, index, priority: getDesktopDirectoryEntryListPriority(entry) }))
     .sort((left, right) => left.priority - right.priority || left.index - right.index)
     .map(({ entry }) => entry);
+}
+
+async function readDesktopDirectoryEntriesForListing(directoryPath) {
+  let directory = null;
+  const entries = [];
+  try {
+    directory = await opendir(directoryPath);
+    for await (const entry of directory) {
+      entries.push(entry);
+      if (entries.length >= MAX_DESKTOP_FS_LIST_DIR_SCAN_ENTRIES) {
+        break;
+      }
+    }
+  } finally {
+    await directory?.close?.().catch(() => {});
+  }
+  return entries;
 }
 
 function normalizeDesktopBinaryWriteBytes(bytes) {
@@ -941,7 +959,7 @@ export function registerDesktopIpc({
 
     let entries;
     try {
-      entries = await readdir(resolvedPath, { withFileTypes: true });
+      entries = await readDesktopDirectoryEntriesForListing(resolvedPath);
     } catch (error) {
       if (error && typeof error === 'object' && error.code === 'ENOENT') {
         return [];

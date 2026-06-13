@@ -19,10 +19,13 @@ function clampFiniteNumber(value: number | undefined, min: number, max: number):
 }
 
 function normalizeCoverAssetPath(value: string): string | null {
+  if (!value || value.length > MAX_COVER_ASSET_PATH_CHARS) {
+    return null;
+  }
+
   const trimmed = value.trim();
   if (
     !trimmed
-    || trimmed.length > MAX_COVER_ASSET_PATH_CHARS
     || CONTROL_OR_BIDI_PATTERN.test(trimmed)
     || trimmed.startsWith('/')
     || trimmed.startsWith('\\')

@@ -753,7 +753,7 @@ export function ChatImageViewer({
                   iconButtonStyles
                 )}
                 onClick={() => {
-                  void downloadImageWithPrompt(resolvedActiveSrc, activeAlt);
+                  void downloadImageWithPrompt(resolvedActiveSrc, activeAlt).catch(() => undefined);
                 }}
               >
                 <Icon name="common.download" size="md" />

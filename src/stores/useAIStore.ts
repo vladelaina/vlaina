@@ -43,7 +43,7 @@ export function useAIStoreRuntimeEffects(): void {
         : null;
       uiState.initializeSelection({ currentSessionId, temporaryChatEnabled: false });
       if (currentSessionId) {
-        void actions.switchSession(currentSessionId);
+        void actions.switchSession(currentSessionId).catch(() => undefined);
       }
       return;
     }
@@ -118,7 +118,7 @@ export function useAIStoreRuntimeEffects(): void {
 
   useEffect(() => {
     if (!loaded) {
-      load();
+      void load().catch(() => undefined);
     }
   }, [loaded, load]);
 
@@ -189,7 +189,7 @@ export function startAIStoreRuntimeEffects(): void {
   const ensureLoaded = () => {
     const store = useUnifiedStore.getState();
     if (!store.loaded) {
-      void store.load();
+      void store.load().catch(() => undefined);
     }
   };
 
@@ -209,7 +209,7 @@ export function startAIStoreRuntimeEffects(): void {
         : null;
       uiState.initializeSelection({ currentSessionId, temporaryChatEnabled: false });
       if (currentSessionId) {
-        void actions.switchSession(currentSessionId);
+        void actions.switchSession(currentSessionId).catch(() => undefined);
       }
       return;
     }

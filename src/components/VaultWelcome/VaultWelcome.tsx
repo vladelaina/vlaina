@@ -11,7 +11,7 @@ export function VaultWelcome() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    initialize().then(() => setIsInitialized(true));
+    initialize().then(() => setIsInitialized(true)).catch(() => undefined);
   }, [initialize]);
 
   useEffect(() => {

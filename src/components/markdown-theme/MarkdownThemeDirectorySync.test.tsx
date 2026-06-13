@@ -190,4 +190,37 @@ describe('MarkdownThemeDirectorySync', () => {
       expect(mocks.store.setMarkdownImportedThemeId).toHaveBeenLastCalledWith('minimal');
     });
   });
+
+  it('isolates rejected theme directory watcher cleanup', async () => {
+    const unwatch = vi.fn(async () => {
+      throw new Error('unwatch failed');
+    });
+    mocks.isElectronRuntime.mockReturnValue(true);
+    mocks.watchDesktopPath.mockResolvedValueOnce(unwatch);
+
+    const view = render(<MarkdownThemeDirectorySync />);
+
+    await waitFor(() => {
+      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/themes', expect.any(Function));
+    });
+
+    view.unmount();
+    await Promise.resolve();
+
+    expect(unwatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('isolates synchronous theme directory watcher setup failures', async () => {
+    mocks.isElectronRuntime.mockReturnValue(true);
+    mocks.watchDesktopPath.mockImplementationOnce(() => {
+      throw new Error('watch failed');
+    });
+
+    render(<MarkdownThemeDirectorySync />);
+
+    await waitFor(() => {
+      expect(mocks.syncImportedMarkdownThemesFromDirectory).toHaveBeenCalledTimes(1);
+      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/themes', expect.any(Function));
+    });
+  });
 });
