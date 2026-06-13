@@ -294,6 +294,17 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read URL-like note mentions as vault-relative paths', async () => {
+    const notes = await loadMentionedNotes([
+      { path: 'https://example.com/secret.md', title: 'Remote' },
+      { path: 'file:///etc/passwd.md', title: 'File URL' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('allows absolute note mentions that match a starred external note', async () => {
     mocks.notesState.starredEntries = [{
       id: 'external',

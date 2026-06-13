@@ -8,6 +8,7 @@ import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types'
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import {
   dedupeNoteMentions,
+  isPotentiallyLoadableNoteMentionReference,
   MAX_NOTE_MENTION_SCAN_ITEMS,
 } from '@/lib/ai/noteMentions';
 import { isRenderedImageSource } from '@/components/Chat/common/messageClipboard';
@@ -144,21 +145,16 @@ export function resolveAssistantContent(
 }
 
 export function normalizeNoteMentions(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
-  return dedupeNoteMentions(noteMentions).slice(0, MAX_NOTE_MENTION_COUNT);
+  return dedupeNoteMentions(noteMentions)
+    .filter((mention) => isPotentiallyLoadableNoteMentionReference(mention, mention.kind))
+    .slice(0, MAX_NOTE_MENTION_COUNT);
 }
 
 function isPotentiallyLoadableMentionReference(
   mention: NoteMentionReference,
   explicitKind: 'note' | 'folder' | undefined,
 ): boolean {
-  if (
-    hasUnsafeMentionPathSegment(mention.path) ||
-    isInsideInternalFolderMarkdownPath(mention.path)
-  ) {
-    return false;
-  }
-
-  return explicitKind !== 'note' || isSupportedMarkdownPath(mention.path);
+  return isPotentiallyLoadableNoteMentionReference(mention, explicitKind);
 }
 
 function normalizeNoteMentionsForLoading(noteMentions: unknown): NoteMentionReference[] {

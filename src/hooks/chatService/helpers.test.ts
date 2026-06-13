@@ -15,6 +15,7 @@ import {
   MAX_MENTIONED_NOTES_CONTEXT_CHARS,
   loadMentionedFolderImageAttachments,
   loadMentionedNotes,
+  normalizeNoteMentions,
   refreshManagedBudgetIfNeeded,
 } from './helpers';
 
@@ -478,6 +479,20 @@ describe('loadMentionedNotes', () => {
     ]);
     expect(mocks.storage.readFile).toHaveBeenCalledTimes(3);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
+  it('drops unloadable note mentions before accepting them as message references', () => {
+    expect(normalizeNoteMentions([
+      { path: '../secret.md', title: 'Outside' },
+      { path: 'https://example.com/secret.md', title: 'Remote' },
+      { path: 'docs/.vlaina/config.md', title: 'Internal' },
+      { path: 'docs/plain.txt', title: 'Text', kind: 'note' },
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+      { path: 'docs/alpha.mdown', title: 'Alpha' },
+    ])).toEqual([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+      { path: 'docs/alpha.mdown', title: 'Alpha', kind: 'note' },
+    ]);
   });
 
   it('does not let unloadable mentions spend the note mention limit before valid markdown', async () => {

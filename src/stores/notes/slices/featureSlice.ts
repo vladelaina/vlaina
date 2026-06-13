@@ -137,10 +137,11 @@ function getNoteContentScanNodePriority(node: FileTreeNode): number {
 }
 
 function prioritizeNoteContentScanNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
-  return nodes
-    .map((node, index) => ({ node, index, priority: getNoteContentScanNodePriority(node) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ node }) => node);
+  const priorityBuckets: FileTreeNode[][] = [[], [], [], []];
+  for (const node of nodes) {
+    priorityBuckets[getNoteContentScanNodePriority(node)]?.push(node);
+  }
+  return priorityBuckets.flat();
 }
 
 function canReuseScannedNoteCacheEntry(

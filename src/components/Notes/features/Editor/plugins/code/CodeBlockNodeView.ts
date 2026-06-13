@@ -44,6 +44,7 @@ type CodeBlockNodeViewOptions = {
 };
 
 const FOCUSED_CODE_BLOCK_FORWARD_DEBOUNCE_MS = 80;
+export const MAX_LAZY_CODE_BLOCK_LINE_NUMBER_PLACEHOLDER_LINES = 20_000;
 
 export class CodeBlockNodeView implements NodeView {
   dom: HTMLElement;
@@ -295,16 +296,16 @@ export class CodeBlockNodeView implements NodeView {
     const lineNumbers = document.createElement('pre');
     lineNumbers.className = 'code-block-lazy-line-numbers';
     let lineCount = 1;
-    for (let index = 0; index < text.length; index += 1) {
-      if (text[index] === '\n') {
-        lineCount += 1;
+    let searchFrom = 0;
+    while (lineCount < MAX_LAZY_CODE_BLOCK_LINE_NUMBER_PLACEHOLDER_LINES) {
+      const nextNewline = text.indexOf('\n', searchFrom);
+      if (nextNewline === -1) {
+        break;
       }
+      lineCount += 1;
+      searchFrom = nextNewline + 1;
     }
-    let textContent = '1';
-    for (let line = 2; line <= lineCount; line += 1) {
-      textContent += `\n${line}`;
-    }
-    lineNumbers.textContent = textContent;
+    lineNumbers.textContent = Array.from({ length: lineCount }, (_value, index) => String(index + 1)).join('\n');
     return lineNumbers;
   }
 
