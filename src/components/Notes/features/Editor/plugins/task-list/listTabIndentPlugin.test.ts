@@ -349,7 +349,7 @@ describe('listTabIndentPlugin', () => {
       0,
       doc.content?.size ?? 0,
       false,
-    )).toBe(false);
+    )).toBe(true);
     expect(accessed).toBe(MAX_ORDERED_LIST_LABEL_SCAN_NODES);
   });
 
@@ -372,6 +372,23 @@ describe('listTabIndentPlugin', () => {
     expect(rangeTouchesOrderedListNormalizationNode(doc as any, 0, 1, false)).toBe(false);
     expect(rangeScanned).toBe(1);
     expect(childAccessed).toBe(0);
+  });
+
+  it('treats exhausted ordered list document range scans as affecting normalization', () => {
+    let rangeScanned = 0;
+    const doc = {
+      content: { size: 100 },
+      nodesBetween(_from: number, _to: number, callback: (node: FakeListGapNode, pos: number) => boolean | void) {
+        for (let index = 0; index < 5; index += 1) {
+          rangeScanned += 1;
+          const shouldContinue = callback(createFakeNode('paragraph'), index * 10);
+          if (shouldContinue === false) break;
+        }
+      },
+    };
+
+    expect(rangeTouchesOrderedListNormalizationNode(doc as any, 0, 100, false, 1)).toBe(true);
+    expect(rangeScanned).toBe(2);
   });
 
   it('collects internal list gap placeholder cleanup ranges for ordinary placeholder items', () => {

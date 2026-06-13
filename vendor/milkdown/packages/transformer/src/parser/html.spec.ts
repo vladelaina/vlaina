@@ -208,6 +208,28 @@ describe('mergePairedInlineHtml', () => {
     expect(stringReads).toBeLessThanOrEqual(children.length * 2)
   })
 
+  it('does not repeatedly scan all siblings for unmatched block open tags', () => {
+    let stringReads = 0
+    const children = Array.from({ length: 400 }, () => ({
+      type: 'html',
+      value: {
+        toString() {
+          stringReads += 1
+          return '<div>'
+        },
+      },
+    })) as MarkdownNode[]
+    const tree = {
+      type: 'root',
+      children,
+    } as MarkdownNode
+
+    const result = mergePairedInlineHtml(tree)
+
+    expect(result.children).toHaveLength(children.length)
+    expect(stringReads).toBeLessThanOrEqual(children.length * 6)
+  })
+
   it('skips paired inline html merging when child count exceeds the merge budget', () => {
     const children = Array.from({ length: MAX_INLINE_HTML_MERGE_CHILDREN + 1 }, (_, index) => ({
       type: index === 0 || index === MAX_INLINE_HTML_MERGE_CHILDREN ? 'html' : 'text',

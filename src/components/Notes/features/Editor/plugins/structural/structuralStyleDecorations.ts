@@ -18,6 +18,7 @@ export const STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS = 'editor-list-item-align-ri
 
 export const MAX_STRUCTURAL_STYLE_DECORATIONS = 4000;
 export const MAX_STRUCTURAL_STYLE_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES = MAX_STRUCTURAL_STYLE_SCAN_NODES;
 
 const STRUCTURAL_STYLE_NODE_TYPES = new Set(['paragraph', 'list_item']);
 
@@ -202,6 +203,7 @@ export function getStructuralDecorationContextRanges(
   doc: ProseNode,
   from: number,
   to: number,
+  maxScanNodes = MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES,
 ): Range[] {
   const docSize = doc.content.size;
   const start = clampDocPosition(doc, Math.min(from, to));
@@ -214,13 +216,23 @@ export function getStructuralDecorationContextRanges(
   addResolvedStructuralContextRanges(doc, end, ranges);
 
   if (scanFrom <= scanTo) {
+    let scannedNodes = 0;
+    let exhausted = false;
     doc.nodesBetween(scanFrom, scanTo, (node, pos) => {
+      scannedNodes += 1;
+      if (scannedNodes > maxScanNodes) {
+        exhausted = true;
+        return false;
+      }
       if (!isRelevantStructuralNode(node)) {
         return true;
       }
       pushRange(ranges, pos, pos + node.nodeSize);
       return node.type.name !== 'paragraph';
     });
+    if (exhausted) {
+      return [{ from: 0, to: docSize }];
+    }
   }
 
   return mergeRanges(ranges, doc);
@@ -231,9 +243,15 @@ function collectStructuralStyleDecorationsBetween(
   from: number,
   to: number,
   maxDecorations = MAX_STRUCTURAL_STYLE_DECORATIONS,
+  maxScanNodes = MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES,
 ): ProseDecoration[] {
   const decorations: ProseDecoration[] = [];
+  let scannedNodes = 0;
   doc.nodesBetween(clampDocPosition(doc, from), clampDocPosition(doc, to), (node, pos) => {
+    scannedNodes += 1;
+    if (scannedNodes > maxScanNodes) {
+      return false;
+    }
     if (decorations.length >= maxDecorations) {
       return false;
     }

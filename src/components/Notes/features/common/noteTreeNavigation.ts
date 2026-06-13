@@ -4,6 +4,7 @@ import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNote
 import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 const MAX_NAVIGATION_TREE_NODES = 20_000;
+const NAVIGATION_SCAN_PRIORITY_BUCKETS = 2;
 
 function getNavigableNotePath(entry: FileTreeNode): string | null {
   if (entry.isFolder) {
@@ -31,10 +32,15 @@ function getNavigationScanPriority(entry: FileTreeNode): number {
 }
 
 function prioritizeNavigationScanNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
-  return nodes
-    .map((node, index) => ({ node, index, priority: getNavigationScanPriority(node) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ node }) => node);
+  const buckets = Array.from(
+    { length: NAVIGATION_SCAN_PRIORITY_BUCKETS },
+    () => [] as FileTreeNode[],
+  );
+  for (const node of nodes) {
+    const priority = getNavigationScanPriority(node);
+    buckets[priority]?.push(node);
+  }
+  return buckets.flat();
 }
 
 export function collectNotePathsInTreeOrder(nodes: readonly FileTreeNode[]): string[] {

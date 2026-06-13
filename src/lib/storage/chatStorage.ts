@@ -14,6 +14,7 @@ const DEFAULT_DEBOUNCE_MS = 180;
 const SESSION_MESSAGES_FILE_VERSION = 1;
 export const MAX_SESSION_MESSAGES_BYTES = 25 * 1024 * 1024;
 export const MAX_SESSION_MESSAGE_NODES = 10_000;
+export const MAX_SESSION_MESSAGE_SCAN_RECORDS = 20_000;
 const MAX_SESSION_MESSAGE_VERSIONS = 20;
 const MAX_SESSION_MESSAGE_BRANCH_MESSAGES = 100;
 const MAX_SESSION_MESSAGE_BRANCH_DEPTH = 1;
@@ -392,6 +393,7 @@ function normalizeMessageContent(value: unknown, fallback = ''): string {
 
 interface NormalizeSessionMessagesContext {
   messageNodes: number;
+  scannedMessageRecords: number;
   messageIds: Set<string>;
   topLevelMessageIds: Set<string>;
 }
@@ -535,6 +537,10 @@ function normalizeSessionMessage(
   if (role !== 'user' && role !== 'assistant' && role !== 'system') {
     return null;
   }
+  if (context.messageNodes >= MAX_SESSION_MESSAGE_NODES) {
+    return null;
+  }
+  context.messageNodes += 1;
 
   const content = normalizeMessageContent(value.content);
   const timestamp = normalizeTimestamp(value.timestamp);
@@ -605,10 +611,13 @@ function normalizeSessionMessagesInternal(
 
   const normalized: ChatMessage[] = [];
   for (const item of value) {
-    if (context.messageNodes >= MAX_SESSION_MESSAGE_NODES) {
+    if (
+      context.scannedMessageRecords >= MAX_SESSION_MESSAGE_SCAN_RECORDS ||
+      context.messageNodes >= MAX_SESSION_MESSAGE_NODES
+    ) {
       break;
     }
-    context.messageNodes += 1;
+    context.scannedMessageRecords += 1;
 
     const message = normalizeSessionMessage(item, context, depth);
     if (!message) {
@@ -624,7 +633,7 @@ function normalizeSessionMessagesInternal(
 export function normalizeSessionMessages(value: unknown): ChatMessage[] {
   const topLevelMessageIds = new Set<string>();
   if (Array.isArray(value)) {
-    const scanLimit = Math.min(value.length, MAX_SESSION_MESSAGE_NODES);
+    const scanLimit = Math.min(value.length, MAX_SESSION_MESSAGE_SCAN_RECORDS);
     for (let index = 0; index < scanLimit; index += 1) {
       const item = value[index];
       if (!isRecord(item)) {
@@ -640,6 +649,7 @@ export function normalizeSessionMessages(value: unknown): ChatMessage[] {
   }
   return normalizeSessionMessagesInternal(value, {
     messageNodes: 0,
+    scannedMessageRecords: 0,
     messageIds: new Set(),
     topLevelMessageIds,
   }, 0);

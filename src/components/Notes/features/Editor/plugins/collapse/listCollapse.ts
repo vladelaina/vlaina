@@ -7,6 +7,7 @@ import {
     isCollapseToggleTarget
 } from './collapseUtils';
 import {
+    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     STOP_PROSE_SCAN,
     scanProseDescendants,
     type BoundedProseScanNode,
@@ -34,6 +35,7 @@ const ORDERED_MARKER_BASE_CHARS = 2;
 export const LIST_NESTED_LIST_HOVER_CLASS = 'editor-list-nested-list-hover';
 export const MAX_LIST_COLLAPSE_ITEMS = 1000;
 export const MAX_LIST_COLLAPSE_CHILD_SCAN_NODES = 2000;
+export const MAX_LIST_COLLAPSE_STRUCTURE_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 function getOrderedListMarkerExtraOffset(node: any): string {
     if (node.attrs?.listType !== 'ordered') return '';
@@ -239,7 +241,12 @@ function positionTouchesListCollapseStructure(doc: any, pos: number): boolean {
     }
 }
 
-function rangeTouchesListCollapseStructure(doc: any, from: number, to: number): boolean {
+export function rangeTouchesListCollapseStructure(
+    doc: any,
+    from: number,
+    to: number,
+    maxScanNodes = MAX_LIST_COLLAPSE_STRUCTURE_SCAN_NODES,
+): boolean {
     const start = Math.max(0, Math.min(from, doc.content?.size ?? 0));
     const end = Math.max(start, Math.min(to, doc.content?.size ?? 0));
 
@@ -255,7 +262,13 @@ function rangeTouchesListCollapseStructure(doc: any, from: number, to: number): 
     }
 
     let touchesListStructure = false;
+    let scannedNodes = 0;
     doc.nodesBetween(start, end, (node: { type?: { name?: string } }) => {
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) {
+            touchesListStructure = true;
+            return false;
+        }
         if (node.type?.name && LIST_COLLAPSE_STRUCTURE_NODE_NAMES.has(node.type.name)) {
             touchesListStructure = true;
             return false;

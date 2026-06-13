@@ -160,6 +160,28 @@ describe('docChangeMayAffectRawMarkdownLink', () => {
     expect(rangeTouchesRawMarkdownLink(doc as any, 90, 91, false)).toBe(false);
     expect(rangeScanned).toBe(1);
   });
+
+  it('treats exhausted raw markdown link range scans as affecting raw links', () => {
+    let rangeScanned = 0;
+    const doc = {
+      content: { size: 100 },
+      nodesBetween(_from: number, _to: number, callback: (node: any, pos: number) => boolean | void) {
+        for (let index = 0; index < 5; index += 1) {
+          rangeScanned += 1;
+          const shouldContinue = callback({
+            isText: true,
+            text: 'plain text',
+            type: { name: 'text' },
+          }, index * 10);
+          if (shouldContinue === false) break;
+        }
+      },
+      type: { name: 'doc' },
+    };
+
+    expect(rangeTouchesRawMarkdownLink(doc as any, 0, 100, false, 1)).toBe(true);
+    expect(rangeScanned).toBe(2);
+  });
 });
 
 describe('markdown link auto-collapse scan ranges', () => {
@@ -176,6 +198,28 @@ describe('markdown link auto-collapse scan ranges', () => {
     expect(collectRawMarkdownLinkMatchesInRange(doc, plain.from, plain.to)).toEqual([]);
     expect(collectRawMarkdownLinkMatchesInRange(doc, first.from, first.to).map(match => match.linkText)).toEqual(['First']);
     expect(collectRawMarkdownLinkMatchesInRange(doc, second.from, second.to).map(match => match.linkText)).toEqual(['Second']);
+  });
+
+  it('stops collecting raw markdown links when the local range scan budget is exhausted', () => {
+    let rangeScanned = 0;
+    const doc = {
+      content: { size: 100 },
+      nodesBetween(_from: number, _to: number, callback: (node: any, pos: number) => boolean | void) {
+        for (let index = 0; index < 5; index += 1) {
+          rangeScanned += 1;
+          const shouldContinue = callback({
+            isText: true,
+            text: `[Docs${index}](https://example.test/${index})`,
+            type: { name: 'text' },
+          }, index * 20);
+          if (shouldContinue === false) break;
+        }
+      },
+      type: { name: 'doc' },
+    };
+
+    expect(collectRawMarkdownLinkMatchesInRange(doc as any, 0, 100, 5000, 1).map(match => match.linkText)).toEqual(['Docs0']);
+    expect(rangeScanned).toBe(2);
   });
 
   it('keeps selection-only auto-collapse local to the previous and next textblocks', () => {

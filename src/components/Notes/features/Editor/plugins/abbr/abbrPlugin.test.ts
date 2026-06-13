@@ -123,6 +123,33 @@ describe('abbrPlugin', () => {
     }]);
   });
 
+  it('stops local abbreviation usage scans at the node budget', () => {
+    let scanned = 0;
+    const doc = {
+      content: { size: 120 },
+      nodesBetween: (_from: number, _to: number, callback: (
+        node: FakeAbbrNode,
+        pos: number,
+        parent: FakeAbbrNode,
+      ) => boolean | void) => {
+        for (let index = 0; index < 5; index += 1) {
+          scanned += 1;
+          const shouldContinue = callback(createTextNode('Local HTML usage'), index * 20, {});
+          if (shouldContinue === false) break;
+        }
+      },
+    };
+
+    expect(findAbbrUsagesInRange(
+      doc,
+      [{ abbr: 'HTML', fullText: 'HyperText Markup Language' }],
+      0,
+      120,
+      1,
+    )).toHaveLength(1);
+    expect(scanned).toBe(2);
+  });
+
   it('skips usage matching in overlong text nodes', () => {
     const doc = createDocNode([
       createTextNode(`${'x'.repeat(MAX_ABBR_TEXT_SCAN_CHARS)} HTML`),

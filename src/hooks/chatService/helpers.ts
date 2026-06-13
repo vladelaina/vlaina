@@ -73,6 +73,7 @@ const MAX_FOLDER_LISTING_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_IMAGE_ATTACHMENTS = 8;
 const MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_IMAGE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const FOLDER_SCAN_PRIORITY_BUCKETS = 4;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 const MAX_INFERRED_IMAGE_NAME_SOURCE_CHARS = 4096;
 const MAX_INFERRED_IMAGE_NAME_SEGMENT_DECODE_CHARS = 2048;
@@ -553,10 +554,15 @@ function prioritizeFolderScanEntries<T extends { name: string; isDirectory?: boo
   entries: readonly T[],
   getPriority: (entry: T) => number,
 ): T[] {
-  return entries
-    .map((entry, index) => ({ entry, index, priority: getPriority(entry) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ entry }) => entry);
+  const buckets = Array.from(
+    { length: FOLDER_SCAN_PRIORITY_BUCKETS },
+    () => [] as T[],
+  );
+  for (const entry of entries) {
+    const priority = getPriority(entry);
+    buckets[priority]?.push(entry);
+  }
+  return buckets.flat();
 }
 
 function prioritizeFolderMarkdownScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
@@ -602,10 +608,15 @@ function getMentionFolderMarkdownNodeScanPriority(node: FileTreeNode): number {
 }
 
 function prioritizeMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
-  return nodes
-    .map((node, index) => ({ node, index, priority: getMentionFolderMarkdownNodeScanPriority(node) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ node }) => node);
+  const buckets = Array.from(
+    { length: FOLDER_SCAN_PRIORITY_BUCKETS },
+    () => [] as FileTreeNode[],
+  );
+  for (const node of nodes) {
+    const priority = getMentionFolderMarkdownNodeScanPriority(node);
+    buckets[priority]?.push(node);
+  }
+  return buckets.flat();
 }
 
 function getFolderListingScanPriority(entry: { name: string }) {

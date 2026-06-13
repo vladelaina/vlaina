@@ -169,17 +169,35 @@ function getBlockHtmlOpenTagName(node: MarkdownNode): string | null {
   return tagName
 }
 
-function findBlockHtmlCloseIndex(children: MarkdownNode[], startIndex: number, tagName: string): number {
-  for (let index = startIndex + 1; index < children.length; index += 1) {
+function buildBlockHtmlCloseIndexes(children: MarkdownNode[]): Map<string, number[]> {
+  const closeIndexesByTag = new Map<string, number[]>()
+  for (let index = 0; index < children.length; index += 1) {
     const child = children[index]
     if (child?.type !== 'html') continue
     const closeMatch = HTML_CLOSE_TAG_PATTERN.exec(String(child.value ?? '').trim())
-    if (closeMatch?.[1]?.toLowerCase() === tagName) return index
+    const tagName = closeMatch?.[1]?.toLowerCase()
+    if (!tagName) continue
+    const closeIndexes = closeIndexesByTag.get(tagName)
+    if (closeIndexes) closeIndexes.push(index)
+    else closeIndexesByTag.set(tagName, [index])
   }
-  return -1
+  return closeIndexesByTag
+}
+
+function findBlockHtmlCloseIndex(closeIndexes: number[] | undefined, startIndex: number): number {
+  if (!closeIndexes) return -1
+  let left = 0
+  let right = closeIndexes.length
+  while (left < right) {
+    const mid = (left + right) >> 1
+    if (closeIndexes[mid] <= startIndex) left = mid + 1
+    else right = mid
+  }
+  return closeIndexes[left] ?? -1
 }
 
 function mergePairedBlockHtmlChildren(children: MarkdownNode[], markdown?: string): MarkdownNode[] {
+  const closeIndexesByTag = buildBlockHtmlCloseIndexes(children)
   const mergedChildren: MarkdownNode[] = []
   for (let index = 0; index < children.length; index += 1) {
     const child = children[index]
@@ -189,7 +207,7 @@ function mergePairedBlockHtmlChildren(children: MarkdownNode[], markdown?: strin
       continue
     }
 
-    const closeIndex = findBlockHtmlCloseIndex(children, index, tagName)
+    const closeIndex = findBlockHtmlCloseIndex(closeIndexesByTag.get(tagName), index)
     if (closeIndex < 0) {
       mergedChildren.push(child)
       continue

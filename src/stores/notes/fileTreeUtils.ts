@@ -95,6 +95,16 @@ function prioritizeFileTreeScanEntries<T extends { name: string; isDirectory?: b
   return priorityBuckets.flat();
 }
 
+function prioritizeFileTreeNodeScanEntries(
+  nodes: readonly FileTreeNode[],
+): Array<{ node: FileTreeNode; index: number }> {
+  const priorityBuckets: Array<Array<{ node: FileTreeNode; index: number }>> = [[], [], [], []];
+  nodes.forEach((node, index) => {
+    priorityBuckets[getFileTreeNodeScanPriority(node)]?.push({ node, index });
+  });
+  return priorityBuckets.flat();
+}
+
 async function mapWithConcurrencyLimit<T, R>(
   items: readonly T[],
   limit: number,
@@ -229,9 +239,7 @@ async function buildFileTreeWithBudget(
     return nodes;
   }
 
-  const scanOrder = nodes
-    .map((node, index) => ({ node, index, priority: getFileTreeNodeScanPriority(node) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index);
+  const scanOrder = prioritizeFileTreeNodeScanEntries(nodes);
 
   for (const { node, index } of scanOrder) {
     if (!node.isFolder) {
@@ -465,19 +473,23 @@ export function restoreExpandedState(
   expandedPaths: Set<string>
 ): FileTreeNode[] {
   const clonedNodes = new Map<FileTreeNode, FileTreeNode>();
-  const stack = [...nodes];
+  const stack = nodes.map((node) => ({ node, nextChildIndex: 0 }));
 
   while (stack.length > 0) {
-    const current = stack[stack.length - 1];
+    const frame = stack[stack.length - 1];
+    const current = frame.node;
     if (!current.isFolder) {
       clonedNodes.set(current, current);
       stack.pop();
       continue;
     }
 
-    const pendingChild = current.children.find((child) => !clonedNodes.has(child));
+    const pendingChild = current.children[frame.nextChildIndex];
     if (pendingChild) {
-      stack.push(pendingChild);
+      frame.nextChildIndex += 1;
+      if (!clonedNodes.has(pendingChild)) {
+        stack.push({ node: pendingChild, nextChildIndex: 0 });
+      }
       continue;
     }
 
@@ -595,10 +607,11 @@ export function deepUpdateNodePath(
   newBasePath: string
 ): FileTreeNode {
   const clonedNodes = new Map<FileTreeNode, FileTreeNode>();
-  const stack: FileTreeNode[] = [node];
+  const stack: Array<{ node: FileTreeNode; nextChildIndex: number }> = [{ node, nextChildIndex: 0 }];
 
   while (stack.length > 0) {
-    const current = stack[stack.length - 1];
+    const frame = stack[stack.length - 1];
+    const current = frame.node;
     if (!current.isFolder) {
       const newPath = remapPathWithinBase(current.path, oldBasePath, newBasePath);
       clonedNodes.set(current, { ...current, id: newPath, path: newPath });
@@ -606,9 +619,12 @@ export function deepUpdateNodePath(
       continue;
     }
 
-    const pendingChild = current.children.find((child) => !clonedNodes.has(child));
+    const pendingChild = current.children[frame.nextChildIndex];
     if (pendingChild) {
-      stack.push(pendingChild);
+      frame.nextChildIndex += 1;
+      if (!clonedNodes.has(pendingChild)) {
+        stack.push({ node: pendingChild, nextChildIndex: 0 });
+      }
       continue;
     }
 

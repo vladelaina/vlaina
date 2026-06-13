@@ -397,7 +397,12 @@ function transactionInsertsInternalListGapPlaceholder(tr: unknown): boolean {
     return steps.some(stepMayInsertInternalListGapPlaceholder);
 }
 
-function listItemWithInternalPlaceholderTouchesRange(doc: ProseNode, from: number, to: number): boolean {
+function listItemWithInternalPlaceholderTouchesRange(
+    doc: ProseNode,
+    from: number,
+    to: number,
+    maxScanNodes = MAX_ORDERED_LIST_LABEL_SCAN_NODES
+): boolean {
     const start = Math.max(0, Math.min(from, doc.content.size));
     const end = Math.max(start, Math.min(to, doc.content.size));
 
@@ -405,7 +410,7 @@ function listItemWithInternalPlaceholderTouchesRange(doc: ProseNode, from: numbe
         const $pos = doc.resolve(Math.max(0, Math.min(pos, doc.content.size)));
         for (let depth = $pos.depth; depth > 0; depth -= 1) {
             const node = $pos.node(depth);
-            if (node.type.name === 'list_item' && node.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
+            if (node.type.name === 'list_item' && listItemContainsInternalGapPlaceholder(node)) {
                 return true;
             }
         }
@@ -417,8 +422,14 @@ function listItemWithInternalPlaceholderTouchesRange(doc: ProseNode, from: numbe
     }
 
     let touchesPlaceholderListItem = false;
+    let scannedNodes = 0;
     doc.nodesBetween(start, end, (node) => {
-        if (node.type.name === 'list_item' && node.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) {
+            touchesPlaceholderListItem = true;
+            return false;
+        }
+        if (node.type.name === 'list_item' && listItemContainsInternalGapPlaceholder(node)) {
             touchesPlaceholderListItem = true;
             return false;
         }
@@ -615,7 +626,8 @@ export function rangeTouchesOrderedListNormalizationNode(
     doc: ProseNode,
     from: number,
     to: number,
-    checkBoundaryPositions = true
+    checkBoundaryPositions = true,
+    maxScanNodes = MAX_ORDERED_LIST_LABEL_SCAN_NODES
 ): boolean {
     const start = Math.max(0, Math.min(from, doc.content.size));
     const end = Math.max(start, Math.min(to, doc.content.size));
@@ -644,7 +656,8 @@ export function rangeTouchesOrderedListNormalizationNode(
 
         nodesBetween.call(doc, start, scanTo, (node) => {
             scannedNodes += 1;
-            if (scannedNodes > MAX_ORDERED_LIST_LABEL_SCAN_NODES) {
+            if (scannedNodes > maxScanNodes) {
+                touchesList = true;
                 return false;
             }
             if (ORDERED_LIST_NORMALIZATION_NODE_NAMES.has(node.type.name)) {
@@ -658,7 +671,7 @@ export function rangeTouchesOrderedListNormalizationNode(
     }
 
     let touchesList = false;
-    scanProseDescendants(doc, (node, pos) => {
+    const completed = scanProseDescendants(doc, (node, pos) => {
         const nodeSize = typeof node.nodeSize === 'number' ? node.nodeSize : 1;
         const nodeEnd = pos + nodeSize;
         if (nodeEnd < start) return true;
@@ -668,9 +681,9 @@ export function rangeTouchesOrderedListNormalizationNode(
             return STOP_PROSE_SCAN;
         }
         return true;
-    }, MAX_ORDERED_LIST_LABEL_SCAN_NODES);
+    }, maxScanNodes);
 
-    return touchesList;
+    return touchesList || !completed;
 }
 
 export function docChangeMayAffectOrderedListNormalization(prevDoc: ProseNode, nextDoc: ProseNode): boolean {

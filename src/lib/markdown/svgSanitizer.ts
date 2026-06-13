@@ -23,6 +23,10 @@ const SVG_URL_REFERENCE_ATTRIBUTES = new Set([
   'stroke',
 ]);
 
+function containsExternalSvgStyleElementReference(value: string): boolean {
+  return /@import/i.test(value) || containsExternalSvgUrlReference(value);
+}
+
 function containsExternalSvgUrlReference(value: string): boolean {
   const urlPattern = /url\s*\(\s*(['"]?)(.*?)\1\s*\)/gi;
   let match: RegExpExecArray | null;
@@ -101,9 +105,16 @@ function stripExternalSvgResourceReferences(markup: string): string {
 
   const template = document.createElement('template');
   template.innerHTML = markup;
-  const shouldStripResourceReferences = /url\s*\(|href\s*=/i.test(markup);
+  const shouldStripResourceReferences = /url\s*\(|href\s*=|@import/i.test(markup);
   const withinBudget = walkBudgetedSvgElements(template.content, (element) => {
     if (!shouldStripResourceReferences) {
+      return;
+    }
+
+    if (element.localName.toLowerCase() === 'style') {
+      if (containsExternalSvgStyleElementReference(element.textContent || '')) {
+        element.remove();
+      }
       return;
     }
 

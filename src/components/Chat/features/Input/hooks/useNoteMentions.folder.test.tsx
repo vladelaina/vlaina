@@ -1,6 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  MAX_NOTE_MENTION_SCAN_ITEMS,
+  MAX_NOTE_MENTION_TITLE_CHARS,
+} from '@/lib/ai/noteMentions';
 import { useNoteMentionState } from './useNoteMentionState';
 import { useNoteMentions } from './useNoteMentions';
 
@@ -265,6 +269,72 @@ describe('useNoteMentions folder candidates', () => {
         { path: 'assets', title: 'assets/', kind: 'folder' },
         { path: 'docs/beta.md', title: 'Beta', kind: 'note' },
       ]);
+    });
+  });
+
+  it('bounds restored mention state before preview rendering', async () => {
+    const textarea = document.createElement('textarea');
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('');
+      const textareaRef = useRef<HTMLTextAreaElement>(textarea);
+      return useNoteMentionState({
+        value: message,
+        onValueChange: setMessage,
+        textareaRef,
+        syncMentions: ({ mentions }) => mentions,
+      });
+    });
+
+    act(() => {
+      result.current.restoreMentions([
+        ...Array.from({ length: MAX_NOTE_MENTION_SCAN_ITEMS }, (_value, index) => ({
+          path: `docs/${index}.md`,
+          title: index === 0 ? 'x'.repeat(MAX_NOTE_MENTION_TITLE_CHARS + 1) : `Note ${index}`,
+          kind: 'note' as const,
+        })),
+        { path: 'docs/after-budget.md', title: 'AfterBudget', kind: 'note' },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.mentions).toHaveLength(MAX_NOTE_MENTION_SCAN_ITEMS);
+      expect(result.current.mentions[0]?.title).toHaveLength(MAX_NOTE_MENTION_TITLE_CHARS);
+      expect(result.current.mentions.some((mention) => mention.path === 'docs/after-budget.md')).toBe(false);
+    });
+  });
+
+  it('bounds appended mention state and inserted labels', async () => {
+    const textarea = document.createElement('textarea');
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('');
+      const textareaRef = useRef<HTMLTextAreaElement>(textarea);
+      return {
+        message,
+        ...useNoteMentionState({
+          value: message,
+          onValueChange: setMessage,
+          textareaRef,
+          syncMentions: ({ mentions }) => mentions,
+        }),
+      };
+    });
+
+    act(() => {
+      result.current.appendMentions([
+        ...Array.from({ length: MAX_NOTE_MENTION_SCAN_ITEMS }, (_value, index) => ({
+          path: `docs/${index}.md`,
+          title: index === 0 ? 'y'.repeat(MAX_NOTE_MENTION_TITLE_CHARS + 1) : `Note ${index}`,
+          kind: 'note' as const,
+        })),
+        { path: 'docs/after-budget.md', title: 'AfterBudget', kind: 'note' },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.mentions).toHaveLength(MAX_NOTE_MENTION_SCAN_ITEMS);
+      expect(result.current.mentions[0]?.title).toHaveLength(MAX_NOTE_MENTION_TITLE_CHARS);
+      expect(result.current.message).toContain(`@${'y'.repeat(MAX_NOTE_MENTION_TITLE_CHARS)}`);
+      expect(result.current.message).not.toContain('AfterBudget');
     });
   });
 

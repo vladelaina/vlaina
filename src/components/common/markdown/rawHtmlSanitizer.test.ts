@@ -178,4 +178,25 @@ describe('rawHtmlSanitizer', () => {
 
     expect(stringify(tree)).not.toContain('after-budget.png');
   });
+
+  it('keeps dropped raw html containers active when close scanning exceeds the budget', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        {
+          type: 'raw',
+          value: [
+            '<svg>',
+            '<g></g>'.repeat(20_050),
+            '</svg>',
+            '<img src="https://example.com/after-budget.png">',
+          ].join(''),
+        },
+      ],
+    };
+
+    dropUnsafeRawHtmlContent(tree);
+
+    expect(stringify(tree)).not.toContain('after-budget.png');
+  });
 });

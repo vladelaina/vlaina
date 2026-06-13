@@ -10,6 +10,7 @@ import {
     autolinkPluginKey,
     collectAutolinkDecorations,
     collectAutolinkDecorationsInRange,
+    collectAutolinkUpdateRanges,
     findUrls,
     textMayContainAutolinkCandidate,
     transactionMayCreateAutolink,
@@ -311,6 +312,71 @@ describe('autolinkPlugin findUrls', () => {
         expect(nodesBetween).toHaveBeenCalledTimes(1);
         expect(child).not.toHaveBeenCalled();
         expect((decorations[0].type as any).attrs.href).toBe('https://range.example');
+    });
+
+    it('stops local autolink scans at the node budget', () => {
+        let scanned = 0;
+        const doc = {
+            content: { size: 300 },
+            nodesBetween: (_from: number, _to: number, callback: (
+                node: FakeAutolinkNode,
+                pos: number,
+                parent: FakeAutolinkNode,
+            ) => boolean | void) => {
+                for (let index = 0; index < 5; index += 1) {
+                    scanned += 1;
+                    const shouldContinue = callback(
+                        createTextNode(`open https://range-${index}.example`),
+                        index * 20,
+                        { type: { name: 'paragraph' } },
+                    );
+                    if (shouldContinue === false) break;
+                }
+            },
+            resolve: () => ({ marks: () => [] }),
+        };
+
+        expect(collectAutolinkDecorationsInRange(doc, 0, 300, 1000, 1)).toHaveLength(1);
+        expect(scanned).toBe(2);
+    });
+
+    it('falls back to a full-range autolink update when changed range scanning is exhausted', () => {
+        let scanned = 0;
+        const doc = {
+            content: { size: 300 },
+            nodesBetween: (_from: number, _to: number, callback: (
+                node: FakeAutolinkNode & { isTextblock?: boolean },
+                pos: number,
+            ) => boolean | void) => {
+                for (let index = 0; index < 5; index += 1) {
+                    scanned += 1;
+                    const shouldContinue = callback(
+                        {
+                            isTextblock: true,
+                            nodeSize: 10,
+                            type: { name: 'paragraph' },
+                        },
+                        index * 20,
+                    );
+                    if (shouldContinue === false) break;
+                }
+            },
+        };
+        const tr = {
+            mapping: {
+                maps: [{
+                    forEach: (callback: (
+                        oldStart: number,
+                        oldEnd: number,
+                        newStart: number,
+                        newEnd: number,
+                    ) => void) => callback(0, 200, 0, 200),
+                }],
+            },
+        };
+
+        expect(collectAutolinkUpdateRanges(doc, tr, 1)).toEqual([{ from: 0, to: 300 }]);
+        expect(scanned).toBe(2);
     });
 
     it('updates only the edited paragraph when a bare domain is completed character by character', async () => {

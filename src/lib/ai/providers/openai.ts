@@ -34,6 +34,7 @@ import {
 } from '@/lib/markdown/dataImagePolicy'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
 import {
+  MAX_CURRENT_REQUEST_CONTENT_PARTS,
   MAX_CURRENT_REQUEST_MESSAGE_CHARS,
   sanitizeCurrentRequestTextContent,
   sanitizeHistory,
@@ -284,7 +285,7 @@ function sanitizeCurrentMessageContent(content: ChatMessageContent): ChatMessage
   }
 
   let remainingTextChars = MAX_CURRENT_REQUEST_MESSAGE_CHARS;
-  const parts = content.flatMap((part): ChatMessageContentPart[] => {
+  const parts = content.slice(0, MAX_CURRENT_REQUEST_CONTENT_PARTS).flatMap((part): ChatMessageContentPart[] => {
     if (part.type === 'text') {
       if (remainingTextChars <= 0) {
         return [];

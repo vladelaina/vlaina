@@ -5,6 +5,7 @@ import type { Decoration } from '@milkdown/kit/prose/view';
 import {
   TAG_TOKEN_HAS_NEXT_CLASS,
   collectTagTokenDecorationsInRange,
+  collectTagTokenUpdateRanges,
   MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS,
   MAX_TAG_TOKEN_EDGE_RECTS,
   resolveTagTokenEdgeOffset,
@@ -187,6 +188,72 @@ describe('tagTokenPlugin', () => {
     expect(decorations).toHaveLength(1);
     expect(nodesBetween).toHaveBeenCalledTimes(1);
     expect(child).not.toHaveBeenCalled();
+  });
+
+  it('stops local tag token scans at the node budget', () => {
+    let scanned = 0;
+    const doc = {
+      content: { size: 300 },
+      nodesBetween: (_from: number, _to: number, callback: (
+        node: FakeTagNode,
+        pos: number,
+        parent: FakeTagNode,
+      ) => boolean | void) => {
+        for (let index = 0; index < 5; index += 1) {
+          scanned += 1;
+          const shouldContinue = callback(
+            createTextNode(`use #tag${index}`),
+            index * 20,
+            { type: { name: 'paragraph' } },
+          );
+          if (shouldContinue === false) break;
+        }
+      },
+    };
+
+    const decorations = collectTagTokenDecorationsInRange(doc, 0, 300, 1000, 1);
+
+    expect(decorations).toHaveLength(1);
+    expect(scanned).toBe(2);
+  });
+
+  it('falls back to a bounded full-range tag update when changed range scanning is exhausted', () => {
+    let scanned = 0;
+    const doc = {
+      content: { size: 300 },
+      nodesBetween: (_from: number, _to: number, callback: (
+        node: FakeTagNode & { isTextblock?: boolean },
+        pos: number,
+      ) => boolean | void) => {
+        for (let index = 0; index < 5; index += 1) {
+          scanned += 1;
+          const shouldContinue = callback(
+            {
+              isTextblock: true,
+              nodeSize: 10,
+              type: { name: 'paragraph' },
+            },
+            index * 20,
+          );
+          if (shouldContinue === false) break;
+        }
+      },
+    };
+    const tr = {
+      mapping: {
+        maps: [{
+          forEach: (callback: (
+            oldStart: number,
+            oldEnd: number,
+            newStart: number,
+            newEnd: number,
+          ) => void) => callback(0, 200, 0, 200),
+        }],
+      },
+    };
+
+    expect(collectTagTokenUpdateRanges(doc, tr, 1)).toEqual([{ from: 0, to: 300 }]);
+    expect(scanned).toBe(2);
   });
 
   it('updates only the edited paragraph when a tag token is completed character by character', async () => {

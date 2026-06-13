@@ -8,6 +8,7 @@ export interface ContentRange {
 interface HtmlTagStart {
   closing: boolean;
   name: string;
+  overlongName?: boolean;
 }
 
 export interface HtmlTagRangeScan {
@@ -18,6 +19,8 @@ export interface HtmlTagRangeScan {
 
 export const MAX_HTML_TAG_END_SCAN_CHARS = 64 * 1024;
 const MAX_HTML_IMAGE_TAG_END_SCAN_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
+const MAX_HTML_TAG_NAME_CHARS = 128;
+const MAX_RAW_TEXT_CONTAINER_MARKUP_SCANS = 20_000;
 
 const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
   Array.from('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
@@ -134,6 +137,13 @@ function readHtmlTagStart(content: string, start: number, end: number): HtmlTagS
   cursor += 1;
   while (cursor < end && isHtmlNameChar(content[cursor])) {
     cursor += 1;
+    if (cursor - nameStart > MAX_HTML_TAG_NAME_CHARS) {
+      return {
+        closing,
+        name: content.slice(nameStart, nameStart + MAX_HTML_TAG_NAME_CHARS).toLowerCase(),
+        overlongName: true,
+      };
+    }
   }
 
   const next = content[cursor];
@@ -179,16 +189,25 @@ function getOverflowHtmlTagProtectionEnd(content: string, start: number, rangeEn
 function scanRawTextContainerEnd(content: string, tagName: string, start: number, end: number): number | null {
   let cursor = start;
   let depth = 1;
+  let scannedMarkupStarts = 0;
 
   while (cursor < end) {
     const nextTagStart = content.indexOf("<", cursor);
     if (nextTagStart === -1 || nextTagStart >= end) {
       return null;
     }
+    scannedMarkupStarts += 1;
+    if (scannedMarkupStarts > MAX_RAW_TEXT_CONTAINER_MARKUP_SCANS) {
+      return null;
+    }
 
     const tagStart = readHtmlTagStart(content, nextTagStart, end);
     if (!tagStart) {
       cursor = findHtmlNonTagEnd(content, nextTagStart, end) ?? nextTagStart + 1;
+      continue;
+    }
+    if (tagStart.overlongName) {
+      cursor = getOverflowHtmlTagProtectionEnd(content, nextTagStart, end);
       continue;
     }
 
@@ -256,6 +275,15 @@ export function collectHtmlTagRanges(
       cursor = start + 1;
       continue;
     }
+    if (tagStart.overlongName) {
+      const protectedEnd = getOverflowHtmlTagProtectionEnd(content, start, range.end);
+      protectedRanges.push({ start, end: protectedEnd });
+      cursor = protectedEnd;
+      if (ranges.length + protectedRanges.length >= rangeLimit) {
+        return { exhaustedAt: cursor, protectedRanges, ranges };
+      }
+      continue;
+    }
 
     const end = findHtmlTagEnd(content, start, getHtmlTagScanEnd(start, range.end, tagStart.name));
     if (end === -1) {
@@ -304,6 +332,10 @@ function getRawTextHtmlRangesForTags(
     const tagStart = readHtmlTagStart(content, nextTagStart, range.end);
     if (!tagStart) {
       cursor = findHtmlNonTagEnd(content, nextTagStart, range.end) ?? nextTagStart + 1;
+      continue;
+    }
+    if (tagStart.overlongName) {
+      cursor = getOverflowHtmlTagProtectionEnd(content, nextTagStart, range.end);
       continue;
     }
 

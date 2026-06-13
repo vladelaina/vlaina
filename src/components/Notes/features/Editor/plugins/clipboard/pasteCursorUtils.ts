@@ -27,7 +27,7 @@ type DocLike = {
     nodesBetween: (
         from: number,
         to: number,
-        f: (node: TextblockLikeNode, pos: number) => void,
+        f: (node: TextblockLikeNode, pos: number) => boolean | void,
     ) => void;
 };
 
@@ -148,8 +148,9 @@ export const findTailCursorPosInRange = (doc: DocLike, from: number, to: number)
         let scanned = 0;
         doc.nodesBetween(from, scanTo, (node, pos) => {
             scanned += 1;
-            if (scanned > MAX_PASTE_CURSOR_TAIL_SCAN_NODES) return;
+            if (scanned > MAX_PASTE_CURSOR_TAIL_SCAN_NODES) return false;
             visitTextblock(node, pos);
+            return true;
         });
     }
 

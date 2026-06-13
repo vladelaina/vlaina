@@ -33,6 +33,7 @@ const MAX_MENTION_CANDIDATE_TREE_NODES = 20_000;
 export const MAX_MENTION_TITLE_SCAN_ITEMS = 5_000;
 export const MAX_MENTION_TITLE_SCAN_CHARS = 128 * 1024;
 export const MAX_MENTION_TITLE_CHARS = 512;
+const MENTION_CANDIDATE_PRIORITY_BUCKETS = 4;
 
 function getMentionCandidateNodePriority(node: FileTreeNode): number {
   if (hasInternalNotePathSegment(node.path)) {
@@ -48,10 +49,15 @@ function getMentionCandidateNodePriority(node: FileTreeNode): number {
 }
 
 function prioritizeMentionCandidateNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
-  return nodes
-    .map((node, index) => ({ node, index, priority: getMentionCandidateNodePriority(node) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ node }) => node);
+  const buckets = Array.from(
+    { length: MENTION_CANDIDATE_PRIORITY_BUCKETS },
+    () => [] as FileTreeNode[],
+  );
+  for (const node of nodes) {
+    const priority = getMentionCandidateNodePriority(node);
+    buckets[priority]?.push(node);
+  }
+  return buckets.flat();
 }
 
 export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMentionCandidate[]): void {

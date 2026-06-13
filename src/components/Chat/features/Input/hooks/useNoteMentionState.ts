@@ -8,6 +8,8 @@ import {
   type RefObject,
 } from 'react';
 import {
+  MAX_NOTE_MENTION_SCAN_ITEMS,
+  MAX_NOTE_MENTION_TITLE_CHARS,
   isPotentiallyLoadableNoteMentionReference,
   type NoteMentionReference,
 } from '@/lib/ai/noteMentions';
@@ -60,6 +62,61 @@ function normalizeMentionText(value: unknown): string {
 
 function normalizeMentionKind(value: unknown): NonNullable<NoteMentionReference['kind']> {
   return value === 'folder' ? 'folder' : 'note';
+}
+
+function normalizeOptionalMentionKind(value: unknown): NoteMentionReference['kind'] | undefined {
+  return value === 'folder' || value === 'note' ? value : undefined;
+}
+
+function normalizeMentionTitle(value: unknown, fallback: string): string {
+  return (normalizeMentionText(value) || fallback).slice(0, MAX_NOTE_MENTION_TITLE_CHARS);
+}
+
+function normalizeMentionReferenceForState(
+  mention: Partial<NoteMentionReference> | null | undefined,
+  defaultKind: boolean,
+): NoteMentionReference | null {
+  const path = normalizeMentionText(mention?.path);
+  if (!path) {
+    return null;
+  }
+
+  const kind = defaultKind
+    ? normalizeMentionKind(mention?.kind)
+    : normalizeOptionalMentionKind(mention?.kind);
+  if (!isPotentiallyLoadableNoteMentionReference({ path }, kind)) {
+    return null;
+  }
+
+  const title = normalizeMentionTitle(mention?.title, path);
+  if (!title) {
+    return null;
+  }
+
+  return kind ? { path, title, kind } : { path, title };
+}
+
+function normalizeMentionReferencesForState(
+  nextMentions: readonly NoteMentionReference[],
+  defaultKind: boolean,
+): NoteMentionReference[] {
+  const seenPaths = new Set<string>();
+  const normalizedMentions: NoteMentionReference[] = [];
+  const scanLimit = Math.min(nextMentions.length, MAX_NOTE_MENTION_SCAN_ITEMS);
+
+  for (let index = 0; index < scanLimit; index += 1) {
+    const mention = normalizeMentionReferenceForState(nextMentions[index], defaultKind);
+    if (!mention || seenPaths.has(mention.path)) {
+      continue;
+    }
+    seenPaths.add(mention.path);
+    normalizedMentions.push(mention);
+    if (normalizedMentions.length >= MAX_NOTE_MENTION_SCAN_ITEMS) {
+      break;
+    }
+  }
+
+  return normalizedMentions;
 }
 
 interface UseNoteMentionStateOptions {
@@ -298,11 +355,11 @@ export function useNoteMentionState({
 
   useEffect(() => {
     setMentions((prev) => {
-      const next = syncMentions({
+      const next = normalizeMentionReferencesForState(syncMentions({
         allNoteCandidates,
         mentions: prev,
         value,
-      });
+      }), false);
       if (
         next.length === prev.length &&
         next.every((mention, index) =>
@@ -322,28 +379,7 @@ export function useNoteMentionState({
   }, []);
 
   const restoreMentions = useCallback((nextMentions: NoteMentionReference[]) => {
-    const seenPaths = new Set<string>();
-    const restoredMentions: NoteMentionReference[] = [];
-    for (const mention of nextMentions) {
-      const path = normalizeMentionText(mention?.path);
-      const title = normalizeMentionText(mention?.title) || path;
-      const kind = normalizeMentionKind(mention?.kind);
-      if (
-        !path ||
-        !title ||
-        seenPaths.has(path) ||
-        !isPotentiallyLoadableNoteMentionReference({ path }, kind)
-      ) {
-        continue;
-      }
-      seenPaths.add(path);
-      restoredMentions.push({
-        path,
-        title,
-        kind,
-      });
-    }
-    setMentions(restoredMentions);
+    setMentions(normalizeMentionReferencesForState(nextMentions, true));
   }, []);
 
   const setTextareaCaretIndex = useCallback((nextCaretIndex: number) => {
@@ -439,23 +475,16 @@ export function useNoteMentionState({
 
   const appendMentions = useCallback(
     (nextMentions: NoteMentionReference[]) => {
-      const validMentions = nextMentions
-        .map((mention) => ({
-          path: normalizeMentionText(mention?.path),
-          title: normalizeMentionText(mention?.title) || normalizeMentionText(mention?.path),
-          kind: normalizeMentionKind(mention?.kind),
-        }))
-        .filter((mention) =>
-          mention.path &&
-          mention.title &&
-          isPotentiallyLoadableNoteMentionReference({ path: mention.path }, mention.kind)
-        );
+      const validMentions = normalizeMentionReferencesForState(nextMentions, true);
       if (validMentions.length === 0) {
         return;
       }
 
       const existingPaths = new Set(mentions.map((mention) => mention.path));
-      const uniqueMentions = validMentions.filter((mention) => !existingPaths.has(mention.path));
+      const remainingMentionSlots = Math.max(0, MAX_NOTE_MENTION_SCAN_ITEMS - mentions.length);
+      const uniqueMentions = validMentions
+        .filter((mention) => !existingPaths.has(mention.path))
+        .slice(0, remainingMentionSlots);
       if (uniqueMentions.length === 0) {
         return;
       }
@@ -470,7 +499,7 @@ export function useNoteMentionState({
 
       onValueChange(nextValue);
       setCaretIndex(nextCaret);
-      setMentions((prev) => [...prev, ...uniqueMentions]);
+      setMentions((prev) => [...prev, ...uniqueMentions].slice(0, MAX_NOTE_MENTION_SCAN_ITEMS));
 
       requestAnimationFrame(() => {
         focusVisibleTextareaAt(textareaRef.current, nextCaret);
@@ -485,14 +514,18 @@ export function useNoteMentionState({
         return;
       }
 
-      const { nextValue, nextCaret } = insertMentionAtTrigger(value, mentionTrigger, candidate.title);
+      const title = normalizeMentionTitle(candidate.title, candidate.path);
+      const { nextValue, nextCaret } = insertMentionAtTrigger(value, mentionTrigger, title);
       onValueChange(nextValue);
       setCaretIndex(-1);
       setMentions((prev) => {
         if (prev.some((mention) => mention.path === candidate.path)) {
           return prev;
         }
-        return [...prev, { path: candidate.path, title: candidate.title, kind: candidate.kind }];
+        if (prev.length >= MAX_NOTE_MENTION_SCAN_ITEMS) {
+          return prev;
+        }
+        return [...prev, { path: candidate.path, title, kind: candidate.kind }];
       });
 
       requestAnimationFrame(() => {

@@ -449,6 +449,33 @@ describe('managedService', () => {
     ]);
   });
 
+  it('bounds managed chat completion messages while preserving the system prompt', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({ choices: [{ message: { content: 'ok' } }] })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await requestManagedChatCompletion({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: 'system prompt' },
+        ...Array.from({ length: 80 }, (_value, index) => ({
+          role: 'user',
+          content: `message-${index}`,
+        })),
+      ],
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(body.messages).toHaveLength(64);
+    expect(body.messages[0]).toEqual({ role: 'system', content: 'system prompt' });
+    expect(body.messages[1]).toEqual({ role: 'user', content: 'message-17' });
+    expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'message-79' });
+  });
+
   it('sanitizes managed chat completion bodies before desktop bridge requests', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(true);
     managedChatCompletionMock.mockResolvedValue({ choices: [{ message: { content: 'ok' } }] });

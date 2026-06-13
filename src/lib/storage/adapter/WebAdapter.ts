@@ -10,6 +10,7 @@ const UNSAFE_LIST_ENTRY_NAME_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-
 export const MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES = 20_000;
 export const MAX_WEB_ADAPTER_LIST_ENTRIES = 20_000;
 export const MAX_WEB_ADAPTER_FILE_BYTES = 64 * 1024 * 1024;
+const WEB_ADAPTER_LIST_PRIORITY_BUCKETS = 5;
 const LOW_PRIORITY_WEB_ADAPTER_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
@@ -79,10 +80,14 @@ function getListEntryPriority(entry: FileInfo): number {
 }
 
 function prioritizeListEntries(entries: FileInfo[]): FileInfo[] {
-  return entries
-    .map((entry, index) => ({ entry, index, priority: getListEntryPriority(entry) }))
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .map(({ entry }) => entry);
+  const buckets = Array.from(
+    { length: WEB_ADAPTER_LIST_PRIORITY_BUCKETS },
+    () => [] as FileInfo[],
+  );
+  for (const entry of entries) {
+    buckets[getListEntryPriority(entry)]?.push(entry);
+  }
+  return buckets.flat();
 }
 
 function getStoredFileListingScanPriority(file: StoredFile): number {

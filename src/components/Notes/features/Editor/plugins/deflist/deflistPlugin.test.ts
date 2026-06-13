@@ -4,6 +4,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
+  changedRangeContainsDefinitionDescriptionParagraph,
   createDeflistDecorations,
   deflistPlugin,
   transactionMayAffectDeflistDecorations,
@@ -204,6 +205,38 @@ describe('deflistPlugin visual decorations', () => {
     expect(transactionMayAffectDeflistDecorations(previous, tr, tr.doc)).toBe(true);
 
     await editor.destroy();
+  });
+
+  it('treats exhausted changed-range scans as affecting definition list decorations', () => {
+    let scanned = 0;
+    const doc = {
+      content: { size: 300 },
+      nodesBetween: (_from: number, _to: number, callback: (node: any) => boolean | void) => {
+        for (let index = 0; index < 5; index += 1) {
+          scanned += 1;
+          const shouldContinue = callback({
+            content: { size: 0 },
+            type: { name: 'text' },
+          });
+          if (shouldContinue === false) break;
+        }
+      },
+    } as unknown as ProseMirrorNode;
+    const tr = {
+      mapping: {
+        maps: [{
+          forEach: (callback: (
+            oldStart: number,
+            oldEnd: number,
+            newStart: number,
+            newEnd: number,
+          ) => void) => callback(0, 200, 0, 200),
+        }],
+      },
+    };
+
+    expect(changedRangeContainsDefinitionDescriptionParagraph(doc, tr, 1)).toBe(true);
+    expect(scanned).toBe(2);
   });
 });
 

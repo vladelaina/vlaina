@@ -85,6 +85,28 @@ describe('findTailCursorPosInRange', () => {
         );
         expect(accessed).toBe(MAX_PASTE_CURSOR_TAIL_SCAN_NODES);
     });
+
+    it('stops fallback tail scans by node count', () => {
+        let accessed = 0;
+        const doc = {
+            content: { size: (MAX_PASTE_CURSOR_TAIL_SCAN_NODES + 2) * 3 },
+            nodesBetween(_from: number, _to: number, callback: (node: FakeNode, pos: number) => boolean | void) {
+                for (let index = 0; index < MAX_PASTE_CURSOR_TAIL_SCAN_NODES + 2; index += 1) {
+                    accessed += 1;
+                    const shouldContinue = callback(
+                        { isTextblock: true, content: { size: 1 } },
+                        index * 3,
+                    );
+                    if (shouldContinue === false) break;
+                }
+            },
+        };
+
+        expect(findTailCursorPosInRange(doc as any, 0, doc.content.size)).toBe(
+            (MAX_PASTE_CURSOR_TAIL_SCAN_NODES - 1) * 3 + 2,
+        );
+        expect(accessed).toBe(MAX_PASTE_CURSOR_TAIL_SCAN_NODES + 1);
+    });
 });
 
 describe('isMarkdownStructuralResult', () => {

@@ -23,6 +23,7 @@ import {
   MAX_CHAT_SESSION_FLUSH_CONCURRENCY,
   MAX_SESSION_MESSAGES_BYTES,
   MAX_SESSION_MESSAGE_NODES,
+  MAX_SESSION_MESSAGE_SCAN_RECORDS,
   normalizeSessionMessages,
   mergeSessionMessages,
   parseSessionMessagesPayload,
@@ -451,6 +452,20 @@ describe('chatStorage session message normalization', () => {
     expect(messages.map((message) => message.id)).toEqual(['ok']);
   });
 
+  it('does not let invalid message records spend the restored message node budget', () => {
+    const messages = normalizeSessionMessages([
+      ...Array.from({ length: MAX_SESSION_MESSAGE_NODES }, (_, index) => ({
+        id: `invalid-${index}`,
+        role: 'tool',
+        content: 'bad',
+      })),
+      { id: 'ok-1', role: 'user', content: 'hello', modelId: 'model-1', timestamp: 1 },
+      { id: 'ok-2', role: 'assistant', content: 'hi', modelId: 'model-1', timestamp: 2 },
+    ]);
+
+    expect(messages.map((message) => message.id)).toEqual(['ok-1', 'ok-2']);
+  });
+
   it('caps oversized persisted message fields during normalization', () => {
     const oversizedContent = 'x'.repeat(1024 * 1024 + 1);
     const oversizedModelId = 'model-'.repeat(200);
@@ -475,7 +490,7 @@ describe('chatStorage session message normalization', () => {
     expect(messages[0]?.modelId).toHaveLength(512);
   });
 
-  it('does not scan top-level persisted message ids beyond the message budget', () => {
+  it('does not scan top-level persisted message ids beyond the scan budget', () => {
     const overBudgetMessage = {
       get id() {
         throw new Error('Out-of-budget message ids should not be scanned');
@@ -486,7 +501,7 @@ describe('chatStorage session message normalization', () => {
       timestamp: 1,
     };
     const messages = [
-      ...Array.from({ length: MAX_SESSION_MESSAGE_NODES }, (_, index) => ({
+      ...Array.from({ length: MAX_SESSION_MESSAGE_SCAN_RECORDS }, (_, index) => ({
         id: `m${index}`,
         role: 'user',
         content: `message ${index}`,

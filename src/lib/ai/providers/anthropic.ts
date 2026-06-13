@@ -10,6 +10,7 @@ import {
   MAX_OPENAI_STREAM_ERROR_FIELD_CHARS,
 } from '@/lib/ai/streaming'
 import {
+  MAX_CURRENT_REQUEST_CONTENT_PARTS,
   MAX_CURRENT_REQUEST_MESSAGE_CHARS,
   sanitizeCurrentRequestTextContent,
 } from '@/lib/ai/requestContext'
@@ -85,7 +86,7 @@ function buildAnthropicUserContent(content: ChatMessageContent): string | Anthro
 
   const blocks: AnthropicContentBlock[] = []
   let remainingTextChars = MAX_CURRENT_REQUEST_MESSAGE_CHARS
-  for (const part of content) {
+  for (const part of content.slice(0, MAX_CURRENT_REQUEST_CONTENT_PARTS)) {
     if (part.type === 'text') {
       if (part.text && remainingTextChars > 0) {
         const text = sanitizeCurrentRequestTextContent(part.text, remainingTextChars)

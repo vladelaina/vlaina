@@ -106,7 +106,8 @@ export function rangeTouchesRawMarkdownLink(
     doc: ProseNode,
     from: number,
     to: number,
-    checkBoundaryPositions = true
+    checkBoundaryPositions = true,
+    maxScanNodes = MAX_MARKDOWN_LINK_DOC_SCAN_NODES,
 ): boolean {
     const start = Math.max(0, Math.min(from, doc.content.size));
     const end = Math.max(start, Math.min(to, doc.content.size));
@@ -126,10 +127,16 @@ export function rangeTouchesRawMarkdownLink(
     }).nodesBetween;
     if (typeof nodesBetween === 'function') {
         let touchesRawMarkdownLink = false;
+        let scannedNodes = 0;
         const scanTo = Math.min(doc.content.size, Math.max(start + 1, end));
         if (scanTo <= start) return false;
 
         nodesBetween.call(doc, start, scanTo, (node) => {
+            scannedNodes += 1;
+            if (scannedNodes > maxScanNodes) {
+                touchesRawMarkdownLink = true;
+                return false;
+            }
             if (node.isText && textContainsRawMarkdownLink(node.text ?? '')) {
                 touchesRawMarkdownLink = true;
                 return false;
@@ -288,6 +295,7 @@ export function collectRawMarkdownLinkMatchesInRange(
     from: number,
     to: number,
     maxMatches = MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES,
+    maxScanNodes = MAX_MARKDOWN_LINK_DOC_SCAN_NODES,
 ): RawMarkdownLinkMatch[] {
     const limit = Math.max(0, Math.floor(maxMatches));
     const matches: RawMarkdownLinkMatch[] = [];
@@ -298,7 +306,10 @@ export function collectRawMarkdownLinkMatchesInRange(
     const end = Math.max(start, Math.min(to, docSize));
     if (start >= end) return matches;
 
+    let scannedNodes = 0;
     doc.nodesBetween(start, end, (node, pos) => {
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) return false;
         if (!node.isText || !node.text) return true;
         return collectRawMarkdownLinkMatchesFromTextNode(node.text, pos, matches, limit);
     });
@@ -329,8 +340,10 @@ function addMarkdownLinkChangedRanges(
     doc: ProseNode,
     transactions: readonly { docChanged?: boolean }[],
     ranges: MarkdownLinkScanRange[],
+    maxScanNodes = MAX_MARKDOWN_LINK_DOC_SCAN_NODES,
 ): void {
     const docSize = doc.content.size;
+    let scannedNodes = 0;
     for (const tr of transactions) {
         if (!tr.docChanged) continue;
         for (const range of getTransactionChangedRanges(tr)) {
@@ -341,7 +354,13 @@ function addMarkdownLinkChangedRanges(
             addMarkdownLinkTextblockRangeAt(doc, to, ranges);
 
             if (to > from && typeof doc.nodesBetween === 'function') {
+                let exhausted = false;
                 doc.nodesBetween(from, to, (node, pos) => {
+                    scannedNodes += 1;
+                    if (scannedNodes > maxScanNodes) {
+                        exhausted = true;
+                        return false;
+                    }
                     if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
                     ranges.push({
                         from: pos + 1,
@@ -349,6 +368,10 @@ function addMarkdownLinkChangedRanges(
                     });
                     return true;
                 });
+                if (exhausted) {
+                    ranges.push({ from: 0, to: docSize });
+                    return;
+                }
             }
         }
     }
