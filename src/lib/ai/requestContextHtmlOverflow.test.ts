@@ -41,4 +41,30 @@ describe('requestContext HTML overflow image scrubbing', () => {
     expect(sanitized[0].content).not.toContain('<img');
     expect(sanitized[0].content).toContain('[Image]\nafter');
   });
+
+  it('does not leak relative markdown image sources when protection ranges are exhausted', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `\`code ${index}\``),
+      'Tail ![secret](images/private.png) after',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage(content)]);
+
+    expect(sanitized[0].content).not.toContain('images/private.png');
+    expect(sanitized[0].content).not.toContain('![secret]');
+    expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
+  it('does not leak relative HTML image sources when protection ranges are exhausted', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `\`code ${index}\``),
+      '<img src="images/private.png" alt="secret"> after',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage(content)]);
+
+    expect(sanitized[0].content).not.toContain('images/private.png');
+    expect(sanitized[0].content).not.toContain('<img');
+    expect(sanitized[0].content).toContain('[Image] after');
+  });
 });

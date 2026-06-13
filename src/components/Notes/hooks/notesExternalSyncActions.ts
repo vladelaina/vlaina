@@ -91,20 +91,20 @@ function mergePendingPathKind(
 function flushExpiredPendingCreates(
   queue: PendingCreateEntry[],
   now: number
-): { queue: PendingCreateEntry[]; expiredPaths: string[] } {
-  const expiredPaths: string[] = [];
+): { queue: PendingCreateEntry[]; expiredEntries: PendingCreateEntry[] } {
+  const expiredEntries: PendingCreateEntry[] = [];
   const nextQueue: PendingCreateEntry[] = [];
 
   for (const entry of queue) {
     if (entry.expiresAt <= now) {
-      expiredPaths.push(entry.newPath);
+      expiredEntries.push(entry);
       continue;
     }
 
     nextQueue.push(entry);
   }
 
-  return { queue: nextQueue, expiredPaths };
+  return { queue: nextQueue, expiredEntries };
 }
 
 function getNextPendingCreateDelay(queue: PendingCreateEntry[], now: number): number | null {
@@ -362,8 +362,8 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
 
   const flushPendingRenameDeletions = async () => {
     const now = Date.now();
-    const { queue, expiredPaths } = flushExpiredPendingRenames(pendingRenamesRef.current, now);
-    const { queue: createQueue, expiredPaths: expiredCreates } = flushExpiredPendingCreates(
+    const { queue, expiredEntries } = flushExpiredPendingRenames(pendingRenamesRef.current, now);
+    const { queue: createQueue, expiredEntries: expiredCreates } = flushExpiredPendingCreates(
       pendingCreatesRef.current,
       now
     );
@@ -373,7 +373,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     pendingCreatesRef.current = createQueue;
     schedulePendingRenameFlush();
 
-    if (expiredPaths.length === 0 && expiredCreates.length === 0 && !hadPendingQueueOverflow) {
+    if (expiredEntries.length === 0 && expiredCreates.length === 0 && !hadPendingQueueOverflow) {
       return false;
     }
 
@@ -385,21 +385,26 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       return true;
     }
 
-    for (const expiredPath of expiredPaths) {
-      if (isRelevantDeletedPath(expiredPath, null)) {
-        await applyExternalDeletion(expiredPath);
+    let handledExpiredDelete = false;
+    for (const expiredEntry of expiredEntries) {
+      if (isRelevantDeletedPath(expiredEntry.oldPath, expiredEntry.kind)) {
+        await applyExternalDeletion(expiredEntry.oldPath);
+        handledExpiredDelete = true;
       }
     }
 
-    if (expiredCreates.length > 0) {
-      await handleRelevantPaths(expiredCreates, false);
+    let handledExpiredCreate = false;
+    for (const expiredCreate of expiredCreates) {
+      handledExpiredCreate =
+        await handleRelevantPaths([expiredCreate.newPath], false, expiredCreate.kind) ||
+        handledExpiredCreate;
     }
 
-    if (expiredPaths.length > 0 || hadPendingQueueOverflow) {
+    if (handledExpiredDelete || hadPendingQueueOverflow) {
       scheduleFileTreeReload();
     }
 
-    return expiredPaths.length > 0 || expiredCreates.length > 0 || hadPendingQueueOverflow;
+    return handledExpiredDelete || handledExpiredCreate || hadPendingQueueOverflow;
   };
 
   const handleRelevantPaths = async (
@@ -408,7 +413,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     pathKind?: string | null
   ) => {
     if (!isActiveNotesPath()) {
-      return;
+      return false;
     }
 
     let shouldReloadTree = false;
@@ -445,15 +450,16 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
         continue;
       }
 
+      const isMarkdownEventPath = isMarkdownPath(relativePath);
       if (currentNotePath && !isAbsolutePath(currentNotePath) && currentNotePath === relativePath) {
-        if (isMarkdownPath(relativePath)) {
+        if (isMarkdownEventPath) {
           shouldSyncCurrentNote = true;
         }
         continue;
       }
-      shouldReloadTree = true;
-      if (!isMarkdownPath(relativePath)) {
+      if (!isMarkdownEventPath) {
         if (relativePath === '' || pathKind === 'folder' || isKnownFolderPath(relativePath)) {
+          shouldReloadTree = true;
           invalidateNoteCache(relativePath, { includeDescendants: true });
           if (
             currentNotePath &&
@@ -462,9 +468,12 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
           ) {
             shouldSyncCurrentNote = true;
           }
+        } else if (pathKind !== 'file') {
+          shouldReloadTree = true;
         }
         continue;
       }
+      shouldReloadTree = true;
       invalidateNoteCache(relativePath);
     }
 
@@ -475,6 +484,8 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     if (shouldReloadTree && isActiveNotesPath()) {
       scheduleFileTreeReload();
     }
+
+    return shouldReloadTree || shouldSyncCurrentNote;
   };
 
   const handleCreatedPaths = async (relativePaths: string[], pathKind?: string | null) => {

@@ -92,19 +92,19 @@ describe('buildParsedAssistantMarkdown', () => {
     expect(parsed.renderableMarkdown).not.toContain('<img src="https://example.com/real-html.png">');
   });
 
-  it('does not count or strip relative directory images as renderable images', () => {
+  it('does not count or strip relative or bare images as renderable images', () => {
     const markdown = [
       '![local](images/demo.png)',
-      '![stored](demo.png)',
+      '![bare](demo.png)',
       '![remote](https://example.com/real.png)',
     ].join('\n');
 
     const renderableMarkdown = stripRenderableImageTokens(markdown);
     const parsed = buildParsedAssistantMarkdown(markdown, renderableMarkdown);
 
-    expect(parsed.imageCount).toBe(2);
+    expect(parsed.imageCount).toBe(1);
     expect(renderableMarkdown).toContain('![local](images/demo.png)');
-    expect(renderableMarkdown).not.toContain('![stored](demo.png)');
+    expect(renderableMarkdown).toContain('![bare](demo.png)');
     expect(renderableMarkdown).not.toContain('![remote](https://example.com/real.png)');
   });
 

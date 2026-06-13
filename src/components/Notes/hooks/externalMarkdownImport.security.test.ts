@@ -77,6 +77,8 @@ describe('external markdown import path security', () => {
       'https://example.com/alpha.md',
       'file:///outside/alpha.md',
       'asset://localhost/alpha.md',
+      String.raw`https\://example.com/alpha.md`,
+      String.raw`file\:///outside/alpha.md`,
     ]);
 
     expect(result).toEqual({
@@ -150,6 +152,8 @@ describe('external markdown import path security', () => {
       'https://example.com/alpha.md',
       'file:///outside/alpha.md',
       'asset://localhost/alpha.md',
+      String.raw`https\://example.com/alpha.md`,
+      String.raw`file\:///outside/alpha.md`,
     ]);
 
     expect(result).toEqual([]);

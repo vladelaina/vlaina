@@ -34,6 +34,13 @@ import {
 import { parseMarkdownAndHtmlImageTokens, type ImageToken } from '@/components/Chat/common/messageImageTokens'
 import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy'
 import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
+import { htmlImageTagHasDataImageSrc } from '@/lib/markdown/markdownHtmlImageSrc'
+import {
+  findHtmlTagEnd,
+  getInlineCodeRanges,
+  getRangeEndAtOffset,
+  iterateNonFencedContentRanges,
+} from '@/lib/markdown/markdownRanges'
 import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber'
 
 let switchSessionGeneration = 0;
@@ -52,6 +59,8 @@ const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH = 1
 const MAX_INLINE_IMAGE_TOKENS_PER_CONTENT = 2000
 const MAX_INLINE_IMAGE_PERSISTENCE_SOURCES = 1000
 const MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS = 512 * 1024
+const MAX_INLINE_IMAGE_FALLBACK_HTML_TAG_END_SCAN_CHARS = 64 * 1024
+const MAX_INLINE_IMAGE_FALLBACK_INLINE_CODE_RANGES = 4000
 export const MAX_CHAT_SESSION_DELETE_CONCURRENCY = 5
 export const MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY = 4
 
@@ -233,11 +242,127 @@ function scrubOversizedInlineDataImageReferences(content: string) {
     return content
   }
 
-  return scrubOverflowMarkdownDataImages(content, {
+  const withoutMarkdownDataImages = scrubOverflowMarkdownDataImages(content, {
     replacement: '',
     maxTargetChars: MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS,
     scrubMatchedDataImages: false,
   })
+  return scrubOverflowHtmlInlineDataImageReferences(withoutMarkdownDataImages)
+}
+
+function scrubOverflowHtmlInlineDataImageReferences(content: string) {
+  let output = ''
+  let cursor = 0
+
+  for (const range of iterateNonFencedContentRanges(content)) {
+    output += content.slice(cursor, range.start)
+    output += scrubOverflowHtmlInlineDataImageReferencesInRange(content, range)
+    cursor = range.end
+  }
+
+  output += content.slice(cursor)
+  return output
+}
+
+function scrubOverflowHtmlInlineDataImageReferencesInRange(
+  content: string,
+  range: { start: number; end: number },
+) {
+  const inlineCodeRanges = getInlineCodeRanges(
+    content,
+    range,
+    MAX_INLINE_IMAGE_FALLBACK_INLINE_CODE_RANGES,
+  )
+  let output = ''
+  let cursor = range.start
+
+  while (cursor < range.end) {
+    const start = indexOfAsciiCaseInsensitive(content, '<img', cursor)
+    if (start === -1 || start >= range.end) {
+      output += content.slice(cursor, range.end)
+      break
+    }
+
+    const inlineCodeEnd = getRangeEndAtOffset(start, inlineCodeRanges)
+    if (inlineCodeEnd !== null) {
+      output += content.slice(cursor, inlineCodeEnd)
+      cursor = inlineCodeEnd
+      continue
+    }
+
+    const tagEnd = findBoundedHtmlImageTagEnd(
+      content,
+      start,
+      range.end,
+    )
+    const tagIsOverflow =
+      tagEnd === -1 ||
+      tagEnd > range.end ||
+      tagEnd - start > MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS
+    if (tagIsOverflow) {
+      output += content.slice(cursor, start)
+      cursor = tagEnd !== -1 && tagEnd <= range.end
+        ? tagEnd
+        : getOverflowHtmlImageScrubEnd(content, start, range.end)
+      continue
+    }
+
+    const tag = content.slice(start, tagEnd)
+    if (!htmlImageTagHasDataImageSrc(tag)) {
+      output += content.slice(cursor, tagEnd)
+      cursor = tagEnd
+      continue
+    }
+
+    output += content.slice(cursor, start)
+    cursor = tagEnd
+  }
+
+  return output
+}
+
+function findBoundedHtmlImageTagEnd(content: string, start: number, rangeEnd: number): number {
+  const fastEnd = findHtmlTagEnd(
+    content,
+    start,
+    Math.min(rangeEnd, start + MAX_INLINE_IMAGE_FALLBACK_HTML_TAG_END_SCAN_CHARS + 1),
+  )
+  if (fastEnd !== -1) {
+    return fastEnd
+  }
+  return findHtmlTagEnd(
+    content,
+    start,
+    Math.min(rangeEnd, start + MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS + 1),
+  )
+}
+
+function indexOfAsciiCaseInsensitive(value: string, needle: string, fromIndex: number): number {
+  const lowerNeedle = needle.toLowerCase()
+  const maxStart = value.length - needle.length
+  for (let index = Math.max(0, fromIndex); index <= maxStart; index += 1) {
+    let matched = true
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (value[index + offset]?.toLowerCase() !== lowerNeedle[offset]) {
+        matched = false
+        break
+      }
+    }
+    if (matched) {
+      return index
+    }
+  }
+  return -1
+}
+
+function getOverflowHtmlImageScrubEnd(content: string, start: number, rangeEnd: number): number {
+  const lineFeed = content.indexOf('\n', start)
+  const carriageReturn = content.indexOf('\r', start)
+  return Math.min(
+    lineFeed === -1 ? rangeEnd : lineFeed,
+    carriageReturn === -1 ? rangeEnd : carriageReturn,
+    rangeEnd,
+  )
 }
 
 function replaceImageSourceReferences(content: string, replacements: Map<string, string>) {

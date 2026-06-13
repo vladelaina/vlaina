@@ -108,6 +108,13 @@ vi.mock('@/lib/storage/adapter', () => ({
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.filter(Boolean).join('/')),
   normalizePath: (path: string) => path.replace(/\\/g, '/'),
+  relativePath: (from: string, to: string) => {
+    const normalizedFrom = from.replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalizedTo = to.replace(/\\/g, '/');
+    return normalizedTo.startsWith(`${normalizedFrom}/`)
+      ? normalizedTo.slice(normalizedFrom.length + 1)
+      : normalizedTo;
+  },
   toFileUrl: (path: string) => Promise.resolve(`file://${path}`),
 }));
 
@@ -138,6 +145,7 @@ describe('imported markdown theme storage', () => {
         '/* @import url("./comment.css"); */',
         '#write { color: var(--text-color); }',
         'a { background: url(javascript:alert(1)); }',
+        '.local { background: url("file:///tmp/secret.png"); }',
         '@font-face { src: url("./fonts/theme.woff2?version=1#main") format("woff2"); }',
         '.cover { background-image: url(https://example.com/cover.png), url(var(--cover-image)); }',
       ].join('\n'),
@@ -163,6 +171,7 @@ describe('imported markdown theme storage', () => {
     expect(imported?.css).not.toContain('@import url("https://example.com/external.css")');
     expect(imported?.css).not.toContain('@IMPORT "./uppercase.css"');
     expect(imported?.css).not.toContain('javascript:alert');
+    expect(imported?.css).not.toContain('file:///tmp/secret.png');
 
     await expect(listImportedMarkdownThemes('typora')).resolves.toEqual([
       expect.objectContaining({ id: 'clean-light', platform: 'typora' }),
@@ -170,7 +179,7 @@ describe('imported markdown theme storage', () => {
     await expect(listImportedMarkdownThemes('obsidian')).resolves.toEqual([]);
   });
 
-  it('falls back to the original file URL when a relative theme asset cannot be copied', async () => {
+  it('drops relative theme asset URLs when the asset cannot be copied', async () => {
     await importMarkdownThemeCss({
       name: 'Missing Asset.css',
       platform: 'typora',
@@ -179,7 +188,8 @@ describe('imported markdown theme storage', () => {
     });
 
     const imported = await readImportedMarkdownTheme('missing-asset');
-    expect(imported?.css).toContain('url("file:///downloads/./images/missing.png")');
+    expect(imported?.css).toContain('url("")');
+    expect(imported?.css).not.toContain('file:///downloads/./images/missing.png');
   });
 
   it('copies relative theme assets when stat has no size but bounded read succeeds', async () => {
@@ -212,7 +222,7 @@ describe('imported markdown theme storage', () => {
     expect(adapter.readBinaryFile).toHaveBeenCalledWith(assetPath, MAX_IMPORTED_THEME_ASSET_BYTES);
   });
 
-  it('falls back to the original file URL instead of copying oversized relative theme assets', async () => {
+  it('drops oversized relative theme assets instead of falling back to the source path', async () => {
     binaryFiles.set('/downloads/./fonts/huge.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
 
     await importMarkdownThemeCss({
@@ -223,11 +233,12 @@ describe('imported markdown theme storage', () => {
     });
 
     const imported = await readImportedMarkdownTheme('huge-asset');
-    expect(imported?.css).toContain('url("file:///downloads/./fonts/huge.woff2")');
+    expect(imported?.css).toContain('url("")');
+    expect(imported?.css).not.toContain('file:///downloads/./fonts/huge.woff2');
     expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/huge-asset-assets/0-huge.woff2')).toBe(false);
   });
 
-  it('falls back to the original file URL instead of copying relative theme assets with invalid stat sizes', async () => {
+  it('drops relative theme assets with invalid stat sizes instead of falling back to the source path', async () => {
     const assetPath = '/downloads/./fonts/invalid.woff2';
     binaryFiles.set(assetPath, new Uint8Array([1, 2, 3]));
     adapter.stat.mockImplementation(async (path: string) => {
@@ -252,12 +263,13 @@ describe('imported markdown theme storage', () => {
     });
 
     const imported = await readImportedMarkdownTheme('invalid-asset');
-    expect(imported?.css).toContain('url("file:///downloads/./fonts/invalid.woff2")');
+    expect(imported?.css).toContain('url("")');
+    expect(imported?.css).not.toContain('file:///downloads/./fonts/invalid.woff2');
     expect(adapter.readBinaryFile).not.toHaveBeenCalledWith(assetPath, MAX_IMPORTED_THEME_ASSET_BYTES);
     expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/invalid-asset-assets/0-invalid.woff2')).toBe(false);
   });
 
-  it('falls back to the original file URL when a relative theme asset exceeds the read limit', async () => {
+  it('drops relative theme assets when the bounded read rejects them', async () => {
     binaryFiles.set('/downloads/./fonts/race.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
     adapter.stat.mockImplementation(async (path: string) => {
       if (path === '/downloads/./fonts/race.woff2') {
@@ -281,7 +293,8 @@ describe('imported markdown theme storage', () => {
     });
 
     const imported = await readImportedMarkdownTheme('racing-asset');
-    expect(imported?.css).toContain('url("file:///downloads/./fonts/race.woff2")');
+    expect(imported?.css).toContain('url("")');
+    expect(imported?.css).not.toContain('file:///downloads/./fonts/race.woff2');
     expect(adapter.readBinaryFile).toHaveBeenCalledWith(
       '/downloads/./fonts/race.woff2',
       MAX_IMPORTED_THEME_ASSET_BYTES,
@@ -846,7 +859,7 @@ describe('imported markdown theme storage', () => {
       '@font-face { font-family: "VLOOK"; src: url("./vlook.woff2") format("woff2"); }',
       '@font-face { font-family: "VLOOK Mono"; src: url("./mono.woff2") format("woff2"); }',
     ].join('\n'));
-    binaryFiles.set('/app/.vlaina/themes/vlook/pages-dev/vlook.woff2', new Uint8Array([1, 2, 3]));
+    binaryFiles.set('/app/.vlaina/themes/vlook/pages-dev/./vlook.woff2', new Uint8Array([1, 2, 3]));
     adapter.listDir.mockResolvedValueOnce([
       {
         name: 'vlook-fancy.css',
@@ -880,8 +893,12 @@ describe('imported markdown theme storage', () => {
     expect(files.has('/app/.vlaina/store/markdown-theme-cache/fs-ink-min.css')).toBe(false);
     expect(files.get('/app/.vlaina/store/markdown-theme-cache/vlook-fancy.css')).toContain('font-family: "VLOOK"');
     expect(files.get('/app/.vlaina/store/markdown-theme-cache/vlook-fancy.css')).toContain(
-      'url("file:///app/.vlaina/themes/vlook/pages-dev/./vlook.woff2")'
+      'url("file:///app/.vlaina/store/markdown-theme-cache/vlook-fancy-assets/0-vlook.woff2")'
     );
+    expect(files.get('/app/.vlaina/store/markdown-theme-cache/vlook-fancy.css')).not.toContain(
+      'file:///app/.vlaina/themes/vlook/pages-dev'
+    );
+    expect(binaryFiles.get('/app/.vlaina/store/markdown-theme-cache/vlook-fancy-assets/0-vlook.woff2')).toEqual(new Uint8Array([1, 2, 3]));
   });
 
   it('lists only themes currently sourced from the fixed theme directory for settings dropdowns', async () => {
@@ -1134,10 +1151,11 @@ describe('imported markdown theme storage', () => {
     await syncImportedMarkdownThemesFromDirectory();
 
     const imported = await readImportedMarkdownTheme('theme');
-    expect(imported?.css).toContain('#write { background: url("../secret.woff2"); }');
+    expect(imported?.css).toContain('#write { background: url(""); }');
     expect(imported?.css).toContain(
       'url("file:///app/.vlaina/store/markdown-theme-cache/theme-assets/0-safe.woff2")'
     );
+    expect(imported?.css).not.toContain('url("../secret.woff2")');
     expect(imported?.css).not.toContain('--outside');
     expect(imported?.css).not.toContain('file:///app/.vlaina/themes/secret.woff2');
     expect(adapter.stat).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../outside.css');
@@ -1145,6 +1163,67 @@ describe('imported markdown theme storage', () => {
     expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../outside.css');
     expect(adapter.readBinaryFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../secret.woff2');
     expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/theme-assets/0-secret.woff2')).toBe(false);
+  });
+
+  it('does not resolve CSS-escaped parent imports or assets outside the source directory', async () => {
+    files.set('/app/.vlaina/themes/nested/theme.css', [
+      String.raw`@import "\2e\2e/outside.css";`,
+      String.raw`#write { background: url("\2e\2e/secret.woff2"); }`,
+      String.raw`#write .safe { background: url("\2e/safe.woff2"); }`,
+    ].join('\n'));
+    files.set('/app/.vlaina/themes/outside.css', ':root { --outside: red; }');
+    binaryFiles.set('/app/.vlaina/themes/secret.woff2', new Uint8Array([9, 9, 9]));
+    binaryFiles.set('/app/.vlaina/themes/nested/./safe.woff2', new Uint8Array([1, 2, 3]));
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'theme.css',
+        path: '/app/.vlaina/themes/nested/theme.css',
+        isDirectory: false,
+        isFile: true,
+        size: 120,
+        modifiedAt: 10,
+      },
+    ]);
+
+    await syncImportedMarkdownThemesFromDirectory();
+
+    const imported = await readImportedMarkdownTheme('theme');
+    expect(imported?.css).toContain('url("")');
+    expect(imported?.css).toContain(
+      'url("file:///app/.vlaina/store/markdown-theme-cache/theme-assets/0-safe.woff2")'
+    );
+    expect(imported?.css).not.toContain(String.raw`url("\2e\2e/secret.woff2")`);
+    expect(imported?.css).not.toContain('--outside');
+    expect(imported?.css).not.toContain('file:///app/.vlaina/themes/secret.woff2');
+    expect(adapter.stat).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../outside.css');
+    expect(adapter.stat).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../secret.woff2');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../outside.css');
+    expect(adapter.readBinaryFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../secret.woff2');
+    expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/theme-assets/0-secret.woff2')).toBe(false);
+  });
+
+  it('does not rebase CSS-escaped parent asset paths from inlined imports', async () => {
+    files.set('/app/.vlaina/themes/theme.css', [
+      '@import "./helpers/helper.css";',
+      '#write { color: red; }',
+    ].join('\n'));
+    files.set(
+      '/app/.vlaina/themes/./helpers/helper.css',
+      String.raw`:root { --helper-bg: url("\2e\2e/\2e\2e/secret.woff2"); }`
+    );
+
+    await importMarkdownThemeCss({
+      name: 'Theme.css',
+      platform: 'typora',
+      sourcePath: '/app/.vlaina/themes/theme.css',
+      css: files.get('/app/.vlaina/themes/theme.css') ?? '',
+    });
+
+    const imported = await readImportedMarkdownTheme('theme');
+    expect(imported?.css).toContain('url("")');
+    expect(imported?.css).not.toContain(String.raw`url("\2e\2e/\2e\2e/secret.woff2")`);
+    expect(imported?.css).not.toContain('file:///app/.vlaina/themes/./helpers');
+    expect(imported?.css).not.toContain('file:///app/.vlaina/secret.woff2');
   });
 
   it('refreshes changed directory themes and removes deleted directory themes', async () => {

@@ -42,6 +42,19 @@ describe('markdown plain text helpers', () => {
     )).toBe('![example](asset://code.png) and [link](https://example.com/code) then real');
   });
 
+  it('bounds deeply nested markdown link stripping', () => {
+    let markdown = 'visible text';
+    for (let index = 0; index < 5000; index += 1) {
+      markdown = `[${markdown}](https://hidden-${index}.example/path)`;
+    }
+
+    let stripped = '';
+    expect(() => {
+      stripped = stripMarkdownInline(markdown);
+    }).not.toThrow();
+    expect(stripped).not.toContain('hidden-');
+  });
+
   it('keeps escaped Notes inline delimiters visible during measurement normalization', () => {
     expect(normalizeMarkdownInlineTextForMeasurement(
       '\\==mark== \\++under++ H\\~2\\~O x\\^2^'

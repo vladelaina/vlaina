@@ -181,6 +181,54 @@ describe('NotesTagsSection', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read tag note icon metadata from non-Markdown paths', async () => {
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: 'docs/image.png', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read tag note icon metadata from unsafe absolute paths', async () => {
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: '/vault/secret\u202Egnp.md', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read tag note icon metadata from internal relative paths', async () => {
     render(
       <NotesTagsSection

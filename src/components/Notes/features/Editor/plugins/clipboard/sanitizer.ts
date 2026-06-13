@@ -29,11 +29,6 @@ interface SanitizeContext {
   visitedNodes: number;
 }
 
-interface ElementVisit {
-  element: Element;
-  depth: number;
-}
-
 function canVisitNode(context: SanitizeContext) {
   context.visitedNodes += 1;
   return context.visitedNodes <= MAX_SANITIZE_NODES;
@@ -57,33 +52,20 @@ function sanitizeChildren(
   }
 }
 
-function hasDescendantSourceSrc(element: Element): boolean {
-  const firstElement = element.firstElementChild;
-  if (!firstElement) {
-    return false;
-  }
-
-  let visitedNodes = 0;
-  const stack: ElementVisit[] = [{ element: firstElement, depth: 1 }];
-  while (stack.length > 0) {
-    const { element: current, depth } = stack.pop() as ElementVisit;
-    visitedNodes += 1;
-    if (visitedNodes > MAX_SANITIZE_NODES || depth > MAX_SANITIZE_DEPTH) {
-      return false;
+function hasSanitizedSourceWithSrc(element: Element, context: SanitizeContext): boolean {
+  const stack = Array.from(element.children);
+  while (stack.length > 0 && hasSanitizeBudget(context)) {
+    const child = stack.pop();
+    if (!child) {
+      continue;
     }
 
-    if (current.tagName.toLowerCase() === 'source' && current.hasAttribute('src')) {
+    if (child.tagName.toLowerCase() === 'source' && child.hasAttribute('src')) {
       return true;
     }
 
-    const nextElement = current.nextElementSibling;
-    if (nextElement) {
-      stack.push({ element: nextElement, depth });
-    }
-
-    const firstChild = current.firstElementChild;
-    if (firstChild) {
-      stack.push({ element: firstChild, depth: depth + 1 });
+    for (let index = child.children.length - 1; index >= 0; index -= 1) {
+      stack.push(child.children[index]);
     }
   }
 
@@ -197,7 +179,7 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
     sanitized.setAttribute('referrerpolicy', 'no-referrer');
   }
   sanitizeChildren(element, sanitized, context, depth + 1);
-  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !hasDescendantSourceSrc(sanitized)) {
+  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !hasSanitizedSourceWithSrc(sanitized, context)) {
     return null;
   }
   return sanitized;

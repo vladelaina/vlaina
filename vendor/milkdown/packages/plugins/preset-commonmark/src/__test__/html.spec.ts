@@ -116,14 +116,18 @@ it('should reject scheme-bearing media urls even when plain relatives are allowe
     '<img src="blob:https://example.com/image">',
     '<img src="data:image/png;base64,QUJDRA==">',
     '<img src="mailto:user@example.com">',
+    String.raw`<img src="data\:image/png;base64,QUJDRA==">`,
+    String.raw`<img src="img\:assets/image.png">`,
     '<img src="images/safe.png">',
     '<source srcset="blob:https://example.com/image 1x">',
+    String.raw`<source srcset="data\:image/png;base64,QUJDRA== 1x">`,
     '<source srcset="images/safe.webp 1x">',
   ].join(''))
 
-  expect(result).toBe('<img><img><img><img src="images/safe.png"><source><source srcset="images/safe.webp 1x">')
+  expect(result).toBe('<img><img><img><img><img><img src="images/safe.png"><source><source><source srcset="images/safe.webp 1x">')
   expect(result).not.toContain('blob:')
   expect(result).not.toContain('data:')
+  expect(result).not.toContain('img\\:')
   expect(result).not.toContain('mailto:')
 })
 

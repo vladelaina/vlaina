@@ -38,6 +38,12 @@ function createTree(): FileTreeNode[] {
           isFolder: false,
         },
         {
+          id: 'docs/delta.mkd',
+          name: 'delta',
+          path: 'docs/delta.mkd',
+          isFolder: false,
+        },
+        {
           id: 'docs/skip.txt',
           name: 'skip',
           path: 'docs/skip.txt',
@@ -103,6 +109,13 @@ describe('collectMentionCandidates', () => {
         kind: 'note',
         isCurrent: false,
         notePath: 'docs/gamma.mdown',
+      },
+      {
+        path: 'docs/delta.mkd',
+        title: '',
+        kind: 'note',
+        isCurrent: false,
+        notePath: 'docs/delta.mkd',
       },
     ]);
   });

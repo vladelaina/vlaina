@@ -136,6 +136,9 @@ describe('videoPlugin URL support', () => {
     expect(parseVideoUrl('http://192.168.1.8/secret.mp4')).toBeNull();
     expect(parseVideoUrl('http://10.0.0.5/secret.webm')).toBeNull();
     expect(parseVideoUrl('http://[::ffff:7f00:1]/secret.webm')).toBeNull();
+    expect(parseVideoUrl(String.raw`https:\example.com\video.mp4`)).toBeNull();
+    expect(parseVideoUrl(String.raw`https\://example.com/video.mp4`)).toBeNull();
+    expect(parseVideoUrl(String.raw`https://example.com\@evil.test/video.mp4`)).toBeNull();
   });
 
   it('normalizes pasted URLs and rejects log blobs', () => {
@@ -162,6 +165,7 @@ describe('videoPlugin URL support', () => {
     expect(sanitizeVideoUrlInput('ftp://youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
     expect(sanitizeVideoUrlInput('https://user:pass@example.com/video.mp4')).toBeNull();
     expect(sanitizeVideoUrlInput('http://127.0.0.1:3000/secret.mp4')).toBeNull();
+    expect(sanitizeVideoUrlInput(String.raw`https:\example.com\video.mp4`)).toBeNull();
   });
 
   it('redacts video URL debug payloads', () => {

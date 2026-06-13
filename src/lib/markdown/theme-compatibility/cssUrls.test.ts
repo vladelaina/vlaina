@@ -42,6 +42,17 @@ describe('themeCssUrls', () => {
     await expect(rebaseRelativeMarkdownThemeCssUrls(css, '/downloads/theme.css')).resolves.toBe(css);
   });
 
+  it('does not rewrite CSS-escaped absolute URL schemes as relative assets', async () => {
+    const css = [
+      String.raw`.remote { background: url("https\://example.com/cover.png"); }`,
+      String.raw`.file { background: url(file\:///tmp/secret.png); }`,
+      String.raw`.data { background: url(data\:image/png;base64,a); }`,
+      String.raw`.absolute { background: url("\/images/cover.png"); }`,
+    ].join('\n');
+
+    await expect(rebaseRelativeMarkdownThemeCssUrls(css, '/downloads/theme.css')).resolves.toBe(css);
+  });
+
   it('does not rewrite CSS url() text inside strings or comments', async () => {
     const css = [
       '.literal::before { content: "url(./literal.png)"; }',
@@ -105,6 +116,24 @@ describe('themeCssUrls', () => {
     urls.forEach((url, index) => {
       expect(rewritten).toContain(`.item-${index} { background: url("file:///rewritten/${url}"); }`);
     });
+  });
+
+  it('drops relative CSS URLs when the resolver explicitly rejects them', async () => {
+    const css = [
+      '.dropped { background: url(./secret.png); }',
+      '.unchanged { background: url(./literal.png); }',
+    ].join('\n');
+
+    const rewritten = await rewriteRelativeMarkdownThemeCssUrls(
+      css,
+      '/downloads/theme.css',
+      async ({ path }) => (path.includes('secret') ? false : null),
+    );
+
+    expect(rewritten).toBe([
+      '.dropped { background: url(""); }',
+      '.unchanged { background: url(./literal.png); }',
+    ].join('\n'));
   });
 
   it('bounds CSS URL tokens before rewriting theme assets', async () => {
@@ -183,9 +212,9 @@ describe('themeCssUrls', () => {
   it('sanitizes unsafe CSS URL protocols without leaving broken parentheses behind', () => {
     expect(
       sanitizeUnsafeMarkdownThemeCssUrls(
-        'a { background: url(javascript:alert(1)); } b { background: url("vbscript:msgbox(1)"); }'
+        'a { background: url(javascript:alert(1)); } b { background: url("vbscript:msgbox(1)"); } c { background: url(file:///tmp/secret.png); }'
       )
-    ).toBe('a { background: url(""); } b { background: url(""); }');
+    ).toBe('a { background: url(""); } b { background: url(""); } c { background: url(""); }');
   });
 
   it('sanitizes unsafe CSS URL protocols after CSS escape decoding', () => {
@@ -195,6 +224,7 @@ describe('themeCssUrls', () => {
           '.escaped-name { background: url(ja\\000076ascript:alert(1)); }',
           '.space-terminated { background: url(ja\\76 ascript:alert(1)); }',
           '.escaped-colon { background: url("javascript\\3a alert(1)"); }',
+          String.raw`.escaped-file { background: url("file\3a ///tmp/secret.png"); }`,
           '.spaced { background: url("java script:alert(1)"); }',
         ].join('\n')
       )
@@ -202,7 +232,24 @@ describe('themeCssUrls', () => {
       '.escaped-name { background: url(""); }',
       '.space-terminated { background: url(""); }',
       '.escaped-colon { background: url(""); }',
+      '.escaped-file { background: url(""); }',
       '.spaced { background: url(""); }',
+    ].join('\n'));
+  });
+
+  it('preserves managed cached theme file URLs while dropping file URL traversal', () => {
+    const css = [
+      '.cached { src: url("file:///app/.vlaina/store/markdown-theme-cache/theme-assets/0-font.woff2"); }',
+      '.escaped-cache { src: url("file\\3a ///app/.vlaina/store/markdown-theme-cache/theme-assets/1-font.woff2"); }',
+      '.traversal { src: url("file:///app/.vlaina/store/markdown-theme-cache/../secret.woff2"); }',
+      '.outside { src: url("file:///tmp/secret.woff2"); }',
+    ].join('\n');
+
+    expect(sanitizeUnsafeMarkdownThemeCssUrls(css)).toBe([
+      '.cached { src: url("file:///app/.vlaina/store/markdown-theme-cache/theme-assets/0-font.woff2"); }',
+      '.escaped-cache { src: url("file\\3a ///app/.vlaina/store/markdown-theme-cache/theme-assets/1-font.woff2"); }',
+      '.traversal { src: url(""); }',
+      '.outside { src: url(""); }',
     ].join('\n'));
   });
 
@@ -259,6 +306,8 @@ describe('themeCssUrls', () => {
       '@import "vlook/pages-dev/fs-ink-min.css";',
       '@import url("./vlook/github-io/fs-ink-min.css") screen;',
       '@import url("https://example.com/remote.css");',
+      String.raw`@import "https\://example.com/escaped-remote.css";`,
+      String.raw`@import url("file\:///tmp/escaped-file.css");`,
       '@import "./fonts/theme.woff2";',
       '.literal::before { content: "@import url(./literal.css);"; }',
       '/* @import "./comment.css"; */',

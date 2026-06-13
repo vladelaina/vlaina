@@ -141,6 +141,7 @@ const allowedStyleProperties = new Set([
 ])
 const srcsetDescriptorPattern = /^\d+(?:\.\d+)?(?:w|x)$/
 const httpAuthorityUrlPattern = /^https?:\/\//i
+const backslashEscapedSchemePattern = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/
 const maxGithubHtmlAttributeValueChars = 16 * 1024
 const maxGithubSrcsetCandidates = 128
 export const maxGithubHtmlSanitizeChars = 2 * 1024 * 1024
@@ -269,7 +270,8 @@ function hasUnsafeBackslashUrlSyntax(value: string) {
   return value.includes('\\') && (
     value.startsWith('\\') ||
     value.startsWith('//') ||
-    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) ||
+    backslashEscapedSchemePattern.test(value)
   )
 }
 

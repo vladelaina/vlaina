@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
   createDeflistDecorations,
+  deflistPlugin,
   transactionMayAffectDeflistDecorations,
 } from './deflistPlugin';
 
@@ -14,6 +15,21 @@ async function createEditor(markdown = '') {
       ctx.set(defaultValueCtx, markdown);
     })
     .use(commonmark);
+
+  await editor.create();
+  return editor;
+}
+
+async function createDefinitionListEditor() {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, '');
+    })
+    .use(commonmark);
+
+  for (const plugin of deflistPlugin) {
+    editor.use(plugin);
+  }
 
   await editor.create();
   return editor;
@@ -186,6 +202,28 @@ describe('deflistPlugin visual decorations', () => {
     );
 
     expect(transactionMayAffectDeflistDecorations(previous, tr, tr.doc)).toBe(true);
+
+    await editor.destroy();
+  });
+});
+
+describe('deflistPlugin markdown serialization', () => {
+  it('serializes multi-paragraph definition descriptions without nesting blocks', async () => {
+    const editor = await createDefinitionListEditor();
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const { schema } = view.state;
+    const doc = schema.nodes.doc.create(null, [
+      schema.nodes.definition_list.create(null, [
+        schema.nodes.definition_term.create(null, schema.text('Term')),
+        schema.nodes.definition_desc.create(null, [
+          schema.nodes.paragraph.create(null, schema.text('First')),
+          schema.nodes.paragraph.create(null, schema.text('Second')),
+        ]),
+      ]),
+    ]);
+
+    expect(serializer(doc).trimEnd()).toBe(['Term', '', ': First', '', 'Second'].join('\n'));
 
     await editor.destroy();
   });

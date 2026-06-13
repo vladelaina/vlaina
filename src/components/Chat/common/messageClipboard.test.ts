@@ -532,28 +532,17 @@ describe("messageClipboard", () => {
     expect(writeMock).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves bare stored attachment filenames before copying", async () => {
+  it("does not resolve bare image filenames before copying", async () => {
     const writeMock = vi.spyOn(navigator.clipboard, "write");
     vi.mocked(convertToBase64).mockResolvedValue("data:image/jpeg;base64,eA==");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["x"], { type: "image/jpeg" }))),
-    );
+    vi.stubGlobal("fetch", vi.fn());
 
     const copied = await copyImageSourceToClipboard("demo.jpg");
 
-    expect(copied).toBe(true);
-    expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
-      previewUrl: "demo.jpg",
-      assetUrl: "demo.jpg",
-      name: "demo.jpg",
-      type: "image/jpeg",
-    }));
-    expect(fetch).toHaveBeenCalledWith("data:image/jpeg;base64,eA==", expect.objectContaining({
-      credentials: "omit",
-      referrerPolicy: "no-referrer",
-    }));
-    expect(writeMock).toHaveBeenCalledTimes(1);
+    expect(copied).toBe(false);
+    expect(convertToBase64).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(writeMock).not.toHaveBeenCalled();
   });
 
   it("rasterizes stored svg attachments before copying", async () => {
@@ -573,7 +562,7 @@ describe("messageClipboard", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const copied = await copyImageSourceToClipboard("diagram.svg");
+    const copied = await copyImageSourceToClipboard("attachment://diagram.svg");
 
     expect(copied).toBe(true);
     expect(svgMocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith("data:image/svg+xml;base64,PHN2Zz4=");

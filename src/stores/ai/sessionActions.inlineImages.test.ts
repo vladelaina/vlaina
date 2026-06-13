@@ -685,6 +685,37 @@ describe('session inline image persistence', () => {
     expect(content).not.toContain(String.raw`data\:image/`)
   })
 
+  it('scrubs oversized HTML data images when token parsing skips the target', async () => {
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
+    const oversizedSource = `data:image/png;base64,${'A'.repeat(70 * 1024)}`
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `Before <img alt="inline" src="${oversizedSource}"> After`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const content = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(content).toBe('Before  After')
+    expect(content).not.toContain('data:image')
+    expect(content).not.toContain('<img')
+  })
+
+  it('keeps oversized HTML data image examples inside code spans', async () => {
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
+    const oversizedSource = `data:image/png;base64,${'B'.repeat(70 * 1024)}`
+    const codeImage = `<img src="${oversizedSource}" alt="example">`
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `Before \`${codeImage}\` <img src="${oversizedSource}" alt="real"> After`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const content = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(content).toBe(`Before \`${codeImage}\`  After`)
+  })
+
   it('keeps oversized markdown data image examples inside code spans', async () => {
     mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
     const oversizedSource = `data:image/png;base64,${'B'.repeat(520 * 1024)}`
@@ -740,10 +771,10 @@ describe('session inline image persistence', () => {
     expect(deepBranch?.content).toBe(`deep branch ![image](<${source}>)`)
   })
 
-  it('does not derive relative directory image caches after inline image persistence', async () => {
+  it('does not derive relative or bare image caches after inline image persistence', async () => {
     const source = 'data:image/png;base64,INLINE'
     mocked.createStoredAttachmentFromSource.mockImplementation((src: string) => {
-      if (src === 'images/demo.png') {
+      if (src === 'images/demo.png' || src === 'demo.png') {
         return null
       }
       return {
@@ -751,7 +782,7 @@ describe('session inline image persistence', () => {
         path: '',
         previewUrl: src,
         assetUrl: src,
-        name: src === 'demo.png' ? 'demo.png' : 'persisted.png',
+        name: 'persisted.png',
         type: 'image/png',
         size: 0,
       }
@@ -765,7 +796,7 @@ describe('session inline image persistence', () => {
     seedSession([createMessage('m1', [
       `![inline](<${source}>)`,
       '![local](images/demo.png)',
-      '![stored](demo.png)',
+      '![bare](demo.png)',
     ].join('\n'))])
 
     const { createSessionActions } = await import('./sessionActions')
@@ -776,7 +807,7 @@ describe('session inline image persistence', () => {
     const message = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]
     expect(message?.content).toContain('![inline](<attachment://persisted.png>)')
     expect(message?.content).toContain('![local](images/demo.png)')
-    expect(message?.content).toContain('![stored](demo.png)')
-    expect(message?.imageSources).toEqual(['attachment://persisted.png', 'demo.png'])
+    expect(message?.content).toContain('![bare](demo.png)')
+    expect(message?.imageSources).toEqual(['attachment://persisted.png'])
   })
 })

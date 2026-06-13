@@ -524,6 +524,19 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('onclick');
   });
 
+  it('does not rescan sanitized media children after the node budget is exhausted', () => {
+    const payload = [
+      '<video>',
+      '<source src="https://example.com/safe.mp4">',
+      '<span>x</span>'.repeat(20_050),
+      '</video>',
+    ].join('');
+
+    const result = sanitizeHtml(payload);
+
+    expect(result).toBe('');
+  });
+
   it('drops oversized HTML attribute values before expensive sanitizer parsing', () => {
     const oversized = 'x'.repeat(16 * 1024 + 1);
     const manySrcsetCandidates = Array.from({ length: 129 }, (_, index) => `safe-${index}.webp 1x`).join(', ');

@@ -129,6 +129,14 @@ describe('asset path resolution', () => {
       .resolves.toEqual([]);
   });
 
+  it('does not resolve assets from unsafe current note paths', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', 'daily/unsafe\u202Egnp.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', '/tmp/shared/unsafe\0.md'))
+      .resolves.toEqual([]);
+  });
+
   it('rejects absolute asset paths from note metadata', async () => {
     await expect(resolveVaultAssetPathCandidates('/vault', '/etc/passwd', 'daily/note.md'))
       .resolves.toEqual([]);
@@ -139,6 +147,15 @@ describe('asset path resolution', () => {
 
   it('rejects unsafe non-local asset paths before resolving candidates', async () => {
     await expect(resolveVaultAssetPathCandidates('/vault', 'https://example.com/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', String.raw`https\://example.com/a.png`, 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', String.raw`img\:assets/a.png`, 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', String.raw`data\:image/png;base64,aGk=`, 'daily/note.md'))
       .resolves.toEqual([]);
 
     await expect(resolveVaultAssetPathCandidates('/vault', '//example.com/a.png', 'daily/note.md'))

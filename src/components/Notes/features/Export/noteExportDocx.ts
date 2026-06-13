@@ -8,6 +8,9 @@ import {
 import { stripMarkdownInline } from '@/components/common/markdown/plainText';
 import { themeExportLayoutTokens } from '@/styles/themeTokens';
 
+export const MAX_DOCX_EXPORT_PARAGRAPHS = 20_000;
+const DOCX_EXPORT_TRUNCATION_NOTICE = '[Document truncated for export safety]';
+
 function createParagraph(text: string, options: Record<string, unknown> = {}) {
   return new Paragraph({
     ...options,
@@ -36,6 +39,25 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
       spacing: { after: themeExportLayoutTokens.docxTitleAfterSpacing },
     }),
   ];
+  let truncated = false;
+
+  const appendParagraph = (paragraph: Paragraph): boolean => {
+    if (children.length >= MAX_DOCX_EXPORT_PARAGRAPHS) {
+      truncated = true;
+      return false;
+    }
+    children.push(paragraph);
+    return true;
+  };
+
+  const appendTruncationNotice = () => {
+    const notice = createParagraph(DOCX_EXPORT_TRUNCATION_NOTICE);
+    if (children.length < MAX_DOCX_EXPORT_PARAGRAPHS) {
+      children.push(notice);
+      return;
+    }
+    children[children.length - 1] = notice;
+  };
 
   const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
   let inCodeBlock = false;
@@ -43,16 +65,27 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
 
   const flushCode = () => {
     if (codeBuffer.length === 0) return;
-    children.push(...codeBuffer.map(createCodeParagraph));
+    for (const codeLine of codeBuffer) {
+      if (!appendParagraph(createCodeParagraph(codeLine))) {
+        break;
+      }
+    }
     codeBuffer = [];
   };
 
   for (const rawLine of lines) {
+    if (truncated) {
+      break;
+    }
+
     const line = rawLine.trimEnd();
 
     if (/^```/.test(line.trim())) {
       if (inCodeBlock) {
         flushCode();
+        if (truncated) {
+          break;
+        }
         inCodeBlock = false;
       } else {
         inCodeBlock = true;
@@ -62,12 +95,17 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
     }
 
     if (inCodeBlock) {
+      if (children.length + codeBuffer.length >= MAX_DOCX_EXPORT_PARAGRAPHS) {
+        flushCode();
+        truncated = true;
+        break;
+      }
       codeBuffer.push(rawLine);
       continue;
     }
 
     if (!line.trim()) {
-      children.push(new Paragraph({ text: '' }));
+      appendParagraph(new Paragraph({ text: '' }));
       continue;
     }
 
@@ -81,7 +119,7 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
         level === 4 ? HeadingLevel.HEADING_4 :
         level === 5 ? HeadingLevel.HEADING_5 :
         HeadingLevel.HEADING_6;
-      children.push(createParagraph(headingMatch[2], {
+      appendParagraph(createParagraph(headingMatch[2], {
         heading,
         spacing: {
           before: themeExportLayoutTokens.docxHeadingBeforeSpacing,
@@ -93,19 +131,19 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
 
     const bulletMatch = /^\s*[-*+]\s+(.+)$/.exec(line);
     if (bulletMatch) {
-      children.push(createParagraph(bulletMatch[1], { bullet: { level: 0 } }));
+      appendParagraph(createParagraph(bulletMatch[1], { bullet: { level: 0 } }));
       continue;
     }
 
     const orderedMatch = /^\s*\d+[.)]\s+(.+)$/.exec(line);
     if (orderedMatch) {
-      children.push(createParagraph(orderedMatch[1], { bullet: { level: 0 } }));
+      appendParagraph(createParagraph(orderedMatch[1], { bullet: { level: 0 } }));
       continue;
     }
 
     const quoteMatch = /^\s*>\s?(.+)$/.exec(line);
     if (quoteMatch) {
-      children.push(createParagraph(quoteMatch[1], {
+      appendParagraph(createParagraph(quoteMatch[1], {
         indent: { left: themeExportLayoutTokens.docxQuoteIndentLeft },
         spacing: {
           before: themeExportLayoutTokens.docxQuoteBeforeSpacing,
@@ -115,11 +153,14 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
       continue;
     }
 
-    children.push(createParagraph(line));
+    appendParagraph(createParagraph(line));
   }
 
-  if (inCodeBlock) {
+  if (inCodeBlock && !truncated) {
     flushCode();
+  }
+  if (truncated) {
+    appendTruncationNotice();
   }
 
   const document = new Document({

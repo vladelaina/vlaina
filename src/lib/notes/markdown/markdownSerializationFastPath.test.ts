@@ -24,6 +24,17 @@ describe('large markdown serialization fast path', () => {
     );
   });
 
+  it('does not skip case-insensitive mailto link normalization', () => {
+    const markdown = createLargePlainMarkdown(
+      '[USER@EXAMPLE.TEST](MAILTO:user@example.test)',
+    );
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(
+      markdown.replace('[USER@EXAMPLE.TEST](MAILTO:user@example.test)', 'USER@EXAMPLE.TEST'),
+    );
+  });
+
   it('does not skip leading markdown space entity normalization', () => {
     const markdown = createLargePlainMarkdown('&#32;Indented paragraph');
 

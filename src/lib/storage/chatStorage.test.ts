@@ -110,13 +110,13 @@ describe('chatStorage session message normalization', () => {
     ]);
   });
 
-  it('does not serialize relative directory images as session image source caches', () => {
+  it('does not serialize relative or bare images as session image source caches', () => {
     const payload = JSON.parse(serializeSessionMessages('session-1', [{
       id: 'm1',
       role: 'user',
       content: [
         '![local](<images/demo.png>)',
-        '![stored](<demo.png>)',
+        '![bare](<demo.png>)',
       ].join('\n'),
       modelId: 'model-1',
       timestamp: 1,
@@ -125,7 +125,7 @@ describe('chatStorage session message normalization', () => {
       imageSources: ['images/demo.png', 'demo.png'],
     }]));
 
-    expect(payload.messages[0].imageSources).toEqual(['demo.png']);
+    expect(payload.messages[0].imageSources).toBeUndefined();
   });
 
   it('bounds serialized session message files', () => {
@@ -514,7 +514,7 @@ describe('chatStorage session message normalization', () => {
         '![safe](<attachment://safe.png>)',
         '![traversal](<attachment://..%2Fsecret.png>)',
         '![relative](<images/demo.png>)',
-        '![stored](<demo.png>)',
+        '![bare](<demo.png>)',
         'Describe it',
       ].join('\n'),
       modelId: 'model-1',
@@ -535,7 +535,6 @@ describe('chatStorage session message normalization', () => {
     expect(messages[0]?.imageSources).toEqual([
       'data:image/png;base64,AQI=',
       'attachment://safe.png',
-      'demo.png',
     ]);
   });
 

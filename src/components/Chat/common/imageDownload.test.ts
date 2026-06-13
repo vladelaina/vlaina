@@ -99,6 +99,31 @@ describe('imageDownload', () => {
     removeSpy.mockRestore();
   });
 
+  it('does not anchor-download unverified non-raster sources when fetch fails', async () => {
+    mocks.fetch.mockRejectedValue(new Error('network'));
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+    const clickSpy = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createSpy = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      const element = originalCreateElement(tagName) as HTMLAnchorElement;
+      if (tagName === 'a') {
+        element.click = clickSpy;
+      }
+      return element;
+    }) as typeof document.createElement);
+
+    await downloadImageWithPrompt('https://example.com/download', '');
+    await downloadImageWithPrompt('https://example.com/not-image.exe', '');
+
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    expect(appendSpy).not.toHaveBeenCalled();
+    expect(clickSpy).not.toHaveBeenCalled();
+
+    createSpy.mockRestore();
+    appendSpy.mockRestore();
+  });
+
   it('does not fetch or anchor-download unsafe direct image sources', async () => {
     const appendSpy = vi.spyOn(document.body, 'appendChild');
 
@@ -160,29 +185,16 @@ describe('imageDownload', () => {
     );
   });
 
-  it('resolves bare stored attachment filenames before downloading', async () => {
+  it('does not resolve bare image filenames before downloading', async () => {
     mocks.convertToBase64.mockResolvedValue('data:image/jpeg;base64,eA==');
     mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([4, 5, 6])], { type: 'image/jpeg' })));
 
     await downloadImageWithPrompt('demo.jpg', '');
 
-    expect(mocks.convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
-      previewUrl: 'demo.jpg',
-      assetUrl: 'demo.jpg',
-      name: 'demo.jpg',
-      type: 'image/jpeg',
-    }));
-    expect(mocks.fetch).toHaveBeenCalledWith('data:image/jpeg;base64,eA==', expect.objectContaining({
-      credentials: 'omit',
-      referrerPolicy: 'no-referrer',
-    }));
-    expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
-      filters: [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'webp', 'gif', 'bmp'] }],
-    }));
-    expect(mocks.writeDesktopBinaryFile).toHaveBeenCalledWith(
-      '/downloads/custom-image.png',
-      expect.any(Uint8Array),
-    );
+    expect(mocks.convertToBase64).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
   });
 
   it('rasterizes stored svg attachments before downloading', async () => {
@@ -190,7 +202,7 @@ describe('imageDownload', () => {
     mocks.rasterizeSvgDataUrlToPng.mockResolvedValue('data:image/png;base64,RASTER');
     mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' })));
 
-    await downloadImageWithPrompt('diagram.svg', 'diagram');
+    await downloadImageWithPrompt('attachment://diagram.svg', 'diagram');
 
     expect(mocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith('data:image/svg+xml;base64,PHN2Zz4=');
     expect(mocks.fetch).toHaveBeenCalledWith('data:image/png;base64,RASTER', expect.objectContaining({

@@ -8,6 +8,8 @@ describe('fileTreePreservation', () => {
 
     expect(ensureFileNodeInTree(tree, '../secret.md')).toBe(tree);
     expect(ensureFileNodeInTree(tree, '/tmp/secret.md')).toBe(tree);
+    expect(ensureFileNodeInTree(tree, '.vlaina/workspace.md')).toBe(tree);
+    expect(ensureFileNodeInTree(tree, 'docs/.git/config.md')).toBe(tree);
     expect(ensureFileNodeInTree(tree, 'docs/image.png')).toBe(tree);
     expect(ensureFileNodeInTree(tree, 'docs/bad\0name.md')).toBe(tree);
   });

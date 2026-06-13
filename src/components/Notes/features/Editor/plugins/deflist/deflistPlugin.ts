@@ -122,8 +122,17 @@ export const definitionDescSchema = $node('definition_desc', () => ({
         runner: (state, node) => {
             state.openNode('paragraph');
             state.addNode('text', undefined, ': ');
-            state.next(node.content);
+            const firstChild = node.firstChild;
+            if (firstChild?.type.name === 'paragraph') {
+                state.next(firstChild.content);
+                state.closeNode();
+                for (let index = 1; index < node.childCount; index += 1) {
+                    state.next(node.child(index));
+                }
+                return;
+            }
             state.closeNode();
+            state.next(node.content);
         }
     }
 }));

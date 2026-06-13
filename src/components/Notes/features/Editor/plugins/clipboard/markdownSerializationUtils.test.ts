@@ -129,6 +129,9 @@ describe('normalizeMarkdownAutolinkLiterals', () => {
     expect(
       normalizeMarkdownAutolinkLiterals('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')
     ).toBe('export GOOGLE_GEMINI_BASE_URL="http://example.test:8317"');
+    expect(normalizeMarkdownAutolinkLiterals('<HTTPS://example.test/path>')).toBe(
+      'HTTPS://example.test/path'
+    );
   });
 
   it('keeps angle-bracket URLs inside fenced code', () => {
@@ -806,12 +809,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument('<http://example.test:8317>')).toBe(
       'http://example.test:8317'
     );
+    expect(normalizeSerializedMarkdownDocument('<HTTPS://example.test:8317>')).toBe(
+      'HTTPS://example.test:8317'
+    );
   });
 
   it('persists mailto links as plain emails when the label is the same email', () => {
     expect(
       normalizeSerializedMarkdownDocument('[v.lad.el.a.ina@gmail.com](mailto:v.lad.el.a.ina@gmail.com)')
     ).toBe('v.lad.el.a.ina@gmail.com');
+    expect(
+      normalizeSerializedMarkdownDocument('[USER@EXAMPLE.TEST](MAILTO:user@example.test)')
+    ).toBe('USER@EXAMPLE.TEST');
     expect(normalizeSerializedMarkdownDocument('[mail](mailto:v.lad.el.a.ina@gmail.com)')).toBe(
       '[mail](mailto:v.lad.el.a.ina@gmail.com)'
     );

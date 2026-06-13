@@ -11,7 +11,7 @@ export type IframeVideoUrl = Extract<ParsedVideoUrl, { type: 'youtube' | 'bilibi
 
 export function normalizeVideoUrlInput(input: string) {
   const url = input.trim();
-  if (!url || url.length > MAX_VIDEO_URL_LENGTH || UNSAFE_VIDEO_URL_CHARS_REGEX.test(url)) {
+  if (!url || url.length > MAX_VIDEO_URL_LENGTH || UNSAFE_VIDEO_URL_CHARS_REGEX.test(url) || url.includes('\\')) {
     return null;
   }
   return url;

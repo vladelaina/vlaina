@@ -105,7 +105,7 @@ describe('estimateChatMessageHeight', () => {
     expect(rawHtmlImageHeight - textOnlyHeight).toBeGreaterThan(240);
   });
 
-  it('does not reserve user image stack height for relative directory images', () => {
+  it('does not reserve user image stack height for relative or bare images', () => {
     const relativeHeight = estimateChatMessageHeight(
       createMessage('user', '![local](images/demo.png)'),
       { containerWidth: 900, isStreaming: false },
@@ -114,12 +114,17 @@ describe('estimateChatMessageHeight', () => {
       createMessage('user', 'relative image text'),
       { containerWidth: 900, isStreaming: false },
     );
-    const imageHeight = estimateChatMessageHeight(
+    const bareHeight = estimateChatMessageHeight(
       createMessage('user', '![image](demo.png)'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const imageHeight = estimateChatMessageHeight(
+      createMessage('user', '![image](https://example.com/demo.png)'),
       { containerWidth: 900, isStreaming: false },
     );
 
     expect(relativeHeight).toBe(textHeight);
+    expect(bareHeight).toBe(textHeight);
     expect(imageHeight - relativeHeight).toBeGreaterThan(200);
   });
 

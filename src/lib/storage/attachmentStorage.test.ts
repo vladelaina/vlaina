@@ -129,11 +129,7 @@ describe('attachmentStorage', () => {
   it('does not create stored attachments from non-image filenames', () => {
     expect(createStoredAttachmentFromSource('secret.txt')).toBeNull();
     expect(createStoredAttachmentFromSource('attachment://secret.txt')).toBeNull();
-    expect(createStoredAttachmentFromSource('demo.png')).toMatchObject({
-      assetUrl: 'demo.png',
-      name: 'demo.png',
-      type: 'image/png',
-    });
+    expect(createStoredAttachmentFromSource('demo.png')).toBeNull();
   });
 
   it('rejects oversized image attachments before reading or writing them', async () => {
@@ -395,11 +391,11 @@ describe('attachmentStorage', () => {
   });
 
   it('creates stored attachment metadata only from safe stored sources', () => {
-    expect(createStoredAttachmentFromSource('demo.jpg', 'image')).toMatchObject({
+    expect(createStoredAttachmentFromSource('attachment://demo.jpg', 'image')).toMatchObject({
       id: 'image',
       path: '',
-      previewUrl: 'demo.jpg',
-      assetUrl: 'demo.jpg',
+      previewUrl: 'attachment://demo.jpg',
+      assetUrl: 'attachment://demo.jpg',
       name: 'demo.jpg',
       type: 'image/jpeg',
       size: 0,

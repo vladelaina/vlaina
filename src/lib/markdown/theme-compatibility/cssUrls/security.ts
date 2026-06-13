@@ -1,38 +1,47 @@
 import { stripCssImportRules } from './imports';
 import { findCssUrlTokens } from './tokenizer';
+import { decodeCssEscapesForUrl } from './cssEscapes';
 
-const UNSAFE_CSS_URL_PATTERN = /^(?:javascript|vbscript):/i;
-
-function decodeCssEscapesForSecurity(value: string): string {
-  return value.replace(/\\([0-9a-f]{1,6}\s?|[\s\S])/gi, (_match, escaped: string) => {
-    if (/^[0-9a-f]/i.test(escaped)) {
-      const codePoint = Number.parseInt(escaped.trim(), 16);
-      if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) {
-        return '';
-      }
-      try {
-        return String.fromCodePoint(codePoint);
-      } catch {
-        return '';
-      }
-    }
-
-    if (escaped === '\n' || escaped === '\r') {
-      return '';
-    }
-
-    return escaped;
-  });
-}
+const UNSAFE_SCRIPT_CSS_URL_PATTERN = /^(?:javascript|vbscript):/i;
+const FILE_CSS_URL_PATTERN = /^file:/i;
+const MANAGED_THEME_CACHE_PATH_SEGMENT = '/.vlaina/store/markdown-theme-cache/';
 
 function normalizeCssUrlForProtocolCheck(url: string): string {
-  return decodeCssEscapesForSecurity(url.trim())
+  return decodeCssEscapesForUrl(url.trim())
     .replace(/[\u0000-\u001f\u007f\s]+/g, '')
     .toLowerCase();
 }
 
 function isUnsafeCssUrl(url: string): boolean {
-  return UNSAFE_CSS_URL_PATTERN.test(normalizeCssUrlForProtocolCheck(url));
+  const normalizedUrl = normalizeCssUrlForProtocolCheck(url);
+  if (UNSAFE_SCRIPT_CSS_URL_PATTERN.test(normalizedUrl)) {
+    return true;
+  }
+  return FILE_CSS_URL_PATTERN.test(normalizedUrl) && !isManagedThemeCacheFileUrl(normalizedUrl);
+}
+
+function isManagedThemeCacheFileUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'file:') {
+      return false;
+    }
+
+    const decodedPath = decodeURIComponent(parsed.pathname).replace(/\\/g, '/').toLowerCase();
+    const normalizedParts: string[] = [];
+    for (const part of decodedPath.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        normalizedParts.pop();
+        continue;
+      }
+      normalizedParts.push(part);
+    }
+
+    return `/${normalizedParts.join('/')}/`.includes(MANAGED_THEME_CACHE_PATH_SEGMENT);
+  } catch {
+    return false;
+  }
 }
 
 export function sanitizeUnsafeMarkdownThemeCssUrls(css: string): string {

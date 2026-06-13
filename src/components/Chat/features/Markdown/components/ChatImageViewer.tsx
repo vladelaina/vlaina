@@ -15,6 +15,7 @@ import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/co
 import {
   isRenderableDataImageSrc,
 } from "@/components/common/markdown/imagePolicy";
+import { isSvgDataUrl } from "@/components/Chat/common/svgRasterize";
 import { useI18n } from "@/lib/i18n";
 import { createStoredAttachmentFromSource } from "@/lib/storage/attachmentStorage";
 import { themeChatImageViewerTokens, themeCropperTokens, themeStyleResetTokens } from "@/styles/themeTokens";
@@ -165,7 +166,15 @@ function getInitialViewerImageSource(src: string): string {
   if (requiresAttachmentResolution(src)) {
     return src;
   }
-  return normalizeDirectChatImageSource(src) ?? TRANSPARENT_IMAGE_DATA_URL;
+  return getInitialDirectViewerImageSource(src) ?? TRANSPARENT_IMAGE_DATA_URL;
+}
+
+function getInitialDirectViewerImageSource(src: string | null | undefined): string | null {
+  if (!src) {
+    return null;
+  }
+  const directSrc = normalizeDirectChatImageSource(src);
+  return directSrc && !isSvgDataUrl(directSrc) ? directSrc : null;
 }
 
 async function resolveViewerImageSource(src: string): Promise<string | null> {
@@ -290,10 +299,10 @@ export function ChatImageViewer({
     let active = true;
     const isStoredAttachmentSource = requiresAttachmentResolution(activeSrc);
     const immediateSrc = activeSrc === src && previewSrc
-      ? previewSrc
+      ? getInitialDirectViewerImageSource(previewSrc) ?? TRANSPARENT_IMAGE_DATA_URL
       : isStoredAttachmentSource
         ? activeSrc
-        : normalizeDirectChatImageSource(activeSrc) ?? TRANSPARENT_IMAGE_DATA_URL;
+        : getInitialDirectViewerImageSource(activeSrc) ?? TRANSPARENT_IMAGE_DATA_URL;
     setResolvedActiveSrc(immediateSrc);
 
     resolveViewerImageSource(activeSrc)

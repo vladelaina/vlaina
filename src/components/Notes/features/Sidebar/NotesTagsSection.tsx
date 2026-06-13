@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { stripMarkdownExtension } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import type { NotesSidebarTagEntry, NotesSidebarTagPath } from './notesSidebarTags';
 import {
@@ -16,7 +17,11 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import {
+  hasUnsafeVaultPathSegment,
+  normalizeVaultRelativePath,
+  resolveVaultRelativeFullPath,
+} from '@/stores/notes/utils/fs/vaultPathContainment';
 import { themeIconTokens } from '@/styles/themeTokens';
 import { cn } from '@/lib/utils';
 
@@ -165,11 +170,27 @@ function getKnownTagNoteIconModifiedAt(fileInfo: { modifiedAt?: number | null } 
     : null;
 }
 
-async function readTagNoteIconFromStorage(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
+function isAllowedTagNoteIconMetadataPath(path: string, vaultPath: string | null): boolean {
+  if (!isSupportedMarkdownPath(path)) {
+    return false;
+  }
+
   if (
     hasInternalNotePathSegment(path) ||
-    (vaultPath && hasInternalNotePathSegment(vaultPath))
+    hasUnsafeVaultPathSegment(path) ||
+    (vaultPath && (
+      hasInternalNotePathSegment(vaultPath) ||
+      hasUnsafeVaultPathSegment(vaultPath)
+    ))
   ) {
+    return false;
+  }
+
+  return isAbsolutePath(path) || normalizeVaultRelativePath(path) !== null;
+}
+
+async function readTagNoteIconFromStorage(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
+  if (!isAllowedTagNoteIconMetadataPath(path, vaultPath)) {
     return { modifiedAt: null, size: null, icon: null };
   }
 
