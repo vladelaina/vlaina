@@ -14,8 +14,21 @@ import {
 } from './constants';
 
 vi.mock('./EmojiTab', () => ({
-  EmojiTab: ({ recentEmojis, skinTone }: { recentEmojis: string[]; skinTone: number }) => (
-    <div data-testid="emoji-tab" data-recent={recentEmojis.join(',')} data-skin-tone={skinTone} />
+  EmojiTab: ({
+    recentIcons,
+    skinTone,
+    imageLoader,
+  }: {
+    recentIcons: string[];
+    skinTone: number;
+    imageLoader?: (src: string) => Promise<string>;
+  }) => (
+    <div
+      data-testid="emoji-tab"
+      data-recent={recentIcons.join(',')}
+      data-skin-tone={skinTone}
+      data-has-image-loader={imageLoader ? 'true' : 'false'}
+    />
   ),
 }));
 
@@ -156,7 +169,30 @@ describe('UniversalIconPicker', () => {
     expect(onSkinToneChange).toHaveBeenCalledWith(2);
   });
 
-  it('keeps case-insensitive image and symbol icons out of recent emojis', async () => {
+  it('passes image and symbol icons through to recent icons', async () => {
+    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify([
+      'IMG:/app/.vlaina/assets/icons/logo.png',
+      'ICON:star:currentColor',
+      '😀',
+    ]));
+    const imageLoader = vi.fn();
+
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        imageLoader={imageLoader}
+      />,
+    );
+
+    expect(screen.getByTestId('emoji-tab')).toHaveAttribute(
+      'data-recent',
+      'IMG:/app/.vlaina/assets/icons/logo.png,ICON:star:currentColor,😀',
+    );
+    expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-has-image-loader', 'true');
+  });
+
+  it('keeps image and symbol icons out of emoji-only recent icons', async () => {
     localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify([
       'IMG:/app/.vlaina/assets/icons/logo.png',
       'ICON:star:currentColor',
@@ -167,6 +203,7 @@ describe('UniversalIconPicker', () => {
       <UniversalIconPicker
         onSelect={vi.fn()}
         onClose={vi.fn()}
+        emojiOnly
       />,
     );
 
