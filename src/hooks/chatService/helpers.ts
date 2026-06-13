@@ -43,6 +43,7 @@ import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import {
+  hasUnsafeVaultPathSegment,
   isSafeVaultPathSegment,
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
@@ -80,6 +81,7 @@ const MAX_INFERRED_IMAGE_NAME_SEGMENT_DECODE_CHARS = 2048;
 const MAX_INFERRED_IMAGE_NAME_CHARS = 512;
 const MAX_STORED_USER_MESSAGE_IMAGE_TOKENS = 2000;
 export const MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS = 64;
+export const MAX_CHAT_MESSAGE_IMAGE_SOURCE_CHARS = 32 * 1024 * 1024;
 const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?:\\*:|&|&#)/i;
 const PROMPT_LABEL_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]+/g;
 const MAX_PROMPT_LABEL_LENGTH = 240;
@@ -212,6 +214,10 @@ export function isImageAttachment(attachment: Attachment): boolean {
   return IMAGE_NAME_REGEX.test(name);
 }
 
+export function limitChatMessageImageAttachments(attachments: readonly Attachment[]): Attachment[] {
+  return attachments.slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
+}
+
 function extractTrustedManagedAttachmentPathFilename(path: string | null | undefined): string | null {
   const normalizedPath = path?.trim().replace(/\\/g, '/') ?? '';
   if (!normalizedPath) {
@@ -271,6 +277,23 @@ export function toImageMarkdown(src: string): string {
 
 function isSizedDataImageSrc(src: string): boolean {
   return /^data:/i.test(src.trim()) ? isAttachmentDataUrlWithinSizeLimit(src) : true;
+}
+
+function tryAppendChatImageSource(
+  imageSources: string[],
+  src: string,
+  budget: { usedChars: number },
+): boolean {
+  if (
+    imageSources.length >= MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS ||
+    budget.usedChars + src.length > MAX_CHAT_MESSAGE_IMAGE_SOURCE_CHARS
+  ) {
+    return false;
+  }
+
+  imageSources.push(src);
+  budget.usedChars += src.length;
+  return true;
 }
 
 function inferImageMimeType(src: string): string {
@@ -356,6 +379,7 @@ function collectStoredUserMessageImages(content: string): {
 } {
   const imageSources: string[] = [];
   const tokensToStrip: ImageToken[] = [];
+  const imageSourceBudget = { usedChars: 0 };
   const parsedTokens = parseMarkdownAndHtmlImageTokens(content, {
     maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS,
   });
@@ -364,26 +388,20 @@ function collectStoredUserMessageImages(content: string): {
     const rawSrc = token.src?.trim() ?? '';
     const storedAttachment = createStoredAttachmentFromSource(rawSrc, 'stored-image-candidate');
     if (storedAttachment && isImageAttachment(storedAttachment)) {
-      if (imageSources.length < MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS) {
-        imageSources.push(rawSrc);
-      }
+      tryAppendChatImageSource(imageSources, rawSrc, imageSourceBudget);
       tokensToStrip.push(token);
       continue;
     }
 
     const normalizedSrc = normalizeDirectVisionImageUrl(rawSrc);
     if (normalizedSrc) {
-      if (imageSources.length < MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS) {
-        imageSources.push(normalizedSrc);
-      }
+      tryAppendChatImageSource(imageSources, normalizedSrc, imageSourceBudget);
       tokensToStrip.push(token);
       continue;
     }
 
     if (isSvgDataUrl(rawSrc) && isSizedDataImageSrc(rawSrc)) {
-      if (imageSources.length < MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS) {
-        imageSources.push(rawSrc);
-      }
+      tryAppendChatImageSource(imageSources, rawSrc, imageSourceBudget);
       tokensToStrip.push(token);
       continue;
     }
@@ -425,10 +443,19 @@ export async function buildStoredUserMessageContent(content: string): Promise<Ch
     : strippedText
   ).trim();
   const parts: ChatMessageContentPart[] = text ? [{ type: 'text', text }] : [];
+  let imagePartSourceChars = 0;
 
   for (const [index, src] of imageSources.entries()) {
+    if (imagePartSourceChars >= MAX_CHAT_MESSAGE_IMAGE_SOURCE_CHARS) {
+      break;
+    }
     const imagePart = await normalizeVisionAttachment(imageSourceToAttachment(src, index));
     if (imagePart) {
+      const imageUrl = imagePart.image_url.url;
+      if (imagePartSourceChars + imageUrl.length > MAX_CHAT_MESSAGE_IMAGE_SOURCE_CHARS) {
+        break;
+      }
+      imagePartSourceChars += imageUrl.length;
       parts.push(imagePart);
     }
   }
@@ -447,11 +474,7 @@ function normalizeAbsoluteMentionPathForCompare(path: string): string {
 }
 
 function hasUnsafeMentionPathSegment(path: string): boolean {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .filter(Boolean)
-    .some((segment) => !isSafeVaultPathSegment(segment));
+  return hasUnsafeVaultPathSegment(path);
 }
 
 async function getStarredAbsoluteMentionPath(entry: {
@@ -553,22 +576,62 @@ function isLowPriorityFolderMarkdownDirectory(name: string): boolean {
 function prioritizeFolderScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
   entries: readonly T[],
   getPriority: (entry: T) => number,
+  maxEntries = entries.length,
 ): T[] {
   const buckets = Array.from(
     { length: FOLDER_SCAN_PRIORITY_BUCKETS },
     () => [] as T[],
   );
+  const limit = Math.max(0, Math.floor(maxEntries));
+  if (limit === 0) {
+    return [];
+  }
+
+  let retainedEntries = 0;
   for (const entry of entries) {
     const priority = getPriority(entry);
-    buckets[priority]?.push(entry);
+    const bucket = buckets[priority];
+    if (!bucket) {
+      continue;
+    }
+
+    if (retainedEntries < limit) {
+      bucket.push(entry);
+      retainedEntries += 1;
+      continue;
+    }
+
+    for (let worsePriority = buckets.length - 1; worsePriority > priority; worsePriority -= 1) {
+      const worseBucket = buckets[worsePriority];
+      if (worseBucket.length > 0) {
+        worseBucket.pop();
+        bucket.push(entry);
+        break;
+      }
+    }
   }
-  return buckets.flat();
+  const prioritized: T[] = [];
+  for (const bucket of buckets) {
+    for (const entry of bucket) {
+      if (prioritized.length >= limit) {
+        return prioritized;
+      }
+      prioritized.push(entry);
+    }
+  }
+  return prioritized;
 }
 
 function prioritizeFolderMarkdownScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
   entries: readonly T[],
+  maxEntries = entries.length,
 ): T[] {
-  return entries
+  const prioritized = prioritizeFolderScanEntries(
+    entries,
+    getFolderMarkdownScanPriority,
+    maxEntries,
+  );
+  return prioritized
     .map((entry, index) => ({ entry, index, priority: getFolderMarkdownScanPriority(entry) }))
     .sort((left, right) =>
       left.priority - right.priority ||
@@ -607,16 +670,52 @@ function getMentionFolderMarkdownNodeScanPriority(node: FileTreeNode): number {
   return 3;
 }
 
-function prioritizeMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
+function prioritizeMentionFolderMarkdownNodes(
+  nodes: readonly FileTreeNode[],
+  maxEntries = nodes.length,
+): FileTreeNode[] {
   const buckets = Array.from(
     { length: FOLDER_SCAN_PRIORITY_BUCKETS },
     () => [] as FileTreeNode[],
   );
+  const limit = Math.max(0, Math.floor(maxEntries));
+  if (limit === 0) {
+    return [];
+  }
+
+  let retainedEntries = 0;
   for (const node of nodes) {
     const priority = getMentionFolderMarkdownNodeScanPriority(node);
-    buckets[priority]?.push(node);
+    const bucket = buckets[priority];
+    if (!bucket) {
+      continue;
+    }
+
+    if (retainedEntries < limit) {
+      bucket.push(node);
+      retainedEntries += 1;
+      continue;
+    }
+
+    for (let worsePriority = buckets.length - 1; worsePriority > priority; worsePriority -= 1) {
+      const worseBucket = buckets[worsePriority];
+      if (worseBucket.length > 0) {
+        worseBucket.pop();
+        bucket.push(node);
+        break;
+      }
+    }
   }
-  return buckets.flat();
+  const prioritized: FileTreeNode[] = [];
+  for (const bucket of buckets) {
+    for (const node of bucket) {
+      if (prioritized.length >= limit) {
+        return prioritized;
+      }
+      prioritized.push(node);
+    }
+  }
+  return prioritized;
 }
 
 function getFolderListingScanPriority(entry: { name: string }) {
@@ -721,7 +820,7 @@ export function collectMentionFolderMarkdownNodes(
   const result: FileTreeNode[] = [];
   const maxResults = Math.max(0, Math.floor(options.maxResults ?? MAX_FOLDER_MENTION_NOTES));
   const stack: Array<{ nodes: readonly FileTreeNode[]; index: number; depth: number }> = [{
-    nodes: prioritizeMentionFolderMarkdownNodes(nodes),
+    nodes: prioritizeMentionFolderMarkdownNodes(nodes, MAX_FOLDER_MARKDOWN_TREE_SCAN_ENTRIES),
     index: 0,
     depth: 0,
   }];
@@ -755,7 +854,12 @@ export function collectMentionFolderMarkdownNodes(
       if (frame.depth >= MAX_FOLDER_MARKDOWN_SCAN_DEPTH) {
         continue;
       }
-      stack.push({ nodes: prioritizeMentionFolderMarkdownNodes(node.children), index: 0, depth: frame.depth + 1 });
+      const remainingScanEntries = MAX_FOLDER_MARKDOWN_TREE_SCAN_ENTRIES - scannedEntries;
+      stack.push({
+        nodes: prioritizeMentionFolderMarkdownNodes(node.children, remainingScanEntries),
+        index: 0,
+        depth: frame.depth + 1,
+      });
       continue;
     }
 
@@ -779,6 +883,7 @@ interface FolderMarkdownScanEntry {
 }
 
 interface FolderMarkdownScanBudget {
+  scannedEntries: number;
   visitedEntries: number;
 }
 
@@ -797,6 +902,7 @@ async function collectFolderMarkdownScanEntries(
 ): Promise<FolderMarkdownScanEntry[]> {
   if (
     depth > MAX_FOLDER_MARKDOWN_SCAN_DEPTH ||
+    budget.scannedEntries >= MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES ||
     budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
     result.length >= maxResults
   ) {
@@ -805,11 +911,23 @@ async function collectFolderMarkdownScanEntries(
 
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderFullPath, { includeHidden: true }).catch(() => []);
-  const visibleEntries = prioritizeFolderMarkdownScanEntries(entries)
-    .slice(0, MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES)
-    .filter((entry) => isSafeFolderMarkdownEntryName(entry.name));
+  const remainingListingEntries = MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES - budget.scannedEntries;
+  const visibleEntries = prioritizeFolderMarkdownScanEntries(entries, remainingListingEntries);
 
   for (const entry of visibleEntries) {
+    if (
+      budget.scannedEntries >= MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES ||
+      budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
+      result.length >= maxResults
+    ) {
+      break;
+    }
+    budget.scannedEntries += 1;
+
+    if (!isSafeFolderMarkdownEntryName(entry.name)) {
+      continue;
+    }
+
     const isMarkdownFile = entry.isFile && isSupportedMarkdownPath(entry.name);
     if (!entry.isDirectory && !isMarkdownFile) {
       continue;
@@ -887,7 +1005,7 @@ async function loadScannedFolderMarkdownReferences(
     folderPath.fullPath,
     folderPath.cachePath,
     '',
-    { visitedEntries: 0 },
+    { scannedEntries: 0, visitedEntries: 0 },
     0,
     [],
     MAX_FOLDER_MENTION_NOTE_CANDIDATES,
@@ -958,8 +1076,11 @@ async function loadFolderListingReference(
     };
   }
 
-  const scannedEntries = prioritizeFolderScanEntries(entries, getFolderListingScanPriority)
-    .slice(0, MAX_FOLDER_LISTING_SCAN_ENTRIES);
+  const scannedEntries = prioritizeFolderScanEntries(
+    entries,
+    getFolderListingScanPriority,
+    MAX_FOLDER_LISTING_SCAN_ENTRIES,
+  );
   const visibleEntries = scannedEntries
     .filter((entry) => isSafeFolderListingEntryName(entry.name))
     .sort((a, b) => {
@@ -1036,8 +1157,11 @@ async function loadFolderImageAttachmentsForMention(
 
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderPath).catch(() => []);
-  const imageEntries = prioritizeFolderScanEntries(entries, getFolderImageScanPriority)
-    .slice(0, MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES)
+  const imageEntries = prioritizeFolderScanEntries(
+    entries,
+    getFolderImageScanPriority,
+    MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES,
+  )
     .filter((entry) =>
       isSafeFolderEntryName(entry.name) &&
       entry.isFile &&
@@ -1395,7 +1519,7 @@ export function refreshManagedBudgetIfNeeded(providerId: string): void {
   if (!useAccountSessionStore.getState().isConnected) {
     return;
   }
-  void useManagedAIStore.getState().refreshBudget();
+  void useManagedAIStore.getState().refreshBudget().catch(() => undefined);
 }
 
 async function getRenderableMessageImageSrc(attachment: Attachment): Promise<string | null> {
@@ -1441,6 +1565,7 @@ async function getRenderableMessageImageSrc(attachment: Attachment): Promise<str
 export async function buildMessageImageSources(attachments: Attachment[]): Promise<{ content: string; imageSources: string[] }> {
   const imageSources: string[] = [];
   const markdownParts: string[] = [];
+  const imageSourceBudget = { usedChars: 0 };
 
   for (const attachment of attachments.slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS)) {
     if (!isImageAttachment(attachment)) {
@@ -1457,7 +1582,9 @@ export async function buildMessageImageSources(attachments: Attachment[]): Promi
       continue;
     }
 
-    imageSources.push(markdownSrc);
+    if (!tryAppendChatImageSource(imageSources, markdownSrc, imageSourceBudget)) {
+      break;
+    }
     markdownParts.push(toImageMarkdown(markdownSrc));
   }
 

@@ -16,9 +16,9 @@ export function refreshBillingEntitlementsAfterReturn(): void {
     }
     const managedAIState = useManagedAIStore.getState()
     if (managedAIState.lastBudgetSyncAt === previousBudgetSyncAt) {
-      void managedAIState.refreshBudget()
+      void managedAIState.refreshBudget().catch(() => undefined)
     }
-  })
+  }).catch(() => undefined)
 }
 
 export function useBillingReturnRefresh(): void {

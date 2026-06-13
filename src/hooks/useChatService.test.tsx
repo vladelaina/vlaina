@@ -647,6 +647,60 @@ describe('useChatService session context isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.messages['temp-session-1']).toEqual([]);
   });
 
+  it('recalls converted temporary attachments while original deletion is pending', async () => {
+    seedTemporaryChatState();
+    let resolveDeletion!: () => void;
+    const pendingDeletion = new Promise<void>((resolve) => {
+      resolveDeletion = resolve;
+    });
+    vi.mocked(convertToBase64).mockResolvedValueOnce(TEMPORARY_IMAGE_DATA_URL);
+    vi.mocked(deleteAttachment).mockImplementationOnce(async () => pendingDeletion);
+    const attachment = createAttachment({
+      path: '/vault/assets/demo.png',
+      previewUrl: 'attachment://demo.png',
+      assetUrl: '',
+    });
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('describe it', [attachment], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(convertToBase64).toHaveBeenCalledWith(attachment, expect.any(Object));
+      expect(deleteAttachment).toHaveBeenCalledWith(attachment);
+      expect(useAIUIStore.getState().generatingSessions).toEqual({ 'temp-session-1': true });
+    });
+
+    let recalled: ReturnType<typeof result.current.stopAndRecallLastUserMessage> = null;
+    act(() => {
+      recalled = result.current.stopAndRecallLastUserMessage('describe it');
+    });
+
+    expect(recalled).toEqual({
+      message: 'describe it',
+      attachments: [{
+        ...attachment,
+        path: '',
+        assetUrl: '',
+        previewUrl: TEMPORARY_IMAGE_DATA_URL,
+      }],
+      noteMentions: [],
+    });
+
+    await act(async () => {
+      resolveDeletion();
+      await pendingDeletion;
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.messages['temp-session-1']).toEqual([]);
+  });
+
   it('limits concurrent temporary attachment conversions while preserving image order', async () => {
     seedTemporaryChatState();
     let activeConversions = 0;

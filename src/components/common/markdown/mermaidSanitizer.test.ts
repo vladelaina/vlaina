@@ -95,6 +95,29 @@ describe('mermaidSanitizer', () => {
     expect(styles.join('\n')).not.toContain('example.test');
   });
 
+  it('drops CSS-escaped Mermaid SVG resource references', () => {
+    const content = renderMarkup([
+      '<svg>',
+      String.raw`<style>@im\70ort "https://example.test/mermaid.css"; .safe { fill: url(\23 local-fill); }</style>`,
+      String.raw`<style>.bad { filter: u\72l(https://example.test/filter.svg#drop); }</style>`,
+      String.raw`<style>.local { filter: u\72l(\23 local-filter); }</style>`,
+      String.raw`<rect filter="url/**/(https://example.test/filter.svg#drop)" fill="u\72l(\23 local-fill)"></rect>`,
+      String.raw`<text style="filter: u\72l(https://example.test/filter.svg#drop); fill: u\72l(\23 local-fill);">label</text>`,
+      '</svg>',
+    ].join(''));
+
+    const rect = content.querySelector('rect');
+    const text = content.querySelector('text');
+    const styles = Array.from(content.querySelectorAll('style')).map((style) => style.textContent || '');
+
+    expect(styles).toHaveLength(1);
+    expect(styles[0]).toContain(String.raw`u\72l(\23 local-filter)`);
+    expect(rect?.getAttribute('filter')).toBeNull();
+    expect(rect?.getAttribute('fill')).toBe(String.raw`u\72l(\23 local-fill)`);
+    expect(text?.getAttribute('style') || '').not.toContain('example.test');
+    expect(text?.getAttribute('style') || '').toContain('local-fill');
+  });
+
   it('keeps Mermaid foreignObject labels as inert SVG text', () => {
     const content = renderMarkup([
       '<svg>',

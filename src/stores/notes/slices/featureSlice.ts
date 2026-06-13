@@ -960,7 +960,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     setNoteIcon: (path: string, emoji: string | null) => {
-      void updateSingleNoteMetadata(path, { icon: emoji ?? undefined });
+      void Promise.resolve(updateSingleNoteMetadata(path, { icon: emoji ?? undefined }))
+        .catch(() => undefined);
     },
 
     updateAllIconColors: (newColor: string) => {
@@ -995,7 +996,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         })
         .filter((entry): entry is { path: string; updates: { icon: string } } => entry !== null);
 
-      void updateManyNoteMetadata(updates);
+      void Promise.resolve(updateManyNoteMetadata(updates)).catch(() => undefined);
     },
 
     updateAllEmojiSkinTones: async (newTone: number) => {
@@ -1044,7 +1045,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     setNoteCover: (path: string, cover: NoteCoverMetadata | null) => {
-      void updateSingleNoteMetadata(path, {
+      void Promise.resolve(updateSingleNoteMetadata(path, {
         cover: cover?.assetPath
           ? {
               assetPath: cover.assetPath,
@@ -1054,7 +1055,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
               scale: cover.scale ?? 1,
             }
           : undefined,
-      });
+      })).catch(() => undefined);
     },
 
     getNoteIconSize: (path: string) => {

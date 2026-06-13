@@ -85,7 +85,7 @@ export function useStarredSectionEntries() {
               }
 
               await openNote(latestEntry.relativePath, shouldOpenInNewTab);
-            })();
+            })().catch(() => undefined);
           },
           onRemove: () => {
             removeStarredEntry(entry.id);

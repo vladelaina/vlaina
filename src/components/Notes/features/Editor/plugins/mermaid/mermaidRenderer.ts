@@ -1,5 +1,6 @@
 export {
   generateMermaidId,
+  MERMAID_RENDER_TIMEOUT_MS,
   mermaidRenderErrorMarkup,
   normalizeMermaidRenderMarkup,
   prewarmMermaidRenderer,

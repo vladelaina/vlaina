@@ -622,7 +622,7 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     if (hasMarkdownInlineDataImageHint(nextMessages) && hasInlineImageSourcesOutsideProcessedSet(nextMessages, sources)) {
       inlineImagePersistenceRerunSessions.add(sessionId)
       globalThis.setTimeout(() => {
-        void persistInlineImageSourcesForSession(sessionId)
+        persistInlineImageSourcesForSessionInBackground(sessionId)
       }, 0)
     }
 
@@ -636,9 +636,13 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
   } finally {
     inlineImagePersistenceSessions.delete(sessionId)
     if (inlineImagePersistenceRerunSessions.delete(sessionId)) {
-      void persistInlineImageSourcesForSession(sessionId)
+      persistInlineImageSourcesForSessionInBackground(sessionId)
     }
   }
+}
+
+function persistInlineImageSourcesForSessionInBackground(sessionId: string) {
+  void persistInlineImageSourcesForSession(sessionId).catch(() => {})
 }
 
 function scheduleInlineImagePersistence(sessionId: string) {
@@ -659,7 +663,7 @@ function scheduleInlineImagePersistence(sessionId: string) {
   inlineImagePersistenceScheduledSessions.add(sessionId)
   globalThis.setTimeout(() => {
     inlineImagePersistenceScheduledSessions.delete(sessionId)
-    void persistInlineImageSourcesForSession(sessionId)
+    persistInlineImageSourcesForSessionInBackground(sessionId)
   }, 0)
 }
 
@@ -816,7 +820,7 @@ export function createSessionActions() {
         })
 
         saveSessionJsonInBackground(promotedSessionId, nextMessages[promotedSessionId] || [])
-        void persistInlineImageSourcesForSession(promotedSessionId)
+        persistInlineImageSourcesForSessionInBackground(promotedSessionId)
         return promotedSessionId
       })
     },

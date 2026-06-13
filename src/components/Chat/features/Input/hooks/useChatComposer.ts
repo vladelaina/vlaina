@@ -201,6 +201,7 @@ export function useChatComposer({
           if (accepted !== false) {
             clearComposer();
           }
+        }).catch(() => {
         }).finally(() => {
           isSubmittingRef.current = false;
         });

@@ -21,6 +21,7 @@ import {
   GITHUB_ALLOWED_LINK_PROTOCOLS,
   GITHUB_ALLOWED_MEDIA_PROTOCOLS,
   GITHUB_DROP_WITH_CONTENT_TAGS,
+  GITHUB_LOADABLE_OR_URL_ATTRIBUTES,
   GITHUB_WRAP_CONTENT_WITH_WHITESPACE_TAGS,
 } from '@/lib/notes/markdown/githubHtmlPolicy';
 
@@ -161,8 +162,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result).toContain('href="readme.html"');
     expect(result).toContain('href="README.md"');
     expect(result).toContain('srcset="images/a.webp 1x, ../images/a@2x.webp 2x"');
-    expect(result).toContain('<source>');
-    expect(result).not.toContain('https://example.com/a.webp');
+    expect(result).toContain('srcset="https://example.com/a.webp 1x"');
   });
 
   it('keeps Selma-allowed spaces in URL attributes while rejecting control characters', () => {
@@ -251,7 +251,7 @@ describe('GitHub README HTML compatibility', () => {
       expect(result).toContain(`<${tag}`);
     }
     expect(result).toContain('open=""');
-    expect(result).toContain('<source>');
+    expect(result).toContain('srcset="./a.webp 1x, https://example.com/a@2x.webp 2x"');
     expect(result).toContain('loading="lazy"');
     expect(result).toContain('scope="col"');
     expect(result).toContain('colspan="1"');
@@ -278,6 +278,9 @@ describe('GitHub README HTML compatibility', () => {
 
   it('preserves every GitHub-supported global attribute through the sanitizer', () => {
     for (const attributeName of GITHUB_ALLOWED_GLOBAL_ATTRIBUTES) {
+      if (GITHUB_LOADABLE_OR_URL_ATTRIBUTES.has(attributeName)) {
+        continue;
+      }
       const value = attributeName === 'style' ? 'color: red' : 'github-value';
       const result = sanitizeHtml(`<div ${attributeName}="${value}">x</div>`);
       const template = document.createElement('template');

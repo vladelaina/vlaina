@@ -219,7 +219,7 @@ export function useElectronCloseGuard() {
     };
 
     const flushAllPendingWrites = () => {
-      void runFlushAllPendingWrites();
+      void Promise.resolve(runFlushAllPendingWrites()).catch(() => undefined);
     };
 
     runFlushAllPendingWritesRef.current = runFlushAllPendingWrites;
@@ -259,11 +259,11 @@ export function useElectronCloseGuard() {
           } catch {
             allowNextWindowCloseRef.current = false;
           }
-        })();
+        })().catch(() => undefined);
         return;
       }
 
-      void continueWindowClose();
+      void continueWindowClose().catch(() => undefined);
     });
 
     document.addEventListener('visibilitychange', handleVisibilityChange);

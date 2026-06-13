@@ -68,7 +68,7 @@ export function CoverPicker({
 
       const runLoad = () => {
         if (cancelled) return;
-        void loadAssets(vaultPath);
+        void Promise.resolve(loadAssets(vaultPath)).catch(() => undefined);
       };
 
       timeoutId = setTimeout(() => {

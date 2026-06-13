@@ -356,7 +356,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     }
     pendingRenameTimerRef.current = window.setTimeout(() => {
       pendingRenameTimerRef.current = null;
-      void flushPendingRenameDeletions();
+      void flushPendingRenameDeletions().catch(() => undefined);
     }, delay);
   };
 

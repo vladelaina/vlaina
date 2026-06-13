@@ -77,35 +77,35 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
         setError(false);
 
         const loadLocalImage = async () => {
-            const directSrc = normalizeDirectChatImageSource(src);
-            if (directSrc) {
-                const nextSrc = await normalizeDisplaySrc(directSrc);
-                if (!active) return;
-                if (!nextSrc) {
+            try {
+                const directSrc = normalizeDirectChatImageSource(src);
+                if (directSrc) {
+                    const nextSrc = await normalizeDisplaySrc(directSrc);
+                    if (!active) return;
+                    if (!nextSrc) {
+                        setError(true);
+                        onResolvedSrcRef.current?.(null);
+                        return;
+                    }
+                    setDisplaySrc(nextSrc);
+                    onResolvedSrcRef.current?.(nextSrc);
+                    return;
+                }
+
+                const filename = extractStoredAttachmentFilename(src);
+
+                if (!filename) {
+                    setError(true);
+                    return;
+                }
+
+                const mime = inferAttachmentMimeTypeFromFilename(filename);
+                if (!mime.startsWith('image/')) {
                     setError(true);
                     onResolvedSrcRef.current?.(null);
                     return;
                 }
-                setDisplaySrc(nextSrc);
-                onResolvedSrcRef.current?.(nextSrc);
-                return;
-            }
 
-            const filename = extractStoredAttachmentFilename(src);
-
-            if (!filename) {
-                setError(true);
-                return;
-            }
-
-            const mime = inferAttachmentMimeTypeFromFilename(filename);
-            if (!mime.startsWith('image/')) {
-                setError(true);
-                onResolvedSrcRef.current?.(null);
-                return;
-            }
-
-            try {
                 const storage = getStorageAdapter();
                 const basePath = await storage.getBasePath();
                 const attachmentPath = await getPrimaryAttachmentPath(basePath, filename);

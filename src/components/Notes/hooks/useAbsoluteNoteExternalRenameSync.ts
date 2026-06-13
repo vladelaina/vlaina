@@ -134,20 +134,28 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
     const unsubscribeRenameBroadcast = subscribeNotesExternalPathRename(
       watchedParentPath,
       (event) => {
-        void applyRenameEvent(event);
+        void applyRenameEvent(event).catch(() => undefined);
       }
     );
 
     const reconcileExternalPathEventFile = async () => {
-      const events = await readNotesExternalPathEvents(watchedParentPath, {
-        afterStamp: eventFileStartedAt,
-      });
+      let events: Array<{ nonce?: string; oldPath: string; newPath: string }>;
+      try {
+        events = await readNotesExternalPathEvents(watchedParentPath, {
+          afterStamp: eventFileStartedAt,
+        });
+      } catch {
+        return;
+      }
       if (disposed) {
         return;
       }
 
       for (const event of events) {
-        await applyRenameEvent(event);
+        await applyRenameEvent(event).catch(() => undefined);
+        if (disposed) {
+          return;
+        }
       }
     };
 
@@ -165,7 +173,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
         return;
       }
 
-      void syncCurrentNoteFromDisk({ force: true });
+      void syncCurrentNoteFromDisk({ force: true }).catch(() => undefined);
     };
 
     const startPollingSync = () => {
@@ -225,7 +233,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
         );
 
         if (disposed) {
-          void stopWatching();
+          void stopWatching().catch(() => undefined);
           return;
         }
 
@@ -237,7 +245,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       }
     };
 
-    void run();
+    void run().catch(() => undefined);
 
     return () => {
       disposed = true;
@@ -248,7 +256,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       window.removeEventListener('focus', syncCurrentAbsoluteNote);
       document.removeEventListener('visibilitychange', syncCurrentAbsoluteNote);
       unsubscribeRenameBroadcast();
-      void unwatch?.();
+      void unwatch?.().catch(() => undefined);
     };
   }, [applyExternalPathRename, currentNotePath, syncCurrentNoteFromDisk]);
 }

@@ -43,7 +43,7 @@ export class MermaidNodeView implements NodeView {
       void renderMermaidEditorLivePreview({
         anchor: this.dom,
         code,
-      });
+      }).catch(() => undefined);
     }
 
     return true;

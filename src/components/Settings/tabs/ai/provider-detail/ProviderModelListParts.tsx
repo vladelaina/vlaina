@@ -122,7 +122,7 @@ export function SectionHeader({
         type="button"
         disabled={disabled && !busy}
         onClick={() => {
-          void onBenchmark();
+          void Promise.resolve(onBenchmark()).catch(() => undefined);
         }}
         className={cn(
           'flex h-6 w-6 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]',

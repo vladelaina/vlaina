@@ -1110,6 +1110,34 @@ describe('clipboardPlugin paste', () => {
         await editor.destroy();
     });
 
+    it('handles plain text drops when the chat heading payload is invalid', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        const { handled, event } = simulateDropText(view, 'Dropped A\n\nDropped B', 1, {
+            types: [CHAT_HEADING_DRAG_MIME, 'text/plain'],
+            getData(type) {
+                if (type === CHAT_HEADING_DRAG_MIME) {
+                    return 'not-json';
+                }
+                return type === 'text/plain' ? 'Dropped A\n\nDropped B' : '';
+            },
+        });
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(view.state.doc.textContent).toBe('Dropped ADropped B');
+
+        await editor.destroy();
+    });
+
     it('routes dropped plain chat text through persistent markdown blank line nodes', async () => {
         const editor = Editor.make()
             .config((ctx) => {

@@ -129,7 +129,7 @@ function copyCodeMirrorSelection(
     collapseCodeMirrorSelection(cm);
     collapseProseMirrorSelectionToCodeMirrorHead(cm, view, getNode, getPos);
     view.focus();
-  });
+  }).catch(() => undefined);
   return true;
 }
 
@@ -175,7 +175,7 @@ function cutCodeMirrorSelection(
     }
 
     deleteSelection();
-  });
+  }).catch(() => undefined);
   return true;
 }
 

@@ -493,6 +493,23 @@ describe('MarkdownEditor compatibility', () => {
     await destroyEditor(editor);
   });
 
+  it('opens markdown containing video image syntax as a video node', async () => {
+    const editor = await createEditor('![video](https://example.com/video.mp4 "Demo")');
+
+    const view = editor.ctx.get(editorViewCtx);
+    expect(view.dom.querySelector('.video-block[data-type="video"]')).toBeInstanceOf(HTMLElement);
+    await destroyEditor(editor);
+  });
+
+  it('opens markdown containing footnote reference and definition nodes', async () => {
+    const editor = await createEditor(['Footnote ref[^1].', '', '[^1]: Footnote body'].join('\n'));
+
+    const view = editor.ctx.get(editorViewCtx);
+    expect(view.dom.querySelector('sup.footnote-ref.md-footnote')).toBeInstanceOf(HTMLElement);
+    expect(view.dom.querySelector('.footnote-def.footnote-line')).toBeInstanceOf(HTMLElement);
+    await destroyEditor(editor);
+  });
+
   it.each([
     {
       name: 'definition list',

@@ -320,7 +320,8 @@ function resetNotesWorkspaceForVaultTransition(
 
   useNotesStore.getState().clearAssetUrlCache();
   const currentNotesState = useNotesStore.getState();
-  void flushPendingDeletedItemsToSystemTrash(currentNotesState.pendingDeletedItems);
+  void Promise.resolve(flushPendingDeletedItemsToSystemTrash(currentNotesState.pendingDeletedItems))
+    .catch(() => undefined);
   const transitionRootFolder: NotesStore['rootFolder'] = options.preserveSidebarTree
     ? currentNotesState.rootFolder ?? {
         id: '',
@@ -357,7 +358,7 @@ function resetNotesWorkspaceForVaultTransition(
     isLoadingAssets: false,
     uploadProgress: null,
   });
-  void flushStalePendingTrashForVault(notesPath);
+  void flushStalePendingTrashForVault(notesPath).catch(() => undefined);
 }
 
 export const useVaultStore = create<VaultStore>()((set, get) => ({

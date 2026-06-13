@@ -180,6 +180,9 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteLinkHref(String.raw`https:\example.com\path`)).toBeNull();
     expect(sanitizeNoteLinkHref(String.raw`\\example.com\path`)).toBeNull();
     expect(sanitizeNoteLinkHref('https://user:pass@example.com/path')).toBeNull();
+    expect(sanitizeNoteLinkHref('http://127.0.0.1:3000/path')).toBeNull();
+    expect(sanitizeNoteLinkHref('http://router/path')).toBeNull();
+    expect(sanitizeNoteLinkHref('https://example.com/path')).toBe('https://example.com/path');
     expect(sanitizeNoteLinkHref('https:example.com/path')).toBeNull();
     expect(sanitizeNoteLinkHref('http:/example.com/path')).toBeNull();
   });

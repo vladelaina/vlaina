@@ -108,14 +108,14 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
       if (behavior === 'sidebar-chat') {
         void import('../../ai/sidebarDiscussion').then((mod) => {
           mod.openSidebarDiscussionForSelection(view);
-        });
+        }).catch(() => undefined);
         return;
       }
 
       if (hasSelectedBlocks(view.state)) {
         void import('../../ai/reviewFlow').then((reviewFlow) => {
           reviewFlow.openAiSelectionReview(view);
-        });
+        }).catch(() => undefined);
         return;
       }
 

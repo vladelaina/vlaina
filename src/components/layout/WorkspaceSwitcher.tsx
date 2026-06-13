@@ -142,7 +142,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
         isOpen={isLogoutConfirmOpen}
         onClose={() => setIsLogoutConfirmOpen(false)}
         onConfirm={() => {
-          void handleConfirmLogout();
+          void handleConfirmLogout().catch(() => undefined);
         }}
         title={t('account.logOutTitle')}
         description={t('account.logOutDescription')}

@@ -125,79 +125,86 @@ export function useExternalStarredRenameSync() {
           return false;
         }
 
-        await applyExternalPathRename(oldPath, newPath);
+        try {
+          await applyExternalPathRename(oldPath, newPath);
+        } catch {
+          return false;
+        }
         clearPendingRename();
         return true;
       };
       clearPendingRenameTimers.push(clearPendingRename);
 
-      void watchDesktopPath(
-        entry.watchPath,
-        async (event) => {
-          if (disposed) {
-            return;
-          }
-
-          const normalizedPaths = event.paths.map((path) => normalizeFsPath(path));
-          const renamePaths = getAbsoluteRenameWatchPaths({
-            ...event,
-            paths: normalizedPaths,
-          });
-          if (renamePaths?.oldPath && renamePaths.newPath) {
-            await applyRename(
-              normalizeFsPath(renamePaths.oldPath),
-              normalizeFsPath(renamePaths.newPath),
-            );
-            return;
-          }
-
-          if (renamePaths?.oldPath) {
-            const oldPath = normalizeFsPath(renamePaths.oldPath);
-            if (isSameFsPath(entry.absolutePath, oldPath)) {
-              queuePendingRename(oldPath);
-            }
-            return;
-          }
-
-          if (renamePaths?.newPath) {
-            if (pendingOldPath) {
-              await applyRename(pendingOldPath, normalizeFsPath(renamePaths.newPath));
-            }
-            return;
-          }
-
-          if (isRemoveWatchEvent(event)) {
-            const removedPath = normalizedPaths.find((path) => isSameFsPath(entry.absolutePath, path));
-            if (removedPath) {
-              queuePendingRename(removedPath);
-            }
-            return;
-          }
-
-          if (!isCreateWatchEvent(event) || !pendingOldPath) {
-            return;
-          }
-
-          for (const newPath of normalizedPaths) {
-            if (await applyRename(pendingOldPath, newPath)) {
+      try {
+        void watchDesktopPath(
+          entry.watchPath,
+          async (event) => {
+            if (disposed) {
               return;
             }
-          }
-        },
-        { recursive: false },
-      ).then(
-        (unwatch) => {
-          if (disposed) {
-            void unwatch();
-            return;
-          }
-          unwatchers.push(unwatch);
-        },
-        (_error) => {
-          if (!disposed) {
-          }
-        },
-      );
+
+            const normalizedPaths = event.paths.map((path) => normalizeFsPath(path));
+            const renamePaths = getAbsoluteRenameWatchPaths({
+              ...event,
+              paths: normalizedPaths,
+            });
+            if (renamePaths?.oldPath && renamePaths.newPath) {
+              await applyRename(
+                normalizeFsPath(renamePaths.oldPath),
+                normalizeFsPath(renamePaths.newPath),
+              );
+              return;
+            }
+
+            if (renamePaths?.oldPath) {
+              const oldPath = normalizeFsPath(renamePaths.oldPath);
+              if (isSameFsPath(entry.absolutePath, oldPath)) {
+                queuePendingRename(oldPath);
+              }
+              return;
+            }
+
+            if (renamePaths?.newPath) {
+              if (pendingOldPath) {
+                await applyRename(pendingOldPath, normalizeFsPath(renamePaths.newPath));
+              }
+              return;
+            }
+
+            if (isRemoveWatchEvent(event)) {
+              const removedPath = normalizedPaths.find((path) => isSameFsPath(entry.absolutePath, path));
+              if (removedPath) {
+                queuePendingRename(removedPath);
+              }
+              return;
+            }
+
+            if (!isCreateWatchEvent(event) || !pendingOldPath) {
+              return;
+            }
+
+            for (const newPath of normalizedPaths) {
+              if (await applyRename(pendingOldPath, newPath)) {
+                return;
+              }
+            }
+          },
+          { recursive: false },
+        ).then(
+          (unwatch) => {
+            if (disposed) {
+              void unwatch().catch(() => undefined);
+              return;
+            }
+            unwatchers.push(unwatch);
+          },
+          (_error) => {
+            if (!disposed) {
+            }
+          },
+        );
+      } catch {
+      }
     }
 
     return () => {
@@ -206,7 +213,7 @@ export function useExternalStarredRenameSync() {
         clearPendingRenameTimer();
       }
       for (const unwatch of unwatchers) {
-        void unwatch();
+        void unwatch().catch(() => undefined);
       }
     };
   }, [applyExternalPathRename, watchEntries]);

@@ -15,6 +15,7 @@ function createPositionedInlineNodes(
   let offset = 0
   return parts.map((part) => {
     const source = part.source ?? part.value
+    if (source === undefined) throw new Error('Missing markdown part source')
     const start = markdown.indexOf(source, offset)
     if (start < 0) throw new Error(`Missing markdown part: ${source}`)
     offset = start + source.length
@@ -55,6 +56,17 @@ function createBlockTree(
 
 function paragraphChildren(tree: MarkdownNode): MarkdownNode[] {
   return tree.children?.[0]?.children ?? []
+}
+
+function createNestedStrongNode(depth: number): MarkdownNode {
+  let node = { type: 'text', value: 'nested' } as MarkdownNode
+  for (let index = 0; index < depth; index += 1) {
+    node = {
+      type: 'strong',
+      children: [node],
+    } as MarkdownNode
+  }
+  return node
 }
 
 describe('mergePairedInlineHtml', () => {
@@ -266,5 +278,24 @@ describe('mergePairedInlineHtml', () => {
 
     expect(() => mergePairedInlineHtml(node)).not.toThrow()
     expect(leaf.children).toHaveLength(3)
+  })
+
+  it('skips inline html rendering when nested markdown exceeds the render budget', () => {
+    const nested = createNestedStrongNode(MAX_INLINE_HTML_MERGE_DEPTH + 2)
+    const tree = {
+      type: 'paragraph',
+      children: [
+        { type: 'html', value: '<span>' },
+        nested,
+        { type: 'html', value: '</span>' },
+      ],
+    } as MarkdownNode
+
+    expect(() => mergePairedInlineHtml(tree)).not.toThrow()
+    expect(tree.children).toEqual([
+      { type: 'html', value: '<span>' },
+      nested,
+      { type: 'html', value: '</span>' },
+    ])
   })
 })

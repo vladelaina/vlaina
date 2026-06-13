@@ -185,12 +185,47 @@ function getMetadataScanPriority(entry: { name: string; isDirectory?: boolean; i
 
 function prioritizeMetadataScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
   entries: readonly T[],
+  maxEntries = entries.length,
 ): T[] {
   const priorityBuckets: T[][] = [[], [], [], []];
-  for (const entry of entries) {
-    priorityBuckets[getMetadataScanPriority(entry)]?.push(entry);
+  const limit = Math.max(0, Math.floor(maxEntries));
+  if (limit === 0) {
+    return [];
   }
-  return priorityBuckets.flat();
+
+  let retainedEntries = 0;
+  for (const entry of entries) {
+    const priority = getMetadataScanPriority(entry);
+    const bucket = priorityBuckets[priority];
+    if (!bucket) {
+      continue;
+    }
+
+    if (retainedEntries < limit) {
+      bucket.push(entry);
+      retainedEntries += 1;
+      continue;
+    }
+
+    for (let worsePriority = priorityBuckets.length - 1; worsePriority > priority; worsePriority -= 1) {
+      const worseBucket = priorityBuckets[worsePriority];
+      if (worseBucket.length > 0) {
+        worseBucket.pop();
+        bucket.push(entry);
+        break;
+      }
+    }
+  }
+  const prioritized: T[] = [];
+  for (const bucket of priorityBuckets) {
+    for (const entry of bucket) {
+      if (prioritized.length >= limit) {
+        return prioritized;
+      }
+      prioritized.push(entry);
+    }
+  }
+  return prioritized;
 }
 
 function isReadableBoundedFile(
@@ -284,7 +319,8 @@ async function collectMarkdownPaths(
   }
   const collected: string[] = [];
 
-  for (const entry of prioritizeMetadataScanEntries(entries)) {
+  const remainingScanEntries = MAX_METADATA_DIRECTORY_SCAN_ENTRIES - budget.scannedEntries;
+  for (const entry of prioritizeMetadataScanEntries(entries, remainingScanEntries)) {
     if (budget.scannedEntries >= MAX_METADATA_DIRECTORY_SCAN_ENTRIES) {
       break;
     }

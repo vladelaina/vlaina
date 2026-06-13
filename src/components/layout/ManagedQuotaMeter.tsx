@@ -22,7 +22,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
     if (!accountIsConnected || accountIsLoading || !accountHasCheckedStatus) {
       return;
     }
-    void refreshBudgetIfStale();
+    void refreshBudgetIfStale().catch(() => undefined);
   }, [accountHasCheckedStatus, accountIsConnected, accountIsLoading, budget, budgetError, isRefreshingBudget, refreshBudgetIfStale]);
 
   const rawRemainingPercent = budget ? Number(budget.remainingPercent) : Number.NaN;

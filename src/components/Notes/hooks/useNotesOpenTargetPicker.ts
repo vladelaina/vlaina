@@ -73,15 +73,15 @@ export function useNotesOpenTargetPicker({
   useEffect(() => {
     const handleOpenMarkdownFile = () => {
       if (!active) return;
-      void handleOpenSelectedTarget('file');
+      void handleOpenSelectedTarget('file').catch(() => undefined);
     };
     const handleOpenMarkdownTargetFile = () => {
       if (!active) return;
-      void handleOpenSelectedTarget('file');
+      void handleOpenSelectedTarget('file').catch(() => undefined);
     };
     const handleOpenMarkdownTargetFolder = () => {
       if (!active) return;
-      void handleOpenSelectedTarget('folder');
+      void handleOpenSelectedTarget('folder').catch(() => undefined);
     };
     const handleDesktopOpenMarkdownFile = async (filePath: string) => {
       if (isOpenTargetBusy) return;

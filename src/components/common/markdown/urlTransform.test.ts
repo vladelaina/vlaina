@@ -44,6 +44,9 @@ describe("readonlyMarkdownUrlTransform", () => {
 
   it("rejects protocol-relative links", () => {
     expect(readonlyMarkdownUrlTransform("//example.com/path", "href")).toBe("");
+    expect(readonlyMarkdownUrlTransform("http://127.0.0.1:3000/path", "href")).toBe("");
+    expect(readonlyMarkdownUrlTransform("http://router/path", "href")).toBe("");
+    expect(readonlyMarkdownUrlTransform("https://example.com/path", "href")).toBe("https://example.com/path");
     expect(readonlyMarkdownUrlTransform("https:example.com/path", "href")).toBe("");
     expect(readonlyMarkdownUrlTransform("http:/example.com/path", "href")).toBe("");
     expect(readonlyMarkdownUrlTransform("docs/alpha.md", "href")).toBe("docs/alpha.md");
@@ -55,6 +58,7 @@ describe("readonlyMarkdownUrlTransform", () => {
 
   it("filters cite URLs like links", () => {
     expect(readonlyMarkdownUrlTransform("https://example.com/source", "cite")).toBe("https://example.com/source");
+    expect(readonlyMarkdownUrlTransform("http://127.0.0.1:3000/source", "cite")).toBe("");
     expect(readonlyMarkdownUrlTransform("//example.com/source", "cite")).toBe("");
     expect(readonlyMarkdownUrlTransform("javascript:alert(1)", "cite")).toBe("");
     expect(readonlyMarkdownUrlTransform(".vlaina/source.md", "cite")).toBe("");

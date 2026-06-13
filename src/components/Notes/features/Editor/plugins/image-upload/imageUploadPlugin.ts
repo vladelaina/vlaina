@@ -20,7 +20,7 @@ export const imageUploadPlugin = $prose(() => {
                     if (!canInsertImageNodeAtSelection(view)) return false;
 
                     event.preventDefault();
-                    void handleEditorImageFiles(imageFiles, view);
+                    void handleEditorImageFiles(imageFiles, view).catch(() => undefined);
                     return true;
                 },
 
@@ -30,7 +30,7 @@ export const imageUploadPlugin = $prose(() => {
                     if (!canInsertImageNodeAtSelection(view)) return false;
 
                     event.preventDefault();
-                    void handleEditorImageFiles(imageFiles, view);
+                    void handleEditorImageFiles(imageFiles, view).catch(() => undefined);
                     return true;
                 }
             }

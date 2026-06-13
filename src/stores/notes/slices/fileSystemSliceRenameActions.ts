@@ -66,7 +66,7 @@ function getRemappedStarredState(
 ) {
   const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, remapPath);
   if (starredResult.changed) {
-    void saveStarredRegistry(starredResult.entries);
+    void Promise.resolve(saveStarredRegistry(starredResult.entries)).catch(() => undefined);
   }
 
   const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
@@ -285,7 +285,7 @@ export function createFileSystemRenameActions(
           return { ...entry, relativePath: nextRelativePath };
         });
         if (starredChanged) {
-          void saveStarredRegistry(updatedStarredEntries);
+          void Promise.resolve(saveStarredRegistry(updatedStarredEntries)).catch(() => undefined);
         }
 
         const updatedTabs = remapOpenTabsForExternalRename(latestState.openTabs, normalizedPath, newPath).map((tab) =>

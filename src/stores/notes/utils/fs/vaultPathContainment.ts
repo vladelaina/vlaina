@@ -2,6 +2,17 @@ import { isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
 export const MAX_VAULT_RELATIVE_PATH_CHARS = 64 * 1024;
 const UNSAFE_VAULT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
+const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
+
+function hasExplicitNonPathScheme(path: string): boolean {
+  const trimmedPath = path.trim();
+  return (
+    (EXPLICIT_URL_SCHEME_PATTERN.test(trimmedPath) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmedPath)) ||
+    BACKSLASH_ESCAPED_SCHEME_PATTERN.test(trimmedPath)
+  );
+}
 
 export function isSafeVaultPathSegment(segment: string | undefined): segment is string {
   return (
@@ -18,6 +29,10 @@ export function hasUnsafeVaultPathSegment(
   path: string,
   options: { allowNavigationSegments?: boolean } = {},
 ): boolean {
+  if (path.length > MAX_VAULT_RELATIVE_PATH_CHARS) {
+    return true;
+  }
+
   const segments = path.replace(/\\/g, '/').split('/').filter(Boolean);
 
   for (let index = 0; index < segments.length; index += 1) {
@@ -42,6 +57,10 @@ export function normalizeVaultRelativePath(
   }
 
   if (path.length > MAX_VAULT_RELATIVE_PATH_CHARS) {
+    return null;
+  }
+
+  if (hasExplicitNonPathScheme(path)) {
     return null;
   }
 

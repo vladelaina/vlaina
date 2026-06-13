@@ -548,7 +548,8 @@ export function syncCurrentVaultExternalPathAction({
   const normalizedCurrentVault = normalizeVaultInfo(currentVault);
   const normalizedCurrentVaultPath = normalizeVaultPath(normalizedCurrentVault.path);
   if (!normalizedPath || normalizedPath === normalizedCurrentVaultPath) return;
-  void moveVaultSystemStore(normalizedCurrentVaultPath, normalizedPath);
+  void Promise.resolve(moveVaultSystemStore(normalizedCurrentVaultPath, normalizedPath))
+    .catch(() => undefined);
 
   const nextVault = normalizeVaultInfo({
     ...normalizedCurrentVault,
@@ -591,7 +592,7 @@ export function syncCurrentVaultExternalPathAction({
     starredFolders: nextStarredPaths.folders,
     pendingStarredNavigation: nextPendingStarredNavigation,
   });
-  void saveStarredRegistry(nextStarredEntries);
+  void Promise.resolve(saveStarredRegistry(nextStarredEntries)).catch(() => undefined);
 
   set({
     currentVault: nextVault,

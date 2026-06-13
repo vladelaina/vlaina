@@ -86,6 +86,17 @@ describe('sanitizeRawHtmlUrlProperties', () => {
     expect(node.properties).toEqual({ title: 'safe title' });
   });
 
+  it('drops local-network raw anchor URLs at the HAST layer', () => {
+    const local = element('a', { href: 'http://127.0.0.1:3000/admin' });
+    const publicLink = element('a', { href: 'https://example.com/docs' });
+
+    sanitizeRawHtmlUrlProperties(local);
+    sanitizeRawHtmlUrlProperties(publicLink);
+
+    expect(local.properties).not.toHaveProperty('href');
+    expect(publicLink.properties.href).toBe('https://example.com/docs');
+  });
+
   it('forces safe iframe referrer policy at the HAST layer', () => {
     const node = element('iframe', {
       referrerPolicy: 'unsafe-url',

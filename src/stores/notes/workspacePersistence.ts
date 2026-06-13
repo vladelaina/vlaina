@@ -36,7 +36,7 @@ export function persistWorkspaceSnapshot(
   notesPath: string,
   input: WorkspaceSnapshotInput
 ): void {
-  void saveWorkspaceSnapshot(notesPath, input);
+  void Promise.resolve(saveWorkspaceSnapshot(notesPath, input)).catch(() => undefined);
 }
 
 export async function saveWorkspaceSnapshot(

@@ -72,7 +72,7 @@ export function MarkdownThemeDirectorySync() {
 
       syncTimer = window.setTimeout(() => {
         syncTimer = null;
-        void runSync();
+        void runSync().catch(() => undefined);
       }, THEME_DIRECTORY_SYNC_DEBOUNCE_MS);
     };
 
@@ -83,19 +83,19 @@ export function MarkdownThemeDirectorySync() {
 
       void watchDesktopPath(result.directoryPath, scheduleSync).then((cleanup) => {
         if (cancelled) {
-          void cleanup();
+          void cleanup().catch(() => undefined);
           return;
         }
         unwatch = cleanup;
       }).catch(() => undefined);
-    });
+    }).catch(() => undefined);
 
     return () => {
       cancelled = true;
       if (syncTimer !== null) {
         window.clearTimeout(syncTimer);
       }
-      void unwatch?.();
+      void unwatch?.().catch(() => undefined);
     };
   }, [loaded, setMarkdownImportedThemeId]);
 

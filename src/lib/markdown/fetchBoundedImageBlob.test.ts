@@ -23,10 +23,11 @@ describe('fetchBoundedImageBlob', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://example.com/image.png', {
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
+      redirect: 'error',
     });
   });
 
-  it('preserves safe fetch options while overriding credential and referrer policy', async () => {
+  it('preserves safe fetch options while overriding credential, referrer, and redirect policy', async () => {
     const controller = new AbortController();
     const fetchMock = vi.fn(async () => createSmallImageResponse());
     vi.stubGlobal('fetch', fetchMock);
@@ -37,6 +38,7 @@ describe('fetchBoundedImageBlob', () => {
         cache: 'force-cache',
         credentials: 'include',
         referrerPolicy: 'unsafe-url',
+        redirect: 'follow',
       },
     });
 
@@ -44,6 +46,7 @@ describe('fetchBoundedImageBlob', () => {
       cache: 'force-cache',
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
+      redirect: 'error',
       signal: controller.signal,
     });
   });

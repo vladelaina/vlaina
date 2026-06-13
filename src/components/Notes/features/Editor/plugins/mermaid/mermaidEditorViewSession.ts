@@ -54,14 +54,14 @@ export function createMermaidEditorViewSession(args: {
         anchor: resolveAnchor(),
         code: value,
         onRendered: scheduleResize,
-      });
+      }).catch(() => undefined);
     },
     previewCancel({ value, resolveAnchor, scheduleResize }) {
       void renderMermaidEditorLivePreview({
         anchor: resolveAnchor(),
         code: value,
         onRendered: scheduleResize,
-      });
+      }).catch(() => undefined);
     },
     cancelSession: cancelMermaidEditorSession,
     saveSession: saveMermaidEditorSession,

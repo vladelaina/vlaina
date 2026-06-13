@@ -191,6 +191,46 @@ describe('useChatComposer', () => {
     expect(result.current.message).toBe('keep me');
   });
 
+  it('keeps the composer content and releases submit lock when async send rejects', async () => {
+    const onSend = vi.fn()
+      .mockRejectedValueOnce(new Error('send failed'))
+      .mockResolvedValueOnce(undefined);
+    const onAfterSend = vi.fn();
+
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend,
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend,
+      }),
+    );
+
+    act(() => {
+      result.current.handleMessageChange('retry me');
+    });
+
+    act(() => {
+      result.current.handleSend();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onAfterSend).not.toHaveBeenCalled();
+    expect(result.current.message).toBe('retry me');
+
+    act(() => {
+      result.current.handleSend();
+    });
+
+    await waitFor(() => {
+      expect(onSend).toHaveBeenCalledTimes(2);
+      expect(onAfterSend).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.message).toBe('');
+  });
+
   it('blocks send and Enter submission while submit is disabled', () => {
     const onSend = vi.fn();
     const onAfterSend = vi.fn();

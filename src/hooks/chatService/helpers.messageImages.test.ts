@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 import { convertToBase64 } from '@/lib/storage/attachmentStorage';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import {
@@ -468,5 +469,44 @@ describe('buildStoredUserMessageContent image parsing', () => {
 
     expect(result).toEqual({ content: '', imageSources: [] });
     expect(convertToBase64).not.toHaveBeenCalled();
+  });
+
+  it('stops rebuilding stored message image parts before the total source budget is exceeded', async () => {
+    const largePayload = 'A'.repeat(Math.floor((MAX_INLINE_IMAGE_BYTES - 3) / 3) * 4);
+    mocks.convertToBase64.mockResolvedValue(`data:image/png;base64,${largePayload}`);
+    const content = [
+      '![first](<attachment://first.png>)',
+      '![second](<attachment://second.png>)',
+      '![third](<attachment://third.png>)',
+      'Describe these.',
+    ].join('\n\n');
+
+    const result = await buildStoredUserMessageContent(content);
+    const parts = Array.isArray(result) ? result : [];
+
+    expect(parts.filter((part) => part.type === 'image_url')).toHaveLength(2);
+    expect(JSON.stringify(result)).toContain('Describe these.');
+    expect(convertToBase64).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops building attachment image sources before the total source budget is exceeded', async () => {
+    const largePayload = 'A'.repeat(Math.floor((MAX_INLINE_IMAGE_BYTES - 3) / 3) * 4);
+    mocks.convertToBase64.mockResolvedValue(`data:image/png;base64,${largePayload}`);
+
+    const attachments = Array.from({ length: 4 }, (_value, index) => ({
+      id: `large-${index}`,
+      path: `/vault/assets/large-${index}.png`,
+      previewUrl: '',
+      assetUrl: '',
+      name: `large-${index}.png`,
+      type: 'image/png',
+      size: MAX_INLINE_IMAGE_BYTES - 3,
+    }));
+
+    const result = await buildMessageImageSources(attachments);
+
+    expect(result.imageSources).toHaveLength(2);
+    expect(result.content.match(/!\[image\]/g)).toHaveLength(2);
+    expect(convertToBase64).toHaveBeenCalledTimes(3);
   });
 });

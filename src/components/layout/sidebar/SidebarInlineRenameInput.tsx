@@ -67,11 +67,11 @@ export function SidebarInlineRenameInput({
       wrap="soft"
       value={value}
       onChange={(event) => onValueChange(event.target.value.replace(/[\r\n]+/g, ' '))}
-      onBlur={() => void onSubmit()}
+      onBlur={() => void Promise.resolve(onSubmit()).catch(() => undefined)}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
-          void onSubmit();
+          void Promise.resolve(onSubmit()).catch(() => undefined);
           return;
         }
 

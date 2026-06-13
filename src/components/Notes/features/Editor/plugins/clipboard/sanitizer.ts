@@ -18,6 +18,7 @@ import {
   sanitizeGithubIframeSandbox,
   sanitizeGithubStyle,
 } from '@/lib/notes/markdown/githubHtmlPolicy';
+import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 import { stripGithubDroppedRawHtmlContent } from '@/lib/notes/markdown/githubRawHtml';
 
 const MAX_SANITIZE_DEPTH = 200;
@@ -135,6 +136,13 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
         blockLocalNetwork: tagName !== 'a',
       });
       if (normalizedUrl) {
+        if (
+          tagName === 'a' &&
+          /^https?:\/\//i.test(normalizedUrl) &&
+          isLocalNetworkHttpUrl(normalizedUrl)
+        ) {
+          continue;
+        }
         sanitized.setAttribute(normalizedAttribute, normalizedUrl);
       }
       continue;

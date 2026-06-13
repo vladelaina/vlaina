@@ -186,4 +186,15 @@ describe('LocalImage', () => {
     });
     expect(screen.queryByAltText('diagram')).not.toBeInTheDocument();
   });
+
+  it('shows unavailable state when inline SVG rasterization rejects', async () => {
+    mocks.rasterizeSvgDataUrlToPng.mockRejectedValueOnce(new Error('raster failed'));
+
+    render(<LocalImage src="data:image/svg+xml;base64,PHN2Zz4=" alt="diagram" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(screen.queryByAltText('diagram')).not.toBeInTheDocument();
+  });
 });

@@ -11,7 +11,8 @@ export interface NoteMentionReference {
 export const MAX_NOTE_MENTION_SCAN_ITEMS = 1_000;
 export const MAX_NOTE_MENTION_PATH_CHARS = 2_048;
 export const MAX_NOTE_MENTION_TITLE_CHARS = 512;
-const URL_LIKE_MENTION_PATH_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:[/\\]/;
+const EXPLICIT_MENTION_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const BACKSLASH_ESCAPED_MENTION_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const WINDOWS_DRIVE_MENTION_PATH_PATTERN = /^[A-Za-z]:[/\\]/;
 
 function normalizeMentionText(value: unknown): string {
@@ -27,9 +28,10 @@ export function isPotentiallyLoadableNoteMentionReference(
     !path ||
     path.length > MAX_NOTE_MENTION_PATH_CHARS ||
     (
-      URL_LIKE_MENTION_PATH_PATTERN.test(path) &&
+      EXPLICIT_MENTION_SCHEME_PATTERN.test(path) &&
       !WINDOWS_DRIVE_MENTION_PATH_PATTERN.test(path)
     ) ||
+    BACKSLASH_ESCAPED_MENTION_SCHEME_PATTERN.test(path) ||
     hasUnsafeVaultPathSegment(path) ||
     hasInternalNotePathSegment(path)
   ) {

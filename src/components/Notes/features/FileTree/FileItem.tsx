@@ -139,7 +139,7 @@ export const FileItem = memo(function FileItem({
           icon: <Icon name="nav.external" size="md" />,
           label: t('sidebar.openInNewTab'),
           onClick: () => {
-            void openNote(node.path, true);
+            void openNote(node.path, true).catch(() => undefined);
             setShowMenu(false);
           },
         },

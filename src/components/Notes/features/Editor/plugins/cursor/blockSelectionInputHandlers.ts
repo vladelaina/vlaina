@@ -81,7 +81,7 @@ export function handleBlockSelectionKeyDown(
       if (didCopy) {
         clearCapturedBlockSelection(view, selectedBlocks, doc);
       }
-    });
+    }).catch(() => undefined);
     return true;
   }
 
@@ -95,7 +95,7 @@ export function handleBlockSelectionKeyDown(
       if (didCopy && view.state.doc.eq(doc)) {
         deleteSelectedBlocks(view, selectedBlocks);
       }
-    });
+    }).catch(() => undefined);
     return true;
   }
 
@@ -131,7 +131,7 @@ export function handleBlockSelectionCopy(
     if (didCopy) {
       clearCapturedBlockSelection(view, selectedBlocks, doc);
     }
-  });
+  }).catch(() => undefined);
   return true;
 }
 
@@ -158,6 +158,6 @@ export function handleBlockSelectionCut(
     if (didCopy && view.state.doc.eq(doc)) {
       deleteSelectedBlocks(view, selectedBlocks);
     }
-  });
+  }).catch(() => undefined);
   return true;
 }

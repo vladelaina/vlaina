@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scopeImportedMarkdownThemeCss } from './cssScoping';
+import { normalizeFunctionalRootAliases } from './cssScoping/selectorScoping/functionalRootAliases';
 import { getImportedMarkdownThemeScopeSelector } from './dom';
 import { normalizeImportedMarkdownThemeId } from './types';
 
@@ -226,6 +227,16 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).not.toContain(':has(.typora-export #write');
     expect(scoped).not.toContain('.workspace-leaf-content');
     expect(scoped).not.toContain('.view-content > .markdown-preview-view');
+  });
+
+  it('bounds deeply nested selector-list pseudo class normalization', () => {
+    const selector = `${':is('.repeat(20_000)}#write h1${')'.repeat(20_000)}`;
+    let normalized = '';
+
+    expect(() => {
+      normalized = normalizeFunctionalRootAliases(selector);
+    }).not.toThrow();
+    expect(normalized).toContain('#write h1');
   });
 
   it('keeps descendant universal selectors under the markdown theme root', () => {

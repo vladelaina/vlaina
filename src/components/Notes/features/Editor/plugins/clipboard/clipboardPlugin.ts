@@ -1045,7 +1045,7 @@ export const clipboardPlugin = $prose((ctx) => {
 
                         collapseCapturedSelectionAndHideFloatingToolbar(view, selection, doc);
                     }
-                });
+                }).catch(() => undefined);
                 return true;
             },
             handleDOMEvents: {
@@ -1073,7 +1073,7 @@ export const clipboardPlugin = $prose((ctx) => {
                         if (didCopy) {
                             collapseCapturedSelectionAndHideFloatingToolbar(view, selection, doc);
                         }
-                    });
+                    }).catch(() => undefined);
                     return true;
                 },
                 cut(view, event) {
@@ -1104,7 +1104,7 @@ export const clipboardPlugin = $prose((ctx) => {
                         if (didCopy) {
                             deleteCapturedSelection(view, selection, doc);
                         }
-                    });
+                    }).catch(() => undefined);
                     return true;
                 },
                 drop(view, event) {

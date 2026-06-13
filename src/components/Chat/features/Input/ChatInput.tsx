@@ -133,7 +133,7 @@ export const ChatInput = memo(function ChatInput({
       if (shouldMarkPastedTextMultiline(e.clipboardData.getData('text/plain'))) {
         markExplicitMultiline();
       }
-      void handlePaste(e);
+      void handlePaste(e).catch(() => undefined);
     },
     [handlePaste, markExplicitMultiline]
   );

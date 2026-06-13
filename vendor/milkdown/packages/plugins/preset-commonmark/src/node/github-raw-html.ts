@@ -14,6 +14,8 @@ export interface GithubRawHtmlStripResult {
 }
 
 const maxRawHtmlTagEndScanChars = 64 * 1024
+const maxRawHtmlTagNameChars = 128
+const maxRawHtmlContainerMarkupScans = 20_000
 
 function findRawHtmlTagEnd(content: string, start: number, end: number) {
   let quote: string | null = null
@@ -123,8 +125,16 @@ function readRawHtmlTagStart(content: string, start: number) {
 
   const nameStart = cursor
   cursor += 1
-  while (isHtmlNameChar(content[cursor]))
+  while (isHtmlNameChar(content[cursor])) {
     cursor += 1
+    if (cursor - nameStart > maxRawHtmlTagNameChars) {
+      return {
+        closing,
+        name: content.slice(nameStart, nameStart + maxRawHtmlTagNameChars).toLowerCase(),
+        overlongName: true,
+      }
+    }
+  }
 
   if (!isTagBoundary(content[cursor]))
     return null
@@ -158,6 +168,15 @@ function parseRawHtmlFragmentTag(content: string, start: number): RawHtmlTag | n
   const tagStart = readRawHtmlTagStart(content, start)
   if (!tagStart)
     return null
+  if (tagStart.overlongName) {
+    return {
+      closing: tagStart.closing,
+      end: getMalformedRawHtmlTagEnd(content, start),
+      malformed: true,
+      name: tagStart.name,
+      selfClosing: true,
+    }
+  }
 
   const scanEnd = getRawHtmlTagScanEnd(content, start)
   const tagEnd = findRawHtmlTagEnd(content, start, scanEnd)
@@ -183,9 +202,13 @@ function scanRawHtmlContainer(
 ) {
   let cursor = start
   let depth = Math.max(1, initialDepth)
+  let scannedMarkupStarts = 0
   while (cursor < content.length) {
     const nextTagStart = content.indexOf('<', cursor)
     if (nextTagStart === -1)
+      return { closeEnd: null, depth }
+    scannedMarkupStarts += 1
+    if (scannedMarkupStarts > maxRawHtmlContainerMarkupScans)
       return { closeEnd: null, depth }
 
     const nextTag = parseRawHtmlFragmentTag(content, nextTagStart)

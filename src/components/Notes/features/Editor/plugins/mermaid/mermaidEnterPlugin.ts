@@ -33,18 +33,21 @@ function scheduleMermaidEditorOpen(
   meta: ReturnType<typeof createOpenMermaidEditorState>
 ): void {
   const openEditor = () => {
-    if (typeof view.state.doc?.nodeAt === 'function') {
-      const currentNode = view.state.doc.nodeAt(meta.nodePos);
-      if (!currentNode || currentNode.type.name !== 'mermaid') {
-        return;
+    try {
+      if (typeof view.state.doc?.nodeAt === 'function') {
+        const currentNode = view.state.doc.nodeAt(meta.nodePos);
+        if (!currentNode || currentNode.type.name !== 'mermaid') {
+          return;
+        }
       }
-    }
 
-    view.dispatch(
-      view.state.tr
-        .setMeta(mermaidEditorPluginKey, meta)
-        .setMeta('addToHistory', false)
-    );
+      view.dispatch(
+        view.state.tr
+          .setMeta(mermaidEditorPluginKey, meta)
+          .setMeta('addToHistory', false)
+      );
+    } catch {
+    }
   };
 
   if (typeof queueMicrotask === 'function') {
@@ -52,7 +55,7 @@ function scheduleMermaidEditorOpen(
     return;
   }
 
-  void Promise.resolve().then(openEditor);
+  void Promise.resolve().then(openEditor).catch(() => undefined);
 }
 
 export function handleMermaidFenceEnter(view: EditorView): boolean {

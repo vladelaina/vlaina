@@ -91,7 +91,7 @@ function getStarredStateAfterDeletion(
     return shouldRemoveForExternalDeletion(relativePath, deletedPath) ? null : relativePath;
   });
   if (starredResult.changed) {
-    void saveStarredRegistry(starredResult.entries);
+    void Promise.resolve(saveStarredRegistry(starredResult.entries)).catch(() => undefined);
   }
 
   const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
@@ -601,7 +601,7 @@ export function createFileSystemDeleteActions(
         });
 
         if (restoredStarred.changed) {
-          void saveStarredRegistry(restoredStarred.entries);
+          void Promise.resolve(saveStarredRegistry(restoredStarred.entries)).catch(() => undefined);
         }
 
         if (!nextRootFolder) {

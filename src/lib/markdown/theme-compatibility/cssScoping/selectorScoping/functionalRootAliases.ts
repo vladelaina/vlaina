@@ -8,8 +8,13 @@ import {
 const SELECTOR_LIST_FUNCTION_PATTERN = /^:((?:-webkit-|-moz-)?(?:is|where|not|has|any|matches))\(/i;
 const POSITIVE_SELECTOR_LIST_FUNCTION_PATTERN = /^(?:-webkit-|-moz-)?(?:is|where|has|any|matches)$/i;
 const SIMPLIFIABLE_SELECTOR_LIST_FUNCTION_PATTERN = /^(?:-webkit-|-moz-)?(?:is|where|any|matches)$/i;
+export const MAX_FUNCTIONAL_ROOT_ALIAS_DEPTH = 64;
 
-export function normalizeFunctionalRootAliases(selector: string): string {
+export function normalizeFunctionalRootAliases(selector: string, depth = 0): string {
+  if (depth >= MAX_FUNCTIONAL_ROOT_ALIAS_DEPTH) {
+    return selector.trim();
+  }
+
   let result = '';
   let segmentStart = 0;
   let quote: string | null = null;
@@ -47,7 +52,7 @@ export function normalizeFunctionalRootAliases(selector: string): string {
     const shouldFoldRootAliases = POSITIVE_SELECTOR_LIST_FUNCTION_PATTERN.test(match[1]);
     const normalizedArguments = splitSelectorList(inner)
       .map((argument) => {
-        const normalizedArgument = normalizeFunctionalRootAliases(argument);
+        const normalizedArgument = normalizeFunctionalRootAliases(argument, depth + 1);
         return shouldFoldRootAliases
           ? foldNestedLeadingRootSelector(normalizedArgument)
           : normalizedArgument.trim();

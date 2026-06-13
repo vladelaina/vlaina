@@ -1,7 +1,7 @@
 import { getBaseName, getParentPath, isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
@@ -34,11 +34,7 @@ function hasExplicitNonPathScheme(path: string): boolean {
 }
 
 function hasUnsafeMarkdownSelectionPathSegment(path: string): boolean {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .filter(Boolean)
-    .some((segment) => !isSafeVaultPathSegment(segment));
+  return hasUnsafeVaultPathSegment(path);
 }
 
 export function isSupportedMarkdownSelection(path: string): boolean {

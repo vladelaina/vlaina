@@ -15,11 +15,14 @@ function getLocalAssetPath(assetPath: string): string {
 }
 
 function isSafeRelativeAssetPath(assetPath: string): boolean {
+  if (!assetPath || assetPath.length > MAX_LOCAL_ASSET_PATH_CHARS) {
+    return false;
+  }
+
   const trimmed = assetPath.trim();
   return (
     trimmed === assetPath
     && trimmed.length > 0
-    && trimmed.length <= MAX_LOCAL_ASSET_PATH_CHARS
     && !CONTROL_OR_BIDI_PATTERN.test(trimmed)
     && !trimmed.startsWith('\\')
     && !trimmed.startsWith('//')
@@ -80,6 +83,9 @@ export async function resolveVaultAssetPathCandidates(
   currentNotePath?: string,
 ): Promise<string[]> {
   if (hasInternalNoteAssetPathSegment(currentNotePath) || hasUnsafeCurrentNotePath(currentNotePath)) {
+    return [];
+  }
+  if (!assetPath || assetPath.length > MAX_LOCAL_ASSET_PATH_CHARS) {
     return [];
   }
 

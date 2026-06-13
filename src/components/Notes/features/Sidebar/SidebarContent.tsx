@@ -366,7 +366,7 @@ export function SidebarContent({
     void import('./sidebarSearchNavigation').then((mod) => {
       mod.clearSidebarSearchHighlights();
       mod.clearSidebarSearchNavigationPending();
-    });
+    }).catch(() => undefined);
     setPendingNavigation(null);
     setActiveSearchResultId(null);
     setSelectedSearchResultIndex(0);
@@ -413,7 +413,8 @@ export function SidebarContent({
             current === pendingNavigation ? null : current,
           );
         }
-      });
+      })
+      .catch(() => undefined);
 
     return () => {
       cancelled = true;
@@ -456,7 +457,7 @@ export function SidebarContent({
           current === nextNavigation ? null : current,
         );
       });
-    });
+    }).catch(() => undefined);
   };
 
   const handleOpenTagPath = (target: NotesSidebarTagPath) => {

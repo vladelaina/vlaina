@@ -183,7 +183,10 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
   if (!scheme) return trimmed;
   const normalizedScheme = `${scheme}:`;
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) return null;
-  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && hasUrlCredentials(trimmed)) return null;
+  if (
+    (normalizedScheme === 'http:' || normalizedScheme === 'https:') &&
+    (hasUrlCredentials(trimmed) || isLocalNetworkHttpUrl(trimmed))
+  ) return null;
   return SAFE_LINK_SCHEMES.has(normalizedScheme) ? trimmed : null;
 }
 

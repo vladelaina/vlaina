@@ -10,7 +10,10 @@ import {
 } from '@/stores/notes/starred';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
-import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import {
+  hasUnsafeVaultPathSegment,
+  isSafeVaultPathSegment,
+} from '@/stores/notes/utils/fs/vaultPathContainment';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
 const MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES = 2000;
@@ -86,26 +89,65 @@ function prioritizeExternalMarkdownScanEntries<T>(
   getPriority: (entry: T) => number,
   maxEntries = entries.length,
 ): T[] {
+  const limit = Math.max(0, Math.floor(maxEntries));
+  if (limit === 0) {
+    return [];
+  }
+
   const buckets = new Map<number, T[]>();
+  let retainedEntries = 0;
+  let worstPriority: number | null = null;
+
+  const updateWorstPriority = () => {
+    worstPriority = null;
+    for (const priority of buckets.keys()) {
+      if (worstPriority === null || priority > worstPriority) {
+        worstPriority = priority;
+      }
+    }
+  };
+
   for (const entry of entries) {
     const priority = getPriority(entry);
-    const bucket = buckets.get(priority) ?? [];
-    if (bucket.length < maxEntries) {
-      bucket.push(entry);
-      buckets.set(priority, bucket);
+
+    if (retainedEntries >= limit) {
+      if (worstPriority === null || priority >= worstPriority) {
+        continue;
+      }
+
+      const worstBucket = buckets.get(worstPriority);
+      worstBucket?.pop();
+      if (worstBucket?.length === 0) {
+        buckets.delete(worstPriority);
+      }
+    } else {
+      retainedEntries += 1;
     }
+
+    const bucket = buckets.get(priority);
+    if (bucket) {
+      bucket.push(entry);
+    } else {
+      buckets.set(priority, [entry]);
+    }
+    updateWorstPriority();
   }
 
   const prioritized: T[] = [];
   for (const priority of Array.from(buckets.keys()).sort((left, right) => left - right)) {
     for (const entry of buckets.get(priority) ?? []) {
-      if (prioritized.length >= maxEntries) {
+      if (prioritized.length >= limit) {
         return prioritized;
       }
       prioritized.push(entry);
     }
   }
   return prioritized;
+}
+
+function getExternalMarkdownPriorityScanLimit(scannedEntries: number, maxScanEntries: number) {
+  const remainingEntries = Math.max(0, maxScanEntries - scannedEntries);
+  return Math.min(MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES, remainingEntries * 2);
 }
 
 function getExternalMarkdownAbsolutePathPriority(path: string) {
@@ -163,10 +205,7 @@ function hasUnsafeExternalMarkdownPathSegment(path: string) {
   const pathWithoutDrive = /^[A-Za-z]:(?:\/|$)/.test(normalizedPath)
     ? normalizedPath.slice(2)
     : normalizedPath;
-  return pathWithoutDrive
-    .split('/')
-    .filter(Boolean)
-    .some((segment) => !isSafeVaultPathSegment(segment));
+  return hasUnsafeVaultPathSegment(pathWithoutDrive);
 }
 
 function isAllowedExternalMarkdownPath(path: string) {
@@ -366,7 +405,7 @@ async function importExternalMarkdownDirectory(
   for (const entry of prioritizeExternalMarkdownScanEntries(
     entries,
     getExternalMarkdownDirectoryEntryPriority,
-    MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES,
+    getExternalMarkdownPriorityScanLimit(budget.scannedEntries, MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES),
   )) {
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
@@ -444,7 +483,7 @@ export async function importExternalMarkdownEntries(
   for (const absolutePath of prioritizeExternalMarkdownScanEntries(
     absolutePaths,
     getExternalMarkdownAbsolutePathPriority,
-    MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES,
+    getExternalMarkdownPriorityScanLimit(budget.scannedEntries, MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES),
   )) {
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
@@ -522,7 +561,7 @@ export async function resolveExternalMarkdownEntriesForStarred(
   for (const absolutePath of prioritizeExternalMarkdownScanEntries(
     absolutePaths,
     getExternalMarkdownAbsolutePathPriority,
-    MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES,
+    getExternalMarkdownPriorityScanLimit(scannedEntries, MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES),
   )) {
     if (
       scannedEntries >= MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES ||

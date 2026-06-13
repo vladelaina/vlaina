@@ -13,6 +13,7 @@ import {
   MAX_CHAT_MENTION_LOAD_CONCURRENCY,
   MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
   MAX_MENTIONED_NOTES_CONTEXT_CHARS,
+  limitChatMessageImageAttachments,
   loadMentionedFolderImageAttachments,
   loadMentionedNotes,
   normalizeNoteMentions,
@@ -171,6 +172,58 @@ describe('chat service helpers', () => {
     mocks.isConnected = true;
 
     refreshManagedBudgetIfNeeded('vlaina-managed');
+
+    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
+  });
+
+  it('limits combined chat image attachments at the message cap', () => {
+    const attachments = Array.from(
+      { length: MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS + 8 },
+      (_value, index) => createAttachment({
+        id: `attachment-${index}`,
+        path: `/home/user/.vlaina/attachments/attachment-${index}.png`,
+        name: `attachment-${index}.png`,
+      }),
+    );
+
+    const limited = limitChatMessageImageAttachments(attachments);
+
+    expect(limited).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
+    expect(limited.at(0)?.id).toBe('attachment-0');
+    expect(limited.at(-1)?.id).toBe(`attachment-${MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS - 1}`);
+  });
+
+  it('preserves user attachments before folder mention images when applying the message cap', () => {
+    const userAttachments = Array.from(
+      { length: MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS - 1 },
+      (_value, index) => createAttachment({
+        id: `user-${index}`,
+        path: `/home/user/.vlaina/attachments/user-${index}.png`,
+        name: `user-${index}.png`,
+      }),
+    );
+    const folderAttachments = [
+      createAttachment({ id: 'folder-0', path: '/vault/assets/folder-0.png', name: 'folder-0.png' }),
+      createAttachment({ id: 'folder-1', path: '/vault/assets/folder-1.png', name: 'folder-1.png' }),
+    ];
+
+    const limited = limitChatMessageImageAttachments([
+      ...userAttachments,
+      ...folderAttachments,
+    ]);
+
+    expect(limited).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
+    expect(limited.at(-2)?.id).toBe(`user-${MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS - 2}`);
+    expect(limited.at(-1)?.id).toBe('folder-0');
+    expect(limited.some((attachment) => attachment.id === 'folder-1')).toBe(false);
+  });
+
+  it('ignores managed budget refresh failures', async () => {
+    mocks.isConnected = true;
+    mocks.refreshBudget.mockRejectedValueOnce(new Error('refresh failed'));
+
+    refreshManagedBudgetIfNeeded('vlaina-managed');
+    await Promise.resolve();
 
     expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
   });
@@ -485,6 +538,9 @@ describe('loadMentionedNotes', () => {
     expect(normalizeNoteMentions([
       { path: '../secret.md', title: 'Outside' },
       { path: 'https://example.com/secret.md', title: 'Remote' },
+      { path: 'https:example.com/secret.md', title: 'Remote shorthand' },
+      { path: 'mailto:secret.md', title: 'Mailto' },
+      { path: String.raw`https\://example.com/secret.md`, title: 'Remote escaped' },
       { path: 'docs/.vlaina/config.md', title: 'Internal' },
       { path: 'docs/plain.txt', title: 'Text', kind: 'note' },
       { path: 'assets', title: 'assets/', kind: 'folder' },
@@ -508,6 +564,8 @@ describe('loadMentionedNotes', () => {
       { path: 'docs/bad-title.md', title: null } as unknown as NoteMentionReference,
       { path: '../secret.md', title: 'Outside' },
       { path: 'docs/.vlaina/config.md', title: 'Internal' },
+      { path: 'mailto:secret.md', title: 'Mailto' },
+      { path: 'https:example.com/secret.md', title: 'Remote shorthand' },
       { path: 'docs/not-note.txt', title: 'Text', kind: 'note' },
       { path: 'docs/alpha.md', title: 'Alpha' },
       { path: 'docs/beta.md', title: 'Beta' },
@@ -756,6 +814,36 @@ describe('loadMentionedNotes', () => {
     ]);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/outside/ignored.markdown', MAX_NOTE_MENTION_READ_BYTES);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/nested/huge.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
+  it('prioritizes markdown entries before applying the folder mention scan cap', async () => {
+    mocks.notesState.rootFolder = null;
+    mocks.storage.listDir.mockResolvedValue([
+      ...Array.from({ length: 5000 }, (_value, index) => ({
+        name: `asset-${String(index).padStart(4, '0')}.txt`,
+        path: `/vault/docs/asset-${String(index).padStart(4, '0')}.txt`,
+        isDirectory: false,
+        isFile: true,
+        size: 16,
+      })),
+      {
+        name: 'late.mdown',
+        path: '/vault/docs/late.mdown',
+        isDirectory: false,
+        isFile: true,
+        size: 32,
+      },
+    ]);
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 32 });
+    mocks.storage.readFile.mockResolvedValue('# Late');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes.map((note) => note.path)).toContain('docs/late.mdown');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.mdown', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledTimes(1);
   });
 
   it('scans starred external folder mentions for markdown notes', async () => {

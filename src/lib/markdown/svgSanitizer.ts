@@ -1,4 +1,10 @@
 import DOMPurify from 'dompurify';
+import {
+  containsExternalSvgStyleElementReference,
+  containsExternalSvgUrlReference,
+  isLocalSvgReference,
+  removeExternalSvgStyleDeclarations,
+} from './svgResourceReferences';
 
 export const MAX_SVG_SANITIZE_MARKUP_CHARS = 50 * 1024 * 1024;
 export const MAX_SVG_SANITIZE_BYTES = MAX_SVG_SANITIZE_MARKUP_CHARS;
@@ -23,25 +29,6 @@ const SVG_URL_REFERENCE_ATTRIBUTES = new Set([
   'stroke',
 ]);
 
-function containsExternalSvgStyleElementReference(value: string): boolean {
-  return /@import/i.test(value) || containsExternalSvgUrlReference(value);
-}
-
-function containsExternalSvgUrlReference(value: string): boolean {
-  const urlPattern = /url\s*\(\s*(['"]?)(.*?)\1\s*\)/gi;
-  let match: RegExpExecArray | null;
-  while ((match = urlPattern.exec(value)) !== null) {
-    if (!isLocalSvgReference(match[2] || '')) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isLocalSvgReference(value: string): boolean {
-  return value.trim().startsWith('#');
-}
-
 function removeExternalHref(element: Element): void {
   for (const attributeName of ['href', 'xlink:href']) {
     const value = element.getAttribute(attributeName);
@@ -52,8 +39,13 @@ function removeExternalHref(element: Element): void {
 }
 
 function sanitizeSvgStyleAttribute(style: string): string {
+  const filteredStyle = removeExternalSvgStyleDeclarations(style);
+  if (!filteredStyle) {
+    return '';
+  }
+
   const scratch = document.createElement('span');
-  scratch.setAttribute('style', style);
+  scratch.setAttribute('style', filteredStyle);
 
   for (let index = scratch.style.length - 1; index >= 0; index -= 1) {
     const propertyName = scratch.style.item(index);
@@ -61,7 +53,8 @@ function sanitizeSvgStyleAttribute(style: string): string {
       scratch.style.removeProperty(propertyName);
     }
   }
-  return scratch.getAttribute('style') || '';
+  const serialized = scratch.style.cssText || scratch.getAttribute('style') || filteredStyle;
+  return containsExternalSvgUrlReference(serialized) ? '' : serialized;
 }
 
 function walkBudgetedSvgElements(
@@ -105,12 +98,7 @@ function stripExternalSvgResourceReferences(markup: string): string {
 
   const template = document.createElement('template');
   template.innerHTML = markup;
-  const shouldStripResourceReferences = /url\s*\(|href\s*=|@import/i.test(markup);
   const withinBudget = walkBudgetedSvgElements(template.content, (element) => {
-    if (!shouldStripResourceReferences) {
-      return;
-    }
-
     if (element.localName.toLowerCase() === 'style') {
       if (containsExternalSvgStyleElementReference(element.textContent || '')) {
         element.remove();

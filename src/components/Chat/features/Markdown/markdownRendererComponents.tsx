@@ -249,7 +249,7 @@ function MarkdownImage({
             aria-label={t('chat.downloadImage')}
             onClick={(event) => {
               event.stopPropagation();
-              void downloadImageWithPrompt(src, alt);
+              void downloadImageWithPrompt(src, alt).catch(() => undefined);
             }}
             className={cn('p-1.5', iconButtonStyles)}
           >

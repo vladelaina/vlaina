@@ -24,7 +24,7 @@ export function TreeItemDeleteDialog({
       isOpen={open}
       onClose={() => onOpenChange(false)}
       onConfirm={() => {
-        void onConfirm();
+        void Promise.resolve(onConfirm()).catch(() => undefined);
       }}
       title={t('sidebar.deleteItemTitle', { itemType: itemTypeLabel })}
       description={t('sidebar.deleteItemDescription', { itemLabel })}

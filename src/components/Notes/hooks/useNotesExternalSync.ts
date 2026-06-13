@@ -71,7 +71,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     const unsubscribeRenameBroadcast = subscribeNotesExternalPathRename(
       notesPath,
       (event) => {
-        void applyRenameEvent(event);
+        void applyRenameEvent(event).catch(() => undefined);
       }
     );
 
@@ -113,14 +113,22 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     }
 
     const reconcileExternalPathEventFile = async () => {
-      const events = await readNotesExternalPathEvents(notesPath, {
-        afterStamp: eventFileStartedAt,
-      });
+      let events: Array<{ nonce?: string; oldPath: string; newPath: string }>;
+      try {
+        events = await readNotesExternalPathEvents(notesPath, {
+          afterStamp: eventFileStartedAt,
+        });
+      } catch {
+        return;
+      }
       if (disposed || useNotesStore.getState().notesPath !== notesPath) {
         return;
       }
       for (const event of events) {
-        await applyRenameEvent(event);
+        await applyRenameEvent(event).catch(() => undefined);
+        if (disposed || useNotesStore.getState().notesPath !== notesPath) {
+          return;
+        }
       }
     };
 
@@ -198,7 +206,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
           { recursive: true }
         );
         if (disposed) {
-          void stopWatching();
+          void stopWatching().catch(() => undefined);
           return;
         }
 
@@ -214,7 +222,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
     };
 
-    void run();
+    void run().catch(() => undefined);
     window.addEventListener('focus', reconcileOnFocus);
     document.addEventListener('visibilitychange', reconcileOnVisibilityChange);
 
@@ -225,7 +233,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       stopReconcilePolling();
       unsubscribeRenameBroadcast();
       syncActions.clearTimers();
-      void unwatch?.();
+      void unwatch?.().catch(() => undefined);
       releaseWatcher?.();
     };
   }, [

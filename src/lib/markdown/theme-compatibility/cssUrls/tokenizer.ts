@@ -61,7 +61,7 @@ export function findCssUrlTokens(css: string): CssUrlToken[] {
     }
 
     if (closeIndex < 0) {
-      index = functionIndex + 4;
+      index = Math.max(cursor, functionIndex + 4);
       continue;
     }
 

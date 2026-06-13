@@ -263,6 +263,29 @@ describe('ChatSidebar', () => {
     expect(hoisted.switchSession).toHaveBeenCalledWith('s2');
   });
 
+  it('isolates rejected session switches from chat search submission', async () => {
+    hoisted.chatSidebarSearchOpen = true;
+    hoisted.sessions = [
+      buildSession('s1', 'Alpha'),
+      buildSession('s2', 'Alpine'),
+    ];
+    hoisted.switchSession.mockRejectedValueOnce(new Error('switch failed'));
+
+    render(<ChatSidebar active />);
+
+    const input = screen.getByLabelText('chat-search');
+    fireEvent.change(input, { target: { value: 'Al' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha')).toHaveAttribute('data-highlighted', 'true');
+    });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(hoisted.switchSession).toHaveBeenCalledWith('s2');
+  });
+
   it('focuses the composer after confirming a sidebar chat delete', async () => {
     const { focusComposerInput } = await import('@/lib/ui/composerFocusRegistry');
     hoisted.deleteSession.mockResolvedValue(undefined);
@@ -278,5 +301,20 @@ describe('ChatSidebar', () => {
     await waitFor(() => {
       expect(focusComposerInput).toHaveBeenCalled();
     });
+  });
+
+  it('isolates rejected sidebar chat deletes', async () => {
+    const { focusComposerInput } = await import('@/lib/ui/composerFocusRegistry');
+    hoisted.deleteSession.mockRejectedValueOnce(new Error('delete failed'));
+
+    render(<ChatSidebar active />);
+
+    fireEvent.click(screen.getByText('delete Alpha'));
+    fireEvent.click(screen.getByTestId('confirm-dialog'));
+
+    await waitFor(() => {
+      expect(hoisted.deleteSession).toHaveBeenCalledWith('s1');
+    });
+    expect(focusComposerInput).not.toHaveBeenCalled();
   });
 });

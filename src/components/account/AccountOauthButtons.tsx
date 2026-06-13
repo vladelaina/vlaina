@@ -40,7 +40,7 @@ export function AccountOauthButtons({
           aria-disabled={disabled ? 'true' : undefined}
           onClick={() => {
             if (disabled) return;
-            void onOauthSignIn(option.provider);
+            void Promise.resolve(onOauthSignIn(option.provider)).catch(() => undefined);
           }}
           className={cn(
             'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-full px-5 text-[var(--vlaina-font-sm)] font-semibold tracking-tight text-[var(--vlaina-color-text-strong)] transition-all duration-[var(--vlaina-duration-200)] active:scale-[var(--vlaina-scale-985)] sm:h-[var(--vlaina-size-60px)] sm:px-6 sm:text-[var(--vlaina-font-15)] md:h-16',

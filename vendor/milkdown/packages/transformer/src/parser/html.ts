@@ -20,6 +20,10 @@ interface InlineHtmlMergeContext {
   visitedNodes: number
 }
 
+interface InlineHtmlRenderContext {
+  visitedNodes: number
+}
+
 function hasInlineHtmlMergeBudget(context: InlineHtmlMergeContext, depth: number): boolean {
   context.visitedNodes += 1
   return context.visitedNodes <= MAX_INLINE_HTML_MERGE_AST_NODES
@@ -33,44 +37,58 @@ function escapeHtmlText(value: string): string {
     .replace(/>/g, '&gt;')
 }
 
-function markdownInlineNodeToHtml(node: MarkdownNode): string | null {
+function hasInlineHtmlRenderBudget(context: InlineHtmlRenderContext, depth: number): boolean {
+  context.visitedNodes += 1
+  return context.visitedNodes <= MAX_INLINE_HTML_MERGE_AST_NODES
+    && depth <= MAX_INLINE_HTML_MERGE_DEPTH
+}
+
+function markdownInlineNodeToHtml(
+  node: MarkdownNode,
+  context: InlineHtmlRenderContext,
+  depth = 0
+): string | null {
+  if (!hasInlineHtmlRenderBudget(context, depth)) return null
   if (node.type === 'text') return escapeHtmlText(String(node.value ?? ''))
   if (node.type === 'html') return String(node.value ?? '')
   if (node.type === 'inlineCode') return `<code>${escapeHtmlText(String(node.value ?? ''))}</code>`
   if (node.type === 'emphasis' || node.type === 'strong' || node.type === 'delete') {
     const tag = node.type === 'emphasis' ? 'em' : node.type === 'strong' ? 'strong' : 'del'
-    const children = (node.children ?? []).map(markdownInlineNodeToHtml)
+    if ((node.children?.length ?? 0) > MAX_INLINE_HTML_MERGE_CHILDREN) return null
+    const children = (node.children ?? []).map((child) =>
+      markdownInlineNodeToHtml(child, context, depth + 1)
+    )
     if (children.some((child) => child === null)) return null
     return `<${tag}>${children.join('')}</${tag}>`
   }
   return null
 }
 
-function hasMarkdownInlineSyntax(nodes: MarkdownNode[]): boolean {
-  return nodes.some((node) => {
-    if (node.type !== 'text' && node.type !== 'html')
-      return true
-    return Array.isArray(node.children) && hasMarkdownInlineSyntax(node.children)
-  })
-}
-
-function hasStrongInlineSyntax(nodes: MarkdownNode[]): boolean {
-  return nodes.some((node) => {
-    if (node.type === 'strong')
-      return true
-    return Array.isArray(node.children) && hasStrongInlineSyntax(node.children)
-  })
-}
-
 function hasRawHtmlTagText(nodes: MarkdownNode[]): boolean {
-  return nodes.some((node) => {
+  const stack = nodes.map((node) => ({ node, depth: 0 }))
+  let visitedNodes = 0
+  while (stack.length > 0) {
+    const item = stack.pop()
+    if (!item) continue
+    const { node, depth } = item
+    visitedNodes += 1
+    if (
+      visitedNodes > MAX_INLINE_HTML_MERGE_AST_NODES ||
+      depth > MAX_INLINE_HTML_MERGE_DEPTH
+    ) return true
+
     if (
       (node.type === 'text' || node.type === 'html') &&
       RAW_HTML_TAG_TEXT_PATTERN.test(String(node.value ?? ''))
     )
       return true
-    return Array.isArray(node.children) && hasRawHtmlTagText(node.children)
-  })
+    if (!Array.isArray(node.children)) continue
+    for (let index = node.children.length - 1; index >= 0; index -= 1) {
+      const child = node.children[index]
+      if (child) stack.push({ node: child, depth: depth + 1 })
+    }
+  }
+  return false
 }
 
 function getSourceSlice(
@@ -164,7 +182,7 @@ function getBlockHtmlOpenTagName(node: MarkdownNode): string | null {
   const value = String(node.value ?? '').trimStart()
   const openMatch = HTML_OPEN_TAG_PREFIX_PATTERN.exec(value)
   const tagName = openMatch?.[1]?.toLowerCase()
-  if (!tagName || HTML_SELF_CLOSING_PATTERN.test(openMatch[0])) return null
+  if (!tagName || !openMatch || HTML_SELF_CLOSING_PATTERN.test(openMatch[0])) return null
   if (value.includes(`</${tagName}`)) return null
   return tagName
 }
@@ -190,7 +208,8 @@ function findBlockHtmlCloseIndex(closeIndexes: number[] | undefined, startIndex:
   let right = closeIndexes.length
   while (left < right) {
     const mid = (left + right) >> 1
-    if (closeIndexes[mid] <= startIndex) left = mid + 1
+    const midValue = closeIndexes[mid]
+    if (midValue !== undefined && midValue <= startIndex) left = mid + 1
     else right = mid
   }
   return closeIndexes[left] ?? -1
@@ -201,6 +220,7 @@ function mergePairedBlockHtmlChildren(children: MarkdownNode[], markdown?: strin
   const mergedChildren: MarkdownNode[] = []
   for (let index = 0; index < children.length; index += 1) {
     const child = children[index]
+    if (!child) continue
     const tagName = getBlockHtmlOpenTagName(child)
     if (!tagName) {
       mergedChildren.push(child)
@@ -213,7 +233,13 @@ function mergePairedBlockHtmlChildren(children: MarkdownNode[], markdown?: strin
       continue
     }
 
-    const pairedSource = getSourceSlice(markdown, child, children[closeIndex])
+    const closeNode = children[closeIndex]
+    if (!closeNode) {
+      mergedChildren.push(child)
+      continue
+    }
+
+    const pairedSource = getSourceSlice(markdown, child, closeNode)
     if (!pairedSource || !pairedSource.includes('\n') || !isGfmHtmlBlock(pairedSource)) {
       mergedChildren.push(child)
       continue
@@ -250,7 +276,8 @@ function mergePairedInlineHtmlWithBudget(
   const mergedChildren: MarkdownNode[] = []
   for (let index = 0; index < node.children.length; index += 1) {
     const child = node.children[index]
-    const value = child?.type === 'html' ? htmlValues[index] ?? '' : ''
+    if (!child) continue
+    const value = child.type === 'html' ? htmlValues[index] ?? '' : ''
     const openTagMatch = HTML_OPEN_TAG_PATTERN.exec(value)
     if (!openTagMatch || HTML_SELF_CLOSING_PATTERN.test(value)) {
       mergedChildren.push(child)
@@ -269,8 +296,14 @@ function mergePairedInlineHtmlWithBudget(
       continue
     }
 
+    const closeNode = node.children[closeIndex]
+    if (!closeNode) {
+      mergedChildren.push(child)
+      continue
+    }
+
     const innerNodes = node.children.slice(index + 1, closeIndex)
-    const pairedSource = getSourceSlice(markdown, child, node.children[closeIndex])
+    const pairedSource = getSourceSlice(markdown, child, closeNode)
     if (pairedSource?.includes('\n') && isGfmHtmlBlock(pairedSource)) {
       mergedChildren.push({
         type: 'html',
@@ -296,7 +329,10 @@ function mergePairedInlineHtmlWithBudget(
       mergedChildren.push(child)
       continue
     }
-    const innerHtmlParts = innerNodes.map(markdownInlineNodeToHtml)
+    const renderContext = { visitedNodes: 0 }
+    const innerHtmlParts = innerNodes.map((innerNode) =>
+      markdownInlineNodeToHtml(innerNode, renderContext)
+    )
     if (innerHtmlParts.some((part) => part === null)) {
       mergedChildren.push(child)
       continue
@@ -304,7 +340,7 @@ function mergePairedInlineHtmlWithBudget(
 
     mergedChildren.push({
       type: 'html',
-      value: `${value}${innerHtmlParts.join('')}${node.children[closeIndex].value}`,
+      value: `${value}${innerHtmlParts.join('')}${closeNode.value}`,
     } as MarkdownNode)
     index = closeIndex
   }
@@ -314,7 +350,8 @@ function mergePairedInlineHtmlWithBudget(
     node.children = node.children.map(markGfmHtmlBlock)
   if (node.type === 'paragraph' && node.children.length === 1) {
     const child = node.children[0]
-    const value = child?.type === 'html' ? String(child.value ?? '').trim() : ''
+    if (!child) return node
+    const value = child.type === 'html' ? String(child.value ?? '').trim() : ''
     if (isGfmHtmlBlock(value))
       return markGfmHtmlBlock(child)
   }

@@ -5,7 +5,7 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
-  isSafeVaultPathSegment,
+  hasUnsafeVaultPathSegment,
   normalizeVaultRelativePath,
 } from '@/stores/notes/utils/fs/vaultPathContainment';
 
@@ -19,11 +19,7 @@ export function getFsPathComparisonKey(path: string): string {
 }
 
 export function hasUnsafeFsPathSegment(path: string): boolean {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .filter(Boolean)
-    .some((segment) => !isSafeVaultPathSegment(segment));
+  return hasUnsafeVaultPathSegment(path);
 }
 
 export function isInsideVault(vaultPath: string, absolutePath: string): boolean {

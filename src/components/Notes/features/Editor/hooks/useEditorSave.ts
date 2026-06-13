@@ -23,11 +23,11 @@ export function useEditorSave(saveNote: (options?: { explicit?: boolean }) => Pr
 
   const flushSave = useCallback((explicit = false) => {
     if (explicit) {
-      void saveNoteRef.current({ explicit: true });
+      void Promise.resolve(saveNoteRef.current({ explicit: true })).catch(() => undefined);
       return;
     }
 
-    void saveQueueRef.current?.flush();
+    void Promise.resolve(saveQueueRef.current?.flush()).catch(() => undefined);
   }, []);
 
   const debouncedSave = useCallback(() => {

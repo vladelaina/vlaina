@@ -50,6 +50,13 @@ describe('vaultPathContainment', () => {
     expect(normalizeVaultRelativePath('docs/../../secret.md')).toBeNull();
   });
 
+  it('rejects URL-like paths before treating them as vault-relative paths', () => {
+    expect(normalizeVaultRelativePath('https://example.test/alpha.md')).toBeNull();
+    expect(normalizeVaultRelativePath('file:///etc/passwd.md')).toBeNull();
+    expect(normalizeVaultRelativePath('https\\://example.test/alpha.md')).toBeNull();
+    expect(normalizeVaultRelativePath('C:relative.md')).toBeNull();
+  });
+
   it('rejects control and bidi characters in vault-relative paths', () => {
     expect(normalizeVaultRelativePath('docs/secret\0.md')).toBeNull();
     expect(normalizeVaultRelativePath('docs/secret\u001F.md')).toBeNull();
@@ -62,6 +69,7 @@ describe('vaultPathContainment', () => {
     const oversizedPath = `${'a'.repeat(MAX_VAULT_RELATIVE_PATH_CHARS + 1)}.md`;
 
     expect(isSafeVaultPathSegment(oversizedPath)).toBe(false);
+    expect(hasUnsafeVaultPathSegment(oversizedPath)).toBe(true);
     expect(normalizeVaultRelativePath(oversizedPath)).toBeNull();
   });
 

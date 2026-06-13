@@ -169,6 +169,9 @@ describe('asset path resolution', () => {
 
     await expect(resolveVaultAssetPathCandidates('/vault', `${'a'.repeat(16 * 1024)}.png`, 'daily/note.md'))
       .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', `assets/a.png?${'x'.repeat(16 * 1024)}`, 'daily/note.md'))
+      .resolves.toEqual([]);
   });
 
   it('rejects windows parent traversal outside the vault root', async () => {

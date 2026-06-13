@@ -67,7 +67,7 @@ export function createAiReviewPanelController(): AiReviewPanelController {
               id: liveReview.commandId ?? liveReview.toneId ?? 'custom',
               instruction: liveReview.instruction,
               toneId: liveReview.toneId ?? null,
-            });
+            }).catch(() => undefined);
           },
         })
       );

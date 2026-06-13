@@ -84,6 +84,22 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('//example.com');
   });
 
+  it('blocks local-network raw HTML links during editor sanitization', () => {
+    const result = sanitizeHtml([
+      '<a href="http://127.0.0.1:3000/admin">local</a>',
+      '<a href="http://router/admin">router</a>',
+      '<a href="https://example.com/docs">public</a>',
+      '<a href="/docs/readme">root</a>',
+    ].join(''));
+
+    expect(result).toBe([
+      '<a>local</a>',
+      '<a>router</a>',
+      '<a href="https://example.com/docs">public</a>',
+      '<a href="/docs/readme">root</a>',
+    ].join(''));
+  });
+
   it('keeps constrained editor-style inline styles while dropping executable CSS', () => {
     const result = sanitizeHtml(
       [

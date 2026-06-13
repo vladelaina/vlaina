@@ -138,4 +138,36 @@ describe('useNotesSidebarExternalDropImport', () => {
     expect(revealFolder).toHaveBeenCalledWith('');
     expect(mocks.messageDialog).not.toHaveBeenCalled();
   });
+
+  it('isolates rejected external drop imports', async () => {
+    const sidebar = document.createElement('div');
+    sidebar.dataset.notesSidebarScrollRoot = 'true';
+    const rootTarget = document.createElement('div');
+    rootTarget.dataset.fileTreeRootDropTarget = 'true';
+    sidebar.appendChild(rootTarget);
+    document.body.appendChild(sidebar);
+    document.elementsFromPoint = vi.fn(() => [rootTarget]);
+    mocks.importExternalMarkdownEntries.mockRejectedValueOnce(new Error('copy failed'));
+
+    const loadFileTree = vi.fn(async () => undefined);
+    const revealFolder = vi.fn();
+    renderHook(() => useNotesSidebarExternalDropImport({
+      enabled: true,
+      vaultPath: '/vault',
+      loadFileTree,
+      revealFolder,
+    }));
+
+    await act(async () => {
+      window.dispatchEvent(createDropEvent([createDropFile('/outside/alpha.md')]));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(importExternalMarkdownEntries).toHaveBeenCalledWith('/vault', '', ['/outside/alpha.md']);
+    });
+    expect(loadFileTree).not.toHaveBeenCalled();
+    expect(revealFolder).not.toHaveBeenCalled();
+  });
 });

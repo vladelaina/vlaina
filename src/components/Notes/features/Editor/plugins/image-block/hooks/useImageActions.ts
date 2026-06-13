@@ -4,7 +4,8 @@ import { useToastStore } from '@/stores/useToastStore';
 import { sanitizeFilename } from '@/lib/assets/core/naming';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
-import { fetchBoundedImageBlobResult } from '@/lib/markdown/fetchBoundedImageBlob';
+import { fetchBoundedImageBlobResult, MAX_FETCHED_IMAGE_BYTES } from '@/lib/markdown/fetchBoundedImageBlob';
+import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from '@/lib/markdown/svgRasterize';
 import { saveDialog } from '@/lib/storage/dialog';
 import { ensureImageFileExists } from '../utils/fileUtils';
 import { EditorView } from '@milkdown/kit/prose/view';
@@ -27,6 +28,35 @@ function isValidCropArea(value: CropArea): boolean {
 function getSafeDownloadExtension(src: string) {
     const extension = src.split('#')[0]?.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
     return DOWNLOAD_IMAGE_EXTENSIONS.has(extension) ? extension : 'png';
+}
+
+function isLikelySvgImageSource(src: string | null | undefined): boolean {
+    const normalized = src?.split('#')[0]?.split('?')[0]?.trim().toLowerCase() ?? '';
+    return normalized.endsWith('.svg') || normalized.endsWith('.svgz');
+}
+
+function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
+    return Number.isFinite(size) && size >= 0 && size <= maxBytes;
+}
+
+async function normalizeActionImageBlob(blob: Blob): Promise<Blob | null> {
+    if (!blob.type.startsWith('image/')) {
+        return null;
+    }
+
+    const outputBlob = isSvgImageMimeType(blob.type)
+        ? await rasterizeSvgBlobToPngBlob(blob)
+        : blob;
+
+    if (
+        !outputBlob ||
+        !outputBlob.type.startsWith('image/') ||
+        !isBlobByteLengthWithinLimit(outputBlob.size, MAX_FETCHED_IMAGE_BYTES)
+    ) {
+        return null;
+    }
+
+    return outputBlob;
 }
 
 export function createImageDownloadDefaultName(alt: string, src: string) {
@@ -125,8 +155,8 @@ export function useImageActions({
                 if (result.status === 'too-large') {
                     return false;
                 }
-                const blob = result.blob;
-                if (!blob.type.startsWith('image/')) {
+                const blob = await normalizeActionImageBlob(result.blob);
+                if (!blob) {
                     return writeTextToClipboard(nodeSrc);
                 }
                 await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
@@ -141,6 +171,7 @@ export function useImageActions({
 
     const handleDownload = async () => {
         if (!resolvedSrc) return;
+        let allowAnchorFallback = !isLikelySvgImageSource(baseSrc) && !isLikelySvgImageSource(resolvedSrc);
         try {
             await restoreIfNeeded();
             const defaultName = createImageDownloadDefaultName(nodeAlt || 'image', baseSrc);
@@ -148,10 +179,14 @@ export function useImageActions({
             if (!filePath) return;
             const result = await fetchBoundedImageBlobResult(resolvedSrc);
             if (result.status === 'too-large') return;
-            const blob = result.blob;
-            if (!blob.type.startsWith('image/')) return;
+            if (isSvgImageMimeType(result.blob.type)) {
+                allowAnchorFallback = false;
+            }
+            const blob = await normalizeActionImageBlob(result.blob);
+            if (!blob) return;
             await writeDesktopBinaryFile(filePath, await readBlobBytes(blob));
         } catch {
+            if (!allowAnchorFallback) return;
             const link = document.createElement('a');
             link.href = resolvedSrc;
             link.download = nodeAlt || 'image';

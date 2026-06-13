@@ -2,6 +2,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 
 export const MAX_EXTERNAL_DROP_FILE_SCAN = 2000;
 export const MAX_EXTERNAL_DROP_TYPE_SCAN = 1024;
+export const MAX_EXTERNAL_DROP_PATH_CHARS = 64 * 1024;
 
 type ExternalDropArrayLike<T> = ArrayLike<T> & {
   item?: (index: number) => T | null;
@@ -27,6 +28,15 @@ function getTypeAt(types: ExternalDropArrayLike<string>, index: number): string 
   return types[index] ?? null;
 }
 
+function normalizeExternalDropPath(value: string | undefined): string | null {
+  if (!value || value.length > MAX_EXTERNAL_DROP_PATH_CHARS) {
+    return null;
+  }
+
+  const path = value.trim();
+  return path ? path : null;
+}
+
 export function getDroppedExternalPaths(dataTransfer: DataTransfer | null | undefined): string[] {
   const files = dataTransfer?.files as ExternalDropArrayLike<File> | null | undefined;
   const fileCount = getArrayLikeLength(files);
@@ -39,14 +49,14 @@ export function getDroppedExternalPaths(dataTransfer: DataTransfer | null | unde
     const file = getFileAt(files, index);
     if (!file) continue;
 
-    const legacyPath = ((file as File & { path?: string }).path ?? '').trim();
+    const legacyPath = normalizeExternalDropPath((file as File & { path?: string }).path);
     if (legacyPath) {
       paths.push(legacyPath);
       continue;
     }
 
     try {
-      const path = dragDrop?.getPathForFile(file).trim() || '';
+      const path = normalizeExternalDropPath(dragDrop?.getPathForFile(file));
       if (path) paths.push(path);
     } catch {
       // Ignore unreadable drag entries.

@@ -24,17 +24,17 @@ export function useSyncInit() {
 
     const params = new URLSearchParams(window.location.search);
     if (params.has('auth_state') || params.has('auth_error') || params.has('auth_provider')) {
-      void run();
+      void run().catch(() => undefined);
       return;
     }
 
-    void checkStatus();
+    void checkStatus().catch(() => undefined);
   }, [handleAuthCallback, checkStatus]);
 
   useEffect(() => {
-    void useAccountSessionStore.getState().hydrateAvatar();
+    void useAccountSessionStore.getState().hydrateAvatar().catch(() => undefined);
     if (!hasElectronDesktopBridge()) return;
-    void checkStatus();
+    void checkStatus().catch(() => undefined);
   }, [checkStatus]);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function useSyncInit() {
 
     if (isConnected) {
       intervalRef.current = setInterval(() => {
-        void checkStatus();
+        void checkStatus().catch(() => undefined);
       }, TOKEN_CHECK_INTERVAL);
     }
 

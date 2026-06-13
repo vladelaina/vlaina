@@ -33,6 +33,14 @@ describe('external path broadcast persistence', () => {
     vi.unstubAllGlobals();
   });
 
+  it('does not read missing event files after stat returns null', async () => {
+    adapter.stat.mockResolvedValue(null);
+
+    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('ignores oversized event files before reading them', async () => {
     adapter.stat.mockResolvedValue({ size: 300 * 1024 });
 
@@ -168,6 +176,47 @@ describe('external path broadcast persistence', () => {
     ]);
   });
 
+  it('does not load stored rename events with URL-like paths', async () => {
+    adapter.stat.mockResolvedValue({ size: 256 });
+    adapter.readFile.mockResolvedValue(JSON.stringify([
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'url-new',
+        stamp: 1,
+        notesPath: '/vault',
+        oldPath: 'docs/a.md',
+        newPath: 'http://example.test/b.md',
+      },
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'url-old',
+        stamp: 2,
+        notesPath: '/vault',
+        oldPath: 'https\\://example.test/a.md',
+        newPath: 'docs/b.md',
+      },
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'valid',
+        stamp: 3,
+        notesPath: '/vault',
+        oldPath: 'docs/c.md',
+        newPath: 'docs/d.md',
+      },
+    ]));
+
+    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        nonce: 'valid',
+        oldPath: 'docs/c.md',
+        newPath: 'docs/d.md',
+      }),
+    ]);
+  });
+
   it('normalizes stored rename event paths before replaying them', async () => {
     adapter.stat.mockResolvedValue({ size: 256 });
     adapter.readFile.mockResolvedValue(JSON.stringify([
@@ -254,6 +303,22 @@ describe('external path broadcast persistence', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
+  it('does not persist emitted rename events with URL-like paths', () => {
+    emitNotesExternalPathRename({
+      notesPath: '/vault',
+      oldPath: 'docs/a.md',
+      newPath: 'http://example.test/b.md',
+    });
+    emitNotesExternalPathRename({
+      notesPath: '/vault',
+      oldPath: 'https\\://example.test/a.md',
+      newPath: 'docs/b.md',
+    });
+
+    expect(localStorage.getItem('vlaina-notes-external-path-event')).toBeNull();
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('does not persist emitted rename events for internal note folders', () => {
     emitNotesExternalPathRename({
       notesPath: '/vault',
@@ -321,6 +386,27 @@ describe('external path broadcast persistence', () => {
         notesPath: '/vault',
         oldPath: '../secret.md',
         newPath: 'docs/b.md',
+      }),
+    }));
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('ignores URL-like storage rename events before notifying listeners', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeNotesExternalPathRename('/vault', listener);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-notes-external-path-event',
+      newValue: JSON.stringify({
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'n1',
+        stamp: Date.now(),
+        notesPath: '/vault',
+        oldPath: 'docs/a.md',
+        newPath: 'http://example.test/b.md',
       }),
     }));
 
