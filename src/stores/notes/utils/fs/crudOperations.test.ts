@@ -5,7 +5,7 @@ const adapter = {
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   stat: vi.fn<
-    (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>
+    (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; createdAt?: number | null; modifiedAt?: number | null; size?: number | null } | null>
   >(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
@@ -35,12 +35,10 @@ describe('createNoteImpl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+    adapter.stat.mockResolvedValue({ createdAt: 122, modifiedAt: 123, size: 16 });
   });
 
-  it('preserves incoming managed frontmatter fields while filling missing timestamps', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+  it('preserves incoming managed frontmatter fields and derives timestamps from file stats', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
       fullPath: '/vault/alpha.md',
@@ -51,6 +49,7 @@ describe('createNoteImpl', () => {
       '---',
       'vlaina_cover: "assets/alpha.webp"',
       'vlaina_icon: "🐱"',
+      'vlaina_icon_size: 84',
       '---',
       '',
       '# Alpha',
@@ -69,10 +68,8 @@ describe('createNoteImpl', () => {
 
     expect(adapter.writeFile).toHaveBeenNthCalledWith(1, '/vault/alpha.md', [
       '---',
-      'vlaina_cover: "assets/alpha.webp"',
-      'vlaina_icon: "🐱"',
-      'vlaina_created: 2026-04-15 18:00:00 +08:00',
-      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+      'vlaina_cover: asset="assets/alpha.webp"',
+      'vlaina_icon: value="🐱" size=84',
       '---',
       '',
       '# Alpha',
@@ -82,18 +79,15 @@ describe('createNoteImpl', () => {
         assetPath: 'assets/alpha.webp',
       },
       icon: '🐱',
-      createdAt: Date.parse('2026-04-15T10:00:00.000Z'),
-      updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
+      iconSize: 84,
+      createdAt: 122,
+      updatedAt: 123,
     });
     expect(result.modifiedAt).toBe(123);
     expect(result.size).toBe(16);
-
-    vi.useRealTimers();
   });
 
   it('cleans internal editor break markers before creating a note', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
       fullPath: '/vault/alpha.md',
@@ -121,16 +115,12 @@ describe('createNoteImpl', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      ['---', 'vlaina_created: 2026-04-15 18:00:00 +08:00', 'vlaina_updated: 2026-04-15 18:00:00 +08:00', '---', '', '# Alpha', '', 'Body'].join('\n')
+      ['# Alpha', '', 'Body'].join('\n')
     );
     expect(result.content).not.toContain('data-vlaina-empty-line');
-
-    vi.useRealTimers();
   });
 
   it('cleans serialized editor-only markdown artifacts before creating a note', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
       fullPath: '/vault/alpha.md',
@@ -163,11 +153,6 @@ describe('createNoteImpl', () => {
 
     const written = String(adapter.writeFile.mock.calls[0]?.[1] ?? '');
     expect(written).toBe([
-      '---',
-      'vlaina_created: 2026-04-15 18:00:00 +08:00',
-      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-      '---',
-      '',
       '# Alpha',
       '',
       '  Pro:   \\$76.80 / year\\',
@@ -177,13 +162,9 @@ describe('createNoteImpl', () => {
     expect(written).not.toContain('&#x20');
     expect(written).not.toContain('&#32');
     expect(result.content).toBe(written);
-
-    vi.useRealTimers();
   });
 
   it('converts internal user break markers before creating a note', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
       fullPath: '/vault/alpha.md',
@@ -212,18 +193,11 @@ describe('createNoteImpl', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '---',
-        'vlaina_created: 2026-04-15 18:00:00 +08:00',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
         'Line one\\',
         'Line two',
       ].join('\n')
     );
     expect(result.content).not.toContain('data-vlaina-user-br');
-
-    vi.useRealTimers();
   });
 
   it('does not expose invalid created note file stats', async () => {

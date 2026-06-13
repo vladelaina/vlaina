@@ -4,6 +4,7 @@ export interface FileInfo {
   isDirectory: boolean;
   isFile: boolean;
   size?: number;
+  createdAt?: number;
   modifiedAt?: number;
 }
 

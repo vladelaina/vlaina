@@ -17,6 +17,7 @@ describe('note frontmatter metadata', () => {
       'vlaina_cover_height: 220',
       'vlaina_cover_scale: 1.3',
       'vlaina_icon: "🐱"',
+      'vlaina_icon_size: 84',
       'vlaina_created: "2026-04-15T01:02:03.000Z"',
       'vlaina_updated: "2026-04-16T01:02:03.000Z"',
       '---',
@@ -33,10 +34,90 @@ describe('note frontmatter metadata', () => {
         scale: 1.3,
       },
       icon: '🐱',
-      createdAt: Date.parse('2026-04-15T01:02:03.000Z'),
-      updatedAt: Date.parse('2026-04-16T01:02:03.000Z'),
+      iconSize: 84,
     });
   });
+
+  it('reads managed cover layout from the single-line layout frontmatter', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "assets/monet.jpg"',
+      'vlaina_cover_layout: x=40 y=60 height=220 scale=1.3',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({
+      cover: {
+        assetPath: 'assets/monet.jpg',
+        positionX: 40,
+        positionY: 60,
+        height: 220,
+        scale: 1.3,
+      },
+    });
+  });
+
+  it('reads managed cover and icon metadata from fused frontmatter values', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: asset="assets/monet.jpg" x=40 y=60 height=220 scale=1.3',
+      'vlaina_icon: value="🐱" size=84',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({
+      cover: {
+        assetPath: 'assets/monet.jpg',
+        positionX: 40,
+        positionY: 60,
+        height: 220,
+        scale: 1.3,
+      },
+      icon: '🐱',
+      iconSize: 84,
+    });
+  });
+
+  it('keeps legacy cover paths and icon values that contain equals signs', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "covers/cover=hero.webp"',
+      'vlaina_icon: "size=84"',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({
+      cover: {
+        assetPath: 'covers/cover=hero.webp',
+      },
+      icon: 'size=84',
+    });
+  });
+
+  it('does not treat legacy values named like fused fields as fused metadata', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "asset=hero.webp"',
+      'vlaina_icon: "value=sparkles"',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({
+      cover: {
+        assetPath: 'asset=hero.webp',
+      },
+      icon: 'value=sparkles',
+    });
+  });
+
 
   it('reads managed note metadata from frontmatter after a UTF-8 BOM', () => {
     const markdown = [
@@ -50,7 +131,6 @@ describe('note frontmatter metadata', () => {
 
     expect(readNoteMetadataFromMarkdown(markdown)).toEqual({
       icon: 'sparkles',
-      updatedAt: Date.parse('2026-04-16T01:02:03.000Z'),
     });
   });
 
@@ -69,13 +149,7 @@ describe('note frontmatter metadata', () => {
       writeNoteMetadataToMarkdown(markdown, {
         updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
       })
-    ).toBe([
-      '---',
-      'vlaina_updated: 2026-04-16 08:00:00 +08:00',
-      '---',
-      '',
-      markdown,
-    ].join('\n'));
+    ).toBe(markdown);
   });
 
   it('preserves user frontmatter and appends managed fields at the bottom', () => {
@@ -92,6 +166,7 @@ describe('note frontmatter metadata', () => {
     expect(
       writeNoteMetadataToMarkdown(markdown, {
         icon: '🐱',
+        iconSize: 84,
         updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
       })
     ).toBe(
@@ -101,8 +176,29 @@ describe('note frontmatter metadata', () => {
         'aliases: ["demo"]',
         'icon: "old"',
         '',
-        'vlaina_icon: "🐱"',
-        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
+        'vlaina_icon: value="🐱" size=84',
+        '---',
+        '',
+        '# Title',
+      ].join('\n')
+    );
+  });
+
+  it('writes managed cover metadata as one fused frontmatter field', () => {
+    expect(
+      writeNoteMetadataToMarkdown('# Title', {
+        cover: {
+          assetPath: 'assets/monet.jpg',
+          positionX: 50,
+          positionY: 50,
+          height: 255,
+          scale: 1,
+        },
+      })
+    ).toBe(
+      [
+        '---',
+        'vlaina_cover: asset="assets/monet.jpg" x=50 y=50 height=255 scale=1',
         '---',
         '',
         '# Title',
@@ -124,15 +220,7 @@ describe('note frontmatter metadata', () => {
         updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
       })
     ).toBe(
-      [
-        '---',
-        'title: Example',
-        '',
-        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
-        '---',
-        '',
-        '# Title',
-      ].join('\n')
+      ['---', 'title: Example', '---', '', '# Title'].join('\n')
     );
   });
 
@@ -157,6 +245,44 @@ describe('note frontmatter metadata', () => {
       scale: 10,
     });
   });
+
+  it('clamps managed cover layout numbers from untrusted frontmatter', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "assets/monet.jpg"',
+      'vlaina_cover_layout: x=-200 y=900 height=1000000 scale=999',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown).cover).toEqual({
+      assetPath: 'assets/monet.jpg',
+      positionX: 0,
+      positionY: 100,
+      height: 500,
+      scale: 10,
+    });
+  });
+
+  it('clamps managed fused cover layout numbers from untrusted frontmatter', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: asset="assets/monet.jpg" x=-200 y=900 height=1000000 scale=999',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown).cover).toEqual({
+      assetPath: 'assets/monet.jpg',
+      positionX: 0,
+      positionY: 100,
+      height: 500,
+      scale: 10,
+    });
+  });
+
 
   it('drops unsafe managed icon and cover strings from untrusted frontmatter', () => {
     const oversizedIcon = 'x'.repeat(4097);
@@ -281,10 +407,28 @@ describe('note frontmatter metadata', () => {
     };
     const written = writeNoteMetadataToMarkdown('# Title', metadata);
 
-    expect(written).toContain('vlaina_icon: "quote \\" slash \\\\ icon"');
-    expect(written).toContain('vlaina_cover: "assets/quote \\" slash \\\\ cover.webp"');
+    expect(written).toContain('vlaina_icon: value="quote \\" slash \\\\ icon"');
+    expect(written).toContain('vlaina_cover: asset="assets/quote \\" slash \\\\ cover.webp"');
     expect(readNoteMetadataFromMarkdown(written)).toEqual(metadata);
     expect(writeNoteMetadataToMarkdown(written, readNoteMetadataFromMarkdown(written))).toBe(written);
+  });
+
+  it('removes managed icon size when the note icon is removed', () => {
+    const markdown = [
+      '---',
+      'vlaina_icon: "😃"',
+      'vlaina_icon_size: 84',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    const result = updateNoteMetadataInMarkdown(markdown, {
+      icon: undefined,
+    });
+
+    expect(result.content).toBe('# Title');
+    expect(result.metadata).toEqual({});
   });
 
   it('updates managed fields without dropping markdown body content', () => {
@@ -295,22 +439,8 @@ describe('note frontmatter metadata', () => {
       updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
     });
 
-    expect(result.metadata).toEqual({
-      createdAt: Date.parse('2026-04-15T00:00:00.000Z'),
-      updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
-    });
-    expect(result.content).toBe(
-      [
-        '---',
-        'vlaina_created: 2026-04-15 08:00:00 +08:00',
-        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
-        '---',
-        '',
-        '# Title',
-        '',
-        'Body',
-      ].join('\n')
-    );
+    expect(result.metadata).toEqual({});
+    expect(result.content).toBe(markdown);
   });
 
   it('preserves an empty body separator after existing frontmatter', () => {
@@ -329,12 +459,12 @@ describe('note frontmatter metadata', () => {
     expect(result.content).toBe(
       [
         '---',
-        'vlaina_icon: "😃"',
-        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
+        'vlaina_icon: value="😃"',
         '---',
         '',
       ].join('\n')
     );
+    expect(result.metadata).toEqual({ icon: '😃' });
   });
 
   it('strips hidden-only vlaina frontmatter from public markdown', () => {
@@ -356,7 +486,7 @@ describe('note frontmatter metadata', () => {
     expect(stripManagedFrontmatter(markdown)).toBe('# Exported\nVisible body');
   });
 
-  it('strips only the managed updated timestamp for save conflict comparisons', () => {
+  it('strips managed timestamp frontmatter for save conflict comparisons', () => {
     const markdown = [
       '---',
       'title: User title',
@@ -370,7 +500,6 @@ describe('note frontmatter metadata', () => {
     expect(stripUpdatedFrontmatter(markdown)).toBe([
       '---',
       'title: User title',
-      'vlaina_created: 2026-04-15 08:00:00 +08:00',
       '---',
       '',
       '# Title',
@@ -424,13 +553,7 @@ describe('note frontmatter metadata', () => {
       writeNoteMetadataToMarkdown(markdown, {
         updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
       })
-    ).toBe([
-      '---',
-      'vlaina_updated: 2026-04-16 08:00:00 +08:00',
-      '---',
-      '',
-      markdown,
-    ].join('\n'));
+    ).toBe(markdown);
   });
 
   it('does not parse frontmatter that closes after the character budget', () => {

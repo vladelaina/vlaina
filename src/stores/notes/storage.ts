@@ -34,6 +34,7 @@ const LOW_PRIORITY_METADATA_DIRECTORY_NAMES = new Set([
   '__pycache__',
 ]);
 interface CachedMetadataEntry {
+  createdAt: number | null;
   modifiedAt: number | null;
   size: number | null;
   metadata: NoteMetadataEntry;
@@ -235,6 +236,28 @@ function getKnownReadableModifiedAt(
     : null;
 }
 
+function getKnownReadableCreatedAt(
+  fileInfo: { createdAt?: number | null } | null | undefined,
+): number | null {
+  return typeof fileInfo?.createdAt === 'number' && Number.isFinite(fileInfo.createdAt)
+    ? fileInfo.createdAt
+    : null;
+}
+
+export function mergeNoteMetadataWithFileInfo(
+  entry: Partial<NoteMetadataEntry> | null | undefined,
+  fileInfo: { createdAt?: number | null; modifiedAt?: number | null } | null | undefined,
+): NoteMetadataEntry {
+  const createdAt = getKnownReadableCreatedAt(fileInfo);
+  const updatedAt = getKnownReadableModifiedAt(fileInfo);
+
+  return normalizeLoadedEntry({
+    ...entry,
+    ...(createdAt !== null ? { createdAt } : {}),
+    ...(updatedAt !== null ? { updatedAt } : {}),
+  });
+}
+
 async function collectMarkdownPaths(
   basePath: string,
   relativePath: string = '',
@@ -316,18 +339,25 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
         batch.map(async (relativePath) => {
           const fullPath = await joinPath(vaultPath, relativePath);
           const fileInfo = await storage.stat(fullPath).catch(() => null);
+          const createdAt = getKnownReadableCreatedAt(fileInfo);
           const modifiedAt = getKnownReadableModifiedAt(fileInfo);
           const size = getKnownReadableFileSize(fileInfo);
           if (!isReadableBoundedMarkdownFile(fileInfo, MAX_METADATA_READ_BYTES)) {
             return {
               relativePath,
-              metadata: {},
+              metadata: mergeNoteMetadataWithFileInfo({}, fileInfo),
             };
           }
 
           const canUseCache = modifiedAt !== null;
           const cached = vaultCache.get(relativePath);
-          if (canUseCache && cached && cached.modifiedAt === modifiedAt && cached.size === size) {
+          if (
+            canUseCache &&
+            cached &&
+            cached.createdAt === createdAt &&
+            cached.modifiedAt === modifiedAt &&
+            cached.size === size
+          ) {
             nextCache.set(relativePath, cached);
             return {
               relativePath,
@@ -339,12 +369,13 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           if (utf8Encoder.encode(content).length > MAX_METADATA_READ_BYTES) {
             return {
               relativePath,
-              metadata: {},
+              metadata: mergeNoteMetadataWithFileInfo({}, fileInfo),
             };
           }
-          const metadata = normalizeLoadedEntry(readNoteMetadataFromMarkdown(content));
+          const metadata = mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(content), fileInfo);
           if (canUseCache) {
             nextCache.set(relativePath, {
+              createdAt,
               modifiedAt,
               size,
               metadata,

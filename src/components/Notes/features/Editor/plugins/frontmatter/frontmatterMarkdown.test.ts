@@ -103,7 +103,7 @@ describe('frontmatterMarkdown', () => {
         '---\ntitle: Demo\nvlaina_cover: "@biva/1"\nvlaina_updated: "2026-04-16T00:00:00.000Z"\n---\n# Heading',
       ),
     ).toBe(
-      '---\ntitle: Demo\n\nvlaina_cover: "@biva/1"\nvlaina_updated: "2026-04-16T00:00:00.000Z"\n---\n# Heading'
+      '---\ntitle: Demo\n\nvlaina_cover: "@biva/1"\n---\n# Heading'
     );
   });
 
@@ -125,7 +125,7 @@ describe('frontmatterMarkdown', () => {
         '---\nvlaina_cover: "@biva/1"\nvlaina_updated: "2026-04-16T00:00:00.000Z"\n---\n# Heading',
       ),
     ).toBe(
-      '---\nvlaina_cover: "@biva/1"\nvlaina_updated: "2026-04-16T00:00:00.000Z"\n---\n# Heading'
+      '---\nvlaina_cover: "@biva/1"\n---\n# Heading'
     );
   });
 

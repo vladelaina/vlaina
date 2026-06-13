@@ -206,6 +206,7 @@ export interface ElectronFsApi {
     isDirectory: boolean;
     isFile: boolean;
     size?: number;
+    createdAt?: number;
     modifiedAt?: number;
   } | null>;
   watch(

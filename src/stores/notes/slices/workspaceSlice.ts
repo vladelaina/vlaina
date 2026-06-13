@@ -3,7 +3,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
 import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
-import { NotesStore } from '../types';
+import type { NotesStore, NoteMetadataEntry } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
 import { hasDraftUnsavedChanges, resolveDraftNoteTitle } from '../draftNote';
 import {
@@ -31,7 +31,6 @@ import {
   remapRecentNotesForExternalRename,
 } from '../document/externalPathSync';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
-import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
@@ -253,6 +252,17 @@ function getDiscardableCurrentDraftPath(state: NotesStore, nextPath: string): st
   }) ? null : currentPath;
 }
 
+function mergeLoadedNoteMetadata(
+  loadedMetadata: NoteMetadataEntry,
+  existingMetadata: NoteMetadataEntry | undefined,
+): NoteMetadataEntry {
+  return {
+    ...loadedMetadata,
+    createdAt: loadedMetadata.createdAt ?? existingMetadata?.createdAt,
+    updatedAt: loadedMetadata.updatedAt ?? existingMetadata?.updatedAt,
+  };
+}
+
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
   set,
   get
@@ -328,7 +338,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       }
 
       const existingTabIsDirty = Boolean(get().openTabs.find((tab) => tab.path === path)?.isDirty);
-      const { content, nextCache: loadedCache } = await loadNoteDocument({
+      const { content, nextCache: loadedCache, metadata: loadedMetadata } = await loadNoteDocument({
         notesPath,
         path,
         cache: noteContentsCache,
@@ -348,7 +358,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const nextMetadata = setNoteEntry(
         latestState.noteMetadata ?? createEmptyMetadataFile(),
         path,
-        readNoteMetadataFromMarkdown(content)
+        mergeLoadedNoteMetadata(loadedMetadata, latestState.noteMetadata?.notes[path])
       );
       const fileName = getNoteTitleFromPath(path);
       const tabName = fileName;
@@ -455,7 +465,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
     try {
       const existingTabIsDirty = Boolean(get().openTabs.find((tab) => tab.path === normalizedAbsolutePath)?.isDirty);
-      const { content, nextCache: loadedCache } = await loadNoteDocument({
+      const { content, nextCache: loadedCache, metadata: loadedMetadata } = await loadNoteDocument({
         notesPath,
         path: normalizedAbsolutePath,
         cache: noteContentsCache,
@@ -475,7 +485,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const nextMetadata = setNoteEntry(
         latestState.noteMetadata ?? createEmptyMetadataFile(),
         normalizedAbsolutePath,
-        readNoteMetadataFromMarkdown(content)
+        mergeLoadedNoteMetadata(loadedMetadata, latestState.noteMetadata?.notes[normalizedAbsolutePath])
       );
       const fileName = getNoteTitleFromPath(normalizedAbsolutePath);
       const tabName = fileName;

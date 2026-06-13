@@ -41,9 +41,7 @@ describe('saveNoteDocument', () => {
     vi.clearAllMocks();
   });
 
-  it('writes updated timestamp back into markdown frontmatter', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+  it('cleans managed timestamp frontmatter before saving markdown', async () => {
     adapter.writeFile.mockResolvedValue();
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
@@ -64,22 +62,12 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      [
-        '---',
-        'vlaina_created: 2026-04-14 18:00:00 +08:00',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
-        '# Alpha',
-      ].join('\n')
+      '# Alpha'
     );
     expect(result.metadata).toEqual({
-      createdAt: Date.parse('2026-04-14T10:00:00.000Z'),
-      updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
+      updatedAt: 123,
     });
     expect(result.modifiedAt).toBe(123);
-
-    vi.useRealTimers();
   });
 
   it('normalizes invalid modified timestamps after saving markdown', async () => {
@@ -140,7 +128,7 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      ['---', 'vlaina_updated: 2026-04-15 18:00:00 +08:00', '---', '', '# Alpha', '', 'Body'].join('\n')
+      ['# Alpha', '', 'Body'].join('\n')
     );
     expect(result.content).not.toContain('data-vlaina-empty-line');
 
@@ -169,10 +157,6 @@ describe('saveNoteDocument', () => {
 
     const written = String(adapter.writeFile.mock.calls[0]?.[1] ?? '');
     expect(written).toBe([
-      '---',
-      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-      '---',
-      '',
       '# Alpha',
       '',
       '  Pro:   \\$76.80 / year\\',
@@ -204,10 +188,6 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
         'Line one\\',
         'Line two',
       ].join('\n')
@@ -235,10 +215,6 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
         '1\\',
         '2',
         '',
@@ -268,10 +244,6 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
         'before',
         '',
         '',
@@ -303,13 +275,7 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
-        '- 1',
-      ].join('\n')
+      '- 1'
     );
 
     vi.useRealTimers();
@@ -333,10 +299,6 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
         '8. before',
         '9.',
         '',
@@ -365,10 +327,6 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
         '1. before',
         '',
         '',
@@ -403,8 +361,7 @@ describe('saveNoteDocument', () => {
 
     const expected = [
       '---',
-      'vlaina_icon: "😃"',
-      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+      'vlaina_icon: value="😃"',
       '---',
       '',
     ].join('\n');
@@ -431,13 +388,7 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
-        '<sup>a &lt; b &amp; c</sup>',
-      ].join('\n')
+      '<sup>a &lt; b &amp; c</sup>'
     );
 
     vi.useRealTimers();
@@ -471,10 +422,6 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
         '\\==highlight==',
         '',
         '\\*[ABBR]: Full phrase',
@@ -674,17 +621,16 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
-  it('rejects final saved markdown that becomes too complex after metadata is added', async () => {
+  it('rejects final saved markdown that is too complex before writing', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await expect(saveNoteDocument({
       notesPath: '/vault',
       currentNote: {
         path: 'alpha.md',
-        content: Array.from({ length: 120_000 }, () => 'x').join('\n'),
+        content: Array.from({ length: 120_001 }, () => 'x').join('\n'),
       },
       cache: new Map(),
-      updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
     })).rejects.toThrow('Note file is too complex to open safely.');
 
     expect(adapter.writeFile).not.toHaveBeenCalled();
@@ -948,10 +894,6 @@ describe('saveNoteDocument', () => {
     });
 
     const expectedContent = [
-      '---',
-      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-      '---',
-      '',
       '# Title',
       '',
       'Disk edit',
@@ -1017,13 +959,7 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/external/note.md',
-      [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
-        '# External',
-      ].join('\n')
+      '# External'
     );
     expect(result.nextCache.has('/external/docs/../note.md')).toBe(false);
     expect(result.nextCache.get('/external/note.md')?.content).toBe(result.content);
@@ -1051,13 +987,7 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      [
-        '---',
-        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-        '---',
-        '',
-        '# Local edit',
-      ].join('\n')
+      '# Local edit'
     );
     expect(result.modifiedAt).toBe(201);
     expect(result.nextCache.get('alpha.md')).toEqual({
@@ -1112,20 +1042,14 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      [
-        '---',
-        'vlaina_updated: 2026-04-17 18:00:00 +08:00',
-        '---',
-        '',
-        '# Local edit',
-      ].join('\n')
+      '# Local edit'
     );
     expect(result.modifiedAt).toBe(201);
 
     vi.useRealTimers();
   });
 
-  it('treats a modified timestamp with matching disk content as already saved', async () => {
+  it('cleans managed timestamp frontmatter when disk content otherwise matches', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 16 });
     adapter.readFile.mockResolvedValue([
       '---',
@@ -1150,15 +1074,9 @@ describe('saveNoteDocument', () => {
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
     });
 
-    expect(adapter.writeFile).not.toHaveBeenCalled();
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', '# Loaded');
     expect(result.modifiedAt).toBe(200);
-    expect(result.content).toBe([
-      '---',
-      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
-      '---',
-      '',
-      '# Loaded',
-    ].join('\n'));
+    expect(result.content).toBe('# Loaded');
     expect(result.nextCache.get('alpha.md')).toEqual({
       content: result.content,
       modifiedAt: 200,

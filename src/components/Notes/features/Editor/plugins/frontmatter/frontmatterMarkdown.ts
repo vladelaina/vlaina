@@ -10,6 +10,7 @@ const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
 const MAX_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_FRONTMATTER_LINES = 2048;
 const MANAGED_FRONTMATTER_PREFIX = 'vlaina_';
+const TRANSIENT_MANAGED_FRONTMATTER_KEYS = new Set(['vlaina_created', 'vlaina_updated']);
 
 function normalizeLineEndings(value: string): string {
   return value.replace(LINE_ENDING_PATTERN, '\n');
@@ -40,6 +41,15 @@ function parseTopLevelKey(line: string): string | null {
 function isManagedFrontmatterLine(line: string): boolean {
   const key = parseTopLevelKey(line);
   return Boolean(key && key.startsWith(MANAGED_FRONTMATTER_PREFIX));
+}
+
+function isPersistedManagedFrontmatterLine(line: string): boolean {
+  const key = parseTopLevelKey(line);
+  return Boolean(
+    key &&
+    key.startsWith(MANAGED_FRONTMATTER_PREFIX) &&
+    !TRANSIENT_MANAGED_FRONTMATTER_KEYS.has(key),
+  );
 }
 
 function trimTrailingBlankLines(lines: string[]): string[] {
@@ -176,7 +186,7 @@ export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceM
   const normalized = normalizeLineEndings(markdown);
   const referenceSections = referenceMarkdown ? splitLeadingFrontmatter(referenceMarkdown) : null;
   const hiddenFrontmatterLines = referenceSections
-    ? referenceSections.frontmatterLines.filter((line) => isManagedFrontmatterLine(line))
+    ? referenceSections.frontmatterLines.filter((line) => isPersistedManagedFrontmatterLine(line))
     : [];
   const sections = splitLeadingInternalFrontmatter(markdown);
 
