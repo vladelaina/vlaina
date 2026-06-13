@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { fireEvent, render, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
 import type { NotesSidebarSearchEntry, NotesSidebarSearchResult } from './notesSidebarSearchResults';
@@ -33,6 +33,7 @@ const hoisted = vi.hoisted(() => ({
   currentVault: null as { path: string; name: string } | null,
   uiState: {
     sidebarCollapsed: false,
+    notesPreviewTitle: null as { path: string; title: string } | null,
   },
   openNote: vi.fn(() => Promise.resolve()),
   openNoteByAbsolutePath: vi.fn(() => Promise.resolve()),
@@ -284,6 +285,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.notesPath = '';
     hoisted.currentVault = null;
     hoisted.uiState.sidebarCollapsed = false;
+    hoisted.uiState.notesPreviewTitle = null;
     hoisted.openNote.mockClear();
     hoisted.openNote.mockResolvedValue(undefined);
     hoisted.openNoteByAbsolutePath.mockClear();
@@ -298,6 +300,34 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
+  });
+
+  it('shows the live preview title for an empty current draft in the sidebar tree', async () => {
+    hoisted.draftNotes = {
+      'draft:blank': { parentPath: null, name: '' },
+    };
+    hoisted.uiState.notesPreviewTitle = { path: 'draft:blank', title: 'Live Draft' };
+
+    render(
+      <SidebarContent
+        rootFolder={{
+          id: '',
+          name: 'Notes',
+          path: '',
+          isFolder: true,
+          expanded: true,
+          children: [],
+        }}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(await screen.findByText('Live Draft')).toBeInTheDocument();
+    expect(screen.queryByTestId('pill-empty-hint')).not.toBeInTheDocument();
   });
 
   it('clears editor highlights when sidebar search is closed', async () => {

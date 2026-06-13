@@ -29,9 +29,26 @@ function decodeTitleSnapshot(snapshot: string): {
   };
 }
 
-export function useDisplayName(path: string | undefined): string | undefined {
+export function usePreviewNoteTitle(path: string | undefined): string | undefined {
   const normalizedPath = normalizeNotePathKey(path);
 
+  const getPreviewTitleSnapshot = useCallback(() => {
+    if (!path) return undefined;
+    const previewPath = useUIStore.getState().notesPreviewTitle?.path;
+    if (!previewPath || !normalizedPath) return undefined;
+    return normalizeNotePathKey(previewPath) === normalizedPath
+      ? useUIStore.getState().notesPreviewTitle?.title
+      : undefined;
+  }, [normalizedPath, path]);
+
+  return useSyncExternalStore(
+    useUIStore.subscribe,
+    getPreviewTitleSnapshot,
+    getPreviewTitleSnapshot,
+  );
+}
+
+export function useDisplayName(path: string | undefined): string | undefined {
   const getNotesTitleSnapshot = useCallback(() => {
     if (!path) return encodeTitleSnapshot(undefined, undefined, false);
     const notesState = useNotesStore.getState();
@@ -43,26 +60,13 @@ export function useDisplayName(path: string | undefined): string | undefined {
     );
   }, [path]);
 
-  const getPreviewTitleSnapshot = useCallback(() => {
-    if (!path) return undefined;
-    const previewPath = useUIStore.getState().notesPreviewTitle?.path;
-    if (!previewPath || !normalizedPath) return undefined;
-    return normalizeNotePathKey(previewPath) === normalizedPath
-      ? useUIStore.getState().notesPreviewTitle?.title
-      : undefined;
-  }, [normalizedPath, path]);
-
   const notesTitleSnapshot = useSyncExternalStore(
     useNotesStore.subscribe,
     getNotesTitleSnapshot,
     getNotesTitleSnapshot,
   );
 
-  const previewTitle = useSyncExternalStore(
-    useUIStore.subscribe,
-    getPreviewTitleSnapshot,
-    getPreviewTitleSnapshot,
-  );
+  const previewTitle = usePreviewNoteTitle(path);
 
   const { displayName, draftName } = decodeTitleSnapshot(notesTitleSnapshot);
 

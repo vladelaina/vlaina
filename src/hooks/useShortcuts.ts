@@ -67,7 +67,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         useNotesStore.getState().draftNotes,
         currentNote?.path,
       );
-      createNote(folderPath);
+      createNote(folderPath, { asDraft: true });
     },
     openMarkdownFile: () => {
       window.dispatchEvent(new Event('app-open-markdown-file'));

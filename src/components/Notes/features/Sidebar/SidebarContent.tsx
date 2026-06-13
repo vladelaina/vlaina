@@ -49,7 +49,7 @@ interface SidebarContentProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
   currentNotePath?: string | null;
-  createNote: () => Promise<unknown>;
+  createNote: (folderPath?: string) => Promise<unknown>;
   createFolder: (path: string) => Promise<string | null>;
   search: SidebarSearchState;
   className?: string;
@@ -82,6 +82,13 @@ export function SidebarContent({
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentVault = useVaultStore((s) => s.currentVault);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const currentDraftPreviewTitle = useUIStore((s) => {
+    if (!currentNotePath || s.notesPreviewTitle?.path !== currentNotePath) {
+      return '';
+    }
+
+    return s.notesPreviewTitle.title.trim();
+  });
   const effectiveSearchOpen = active && search.isSearchOpen;
   const effectiveSearchQuery = active ? search.searchQuery : '';
   const previousSearchQueryRef = useRef(effectiveSearchQuery);
@@ -125,6 +132,7 @@ export function SidebarContent({
       rootFolder &&
       rootFolder.children.length === 0 &&
       !draftEntry.name.trim() &&
+      !currentDraftPreviewTitle &&
       isDraftNoteEmpty(currentDraftContent)
     ) {
       return rootFolder;
@@ -132,7 +140,7 @@ export function SidebarContent({
 
     const draftNode = {
       id: currentNotePath,
-      name: resolveDraftNoteTitle(draftEntry.name),
+      name: currentDraftPreviewTitle || resolveDraftNoteTitle(draftEntry.name),
       path: currentNotePath,
       isFolder: false as const,
     };
@@ -179,7 +187,7 @@ export function SidebarContent({
       ...rootFolder,
       children: [draftNode, ...rootFolder.children],
     };
-  }, [currentDraftContent, currentNotePath, draftNotes, isCurrentDraftNote, rootFolder]);
+  }, [currentDraftContent, currentDraftPreviewTitle, currentNotePath, draftNotes, isCurrentDraftNote, rootFolder]);
   const {
     inputRef,
     scrollRootRef,

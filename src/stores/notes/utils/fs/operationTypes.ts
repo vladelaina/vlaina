@@ -1,5 +1,5 @@
 import type { NotesStore } from '../../types';
-import type { RecoverableDeletedItem } from './trashOperations';
+import type { PendingSystemTrashItem } from './trashOperations';
 
 export type NoteTabState = NotesStore['openTabs'][number];
 export type FileTreeChildren = NonNullable<NotesStore['rootFolder']>['children'];
@@ -28,5 +28,5 @@ export interface DeleteOperationResult {
   updatedTabs: NotesStore['openTabs'];
   nextAction: FileOperationNextAction;
   newChildren: FileTreeChildren;
-  recoverableDelete: RecoverableDeletedItem;
+  trashedItem: PendingSystemTrashItem;
 }

@@ -1,4 +1,4 @@
-import { useDisplayName } from '@/hooks/useTitleSync';
+import { useDisplayName, usePreviewNoteTitle } from '@/hooks/useTitleSync';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
@@ -21,14 +21,19 @@ interface NoteLabelDescriptor {
 
 export function useNoteLabelDescriptor(path: string, fallbackName?: string): NoteLabelDescriptor {
   const { t } = useI18n();
+  const previewTitle = usePreviewNoteTitle(path);
   const displayName = useDisplayName(path);
   const draftName = useNotesStore((state) => state.draftNotes[path]?.name);
-  const isUntitledPlaceholder = isDraftNotePath(path) && !draftName?.trim();
+  const resolvedTitle = displayName?.trim() || fallbackName?.trim() || getNoteTitleFromPath(path);
+  const isUntitledPlaceholder =
+    isDraftNotePath(path) &&
+    !draftName?.trim() &&
+    !previewTitle?.trim();
 
   return {
     title: isUntitledPlaceholder
       ? t('notes.untitled')
-      : displayName?.trim() || fallbackName?.trim() || getNoteTitleFromPath(path),
+      : resolvedTitle,
     disambiguation: null,
     isUntitledPlaceholder,
   };

@@ -73,8 +73,8 @@ export function RootFolderMenu({
         if (!expanded) {
           setExpanded(true);
         }
-        await onCreateNote();
         onClose();
+        await onCreateNote();
       },
     },
     {

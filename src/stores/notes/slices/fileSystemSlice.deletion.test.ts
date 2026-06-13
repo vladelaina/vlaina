@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   deleteNoteImpl: vi.fn(),
   deleteFolderImpl: vi.fn(),
-  restoreNoteItemFromRecoverableLocation: vi.fn(),
+  cancelPendingSystemTrash: vi.fn(),
+  isPendingSystemTrashCommitting: vi.fn(),
+  restoreNoteItemFromPendingTrash: vi.fn(),
+  schedulePendingSystemTrash: vi.fn(),
   getStateForPathDeletion: vi.fn(),
   getStateForPathRename: vi.fn(),
   persistWorkspaceSnapshot: vi.fn(),
@@ -17,7 +20,10 @@ vi.mock('../utils/fs/deleteOperations', () => ({
 }));
 
 vi.mock('../utils/fs/trashOperations', () => ({
-  restoreNoteItemFromRecoverableLocation: hoisted.restoreNoteItemFromRecoverableLocation,
+  cancelPendingSystemTrash: hoisted.cancelPendingSystemTrash,
+  isPendingSystemTrashCommitting: hoisted.isPendingSystemTrashCommitting,
+  restoreNoteItemFromPendingTrash: hoisted.restoreNoteItemFromPendingTrash,
+  schedulePendingSystemTrash: hoisted.schedulePendingSystemTrash,
 }));
 
 vi.mock('../utils/fs/pathStateEffects', () => ({
@@ -88,10 +94,29 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createPendingDeletedItem(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'delete-1',
+    kind: 'file' as const,
+    originalPath: 'alpha.md',
+    originalFullPath: '/vault/alpha.md',
+    stagingPath: '/app/pending-trash/delete-1/alpha.md',
+    deletedAt: 1,
+    previousCurrentNote: null,
+    previousIsDirty: false,
+    deletedStarredEntries: [],
+    deletedMetadata: null,
+    ...overrides,
+  };
+}
+
 describe('createFileSystemSlice deletion flows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
+    hoisted.schedulePendingSystemTrash.mockImplementation(() => undefined);
+    hoisted.cancelPendingSystemTrash.mockReturnValue(true);
+    hoisted.isPendingSystemTrashCommitting.mockReturnValue(false);
     hoisted.getStateForPathDeletion.mockImplementation(({ recentNotes, displayNames, noteContentsCache }) => ({
       nextRecentNotes: recentNotes,
       nextDisplayNames: displayNames,
@@ -126,12 +151,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: { type: 'open', path: 'beta.md' },
       updatedMetadata: null,
       newChildren: [],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -156,8 +181,16 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(state.isDirty).toBe(false);
     expect(state.pendingDeletedItems).toEqual([expect.objectContaining({
       originalPath: 'alpha.md',
-      trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+      stagingPath: '/app/pending-trash/delete-1/alpha.md',
+      previousCurrentNote: { path: 'alpha.md', content: 'alpha' },
+      deletedStarredEntries: [],
+      deletedMetadata: null,
     })]);
+    expect(hoisted.schedulePendingSystemTrash).toHaveBeenCalledWith(
+      expect.objectContaining({ originalPath: 'alpha.md' }),
+      expect.any(Function),
+      expect.any(Function),
+    );
   });
 
   it('flushes pending editor markdown before deciding whether to save on delete', async () => {
@@ -169,12 +202,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: null,
       updatedMetadata: null,
       newChildren: [],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -209,12 +242,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: null,
       updatedMetadata: null,
       newChildren: [{ id: 'Untitled.md', name: 'Untitled', path: 'Untitled.md', isFolder: false }],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -277,12 +310,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: null,
       updatedMetadata: null,
       newChildren: [],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/trash/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -335,12 +368,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: null,
       updatedMetadata: null,
       newChildren: [],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'beta.md',
         originalFullPath: '/vault/beta.md',
-        trashPath: '/trash/beta.md',
+        stagingPath: '/app/pending-trash/delete-1/beta.md',
         deletedAt: 1,
       },
     });
@@ -384,12 +417,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: null,
       updatedMetadata: null,
       newChildren: [],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/trash/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -435,12 +468,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: null,
       updatedMetadata: null,
       newChildren: [],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'folder',
         originalPath: 'docs',
         originalFullPath: '/vault/docs',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/docs',
+        stagingPath: '/app/pending-trash/delete-1/docs',
         deletedAt: 1,
       },
     });
@@ -490,12 +523,12 @@ describe('createFileSystemSlice deletion flows', () => {
       nextAction: null,
       updatedMetadata: null,
       newChildren: [],
-      recoverableDelete: {
+      trashedItem: {
         id: 'delete-1',
         kind: 'folder',
         originalPath: 'docs',
         originalFullPath: '/vault/docs',
-        trashPath: '/trash/docs',
+        stagingPath: '/app/pending-trash/delete-1/docs',
         deletedAt: 1,
       },
     });
@@ -515,8 +548,8 @@ describe('createFileSystemSlice deletion flows', () => {
     }));
   });
 
-  it('restores the last deleted file and opens it', async () => {
-    hoisted.restoreNoteItemFromRecoverableLocation.mockResolvedValue({
+  it('restores the last pending deleted file and opens it', async () => {
+    hoisted.restoreNoteItemFromPendingTrash.mockResolvedValue({
       restoredPath: 'alpha.md',
       restoredFullPath: '/vault/alpha.md',
     });
@@ -535,7 +568,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,
@@ -547,24 +580,24 @@ describe('createFileSystemSlice deletion flows', () => {
     await expect(harness.getState().restoreLastDeletedItem()).resolves.toBe('alpha.md');
 
     const state = harness.getState();
-    expect(hoisted.restoreNoteItemFromRecoverableLocation).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.cancelPendingSystemTrash).toHaveBeenCalledWith('delete-1');
+    expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenCalledWith('/vault', expect.objectContaining({
       originalPath: 'alpha.md',
+      stagingPath: '/app/pending-trash/delete-1/alpha.md',
     }));
     expect(state.loadFileTree).not.toHaveBeenCalled();
-    expect(state.rootFolder.children).toEqual([
-      {
-        id: 'alpha.md',
-        name: 'alpha',
-        path: 'alpha.md',
-        isFolder: false,
-      },
-    ]);
+    expect(state.rootFolder.children).toEqual([{
+      id: 'alpha.md',
+      name: 'alpha',
+      path: 'alpha.md',
+      isFolder: false,
+    }]);
     expect(state.openNote).toHaveBeenCalledWith('alpha.md');
     expect(state.pendingDeletedItems).toEqual([]);
   });
 
-  it('restores deleted items in reverse deletion order', async () => {
-    hoisted.restoreNoteItemFromRecoverableLocation
+  it('restores pending deleted items in reverse deletion order', async () => {
+    hoisted.restoreNoteItemFromPendingTrash
       .mockResolvedValueOnce({
         restoredPath: 'beta.md',
         restoredFullPath: '/vault/beta.md',
@@ -584,30 +617,14 @@ describe('createFileSystemSlice deletion flows', () => {
         children: [],
       },
       pendingDeletedItems: [
-        {
-          id: 'delete-1',
-          kind: 'file',
-          originalPath: 'alpha.md',
-          originalFullPath: '/vault/alpha.md',
-          trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
-          deletedAt: 1,
-          previousCurrentNote: null,
-          previousIsDirty: false,
-          deletedStarredEntries: [],
-          deletedMetadata: null,
-        },
-        {
+        createPendingDeletedItem(),
+        createPendingDeletedItem({
           id: 'delete-2',
-          kind: 'file',
           originalPath: 'beta.md',
           originalFullPath: '/vault/beta.md',
-          trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-2/beta.md',
+          stagingPath: '/app/pending-trash/delete-2/beta.md',
           deletedAt: 2,
-          previousCurrentNote: null,
-          previousIsDirty: false,
-          deletedStarredEntries: [],
-          deletedMetadata: null,
-        },
+        }),
       ],
     });
 
@@ -618,12 +635,12 @@ describe('createFileSystemSlice deletion flows', () => {
 
     await expect(harness.getState().restoreLastDeletedItem()).resolves.toBe('alpha.md');
     expect(harness.getState().pendingDeletedItems).toEqual([]);
-    expect(hoisted.restoreNoteItemFromRecoverableLocation).toHaveBeenNthCalledWith(
+    expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenNthCalledWith(
       1,
       '/vault',
       expect.objectContaining({ originalPath: 'beta.md' }),
     );
-    expect(hoisted.restoreNoteItemFromRecoverableLocation).toHaveBeenNthCalledWith(
+    expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenNthCalledWith(
       2,
       '/vault',
       expect.objectContaining({ originalPath: 'alpha.md' }),
@@ -640,36 +657,20 @@ describe('createFileSystemSlice deletion flows', () => {
         expanded: true,
         children: [],
       },
-      pendingDeletedItems: [{
-        id: 'delete-1',
-        kind: 'file',
-        originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
-        deletedAt: 1,
-        previousCurrentNote: null,
-        previousIsDirty: false,
-        deletedStarredEntries: [],
-        deletedMetadata: null,
-      }],
+      pendingDeletedItems: [createPendingDeletedItem()],
     });
 
-    hoisted.restoreNoteItemFromRecoverableLocation.mockImplementation(async () => {
+    hoisted.restoreNoteItemFromPendingTrash.mockImplementation(async () => {
       harness.setState({
         pendingDeletedItems: [
           ...harness.getState().pendingDeletedItems,
-          {
+          createPendingDeletedItem({
             id: 'delete-2',
-            kind: 'file',
             originalPath: 'beta.md',
             originalFullPath: '/vault/beta.md',
-            trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-2/beta.md',
+            stagingPath: '/app/pending-trash/delete-2/beta.md',
             deletedAt: 2,
-            previousCurrentNote: null,
-            previousIsDirty: false,
-            deletedStarredEntries: [],
-            deletedMetadata: null,
-          },
+          }),
         ],
       });
       return {
@@ -685,22 +686,11 @@ describe('createFileSystemSlice deletion flows', () => {
     ]);
   });
 
-  it('keeps the pending deleted item when restore fails', async () => {
-    hoisted.restoreNoteItemFromRecoverableLocation.mockRejectedValue(new Error('missing trash item'));
+  it('keeps the pending deleted item and reschedules commit when restore fails', async () => {
+    hoisted.restoreNoteItemFromPendingTrash.mockRejectedValue(new Error('missing pending trash item'));
 
     const harness = createSliceHarness({
-      pendingDeletedItems: [{
-        id: 'delete-1',
-        kind: 'file',
-        originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
-        deletedAt: 1,
-        previousCurrentNote: null,
-        previousIsDirty: false,
-        deletedStarredEntries: [],
-        deletedMetadata: null,
-      }],
+      pendingDeletedItems: [createPendingDeletedItem()],
     });
 
     await expect(harness.getState().restoreLastDeletedItem()).resolves.toBeNull();
@@ -709,11 +699,16 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(state.pendingDeletedItems).toEqual([
       expect.objectContaining({ originalPath: 'alpha.md' }),
     ]);
-    expect(state.error).toBe('missing trash item');
+    expect(hoisted.schedulePendingSystemTrash).toHaveBeenCalledWith(
+      expect.objectContaining({ originalPath: 'alpha.md' }),
+      expect.any(Function),
+      expect.any(Function),
+    );
+    expect(state.error).toBe('missing pending trash item');
   });
 
-  it('restores a folder without reloading the whole file tree', async () => {
-    hoisted.restoreNoteItemFromRecoverableLocation.mockResolvedValue({
+  it('restores a pending deleted folder without reloading the whole file tree', async () => {
+    hoisted.restoreNoteItemFromPendingTrash.mockResolvedValue({
       restoredPath: 'docs',
       restoredFullPath: '/vault/docs',
     });
@@ -727,38 +722,32 @@ describe('createFileSystemSlice deletion flows', () => {
         expanded: true,
         children: [],
       },
-      pendingDeletedItems: [{
-        id: 'delete-1',
-        kind: 'folder',
-        originalPath: 'docs',
-        originalFullPath: '/vault/docs',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/docs',
-        deletedAt: 1,
-        previousCurrentNote: null,
-        previousIsDirty: false,
-        deletedStarredEntries: [],
-        deletedMetadata: null,
-      }],
+      pendingDeletedItems: [
+        createPendingDeletedItem({
+          kind: 'folder',
+          originalPath: 'docs',
+          originalFullPath: '/vault/docs',
+          stagingPath: '/app/pending-trash/delete-1/docs',
+        }),
+      ],
     });
 
     await expect(harness.getState().restoreLastDeletedItem()).resolves.toBe('docs');
 
     const state = harness.getState();
     expect(state.loadFileTree).not.toHaveBeenCalled();
-    expect(state.rootFolder.children).toEqual([
-      {
-        id: 'docs',
-        name: 'docs',
-        path: 'docs',
-        isFolder: true,
-        expanded: true,
-        children: [],
-      },
-    ]);
+    expect(state.rootFolder.children).toEqual([{
+      id: 'docs',
+      name: 'docs',
+      path: 'docs',
+      isFolder: true,
+      expanded: true,
+      children: [],
+    }]);
   });
 
   it('restores deleted starred and metadata state with the restored path', async () => {
-    hoisted.restoreNoteItemFromRecoverableLocation.mockResolvedValue({
+    hoisted.restoreNoteItemFromPendingTrash.mockResolvedValue({
       restoredPath: 'alpha 1.md',
       restoredFullPath: '/vault/alpha 1.md',
     });
@@ -783,27 +772,21 @@ describe('createFileSystemSlice deletion flows', () => {
       starredEntries: [],
       starredNotes: [],
       starredFolders: [],
-      pendingDeletedItems: [{
-        id: 'delete-1',
-        kind: 'file',
-        originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
-        deletedAt: 1,
-        previousCurrentNote: null,
-        previousIsDirty: false,
-        deletedStarredEntries: [deletedStarredEntry],
-        deletedMetadata: {
-          version: 2,
-          notes: {
-            'alpha.md': {
-              icon: 'icon-alpha',
-              createdAt: 1,
-              updatedAt: 2,
+      pendingDeletedItems: [
+        createPendingDeletedItem({
+          deletedStarredEntries: [deletedStarredEntry],
+          deletedMetadata: {
+            version: 2,
+            notes: {
+              'alpha.md': {
+                icon: 'icon-alpha',
+                createdAt: 1,
+                updatedAt: 2,
+              },
             },
           },
-        },
-      }],
+        }),
+      ],
     });
 
     await expect(harness.getState().restoreLastDeletedItem()).resolves.toBe('alpha 1.md');
@@ -822,5 +805,34 @@ describe('createFileSystemSlice deletion flows', () => {
       updatedAt: 2,
     });
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
+  });
+
+  it('does not restore a pending item after it has started moving to system trash', async () => {
+    hoisted.cancelPendingSystemTrash.mockReturnValue(false);
+    hoisted.isPendingSystemTrashCommitting.mockReturnValue(true);
+
+    const harness = createSliceHarness({
+      pendingDeletedItems: [{
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'alpha.md',
+        originalFullPath: '/vault/alpha.md',
+        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        deletedAt: 1,
+        previousCurrentNote: null,
+        previousIsDirty: false,
+        deletedStarredEntries: [],
+        deletedMetadata: null,
+      }],
+    });
+
+    await expect(harness.getState().restoreLastDeletedItem()).resolves.toBeNull();
+
+    expect(hoisted.restoreNoteItemFromPendingTrash).not.toHaveBeenCalled();
+    expect(hoisted.schedulePendingSystemTrash).not.toHaveBeenCalled();
+    expect(harness.getState().pendingDeletedItems).toEqual([
+      expect.objectContaining({ id: 'delete-1' }),
+    ]);
+    expect(harness.getState().error).toBe('Deleted item is already moving to system trash.');
   });
 });

@@ -26,7 +26,7 @@ export interface WorkspaceSlice {
   applyExternalPathDeletion: NotesStore['applyExternalPathDeletion'];
   updateContent: (content: string) => void;
   updateDraftNoteName: (path: string, name: string) => void;
-  discardDraftNote: (path: string) => void;
+  discardDraftNote: NotesStore['discardDraftNote'];
   cancelPendingDraftDiscard: () => void;
   confirmPendingDraftDiscard: () => Promise<void>;
   closeNote: () => Promise<void>;

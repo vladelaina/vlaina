@@ -123,8 +123,8 @@ export const FolderItem = memo(function FolderItem({
       icon: <Icon name="file.add" size="md" />,
       label: t('sidebar.newNote'),
       onClick: async () => {
-        await createNote(node.path);
         setShowMenu(false);
+        await createNote(node.path, { asDraft: true });
       },
     },
     {

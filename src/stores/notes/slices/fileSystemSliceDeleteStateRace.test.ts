@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   deleteNoteImpl: vi.fn(),
   deleteFolderImpl: vi.fn(),
+  cancelPendingSystemTrash: vi.fn(),
+  isPendingSystemTrashCommitting: vi.fn(),
+  restoreNoteItemFromPendingTrash: vi.fn(),
+  schedulePendingSystemTrash: vi.fn(),
   getStateForPathDeletion: vi.fn(),
   persistWorkspaceSnapshot: vi.fn(),
   saveStarredRegistry: vi.fn(),
@@ -12,6 +16,13 @@ const hoisted = vi.hoisted(() => ({
 vi.mock('../utils/fs/deleteOperations', () => ({
   deleteNoteImpl: hoisted.deleteNoteImpl,
   deleteFolderImpl: hoisted.deleteFolderImpl,
+}));
+
+vi.mock('../utils/fs/trashOperations', () => ({
+  cancelPendingSystemTrash: hoisted.cancelPendingSystemTrash,
+  isPendingSystemTrashCommitting: hoisted.isPendingSystemTrashCommitting,
+  restoreNoteItemFromPendingTrash: hoisted.restoreNoteItemFromPendingTrash,
+  schedulePendingSystemTrash: hoisted.schedulePendingSystemTrash,
 }));
 
 vi.mock('../utils/fs/pathStateEffects', () => ({
@@ -98,12 +109,12 @@ function deletionResult(path: string, kind: 'file' | 'folder') {
       },
     },
     newChildren: [],
-    recoverableDelete: {
+    trashedItem: {
       id: `delete-${path}`,
       kind,
       originalPath: path,
       originalFullPath: `/vault/${path}`,
-      trashPath: `/trash/${path}`,
+      stagingPath: `/app/pending-trash/delete-${path}/${path.split('/').pop() ?? path}`,
       deletedAt: 1,
     },
   };
@@ -113,6 +124,8 @@ describe('fileSystemSlice deletion state races', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
+    hoisted.schedulePendingSystemTrash.mockImplementation(() => undefined);
+    hoisted.isPendingSystemTrashCommitting.mockReturnValue(false);
     hoisted.getStateForPathDeletion.mockImplementation(({ recentNotes, displayNames, noteContentsCache }) => ({
       nextRecentNotes: recentNotes,
       nextDisplayNames: displayNames,

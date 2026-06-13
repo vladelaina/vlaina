@@ -1069,6 +1069,36 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().isDirty).toBe(true);
   });
 
+  it('discards an empty untitled draft when switching to another tab', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: '# ' },
+      isDirty: true,
+      saveNote,
+      openTabs: [
+        { path: 'draft:blank', name: '', isDirty: true },
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: '# ', modifiedAt: null }],
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().openNote('alpha.md');
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
+    expect(store.getState().draftNotes['draft:blank']).toBeUndefined();
+    expect(store.getState().noteContentsCache.has('draft:blank')).toBe(false);
+    expect(store.getState().recentlyClosedTabs).toEqual([]);
+  });
+
   it('opens an existing draft tab from memory even when it has no cached content', async () => {
     const store = createNotesStore({
       currentNote: { path: 'alpha.md', content: '# alpha' },
@@ -1289,6 +1319,32 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().openTabs).toEqual([]);
     expect(store.getState().draftNotes['draft:blank']).toBeUndefined();
+    expect(store.getState().recentlyClosedTabs).toEqual([]);
+  });
+
+  it('closes an empty dirty draft tab without prompting or keeping tab history', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: '# ' },
+      isDirty: true,
+      isNewlyCreated: true,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: '# ', modifiedAt: null }],
+      ]),
+    });
+
+    await store.getState().closeTab('draft:blank');
+
+    expect(store.getState().pendingDraftDiscardPath).toBeNull();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([]);
+    expect(store.getState().draftNotes['draft:blank']).toBeUndefined();
+    expect(store.getState().noteContentsCache.has('draft:blank')).toBe(false);
+    expect(store.getState().recentlyClosedTabs).toEqual([]);
   });
 
   it('prompts before closing a dirty draft tab that is not focused', async () => {

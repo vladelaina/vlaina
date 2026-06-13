@@ -3,7 +3,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { dispatchOpenMarkdownTargetEvent } from '@/components/Notes/features/OpenTarget/openTargetEvents';
 import { addNodeToTree, findNode } from '../fileTreeUtils';
 import { chooseDraftSavePath, resolveDraftSaveLocation } from '../draftNoteSave';
-import { canAutoSaveDraftNote } from '../draftNote';
+import { canAutoSaveDraftNote, hasDraftUnsavedChanges } from '../draftNote';
 import {
   addToRecentNotes,
   createEmptyMetadataFile,
@@ -57,6 +57,16 @@ export async function saveDraftNote({
   const draftNote = draftNotes[currentNote.path];
   if (!draftNote) return false;
   if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return true;
+  if (
+    !options?.explicit &&
+    !hasDraftUnsavedChanges({
+      draftName: draftNote.name,
+      content: contentAtSaveStart,
+      metadata: noteMetadata?.notes[currentNote.path],
+    })
+  ) {
+    return true;
+  }
 
   const canAutoSaveDraftIntoCurrentVault = canAutoSaveDraftNote(notesPath, draftNote);
   const draftSaveLocation = canAutoSaveDraftIntoCurrentVault

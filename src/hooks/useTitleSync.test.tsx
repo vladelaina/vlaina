@@ -1,11 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayName } from './useTitleSync';
 
 describe('useDisplayName', () => {
   beforeEach(() => {
     useNotesStore.setState(useNotesStore.getInitialState(), true);
+    useUIStore.setState(useUIStore.getInitialState(), true);
   });
 
   it('shows Untitled for an empty draft note instead of leaking its internal path', () => {
@@ -41,5 +43,20 @@ describe('useDisplayName', () => {
     const { result } = renderHook(() => useDisplayName('draft:pending'));
 
     expect(result.current).toBe('Untitled');
+  });
+
+  it('uses the live title preview for an untitled draft note', () => {
+    act(() => {
+      useNotesStore.setState({
+        draftNotes: {
+          'draft:blank': { parentPath: null, name: '' },
+        },
+      });
+      useUIStore.getState().setNotesPreviewTitle('draft:blank', 'Live Draft');
+    });
+
+    const { result } = renderHook(() => useDisplayName('draft:blank'));
+
+    expect(result.current).toBe('Live Draft');
   });
 });

@@ -52,7 +52,7 @@ export function NotesSidebarWrapper({
         rootFolder={rootFolder}
         isLoading={isLoading || isCurrentVaultRootPending}
         currentNotePath={currentNotePath}
-        createNote={() => createNote()}
+        createNote={(folderPath?: string) => createNote(folderPath, { asDraft: true })}
         createFolder={(path: string) => createFolder(path)}
         isPeeking={isPeeking}
         active={active}

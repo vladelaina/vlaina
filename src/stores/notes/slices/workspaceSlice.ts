@@ -5,7 +5,7 @@ import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
 import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
-import { resolveDraftNoteTitle } from '../draftNote';
+import { hasDraftUnsavedChanges, resolveDraftNoteTitle } from '../draftNote';
 import {
   addToRecentNotes,
   createEmptyMetadataFile,
@@ -231,6 +231,28 @@ function resolveLatestOpenedContent(
     : { content: dirtyContent, dirtyContent };
 }
 
+function getDiscardableCurrentDraftPath(state: NotesStore, nextPath: string): string | null {
+  const currentPath = state.currentNote?.path;
+  if (!currentPath || currentPath === nextPath) {
+    return null;
+  }
+
+  const draftNote = state.draftNotes[currentPath];
+  if (!draftNote) {
+    return null;
+  }
+
+  const content = state.currentNote?.content
+    ?? state.noteContentsCache.get(currentPath)?.content
+    ?? '';
+
+  return hasDraftUnsavedChanges({
+    draftName: draftNote.name,
+    content,
+    metadata: state.noteMetadata?.notes[currentPath],
+  }) ? null : currentPath;
+}
+
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
   set,
   get
@@ -268,6 +290,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
     path = normalizedPath;
     const pathMutationRevision = getExternalPathMutationRevision();
+
+    const discardableDraftPath = getDiscardableCurrentDraftPath(get(), path);
+    if (discardableDraftPath) {
+      get().discardDraftNote(discardableDraftPath, {
+        preserveHistory: false,
+        activateFallback: false,
+      });
+    }
 
     let { notesPath, isDirty, saveNote, recentNotes, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
@@ -393,6 +423,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
     const openRequestId = ++latestOpenNoteRequestId;
     const pathMutationRevision = getExternalPathMutationRevision();
+    const discardableDraftPath = getDiscardableCurrentDraftPath(get(), normalizedAbsolutePath);
+    if (discardableDraftPath) {
+      get().discardDraftNote(discardableDraftPath, {
+        preserveHistory: false,
+        activateFallback: false,
+      });
+    }
+
     let { notesPath, isDirty, saveNote, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
     if (isDirty && currentNote && draftNotes[currentNote.path]) {

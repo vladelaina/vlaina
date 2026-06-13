@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   deleteNoteImpl: vi.fn(),
   deleteFolderImpl: vi.fn(),
-  restoreNoteItemFromRecoverableLocation: vi.fn(),
+  cancelPendingSystemTrash: vi.fn(),
+  isPendingSystemTrashCommitting: vi.fn(),
+  restoreNoteItemFromPendingTrash: vi.fn(),
+  schedulePendingSystemTrash: vi.fn(),
   getStateForPathDeletion: vi.fn(),
   getStateForPathRename: vi.fn(),
   persistWorkspaceSnapshot: vi.fn(),
@@ -18,7 +21,10 @@ vi.mock('../utils/fs/deleteOperations', () => ({
 }));
 
 vi.mock('../utils/fs/trashOperations', () => ({
-  restoreNoteItemFromRecoverableLocation: hoisted.restoreNoteItemFromRecoverableLocation,
+  cancelPendingSystemTrash: hoisted.cancelPendingSystemTrash,
+  isPendingSystemTrashCommitting: hoisted.isPendingSystemTrashCommitting,
+  restoreNoteItemFromPendingTrash: hoisted.restoreNoteItemFromPendingTrash,
+  schedulePendingSystemTrash: hoisted.schedulePendingSystemTrash,
 }));
 
 vi.mock('../utils/fs/pathStateEffects', () => ({
@@ -129,13 +135,13 @@ function pruneDeletedState({
   };
 }
 
-function recoverableDelete(path: string, kind: 'file' | 'folder') {
+function trashedItem(path: string, kind: 'file' | 'folder') {
   return {
     id: `delete-${path}`,
     kind,
     originalPath: path,
     originalFullPath: `/vault/${path}`,
-    trashPath: `/trash/${path}`,
+    stagingPath: `/app/pending-trash/delete-${path}/${path.split('/').pop() ?? path}`,
     deletedAt: 1,
   };
 }
@@ -144,6 +150,8 @@ describe('fileSystemSlice dirty tab deletion', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
+    hoisted.schedulePendingSystemTrash.mockImplementation(() => undefined);
+    hoisted.isPendingSystemTrashCommitting.mockReturnValue(false);
     hoisted.getStateForPathDeletion.mockImplementation(pruneDeletedState);
     hoisted.saveNoteDocument.mockResolvedValue({
       content: '# saved beta',
@@ -165,7 +173,7 @@ describe('fileSystemSlice dirty tab deletion', () => {
         nextAction: null,
         updatedMetadata: { version: 2, notes: {} },
         newChildren: [createFile('alpha.md', 'alpha')],
-        recoverableDelete: recoverableDelete('beta.md', 'file'),
+        trashedItem: trashedItem('beta.md', 'file'),
       };
     });
 
@@ -221,7 +229,7 @@ describe('fileSystemSlice dirty tab deletion', () => {
         nextAction: null,
         updatedMetadata: { version: 2, notes: {} },
         newChildren: [createFile('alpha.md', 'alpha')],
-        recoverableDelete: recoverableDelete('docs', 'folder'),
+        trashedItem: trashedItem('docs', 'folder'),
       };
     });
 

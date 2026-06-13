@@ -15,31 +15,37 @@ function readIndexCssSource() {
 }
 
 describe('NotesTabRow', () => {
-  it('keeps the new note button hidden until the title or tab row is hovered or focused', () => {
+  it('hides the empty tab surface and only reveals the new note button when needed', () => {
     const source = readNotesTabRowSource();
     const titleBarSource = readUnifiedTitleBarSource();
     const css = readIndexCssSource();
 
     expect(titleBarSource).toContain('app-title-bar h-10');
     expect(titleBarSource).toContain('app-drag-region app-title-bar-center flex-1');
+    expect(source).toContain("chatComposerGhostIconButtonClass");
     expect(source).toContain("chatComposerPillSurfaceClass");
     expect(source).toContain('group/tab-row flex h-full w-full min-w-0 items-center gap-1');
     expect(source).toContain('app-no-drag flex h-8 max-w-full min-w-0 items-center rounded-full');
     expect(source).toContain('flex h-8 max-w-full min-w-0 items-center rounded-full');
+    expect(source).toContain('const hasOpenTabs = openTabs.length > 0;');
+    expect(source).toContain('{hasOpenTabs ? (');
     expect(source).toContain('flex min-w-0 items-center overflow-x-auto');
     expect(source).not.toContain('flex min-w-0 max-w-[var(--vlaina-width-dialog-default)] items-center overflow-x-auto');
     expect(source).not.toContain('flex min-w-0 flex-1 items-center overflow-x-auto');
-    expect(source).toContain('notes-tab-row-new-note-button app-no-drag pointer-events-none');
-    expect(source).toContain('pointer-events-none flex h-7 w-7');
+    expect(source).toContain('notes-tab-row-new-note-button app-no-drag flex h-7');
+    expect(source).toContain('flex h-7 w-7');
     expect(source).toContain('h-7 w-7 shrink-0');
     expect(source).toContain('items-center justify-center rounded-full');
     expect(source).toContain('opacity-[var(--vlaina-opacity-0)]');
+    expect(source).toContain('pointer-events-auto opacity-[var(--vlaina-opacity-100)]');
     expect(css).toContain('.app-title-bar-center:hover .notes-tab-row-new-note-button');
     expect(css).toContain('.app-title-bar-center:focus-within .notes-tab-row-new-note-button');
     expect(source).toContain('group-hover/tab-row:pointer-events-auto');
     expect(source).toContain('group-hover/tab-row:opacity-[var(--vlaina-opacity-100)]');
     expect(source).toContain('group-focus-within/tab-row:pointer-events-auto');
     expect(source).toContain('group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)]');
+    expect(source).not.toContain('hover:bg-[var(--vlaina-color-control-hover-bg)]');
+    expect(source).not.toContain('hover:text-[var(--vlaina-color-control-hover-fg)]');
     expect(source).toContain('const currentVaultPath = useVaultStore((s) => s.currentVault?.path ?? null);');
     expect(source).toContain('const hasOpenedFolder = Boolean(currentVaultPath && notesPath === currentVaultPath && rootFolderPath === currentVaultPath);');
     expect(source).toContain('{hasOpenedFolder ? (');
