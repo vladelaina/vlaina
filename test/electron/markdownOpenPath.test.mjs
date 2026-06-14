@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -42,10 +43,11 @@ describe('markdownOpenPath', () => {
 
   it('normalizes supported Markdown file URLs after confirming they are files', () => {
     const fsImpl = createFsImpl();
-    const result = normalizeMarkdownOpenPath('file:///tmp/note.mkd', { fsImpl });
+    const expectedPath = path.resolve('/tmp/note.mkd');
+    const result = normalizeMarkdownOpenPath(pathToFileURL(expectedPath).href, { fsImpl });
 
-    expect(result).toBe(path.resolve('/tmp/note.mkd'));
-    expect(fsImpl.statSync).toHaveBeenCalledWith(path.resolve('/tmp/note.mkd'));
+    expect(result).toBe(expectedPath);
+    expect(fsImpl.statSync).toHaveBeenCalledWith(expectedPath);
   });
 
   it('rejects overlong resolved paths before statting the filesystem', () => {

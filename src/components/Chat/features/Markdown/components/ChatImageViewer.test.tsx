@@ -71,9 +71,13 @@ vi.mock('@/components/Chat/common/svgRasterize', () => ({
   rasterizeSvgDataUrlToPng: svgMocks.rasterizeSvgDataUrlToPng,
 }));
 
-vi.mock('@/components/Chat/common/messageClipboard', () => ({
-  copyImageSourceToClipboard: imageActionMocks.copyImageSourceToClipboard,
-}));
+vi.mock('@/components/Chat/common/messageClipboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Chat/common/messageClipboard')>();
+  return {
+    ...actual,
+    copyImageSourceToClipboard: imageActionMocks.copyImageSourceToClipboard,
+  };
+});
 
 vi.mock('@/components/Chat/common/imageDownload', () => ({
   downloadImageWithPrompt: imageActionMocks.downloadImageWithPrompt,
