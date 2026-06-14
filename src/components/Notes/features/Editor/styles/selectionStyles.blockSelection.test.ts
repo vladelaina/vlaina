@@ -335,7 +335,7 @@ describe("editor block selection styles", () => {
     expect(imageSelectionFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
     expect(imageSelectionFillRule).toContain('display: block !important;');
     expect(imageSelectionFillRule).toContain('background: var(--vlaina-block-selection-color);');
-    expect(imageSelectionFillRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
+    expect(imageSelectionFillRule).toContain('box-shadow: none;');
     expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {');
     expect(css).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });

@@ -4,7 +4,7 @@ import { hasInternalNoteAssetPathSegment } from '@/lib/assets/core/internalAsset
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { normalizePublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { getImageSourceBase, getLocalImageSourcePath, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
-import { resolveRemoteImageFromMemoryCache } from '../utils/remoteImageMemoryCache';
+import { getCachedRemoteImageSrc, resolveRemoteImageFromMemoryCache } from '../utils/remoteImageMemoryCache';
 
 interface UseLocalImageResult {
     resolvedSrc: string;
@@ -23,14 +23,36 @@ function canUseVaultlessLocalImageFallback(src: string): boolean {
     return !localSrc.split('/').some((segment) => segment === '..');
 }
 
+function getInitialResolvedImageSrc(rawSrc: string, enabled: boolean): string {
+    if (!enabled || !rawSrc) {
+        return '';
+    }
+
+    const baseSrc = getImageSourceBase(rawSrc);
+    const safeBaseSrc = sanitizeNoteMediaSrc(baseSrc);
+    if (!safeBaseSrc) {
+        return '';
+    }
+
+    const normalizedRemoteSrc = normalizePublicRemoteMediaUrl(safeBaseSrc);
+    if (normalizedRemoteSrc) {
+        return getCachedRemoteImageSrc(normalizedRemoteSrc) ?? '';
+    }
+
+    return isVirtualImageSource(safeBaseSrc) ? safeBaseSrc : '';
+}
+
 export function useLocalImage(
     rawSrc: string,
     notesPath: string,
     currentNotePath: string | undefined,
     enabled = true
 ): UseLocalImageResult {
-    const [resolvedSrc, setResolvedSrc] = useState<string>('');
-    const [isLoading, setIsLoading] = useState(true);
+    const [initialResolvedSrc] = useState(() => getInitialResolvedImageSrc(rawSrc, enabled));
+    const [resolvedSrc, setResolvedSrc] = useState<string>(initialResolvedSrc);
+    const [isLoading, setIsLoading] = useState(() => (
+        enabled && !initialResolvedSrc
+    ));
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
@@ -54,7 +76,6 @@ export function useLocalImage(
                 return;
             }
 
-            setIsLoading(true);
             setError(null);
 
             try {
@@ -70,6 +91,16 @@ export function useLocalImage(
 
                 const normalizedRemoteSrc = normalizePublicRemoteMediaUrl(safeBaseSrc);
                 if (normalizedRemoteSrc) {
+                    const cachedRemoteSrc = getCachedRemoteImageSrc(normalizedRemoteSrc);
+                    if (cachedRemoteSrc) {
+                        if (isMounted) {
+                            setResolvedSrc(cachedRemoteSrc);
+                            setIsLoading(false);
+                        }
+                        return;
+                    }
+
+                    setIsLoading(true);
                     const resolvedRemoteSrc = await resolveRemoteImageFromMemoryCache(normalizedRemoteSrc);
                     if (isMounted) {
                         setResolvedSrc(resolvedRemoteSrc);
@@ -86,6 +117,7 @@ export function useLocalImage(
                     return;
                 }
 
+                setIsLoading(true);
                 const candidatePaths = await resolveImageSourcePathCandidates({
                     rawSrc: safeBaseSrc,
                     notesPath,

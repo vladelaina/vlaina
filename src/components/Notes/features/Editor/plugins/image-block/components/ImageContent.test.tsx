@@ -2,13 +2,14 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SYSTEM_LANGUAGE_PREFERENCE } from '@/lib/i18n';
 import { useUIStore } from '@/stores/uiSlice';
-import { ImageContent } from './ImageContent';
+import { ImageContent, __testing__ as imageContentTesting } from './ImageContent';
 
 vi.mock('./ImageCropper', () => ({
   ImageCropper: () => <div data-testid="image-cropper" />,
 }));
 
 afterEach(() => {
+  imageContentTesting.clearLoadedImageSrcCache();
   act(() => {
     useUIStore.getState().setLanguagePreference(SYSTEM_LANGUAGE_PREFERENCE);
   });
@@ -64,6 +65,18 @@ describe('ImageContent', () => {
     expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
   });
 
+  it('does not flash the remote placeholder for an image src already loaded in memory', () => {
+    imageContentTesting.rememberLoadedImageSrc('https://example.com/image.png');
+    const { container } = renderImageContent({
+      sourceSrc: 'https://example.com/image.png',
+    });
+
+    const image = container.querySelector('img');
+    expect(image).not.toBeNull();
+    expect(screen.queryByTestId('remote-image-placeholder')).toBeNull();
+    expect(image).toHaveClass('opacity-[var(--vlaina-opacity-100)]');
+  });
+
   it('shows the localized not found state when a plain remote image fails to load', () => {
     act(() => {
       useUIStore.getState().setLanguagePreference('zh-CN');
@@ -101,6 +114,17 @@ describe('ImageContent', () => {
 
     expect(screen.getByTestId('deferred-image-placeholder')).toBeInTheDocument();
     expect(screen.queryByTestId('image-cropper')).toBeNull();
+  });
+
+  it('keeps deferred images as placeholders even after their resource was prefetched', () => {
+    const { container } = renderImageContent({
+      resolvedSrc: 'blob:prefetched-image',
+      isDeferred: true,
+      isReady: true,
+    });
+
+    expect(screen.getByTestId('deferred-image-placeholder')).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it('renders saved crop params as a passive preview outside crop mode', () => {

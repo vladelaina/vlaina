@@ -5,7 +5,7 @@ import { ImageBlockView } from './ImageBlockView';
 const mocks = vi.hoisted(() => ({
     useImageBlockState: vi.fn(),
     useBlockDragState: vi.fn(() => false),
-    useNearViewport: vi.fn(() => true),
+    useNearViewport: vi.fn(() => ({ isNearViewport: true, shouldLoadImage: true })),
     handlePointerDown: vi.fn(),
 }));
 
