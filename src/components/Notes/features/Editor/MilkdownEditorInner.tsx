@@ -17,7 +17,7 @@ import { history } from '@milkdown/kit/plugin/history';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Ctx } from '@milkdown/kit/ctx';
 import { Slice, type Node as ProseNode, type Schema } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -238,6 +238,65 @@ interface ReplaceEditorMarkdownOptions {
   resetSelection?: boolean;
 }
 
+function canPreserveSelection(
+  doc: unknown,
+  selection: unknown,
+): doc is ProseNode {
+  return Boolean(
+    doc &&
+    typeof (doc as { resolve?: unknown }).resolve === 'function' &&
+    selection &&
+    typeof (selection as { from?: unknown }).from === 'number' &&
+    typeof (selection as { to?: unknown }).to === 'number'
+  );
+}
+
+function createInlineTextSelection(doc: ProseNode, from: number, to = from): TextSelection | null {
+  try {
+    const $from = doc.resolve(from);
+    const $to = doc.resolve(to);
+    if (!$from.parent.inlineContent || !$to.parent.inlineContent) {
+      return null;
+    }
+    return TextSelection.create(doc, from, to);
+  } catch {
+    return null;
+  }
+}
+
+function createPreservedEditorSelection(doc: ProseNode, previousSelection: Selection): Selection {
+  const maxPos = doc.content.size;
+  const clampPos = (pos: number) => Math.max(0, Math.min(maxPos, pos));
+
+  if (previousSelection.empty) {
+    const pos = clampPos(previousSelection.from);
+    const textSelection = createInlineTextSelection(doc, pos);
+    if (textSelection) {
+      return textSelection;
+    }
+    try {
+      return Selection.near(doc.resolve(pos), previousSelection.from >= maxPos ? -1 : 1);
+    } catch {
+      return createDocumentStartTextSelection(doc);
+    }
+  }
+
+  const from = clampPos(previousSelection.from);
+  const to = clampPos(previousSelection.to);
+  if (from < to) {
+    const textSelection = createInlineTextSelection(doc, from, to);
+    if (textSelection) {
+      return textSelection;
+    }
+  }
+
+  try {
+    return Selection.near(doc.resolve(from), 1);
+  } catch {
+    return createDocumentStartTextSelection(doc);
+  }
+}
+
 export function normalizeInitialEditorSelection(view: EditorView): boolean {
   const nextSelection = createDocumentStartTextSelection(view.state.doc);
   if (!(nextSelection instanceof TextSelection) || nextSelection.eq(view.state.selection)) {
@@ -282,6 +341,7 @@ export function replaceEditorMarkdown(
   }
 
   const { state } = view;
+  const previousSelection = state.selection;
   let tr = state.tr.replace(
     0,
     state.doc.content.size,
@@ -292,6 +352,8 @@ export function replaceEditorMarkdown(
     tr = tr
       .setSelection(createDocumentStartTextSelection(tr.doc))
       .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  } else if (canPreserveSelection(tr.doc, previousSelection)) {
+    tr = tr.setSelection(createPreservedEditorSelection(tr.doc, previousSelection));
   }
 
   view.dispatch(tr);

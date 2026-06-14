@@ -136,6 +136,30 @@ function createLargePlainMarkdown(): string {
   ].join('\n\n');
 }
 
+function createTextSchema(options: { blankLine?: boolean } = {}) {
+  const nodes: Record<string, unknown> = {
+    doc: { content: 'block+' },
+    paragraph: {
+      content: 'text*',
+      group: 'block',
+      toDOM: () => ['p', 0],
+      parseDOM: [{ tag: 'p' }],
+    },
+    text: { group: 'inline' },
+  };
+
+  if (options.blankLine) {
+    nodes.blank_line = {
+      group: 'block',
+      atom: true,
+      toDOM: () => ['div', { 'data-blank-line': 'true' }],
+      parseDOM: [{ tag: 'div[data-blank-line="true"]' }],
+    };
+  }
+
+  return new ProseSchema({ nodes });
+}
+
 function createMockActiveEditor() {
   const dispatch = vi.fn();
   const replace = vi.fn(() => ({ step: 'replace' }));
@@ -207,6 +231,184 @@ describe('replaceEditorMarkdown', () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
+  it('preserves selection position when replacing same-note content', () => {
+    const schema = createTextSchema();
+    const currentDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('Alpha Beta Gamma')),
+    ]);
+    const replacementDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('Alpha Beta Gamma saved')),
+    ]);
+    const parserDoc = { content: replacementDoc.content };
+    const setSelection = vi.fn(function setSelection(this: unknown, _selection: unknown) {
+      return transaction;
+    });
+    const transaction = {
+      doc: replacementDoc,
+      setSelection,
+    };
+    const dispatch = vi.fn();
+    const replace = vi.fn(() => transaction);
+    const view = {
+      dispatch,
+      state: {
+        schema,
+        doc: currentDoc,
+        selection: TextSelection.create(currentDoc, 8),
+        tr: { replace },
+      },
+    };
+    const ctx = {
+      get: vi.fn((token: unknown) => {
+        if (token === editorViewCtx) return view;
+        if (token === parserCtx) return () => parserDoc;
+        throw new Error('Unexpected token');
+      }),
+    };
+
+    expect(replaceEditorMarkdown(ctx as never, 'replacement')).toBe(true);
+
+    const selection = setSelection.mock.calls[0]?.[0];
+    expect(selection).toBeInstanceOf(TextSelection);
+    expect((selection as TextSelection).from).toBe(8);
+    expect((selection as TextSelection).to).toBe(8);
+    expect(dispatch).toHaveBeenCalledWith(transaction);
+  });
+
+  it('preserves a selected text range when replacing same-note content', () => {
+    const schema = createTextSchema();
+    const currentDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('Alpha Beta Gamma')),
+    ]);
+    const replacementDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('Alpha Beta Gamma saved')),
+    ]);
+    const parserDoc = { content: replacementDoc.content };
+    const setSelection = vi.fn(function setSelection(this: unknown, _selection: unknown) {
+      return transaction;
+    });
+    const transaction = {
+      doc: replacementDoc,
+      setSelection,
+    };
+    const dispatch = vi.fn();
+    const replace = vi.fn(() => transaction);
+    const view = {
+      dispatch,
+      state: {
+        schema,
+        doc: currentDoc,
+        selection: TextSelection.create(currentDoc, 7, 11),
+        tr: { replace },
+      },
+    };
+    const ctx = {
+      get: vi.fn((token: unknown) => {
+        if (token === editorViewCtx) return view;
+        if (token === parserCtx) return () => parserDoc;
+        throw new Error('Unexpected token');
+      }),
+    };
+
+    expect(replaceEditorMarkdown(ctx as never, 'replacement')).toBe(true);
+
+    const selection = setSelection.mock.calls[0]?.[0];
+    expect(selection).toBeInstanceOf(TextSelection);
+    expect((selection as TextSelection).from).toBe(7);
+    expect((selection as TextSelection).to).toBe(11);
+    expect(dispatch).toHaveBeenCalledWith(transaction);
+  });
+
+  it('clamps a preserved same-note cursor when the replacement document is shorter', () => {
+    const schema = createTextSchema();
+    const currentDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('A much longer paragraph before autosave normalization')),
+    ]);
+    const replacementDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('Short')),
+    ]);
+    const parserDoc = { content: replacementDoc.content };
+    const setSelection = vi.fn(function setSelection(this: unknown, _selection: unknown) {
+      return transaction;
+    });
+    const transaction = {
+      doc: replacementDoc,
+      setSelection,
+    };
+    const dispatch = vi.fn();
+    const replace = vi.fn(() => transaction);
+    const view = {
+      dispatch,
+      state: {
+        schema,
+        doc: currentDoc,
+        selection: TextSelection.create(currentDoc, currentDoc.content.size - 1),
+        tr: { replace },
+      },
+    };
+    const ctx = {
+      get: vi.fn((token: unknown) => {
+        if (token === editorViewCtx) return view;
+        if (token === parserCtx) return () => parserDoc;
+        throw new Error('Unexpected token');
+      }),
+    };
+
+    expect(replaceEditorMarkdown(ctx as never, 'replacement')).toBe(true);
+
+    const selection = setSelection.mock.calls[0]?.[0] as TextSelection;
+    expect(selection).toBeInstanceOf(TextSelection);
+    expect(selection.from).toBeLessThanOrEqual(replacementDoc.content.size);
+    expect(selection.to).toBeLessThanOrEqual(replacementDoc.content.size);
+    expect(selection.empty).toBe(true);
+    expect(dispatch).toHaveBeenCalledWith(transaction);
+  });
+
+  it('falls back to a nearby cursor when a same-note atomic block selection cannot be preserved as text', () => {
+    const schema = createTextSchema({ blankLine: true });
+    const currentDoc = schema.node('doc', null, [
+      schema.nodes.blank_line.create(),
+      schema.nodes.paragraph.create(null, schema.text('After atomic block')),
+    ]);
+    const replacementDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('After atomic block')),
+    ]);
+    const parserDoc = { content: replacementDoc.content };
+    const setSelection = vi.fn(function setSelection(this: unknown, _selection: unknown) {
+      return transaction;
+    });
+    const transaction = {
+      doc: replacementDoc,
+      setSelection,
+    };
+    const dispatch = vi.fn();
+    const replace = vi.fn(() => transaction);
+    const view = {
+      dispatch,
+      state: {
+        schema,
+        doc: currentDoc,
+        selection: NodeSelection.create(currentDoc, 0),
+        tr: { replace },
+      },
+    };
+    const ctx = {
+      get: vi.fn((token: unknown) => {
+        if (token === editorViewCtx) return view;
+        if (token === parserCtx) return () => parserDoc;
+        throw new Error('Unexpected token');
+      }),
+    };
+
+    expect(replaceEditorMarkdown(ctx as never, 'replacement')).toBe(true);
+
+    const selection = setSelection.mock.calls[0]?.[0];
+    expect(selection).toBeInstanceOf(TextSelection);
+    expect((selection as TextSelection).from).toBe(1);
+    expect((selection as TextSelection).empty).toBe(true);
+    expect(dispatch).toHaveBeenCalledWith(transaction);
+  });
+
   it('uses the large plain markdown fast document path without calling the parser', () => {
     const parser = vi.fn(() => {
       throw new Error('parser should not run');
@@ -254,24 +456,10 @@ describe('replaceEditorMarkdown', () => {
   });
 
   it('resets selection and clears block selection when replacing a different note', () => {
-    const schema = new ProseSchema({
-      nodes: {
-        doc: { content: 'block+' },
-        paragraph: {
-          content: 'text*',
-          group: 'block',
-          toDOM: () => ['p', 0],
-          parseDOM: [{ tag: 'p' }],
-        },
-        text: { group: 'inline' },
-        blank_line: {
-          group: 'block',
-          atom: true,
-          toDOM: () => ['div', { 'data-blank-line': 'true' }],
-          parseDOM: [{ tag: 'div[data-blank-line="true"]' }],
-        },
-      },
-    });
+    const schema = createTextSchema({ blankLine: true });
+    const currentDoc = schema.node('doc', null, [
+      schema.nodes.paragraph.create(null, schema.text('Previous note body')),
+    ]);
     const replacementDoc = schema.node('doc', null, [
       schema.nodes.blank_line.create(),
       schema.nodes.paragraph.create(null, schema.text('After leading blank line')),
@@ -294,7 +482,8 @@ describe('replaceEditorMarkdown', () => {
       dispatch,
       state: {
         schema,
-        doc: { content: { size: 12 } },
+        doc: currentDoc,
+        selection: TextSelection.create(currentDoc, currentDoc.content.size - 1),
         tr: { replace },
       },
     };
