@@ -195,7 +195,7 @@ function isMoonshotModel(provider: Provider, model: AIModel): boolean {
 }
 
 function shouldUseWebSearchTextProtocol(provider: Provider, model: AIModel): boolean {
-  return isClaudeModel(provider, model) || isMoonshotModel(provider, model)
+  return provider.id === MANAGED_PROVIDER_ID || isClaudeModel(provider, model) || isMoonshotModel(provider, model)
 }
 
 function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {

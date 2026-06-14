@@ -1846,6 +1846,44 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'hi' });
   });
 
+  it('routes managed provider web search through the text protocol without tools', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"managed direct answer"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({
+        id: 'vlaina-managed:openai/gpt-oss-20b',
+        apiModelId: 'openai/gpt-oss-20b',
+        name: 'GPT OSS 20B',
+        providerId: 'vlaina-managed',
+      }),
+      buildProvider({
+        id: 'vlaina-managed',
+        name: 'vlaina managed',
+        endpointType: 'openai',
+      }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toBe('managed direct answer');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.vlaina.com/v1/chat/completions');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe('openai/gpt-oss-20b');
+    expect(body.stream).toBe(true);
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+    expect(body.messages[0].role).toBe('system');
+    expect(body.messages[0].content).toContain('<web_search_request>');
+    expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'hi' });
+  });
+
   it('handles OpenRouter Claude search requests through the text protocol without tool messages', async () => {
     const fetchMock = vi
       .fn()

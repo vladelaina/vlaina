@@ -14,7 +14,6 @@ const NETWORK_ERROR_MESSAGE = 'Network connection error. Please check your conne
 const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again later.'
 const AUTH_ERROR_MESSAGE = 'Your sign-in session has expired. Please sign in again and try again.'
 const RATE_LIMIT_ERROR_MESSAGE = 'Too many requests. Please try again later.'
-const INVALID_REQUEST_ERROR_MESSAGE = 'This request could not be processed. Please adjust your input or switch models and try again.'
 const UNSUPPORTED_MODEL_INPUT_CODES = new Set([
   'unsupported_message_content',
   'unsupported_model_input',
@@ -41,6 +40,10 @@ const MANAGED_QUOTA_EXHAUSTED_CODES = new Set([
   'points_exhausted',
   'inactive_points',
   'insufficient_points',
+])
+const MANAGED_INVALID_REQUEST_CODES = new Set([
+  'invalid_request',
+  'INVALID_REQUEST',
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -69,9 +72,10 @@ function extractErrorDetails(error: unknown): string {
 }
 
 function extractErrorCode(error: unknown): string {
+  const message = extractErrorMessage(error)
   if (!isRecord(error)) {
-    const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)
-    return matched?.[1] || ''
+    const statusMatch = message.match(/\b(?:status|http)\s+(\d{3})\b/i)
+    return statusMatch?.[1] || extractMachineErrorCodeFromMessage(message)
   }
 
   for (const key of ['errorCode', 'code'] as const) {
@@ -89,8 +93,36 @@ function extractErrorCode(error: unknown): string {
     return value.trim().slice(0, MAX_USER_FACING_AI_ERROR_CODE_CHARS)
   }
 
-  const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)
-  return matched?.[1] || ''
+  const statusMatch = message.match(/\b(?:status|http)\s+(\d{3})\b/i)
+  return statusMatch?.[1] || extractMachineErrorCodeFromMessage(message)
+}
+
+function stripErrorPrefix(message: string): string {
+  let next = normalizeUserFacingMessage(message)
+  for (let index = 0; index < 3; index += 1) {
+    const stripped = next.replace(/^Error:\s*/i, '').trim()
+    if (stripped === next) break
+    next = stripped
+  }
+  return next
+}
+
+function extractMachineErrorCodeFromMessage(message: string): string {
+  const normalized = normalizeUserFacingMessage(message)
+  const candidates = [normalized]
+  const ipcMatch = normalized.match(/^Error invoking remote method '[^']+':\s*(.+)$/i)
+  if (ipcMatch?.[1]) {
+    candidates.push(ipcMatch[1])
+  }
+
+  for (const candidate of candidates) {
+    const inner = stripErrorPrefix(candidate)
+    if (/^[A-Z][A-Z0-9_]{2,}$/.test(inner)) {
+      return inner.toLowerCase()
+    }
+  }
+
+  return ''
 }
 
 function inferErrorTypeByStatus(code: string): AIErrorType | null {
@@ -296,7 +328,7 @@ function getUserFacingMessage(type: AIErrorType): string {
     case AIErrorType.RATE_LIMIT:
       return RATE_LIMIT_ERROR_MESSAGE
     case AIErrorType.INVALID_REQUEST:
-      return INVALID_REQUEST_ERROR_MESSAGE
+      return translate('chat.error.upstreamUnavailable')
     case AIErrorType.SERVER_ERROR:
     case AIErrorType.UNKNOWN:
     default:
@@ -349,6 +381,18 @@ function getSpecificUserFacingOverride(message: string, code: string): UserFacin
       type: AIErrorType.INVALID_REQUEST,
       code: normalizedCode || 'unsupported_model_input',
       message: translate('chat.error.managedTextOnly'),
+    }
+  }
+
+  if (
+    normalized === 'invalid_request' ||
+    MANAGED_INVALID_REQUEST_CODES.has(normalizedCode) ||
+    MANAGED_INVALID_REQUEST_CODES.has(normalizedCodeLower)
+  ) {
+    return {
+      type: AIErrorType.INVALID_REQUEST,
+      code: normalizedCode || 'invalid_request',
+      message: getUserFacingMessage(AIErrorType.INVALID_REQUEST),
     }
   }
 

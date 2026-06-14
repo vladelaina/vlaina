@@ -540,6 +540,7 @@ describe('managed ipc stream bridge', () => {
     );
 
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-error:error', { message: 'upstream failed' });
+    expect(fetchWithStoredSession).toHaveBeenCalledTimes(1);
   });
 
   it('rejects oversized managed stream lines', async () => {

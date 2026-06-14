@@ -805,7 +805,7 @@ describe('managedService', () => {
   it('sanitizes managed web stream error payloads', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const encoder = new TextEncoder();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       body: new ReadableStream({
         start(controller) {
@@ -815,7 +815,8 @@ describe('managedService', () => {
           controller.close();
         },
       }),
-    }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     const { requestManagedChatCompletionStream } = await import('./managedService');
 
@@ -827,6 +828,7 @@ describe('managedService', () => {
       },
       vi.fn()
     )).rejects.toThrow('MANAGED_QUOTA_EXHAUSTED');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('passes abort signals through managed web streams', async () => {

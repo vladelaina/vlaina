@@ -194,6 +194,18 @@ describe('getUserFacingAIError', () => {
     });
   });
 
+  it('does not expose Electron managed invalid request IPC wrappers', () => {
+    const result = getUserFacingAIError(
+      new Error("Error invoking remote method 'desktop:managed:chat-completion': Error: INVALID_REQUEST")
+    );
+
+    expect(result).toEqual({
+      type: AIErrorType.INVALID_REQUEST,
+      code: 'invalid_request',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
+    });
+  });
+
   it('uses structured managed error codes before falling back to messages', () => {
     const result = getUserFacingAIError({
       errorCode: 'upstream_unavailable',
