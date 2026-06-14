@@ -737,7 +737,12 @@ export function createFloatingToolbarPluginView(
       return;
     }
 
-    if (!hasReviewPanels && !isReviewModeActive && !hasUsableTextSelection(selection, editorView.state.doc)) {
+    if (
+      !hasReviewPanels &&
+      !isReviewModeActive &&
+      selection.empty &&
+      !hasUsableTextSelection(selection, editorView.state.doc)
+    ) {
       if (restoreSelectionForToolbar() || restoreSelectionRangeForToolbar(pluginState.selectionRange)) {
         selection = editorView.state.selection;
       }
