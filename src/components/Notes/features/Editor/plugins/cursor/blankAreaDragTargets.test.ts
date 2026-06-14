@@ -53,6 +53,7 @@ function createView() {
 
   const editorWrapper = document.createElement('div');
   editorWrapper.className = 'milkdown-editor';
+  editorWrapper.setAttribute('data-note-content-root', 'true');
   scrollRoot.append(editorWrapper);
 
   const editor = document.createElement('div');
@@ -61,6 +62,7 @@ function createView() {
 
   return {
     view: { dom: editor } as unknown as EditorView,
+    scrollRoot,
     editorWrapper,
     cleanup: () => scrollRoot.remove(),
   };
@@ -100,6 +102,38 @@ describe('blankAreaDragTargets', () => {
       expect(isIgnoredBlankAreaDragBoxTarget(coverChild)).toBe(true);
     } finally {
       coverRegion.remove();
+    }
+  });
+
+  it('ignores explicit non-editor chrome for document-level blank-area drag handling', () => {
+    const chrome = document.createElement('div');
+    chrome.setAttribute('data-no-editor-drag-box', 'true');
+    const child = document.createElement('span');
+    chrome.append(child);
+    document.body.append(chrome);
+
+    try {
+      expect(isIgnoredBlankAreaDragBoxTarget(chrome)).toBe(true);
+      expect(isIgnoredBlankAreaDragBoxTarget(child)).toBe(true);
+    } finally {
+      chrome.remove();
+    }
+  });
+
+  it('does not start block selection from note header chrome in the editor scroll root', () => {
+    const { view, scrollRoot, editorWrapper, cleanup } = createView();
+    const header = document.createElement('div');
+    const headerChild = document.createElement('span');
+    header.append(headerChild);
+    scrollRoot.insertBefore(header, editorWrapper);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(headerChild, { clientX: 120, clientY: 24 }),
+      )).toBeNull();
+    } finally {
+      cleanup();
     }
   });
 
@@ -273,6 +307,50 @@ describe('blankAreaDragTargets', () => {
       )).toBeNull();
     } finally {
       document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('allows editor content shell blank space to start block selection', () => {
+    const { view, editorWrapper, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(editorWrapper, { clientX: 330, clientY: 50 }),
+      )).toBe('outside-editor');
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('allows the editor scroll root itself to start blank-area selection', () => {
+    const { view, scrollRoot, cleanup } = createView();
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(scrollRoot, { clientX: 120, clientY: 240 }),
+      )).toBe('outside-editor');
+    } finally {
       cleanup();
     }
   });

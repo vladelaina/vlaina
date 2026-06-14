@@ -83,6 +83,7 @@ describe('CoverPicker', () => {
       .find((element) => element.className.includes('w-[var(--vlaina-size-340px)]'));
     expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
     expect(pickerShell?.className).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(pickerShell?.getAttribute('data-no-editor-drag-box')).toBe('true');
   });
 
   it('removes the current cover without bubbling pointer events to cover interactions', () => {

@@ -44,6 +44,7 @@ import {
 import {
   isExternalTextLineGutterNativeSelectionTarget,
   isIgnoredBlankAreaDragBoxTarget,
+  isSameEditorBlankAreaInteractionTarget,
   resolveBlankAreaDragStartZone,
   resolveTargetTextLinePointerHit,
 } from './blankAreaDragTargets';
@@ -229,7 +230,7 @@ function handleTrailingBlankClickInsideLastList(view: EditorView, event: MouseEv
 }
 
 function resolveInsideBlockTrailingPlainClick(view: EditorView, event: MouseEvent): BlankAreaPlainClickAction | null {
-  if (!isSameEditorScrollRoot(view, event.target)) return null;
+  if (!isSameEditorBlankAreaInteractionTarget(view, event.target)) return null;
   if (event.button !== 0) return null;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
   if (event.target instanceof HTMLElement) {
@@ -357,7 +358,7 @@ function shouldStartUnclaimedBlankPlainClickSession(view: EditorView, event: Mou
   if (event.button !== 0) return false;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
   if (view.state.selection.empty || view.state.selection instanceof NodeSelection) return false;
-  return isSameEditorScrollRoot(view, event.target);
+  return isSameEditorBlankAreaInteractionTarget(view, event.target);
 }
 
 function startUnclaimedBlankPlainClickSession(

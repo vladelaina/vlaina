@@ -1256,15 +1256,50 @@ describe('blankAreaDragBoxPlugin list gap selection state', () => {
 });
 
 describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
+  it('does not treat note header chrome as unclaimed editor blank space', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const scrollRoot = attachNoteScrollRoot(view);
+      const headerChrome = document.createElement('div');
+      const headerChild = document.createElement('span');
+      headerChrome.appendChild(headerChild);
+      scrollRoot.insertBefore(headerChrome, view.dom);
+
+      const { from, to } = findTextRange(view.state.doc, 'Alpha');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+      expect(view.state.selection.empty).toBe(false);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 120,
+        clientY: 24,
+      });
+      headerChild.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(false);
+      expect(view.state.selection.from).toBe(from);
+      expect(view.state.selection.to).toBe(to);
+
+      document.dispatchEvent(createMouseEvent('mouseup', {
+        clientX: 120,
+        clientY: 24,
+      }));
+      await waitForPointerClickSettled();
+
+      expect(view.state.selection.from).toBe(from);
+      expect(view.state.selection.to).toBe(to);
+      expect(view.state.selection.empty).toBe(false);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('clears a text selection when clicking unclaimed blank space in the note scroll root', async () => {
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
     const originalCreateRange = document.createRange;
 
     try {
       const scrollRoot = attachNoteScrollRoot(view);
-      const blankArea = document.createElement('div');
-      scrollRoot.appendChild(blankArea);
-
       const firstParagraph = view.dom.querySelector('p');
       expect(firstParagraph).toBeInstanceOf(HTMLElement);
       vi.spyOn(scrollRoot, 'getBoundingClientRect').mockReturnValue(domRect(0, 0, 800, 600));
@@ -1284,7 +1319,7 @@ describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
         clientX: 84,
         clientY: 52,
       });
-      blankArea.dispatchEvent(mouseDown);
+      scrollRoot.dispatchEvent(mouseDown);
 
       expect(mouseDown.defaultPrevented).toBe(false);
       expect(view.state.selection.empty).toBe(false);

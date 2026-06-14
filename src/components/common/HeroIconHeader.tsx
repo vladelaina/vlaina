@@ -191,6 +191,7 @@ export function HeroIconHeader({
   return (
     <div
       ref={headerRef}
+      data-no-editor-drag-box="true"
       className={cn(
         "relative transition-[margin-top] duration-[var(--vlaina-duration-75)] ease-out w-full",
         !compact && "max-w-3xl mx-auto px-10",
