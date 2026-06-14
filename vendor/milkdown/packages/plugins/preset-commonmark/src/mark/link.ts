@@ -29,6 +29,7 @@ function hasUnsafeBackslashUrlSyntax(value: string) {
 
 export function sanitizeLinkHref(value: unknown) {
   if (typeof value !== 'string') return null
+  if (value.length > maxLinkHrefChars) return null
   const trimmed = value.trim()
   if (!trimmed || trimmed.length > maxLinkHrefChars || trimmed.startsWith('//') || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed)) return null
 

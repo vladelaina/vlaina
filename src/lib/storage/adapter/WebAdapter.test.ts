@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { WebAdapter, MAX_WEB_ADAPTER_LIST_ENTRIES } from './WebAdapter';
+import { WebAdapter, MAX_WEB_ADAPTER_FILE_BYTES, MAX_WEB_ADAPTER_LIST_ENTRIES } from './WebAdapter';
 
 describe('WebAdapter', () => {
   let adapter: WebAdapter;
@@ -100,11 +100,34 @@ describe('WebAdapter', () => {
     await expect(adapter.readBinaryFile('/assets/image.bin')).resolves.toEqual(new Uint8Array([1, 2, 3]));
   });
 
+  it('rejects oversized binary writes before materializing the input bytes', async () => {
+    const oversized = { byteLength: MAX_WEB_ADAPTER_FILE_BYTES + 1 } as Uint8Array;
+
+    await expect(adapter.writeBinaryFile('/assets/huge.bin', oversized)).rejects.toThrow(
+      'Web content is too large to write',
+    );
+    await expect(adapter.exists('/assets/huge.bin')).resolves.toBe(false);
+  });
+
   it('rejects binary reads that exceed the caller-provided byte limit', async () => {
     await adapter.writeBinaryFile('/assets/image.bin', new Uint8Array([1, 2, 3]), { recursive: true });
 
     await expect(adapter.readBinaryFile('/assets/image.bin', 2)).rejects.toThrow('File is too large to read');
     await expect(adapter.readBinaryFile('/assets/image.bin', -1)).rejects.toThrow('Invalid binary read limit');
+  });
+
+  it('rejects reads from oversized stored metadata before trusting binary content length', async () => {
+    await putRawStoredFile({
+      path: '/assets/corrupt.bin',
+      content: new Uint8Array([1]),
+      isBinary: true,
+      size: MAX_WEB_ADAPTER_FILE_BYTES + 1,
+      modifiedAt: 1,
+      createdAt: 1,
+    });
+
+    await expect(adapter.readBinaryFile('/assets/corrupt.bin', 2)).rejects.toThrow('File is too large to read');
+    await expect(adapter.readFile('/assets/corrupt.bin', 2)).rejects.toThrow('File is too large to read');
   });
 
   it('continues to copy text files as text', async () => {

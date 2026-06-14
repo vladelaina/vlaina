@@ -49,10 +49,28 @@ import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { translate, useI18n } from '@/lib/i18n';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
+import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 const EMPTY_MESSAGES: never[] = [];
+
+function primitiveToString(value: unknown): string {
+  if (value == null) {
+    return '';
+  }
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value);
+    default:
+      return '';
+  }
+}
 
 function extractRawErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
@@ -64,7 +82,7 @@ function extractRawErrorMessage(error: unknown): string {
       return message;
     }
   }
-  return String(error || '').trim() || 'AI request failed.';
+  return primitiveToString(error).trim() || 'AI request failed.';
 }
 
 function dispatchAccountAuthInvalidated() {
@@ -417,7 +435,8 @@ export function useChatService() {
 
   const sendMessage = useCallback(
     async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[] = []) => {
-      const isTextEmpty = !text || text.trim().length === 0;
+      const limitedText = limitChatComposerText(text);
+      const isTextEmpty = !limitedText || limitedText.trim().length === 0;
       const normalizedAttachments = limitChatMessageImageAttachments(attachments || []);
       const hasNoAttachments = normalizedAttachments.length === 0;
       const normalizedMentions = normalizeNoteMentions(noteMentions);
@@ -436,9 +455,9 @@ export function useChatService() {
         setError(t('chat.error.channelOff'));
         return false;
       }
-      const normalizedInput = text
+      const normalizedInput = limitChatComposerText(limitedText
         .replace(INVISIBLE_BREAK_REGEX, '')
-        .replace(UNIVERSAL_NEWLINE_REGEX, '\n');
+        .replace(UNIVERSAL_NEWLINE_REGEX, '\n'));
       const userMessageText = normalizedInput.trim();
       const mentionText = normalizedMentions.map((mention) => `@${mention.title}`).join(' ');
       const unsupportedAttachments = normalizedAttachments.filter((attachment) => !isImageAttachment(attachment));
@@ -725,7 +744,7 @@ export function useChatService() {
           addChatDebugLog('chat', 'sendMessage stream runner failed unexpectedly', {
             sessionId: targetSessionId,
             durationMs: Date.now() - requestStartedAt,
-            error: error instanceof Error ? error.message : String(error),
+            error: extractRawErrorMessage(error),
           }, 'error');
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(targetSessionId, error, isManaged);
@@ -750,7 +769,7 @@ export function useChatService() {
         addChatDebugLog('chat', 'sendMessage mutation failed', {
           sessionId: targetSessionId,
           durationMs: Date.now() - requestStartedAt,
-          error: error instanceof Error ? error.message : String(error),
+          error: extractRawErrorMessage(error),
         }, 'error');
         const isManaged = isManagedProviderId(provider.id);
         markManagedAuthPromptForError(targetSessionId, error, isManaged);
@@ -940,7 +959,7 @@ export function useChatService() {
             sessionId,
             assistantMessageId,
             durationMs: Date.now() - requestStartedAt,
-            error: error instanceof Error ? error.message : String(error),
+            error: extractRawErrorMessage(error),
           }, 'error');
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(sessionId, error, isManaged);
@@ -964,7 +983,7 @@ export function useChatService() {
         addChatDebugLog('chat', 'edit resend mutation failed', {
           sessionId,
           messageId,
-          error: error instanceof Error ? error.message : String(error),
+          error: extractRawErrorMessage(error),
         }, 'error');
         const isManaged = isManagedProviderId(provider.id);
         markManagedAuthPromptForError(sessionId, error, isManaged);
@@ -1137,7 +1156,7 @@ export function useChatService() {
             sessionId,
             messageId,
             durationMs: Date.now() - requestStartedAt,
-            error: error instanceof Error ? error.message : String(error),
+            error: extractRawErrorMessage(error),
           }, 'error');
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(sessionId, error, isManaged);
@@ -1161,7 +1180,7 @@ export function useChatService() {
         addChatDebugLog('chat', 'regenerate mutation failed', {
           sessionId,
           messageId,
-          error: error instanceof Error ? error.message : String(error),
+          error: extractRawErrorMessage(error),
         }, 'error');
         const isManaged = isManagedProviderId(provider.id);
         markManagedAuthPromptForError(sessionId, error, isManaged);

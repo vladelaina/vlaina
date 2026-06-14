@@ -250,6 +250,29 @@ describe('featureSlice internal note paths', () => {
         context: 'See [[Alpha]] #public',
       },
     ]);
+    expect(store.getState().getBacklinks('../secret.md')).toEqual([]);
+    expect(store.getState().getBacklinks('docs/secret\u202Egnp.md')).toEqual([]);
+    expect(store.getState().getAllTags()).toEqual([
+      { tag: 'public', count: 1 },
+    ]);
+  });
+
+  it('ignores stale oversized cache entries for backlinks and tags', () => {
+    const oversizedContent = `See [[Alpha]] #hidden ${'x'.repeat(MAX_SEARCHABLE_NOTE_BYTES)}`;
+    const store = createNotesStore({
+      noteContentsCache: new Map([
+        ['docs/oversized.md', { content: oversizedContent, modifiedAt: 1 }],
+        ['docs/ref.md', { content: 'See [[Alpha]] #public', modifiedAt: 1 }],
+      ]),
+    });
+
+    expect(store.getState().getBacklinks('alpha.md')).toEqual([
+      {
+        path: 'docs/ref.md',
+        name: 'ref',
+        context: 'See [[Alpha]] #public',
+      },
+    ]);
     expect(store.getState().getAllTags()).toEqual([
       { tag: 'public', count: 1 },
     ]);

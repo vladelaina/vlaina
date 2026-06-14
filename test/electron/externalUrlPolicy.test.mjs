@@ -4,6 +4,7 @@ import {
   normalizeExternalUrl,
   normalizeHttpUrl,
   normalizeProxyConfig,
+  redactUrlCredentials,
   summarizeUrlForLog,
 } from '../../electron/externalUrlPolicy.mjs';
 
@@ -15,6 +16,8 @@ describe('electron external URL policy', () => {
 
   it('rejects unsupported and overlong external URLs', () => {
     expect(() => normalizeExternalUrl('javascript:alert(1)')).toThrow('Unsupported external URL protocol');
+    expect(() => normalizeExternalUrl(' '.repeat(MAX_ELECTRON_EXTERNAL_URL_CHARS + 1)))
+      .toThrow('URL is too long');
     expect(() => normalizeExternalUrl(`https://example.com/${'a'.repeat(MAX_ELECTRON_EXTERNAL_URL_CHARS)}`))
       .toThrow('URL is too long');
   });
@@ -66,6 +69,18 @@ describe('electron external URL policy', () => {
       proxyRules: 'http=example.com:8443;https=example.com:8443',
       source: 'env',
     });
+  });
+
+  it('does not coerce hostile runtime URL values for logging or proxy normalization', () => {
+    const hostileUrl = {
+      toString() {
+        throw new Error('URL coercion');
+      },
+    };
+
+    expect(redactUrlCredentials(hostileUrl)).toBe('');
+    expect(summarizeUrlForLog(hostileUrl)).toBe('');
+    expect(normalizeProxyConfig(hostileUrl, 'env')).toBeNull();
   });
 
   it('rejects unsupported or overlong proxy URLs', () => {

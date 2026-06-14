@@ -1,3 +1,10 @@
+import {
+  normalizeDesktopAccountAvatarUrl,
+  normalizeDesktopAccountEmail,
+  normalizeDesktopAccountMembershipName,
+  normalizeDesktopAccountUsername,
+} from './accountIdentityNormalization.mjs';
+
 export function buildDisconnectedDesktopStatus(options = {}) {
   return {
     connected: false,
@@ -16,8 +23,8 @@ export function buildCachedDesktopStatus(credentials) {
     connected: true,
     provider: credentials.provider,
     username: credentials.username,
-    primaryEmail: credentials.primaryEmail,
-    avatarUrl: credentials.avatarUrl,
+    primaryEmail: normalizeDesktopAccountEmail(credentials.primaryEmail),
+    avatarUrl: normalizeDesktopAccountAvatarUrl(credentials.avatarUrl),
     membershipTier:
       credentials.membershipTier === 'free' ||
       credentials.membershipTier === 'plus' ||
@@ -27,9 +34,7 @@ export function buildCachedDesktopStatus(credentials) {
         ? credentials.membershipTier
         : null,
     membershipName:
-      typeof credentials.membershipName === 'string' && credentials.membershipName.trim()
-        ? credentials.membershipName.trim()
-        : null,
+      normalizeDesktopAccountMembershipName(credentials.membershipName),
     persistent: credentials.persistent !== false,
   };
 }
@@ -92,24 +97,20 @@ export function resolveDesktopSessionProbe(credentials, probe) {
     };
   }
 
+  const payloadUsername = normalizeDesktopAccountUsername(probe.payload?.username);
+  const payloadPrimaryEmail = normalizeDesktopAccountEmail(probe.payload?.primaryEmail);
+  const payloadAvatarUrl = normalizeDesktopAccountAvatarUrl(probe.payload?.avatarUrl);
+  const payloadMembershipName = normalizeDesktopAccountMembershipName(probe.payload?.membershipName);
+
   const nextCredentials = {
     appSessionToken: probe.rotatedAppSessionToken ?? credentials.appSessionToken,
     provider:
       typeof probe.payload?.provider === 'string' && probe.payload.provider.trim()
         ? probe.payload.provider.trim()
         : credentials.provider,
-    username:
-      typeof probe.payload?.username === 'string' && probe.payload.username.trim()
-        ? probe.payload.username.trim()
-        : credentials.username,
-    primaryEmail:
-      typeof probe.payload?.primaryEmail === 'string'
-        ? probe.payload.primaryEmail
-        : credentials.primaryEmail,
-    avatarUrl:
-      typeof probe.payload?.avatarUrl === 'string'
-        ? probe.payload.avatarUrl
-        : credentials.avatarUrl,
+    username: payloadUsername ?? credentials.username,
+    primaryEmail: payloadPrimaryEmail ?? normalizeDesktopAccountEmail(credentials.primaryEmail),
+    avatarUrl: payloadAvatarUrl ?? normalizeDesktopAccountAvatarUrl(credentials.avatarUrl),
     membershipTier:
       probe.payload?.membershipTier === 'free' ||
       probe.payload?.membershipTier === 'plus' ||
@@ -118,10 +119,7 @@ export function resolveDesktopSessionProbe(credentials, probe) {
       probe.payload?.membershipTier === 'ultra'
         ? probe.payload.membershipTier
         : credentials.membershipTier ?? null,
-    membershipName:
-      typeof probe.payload?.membershipName === 'string'
-        ? probe.payload.membershipName
-        : credentials.membershipName ?? null,
+    membershipName: payloadMembershipName ?? normalizeDesktopAccountMembershipName(credentials.membershipName),
     authenticatedAt: credentials.authenticatedAt ?? null,
     persistent: credentials.persistent !== false,
   };

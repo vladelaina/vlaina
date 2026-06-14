@@ -10,13 +10,17 @@ function boundPromptField(value: string, maxChars: number): string {
   return value.length > maxChars ? value.slice(0, maxChars) : value;
 }
 
+export function boundEditorAiContext(value: string): string {
+  return boundPromptField(value, MAX_EDITOR_AI_CONTEXT_CHARS);
+}
+
 export function buildEditorAiUserMessage(
   instruction: string,
   selectedText: string,
   context: EditorAiSelectionContext = {}
 ): string {
-  const beforeContext = boundPromptField(context.beforeContext ?? '', MAX_EDITOR_AI_CONTEXT_CHARS);
-  const afterContext = boundPromptField(context.afterContext ?? '', MAX_EDITOR_AI_CONTEXT_CHARS);
+  const beforeContext = boundEditorAiContext(context.beforeContext ?? '');
+  const afterContext = boundEditorAiContext(context.afterContext ?? '');
   const message = [
     `Instruction: ${boundPromptField(instruction.trim(), MAX_EDITOR_AI_INSTRUCTION_CHARS)}`,
     '',

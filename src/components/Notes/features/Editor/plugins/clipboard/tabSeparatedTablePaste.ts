@@ -46,15 +46,19 @@ export function createMarkdownTableFromTabSeparatedText(value: string): string |
     return null;
   }
 
-  const lines = normalizeLineEnding(value).split('\n');
+  const allLines = normalizeLineEnding(value).split('\n');
+  let start = 0;
+  let end = allLines.length;
 
-  while (lines[0]?.trim() === '') {
-    lines.shift();
+  while (start < end && allLines[start]?.trim() === '') {
+    start += 1;
   }
 
-  while (lines[lines.length - 1]?.trim() === '') {
-    lines.pop();
+  while (end > start && allLines[end - 1]?.trim() === '') {
+    end -= 1;
   }
+
+  const lines = allLines.slice(start, end);
 
   if (lines.length < 2) {
     return null;
@@ -76,9 +80,11 @@ export function createMarkdownTableFromTabSeparatedText(value: string): string |
   const formatRow = (row: string[]) => `| ${row.map(escapeMarkdownTableCell).join(' | ')} |`;
   const separator = `| ${Array.from({ length: columnCount }, () => '---').join(' | ')} |`;
 
-  return [
+  const markdownTable = [
     formatRow(rows[0]),
     separator,
     ...rows.slice(1).map(formatRow),
   ].join('\n');
+
+  return markdownTable.length <= MAX_TAB_SEPARATED_TABLE_CHARS ? markdownTable : null;
 }

@@ -351,6 +351,36 @@ describe('Electron userData path safety', () => {
     expect(app.setPath).toHaveBeenCalledWith('userData', targetUserData);
   });
 
+  it('ignores oversized linked worktree git pointer files', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const mainRepo = path.join(tempRoot, 'repo');
+    const linkedWorktree = path.join(tempRoot, 'worktrees', 'feature');
+    const worktreeGitDir = path.join(mainRepo, '.git', 'worktrees', 'feature');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+
+    await fs.promises.mkdir(worktreeGitDir, { recursive: true });
+    await fs.promises.mkdir(linkedWorktree, { recursive: true });
+    await writeFile(
+      path.join(linkedWorktree, '.git'),
+      `gitdir: ${worktreeGitDir}\n${'x'.repeat((64 * 1024) + 1)}`,
+      'utf8'
+    );
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: linkedWorktree,
+      env: {},
+    });
+
+    const targetUserData = path.join(linkedWorktree, 'temp', 'electron-user-data');
+    expect(result).toEqual({
+      changed: true,
+      userDataPath: targetUserData,
+      seeded: false,
+    });
+    expect(app.setPath).toHaveBeenCalledWith('userData', targetUserData);
+  });
+
   it('seeds the shared worktree profile from the legacy per-worktree profile', async () => {
     const defaultUserData = path.join(tempRoot, 'default-user-data');
     const mainRepo = path.join(tempRoot, 'repo');

@@ -5,6 +5,8 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import {
   buildMessageImageSources,
   buildStoredUserMessageContent,
+  getAttachmentMessageImageSrc,
+  isImageAttachment,
   MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
 } from './helpers';
 
@@ -61,6 +63,26 @@ describe('buildStoredUserMessageContent image parsing', () => {
     await expect(buildStoredUserMessageContent('Use `![example](data:image/png;base64,CODE)` here')).resolves.toBe(
       'Use `![example](data:image/png;base64,CODE)` here',
     );
+  });
+
+  it('ignores non-string attachment image fields without coercion', () => {
+    const field = {
+      toString() {
+        throw new Error('attachment field coercion');
+      },
+    };
+    const attachment = {
+      id: 'bad',
+      path: field,
+      previewUrl: field,
+      assetUrl: field,
+      name: field,
+      type: field,
+      size: 0,
+    } as any;
+
+    expect(isImageAttachment(attachment)).toBe(false);
+    expect(getAttachmentMessageImageSrc(attachment)).toBe('');
   });
 
   it('keeps safe remote markdown images as vision attachments on resend paths', async () => {

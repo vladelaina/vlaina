@@ -217,6 +217,38 @@ describe('external path broadcast persistence', () => {
     ]);
   });
 
+  it('loads absolute rename events only when they stay inside the watched notes path', async () => {
+    adapter.stat.mockResolvedValue({ size: 256 });
+    adapter.readFile.mockResolvedValue(JSON.stringify([
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'absolute-valid',
+        stamp: 1,
+        notesPath: '/external/docs',
+        oldPath: '/external/docs/current.md',
+        newPath: '/external/docs/renamed.md',
+      },
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'absolute-outside',
+        stamp: 2,
+        notesPath: '/external/docs',
+        oldPath: '/external/other/current.md',
+        newPath: '/external/other/renamed.md',
+      },
+    ]));
+
+    await expect(readNotesExternalPathEvents('/external/docs')).resolves.toEqual([
+      expect.objectContaining({
+        nonce: 'absolute-valid',
+        oldPath: '/external/docs/current.md',
+        newPath: '/external/docs/renamed.md',
+      }),
+    ]);
+  });
+
   it('normalizes stored rename event paths before replaying them', async () => {
     adapter.stat.mockResolvedValue({ size: 256 });
     adapter.readFile.mockResolvedValue(JSON.stringify([
@@ -313,6 +345,27 @@ describe('external path broadcast persistence', () => {
       notesPath: '/vault',
       oldPath: 'https\\://example.test/a.md',
       newPath: 'docs/b.md',
+    });
+
+    expect(localStorage.getItem('vlaina-notes-external-path-event')).toBeNull();
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('persists emitted absolute rename events inside the watched notes path', () => {
+    emitNotesExternalPathRename({
+      notesPath: '/external/docs',
+      oldPath: '/external/docs/current.md',
+      newPath: '/external/docs/renamed.md',
+    });
+
+    expect(localStorage.getItem('vlaina-notes-external-path-event')).toContain('/external/docs/renamed.md');
+  });
+
+  it('does not persist emitted absolute rename events outside the watched notes path', () => {
+    emitNotesExternalPathRename({
+      notesPath: '/external/docs',
+      oldPath: '/external/other/current.md',
+      newPath: '/external/other/renamed.md',
     });
 
     expect(localStorage.getItem('vlaina-notes-external-path-event')).toBeNull();

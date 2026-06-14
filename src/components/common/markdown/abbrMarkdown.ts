@@ -57,19 +57,33 @@ function escapeRegex(value: string): string {
   return result;
 }
 
+function normalizeAbbrDefinitionFullText(value: string): string | null {
+  if (value.length > MAX_ABBR_TITLE_CHARS) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= MAX_ABBR_TITLE_CHARS ? trimmed : null;
+}
+
 export function extractAbbrDefinitionsFromText(
   text: string,
   options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition } = {}
 ): AbbrDefinition[] {
+  if (text.length > MAX_ABBR_USAGE_TEXT_NODE_CHARS) {
+    return [];
+  }
+
   const definitionsByAbbr = new Map<string, string>();
   let match: RegExpExecArray | null;
 
   ABBR_DEF_REGEX.lastIndex = 0;
   while ((match = ABBR_DEF_REGEX.exec(text)) !== null) {
     if (!isUnescapedMarkdownTextRange(text, match.index, 1, options)) continue;
+    const fullText = normalizeAbbrDefinitionFullText(match[2]);
+    if (!fullText) continue;
     addBoundedAbbrDefinition(definitionsByAbbr, {
       abbr: match[1],
-      fullText: match[2].trim(),
+      fullText,
     });
   }
 
@@ -173,6 +187,10 @@ function hasEscapedAbbrDefinitionText(
   value: string,
   options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition }
 ): boolean {
+  if (value.length > MAX_ABBR_USAGE_TEXT_NODE_CHARS) {
+    return false;
+  }
+
   let match: RegExpExecArray | null;
 
   ABBR_DEF_REGEX.lastIndex = 0;

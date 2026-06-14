@@ -5,6 +5,7 @@ import { serializeSelectionToClipboardText } from '../clipboard/selectionSeriali
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 import { serializeSelectedBlocksToText } from '../cursor/blockSelectionSerializer';
 import { getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
+import { MAX_EDITOR_SELECTION_TEXT_CHARS } from '../shared/selectionTextLimits';
 
 const blockSelectionMocks = vi.hoisted(() => ({
   clearBlockSelection: vi.fn(),
@@ -106,8 +107,35 @@ describe('floating toolbar clipboard commands', () => {
     const copied = await copySelectionToClipboard(view);
 
     expect(copied).toBe(true);
-    expect(doc.textBetween).toHaveBeenCalledWith(3, 15, '\n');
+    expect(doc.textBetween).toHaveBeenCalledWith(3, 15, '\n', undefined);
     expect(writeTextToClipboard).toHaveBeenCalledWith('Plain target');
+  });
+
+  it('bounds plain selected text fallback reads', async () => {
+    const markdownSerializer = vi.fn();
+    const selection = {
+      empty: false,
+      from: 0,
+      to: MAX_EDITOR_SELECTION_TEXT_CHARS + 500,
+      eq: vi.fn((next) => next === selection),
+    };
+    const doc = {
+      content: { size: MAX_EDITOR_SELECTION_TEXT_CHARS + 1000 },
+      eq: vi.fn((next) => next === doc),
+      textBetween: vi.fn(() => 'Bounded target'),
+    };
+    const state = { selection, doc };
+    const view: any = { state };
+
+    vi.mocked(getCurrentMarkdownSerializer).mockReturnValue(markdownSerializer);
+    vi.mocked(serializeSelectionToClipboardText).mockReturnValue('');
+    vi.mocked(writeTextToClipboard).mockResolvedValue(true);
+
+    const copied = await copySelectionToClipboard(view);
+
+    expect(copied).toBe(true);
+    expect(doc.textBetween).toHaveBeenCalledWith(0, MAX_EDITOR_SELECTION_TEXT_CHARS, '\n', undefined);
+    expect(writeTextToClipboard).toHaveBeenCalledWith('Bounded target');
   });
 
   it('copies selected blocks when there is no active text selection', async () => {

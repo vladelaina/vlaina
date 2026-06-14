@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LocalSearchProvider, localSearchInternals } from '../electron/webSearch/localSearchProvider.mjs';
+import { MAX_WEB_SEARCH_QUERY_CHARS } from '../electron/webSearch/types.mjs';
 
 describe('LocalSearchProvider quality controls', () => {
   it('filters irrelevant fallback results before trying the next engine', async () => {
@@ -346,6 +347,27 @@ describe('LocalSearchProvider quality controls', () => {
         title: 'MCP Inspector',
       }),
     ]);
+  });
+
+  it('does not coerce internal helper query options', () => {
+    const hostileValue = {
+      toString() {
+        throw new Error('value should not be coerced');
+      },
+      valueOf() {
+        throw new Error('value should not be coerced');
+      },
+    };
+    const overlongQuery = `${'x'.repeat(MAX_WEB_SEARCH_QUERY_CHARS + 1)} official`;
+
+    expect(localSearchInternals.getMeaningfulTerms(hostileValue)).toEqual([]);
+    expect(localSearchInternals.getMeaningfulTerms(overlongQuery)).toEqual([]);
+    expect(localSearchInternals.getQueryMatchScore('react', hostileValue)).toBe(0);
+    expect(localSearchInternals.buildSearchQuery(hostileValue, {})).not.toContain('[object Object]');
+    expect(localSearchInternals.buildSearchQuery(overlongQuery, {})).not.toContain(overlongQuery);
+    expect(localSearchInternals.getSingleBrandLikeTerm(hostileValue)).toBeNull();
+    expect(localSearchInternals.buildTimeRangeParams('google', hostileValue)).toEqual({});
+    expect(localSearchInternals.selectSearchEngines([hostileValue, 'bing']).map((engine) => engine.id)).toEqual(['bing']);
   });
 
   it('returns official sources for random developer tool queries without external engines', async () => {

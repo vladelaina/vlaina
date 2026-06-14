@@ -14,7 +14,7 @@ interface VideoMarkdownNode {
 const videoRemarkReady = createTimer('videoRemarkReady');
 
 function isVideoImageNode(node: VideoMarkdownNode | undefined): node is VideoMarkdownNode {
-  return node?.type === 'image' && parseVideoUrl(String(node.url || '')) !== null;
+  return node?.type === 'image' && parseVideoUrl(node.url) !== null;
 }
 
 export function remarkVideoImages() {

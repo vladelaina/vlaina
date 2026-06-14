@@ -43,6 +43,18 @@ describe('markdown internal artifact protection', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('preserves internal artifact-like text inside long-marker fenced code blocks', () => {
+    const marker = '`'.repeat(20_000);
+    const markdown = [
+      `${marker}markdown`,
+      '<!--vlaina-markdown-blank-line-->',
+      '- \u2800',
+      marker,
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('preserves internal artifact-like text inside leading frontmatter', () => {
     const markdown = [
       '---',

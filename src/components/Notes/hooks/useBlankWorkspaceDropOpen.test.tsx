@@ -4,6 +4,7 @@ import { useBlankWorkspaceDropOpen } from './useBlankWorkspaceDropOpen';
 
 const mocks = vi.hoisted(() => ({
   messageDialog: vi.fn(),
+  stat: vi.fn(),
 }));
 
 vi.mock('@/lib/storage/dialog', () => ({
@@ -18,6 +19,14 @@ vi.mock('@/lib/i18n', () => ({
 
 vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: () => null,
+}));
+
+vi.mock('@/lib/storage/adapter', () => ({
+  getStorageAdapter: () => ({
+    stat: mocks.stat,
+  }),
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
+  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/'),
 }));
 
 vi.mock('../features/FileTree/hooks/externalDragPreview', () => ({
@@ -47,6 +56,7 @@ describe('useBlankWorkspaceDropOpen', () => {
     vi.clearAllMocks();
     document.elementsFromPoint = vi.fn(() => []);
     mocks.messageDialog.mockResolvedValue(undefined);
+    mocks.stat.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -74,6 +84,39 @@ describe('useBlankWorkspaceDropOpen', () => {
       expect(mocks.messageDialog).toHaveBeenCalledWith('notes.droppedPathReadFailed', {
         title: 'notes.openFailed',
         kind: 'error',
+      });
+    });
+    expect(openMarkdownTarget).not.toHaveBeenCalled();
+    expect(openVault).not.toHaveBeenCalled();
+  });
+
+  it('rejects relative markdown file drops after stat authorization', async () => {
+    mocks.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+    });
+    const openMarkdownTarget = vi.fn(async () => undefined);
+    const openVault = vi.fn(async () => true);
+
+    renderHook(() => useBlankWorkspaceDropOpen({
+      enabled: true,
+      openMarkdownTarget,
+      openVault,
+    }));
+
+    await act(async () => {
+      window.dispatchEvent(createDropEvent({
+        files: [{ path: 'docs/alpha.md' } as unknown as File],
+        types: ['Files'],
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mocks.messageDialog).toHaveBeenCalledWith('notes.dropFolderOrMarkdown', {
+        title: 'notes.unsupportedDrop',
+        kind: 'warning',
       });
     });
     expect(openMarkdownTarget).not.toHaveBeenCalled();

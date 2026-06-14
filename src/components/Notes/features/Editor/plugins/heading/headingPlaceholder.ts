@@ -15,8 +15,10 @@ export const MAX_HEADING_PLACEHOLDER_DECORATIONS = 1000;
 const HEADING_PLACEHOLDER_LINE_BREAK_PATTERN = /[\n\r]/u;
 const HEADING_PLACEHOLDER_MARKER_PATTERN = /#/u;
 
-export const getHeadingPlaceholder = (rawLevel: number): string => {
-    return getDefaultHeadingPlaceholderText(rawLevel);
+export const getHeadingPlaceholder = (rawLevel: unknown): string => {
+    return getDefaultHeadingPlaceholderText(
+        typeof rawLevel === 'number' && Number.isFinite(rawLevel) ? rawLevel : 1
+    );
 };
 
 export const createHeadingPlaceholderDecorations = (doc: any): DecorationSet => {
@@ -31,7 +33,7 @@ export const createHeadingPlaceholderDecorations = (doc: any): DecorationSet => 
         decorations.push(
             Decoration.node(pos, pos + node.nodeSize, {
                 class: 'is-editor-empty',
-                'data-placeholder': getHeadingPlaceholder(Number(node.attrs?.level ?? 1)),
+                'data-placeholder': getHeadingPlaceholder(node.attrs?.level),
             }),
         );
 

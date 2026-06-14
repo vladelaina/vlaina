@@ -5,10 +5,13 @@ import { isLocalNetworkHttpUrl } from "@/lib/notes/markdown/urlSecurity";
 const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const ALLOWED_LINK_PREFIX_REGEX = /^(https?:\/\/|mailto:)/i;
 const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const MAX_EXTERNAL_HREF_CHARS = 4096;
 
 export function normalizeExternalHref(href: string | null | undefined): string | null {
   if (!href) return null;
+  if (href.length > MAX_EXTERNAL_HREF_CHARS) return null;
   const trimmed = href.trim();
+  if (trimmed.length > MAX_EXTERNAL_HREF_CHARS) return null;
   if (UNSAFE_URL_CHARS_REGEX.test(trimmed)) {
     return null;
   }

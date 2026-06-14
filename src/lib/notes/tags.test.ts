@@ -115,6 +115,12 @@ describe('note tags', () => {
     expect(extractNoteTags('text <!-- #hidden --> #visible')).toEqual(['visible']);
   });
 
+  it('excludes inline code with long backtick marker runs without materializing the marker', () => {
+    const marker = '`'.repeat(20_000);
+
+    expect(extractNoteTags(`${marker}#hidden${marker} #visible`)).toEqual(['visible']);
+  });
+
   it('excludes tags from overlong inline HTML tags while keeping later tags visible', () => {
     const badLine = `<span data-topic="#hidden ${'a'.repeat(MAX_HTML_TAG_END_SCAN_CHARS)}`;
     const content = `${badLine}\n#visible`;

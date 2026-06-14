@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   extractHostFromUBlacklistRule,
   parseUBlacklistRules,
@@ -18,6 +18,22 @@ describe('uBlacklist rule parser', () => {
     expect(extractHostFromUBlacklistRule('@@*://example.com/*')).toBe('');
     expect(extractHostFromUBlacklistRule('/example\\.com\\/spam/')).toBe('');
     expect(extractHostFromUBlacklistRule('*://*.example.com/*$script')).toBe('');
+  });
+
+  it('does not coerce non-string rules or oversized rule text', () => {
+    const rule = {
+      toString: vi.fn(() => {
+        throw new Error('rule should not be coerced');
+      }),
+    };
+
+    expect(extractHostFromUBlacklistRule(rule)).toBe('');
+    expect(parseUBlacklistRules(rule)).toEqual({ hosts: [], skippedRules: [] });
+    expect(parseUBlacklistRules(`${'x'.repeat(1_000_001)}\n*://example.com/*`)).toEqual({
+      hosts: [],
+      skippedRules: [],
+    });
+    expect(rule.toString).not.toHaveBeenCalled();
   });
 
   it('deduplicates parsed hosts and records unsupported rules for manual review', () => {

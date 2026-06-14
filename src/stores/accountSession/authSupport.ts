@@ -38,6 +38,9 @@ function normalizeAccountIdentityString(value: unknown, maxChars: number): strin
   if (typeof value !== 'string') {
     return null;
   }
+  if (value.length > maxChars) {
+    return null;
+  }
 
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxChars || CONTROL_OR_BIDI_PATTERN.test(trimmed)) {

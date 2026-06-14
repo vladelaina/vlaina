@@ -1,4 +1,5 @@
 const DEFAULT_MAX_JSON_RESPONSE_BYTES = 1024 * 1024;
+const MAX_CONTENT_LENGTH_HEADER_CHARS = 32;
 
 function createAbortError() {
   return new DOMException('Aborted', 'AbortError');
@@ -14,8 +15,12 @@ function readContentLength(response) {
   if (!rawContentLength) {
     return null;
   }
+  const trimmed = rawContentLength.trim();
+  if (trimmed.length > MAX_CONTENT_LENGTH_HEADER_CHARS || !/^\d+$/.test(trimmed)) {
+    return null;
+  }
 
-  const parsed = Number(rawContentLength);
+  const parsed = Number(trimmed);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 

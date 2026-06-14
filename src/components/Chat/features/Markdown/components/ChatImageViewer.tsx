@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import { Icon } from "@/components/ui/icons";
 import { cn, iconButtonStyles } from "@/lib/utils";
-import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
+import { copyImageSourceToClipboard, MAX_CHAT_MESSAGE_IMAGE_SOURCES } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
 import {
   normalizeDirectChatImageSource,
@@ -243,28 +243,36 @@ export function ChatImageViewer({
     open ? getInitialViewerImageSource(src) : TRANSPARENT_IMAGE_DATA_URL
   ));
   const imageElementRef = useRef<HTMLImageElement | null>(null);
+  const boundedGallery = useMemo(() => {
+    if (!gallery) {
+      return undefined;
+    }
+    return gallery.length > MAX_CHAT_MESSAGE_IMAGE_SOURCES
+      ? gallery.slice(0, MAX_CHAT_MESSAGE_IMAGE_SOURCES)
+      : gallery;
+  }, [gallery]);
 
   const galleryIndex = useMemo(() => {
     if (!open) {
       return -1;
     }
-    if (!gallery || gallery.length === 0) {
+    if (!boundedGallery || boundedGallery.length === 0) {
       return -1;
     }
     if (currentImageId) {
-      const byId = gallery.findIndex((item) => item.id === currentImageId);
+      const byId = boundedGallery.findIndex((item) => item.id === currentImageId);
       if (byId !== -1) {
         return byId;
       }
     }
     const normalizedSrc = normalizeComparableSrc(src);
-    for (let index = 0; index < gallery.length; index += 1) {
-      if (normalizeComparableSrc(gallery[index]!.src) === normalizedSrc) {
+    for (let index = 0; index < boundedGallery.length; index += 1) {
+      if (normalizeComparableSrc(boundedGallery[index]!.src) === normalizedSrc) {
         return index;
       }
     }
     return -1;
-  }, [currentImageId, gallery, open, src]);
+  }, [boundedGallery, currentImageId, open, src]);
 
   useEffect(() => {
     if (!open) {
@@ -274,14 +282,14 @@ export function ChatImageViewer({
   }, [galleryIndex, open]);
 
   const activeGalleryItem =
-    gallery && activeGalleryIndex >= 0 && activeGalleryIndex < gallery.length
-      ? gallery[activeGalleryIndex]
+    boundedGallery && activeGalleryIndex >= 0 && activeGalleryIndex < boundedGallery.length
+      ? boundedGallery[activeGalleryIndex]
       : null;
   const activeSrc = activeGalleryItem?.src ?? src;
   const activeAlt = alt;
-  const canNavigate = !!gallery && gallery.length > 1 && activeGalleryIndex >= 0;
+  const canNavigate = !!boundedGallery && boundedGallery.length > 1 && activeGalleryIndex >= 0;
   const hasPrevious = canNavigate && activeGalleryIndex > 0;
-  const hasNext = canNavigate && activeGalleryIndex < gallery.length - 1;
+  const hasNext = canNavigate && activeGalleryIndex < boundedGallery.length - 1;
   const cropperImageSrc =
     requiresAttachmentResolution(activeSrc) && resolvedActiveSrc === activeSrc
       ? TRANSPARENT_IMAGE_DATA_URL
@@ -319,13 +327,13 @@ export function ChatImageViewer({
   }, [activeSrc, open, previewSrc, src]);
 
   useEffect(() => {
-    if (!open || !gallery || activeGalleryIndex < 0) {
+    if (!open || !boundedGallery || activeGalleryIndex < 0) {
       return;
     }
 
-    warmViewerImageSource(gallery[activeGalleryIndex - 1]?.src);
-    warmViewerImageSource(gallery[activeGalleryIndex + 1]?.src);
-  }, [activeGalleryIndex, gallery, open]);
+    warmViewerImageSource(boundedGallery[activeGalleryIndex - 1]?.src);
+    warmViewerImageSource(boundedGallery[activeGalleryIndex + 1]?.src);
+  }, [activeGalleryIndex, boundedGallery, open]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -371,14 +379,14 @@ export function ChatImageViewer({
       }
       if (event.key === "ArrowRight" && hasNext) {
         event.preventDefault();
-        setActiveGalleryIndex((value) => Math.min(value + 1, (gallery?.length ?? 1) - 1));
+        setActiveGalleryIndex((value) => Math.min(value + 1, (boundedGallery?.length ?? 1) - 1));
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [gallery?.length, hasNext, hasPrevious, onOpenChange, open]);
+  }, [boundedGallery?.length, hasNext, hasPrevious, onOpenChange, open]);
 
   const percentLabel = useMemo(() => `${Math.round(zoom * 100)}%`, [zoom]);
   const imageSizeLabel = useMemo(() => {
@@ -621,7 +629,7 @@ export function ChatImageViewer({
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                setActiveGalleryIndex((value) => Math.min(value + 1, (gallery?.length ?? 1) - 1));
+                setActiveGalleryIndex((value) => Math.min(value + 1, (boundedGallery?.length ?? 1) - 1));
               }}
             >
               <Icon name="nav.chevronRight" size="md" />

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildFileTree, findNode } from './fileTreeUtils';
 import { loadNoteMetadata } from './storage';
+import { MAX_VAULT_RELATIVE_PATH_CHARS } from './utils/fs/vaultPathContainment';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
@@ -129,6 +130,53 @@ describe('notes scan budgets', () => {
       path: 'late.md',
       isFolder: false,
     });
+  });
+
+  it('does not include markdown files whose nested relative path exceeds the vault path limit', async () => {
+    const longFolder = 'd'.repeat(MAX_VAULT_RELATIVE_PATH_CHARS - 2);
+    const overlongPath = `${longFolder}/a.md`;
+
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-overlong-tree') {
+        return [
+          {
+            name: longFolder,
+            path: `/vault-overlong-tree/${longFolder}`,
+            isDirectory: true,
+            isFile: false,
+          },
+          {
+            name: 'safe.md',
+            path: '/vault-overlong-tree/safe.md',
+            isDirectory: false,
+            isFile: true,
+          },
+        ];
+      }
+
+      if (path === `/vault-overlong-tree/${longFolder}`) {
+        return [
+          {
+            name: 'a.md',
+            path: `/vault-overlong-tree/${overlongPath}`,
+            isDirectory: false,
+            isFile: true,
+          },
+        ];
+      }
+
+      return [];
+    });
+
+    const tree = await buildFileTree('/vault-overlong-tree');
+
+    expect(findNode(tree, 'safe.md')).toEqual({
+      id: 'safe.md',
+      name: 'safe',
+      path: 'safe.md',
+      isFolder: false,
+    });
+    expect(findNode(tree, overlongPath)).toBeNull();
   });
 
   it('prioritizes regular folders before low-priority generated folders during recursive scans', async () => {
@@ -280,6 +328,52 @@ describe('notes scan budgets', () => {
         },
       },
     });
+  });
+
+  it('does not read metadata for markdown files whose nested relative path exceeds the vault path limit', async () => {
+    const longFolder = 'd'.repeat(MAX_VAULT_RELATIVE_PATH_CHARS - 2);
+    const overlongPath = `${longFolder}/a.md`;
+
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-overlong-metadata') {
+        return [
+          {
+            name: longFolder,
+            isDirectory: true,
+            isFile: false,
+          },
+          {
+            name: 'safe.md',
+            isDirectory: false,
+            isFile: true,
+          },
+        ];
+      }
+
+      if (path === `/vault-overlong-metadata/${longFolder}`) {
+        return [
+          {
+            name: 'a.md',
+            isDirectory: false,
+            isFile: true,
+          },
+        ];
+      }
+
+      return [];
+    });
+    adapter.readFile.mockResolvedValue('# Safe');
+
+    await expect(loadNoteMetadata('/vault-overlong-metadata')).resolves.toEqual({
+      version: 2,
+      notes: {
+        'safe.md': {
+          updatedAt: 1,
+        },
+      },
+    });
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-overlong-metadata/safe.md', 5 * 1024 * 1024);
+    expect(adapter.readFile).not.toHaveBeenCalledWith(`/vault-overlong-metadata/${overlongPath}`, 5 * 1024 * 1024);
   });
 
   it('reads metadata for markdown files at the maximum scanned folder depth', async () => {

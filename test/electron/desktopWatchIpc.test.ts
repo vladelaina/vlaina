@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import {
   createDesktopWatchPayload,
   isPathCoveredByWatchPath,
+  MAX_DESKTOP_WATCH_GROUP_SUBSCRIBERS,
   normalizeDesktopWatchOptions,
+  registerDesktopWatchIpc,
 } from '../../electron/desktopWatchIpc.mjs';
 
 function fileInfo(isDirectory = false) {
@@ -25,6 +30,16 @@ describe('desktop watch ipc payload mapping', () => {
       type: { modify: { kind: 'data', mode: 'any' } },
       paths: ['/vault/a.md'],
     });
+    expect(statPath).not.toHaveBeenCalled();
+  });
+
+  it('drops unsafe or oversized watch event paths before statting', async () => {
+    const statPath = vi.fn();
+
+    await expect(createDesktopWatchPayload('change', `/vault/${'x'.repeat(8193)}.md`, statPath))
+      .resolves.toBeNull();
+    await expect(createDesktopWatchPayload('rename', '/vault/bad\u202E.md', statPath))
+      .resolves.toBeNull();
     expect(statPath).not.toHaveBeenCalled();
   });
 
@@ -67,5 +82,43 @@ describe('desktop watch ipc payload mapping', () => {
   it('treats a recursive root watcher as covering absolute descendants', () => {
     expect(isPathCoveredByWatchPath('/', '/vault/docs/a.md', true)).toBe(true);
     expect(isPathCoveredByWatchPath('/', '/vault/docs/a.md', false)).toBe(false);
+  });
+
+  it('bounds repeated subscribers for one desktop watcher group', async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'vlaina-watch-'));
+    const handlers = new Map<string, (...args: any[]) => unknown>();
+    registerDesktopWatchIpc({
+      handleIpc: (channel, handler) => handlers.set(channel, handler),
+      requireNonEmptyString: (value, label) => {
+        const normalized = String(value ?? '').trim();
+        if (!normalized) throw new Error(`${label} is required`);
+        return normalized;
+      },
+      assertAuthorizedFsWatchPath: async (watchPath) => String(watchPath),
+    });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    const watchIds: string[] = [];
+
+    try {
+      for (let index = 0; index < MAX_DESKTOP_WATCH_GROUP_SUBSCRIBERS; index += 1) {
+        const watchId = await handlers.get('desktop:fs:watch')?.(
+          { sender },
+          tempDir,
+          { recursive: false },
+        );
+        watchIds.push(String(watchId));
+      }
+
+      await expect(handlers.get('desktop:fs:watch')?.(
+        { sender },
+        tempDir,
+        { recursive: false },
+      )).rejects.toThrow('Too many desktop filesystem watcher subscribers.');
+    } finally {
+      for (const watchId of watchIds) {
+        await handlers.get('desktop:fs:unwatch')?.({}, watchId);
+      }
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

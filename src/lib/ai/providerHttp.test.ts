@@ -220,11 +220,22 @@ describe('providerFetch', () => {
     mocks.bridgeValue = null;
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    const hostileUrl = {
+      toString() {
+        throw new Error('url should not be coerced');
+      },
+    };
 
     await expect(providerFetch('http:/api.example.com/v1/models', {
       method: 'GET',
     })).rejects.toThrow('AI provider request URL is not supported.');
     await expect(providerFetch('https://user:pass@api.example.com/v1/models', {
+      method: 'GET',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+    await expect(providerFetch(`${' '.repeat(16 * 1024 + 1)}https://api.example.com/v1/models`, {
+      method: 'GET',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+    await expect(providerFetch(hostileUrl as unknown as string, {
       method: 'GET',
     })).rejects.toThrow('AI provider request URL is not supported.');
 

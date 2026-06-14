@@ -7,18 +7,23 @@ import {
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { actions as aiActions } from '@/stores/useAIStore';
 import type { AIModel, ApiTranscriptMessage, ChatMessage, ChatSendOptions, Provider } from '@/lib/ai/types';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
 import { convertToBase64, deleteAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
+import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 
 const TEMPORARY_IMAGE_DATA_URL = 'data:image/png;base64,VEVNUE9SQVJZ';
 
 const mocked = vi.hoisted(() => ({
   saveSessionJson: vi.fn(async () => {}),
   scheduleSessionJsonSave: vi.fn(),
+  cancelSessionJsonSave: vi.fn(),
+  deleteSessionJson: vi.fn(async () => {}),
   flushPendingSessionJsonSave: vi.fn(async () => {}),
   loadSessionJson: vi.fn(async () => null as ChatMessage[] | null),
+  hasSessionJson: vi.fn(async () => false),
   useAccountSessionStore: (selector: (state: { isConnected: boolean }) => unknown) =>
     selector({ isConnected: true }),
   useManagedAIStore: {
@@ -40,8 +45,11 @@ const mocked = vi.hoisted(() => ({
 vi.mock('@/lib/storage/chatStorage', () => ({
   saveSessionJson: mocked.saveSessionJson,
   scheduleSessionJsonSave: mocked.scheduleSessionJsonSave,
+  cancelSessionJsonSave: mocked.cancelSessionJsonSave,
+  deleteSessionJson: mocked.deleteSessionJson,
   flushPendingSessionJsonSave: mocked.flushPendingSessionJsonSave,
   loadSessionJson: mocked.loadSessionJson,
+  hasSessionJson: mocked.hasSessionJson,
   hasPendingSessionJsonSave: vi.fn(() => false),
 }));
 
@@ -223,6 +231,47 @@ describe('useChatService session context isolation', () => {
     expect(JSON.stringify(request?.history)).not.toContain('session one private');
   });
 
+  it('limits programmatic send text before storing and requesting', async () => {
+    const { result } = renderHook(() => useChatService());
+    const oversizedPrompt = 'x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS + 1);
+    const limitedPrompt = 'x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS);
+
+    await act(async () => {
+      const accepted = await result.current.sendMessage(oversizedPrompt, [], []);
+      expect(accepted).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    const request = vi.mocked(sendMessageWithEndpointFallback).mock.calls[0]?.[0];
+    const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(request?.content).toBe(limitedPrompt);
+    expect(messages.at(-2)?.content).toBe(limitedPrompt);
+  });
+
+  it('handles object provider errors without coercion', async () => {
+    let stringReads = 0;
+    const throwingError = {
+      toString() {
+        stringReads += 1;
+        throw new Error('Unexpected chat error coercion');
+      },
+    };
+    mocked.sendMessageWithEndpointFallback.mockRejectedValueOnce(throwingError);
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('trigger failure', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().error).toBe('AI request failed.');
+    });
+    expect(stringReads).toBe(0);
+  });
+
   it('releases the session mutation lock after starting a streamed request', async () => {
     let resolveProvider!: (value: string) => void;
     const pendingProviderResponse = new Promise<string>((resolve) => {
@@ -299,6 +348,87 @@ describe('useChatService session context isolation', () => {
       'session two visible prompt',
       'session two visible answer',
     ]);
+  });
+
+  it('does not call the provider when the session is deleted while pre-request hydration is pending', async () => {
+    let resolvePendingHydration!: () => void;
+    const pendingHydration = new Promise<void>((resolve) => {
+      resolvePendingHydration = resolve;
+    });
+    mocked.flushPendingSessionJsonSave.mockImplementationOnce(async () => {
+      await pendingHydration;
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('delete before provider', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(mocked.flushPendingSessionJsonSave).toHaveBeenCalledWith('session-2');
+      expect(useAIUIStore.getState().generatingSessions).toEqual({ 'session-2': true });
+    });
+
+    let deleteSession: Promise<void> | null = null;
+    act(() => {
+      deleteSession = aiActions.deleteSession('session-2');
+    });
+
+    expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    expect(deleteSession).not.toBeNull();
+
+    await act(async () => {
+      resolvePendingHydration();
+      await pendingHydration;
+      await deleteSession;
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+      expect(useUnifiedStore.getState().data.ai?.sessions.some((session) => session.id === 'session-2')).toBe(false);
+    });
+  });
+
+  it('does not call the provider when sessions are cleared while pre-request hydration is pending', async () => {
+    let resolvePendingHydration!: () => void;
+    const pendingHydration = new Promise<void>((resolve) => {
+      resolvePendingHydration = resolve;
+    });
+    mocked.flushPendingSessionJsonSave.mockImplementationOnce(async () => {
+      await pendingHydration;
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('clear before provider', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(mocked.flushPendingSessionJsonSave).toHaveBeenCalledWith('session-2');
+      expect(useAIUIStore.getState().generatingSessions).toEqual({ 'session-2': true });
+    });
+
+    let clearSessions: Promise<void> | null = null;
+    act(() => {
+      clearSessions = aiActions.clearSessions();
+    });
+
+    expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    expect(clearSessions).not.toBeNull();
+
+    await act(async () => {
+      resolvePendingHydration();
+      await pendingHydration;
+      await clearSessions;
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+      expect(useUnifiedStore.getState().data.ai?.sessions).toEqual([]);
+      expect(useUnifiedStore.getState().data.ai?.messages).toEqual({});
+    });
   });
 
   it('recalls the submitted composer text when stopped before request messages are created', async () => {

@@ -21,6 +21,7 @@ import {
 import { rememberProcessedRenameEventNonce } from './notesExternalRenameQueue';
 
 const BROAD_ABSOLUTE_NOTE_SYNC_POLL_MS = 5000;
+export const MAX_ABSOLUTE_NOTE_WATCH_EVENT_PATHS = 4096;
 
 function isAbsoluteRenamePathInsideParent(parentPath: string, path: string) {
   return isAbsolutePath(path) && normalizeContainedAssetPath(path, parentPath) !== null;
@@ -197,6 +198,11 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
           watchedParentPath,
           async (event) => {
             if (disposed) {
+              return;
+            }
+
+            if (event.paths.length > MAX_ABSOLUTE_NOTE_WATCH_EVENT_PATHS) {
+              await syncCurrentNoteFromDisk({ force: true });
               return;
             }
 

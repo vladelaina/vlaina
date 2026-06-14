@@ -5,10 +5,12 @@ export const MAX_OPENAI_TOOL_CALLS = 16;
 export const MAX_OPENAI_TOOL_ARGUMENT_CHARS = 64 * 1024;
 export const MAX_DSML_TOOL_MARKUP_CHARS = 256 * 1024;
 export const MAX_OPENAI_PAYLOAD_TEXT_CHARS = 1024 * 1024;
+export const MAX_OPENAI_PAYLOAD_LINE_CHARS = MAX_OPENAI_PAYLOAD_TEXT_CHARS + 32;
 const MAX_OPENAI_TOOL_ARGUMENT_OBJECT_KEYS = 32;
 const MAX_OPENAI_TOOL_ARGUMENT_ARRAY_ITEMS = 16;
 const MAX_OPENAI_TOOL_ARGUMENT_DEPTH = 4;
 const MAX_OPENAI_TOOL_ARGUMENT_VALUE_CHARS = 4096;
+const MAX_OPENAI_TOOL_CALL_INDEX_STRING_CHARS = 16;
 const MAX_OPENAI_TEXT_NODES = 2000;
 const MAX_OPENAI_TEXT_CHARS = 1024 * 1024;
 
@@ -99,11 +101,13 @@ function appendOpenAIToolArguments(existing: string, next: unknown): string {
 }
 
 export function parseOpenAIPayloadText(text: string): Record<string, unknown> | null {
+  if (text.length > MAX_OPENAI_PAYLOAD_LINE_CHARS) return null;
   const trimmed = text.trim();
   if (!trimmed || trimmed === '[DONE]') return null;
-  const payloadText = trimmed.startsWith('data:') ? trimmed.slice(5).trim() : trimmed;
+  const rawPayloadText = trimmed.startsWith('data:') ? trimmed.slice(5) : trimmed;
+  if (rawPayloadText.length > MAX_OPENAI_PAYLOAD_TEXT_CHARS) return null;
+  const payloadText = rawPayloadText.trim();
   if (!payloadText || payloadText === '[DONE]') return null;
-  if (payloadText.length > MAX_OPENAI_PAYLOAD_TEXT_CHARS) return null;
 
   try {
     return JSON.parse(payloadText) as Record<string, unknown>;
@@ -113,11 +117,13 @@ export function parseOpenAIPayloadText(text: string): Record<string, unknown> | 
 }
 
 function parseToolCallIndex(value: unknown): number | null {
-  const parsed = typeof value === 'number'
-    ? value
-    : typeof value === 'string' && value.trim()
-      ? Number(value)
-      : null;
+  let parsed: number | null = null;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string' && value.length <= MAX_OPENAI_TOOL_CALL_INDEX_STRING_CHARS) {
+    const trimmed = value.trim();
+    parsed = /^\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : null;
+  }
   return typeof parsed === 'number'
     && Number.isInteger(parsed)
     && parsed >= 0

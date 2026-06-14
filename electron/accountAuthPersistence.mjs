@@ -1,5 +1,10 @@
 import { resolveDesktopSessionToken } from './accountSessionAuth.mjs';
 import { normalizeDesktopAccountProvider } from './accountCredentialStore.mjs';
+import {
+  normalizeDesktopAccountAvatarUrl,
+  normalizeDesktopAccountEmail,
+  normalizeDesktopAccountUsername,
+} from './accountIdentityNormalization.mjs';
 
 export function createDesktopAuthPersistence({
   readDesktopSessionIdentity,
@@ -7,14 +12,9 @@ export function createDesktopAuthPersistence({
 }) {
   async function persistDesktopAuthResult(provider, result) {
     const appSessionToken = resolveDesktopSessionToken(result);
-    const rawUsername =
-      typeof result?.username === 'string' && result.username.trim() ? result.username.trim() : null;
-    const rawPrimaryEmail =
-      typeof result?.primaryEmail === 'string' && result.primaryEmail.trim()
-        ? result.primaryEmail.trim()
-        : null;
-    const rawAvatarUrl =
-      typeof result?.avatarUrl === 'string' && result.avatarUrl.trim() ? result.avatarUrl.trim() : null;
+    const rawUsername = normalizeDesktopAccountUsername(result?.username);
+    const rawPrimaryEmail = normalizeDesktopAccountEmail(result?.primaryEmail);
+    const rawAvatarUrl = normalizeDesktopAccountAvatarUrl(result?.avatarUrl);
 
     if (!appSessionToken) {
       throw new Error('Account sign-in result missing session token');

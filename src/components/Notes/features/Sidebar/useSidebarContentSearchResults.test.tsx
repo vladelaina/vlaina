@@ -135,6 +135,59 @@ describe('useSidebarContentSearchResults', () => {
     });
   });
 
+  it('aborts an in-flight content scan once the cache makes the index ready', async () => {
+    const firstScan = createDeferredPromise();
+    const scanSignals: AbortSignal[] = [];
+    const scanAllNotes = vi.fn(({ signal }: { signal?: AbortSignal } = {}) => {
+      if (signal) {
+        scanSignals.push(signal);
+      }
+      return firstScan.promise;
+    });
+    const cancelNoteContentScan = vi.fn();
+    const pruneNoteContentsCacheToOpenNotes = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ cache }) => useSidebarContentSearchResults({
+        rootFolder: createRootFolderFromPaths(['docs/alpha.md']),
+        getDisplayName: (path) => path.split('/').pop() ?? path,
+        noteContentsCache: cache,
+        scanAllNotes,
+        cancelNoteContentScan,
+        pruneNoteContentsCacheToOpenNotes,
+        searchQuery: 'needle',
+        isSearchOpen: true,
+      }),
+      {
+        initialProps: {
+          cache: new Map<string, { content: string }>(),
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(scanAllNotes).toHaveBeenCalledTimes(1);
+    });
+    expect(scanSignals[0]?.aborted).toBe(false);
+
+    rerender({
+      cache: new Map([['docs/alpha.md', { content: 'body needle' }]]),
+    });
+
+    await waitFor(() => {
+      expect(result.current.searchResults.map((entry) => entry.path)).toEqual(['docs/alpha.md']);
+    });
+    expect(result.current.isContentScanPending).toBe(false);
+    expect(scanSignals[0]?.aborted).toBe(true);
+    expect(cancelNoteContentScan).not.toHaveBeenCalled();
+    expect(pruneNoteContentsCacheToOpenNotes).not.toHaveBeenCalled();
+
+    await act(async () => {
+      firstScan.resolve();
+      await firstScan.promise;
+    });
+  });
+
   it('does not repeatedly rescan unchanged oversized content indexes after a completed scan', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
     const cancelNoteContentScan = vi.fn();

@@ -23,6 +23,21 @@ describe('managedQuota', () => {
     })).toBe(false);
   });
 
+  it('does not coerce hostile runtime remaining percent values', () => {
+    const hostileRemainingPercent = {
+      toString() {
+        throw new Error('quota percent coercion');
+      },
+    };
+
+    expect(isManagedBudgetExhausted({
+      active: true,
+      usedPercent: 40,
+      remainingPercent: hostileRemainingPercent as never,
+      status: 'active',
+    })).toBe(false);
+  });
+
   it('only treats exhausted budgets as blocking while the budget snapshot is recent', () => {
     const now = 1_700_000_000_000;
     const budget = createManagedQuotaExhaustedBudgetSnapshot();

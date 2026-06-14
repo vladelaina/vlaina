@@ -132,7 +132,7 @@ describe('imported markdown theme storage', () => {
   });
 
   it('imports CSS themes into scoped local metadata and sanitizes unsafe CSS entry points', async () => {
-    binaryFiles.set('/downloads/./fonts/theme.woff2', new Uint8Array([1, 2, 3]));
+    binaryFiles.set('/downloads/fonts/theme.woff2', new Uint8Array([1, 2, 3]));
 
     const metadata = await importMarkdownThemeCss({
       name: 'Clean Light.css',
@@ -189,11 +189,11 @@ describe('imported markdown theme storage', () => {
 
     const imported = await readImportedMarkdownTheme('missing-asset');
     expect(imported?.css).toContain('url("")');
-    expect(imported?.css).not.toContain('file:///downloads/./images/missing.png');
+    expect(imported?.css).not.toContain('file:///downloads/images/missing.png');
   });
 
   it('copies relative theme assets when stat has no size but bounded read succeeds', async () => {
-    const assetPath = '/downloads/./fonts/no-size.woff2';
+    const assetPath = '/downloads/fonts/no-size.woff2';
     binaryFiles.set(assetPath, new Uint8Array([4, 5, 6]));
     adapter.stat.mockImplementation(async (path: string) => {
       if (path === assetPath) {
@@ -223,7 +223,7 @@ describe('imported markdown theme storage', () => {
   });
 
   it('drops oversized relative theme assets instead of falling back to the source path', async () => {
-    binaryFiles.set('/downloads/./fonts/huge.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
+    binaryFiles.set('/downloads/fonts/huge.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
 
     await importMarkdownThemeCss({
       name: 'Huge Asset.css',
@@ -234,12 +234,12 @@ describe('imported markdown theme storage', () => {
 
     const imported = await readImportedMarkdownTheme('huge-asset');
     expect(imported?.css).toContain('url("")');
-    expect(imported?.css).not.toContain('file:///downloads/./fonts/huge.woff2');
+    expect(imported?.css).not.toContain('file:///downloads/fonts/huge.woff2');
     expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/huge-asset-assets/0-huge.woff2')).toBe(false);
   });
 
   it('drops relative theme assets with invalid stat sizes instead of falling back to the source path', async () => {
-    const assetPath = '/downloads/./fonts/invalid.woff2';
+    const assetPath = '/downloads/fonts/invalid.woff2';
     binaryFiles.set(assetPath, new Uint8Array([1, 2, 3]));
     adapter.stat.mockImplementation(async (path: string) => {
       if (path === assetPath) {
@@ -264,15 +264,15 @@ describe('imported markdown theme storage', () => {
 
     const imported = await readImportedMarkdownTheme('invalid-asset');
     expect(imported?.css).toContain('url("")');
-    expect(imported?.css).not.toContain('file:///downloads/./fonts/invalid.woff2');
+    expect(imported?.css).not.toContain('file:///downloads/fonts/invalid.woff2');
     expect(adapter.readBinaryFile).not.toHaveBeenCalledWith(assetPath, MAX_IMPORTED_THEME_ASSET_BYTES);
     expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/invalid-asset-assets/0-invalid.woff2')).toBe(false);
   });
 
   it('drops relative theme assets when the bounded read rejects them', async () => {
-    binaryFiles.set('/downloads/./fonts/race.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
+    binaryFiles.set('/downloads/fonts/race.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
     adapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/downloads/./fonts/race.woff2') {
+      if (path === '/downloads/fonts/race.woff2') {
         return {
           name: 'race.woff2',
           path,
@@ -294,9 +294,9 @@ describe('imported markdown theme storage', () => {
 
     const imported = await readImportedMarkdownTheme('racing-asset');
     expect(imported?.css).toContain('url("")');
-    expect(imported?.css).not.toContain('file:///downloads/./fonts/race.woff2');
+    expect(imported?.css).not.toContain('file:///downloads/fonts/race.woff2');
     expect(adapter.readBinaryFile).toHaveBeenCalledWith(
-      '/downloads/./fonts/race.woff2',
+      '/downloads/fonts/race.woff2',
       MAX_IMPORTED_THEME_ASSET_BYTES,
     );
     expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/racing-asset-assets/0-race.woff2')).toBe(false);
@@ -859,7 +859,7 @@ describe('imported markdown theme storage', () => {
       '@font-face { font-family: "VLOOK"; src: url("./vlook.woff2") format("woff2"); }',
       '@font-face { font-family: "VLOOK Mono"; src: url("./mono.woff2") format("woff2"); }',
     ].join('\n'));
-    binaryFiles.set('/app/.vlaina/themes/vlook/pages-dev/./vlook.woff2', new Uint8Array([1, 2, 3]));
+    binaryFiles.set('/app/.vlaina/themes/vlook/pages-dev/vlook.woff2', new Uint8Array([1, 2, 3]));
     adapter.listDir.mockResolvedValueOnce([
       {
         name: 'vlook-fancy.css',
@@ -1037,9 +1037,9 @@ describe('imported markdown theme storage', () => {
       '@import "./helper.css";',
       '#write { color: red; }',
     ].join('\n'));
-    files.set('/app/.vlaina/themes/./helper.css', ':root { --helper-color: blue; }');
+    files.set('/app/.vlaina/themes/helper.css', ':root { --helper-color: blue; }');
     adapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/app/.vlaina/themes/./helper.css') {
+      if (path === '/app/.vlaina/themes/helper.css') {
         return {
           name: 'helper.css',
           path,
@@ -1062,7 +1062,45 @@ describe('imported markdown theme storage', () => {
     const imported = await readImportedMarkdownTheme('theme');
     expect(imported?.css).toContain('--helper-color: blue');
     expect(adapter.readFile).toHaveBeenCalledWith(
-      '/app/.vlaina/themes/./helper.css',
+      '/app/.vlaina/themes/helper.css',
+      MAX_IMPORTED_THEME_CSS_BYTES,
+    );
+  });
+
+  it('stops reading relative CSS imports after the combined CSS budget is exhausted', async () => {
+    const helperCss = [
+      ':root { --helper-color: blue; }',
+      'a'.repeat(Math.floor(MAX_IMPORTED_THEME_CSS_BYTES * 0.6)),
+    ].join('\n');
+    const extraCss = [
+      ':root { --extra-color: orange; }',
+      'b'.repeat(Math.floor(MAX_IMPORTED_THEME_CSS_BYTES * 0.6)),
+    ].join('\n');
+    files.set('/app/.vlaina/themes/theme.css', [
+      '@import "./helper.css";',
+      '@import "./extra.css";',
+      '#write { color: red; }',
+    ].join('\n'));
+    files.set('/app/.vlaina/themes/helper.css', helperCss);
+    files.set('/app/.vlaina/themes/extra.css', extraCss);
+
+    await importMarkdownThemeCss({
+      name: 'Theme.css',
+      platform: 'typora',
+      sourcePath: '/app/.vlaina/themes/theme.css',
+      css: files.get('/app/.vlaina/themes/theme.css') ?? '',
+    });
+
+    const imported = await readImportedMarkdownTheme('theme');
+    expect(imported?.css).toContain('--helper-color: blue');
+    expect(imported?.css).toContain('#write { color: red; }');
+    expect(imported?.css).not.toContain('--extra-color: orange');
+    expect(adapter.readFile).toHaveBeenCalledWith(
+      '/app/.vlaina/themes/helper.css',
+      MAX_IMPORTED_THEME_CSS_BYTES,
+    );
+    expect(adapter.readFile).not.toHaveBeenCalledWith(
+      '/app/.vlaina/themes/extra.css',
       MAX_IMPORTED_THEME_CSS_BYTES,
     );
   });
@@ -1086,7 +1124,7 @@ describe('imported markdown theme storage', () => {
 
     await syncImportedMarkdownThemesFromDirectory();
 
-    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/./huge.css');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/huge.css');
     const imported = await readImportedMarkdownTheme('theme');
     expect(imported?.css).toContain('#write { color: red; }');
     expect(imported?.css).not.toContain('--huge');
@@ -1097,9 +1135,9 @@ describe('imported markdown theme storage', () => {
       '@import "./invalid.css";',
       '#write { color: red; }',
     ].join('\n'));
-    files.set('/app/.vlaina/themes/./invalid.css', ':root { --invalid: 1; }');
+    files.set('/app/.vlaina/themes/invalid.css', ':root { --invalid: 1; }');
     adapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/app/.vlaina/themes/./invalid.css') {
+      if (path === '/app/.vlaina/themes/invalid.css') {
         return {
           name: 'invalid.css',
           path,
@@ -1123,7 +1161,7 @@ describe('imported markdown theme storage', () => {
     expect(imported?.css).toContain('#write { color: red; }');
     expect(imported?.css).not.toContain('--invalid');
     expect(adapter.readFile).not.toHaveBeenCalledWith(
-      '/app/.vlaina/themes/./invalid.css',
+      '/app/.vlaina/themes/invalid.css',
       MAX_IMPORTED_THEME_CSS_BYTES,
     );
   });
@@ -1136,7 +1174,7 @@ describe('imported markdown theme storage', () => {
     ].join('\n'));
     files.set('/app/.vlaina/themes/outside.css', ':root { --outside: red; }');
     binaryFiles.set('/app/.vlaina/themes/secret.woff2', new Uint8Array([9, 9, 9]));
-    binaryFiles.set('/app/.vlaina/themes/nested/./safe.woff2', new Uint8Array([1, 2, 3]));
+    binaryFiles.set('/app/.vlaina/themes/nested/safe.woff2', new Uint8Array([1, 2, 3]));
     adapter.listDir.mockResolvedValueOnce([
       {
         name: 'theme.css',
@@ -1173,7 +1211,7 @@ describe('imported markdown theme storage', () => {
     ].join('\n'));
     files.set('/app/.vlaina/themes/outside.css', ':root { --outside: red; }');
     binaryFiles.set('/app/.vlaina/themes/secret.woff2', new Uint8Array([9, 9, 9]));
-    binaryFiles.set('/app/.vlaina/themes/nested/./safe.woff2', new Uint8Array([1, 2, 3]));
+    binaryFiles.set('/app/.vlaina/themes/nested/safe.woff2', new Uint8Array([1, 2, 3]));
     adapter.listDir.mockResolvedValueOnce([
       {
         name: 'theme.css',
@@ -1208,7 +1246,7 @@ describe('imported markdown theme storage', () => {
       '#write { color: red; }',
     ].join('\n'));
     files.set(
-      '/app/.vlaina/themes/./helpers/helper.css',
+      '/app/.vlaina/themes/helpers/helper.css',
       String.raw`:root { --helper-bg: url("\2e\2e/\2e\2e/secret.woff2"); }`
     );
 
@@ -1222,7 +1260,7 @@ describe('imported markdown theme storage', () => {
     const imported = await readImportedMarkdownTheme('theme');
     expect(imported?.css).toContain('url("")');
     expect(imported?.css).not.toContain(String.raw`url("\2e\2e/\2e\2e/secret.woff2")`);
-    expect(imported?.css).not.toContain('file:///app/.vlaina/themes/./helpers');
+    expect(imported?.css).not.toContain('file:///app/.vlaina/themes/helpers');
     expect(imported?.css).not.toContain('file:///app/.vlaina/secret.woff2');
   });
 

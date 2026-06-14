@@ -54,6 +54,13 @@ const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
 const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
 const MAX_NOTE_CONTENT_SCAN_PATHS = 5000;
 const MAX_NOTE_CONTENT_SCAN_TREE_NODES = 20_000;
+const MAX_BACKLINK_TARGET_TITLE_CHARS = 512;
+const MAX_BACKLINK_RESULTS = 200;
+const MAX_BACKLINK_SCAN_ENTRIES = 5000;
+const MAX_BACKLINK_SCAN_CHARS = 8 * 1024 * 1024;
+const MAX_ALL_TAGS = 5000;
+const MAX_TAG_CACHE_SCAN_ENTRIES = 5000;
+const MAX_TAG_CACHE_SCAN_CHARS = 8 * 1024 * 1024;
 const ICON_SYMBOL_SCHEME_PATTERN = /^icon:/i;
 const searchableNoteUtf8Encoder = new TextEncoder();
 
@@ -122,6 +129,20 @@ function isSearchableMarkdownContent(content: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isMetadataUpdateSourceContentWithinReadLimit(content: string): boolean {
+  if (content.length > MAX_METADATA_UPDATE_NOTE_BYTES) {
+    return false;
+  }
+  if (
+    content.length > Math.floor(MAX_METADATA_UPDATE_NOTE_BYTES / 3) &&
+    searchableNoteUtf8Encoder.encode(content).length > MAX_METADATA_UPDATE_NOTE_BYTES
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function getNoteContentScanNodePriority(node: FileTreeNode): number {
@@ -382,6 +403,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   };
 
   const ensureMetadataSourceContentSafe = (content: string): boolean => {
+    if (!isMetadataUpdateSourceContentWithinReadLimit(content)) {
+      set({ error: 'Note file is too large to update metadata.' });
+      return false;
+    }
+
     try {
       assertEditorSafeMarkdownContent(content);
       return true;
@@ -852,13 +878,17 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     getBacklinks: (notePath: string) => {
-      if (hasInternalNotePathSegment(notePath)) {
+      if (!isSafeStoredNotePath(notePath)) {
         return [];
       }
 
       const { noteContentsCache } = get();
       const results: { path: string; name: string; context: string }[] = [];
       const noteName = getNoteTitleFromPath(notePath).toLowerCase();
+      if (noteName.length > MAX_BACKLINK_TARGET_TITLE_CHARS) {
+        return [];
+      }
+
       const escapedNoteName = escapeRegExp(noteName);
 
       const patterns = [
@@ -866,13 +896,31 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         new RegExp(`\\[\\[${escapedNoteName}\\|[^\\]]+\\]\\]`, 'gi'),
       ];
 
-      noteContentsCache.forEach((entry, path) => {
+      let scannedEntries = 0;
+      let scannedChars = 0;
+      for (const [path, entry] of noteContentsCache) {
+        if (
+          results.length >= MAX_BACKLINK_RESULTS ||
+          scannedEntries >= MAX_BACKLINK_SCAN_ENTRIES ||
+          scannedChars >= MAX_BACKLINK_SCAN_CHARS
+        ) {
+          break;
+        }
         if (!isSafeStoredNotePath(path)) {
-          return;
+          continue;
         }
 
         const content = entry.content;
-        if (path === notePath || !content.includes('[[')) return;
+        if (content.length > MAX_SEARCHABLE_NOTE_BYTES) {
+          continue;
+        }
+        if (scannedChars + content.length > MAX_BACKLINK_SCAN_CHARS) {
+          break;
+        }
+        scannedEntries += 1;
+        scannedChars += content.length;
+
+        if (path === notePath || !content.includes('[[')) continue;
         const excludedRanges = getNoteMarkdownExcludedRanges(content);
 
         for (const pattern of patterns) {
@@ -905,7 +953,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             break;
           }
         }
-      });
+      }
 
       return results;
     },
@@ -913,16 +961,38 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     getAllTags: () => {
       const { noteContentsCache } = get();
       const tagCounts = new Map<string, number>();
+      let scannedEntries = 0;
+      let scannedChars = 0;
 
-      noteContentsCache.forEach((entry, path) => {
+      for (const [path, entry] of noteContentsCache) {
+        if (
+          scannedEntries >= MAX_TAG_CACHE_SCAN_ENTRIES ||
+          scannedChars >= MAX_TAG_CACHE_SCAN_CHARS
+        ) {
+          break;
+        }
         if (!isSafeStoredNotePath(path)) {
-          return;
+          continue;
         }
 
-        for (const tag of extractNoteTags(entry.content)) {
+        const content = entry.content;
+        if (content.length > MAX_SEARCHABLE_NOTE_BYTES) {
+          continue;
+        }
+        if (scannedChars + content.length > MAX_TAG_CACHE_SCAN_CHARS) {
+          break;
+        }
+        scannedEntries += 1;
+        scannedChars += content.length;
+
+        for (const tag of extractNoteTags(content)) {
+          if (tagCounts.size >= MAX_ALL_TAGS && !tagCounts.has(tag)) {
+            continue;
+          }
+
           tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
         }
-      });
+      }
 
       return Array.from(tagCounts.entries())
         .map(([tag, count]) => ({ tag, count }))

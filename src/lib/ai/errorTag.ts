@@ -53,6 +53,20 @@ function clipErrorTagContent(value: string): string {
   return value.slice(0, MAX_ERROR_TAG_CONTENT_CHARS);
 }
 
+function normalizeErrorTagType(value: string | undefined): string {
+  return typeof value === 'string' && value ? value.slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS) : 'UNKNOWN';
+}
+
+function normalizeErrorTagCode(value: string | number | undefined): string {
+  if (typeof value === 'string') {
+    return value.slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS);
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value).slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS);
+  }
+  return '';
+}
+
 function findCaseInsensitive(value: string, needle: string, fromIndex: number): number {
   const needleLength = needle.length;
   const limit = value.length - needleLength;
@@ -125,10 +139,8 @@ function parseErrorTagAttributes(rawStartTag: string): Pick<ParsedErrorTag, 'typ
 }
 
 export function buildErrorTag(type: string | undefined, code: string | number | undefined, detail: string): string {
-  const safeType = escapeXmlAttribute((type || 'UNKNOWN').slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS));
-  const safeCode = escapeXmlAttribute(
-    (code === undefined || code === null ? '' : String(code)).slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS)
-  );
+  const safeType = escapeXmlAttribute(normalizeErrorTagType(type));
+  const safeCode = escapeXmlAttribute(normalizeErrorTagCode(code));
   const safeDetail = escapeXmlText(detail.slice(0, MAX_ERROR_TAG_CONTENT_CHARS));
   return `<error type="${safeType}" code="${safeCode}">${safeDetail}</error>`;
 }

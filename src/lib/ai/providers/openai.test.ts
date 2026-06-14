@@ -267,6 +267,31 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(result.models[0]).toBe('provider-model-0');
   });
 
+  it('cancels failed model listing response bodies before endpoint fallback', async () => {
+    const cancel = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('unauthorized'));
+          },
+          cancel,
+        }),
+        { status: 401 },
+      ))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'claude-sonnet-4-5' }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+
+    expect(result).toEqual({
+      models: ['claude-sonnet-4-5'],
+      endpointType: 'anthropic',
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
   it('bounds oversized provider model listing JSON responses before falling back', async () => {
     const cancel = vi.fn();
     const oversizedResponse = new Response(
@@ -735,6 +760,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: false,
         status: 503,
+        headers: new Headers(),
         body: {
           getReader: () => reader,
         },
@@ -1376,7 +1402,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       [
         { type: 'text', text: 'describe these ![stored](attachment://safe.png)' },
         { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
-        { type: 'image_url', image_url: { url: 'https://example.test/no-detail.png', detail: 'full' } },
+        { type: 'image_url', image_url: { url: 'https://example.test/no-detail.png', detail: 'full' as never } },
         { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
         { type: 'image_url', image_url: { url: 'https://user:pass@example.test/secret.png' } },
         { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png' } },
@@ -2959,6 +2985,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: false,
         status: 503,
+        headers: new Headers(),
         body: {
           getReader: () => reader,
         },
@@ -3121,5 +3148,44 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         'OpenAI-compatible chat request to https://api.example.com/v1/chat/completions failed: fetch failed',
       );
     }
+  });
+
+  it('does not coerce provider transport rejection objects', async () => {
+    const hostileError = {
+      toString() {
+        throw new Error('provider error should not be coerced');
+      },
+      [Symbol.toPrimitive]() {
+        throw new Error('provider error should not be coerced');
+      },
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(hostileError));
+
+    await expect(
+      new OpenAICompatibleClient().sendMessage(
+        'hi',
+        [],
+        buildModel({ apiModelId: 'gpt-4o-mini' }),
+        buildProvider({ endpointType: 'openai' }),
+        vi.fn(),
+      ),
+    ).rejects.toMatchObject({
+      type: AIErrorType.UNKNOWN,
+      message: 'Unknown error',
+    });
+
+    await expect(
+      new OpenAICompatibleClient().sendMessage(
+        'hi',
+        [],
+        buildModel({ apiModelId: 'claude-sonnet-4-5' }),
+        buildProvider({ endpointType: 'anthropic' }),
+        vi.fn(),
+      ),
+    ).rejects.toMatchObject({
+      type: AIErrorType.UNKNOWN,
+      message: 'Unknown error',
+    });
   });
 });

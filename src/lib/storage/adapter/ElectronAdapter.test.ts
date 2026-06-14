@@ -27,7 +27,11 @@ vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: mocks.getElectronBridge,
 }));
 
-import { ElectronAdapter, MAX_ELECTRON_RECURSIVE_LIST_ENTRIES } from './ElectronAdapter';
+import {
+  ElectronAdapter,
+  MAX_ELECTRON_RECURSIVE_LIST_ENTRIES,
+  MAX_ELECTRON_WRITE_BYTES,
+} from './ElectronAdapter';
 
 describe('ElectronAdapter', () => {
   beforeEach(() => {
@@ -86,6 +90,28 @@ describe('ElectronAdapter', () => {
 
     expect(mocks.bridge.fs.mkdir).toHaveBeenCalledWith('/tmp/assets', true);
     expect(mocks.bridge.fs.writeBinaryFile).toHaveBeenCalledWith('/tmp/assets/image.png', new Uint8Array([7, 8]));
+  });
+
+  it('rejects oversized binary writes before creating directories or sending IPC payloads', async () => {
+    const adapter = new ElectronAdapter();
+    const oversized = { byteLength: MAX_ELECTRON_WRITE_BYTES + 1 } as Uint8Array;
+
+    await expect(adapter.writeBinaryFile('/tmp/assets/large.bin', oversized, { recursive: true }))
+      .rejects.toThrow('Electron file content is too large to write.');
+
+    expect(mocks.bridge.fs.mkdir).not.toHaveBeenCalled();
+    expect(mocks.bridge.fs.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized text writes before sending IPC payloads', async () => {
+    const adapter = new ElectronAdapter();
+    const oversized = 'x'.repeat(MAX_ELECTRON_WRITE_BYTES + 1);
+
+    await expect(adapter.writeFile('/tmp/assets/large.md', oversized, { recursive: true }))
+      .rejects.toThrow('Electron file content is too large to write.');
+
+    expect(mocks.bridge.fs.mkdir).not.toHaveBeenCalled();
+    expect(mocks.bridge.fs.writeTextFile).not.toHaveBeenCalled();
   });
 
   it('filters hidden entries by default and walks directories recursively when requested', async () => {

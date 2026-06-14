@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom/vitest'
+import { DOMSerializer } from '@milkdown/prose/model'
 import type { EditorView } from '@milkdown/prose/view'
 
 import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/core'
 import { afterEach, expect, it, vi } from 'vitest'
 
-import { commonmark } from '..'
+import { commonmark, htmlAttr } from '..'
 import { isGithubHtmlBlock, maxGithubHtmlSanitizeChars, sanitizeGithubHtml } from '../node/github-html'
 
 function createEditor() {
@@ -484,6 +485,93 @@ it('should not write oversized raw html into editor data attributes', async () =
   expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('x'.repeat(1024))
 
   await editor.destroy()
+})
+
+it('should not keep oversized raw html in editor node attrs', async () => {
+  const editor = createEditor()
+  const oversizedInlineHtml = `<img alt="${'x'.repeat(maxGithubHtmlSanitizeChars + 1)}">`
+  const oversizedBlockHtml = `<div>\n${'y'.repeat(maxGithubHtmlSanitizeChars + 1)}\n</div>`
+  editor.config((ctx) => {
+    ctx.set(defaultValueCtx, [oversizedInlineHtml, oversizedBlockHtml].join('\n\n'))
+  })
+
+  await editor.create()
+
+  const values: string[] = []
+  editor.ctx.get(editorViewCtx).state.doc.descendants((node) => {
+    if (node.type.name === 'html' || node.type.name === 'html_block')
+      values.push(node.attrs.value)
+  })
+  expect(values).toEqual(['', ''])
+  expect(JSON.stringify(editor.ctx.get(editorViewCtx).state.doc.toJSON())).not.toContain('x'.repeat(1024))
+  expect(JSON.stringify(editor.ctx.get(editorViewCtx).state.doc.toJSON())).not.toContain('y'.repeat(1024))
+
+  await editor.destroy()
+})
+
+it('should ignore non-string raw html node attrs without coercion', async () => {
+  const editor = createEditor()
+  await editor.create()
+
+  try {
+    const schema = editor.ctx.get(editorViewCtx).state.schema
+    const serializer = DOMSerializer.fromSchema(schema)
+    const throwingValue = {
+      toString: () => {
+        throw new Error('Unexpected raw html value coercion')
+      },
+    }
+
+    const inlineDom = serializer.serializeNode(
+      schema.nodes.html.create({ value: throwingValue }),
+    ) as HTMLElement
+    const blockDom = serializer.serializeNode(
+      schema.nodes.html_block.create({ value: throwingValue }),
+    ) as HTMLElement
+
+    expect(inlineDom.getAttribute('data-value')).toBe('')
+    expect(inlineDom.innerHTML).toBe('')
+    expect(blockDom.getAttribute('data-value')).toBe('')
+    expect(blockDom.innerHTML).toBe('')
+  }
+  finally {
+    await editor.destroy()
+  }
+})
+
+it('should ignore non-primitive html dom attrs without coercion', async () => {
+  const hostileValue = {
+    toString: () => {
+      throw new Error('Unexpected html attr coercion')
+    },
+  }
+  const editor = createEditor()
+  editor.config((ctx) => {
+    ctx.set(htmlAttr.key, () => ({
+      'data-safe': 'ok',
+      'data-count': 2,
+      'data-enabled': true,
+      'data-hostile': hostileValue,
+    }))
+    ctx.set(defaultValueCtx, '<span>inline</span>\n\n<div>\nblock\n</div>')
+  })
+
+  await editor.create()
+
+  try {
+    const inlineDom = editor.ctx.get(editorViewCtx).dom.querySelector('[data-type="html"]')
+    const blockDom = editor.ctx.get(editorViewCtx).dom.querySelector('[data-type="html-block"]')
+
+    expect(inlineDom?.getAttribute('data-safe')).toBe('ok')
+    expect(inlineDom?.getAttribute('data-count')).toBe('2')
+    expect(inlineDom?.getAttribute('data-enabled')).toBe('true')
+    expect(inlineDom).not.toHaveAttribute('data-hostile')
+    expect(blockDom?.getAttribute('data-safe')).toBe('ok')
+    expect(blockDom).not.toHaveAttribute('data-hostile')
+  }
+  finally {
+    await editor.destroy()
+  }
 })
 
 it('should keep GFM-disallowed raw html as escaped source text', () => {

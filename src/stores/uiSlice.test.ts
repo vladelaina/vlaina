@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SIDEBAR_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
+import { getDefaultSidebarWidth, SIDEBAR_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
 import { DEFAULT_SETTINGS } from '@/lib/config';
 import {
   NOTES_CHAT_FLOATING_DEFAULT_SIZE,
   NOTES_CHAT_FLOATING_MAX_SIZE,
   NOTES_CHAT_FLOATING_MIN_SIZE,
+  UI_FONT_SIZE_DEFAULT,
   useUIStore,
 } from './uiSlice';
 import { useUnifiedStore } from './unified/useUnifiedStore';
@@ -264,6 +265,16 @@ describe('uiSlice', () => {
     useUIStore.getState().reloadPreferencesFromStorage();
 
     expect(useUIStore.getState().sidebarWidth).toBe(SIDEBAR_MIN_WIDTH);
+  });
+
+  it('ignores non-decimal numeric UI preferences loaded from storage', () => {
+    localStorage.setItem('vlaina_sidebar_width', '1e3');
+    localStorage.setItem('fontSize', '18px');
+
+    useUIStore.getState().reloadPreferencesFromStorage();
+
+    expect(useUIStore.getState().sidebarWidth).toBe(getDefaultSidebarWidth());
+    expect(useUIStore.getState().fontSize).toBe(UI_FONT_SIZE_DEFAULT);
   });
 
   it('resets the appearance font size to the default markdown body size', () => {

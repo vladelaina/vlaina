@@ -5,6 +5,7 @@ const AD_NOISE_BLOCKS =
   /<([a-z][a-z0-9-]*)\b[^>]*(?:id|class|aria-label)=["'][^"']*(?:\bad\b|ads|advert|sponsor|promo|popup|modal|cookie|newsletter|subscribe|recommend|related)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi;
 const HTML_TAG = /<[^>]+>/g;
 const WHITESPACE_LINES = /\n{3,}/g;
+const MAX_EXTRACTED_HTML_CHARS = 1_000_000;
 const ENTITY_MAP = new Map([
   ['copy', '(c)'],
   ['ensp', ' '],
@@ -17,6 +18,13 @@ const ENTITY_MAP = new Map([
   ['trade', '(TM)'],
 ]);
 
+function decodeCodePoint(rawCodePoint, radix) {
+  const codePoint = Number.parseInt(rawCodePoint, radix);
+  return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+    ? String.fromCodePoint(codePoint)
+    : null;
+}
+
 function decodeEntities(value) {
   return value
     .replace(/&nbsp;/gi, ' ')
@@ -25,9 +33,9 @@ function decodeEntities(value) {
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
-    .replace(/&([a-z]+);/gi, (match, name) => ENTITY_MAP.get(String(name).toLowerCase()) ?? match);
+    .replace(/&#(\d+);/g, (match, code) => decodeCodePoint(code, 10) ?? match)
+    .replace(/&#x([0-9a-f]+);/gi, (match, code) => decodeCodePoint(code, 16) ?? match)
+    .replace(/&([a-z]+);/gi, (match, name) => ENTITY_MAP.get(name.toLowerCase()) ?? match);
 }
 
 function extractTagContent(html, tagName) {
@@ -36,7 +44,8 @@ function extractTagContent(html, tagName) {
 }
 
 export function cleanText(value) {
-  return decodeEntities(String(value ?? '').replace(HTML_TAG, ' '))
+  const text = typeof value === 'string' ? value : '';
+  return decodeEntities(text.replace(HTML_TAG, ' '))
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\s+\n/g, '\n')
     .replace(/\n\s+/g, '\n')
@@ -44,7 +53,7 @@ export function cleanText(value) {
 }
 
 export function extractReadableContent(html, finalUrl) {
-  const input = String(html ?? '').slice(0, 1_000_000);
+  const input = typeof html === 'string' ? html.slice(0, MAX_EXTRACTED_HTML_CHARS) : '';
   const withoutNoise = input
     .replace(SCRIPT_STYLE_BLOCKS, '')
     .replace(NOISE_BLOCKS, '')

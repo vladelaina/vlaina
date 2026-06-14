@@ -33,6 +33,20 @@ describe('errorTag', () => {
     expect(parsed?.content).toHaveLength(MAX_ERROR_TAG_CONTENT_CHARS);
   });
 
+  it('drops unsafe runtime code values without coercion', () => {
+    const unsafeCode = {
+      toString() {
+        throw new Error('code coercion');
+      },
+    };
+
+    expect(parseErrorTag(buildErrorTag('NETWORK_ERROR', unsafeCode as never, 'Bad gateway'))).toEqual({
+      type: 'NETWORK_ERROR',
+      content: 'Bad gateway',
+    });
+    expect(parseErrorTag(buildErrorTag('NETWORK_ERROR', Number.POSITIVE_INFINITY, 'Bad gateway'))?.code).toBeUndefined();
+  });
+
   it('continues scanning after malformed oversized start tags', () => {
     const malformed = `<error ${'x'.repeat(4097)}>`;
     const valid = '<error type="AUTH_ERROR" code="login">Sign in</error>';

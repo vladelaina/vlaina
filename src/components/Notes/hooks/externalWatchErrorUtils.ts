@@ -13,9 +13,12 @@ export function getExternalWatchErrorMessage(error: unknown): string {
       return candidate.message;
     }
     if (typeof candidate.toString === 'function') {
-      const value = candidate.toString();
-      if (value && value !== '[object Object]') {
-        return value;
+      try {
+        const value = candidate.toString();
+        if (value && value !== '[object Object]') {
+          return value;
+        }
+      } catch {
       }
     }
   }

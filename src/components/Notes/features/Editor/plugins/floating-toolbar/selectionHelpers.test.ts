@@ -329,6 +329,23 @@ describe('selection helpers', () => {
     expect(getCurrentBlockType(blockquoteView)).toBe('blockquote');
   });
 
+  it('does not coerce invalid heading levels while reading the current block type', () => {
+    const level = {
+      toString() {
+        throw new Error('heading level coercion');
+      },
+    };
+    const view = createView(
+      [{ ...createTextNode('ab'), pos: 0 }],
+      { from: 0, to: 2 },
+      {
+        0: [{ type: 'doc' }, { type: 'heading', attrs: { level }, before: 1 }],
+      }
+    );
+
+    expect(getCurrentBlockType(view)).toBe('heading1');
+  });
+
   it('returns null for mixed alignments and preserves a shared alignment across mixed supported blocks', () => {
     const mixedAlignmentView = createView(
       [

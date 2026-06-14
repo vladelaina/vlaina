@@ -41,6 +41,10 @@ describe("externalLinks", () => {
       expect(normalizeExternalHref("   ")).toBeNull();
     });
 
+    it("rejects oversized external hrefs before URL parsing", () => {
+      expect(normalizeExternalHref(`https://example.com/${"a".repeat(4096)}`)).toBeNull();
+    });
+
     it("rejects control and bidi characters before opening external links", () => {
       expect(normalizeExternalHref("https://example.com/\u202Ecod.exe")).toBeNull();
       expect(normalizeExternalHref("https://example.com/\u0000path")).toBeNull();

@@ -25,6 +25,85 @@ interface LocalImageProps {
     style?: CSSProperties;
 }
 
+export const MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS = 4;
+
+interface ScheduledLocalImageAttachmentRead {
+    run: () => Promise<void>;
+}
+
+const pendingLocalImageAttachmentReads: ScheduledLocalImageAttachmentRead[] = [];
+let activeLocalImageAttachmentReadCount = 0;
+
+function createAbortError(): Error {
+    const error = new Error('Local image attachment read aborted.');
+    error.name = 'AbortError';
+    return error;
+}
+
+function drainLocalImageAttachmentReadQueue(): void {
+    while (
+        activeLocalImageAttachmentReadCount < MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS &&
+        pendingLocalImageAttachmentReads.length > 0
+    ) {
+        const scheduled = pendingLocalImageAttachmentReads.shift();
+        if (!scheduled) {
+            return;
+        }
+
+        activeLocalImageAttachmentReadCount += 1;
+        void scheduled.run().finally(() => {
+            activeLocalImageAttachmentReadCount -= 1;
+            drainLocalImageAttachmentReadQueue();
+        });
+    }
+}
+
+function scheduleLocalImageAttachmentRead<T>(
+    task: () => Promise<T>,
+    signal?: AbortSignal,
+): Promise<T> {
+    if (signal?.aborted) {
+        return Promise.reject(createAbortError());
+    }
+
+    return new Promise<T>((resolve, reject) => {
+        let scheduled: ScheduledLocalImageAttachmentRead | null = null;
+        const abortPendingRead = () => {
+            if (!scheduled) {
+                return;
+            }
+
+            const pendingIndex = pendingLocalImageAttachmentReads.indexOf(scheduled);
+            if (pendingIndex === -1) {
+                return;
+            }
+
+            pendingLocalImageAttachmentReads.splice(pendingIndex, 1);
+            reject(createAbortError());
+        };
+
+        scheduled = {
+            run: async () => {
+                signal?.removeEventListener('abort', abortPendingRead);
+                if (signal?.aborted) {
+                    reject(createAbortError());
+                    return;
+                }
+
+                try {
+                    resolve(await task());
+                } catch (error) {
+                    reject(error);
+                }
+            },
+        };
+
+        signal?.addEventListener('abort', abortPendingRead, { once: true });
+        pendingLocalImageAttachmentReads.push(scheduled);
+        drainLocalImageAttachmentReadQueue();
+    });
+}
+
 function uint8ArrayToBase64(data: Uint8Array): string {
     const CHUNK_SIZE = 0x8000;
     let binary = '';
@@ -72,6 +151,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
 
     useEffect(() => {
         let active = true;
+        const abortController = new AbortController();
         setDisplaySrc(null);
         onResolvedSrcRef.current?.(null);
         setError(false);
@@ -106,14 +186,16 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                     return;
                 }
 
-                const storage = getStorageAdapter();
-                const basePath = await storage.getBasePath();
-                const attachmentPath = await getPrimaryAttachmentPath(basePath, filename);
-                const info = await storage.stat(attachmentPath).catch(() => null);
-                assertReadableStoredAttachmentInfo(info);
-                const data = await storage.readBinaryFile(attachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
-                assertStoredAttachmentSize(data.byteLength);
-                const base64 = uint8ArrayToBase64(data);
+                const base64 = await scheduleLocalImageAttachmentRead(async () => {
+                    const storage = getStorageAdapter();
+                    const basePath = await storage.getBasePath();
+                    const nextAttachmentPath = await getPrimaryAttachmentPath(basePath, filename);
+                    const info = await storage.stat(nextAttachmentPath).catch(() => null);
+                    assertReadableStoredAttachmentInfo(info);
+                    const data = await storage.readBinaryFile(nextAttachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
+                    assertStoredAttachmentSize(data.byteLength);
+                    return uint8ArrayToBase64(data);
+                }, abortController.signal);
 
                 const nextSrc = await normalizeDisplaySrc(`data:${mime};base64,${base64}`);
                 if (!active) return;
@@ -134,7 +216,10 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
 
         void loadLocalImage();
 
-        return () => { active = false; };
+        return () => {
+            active = false;
+            abortController.abort();
+        };
     }, [src]);
 
     if (error) {

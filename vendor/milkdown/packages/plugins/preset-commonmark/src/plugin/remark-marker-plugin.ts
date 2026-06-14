@@ -20,14 +20,15 @@ function getMarker(node: Node, source: string): string | null {
   return marker === '*' || marker === '_' ? marker : null
 }
 
-export function transformRemarkMarkerTree(tree: Node, source: string): void {
+export function transformRemarkMarkerTree(tree: Node, source: unknown): void {
   if (!canTransformRemarkAst(tree)) return
+  const normalizedSource = typeof source === 'string' ? source : ''
 
   visit(
     tree,
     (node: Node) => ['strong', 'emphasis'].includes(node.type),
     (node: Node) => {
-      const marker = getMarker(node, source)
+      const marker = getMarker(node, normalizedSource)
       if (!marker) return
       ;(node as Node & { marker: string }).marker = marker
     }
@@ -38,7 +39,7 @@ export function transformRemarkMarkerTree(tree: Node, source: string): void {
 export const remarkMarker = $remark(
   'remarkMarker',
   () => () => (tree, file) => {
-    transformRemarkMarkerTree(tree, String(file.value ?? ''))
+    transformRemarkMarkerTree(tree, file.value)
   }
 )
 

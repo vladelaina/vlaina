@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_TAB_SEPARATED_TABLE_CELL_CHARS,
   MAX_TAB_SEPARATED_TABLE_CHARS,
@@ -23,6 +23,31 @@ describe('createMarkdownTableFromTabSeparatedText', () => {
       '| --- | --- |',
       '| A\\|B | C\\\\D |',
     ].join('\n'));
+  });
+
+  it('trims blank edge lines without shifting large line arrays', () => {
+    const shiftSpy = vi.spyOn(Array.prototype, 'shift');
+    const popSpy = vi.spyOn(Array.prototype, 'pop');
+    let result: string | null = null;
+    let shiftCalls = 0;
+    let popCalls = 0;
+
+    try {
+      result = createMarkdownTableFromTabSeparatedText(`${'\n'.repeat(5000)}Name\tScore\nAda\t10${'\n'.repeat(5000)}`);
+      shiftCalls = shiftSpy.mock.calls.length;
+      popCalls = popSpy.mock.calls.length;
+    } finally {
+      shiftSpy.mockRestore();
+      popSpy.mockRestore();
+    }
+
+    expect(result).toBe([
+      '| Name | Score |',
+      '| --- | --- |',
+      '| Ada | 10 |',
+    ].join('\n'));
+    expect(shiftCalls).toBe(0);
+    expect(popCalls).toBe(0);
   });
 
   it('ignores single-line tabbed text and ragged rows', () => {
@@ -50,5 +75,16 @@ describe('createMarkdownTableFromTabSeparatedText', () => {
     ).join('\t');
 
     expect(createMarkdownTableFromTabSeparatedText(`${oversizedHeader}\nA\tB`)).toBeNull();
+  });
+
+  it('rejects table markdown that grows past the paste budget after escaping', () => {
+    const row = Array.from(
+      { length: MAX_TAB_SEPARATED_TABLE_COLUMNS },
+      () => '\\'.repeat(100),
+    ).join('\t');
+    const text = Array.from({ length: 30 }, () => row).join('\n');
+
+    expect(text.length).toBeLessThanOrEqual(MAX_TAB_SEPARATED_TABLE_CHARS);
+    expect(createMarkdownTableFromTabSeparatedText(text)).toBeNull();
   });
 });

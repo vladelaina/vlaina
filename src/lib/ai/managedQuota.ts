@@ -8,7 +8,9 @@ export function isManagedBudgetExhausted(budget: ManagedBudgetStatus | null | un
     return false;
   }
 
-  const remainingPercent = Number(budget.remainingPercent);
+  const remainingPercent = typeof budget.remainingPercent === 'number'
+    ? budget.remainingPercent
+    : Number.NaN;
   return (
     budget.active === false ||
     budget.status === MANAGED_QUOTA_EXHAUSTED_STATUS ||

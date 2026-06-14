@@ -7,11 +7,39 @@ const MAX_MANAGED_STREAM_LINE_CHARS = 1024 * 1024;
 const MAX_MANAGED_ERROR_BODY_BYTES = 64 * 1024;
 
 function requireSafeIpcRequestId(value, label) {
-  const id = String(value ?? '').trim();
+  const rawId = primitiveToString(value);
+  const id = rawId === null ? '' : rawId.trim();
   if (!IPC_REQUEST_ID_PATTERN.test(id)) {
     throw new Error(`${label} must contain only safe channel characters.`);
   }
   return id;
+}
+
+function primitiveToString(value) {
+  if (value == null) {
+    return '';
+  }
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value);
+    default:
+      return null;
+  }
+}
+
+function getManagedErrorMessage(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error && typeof error === 'object' && typeof error.message === 'string') {
+    return error.message;
+  }
+  return primitiveToString(error) || 'Unknown error';
 }
 
 function safeSend(sender, channel, payload) {
@@ -278,7 +306,10 @@ function normalizeManagedBinaryPayload(payload) {
   if (rawHeaders && typeof rawHeaders === 'object') {
     for (const [key, value] of Object.entries(rawHeaders)) {
       const normalizedKey = String(key).trim();
-      const normalizedValue = String(value ?? '');
+      const normalizedValue = primitiveToString(value);
+      if (normalizedValue === null) {
+        throw new Error('Invalid managed binary request header.');
+      }
       if (!/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(normalizedKey) || /[\u0000\r\n]/.test(normalizedValue)) {
         throw new Error('Invalid managed binary request header.');
       }
@@ -391,11 +422,11 @@ export function registerManagedIpc({
   requireNonEmptyString,
 }) {
   handleIpc('desktop:billing:create-checkout', async (_event, tier) => {
-    return await createElectronBillingCheckout(String(tier ?? ''));
+    return await createElectronBillingCheckout(primitiveToString(tier) ?? '');
   });
 
   handleIpc('desktop:feedback:submit', async (_event, message) => {
-    return await submitElectronFeedback(String(message ?? ''));
+    return await submitElectronFeedback(primitiveToString(message) ?? '');
   });
 
   handleIpc('desktop:managed:get-models', async () => {
@@ -589,11 +620,7 @@ export function registerManagedIpc({
           }
         } else {
           sendStreamEvent('error', {
-            message: error instanceof Error
-              ? error.message
-              : typeof error?.message === 'string'
-                ? error.message
-                : String(error),
+            message: getManagedErrorMessage(error),
             statusCode: typeof error?.statusCode === 'number' ? error.statusCode : undefined,
             errorCode: typeof error?.errorCode === 'string' ? error.errorCode : undefined,
           });

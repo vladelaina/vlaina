@@ -1,5 +1,6 @@
 export const MAX_PROVIDER_ERROR_BODY_BYTES = 64 * 1024
 export const MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES = 64 * 1024 * 1024
+const MAX_PROVIDER_CONTENT_LENGTH_CHARS = 32
 
 function createAbortError(): DOMException {
   return new DOMException('Aborted', 'AbortError')
@@ -20,7 +21,14 @@ function readContentLength(response: Response): number | null {
     return null
   }
 
-  const parsed = Number(rawContentLength)
+  if (rawContentLength.length > MAX_PROVIDER_CONTENT_LENGTH_CHARS) {
+    return null
+  }
+  const trimmed = rawContentLength.trim()
+  if (!/^\d+$/.test(trimmed)) {
+    return null
+  }
+  const parsed = Number.parseInt(trimmed, 10)
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
 }
 
@@ -81,9 +89,16 @@ export async function readBoundedProviderResponseText(
   response: Response,
   signal?: AbortSignal,
   fallback = 'Unknown error',
+  maxBytes = MAX_PROVIDER_ERROR_BODY_BYTES,
 ): Promise<string> {
   try {
     throwIfAborted(signal)
+    const contentLength = readContentLength(response)
+    if (contentLength !== null && contentLength > maxBytes) {
+      void response.body?.cancel().catch(() => undefined)
+      return fallback
+    }
+
     if (!response.body) {
       return fallback
     }
@@ -106,7 +121,7 @@ export async function readBoundedProviderResponseText(
         }
 
         bytesRead += value.byteLength
-        if (bytesRead > MAX_PROVIDER_ERROR_BODY_BYTES) {
+        if (bytesRead > maxBytes) {
           void reader.cancel().catch(() => undefined)
           return fallback
         }

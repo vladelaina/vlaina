@@ -92,6 +92,45 @@ describe('accountCredentialStore', () => {
     });
   });
 
+  it('normalizes account metadata before storing it', async () => {
+    const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
+    const store = createAccountCredentialStore({
+      desktopLegacySessionHeader: 'x-app-session-token',
+    });
+
+    await store.writeStoredAccountCredentials({
+      appSessionToken: ' nts_super_secret_token ',
+      provider: 'google',
+      username: ' alice ',
+      primaryEmail: ' alice@example.com ',
+      avatarUrl: 'http://127.0.0.1/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'P'.repeat(129),
+      authenticatedAt: 1,
+    });
+
+    const metaPath = path.join(mocks.userDataPath, '.vlaina', 'store', 'account-meta.json');
+    const rawMeta = JSON.parse(await readFile(metaPath, 'utf8'));
+    expect(rawMeta).toMatchObject({
+      provider: 'google',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: null,
+      authenticatedAt: 1,
+    });
+
+    await expect(store.readStoredAccountCredentials()).resolves.toMatchObject({
+      appSessionToken: 'nts_super_secret_token',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: null,
+    });
+  });
+
   it('keeps account session tokens in memory when safe storage is unavailable', async () => {
     mocks.encryptionAvailable = false;
     const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');

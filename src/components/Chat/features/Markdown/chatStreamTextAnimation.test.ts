@@ -34,7 +34,7 @@ describe('useChatStreamBlocks', () => {
   it('counts stable markdown images outside fenced code for active image offsets', () => {
     const stable = [
       'Stable paragraph. '.repeat(14),
-      '![stable](stable.png)',
+      '![stable](https://example.com/stable.png)',
       '```md',
       '![example only](code.png)',
       '```',

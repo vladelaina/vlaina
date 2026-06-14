@@ -99,7 +99,7 @@ export const tocViewPlugin = $prose(() => {
         lastTocCount = tocElements.length;
 
         for (const el of tocElements) {
-          const maxLevel = parseInt(el.getAttribute('data-max-level') || '6', 10);
+          const maxLevel = normalizeTocMaxLevel(el.getAttribute('data-max-level') || '6');
           const contentEl = el.querySelector<HTMLElement>('.toc-content');
           if (!contentEl) continue;
           renderTocContent(contentEl, headings, maxLevel);

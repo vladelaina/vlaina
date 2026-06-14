@@ -165,6 +165,34 @@ describe('createChatStreamTextPlugin', () => {
     expect(tree.children[0].children[0]).toBe(codeNode);
   });
 
+  it('does not coerce non-string class names while checking skipped nodes', () => {
+    const hostileClassName = {
+      toString() {
+        throw new Error('class coercion');
+      },
+    };
+    const tree: any = {
+      children: [
+        {
+          children: [{ type: 'text', value: 'Hi' }],
+          properties: { className: [hostileClassName, 'katex'] },
+          tagName: 'span',
+          type: 'element',
+        },
+      ],
+      type: 'root',
+    };
+
+    createChatStreamTextPlugin({
+      births: [0, 20],
+      charDelay: 20,
+      nowMs: 0,
+      revealed: false,
+    })(tree);
+
+    expect(tree.children[0].children).toEqual([{ type: 'text', value: 'Hi' }]);
+  });
+
   it('wraps inline code text and schedules the code container with the same animation clock', () => {
     const inlineCodeNode = {
       children: [{ type: 'text', value: 'xy' }],

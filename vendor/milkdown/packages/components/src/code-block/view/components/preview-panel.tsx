@@ -15,8 +15,52 @@ type PreviewPanelProps = Pick<
 }
 
 const maxPreviewHtmlChars = 2 * 1024 * 1024
+export const maxPreviewHtmlNodes = 20_000
+export const maxPreviewHtmlDepth = 128
+
+function isPreviewDomWithinBudget(root: Node, initialDepth = 1) {
+  const stack: Array<{ node: Node; depth: number }> = [{ node: root, depth: initialDepth }]
+  let visitedNodes = 0
+
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!
+    visitedNodes += 1
+    if (visitedNodes > maxPreviewHtmlNodes || depth > maxPreviewHtmlDepth)
+      return false
+
+    for (let child = node.lastChild; child; child = child.previousSibling)
+      stack.push({ node: child, depth: depth + 1 })
+  }
+
+  return true
+}
+
+export function isPreviewHtmlWithinDomBudget(html: string) {
+  if (html.length > maxPreviewHtmlChars)
+    return false
+
+  const template = document.createElement('template')
+  template.innerHTML = html
+  const isWithinBudget = isPreviewDomWithinBudget(template.content, 0)
+  template.remove()
+  return isWithinBudget
+}
 
 export function sanitizePreviewContent(previewContent: string | HTMLElement) {
+  if (
+    typeof previewContent === 'string' &&
+    !isPreviewHtmlWithinDomBudget(previewContent)
+  ) {
+    return ''
+  }
+
+  if (
+    previewContent instanceof Element &&
+    !isPreviewDomWithinBudget(previewContent)
+  ) {
+    return ''
+  }
+
   const html = typeof previewContent === 'string'
     ? previewContent
     : previewContent.outerHTML

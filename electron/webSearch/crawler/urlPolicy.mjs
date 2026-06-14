@@ -65,11 +65,14 @@ function unwrapSearchRedirect(parsedUrl) {
 }
 
 export function prepareCrawlerUrl(rawUrl) {
+  if (typeof rawUrl !== 'string') {
+    return '';
+  }
   let parsedUrl;
   try {
-    parsedUrl = new URL(String(rawUrl));
+    parsedUrl = new URL(rawUrl);
   } catch {
-    return String(rawUrl);
+    return rawUrl;
   }
 
   const redirectedUrl = unwrapSearchRedirect(parsedUrl);

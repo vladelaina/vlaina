@@ -94,6 +94,19 @@ describe('desktop account session status resolution', () => {
     });
   });
 
+  it('filters unsafe cached avatar and membership fields', () => {
+    expect(buildCachedDesktopStatus({
+      ...credentials,
+      avatarUrl: 'http://127.0.0.1/avatar.png',
+      membershipName: 'P'.repeat(129),
+    })).toMatchObject({
+      connected: true,
+      avatarUrl: null,
+      membershipName: null,
+      persistent: true,
+    });
+  });
+
   it('keeps cached credentials when the payload says disconnected', () => {
     expect(
       resolveDesktopSessionProbe(credentials, {
@@ -145,6 +158,35 @@ describe('desktop account session status resolution', () => {
         persistent: true,
       },
       clearStoredCredentials: false,
+    });
+  });
+
+  it('filters unsafe payload identity fields when auth/session resolves successfully', () => {
+    expect(
+      resolveDesktopSessionProbe(cachedMemberCredentials, {
+        kind: 'ok',
+        payload: {
+          connected: true,
+          username: `${' '.repeat(257)}octocat`,
+          primaryEmail: `${' '.repeat(321)}octo@example.com`,
+          avatarUrl: 'http://127.0.0.1/avatar.png',
+          membershipName: 'P'.repeat(129),
+        },
+      }),
+    ).toMatchObject({
+      status: {
+        connected: true,
+        username: 'vladelaina',
+        primaryEmail: 'vladelaina@gmail.com',
+        avatarUrl: 'https://example.com/avatar.png',
+        membershipName: 'Pro',
+      },
+      nextCredentials: {
+        username: 'vladelaina',
+        primaryEmail: 'vladelaina@gmail.com',
+        avatarUrl: 'https://example.com/avatar.png',
+        membershipName: 'Pro',
+      },
     });
   });
 

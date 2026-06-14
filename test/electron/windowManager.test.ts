@@ -325,6 +325,20 @@ describe('window manager reveal timing', () => {
     expect(window.maximize).not.toHaveBeenCalled();
   });
 
+  it('ignores non-decimal stored window bounds on startup', () => {
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify({
+      bounds: { width: '1e3', height: '700' },
+      isMaximized: true,
+    }));
+
+    const window = createHarness();
+
+    expect(window.options).toMatchObject({ width: 980, height: 640 });
+    expect(window.maximize).not.toHaveBeenCalled();
+  });
+
   it('does not maximize secondary windows from the persisted main window state', () => {
     const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });

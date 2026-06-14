@@ -43,13 +43,12 @@ export const videoSchema = $node('video', () => ({
   parseMarkdown: {
     match: (node) => {
       if (node.type === 'video' || node.type === 'image') {
-        const url = node.url as string || '';
-        return parseVideoUrl(url) !== null;
+        return parseVideoUrl(node.url) !== null;
       }
       return false;
     },
     runner: (state, node, type) => {
-      const src = sanitizeVideoUrlInput((node.url as string) || '');
+      const src = sanitizeVideoUrlInput(node.url);
       if (!src) return;
       const title = getVideoMarkdownTitle(node);
       state.addNode(type, normalizeVideoAttrs({ src, title }));
@@ -58,7 +57,7 @@ export const videoSchema = $node('video', () => ({
   toMarkdown: {
     match: (node) => node.type.name === 'video',
     runner: (state, node) => {
-      const src = sanitizeVideoUrlInput(String(node.attrs.src || ''));
+      const src = sanitizeVideoUrlInput(node.attrs.src, { allowEmpty: true });
       if (!src) {
         state.addNode('paragraph', []);
         return;

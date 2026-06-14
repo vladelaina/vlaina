@@ -27,6 +27,14 @@ function hasUnsafeBackslashUrlSyntax(value: string): boolean {
   );
 }
 
+function startsWithDataImageCandidate(value: string): boolean {
+  let index = 0;
+  while (index < value.length && index < 128 && /\s/.test(value[index])) {
+    index += 1;
+  }
+  return /^data:/i.test(value.slice(index, index + 5));
+}
+
 function getUrlBase(): string {
   return typeof window !== 'undefined' ? window.location.href : FALLBACK_URL_BASE;
 }
@@ -34,6 +42,7 @@ function getUrlBase(): string {
 function parseIPv4(hostname: string): [number, number, number, number] | null {
   const parts = hostname.split('.');
   if (parts.length !== 4) return null;
+  if (parts.some((part) => !/^\d{1,3}$/.test(part))) return null;
   const octets = parts.map((part) => Number(part));
   if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null;
   return octets as [number, number, number, number];
@@ -137,6 +146,7 @@ export function isLocalNetworkHttpUrl(value: string): boolean {
 
 export function isPublicRemoteMediaUrl(value: unknown): boolean {
   if (typeof value !== 'string') return false;
+  if (value.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS) return false;
   const trimmed = value.trim();
   if (!trimmed) return false;
   if (trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS) return false;
@@ -168,6 +178,7 @@ export function normalizePublicRemoteMediaUrl(value: unknown): string | null {
 
 export function sanitizeNoteLinkHref(value: unknown): string | null {
   if (typeof value !== 'string') return null;
+  if (value.length > MAX_NOTE_LINK_HREF_CHARS) return null;
   const trimmed = value.trim();
   if (
     !trimmed
@@ -192,6 +203,7 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
 
 export function getNoteInternalImageAssetPath(value: unknown): string | null {
   if (typeof value !== 'string') return null;
+  if (value.length > MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS) return null;
   const trimmed = value.trim();
   if (trimmed.length > MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS) return null;
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
@@ -215,6 +227,7 @@ export function getNoteInternalImageAssetPath(value: unknown): string | null {
 
 export function sanitizeNoteMediaSrc(value: unknown): string | null {
   if (typeof value !== 'string') return null;
+  if (value.length > MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS && !startsWithDataImageCandidate(value)) return null;
   const trimmed = value.trim();
   if (
     !trimmed

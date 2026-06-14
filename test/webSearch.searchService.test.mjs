@@ -209,4 +209,36 @@ describe('SearchService', () => {
       results: [],
     });
   });
+
+  it('rejects non-string queries without coercion', async () => {
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn().mockResolvedValue([]),
+    };
+    const service = new SearchService({ providers: [provider] });
+    const query = {
+      toString: vi.fn(() => {
+        throw new Error('query coercion');
+      }),
+    };
+
+    await expect(service.webSearch(query, { limit: 5 })).rejects.toMatchObject({
+      code: 'invalid_query',
+    });
+    expect(query.toString).not.toHaveBeenCalled();
+    expect(provider.search).not.toHaveBeenCalled();
+  });
+
+  it('rejects overlong queries before provider attempts', async () => {
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn().mockResolvedValue([]),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    await expect(service.webSearch('x'.repeat(1001), { limit: 5 })).rejects.toMatchObject({
+      code: 'invalid_query',
+    });
+    expect(provider.search).not.toHaveBeenCalled();
+  });
 });

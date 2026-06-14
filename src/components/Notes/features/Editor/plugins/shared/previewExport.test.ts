@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { savePreview } from './previewExport';
+import { MAX_PREVIEW_EXPORT_BYTES, savePreview } from './previewExport';
 
 const mocks = vi.hoisted(() => ({
   getBase64DecodedByteLength: vi.fn(),
@@ -148,6 +148,27 @@ describe('savePreview', () => {
     mocks.getBase64DecodedByteLength.mockReturnValueOnce(Number.MAX_SAFE_INTEGER);
 
     await expect(savePreview(element, 'diagram', 'svg')).rejects.toThrow('Preview export output is too large.');
+
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not save oversized existing SVG output after serialization', async () => {
+    const element = document.createElement('div');
+    element.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="1" cy="1" r="1"></circle></svg>';
+    const originalEncode = TextEncoder.prototype.encode;
+    const encodeSpy = vi.spyOn(TextEncoder.prototype, 'encode').mockImplementation(function encode(this: TextEncoder, value?: string) {
+      if (value?.startsWith('<?xml version=')) {
+        return { byteLength: MAX_PREVIEW_EXPORT_BYTES + 1 } as Uint8Array;
+      }
+      return originalEncode.call(this, value);
+    });
+
+    try {
+      await expect(savePreview(element, 'diagram', 'svg')).rejects.toThrow('Preview export output is too large.');
+    } finally {
+      encodeSpy.mockRestore();
+    }
 
     expect(mocks.saveDialog).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();

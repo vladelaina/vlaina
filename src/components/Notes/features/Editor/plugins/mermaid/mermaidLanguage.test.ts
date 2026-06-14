@@ -85,6 +85,7 @@ describe('mermaidLanguage', () => {
   it('recognizes Mermaid fence info strings with Markdown metadata', () => {
     expect(normalizeMermaidFenceLanguage('mermaid title="Flow"')).toBe('mermaid');
     expect(isMermaidFenceLanguage('sequence data-extra')).toBe(true);
+    expect(normalizeMermaidFenceLanguage(`${' '.repeat(257)}mermaid`)).toBe('');
   });
 
   it('keeps Mermaid core diagram ids covered by fence aliases', async () => {
@@ -117,5 +118,6 @@ describe('mermaidLanguage', () => {
     expect(parseMermaidFenceLanguage('``mermaid')).toBeNull();
     expect(parseMermaidFenceLanguage('~~mermaid')).toBeNull();
     expect(parseMermaidFenceLanguage('    ```mermaid')).toBeNull();
+    expect(parseMermaidFenceLanguage(`\`\`\`${' '.repeat(513)}mermaid`)).toBeNull();
   });
 });

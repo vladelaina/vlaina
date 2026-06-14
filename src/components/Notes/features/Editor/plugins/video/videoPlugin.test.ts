@@ -111,6 +111,14 @@ describe('videoPlugin URL support', () => {
       type: 'bilibili',
       embedUrl: 'https://player.bilibili.com/player.html?isOutside=true&bvid=BV1xx411c7mD&p=2&danmaku=0&autoplay=0&aid=123&cid=456',
     });
+    expect(parseVideoUrl('https://www.bilibili.com/video/BV1xx411c7mD?p=1e2')).toEqual({
+      type: 'bilibili',
+      embedUrl: 'https://player.bilibili.com/player.html?isOutside=true&bvid=BV1xx411c7mD&p=1&danmaku=0&autoplay=0',
+    });
+    expect(parseVideoUrl('https://player.bilibili.com/player.html?isOutside=true&aid=0x7b&bvid=BV1xx411c7mD&cid=456&p=0x2')).toEqual({
+      type: 'bilibili',
+      embedUrl: 'https://player.bilibili.com/player.html?isOutside=true&bvid=BV1xx411c7mD&p=1&danmaku=0&autoplay=0&cid=456',
+    });
     expect(parseVideoUrl('https://example.com/video.webm?token=1')).toEqual({
       type: 'direct',
       embedUrl: 'https://example.com/video.webm?token=1',
@@ -153,6 +161,7 @@ describe('videoPlugin URL support', () => {
     expect(isSupportedVideoUrl(`https://example.com/${'a'.repeat(2050)}.mp4`)).toBe(false);
     expect(isSupportedVideoUrl('https://example.com/\u202Ecod.mp4')).toBe(false);
     expect(isSupportedVideoUrl('https://example.com/\u0000video.mp4')).toBe(false);
+    expect(normalizeVideoUrlInput(`${' '.repeat(2049)}https://example.com/video.mp4`)).toBeNull();
   });
 
   it('sanitizes video URLs before they enter editor state', () => {
@@ -160,12 +169,26 @@ describe('videoPlugin URL support', () => {
     expect(sanitizeVideoUrlInput('', { allowEmpty: true })).toBe('');
 
     expect(sanitizeVideoUrlInput('')).toBeNull();
+    expect(sanitizeVideoUrlInput(' '.repeat(2049), { allowEmpty: true })).toBeNull();
     expect(sanitizeVideoUrlInput('https://example.com/article')).toBeNull();
     expect(sanitizeVideoUrlInput('javascript:alert(1)')).toBeNull();
     expect(sanitizeVideoUrlInput('ftp://youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
     expect(sanitizeVideoUrlInput('https://user:pass@example.com/video.mp4')).toBeNull();
     expect(sanitizeVideoUrlInput('http://127.0.0.1:3000/secret.mp4')).toBeNull();
     expect(sanitizeVideoUrlInput(String.raw`https:\example.com\video.mp4`)).toBeNull();
+  });
+
+  it('rejects non-string video URL inputs without coercion', () => {
+    const input = {
+      toString() {
+        throw new Error('video URL coercion');
+      },
+    };
+
+    expect(normalizeVideoUrlInput(input)).toBeNull();
+    expect(parseVideoUrl(input)).toBeNull();
+    expect(isSupportedVideoUrl(input)).toBe(false);
+    expect(sanitizeVideoUrlInput(input)).toBeNull();
   });
 
   it('redacts video URL debug payloads', () => {
@@ -253,6 +276,28 @@ describe('videoPlugin URL support', () => {
     expect(dom.outerHTML).not.toContain('private title');
   });
 
+  it('normalizes non-string video dimension attrs without coercion', () => {
+    const dimension = {
+      toString() {
+        throw new Error('video dimension coercion');
+      },
+    };
+
+    const dom = createVideoDom({
+      src: 'https://example.com/video.mp4',
+      title: '',
+      width: dimension,
+      height: dimension,
+    } as never);
+
+    expect(dom).toHaveAttribute('data-width', '560');
+    expect(dom).toHaveAttribute('data-height', '315');
+    expect(getVideoElementAttrs(dom)).toMatchObject({
+      width: 560,
+      height: 315,
+    });
+  });
+
   it('keeps parsing legacy video wrapper attributes', () => {
     const dom = document.createElement('div');
     dom.dataset.src = 'https://example.com/video.mp4';
@@ -279,6 +324,20 @@ describe('videoPlugin URL support', () => {
       src: 'https://example.com/video.mp4',
       title: 'x'.repeat(256),
       width: 4096,
+      height: 315,
+    });
+  });
+
+  it('rejects non-decimal legacy video wrapper dimensions', () => {
+    const dom = document.createElement('div');
+    dom.dataset.src = 'https://example.com/video.mp4';
+    dom.dataset.width = '1e3';
+    dom.dataset.height = '360px';
+
+    expect(getVideoElementAttrs(dom)).toEqual({
+      src: 'https://example.com/video.mp4',
+      title: '',
+      width: 560,
       height: 315,
     });
   });

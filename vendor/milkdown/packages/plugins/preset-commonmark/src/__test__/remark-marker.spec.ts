@@ -55,3 +55,31 @@ it('skips marker preservation when remark nodes do not have source positions', (
   expect(() => transformRemarkMarkerTree(tree, '*em*')).not.toThrow()
   expect(emphasis.marker).toBeUndefined()
 })
+
+it('ignores non-string source values without coercion', () => {
+  let stringReads = 0
+  const source = {
+    toString() {
+      stringReads += 1
+      throw new Error('Unexpected marker source coercion')
+    },
+  }
+  const emphasis = {
+    type: 'emphasis',
+    position: { start: { offset: 0 } },
+    children: [{ type: 'text', value: 'em' }],
+  } as Node & { marker?: string }
+  const tree = {
+    type: 'root',
+    children: [
+      {
+        type: 'paragraph',
+        children: [emphasis],
+      },
+    ],
+  } as Node
+
+  expect(() => transformRemarkMarkerTree(tree, source)).not.toThrow()
+  expect(stringReads).toBe(0)
+  expect(emphasis.marker).toBeUndefined()
+})

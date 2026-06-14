@@ -1,4 +1,9 @@
-import { DEFAULT_SEARCH_LIMIT, WebSearchError, normalizeLimit } from './types.mjs';
+import {
+  DEFAULT_SEARCH_LIMIT,
+  MAX_WEB_SEARCH_QUERY_CHARS,
+  WebSearchError,
+  normalizeLimit,
+} from './types.mjs';
 
 function createAbortError() {
   return new DOMException('The web search request was cancelled.', 'AbortError');
@@ -187,7 +192,9 @@ export class SearchService {
 
   async webSearch(query, options = {}) {
     throwIfAborted(options.signal);
-    const normalizedQuery = String(query ?? '').trim();
+    const normalizedQuery = typeof query === 'string' && query.length <= MAX_WEB_SEARCH_QUERY_CHARS
+      ? query.trim()
+      : '';
     if (!normalizedQuery) {
       throw new WebSearchError('invalid_query', 'Search query is required.');
     }

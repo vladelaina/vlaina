@@ -99,11 +99,16 @@ function normalizeApiTranscriptToolCall(toolCall: unknown): NonNullable<ApiTrans
 }
 
 export function normalizeApiTranscriptMessage(value: unknown): ApiTranscriptMessage | null {
-  if (!isRecord(value) || !['system', 'user', 'assistant', 'tool'].includes(String(value.role))) {
+  if (!isRecord(value)) {
     return null;
   }
 
-  const normalized: ApiTranscriptMessage = { role: String(value.role) };
+  const { role } = value;
+  if (role !== 'system' && role !== 'user' && role !== 'assistant' && role !== 'tool') {
+    return null;
+  }
+
+  const normalized: ApiTranscriptMessage = { role };
   if ('content' in value) {
     normalized.content = normalizeContent(value.content) ?? null;
   }

@@ -10,6 +10,7 @@ import { isManagedProviderId } from '@/lib/ai/managedService';
 import { parseStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 import { hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
 import {
+  boundEditorAiContext,
   buildEditorAiUserMessage,
   MAX_EDITOR_AI_INSTRUCTION_CHARS,
 } from './promptBuilder';
@@ -37,6 +38,16 @@ interface AiRequestResult {
   errorMessage: string | null;
   errorType?: string | null;
   errorCode?: string | null;
+}
+
+function boundSelectionContext(context: {
+  beforeContext?: string;
+  afterContext?: string;
+}): { beforeContext: string; afterContext: string } {
+  return {
+    beforeContext: boundEditorAiContext(context.beforeContext ?? ''),
+    afterContext: boundEditorAiContext(context.afterContext ?? ''),
+  };
 }
 
 function createSystemMessage(content: string, modelId: string): ChatMessage {
@@ -240,12 +251,14 @@ export async function createAiSelectionSuggestionResult(
     useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
     return { suggestion: null, errorMessage: null };
   }
-  const context = selectionSource
-    ? {
-        beforeContext: selectionSource.beforeContext ?? '',
-        afterContext: selectionSource.afterContext ?? '',
-      }
-    : getSerializedSelectionContext(view, from, to, selectedText);
+  const context = boundSelectionContext(
+    selectionSource
+      ? {
+          beforeContext: selectionSource.beforeContext,
+          afterContext: selectionSource.afterContext,
+        }
+      : getSerializedSelectionContext(view, from, to, selectedText)
+  );
 
   const result = await requestAiEdit(
     trimmedInstruction,
@@ -304,13 +317,14 @@ export async function retryAiSelectionSuggestionResult(
     return { suggestion: null, errorMessage: AI_SELECTION_TOO_LARGE_MESSAGE };
   }
 
+  const context = boundSelectionContext({
+    beforeContext: suggestion.beforeContext,
+    afterContext: suggestion.afterContext,
+  });
   const result = await requestAiEdit(
     suggestion.instruction,
     suggestion.originalText,
-    {
-      beforeContext: suggestion.beforeContext ?? '',
-      afterContext: suggestion.afterContext ?? '',
-    },
+    context,
     signal,
     options
   );
@@ -331,8 +345,8 @@ export async function retryAiSelectionSuggestionResult(
       suggestion.instruction,
       suggestion.originalText,
       result.suggestedText,
-      suggestion.beforeContext ?? '',
-      suggestion.afterContext ?? ''
+      context.beforeContext,
+      context.afterContext
     ),
     errorMessage: null,
   };

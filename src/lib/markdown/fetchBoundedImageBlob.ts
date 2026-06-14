@@ -33,11 +33,11 @@ function getMaxBytes(options: FetchBoundedImageBlobOptions | undefined): number 
 
 function readContentLength(response: Response): number | null {
   const raw = response.headers?.get?.('content-length');
-  if (!raw) {
+  if (!raw || raw.length > 32 || !/^\d+$/.test(raw)) {
     return null;
   }
 
-  const size = Number(raw);
+  const size = Number.parseInt(raw, 10);
   return Number.isFinite(size) && size >= 0 ? size : null;
 }
 

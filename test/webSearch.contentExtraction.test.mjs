@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { extractReadableContent } from '../electron/webSearch/contentExtraction.mjs';
+import { cleanText } from '../electron/webSearch/crawler/contentExtraction.mjs';
 
 describe('content extraction', () => {
   it('strips scripts, navigation, and html tags from readable content', () => {
@@ -27,5 +28,26 @@ describe('content extraction', () => {
     expect(page.content).not.toContain('Buy this now');
     expect(page.content).not.toContain('Sponsored story');
     expect(page.content).not.toContain('Subscribe now');
+  });
+
+  it('does not coerce non-string HTML inputs', () => {
+    const html = {
+      toString: vi.fn(() => {
+        throw new Error('html coercion');
+      }),
+    };
+
+    expect(extractReadableContent(html, 'https://example.com')).toEqual({
+      title: 'https://example.com',
+      summary: '',
+      content: '',
+    });
+    expect(cleanText(html)).toBe('');
+    expect(html.toString).not.toHaveBeenCalled();
+  });
+
+  it('keeps invalid numeric entities instead of throwing', () => {
+    expect(cleanText('Value: &#99999999999;')).toBe('Value: &#99999999999;');
+    expect(cleanText('Value: &#xFFFFFFFF;')).toBe('Value: &#xFFFFFFFF;');
   });
 });

@@ -4,6 +4,7 @@ import { MAX_HTML_TAG_END_SCAN_CHARS } from '@/lib/markdown/markdownHtmlRanges';
 import {
   getNotesSidebarContentMatches,
   MAX_CONTENT_SEARCH_HTML_RANGES,
+  MAX_CONTENT_SEARCH_SCANNED_CHARS,
 } from './notesSidebarContentSearch';
 
 describe('notesSidebarContentSearch', () => {
@@ -158,5 +159,11 @@ describe('notesSidebarContentSearch', () => {
         snippet: 'visible target',
       },
     ]);
+  });
+
+  it('counts empty lines against the content search scan budget', () => {
+    const content = `${'\n'.repeat(MAX_CONTENT_SEARCH_SCANNED_CHARS + 1)}visible target`;
+
+    expect(getNotesSidebarContentMatches(content, 'target')).toEqual([]);
   });
 });

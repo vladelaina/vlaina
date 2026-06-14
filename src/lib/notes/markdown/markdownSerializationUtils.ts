@@ -31,7 +31,6 @@ const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight
 const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
-const FENCED_CODE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})(.*)$/;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
@@ -144,6 +143,12 @@ interface MathBlockFenceReferenceIndex {
 interface DollarMathFenceMatch {
   prefix: string;
   closeIndex: number;
+}
+
+interface MarkdownFenceLine {
+  infoStart: number;
+  length: number;
+  marker: string;
 }
 
 let lastNormalizedMarkdownInput: string | null = null;
@@ -1501,26 +1506,20 @@ function normalizeSerializedListGapMarkerLines(text: string): string {
 
   return lines
     .map((line, index) => {
-      const fenceMatch = FENCED_CODE_MARKER_PATTERN.exec(line);
+      const fence = parseMarkdownFenceLine(line);
       if (activeFence) {
-        const fence = fenceMatch?.[1] ?? '';
-        const marker = fence[0] ?? '';
-        const trailing = fenceMatch?.[2] ?? '';
         if (
-          marker === activeFence.marker
+          fence?.marker === activeFence.marker
           && fence.length >= activeFence.length
-          && trailing.trim() === ''
+          && isBlankMarkdownFenceInfo(line, fence.infoStart)
         ) {
           activeFence = null;
         }
         return line;
       }
-      if (fenceMatch) {
-        const fence = fenceMatch[1] ?? '';
-        const marker = fence[0] ?? '';
-        const info = fenceMatch[2] ?? '';
-        if (marker !== '`' || !info.includes('`')) {
-          activeFence = { marker, length: fence.length };
+      if (fence) {
+        if (fence.marker !== '`' || line.indexOf('`', fence.infoStart) === -1) {
+          activeFence = { marker: fence.marker, length: fence.length };
         }
         return line;
       }
@@ -1534,6 +1533,39 @@ function normalizeSerializedListGapMarkerLines(text: string): string {
         : line;
     })
     .join('\n');
+}
+
+function parseMarkdownFenceLine(line: string): MarkdownFenceLine | null {
+  let index = 0;
+  while (index < line.length && index <= 3 && line[index] === ' ') {
+    index += 1;
+  }
+  if (index > 3) return null;
+
+  const marker = line[index];
+  if (marker !== '`' && marker !== '~') return null;
+
+  let length = 0;
+  while (line[index + length] === marker) {
+    length += 1;
+  }
+  if (length < 3) return null;
+
+  return {
+    infoStart: index + length,
+    length,
+    marker,
+  };
+}
+
+function isBlankMarkdownFenceInfo(line: string, start: number): boolean {
+  for (let index = start; index < line.length; index += 1) {
+    const character = line[index];
+    if (character !== ' ' && character !== '\t') {
+      return false;
+    }
+  }
+  return true;
 }
 
 function isNestedListItemLine(line: string | null): boolean {

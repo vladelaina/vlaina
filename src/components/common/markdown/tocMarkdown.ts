@@ -33,8 +33,10 @@ interface TocHeading {
 const MAX_TOC_HEADINGS = 512;
 const MAX_TOC_BLOCKS = 8;
 const MAX_TOC_HEADING_TEXT_CHARS = 240;
+const MAX_TOC_SHORTCUT_TEXT_CHARS = 64;
 
 function isTocShortcutText(value: string): boolean {
+  if (value.length > MAX_TOC_SHORTCUT_TEXT_CHARS) return false;
   return /^(?:\[toc\]|\{:toc\})$/i.test(value.trim());
 }
 

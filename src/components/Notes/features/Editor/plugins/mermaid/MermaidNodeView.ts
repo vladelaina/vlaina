@@ -13,6 +13,10 @@ export function shouldRefreshMermaidElementCode(element: HTMLElement, code: stri
   return getMermaidElementCode(element) !== normalizeMermaidEditorCodeInput(code);
 }
 
+function getMermaidNodeCode(node: Node): string {
+  return typeof node.attrs.code === 'string' ? node.attrs.code : '';
+}
+
 export class MermaidNodeView implements NodeView {
   dom: HTMLElement;
   private node: Node;
@@ -20,7 +24,7 @@ export class MermaidNodeView implements NodeView {
 
   constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
-    const code = String(node.attrs.code || '');
+    const code = getMermaidNodeCode(node);
     this.dom = createMermaidElement(code);
     this.contextMenu = attachPreviewContextMenu({
       element: this.dom,
@@ -38,7 +42,7 @@ export class MermaidNodeView implements NodeView {
 
     this.node = node;
     this.contextMenu.updateNode(node);
-    const code = String(node.attrs.code || '');
+    const code = getMermaidNodeCode(node);
     if (shouldRefreshMermaidElementCode(this.dom, code)) {
       void renderMermaidEditorLivePreview({
         anchor: this.dom,

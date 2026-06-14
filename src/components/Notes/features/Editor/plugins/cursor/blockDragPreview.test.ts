@@ -902,6 +902,19 @@ describe('createBlockDragPreview', () => {
     expect(preview?.element.querySelector('ol')?.getAttribute('start')).toBe('10');
 
     preview?.destroy();
+
+    firstItem.setAttribute('value', '9x');
+    const fallbackPreview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 7, to: 13 }],
+      clientX: 88,
+      clientY: 96,
+    });
+
+    expect(fallbackPreview).not.toBeNull();
+    expect(fallbackPreview?.element.querySelector('ol')?.getAttribute('start')).toBe('2');
+
+    fallbackPreview?.destroy();
     rectSpy.mockRestore();
   });
 

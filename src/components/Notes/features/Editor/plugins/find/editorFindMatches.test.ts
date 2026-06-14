@@ -3,7 +3,9 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import {
   buildEditorFindMatches,
+  MAX_EDITOR_FIND_BLOCK_TEXT_CHARS,
   MAX_EDITOR_FIND_MATCHES,
+  MAX_EDITOR_FIND_QUERY_CHARS,
   MAX_EDITOR_FIND_SCAN_NODES,
   normalizeEditorFindActiveIndex,
   resolveEditorFindIndexAfterDocChange,
@@ -231,6 +233,26 @@ describe('editorFindMatches', () => {
     );
 
     expect(matches).toHaveLength(MAX_EDITOR_FIND_MATCHES);
+  });
+
+  it('bounds text scanned from a single text block', () => {
+    const matches = buildEditorFindMatches(
+      doc(
+        paragraph(text(`${'a'.repeat(MAX_EDITOR_FIND_BLOCK_TEXT_CHARS)}target`)),
+      ) as never,
+      'target',
+    );
+
+    expect(matches).toHaveLength(0);
+  });
+
+  it('ignores overlong search queries', () => {
+    const matches = buildEditorFindMatches(
+      doc(paragraph(text('target'))) as never,
+      't'.repeat(MAX_EDITOR_FIND_QUERY_CHARS + 1),
+    );
+
+    expect(matches).toHaveLength(0);
   });
 
   it('stops reading later blocks after reaching the match cap', () => {

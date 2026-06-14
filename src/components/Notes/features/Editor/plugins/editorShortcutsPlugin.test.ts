@@ -117,7 +117,7 @@ function createView(options: {
     from: number;
     to: number;
     empty: boolean;
-    $from?: { parent: { type: { name: string }; attrs: { level: number } } };
+    $from?: { parent: { type: { name: string }; attrs: { level: unknown } } };
   };
   doc?: { textBetween: ReturnType<typeof vi.fn>; content?: { size: number } };
 } = {}) {
@@ -206,6 +206,29 @@ describe('handleEditorShortcut', () => {
     expect(handleEditorShortcut(lowerView as never, lowerEvent)).toBe(true);
     expect(mocks.convertBlockType).toHaveBeenLastCalledWith(lowerView, 'heading3');
     expectHandled(lowerEvent);
+  });
+
+  it('does not coerce invalid heading levels while handling heading shortcuts', () => {
+    const level = {
+      toString() {
+        throw new Error('heading level coercion');
+      },
+    };
+    const view = createView({
+      selection: {
+        from: 1,
+        to: 1,
+        empty: true,
+        $from: {
+          parent: { type: { name: 'heading' }, attrs: { level } },
+        },
+      },
+    });
+    const event = createEvent('=');
+
+    expect(handleEditorShortcut(view as never, event)).toBe(true);
+    expect(mocks.convertBlockType).not.toHaveBeenCalled();
+    expectHandled(event);
   });
 
   it('handles table shortcuts', () => {

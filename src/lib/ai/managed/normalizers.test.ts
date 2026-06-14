@@ -50,6 +50,19 @@ describe('normalizeManagedModelsPayload', () => {
     expect(models[0]?.priceScore).toBeUndefined();
   });
 
+  it('ignores overlong managed model price tiers before trimming', () => {
+    const models = normalizeManagedModelsPayload({
+      data: [
+        {
+          id: 'gpt-test',
+          price_tier: `${' '.repeat(6)}$`,
+        },
+      ],
+    });
+
+    expect(models[0]?.priceTier).toBeUndefined();
+  });
+
   it('limits the number of managed models normalized from a catalog payload', () => {
     const models = normalizeManagedModelsPayload({
       data: Array.from({ length: MAX_MANAGED_MODELS + 5 }, (_, index) => ({
@@ -141,6 +154,23 @@ describe('normalizeManagedBudgetPayload', () => {
     });
 
     expect(budget.active).toBe(true);
+    expect(budget.usedPercent).toBe(0);
+    expect(Number.isNaN(budget.remainingPercent)).toBe(true);
+  });
+
+  it('ignores non-decimal and overlong budget number strings', () => {
+    const status = 'active'.repeat(40);
+    const budget = normalizeManagedBudgetPayload({
+      data: {
+        active: true,
+        remaining_percent: '0x4b',
+        used_percent: `${' '.repeat(65)}25`,
+        status,
+      },
+    });
+
+    expect(budget.active).toBe(true);
+    expect(budget.status).toBe(status.slice(0, 128));
     expect(budget.usedPercent).toBe(0);
     expect(Number.isNaN(budget.remainingPercent)).toBe(true);
   });

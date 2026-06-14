@@ -17,6 +17,8 @@ import { withMeta } from './__internal__/with-meta'
 const maxVscodeEditorDataChars = 16 * 1024
 export const maxClipboardTextChars = 1024 * 1024
 export const maxClipboardHtmlChars = 1024 * 1024
+export const maxClipboardHtmlNodes = 20_000
+export const maxClipboardHtmlDepth = 128
 
 export function parseVscodeEditorDataMode(value: string) {
   if (!value || value.length > maxVscodeEditorDataChars) return null
@@ -35,9 +37,38 @@ export function canParseClipboardPayload(text: string, html: string) {
   return text.length <= maxClipboardTextChars && html.length <= maxClipboardHtmlChars
 }
 
+export function isClipboardHtmlWithinDomBudget(html: string) {
+  if (html.length > maxClipboardHtmlChars) return false
+
+  const template = document.createElement('template')
+  template.innerHTML = html
+
+  const stack: Array<{ node: Node; depth: number }> = []
+  for (let node = template.content.lastChild; node; node = node.previousSibling)
+    stack.push({ node, depth: 1 })
+
+  let visitedNodes = 0
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!
+    visitedNodes += 1
+    if (visitedNodes > maxClipboardHtmlNodes || depth > maxClipboardHtmlDepth) {
+      template.remove()
+      return false
+    }
+
+    for (let child = node.lastChild; child; child = child.previousSibling)
+      stack.push({ node: child, depth: depth + 1 })
+  }
+
+  template.remove()
+  return true
+}
+
 /// The prosemirror plugin for clipboard.
 export const clipboard = $prose((ctx) => {
   const schema = ctx.get(schemaCtx)
+  let acceptedClipboardHtml: string | null = null
+  let blockedClipboardHtml: string | null = null
 
   ctx.update(editorViewOptionsCtx, (prev) => ({
     ...prev,
@@ -48,18 +79,59 @@ export const clipboard = $prose((ctx) => {
   const plugin = new Plugin({
     key,
     props: {
-      handlePaste: (view, event) => {
+      handleDOMEvents: {
+        paste: (view, event) => {
+          acceptedClipboardHtml = null
+          blockedClipboardHtml = null
+
+          const editable = view.props.editable?.(view.state)
+          const { clipboardData } = event
+          if (!editable || !clipboardData) return false
+
+          const text = clipboardData.getData('text/plain')
+          const html = clipboardData.getData('text/html')
+          if (!canParseClipboardPayload(text, html) || (html && !isClipboardHtmlWithinDomBudget(html))) {
+            blockedClipboardHtml = html || null
+            event.preventDefault()
+            return true
+          }
+
+          acceptedClipboardHtml = html || null
+          return false
+        },
+      },
+      transformPastedHTML: (html) => {
+        blockedClipboardHtml = null
+        if (html === acceptedClipboardHtml) {
+          acceptedClipboardHtml = null
+          return html
+        }
+
+        acceptedClipboardHtml = null
+        if (!isClipboardHtmlWithinDomBudget(html)) {
+          blockedClipboardHtml = html
+          return ''
+        }
+
+        return html
+      },
+      handlePaste: (view, event, pastedSlice) => {
         const parser = ctx.get(parserCtx)
         const editable = view.props.editable?.(view.state)
         const { clipboardData } = event
         if (!editable || !clipboardData) return false
 
-        const currentNode = view.state.selection.$from.node()
-        if (currentNode.type.spec.code) return false
-
         const text = clipboardData.getData('text/plain')
         const html = clipboardData.getData('text/html')
-        if (!canParseClipboardPayload(text, html)) return false
+        if (blockedClipboardHtml && html === blockedClipboardHtml) {
+          blockedClipboardHtml = null
+          return true
+        }
+        blockedClipboardHtml = null
+        if (!canParseClipboardPayload(text, html)) return true
+
+        const currentNode = view.state.selection.$from.node()
+        if (currentNode.type.spec.code) return false
 
         // if is copied from vscode, try to create a code block
         const vscodeData = clipboardData.getData('vscode-editor-data')
@@ -84,23 +156,17 @@ export const clipboard = $prose((ctx) => {
 
         if (html.length === 0 && text.length === 0) return false
 
-        const domParser = DOMParser.fromSchema(schema)
-        let dom: Node
+        let slice = pastedSlice
         if (html.length === 0) {
-          const slice = parser(text)
-          if (!slice || typeof slice === 'string') return false
+          const parsedSlice = parser(text)
+          if (!parsedSlice || typeof parsedSlice === 'string') return false
 
-          dom = DOMSerializer.fromSchema(schema).serializeFragment(
-            slice.content
+          const dom = DOMSerializer.fromSchema(schema).serializeFragment(
+            parsedSlice.content
           )
-        } else {
-          const template = document.createElement('template')
-          template.innerHTML = html
-          dom = template.content.cloneNode(true)
-          template.remove()
+          slice = DOMParser.fromSchema(schema).parseSlice(dom)
         }
 
-        const slice = domParser.parseSlice(dom)
         const node = isTextOnlySlice(slice)
         if (node) {
           view.dispatch(view.state.tr.replaceSelectionWith(node, true))

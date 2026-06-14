@@ -27,6 +27,7 @@ function createHarness(overrides: Partial<Parameters<typeof createDesktopAccount
 
 describe('desktop account session client', () => {
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -99,5 +100,28 @@ describe('desktop account session client', () => {
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(options.rotateStoredSessionToken).not.toHaveBeenCalled();
+  });
+
+  it('normalizes desktop session identity payloads', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      connected: true,
+      provider: 'google',
+      username: ' alice ',
+      primaryEmail: ' alice@example.com ',
+      avatarUrl: 'http://127.0.0.1/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'P'.repeat(129),
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { client } = createHarness();
+
+    await expect(client.readDesktopSessionIdentity('nts_session')).resolves.toEqual({
+      provider: 'google',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: null,
+    });
   });
 });

@@ -13,6 +13,7 @@ const MIN_RESTORED_WINDOW_WIDTH = 800;
 const MIN_RESTORED_WINDOW_HEIGHT = 600;
 const MAX_RESTORED_WINDOW_WIDTH = 8192;
 const MAX_RESTORED_WINDOW_HEIGHT = 8192;
+const MAX_WINDOW_DIMENSION_INPUT_CHARS = 64;
 const WINDOW_STATE_WRITE_DELAY_MS = 250;
 const MAX_WINDOW_STATE_JSON_BYTES = 64 * 1024;
 
@@ -20,13 +21,29 @@ function getWindowStatePath() {
   return path.join(app.getPath('userData'), '.vlaina', 'store', 'window-state.json');
 }
 
+function readFiniteWindowDimension(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string' && value.length <= MAX_WINDOW_DIMENSION_INPUT_CHARS) {
+    const trimmed = value.trim();
+    if (/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+  }
+  return null;
+}
+
 function normalizeStoredWindowBounds(bounds) {
-  const width = Math.round(Number(bounds?.width));
-  const height = Math.round(Number(bounds?.height));
-  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+  const widthValue = readFiniteWindowDimension(bounds?.width);
+  const heightValue = readFiniteWindowDimension(bounds?.height);
+  if (widthValue === null || heightValue === null) {
     return null;
   }
 
+  const width = Math.round(widthValue);
+  const height = Math.round(heightValue);
   return {
     width: Math.min(MAX_RESTORED_WINDOW_WIDTH, Math.max(MIN_RESTORED_WINDOW_WIDTH, width)),
     height: Math.min(MAX_RESTORED_WINDOW_HEIGHT, Math.max(MIN_RESTORED_WINDOW_HEIGHT, height)),
@@ -36,11 +53,13 @@ function normalizeStoredWindowBounds(bounds) {
 function clampWindowBoundsToCurrentDisplay(bounds) {
   try {
     const workAreaSize = screen?.getPrimaryDisplay?.()?.workAreaSize;
-    const maxWidth = Math.max(MIN_RESTORED_WINDOW_WIDTH, Math.round(Number(workAreaSize?.width)));
-    const maxHeight = Math.max(MIN_RESTORED_WINDOW_HEIGHT, Math.round(Number(workAreaSize?.height)));
-    if (!Number.isFinite(maxWidth) || !Number.isFinite(maxHeight)) {
+    const workAreaWidth = readFiniteWindowDimension(workAreaSize?.width);
+    const workAreaHeight = readFiniteWindowDimension(workAreaSize?.height);
+    if (workAreaWidth === null || workAreaHeight === null) {
       return bounds;
     }
+    const maxWidth = Math.max(MIN_RESTORED_WINDOW_WIDTH, Math.round(workAreaWidth));
+    const maxHeight = Math.max(MIN_RESTORED_WINDOW_HEIGHT, Math.round(workAreaHeight));
 
     return {
       width: Math.min(bounds.width, maxWidth),

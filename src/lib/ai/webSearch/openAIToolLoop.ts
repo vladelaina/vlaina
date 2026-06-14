@@ -456,24 +456,25 @@ function buildTextProtocolAnswerPrompt({
 }
 
 function parseTextProtocolSearchRequest(content: string): { query: string; reason?: string } | null {
-  const visible = stripThinkingContent(content).trim();
+  const visible = stripThinkingContent(content);
   const match =
     /<web_search_request>\s*([\s\S]*?)\s*<\/web_search_request>/i.exec(visible) ||
     /^<web_search_request>\s*([\s\S]*)$/i.exec(visible);
   if (!match) return null;
 
   try {
-    const jsonText = match[1].trim().replace(/\s*<\/web_search_request>\s*$/i, '');
-    if (jsonText.length > MAX_TEXT_PROTOCOL_SEARCH_REQUEST_JSON_CHARS) {
+    const rawJsonText = match[1] ?? '';
+    if (rawJsonText.length > MAX_TEXT_PROTOCOL_SEARCH_REQUEST_JSON_CHARS) {
       return null;
     }
+    const jsonText = rawJsonText.trim().replace(/\s*<\/web_search_request>\s*$/i, '');
     const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-    const query = typeof parsed.query === 'string'
-      ? parsed.query.trim().slice(0, MAX_TEXT_PROTOCOL_SEARCH_QUERY_CHARS)
+    const query = typeof parsed.query === 'string' && parsed.query.length <= MAX_TEXT_PROTOCOL_SEARCH_QUERY_CHARS
+      ? parsed.query.trim()
       : '';
     if (!query) return null;
-    const reason = typeof parsed.reason === 'string'
-      ? parsed.reason.trim().slice(0, MAX_TEXT_PROTOCOL_SEARCH_REASON_CHARS)
+    const reason = typeof parsed.reason === 'string' && parsed.reason.length <= MAX_TEXT_PROTOCOL_SEARCH_REASON_CHARS
+      ? parsed.reason.trim()
       : '';
     return { query, ...(reason ? { reason } : {}) };
   } catch {

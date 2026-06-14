@@ -1,4 +1,7 @@
 const HOST_RE = /^[a-z0-9.-]+$/i;
+const MAX_UBLACKLIST_RULE_TEXT_CHARS = 1_000_000;
+const MAX_UBLACKLIST_RULE_LINE_CHARS = 4096;
+const MAX_UBLACKLIST_HOST_CHARS = 253;
 
 function stripInlineComment(line) {
   const index = line.indexOf(' #');
@@ -6,7 +9,10 @@ function stripInlineComment(line) {
 }
 
 function normalizeHost(hostname) {
-  const host = String(hostname ?? '')
+  if (typeof hostname !== 'string' || hostname.length > MAX_UBLACKLIST_HOST_CHARS) {
+    return '';
+  }
+  const host = hostname
     .trim()
     .toLowerCase()
     .replace(/^\*\./, '')
@@ -56,7 +62,10 @@ function shouldSkipRule(rule) {
 }
 
 export function extractHostFromUBlacklistRule(rawLine) {
-  const rule = stripInlineComment(String(rawLine ?? '').trim());
+  if (typeof rawLine !== 'string' || rawLine.length > MAX_UBLACKLIST_RULE_LINE_CHARS) {
+    return '';
+  }
+  const rule = stripInlineComment(rawLine.trim());
   if (shouldSkipRule(rule)) return '';
   if (rule.startsWith('||')) return extractHostFromAdblockRule(rule);
   return extractHostFromUrlLikeRule(rule);
@@ -66,9 +75,12 @@ export function parseUBlacklistRules(text) {
   const hosts = [];
   const skippedRules = [];
   const seen = new Set();
-  const lines = String(text ?? '').split(/\r?\n/);
+  const lines = typeof text === 'string' && text.length <= MAX_UBLACKLIST_RULE_TEXT_CHARS
+    ? text.split(/\r?\n/)
+    : [];
 
   for (const rawLine of lines) {
+    if (rawLine.length > MAX_UBLACKLIST_RULE_LINE_CHARS) continue;
     const line = stripInlineComment(rawLine.trim());
     if (!line || shouldSkipRule(line)) continue;
     const host = extractHostFromUBlacklistRule(line);

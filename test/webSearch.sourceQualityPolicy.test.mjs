@@ -7,6 +7,8 @@ import {
   getQuerySensitiveBlockedSites,
   isHostMatched,
 } from '../electron/webSearch/sourceQualityPolicy.mjs';
+import { buildPackageRegistrySourceHints } from '../electron/webSearch/packageRegistrySourceHints.mjs';
+import { MAX_WEB_SEARCH_QUERY_CHARS } from '../electron/webSearch/types.mjs';
 import { localSearchInternals } from '../electron/webSearch/localSearchProvider.mjs';
 
 describe('source quality policy', () => {
@@ -44,6 +46,20 @@ describe('source quality policy', () => {
       expect.arrayContaining(['jianshu.com', 'cnblogs.com', 'juejin.cn']),
     );
     expect(getQuerySensitiveBlockedSites('funny weekend ideas')).toEqual([]);
+  });
+
+  it('does not coerce or scan overlong source-quality queries', () => {
+    const hostileQuery = {
+      toString() {
+        throw new Error('query should not be coerced');
+      },
+    };
+    const overlongQuery = `${' '.repeat(MAX_WEB_SEARCH_QUERY_CHARS + 1)}React official documentation`;
+
+    expect(getQuerySensitiveBlockedSites(hostileQuery)).toEqual([]);
+    expect(getQuerySensitiveBlockedSites(overlongQuery)).toEqual([]);
+    expect(buildPackageRegistrySourceHints(hostileQuery)).toEqual([]);
+    expect(buildPackageRegistrySourceHints(overlongQuery)).toEqual([]);
   });
 
   it('uses query-sensitive sites in search exclusions and result filtering', () => {

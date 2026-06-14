@@ -143,6 +143,45 @@ describe('billing checkout requests', () => {
     expect(() => response.body?.getReader()).not.toThrow()
   })
 
+  it('bounds declared oversized billing response bodies', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true)
+    const cancel = vi.fn()
+    const response = new Response(
+      new ReadableStream({ cancel }),
+      {
+        status: 200,
+        headers: {
+          'content-length': String(64 * 1024 + 1),
+        },
+      }
+    )
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+
+    const { fetchBillingPlans } = await import('./checkout')
+
+    await expect(fetchBillingPlans()).rejects.toThrow('Billing API response body is too large.')
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(() => response.body?.getReader()).not.toThrow()
+  })
+
+  it('ignores invalid billing content-length syntax', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(billingJsonResponse({
+      success: true,
+      checkoutEnabled: true,
+      plans: [{ tier: 'pro', displayName: 'Pro', monthlyPoints: 100, planPriceMicrounits: 1000, priceUsd: 1 }],
+    }, {
+      headers: { 'content-length': '1e12' },
+    })))
+
+    const { fetchBillingPlans } = await import('./checkout')
+
+    await expect(fetchBillingPlans()).resolves.toMatchObject({
+      checkoutEnabled: true,
+      plans: [{ tier: 'pro' }],
+    })
+  })
+
   it('uses the HTTP fallback when billing error response bodies are oversized', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(true)
     const cancel = vi.fn()
@@ -186,5 +225,50 @@ describe('billing checkout requests', () => {
     expect(capturedSignal).toBeInstanceOf(AbortSignal)
     expect(capturedSignal?.aborted).toBe(true)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('normalizes browser checkout URLs before returning them', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false)
+    mockLocation('https://vlaina.com/pricing')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(billingJsonResponse({
+      success: true,
+      url: ' https://checkout.stripe.com/pay/cs_test?client_reference_id=vlaina ',
+    })))
+
+    const { createBillingCheckout } = await import('./checkout')
+
+    await expect(createBillingCheckout('pro')).resolves.toBe(
+      'https://checkout.stripe.com/pay/cs_test?client_reference_id=vlaina'
+    )
+  })
+
+  it('rejects oversized checkout URLs before trimming them', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true)
+    createElectronBillingCheckoutMock.mockResolvedValue({
+      success: true,
+      url: `${' '.repeat(4097)}https://checkout.stripe.com/pay/cs_test`,
+    })
+
+    const { createBillingCheckout } = await import('./checkout')
+
+    await expect(createBillingCheckout('pro')).rejects.toThrow('Failed to create checkout session')
+  })
+
+  it.each([
+    ['non-HTTP URL', 'mailto:billing@example.com'],
+    ['credentialed URL', 'https://user:pass@checkout.stripe.com/pay/cs_test'],
+    ['local-network URL', 'http://127.0.0.1:8080/pay'],
+    ['backslash URL', String.raw`https://checkout.stripe.com\@evil.example/pay`],
+  ])('rejects unsafe %s from checkout responses', async (_label, url) => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false)
+    mockLocation('https://vlaina.com/pricing')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(billingJsonResponse({
+      success: true,
+      url,
+    })))
+
+    const { createBillingCheckout } = await import('./checkout')
+
+    await expect(createBillingCheckout('pro')).rejects.toThrow('Failed to create checkout session')
   })
 })

@@ -4,6 +4,8 @@ import { WebSearchError } from '../types.mjs';
 
 const BLOCKED_HOSTS = new Set(['localhost', 'localhost.localdomain']);
 const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
+const MAX_PUBLIC_HTTP_URL_CHARS = 4096;
+const MAX_IP_LITERAL_CHARS = 128;
 const SCHEME_PATTERN = /^([A-Za-z][A-Za-z0-9+.-]*):/;
 const UNSAFE_PUBLIC_URL_CHARS_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
@@ -29,7 +31,10 @@ function isPrivateIpv4(ip) {
 }
 
 function normalizeIpLiteral(ip) {
-  return String(ip).trim().replace(/^\[|\]$/g, '').split('%')[0];
+  if (typeof ip !== 'string' || ip.length > MAX_IP_LITERAL_CHARS) {
+    return '';
+  }
+  return ip.trim().replace(/^\[|\]$/g, '').split('%')[0];
 }
 
 function parseIpv6Words(ip) {
@@ -100,7 +105,10 @@ export function isBlockedIp(ip) {
 }
 
 export function normalizePublicHttpUrl(rawUrl) {
-  const trimmed = String(rawUrl ?? '').trim();
+  if (typeof rawUrl !== 'string' || rawUrl.length > MAX_PUBLIC_HTTP_URL_CHARS) {
+    throw new WebSearchError('invalid_url', 'Invalid URL.');
+  }
+  const trimmed = rawUrl.trim();
   if (!trimmed || UNSAFE_PUBLIC_URL_CHARS_PATTERN.test(trimmed) || trimmed.includes('\\')) {
     throw new WebSearchError('invalid_url', 'Invalid URL.');
   }

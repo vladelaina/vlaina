@@ -199,7 +199,9 @@ export function useImageActions({
             }
             const blob = await normalizeActionImageBlob(result.blob);
             if (!blob) return;
-            await writeDesktopBinaryFile(filePath, await readBlobBytes(blob));
+            const bytes = await readBlobBytes(blob);
+            if (!isBlobByteLengthWithinLimit(bytes.byteLength, MAX_FETCHED_IMAGE_BYTES)) return;
+            await writeDesktopBinaryFile(filePath, bytes);
         } catch {
             if (!allowAnchorFallback) return;
             const link = document.createElement('a');

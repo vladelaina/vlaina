@@ -20,6 +20,8 @@ export const MAX_MANAGED_MODEL_ID_CHARS = 4096;
 export const MAX_MANAGED_MODEL_NAME_CHARS = 4096;
 export const MAX_MANAGED_MODEL_GROUP_CHARS = 1024;
 export const MAX_MANAGED_MODEL_CATALOG_VERSION_CHARS = 256;
+const MAX_MANAGED_BUDGET_NUMBER_CHARS = 64;
+const MAX_MANAGED_BUDGET_STATUS_CHARS = 128;
 
 export function createManagedProvider(now: number): Provider {
   return {
@@ -78,7 +80,7 @@ export function normalizeManagedModelsVersionPayload(payload: ManagedModelsVersi
 
 export function normalizeManagedBudgetPayload(payload: ManagedBudgetPayload): ManagedBudgetStatus {
   const source = normalizeManagedBudgetSource(payload);
-  const status = typeof source.status === 'string' ? source.status : 'inactive';
+  const status = normalizeManagedString(source.status, MAX_MANAGED_BUDGET_STATUS_CHARS) || 'inactive';
   const remainingPercent = readFiniteNumber(source, [
     'remainingPercent',
     'remaining_percent',
@@ -145,11 +147,17 @@ function readFiniteNumber(source: Record<string, unknown>, keys: string[]): numb
       return value;
     }
     if (typeof value === 'string') {
+      if (value.length > MAX_MANAGED_BUDGET_NUMBER_CHARS) {
+        continue;
+      }
       const trimmed = value.trim().replace(/%$/, '');
       if (!trimmed) {
         continue;
       }
-      const parsed = Number(trimmed);
+      if (!/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+        continue;
+      }
+      const parsed = Number.parseFloat(trimmed);
       if (Number.isFinite(parsed)) {
         return parsed;
       }
@@ -181,7 +189,9 @@ function normalizeModelGroup(model: Record<string, unknown>, modelId: string): s
 }
 
 function normalizeModelPrice(model: Record<string, unknown>): Pick<AIModel, 'priceTier' | 'priceScore'> {
-  const priceTier = typeof model.price_tier === 'string' ? model.price_tier.trim() : '';
+  const priceTier = typeof model.price_tier === 'string' && model.price_tier.length <= 5
+    ? model.price_tier.trim()
+    : '';
   const normalized: Pick<AIModel, 'priceTier' | 'priceScore'> = {};
   if (
     priceTier === '$' ||

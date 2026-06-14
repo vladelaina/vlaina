@@ -60,10 +60,56 @@ describe('web search IPC', () => {
       signal: undefined,
     });
 
+    await searchHandler(null, 'catime', {
+      limit: '1e1',
+    });
+
+    expect(services.searchService.webSearch).toHaveBeenLastCalledWith('catime', {
+      category: undefined,
+      timeRange: undefined,
+      limit: undefined,
+      signal: undefined,
+    });
+
     await expect(searchHandler(null, 'x'.repeat(1001), { limit: 5 })).rejects.toMatchObject({
       code: 'invalid_query',
     });
-    expect(services.searchService.webSearch).toHaveBeenCalledTimes(1);
+    await expect(searchHandler(null, ' '.repeat(1001), { limit: 5 })).rejects.toMatchObject({
+      code: 'invalid_query',
+    });
+    expect(services.searchService.webSearch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not coerce object request ids or numeric options from IPC', async () => {
+    const { handlers, services } = collectHandlers();
+    const searchHandler = handlers.get('desktop:web-search:search');
+    const cancelHandler = handlers.get('desktop:web-search:cancel');
+    const requestId = {
+      toString: vi.fn(() => {
+        throw new Error('request id coercion');
+      }),
+    };
+    const limit = {
+      valueOf: vi.fn(() => {
+        throw new Error('limit coercion');
+      }),
+      toString: vi.fn(() => {
+        throw new Error('limit coercion');
+      }),
+    };
+
+    await searchHandler(null, 'catime', { limit }, requestId);
+    await expect(cancelHandler(null, requestId)).resolves.toBe(false);
+
+    expect(requestId.toString).not.toHaveBeenCalled();
+    expect(limit.valueOf).not.toHaveBeenCalled();
+    expect(limit.toString).not.toHaveBeenCalled();
+    expect(services.searchService.webSearch).toHaveBeenCalledWith('catime', {
+      category: undefined,
+      timeRange: undefined,
+      limit: undefined,
+      signal: undefined,
+    });
   });
 
   it('bounds read IPC inputs before invoking the crawler', async () => {
@@ -95,6 +141,9 @@ describe('web search IPC', () => {
     }));
 
     await expect(readBatchHandler(null, ['https://example.com/'.padEnd(4097, 'x')], {})).rejects.toMatchObject({
+      code: 'invalid_url',
+    });
+    await expect(readBatchHandler(null, [' '.repeat(4097)], {})).rejects.toMatchObject({
       code: 'invalid_url',
     });
     expect(services.crawler.readUrl).toHaveBeenCalledTimes(8);

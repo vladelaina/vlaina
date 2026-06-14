@@ -1,4 +1,5 @@
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
+import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 import {
   parseMarkdownAndHtmlImageTokens,
   stripImageTokens,
@@ -16,12 +17,32 @@ interface ChatMessageImageSourceOptions {
 
 type NormalizedImageToken = ImageToken & { src: string };
 
-function isImageAttachmentMimeType(type: string | null | undefined): boolean {
-  return type?.trim().toLowerCase().startsWith('image/') ?? false;
+const MAX_CHAT_IMAGE_NON_DATA_SOURCE_CHARS = 16 * 1024;
+const MAX_CHAT_IMAGE_DATA_SOURCE_CHARS = Math.ceil(MAX_INLINE_IMAGE_BYTES / 3) * 4 + 128;
+
+function startsWithDataImageCandidate(value: string): boolean {
+  let index = 0;
+  while (index < value.length && index < 128 && /\s/.test(value[index])) {
+    index += 1;
+  }
+  return /^data:/i.test(value.slice(index, index + 5));
 }
 
-export function normalizeChatMessageImageSource(src: string | null | undefined): string | null {
-  const trimmed = src?.trim() ?? '';
+function isImageAttachmentMimeType(type: unknown): boolean {
+  return typeof type === 'string' && type.trim().toLowerCase().startsWith('image/');
+}
+
+export function normalizeChatMessageImageSource(src: unknown): string | null {
+  if (typeof src !== 'string') {
+    return null;
+  }
+  if (src.length > MAX_CHAT_IMAGE_NON_DATA_SOURCE_CHARS && !startsWithDataImageCandidate(src)) {
+    return null;
+  }
+  if (src.length > MAX_CHAT_IMAGE_DATA_SOURCE_CHARS) {
+    return null;
+  }
+  const trimmed = src.trim();
   if (!trimmed) {
     return null;
   }
@@ -45,7 +66,7 @@ export function normalizeChatMessageImageSource(src: string | null | undefined):
     : null;
 }
 
-export function normalizePersistedChatMessageImageSource(src: string | null | undefined): string | null {
+export function normalizePersistedChatMessageImageSource(src: unknown): string | null {
   const normalized = normalizeChatMessageImageSource(src);
   if (!normalized || normalized.toLowerCase().startsWith('blob:')) {
     return null;
@@ -54,7 +75,7 @@ export function normalizePersistedChatMessageImageSource(src: string | null | un
 }
 
 function normalizeChatMessageImageSourceForMode(
-  src: string | null | undefined,
+  src: unknown,
   persistable: boolean,
 ): string | null {
   return persistable
@@ -63,7 +84,7 @@ function normalizeChatMessageImageSourceForMode(
 }
 
 export function normalizeChatMessageImageSources(
-  sources: readonly string[] | undefined,
+  sources: readonly unknown[] | undefined,
   options: ChatMessageImageSourceOptions = {},
 ): string[] {
   if (!sources || sources.length === 0) {

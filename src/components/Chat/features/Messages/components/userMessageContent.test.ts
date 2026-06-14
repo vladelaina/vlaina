@@ -47,6 +47,25 @@ describe('userMessageContent', () => {
     expect(content).toBe('![image](<attachment://persisted.png>)\n\nhello');
   });
 
+  it('ignores non-string attachment URLs without coercion while composing', () => {
+    const url = {
+      toString() {
+        throw new Error('attachment URL coercion');
+      },
+    };
+    const content = composeUserMessageContent('hello', [
+      createAttachment({
+        previewUrl: url,
+        assetUrl: url,
+      } as never),
+      createAttachment({
+        previewUrl: 'attachment://safe.png',
+      }),
+    ]);
+
+    expect(content).toBe('![image](<attachment://safe.png>)\n\nhello');
+  });
+
   it('parses image markdown separately from text', () => {
     expect(parseUserMessageContent('![image](<attachment://demo.png>)\n\nhello')).toEqual({
       imageSources: ['attachment://demo.png'],
@@ -151,6 +170,17 @@ describe('userMessageContent', () => {
       assetUrl: 'DATA:IMAGE/WEBP;BASE64,AAAA',
       name: 'image-1.webp',
       type: 'image/webp',
+    });
+  });
+
+  it('falls back when inferring edit attachment names from oversized sources', () => {
+    const src = `https://example.com/images/${'a'.repeat(4096)}.png`;
+
+    expect(toEditAttachment(src, 0)).toMatchObject({
+      previewUrl: src,
+      assetUrl: src,
+      name: 'image-1.png',
+      type: 'image/png',
     });
   });
 

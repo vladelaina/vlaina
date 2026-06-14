@@ -10,16 +10,28 @@ const MAX_KATEX_SOURCE_HAST_NODES = 20_000;
 const MAX_KATEX_SOURCE_HTML_CHARS = 2 * 1024 * 1024;
 const MAX_KATEX_SOURCE_HTML_DEPTH = 200;
 const MAX_KATEX_SOURCE_HTML_NODES = 20_000;
+const MAX_KATEX_SOURCE_ENCODING_CHARS = 128;
 const KATEX_SOURCE_ANNOTATION_PATTERN =
   /<annotation\b(?=[^>]*\bencoding\s*=\s*(?:"application\/x-tex"|'application\/x-tex'|application\/x-tex(?:[\s/>]|$)))[^>]*>[\s\S]*?<\/annotation>/gi;
 const KATEX_SOURCE_ANNOTATION_MARKER_PATTERN = /application\/x-tex/i;
 
 function readPropertyString(properties: Record<string, unknown> | undefined, name: string) {
   const value = properties?.[name];
-  if (Array.isArray(value)) {
-    return value.join(' ');
+  if (typeof value === 'string') {
+    return value.length <= MAX_KATEX_SOURCE_ENCODING_CHARS ? value : '';
   }
-  return value == null ? '' : String(value);
+  if (Array.isArray(value)) {
+    const parts: string[] = [];
+    let length = 0;
+    for (const item of value) {
+      if (typeof item !== 'string') continue;
+      length += item.length + (parts.length > 0 ? 1 : 0);
+      if (length > MAX_KATEX_SOURCE_ENCODING_CHARS) return '';
+      parts.push(item);
+    }
+    return parts.join(' ');
+  }
+  return '';
 }
 
 function isKatexSourceAnnotation(node: HastNode) {

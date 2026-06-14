@@ -1,6 +1,7 @@
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
 const MAX_VIDEO_URL_LENGTH = 2048;
+const MAX_VIDEO_NUMERIC_PARAM_LENGTH = 32;
 const UNSAFE_VIDEO_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export type ParsedVideoUrl =
@@ -9,7 +10,13 @@ export type ParsedVideoUrl =
 
 export type IframeVideoUrl = Extract<ParsedVideoUrl, { type: 'youtube' | 'bilibili' }>;
 
-export function normalizeVideoUrlInput(input: string) {
+export function normalizeVideoUrlInput(input: unknown) {
+  if (typeof input !== 'string') {
+    return null;
+  }
+  if (input.length > MAX_VIDEO_URL_LENGTH) {
+    return null;
+  }
   const url = input.trim();
   if (!url || url.length > MAX_VIDEO_URL_LENGTH || UNSAFE_VIDEO_URL_CHARS_REGEX.test(url) || url.includes('\\')) {
     return null;
@@ -54,8 +61,18 @@ function extractBilibiliBvid(parsedUrl: URL) {
 }
 
 function parsePositiveNumber(value: unknown) {
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== 'string' || value.length > MAX_VIDEO_NUMERIC_PARAM_LENGTH) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function isPublicHttpVideoUrl(url: string) {
@@ -95,8 +112,8 @@ function extractYouTubeVideoId(rawUrl: string) {
   return null;
 }
 
-export function parseVideoUrl(url: string): ParsedVideoUrl | null {
-  url = normalizeVideoUrlInput(url) ?? '';
+export function parseVideoUrl(input: unknown): ParsedVideoUrl | null {
+  const url = normalizeVideoUrlInput(input);
   if (!url) return null;
 
   const youtubeVideoId = extractYouTubeVideoId(url);
@@ -146,7 +163,7 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
   return null;
 }
 
-export function isSupportedVideoUrl(url: string) {
+export function isSupportedVideoUrl(url: unknown) {
   return parseVideoUrl(url) !== null;
 }
 
@@ -155,6 +172,7 @@ export function sanitizeVideoUrlInput(
   options: { allowEmpty?: boolean } = {}
 ) {
   if (typeof input !== 'string') return null;
+  if (input.length > MAX_VIDEO_URL_LENGTH) return null;
   if (options.allowEmpty && input.trim() === '') return '';
 
   const url = normalizeVideoUrlInput(input);

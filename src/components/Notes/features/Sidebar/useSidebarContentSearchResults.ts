@@ -128,6 +128,8 @@ export function useSidebarContentSearchResults({
         revision: noteContentsCacheRevision,
       };
       setIsContentScanPending(false);
+      contentScanAbortControllerRef.current?.abort();
+      contentScanAbortControllerRef.current = null;
       return;
     }
 

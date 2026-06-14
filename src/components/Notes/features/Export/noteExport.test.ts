@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportNote } from './noteExport';
+import { exportNote, MAX_NOTE_EXPORT_OUTPUT_BYTES } from './noteExport';
+import { createDocxExportBytes } from './noteExportDocx';
 
 const mocks = vi.hoisted(() => ({
   addToast: vi.fn(),
@@ -175,6 +176,24 @@ describe('exportNote', () => {
       notesPath: '/vault',
       title: 'Exported',
     })).rejects.toThrow('PNG export output is too large.');
+
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    expect(mocks.addToast).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized non-PNG export output before prompting for a file', async () => {
+    vi.mocked(createDocxExportBytes).mockResolvedValueOnce({
+      byteLength: MAX_NOTE_EXPORT_OUTPUT_BYTES + 1,
+    } as Uint8Array);
+
+    await expect(exportNote({
+      format: 'docx',
+      markdown: '# Exported',
+      notePath: 'Exported.md',
+      notesPath: '/vault',
+      title: 'Exported',
+    })).rejects.toThrow('Note export output is too large.');
 
     expect(mocks.saveDialog).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();

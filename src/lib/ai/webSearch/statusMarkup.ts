@@ -13,6 +13,7 @@ const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\u
 
 export function sanitizeWebSearchSourceUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
+  if (value.length > MAX_SOURCE_URL_LENGTH) return null;
   const trimmed = value.trim();
   if (
     !trimmed ||

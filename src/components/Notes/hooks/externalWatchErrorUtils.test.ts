@@ -11,6 +11,14 @@ describe('externalWatchErrorUtils', () => {
     expect(getExternalWatchErrorMessage({ message: 'object-message' })).toBe('object-message');
   });
 
+  it('ignores throwing toString methods on unknown error objects', () => {
+    expect(getExternalWatchErrorMessage({
+      toString() {
+        throw new Error('watch error coercion');
+      },
+    })).toBe('{}');
+  });
+
   it('treats unsupported watch commands as unavailable watchers', () => {
     expect(isExternalWatchUnavailableError('Electron fs bridge is not available.')).toBe(true);
     expect(isExternalWatchUnavailableError('ENOSPC: System limit for number of file watchers reached')).toBe(true);

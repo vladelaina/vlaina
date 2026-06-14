@@ -80,7 +80,7 @@ async function resolveRealFsAccessPath(resolvedPath) {
 }
 
 function addAuthorizedFsPathKey(kind, pathKey) {
-  if (typeof pathKey !== 'string' || !pathKey.trim() || pathKey.length > MAX_AUTHORIZED_FS_PATH_CHARS) {
+  if (typeof pathKey !== 'string' || pathKey.length > MAX_AUTHORIZED_FS_PATH_CHARS || !pathKey.trim()) {
     return;
   }
 
@@ -97,7 +97,7 @@ function addAuthorizedFsPathKey(kind, pathKey) {
 }
 
 async function addAuthorizedFsPathWithRealKey(rawPath, kind) {
-  if (typeof rawPath !== 'string' || !rawPath.trim()) {
+  if (typeof rawPath !== 'string' || rawPath.length > MAX_AUTHORIZED_FS_PATH_CHARS || !rawPath.trim()) {
     return;
   }
 
@@ -130,8 +130,8 @@ function normalizeAuthorizedFsPathEntries(value, maxEntries) {
     }
     if (
       typeof entry === 'string' &&
-      entry.trim() &&
-      entry.length <= MAX_AUTHORIZED_FS_PATH_CHARS
+      entry.length <= MAX_AUTHORIZED_FS_PATH_CHARS &&
+      entry.trim()
     ) {
       entries.push(entry);
     }
@@ -291,7 +291,7 @@ export function isAuthorizedFsWatchPathKey(candidateKey) {
   return false;
 }
 
-export async function assertAuthorizedFsPath(filePath) {
+async function resolveSafeFsAccessPath(filePath) {
   const resolvedPath = normalizeFsPathForAccess(filePath);
   await ensureAuthorizedFsPathsLoaded();
   if (await isProtectedFsAccessPath(resolvedPath)) {
@@ -303,6 +303,15 @@ export async function assertAuthorizedFsPath(filePath) {
     throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
 
+  return { resolvedPath, realAccessPath };
+}
+
+export async function assertSafeFsAccessPath(filePath) {
+  return (await resolveSafeFsAccessPath(filePath)).resolvedPath;
+}
+
+export async function assertAuthorizedFsPath(filePath) {
+  const { resolvedPath, realAccessPath } = await resolveSafeFsAccessPath(filePath);
   const pathKey = normalizeFsPathKey(realAccessPath);
   if (!isAuthorizedFsPathKey(pathKey)) {
     throw new Error(`File path is not authorized for desktop access: ${resolvedPath}`);
@@ -312,17 +321,7 @@ export async function assertAuthorizedFsPath(filePath) {
 }
 
 export async function assertAuthorizedFsWatchPath(filePath) {
-  const resolvedPath = normalizeFsPathForAccess(filePath);
-  await ensureAuthorizedFsPathsLoaded();
-  if (await isProtectedFsAccessPath(resolvedPath)) {
-    throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
-  }
-
-  const realAccessPath = await resolveRealFsAccessPath(resolvedPath);
-  if (await isProtectedFsAccessPath(realAccessPath)) {
-    throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
-  }
-
+  const { resolvedPath, realAccessPath } = await resolveSafeFsAccessPath(filePath);
   const pathKey = normalizeFsPathKey(realAccessPath);
   if (!isAuthorizedFsWatchPathKey(pathKey)) {
     throw new Error(`File path is not authorized for desktop watch access: ${resolvedPath}`);

@@ -3,6 +3,7 @@ import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import {
   buildNotesSidebarSearchIndex,
   countNotesSidebarSearchEntries,
+  NOTES_SIDEBAR_MAX_SEARCH_QUERY_CHARS,
   queryNotesSidebarSearch,
   shouldSearchNotesSidebarContents,
 } from './notesSidebarSearchResults';
@@ -54,6 +55,10 @@ describe('notesSidebarSearchResults', () => {
     expect(shouldSearchNotesSidebarContents(' ')).toBe(false);
     expect(shouldSearchNotesSidebarContents('t')).toBe(false);
     expect(shouldSearchNotesSidebarContents('te')).toBe(true);
+  });
+
+  it('does not search note contents for oversized queries', () => {
+    expect(shouldSearchNotesSidebarContents('x'.repeat(NOTES_SIDEBAR_MAX_SEARCH_QUERY_CHARS + 1))).toBe(false);
   });
 
   it('builds a flat search index with parent previews', () => {
@@ -312,6 +317,20 @@ describe('notesSidebarSearchResults', () => {
     ]);
   });
 
+  it('returns no results for oversized queries without reading note content', () => {
+    const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
+    const getNoteContent = vi.fn(() => 'needle');
+
+    expect(
+      queryNotesSidebarSearch(
+        index,
+        'x'.repeat(NOTES_SIDEBAR_MAX_SEARCH_QUERY_CHARS + 1),
+        getNoteContent,
+      )
+    ).toEqual([]);
+    expect(getNoteContent).not.toHaveBeenCalled();
+  });
+
   it('reports structural match indexes in original text coordinates after case folding expands characters', () => {
     const index = [{
       path: 'notes/istanbul.md',
@@ -321,6 +340,29 @@ describe('notesSidebarSearchResults', () => {
 
     expect(queryNotesSidebarSearch(index, 'note')[0]?.matchIndex).toBe('İstanbul '.length);
     expect(queryNotesSidebarSearch(index, 'archive')[0]?.matchIndex).toBe(0);
+  });
+
+  it('bounds oversized structural search metadata without truncating entries', () => {
+    const longPrefix = 'a'.repeat(5000);
+    const index = buildNotesSidebarSearchIndex({
+      id: 'root-oversized-name',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'note-oversized-name',
+          name: 'oversized.md',
+          path: 'oversized.md',
+          isFolder: false,
+        },
+      ],
+    }, () => `${longPrefix}needle`);
+
+    expect(queryNotesSidebarSearch(index, 'aaa')).toHaveLength(1);
+    expect(queryNotesSidebarSearch(index, 'needle')).toEqual([]);
+    expect(index[0]?.name).toBe(`${longPrefix}needle`);
   });
 
   it('matches parent folder paths after file name matches', () => {

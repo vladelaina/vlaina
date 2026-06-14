@@ -90,14 +90,19 @@ vi.mock('@/lib/electron/bridge', () => ({
 
 import { hasElectronDesktopBridge, createElectronBillingCheckout } from './backend';
 import { openDesktopDialog, saveDesktopDialog, showDesktopConfirm, showDesktopMessage } from './dialog';
-import { writeDesktopBinaryFile } from './fs';
+import { MAX_DESKTOP_BINARY_WRITE_BYTES, writeDesktopBinaryFile } from './fs';
 import {
   deleteDesktopAIProviderSecret,
   getDesktopAIProviderSecrets,
   setDesktopAIProviderSecret,
 } from './secrets';
 import { aiProviderSecretCommands } from './secretsCommands';
-import { openExternalUrl, openPathInFileManager, revealItemInFolder } from './shell';
+import {
+  MAX_DESKTOP_EXTERNAL_URL_CHARS,
+  openExternalUrl,
+  openPathInFileManager,
+  revealItemInFolder,
+} from './shell';
 import { moveDesktopItemToTrash } from './trash';
 import { watchDesktopPath } from './watch';
 import { desktopWindow } from './window';
@@ -195,6 +200,16 @@ describe('desktop runtime adapters', () => {
     expect(unwatch).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects oversized desktop binary writes before reaching the bridge', async () => {
+    const oversized = { byteLength: MAX_DESKTOP_BINARY_WRITE_BYTES + 1 } as Uint8Array;
+
+    await expect(writeDesktopBinaryFile('/tmp/huge.bin', oversized)).rejects.toThrow(
+      'Desktop binary content is too large to write.',
+    );
+
+    expect(mocks.bridge.fs.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('forwards filesystem watch options through the electron bridge', async () => {
     await watchDesktopPath('/tmp', () => {}, { recursive: false });
 
@@ -268,6 +283,8 @@ describe('desktop runtime adapters', () => {
     await expect(openExternalUrl('https://user:pass@example.com/private')).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl('http://127.0.0.1:3000/admin')).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl('http://router/admin')).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl(`https://example.com/${'a'.repeat(MAX_DESKTOP_EXTERNAL_URL_CHARS)}`))
+      .rejects.toThrow('Unsupported external URL.');
 
     expect(mocks.bridge.shell.openExternal).not.toHaveBeenCalled();
 

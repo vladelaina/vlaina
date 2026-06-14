@@ -12,6 +12,7 @@ import {
   clearPersistedUser,
   loadPersistedUser,
   normalizeAuthError,
+  normalizePersistedUser,
   persistUser,
 } from './authSupport';
 
@@ -108,6 +109,25 @@ describe('loadPersistedUser', () => {
       avatarUrl: null,
       membershipTier: 'pro',
       membershipName: null,
+    });
+  });
+
+  it('rejects oversized account identity strings before normalizing them', () => {
+    expect(normalizePersistedUser({
+      isConnected: true,
+      provider: 'google',
+      username: 'u'.repeat(1024 * 1024),
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+    })).toMatchObject({
+      isConnected: true,
+      provider: 'google',
+      username: null,
+      primaryEmail: 'vla@example.com',
+      membershipTier: 'pro',
+      membershipName: 'Pro',
     });
   });
 

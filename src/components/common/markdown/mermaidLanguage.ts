@@ -64,8 +64,11 @@ const MERMAID_FENCE_LANGUAGE_ALIASES: ReadonlySet<string> = new Set(
 );
 
 const MERMAID_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*([^\r\n]*)$/;
+const MAX_MERMAID_FENCE_LANGUAGE_CHARS = 256;
+const MAX_MERMAID_FENCE_LINE_CHARS = 512;
 
 export function normalizeMermaidFenceLanguage(language: string | null | undefined) {
+  if (typeof language !== 'string' || language.length > MAX_MERMAID_FENCE_LANGUAGE_CHARS) return '';
   const languageToken = language?.trim().split(/\s+/)[0] ?? '';
   return languageToken.toLowerCase().replace(/[\s_-]+/g, '');
 }
@@ -75,6 +78,7 @@ export function isMermaidFenceLanguage(language: string | null | undefined) {
 }
 
 export function parseMermaidFenceLanguage(text: string) {
+  if (text.length > MAX_MERMAID_FENCE_LINE_CHARS) return null;
   const match = MERMAID_FENCE_PATTERN.exec(text.replace(/[ \t]+$/g, ''));
   if (!match) {
     return null;
@@ -82,6 +86,9 @@ export function parseMermaidFenceLanguage(text: string) {
 
   const openingMarker = match[1] ?? '';
   const infoString = match[2]?.trim() ?? '';
+  if (infoString.length > MAX_MERMAID_FENCE_LANGUAGE_CHARS) {
+    return null;
+  }
   if (openingMarker[0] === '`' && infoString.includes('`')) {
     return null;
   }

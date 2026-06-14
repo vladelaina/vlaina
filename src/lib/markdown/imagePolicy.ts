@@ -76,7 +76,12 @@ function normalizeImageSrcProperties(node: any): void {
       if (!Object.prototype.hasOwnProperty.call(node.properties, key)) {
         continue;
       }
-      const normalized = normalizeRenderableDataImageSrc(String(node.properties[key] || ''));
+      const value = node.properties[key];
+      if (typeof value !== 'string') {
+        delete node.properties[key];
+        continue;
+      }
+      const normalized = normalizeRenderableDataImageSrc(value);
       if (normalized) {
         node.properties[key] = normalized;
       }
@@ -94,7 +99,12 @@ function sanitizeImageSrcsetProperties(node: any): void {
       if (!Object.prototype.hasOwnProperty.call(node.properties, key)) {
         continue;
       }
-      const normalized = normalizeRenderableImageSrcset(String(node.properties[key] || ''));
+      const value = node.properties[key];
+      if (typeof value !== 'string') {
+        delete node.properties[key];
+        continue;
+      }
+      const normalized = normalizeRenderableImageSrcset(value);
       if (normalized) {
         node.properties[key] = normalized;
       } else {

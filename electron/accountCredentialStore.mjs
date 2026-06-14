@@ -2,6 +2,12 @@ import electron from 'electron';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
+import {
+  normalizeDesktopAccountAvatarUrl,
+  normalizeDesktopAccountEmail,
+  normalizeDesktopAccountMembershipName,
+  normalizeDesktopAccountUsername,
+} from './accountIdentityNormalization.mjs';
 
 const { app, safeStorage } = electron;
 const MAX_ACCOUNT_STORE_JSON_BYTES = 256 * 1024;
@@ -17,6 +23,44 @@ export function normalizeDesktopAccountProvider(provider, fallback = null) {
 
   const normalized = provider.trim().toLowerCase();
   return isSupportedAccountProvider(normalized) ? normalized : fallback;
+}
+
+function normalizeMembershipTier(value) {
+  return value === 'free' ||
+    value === 'plus' ||
+    value === 'pro' ||
+    value === 'max' ||
+    value === 'ultra'
+    ? value
+    : null;
+}
+
+function normalizeStoredAccountCredentials(credentials) {
+  const provider = normalizeDesktopAccountProvider(credentials?.provider, null);
+  const username = normalizeDesktopAccountUsername(credentials?.username);
+  const appSessionToken =
+    typeof credentials?.appSessionToken === 'string' && credentials.appSessionToken.trim()
+      ? credentials.appSessionToken.trim()
+      : '';
+
+  if (!provider || !username || !appSessionToken) {
+    throw new Error('Account credentials are incomplete.');
+  }
+
+  return {
+    ...credentials,
+    appSessionToken,
+    provider,
+    username,
+    primaryEmail: normalizeDesktopAccountEmail(credentials?.primaryEmail),
+    avatarUrl: normalizeDesktopAccountAvatarUrl(credentials?.avatarUrl),
+    membershipTier: normalizeMembershipTier(credentials?.membershipTier),
+    membershipName: normalizeDesktopAccountMembershipName(credentials?.membershipName),
+    authenticatedAt:
+      typeof credentials?.authenticatedAt === 'number' && Number.isFinite(credentials.authenticatedAt)
+        ? credentials.authenticatedAt
+        : null,
+  };
 }
 
 async function readJsonFile(filePath, fallbackValue) {
@@ -73,8 +117,8 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
         );
       }
     }
-    const provider = typeof meta?.provider === 'string' ? meta.provider.trim() : '';
-    const username = typeof meta?.username === 'string' ? meta.username.trim() : '';
+    const provider = normalizeDesktopAccountProvider(meta?.provider, '');
+    const username = normalizeDesktopAccountUsername(meta?.username) ?? '';
     const appSessionToken = typeof secrets?.appSessionToken === 'string' ? secrets.appSessionToken.trim() : '';
 
     if (!isSupportedAccountProvider(provider) || !username || !appSessionToken) {
@@ -85,20 +129,10 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
       appSessionToken,
       provider,
       username,
-      primaryEmail: typeof meta?.primaryEmail === 'string' ? meta.primaryEmail : null,
-      avatarUrl: typeof meta?.avatarUrl === 'string' ? meta.avatarUrl : null,
-      membershipTier:
-        meta?.membershipTier === 'free' ||
-        meta?.membershipTier === 'plus' ||
-        meta?.membershipTier === 'pro' ||
-        meta?.membershipTier === 'max' ||
-        meta?.membershipTier === 'ultra'
-          ? meta.membershipTier
-          : null,
-      membershipName:
-        typeof meta?.membershipName === 'string' && meta.membershipName.trim()
-          ? meta.membershipName.trim()
-          : null,
+      primaryEmail: normalizeDesktopAccountEmail(meta?.primaryEmail),
+      avatarUrl: normalizeDesktopAccountAvatarUrl(meta?.avatarUrl),
+      membershipTier: normalizeMembershipTier(meta?.membershipTier),
+      membershipName: normalizeDesktopAccountMembershipName(meta?.membershipName),
       persistent: true,
       authenticatedAt:
         typeof meta?.authenticatedAt === 'number' && Number.isFinite(meta.authenticatedAt)
@@ -109,12 +143,13 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
   }
 
   async function writeStoredAccountCredentials(credentials) {
+    const normalizedCredentials = normalizeStoredAccountCredentials(credentials);
     const { metaPath, secretsPath } = await getAccountStorePaths();
     let encodedSecrets = null;
     try {
       encodedSecrets = encodeSecretRecord(
         {
-          appSessionToken: credentials.appSessionToken,
+          appSessionToken: normalizedCredentials.appSessionToken,
         },
         safeStorage,
         { requireEncryption: true }
@@ -124,7 +159,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
         throw error;
       }
       memoryStoredAccountCredentials = {
-        ...credentials,
+        ...normalizedCredentials,
         persistent: false,
       };
       await rm(metaPath, { force: true });
@@ -137,16 +172,13 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
       metaPath,
       JSON.stringify(
         {
-          provider: credentials.provider,
-          username: credentials.username,
-          primaryEmail: credentials.primaryEmail ?? null,
-          avatarUrl: credentials.avatarUrl ?? null,
-          membershipTier: credentials.membershipTier ?? null,
-          membershipName: credentials.membershipName ?? null,
-          authenticatedAt:
-            typeof credentials.authenticatedAt === 'number' && Number.isFinite(credentials.authenticatedAt)
-              ? credentials.authenticatedAt
-              : null,
+          provider: normalizedCredentials.provider,
+          username: normalizedCredentials.username,
+          primaryEmail: normalizedCredentials.primaryEmail,
+          avatarUrl: normalizedCredentials.avatarUrl,
+          membershipTier: normalizedCredentials.membershipTier,
+          membershipName: normalizedCredentials.membershipName,
+          authenticatedAt: normalizedCredentials.authenticatedAt,
         },
         null,
         2

@@ -8,7 +8,7 @@ import {
 } from '@/components/common/markdown/markdownPipeline';
 import {
   createMarkdownSanitizeSchema,
-  isRenderableDataImageSrc,
+  normalizeRenderableDataImageSrc,
   rehypeImageSrcSanitizer,
   rehypeImageSrcsetSanitizer,
   rehypeRawHtmlUrlSanitizer,
@@ -109,7 +109,7 @@ function renderExportLink(props: any) {
 }
 
 function renderExportImage(props: any) {
-  const rawSrc = typeof props.src === 'string' ? props.src.trim() : '';
+  const rawSrc = typeof props.src === 'string' ? props.src : '';
   const safeWidth = normalizeImageWidth(typeof props.width === 'number' ? `${props.width}px` : props.width);
   const rawCrop = props.dataVlainaCrop ?? props['data-vlaina-crop'];
   const safeCrop = serializeCropValue(rawCrop);
@@ -121,10 +121,11 @@ function renderExportImage(props: any) {
     ...(align === 'center' ? { display: 'block', marginLeft: 'auto', marginRight: 'auto' } : {}),
     ...(align === 'right' ? { display: 'block', marginLeft: 'auto' } : {}),
   };
-  if (isRenderableDataImageSrc(rawSrc)) {
+  const safeDataSrc = normalizeRenderableDataImageSrc(rawSrc);
+  if (safeDataSrc) {
     return (
       <img
-        src={rawSrc}
+        src={safeDataSrc}
         alt={props.alt ?? ''}
         title={props.title}
         style={Object.keys(imageStyle).length > 0 ? imageStyle : undefined}

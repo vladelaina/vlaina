@@ -14,6 +14,7 @@ import { configureDevelopmentUserDataPath } from './userDataPath.mjs';
 import { authorizeFsPath } from './fsAccess.mjs';
 import { installApplicationMenu } from './appMenu.mjs';
 import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
+import { normalizeMarkdownOpenPath } from './markdownOpenPath.mjs';
 import {
   normalizeExternalUrl,
   normalizeHttpUrl,
@@ -394,56 +395,39 @@ async function createElectronBillingCheckout(tier) {
   }
 }
 
+function primitiveToString(value) {
+  if (value == null) {
+    return '';
+  }
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value);
+    default:
+      return null;
+  }
+}
+
 async function submitElectronFeedback(message) {
-  const response = await fetchWithStoredSession(`${apiBaseUrl}/feedback`, {
+  const { requestInit, cleanup } = createTimedRequestInit({
     method: 'POST',
     cache: 'no-store',
-    body: JSON.stringify({ message: String(message ?? '') }),
-  });
-  return await readJsonResponse(response, `Failed to submit feedback: HTTP ${response.status}`);
+    body: JSON.stringify({ message: primitiveToString(message) ?? '' }),
+  }, desktopAccountRequestTimeoutMs);
+  try {
+    const response = await fetchWithStoredSession(`${apiBaseUrl}/feedback`, requestInit);
+    return await readJsonResponse(response, `Failed to submit feedback: HTTP ${response.status}`, requestInit.signal);
+  } finally {
+    cleanup();
+  }
 }
 
 function isDevelopment() {
   return !app.isPackaged;
-}
-
-function isSupportedMarkdownPath(filePath) {
-  if (typeof filePath !== 'string' || !filePath.trim()) {
-    return false;
-  }
-
-  return ['.md', '.markdown', '.mdown', '.mkd'].includes(path.extname(filePath).toLowerCase());
-}
-
-function normalizeMarkdownOpenPath(value) {
-  const rawPath = typeof value === 'string' ? value.trim() : '';
-  if (!rawPath) {
-    return null;
-  }
-
-  let filePath = rawPath;
-  if (rawPath.startsWith('file://')) {
-    try {
-      filePath = fileURLToPath(rawPath);
-    } catch {
-      return null;
-    }
-  }
-
-  if (!isSupportedMarkdownPath(filePath)) {
-    return null;
-  }
-
-  const absolutePath = path.resolve(filePath);
-  try {
-    if (!fs.statSync(absolutePath).isFile()) {
-      return null;
-    }
-  } catch {
-    return null;
-  }
-
-  return absolutePath;
 }
 
 function findMarkdownPathInArgv(argv) {
@@ -961,16 +945,34 @@ function buildBilibiliEmbedUrl({ bvid, aid, cid, page }) {
   return `https://player.bilibili.com/player.html?${params.toString()}`;
 }
 
+function readFiniteNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string' && value.length <= 64) {
+    const trimmed = value.trim();
+    if (/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+  }
+  return null;
+}
+
 function parsePositiveNumber(value) {
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  const parsed = readFiniteNumber(value);
+  return parsed !== null && parsed > 0 ? parsed : null;
 }
 
 function normalizeCaptureRect(rect) {
-  const x = Math.max(0, Math.floor(Number(rect?.x)));
-  const y = Math.max(0, Math.floor(Number(rect?.y)));
-  const width = Math.max(1, Math.ceil(Number(rect?.width)));
-  const height = Math.max(1, Math.ceil(Number(rect?.height)));
+  const rawX = readFiniteNumber(rect?.x);
+  const rawY = readFiniteNumber(rect?.y);
+  const rawWidth = readFiniteNumber(rect?.width);
+  const rawHeight = readFiniteNumber(rect?.height);
+  const x = rawX === null ? Number.NaN : Math.max(0, Math.floor(rawX));
+  const y = rawY === null ? Number.NaN : Math.max(0, Math.floor(rawY));
+  const width = rawWidth === null ? Number.NaN : Math.max(1, Math.ceil(rawWidth));
+  const height = rawHeight === null ? Number.NaN : Math.max(1, Math.ceil(rawHeight));
 
   if (![x, y, width, height].every(Number.isFinite)) {
     throw new Error('A valid capture rectangle is required.');
@@ -1057,7 +1059,11 @@ async function resolveVideoUrl(rawUrl) {
     return {
       resolvedUrl: inputUrl,
       source: 'fallback',
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : 'Unknown error',
       bvid,
       stage,
       timeoutFired,
@@ -1143,7 +1149,7 @@ handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds)
 handleIpc('desktop:secrets:set-ai-provider-secret', async (_event, providerId, apiKey) => {
   const normalizedProviderId = requireSafeProviderId(providerId);
   await updateSecretsStore((data) => {
-    data[normalizedProviderId] = String(apiKey ?? '');
+    data[normalizedProviderId] = primitiveToString(apiKey) ?? '';
   });
 });
 

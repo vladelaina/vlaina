@@ -40,6 +40,49 @@ describe('katexSourceSanitizer', () => {
     expect(tree.children.length).toBeLessThanOrEqual(20_000);
   });
 
+  it('ignores non-string HAST annotation encodings without coercion', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'annotation',
+          properties: {
+            encoding: {
+              toString: () => {
+                throw new Error('Unexpected annotation encoding coercion');
+              },
+            },
+          },
+          children: [{ type: 'text', value: 'visible' }],
+        },
+      ],
+    };
+
+    expect(() => removeKatexSourceAnnotationsFromHast(tree)).not.toThrow();
+    expect(stringify(tree)).toContain('visible');
+  });
+
+  it('ignores oversized HAST annotation encoding arrays', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        {
+          type: 'element',
+          tagName: 'annotation',
+          properties: {
+            encoding: ['application/x-tex', 'x'.repeat(129)],
+          },
+          children: [{ type: 'text', value: 'visible' }],
+        },
+      ],
+    };
+
+    removeKatexSourceAnnotationsFromHast(tree);
+
+    expect(stringify(tree)).toContain('visible');
+  });
+
   it('removes oversized KaTeX HTML annotations without DOM parsing', () => {
     const createElementSpy = vi.spyOn(document, 'createElement');
     const html = `${'x'.repeat((2 * 1024 * 1024) + 1)}<annotation encoding="application/x-tex">secret</annotation>`;

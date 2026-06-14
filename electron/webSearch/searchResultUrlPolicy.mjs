@@ -36,7 +36,7 @@ function normalizeHttpResultUrl(value, baseUrl) {
 }
 
 export function normalizeResultUrl(rawUrl) {
-  if (!rawUrl) return '';
+  if (typeof rawUrl !== 'string' || !rawUrl) return '';
   try {
     const decodedUrl = cleanText(rawUrl);
     if (hasUnsafeResultUrlSyntax(decodedUrl)) return '';
@@ -69,6 +69,7 @@ export function normalizeResultUrl(rawUrl) {
 }
 
 export function isBlockedResultUrl(url, options = {}) {
+  if (typeof url !== 'string') return true;
   try {
     const trimmed = cleanText(url);
     if (hasUnsafeResultUrlSyntax(trimmed) || !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) return true;

@@ -58,6 +58,10 @@ const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
+function isMarkdownPasteParserInputWithinBounds(text: string): boolean {
+    return text.length <= MAX_MARKDOWN_PASTE_CHARS;
+}
+
 function isClipboardCopyShortcut(event: KeyboardEvent): boolean {
     if (event.altKey) return false;
 
@@ -803,10 +807,26 @@ export const clipboardPlugin = $prose((ctx) => {
     };
 
     const parseMarkdownNodes = (text: string): ProseNode[] | null => {
+        if (!isMarkdownPasteParserInputWithinBounds(text)) {
+            return null;
+        }
+
         const withOrderedOutline = normalizeBulletPrefixedOrderedOutlinePaste(text);
+        if (!isMarkdownPasteParserInputWithinBounds(withOrderedOutline)) {
+            return null;
+        }
         const withMathFences = normalizeAlternativeMathBlockFences(withOrderedOutline);
+        if (!isMarkdownPasteParserInputWithinBounds(withMathFences)) {
+            return null;
+        }
         const withEscapedInlineEmbeddedHtml = escapeInlineEmbeddedHtmlExamples(withMathFences);
+        if (!isMarkdownPasteParserInputWithinBounds(withEscapedInlineEmbeddedHtml)) {
+            return null;
+        }
         const withLenientLineMarkers = normalizeLenientMarkdownLineMarkers(withEscapedInlineEmbeddedHtml);
+        if (!isMarkdownPasteParserInputWithinBounds(withLenientLineMarkers)) {
+            return null;
+        }
         if (
             !looksLikeMarkdownForPaste(withOrderedOutline)
             && !looksLikeMarkdownForPaste(withMathFences)
@@ -820,13 +840,28 @@ export const clipboardPlugin = $prose((ctx) => {
 
         let parsedDoc: ProseNode;
         const withFrontmatter = normalizeLeadingFrontmatterMarkdown(withLenientLineMarkers);
+        if (!isMarkdownPasteParserInputWithinBounds(withFrontmatter)) {
+            return null;
+        }
         const withInterruptedLists = normalizeInterruptedOrderedListsForPaste(withFrontmatter);
+        if (!isMarkdownPasteParserInputWithinBounds(withInterruptedLists)) {
+            return null;
+        }
         const withThematicBreaks = normalizeStandaloneThematicBreaksForPaste(withInterruptedLists);
+        if (!isMarkdownPasteParserInputWithinBounds(withThematicBreaks)) {
+            return null;
+        }
         const shouldCompactLenientListGaps = withLenientLineMarkers !== withMathFences;
         const pasteMarkdown = shouldCompactLenientListGaps
             ? normalizeCanonicalMarkdownSpacingForPaste(withThematicBreaks)
             : withThematicBreaks;
+        if (!isMarkdownPasteParserInputWithinBounds(pasteMarkdown)) {
+            return null;
+        }
         const editorInput = preserveMarkdownBlankLinesForPaste(pasteMarkdown);
+        if (!isMarkdownPasteParserInputWithinBounds(editorInput)) {
+            return null;
+        }
         try {
             parsedDoc = parser(editorInput);
         } catch {

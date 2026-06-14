@@ -16,6 +16,12 @@ function escapeLinkUrl(url: string): string {
     return url.replace(/([()])/g, '\\$1');
 }
 
+function normalizeHeadingLevel(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value)
+        ? Math.max(1, Math.min(6, Math.trunc(value)))
+        : 1;
+}
+
 export function serializeSliceToText(slice: any): string {
     const budget = createClipboardTraversalBudget();
 
@@ -27,10 +33,14 @@ export function serializeSliceToText(slice: any): string {
         if (node.isText && node.text) {
             const linkMark = node.marks?.find((m: any) => m.type.name === 'link');
             if (linkMark) {
-                if (node.text === linkMark.attrs.href) {
+                const href = linkMark.attrs?.href;
+                if (typeof href !== 'string') {
+                    return node.text;
+                }
+                if (node.text === href) {
                     return node.text;
                 } else {
-                    return '[' + escapeLinkText(node.text) + '](' + escapeLinkUrl(String(linkMark.attrs.href)) + ')';
+                    return '[' + escapeLinkText(node.text) + '](' + escapeLinkUrl(href) + ')';
                 }
             }
             return node.text;
@@ -45,7 +55,7 @@ export function serializeSliceToText(slice: any): string {
         }
 
         if (node.type.name === 'heading') {
-            const level = Math.max(1, Math.min(6, Number(node.attrs?.level) || 1));
+            const level = normalizeHeadingLevel(node.attrs?.level);
             const rawContent = serializeNodeContent(node, depth + 1);
             if (rawContent === null) return null;
             const content = rawContent.replace(/\n+$/, '');

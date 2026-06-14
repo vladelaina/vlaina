@@ -3,6 +3,7 @@ import {
   INSTALLED_LOW_PRIORITY_SITES,
   INSTALLED_QUERY_SENSITIVE_BLOCKED_SITES,
 } from './installedSourceQualityRules.mjs';
+import { MAX_WEB_SEARCH_QUERY_CHARS } from '../types.mjs';
 
 const CONTENT_FARM_SITES = [
   'voidcc.com',
@@ -150,7 +151,7 @@ export function uniqueSites(sites) {
 }
 
 export function getQuerySensitiveBlockedSites(query) {
-  const text = String(query ?? '');
+  const text = typeof query === 'string' && query.length <= MAX_WEB_SEARCH_QUERY_CHARS ? query : '';
   return uniqueSites(QUERY_SENSITIVE_PATTERNS.flatMap((rule) => rule.pattern.test(text) ? rule.sites : []));
 }
 

@@ -33,9 +33,24 @@ function registerHarness() {
 describe('window ipc', () => {
   it('normalizes finite window dimensions before passing them to Electron', () => {
     expect(normalizeWindowDimension(640.4, 'width')).toBe(640);
+    expect(normalizeWindowDimension('640.4', 'width')).toBe(640);
     expect(normalizeWindowDimension(0, 'width')).toBe(1);
     expect(normalizeWindowDimension(20_000, 'width')).toBe(8192);
     expect(() => normalizeWindowDimension(Number.NaN, 'width')).toThrow('finite width');
+    expect(() => normalizeWindowDimension('1e3', 'width')).toThrow('finite width');
+  });
+
+  it('rejects object window dimensions without coercion', () => {
+    let stringReads = 0;
+    const throwingValue = {
+      toString() {
+        stringReads += 1;
+        throw new Error('Unexpected window dimension coercion');
+      },
+    };
+
+    expect(() => normalizeWindowDimension(throwingValue, 'width')).toThrow('finite width');
+    expect(stringReads).toBe(0);
   });
 
   it('clamps window size IPC arguments before calling BrowserWindow APIs', () => {

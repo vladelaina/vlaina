@@ -245,7 +245,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
-                  void onLogout().catch(() => undefined);
+                  void Promise.resolve(onLogout()).catch(() => undefined);
                 }}
                 className={cn(
                   'group/item flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-[background-color,color,box-shadow]',

@@ -10,6 +10,12 @@ import {
 } from './accountSessionAuth.mjs';
 import { normalizeDesktopAccountProvider } from './accountCredentialStore.mjs';
 import { createDesktopAccountJsonClient } from './accountJsonClient.mjs';
+import {
+  normalizeDesktopAccountAvatarUrl,
+  normalizeDesktopAccountEmail,
+  normalizeDesktopAccountMembershipName,
+  normalizeDesktopAccountUsername,
+} from './accountIdentityNormalization.mjs';
 
 const desktopSessionRetryDelaysMs = [250, 500, 1000, 2000, 3000, 5000];
 const desktopSessionActivationGracePeriodMs = 60_000;
@@ -306,13 +312,9 @@ export function createDesktopAccountSessionClient({
 
     const identity = {
       provider: normalizeDesktopAccountProvider(payload.provider),
-      username: typeof payload.username === 'string' && payload.username.trim() ? payload.username.trim() : null,
-      primaryEmail:
-        typeof payload.primaryEmail === 'string' && payload.primaryEmail.trim()
-          ? payload.primaryEmail.trim()
-          : null,
-      avatarUrl:
-        typeof payload.avatarUrl === 'string' && payload.avatarUrl.trim() ? payload.avatarUrl.trim() : null,
+      username: normalizeDesktopAccountUsername(payload.username),
+      primaryEmail: normalizeDesktopAccountEmail(payload.primaryEmail),
+      avatarUrl: normalizeDesktopAccountAvatarUrl(payload.avatarUrl),
       membershipTier:
         payload.membershipTier === 'free' ||
         payload.membershipTier === 'plus' ||
@@ -321,10 +323,7 @@ export function createDesktopAccountSessionClient({
         payload.membershipTier === 'ultra'
           ? payload.membershipTier
           : null,
-      membershipName:
-        typeof payload.membershipName === 'string' && payload.membershipName.trim()
-          ? payload.membershipName.trim()
-          : null,
+      membershipName: normalizeDesktopAccountMembershipName(payload.membershipName),
     };
     return identity;
   }

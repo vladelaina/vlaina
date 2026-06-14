@@ -175,7 +175,7 @@ describe('unifiedStorage save bounds', () => {
     expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith(
       '/appdata/.vlaina/chat/tts-channels/overflow-tts.json',
     );
-    expect(mocks.deleteProviderSecret).not.toHaveBeenCalledWith('deleted-provider');
+    expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('deleted-provider');
     expect(mocks.deleteProviderSecret).not.toHaveBeenCalledWith('overflow-tts');
   });
 

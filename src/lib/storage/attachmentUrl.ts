@@ -43,12 +43,13 @@ export function isAppFileAttachmentUrl(url: URL): boolean {
   return decodeAttachmentFilename(url.pathname.replace(/^\/+/, '')) !== null;
 }
 
-export function isStoredAttachmentSrc(src: string | null | undefined): boolean {
+export function isStoredAttachmentSrc(src: unknown): boolean {
   return extractStoredAttachmentFilename(src) !== null;
 }
 
-export function extractStoredAttachmentFilename(src: string | null | undefined): string | null {
-  const trimmed = src?.trim() ?? '';
+export function extractStoredAttachmentFilename(src: unknown): string | null {
+  if (typeof src !== 'string') return null;
+  const trimmed = src.trim();
   if (!trimmed) return null;
   if (trimmed.length > MAX_ATTACHMENT_SOURCE_CHARS) return null;
   if (trimmed.includes('\\')) return null;

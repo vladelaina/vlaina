@@ -7,6 +7,10 @@ import { mermaidEnterPlugin } from './mermaidEnterPlugin';
 import { createMermaidElement, getMermaidElementCode } from './mermaidDom';
 import { MermaidNodeView } from './MermaidNodeView';
 
+function normalizeMermaidCodeAttr(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
 export const mermaidSchema = $node('mermaid', () => ({
   group: 'block',
   atom: true,
@@ -23,7 +27,7 @@ export const mermaidSchema = $node('mermaid', () => ({
   }],
   toDOM: (node) => {
     const attrs = node.attrs as MermaidAttrs;
-    return createMermaidElement(attrs.code);
+    return createMermaidElement(normalizeMermaidCodeAttr(attrs.code));
   },
   parseMarkdown: {
     match: (node) => {
@@ -32,7 +36,7 @@ export const mermaidSchema = $node('mermaid', () => ({
     runner: (state, node, type) => {
       const code = normalizeMermaidFenceCode(
         node.lang as string | null | undefined,
-        (node.value as string) || ''
+        normalizeMermaidCodeAttr(node.value)
       );
       state.addNode(type, { code });
     }
@@ -40,7 +44,7 @@ export const mermaidSchema = $node('mermaid', () => ({
   toMarkdown: {
     match: (node) => node.type.name === 'mermaid',
     runner: (state, node) => {
-      state.addNode('code', undefined, node.attrs.code, {
+      state.addNode('code', undefined, normalizeMermaidCodeAttr(node.attrs.code), {
         lang: 'mermaid'
       });
     }

@@ -4,7 +4,6 @@ import {
 } from '@/lib/markdown/markdownHtmlBlockClassification';
 import { getHtmlTagRanges } from '@/lib/markdown/markdownHtmlRanges';
 
-const FENCE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})(.*)$/;
 const HTML_RAW_BLOCK_OPEN_PATTERN = /^(?: {0,3})<(pre|script|style|textarea|title|xmp|noembed|noframes|plaintext|math|noscript|svg)(?:\s|>|$)/i;
 const INDENTED_CODE_LINE_PATTERN = /^(?: {4,}|\t)/;
 const UTF8_BOM = '\uFEFF';
@@ -14,6 +13,7 @@ const MAX_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_FRONTMATTER_LINES = 2048;
 const NEVER_CLOSE_HTML_BLOCK_PATTERN = /$a/;
 
+type FenceLine = { infoStart: number; length: number; marker: string };
 type FenceState = { marker: string; length: number };
 type HtmlBlockState = { closePattern: RegExp; rawTagName?: string };
 
@@ -119,7 +119,7 @@ export function mapMarkdownOutsideProtectedSegments(
       return;
     }
 
-    if (FENCE_MARKER_PATTERN.test(content)) {
+    if (parseFenceLine(content)) {
       flushSegment(index + 1);
       output.push(line);
       activeFence = nextFenceState(line, null);
@@ -138,22 +138,42 @@ export function mapMarkdownOutsideProtectedSegments(
 
 function nextFenceState(line: string, activeFence: FenceState | null): FenceState | null {
   const content = getMarkdownBlockContent(line);
-  const fenceMatch = FENCE_MARKER_PATTERN.exec(content);
-  if (!fenceMatch) return activeFence;
+  const fence = parseFenceLine(content);
+  if (!fence) return activeFence;
 
-  const fence = fenceMatch[1] ?? '';
-  const marker = fence[0] ?? '';
-  const info = fenceMatch[2] ?? '';
   const isFenceCloser =
-    activeFence?.marker === marker
+    activeFence?.marker === fence.marker
     && fence.length >= activeFence.length
-    && isFenceClosingLine(content, marker, activeFence.length);
+    && isFenceClosingLine(content, fence.marker, activeFence.length);
 
   if (isFenceCloser) return null;
-  if (!activeFence && isValidMarkdownFenceOpener(marker, info)) {
-    return { marker, length: fence.length };
+  if (!activeFence && isValidMarkdownFenceOpener(content, fence)) {
+    return { marker: fence.marker, length: fence.length };
   }
   return activeFence;
+}
+
+function parseFenceLine(content: string): FenceLine | null {
+  let index = 0;
+  while (index < content.length && index <= 3 && content[index] === ' ') {
+    index += 1;
+  }
+  if (index > 3) return null;
+
+  const marker = content[index];
+  if (marker !== '`' && marker !== '~') return null;
+
+  let length = 0;
+  while (content[index + length] === marker) {
+    length += 1;
+  }
+  if (length < 3) return null;
+
+  return {
+    infoStart: index + length,
+    length,
+    marker,
+  };
 }
 
 function isFenceClosingLine(content: string, marker: string, minimumLength: number): boolean {
@@ -283,6 +303,6 @@ function isHtmlBlockCloseLine(line: string, state: HtmlBlockState): boolean {
     });
 }
 
-function isValidMarkdownFenceOpener(marker: string, info: string): boolean {
-  return marker !== '`' || !info.includes('`');
+function isValidMarkdownFenceOpener(content: string, fence: FenceLine): boolean {
+  return fence.marker !== '`' || content.indexOf('`', fence.infoStart) === -1;
 }

@@ -104,6 +104,10 @@ const LOW_PRIORITY_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([
   '__pycache__',
 ]);
 
+function trimString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 async function mapWithConcurrencyLimit<T, R>(
   items: readonly T[],
   limit: number,
@@ -195,22 +199,22 @@ function normalizeNoteMentionsForLoading(noteMentions: unknown): NoteMentionRefe
 }
 
 export function isImageAttachment(attachment: Attachment): boolean {
-  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
+  const mimeType = trimString(attachment.type).toLowerCase();
   if (mimeType.startsWith('image/')) {
     return true;
   }
 
-  const previewUrl = attachment.previewUrl?.trim() ?? '';
+  const previewUrl = trimString(attachment.previewUrl);
   if (/^data:image\//i.test(previewUrl)) {
     return true;
   }
 
-  const assetUrl = attachment.assetUrl?.trim() ?? '';
+  const assetUrl = trimString(attachment.assetUrl);
   if (IMAGE_NAME_REGEX.test(assetUrl)) {
     return true;
   }
 
-  const name = attachment.name?.trim() ?? '';
+  const name = trimString(attachment.name);
   return IMAGE_NAME_REGEX.test(name);
 }
 
@@ -218,8 +222,8 @@ export function limitChatMessageImageAttachments(attachments: readonly Attachmen
   return attachments.slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
 }
 
-function extractTrustedManagedAttachmentPathFilename(path: string | null | undefined): string | null {
-  const normalizedPath = path?.trim().replace(/\\/g, '/') ?? '';
+function extractTrustedManagedAttachmentPathFilename(path: unknown): string | null {
+  const normalizedPath = trimString(path).replace(/\\/g, '/');
   if (!normalizedPath) {
     return null;
   }
@@ -238,9 +242,9 @@ function extractTrustedManagedAttachmentPathFilename(path: string | null | undef
 }
 
 export function getAttachmentMessageImageSrc(attachment: Attachment): string {
-  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
-  const previewUrl = attachment.previewUrl?.trim() ?? '';
-  const assetUrl = attachment.assetUrl?.trim() ?? '';
+  const mimeType = trimString(attachment.type).toLowerCase();
+  const previewUrl = trimString(attachment.previewUrl);
+  const assetUrl = trimString(attachment.assetUrl);
   if (assetUrl) {
     const storedFilename = extractStoredAttachmentFilename(assetUrl);
     if (storedFilename) {
@@ -264,7 +268,7 @@ export function getAttachmentMessageImageSrc(attachment: Attachment): string {
 
 function hasConvertibleAttachmentReference(attachment: Attachment, rawSrc: string): boolean {
   return Boolean(
-    attachment.path?.trim() ||
+    trimString(attachment.path) ||
     extractStoredAttachmentFilename(attachment.previewUrl) ||
     extractStoredAttachmentFilename(attachment.assetUrl) ||
     isSvgDataUrl(rawSrc)
@@ -450,7 +454,7 @@ export async function buildStoredUserMessageContent(content: string): Promise<Ch
       break;
     }
     const imagePart = await normalizeVisionAttachment(imageSourceToAttachment(src, index));
-    if (imagePart) {
+    if (imagePart?.type === 'image_url') {
       const imageUrl = imagePart.image_url.url;
       if (imagePartSourceChars + imageUrl.length > MAX_CHAT_MESSAGE_IMAGE_SOURCE_CHARS) {
         break;

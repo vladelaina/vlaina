@@ -190,6 +190,7 @@ describe("normalizeRenderableImageSrc", () => {
 
     expect(normalizeRenderableImageSrc(`https://example.com/${oversizedSegment}.png`)).toBeNull();
     expect(normalizeRenderableImageSrc(`images/${oversizedSegment}.png`)).toBeNull();
+    expect(normalizeRenderableImageSrc(`${" ".repeat(4096)}https://example.com/safe.png`)).toBeNull();
   });
 });
 
@@ -304,6 +305,29 @@ describe("rehype image sanitizers", () => {
     expect(tree.children[0].properties.src).toBe("data:image/png;base64,abc");
   });
 
+  it("drops non-string data image source attributes without coercion", () => {
+    const tree = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "img",
+          properties: {
+            src: {
+              toString: () => {
+                throw new Error("Unexpected image src coercion");
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    rehypeImageSrcSanitizer()(tree);
+
+    expect(tree.children[0].properties).not.toHaveProperty("src");
+  });
+
   it("removes unsafe srcset attributes without recursive traversal", () => {
     const tree = {
       type: "root",
@@ -319,6 +343,29 @@ describe("rehype image sanitizers", () => {
     rehypeImageSrcsetSanitizer()(tree);
 
     expect(tree.children[0].properties).not.toHaveProperty("srcset");
+  });
+
+  it("drops non-string srcset attributes without coercion", () => {
+    const tree = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "source",
+          properties: {
+            srcSet: {
+              toString: () => {
+                throw new Error("Unexpected image srcset coercion");
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    rehypeImageSrcsetSanitizer()(tree);
+
+    expect(tree.children[0].properties).not.toHaveProperty("srcSet");
   });
 
   it("clips over-deep image policy HAST trees before leaving unvisited descendants", () => {

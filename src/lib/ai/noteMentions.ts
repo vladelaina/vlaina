@@ -11,22 +11,30 @@ export interface NoteMentionReference {
 export const MAX_NOTE_MENTION_SCAN_ITEMS = 1_000;
 export const MAX_NOTE_MENTION_PATH_CHARS = 2_048;
 export const MAX_NOTE_MENTION_TITLE_CHARS = 512;
+export const MAX_NOTE_MENTION_TITLE_RAW_CHARS = 4_096;
 const EXPLICIT_MENTION_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const BACKSLASH_ESCAPED_MENTION_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const WINDOWS_DRIVE_MENTION_PATH_PATTERN = /^[A-Za-z]:[/\\]/;
 
-function normalizeMentionText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
+function normalizeMentionText(value: unknown, maxRawChars: number): string {
+  return typeof value === 'string' && value.length <= maxRawChars ? value.trim() : '';
+}
+
+function normalizeMentionPath(value: unknown): string {
+  return normalizeMentionText(value, MAX_NOTE_MENTION_PATH_CHARS);
+}
+
+function normalizeMentionTitle(value: unknown): string {
+  return normalizeMentionText(value, MAX_NOTE_MENTION_TITLE_RAW_CHARS);
 }
 
 export function isPotentiallyLoadableNoteMentionReference(
   mention: { path?: unknown },
   explicitKind?: NoteMentionReference['kind'],
 ): boolean {
-  const path = normalizeMentionText(mention.path);
+  const path = normalizeMentionPath(mention.path);
   if (
     !path ||
-    path.length > MAX_NOTE_MENTION_PATH_CHARS ||
     (
       EXPLICIT_MENTION_SCHEME_PATTERN.test(path) &&
       !WINDOWS_DRIVE_MENTION_PATH_PATTERN.test(path)
@@ -56,12 +64,12 @@ export function dedupeNoteMentions(
     if (!mention) {
       continue;
     }
-    const key = normalizeMentionText(mention.path);
-    if (!key || key.length > MAX_NOTE_MENTION_PATH_CHARS || seen.has(key)) {
+    const key = normalizeMentionPath(mention.path);
+    if (!key || seen.has(key)) {
       continue;
     }
     seen.add(key);
-    const title = normalizeMentionText(mention.title);
+    const title = normalizeMentionTitle(mention.title);
     next.push({
       path: key,
       title: (title || key).slice(0, MAX_NOTE_MENTION_TITLE_CHARS),

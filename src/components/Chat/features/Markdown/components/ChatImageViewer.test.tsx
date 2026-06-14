@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToBase64 } from '@/lib/storage/attachmentStorage';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 import {
   ChatImageViewer,
   RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT,
@@ -356,6 +357,31 @@ describe('ChatImageViewer', () => {
 
     expect(decodeURIComponentSpy).not.toHaveBeenCalled();
     decodeURIComponentSpy.mockRestore();
+  });
+
+  it('does not navigate to gallery entries beyond the message image bound', async () => {
+    const gallery = Array.from(
+      { length: MAX_CHAT_MESSAGE_IMAGE_SOURCES + 1 },
+      (_, index) => ({
+        id: `image-${index}`,
+        src: `https://example.com/${index}.png`,
+      }),
+    );
+
+    render(
+      <ChatImageViewer
+        open
+        src={`https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCES}.png`}
+        alt="preview"
+        currentImageId={`image-${MAX_CHAT_MESSAGE_IMAGE_SOURCES}`}
+        gallery={gallery}
+        onOpenChange={() => {}}
+      />,
+    );
+
+    await screen.findByRole('dialog', { name: 'preview' });
+    expect(screen.queryByRole('button', { name: 'Previous image' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Next image' })).not.toBeInTheDocument();
   });
 
   it('does not keep direct data image sources in the resolved attachment cache', async () => {

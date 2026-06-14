@@ -1,4 +1,5 @@
 export const MAX_SETTINGS_API_JSON_RESPONSE_BODY_BYTES = 64 * 1024;
+const MAX_SETTINGS_API_JSON_CONTENT_LENGTH_CHARS = 32;
 
 function createSettingsApiResponseTooLargeError(): Error {
   return new Error('Settings API response body is too large.');
@@ -10,7 +11,14 @@ function readContentLength(response: Response): number | null {
     return null;
   }
 
-  const parsed = Number(rawContentLength);
+  if (rawContentLength.length > MAX_SETTINGS_API_JSON_CONTENT_LENGTH_CHARS) {
+    return null;
+  }
+  const trimmed = rawContentLength.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 

@@ -6,12 +6,17 @@ export interface CropParams {
   ratio: number;
 }
 
+const MAX_IMAGE_WIDTH_VALUE_CHARS = 64;
+const MAX_CROP_VALUE_CHARS = 160;
+const MAX_CROP_NUMBER_CHARS = 32;
+const CROP_NUMBER_PATTERN = /^-?\d+(?:\.\d+)?$/;
+
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function normalizeImageWidth(value: string | null | undefined): string | null {
-  if (!value) return null;
+export function normalizeImageWidth(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > MAX_IMAGE_WIDTH_VALUE_CHARS) return null;
   const trimmed = value.trim();
   if (!trimmed || trimmed === 'auto') return null;
   const percent = trimmed.match(/^(\d+(?:\.\d+)?)%$/);
@@ -25,6 +30,14 @@ export function normalizeImageWidth(value: string | null | undefined): string | 
   }
 
   return null;
+}
+
+function parseCropNumber(value: string): number | null {
+  if (value.length > MAX_CROP_NUMBER_CHARS) return null;
+  const trimmed = value.trim();
+  if (!CROP_NUMBER_PATTERN.test(trimmed)) return null;
+  const parsed = Number.parseFloat(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function normalizeCropParams(value: Partial<CropParams> | null | undefined): CropParams | null {
@@ -54,8 +67,15 @@ export function parseCropValue(value: unknown): CropParams | null {
   }
 
   if (typeof value !== 'string') return null;
-  const parts = value.split(',').map(Number);
-  if (parts.length < 4) return null;
+  if (value.length > MAX_CROP_VALUE_CHARS) return null;
+  const rawParts = value.split(',');
+  if (rawParts.length < 4 || rawParts.length > 5) return null;
+  const parts: number[] = [];
+  for (const rawPart of rawParts) {
+    const part = parseCropNumber(rawPart);
+    if (part === null) return null;
+    parts.push(part);
+  }
   return normalizeCropParams({
     x: parts[0],
     y: parts[1],

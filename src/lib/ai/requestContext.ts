@@ -31,6 +31,7 @@ export const MAX_CURRENT_REQUEST_MESSAGE_CHARS = 160_000;
 export const MAX_CURRENT_REQUEST_CONTENT_PARTS = 128;
 const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const MAX_REQUEST_JSON_DEPTH = 8;
+const MAX_REQUEST_JSON_ARRAY_ITEMS = 100_000;
 const MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS = 4096;
 const MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS = 1024 * 1024;
 const MAX_REQUEST_HISTORY_IMAGE_TOTAL_LABEL_SCAN_CHARS = 4 * MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS;
@@ -624,6 +625,42 @@ function measureJsonStringLength(value: string, maxChars: number): number {
   return length;
 }
 
+function hasJsonSerializationHook(value: object): boolean {
+  let current: object | null = value;
+  while (current !== null) {
+    const descriptor = Object.getOwnPropertyDescriptor(current, 'toJSON');
+    if (descriptor) {
+      if (descriptor.get || descriptor.set) {
+        return true;
+      }
+      return typeof descriptor.value === 'function';
+    }
+    current = Object.getPrototypeOf(current);
+  }
+  return false;
+}
+
+function isArrayIndexKey(key: string): boolean {
+  if (key === '') {
+    return false;
+  }
+  const index = Number(key);
+  return Number.isInteger(index) && index >= 0 && index < 2 ** 32 - 1 && String(index) === key;
+}
+
+function hasInheritedArrayIndexProperty(value: unknown[]): boolean {
+  let current = Object.getPrototypeOf(value);
+  while (current !== null) {
+    for (const key of Object.getOwnPropertyNames(current)) {
+      if (isArrayIndexKey(key)) {
+        return true;
+      }
+    }
+    current = Object.getPrototypeOf(current);
+  }
+  return false;
+}
+
 function measureJsonLength(value: unknown, maxChars: number, depth = 0): number {
   if (maxChars <= 0) {
     return 1;
@@ -646,18 +683,31 @@ function measureJsonLength(value: unknown, maxChars: number, depth = 0): number 
       return maxChars + 1;
   }
 
+  if (hasJsonSerializationHook(value)) {
+    return maxChars + 1;
+  }
+
   if (depth >= MAX_REQUEST_JSON_DEPTH) {
     return maxChars + 1;
   }
 
   if (Array.isArray(value)) {
+    if (value.length > MAX_REQUEST_JSON_ARRAY_ITEMS || hasInheritedArrayIndexProperty(value)) {
+      return maxChars + 1;
+    }
+
     let length = 1;
     for (let index = 0; index < value.length; index += 1) {
       if (index > 0) {
         length += 1;
       }
 
-      const item = value[index];
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor?.get || descriptor?.set) {
+        return maxChars + 1;
+      }
+
+      const item = descriptor ? descriptor.value : null;
       length += item === undefined || typeof item === 'function' || typeof item === 'symbol'
         ? 4
         : measureJsonLength(item, maxChars - length, depth + 1);
@@ -672,7 +722,15 @@ function measureJsonLength(value: unknown, maxChars: number, depth = 0): number 
   let hasEntry = false;
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record)) {
-    const field = record[key];
+    const descriptor = Object.getOwnPropertyDescriptor(record, key);
+    if (!descriptor) {
+      continue;
+    }
+    if (descriptor.get || descriptor.set) {
+      return maxChars + 1;
+    }
+
+    const field = descriptor.value;
     if (field === undefined || typeof field === 'function' || typeof field === 'symbol') {
       continue;
     }
