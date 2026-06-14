@@ -100,6 +100,28 @@ describe('AccountSignInOptions', () => {
     expect(emailInput).toHaveAttribute('autocomplete', 'email');
   });
 
+  it('keeps the verification code field selection-compatible for the shared caret overlay', async () => {
+    render(
+      <AccountEmailCodeCard
+        onEmailCodeRequest={vi.fn().mockResolvedValue(true)}
+        onEmailCodeVerify={vi.fn().mockResolvedValue(true)}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/email address/i), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }));
+
+    await waitFor(() => {
+      const codeInput = document.querySelector('input[autocomplete="one-time-code"]');
+      expect(codeInput).toBeTruthy();
+      expect(codeInput).toHaveAttribute('type', 'text');
+      expect(codeInput).toHaveAttribute('inputmode', 'numeric');
+      expect(codeInput).toHaveAttribute('autocomplete', 'one-time-code');
+    });
+  });
+
   it('opens the privacy policy from the sign-in agreement', () => {
     render(<AccountSignInOptions {...buildProps()} />);
 

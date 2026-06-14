@@ -1,7 +1,8 @@
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorSelection, Prec, RangeSetBuilder, StateField } from '@codemirror/state';
 import { Decoration, EditorView as CodeMirror, highlightSpecialChars } from '@codemirror/view';
-import { themeCodeBlockEditorTokens, themeStyleResetTokens } from '@/styles/themeTokens';
+import { CARET_BLINK_HELD_ATTR, holdCaretBlink, isCaretNavigationKey } from '@/lib/ui/caretOverlayStyles';
+import { themeCaretOverlayTokens, themeCodeBlockEditorTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { codeBlockHighlightStyle } from './codeBlockHighlightStyle';
 import { codeBlockCompatibilityHighlightStyle } from './codeBlockCompatibilityHighlightStyle';
 
@@ -13,6 +14,12 @@ const CODE_BLOCK_LINE_CLASS = 'HyperMD-codeblock HyperMD-codeblock-bg cm-hmd-cod
 const CODE_BLOCK_BEGIN_LINE_CLASS = `${CODE_BLOCK_LINE_CLASS} HyperMD-codeblock-begin HyperMD-codeblock-begin-bg`;
 const CODE_BLOCK_END_LINE_CLASS = `${CODE_BLOCK_LINE_CLASS} HyperMD-codeblock-end HyperMD-codeblock-end-bg`;
 const CODE_BLOCK_SINGLE_LINE_CLASS = `${CODE_BLOCK_BEGIN_LINE_CLASS} HyperMD-codeblock-end HyperMD-codeblock-end-bg`;
+
+const codeBlockCaretNavigationActiveViews = new WeakSet<CodeMirror>();
+
+function holdCodeBlockCaretBlink(view: CodeMirror): void {
+  holdCaretBlink(view.dom, codeBlockCaretNavigationActiveViews.has(view) ? null : undefined);
+}
 
 function buildSelectedTextDecorations(selection: EditorSelection) {
   const builder = new RangeSetBuilder<Decoration>();
@@ -81,6 +88,30 @@ export function createCodeBlockEditorTheme() {
     highlightSpecialChars(),
     Prec.highest(codeBlockSelectedTextField),
     Prec.highest(codeBlockCompatibilityLineField),
+    CodeMirror.domEventHandlers({
+      keydown(event, view) {
+        if (isCaretNavigationKey(event)) {
+          codeBlockCaretNavigationActiveViews.add(view);
+          holdCodeBlockCaretBlink(view);
+        }
+        return false;
+      },
+      keyup(event, view) {
+        if (isCaretNavigationKey(event)) {
+          codeBlockCaretNavigationActiveViews.delete(view);
+          holdCodeBlockCaretBlink(view);
+        }
+        return false;
+      },
+    }),
+    CodeMirror.updateListener.of((update) => {
+      if (update.focusChanged && !update.view.hasFocus) {
+        codeBlockCaretNavigationActiveViews.delete(update.view);
+      }
+      if (update.selectionSet || update.docChanged || update.focusChanged) {
+        holdCodeBlockCaretBlink(update.view);
+      }
+    }),
     CodeMirror.theme({
       '&': {
         backgroundColor: 'var(--vlaina-code-block-background)',
@@ -149,6 +180,13 @@ export function createCodeBlockEditorTheme() {
         borderLeftColor: 'var(--vlaina-caret-color) !important',
         borderLeftStyle: 'solid',
         borderLeftWidth: 'var(--vlaina-caret-width)',
+      },
+      [`&[${CARET_BLINK_HELD_ATTR}="true"] .cm-cursorLayer`]: {
+        animation: `${themeStyleResetTokens.animationNone} !important`,
+        opacity: `${themeCaretOverlayTokens.opacityVisible} !important`,
+      },
+      [`&[${CARET_BLINK_HELD_ATTR}="true"] .cm-cursor`]: {
+        opacity: `${themeCaretOverlayTokens.opacityVisible} !important`,
       },
     }, { dark: false }),
   ];

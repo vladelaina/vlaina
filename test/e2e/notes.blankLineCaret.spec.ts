@@ -11,6 +11,7 @@ import {
   openMarkdownFixture,
   openVaultInNotes,
   selectNoteBlocksByText,
+  waitForEditorAnimationFrame,
 } from './notesE2E';
 
 const BLANK_LINE_SELECTOR = `${EDITOR_SELECTOR} [data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"], ${EDITOR_SELECTOR} p.editor-editable-markdown-blank-line, ${EDITOR_SELECTOR} p:empty`;
@@ -73,6 +74,83 @@ test.describe('notes blank line caret interaction', () => {
         'Beta blank line sentinel',
       ]);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('does not block-select markdown blank lines when moving through them with keyboard', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-keyboard-navigation');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const betaText = 'Beta keyboard blank line sentinel';
+      await openMarkdownFixture(page, {
+        filename: 'blank-line-keyboard-navigation-e2e.md',
+        content: [
+          'Alpha keyboard blank line sentinel',
+          '',
+          betaText,
+          '',
+          'Gamma keyboard blank line sentinel',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(betaText);
+      await expect(page.locator(BLANK_LINE_SELECTOR)).toHaveCount(2);
+
+      const selectBetaText = async () => {
+        const selected = await page.evaluate(
+          (targetText) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, targetText),
+          betaText,
+        );
+        expect(selected.selected).toBe(true);
+        return selected as { from: number; to: number };
+      };
+
+      const assertNoBlankLineSelection = async () => {
+        await waitForEditorAnimationFrame(page);
+        await waitForEditorAnimationFrame(page);
+        await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+        await expect(page.locator(SELECTED_NODE_SELECTOR)).toHaveCount(0);
+        await expect(page.locator(SELECTED_MARKDOWN_BLANK_LINE_SELECTOR)).toHaveCount(0);
+        await expect.poll(
+          async () => page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary()),
+          { timeout: 5_000 },
+        ).toMatchObject({
+          empty: true,
+          selectedText: '',
+        });
+      };
+
+      const selectedForUp = await selectBetaText();
+      await page.keyboard.press('ArrowLeft');
+      await waitForEditorAnimationFrame(page);
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary()),
+        { timeout: 5_000 },
+      ).toMatchObject({
+        empty: true,
+        from: selectedForUp.from,
+      });
+      await page.keyboard.press('ArrowUp');
+      await assertNoBlankLineSelection();
+
+      const selectedForDown = await selectBetaText();
+      await page.keyboard.press('ArrowRight');
+      await waitForEditorAnimationFrame(page);
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary()),
+        { timeout: 5_000 },
+      ).toMatchObject({
+        empty: true,
+        from: selectedForDown.to,
+      });
+      await page.keyboard.press('ArrowDown');
+      await assertNoBlankLineSelection();
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

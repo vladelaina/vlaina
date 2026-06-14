@@ -1,7 +1,13 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretOverlayStyles';
+import {
+  createCaretOverlayRect,
+  createCaretOverlayStyle,
+  holdCaretBlink,
+  isCaretNavigationKey,
+  releaseCaretBlink,
+} from '@/lib/ui/caretOverlayStyles';
 
 const TEXTBLOCK_CARET_CLASS = 'editor-textblock-caret-overlay-active';
 const TEXTBLOCK_CARET_STYLE_ID = 'editor-textblock-caret-overlay-style';
@@ -111,11 +117,14 @@ function resolvePreviousCharacterRight(view: EditorView): number | null {
 class TextBlockCaretOverlayView {
   private caret: HTMLElement | null = null;
   private frameId: number | null = null;
+  private keyboardCaretNavigationActive = false;
 
   constructor(private view: EditorView) {
     ensureTextBlockCaretStyle(view.dom.ownerDocument);
     view.dom.addEventListener('focus', this.scheduleUpdate);
     view.dom.addEventListener('blur', this.hide);
+    view.dom.addEventListener('keydown', this.handleKeyDown);
+    view.dom.addEventListener('keyup', this.handleKeyUp);
     view.dom.addEventListener('compositionstart', this.hide);
     view.dom.addEventListener('compositionend', this.scheduleUpdate);
     view.dom.ownerDocument.addEventListener('selectionchange', this.scheduleUpdate);
@@ -133,6 +142,8 @@ class TextBlockCaretOverlayView {
     this.cancelFrame();
     this.view.dom.removeEventListener('focus', this.scheduleUpdate);
     this.view.dom.removeEventListener('blur', this.hide);
+    this.view.dom.removeEventListener('keydown', this.handleKeyDown);
+    this.view.dom.removeEventListener('keyup', this.handleKeyUp);
     this.view.dom.removeEventListener('compositionstart', this.hide);
     this.view.dom.removeEventListener('compositionend', this.scheduleUpdate);
     this.view.dom.ownerDocument.removeEventListener('selectionchange', this.scheduleUpdate);
@@ -160,10 +171,38 @@ class TextBlockCaretOverlayView {
   }
 
   private hide = (): void => {
+    this.keyboardCaretNavigationActive = false;
+    releaseCaretBlink(this.caret);
     this.caret?.remove();
     this.caret = null;
     this.view.dom.classList.remove(TEXTBLOCK_CARET_CLASS);
   };
+
+  private handleKeyDown = (event: KeyboardEvent): void => {
+    if (isCaretNavigationKey(event)) {
+      this.keyboardCaretNavigationActive = true;
+      holdCaretBlink(this.caret, null);
+    }
+    this.scheduleUpdate();
+  };
+
+  private handleKeyUp = (event: KeyboardEvent): void => {
+    if (isCaretNavigationKey(event)) {
+      this.keyboardCaretNavigationActive = false;
+      holdCaretBlink(this.caret);
+    }
+    this.scheduleUpdate();
+  };
+
+  private keepLastCaretVisibleDuringKeyboardNavigation(): boolean {
+    if (!this.keyboardCaretNavigationActive || !this.caret) {
+      return false;
+    }
+
+    holdCaretBlink(this.caret, null);
+    this.view.dom.classList.add(TEXTBLOCK_CARET_CLASS);
+    return true;
+  }
 
   private render(): void {
     if (this.view.dom.classList.contains(FORCED_LINE_END_CARET_CLASS)) {
@@ -172,6 +211,9 @@ class TextBlockCaretOverlayView {
     }
 
     if (!shouldShowTextBlockCaretOverlay(this.view)) {
+      if (this.keepLastCaretVisibleDuringKeyboardNavigation()) {
+        return;
+      }
       this.hide();
       return;
     }
@@ -180,6 +222,9 @@ class TextBlockCaretOverlayView {
     try {
       rect = this.view.coordsAtPos(this.view.state.selection.head);
     } catch {
+      if (this.keepLastCaretVisibleDuringKeyboardNavigation()) {
+        return;
+      }
       this.hide();
       return;
     }
@@ -204,6 +249,7 @@ class TextBlockCaretOverlayView {
     this.caret.style.left = `${overlayRect.left}px`;
     this.caret.style.top = `${overlayRect.top}px`;
     this.caret.style.height = `${overlayRect.height}px`;
+    holdCaretBlink(this.caret, this.keyboardCaretNavigationActive ? null : undefined);
     this.view.dom.classList.add(TEXTBLOCK_CARET_CLASS);
   }
 }

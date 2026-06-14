@@ -292,8 +292,6 @@ html, body, #root {
   box-shadow: var(--vlaina-shadow-popover) !important;
 }
 
-input,
-textarea,
 [contenteditable]:not([contenteditable='false']) {
   caret-color: transparent;
 }

@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
-import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretOverlayStyles';
+import {
+  createCaretOverlayRect,
+  createCaretOverlayStyle,
+  holdCaretBlink,
+  isCaretNavigationKey,
+  releaseCaretBlink,
+} from '@/lib/ui/caretOverlayStyles';
 import {
   themeDomStyleTokens,
   themeRenderingTokens,
@@ -141,6 +147,24 @@ function resolveSingleLineInputCaretHeight(
   return Math.max(markerHeight, lineHeight, inputHeight);
 }
 
+function createCaretMarker(control: TextControl, lineHeight: number): HTMLSpanElement {
+  const marker = control.ownerDocument.createElement('span');
+  if (control instanceof HTMLInputElement) {
+    marker.style.display = themeDomStyleTokens.displayInlineBlock;
+    marker.style.width = themeDomStyleTokens.sizeZero;
+    marker.style.height = `${lineHeight}px`;
+    marker.style.margin = themeDomStyleTokens.sizeZero;
+    marker.style.padding = themeDomStyleTokens.sizeZero;
+    marker.style.overflow = themeTextAreaTokens.overflowHidden;
+    marker.style.letterSpacing = themeDomStyleTokens.sizeZero;
+    marker.style.verticalAlign = 'baseline';
+    return marker;
+  }
+
+  marker.textContent = '\u200b';
+  return marker;
+}
+
 function getControlCaretRect(control: TextControl): { left: number; top: number; bottom: number } | null {
   const selectionStart = getCollapsedSelectionStart(control);
   if (selectionStart === null) return null;
@@ -150,22 +174,25 @@ function getControlCaretRect(control: TextControl): { left: number; top: number;
 
   const controlRect = control.getBoundingClientRect();
   if (controlRect.width <= 0 || controlRect.height <= 0) return null;
+  const lineHeight = resolveLineHeight(styles);
 
   const mirror = createMirror(control, styles);
   const textBeforeCaret = control.value.slice(0, selectionStart);
+  const textAfterCaret = control.value.slice(selectionStart);
   if (textBeforeCaret.length > 0) {
     mirror.appendChild(control.ownerDocument.createTextNode(textBeforeCaret));
   }
 
-  const marker = control.ownerDocument.createElement('span');
-  marker.textContent = '\u200b';
+  const marker = createCaretMarker(control, lineHeight);
   mirror.appendChild(marker);
+  if (textAfterCaret.length > 0) {
+    mirror.appendChild(control.ownerDocument.createTextNode(textAfterCaret));
+  }
   control.ownerDocument.body.appendChild(mirror);
 
   const markerRect = marker.getBoundingClientRect();
   mirror.remove();
 
-  const lineHeight = resolveLineHeight(styles);
   const borderLeft = parsePx(styles.borderLeftWidth);
   const borderTop = parsePx(styles.borderTopWidth);
   const paddingLeft = parsePx(styles.paddingLeft);
@@ -211,8 +238,11 @@ export function useNativeCaretOverlay(): void {
 
     let caret: HTMLElement | null = null;
     let frameId: number | null = null;
+    let keyboardCaretNavigationActive = false;
 
     const hide = () => {
+      keyboardCaretNavigationActive = false;
+      releaseCaretBlink(caret);
       caret?.remove();
       caret = null;
       doc.querySelectorAll(`[${ACTIVE_ATTR}='true']`).forEach((element) => {
@@ -245,6 +275,7 @@ export function useNativeCaretOverlay(): void {
       caret.style.left = `${overlayRect.left}px`;
       caret.style.top = `${overlayRect.top}px`;
       caret.style.height = `${overlayRect.height}px`;
+      holdCaretBlink(caret, keyboardCaretNavigationActive ? null : undefined);
       activeElement.setAttribute(ACTIVE_ATTR, 'true');
     };
 
@@ -264,6 +295,20 @@ export function useNativeCaretOverlay(): void {
     const handleFocusIn = () => schedule();
     const handleFocusOut = () => hide();
     const handleUpdate = () => schedule();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isCaretNavigationKey(event)) {
+        keyboardCaretNavigationActive = true;
+        holdCaretBlink(caret, null);
+      }
+      schedule();
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (isCaretNavigationKey(event)) {
+        keyboardCaretNavigationActive = false;
+        holdCaretBlink(caret);
+      }
+      schedule();
+    };
     const handleExplicitRefresh = () => flush();
     const handleCompositionStart = () => hide();
     const handleCompositionEnd = () => schedule();
@@ -271,7 +316,8 @@ export function useNativeCaretOverlay(): void {
     doc.addEventListener('focusin', handleFocusIn);
     doc.addEventListener('focusout', handleFocusOut);
     doc.addEventListener('input', handleUpdate);
-    doc.addEventListener('keyup', handleUpdate);
+    doc.addEventListener('keydown', handleKeyDown);
+    doc.addEventListener('keyup', handleKeyUp);
     doc.addEventListener('mouseup', handleUpdate);
     doc.addEventListener('selectionchange', handleUpdate);
     doc.addEventListener('compositionstart', handleCompositionStart);
@@ -288,7 +334,8 @@ export function useNativeCaretOverlay(): void {
       doc.removeEventListener('focusin', handleFocusIn);
       doc.removeEventListener('focusout', handleFocusOut);
       doc.removeEventListener('input', handleUpdate);
-      doc.removeEventListener('keyup', handleUpdate);
+      doc.removeEventListener('keydown', handleKeyDown);
+      doc.removeEventListener('keyup', handleKeyUp);
       doc.removeEventListener('mouseup', handleUpdate);
       doc.removeEventListener('selectionchange', handleUpdate);
       doc.removeEventListener('compositionstart', handleCompositionStart);

@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  CARET_BLINK_HELD_ATTR,
+  CARET_BLINK_HOLD_DELAY_MS,
+  createCaretOverlayRect,
+  holdCaretBlink,
+  releaseCaretBlink,
+} from '@/lib/ui/caretOverlayStyles';
 
 function readIndexStyles() {
   return readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
@@ -86,6 +92,10 @@ function readCaretOverlayStyles() {
   return readFileSync(resolve(process.cwd(), 'src/lib/ui/caretOverlayStyles.ts'), 'utf8');
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('caret styles', () => {
   it('uses a shared global caret color token', () => {
     const css = readIndexStyles();
@@ -96,6 +106,7 @@ describe('caret styles', () => {
     expect(themeCss).toContain('--vlaina-caret-width: 2px;');
     expect(css).toContain("[contenteditable]:not([contenteditable='false']) {");
     expect(css).toContain('caret-color: transparent;');
+    expect(css).not.toMatch(/(?:^|\n)input,\s*\ntextarea,\s*\n\[contenteditable\]:not\(\[contenteditable='false'\]\)/);
   });
 
   it('keeps the editor caret sourced from the shared caret token', () => {
@@ -112,6 +123,15 @@ describe('caret styles', () => {
     expect(source).toContain('caretColor: themeStyleResetTokens.colorTransparentImportant');
     expect(source).toContain("borderLeftColor: 'var(--vlaina-caret-color) !important'");
     expect(source).toContain("borderLeftWidth: 'var(--vlaina-caret-width)'");
+    expect(source).toContain('CARET_BLINK_HELD_ATTR');
+    expect(source).toContain('isCaretNavigationKey(event)');
+    expect(source).toContain('codeBlockCaretNavigationActiveViews.add(view)');
+    expect(source).toContain('codeBlockCaretNavigationActiveViews.delete(view)');
+    expect(source).toContain('holdCaretBlink(view.dom, codeBlockCaretNavigationActiveViews.has(view) ? null : undefined)');
+    expect(source).toContain('CodeMirror.domEventHandlers({');
+    expect(source).toContain('CodeMirror.updateListener.of((update) => {');
+    expect(source).toContain('update.selectionSet || update.docChanged || update.focusChanged');
+    expect(source).toContain('.cm-cursorLayer');
     expect(source).not.toContain('vlaina-editor-caret');
     expect(source).not.toContain('#41ace2');
   });
@@ -123,10 +143,45 @@ describe('caret styles', () => {
     expect(source).toContain("export const CARET_WIDTH_VAR = 'var(--vlaina-caret-width)';");
     expect(source).toContain('export const CARET_VISUAL_HEIGHT_RATIO = 1;');
     expect(source).toContain('export const CARET_MIN_VISUAL_HEIGHT = 18;');
+    expect(source).toContain("export const CARET_BLINK_HELD_ATTR = 'data-caret-blink-held';");
+    expect(source).toContain('export const CARET_BLINK_HOLD_DELAY_MS = themeCaretOverlayTokens.blinkHoldDelayMs;');
+    expect(source).toContain('export function isCaretNavigationKey');
     expect(source).toContain('export function createCaretOverlayRect');
+    expect(source).toContain('export function holdCaretBlink');
+    expect(source).toContain('export function releaseCaretBlink');
     expect(source).toContain('width: ${CARET_WIDTH_VAR};');
     expect(source).toContain('background: ${CARET_COLOR_VAR};');
+    expect(source).toContain(".${caretClass}[${CARET_BLINK_HELD_ATTR}='true']");
+    expect(source).toContain('animation: none !important;');
     expect(source).toContain('caret-color: transparent !important;');
+  });
+
+  it('holds custom caret blinking visible until movement becomes idle', () => {
+    vi.useFakeTimers();
+
+    const caret = document.createElement('div');
+    holdCaretBlink(caret);
+
+    expect(caret.getAttribute(CARET_BLINK_HELD_ATTR)).toBe('true');
+
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS - 1);
+    holdCaretBlink(caret);
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS - 1);
+    expect(caret.getAttribute(CARET_BLINK_HELD_ATTR)).toBe('true');
+
+    vi.advanceTimersByTime(1);
+    expect(caret.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
+
+    holdCaretBlink(caret, null);
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS * 2);
+    expect(caret.getAttribute(CARET_BLINK_HELD_ATTR)).toBe('true');
+    holdCaretBlink(caret);
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS);
+    expect(caret.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
+
+    holdCaretBlink(caret);
+    releaseCaretBlink(caret);
+    expect(caret.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
   });
 
   it('centers custom caret overlays inside the measured text line box', () => {
@@ -159,6 +214,8 @@ describe('caret styles', () => {
     expect(source).toContain('createCaretOverlayStyle({');
     expect(source).toContain('createCaretOverlayRect({');
     expect(source).toContain("caretClass: 'editor-forced-line-end-caret'");
+    expect(source).toContain('holdCaretBlink(caret)');
+    expect(source).toContain('releaseCaretBlink(caret)');
     expect(pluginSource).toContain('clearForcedCaretForOwner(view.dom)');
     expect(source).not.toContain('Math.max(12, textRect.bottom - textRect.top)');
     expect(source).not.toContain('background: var(--vlaina-caret-color, #41ace2)');
@@ -171,6 +228,12 @@ describe('caret styles', () => {
     expect(source).toContain('createCaretOverlayRect(rect)');
     expect(source).toContain('activeSelector: `.ProseMirror.${TEXTBLOCK_CARET_CLASS}`');
     expect(source).toContain('selection.$from.parent.isTextblock');
+    expect(source).toContain('isCaretNavigationKey(event)');
+    expect(source).toContain('holdCaretBlink(this.caret, null)');
+    expect(source).toContain('holdCaretBlink(this.caret, this.keyboardCaretNavigationActive ? null : undefined)');
+    expect(source).toContain('releaseCaretBlink(this.caret)');
+    expect(source).toContain("view.dom.addEventListener('keydown', this.handleKeyDown)");
+    expect(source).toContain("view.dom.addEventListener('keyup', this.handleKeyUp)");
     expect(source).not.toContain('Math.max(12, rect.bottom - rect.top)');
     expect(source).not.toContain('#41ace2');
   });
@@ -199,6 +262,12 @@ describe('caret styles', () => {
     expect(source).toContain('return control.value.length;');
     expect(source).toContain('const SINGLE_LINE_INPUT_CARET_HEIGHT_RATIO = 0.56;');
     expect(source).toContain('function resolveSingleLineInputCaretHeight');
+    expect(source).toContain('function createCaretMarker');
+    expect(source).toContain('marker.style.display = themeDomStyleTokens.displayInlineBlock;');
+    expect(source).toContain('marker.style.letterSpacing = themeDomStyleTokens.sizeZero;');
+    expect(source).toContain("marker.textContent = '\\u200b';");
+    expect(source).toContain('const textAfterCaret = control.value.slice(selectionStart);');
+    expect(source).toContain('mirror.appendChild(control.ownerDocument.createTextNode(textAfterCaret));');
     expect(source).toContain('const markerHeight = markerRect.height;');
     expect(source).toContain("'textAlign'");
     expect(source).toContain("'direction'");
@@ -208,6 +277,12 @@ describe('caret styles', () => {
     expect(source).toContain('contentTop + (contentHeight - inputCaretHeight) / 2');
     expect(source).toContain('top + inputCaretHeight');
     expect(source).toContain('createCaretOverlayRect(rect)');
+    expect(source).toContain('isCaretNavigationKey(event)');
+    expect(source).toContain('holdCaretBlink(caret, null)');
+    expect(source).toContain('holdCaretBlink(caret, keyboardCaretNavigationActive ? null : undefined)');
+    expect(source).toContain('releaseCaretBlink(caret)');
+    expect(source).toContain("doc.addEventListener('keydown', handleKeyDown)");
+    expect(source).toContain("doc.addEventListener('keyup', handleKeyUp)");
     expect(source).toContain("activeSelector: `[${ACTIVE_ATTR}='true']`");
     expect(source).toContain("activeElement.setAttribute(ACTIVE_ATTR, 'true')");
     expect(source).not.toContain('Math.max(12, rect.bottom - rect.top)');

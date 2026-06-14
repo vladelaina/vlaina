@@ -279,7 +279,7 @@ afterEach(() => {
 });
 
 describe('atomicBlockKeyboardNavigationPlugin', () => {
-  it('selects a diagram block when ArrowDown leaves the preceding paragraph', async () => {
+  it('places a caret below a diagram block when ArrowDown leaves the preceding paragraph', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -295,9 +295,14 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     const event = pressKey(view, 'ArrowDown');
 
     expect(event.defaultPrevented).toBe(true);
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'mermaid'));
-    expect(view.dom.classList.contains(ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS)).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(1).type.name).toBe('mermaid');
+    expect(view.state.doc.child(2).type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(2));
+    expect(view.dom.classList.contains(ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS)).toBe(false);
 
     await editor.destroy();
   });
@@ -324,7 +329,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
-  it('selects a formula block when ArrowUp leaves the following paragraph', async () => {
+  it('places a caret above a formula block when ArrowUp leaves the following paragraph', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -340,10 +345,69 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     const event = pressKey(view, 'ArrowUp');
 
     expect(event.defaultPrevented).toBe(true);
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(0);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).type.name).toBe('math_block');
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
 
     await editor.destroy();
+  });
+
+  it('moves through navigable atom-like blocks without node-selecting them', async () => {
+    const cases: Array<{
+      label: string;
+      createNode: (view: EditorView) => ProseNode;
+    }> = [
+      {
+        label: 'math_block',
+        createNode: (view) => view.state.schema.nodes.math_block.create({ latex: 'x' }),
+      },
+      {
+        label: 'mermaid',
+        createNode: (view) => view.state.schema.nodes.mermaid.create({ code: 'flowchart TD\nA --> B' }),
+      },
+      {
+        label: 'video',
+        createNode: (view) => view.state.schema.nodes.video.create({ src: 'https://example.com/video.mp4' }),
+      },
+      {
+        label: 'html_block',
+        createNode: (view) => view.state.schema.nodes.html_block.create({ value: '<div>HTML</div>' }),
+      },
+    ];
+
+    for (const testCase of cases) {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      const before = schema.nodes.paragraph.create(null, schema.text('before'));
+      const after = schema.nodes.paragraph.create(null, schema.text('after'));
+      replaceDocument(view, [before, testCase.createNode(view), after]);
+      vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1 + before.content.size)));
+      const downEvent = pressKey(view, 'ArrowDown');
+      expect(downEvent.defaultPrevented, `${testCase.label} ArrowDown`).toBe(true);
+      expect(view.state.doc.childCount, testCase.label).toBe(3);
+      expect(view.state.selection, `${testCase.label} ArrowDown`).toBeInstanceOf(TextSelection);
+      expect(view.state.selection, `${testCase.label} ArrowDown`).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.$from.parent, `${testCase.label} ArrowDown`).toBe(view.state.doc.child(2));
+
+      const afterPos = topLevelNodePos(view, 'paragraph', 1);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, afterPos + 1)));
+      const upEvent = pressKey(view, 'ArrowUp');
+      expect(upEvent.defaultPrevented, `${testCase.label} ArrowUp`).toBe(true);
+      expect(view.state.doc.childCount, testCase.label).toBe(3);
+      expect(view.state.selection, `${testCase.label} ArrowUp`).toBeInstanceOf(TextSelection);
+      expect(view.state.selection, `${testCase.label} ArrowUp`).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.$from.parent, `${testCase.label} ArrowUp`).toBe(view.state.doc.child(0));
+
+      await editor.destroy();
+    }
   });
 
   it('moves from a selected atomic block into the following paragraph without inserting a transient one', async () => {
@@ -419,7 +483,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     }
   });
 
-  it('removes the transient paragraph when ArrowDown continues into the next atomic block', async () => {
+  it('moves past the next atomic block when ArrowDown continues from a transient paragraph', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -434,11 +498,13 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     const event = pressKey(view, 'ArrowDown');
 
     expect(event.defaultPrevented).toBe(true);
-    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.childCount).toBe(3);
     expect(view.state.doc.child(0).type.name).toBe('math_block');
     expect(view.state.doc.child(1).type.name).toBe('mermaid');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(1);
+    expect(view.state.doc.child(2).type.name).toBe('paragraph');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(2));
 
     await editor.destroy();
   });
@@ -465,9 +531,13 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     const continueEvent = pressKey(view, 'ArrowUp');
 
     expect(continueEvent.defaultPrevented).toBe(true);
-    expect(view.state.doc.childCount).toBe(2);
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(0);
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).type.name).toBe('math_block');
+    expect(view.state.doc.child(2).type.name).toBe('mermaid');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
 
     await editor.destroy();
   });
@@ -488,10 +558,13 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
     pressKey(view, 'ArrowDown');
 
-    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.childCount).toBe(4);
     expect(view.state.doc.child(1).textContent).toBe('note');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'mermaid'));
+    expect(view.state.doc.child(2).type.name).toBe('mermaid');
+    expect(view.state.doc.child(3).type.name).toBe('paragraph');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(3));
 
     await editor.destroy();
   });
@@ -535,10 +608,13 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
 
     expect(intoParagraph.defaultPrevented).toBe(true);
     expect(intoMermaid.defaultPrevented).toBe(true);
-    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.childCount).toBe(4);
     expect(view.state.doc.child(1).type.name).toBe('paragraph');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'mermaid'));
+    expect(view.state.doc.child(2).type.name).toBe('mermaid');
+    expect(view.state.doc.child(3).type.name).toBe('paragraph');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(3));
 
     await editor.destroy();
   });
@@ -563,9 +639,12 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     const backEvent = pressKey(view, 'ArrowUp');
 
     expect(backEvent.defaultPrevented).toBe(true);
-    expect(view.state.doc.childCount).toBe(1);
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(0);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).type.name).toBe('mermaid');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
 
     await editor.destroy();
   });
@@ -590,9 +669,12 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     const downEvent = pressKey(view, 'ArrowDown');
 
     expect(downEvent.defaultPrevented).toBe(true);
-    expect(view.state.doc.childCount).toBe(1);
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(0);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('math_block');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
 
     await editor.destroy();
   });

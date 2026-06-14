@@ -66,6 +66,7 @@ import { handleListGapPlaceholderPointerDown } from './listGapPlaceholder';
 import {
   createEditableMarkdownBlankLineDecorations,
   EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+  handleMarkdownBlankLineKeyboardNavigation,
   handleMarkdownBlankLinePointerDown,
   handleMarkdownBlankLineTextInput,
 } from './markdownBlankLineInteraction';
@@ -665,12 +666,15 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       },
       handleKeyDown(view, event) {
         const { selectedBlocks } = getBlockSelectionPluginState(view.state);
-        return handleBlockSelectionKeyDown(event, {
+        if (handleBlockSelectionKeyDown(event, {
           view,
           selectedBlocks,
           serializeSelectedBlocks,
           deleteSelectedBlocks,
-        });
+        })) {
+          return true;
+        }
+        return handleMarkdownBlankLineKeyboardNavigation(view, event);
       },
       handleTextInput(view, from, to, text) {
         return handleMarkdownBlankLineTextInput(view, from, to, text);

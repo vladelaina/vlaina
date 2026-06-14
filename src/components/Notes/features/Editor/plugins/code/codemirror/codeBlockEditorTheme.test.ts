@@ -2,10 +2,15 @@ import { EditorState } from '@codemirror/state';
 import { EditorView as CodeMirror } from '@codemirror/view';
 import { forceParsing } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CARET_BLINK_HELD_ATTR, CARET_BLINK_HOLD_DELAY_MS } from '@/lib/ui/caretOverlayStyles';
 import { createCodeBlockEditorTheme } from './codeBlockEditorTheme';
 import { codeBlockCompatibilityHighlightStyle } from './codeBlockCompatibilityHighlightStyle';
 import { codeBlockLanguageLoader } from '../codeBlockLanguageLoader';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('codeBlockEditorTheme', () => {
   it('adds Obsidian code block alias classes to CodeMirror lines', () => {
@@ -56,6 +61,45 @@ describe('codeBlockEditorTheme', () => {
     cm.dispatch({ selection: { anchor: 5, head: 5 } });
 
     expect(cm.dom.querySelectorAll('.editor-code-selection-text')).toHaveLength(0);
+
+    cm.destroy();
+    host.remove();
+  });
+
+  it('holds the CodeMirror caret visible while keyboard navigation is moving it', () => {
+    vi.useFakeTimers();
+
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'abc',
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+
+    cm.dispatch({ selection: { anchor: 1 } });
+
+    expect(cm.dom.getAttribute(CARET_BLINK_HELD_ATTR)).toBe('true');
+
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS - 1);
+    cm.dispatch({ selection: { anchor: 2 } });
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS - 1);
+    expect(cm.dom.getAttribute(CARET_BLINK_HELD_ATTR)).toBe('true');
+
+    vi.advanceTimersByTime(1);
+    expect(cm.dom.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
+
+    cm.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    cm.dispatch({ selection: { anchor: 1 } });
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS * 2);
+    expect(cm.dom.getAttribute(CARET_BLINK_HELD_ATTR)).toBe('true');
+
+    cm.contentDOM.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true }));
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS);
+    expect(cm.dom.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
 
     cm.destroy();
     host.remove();

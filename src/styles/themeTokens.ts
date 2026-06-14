@@ -369,6 +369,7 @@ export const themeOffscreenTokens = {
 export const themeCaretOverlayTokens = {
   zIndex: 10001,
   blinkDuration: '1.05s',
+  blinkHoldDelayMs: 220,
   visibleKeyframeEnd: '45%',
   hiddenKeyframeStart: '46%',
   opacityVisible: 1,

@@ -368,56 +368,91 @@ function isHeadingNodeName(nodeName: string): boolean {
   return nodeName === 'heading';
 }
 
-function selectAtomicBlock(view: EditorView, pos: number): boolean {
-  view.dispatch(
-    view.state.tr
-      .setSelection(NodeSelection.create(view.state.doc, pos))
-      .scrollIntoView()
-  );
-  view.focus();
-  return true;
+function setTransientInputParagraphSelection(
+  state: EditorState,
+  tr: Transaction,
+  insertPos: number
+): Transaction | null {
+  const paragraphType = state.schema.nodes.paragraph;
+  if (!paragraphType) {
+    return null;
+  }
+
+  const $insert = tr.doc.resolve(insertPos);
+  const index = $insert.index(0);
+  if (typeof tr.doc.canReplaceWith === 'function' && !tr.doc.canReplaceWith(index, index, paragraphType)) {
+    return null;
+  }
+
+  const paragraph = paragraphType.create();
+  return tr
+    .insert(insertPos, paragraph)
+    .setSelection(TextSelection.create(tr.doc, insertPos + 1))
+    .setMeta(atomicBlockKeyboardNavigationPluginKey, { type: 'track', pos: insertPos } satisfies TransientGapAction);
 }
 
-function moveSelectionIntoTextblock(view: EditorView, block: TopLevelBlock, direction: Direction): boolean {
+function setTextSelectionIntoTextblock(
+  tr: Transaction,
+  block: TopLevelBlock,
+  direction: Direction
+): Transaction | null {
   if (!block.node.isTextblock) {
-    return false;
+    return null;
   }
 
   const cursorPos = direction === 'up'
     ? block.from + 1 + block.node.content.size
     : block.from + 1;
-  view.dispatch(
-    view.state.tr
-      .setSelection(TextSelection.create(view.state.doc, cursorPos))
-      .scrollIntoView()
-  );
-  view.focus();
-  return true;
+  return tr.setSelection(TextSelection.create(tr.doc, cursorPos));
 }
 
-function insertTransientInputParagraph(
-  view: EditorView,
-  insertPos: number
-): boolean {
-  const { state } = view;
-  const paragraphType = state.schema.nodes.paragraph;
-  if (!paragraphType) {
+function setSelectionPastAtomicBlock(
+  state: EditorState,
+  tr: Transaction,
+  block: TopLevelBlock,
+  direction: Direction
+): Transaction | null {
+  if (!isNavigableAtomicBlock(block.node)) {
+    return null;
+  }
+
+  const adjacent = getAdjacentTopLevelBlock(tr.doc, block, direction);
+  if (!adjacent) {
+    const insertPos = direction === 'up' ? block.from : block.to;
+    return setTransientInputParagraphSelection(state, tr, insertPos);
+  }
+
+  const textSelectionTr = setTextSelectionIntoTextblock(tr, adjacent, direction);
+  if (textSelectionTr) {
+    return textSelectionTr;
+  }
+
+  if (isNavigableAtomicBlock(adjacent.node)) {
+    const insertPos = direction === 'up' ? block.from : block.to;
+    return setTransientInputParagraphSelection(state, tr, insertPos);
+  }
+
+  const searchPos = direction === 'up' ? block.from : block.to;
+  const selection = Selection.findFrom(
+    tr.doc.resolve(Math.max(0, Math.min(searchPos, tr.doc.content.size))),
+    direction === 'up' ? -1 : 1,
+    true
+  );
+  if (selection && !(selection instanceof NodeSelection && isNavigableAtomicBlock(selection.node))) {
+    return tr.setSelection(selection);
+  }
+
+  const insertPos = direction === 'up' ? block.from : block.to;
+  return setTransientInputParagraphSelection(state, tr, insertPos);
+}
+
+function moveSelectionPastAtomicBlock(view: EditorView, block: TopLevelBlock, direction: Direction): boolean {
+  const tr = setSelectionPastAtomicBlock(view.state, view.state.tr, block, direction);
+  if (!tr) {
     return false;
   }
 
-  const $insert = state.doc.resolve(insertPos);
-  const index = $insert.index(0);
-  if (typeof state.doc.canReplaceWith === 'function' && !state.doc.canReplaceWith(index, index, paragraphType)) {
-    return false;
-  }
-
-  const paragraph = paragraphType.create();
-  const tr = state.tr.insert(insertPos, paragraph);
-  tr
-    .setSelection(TextSelection.create(tr.doc, insertPos + 1))
-    .setMeta(atomicBlockKeyboardNavigationPluginKey, { type: 'track', pos: insertPos } satisfies TransientGapAction)
-    .scrollIntoView();
-  view.dispatch(tr);
+  view.dispatch(tr.scrollIntoView());
   view.focus();
   return true;
 }
@@ -436,9 +471,18 @@ function handleTrackedGapArrow(view: EditorView, direction: Direction): boolean 
   const tr = view.state.tr
     .delete(gap.from, gap.to)
     .setMeta(atomicBlockKeyboardNavigationPluginKey, { type: 'clear' } satisfies TransientGapAction);
-  const selectPos = direction === 'up' ? adjacent.from : gap.from;
-  tr.setSelection(NodeSelection.create(tr.doc, selectPos)).scrollIntoView();
-  view.dispatch(tr);
+  const mappedAdjacentFrom = tr.mapping.map(adjacent.from, -1);
+  const mappedAdjacent = findTopLevelBlockAt(tr.doc, mappedAdjacentFrom);
+  if (!mappedAdjacent || !isNavigableAtomicBlock(mappedAdjacent.node)) {
+    return false;
+  }
+
+  const movedTr = setSelectionPastAtomicBlock(view.state, tr, mappedAdjacent, direction);
+  if (!movedTr) {
+    return false;
+  }
+
+  view.dispatch(movedTr.scrollIntoView());
   view.focus();
   return true;
 }
@@ -472,7 +516,7 @@ function handleTextblockBoundaryArrow(view: EditorView, direction: Direction): b
     return false;
   }
 
-  return selectAtomicBlock(view, adjacent.from);
+  return moveSelectionPastAtomicBlock(view, adjacent, direction);
 }
 
 function handleAtomicBlockSelectionArrow(view: EditorView, direction: Direction): boolean {
@@ -486,18 +530,7 @@ function handleAtomicBlockSelectionArrow(view: EditorView, direction: Direction)
     return false;
   }
 
-  const adjacent = getAdjacentTopLevelBlock(view.state.doc, current, direction);
-  if (!adjacent) {
-    const insertPos = direction === 'up' ? current.from : current.to;
-    return insertTransientInputParagraph(view, insertPos);
-  }
-
-  if (isNavigableAtomicBlock(adjacent.node)) {
-    const insertPos = direction === 'up' ? current.from : current.to;
-    return insertTransientInputParagraph(view, insertPos);
-  }
-
-  return moveSelectionIntoTextblock(view, adjacent, direction);
+  return moveSelectionPastAtomicBlock(view, current, direction);
 }
 
 export function handleAtomicBlockKeyboardNavigation(

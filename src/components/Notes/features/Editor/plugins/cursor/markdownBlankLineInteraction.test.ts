@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import {
   MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES,
   createEditableMarkdownBlankLineDecorations,
   findEditableMarkdownBlankLineElement,
+  handleMarkdownBlankLineKeyboardNavigation,
   isEditableMarkdownBlankLineNode,
   resolveMarkdownBlankLineTargetAtCoords,
   resolveMarkdownBlankLineNodePos,
@@ -24,6 +28,45 @@ async function createEditor(markdown: string) {
 
   await editor.create();
   return editor;
+}
+
+function replaceDocument(view: EditorView, nodes: ProseNode[]): void {
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
+}
+
+function replaceWithBlankLineDocument(view: EditorView): void {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  const htmlBlockType = schema.nodes.html_block;
+  if (!paragraphType || !htmlBlockType) {
+    throw new Error('Expected paragraph and html_block schema nodes');
+  }
+
+  replaceDocument(view, [
+    paragraphType.create(null, schema.text('Alpha')),
+    htmlBlockType.create({ value: MARKDOWN_BLANK_LINE_VALUE }),
+    paragraphType.create(null, schema.text('Beta')),
+  ]);
+}
+
+function topLevelNodePos(view: EditorView, matcher: (node: ProseNode) => boolean): number {
+  let found: number | null = null;
+  view.state.doc.forEach((node, offset) => {
+    if (found !== null || !matcher(node)) return;
+    found = offset;
+  });
+  if (found === null) {
+    throw new Error('Expected matching top-level node');
+  }
+  return found;
+}
+
+function createArrowEvent(key: 'ArrowUp' | 'ArrowDown'): KeyboardEvent {
+  return new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
 }
 
 describe('markdownBlankLineInteraction', () => {
@@ -208,5 +251,55 @@ describe('markdownBlankLineInteraction', () => {
     expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBeNull();
     expect(accessed).toBe(MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES);
     expect(view.nodeDOM).not.toHaveBeenCalled();
+  });
+
+  it('converts an adjacent markdown blank line to an editable paragraph on ArrowDown instead of selecting the block', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithBlankLineDocument(view);
+      const firstParagraphPos = topLevelNodePos(view, (node) => node.type.name === 'paragraph' && node.textContent === 'Alpha');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, firstParagraphPos + 1 + 'Alpha'.length)));
+
+      const event = createArrowEvent('ArrowDown');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('converts an adjacent markdown blank line to an editable paragraph on ArrowUp instead of selecting the block', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithBlankLineDocument(view);
+      const betaParagraphPos = topLevelNodePos(view, (node) => node.type.name === 'paragraph' && node.textContent === 'Beta');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaParagraphPos + 1)));
+
+      const event = createArrowEvent('ArrowUp');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    } finally {
+      await editor.destroy();
+    }
   });
 });

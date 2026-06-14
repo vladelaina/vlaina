@@ -23,13 +23,17 @@ export const ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES = new Set([
 ]);
 
 export const NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES = new Set([
+  'html_block',
   'math_block',
   'mermaid',
+  'video',
 ]);
 
 export const TEXT_ONLY_BLOCK_EDGE_NODE_NAMES = new Set([
+  'html_block',
   'math_block',
   'mermaid',
+  'video',
 ]);
 
 export const STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES = new Set([

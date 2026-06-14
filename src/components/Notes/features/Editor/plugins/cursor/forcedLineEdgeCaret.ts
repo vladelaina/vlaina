@@ -1,5 +1,10 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretOverlayStyles';
+import {
+  createCaretOverlayRect,
+  createCaretOverlayStyle,
+  holdCaretBlink,
+  releaseCaretBlink,
+} from '@/lib/ui/caretOverlayStyles';
 import { themeDomStyleTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { applyBlankAreaPlainClickSelection, type BlankAreaPlainClickAction } from './blankAreaPlainClick';
 import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
@@ -117,6 +122,7 @@ function createForcedLineEdgeCaret(
   const previousInlineCaretColor = view.dom.style.caretColor;
   clearTextBlockCaretOverlay(view);
   doc.body.appendChild(caret);
+  holdCaretBlink(caret);
   view.dom.classList.add(FORCED_CARET_CLASS);
   view.dom.style.caretColor = themeStyleResetTokens.colorTransparent;
 
@@ -125,6 +131,7 @@ function createForcedLineEdgeCaret(
   const cleanup = () => {
     if (disposed) return;
     disposed = true;
+    releaseCaretBlink(caret);
     caret.remove();
     view.dom.classList.remove(FORCED_CARET_CLASS);
     view.dom.style.caretColor = previousInlineCaretColor;
