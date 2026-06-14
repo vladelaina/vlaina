@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ExternalLink, QrCode, RefreshCw } from 'lucide-react';
+import { ExternalLink, Globe, QrCode, RefreshCw } from 'lucide-react';
 import { FaDiscord, FaGithub, FaQq, FaWeixin } from 'react-icons/fa';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getElectronBridge } from '@/lib/electron/bridge';
@@ -31,6 +31,7 @@ interface UpdateInfo {
 }
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
+const officialWebsiteUrl = 'https://vlaina.com';
 const githubRepositoryUrl = 'https://github.com/vladelaina/vlaina';
 const discordInviteUrl = 'https://discord.gg/nvsh9QpTqS';
 const slackInviteUrl = 'https://join.slack.com/t/vlainafeedback/shared_invite/zt-406ohel4j-lIBFjHpDinWbMunatud_xA';
@@ -78,7 +79,7 @@ function ExternalTextLink({ href, children }: { href: string; children: ReactNod
 
 function renderRichText(text: string): ReactNode[] {
   const tokens: Record<string, ReactNode> = {
-    '{appSite}': <ExternalTextLink href="https://vlaina.com">vlaina</ExternalTextLink>,
+    '{appSite}': <ExternalTextLink href={officialWebsiteUrl}>vlaina</ExternalTextLink>,
     '{catimeSite}': <ExternalTextLink href="https://cati.me">Catime</ExternalTextLink>,
     '{authorSite}': <ExternalTextLink href="https://vladelaina.com">vladelaina</ExternalTextLink>,
     '{clockTopic}': <ExternalTextLink href="https://github.com/topics/clock">Topics clock</ExternalTextLink>,
@@ -175,6 +176,22 @@ function CommunityQrPill({
   );
 }
 
+function WebsitePill() {
+  const { t } = useI18n();
+
+  return (
+    <button
+      type="button"
+      onClick={() => void openExternalHref(officialWebsiteUrl)}
+      aria-label={t('settings.about.openWebsite')}
+      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+    >
+      <Globe size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-accent)]" />
+      <span>{t('settings.about.website')}</span>
+    </button>
+  );
+}
+
 function DiscordPill() {
   const { t } = useI18n();
 
@@ -249,7 +266,8 @@ function CommunityPills({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
 
   return (
-    <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-visible px-1.5 py-1 max-[420px]:gap-1 max-[420px]:px-0">
+    <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 gap-y-2 overflow-visible px-1.5 py-1 max-[420px]:gap-1 max-[420px]:gap-y-2 max-[420px]:px-0">
+      <WebsitePill />
       <GithubPill />
       <DiscordPill />
       <SlackPill />
@@ -401,7 +419,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
         />
         <div className="min-w-0 pt-1">
           <a
-            {...getExternalLinkProps('https://vlaina.com')}
+            {...getExternalLinkProps(officialWebsiteUrl)}
             className="inline-block max-w-full truncate text-[var(--vlaina-font-h4)] font-semibold leading-7 text-[var(--vlaina-accent)]"
           >
             vlaina

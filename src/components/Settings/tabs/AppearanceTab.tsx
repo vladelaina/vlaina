@@ -468,7 +468,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
         )}
       >
         <div className={cn(
-          "min-w-[min(100%,var(--vlaina-size-160px))] flex-1 pr-4 max-[640px]:w-full max-[640px]:pr-0",
+          "min-w-max flex-[1_1_auto] pr-4 max-[420px]:w-full max-[420px]:pr-0",
           isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
         )}>
           <div className="mb-0.5 whitespace-nowrap text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
@@ -476,9 +476,9 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
           </div>
         </div>
         <div className={cn(
-          "ml-auto flex min-w-0 flex-shrink-0 items-center gap-4 max-[640px]:ml-0 max-[640px]:w-full max-[640px]:flex-wrap",
+          "ml-auto flex min-w-0 flex-shrink-0 items-center gap-4 max-[420px]:ml-0 max-[420px]:w-full max-[420px]:flex-wrap",
         )}>
-          <div className="min-w-[var(--vlaina-size-180px)] flex-1 max-[640px]:min-w-0">
+          <div className="min-w-[var(--vlaina-size-180px)] flex-1 max-[420px]:min-w-0">
             {fontSizeSlider}
           </div>
           <span className={cn(
@@ -513,7 +513,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
           isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]"
         )}
       >
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 max-[640px]:w-full max-[640px]:justify-start">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 max-[420px]:w-full max-[420px]:justify-start">
           <ThemeAppearanceControl
             colorMode={colorMode}
             importedThemeId={importedThemeId}

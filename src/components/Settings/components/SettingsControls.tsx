@@ -93,13 +93,23 @@ export function SettingsItem({
     className,
     'data-settings-item': dataSettingsItem,
 }: SettingsItemProps) {
+    const hasDescription = Boolean(description);
+
     return (
         <div
             data-settings-item={dataSettingsItem}
             className={cn("mb-3 flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4", chatComposerPillSurfaceClass, className)}
         >
-            <div className="min-w-[min(100%,var(--vlaina-size-220px))] flex-1 pr-4 max-[640px]:w-full max-[640px]:pr-0">
-                <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)] mb-0.5">
+            <div className={cn(
+                hasDescription
+                    ? "min-w-[min(100%,var(--vlaina-size-220px))] flex-1"
+                    : "min-w-max flex-[1_1_auto]",
+                "pr-4 max-[420px]:w-full max-[420px]:pr-0",
+            )}>
+                <div className={cn(
+                    "mb-0.5 text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]",
+                    !hasDescription && "whitespace-nowrap",
+                )}>
                     {title}
                 </div>
                 {description && (
@@ -108,7 +118,7 @@ export function SettingsItem({
                     </div>
                 )}
             </div>
-            <div className="min-w-0 flex-shrink-0 max-[640px]:w-full">
+            <div className="min-w-0 flex-shrink-0 max-[420px]:w-full">
                 {children}
             </div>
         </div>
