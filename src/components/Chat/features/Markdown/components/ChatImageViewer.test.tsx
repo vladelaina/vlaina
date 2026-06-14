@@ -14,6 +14,10 @@ const imageResolutionMocks = vi.hoisted(() => ({
   actualResolveSafeChatImageSource: null as null | ((src: string, id?: string) => Promise<string | null>),
   resolveSafeChatImageSource: vi.fn(),
 }));
+const imageActionMocks = vi.hoisted(() => ({
+  copyImageSourceToClipboard: vi.fn(async () => true),
+  downloadImageWithPrompt: vi.fn(async () => undefined),
+}));
 const TRANSPARENT_IMAGE_DATA_URL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
@@ -66,6 +70,14 @@ vi.mock('@/components/Chat/common/svgRasterize', () => ({
   rasterizeSvgDataUrlToPng: svgMocks.rasterizeSvgDataUrlToPng,
 }));
 
+vi.mock('@/components/Chat/common/messageClipboard', () => ({
+  copyImageSourceToClipboard: imageActionMocks.copyImageSourceToClipboard,
+}));
+
+vi.mock('@/components/Chat/common/imageDownload', () => ({
+  downloadImageWithPrompt: imageActionMocks.downloadImageWithPrompt,
+}));
+
 vi.mock('@/components/Chat/common/chatImageSourceResolution', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/Chat/common/chatImageSourceResolution')>();
   imageResolutionMocks.actualResolveSafeChatImageSource = actual.resolveSafeChatImageSource;
@@ -87,6 +99,10 @@ describe('ChatImageViewer', () => {
     });
     svgMocks.rasterizeSvgDataUrlToPng.mockReset();
     svgMocks.rasterizeSvgDataUrlToPng.mockResolvedValue('data:image/png;base64,RASTER');
+    imageActionMocks.copyImageSourceToClipboard.mockClear();
+    imageActionMocks.copyImageSourceToClipboard.mockResolvedValue(true);
+    imageActionMocks.downloadImageWithPrompt.mockClear();
+    imageActionMocks.downloadImageWithPrompt.mockResolvedValue(undefined);
   });
 
   it('closes when the blank area is pressed even if the cropper stops bubbling events', async () => {
@@ -256,6 +272,29 @@ describe('ChatImageViewer', () => {
     );
     expect(image).not.toHaveAttribute('src', 'demo.png');
     expect(convertToBase64).not.toHaveBeenCalled();
+  });
+
+  it('uses the original image source for viewer copy and download while showing a preview source', async () => {
+    const onOpenChange = vi.fn();
+    const originalSrc = 'https://example.com/cover.jpg#w=72%25';
+
+    render(
+      <ChatImageViewer
+        open
+        src={originalSrc}
+        alt="cover"
+        previewSrc="blob:cached-preview"
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy image' }));
+    await waitFor(() => {
+      expect(imageActionMocks.copyImageSourceToClipboard).toHaveBeenCalledWith(originalSrc);
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Download image' }));
+    expect(imageActionMocks.downloadImageWithPrompt).toHaveBeenCalledWith(originalSrc, 'cover');
   });
 
   it('still matches short decoded gallery image sources', async () => {

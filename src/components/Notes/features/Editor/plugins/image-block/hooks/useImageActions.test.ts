@@ -15,9 +15,13 @@ vi.mock('@/lib/i18n', () => ({
     useI18n: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock('@/lib/clipboard', () => ({
-    writeTextToClipboard: mocks.writeTextToClipboard,
-}));
+vi.mock('@/lib/clipboard', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/lib/clipboard')>();
+    return {
+        ...actual,
+        writeTextToClipboard: mocks.writeTextToClipboard,
+    };
+});
 
 vi.mock('@/lib/desktop/fs', () => ({
     writeDesktopBinaryFile: mocks.writeDesktopBinaryFile,
@@ -41,14 +45,22 @@ vi.mock('../commands/imageNodeCommands', () => ({
     deleteImageNodeAtPos: vi.fn(),
 }));
 
-function renderImageActions(overrides: Partial<Parameters<typeof useImageActions>[0]> = {}) {
+type ImageActionOverrides = Partial<Parameters<typeof useImageActions>[0]> & {
+    alt?: string;
+    nodeSrc?: string;
+};
+
+function renderImageActions(overrides: ImageActionOverrides = {}) {
+    const { alt: overrideAlt, nodeSrc: overrideNodeSrc, ...actionOverrides } = overrides;
+    const nodeSrc = overrideNodeSrc ?? 'assets/demo.png';
+    const alt = overrideAlt ?? 'demo';
     return renderHook(() =>
         useImageActions({
-            node: { attrs: { src: 'assets/demo.png', alt: 'demo' } } as never,
+            node: { attrs: { src: nodeSrc, alt } } as never,
             view: {} as never,
             getPos: () => undefined,
-            baseSrc: 'assets/demo.png',
-            resolvedSrc: 'blob:resolved-image',
+            baseSrc: actionOverrides.baseSrc ?? nodeSrc,
+            resolvedSrc: actionOverrides.resolvedSrc ?? 'blob:resolved-image',
             notesPath: '/vault',
             currentNotePath: 'note.md',
             updateNodeAttrs: vi.fn(),
@@ -56,7 +68,7 @@ function renderImageActions(overrides: Partial<Parameters<typeof useImageActions
             setCropParams: vi.fn(),
             setIsActive: vi.fn(),
             setHeight: vi.fn(),
-            ...overrides,
+            ...actionOverrides,
         })
     );
 }
@@ -78,6 +90,10 @@ describe('useImageActions', () => {
         vi.clearAllMocks();
         vi.unstubAllGlobals();
         mocks.rasterizeSvgBlobToPngBlob.mockImplementation(async (blob: Blob) => blob);
+        Object.defineProperty(window, 'vlainaDesktop', {
+            configurable: true,
+            value: undefined,
+        });
     });
 
     it('falls back to copying source text when resolved content is not an image', async () => {
@@ -167,6 +183,131 @@ describe('useImageActions', () => {
                 },
             }),
         ]);
+    });
+
+    it('copies resolved image content through the desktop image clipboard when available', async () => {
+        const clipboardWrite = vi.fn(async () => undefined);
+        const desktopWriteImage = vi.fn(async () => undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { write: clipboardWrite },
+        });
+        Object.defineProperty(window, 'vlainaDesktop', {
+            configurable: true,
+            value: {
+                platform: 'electron',
+                clipboard: {
+                    writeText: vi.fn(),
+                    writeImage: desktopWriteImage,
+                },
+            },
+        });
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '1',
+                'content-type': 'image/png',
+            }),
+            blob: async () => new Blob(['x'], { type: 'image/png' }),
+        })));
+        const { result } = renderImageActions();
+
+        let copied = false;
+        await act(async () => {
+            copied = await result.current.handleCopy();
+        });
+
+        expect(copied).toBe(true);
+        expect(desktopWriteImage).toHaveBeenCalledWith('data:image/png;base64,eA==');
+        expect(clipboardWrite).not.toHaveBeenCalled();
+        expect(mocks.writeTextToClipboard).not.toHaveBeenCalled();
+    });
+
+    it('copies remote image content from the original resource URL instead of the cached blob URL', async () => {
+        const desktopWriteImage = vi.fn(async () => undefined);
+        Object.defineProperty(window, 'vlainaDesktop', {
+            configurable: true,
+            value: {
+                platform: 'electron',
+                clipboard: {
+                    writeText: vi.fn(),
+                    writeImage: desktopWriteImage,
+                },
+            },
+        });
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '3',
+                'content-type': 'image/jpeg',
+            }),
+            blob: async () => new Blob(['jpg'], { type: 'image/jpeg' }),
+        })));
+        const remoteSrc = 'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg#w=72%25';
+        const { result } = renderImageActions({
+            alt: 'cover',
+            baseSrc: remoteSrc,
+            nodeSrc: remoteSrc,
+            resolvedSrc: 'blob:cached-remote-image',
+        });
+
+        let copied = false;
+        await act(async () => {
+            copied = await result.current.handleCopy();
+        });
+
+        expect(copied).toBe(true);
+        expect(fetch).toHaveBeenCalledWith(
+            'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg',
+            expect.objectContaining({
+                credentials: 'omit',
+                referrerPolicy: 'no-referrer',
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalledWith('blob:cached-remote-image', expect.anything());
+        expect(desktopWriteImage).toHaveBeenCalledWith('data:image/jpeg;base64,anBn');
+    });
+
+    it('normalizes protocol-relative remote image sources before copying instead of using the cached blob URL', async () => {
+        const desktopWriteImage = vi.fn(async () => undefined);
+        Object.defineProperty(window, 'vlainaDesktop', {
+            configurable: true,
+            value: {
+                platform: 'electron',
+                clipboard: {
+                    writeText: vi.fn(),
+                    writeImage: desktopWriteImage,
+                },
+            },
+        });
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '3',
+                'content-type': 'image/png',
+            }),
+            blob: async () => new Blob(['png'], { type: 'image/png' }),
+        })));
+        const remoteSrc = '//example.com/assets/cover.png#w=72%25';
+        const { result } = renderImageActions({
+            alt: 'cover',
+            baseSrc: remoteSrc,
+            nodeSrc: remoteSrc,
+            resolvedSrc: 'blob:cached-protocol-relative-image',
+        });
+
+        let copied = false;
+        await act(async () => {
+            copied = await result.current.handleCopy();
+        });
+
+        expect(copied).toBe(true);
+        expect(fetch).toHaveBeenCalledWith(
+            'https://example.com/assets/cover.png',
+            expect.objectContaining({
+                credentials: 'omit',
+                referrerPolicy: 'no-referrer',
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalledWith('blob:cached-protocol-relative-image', expect.anything());
+        expect(desktopWriteImage).toHaveBeenCalledWith('data:image/png;base64,cG5n');
     });
 
     it('does not copy oversized resolved image responses', async () => {
@@ -291,6 +432,78 @@ describe('useImageActions', () => {
             appendSpy.mockRestore();
             removeSpy.mockRestore();
         }
+    });
+
+    it('downloads remote image content from the original resource URL instead of the cached blob URL', async () => {
+        mocks.saveDialog.mockResolvedValueOnce('/downloads/cover.jpg');
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '3',
+                'content-type': 'image/jpeg',
+            }),
+            blob: async () => new Blob([new Uint8Array([7, 8, 9])], { type: 'image/jpeg' }),
+        })));
+        const remoteSrc = 'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg#w=72%25';
+        const { result } = renderImageActions({
+            alt: 'cover',
+            baseSrc: remoteSrc,
+            nodeSrc: remoteSrc,
+            resolvedSrc: 'blob:cached-remote-image',
+        });
+
+        await act(async () => {
+            await result.current.handleDownload();
+        });
+
+        expect(mocks.saveDialog).toHaveBeenCalledWith({
+            defaultPath: 'cover.jpg',
+            filters: [{ name: 'Images', extensions: ['png', 'jpg', 'webp'] }],
+        });
+        expect(fetch).toHaveBeenCalledWith(
+            'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg',
+            expect.objectContaining({
+                credentials: 'omit',
+                referrerPolicy: 'no-referrer',
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalledWith('blob:cached-remote-image', expect.anything());
+        expect(mocks.writeDesktopBinaryFile).toHaveBeenCalledWith('/downloads/cover.jpg', new Uint8Array([7, 8, 9]));
+    });
+
+    it('normalizes protocol-relative remote image sources before downloading instead of using the cached blob URL', async () => {
+        mocks.saveDialog.mockResolvedValueOnce('/downloads/cover.png');
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '3',
+                'content-type': 'image/png',
+            }),
+            blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+        })));
+        const remoteSrc = '//example.com/assets/cover.png#w=72%25';
+        const { result } = renderImageActions({
+            alt: 'cover',
+            baseSrc: remoteSrc,
+            nodeSrc: remoteSrc,
+            resolvedSrc: 'blob:cached-protocol-relative-image',
+        });
+
+        await act(async () => {
+            await result.current.handleDownload();
+        });
+
+        expect(mocks.saveDialog).toHaveBeenCalledWith({
+            defaultPath: 'cover.png',
+            filters: [{ name: 'Images', extensions: ['png', 'jpg', 'webp'] }],
+        });
+        expect(fetch).toHaveBeenCalledWith(
+            'https://example.com/assets/cover.png',
+            expect.objectContaining({
+                credentials: 'omit',
+                referrerPolicy: 'no-referrer',
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalledWith('blob:cached-protocol-relative-image', expect.anything());
+        expect(mocks.writeDesktopBinaryFile).toHaveBeenCalledWith('/downloads/cover.png', new Uint8Array([1, 2, 3]));
     });
 
     it('does not hang when fallback downloaded image reading is aborted', async () => {

@@ -1,5 +1,6 @@
 import { writeDesktopBinaryFile } from "@/lib/desktop/fs";
 import { translate } from "@/lib/i18n/runtime";
+import { stripImagePresentationFragment } from "@/lib/markdown/imageResourceSource";
 import { saveDialog } from "@/lib/storage/dialog";
 import { fetchChatImageBlobResult, MAX_CHAT_IMAGE_FETCH_BYTES } from "./chatImageFetch";
 import { resolveSafeChatImageSource } from "./chatImageSourceResolution";
@@ -104,10 +105,11 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
   if (!resolvedSrc) {
     return;
   }
+  const resourceSrc = stripImagePresentationFragment(resolvedSrc);
 
   let blob: Blob | null = null;
   try {
-    const result = await fetchChatImageBlobResult(resolvedSrc);
+    const result = await fetchChatImageBlobResult(resourceSrc);
     if (result.status === "too-large") {
       return;
     }
@@ -124,7 +126,7 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
   }
 
   const filename = resolveFilename(alt, src, blob?.type || "");
-  const sourceExt = extensionFromSource(src)?.toLowerCase() || extensionFromSource(resolvedSrc)?.toLowerCase();
+  const sourceExt = extensionFromSource(src)?.toLowerCase() || extensionFromSource(resourceSrc)?.toLowerCase();
   const shouldSaveBlobWithoutMime = !!blob && !blob.type && isRasterImageExtension(sourceExt);
 
   if (blob && (blob.type.startsWith("image/") || shouldSaveBlobWithoutMime)) {
@@ -151,5 +153,5 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
     return;
   }
 
-  await downloadViaAnchor(resolvedSrc, filename);
+  await downloadViaAnchor(resourceSrc, filename);
 }

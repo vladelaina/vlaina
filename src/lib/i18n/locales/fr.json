@@ -289,6 +289,7 @@
   "chat.nextImage": "Image suivante",
   "chat.currentPage": "Page actuelle",
   "chat.copyImage": "Copier l'image",
+  "chat.copyImageFailed": "Impossible de copier l'image",
   "chat.closePreview": "Fermer l'aperçu",
   "chat.disableTemporaryChat": "Désactiver le chat temporaire",
   "chat.saveAsRegular": "Conserver ce chat",

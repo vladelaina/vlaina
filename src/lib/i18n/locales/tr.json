@@ -289,6 +289,7 @@
   "chat.nextImage": "Sonraki resim",
   "chat.currentPage": "Mevcut sayfa",
   "chat.copyImage": "Resmi kopyala",
+  "chat.copyImageFailed": "Resim kopyalanamadı",
   "chat.closePreview": "Önizlemeyi kapat",
   "chat.disableTemporaryChat": "Geçici sohbeti kapat",
   "chat.saveAsRegular": "Bu sohbeti sakla",

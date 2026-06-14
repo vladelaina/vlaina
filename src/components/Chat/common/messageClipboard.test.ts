@@ -47,6 +47,10 @@ describe("messageClipboard", () => {
   beforeEach(() => {
     svgMocks.rasterizeSvgDataUrlToPng.mockImplementation(async (value: string) => value);
     svgMocks.rasterizeSvgBlobToPngBlob.mockImplementation(async (blob: Blob) => blob);
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: undefined,
+      configurable: true,
+    });
     Object.defineProperty(navigator, "clipboard", {
       value: {
         write: vi.fn(),
@@ -452,6 +456,124 @@ describe("messageClipboard", () => {
 
     expect(copied).toBe(true);
     expect(writeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("copies fetched image blobs through the desktop image clipboard", async () => {
+    const writeImage = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: {
+        platform: "electron",
+        clipboard: {
+          writeText: vi.fn(),
+          writeImage,
+        },
+      },
+      configurable: true,
+    });
+    const writeMock = vi.spyOn(navigator.clipboard, "write");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["x"], { type: "image/png" }))),
+    );
+
+    const copied = await copyImageSourceToClipboard("https://a.com/cover.jpg#w=72%25");
+
+    expect(copied).toBe(true);
+    expect(fetch).toHaveBeenCalledWith("https://a.com/cover.jpg", expect.objectContaining({
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+    }));
+    expect(writeImage).toHaveBeenCalledWith("data:image/png;base64,eA==");
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps fetched jpeg images in their original format for the desktop image clipboard", async () => {
+    const writeImage = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: {
+        platform: "electron",
+        clipboard: {
+          writeText: vi.fn(),
+          writeImage,
+        },
+      },
+      configurable: true,
+    });
+    const createImageBitmapMock = vi.fn();
+    vi.stubGlobal("createImageBitmap", createImageBitmapMock);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["jpg"], { type: "image/jpeg" }))),
+    );
+
+    const copied = await copyImageSourceToClipboard("https://a.com/cover.jpg#w=72%25");
+
+    expect(copied).toBe(true);
+    expect(writeImage).toHaveBeenCalledWith("data:image/jpeg;base64,anBn");
+    expect(createImageBitmapMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes fetched jpeg MIME parameters for the desktop image clipboard", async () => {
+    const writeImage = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: {
+        platform: "electron",
+        clipboard: {
+          writeText: vi.fn(),
+          writeImage,
+        },
+      },
+      configurable: true,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["jpg"], { type: "image/jpeg; charset=utf-8" }))),
+    );
+
+    const copied = await copyImageSourceToClipboard("https://a.com/cover.jpg#w=72%25");
+
+    expect(copied).toBe(true);
+    expect(writeImage).toHaveBeenCalledWith("data:image/jpeg;base64,anBn");
+  });
+
+  it("converts fetched jpeg images to png before using the web image clipboard", async () => {
+    const writeMock = vi.spyOn(navigator.clipboard, "write");
+    const drawImage = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation(((tagName: string) => {
+      if (tagName === "canvas") {
+        return {
+          width: 0,
+          height: 0,
+          getContext: vi.fn(() => ({ drawImage })),
+          toBlob: vi.fn((callback: BlobCallback) => callback(new Blob(["png"], { type: "image/png" }))),
+        } as unknown as HTMLCanvasElement;
+      }
+      return originalCreateElement(tagName);
+    }) as typeof document.createElement);
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({
+      width: 2,
+      height: 1,
+      close: vi.fn(),
+    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["jpg"], { type: "image/jpeg" }))),
+    );
+
+    const copied = await copyImageSourceToClipboard("https://a.com/cover.jpg#w=72%25");
+
+    expect(copied).toBe(true);
+    expect(drawImage).toHaveBeenCalledTimes(1);
+    expect(writeMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        data: {
+          "image/png": expect.any(Blob),
+        },
+      }),
+    ]);
+
+    createElementSpy.mockRestore();
   });
 
   it("copies data URL images through the desktop image clipboard when available", async () => {

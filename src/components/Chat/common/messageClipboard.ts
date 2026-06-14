@@ -1,10 +1,11 @@
 import { stripErrorTags } from '@/lib/ai/errorTag';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup';
-import { writeTextToClipboard } from '@/lib/clipboard';
+import { normalizeClipboardImageDataUrl, writeImageBlobToClipboard, writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import { stripImagePresentationFragment } from '@/lib/markdown/imageResourceSource';
 import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber';
 import { htmlImageTagHasDataImageSrc } from '@/lib/markdown/markdownHtmlImageSrc';
 import {
@@ -257,16 +258,19 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
     }
     if (isRenderableDataImageSrc(resolvedSrc)) {
       const desktopClipboard = getElectronBridge()?.clipboard;
+      const clipboardDataUrl = normalizeClipboardImageDataUrl(resolvedSrc);
       if (desktopClipboard?.writeImage) {
         try {
-          await desktopClipboard.writeImage(resolvedSrc);
-          return true;
+          if (clipboardDataUrl) {
+            await desktopClipboard.writeImage(clipboardDataUrl);
+            return true;
+          }
         } catch {
         }
       }
     }
 
-    let blob = await fetchChatImageBlob(resolvedSrc);
+    let blob = await fetchChatImageBlob(stripImagePresentationFragment(resolvedSrc));
     if (!blob) {
       return false;
     }
@@ -280,12 +284,7 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
     if (!isBlobByteLengthWithinLimit(blob.size, MAX_CHAT_IMAGE_FETCH_BYTES)) {
       return false;
     }
-    const ClipboardItemCtor = (window as any).ClipboardItem;
-    if (ClipboardItemCtor && blob.type.startsWith("image/")) {
-      const item = new ClipboardItemCtor({ [blob.type]: blob });
-      await navigator.clipboard.write([item]);
-      return true;
-    }
+    return await writeImageBlobToClipboard(blob);
   } catch {
   }
   return false;

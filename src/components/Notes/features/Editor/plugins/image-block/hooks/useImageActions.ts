@@ -2,12 +2,14 @@ import { useCallback, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
 import { sanitizeFilename } from '@/lib/assets/core/naming';
-import { writeTextToClipboard } from '@/lib/clipboard';
+import { writeImageBlobToClipboard, writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { fetchBoundedImageBlobResult, MAX_FETCHED_IMAGE_BYTES } from '@/lib/markdown/fetchBoundedImageBlob';
 import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from '@/lib/markdown/svgRasterize';
+import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { saveDialog } from '@/lib/storage/dialog';
 import { ensureImageFileExists } from '../utils/fileUtils';
+import { getImageSourceBase, isVirtualImageSource } from '../utils/imageSourcePath';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { deleteImageNodeAtPos } from '../commands/imageNodeCommands';
@@ -63,6 +65,18 @@ export function createImageDownloadDefaultName(alt: string, src: string) {
     const sanitizedBase = sanitizeFilename(alt.replace(/[\u0000-\u001f\u007f]/g, ''))
         .replace(/^\.+|\.+$/g, '') || 'image';
     return `${sanitizedBase}.${getSafeDownloadExtension(src)}`;
+}
+
+function getImageActionResourceSrc(baseSrc: string, resolvedSrc?: string): string {
+    const baseResourceSrc = getImageSourceBase(baseSrc);
+    const remoteResourceSrc = normalizePublicRemoteMediaUrl(baseResourceSrc);
+    if (remoteResourceSrc) {
+        return remoteResourceSrc;
+    }
+    if (baseResourceSrc && isVirtualImageSource(baseResourceSrc)) {
+        return baseResourceSrc;
+    }
+    return resolvedSrc || '';
 }
 
 async function readBlobBytes(blob: Blob): Promise<Uint8Array> {
@@ -150,8 +164,9 @@ export function useImageActions({
     const handleCopy = async () => {
         try {
             await restoreIfNeeded();
-            if (resolvedSrc) {
-                const result = await fetchBoundedImageBlobResult(resolvedSrc);
+            const resourceSrc = getImageActionResourceSrc(baseSrc, resolvedSrc);
+            if (resourceSrc) {
+                const result = await fetchBoundedImageBlobResult(resourceSrc);
                 if (result.status === 'too-large') {
                     return false;
                 }
@@ -159,25 +174,25 @@ export function useImageActions({
                 if (!blob) {
                     return writeTextToClipboard(nodeSrc);
                 }
-                await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-                return true;
+                return writeImageBlobToClipboard(blob);
             } else {
                 return writeTextToClipboard(nodeSrc);
             }
         } catch {
-            try { return await writeTextToClipboard(nodeSrc); } catch { return false; }
+            return false;
         }
     };
 
     const handleDownload = async () => {
-        if (!resolvedSrc) return;
-        let allowAnchorFallback = !isLikelySvgImageSource(baseSrc) && !isLikelySvgImageSource(resolvedSrc);
+        const resourceSrc = getImageActionResourceSrc(baseSrc, resolvedSrc);
+        if (!resourceSrc) return;
+        let allowAnchorFallback = !isLikelySvgImageSource(baseSrc) && !isLikelySvgImageSource(resourceSrc);
         try {
             await restoreIfNeeded();
             const defaultName = createImageDownloadDefaultName(nodeAlt || 'image', baseSrc);
             const filePath = await saveDialog({ defaultPath: defaultName, filters: [{ name: 'Images', extensions: ['png', 'jpg', 'webp'] }] });
             if (!filePath) return;
-            const result = await fetchBoundedImageBlobResult(resolvedSrc);
+            const result = await fetchBoundedImageBlobResult(resourceSrc);
             if (result.status === 'too-large') return;
             if (isSvgImageMimeType(result.blob.type)) {
                 allowAnchorFallback = false;
@@ -188,7 +203,7 @@ export function useImageActions({
         } catch {
             if (!allowAnchorFallback) return;
             const link = document.createElement('a');
-            link.href = resolvedSrc;
+            link.href = resourceSrc;
             link.download = nodeAlt || 'image';
             document.body.appendChild(link);
             link.click();

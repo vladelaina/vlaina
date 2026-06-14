@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { useToastStore } from '@/stores/useToastStore';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface ImageToolbarProps {
@@ -25,6 +27,8 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     isVisible,
     hideMediaActions = false,
 }) => {
+    const { t } = useI18n();
+    const { addToast } = useToastStore();
     const [copied, setCopied] = useState(false);
     const mountedRef = React.useRef(true);
 
@@ -49,8 +53,14 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
         void Promise.resolve(onCopy()).then((didCopy) => {
             if (mountedRef.current && didCopy !== false) {
                 setCopied(true);
+            } else if (mountedRef.current) {
+                addToast(t('chat.copyImageFailed'), 'error');
             }
-        }, () => undefined);
+        }, () => {
+            if (mountedRef.current) {
+                addToast(t('chat.copyImageFailed'), 'error');
+            }
+        });
     };
 
     return (
@@ -68,16 +78,19 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
                     icon={<Icon size="md" name="editor.alignLeft" />}
                     onClick={() => onAlign('left')}
                     active={alignment === 'left'}
+                    action="align-left"
                 />
                 <ToolbarButton
                     icon={<Icon size="md" name="editor.alignCenter" />}
                     onClick={() => onAlign('center')}
                     active={alignment === 'center'}
+                    action="align-center"
                 />
                 <ToolbarButton
                     icon={<Icon size="md" name="editor.alignRight" />}
                     onClick={() => onAlign('right')}
                     active={alignment === 'right'}
+                    action="align-right"
                 />
             </div>
 
@@ -86,13 +99,14 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
                     <div className="toolbar-divider" />
 
                     <div className="flex items-center gap-0.5">
-                        <ToolbarButton icon={<Icon size="md" name="editor.crop" />} onClick={onEdit} />
+                        <ToolbarButton icon={<Icon size="md" name="editor.crop" />} onClick={onEdit} action="edit" />
                         <ToolbarButton
                             icon={copied ? <Icon size="md" name="common.check" /> : <Icon size="md" name="common.copy" />}
                             onClick={handleCopy}
                             success={copied}
+                            action="copy"
                         />
-                        <ToolbarButton icon={<Icon size="md" name="common.download" />} onClick={onDownload} />
+                        <ToolbarButton icon={<Icon size="md" name="common.download" />} onClick={onDownload} action="download" />
                     </div>
                 </>
             ) : null}
@@ -100,7 +114,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
             <div className="toolbar-divider" />
 
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<Icon size="md" name="common.delete" />} onClick={onDelete} danger />
+                <ToolbarButton icon={<Icon size="md" name="common.delete" />} onClick={onDelete} danger action="delete" />
             </div>
         </div>
     );
@@ -111,17 +125,30 @@ function ToolbarButton({
     onClick,
     danger,
     success,
-    active
+    active,
+    action,
 }: {
     icon: React.ReactNode;
     onClick: () => void;
     danger?: boolean;
     success?: boolean;
     active?: boolean;
+    action?: string;
 }) {
     return (
         <button
-            onClick={onClick}
+            type="button"
+            data-no-focus-input="true"
+            data-image-toolbar-action={action}
+            onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            }}
+            onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onClick();
+            }}
             className={cn(
                 "toolbar-btn image-toolbar-btn",
                 active && "active",

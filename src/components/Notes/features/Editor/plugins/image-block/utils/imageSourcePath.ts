@@ -10,6 +10,7 @@ import {
     sanitizeNoteMediaSrc,
 } from '@/lib/notes/markdown/urlSecurity';
 import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { stripImagePresentationFragment } from '@/lib/markdown/imageResourceSource';
 
 interface ImageSourcePathDeps {
     getParentPath: (path: string) => string | null;
@@ -30,7 +31,7 @@ const defaultDeps: ImageSourcePathDeps = {
 };
 
 export function getImageSourceBase(rawSrc: string): string {
-    return rawSrc.split('#')[0] ?? '';
+    return stripImagePresentationFragment(rawSrc);
 }
 
 export function getLocalImageSourcePath(baseSrc: string): string {
