@@ -1,3 +1,5 @@
+import { MAX_WEB_SEARCH_QUERY_CHARS } from '../types.mjs';
+
 const PACKAGE_REGISTRY_HINTS = [
   {
     pattern: /\bnpm\b\s+(@?[a-z0-9._/-]+)\s+\b(package|registry|official)\b/i,
@@ -38,8 +40,12 @@ const PACKAGE_REGISTRY_HINTS = [
 ];
 
 export function buildPackageRegistrySourceHints(query) {
+  if (typeof query !== 'string' || query.length > MAX_WEB_SEARCH_QUERY_CHARS) {
+    return [];
+  }
+
   return PACKAGE_REGISTRY_HINTS.flatMap((hint) => {
-    const match = String(query).match(hint.pattern);
+    const match = query.match(hint.pattern);
     if (!match) return [];
     const packageName = match[1].replace(/\/$/, '');
     return {

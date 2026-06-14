@@ -120,7 +120,7 @@ export function normalizeThemeRelativePathInsideDirectory(
     parts.push(part);
   }
 
-  return parts.length > 0 ? decodedPath : null;
+  return parts.length > 0 ? parts.join('/') : null;
 }
 
 export function isThemeRelativePathInsideDirectory(directoryPath: string, relativePath: string): boolean {

@@ -28,6 +28,8 @@ interface NormalizedSearchText {
 
 export const MAX_EDITOR_FIND_MATCHES = 20_000;
 export const MAX_EDITOR_FIND_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_EDITOR_FIND_BLOCK_TEXT_CHARS = 1024 * 1024;
+export const MAX_EDITOR_FIND_QUERY_CHARS = 4096;
 
 function appendInlineSegments(
   node: ProseNode,
@@ -47,7 +49,12 @@ function appendInlineSegments(
   }
 
   if (node.isText) {
-    const text = node.text ?? '';
+    const remainingChars = MAX_EDITOR_FIND_BLOCK_TEXT_CHARS - offsetRef.value;
+    if (remainingChars <= 0) {
+      return;
+    }
+
+    const text = (node.text ?? '').slice(0, remainingChars);
     if (!text) {
       return;
     }
@@ -204,7 +211,7 @@ function createMatchFromOffsets(
 }
 
 export function buildEditorFindMatches(doc: ProseNode, query: string): EditorFindMatch[] {
-  if (query.length === 0) {
+  if (query.length === 0 || query.length > MAX_EDITOR_FIND_QUERY_CHARS) {
     return [];
   }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { MermaidNodeView, shouldRefreshMermaidElementCode } from './MermaidNodeView';
-import { createMermaidElement } from './mermaidDom';
+import { createMermaidElement, getMermaidElementCode } from './mermaidDom';
 
 describe('MermaidNodeView', () => {
   it('compares node updates against normalized Mermaid code', () => {
@@ -60,6 +60,25 @@ describe('MermaidNodeView', () => {
     expect(nodeView.dom.classList.contains('ProseMirror-selectednode')).toBe(false);
     expect(nodeView.dom.classList.contains('md-focus')).toBe(false);
 
+    nodeView.destroy();
+  });
+
+  it('treats non-string node code as empty without coercion', () => {
+    const code = {
+      toString() {
+        throw new Error('mermaid code coercion');
+      },
+    };
+    const nodeView = new MermaidNodeView(
+      {
+        attrs: { code },
+        type: { name: 'mermaid' },
+      } as unknown as Node,
+      { root: document } as unknown as EditorView,
+      () => 0
+    );
+
+    expect(getMermaidElementCode(nodeView.dom)).toBe('');
     nodeView.destroy();
   });
 });

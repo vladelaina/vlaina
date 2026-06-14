@@ -2,7 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
-import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
+import { isSafeVaultPathSegment, MAX_VAULT_RELATIVE_PATH_CHARS } from './utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 const MAX_FILE_TREE_ENTRIES = 5000;
@@ -198,6 +198,7 @@ export async function buildFileTreeLevel(
     if (!isSafeVaultPathSegment(entry.name)) continue;
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+    if (entryPath.length > MAX_VAULT_RELATIVE_PATH_CHARS) continue;
 
     const isDir = entry.isDirectory === true;
     const isMarkdownFile = entry.isFile === true && isSupportedMarkdownPath(entry.name);

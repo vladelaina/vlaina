@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MAX_WEB_ADAPTER_FILE_BYTES, WebAdapter } from './WebAdapter';
 
@@ -52,6 +52,23 @@ describe('WebAdapter write budgets', () => {
     await expect(adapter.exists('/write-budget/huge.md')).resolves.toBe(false);
   });
 
+  it('rejects oversized recursive text writes before creating parent directories', async () => {
+    const originalBlob = globalThis.Blob;
+    vi.stubGlobal('Blob', class {
+      readonly size = MAX_WEB_ADAPTER_FILE_BYTES + 1;
+    } as unknown as typeof Blob);
+
+    try {
+      await expect(
+        adapter.writeFile('/write-budget/new/huge.md', 'x', { recursive: true }),
+      ).rejects.toThrow('Web content is too large to write');
+    } finally {
+      vi.stubGlobal('Blob', originalBlob);
+    }
+
+    await expect(adapter.exists('/write-budget/new')).resolves.toBe(false);
+  });
+
   it('rejects appending binary data past the web write limit before storing a replacement', async () => {
     const restore = replaceReadStoredFile(async () => ({
       path: '/write-budget/huge.bin',
@@ -71,6 +88,16 @@ describe('WebAdapter write budgets', () => {
     }
 
     await expect(adapter.exists('/write-budget/huge.bin')).resolves.toBe(false);
+  });
+
+  it('rejects oversized recursive binary writes before creating parent directories', async () => {
+    const oversized = { byteLength: MAX_WEB_ADAPTER_FILE_BYTES + 1 } as Uint8Array;
+
+    await expect(
+      adapter.writeBinaryFile('/write-budget/assets/huge.bin', oversized, { recursive: true }),
+    ).rejects.toThrow('Web content is too large to write');
+
+    await expect(adapter.exists('/write-budget/assets')).resolves.toBe(false);
   });
 
   it('does not turn append read failures into overwrites', async () => {

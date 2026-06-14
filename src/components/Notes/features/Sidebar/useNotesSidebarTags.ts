@@ -17,11 +17,13 @@ import {
   createNotesSidebarTagIndex,
   reconcileNotesSidebarTagIndex,
   type NotesSidebarTagIndex,
+  type NotesSidebarTagScopeEntry,
 } from './notesSidebarTags';
 
 const TAG_SCAN_IDLE_DELAY_MS = 250;
 const TAG_CONTENT_READ_BATCH_SIZE = 8;
 export const MAX_TAG_DIRECT_READ_MISSING_PATHS = 200;
+export const MAX_TAG_DIRECT_READ_CONTENT_CHARS = 8 * 1024 * 1024;
 const MAX_TAG_CONTENT_READ_BYTES = 512 * 1024;
 const tagContentUtf8Encoder = new TextEncoder();
 
@@ -31,6 +33,12 @@ type SidebarTagContentCacheEntry = {
   vaultPath: string | null;
 };
 type SidebarTagContentCache = Map<string, SidebarTagContentCacheEntry>;
+type SidebarTagDirectReadBudget = {
+  contentChars: number;
+  revision: number;
+  scopeKey: string;
+  vaultPath: string | null;
+};
 
 function isFreshSidebarTagContentEntry(
   entry: SidebarTagContentCacheEntry | undefined,
@@ -38,6 +46,12 @@ function isFreshSidebarTagContentEntry(
   vaultPath: string | null,
 ) {
   return entry?.revision === revision && entry.vaultPath === vaultPath;
+}
+
+function getSidebarTagScopeBudgetKey(entries: readonly NotesSidebarTagScopeEntry[]): string {
+  const firstPath = entries[0]?.path ?? '';
+  const lastPath = entries[entries.length - 1]?.path ?? '';
+  return `${entries.length}\n${firstPath}\n${lastPath}`;
 }
 
 function hasUnsafeSidebarTagPathSegment(path: string): boolean {
@@ -136,6 +150,7 @@ export function useNotesSidebarTags({
   const isMountedRef = useRef(true);
   const scanInvalidatedWhileRunningRef = useRef(false);
   const tagIndexRef = useRef<NotesSidebarTagIndex>(createNotesSidebarTagIndex());
+  const directReadBudgetRef = useRef<SidebarTagDirectReadBudget | null>(null);
   const [isTagScanPending, setIsTagScanPending] = useState(false);
   const [scanCompletionRevision, setScanCompletionRevision] = useState(0);
   const [sidebarTagContentCache, setSidebarTagContentCache] = useState<SidebarTagContentCache>(
@@ -157,6 +172,10 @@ export function useNotesSidebarTags({
       });
     },
     [currentVaultPath, isInternalTagVaultPath, rootFolder, starredEntries],
+  );
+  const scopeBudgetKey = useMemo(
+    () => getSidebarTagScopeBudgetKey(scopeEntries),
+    [scopeEntries],
   );
   const tags = useMemo(
     () => {
@@ -298,11 +317,48 @@ export function useNotesSidebarTags({
       return;
     }
 
+    let directReadBudget = directReadBudgetRef.current;
+    if (
+      !directReadBudget ||
+      directReadBudget.scopeKey !== scopeBudgetKey ||
+      directReadBudget.revision !== noteContentsCacheRevision ||
+      directReadBudget.vaultPath !== currentVaultPath
+    ) {
+      directReadBudget = {
+        contentChars: 0,
+        revision: noteContentsCacheRevision,
+        scopeKey: scopeBudgetKey,
+        vaultPath: currentVaultPath,
+      };
+      directReadBudgetRef.current = directReadBudget;
+    }
+    if (directReadBudget.contentChars >= MAX_TAG_DIRECT_READ_CONTENT_CHARS) {
+      return;
+    }
+
+    const activeDirectReadBudget = directReadBudget;
     let cancelled = false;
     const loadMissingContent = async () => {
       const loaded: SidebarTagContentCache = new Map();
-      for (let index = 0; index < missingPaths.length; index += TAG_CONTENT_READ_BATCH_SIZE) {
-        const batch = missingPaths.slice(index, index + TAG_CONTENT_READ_BATCH_SIZE);
+      for (let index = 0; index < missingPaths.length;) {
+        if (activeDirectReadBudget.contentChars >= MAX_TAG_DIRECT_READ_CONTENT_CHARS) {
+          break;
+        }
+
+        const remainingBatchCapacity = Math.floor(
+          (MAX_TAG_DIRECT_READ_CONTENT_CHARS - activeDirectReadBudget.contentChars) / MAX_TAG_CONTENT_READ_BYTES,
+        );
+        if (remainingBatchCapacity <= 0) {
+          break;
+        }
+
+        const batch = missingPaths.slice(
+          index,
+          index + Math.min(TAG_CONTENT_READ_BATCH_SIZE, remainingBatchCapacity),
+        );
+        index += batch.length;
+        const reservedContentChars = batch.length * MAX_TAG_CONTENT_READ_BYTES;
+        activeDirectReadBudget.contentChars += reservedContentChars;
         const results = await Promise.all(
           batch.map(async (path) => ({
             path,
@@ -312,7 +368,19 @@ export function useNotesSidebarTags({
         if (cancelled) {
           return;
         }
+        if (directReadBudgetRef.current !== activeDirectReadBudget) {
+          return;
+        }
+        activeDirectReadBudget.contentChars = Math.max(
+          0,
+          activeDirectReadBudget.contentChars - reservedContentChars,
+        );
         for (const result of results) {
+          if (activeDirectReadBudget.contentChars + result.content.length > MAX_TAG_DIRECT_READ_CONTENT_CHARS) {
+            continue;
+          }
+
+          activeDirectReadBudget.contentChars += result.content.length;
           loaded.set(result.path, {
             content: result.content,
             revision: noteContentsCacheRevision,
@@ -344,6 +412,7 @@ export function useNotesSidebarTags({
     missingIndexedContent,
     noteContentsCache,
     noteContentsCacheRevision,
+    scopeBudgetKey,
     scopeEntries,
     sidebarTagContentCache,
   ]);
@@ -359,10 +428,8 @@ export function useNotesSidebarTags({
     if (!active || scopeEntries.length === 0 || isTagIndexReady) {
       setIsTagScanPending(false);
       clearPendingScanTimer();
-      if (!active || scopeEntries.length === 0) {
-        scanAbortControllerRef.current?.abort();
-        scanAbortControllerRef.current = null;
-      }
+      scanAbortControllerRef.current?.abort();
+      scanAbortControllerRef.current = null;
       return;
     }
 

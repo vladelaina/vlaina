@@ -53,6 +53,13 @@ function normalizeSafeDroppedVaultPath(path: string): string | null {
   return normalizedPath;
 }
 
+function normalizeSafeDroppedMarkdownPath(path: string): string | null {
+  const normalizedPath = normalizeSafeDroppedVaultPath(path);
+  return normalizedPath && isSupportedMarkdownSelection(normalizedPath)
+    ? normalizedPath
+    : null;
+}
+
 export function useBlankWorkspaceDropOpen({
   enabled,
   openMarkdownTarget,
@@ -173,8 +180,11 @@ export function useBlankWorkspaceDropOpen({
             return;
           }
 
-          if (info?.isFile && isSupportedMarkdownSelection(authorizedPath)) {
-            await openMarkdownTarget(authorizedPath);
+          const authorizedFilePath = info?.isFile
+            ? normalizeSafeDroppedMarkdownPath(authorizedPath)
+            : null;
+          if (authorizedFilePath) {
+            await openMarkdownTarget(authorizedFilePath);
             return;
           }
 

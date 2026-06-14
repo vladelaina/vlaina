@@ -230,6 +230,30 @@ describe('managed ipc stream bridge', () => {
     expect(options.requestManagedJson).not.toHaveBeenCalled();
   });
 
+  it('rejects object request ids and managed headers without coercion', async () => {
+    const { handlers, options } = registerHarness();
+    let stringReads = 0;
+    const throwingValue = {
+      toString() {
+        stringReads += 1;
+        throw new Error('Unexpected managed IPC coercion');
+      },
+    };
+
+    await expect(
+      handlers.get('desktop:managed:chat-completion')?.({}, throwingValue, {}),
+    ).rejects.toThrow('managed chat completion request id must contain only safe channel characters.');
+    await expect(
+      handlers.get('desktop:managed:image-edit')?.({}, {
+        bodyBase64: '',
+        headers: { 'X-Test': throwingValue },
+      }),
+    ).rejects.toThrow('Invalid managed binary request header.');
+
+    expect(stringReads).toBe(0);
+    expect(options.requestManagedJson).not.toHaveBeenCalled();
+  });
+
   it('rejects managed json results that resolve after cancellation', async () => {
     const { handlers, options } = registerHarness();
     let resolveRequest: ((value: unknown) => void) | undefined;
@@ -540,6 +564,33 @@ describe('managed ipc stream bridge', () => {
     );
 
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-error:error', { message: 'upstream failed' });
+  });
+
+  it('summarizes non-primitive managed stream errors without coercion', async () => {
+    let stringReads = 0;
+    const throwingError = {
+      toString() {
+        stringReads += 1;
+        throw new Error('Unexpected managed stream error coercion');
+      },
+    };
+    const fetchWithStoredSession = vi.fn(async () => {
+      throw throwingError;
+    });
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-object-error', {});
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-object-error:error'
+    );
+
+    expect(stringReads).toBe(0);
+    expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-object-error:error', {
+      message: 'Unknown error',
+      statusCode: undefined,
+      errorCode: undefined,
+    });
   });
 
   it('rejects oversized managed stream lines', async () => {

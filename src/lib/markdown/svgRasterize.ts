@@ -7,6 +7,7 @@ import {
 
 const SVG_RASTERIZE_TIMEOUT_MS = 2500;
 export const MAX_PENDING_SVG_RASTERIZATIONS = 32;
+const SVG_DIMENSION_NUMBER_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 const pendingSvgRasterizations = new Map<string, Promise<string | null>>();
 
 function decodeSvgDataUrl(dataUrl: string): string | null {
@@ -39,7 +40,9 @@ function pickSvgRenderSize(svgText: string): { width: number; height: number } {
   const clamp = (value: number) => Math.max(1, Math.min(4096, Math.round(value)));
   const parsePositive = (value: string | undefined) => {
     if (!value) return null;
-    const parsed = Number.parseFloat(value);
+    const trimmed = value.trim();
+    if (!SVG_DIMENSION_NUMBER_PATTERN.test(trimmed)) return null;
+    const parsed = Number(trimmed);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   };
 
@@ -78,12 +81,12 @@ function sanitizeSvgDataUrl(dataUrl: string): { dataUrl: string; svgText: string
   };
 }
 
-export function isSvgDataUrl(value: string): boolean {
-  return /^data:image\/svg\+xml(?:[;,]|$)/i.test(value.trim());
+export function isSvgDataUrl(value: unknown): boolean {
+  return typeof value === 'string' && /^data:image\/svg\+xml(?:[;,]|$)/i.test(value.trim());
 }
 
-export function isSvgImageMimeType(value: string | null | undefined): boolean {
-  return (value ?? '').split(';')[0]?.trim().toLowerCase() === 'image/svg+xml';
+export function isSvgImageMimeType(value: unknown): boolean {
+  return typeof value === 'string' && value.split(';')[0]?.trim().toLowerCase() === 'image/svg+xml';
 }
 
 function uint8ArrayToBase64(data: Uint8Array): string {
@@ -161,6 +164,9 @@ export function getPendingSvgRasterizeCount(): number {
 }
 
 function rasterizeSvgDataUrlToPngUncached(dataUrl: string): Promise<string | null> {
+  if (typeof dataUrl !== 'string') {
+    return Promise.resolve(null);
+  }
   if (!isSvgDataUrl(dataUrl)) {
     return Promise.resolve(dataUrl);
   }
@@ -208,6 +214,9 @@ function rasterizeSvgDataUrlToPngUncached(dataUrl: string): Promise<string | nul
 }
 
 export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null> {
+  if (typeof dataUrl !== 'string') {
+    return Promise.resolve(null);
+  }
   if (!isSvgDataUrl(dataUrl)) {
     return Promise.resolve(dataUrl);
   }

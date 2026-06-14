@@ -363,6 +363,42 @@ describe('useChatComposer', () => {
     }
   });
 
+  it('limits direct composer changes to the composer budget', () => {
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend: vi.fn(),
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend: vi.fn(),
+      }),
+    );
+    const oversizedMessage = 'x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS + 1);
+
+    act(() => {
+      result.current.handleMessageChange(oversizedMessage);
+    });
+
+    expect(result.current.message).toBe('x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS));
+  });
+
+  it('limits override messages before sending', () => {
+    const onSend = vi.fn();
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend,
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.handleSend('x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS + 1));
+    });
+
+    expect(onSend).toHaveBeenCalledWith('x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS), [], []);
+  });
+
   it('rejects global composer inserts that would exceed the composer budget', () => {
     const { result } = renderHook(() =>
       useChatComposer({

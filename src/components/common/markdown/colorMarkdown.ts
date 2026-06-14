@@ -27,6 +27,7 @@ export interface ColorMarkdownMdastNode {
 export const MAX_INLINE_COLOR_HTML_CHARS = 8192;
 const MAX_INLINE_COLOR_STYLE_CHARS = 1024;
 const MAX_INLINE_COLOR_TEXT_CHARS = 8192;
+const MAX_INLINE_COLOR_VALUE_CHARS = 80;
 
 export function extractCssColorDeclaration(style: string, property: string): string | null {
   if (style.length > MAX_INLINE_COLOR_STYLE_CHARS) return null;
@@ -43,10 +44,11 @@ export function extractCssColorDeclaration(style: string, property: string): str
 
 export function sanitizeCssColorValue(value: unknown): string | null {
   if (typeof value !== 'string') return null;
+  if (value.length > MAX_INLINE_COLOR_VALUE_CHARS) return null;
   const trimmed = value.trim();
   if (
     !trimmed ||
-    trimmed.length > 80 ||
+    trimmed.length > MAX_INLINE_COLOR_VALUE_CHARS ||
     /[\u0000-\u001F\u007F;{}<>"'\\]/.test(trimmed) ||
     /\b(?:url|expression|import)\s*\(/i.test(trimmed)
   ) {

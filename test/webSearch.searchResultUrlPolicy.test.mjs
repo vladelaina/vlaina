@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isBlockedResultUrl, normalizeResultUrl } from '../electron/webSearch/searchResultUrlPolicy.mjs';
 
 describe('web search result URL policy', () => {
@@ -28,6 +28,18 @@ describe('web search result URL policy', () => {
 
     expect(isBlockedResultUrl('https:example.com/page')).toBe(true);
     expect(isBlockedResultUrl('https://example.com\\@internal.test/page')).toBe(true);
+  });
+
+  it('rejects non-string result URLs before coercion', () => {
+    const rawUrl = {
+      toString: vi.fn(() => {
+        throw new Error('url coercion');
+      }),
+    };
+
+    expect(normalizeResultUrl(rawUrl)).toBe('');
+    expect(isBlockedResultUrl(rawUrl)).toBe(true);
+    expect(rawUrl.toString).not.toHaveBeenCalled();
   });
 
   it('blocks local-network result hosts', () => {

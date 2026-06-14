@@ -2,6 +2,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import type { FileInfo, ListOptions, StorageAdapter, WriteOptions } from './types';
 
 export const MAX_ELECTRON_RECURSIVE_LIST_ENTRIES = 20_000;
+export const MAX_ELECTRON_WRITE_BYTES = 64 * 1024 * 1024;
 
 function getFs() {
   const bridge = getElectronBridge();
@@ -19,6 +20,20 @@ function getPathApi() {
   return bridge.path;
 }
 
+function assertElectronWriteBytes(byteLength: number): void {
+  if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > MAX_ELECTRON_WRITE_BYTES) {
+    throw new Error('Electron file content is too large to write.');
+  }
+}
+
+function assertElectronTextWriteBytes(content: string): void {
+  if (content.length > MAX_ELECTRON_WRITE_BYTES) {
+    throw new Error('Electron file content is too large to write.');
+  }
+
+  assertElectronWriteBytes(new Blob([content]).size);
+}
+
 export class ElectronAdapter implements StorageAdapter {
   readonly platform = 'electron' as const;
 
@@ -33,10 +48,12 @@ export class ElectronAdapter implements StorageAdapter {
   }
 
   async writeFile(path: string, content: string, options?: WriteOptions): Promise<void> {
+    assertElectronTextWriteBytes(content);
     await getFs().writeTextFile(path, content, options);
   }
 
   async writeBinaryFile(path: string, content: Uint8Array, options?: WriteOptions): Promise<void> {
+    assertElectronWriteBytes(content.byteLength);
     if (options?.recursive) {
       const normalized = path.replace(/[\\/]+$/, '');
       const lastSeparator = Math.max(normalized.lastIndexOf('/'), normalized.lastIndexOf('\\'));

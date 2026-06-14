@@ -13,6 +13,7 @@ export interface AlignmentAwareMdastNode {
 }
 
 const ALIGNMENT_COMMENT_PATTERN = /^<!--\s*align:(left|center|right)\s*-->$/;
+const MAX_ALIGNMENT_COMMENT_CHARS = 128;
 
 export function isTextAlignment(value: unknown): value is TextAlignment {
   return value === 'left' || value === 'center' || value === 'right';
@@ -24,6 +25,9 @@ export function getTextAlignmentComment(alignment: TextAlignment): string {
 
 export function extractTextAlignmentComment(value: unknown): TextAlignment | null {
   if (typeof value !== 'string') {
+    return null;
+  }
+  if (value.length > MAX_ALIGNMENT_COMMENT_CHARS) {
     return null;
   }
 

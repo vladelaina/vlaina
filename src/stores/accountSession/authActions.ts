@@ -6,6 +6,7 @@ import { normalizeManagedBudgetPayload } from '@/lib/ai/managed/normalizers';
 import { webAccountCommands, handleAuthCallback as parseAuthCallback } from '@/lib/account/webCommands';
 import { isOauthAccountProvider, normalizeAccountProvider } from '@/lib/account/provider';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { normalizeExternalHref } from '@/lib/navigation/externalLinks';
 import {
   AUTH_PROVIDER_STORAGE_KEY,
   AUTH_STATE_STORAGE_KEY,
@@ -13,6 +14,7 @@ import {
   clearPersistedUser,
   clearAuthIntent,
   normalizeAuthError,
+  normalizePersistedUser,
   persistUser,
   refreshAvatar,
 } from './authSupport';
@@ -29,6 +31,11 @@ let lastCheckStatusSyncAt = 0;
 
 const ACCOUNT_STATUS_REFRESH_INTERVAL_MS = 30_000;
 const MAX_AUTH_INTENT_STORAGE_CHARS = 4096;
+const MAX_ACCOUNT_EMAIL_INPUT_CHARS = 4096;
+const MAX_ACCOUNT_EMAIL_CHARS = 320;
+const MAX_ACCOUNT_EMAIL_CODE_INPUT_CHARS = 64;
+const AUTH_REDIRECT_UNSAFE_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const EMAIL_CODE_PATTERN = /^\d{6}$/;
 
 function invalidateAccountSessionChecks(): void {
   accountSessionMutationVersion += 1;
@@ -58,6 +65,26 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function normalizeEmailInput(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > MAX_ACCOUNT_EMAIL_INPUT_CHARS) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 && normalized.length <= MAX_ACCOUNT_EMAIL_CHARS && isValidEmail(normalized)
+    ? normalized
+    : null;
+}
+
+function normalizeEmailCodeInput(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > MAX_ACCOUNT_EMAIL_CODE_INPUT_CHARS) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return EMAIL_CODE_PATTERN.test(normalized) ? normalized : null;
+}
+
 function isAuthorizationCancellation(message: string): boolean {
   return /^(?:authorization )?(?:cancelled|canceled)$/i.test(message.trim())
     || /^access_denied$/i.test(message.trim());
@@ -74,6 +101,38 @@ function readStoredAuthIntentValue(key: string): string | null {
 
 function isValidAuthIntentValue(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= MAX_AUTH_INTENT_STORAGE_CHARS;
+}
+
+function normalizeWebAuthRedirectUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > MAX_AUTH_INTENT_STORAGE_CHARS) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (
+    !trimmed
+    || trimmed.length > MAX_AUTH_INTENT_STORAGE_CHARS
+    || AUTH_REDIRECT_UNSAFE_CHARS_REGEX.test(trimmed)
+    || trimmed.includes('\\')
+  ) {
+    return null;
+  }
+
+  if (trimmed.startsWith('#')) {
+    return trimmed;
+  }
+
+  const normalized = normalizeExternalHref(trimmed);
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? normalized : null;
+  } catch {
+    return null;
+  }
 }
 
 function isRelevantElectronAuthEvent(event: string): boolean {
@@ -182,18 +241,23 @@ export function createCheckStatus(set: Set, get: Get): (options?: { force?: bool
           return;
         }
 
-        const provider = normalizeAccountProvider(status?.provider);
         const connected = status?.connected === true;
+        const normalizedIdentity = normalizePersistedUser({
+          isConnected: connected,
+          provider: normalizeAccountProvider(status?.provider),
+          username: status?.username ?? null,
+          primaryEmail: status?.primaryEmail ?? null,
+          avatarUrl: status?.avatarUrl ?? null,
+          membershipTier: status?.membershipTier ?? null,
+          membershipName: status?.membershipName ?? null,
+        });
+        const provider = normalizeAccountProvider(normalizedIdentity.provider);
         const sessionInvalidated = status && 'sessionInvalidated' in status && status.sessionInvalidated === true;
-        const username = status?.username ?? null;
-        const primaryEmail = status?.primaryEmail ?? null;
-        const avatarUrl = status?.avatarUrl ?? null;
-        const membershipTier =
-          status?.membershipTier === 'free' || status?.membershipTier === 'plus' || status?.membershipTier === 'pro' || status?.membershipTier === 'max' || status?.membershipTier === 'ultra'
-            ? status.membershipTier
-            : null;
-        const membershipName =
-          typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
+        const username = normalizedIdentity.username ?? null;
+        const primaryEmail = normalizedIdentity.primaryEmail ?? null;
+        const avatarUrl = normalizedIdentity.avatarUrl ?? null;
+        const membershipTier = normalizedIdentity.membershipTier ?? null;
+        const membershipName = normalizedIdentity.membershipName ?? null;
         const sessionBudget = status && 'budget' in status ? status.budget : null;
         const persistent = !(status && 'persistent' in status && status.persistent === false);
         let shouldRefreshBudgetIfStale = connected;
@@ -334,7 +398,8 @@ export function createSignIn(
       if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
         return false;
       }
-      if (!authData || !isValidAuthIntentValue(authData.state)) {
+      const authUrl = normalizeWebAuthRedirectUrl(authData?.authUrl);
+      if (!authData || !isValidAuthIntentValue(authData.state) || !authUrl) {
         set({ error: 'Failed to start account sign-in', isConnecting: false });
         return false;
       }
@@ -349,7 +414,7 @@ export function createSignIn(
         set({ error: 'Unable to store sign-in state in this browser session', isConnecting: false });
         return false;
       }
-      window.location.href = authData.authUrl;
+      window.location.href = authUrl;
       return true;
     } catch (error) {
       clearTimeout(timeoutId);
@@ -365,14 +430,14 @@ export function createSignIn(
 
 export function createRequestEmailCode(set: Set, get: Get): (email: string) => Promise<boolean> {
   return async (email: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!isValidEmail(normalizedEmail)) {
+    const normalizedEmail = normalizeEmailInput(email);
+    if (!normalizedEmail) {
       set({ error: 'Invalid email address' });
       return false;
     }
 
     const { isConnected, primaryEmail } = get();
-    if (isConnected && primaryEmail?.trim().toLowerCase() === normalizedEmail) {
+    if (isConnected && normalizeEmailInput(primaryEmail) === normalizedEmail) {
       set({ error: 'You are already signed in with this email' });
       return false;
     }
@@ -381,8 +446,8 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
     set({ error: null });
     try {
       const ok = hasElectronDesktopBridge()
-        ? await accountCommands.requestEmailAuthCode(email)
-        : await webAccountCommands.requestEmailCode(email);
+        ? await accountCommands.requestEmailAuthCode(normalizedEmail)
+        : await webAccountCommands.requestEmailCode(normalizedEmail);
       if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
         return false;
       }
@@ -403,11 +468,23 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
 
 export function createVerifyEmailCode(set: Set, get: Get): (email: string, code: string) => Promise<boolean> {
   return async (email: string, code: string) => {
+    const normalizedEmail = normalizeEmailInput(email);
+    if (!normalizedEmail) {
+      set({ error: 'Invalid email address' });
+      return false;
+    }
+
+    const normalizedCode = normalizeEmailCodeInput(code);
+    if (!normalizedCode) {
+      set({ error: 'Invalid verification code' });
+      return false;
+    }
+
     const authAttemptVersion = startAccountAuthAttempt();
     set({ error: null });
     try {
       if (hasElectronDesktopBridge()) {
-        const result = await accountCommands.verifyEmailAuthCode(email, code);
+        const result = await accountCommands.verifyEmailAuthCode(normalizedEmail, normalizedCode);
         if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
           return false;
         }
@@ -424,7 +501,7 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
         return false;
       }
 
-      const result = await webAccountCommands.verifyEmailCode(email, code);
+      const result = await webAccountCommands.verifyEmailCode(normalizedEmail, normalizedCode);
       if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
         return false;
       }

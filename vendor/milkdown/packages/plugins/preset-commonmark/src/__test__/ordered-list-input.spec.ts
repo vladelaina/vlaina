@@ -154,6 +154,35 @@ it('should normalize ordered list labels after converting an ordered-styled bull
   await editor.destroy()
 })
 
+it('should ignore malformed ordered-styled bullet list labels while normalizing', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const { schema } = view.state
+  const list = schema.nodes.bullet_list.create({ spread: false }, [
+    schema.nodes.list_item.create(
+      { label: '3x', listType: 'ordered', spread: true },
+      [schema.nodes.paragraph.create(null, schema.text('one'))]
+    ),
+    schema.nodes.list_item.create(
+      { label: '1.', listType: 'ordered', spread: true },
+      [schema.nodes.paragraph.create(null, schema.text('two'))]
+    ),
+  ])
+
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, list))
+
+  const normalizedList = view.state.doc.firstChild
+  expect(normalizedList?.type.name).toBe('ordered_list')
+  expect(normalizedList?.attrs.order).toBe(1)
+  expect(normalizedList?.child(0).attrs.label).toBe('1.')
+  expect(normalizedList?.child(1).attrs.label).toBe('2.')
+
+  await editor.destroy()
+})
+
 it('should bound list item DOM attrs when parsing pasted HTML', async () => {
   const editor = createEditor()
 

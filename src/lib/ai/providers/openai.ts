@@ -42,8 +42,28 @@ import {
 import { stringifyProviderJsonRequestBody } from '@/lib/ai/providerRequestBody'
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
+const MAX_PROVIDER_ERROR_SUMMARY_CHARS = 8192
+
 function summarizeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error || 'Unknown error')
+  let message = ''
+  if (error instanceof Error) {
+    message = error.message
+  } else if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
+    message = (error as { message: string }).message
+  } else {
+    switch (typeof error) {
+      case 'string':
+      case 'number':
+      case 'boolean':
+      case 'bigint':
+      case 'symbol':
+        message = String(error)
+        break
+      default:
+        message = ''
+    }
+  }
+  return (message || 'Unknown error').slice(0, MAX_PROVIDER_ERROR_SUMMARY_CHARS)
 }
 
 function isLikelyHtmlErrorContent(content: string): boolean {

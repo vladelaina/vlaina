@@ -14,6 +14,7 @@ function hasUnsafeUrlCharacters(value) {
 function parseIPv4(hostname) {
   const parts = hostname.split('.');
   if (parts.length !== 4) return null;
+  if (parts.some((part) => !/^\d{1,3}$/.test(part))) return null;
   const octets = parts.map((part) => Number(part));
   if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null;
   return octets;
@@ -95,7 +96,7 @@ function isLocalNetworkHttpUrl(parsed) {
 }
 
 export function redactUrlCredentials(rawUrl) {
-  const value = rawUrl instanceof URL ? rawUrl.toString() : String(rawUrl);
+  const value = rawUrl instanceof URL ? rawUrl.toString() : typeof rawUrl === 'string' ? rawUrl : '';
   if (isUrlTooLong(value)) {
     return '';
   }
@@ -113,7 +114,7 @@ export function redactUrlCredentials(rawUrl) {
 }
 
 export function summarizeUrlForLog(rawUrl) {
-  const value = String(rawUrl);
+  const value = rawUrl instanceof URL ? rawUrl.toString() : typeof rawUrl === 'string' ? rawUrl : '';
   if (isUrlTooLong(value)) {
     return '';
   }
@@ -131,7 +132,8 @@ export function summarizeUrlForLog(rawUrl) {
 }
 
 export function normalizeProxyConfig(rawProxy, source) {
-  const rawValue = String(rawProxy ?? '');
+  if (typeof rawProxy !== 'string') return null;
+  const rawValue = rawProxy;
   if (isUrlTooLong(rawValue)) return null;
 
   const proxy = rawValue.trim();
@@ -161,7 +163,7 @@ export function normalizeProxyConfig(rawProxy, source) {
 }
 
 export function normalizeExternalUrl(rawUrl) {
-  if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
+  if (typeof rawUrl !== 'string') {
     throw new Error('A non-empty URL is required.');
   }
   if (isUrlTooLong(rawUrl)) {
@@ -169,6 +171,9 @@ export function normalizeExternalUrl(rawUrl) {
   }
 
   const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    throw new Error('A non-empty URL is required.');
+  }
   if (isUrlTooLong(trimmed)) {
     throw new Error('URL is too long.');
   }

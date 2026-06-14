@@ -9,9 +9,14 @@ export const TOC_EMPTY_TEXT = 'No headings yet';
 
 export const MAX_TOC_VIEW_HEADINGS = 512;
 export const MAX_TOC_VIEW_HEADING_TEXT_CHARS = 240;
+const TOC_MAX_LEVEL_PATTERN = /^\d{1,2}$/;
 
 export function normalizeTocMaxLevel(value: unknown): number {
-  const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
+  const parsed = typeof value === 'string'
+    ? TOC_MAX_LEVEL_PATTERN.test(value.trim())
+      ? Number(value.trim())
+      : Number.NaN
+    : value;
   return typeof parsed === 'number' && Number.isFinite(parsed)
     ? Math.max(1, Math.min(6, Math.trunc(parsed)))
     : 6;

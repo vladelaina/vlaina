@@ -94,6 +94,42 @@ describe('batch crawler', () => {
     });
   });
 
+  it('does not coerce batch options or thrown read errors', async () => {
+    const option = {
+      toString() {
+        throw new Error('option should not be coerced');
+      },
+      valueOf() {
+        throw new Error('option should not be coerced');
+      },
+    };
+    const readError = {
+      code: 'blocked_source',
+      toString() {
+        throw new Error('error should not be coerced');
+      },
+    };
+    const crawler = {
+      async readUrl() {
+        throw readError;
+      },
+    };
+
+    const results = await readUrlsBatch(crawler, ['https://blocked.example'], {
+      concurrency: option,
+      retries: 0,
+    });
+
+    expect(results).toEqual([
+      {
+        url: 'https://blocked.example',
+        ok: false,
+        error: 'Read failed',
+        code: 'blocked_source',
+      },
+    ]);
+  });
+
   it('rejects page reads that resolve after cancellation', async () => {
     const controller = new AbortController();
     const crawler = {

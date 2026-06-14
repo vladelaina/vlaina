@@ -37,6 +37,21 @@ function escapeHtmlText(value: string): string {
     .replace(/>/g, '&gt;')
 }
 
+function readMarkdownValue(value: unknown): string | null {
+  if (value == null) return ''
+  switch (typeof value) {
+    case 'string':
+      return value
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value)
+    default:
+      return null
+  }
+}
+
 function hasInlineHtmlRenderBudget(context: InlineHtmlRenderContext, depth: number): boolean {
   context.visitedNodes += 1
   return context.visitedNodes <= MAX_INLINE_HTML_MERGE_AST_NODES
@@ -49,9 +64,15 @@ function markdownInlineNodeToHtml(
   depth = 0
 ): string | null {
   if (!hasInlineHtmlRenderBudget(context, depth)) return null
-  if (node.type === 'text') return escapeHtmlText(String(node.value ?? ''))
-  if (node.type === 'html') return String(node.value ?? '')
-  if (node.type === 'inlineCode') return `<code>${escapeHtmlText(String(node.value ?? ''))}</code>`
+  if (node.type === 'text') {
+    const value = readMarkdownValue(node.value)
+    return value === null ? null : escapeHtmlText(value)
+  }
+  if (node.type === 'html') return readMarkdownValue(node.value)
+  if (node.type === 'inlineCode') {
+    const value = readMarkdownValue(node.value)
+    return value === null ? null : `<code>${escapeHtmlText(value)}</code>`
+  }
   if (node.type === 'emphasis' || node.type === 'strong' || node.type === 'delete') {
     const tag = node.type === 'emphasis' ? 'em' : node.type === 'strong' ? 'strong' : 'del'
     if ((node.children?.length ?? 0) > MAX_INLINE_HTML_MERGE_CHILDREN) return null
@@ -78,10 +99,12 @@ function hasRawHtmlTagText(nodes: MarkdownNode[]): boolean {
     ) return true
 
     if (
-      (node.type === 'text' || node.type === 'html') &&
-      RAW_HTML_TAG_TEXT_PATTERN.test(String(node.value ?? ''))
-    )
-      return true
+      node.type === 'text' || node.type === 'html'
+    ) {
+      const value = readMarkdownValue(node.value)
+      if (value !== null && RAW_HTML_TAG_TEXT_PATTERN.test(value))
+        return true
+    }
     if (!Array.isArray(node.children)) continue
     for (let index = node.children.length - 1; index >= 0; index -= 1) {
       const child = node.children[index]
@@ -131,13 +154,15 @@ function isGfmHtmlBlock(value: string): boolean {
 
 function markGfmHtmlBlock(node: MarkdownNode): MarkdownNode {
   if (node.type !== 'html') return node
-  return isGfmHtmlBlock(String(node.value ?? ''))
+  const value = readMarkdownValue(node.value)
+  return value !== null && isGfmHtmlBlock(value)
     ? ({ ...node, githubHtmlBlock: true } as MarkdownNode)
     : node
 }
 
 function restoreRawHtmlFromSource(node: MarkdownNode, markdown?: string): MarkdownNode {
-  if (node.type !== 'html' || !RAW_HTML_TAG_TEXT_PATTERN.test(String(node.value ?? '')))
+  const value = node.type === 'html' ? readMarkdownValue(node.value) : null
+  if (node.type !== 'html' || value === null || !RAW_HTML_TAG_TEXT_PATTERN.test(value))
     return node
 
   const rawSource = getSourceSlice(markdown, node, node)
@@ -155,7 +180,8 @@ function buildInlineHtmlLookup(children: MarkdownNode[]): {
     const child = children[index]
     if (child?.type !== 'html') continue
 
-    const value = String(child.value ?? '').trim()
+    const rawValue = readMarkdownValue(child.value)
+    const value = rawValue === null ? '' : rawValue.trim()
     htmlValues[index] = value
 
     const closeMatch = HTML_CLOSE_TAG_PATTERN.exec(value)
@@ -179,7 +205,9 @@ function buildInlineHtmlLookup(children: MarkdownNode[]): {
 
 function getBlockHtmlOpenTagName(node: MarkdownNode): string | null {
   if (node.type !== 'html') return null
-  const value = String(node.value ?? '').trimStart()
+  const rawValue = readMarkdownValue(node.value)
+  if (rawValue === null) return null
+  const value = rawValue.trimStart()
   const openMatch = HTML_OPEN_TAG_PREFIX_PATTERN.exec(value)
   const tagName = openMatch?.[1]?.toLowerCase()
   if (!tagName || !openMatch || HTML_SELF_CLOSING_PATTERN.test(openMatch[0])) return null
@@ -192,7 +220,9 @@ function buildBlockHtmlCloseIndexes(children: MarkdownNode[]): Map<string, numbe
   for (let index = 0; index < children.length; index += 1) {
     const child = children[index]
     if (child?.type !== 'html') continue
-    const closeMatch = HTML_CLOSE_TAG_PATTERN.exec(String(child.value ?? '').trim())
+    const value = readMarkdownValue(child.value)
+    if (value === null) continue
+    const closeMatch = HTML_CLOSE_TAG_PATTERN.exec(value.trim())
     const tagName = closeMatch?.[1]?.toLowerCase()
     if (!tagName) continue
     const closeIndexes = closeIndexesByTag.get(tagName)
@@ -340,7 +370,7 @@ function mergePairedInlineHtmlWithBudget(
 
     mergedChildren.push({
       type: 'html',
-      value: `${value}${innerHtmlParts.join('')}${closeNode.value}`,
+      value: `${value}${innerHtmlParts.join('')}${readMarkdownValue(closeNode.value) ?? ''}`,
     } as MarkdownNode)
     index = closeIndex
   }
@@ -351,7 +381,8 @@ function mergePairedInlineHtmlWithBudget(
   if (node.type === 'paragraph' && node.children.length === 1) {
     const child = node.children[0]
     if (!child) return node
-    const value = child.type === 'html' ? String(child.value ?? '').trim() : ''
+    const rawValue = child.type === 'html' ? readMarkdownValue(child.value) : ''
+    const value = rawValue === null ? '' : rawValue.trim()
     if (isGfmHtmlBlock(value))
       return markGfmHtmlBlock(child)
   }

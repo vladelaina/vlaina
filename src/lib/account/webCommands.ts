@@ -15,6 +15,11 @@ const WEB_RESULT_POLL_DELAY_MS = 300;
 const TRANSIENT_ACCOUNT_RETRY_DELAYS_MS = [250, 750];
 const ACCOUNT_REQUEST_TIMEOUT_MS = 15_000;
 const MAX_ACCOUNT_RESPONSE_BODY_BYTES = 64 * 1024;
+const MAX_ACCOUNT_CONTENT_LENGTH_CHARS = 32;
+const MAX_ACCOUNT_EMAIL_INPUT_CHARS = 4096;
+const MAX_ACCOUNT_EMAIL_CHARS = 320;
+const MAX_ACCOUNT_EMAIL_CODE_INPUT_CHARS = 64;
+const EMAIL_CODE_PATTERN = /^\d{6}$/;
 
 interface WebAuthResult {
   success: boolean;
@@ -44,6 +49,28 @@ function authStartPath(_provider: Exclude<AccountProvider, 'email'>): string {
 
 function webResultPath(_provider: Exclude<AccountProvider, 'email'>): string {
   return '/auth/google/web/result';
+}
+
+function normalizeEmailInput(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > MAX_ACCOUNT_EMAIL_INPUT_CHARS) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0
+    && normalized.length <= MAX_ACCOUNT_EMAIL_CHARS
+    && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+    ? normalized
+    : null;
+}
+
+function normalizeEmailCodeInput(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > MAX_ACCOUNT_EMAIL_CODE_INPUT_CHARS) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return EMAIL_CODE_PATTERN.test(normalized) ? normalized : null;
 }
 
 interface NormalizedWebAccountResult {
@@ -200,8 +227,31 @@ async function fetchAccountResponse(input: RequestInfo | URL, init: RequestInit 
   return response;
 }
 
+function readContentLength(response: Response): number | null {
+  const rawContentLength = response.headers?.get('content-length');
+  if (!rawContentLength) {
+    return null;
+  }
+
+  if (rawContentLength.length > MAX_ACCOUNT_CONTENT_LENGTH_CHARS) {
+    return null;
+  }
+  const trimmed = rawContentLength.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 async function readAccountResponseText(response: Response, signal: AbortSignal): Promise<string> {
   throwIfTimedOut(signal);
+  const contentLength = readContentLength(response);
+  if (contentLength !== null && contentLength > MAX_ACCOUNT_RESPONSE_BODY_BYTES) {
+    void response.body?.cancel().catch(() => undefined);
+    throw new Error('Account API response body is too large.');
+  }
+
   if (!response.body) {
     return '';
   }
@@ -421,6 +471,10 @@ export const webAccountCommands = {
 
   async requestEmailCode(email: string): Promise<boolean> {
     assertSupportedWebAccountOrigin();
+    const normalizedEmail = normalizeEmailInput(email);
+    if (!normalizedEmail) {
+      throw new Error('Invalid email address');
+    }
 
     const response = await retryTransientAccountNetworkError(() =>
       fetchAccount(`${API_BASE}/auth/email/request-code`, {
@@ -431,7 +485,7 @@ export const webAccountCommands = {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       })
     );
 
@@ -453,6 +507,30 @@ export const webAccountCommands = {
     error?: string;
   }> {
     assertSupportedWebAccountOrigin();
+    const normalizedEmail = normalizeEmailInput(email);
+    if (!normalizedEmail) {
+      return {
+        success: false,
+        provider: 'email',
+        primaryEmail: null,
+        avatarUrl: null,
+        membershipTier: null,
+        membershipName: null,
+        error: 'Invalid email address',
+      };
+    }
+    const normalizedCode = normalizeEmailCodeInput(code);
+    if (!normalizedCode) {
+      return {
+        success: false,
+        provider: 'email',
+        primaryEmail: null,
+        avatarUrl: null,
+        membershipTier: null,
+        membershipName: null,
+        error: 'Invalid verification code',
+      };
+    }
 
     try {
       const { data } = await retryTransientAccountNetworkError(() =>
@@ -464,7 +542,7 @@ export const webAccountCommands = {
             Accept: 'application/json',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email, code, target: 'web' }),
+          body: JSON.stringify({ email: normalizedEmail, code: normalizedCode, target: 'web' }),
         })
       );
       const result = normalizeWebAuthResult(data, 'email');

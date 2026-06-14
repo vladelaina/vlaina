@@ -21,8 +21,44 @@ import {
 
 const importedThemeCssImportUtf8Encoder = new TextEncoder();
 
+interface ImportedThemeCssImportBudget {
+  remainingBytes: number;
+}
+
 function isImportedThemeCssWithinReadLimit(css: string): boolean {
   return importedThemeCssImportUtf8Encoder.encode(css).byteLength <= MAX_IMPORTED_THEME_CSS_BYTES;
+}
+
+function createImportedThemeCssImportBudget(css: string): ImportedThemeCssImportBudget {
+  return {
+    remainingBytes: Math.max(
+      0,
+      MAX_IMPORTED_THEME_CSS_BYTES - importedThemeCssImportUtf8Encoder.encode(css).byteLength
+    ),
+  };
+}
+
+function hasImportedThemeCssImportBudget(
+  info: { size?: number | null } | null | undefined,
+  budget: ImportedThemeCssImportBudget
+): boolean {
+  return (
+    budget.remainingBytes > 0 &&
+    (typeof info?.size !== 'number' || info.size <= budget.remainingBytes)
+  );
+}
+
+function reserveImportedThemeCssImportBudget(
+  css: string,
+  budget: ImportedThemeCssImportBudget
+): boolean {
+  const byteLength = importedThemeCssImportUtf8Encoder.encode(css).byteLength + 1;
+  if (byteLength > budget.remainingBytes) {
+    return false;
+  }
+
+  budget.remainingBytes -= byteLength;
+  return true;
 }
 
 async function rebaseImportedThemeCssUrls(
@@ -56,7 +92,8 @@ export async function inlineRelativeThemeCssImports(
   seen = new Set<string>(),
   depth = 0,
   remainingImports: { count: number } = { count: MAX_IMPORTED_THEME_CSS_IMPORTS },
-  rootSourceDir?: string
+  rootSourceDir?: string,
+  budget: ImportedThemeCssImportBudget = createImportedThemeCssImportBudget(css)
 ): Promise<string> {
   const sourceDir = sourcePath ? getParentPath(sourcePath) : null;
   const normalizedSourcePath = sourcePath ? normalizeThemePath(sourcePath) : null;
@@ -91,7 +128,7 @@ export async function inlineRelativeThemeCssImports(
     if (seen.has(normalizedImportedPath)) {
       continue;
     }
-    if (remainingImports.count <= 0) {
+    if (remainingImports.count <= 0 || budget.remainingBytes <= 0) {
       break;
     }
     remainingImports.count -= 1;
@@ -101,12 +138,16 @@ export async function inlineRelativeThemeCssImports(
       if (
         info?.isFile === false ||
         info?.isDirectory === true ||
-        hasInvalidImportedThemeFileSize(info, MAX_IMPORTED_THEME_CSS_BYTES)
+        hasInvalidImportedThemeFileSize(info, MAX_IMPORTED_THEME_CSS_BYTES) ||
+        !hasImportedThemeCssImportBudget(info, budget)
       ) {
         continue;
       }
       const importedCss = await storage.readFile(importedPath, MAX_IMPORTED_THEME_CSS_BYTES);
-      if (!isImportedThemeCssWithinReadLimit(importedCss)) {
+      if (
+        !isImportedThemeCssWithinReadLimit(importedCss) ||
+        !reserveImportedThemeCssImportBudget(importedCss, budget)
+      ) {
         continue;
       }
       const inlinedImportedCss = await inlineRelativeThemeCssImports(
@@ -115,7 +156,8 @@ export async function inlineRelativeThemeCssImports(
         seen,
         depth + 1,
         remainingImports,
-        importRootSourceDir
+        importRootSourceDir,
+        budget
       );
       importedCssBlocks.push(await rebaseImportedThemeCssUrls(
         inlinedImportedCss,

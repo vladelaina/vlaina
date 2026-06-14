@@ -1,15 +1,33 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+const MAX_DESKTOP_FS_WRITE_BYTES = 64 * 1024 * 1024;
+const MAX_PENDING_OPEN_MARKDOWN_FILES = 32;
+const MAX_OPEN_MARKDOWN_FILE_PATH_CHARS = 8192;
+const OPEN_MARKDOWN_FILE_EXTENSION_PATTERN = /\.(?:md|markdown|mdown|mkd)$/i;
+const UNSAFE_OPEN_MARKDOWN_FILE_PATH_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const pendingOpenMarkdownFiles = [];
 const openMarkdownFileListeners = new Set();
 
+function isSafeOpenMarkdownFilePath(filePath) {
+  return (
+    typeof filePath === 'string' &&
+    filePath.length > 0 &&
+    filePath.length <= MAX_OPEN_MARKDOWN_FILE_PATH_CHARS &&
+    OPEN_MARKDOWN_FILE_EXTENSION_PATTERN.test(filePath) &&
+    !UNSAFE_OPEN_MARKDOWN_FILE_PATH_PATTERN.test(filePath)
+  );
+}
+
 ipcRenderer.on('desktop:app:open-markdown-file', (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath) {
+  if (!isSafeOpenMarkdownFilePath(filePath)) {
     return;
   }
 
   if (openMarkdownFileListeners.size === 0) {
+    if (pendingOpenMarkdownFiles.length >= MAX_PENDING_OPEN_MARKDOWN_FILES) {
+      pendingOpenMarkdownFiles.shift();
+    }
     pendingOpenMarkdownFiles.push(filePath);
     return;
   }
@@ -20,11 +38,77 @@ ipcRenderer.on('desktop:app:open-markdown-file', (_event, filePath) => {
 });
 
 function requireSafeIpcRequestId(value, label) {
-  const id = String(value ?? '').trim();
+  const rawId = primitiveToString(value);
+  const id = rawId === null ? '' : rawId.trim();
   if (!IPC_REQUEST_ID_PATTERN.test(id)) {
     throw new Error(`${label} must contain only safe channel characters.`);
   }
   return id;
+}
+
+function primitiveToString(value) {
+  if (value == null) {
+    return '';
+  }
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value);
+    default:
+      return null;
+  }
+}
+
+function assertDesktopFsWritePayloadBytes(byteLength) {
+  if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > MAX_DESKTOP_FS_WRITE_BYTES) {
+    throw new Error('Desktop content is too large to write.');
+  }
+}
+
+function isUint8ArrayPayload(value) {
+  return Object.prototype.toString.call(value) === '[object Uint8Array]';
+}
+
+function normalizeDesktopBinaryWritePayload(bytes) {
+  if (isUint8ArrayPayload(bytes)) {
+    assertDesktopFsWritePayloadBytes(bytes.byteLength);
+    return bytes;
+  }
+
+  const byteLength = bytes && typeof bytes.length === 'number'
+    ? bytes.length
+    : Number.NaN;
+  assertDesktopFsWritePayloadBytes(byteLength);
+
+  const normalized = new Array(byteLength);
+  for (let index = 0; index < byteLength; index += 1) {
+    normalized[index] = bytes[index];
+  }
+  return normalized;
+}
+
+function normalizeDesktopTextWritePayload(content) {
+  const text = primitiveToString(content);
+  if (text === null) {
+    throw new Error('Desktop text content must be a primitive value.');
+  }
+  if (text.length > MAX_DESKTOP_FS_WRITE_BYTES) {
+    throw new Error('Desktop content is too large to write.');
+  }
+  assertDesktopFsWritePayloadBytes(Buffer.byteLength(text, 'utf8'));
+  return text;
+}
+
+function callIpcCallback(callback, ...args) {
+  try {
+    Promise.resolve(callback(...args)).catch(() => undefined);
+  } catch {
+    // Renderer callbacks should not surface as preload IPC listener failures.
+  }
 }
 
 function deepFreeze(value) {
@@ -91,7 +175,7 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:window:create', options);
     },
     onCloseRequested(callback) {
-      const handler = () => callback();
+      const handler = () => callIpcCallback(callback);
       ipcRenderer.on('desktop:window:close-requested', handler);
       return () => {
         ipcRenderer.removeListener('desktop:window:close-requested', handler);
@@ -101,7 +185,7 @@ const desktopApi = {
   shortcuts: {
     onOpenMarkdownFile(callback) {
       const channel = 'desktop:shortcut:open-markdown-file';
-      const handler = () => callback();
+      const handler = () => callIpcCallback(callback);
       ipcRenderer.on(channel, handler);
       return () => {
         ipcRenderer.removeListener(channel, handler);
@@ -149,7 +233,7 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:app:set-language', language);
     },
     onOpenMarkdownFile(callback) {
-      const listener = (filePath) => callback(filePath);
+      const listener = (filePath) => callIpcCallback(callback, filePath);
       openMarkdownFileListeners.add(listener);
 
       while (pendingOpenMarkdownFiles.length > 0) {
@@ -184,7 +268,7 @@ const desktopApi = {
     onRequestChunk(requestId, callback) {
       const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
       const channel = `desktop:ai-provider:request:${id}:chunk`;
-      const handler = (_event, chunk) => callback(chunk);
+      const handler = (_event, chunk) => callIpcCallback(callback, chunk);
       ipcRenderer.on(channel, handler);
       return () => {
         ipcRenderer.removeListener(channel, handler);
@@ -193,7 +277,7 @@ const desktopApi = {
     onRequestDone(requestId, callback) {
       const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
       const channel = `desktop:ai-provider:request:${id}:done`;
-      const handler = () => callback();
+      const handler = () => callIpcCallback(callback);
       ipcRenderer.on(channel, handler);
       return () => {
         ipcRenderer.removeListener(channel, handler);
@@ -202,7 +286,7 @@ const desktopApi = {
     onRequestError(requestId, callback) {
       const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
       const channel = `desktop:ai-provider:request:${id}:error`;
-      const handler = (_event, payload) => callback(payload);
+      const handler = (_event, payload) => callIpcCallback(callback, payload);
       ipcRenderer.on(channel, handler);
       return () => {
         ipcRenderer.removeListener(channel, handler);
@@ -256,10 +340,10 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:fs:read-text', filePath, maxBytes);
     },
     writeBinaryFile(filePath, bytes) {
-      return ipcRenderer.invoke('desktop:fs:write-binary', filePath, Array.from(bytes));
+      return ipcRenderer.invoke('desktop:fs:write-binary', filePath, normalizeDesktopBinaryWritePayload(bytes));
     },
     writeTextFile(filePath, content, options) {
-      return ipcRenderer.invoke('desktop:fs:write-text', filePath, content, options);
+      return ipcRenderer.invoke('desktop:fs:write-text', filePath, normalizeDesktopTextWritePayload(content), options);
     },
     exists(filePath) {
       return ipcRenderer.invoke('desktop:fs:exists', filePath);
@@ -289,7 +373,7 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:fs:watch', filePath, options).then((watchId) => {
         const id = requireSafeIpcRequestId(watchId, 'file watch id');
         const channel = `desktop:fs:watch:${id}`;
-        const handler = (_event, payload) => callback(payload);
+        const handler = (_event, payload) => callIpcCallback(callback, payload);
         ipcRenderer.on(channel, handler);
 
         return async () => {
@@ -406,7 +490,7 @@ const desktopApi = {
     onManagedStreamChunk(requestId, callback) {
       const id = requireSafeIpcRequestId(requestId, 'managed stream request id');
       const channel = `desktop:managed:stream:${id}:chunk`;
-      const handler = (_event, content) => callback(content);
+      const handler = (_event, content) => callIpcCallback(callback, content);
       ipcRenderer.on(channel, handler);
       return () => {
         ipcRenderer.removeListener(channel, handler);
@@ -415,7 +499,7 @@ const desktopApi = {
     onManagedStreamDone(requestId, callback) {
       const id = requireSafeIpcRequestId(requestId, 'managed stream request id');
       const channel = `desktop:managed:stream:${id}:done`;
-      const handler = (_event, payload) => callback(payload);
+      const handler = (_event, payload) => callIpcCallback(callback, payload);
       ipcRenderer.on(channel, handler);
       return () => {
         ipcRenderer.removeListener(channel, handler);
@@ -424,7 +508,7 @@ const desktopApi = {
     onManagedStreamError(requestId, callback) {
       const id = requireSafeIpcRequestId(requestId, 'managed stream request id');
       const channel = `desktop:managed:stream:${id}:error`;
-      const handler = (_event, payload) => callback(payload);
+      const handler = (_event, payload) => callIpcCallback(callback, payload);
       ipcRenderer.on(channel, handler);
       return () => {
         ipcRenderer.removeListener(channel, handler);

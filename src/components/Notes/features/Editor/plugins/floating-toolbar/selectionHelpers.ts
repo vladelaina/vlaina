@@ -267,8 +267,11 @@ function getBlockTypeFromResolvedPos($pos: ResolvedPosLike): { key: string; valu
 
   const headingDepth = findAncestorDepth($pos, (node) => node.type.name === 'heading');
   if (headingDepth !== null) {
-    const level = Number($pos.node(headingDepth).attrs?.level);
-    const headingLevel = Number.isInteger(level) && level >= 1 && level <= 6 ? level : 1;
+    const level = $pos.node(headingDepth).attrs?.level;
+    const headingLevel =
+      typeof level === 'number' && Number.isInteger(level) && level >= 1 && level <= 6
+        ? level
+        : 1;
 
     return {
       key: `heading:${$pos.before(headingDepth)}`,

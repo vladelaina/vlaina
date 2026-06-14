@@ -86,6 +86,31 @@ describe('sanitizeRawHtmlUrlProperties', () => {
     expect(node.properties).toEqual({ title: 'safe title' });
   });
 
+  it('drops non-string URL properties without coercing them', () => {
+    const throwingValue = {
+      toString() {
+        throw new Error('unexpected coercion');
+      },
+    };
+    const img = element('img', {
+      src: throwingValue,
+      longDesc: true,
+    });
+    const iframe = element('iframe', {
+      src: 'https://example.com/embed',
+      sandbox: throwingValue,
+      allow: throwingValue,
+    });
+
+    expect(() => sanitizeRawHtmlUrlProperties(img)).not.toThrow();
+    expect(() => sanitizeRawHtmlUrlProperties(iframe)).not.toThrow();
+
+    expect(img.properties).not.toHaveProperty('src');
+    expect(img.properties).not.toHaveProperty('longDesc');
+    expect(iframe.properties.sandbox).toBe('allow-scripts');
+    expect(iframe.properties).not.toHaveProperty('allow');
+  });
+
   it('drops local-network raw anchor URLs at the HAST layer', () => {
     const local = element('a', { href: 'http://127.0.0.1:3000/admin' });
     const publicLink = element('a', { href: 'https://example.com/docs' });

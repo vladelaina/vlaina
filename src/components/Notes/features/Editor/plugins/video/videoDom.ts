@@ -10,16 +10,31 @@ const videoElementAttrs = new WeakMap<HTMLElement, VideoAttrs>();
 const DEFAULT_VIDEO_WIDTH = 560;
 const DEFAULT_VIDEO_HEIGHT = 315;
 const MAX_VIDEO_TITLE_CHARS = 256;
+const MAX_VIDEO_DIMENSION_CHARS = 32;
 const MAX_VIDEO_DIMENSION = 4096;
+const VIDEO_DIMENSION_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 function normalizeVideoTitle(value: unknown): string {
   return typeof value === 'string' ? value.slice(0, MAX_VIDEO_TITLE_CHARS) : '';
 }
 
+function parseVideoDimension(value: unknown): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value !== 'string' || value.length > MAX_VIDEO_DIMENSION_CHARS) {
+    return NaN;
+  }
+  const trimmed = value.trim();
+  return VIDEO_DIMENSION_PATTERN.test(trimmed) ? Number(trimmed) : NaN;
+}
+
 function normalizeVideoSize(value: unknown, fallback: number) {
-  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value || ''), 10);
+  const parsed = parseVideoDimension(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return Math.min(Math.trunc(parsed), MAX_VIDEO_DIMENSION);
+  const integer = Math.trunc(parsed);
+  if (integer <= 0) return fallback;
+  return Math.min(integer, MAX_VIDEO_DIMENSION);
 }
 
 export function normalizeVideoAttrs(attrs: VideoAttrs): VideoAttrs {

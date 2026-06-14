@@ -176,10 +176,52 @@ describe('desktop filesystem ipc', () => {
     await expect(readFile(filePath)).resolves.toHaveLength(64 * 1024 * 1024);
   });
 
+  it('rejects hostile text write payloads without coercion', async () => {
+    const rootPath = path.join(tempDir, 'vault');
+    const filePath = path.join(rootPath, 'note.md');
+    await mkdir(rootPath, { recursive: true });
+    await authorizeFsPath(rootPath, 'root');
+    const { handlers } = registerHarness();
+    const hostileContent = {
+      toString() {
+        throw new Error('text content coercion');
+      },
+    };
+
+    await expect(handlers.get('desktop:fs:write-text')?.({}, filePath, hostileContent)).rejects.toThrow(
+      'Desktop text content must be a string',
+    );
+  });
+
+  it('rejects oversized copy-file sources before copying through the filesystem bridge', async () => {
+    const rootPath = path.join(tempDir, 'vault');
+    const sourcePath = path.join(rootPath, 'huge.md');
+    const targetPath = path.join(rootPath, 'huge-copy.md');
+    await mkdir(rootPath, { recursive: true });
+    await writeFile(sourcePath, '', 'utf8');
+    await truncate(sourcePath, 64 * 1024 * 1024 + 1);
+    await authorizeFsPath(rootPath, 'root');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:fs:copy-file')?.({}, sourcePath, targetPath)).rejects.toThrow(
+      'Desktop file is too large to copy',
+    );
+    await expect(readFile(targetPath)).rejects.toThrow();
+  });
+
   it('rejects protected app data files during drag-drop authorization', async () => {
     const protectedPath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'account-secrets.json');
     await mkdir(path.dirname(protectedPath), { recursive: true });
     await writeFile(protectedPath, '{}', 'utf8');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:drag-drop:authorize-path')?.({}, protectedPath)).rejects.toThrow(
+      'File path is reserved for internal desktop storage',
+    );
+  });
+
+  it('rejects protected drag-drop paths before probing the filesystem', async () => {
+    const protectedPath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'account-secrets.json');
     const { handlers } = registerHarness();
 
     await expect(handlers.get('desktop:drag-drop:authorize-path')?.({}, protectedPath)).rejects.toThrow(

@@ -11,13 +11,28 @@ import {
 export const htmlAttr = $nodeAttr('html')
 
 function isGithubHtmlBlockNode(node: { githubHtmlBlock?: unknown; value?: unknown }) {
-  const value = String(node.value ?? '')
+  const value = typeof node.value === 'string' ? node.value : ''
   return node.githubHtmlBlock === true || (value.includes('\n') && isGithubHtmlBlock(value))
 }
 
 function getBoundedHtmlValue(value: unknown) {
-  const html = String(value ?? '')
+  const html = typeof value === 'string' ? value : ''
   return html.length <= maxGithubHtmlSanitizeChars ? html : ''
+}
+
+function getSafeDomAttributeValue(value: unknown) {
+  if (typeof value === 'string' || typeof value === 'boolean')
+    return String(value)
+  if (typeof value === 'number' && Number.isFinite(value))
+    return String(value)
+  return null
+}
+
+function setSafeDomAttributes(element: HTMLElement, attrs: Record<string, unknown>) {
+  Object.entries(attrs).forEach(([key, value]) => {
+    const attrValue = getSafeDomAttributeValue(value)
+    if (attrValue != null) element.setAttribute(key, attrValue)
+  })
 }
 
 withMeta(htmlAttr, {
@@ -38,16 +53,15 @@ export const htmlSchema = $nodeSchema('html', (ctx) => {
     },
     toDOM: (node) => {
       const span = document.createElement('span')
-      Object.entries({
+      const value = getBoundedHtmlValue(node.attrs.value)
+      setSafeDomAttributes(span, {
         ...ctx.get(htmlAttr.key)(node),
-        'data-value': getBoundedHtmlValue(node.attrs.value),
+        'data-value': value,
         'data-type': 'html',
-      }).forEach(([key, value]) => {
-        if (value != null) span.setAttribute(key, String(value))
       })
-      span.innerHTML = sanitizeGithubHtml(node.attrs.value)
-      if (span.childNodes.length === 0 && isGfmDisallowedRawHtml(node.attrs.value))
-        span.textContent = node.attrs.value
+      span.innerHTML = sanitizeGithubHtml(value)
+      if (span.childNodes.length === 0 && isGfmDisallowedRawHtml(value))
+        span.textContent = value
       return span
     },
     parseDOM: [
@@ -63,13 +77,13 @@ export const htmlSchema = $nodeSchema('html', (ctx) => {
     parseMarkdown: {
       match: (node) => node.type === 'html' && !isGithubHtmlBlockNode(node),
       runner: (state, node, type) => {
-        state.addNode(type, { value: node.value as string })
+        state.addNode(type, { value: getBoundedHtmlValue(node.value) })
       },
     },
     toMarkdown: {
       match: (node) => node.type.name === 'html',
       runner: (state, node) => {
-        state.addNode('html', undefined, node.attrs.value)
+        state.addNode('html', undefined, getBoundedHtmlValue(node.attrs.value))
       },
     },
   }
@@ -87,16 +101,15 @@ export const htmlBlockSchema = $nodeSchema('html_block', (ctx) => {
     },
     toDOM: (node) => {
       const block = document.createElement('div')
-      Object.entries({
+      const value = getBoundedHtmlValue(node.attrs.value)
+      setSafeDomAttributes(block, {
         ...ctx.get(htmlAttr.key)(node),
-        'data-value': getBoundedHtmlValue(node.attrs.value),
+        'data-value': value,
         'data-type': 'html-block',
-      }).forEach(([key, value]) => {
-        if (value != null) block.setAttribute(key, String(value))
       })
-      block.innerHTML = sanitizeGithubHtml(node.attrs.value)
-      if (block.childNodes.length === 0 && isGfmDisallowedRawHtml(node.attrs.value))
-        block.textContent = node.attrs.value
+      block.innerHTML = sanitizeGithubHtml(value)
+      if (block.childNodes.length === 0 && isGfmDisallowedRawHtml(value))
+        block.textContent = value
       return block
     },
     parseDOM: [
@@ -112,13 +125,13 @@ export const htmlBlockSchema = $nodeSchema('html_block', (ctx) => {
     parseMarkdown: {
       match: (node) => node.type === 'html' && isGithubHtmlBlockNode(node),
       runner: (state, node, type) => {
-        state.addNode(type, { value: node.value as string })
+        state.addNode(type, { value: getBoundedHtmlValue(node.value) })
       },
     },
     toMarkdown: {
       match: (node) => node.type.name === 'html_block',
       runner: (state, node) => {
-        state.addNode('html', undefined, node.attrs.value)
+        state.addNode('html', undefined, getBoundedHtmlValue(node.attrs.value))
       },
     },
   }

@@ -110,6 +110,15 @@ it('blocks local-network media URLs without a browser window', () => {
   expect(sanitizeMediaSrc(String.raw`\\127.0.0.1\image.png`)).toBe(null)
 })
 
+it('requires dotted IPv4 hostnames to use short decimal octets', () => {
+  vi.stubGlobal('window', undefined)
+
+  expect(isLocalNetworkHttpUrl('http://01.02.03.04/image.png')).toBe(false)
+  expect(isLocalNetworkHttpUrl('http://1e2.0.0.1/image.png')).toBe(false)
+  expect(isPublicRemoteMediaUrl('http://01.02.03.04/image.png')).toBe(true)
+  expect(isPublicRemoteMediaUrl('http://1e2.0.0.1/image.png')).toBe(false)
+})
+
 it('allows public media URLs without a browser window', () => {
   vi.stubGlobal('window', undefined)
 
@@ -200,6 +209,9 @@ it('rejects oversized media sources and link hrefs', () => {
   expect(sanitizeImageSrc(`img:${oversizedPath}`)).toBe(null)
   expect(sanitizeImageSrc(oversizedPath)).toBe(null)
   expect(sanitizeLinkHref(`${'a'.repeat(maxUrlChars)}.md`)).toBe(null)
+  expect(isPublicRemoteMediaUrl(' '.repeat(maxUrlChars + 1))).toBe(false)
+  expect(sanitizeMediaSrc(' '.repeat(maxUrlChars + 1))).toBe(null)
+  expect(sanitizeLinkHref(' '.repeat(maxUrlChars + 1))).toBe(null)
 })
 
 it('drops unsafe markdown image sources during parsing', async () => {

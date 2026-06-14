@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
+import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 
 const { notesStoreState, useNotesStoreMock } = vi.hoisted(() => ({
   notesStoreState: {
@@ -87,6 +88,29 @@ describe('UserMessage', () => {
 
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     expect(useNotesStoreMock).toHaveBeenCalled();
+  });
+
+  it('limits edited message text before saving', () => {
+    const onEdit = vi.fn();
+    const { container } = render(<UserMessage message={createMessage()} containerWidth={880} onEdit={onEdit} />);
+    const oversizedMessage = 'x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS + 1);
+
+    fireEvent.click(screen.getByLabelText('Edit message'));
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: {
+        value: oversizedMessage,
+        selectionStart: oversizedMessage.length,
+      },
+    });
+
+    expect(textarea.value).toBe('x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS));
+
+    const saveButton = container.querySelector('[data-chat-message-editor-action="save"]');
+    expect(saveButton).not.toBeNull();
+    fireEvent.click(saveButton!);
+
+    expect(onEdit).toHaveBeenCalledWith('u1', 'x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS));
   });
 
   it('does not render the hover toolbar while waiting for an assistant response', () => {

@@ -157,5 +157,6 @@ describe('web search status markup', () => {
     expect(sanitizeWebSearchSourceUrl('https://example.com\\@internal.test/path')).toBeNull();
     expect(sanitizeWebSearchSourceUrl('https://example.com/\u0000path')).toBeNull();
     expect(sanitizeWebSearchSourceUrl(`https://example.com/${'a'.repeat(4096)}`)).toBeNull();
+    expect(sanitizeWebSearchSourceUrl(`${' '.repeat(4097)}https://example.com`)).toBeNull();
   });
 });

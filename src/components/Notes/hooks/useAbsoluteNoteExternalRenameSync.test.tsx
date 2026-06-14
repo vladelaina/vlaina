@@ -1,6 +1,9 @@
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAbsoluteNoteExternalRenameSync } from './useAbsoluteNoteExternalRenameSync';
+import {
+  MAX_ABSOLUTE_NOTE_WATCH_EVENT_PATHS,
+  useAbsoluteNoteExternalRenameSync,
+} from './useAbsoluteNoteExternalRenameSync';
 
 type WatchEvent = {
   type: unknown;
@@ -22,7 +25,14 @@ const hoisted = vi.hoisted(() => {
       return hoisted.unwatch;
     }),
     unsubscribeRenameBroadcast: vi.fn(),
-    subscribeNotesExternalPathRename: vi.fn(() => hoisted.unsubscribeRenameBroadcast),
+    renameBroadcastListener: null as ((event: { nonce?: string; oldPath: string; newPath: string }) => void) | null,
+    subscribeNotesExternalPathRename: vi.fn((
+      _path: string,
+      listener: (event: { nonce?: string; oldPath: string; newPath: string }) => void,
+    ) => {
+      hoisted.renameBroadcastListener = listener;
+      return hoisted.unsubscribeRenameBroadcast;
+    }),
     readNotesExternalPathEvents: vi.fn(async () => [] as Array<{ nonce: string; oldPath: string; newPath: string }>),
   };
 });
@@ -81,9 +91,17 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.watchHandler = null;
+    hoisted.renameBroadcastListener = null;
     hoisted.watchDesktopPath.mockImplementation(async (_path: string, handler: (event: WatchEvent) => void | Promise<void>) => {
       hoisted.watchHandler = handler;
       return hoisted.unwatch;
+    });
+    hoisted.subscribeNotesExternalPathRename.mockImplementation((
+      _path: string,
+      listener: (event: { nonce?: string; oldPath: string; newPath: string }) => void,
+    ) => {
+      hoisted.renameBroadcastListener = listener;
+      return hoisted.unsubscribeRenameBroadcast;
     });
   });
 
@@ -100,6 +118,25 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
       await hoisted.watchHandler?.({
         type: 'modify',
         paths: ['/external/docs/current.md'],
+      });
+    });
+
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('syncs the current absolute note for oversized watch events', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: 'modify',
+        paths: Array.from(
+          { length: MAX_ABSOLUTE_NOTE_WATCH_EVENT_PATHS + 1 },
+          (_value, index) => `/external/docs/changed-${index}.md`,
+        ),
       });
     });
 
@@ -167,6 +204,32 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
       '/external/docs/renamed.md',
     );
     expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('applies absolute rename broadcast events for the watched parent path', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    expect(hoisted.subscribeNotesExternalPathRename).toHaveBeenCalledWith(
+      '/external/docs',
+      expect.any(Function),
+    );
+
+    act(() => {
+      hoisted.renameBroadcastListener?.({
+        nonce: 'broadcast-rename',
+        oldPath: '/external/docs/current.md',
+        newPath: '/external/docs/renamed.md',
+      });
+    });
+
+    await waitFor(() => {
+      expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+        '/external/docs/current.md',
+        '/external/docs/renamed.md',
+      );
+    });
 
     hook.unmount();
   });

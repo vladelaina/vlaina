@@ -5,6 +5,7 @@ import {
   registerComposerFocusAdapter,
   canInsertTextIntoComposerValue,
 } from '@/lib/ui/composerFocusRegistry';
+import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
@@ -161,9 +162,10 @@ export function useChatComposer({
   }, []);
 
   const handleMessageChange = useCallback((nextValue: string) => {
-    messageRef.current = nextValue;
-    setMessage(nextValue);
-    if (!nextValue.includes('\n')) {
+    const limitedValue = limitChatComposerText(nextValue);
+    messageRef.current = limitedValue;
+    setMessage(limitedValue);
+    if (!limitedValue.includes('\n')) {
       hasExplicitMultilineRef.current = false;
     }
   }, []);
@@ -177,11 +179,11 @@ export function useChatComposer({
 
       const noteMentions = getNoteMentions();
       const rawMessage = overrideMessage ?? message;
-      const cleanedMessage = rawMessage.replace(INVISIBLE_BREAK_REGEX, '');
-      const normalizedMessage = cleanedMessage.replace(UNIVERSAL_NEWLINE_REGEX, '\n');
+      const cleanedMessage = limitChatComposerText(rawMessage.replace(INVISIBLE_BREAK_REGEX, ''));
+      const normalizedMessage = limitChatComposerText(cleanedMessage.replace(UNIVERSAL_NEWLINE_REGEX, '\n'));
       const outgoingMessage = hasExplicitMultilineRef.current
         ? normalizedMessage
-        : normalizedMessage.replace(/\s*\n+\s*/g, '');
+        : limitChatComposerText(normalizedMessage.replace(/\s*\n+\s*/g, ''));
 
       if (!outgoingMessage.trim() && attachments.length === 0 && noteMentions.length === 0) {
         return;

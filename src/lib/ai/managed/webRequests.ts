@@ -8,13 +8,15 @@ const MANAGED_STREAM_TIMEOUT_MS = 300_000;
 const MANAGED_GET_RETRY_DELAYS_MS = [300];
 const MANAGED_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 const MAX_MANAGED_JSON_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_MANAGED_CONTENT_LENGTH_CHARS = 32;
+const MAX_MANAGED_STREAM_ERROR_CODE_CHARS = 512;
 
 interface ManagedJsonRequestInit extends RequestInit {
   timeoutMs?: number;
 }
 
 function publicManagedStreamErrorMessage(message: string | undefined, errorCode: string | undefined): string {
-  const normalizedCode = typeof errorCode === 'string' ? errorCode.trim().toLowerCase() : '';
+  const normalizedCode = normalizeManagedStreamErrorCode(errorCode).toLowerCase();
   switch (normalizedCode) {
     case 'points_exhausted':
     case 'inactive_points':
@@ -34,6 +36,13 @@ function publicManagedStreamErrorMessage(message: string | undefined, errorCode:
         ? message
         : 'Managed API request failed: HTTP 502';
   }
+}
+
+function normalizeManagedStreamErrorCode(errorCode: unknown): string {
+  if (typeof errorCode !== 'string' || errorCode.length > MAX_MANAGED_STREAM_ERROR_CODE_CHARS) {
+    return '';
+  }
+  return errorCode.trim();
 }
 
 function isAbortError(error: unknown): boolean {
@@ -159,7 +168,14 @@ function readContentLength(response: Response): number | null {
     return null;
   }
 
-  const parsed = Number(rawContentLength);
+  if (rawContentLength.length > MAX_MANAGED_CONTENT_LENGTH_CHARS) {
+    return null;
+  }
+  const trimmed = rawContentLength.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
@@ -231,7 +247,11 @@ async function fetchManagedJsonWithRetry(
   timeoutController: AbortController,
   externalSignal?: AbortSignal | null,
 ): Promise<Response> {
-  const method = String(init.method ?? 'GET').toUpperCase();
+  const method = init.method == null
+    ? 'GET'
+    : typeof init.method === 'string' && init.method.length <= 16
+      ? init.method.toUpperCase()
+      : '';
   const shouldRetry = method === 'GET';
   const retrySignal = init.signal ?? timeoutController.signal;
   for (let attempt = 0; ; attempt += 1) {
@@ -391,8 +411,9 @@ export async function requestManagedWebStream(
         const error = new Error(publicManagedStreamErrorMessage(message, code)) as Error & {
           errorCode?: string;
         };
-        if (typeof code === 'string' && code.trim()) {
-          error.errorCode = code.trim();
+        const normalizedCode = normalizeManagedStreamErrorCode(code);
+        if (normalizedCode) {
+          error.errorCode = normalizedCode;
         }
         return error;
       },

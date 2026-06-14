@@ -27,6 +27,16 @@ describe('readSettingsApiJson', () => {
     expect(() => response.body?.getReader()).not.toThrow();
   });
 
+  it('ignores invalid settings content-length syntax', async () => {
+    const response = new Response(JSON.stringify({ success: true }), {
+      headers: {
+        'content-length': '1e12',
+      },
+    });
+
+    await expect(readSettingsApiJson(response)).resolves.toEqual({ success: true });
+  });
+
   it('cancels settings JSON body reads when the streamed body exceeds the limit', async () => {
     const reader = {
       read: vi.fn(async () => ({

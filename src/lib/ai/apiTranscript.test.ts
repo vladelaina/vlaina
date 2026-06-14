@@ -55,6 +55,16 @@ describe('apiTranscript normalization', () => {
     expect(transcript?.at(-1)?.content).toBe('message-79')
   })
 
+  it('rejects non-string roles without coercion', () => {
+    const role = {
+      toString: () => {
+        throw new Error('role should not be coerced')
+      },
+    }
+
+    expect(normalizeApiTranscriptMessage({ role, content: 'hello' })).toBeNull()
+  })
+
   it('preserves complete tool call segments', () => {
     const transcript = normalizeApiTranscriptMessages([
       {

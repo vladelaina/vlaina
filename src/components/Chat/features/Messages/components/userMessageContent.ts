@@ -16,6 +16,8 @@ export interface ParsedUserMessageContent {
   imageSources: string[];
 }
 
+const MAX_EDIT_ATTACHMENT_NAME_SOURCE_CHARS = 4096;
+
 export function isSvgSource(src: string): boolean {
   const normalized = src.trim().toLowerCase();
   if (normalized.startsWith('data:image/svg+xml')) {
@@ -43,14 +45,23 @@ function inferImageMimeType(src: string): string {
 }
 
 function inferAttachmentName(src: string, index: number): string {
+  const fallback = `image-${index + 1}.png`;
   if (isRenderableDataImageSrc(src)) {
     const mime = inferImageMimeType(src);
     const ext = mime.split('/')[1]?.replace('svg+xml', 'svg') || 'png';
     return `image-${index + 1}.${ext}`;
   }
 
+  if (src.length > MAX_EDIT_ATTACHMENT_NAME_SOURCE_CHARS) {
+    return fallback;
+  }
+
   const base = src.split('?')[0]?.split('/').pop()?.trim();
-  return base || `image-${index + 1}.png`;
+  return base || fallback;
+}
+
+function trimString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 export function toEditAttachment(src: string, index: number): Attachment {
@@ -79,7 +90,7 @@ export function parseUserMessageContent(content: string): ParsedUserMessageConte
 
 export function parseUserMessageContentWithKnownImages(
   content: string,
-  imageSources: string[] | undefined,
+  imageSources: readonly unknown[] | undefined,
 ): ParsedUserMessageContent {
   const safeImageSources = normalizeChatMessageImageSources(imageSources, {
     maxEntries: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
@@ -116,7 +127,7 @@ export function parseUserMessageContentWithKnownImages(
 export function composeUserMessageContent(text: string, attachments: Attachment[]): string {
   const normalizedText = text.replace(/\r\n?/g, '\n');
   const imageMarkdown = attachments
-    .map((attachment) => attachment.assetUrl?.trim() || attachment.previewUrl?.trim())
+    .map((attachment) => trimString(attachment.assetUrl) || trimString(attachment.previewUrl))
     .filter((src): src is string => !!src)
     .map((src) => formatMarkdownImage(src))
     .join('\n');

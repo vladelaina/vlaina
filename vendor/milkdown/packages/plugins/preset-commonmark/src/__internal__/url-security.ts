@@ -8,6 +8,7 @@ const fallbackUrlBase = 'https://milkdown.local/'
 const safeDataImagePattern = /^(data:image\/(?:png|jpeg|jpg|webp|gif|bmp|avif);base64,)([A-Za-z0-9+/=]+)$/i
 const maxInlineImageBytes = 10 * 1024 * 1024
 const maxInlineImageBase64Chars = Math.ceil(maxInlineImageBytes / 3) * 4
+const maxSafeDataImageSrcChars = maxInlineImageBase64Chars + 128
 const maxRemoteMediaUrlChars = 16 * 1024
 const maxInternalImageSrcChars = 16 * 1024
 const internalImagePathSegments = new Set(['.vlaina', '.git'])
@@ -25,6 +26,14 @@ function hasUnsafeBackslashUrlSyntax(value: string) {
     schemePattern.test(value) ||
     backslashEscapedSchemePattern.test(value)
   )
+}
+
+function startsWithDataImageCandidate(value: string) {
+  let index = 0
+  while (index < value.length && index < 128 && /\s/.test(value[index])) {
+    index += 1
+  }
+  return /^data:/i.test(value.slice(index, index + 5))
 }
 
 function hasInternalImagePathSegment(path: string) {
@@ -69,6 +78,7 @@ function getBase64DecodedByteLength(payload: string) {
 function parseIPv4(hostname: string) {
   const parts = hostname.split('.')
   if (parts.length !== 4) return null
+  if (parts.some((part) => !/^\d{1,3}$/.test(part))) return null
   const octets = parts.map((part) => Number(part))
   if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null
   return octets
@@ -165,6 +175,7 @@ export function hasUrlCredentials(value: string) {
 }
 
 export function isPublicRemoteMediaUrl(value: string) {
+  if (value.length > maxRemoteMediaUrlChars) return false
   const trimmed = value.trim()
   if (trimmed.length > maxRemoteMediaUrlChars) return false
   if (controlOrBidiPattern.test(trimmed)) return false
@@ -186,6 +197,7 @@ export function isPublicRemoteMediaUrl(value: string) {
 
 export function getInternalImageAssetPath(value: unknown) {
   if (typeof value !== 'string') return null
+  if (value.length > maxInternalImageSrcChars) return null
   const trimmed = value.trim()
   if (trimmed.length > maxInternalImageSrcChars) return null
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
@@ -207,6 +219,7 @@ export function getInternalImageAssetPath(value: unknown) {
 
 export function sanitizeMediaSrc(value: unknown) {
   if (typeof value !== 'string') return null
+  if (value.length > maxInternalImageSrcChars && !startsWithDataImageCandidate(value)) return null
   const trimmed = value.trim()
   if (!trimmed || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed) || (unixAbsolutePathPattern.test(trimmed) && !trimmed.startsWith('//'))) return null
   if (trimmed.startsWith('//')) {
@@ -221,6 +234,7 @@ export function sanitizeMediaSrc(value: unknown) {
     return getInternalImageAssetPath(trimmed) ? trimmed : null
   }
   if (normalizedScheme === 'data:') {
+    if (trimmed.length > maxSafeDataImageSrcChars) return null
     const commaIndex = trimmed.indexOf(',')
     if (commaIndex < 0 || trimmed.length - commaIndex - 1 > maxInlineImageBase64Chars) return null
     const match = safeDataImagePattern.exec(trimmed)

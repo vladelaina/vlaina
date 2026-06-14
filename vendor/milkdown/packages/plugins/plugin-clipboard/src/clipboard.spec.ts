@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   canParseClipboardPayload,
+  isClipboardHtmlWithinDomBudget,
+  maxClipboardHtmlDepth,
   maxClipboardHtmlChars,
+  maxClipboardHtmlNodes,
   maxClipboardTextChars,
   parseVscodeEditorDataMode,
 } from './index'
@@ -27,5 +30,24 @@ describe('canParseClipboardPayload', () => {
   it('rejects oversized clipboard text or html before DOM and markdown parsing', () => {
     expect(canParseClipboardPayload('x'.repeat(maxClipboardTextChars + 1), '')).toBe(false)
     expect(canParseClipboardPayload('', 'x'.repeat(maxClipboardHtmlChars + 1))).toBe(false)
+  })
+})
+
+describe('isClipboardHtmlWithinDomBudget', () => {
+  it('accepts ordinary clipboard HTML', () => {
+    expect(isClipboardHtmlWithinDomBudget('<p><strong>hello</strong></p>')).toBe(true)
+  })
+
+  it('rejects oversized HTML before DOM parsing', () => {
+    expect(isClipboardHtmlWithinDomBudget('x'.repeat(maxClipboardHtmlChars + 1))).toBe(false)
+  })
+
+  it('rejects HTML with too many DOM nodes', () => {
+    expect(isClipboardHtmlWithinDomBudget('<span></span>'.repeat(maxClipboardHtmlNodes + 1))).toBe(false)
+  })
+
+  it('rejects deeply nested clipboard HTML', () => {
+    const html = `${'<div>'.repeat(maxClipboardHtmlDepth + 1)}text${'</div>'.repeat(maxClipboardHtmlDepth + 1)}`
+    expect(isClipboardHtmlWithinDomBudget(html)).toBe(false)
   })
 })

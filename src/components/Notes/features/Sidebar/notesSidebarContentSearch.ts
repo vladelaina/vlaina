@@ -104,6 +104,7 @@ function toPlainTextLine(line: string): string {
 
 interface ContentSearchLine {
   end: number;
+  nextStart: number;
   start: number;
   text: string;
 }
@@ -118,6 +119,7 @@ function* iterateLines(content: string): Iterable<ContentSearchLine> {
 
     yield {
       end: index,
+      nextStart: charCode === 13 && content.charCodeAt(index + 1) === 10 ? index + 2 : index + 1,
       start,
       text: content.slice(start, index),
     };
@@ -130,6 +132,7 @@ function* iterateLines(content: string): Iterable<ContentSearchLine> {
 
   yield {
     end: content.length,
+    nextStart: content.length,
     start,
     text: content.slice(start),
   };
@@ -249,7 +252,7 @@ export function getNotesSidebarContentMatches(
     }
 
     const rawLine = line.text;
-    scannedChars += rawLine.length;
+    scannedChars += Math.max(1, line.nextStart - line.start);
     if (rawLine.length > MAX_CONTENT_SEARCH_LINE_CHARS) {
       continue;
     }

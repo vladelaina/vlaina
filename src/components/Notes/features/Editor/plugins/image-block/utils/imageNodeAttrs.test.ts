@@ -86,7 +86,10 @@ describe('imageNodeAttrs', () => {
     it('clamps or drops note-controlled image layout values', () => {
         expect(getImageWidth({ src: 'image.png', width: 'calc(999999px * 999999)' })).toBeNull();
         expect(getImageWidth({ src: 'image.png', width: '999999px' })).toBe('2000px');
+        expect(getImageWidth({ src: 'image.png', width: `${' '.repeat(65)}50%` })).toBeNull();
         expect(getImageCrop({ crop: '5,6,70,80,1.25' })).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
         expect(getImageCrop({ crop: '-10,200,999,0,999' })).toMatchObject({ x: 0, y: 100, width: 100, height: 1, ratio: 20 });
+        expect(getImageCrop({ crop: '0x10,6,70,80,1' })).toBeNull();
+        expect(getImageCrop({ crop: `${' '.repeat(161)}5,6,70,80,1` })).toBeNull();
     });
 });

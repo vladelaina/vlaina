@@ -32,6 +32,7 @@ describe('chatImageSourcePolicy', () => {
     expect(normalizeChatMessageImageSource('attachment://..%2Fsecret.png')).toBeNull();
     expect(normalizeChatMessageImageSource('data:image/svg+xml;base64,PHN2Zz4=')).toBeNull();
     expect(normalizeChatMessageImageSource('https://example.com/movie.mp4')).toBeNull();
+    expect(normalizeChatMessageImageSource(`${' '.repeat((16 * 1024) + 1)}https://example.com/image.png`)).toBeNull();
   });
 
   it('drops non-persistable blob sources for stored chat metadata', () => {
@@ -42,6 +43,20 @@ describe('chatImageSourcePolicy', () => {
     expect(normalizePersistedChatMessageImageSource('attachment://demo.png')).toBe(
       'attachment://demo.png',
     );
+  });
+
+  it('drops non-string sources without coercion', () => {
+    const source = {
+      toString() {
+        throw new Error('source coercion');
+      },
+    };
+
+    expect(normalizeChatMessageImageSource(source)).toBeNull();
+    expect(normalizePersistedChatMessageImageSource(source)).toBeNull();
+    expect(normalizeChatMessageImageSources([source, 'https://example.com/image.png'])).toEqual([
+      'https://example.com/image.png',
+    ]);
   });
 
   it('extracts and strips only safe rendered image tokens', () => {

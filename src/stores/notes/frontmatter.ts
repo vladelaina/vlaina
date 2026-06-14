@@ -21,8 +21,10 @@ const KEY_UPDATED = `${MANAGED_FRONTMATTER_PREFIX}updated`;
 const MAX_NOTE_ICON_CHARS = 4096;
 const MIN_NOTE_ICON_SIZE = 20;
 const MAX_NOTE_ICON_SIZE = 150;
+const MAX_MANAGED_NUMBER_CHARS = 64;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
+const MANAGED_DECIMAL_NUMBER_PATTERN = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 const MANAGED_KEYS = new Set([
   KEY_COVER,
@@ -254,7 +256,20 @@ function getInlineNumber(fields: Map<string, string>, key: string): number | und
   if (value === undefined) {
     return undefined;
   }
-  const numberValue = Number(value);
+  return parseManagedDecimalNumber(value);
+}
+
+function parseManagedDecimalNumber(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (
+    !trimmed
+    || trimmed.length > MAX_MANAGED_NUMBER_CHARS
+    || !MANAGED_DECIMAL_NUMBER_PATTERN.test(trimmed)
+  ) {
+    return undefined;
+  }
+
+  const numberValue = Number(trimmed);
   return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
@@ -265,13 +280,13 @@ function parseCoverLayout(value: string | number | null | undefined): CoverLayou
 
   const layout: CoverLayoutMetadata = {};
   for (const token of value.trim().split(/[\s,;]+/)) {
-    const match = /^(x|y|height|scale)=(-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?)$/i.exec(token);
+    const match = /^(x|y|height|scale)=(.+)$/i.exec(token);
     if (!match) {
       continue;
     }
 
-    const numericValue = Number(match[2]);
-    if (!Number.isFinite(numericValue)) {
+    const numericValue = parseManagedDecimalNumber(match[2] ?? '');
+    if (numericValue === undefined) {
       continue;
     }
 
@@ -331,7 +346,13 @@ function normalizeIcon(icon: unknown): string | undefined {
 }
 
 function normalizeIconSize(size: unknown): number | undefined {
-  const value = typeof size === 'number' ? size : Number(size);
+  let value = Number.NaN;
+  if (typeof size === 'number') {
+    value = size;
+  } else if (typeof size === 'string' && size.length <= 64) {
+    const trimmed = size.trim();
+    value = /^(?:\d+(?:\.\d+)?|\.\d+)$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  }
   if (!Number.isFinite(value)) {
     return undefined;
   }

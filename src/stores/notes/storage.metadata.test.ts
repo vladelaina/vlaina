@@ -486,6 +486,17 @@ describe('notes metadata storage', () => {
     expect(localStorage.getItem('vlaina-note-icon-size')).toBe('60');
   });
 
+  it('normalizes hostile runtime note icon sizes without coercion', () => {
+    const hostileSize = {
+      toString() {
+        throw new Error('icon size coercion');
+      },
+    };
+
+    expect(persistGlobalNoteIconSize(hostileSize as never)).toBe(60);
+    expect(localStorage.getItem('vlaina-note-icon-size')).toBe('60');
+  });
+
   it('stores workspace state in the system config folder instead of the vault folder', async () => {
     await saveWorkspaceState('/vault-a', {
       currentNotePath: 'alpha.md',

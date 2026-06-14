@@ -51,6 +51,26 @@ describe('mathSchema', () => {
     expect(dom.outerHTML).not.toContain('hidden_secret_marker');
   });
 
+  it('serializes non-string math attrs as empty without coercion', () => {
+    const latex = {
+      toString() {
+        throw new Error('latex coercion');
+      },
+    };
+    const blockDom = serializeMathBlockNode({
+      attrs: { latex },
+    } as never) as HTMLElement;
+    const addNode = vi.fn();
+
+    serializeMathInlineToMarkdown(
+      { addNode },
+      { attrs: { latex } } as never
+    );
+
+    expect(getMathElementLatex(blockDom)).toBe('');
+    expect(addNode).toHaveBeenCalledWith('inlineMath', undefined, '');
+  });
+
   it('serializes inline math without leaking source latex into wrapper attrs', () => {
     const latex = 'x% inline_hidden_marker';
     const dom = serializeMathInlineNode({

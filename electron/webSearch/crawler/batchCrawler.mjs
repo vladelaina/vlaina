@@ -1,6 +1,7 @@
 import { DEFAULT_BATCH_CONCURRENCY, DEFAULT_CRAWL_RETRY } from '../types.mjs';
 
 const RETRYABLE_ERROR_CODES = new Set(['network_error', 'timeout']);
+const MAX_BATCH_NUMERIC_OPTION_CHARS = 16;
 
 function throwIfAborted(signal) {
   if (!signal?.aborted) return;
@@ -13,6 +14,39 @@ function isAbortError(error) {
 
 function shouldRetryRead(error) {
   return RETRYABLE_ERROR_CODES.has(error?.code);
+}
+
+function normalizeBatchInteger(value, fallback, min, max) {
+  let parsed = Number.NaN;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string' && value.length <= MAX_BATCH_NUMERIC_OPTION_CHARS) {
+    const trimmed = value.trim();
+    parsed = /^\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : Number.NaN;
+  }
+  if (!Number.isFinite(parsed) || parsed < min) {
+    return fallback;
+  }
+  return Math.max(min, Math.min(Math.floor(parsed), max));
+}
+
+function getReadErrorMessage(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error && typeof error === 'object' && typeof error.message === 'string') {
+    return error.message;
+  }
+  switch (typeof error) {
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(error);
+    default:
+      return 'Read failed';
+  }
 }
 
 async function readWithRetry(crawler, url, options, retries) {
@@ -41,8 +75,8 @@ async function readWithRetry(crawler, url, options, retries) {
 export async function readUrlsBatch(crawler, urls, options = {}) {
   throwIfAborted(options.signal);
   const inputUrls = Array.isArray(urls) ? urls.slice(0, 8) : [];
-  const concurrency = Math.max(1, Math.min(Number(options.concurrency) || DEFAULT_BATCH_CONCURRENCY, 5));
-  const retries = Math.max(0, Math.min(Number(options.retries ?? DEFAULT_CRAWL_RETRY), 2));
+  const concurrency = normalizeBatchInteger(options.concurrency, DEFAULT_BATCH_CONCURRENCY, 1, 5);
+  const retries = normalizeBatchInteger(options.retries ?? DEFAULT_CRAWL_RETRY, DEFAULT_CRAWL_RETRY, 0, 2);
   const results = new Array(inputUrls.length);
   let nextIndex = 0;
 
@@ -65,7 +99,7 @@ export async function readUrlsBatch(crawler, urls, options = {}) {
         results[index] = {
           url,
           ok: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: getReadErrorMessage(error),
           code: typeof error?.code === 'string' ? error.code : 'read_failed',
         };
       }

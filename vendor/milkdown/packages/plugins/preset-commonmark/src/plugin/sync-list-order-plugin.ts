@@ -12,6 +12,8 @@ import { orderedListSchema } from '../node/ordered-list'
 export const MAX_LIST_ORDER_SYNC_SCAN_NODES = 20_000
 export const MAX_LIST_ORDER_SYNC_UPDATES = 5_000
 const STOP_LIST_ORDER_SCAN = Symbol('stopListOrderScan')
+const ORDERED_LIST_LABEL_PATTERN = /^(\d+)(?:[.)])?$/
+const MAX_ORDERED_LIST_LABEL_CHARS = 64
 
 function boundedListOrderNodesBetween(
   doc: Node,
@@ -229,6 +231,20 @@ export function getListOrderSyncRanges(
   )
 }
 
+function parseOrderedListLabelOrder(value: unknown) {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_ORDERED_LIST_LABEL_CHARS
+  ) return 1
+
+  const match = ORDERED_LIST_LABEL_PATTERN.exec(value.trim())
+  if (!match) return 1
+
+  const order = Number(match[1])
+  return Number.isSafeInteger(order) && order > 0 ? order : 1
+}
+
 /// This plugin is used to keep the label of list item up to date in ordered list.
 export const syncListOrderPlugin = $prose((ctx) => {
   const syncOrderLabel = (
@@ -313,7 +329,7 @@ export const syncListOrderPlugin = $prose((ctx) => {
           ) {
             if (!canApplyUpdate()) return STOP_LIST_ORDER_SCAN
 
-            const order = Number.parseInt(base.attrs.label, 10) || 1
+            const order = parseOrderedListLabelOrder(base.attrs.label)
             if (!setNodeMarkup(pos, orderedListType, {
               order,
               spread: Boolean(node.attrs.spread),

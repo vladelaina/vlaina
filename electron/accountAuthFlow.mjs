@@ -11,10 +11,16 @@ import {
 import { createDesktopAuthPersistence } from './accountAuthPersistence.mjs';
 import { bindDesktopAuthLoopbackServer } from './accountLoopbackServer.mjs';
 import { createDesktopAccountSessionClient } from './accountSessionClient.mjs';
+import { normalizeExternalUrl } from './externalUrlPolicy.mjs';
 
 const { shell } = electron;
 const accountNetworkRetryDelaysMs = [250, 750];
 const accountRequestTimeoutMs = 15_000;
+const maxAccountEmailInputChars = 4096;
+const maxAccountEmailChars = 320;
+const maxAccountEmailCodeInputChars = 64;
+const maxAccountAuthStateChars = 4096;
+const emailCodePattern = /^\d{6}$/;
 
 function accountErrorResult(message) {
   return {
@@ -31,8 +37,59 @@ function generateDesktopVerifier() {
   return randomBytes(48).toString('base64url');
 }
 
+function primitiveToString(value) {
+  if (value == null) {
+    return '';
+  }
+  switch (typeof value) {
+    case 'string':
+      return value;
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value);
+    default:
+      return null;
+  }
+}
+
 function getErrorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return primitiveToString(error) || 'Unknown error';
+}
+
+function normalizeEmailInput(value) {
+  if (typeof value !== 'string' || value.length > maxAccountEmailInputChars) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0
+    && normalized.length <= maxAccountEmailChars
+    && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+    ? normalized
+    : null;
+}
+
+function normalizeEmailCodeInput(value) {
+  if (typeof value !== 'string' || value.length > maxAccountEmailCodeInputChars) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return emailCodePattern.test(normalized) ? normalized : null;
+}
+
+function normalizeAuthStateInput(value) {
+  if (typeof value !== 'string' || value.length > maxAccountAuthStateChars) {
+    return '';
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 && normalized.length <= maxAccountAuthStateChars ? normalized : '';
 }
 
 function createAbortError() {
@@ -349,14 +406,21 @@ export function createDesktopAccountService({ apiBaseUrl }) {
         abortController.signal,
       );
 
-      const state = typeof authStart?.state === 'string' ? authStart.state.trim() : '';
-      const authUrl = typeof authStart?.authUrl === 'string' ? authStart.authUrl.trim() : '';
+      const state = normalizeAuthStateInput(authStart?.state);
+      const rawAuthUrl = typeof authStart?.authUrl === 'string' ? authStart.authUrl : '';
       const expiresInSeconds =
         typeof authStart?.expiresInSeconds === 'number' ? authStart.expiresInSeconds : 300;
 
-      if (!authStart?.success || !state || !authUrl) {
+      if (!authStart?.success || !state || !rawAuthUrl) {
         loopback.close();
         return accountErrorResult('Sign-in start response is missing auth URL or state');
+      }
+      let normalizedAuthUrl;
+      try {
+        normalizedAuthUrl = normalizeExternalUrl(rawAuthUrl);
+      } catch {
+        loopback.close();
+        return accountErrorResult('Sign-in start response contains unsupported auth URL');
       }
 
       if (flow.cancelled) {
@@ -364,7 +428,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
         return accountErrorResult('Authorization cancelled');
       }
 
-      await shell.openExternal(authUrl);
+      await shell.openExternal(normalizedAuthUrl);
       const callback = await loopback.waitForCallback();
       if (flow.cancelled) {
         return accountErrorResult('Authorization cancelled');
@@ -424,7 +488,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
     });
 
     handleIpc('desktop:account:start-auth', async (_event, provider) => {
-      return await performDesktopOauth(String(provider ?? ''));
+      return await performDesktopOauth(primitiveToString(provider) ?? '');
     });
 
     handleIpc('desktop:account:cancel-auth', async () => {
@@ -432,6 +496,11 @@ export function createDesktopAccountService({ apiBaseUrl }) {
     });
 
     handleIpc('desktop:account:request-email-code', async (_event, email) => {
+      const normalizedEmail = normalizeEmailInput(email);
+      if (!normalizedEmail) {
+        throw new Error('Invalid email address');
+      }
+
       await retryTransientAccountNetworkError(() =>
         withAccountRequestTimeout(async (signal) => {
           const response = await raceWithAbort(fetch(`${apiBaseUrl}/auth/email/request-code`, {
@@ -442,7 +511,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
               Accept: 'application/json',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email: normalizedEmail }),
           }), signal);
 
           await readJsonResponse(response, `Failed to send verification code: HTTP ${response.status}`, signal);
@@ -452,6 +521,15 @@ export function createDesktopAccountService({ apiBaseUrl }) {
     });
 
     handleIpc('desktop:account:verify-email-code', async (_event, email, code) => {
+      const normalizedEmail = normalizeEmailInput(email);
+      if (!normalizedEmail) {
+        return accountErrorResult('Invalid email address');
+      }
+      const normalizedCode = normalizeEmailCodeInput(code);
+      if (!normalizedCode) {
+        return accountErrorResult('Invalid verification code');
+      }
+
       let data;
       try {
         ({ data } = await retryTransientAccountNetworkError(() =>
@@ -464,8 +542,8 @@ export function createDesktopAccountService({ apiBaseUrl }) {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                email,
-                code,
+                email: normalizedEmail,
+                code: normalizedCode,
                 target: 'desktop',
               }),
             }))

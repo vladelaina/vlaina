@@ -161,6 +161,10 @@ function getStoredFileByteLength(file: StoredFile): number {
   return getTextByteLength(file.content as string);
 }
 
+function getDeclaredStoredFileByteLength(file: StoredFile): number | null {
+  return Number.isSafeInteger(file.size) && file.size >= 0 ? file.size : null;
+}
+
 function getStoredFileModifiedAt(file: StoredFile): number | undefined {
   return Number.isFinite(file.modifiedAt) ? file.modifiedAt : undefined;
 }
@@ -226,6 +230,10 @@ export class WebAdapter implements StorageAdapter {
     }
 
     if (file.isBinary) {
+      const declaredByteLength = getDeclaredStoredFileByteLength(file);
+      if (readLimit !== null && declaredByteLength !== null && declaredByteLength > readLimit) {
+        throw new Error(`File is too large to read: ${path}`);
+      }
       const bytes = new Uint8Array(file.content as Uint8Array);
       if (readLimit !== null && bytes.byteLength > readLimit) {
         throw new Error(`File is too large to read: ${path}`);
@@ -235,6 +243,10 @@ export class WebAdapter implements StorageAdapter {
     }
 
     const content = file.content as string;
+    const declaredByteLength = getDeclaredStoredFileByteLength(file);
+    if (readLimit !== null && declaredByteLength !== null && declaredByteLength > readLimit) {
+      throw new Error(`File is too large to read: ${path}`);
+    }
     if (readLimit !== null && new TextEncoder().encode(content).byteLength > readLimit) {
       throw new Error(`File is too large to read: ${path}`);
     }
@@ -291,6 +303,11 @@ export class WebAdapter implements StorageAdapter {
           return;
         }
         if (file.isBinary) {
+          const declaredByteLength = getDeclaredStoredFileByteLength(file);
+          if (readLimit !== null && declaredByteLength !== null && declaredByteLength > readLimit) {
+            reject(new Error(`File is too large to read: ${path}`));
+            return;
+          }
           const bytes = new Uint8Array(file.content as Uint8Array);
           if (readLimit !== null && bytes.byteLength > readLimit) {
             reject(new Error(`File is too large to read: ${path}`));
@@ -298,6 +315,11 @@ export class WebAdapter implements StorageAdapter {
           }
           resolve(bytes);
         } else {
+          const declaredByteLength = getDeclaredStoredFileByteLength(file);
+          if (readLimit !== null && declaredByteLength !== null && declaredByteLength > readLimit) {
+            reject(new Error(`File is too large to read: ${path}`));
+            return;
+          }
           const encoder = new TextEncoder();
           const bytes = encoder.encode(file.content as string);
           if (readLimit !== null && bytes.byteLength > readLimit) {
@@ -314,13 +336,6 @@ export class WebAdapter implements StorageAdapter {
 
   async writeFile(path: string, content: string, options?: WriteOptions): Promise<void> {
     const normalizedPath = this.normalizePath(path);
-    
-    if (options?.recursive) {
-      const dir = this.getParentDir(normalizedPath);
-      if (dir) {
-        await this.mkdir(dir, true);
-      }
-    }
 
     const incomingByteLength = getTextByteLength(content);
     assertWritableWebByteLength(incomingByteLength, normalizedPath);
@@ -338,6 +353,13 @@ export class WebAdapter implements StorageAdapter {
         finalContent = existing + content;
         finalByteLength = getTextByteLength(finalContent);
         assertWritableWebByteLength(finalByteLength, normalizedPath);
+      }
+    }
+
+    if (options?.recursive) {
+      const dir = this.getParentDir(normalizedPath);
+      if (dir) {
+        await this.mkdir(dir, true);
       }
     }
 
@@ -363,16 +385,9 @@ export class WebAdapter implements StorageAdapter {
 
   async writeBinaryFile(path: string, content: Uint8Array, options?: WriteOptions): Promise<void> {
     const normalizedPath = this.normalizePath(path);
-    
-    if (options?.recursive) {
-      const dir = this.getParentDir(normalizedPath);
-      if (dir) {
-        await this.mkdir(dir, true);
-      }
-    }
 
+    assertWritableWebByteLength(content.byteLength, normalizedPath);
     const incomingContent = new Uint8Array(content);
-    assertWritableWebByteLength(incomingContent.byteLength, normalizedPath);
 
     const existingFile = await this.readStoredFile(normalizedPath);
     let finalContent = incomingContent;
@@ -389,6 +404,13 @@ export class WebAdapter implements StorageAdapter {
         combined.set(existing);
         combined.set(incomingContent, existing.byteLength);
         finalContent = combined;
+      }
+    }
+
+    if (options?.recursive) {
+      const dir = this.getParentDir(normalizedPath);
+      if (dir) {
+        await this.mkdir(dir, true);
       }
     }
 

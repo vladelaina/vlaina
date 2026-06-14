@@ -15,6 +15,8 @@ const SOURCE_PARENT_MARKER_CLASS = 'editor-block-drag-source-parent-marker';
 const PREVIEW_CLASS = 'editor-block-drag-preview';
 const PREVIEW_LAYER_CLASS = 'editor-block-drag-preview-layer';
 const MIN_PREVIEW_WIDTH = 80;
+const MAX_ORDERED_LIST_VALUE_CHARS = 16;
+const ORDERED_LIST_VALUE_PATTERN = /^-?\d+$/;
 const DRAG_SOURCE_TEXTLIKE_SELECTOR = [
   'p',
   'h1',
@@ -481,25 +483,25 @@ function isListContainerElement(element: Node | null): element is HTMLOListEleme
   return element instanceof HTMLOListElement || element instanceof HTMLUListElement;
 }
 
-function resolveOrderedListItemValue(sourceItem: HTMLLIElement, parentList: HTMLOListElement): number {
-  const explicitValue = sourceItem.getAttribute('value');
-  if (explicitValue !== null) {
-    const parsed = Number.parseInt(explicitValue, 10);
-    if (Number.isFinite(parsed)) return parsed;
-  }
+function parseOrderedListValue(value: string | null): number | null {
+  if (value === null || value.length > MAX_ORDERED_LIST_VALUE_CHARS) return null;
+  const trimmed = value.trim();
+  if (!ORDERED_LIST_VALUE_PATTERN.test(trimmed)) return null;
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
 
-  let value = parentList.hasAttribute('start') ? parentList.start : 1;
+function resolveOrderedListItemValue(sourceItem: HTMLLIElement, parentList: HTMLOListElement): number {
+  const explicitValue = parseOrderedListValue(sourceItem.getAttribute('value'));
+  if (explicitValue !== null) return explicitValue;
+
+  let value = parseOrderedListValue(parentList.getAttribute('start')) ?? 1;
   for (const child of parentList.children) {
     if (!(child instanceof HTMLLIElement)) continue;
     if (child === sourceItem) return value;
 
-    const childExplicitValue = child.getAttribute('value');
-    if (childExplicitValue !== null) {
-      const parsed = Number.parseInt(childExplicitValue, 10);
-      if (Number.isFinite(parsed)) {
-        value = parsed;
-      }
-    }
+    const childExplicitValue = parseOrderedListValue(child.getAttribute('value'));
+    if (childExplicitValue !== null) value = childExplicitValue;
     value += 1;
   }
   return value;

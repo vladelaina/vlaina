@@ -16,6 +16,7 @@ describe('blockAlignmentMarkdown', () => {
   it('ignores unrelated html comments', () => {
     expect(extractTextAlignmentComment('<!--note:test-->')).toBeNull();
     expect(extractTextAlignmentComment('<div>test</div>')).toBeNull();
+    expect(extractTextAlignmentComment(`${' '.repeat(129)}<!--align:center-->`)).toBeNull();
   });
 
   it('formats alignment comments consistently', () => {

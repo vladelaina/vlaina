@@ -5,6 +5,7 @@ import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 import { clearBlockSelection, getBlockSelectionPluginState } from '../cursor/blockSelectionPluginState';
 import { serializeSelectedBlocksToText } from '../cursor/blockSelectionSerializer';
 import { getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
+import { getBoundedTextBetween } from '../shared/selectionTextLimits';
 
 interface CopySelectionOptions {
   collapseAfterCopy?: boolean;
@@ -33,7 +34,7 @@ function serializeTextSelectionForClipboard(
   if (typeof state.doc.textBetween !== 'function') {
     return '';
   }
-  return state.doc.textBetween(state.selection.from, state.selection.to, '\n');
+  return getBoundedTextBetween(state.doc, state.selection.from, state.selection.to, '\n');
 }
 
 export async function copySelectionToClipboard(

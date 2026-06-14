@@ -910,8 +910,10 @@ export function createSessionActions() {
       const ai = state.data.ai!
       const uiState = useAIUIStore.getState()
 
+      requestManager.abort(id)
+      uiState.setSessionLoading(id, false)
+
       if (isTemporarySessionId(id)) {
-        requestManager.abort(id)
         cancelSessionJsonSave(id)
         uiState.clearSessionState(id)
 
@@ -946,8 +948,6 @@ export function createSessionActions() {
         const latestAI = latestState.data.ai!
         const latestUIState = useAIUIStore.getState()
 
-        requestManager.abort(id)
-
         if (!latestAI.sessions.some((session) => session.id === id)) {
           return
         }
@@ -981,6 +981,12 @@ export function createSessionActions() {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
       const sessionIds = ai.sessions.map((session) => session.id)
+      const initialUIState = useAIUIStore.getState()
+
+      sessionIds.forEach((sessionId) => {
+        requestManager.abort(sessionId)
+        initialUIState.setSessionLoading(sessionId, false)
+      })
 
       await runWithSessionMutationLocks(sessionIds, async () => {
         const latestState = useUnifiedStore.getState()
@@ -1006,7 +1012,6 @@ export function createSessionActions() {
         }
 
         latestAI.sessions.forEach((session) => {
-          requestManager.abort(session.id)
           cancelSessionJsonSave(session.id)
           uiState.clearSessionState(session.id)
         })

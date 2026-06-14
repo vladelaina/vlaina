@@ -81,6 +81,22 @@ describe('fetchBoundedImageBlob', () => {
     expect(blob).toHaveBeenCalledTimes(1);
   });
 
+  it('does not trust non-decimal content length values for non-streaming responses', async () => {
+    const blob = vi.fn(async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }));
+
+    await expect(readBoundedImageBlobResponse({
+      headers: new Headers({
+        'content-length': '0x3',
+        'content-type': 'image/png',
+      }),
+      blob,
+    } as unknown as Response)).resolves.toEqual({
+      status: 'too-large',
+      blob: null,
+    });
+    expect(blob).not.toHaveBeenCalled();
+  });
+
   it('rejects oversized non-streaming responses when blob size exceeds the declared length', async () => {
     const blob = vi.fn(async () => new Blob([new Uint8Array(MAX_FETCHED_IMAGE_BYTES + 1)], { type: 'image/png' }));
 

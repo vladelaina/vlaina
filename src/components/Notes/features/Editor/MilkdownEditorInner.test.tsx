@@ -329,6 +329,24 @@ describe('MilkdownEditorInner lazy block visibility', () => {
 
     expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBe('true');
   });
+
+  it('recomputes lazy block visibility when same-revision note content becomes complex markdown', () => {
+    const plainMarkdown = createLargePlainMarkdown();
+    mocks.notesState.currentNote = { path: 'large.md', content: plainMarkdown };
+    mocks.notesState.currentNoteDiskRevision = 2;
+    const { container, rerender } = render(<MilkdownEditorInner />);
+    const getShell = () => container.querySelector<HTMLElement>('[data-note-content-root="true"]');
+
+    expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBe('true');
+
+    mocks.notesState.currentNote = {
+      path: 'large.md',
+      content: plainMarkdown.replace('Paragraph 100', 'Paragraph [100](https://example.com)'),
+    };
+    rerender(<MilkdownEditorInner showBodyLineNumbers />);
+
+    expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBeNull();
+  });
 });
 
 describe('MilkdownEditorInner external content sync', () => {

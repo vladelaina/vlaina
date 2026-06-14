@@ -2,6 +2,7 @@ import { MANAGED_AUTH_REQUIRED_ERROR } from './constants';
 
 const MAX_MANAGED_ERROR_BODY_BYTES = 64 * 1024;
 export const MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS = 8192;
+const MAX_MANAGED_SERVICE_ERROR_CODE_CHARS = 512;
 
 function createAbortError(): DOMException {
   return new DOMException('Aborted', 'AbortError');
@@ -79,19 +80,36 @@ function createManagedServiceError(
 }
 
 export function getManagedServiceErrorMessage(error: unknown): string {
-  if (typeof error === 'string') {
-    return error.trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
-  }
-
   if (error instanceof Error) {
-    return error.message.trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
+    return normalizeManagedErrorText(error.message);
   }
 
   if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
-    return (error as { message: string }).message.trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
+    return normalizeManagedErrorText((error as { message: string }).message);
   }
 
-  return String(error ?? '').trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
+  return normalizeManagedErrorText(error);
+}
+
+function normalizeManagedErrorText(value: unknown): string {
+  switch (typeof value) {
+    case 'string':
+      return value.slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS).trim();
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value).slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS).trim();
+    default:
+      return '';
+  }
+}
+
+function normalizeManagedErrorCode(value: unknown): string {
+  if (typeof value !== 'string' || value.length > MAX_MANAGED_SERVICE_ERROR_CODE_CHARS) {
+    return '';
+  }
+  return value.trim();
 }
 
 export function isManagedServiceRecoverableError(error: unknown): boolean {
@@ -145,16 +163,13 @@ function extractManagedErrorPayloadMessage(payload: Record<string, unknown>): st
 }
 
 function extractManagedErrorPayloadCode(payload: Record<string, unknown>): string {
-  if (typeof payload.errorCode === 'string' && payload.errorCode.trim()) {
-    return payload.errorCode.trim();
-  }
+  const errorCode = normalizeManagedErrorCode(payload.errorCode);
+  if (errorCode) return errorCode;
 
   const nestedError = payload.error;
   if (nestedError && typeof nestedError === 'object') {
     const nested = nestedError as Record<string, unknown>;
-    if (typeof nested.code === 'string' && nested.code.trim()) {
-      return nested.code.trim();
-    }
+    return normalizeManagedErrorCode(nested.code);
   }
 
   return '';
@@ -242,7 +257,7 @@ export async function parseManagedError(response: Response, signal?: AbortSignal
     if (codedMessage) {
       return createManagedServiceError(codedMessage, response.status, errorCode);
     }
-    const message = extractManagedErrorPayloadMessage(payload).trim();
+    const message = normalizeManagedErrorText(extractManagedErrorPayloadMessage(payload));
     if (message) {
       return createManagedServiceError(`Managed API request failed: HTTP ${response.status}`, response.status, errorCode);
     }

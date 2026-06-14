@@ -86,6 +86,21 @@ describe('tocMarkdown', () => {
     expect(tree.children?.[9]).toEqual(textParagraph('[TOC]'));
   });
 
+  it('does not trim overlong text nodes while matching TOC shortcuts', () => {
+    const oversizedShortcut = textParagraph(`${' '.repeat(65)}[TOC]`);
+    const tree: TocMdastNode = {
+      type: 'root',
+      children: [
+        oversizedShortcut,
+        heading('Alpha'),
+      ],
+    };
+
+    applyTocShortcutsToTree(tree);
+
+    expect(tree.children?.[0]).toBe(oversizedShortcut);
+  });
+
   it('bounds TOC heading text copied into links', () => {
     const longHeading = 'A'.repeat(260);
     const tree: TocMdastNode = {

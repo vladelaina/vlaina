@@ -1,7 +1,8 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
-import { getStorageAdapter } from '@/lib/storage/adapter';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from '../systemStoragePaths';
-import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
+import { hasUnsafeVaultPathSegment, normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 
 export interface NotesExternalPathRenameEvent {
@@ -64,9 +65,13 @@ function parseRenameEvent(value: unknown): NotesExternalPathRenameEvent | null {
   }
 
   const notesPath = normalizeNotePathKey(event.notesPath);
-  const oldPath = normalizeExternalRenamePath(event.oldPath);
-  const newPath = normalizeExternalRenamePath(event.newPath);
-  if (!notesPath || !oldPath || !newPath || oldPath === newPath) {
+  if (!notesPath || CONTROL_OR_BIDI_PATTERN.test(notesPath) || hasInternalNotePathSegment(notesPath)) {
+    return null;
+  }
+
+  const oldPath = normalizeExternalRenamePath(event.oldPath, notesPath);
+  const newPath = normalizeExternalRenamePath(event.newPath, notesPath);
+  if (!oldPath || !newPath || oldPath === newPath) {
     return null;
   }
 
@@ -81,17 +86,31 @@ function parseRenameEvent(value: unknown): NotesExternalPathRenameEvent | null {
   };
 }
 
-function normalizeExternalRenamePath(path: string): string | null {
+function normalizeExternalRenamePath(path: string, notesPath: string): string | null {
   if (CONTROL_OR_BIDI_PATTERN.test(path)) {
     return null;
   }
 
   const normalizedPath = normalizeVaultRelativePath(path);
-  if (!normalizedPath || hasInternalNotePathSegment(normalizedPath)) {
+  if (normalizedPath) {
+    return hasInternalNotePathSegment(normalizedPath) ? null : normalizedPath;
+  }
+
+  const normalizedNotesPath = normalizeNotePathKey(notesPath);
+  const normalizedAbsolutePath = normalizeNotePathKey(path);
+  if (
+    !normalizedNotesPath ||
+    !normalizedAbsolutePath ||
+    !isAbsolutePath(normalizedNotesPath) ||
+    !isAbsolutePath(normalizedAbsolutePath) ||
+    hasInternalNotePathSegment(normalizedAbsolutePath) ||
+    hasUnsafeVaultPathSegment(normalizedAbsolutePath)
+  ) {
     return null;
   }
 
-  return normalizedPath;
+  const containedPath = normalizeContainedAssetPath(normalizedAbsolutePath, normalizedNotesPath);
+  return containedPath ? normalizeNotePathKey(containedPath) ?? null : null;
 }
 
 function notifyListeners(event: NotesExternalPathRenameEvent) {

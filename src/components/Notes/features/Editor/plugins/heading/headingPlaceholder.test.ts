@@ -34,6 +34,16 @@ describe('getHeadingPlaceholder', () => {
         expect(getHeadingPlaceholder(9)).toBe('Heading 6');
     });
 
+    it('does not coerce non-number heading levels', () => {
+        const level = {
+            toString() {
+                throw new Error('heading level coercion');
+            },
+        };
+
+        expect(getHeadingPlaceholder(level)).toBe('Heading 1');
+    });
+
     it('caps empty heading placeholder decorations', async () => {
         const editor = await createEditor();
         const view = editor.ctx.get(editorViewCtx);

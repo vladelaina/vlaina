@@ -1307,6 +1307,33 @@ async function syncProviderSecrets(providers: Provider[]): Promise<void> {
   );
 }
 
+async function deleteProviderSecretsBestEffort(
+  providerIds: Iterable<string>,
+  deletedProviderSecrets: Set<string>,
+): Promise<void> {
+  if (!hasElectronDesktopBridge()) {
+    return;
+  }
+
+  const safeProviderIds = Array.from(new Set(providerIds))
+    .filter((providerId) => isSafeProviderId(providerId) && !deletedProviderSecrets.has(providerId));
+  if (safeProviderIds.length === 0) {
+    return;
+  }
+
+  await mapWithConcurrencyLimit(
+    safeProviderIds,
+    MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
+    async (providerId) => {
+      try {
+        await aiProviderSecretCommands.deleteProviderSecret(providerId);
+        deletedProviderSecrets.add(providerId);
+      } catch {
+      }
+    }
+  );
+}
+
 export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
     const storage = getStorageAdapter();
@@ -1550,7 +1577,9 @@ async function performSplitSave(request: UnifiedSaveRequest) {
           (provider) => !tombstonedProviderIds.has(provider.id)
         );
         const persistedProviderIds = new Set(persistedProviders.map((provider) => provider.id));
+        const deletedProviderSecrets = new Set<string>();
         await syncProviderSecrets(persistedProviders);
+        await deleteProviderSecretsBestEffort(incomingDeletedProviderIds, deletedProviderSecrets);
 
         const incomingPersistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
         const mergedSessions = await mergeSessionsForSafeSave(
@@ -1622,9 +1651,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
                 continue;
             }
             try {
-                if (hasElectronDesktopBridge() && isSafeProviderId(providerId)) {
-                    await aiProviderSecretCommands.deleteProviderSecret(providerId);
-                }
+                await deleteProviderSecretsBestEffort([providerId], deletedProviderSecrets);
                 await storage.deleteFile(entry.path);
             } catch (error) {
             }
@@ -1643,9 +1670,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
             }
             const providerId = entry.name.slice(0, -5);
             try {
-                if (hasElectronDesktopBridge() && isSafeProviderId(providerId)) {
-                    await aiProviderSecretCommands.deleteProviderSecret(providerId);
-                }
+                await deleteProviderSecretsBestEffort([providerId], deletedProviderSecrets);
                 await storage.deleteFile(entry.path);
             } catch (error) {
             }

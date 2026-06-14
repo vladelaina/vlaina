@@ -3,12 +3,19 @@ import { commonmark } from '@milkdown/preset-commonmark'
 import '@testing-library/jest-dom/vitest'
 import { test, expect } from 'vitest'
 
-import { emoji, maxEmojiHtmlChars, normalizeEmojiHtml } from '.'
+import { emoji, getEmojiMarkdownText, maxEmojiHtmlChars, normalizeEmojiHtml } from '.'
 
 test('bounds emoji html attributes before DOM parsing', () => {
   expect(normalizeEmojiHtml('<img alt="😀">')).toBe('<img alt="😀">')
   expect(normalizeEmojiHtml('x'.repeat(maxEmojiHtmlChars + 1))).toBe('')
   expect(normalizeEmojiHtml(null)).toBe('')
+})
+
+test('extracts emoji markdown text from inert HTML', () => {
+  expect(getEmojiMarkdownText('<img src="https://example.test/emoji.png" title=":+1:" alt="thumbs up">')).toBe(':+1:')
+  expect(getEmojiMarkdownText('<img alt="😀">')).toBe('😀')
+  expect(getEmojiMarkdownText('x'.repeat(maxEmojiHtmlChars + 1))).toBe('')
+  expect(getEmojiMarkdownText('<img src="https://example.test/emoji.png">')).toBe('')
 })
 
 test('show normal emoji', async () => {

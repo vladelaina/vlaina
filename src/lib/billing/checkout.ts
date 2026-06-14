@@ -1,10 +1,15 @@
 import { createElectronBillingCheckout, hasElectronDesktopBridge } from '@/lib/desktop/backend'
+import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity'
 
 const API_BASE = 'https://api.vlaina.com'
 const BILLING_GET_RETRY_DELAYS_MS = [300]
 const BILLING_FAST_FAILURE_RETRY_WINDOW_MS = 2000
 const BILLING_REQUEST_TIMEOUT_MS = 15_000
 const MAX_BILLING_RESPONSE_BODY_BYTES = 64 * 1024
+const MAX_BILLING_CONTENT_LENGTH_CHARS = 32
+const MAX_BILLING_CHECKOUT_URL_CHARS = 4096
+const BILLING_CHECKOUT_URL_UNSAFE_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i
 
 export type BillingPlanTier = 'plus' | 'pro' | 'max' | 'ultra'
 
@@ -127,8 +132,31 @@ async function withBillingRequestTimeout<T>(
   }
 }
 
+function readContentLength(response: Response): number | null {
+  const rawContentLength = response.headers?.get('content-length')
+  if (!rawContentLength) {
+    return null
+  }
+
+  if (rawContentLength.length > MAX_BILLING_CONTENT_LENGTH_CHARS) {
+    return null
+  }
+  const trimmed = rawContentLength.trim()
+  if (!/^\d+$/.test(trimmed)) {
+    return null
+  }
+  const parsed = Number.parseInt(trimmed, 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
 async function readBillingResponseText(response: Response, signal: AbortSignal): Promise<string> {
   throwIfBillingTimedOut(signal)
+  const contentLength = readContentLength(response)
+  if (contentLength !== null && contentLength > MAX_BILLING_RESPONSE_BODY_BYTES) {
+    void response.body?.cancel().catch(() => undefined)
+    throw new Error('Billing API response body is too large.')
+  }
+
   if (!response.body) {
     return ''
   }
@@ -236,11 +264,35 @@ async function fetchReadOnlyBilling(url: string, init: RequestInit, signal: Abor
 }
 
 function normalizeCheckoutUrl(data: BillingCheckoutResponse | null | undefined): string {
-  const url = typeof data?.url === 'string' ? data.url.trim() : ''
-  if (!data?.success || !url) {
+  if (!data?.success || typeof data.url !== 'string' || data.url.length > MAX_BILLING_CHECKOUT_URL_CHARS) {
     throw new Error(data?.error || 'Failed to create checkout session')
   }
-  return url
+
+  const url = data.url.trim()
+  if (
+    !url
+    || url.length > MAX_BILLING_CHECKOUT_URL_CHARS
+    || BILLING_CHECKOUT_URL_UNSAFE_CHARS_REGEX.test(url)
+    || url.includes('\\')
+    || !HTTP_AUTHORITY_URL_PATTERN.test(url)
+  ) {
+    throw new Error(data.error || 'Failed to create checkout session')
+  }
+
+  try {
+    const parsed = new URL(url)
+    if (
+      (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+      || parsed.username
+      || parsed.password
+      || isLocalNetworkHttpUrl(parsed.toString())
+    ) {
+      throw new Error()
+    }
+    return parsed.toString()
+  } catch {
+    throw new Error(data.error || 'Failed to create checkout session')
+  }
 }
 
 export async function fetchBillingPlans(): Promise<{

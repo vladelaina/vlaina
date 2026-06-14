@@ -58,6 +58,27 @@ describe('getUserFacingAIError', () => {
     });
   });
 
+  it('does not coerce unknown object errors', () => {
+    const hostileError = {
+      toString: () => {
+        throw new Error('error should not be coerced');
+      },
+      [Symbol.toPrimitive]: () => {
+        throw new Error('error should not be coerced');
+      },
+    };
+
+    expect(parseAPIError(hostileError)).toMatchObject({
+      type: AIErrorType.UNKNOWN,
+      message: 'Unknown error',
+    });
+    expect(getUserFacingAIError(hostileError)).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: '',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
+    });
+  });
+
   it('maps managed auth failures to the auth message', () => {
     const result = getUserFacingAIError(new Error('vlaina sign-in required'));
 
@@ -107,7 +128,20 @@ describe('getUserFacingAIError', () => {
 
     expect(result.type).toBe(AIErrorType.INVALID_REQUEST);
     expect(result.message).toHaveLength(MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS);
-    expect(result.code).toHaveLength(MAX_USER_FACING_AI_ERROR_CODE_CHARS);
+    expect(result.code).toBe('');
+  });
+
+  it('does not map overlong provider error codes after trimming', () => {
+    const result = getUserFacingAIError({
+      errorCode: `${' '.repeat(MAX_USER_FACING_AI_ERROR_CODE_CHARS + 1)}upstream_unavailable`,
+      message: 'opaque failure',
+    });
+
+    expect(result).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: '',
+      message: 'opaque failure',
+    });
   });
 
   it('maps managed unsupported input codes to a clear model capability message', () => {
@@ -282,6 +316,19 @@ describe('parseManagedError', () => {
     )).toHaveLength(MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
   });
 
+  it('does not coerce unknown managed service errors', () => {
+    const hostileError = {
+      toString: () => {
+        throw new Error('managed error should not be coerced');
+      },
+      [Symbol.toPrimitive]: () => {
+        throw new Error('managed error should not be coerced');
+      },
+    };
+
+    expect(getManagedServiceErrorMessage(hostileError)).toBe('');
+  });
+
   it('preserves managed HTTP status and public error code', async () => {
     const error = await parseManagedError(new Response(JSON.stringify({
       success: false,
@@ -322,6 +369,20 @@ describe('parseManagedError', () => {
       statusCode: 400,
       errorCode: 'unsupported_model_input',
     });
+  });
+
+  it('does not map overlong managed public error codes', async () => {
+    const error = await parseManagedError(new Response(JSON.stringify({
+      success: false,
+      error: 'Points exhausted',
+      errorCode: `${' '.repeat(513)}points_exhausted`,
+    }), { status: 403 }));
+
+    expect(error).toMatchObject({
+      message: 'Managed API request failed: HTTP 403',
+      statusCode: 403,
+    });
+    expect((error as Error & { errorCode?: string }).errorCode).toBeUndefined();
   });
 
   it('falls back to a generic managed HTTP message for unknown payloads', async () => {

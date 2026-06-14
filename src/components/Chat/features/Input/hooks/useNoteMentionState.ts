@@ -8,8 +8,10 @@ import {
   type RefObject,
 } from 'react';
 import {
+  MAX_NOTE_MENTION_PATH_CHARS,
   MAX_NOTE_MENTION_SCAN_ITEMS,
   MAX_NOTE_MENTION_TITLE_CHARS,
+  MAX_NOTE_MENTION_TITLE_RAW_CHARS,
   isPotentiallyLoadableNoteMentionReference,
   type NoteMentionReference,
 } from '@/lib/ai/noteMentions';
@@ -56,8 +58,12 @@ function getMentionBoundaryEnd(value: string, part: MentionPreviewRange): number
   return value[part.end] === ' ' ? part.end + 1 : part.end;
 }
 
-function normalizeMentionText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
+function normalizeMentionText(value: unknown, maxRawChars: number): string {
+  return typeof value === 'string' && value.length <= maxRawChars ? value.trim() : '';
+}
+
+function normalizeMentionPath(value: unknown): string {
+  return normalizeMentionText(value, MAX_NOTE_MENTION_PATH_CHARS);
 }
 
 function normalizeMentionKind(value: unknown): NonNullable<NoteMentionReference['kind']> {
@@ -69,14 +75,16 @@ function normalizeOptionalMentionKind(value: unknown): NoteMentionReference['kin
 }
 
 function normalizeMentionTitle(value: unknown, fallback: string): string {
-  return (normalizeMentionText(value) || fallback).slice(0, MAX_NOTE_MENTION_TITLE_CHARS);
+  return (
+    normalizeMentionText(value, MAX_NOTE_MENTION_TITLE_RAW_CHARS) || fallback
+  ).slice(0, MAX_NOTE_MENTION_TITLE_CHARS);
 }
 
 function normalizeMentionReferenceForState(
   mention: Partial<NoteMentionReference> | null | undefined,
   defaultKind: boolean,
 ): NoteMentionReference | null {
-  const path = normalizeMentionText(mention?.path);
+  const path = normalizeMentionPath(mention?.path);
   if (!path) {
     return null;
   }

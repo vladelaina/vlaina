@@ -198,6 +198,7 @@ async function fetchModelListResponse(
     throwIfAborted(signal)
 
     if (!response.ok) {
+      void response.body?.cancel().catch(() => undefined)
       return { ok: false, status: response.status, data: null }
     }
 

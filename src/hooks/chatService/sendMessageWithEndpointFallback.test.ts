@@ -81,6 +81,85 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
+  it('retries transient string HTTP status codes before streaming output', async () => {
+    const updateProvider = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          message: 'Service unavailable',
+          statusCode: ' 503 ',
+        })
+        .mockResolvedValueOnce('retry ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('retry ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry loosely formatted or overlong status code strings', async () => {
+    const updateProvider = vi.fn();
+    const transientError = {
+      message: 'opaque failure',
+      statusCode: '0x1f7',
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(transientError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toBe(transientError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry overlong error code strings', async () => {
+    const updateProvider = vi.fn();
+    const transientError = {
+      errorCode: `${' '.repeat(129)}upstream_unavailable`,
+      message: 'opaque failure',
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(transientError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toBe(transientError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('retries abort-shaped pre-stream failures when the chat signal is still active', async () => {
     const updateProvider = vi.fn();
     const onChunk = vi.fn();

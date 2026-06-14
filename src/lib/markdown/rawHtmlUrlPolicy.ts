@@ -164,7 +164,13 @@ export function sanitizeRawHtmlUrlProperties(node: any): void {
       continue;
     }
 
-    const normalized = normalizeRawHtmlUrlAttribute(tagName, key, String(node.properties[key] ?? ''));
+    const value = node.properties[key];
+    if (typeof value !== 'string') {
+      delete node.properties[key];
+      continue;
+    }
+
+    const normalized = normalizeRawHtmlUrlAttribute(tagName, key, value);
     if (normalized) {
       node.properties[key] = normalized;
     } else {
@@ -179,9 +185,13 @@ export function sanitizeRawHtmlUrlProperties(node: any): void {
       node.children = [];
       return;
     }
-    node.properties.sandbox = sanitizeGithubIframeSandbox(String(node.properties.sandbox ?? ''));
+    node.properties.sandbox = sanitizeGithubIframeSandbox(
+      typeof node.properties.sandbox === 'string' ? node.properties.sandbox : null
+    );
     if (Object.prototype.hasOwnProperty.call(node.properties, 'allow')) {
-      const sanitizedAllow = sanitizeGithubIframeAllow(String(node.properties.allow ?? ''));
+      const sanitizedAllow = sanitizeGithubIframeAllow(
+        typeof node.properties.allow === 'string' ? node.properties.allow : null
+      );
       if (sanitizedAllow) {
         node.properties.allow = sanitizedAllow;
       } else {

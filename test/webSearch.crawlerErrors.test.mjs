@@ -55,6 +55,21 @@ describe('crawler error classification', () => {
     expect(fetchCalled).toBe(false);
   });
 
+  it('does not coerce object timeout values', () => {
+    const timeoutMs = {
+      toString: vi.fn(() => {
+        throw new Error('timeout coercion');
+      }),
+    };
+    const crawler = new Crawler({
+      timeoutMs,
+      fetchImpl: async () => new Response('not used'),
+    });
+
+    expect(crawler.timeoutMs).toBe(12000);
+    expect(timeoutMs.toString).not.toHaveBeenCalled();
+  });
+
   it('prioritizes cancellation over URL validation work when already aborted', async () => {
     const controller = new AbortController();
     controller.abort();
@@ -277,6 +292,17 @@ describe('crawler error classification', () => {
     const rawUrl = `https://www.bing.com/ck/a?u=a1${'a'.repeat(4097)}`;
 
     expect(prepareCrawlerUrl(rawUrl)).toBe(rawUrl);
+  });
+
+  it('does not coerce non-string crawler URLs', () => {
+    const rawUrl = {
+      toString: vi.fn(() => {
+        throw new Error('url coercion');
+      }),
+    };
+
+    expect(prepareCrawlerUrl(rawUrl)).toBe('');
+    expect(rawUrl.toString).not.toHaveBeenCalled();
   });
 
   it('keeps plain text content unchanged', async () => {

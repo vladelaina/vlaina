@@ -68,6 +68,15 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteMediaSrc(String.raw`\\127.0.0.1\image.png`)).toBeNull();
   });
 
+  it('requires dotted IPv4 hostnames to use short decimal octets', () => {
+    vi.stubGlobal('window', undefined);
+
+    expect(isLocalNetworkHttpUrl('http://01.02.03.04/image.png')).toBe(false);
+    expect(isLocalNetworkHttpUrl('http://1e2.0.0.1/image.png')).toBe(false);
+    expect(isPublicRemoteMediaUrl('http://01.02.03.04/image.png')).toBe(true);
+    expect(isPublicRemoteMediaUrl('http://1e2.0.0.1/image.png')).toBe(false);
+  });
+
   it('allows public media URLs without a browser window', () => {
     vi.stubGlobal('window', undefined);
 
@@ -168,6 +177,8 @@ describe('urlSecurity', () => {
     expect(getNoteInternalImageAssetPath(`img:${oversizedPath}`)).toBeNull();
     expect(sanitizeNoteMediaSrc(`img:${oversizedPath}`)).toBeNull();
     expect(sanitizeNoteMediaSrc(oversizedPath)).toBeNull();
+    expect(isPublicRemoteMediaUrl(' '.repeat((16 * 1024) + 1))).toBe(false);
+    expect(sanitizeNoteMediaSrc(' '.repeat((16 * 1024) + 1))).toBeNull();
   });
 
   it('rejects protocol-relative links while keeping normal relative note links', () => {
@@ -199,5 +210,6 @@ describe('urlSecurity', () => {
 
   it('rejects oversized note link hrefs', () => {
     expect(sanitizeNoteLinkHref(`${'a'.repeat(16 * 1024)}.md`)).toBeNull();
+    expect(sanitizeNoteLinkHref(' '.repeat((16 * 1024) + 1))).toBeNull();
   });
 });

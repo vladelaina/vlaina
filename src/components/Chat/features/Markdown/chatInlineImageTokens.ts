@@ -148,6 +148,10 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
 }
 
 export function scrubChatInlineDataImageSyntax(markdown: string): string {
+  if (!DATA_IMAGE_TARGET_HINT_PATTERN.test(markdown)) {
+    return markdown;
+  }
+
   return scrubOverflowHtmlInlineDataImages(scrubOverflowMarkdownDataImages(markdown, {
     replacement: '[image]',
     maxTargetChars: LARGE_DATA_IMAGE_MIN_LENGTH,

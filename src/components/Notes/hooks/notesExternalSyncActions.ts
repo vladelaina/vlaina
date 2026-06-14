@@ -26,6 +26,7 @@ import { classifyWatchEventPaths, hasBlockedRenameEndpoint } from './notesExtern
 
 const PENDING_RENAME_TTL_MS = 180;
 export const MAX_PENDING_EXTERNAL_PATH_EVENTS = 2048;
+export const MAX_EXTERNAL_WATCH_EVENT_PATHS = 4096;
 
 type SyncCurrentNoteFromDisk = ReturnType<typeof useNotesStore.getState>['syncCurrentNoteFromDisk'];
 
@@ -620,6 +621,12 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
 
   const handleWatchEvent = async (vaultPath: string, event: DesktopWatchEvent) => {
     if (!isActiveNotesPath()) {
+      return;
+    }
+
+    if (event.paths.length > MAX_EXTERNAL_WATCH_EVENT_PATHS) {
+      pendingPathQueueOverflowed = true;
+      await runPollingReconcile();
       return;
     }
 

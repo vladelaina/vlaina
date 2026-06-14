@@ -68,6 +68,19 @@ describe('serializeSliceToText', () => {
         expect(serializeSliceToText(slice)).toBe('## Title');
     });
 
+    it('serializes non-number heading levels without coercion', () => {
+        const level = {
+            toString() {
+                throw new Error('heading level coercion');
+            },
+        };
+        const slice = createSlice([
+            createBlockNode('heading', [createTextNode('Title')], { level }),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('# Title');
+    });
+
     it('serializes code blocks with fences and language', () => {
         const slice = createSlice([
             createBlockNode('code_block', [createTextNode('const a = 1;\nconsole.log(a);')], { language: 'ts' }),
@@ -120,6 +133,21 @@ describe('serializeSliceToText', () => {
         ]);
 
         expect(serializeSliceToText(slice)).toBe('[Local file](<docs/file name.md>)');
+    });
+
+    it('copies link text without coercing non-string href attrs', () => {
+        const href = {
+            toString() {
+                throw new Error('href coercion');
+            },
+        };
+        const slice = createSlice([
+            createInlineNode('paragraph', [
+                createTextNode('Broken link', [{ type: { name: 'link' }, attrs: { href } }]),
+            ]),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('Broken link');
     });
 
     it('stops fallback serialization when node depth exceeds the clipboard budget', () => {

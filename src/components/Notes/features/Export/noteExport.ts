@@ -27,6 +27,7 @@ const EXPORT_FILTERS: Record<NoteExportFormat, { name: string; extensions: strin
 };
 const MAX_EXPORT_MARKDOWN_CHARS = 2 * 1024 * 1024;
 const MAX_PNG_EXPORT_BYTES = 50 * 1024 * 1024;
+export const MAX_NOTE_EXPORT_OUTPUT_BYTES = 64 * 1024 * 1024;
 
 function sanitizeFileName(value: string): string {
   return value
@@ -93,6 +94,12 @@ function downloadInBrowser(fileName: string, bytes: Uint8Array, mimeType: string
   URL.revokeObjectURL(url);
 }
 
+function assertExportOutputBytes(byteLength: number): void {
+  if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > MAX_NOTE_EXPORT_OUTPUT_BYTES) {
+    throw new Error('Note export output is too large.');
+  }
+}
+
 async function promptExportPath(format: NoteExportFormat, title: string): Promise<string | null> {
   const extension = EXPORT_EXTENSIONS[format];
   const selectedPath = await saveDialog({
@@ -110,6 +117,8 @@ async function saveExportBytes(
   bytes: Uint8Array,
   mimeType: string,
 ): Promise<NoteExportResult> {
+  assertExportOutputBytes(bytes.byteLength);
+
   const extension = EXPORT_EXTENSIONS[format];
   const filePath = await promptExportPath(format, title);
   if (!filePath) {

@@ -327,6 +327,12 @@ describe('chatInlineImageTokens', () => {
     expect(result).toContain('[image]');
   });
 
+  it('does not rescan oversized html image text without data image hints', () => {
+    const markdown = `<img alt="${'a'.repeat(70_000)}" src="https://example.com/real.png"> after`;
+
+    expect(scrubChatInlineDataImageSyntax(markdown)).toBe(markdown);
+  });
+
   it('scrubs html data images skipped by compaction parsing before the token budget is reached', () => {
     const markdown = [
       `<img alt="${'a'.repeat(70_000)}" src="data:image/png;base64,SECRET">`,

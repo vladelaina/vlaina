@@ -27,6 +27,8 @@ describe('tocViewUtils', () => {
   it('normalizes TOC max levels from DOM attrs and node attrs', () => {
     expect(normalizeTocMaxLevel('2')).toBe(2);
     expect(normalizeTocMaxLevel('999')).toBe(6);
+    expect(normalizeTocMaxLevel('1e2')).toBe(6);
+    expect(normalizeTocMaxLevel('2px')).toBe(6);
     expect(normalizeTocMaxLevel(0)).toBe(1);
     expect(normalizeTocMaxLevel(Number.NaN)).toBe(6);
   });

@@ -34,10 +34,12 @@ export interface NotesSidebarSearchIndexOptions {
 const SEARCH_ENTRY_METADATA = Symbol('notesSidebarSearchEntryMetadata');
 const SEARCH_INDEX_METADATA = Symbol('notesSidebarSearchIndexMetadata');
 const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
+export const NOTES_SIDEBAR_MAX_SEARCH_QUERY_CHARS = 4096;
 export const NOTES_SIDEBAR_MAX_SEARCH_RESULTS = 200;
 export const NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES = 1000;
 export const NOTES_SIDEBAR_MAX_CONTENT_SEARCH_CHARS = 16 * 1024 * 1024;
 const MAX_SEARCH_INDEX_TREE_ENTRIES = 10_000;
+const MAX_SEARCH_METADATA_FIELD_CHARS = 4096;
 
 interface NotesSidebarSearchEntryMetadata {
   lowerName: string;
@@ -58,9 +60,15 @@ type MetadataSearchIndex = NotesSidebarSearchEntry[] & {
   [SEARCH_INDEX_METADATA]?: NotesSidebarSearchIndexMetadata;
 };
 
+function getSearchMetadataField(value: string): string {
+  return value.length > MAX_SEARCH_METADATA_FIELD_CHARS
+    ? value.slice(0, MAX_SEARCH_METADATA_FIELD_CHARS)
+    : value;
+}
+
 function attachSearchEntryMetadata(entry: NotesSidebarSearchEntry): NotesSidebarSearchEntry {
-  const normalizedName = normalizeSearchTextWithOffsets(entry.name);
-  const normalizedPreview = normalizeSearchTextWithOffsets(entry.preview);
+  const normalizedName = normalizeSearchTextWithOffsets(getSearchMetadataField(entry.name));
+  const normalizedPreview = normalizeSearchTextWithOffsets(getSearchMetadataField(entry.preview));
   Object.defineProperty(entry, SEARCH_ENTRY_METADATA, {
     configurable: true,
     enumerable: false,
@@ -97,8 +105,8 @@ function getSearchEntryMetadata(entry: NotesSidebarSearchEntry): NotesSidebarSea
     return metadata;
   }
 
-  const normalizedName = normalizeSearchTextWithOffsets(entry.name);
-  const normalizedPreview = normalizeSearchTextWithOffsets(entry.preview);
+  const normalizedName = normalizeSearchTextWithOffsets(getSearchMetadataField(entry.name));
+  const normalizedPreview = normalizeSearchTextWithOffsets(getSearchMetadataField(entry.preview));
   return {
     lowerName: normalizedName.text,
     lowerNameStartOffsets: normalizedName.startOffsets,
@@ -218,7 +226,20 @@ export function countNotesSidebarSearchEntries(rootFolder: FolderNode | null): n
 }
 
 export function shouldSearchNotesSidebarContents(query: string): boolean {
+  if (query.length > NOTES_SIDEBAR_MAX_SEARCH_QUERY_CHARS) {
+    return false;
+  }
+
   return query.trim().length >= CONTENT_SEARCH_MIN_QUERY_LENGTH;
+}
+
+function getBoundedTrimmedSearchQuery(query: string): string | null {
+  if (query.length > NOTES_SIDEBAR_MAX_SEARCH_QUERY_CHARS) {
+    return null;
+  }
+
+  const trimmedQuery = query.trim();
+  return trimmedQuery ? trimmedQuery : null;
 }
 
 function compareSearchResults(a: NotesSidebarSearchResult, b: NotesSidebarSearchResult): number {
@@ -244,7 +265,7 @@ export function queryNotesSidebarSearch(
   getNoteContent?: (path: string) => string | undefined,
   structuralResults = queryNotesSidebarStructuralSearch(index, query),
 ): NotesSidebarSearchResult[] {
-  const trimmedQuery = query.trim();
+  const trimmedQuery = getBoundedTrimmedSearchQuery(query);
   if (!trimmedQuery) {
     return [];
   }
@@ -307,7 +328,7 @@ export function queryNotesSidebarStructuralSearch(
   index: NotesSidebarSearchEntry[],
   query: string,
 ): NotesSidebarSearchResult[] {
-  const trimmedQuery = query.trim();
+  const trimmedQuery = getBoundedTrimmedSearchQuery(query);
   if (!trimmedQuery) {
     return [];
   }

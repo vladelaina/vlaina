@@ -47,6 +47,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function primitiveToString(value: unknown): string {
+  switch (typeof value) {
+    case 'string':
+      return value
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'symbol':
+      return String(value)
+    default:
+      return ''
+  }
+}
+
 function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message.slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS)
@@ -56,7 +70,7 @@ function extractErrorMessage(error: unknown): string {
     return error.message.slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS)
   }
 
-  return String(error || '').slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS)
+  return primitiveToString(error).slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS)
 }
 
 function extractErrorDetails(error: unknown): string {
@@ -76,8 +90,11 @@ function extractErrorCode(error: unknown): string {
 
   for (const key of ['errorCode', 'code'] as const) {
     const codeValue = error[key]
-    if (typeof codeValue === 'string' && codeValue.trim()) {
-      return codeValue.trim().slice(0, MAX_USER_FACING_AI_ERROR_CODE_CHARS)
+    if (typeof codeValue === 'string' && codeValue.length <= MAX_USER_FACING_AI_ERROR_CODE_CHARS) {
+      const trimmed = codeValue.trim()
+      if (trimmed) {
+        return trimmed
+      }
     }
   }
 
@@ -85,8 +102,11 @@ function extractErrorCode(error: unknown): string {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return String(value)
   }
-  if (typeof value === 'string' && value.trim()) {
-    return value.trim().slice(0, MAX_USER_FACING_AI_ERROR_CODE_CHARS)
+  if (typeof value === 'string' && value.length <= MAX_USER_FACING_AI_ERROR_CODE_CHARS) {
+    const trimmed = value.trim()
+    if (trimmed) {
+      return trimmed
+    }
   }
 
   const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)
@@ -444,7 +464,7 @@ export function parseAPIError(error: any): AIError {
 
   return createAIError(
     AIErrorType.UNKNOWN,
-    String(error) || 'Unknown error'
+    primitiveToString(error) || 'Unknown error'
   );
 }
 

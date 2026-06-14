@@ -4,10 +4,25 @@ const { BrowserWindow } = electron;
 
 const MIN_WINDOW_DIMENSION = 1;
 const MAX_WINDOW_DIMENSION = 8192;
+const MAX_WINDOW_DIMENSION_INPUT_CHARS = 64;
+
+function readFiniteWindowDimension(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string' && value.length <= MAX_WINDOW_DIMENSION_INPUT_CHARS) {
+    const trimmed = value.trim();
+    if (/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+  }
+  return null;
+}
 
 export function normalizeWindowDimension(value, label) {
-  const dimension = Number(value);
-  if (!Number.isFinite(dimension)) {
+  const dimension = readFiniteWindowDimension(value);
+  if (dimension === null) {
     throw new Error(`A finite ${label} is required.`);
   }
 

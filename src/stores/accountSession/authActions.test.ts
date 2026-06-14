@@ -31,6 +31,36 @@ const mocks = vi.hoisted(() => ({
     sessionStorage.removeItem('vlaina_auth_provider');
   }),
   normalizeAuthError: vi.fn((value: string) => `normalized:${value}`),
+  normalizePersistedUser: vi.fn((value: Record<string, unknown>) => ({
+    isConnected: value?.isConnected === true,
+    provider: value?.provider === 'google' || value?.provider === 'email' ? value.provider : null,
+    username:
+      typeof value?.username === 'string' && value.username.length <= 256 && value.username.trim()
+        ? value.username.trim()
+        : null,
+    primaryEmail:
+      typeof value?.primaryEmail === 'string' && value.primaryEmail.length <= 320 && value.primaryEmail.trim()
+        ? value.primaryEmail.trim()
+        : null,
+    avatarUrl:
+      typeof value?.avatarUrl === 'string' &&
+      value.avatarUrl.length <= 4096 &&
+      /^https:\/\/(?!127\.0\.0\.1|localhost)/i.test(value.avatarUrl.trim())
+        ? value.avatarUrl.trim()
+        : null,
+    membershipTier:
+      value?.membershipTier === 'free' ||
+      value?.membershipTier === 'plus' ||
+      value?.membershipTier === 'pro' ||
+      value?.membershipTier === 'max' ||
+      value?.membershipTier === 'ultra'
+        ? value.membershipTier
+        : null,
+    membershipName:
+      typeof value?.membershipName === 'string' && value.membershipName.length <= 128 && value.membershipName.trim()
+        ? value.membershipName.trim()
+        : null,
+  })),
   applyDisconnectedAccount: vi.fn(),
   normalizeManagedBudgetPayload: vi.fn((value: unknown) => value),
   applyBudgetSnapshot: vi.fn(),
@@ -66,6 +96,7 @@ vi.mock('./authSupport', () => ({
   clearPersistedUser: mocks.clearPersistedUser,
   clearAuthIntent: mocks.clearAuthIntent,
   normalizeAuthError: mocks.normalizeAuthError,
+  normalizePersistedUser: mocks.normalizePersistedUser,
 }));
 
 vi.mock('./sessionState', () => ({
@@ -200,6 +231,38 @@ describe('accountSession auth actions', () => {
       'vla',
       'https://example.com/avatar.png',
     );
+  });
+
+  it('checkStatus normalizes status identity before storing it', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: true,
+      provider: 'google',
+      username: ' vla ',
+      primaryEmail: ' vla@example.com ',
+      avatarUrl: 'http://127.0.0.1/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'P'.repeat(129),
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(set).toHaveBeenLastCalledWith(expect.objectContaining({
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipName: null,
+    }));
+    expect(mocks.persistUser).toHaveBeenCalledWith(expect.objectContaining({
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipName: null,
+    }));
+    expect(mocks.refreshAvatar).toHaveBeenCalledWith(set, get, 'vla', null);
   });
 
   it('checkStatus does not persist temporary desktop account identities', async () => {
@@ -538,6 +601,34 @@ describe('accountSession auth actions', () => {
     });
   });
 
+  it.each([
+    ['javascript URL', 'javascript:alert(1)'],
+    ['credentialed URL', 'https://user:pass@accounts.example.com/oauth'],
+    ['local-network URL', 'http://127.0.0.1:3000/oauth'],
+    ['oversized URL before trim', `${' '.repeat(4097)}#auth-callback`],
+  ])('signIn rejects unsafe web auth redirect %s before storing intent', async (_label, authUrl) => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.webAccountCommands.startAuth.mockResolvedValue({
+      authUrl,
+      state: 'state-123',
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true }));
+    const initialHash = window.location.hash;
+
+    const result = await createSignIn(set as never, get as never)('google');
+
+    expect(result).toBe(false);
+    expect(sessionStorage.getItem('vlaina_auth_state')).toBeNull();
+    expect(sessionStorage.getItem('vlaina_auth_provider')).toBeNull();
+    expect(window.location.hash).toBe(initialHash);
+    expect(set).toHaveBeenLastCalledWith({
+      error: 'Failed to start account sign-in',
+      isConnecting: false,
+    });
+  });
+
   it('signIn does not redirect when web auth intent cannot be stored', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.webAccountCommands.startAuth.mockResolvedValue({
@@ -708,6 +799,36 @@ describe('accountSession auth actions', () => {
     expect(set).toHaveBeenNthCalledWith(2, { error: 'You are already signed in with this email' });
   });
 
+  it('requestEmailCode rejects oversized emails before trimming them', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: false,
+      primaryEmail: null,
+    }));
+
+    await expect(
+      createRequestEmailCode(set as never, get as never)(`${' '.repeat(4097)}vla@example.com`)
+    ).resolves.toBe(false);
+
+    expect(mocks.webAccountCommands.requestEmailCode).not.toHaveBeenCalled();
+    expect(set).toHaveBeenLastCalledWith({ error: 'Invalid email address' });
+  });
+
+  it('requestEmailCode sends normalized emails to the account API', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.webAccountCommands.requestEmailCode.mockResolvedValue(true);
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: false,
+      primaryEmail: null,
+    }));
+
+    await expect(createRequestEmailCode(set as never, get as never)(' VLA@example.com ')).resolves.toBe(true);
+
+    expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledWith('vla@example.com');
+  });
+
   it('requesting a new email code invalidates an older pending verification result', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     let resolveVerify!: (value: { success: boolean; username?: string; error?: string }) => void;
@@ -780,8 +901,26 @@ describe('accountSession auth actions', () => {
     );
 
     expect(result).toBe(true);
+    expect(mocks.accountCommands.verifyEmailAuthCode).toHaveBeenCalledWith('vla@example.com', '123456');
     expect(checkStatus).toHaveBeenCalledTimes(1);
     expect(set).toHaveBeenLastCalledWith({ isConnecting: false, error: null });
+  });
+
+  it('verifyEmailCode rejects invalid email or code values before any network call', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ checkStatus: vi.fn() }));
+
+    await expect(createVerifyEmailCode(set as never, get as never)('bad', '123456')).resolves.toBe(false);
+    await expect(createVerifyEmailCode(set as never, get as never)('vla@example.com', '12345')).resolves.toBe(false);
+    await expect(
+      createVerifyEmailCode(set as never, get as never)('vla@example.com', `${'1'.repeat(65)}23456`)
+    ).resolves.toBe(false);
+
+    expect(mocks.webAccountCommands.verifyEmailCode).not.toHaveBeenCalled();
+    expect(set).toHaveBeenNthCalledWith(1, { error: 'Invalid email address' });
+    expect(set).toHaveBeenNthCalledWith(2, { error: 'Invalid verification code' });
+    expect(set).toHaveBeenNthCalledWith(3, { error: 'Invalid verification code' });
   });
 
   it('handleAuthCallback rejects mismatched callback state and provider', async () => {

@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_DSML_TOOL_MARKUP_CHARS,
+  MAX_OPENAI_PAYLOAD_LINE_CHARS,
   MAX_OPENAI_PAYLOAD_TEXT_CHARS,
   MAX_OPENAI_TOOL_ARGUMENT_CHARS,
   extractOpenAIText,
+  extractOpenAIToolCalls,
   extractOpenAIMessageFromJson,
   parseOpenAIPayloadText,
   stripDsmlToolCallMarkup,
 } from './openAIToolParsing';
+import type { OpenAIToolCall } from './openAIToolTypes';
 
 describe('openAIToolParsing', () => {
   it('extracts DeepSeek DSML tool calls from bounded assistant content', () => {
@@ -58,6 +61,44 @@ describe('openAIToolParsing', () => {
 
   it('skips overlong OpenAI payload text before JSON parsing', () => {
     expect(parseOpenAIPayloadText(`data: {"payload":"${'x'.repeat(MAX_OPENAI_PAYLOAD_TEXT_CHARS)}"}`)).toBeNull();
+  });
+
+  it('skips overlong OpenAI payload lines before trimming', () => {
+    expect(parseOpenAIPayloadText(`${' '.repeat(MAX_OPENAI_PAYLOAD_LINE_CHARS + 1)}{"ok":true}`)).toBeNull();
+  });
+
+  it('ignores loosely formatted or overlong tool call indexes', () => {
+    const toolCalls: OpenAIToolCall[] = [];
+
+    extractOpenAIToolCalls({
+      choices: [{
+        delta: {
+          tool_calls: [
+            {
+              index: '0x1',
+              function: { name: 'web_search', arguments: '{"query":"first"}' },
+            },
+            {
+              index: `${' '.repeat(17)}1`,
+              function: { name: 'web_search', arguments: '{"query":"second"}' },
+            },
+          ],
+        },
+      }],
+    }, toolCalls);
+
+    expect(toolCalls).toEqual([
+      {
+        id: '',
+        type: 'function',
+        function: { name: 'web_search', arguments: '{"query":"first"}' },
+      },
+      {
+        id: '',
+        type: 'function',
+        function: { name: 'web_search', arguments: '{"query":"second"}' },
+      },
+    ]);
   });
 
   it('normalizes object tool arguments without stringifying the original object', () => {

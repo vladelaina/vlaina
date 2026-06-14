@@ -3,6 +3,8 @@ import {
   buildMentionPreviewParts,
   collectMentionCandidates,
   findMentionTitlesInValue,
+  getNoteMentionTrigger,
+  MAX_MENTION_QUERY_CHARS,
   MAX_MENTION_TITLE_CHARS,
   MAX_MENTION_TITLE_SCAN_ITEMS,
   type NoteMentionCandidate,
@@ -211,6 +213,33 @@ describe('collectMentionCandidates', () => {
       kind: 'note',
       isCurrent: false,
       notePath: 'late.md',
+    });
+  });
+});
+
+describe('getNoteMentionTrigger', () => {
+  it('returns the active mention query near the caret', () => {
+    expect(getNoteMentionTrigger('Ask @Alpha', 'Ask @Alpha'.length)).toEqual({
+      start: 4,
+      end: 10,
+      query: 'Alpha',
+    });
+  });
+
+  it('rejects overlong mention queries', () => {
+    const value = `@${'a'.repeat(MAX_MENTION_QUERY_CHARS + 1)}`;
+
+    expect(getNoteMentionTrigger(value, value.length)).toBeNull();
+  });
+
+  it('keeps short mention queries after long message prefixes', () => {
+    const prefix = 'a'.repeat(MAX_MENTION_QUERY_CHARS * 4);
+    const value = `${prefix} @Note`;
+
+    expect(getNoteMentionTrigger(value, value.length)).toEqual({
+      start: prefix.length + 1,
+      end: value.length,
+      query: 'Note',
     });
   });
 });

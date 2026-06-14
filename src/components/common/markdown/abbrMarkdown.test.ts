@@ -4,6 +4,7 @@ import {
   MAX_ABBR_USAGE_TEXT_NODE_CHARS,
   applyAbbrDefinitionsToTree,
   createAbbrUsagePattern,
+  extractAbbrDefinitionsFromText,
   type AbbrMdastNode,
 } from './abbrMarkdown';
 import {
@@ -132,6 +133,8 @@ describe('abbrMarkdown', () => {
   });
 
   it('ignores oversized abbreviation definitions', () => {
+    expect(extractAbbrDefinitionsFromText(`*[OK]: Markdown${' '.repeat(2049)}`)).toEqual([]);
+
     const tree: AbbrMdastNode = {
       type: 'root',
       children: [
@@ -158,6 +161,22 @@ describe('abbrMarkdown', () => {
         },
       },
     ]);
+  });
+
+  it('skips collecting abbreviation definitions from overlong text nodes', () => {
+    const value = `*[X]: Example\n${'X '.repeat(Math.ceil(MAX_ABBR_USAGE_TEXT_NODE_CHARS / 2))}X`;
+    const tree: AbbrMdastNode = {
+      type: 'root',
+      children: [
+        paragraph(value),
+        paragraph('X'),
+      ],
+    };
+
+    applyAbbrDefinitionsToTree(tree);
+
+    expect(extractAbbrDefinitionsFromText(value)).toEqual([]);
+    expect(tree.children?.[1].children).toEqual([{ type: 'text', value: 'X' }]);
   });
 
   it('bounds abbreviation replacements from one text node', () => {

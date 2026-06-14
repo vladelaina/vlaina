@@ -332,7 +332,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const activatedEditorRef = useRef<ActiveMilkdownEditor | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const activationCleanupRef = useRef<(() => void) | null>(null);
-  const lazyBlockVisibilityRef = useRef<{ key: string; value: boolean } | null>(null);
+  const lazyBlockVisibilityRef = useRef<{
+    content: string;
+    diskRevision: number;
+    path: string | undefined;
+    value: boolean;
+  } | null>(null);
   const [activatedRevision, setActivatedRevision] = useState(0);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
   const markLocalMarkdownCommitted = useCallback((content: string) => {
@@ -751,10 +756,15 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [currentNoteContent]);
 
   const shouldFocusEmptyDraftBody = isDraftNote && !isNewlyCreated && isEmptyContent;
-  const lazyBlockVisibilityKey = `${currentNotePath ?? ''}\0${currentNoteDiskRevision}`;
-  if (lazyBlockVisibilityRef.current?.key !== lazyBlockVisibilityKey) {
+  if (
+    lazyBlockVisibilityRef.current?.path !== currentNotePath ||
+    lazyBlockVisibilityRef.current?.diskRevision !== currentNoteDiskRevision ||
+    lazyBlockVisibilityRef.current?.content !== currentNoteContent
+  ) {
     lazyBlockVisibilityRef.current = {
-      key: lazyBlockVisibilityKey,
+      content: currentNoteContent,
+      diskRevision: currentNoteDiskRevision,
+      path: currentNotePath,
       value: shouldUseLazyBlockVisibility(currentNoteContent),
     };
   }

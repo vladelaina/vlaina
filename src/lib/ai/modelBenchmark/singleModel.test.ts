@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MAX_PROVIDER_ERROR_BODY_BYTES } from '../providers/boundedResponseText';
+import {
+  MAX_PROVIDER_ERROR_BODY_BYTES,
+  MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES,
+} from '../providers/boundedResponseText';
 import type { AIModel, Provider } from '../types';
 import { checkModelHealth } from './singleModel';
 
@@ -131,6 +134,22 @@ describe('checkModelHealth', () => {
     expect(body.input).toBe('hi');
   });
 
+  it('accepts image benchmark success bodies larger than the error-body limit', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ b64_json: 'x'.repeat(MAX_PROVIDER_ERROR_BODY_BYTES + 1) }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(provider, createModel('gpt-image-2'));
+
+    expect(result).toMatchObject({
+      status: 'success',
+      endpoint: 'image',
+    });
+  });
+
   it('uses Anthropic messages endpoint when the provider endpoint type is Anthropic', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), {
@@ -206,6 +225,7 @@ describe('checkModelHealth', () => {
     };
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       body: {
         getReader: () => reader,
       },
@@ -234,6 +254,7 @@ describe('checkModelHealth', () => {
       };
       vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
+        headers: new Headers(),
         body: {
           getReader: () => reader,
         },
@@ -262,12 +283,14 @@ describe('checkModelHealth', () => {
     const cancel = vi.fn();
     const response = new Response(
       new ReadableStream({
-        start(streamController) {
-          streamController.enqueue(new TextEncoder().encode('x'.repeat(MAX_PROVIDER_ERROR_BODY_BYTES + 1)));
-        },
         cancel,
       }),
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          'content-length': String(MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES + 1),
+        },
+      }
     );
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
 

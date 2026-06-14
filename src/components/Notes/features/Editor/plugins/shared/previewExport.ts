@@ -74,12 +74,20 @@ function dataUrlToBytes(dataUrl: string, format: PreviewExportFormat): Uint8Arra
   return bytes;
 }
 
+function assertPreviewExportBytes(byteLength: number): void {
+  if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > MAX_PREVIEW_EXPORT_BYTES) {
+    throw new Error('Preview export output is too large.');
+  }
+}
+
 function svgMarkupToBytes(markup: string): Uint8Array {
   const sanitized = sanitizeSvgMarkup(markup);
   if (!sanitized) {
     throw new Error('Preview SVG export is empty after sanitization.');
   }
-  return new TextEncoder().encode(`<?xml version="1.0" encoding="UTF-8"?>\n${sanitized}`);
+  const bytes = new TextEncoder().encode(`<?xml version="1.0" encoding="UTF-8"?>\n${sanitized}`);
+  assertPreviewExportBytes(bytes.byteLength);
+  return bytes;
 }
 
 function downloadInBrowser(fileName: string, bytes: Uint8Array, mimeType: string) {

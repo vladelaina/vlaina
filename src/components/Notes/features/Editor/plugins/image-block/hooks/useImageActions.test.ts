@@ -362,4 +362,31 @@ describe('useImageActions', () => {
 
         appendSpy.mockRestore();
     });
+
+    it('does not write downloaded image bytes when blob metadata understates the actual size', async () => {
+        const blob = {
+            type: 'image/png',
+            size: 1,
+            arrayBuffer: vi.fn(async () => new ArrayBuffer(MAX_FETCHED_IMAGE_BYTES + 1)),
+        } as unknown as Blob;
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '1',
+                'content-type': 'image/png',
+            }),
+            blob: async () => blob,
+        })));
+        const { result } = renderImageActions();
+        const appendSpy = vi.spyOn(document.body, 'appendChild');
+
+        await act(async () => {
+            await result.current.handleDownload();
+        });
+
+        expect(blob.arrayBuffer).toHaveBeenCalledTimes(1);
+        expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+        expect(appendSpy).not.toHaveBeenCalled();
+
+        appendSpy.mockRestore();
+    });
 });

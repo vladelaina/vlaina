@@ -63,6 +63,24 @@ describe('ResizablePanel', () => {
     });
 
     expect(container.querySelector('aside')).toHaveStyle({ width: '320px' });
+
+    act(() => {
+      dispatchStorageChange('panel-width', '460px');
+    });
+
+    expect(container.querySelector('aside')).toHaveStyle({ width: '320px' });
+  });
+
+  it('ignores exponent-form persisted width values', () => {
+    localStorage.setItem('panel-width', '1e3');
+
+    const { container } = render(
+      <ResizablePanel storageKey="panel-width" defaultWidth={320} minWidth={300} maxWidth={500}>
+        content
+      </ResizablePanel>
+    );
+
+    expect(container.querySelector('aside')).toHaveStyle({ width: '320px' });
   });
 
   it('ignores oversized persisted width values', () => {

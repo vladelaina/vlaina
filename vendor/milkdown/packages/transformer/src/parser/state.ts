@@ -27,12 +27,42 @@ import { ParserStackElement } from './stack-element'
 
 const TASK_LIST_MARKER_PATTERN =
   /^(\s*(?:[-+*]|\d+[.)])\s+)(?:\[|【)(\s|x|X|✓)(?:\]|】)/gm
+const MAX_PARSER_REMARK_AST_DEPTH = 200
+const MAX_PARSER_REMARK_AST_NODES = 250_000
 
 function normalizeTaskListMarkers(markdown: string): string {
   return markdown.replace(TASK_LIST_MARKER_PATTERN, (_, prefix: string, marker: string) => {
     const normalizedMarker = marker === ' ' ? ' ' : 'x'
     return `${prefix}[${normalizedMarker}]`
   })
+}
+
+function getMarkdownNodeChildren(node: MarkdownNode): MarkdownNode[] {
+  const children = (node as MarkdownNode & { children?: unknown }).children
+  return Array.isArray(children) ? children as MarkdownNode[] : []
+}
+
+function assertRemarkAstWithinParserBudget(tree: MarkdownNode): void {
+  const stack = [{ depth: 0, node: tree }]
+  let scheduledNodes = 1
+  let visitedNodes = 0
+
+  while (stack.length > 0) {
+    const { depth, node } = stack.pop()!
+    visitedNodes += 1
+    if (visitedNodes > MAX_PARSER_REMARK_AST_NODES || depth > MAX_PARSER_REMARK_AST_DEPTH)
+      throw new Error('Markdown document is too complex to parse safely.')
+
+    const children = getMarkdownNodeChildren(node)
+    scheduledNodes += children.length
+    if (scheduledNodes > MAX_PARSER_REMARK_AST_NODES)
+      throw new Error('Markdown document is too complex to parse safely.')
+
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      const child = children[index]
+      if (child) stack.push({ depth: depth + 1, node: child })
+    }
+  }
 }
 
 /// A state machine for parser. Transform remark AST into prosemirror state.
@@ -225,10 +255,13 @@ export class ParserState extends Stack<Node, ParserStackElement> {
   /// Transform a markdown string into prosemirror state.
   run = (remark: RemarkParser, markdown: string) => {
     const normalizedMarkdown = normalizeTaskListMarkers(markdown)
-    const tree = mergePairedInlineHtml(remark.runSync(
+    const rawTree = remark.runSync(
       remark.parse(normalizedMarkdown),
       normalizedMarkdown
-    ) as MarkdownNode, normalizedMarkdown)
+    ) as MarkdownNode
+    assertRemarkAstWithinParserBudget(rawTree)
+
+    const tree = mergePairedInlineHtml(rawTree, normalizedMarkdown)
     this.next(tree)
 
     return this

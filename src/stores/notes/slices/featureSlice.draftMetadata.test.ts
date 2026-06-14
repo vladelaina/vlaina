@@ -315,6 +315,45 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
   });
 
+  it('rejects uncached vault metadata source content that exceeds the read limit after reading', async () => {
+    const notePath = 'docs/alpha.md';
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    mocks.readFile.mockResolvedValue('x'.repeat(MAX_METADATA_UPDATE_NOTE_BYTES + 1));
+    const store = createNotesStore({
+      notesPath: '/vault',
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(store.getState().error).toBe('Note file is too large to update metadata.');
+    });
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_METADATA_UPDATE_NOTE_BYTES);
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
+    expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
+  });
+
+  it('rejects uncached absolute metadata source content that exceeds the read limit after reading', async () => {
+    const notePath = '/notes/alpha.md';
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    mocks.readFile.mockResolvedValue('x'.repeat(MAX_METADATA_UPDATE_NOTE_BYTES + 1));
+    const store = createNotesStore({
+      notesPath: '',
+      rootFolder: null,
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(store.getState().error).toBe('Note file is too large to update metadata.');
+    });
+    expect(mocks.readFile).toHaveBeenCalledWith(notePath, MAX_METADATA_UPDATE_NOTE_BYTES);
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
+    expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
+  });
+
   it('merges vault metadata updates with newer disk edits instead of overwriting them', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));

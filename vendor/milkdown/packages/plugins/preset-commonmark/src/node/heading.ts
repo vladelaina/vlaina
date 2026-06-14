@@ -48,6 +48,12 @@ function defaultHeadingIdGenerator(node: Node) {
   return getBoundedHeadingTextForId(node).toLowerCase().trim().replace(/\s+/g, '-')
 }
 
+function readHeadingLevel(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.trunc(value)
+    : 1
+}
+
 /// This is a slice contains a function to generate heading id.
 /// You can configure it to generate id in your own way.
 export const headingIdGenerator = $ctx(
@@ -146,7 +152,7 @@ export const wrapInHeadingInputRule = $inputRule((ctx) => {
       const { $from } = view.state.selection
       const node = $from.node()
       if (node.type.name === 'heading') {
-        let level = Number(node.attrs.level) + Number(x)
+        let level = readHeadingLevel(node.attrs.level) + x
         if (level > 6) level = 6
 
         return { level }

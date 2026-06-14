@@ -98,6 +98,27 @@ describe('markdown protected blocks', () => {
     ].join('\n'));
   });
 
+  it('protects fenced code blocks with long marker runs without materializing the marker', () => {
+    const marker = '`'.repeat(20_000);
+    const markdown = [
+      'Before - item',
+      `${marker}ts`,
+      'const value = "- hidden";',
+      marker,
+      'After - item',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      'Before * item',
+      `${marker}ts`,
+      'const value = "- hidden";',
+      marker,
+      'After * item',
+    ].join('\n'));
+  });
+
   it('protects raw text and sanitizer-dropped HTML block contents', () => {
     const markdown = [
       'Before - item',

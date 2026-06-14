@@ -9,12 +9,14 @@ import {
 } from '../../electron/desktopIpc.mjs';
 
 const MAX_DESKTOP_IPC_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_AI_PROVIDER_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES = 256 * 1024;
 const MAX_CLIPBOARD_IMAGE_DATA_URL_BYTES = 10 * 1024 * 1024;
 
 const hoisted = vi.hoisted(() => {
   const windows: any[] = [];
   const tempRoot = process.env.RUNNER_TEMP ?? process.env.TEMP ?? process.env.TMPDIR ?? '/tmp';
+  let nextPrintToPDFResult: { byteLength: number } | Uint8Array = new Uint8Array([1, 2, 3]);
   const spawn = vi.fn(() => ({
     once: vi.fn(),
     unref: vi.fn(),
@@ -33,7 +35,7 @@ const hoisted = vi.hoisted(() => {
     constructor(options: Record<string, unknown>) {
       this.options = options;
       this.webContents = {
-        printToPDF: vi.fn(async () => new Uint8Array([1, 2, 3])),
+        printToPDF: vi.fn(async () => nextPrintToPDFResult),
       };
       windows.push(this);
     }
@@ -43,7 +45,18 @@ const hoisted = vi.hoisted(() => {
     }
   }
 
-  return { MockBrowserWindow, spawn, tempRoot, windows };
+  return {
+    MockBrowserWindow,
+    resetPrintToPDFResult: () => {
+      nextPrintToPDFResult = new Uint8Array([1, 2, 3]);
+    },
+    setPrintToPDFResult: (value: { byteLength: number } | Uint8Array) => {
+      nextPrintToPDFResult = value;
+    },
+    spawn,
+    tempRoot,
+    windows,
+  };
 });
 
 vi.mock('node:child_process', () => ({
@@ -282,6 +295,11 @@ describe('desktop export ipc', () => {
     const { handlers } = registerHarness();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    const hostileHeaderValue = {
+      toString() {
+        throw new Error('header coercion');
+      },
+    };
 
     await expect(
       handlers.get('desktop:ai-provider:request:start')?.(
@@ -306,6 +324,48 @@ describe('desktop export ipc', () => {
           method: 'POST',
           headers: {
             Authorization: 'Bearer token\r\nInjected: value',
+          },
+        },
+      ),
+    ).rejects.toThrow('Invalid AI provider request header value');
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        'request-long-header',
+        {
+          url: 'https://api.example.com/v1/chat/completions',
+          method: 'POST',
+          headers: {
+            ['X'.repeat(257)]: 'value',
+          },
+        },
+      ),
+    ).rejects.toThrow('Invalid AI provider request header');
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        'request-long-header-value',
+        {
+          url: 'https://api.example.com/v1/chat/completions',
+          method: 'POST',
+          headers: {
+            Authorization: 'x'.repeat((16 * 1024) + 1),
+          },
+        },
+      ),
+    ).rejects.toThrow('Invalid AI provider request header value');
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        'request-hostile-header-value',
+        {
+          url: 'https://api.example.com/v1/chat/completions',
+          method: 'POST',
+          headers: {
+            Authorization: hostileHeaderValue,
           },
         },
       ),
@@ -341,6 +401,11 @@ describe('desktop export ipc', () => {
       method: 'POST',
     })).rejects.toThrow('AI provider request URL is not supported.');
 
+    await expect(startRequest?.({ sender }, 'request-oversized-url', {
+      url: ' '.repeat(4097),
+      method: 'POST',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -348,11 +413,24 @@ describe('desktop export ipc', () => {
     const { handlers } = registerHarness();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    const hostileRequestId = {
+      toString() {
+        throw new Error('request id coercion');
+      },
+    };
 
     await expect(
       handlers.get('desktop:ai-provider:request:start')?.(
         { sender: { isDestroyed: () => false, send: vi.fn() } },
         'request\nother',
+        { url: 'https://api.example.com/v1/chat/completions', method: 'POST' },
+      ),
+    ).rejects.toThrow('safe channel characters');
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        hostileRequestId,
         { url: 'https://api.example.com/v1/chat/completions', method: 'POST' },
       ),
     ).rejects.toThrow('safe channel characters');
@@ -412,6 +490,16 @@ describe('desktop export ipc', () => {
     const { handlers } = registerHarness();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    const hostileBody = {
+      toString() {
+        throw new Error('body coercion');
+      },
+    };
+    const hostileMethod = {
+      toString() {
+        throw new Error('method coercion');
+      },
+    };
 
     await expect(
       handlers.get('desktop:ai-provider:request:start')?.(
@@ -424,6 +512,29 @@ describe('desktop export ipc', () => {
         },
       ),
     ).rejects.toThrow('AI provider request body is too large.');
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        'request-hostile-body',
+        {
+          url: 'https://api.example.com/v1/chat/completions',
+          method: 'POST',
+          body: hostileBody,
+        },
+      ),
+    ).rejects.toThrow('Invalid AI provider request body.');
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        'request-hostile-method',
+        {
+          url: 'https://api.example.com/v1/chat/completions',
+          method: hostileMethod,
+        },
+      ),
+    ).rejects.toThrow('Unsupported AI provider request method');
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -470,6 +581,53 @@ describe('desktop export ipc', () => {
     expect(forwardedChunks).toHaveLength(2);
     expect(forwardedChunks[0]).toHaveLength(MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES);
     expect(forwardedChunks[1]).toEqual([1, 2, 3]);
+  });
+
+  it('stops AI provider response streams when the total body exceeds the limit', async () => {
+    const { handlers } = registerHarness();
+    const reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce({
+          done: false,
+          value: { byteLength: MAX_AI_PROVIDER_RESPONSE_BODY_BYTES + 1 },
+        })
+        .mockResolvedValueOnce({ done: true }),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
+    const fetchMock = vi.fn(async () => ({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
+      },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const sender = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await expect(handlers.get('desktop:ai-provider:request:start')?.(
+      { sender },
+      'request-oversized-response',
+      {
+        url: 'https://api.example.com/v1/chat/completions',
+        method: 'POST',
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [] }),
+      },
+    )).resolves.toMatchObject({
+      status: 200,
+      statusText: 'OK',
+    });
+
+    await vi.waitFor(() => expect(sender.send).toHaveBeenCalledWith(
+      'desktop:ai-provider:request:request-oversized-response:error',
+      { message: 'AI provider response body is too large.' },
+    ));
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
   });
 
   it('retries quickly failed AI provider transport requests once', async () => {
@@ -781,6 +939,7 @@ describe('desktop export ipc', () => {
 
   it('renders PDF HTML through a temporary file instead of a data URL', async () => {
     hoisted.windows.length = 0;
+    hoisted.resetPrintToPDFResult();
     const { handlers } = registerHarness();
 
     await expect(
@@ -808,6 +967,44 @@ describe('desktop export ipc', () => {
         right: 0.45,
       },
     });
+    expect(win.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects oversized PDF export HTML before creating a render window', async () => {
+    hoisted.windows.length = 0;
+    const byteLengthSpy = vi.spyOn(Buffer, 'byteLength').mockReturnValueOnce(MAX_DESKTOP_IPC_BODY_BYTES + 1);
+    const { handlers } = registerHarness();
+
+    try {
+      await expect(
+        handlers.get('desktop:export:html-to-pdf')?.({}, '<!doctype html><html></html>', {
+          pageSize: 'A4',
+        }),
+      ).rejects.toThrow('PDF export HTML is too large.');
+    } finally {
+      byteLengthSpy.mockRestore();
+    }
+
+    expect(hoisted.windows).toHaveLength(0);
+  });
+
+  it('rejects oversized PDF export output before materializing the IPC response', async () => {
+    hoisted.windows.length = 0;
+    hoisted.setPrintToPDFResult({ byteLength: MAX_DESKTOP_IPC_BODY_BYTES + 1 });
+    const { handlers } = registerHarness();
+
+    try {
+      await expect(
+        handlers.get('desktop:export:html-to-pdf')?.({}, '<!doctype html><html><body>Export</body></html>', {
+          pageSize: 'A4',
+        }),
+      ).rejects.toThrow('PDF export output is too large.');
+    } finally {
+      hoisted.resetPrintToPDFResult();
+    }
+
+    const win = hoisted.windows[0];
+    expect(win.loadFile).toHaveBeenCalledTimes(1);
     expect(win.destroy).toHaveBeenCalledTimes(1);
   });
 });

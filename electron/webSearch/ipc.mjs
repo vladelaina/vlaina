@@ -2,16 +2,19 @@ import { Crawler } from './crawler/index.mjs';
 import { readUrlsBatch } from './crawler/batchCrawler.mjs';
 import { SearchService } from './searchService.mjs';
 import { LocalSearchProvider } from './providers/localSearchProvider.mjs';
-import { WebSearchError } from './types.mjs';
+import { MAX_WEB_SEARCH_QUERY_CHARS, WebSearchError } from './types.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
-const MAX_IPC_SEARCH_QUERY_CHARS = 1000;
 const MAX_IPC_OPTION_CHARS = 64;
 const MAX_IPC_READ_URL_CHARS = 4096;
 const MAX_IPC_BATCH_READ_URLS = 8;
+const DECIMAL_NUMBER_PATTERN = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 function normalizeRequestId(rawRequestId) {
-  const requestId = String(rawRequestId ?? '').trim();
+  if (typeof rawRequestId !== 'string' || rawRequestId.length > 160) {
+    return null;
+  }
+  const requestId = rawRequestId.trim();
   return REQUEST_ID_PATTERN.test(requestId) ? requestId : null;
 }
 
@@ -41,12 +44,26 @@ function normalizeReadOptions(rawOptions) {
 
 function normalizeOptionString(value) {
   if (typeof value !== 'string') return undefined;
+  if (value.length > MAX_IPC_OPTION_CHARS) return undefined;
   const trimmed = value.trim();
   return trimmed && trimmed.length <= MAX_IPC_OPTION_CHARS ? trimmed : undefined;
 }
 
 function normalizeNumberOption(value) {
-  const parsed = Number(value);
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value !== 'string' || value.length > MAX_IPC_OPTION_CHARS) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (!DECIMAL_NUMBER_PATTERN.test(trimmed)) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
@@ -54,8 +71,11 @@ function normalizeSearchQuery(query) {
   if (typeof query !== 'string') {
     throw new WebSearchError('invalid_query', 'Search query is required.');
   }
+  if (query.length > MAX_WEB_SEARCH_QUERY_CHARS) {
+    throw new WebSearchError('invalid_query', 'Search query is required.');
+  }
   const trimmed = query.trim();
-  if (!trimmed || trimmed.length > MAX_IPC_SEARCH_QUERY_CHARS) {
+  if (!trimmed || trimmed.length > MAX_WEB_SEARCH_QUERY_CHARS) {
     throw new WebSearchError('invalid_query', 'Search query is required.');
   }
   return trimmed;
@@ -63,6 +83,9 @@ function normalizeSearchQuery(query) {
 
 function normalizeReadUrl(url) {
   if (typeof url !== 'string') {
+    throw new WebSearchError('invalid_url', 'Invalid URL.');
+  }
+  if (url.length > MAX_IPC_READ_URL_CHARS) {
     throw new WebSearchError('invalid_url', 'Invalid URL.');
   }
   const trimmed = url.trim();

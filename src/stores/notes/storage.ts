@@ -10,7 +10,7 @@ import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEnt
 import { normalizeNoteMetadataEntry, readNoteMetadataFromMarkdown } from './frontmatter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from './systemStoragePaths';
 import { normalizeRecentNotePaths, normalizeWorkspaceState } from './persistenceValidation';
-import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
+import { isSafeVaultPathSegment, MAX_VAULT_RELATIVE_PATH_CHARS } from './utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 export type { MetadataFile, NoteMetadataEntry };
@@ -84,7 +84,13 @@ export function persistRecentNotes(paths: string[]): void {
 }
 
 function normalizeGlobalNoteIconSize(value: unknown): number {
-  const parsed = typeof value === 'number' ? value : Number(value);
+  let parsed = Number.NaN;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string' && value.length <= 64) {
+    const trimmed = value.trim();
+    parsed = /^(?:\d+(?:\.\d+)?|\.\d+)$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  }
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_NOTE_ICON_SIZE;
 }
 
@@ -331,6 +337,9 @@ async function collectMarkdownPaths(
     }
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+    if (entryPath.length > MAX_VAULT_RELATIVE_PATH_CHARS) {
+      continue;
+    }
 
     if (entry.isDirectory === true) {
       if (shouldHideMetadataDirectory(entry.name)) {

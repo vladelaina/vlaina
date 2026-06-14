@@ -270,6 +270,28 @@ describe('imageDownload', () => {
     }));
   });
 
+  it('does not use non-image source extensions for unknown image MIME types', async () => {
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1])], { type: 'image/x-icon' })));
+
+    await downloadImageWithPrompt('https://example.com/payload.exe', 'payload');
+
+    expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
+      defaultPath: 'payload.png',
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }],
+    }));
+  });
+
+  it('uses the AVIF extension for AVIF image responses', async () => {
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1])], { type: 'image/avif' })));
+
+    await downloadImageWithPrompt('https://example.com/download', 'photo');
+
+    expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
+      defaultPath: 'photo.avif',
+      filters: [{ name: 'Images', extensions: ['avif', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }],
+    }));
+  });
+
   it('does not read, save, or anchor-download oversized fetched image responses', async () => {
     const blob = vi.fn(async () => new Blob([new Uint8Array([1])], { type: 'image/png' }));
     mocks.fetch.mockResolvedValue({
@@ -285,6 +307,25 @@ describe('imageDownload', () => {
 
     expect(blob).not.toHaveBeenCalled();
     expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    expect(appendSpy).not.toHaveBeenCalled();
+
+    appendSpy.mockRestore();
+  });
+
+  it('does not write fetched image bytes when blob metadata understates the actual size', async () => {
+    const blob = {
+      type: 'image/png',
+      size: 1,
+      arrayBuffer: vi.fn(async () => new ArrayBuffer(MAX_CHAT_IMAGE_FETCH_BYTES + 1)),
+    } as unknown as Blob;
+    mocks.fetch.mockResolvedValue(imageResponse(blob));
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+
+    await downloadImageWithPrompt('https://example.com/large.png', 'large');
+
+    expect(blob.arrayBuffer).toHaveBeenCalledTimes(1);
+    expect(mocks.saveDialog).toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
     expect(appendSpy).not.toHaveBeenCalled();
 

@@ -5,6 +5,11 @@ import path from 'node:path';
 const activeWatchers = new Map();
 const watcherGroups = new Map();
 let watcherCounter = 0;
+export const MAX_DESKTOP_ACTIVE_WATCHERS = 256;
+export const MAX_DESKTOP_WATCH_GROUPS = 64;
+export const MAX_DESKTOP_WATCH_GROUP_SUBSCRIBERS = 64;
+const MAX_DESKTOP_WATCH_PATH_CHARS = 8192;
+const UNSAFE_DESKTOP_WATCH_PATH_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 function safeSend(sender, channel, payload) {
   if (!sender || sender.isDestroyed()) {
@@ -62,6 +67,19 @@ function isPathCoveredByWatchPath(watchPath, watchedPath, recursive) {
   return getWatchComparisonParentPath(normalizedWatchedPath) === normalizedWatchPath;
 }
 
+function normalizeDesktopWatchPayloadPath(value) {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_DESKTOP_WATCH_PATH_CHARS ||
+    UNSAFE_DESKTOP_WATCH_PATH_PATTERN.test(value)
+  ) {
+    return null;
+  }
+
+  return value;
+}
+
 function closeWatcherGroup(groupKey) {
   const group = watcherGroups.get(groupKey);
   if (!group) {
@@ -99,8 +117,16 @@ function createWatcherGroup(groupKey, resolvedWatchPath, options) {
       resolvedWatchPath,
       { recursive: options.recursive },
       (eventType, filename) => {
-        const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
+        const resolvedPath = normalizeDesktopWatchPayloadPath(
+          filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath
+        );
+        if (!resolvedPath) {
+          return;
+        }
         void createDesktopWatchPayload(eventType, resolvedPath).then((payload) => {
+          if (!payload) {
+            return;
+          }
           sendWatchPayloadToSubscribers(group, payload);
           if (group.subscribers.size === 0) {
             closeWatcherGroup(groupKey);
@@ -122,15 +148,21 @@ function createWatcherGroup(groupKey, resolvedWatchPath, options) {
 }
 
 export function notifyDesktopWatchRename(oldPath, newPath) {
+  const safeOldPath = normalizeDesktopWatchPayloadPath(oldPath);
+  const safeNewPath = normalizeDesktopWatchPayloadPath(newPath);
+  if (!safeOldPath || !safeNewPath) {
+    return;
+  }
+
   const payload = {
     type: { modify: { kind: 'rename', mode: 'both' } },
-    paths: [oldPath, newPath],
+    paths: [safeOldPath, safeNewPath],
   };
 
   for (const [groupKey, group] of watcherGroups) {
     const coversRename =
-      isPathCoveredByWatchPath(group.resolvedWatchPath, oldPath, group.options.recursive) ||
-      isPathCoveredByWatchPath(group.resolvedWatchPath, newPath, group.options.recursive);
+      isPathCoveredByWatchPath(group.resolvedWatchPath, safeOldPath, group.options.recursive) ||
+      isPathCoveredByWatchPath(group.resolvedWatchPath, safeNewPath, group.options.recursive);
 
     if (!coversRename) {
       continue;
@@ -144,23 +176,28 @@ export function notifyDesktopWatchRename(oldPath, newPath) {
 }
 
 export async function createDesktopWatchPayload(eventType, resolvedPath, statPath = stat) {
+  const safePath = normalizeDesktopWatchPayloadPath(resolvedPath);
+  if (!safePath) {
+    return null;
+  }
+
   if (eventType !== 'rename') {
     return {
       type: { modify: { kind: 'data', mode: 'any' } },
-      paths: [resolvedPath],
+      paths: [safePath],
     };
   }
 
   try {
-    const info = await statPath(resolvedPath);
+    const info = await statPath(safePath);
     return {
       type: { create: { kind: info.isDirectory() ? 'folder' : 'file' } },
-      paths: [resolvedPath],
+      paths: [safePath],
     };
   } catch {
     return {
       type: { remove: { kind: 'any' } },
-      paths: [resolvedPath],
+      paths: [safePath],
     };
   }
 }
@@ -174,12 +211,21 @@ export function registerDesktopWatchIpc({
     const resolvedWatchPath = await assertAuthorizedFsWatchPath(watchPath);
     const watchOptions = normalizeDesktopWatchOptions(options);
     const groupKey = getWatcherGroupKey(resolvedWatchPath, watchOptions);
+    if (activeWatchers.size >= MAX_DESKTOP_ACTIVE_WATCHERS) {
+      throw new Error('Too many active desktop filesystem watchers.');
+    }
+    if (!watcherGroups.has(groupKey) && watcherGroups.size >= MAX_DESKTOP_WATCH_GROUPS) {
+      throw new Error('Too many active desktop filesystem watcher groups.');
+    }
     const watchId = `watch-${++watcherCounter}`;
     const group = watcherGroups.get(groupKey) ?? createWatcherGroup(
       groupKey,
       resolvedWatchPath,
       watchOptions
     );
+    if (group.subscribers.size >= MAX_DESKTOP_WATCH_GROUP_SUBSCRIBERS) {
+      throw new Error('Too many desktop filesystem watcher subscribers.');
+    }
 
     group.subscribers.set(watchId, event.sender);
     activeWatchers.set(watchId, groupKey);

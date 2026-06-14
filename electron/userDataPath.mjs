@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+const MAX_GIT_POINTER_FILE_BYTES = 64 * 1024;
+
 function resolveGitCommonRepoRoot(repoRoot) {
   const dotGitPath = path.join(repoRoot, '.git');
 
@@ -13,8 +15,14 @@ function resolveGitCommonRepoRoot(repoRoot) {
     if (!stat.isFile()) {
       return repoRoot;
     }
+    if (stat.size > MAX_GIT_POINTER_FILE_BYTES) {
+      return repoRoot;
+    }
 
     const content = fs.readFileSync(dotGitPath, 'utf8').trim();
+    if (Buffer.byteLength(content, 'utf8') > MAX_GIT_POINTER_FILE_BYTES) {
+      return repoRoot;
+    }
     const match = /^gitdir:\s*(.+)$/i.exec(content);
     if (!match) {
       return repoRoot;

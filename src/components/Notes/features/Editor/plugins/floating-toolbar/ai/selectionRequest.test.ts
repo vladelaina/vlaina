@@ -4,7 +4,10 @@ import {
   AI_SELECTION_TOO_LARGE_MESSAGE,
   MAX_AI_SELECTION_EDIT_CHARS,
 } from './selectionLimits';
-import { MAX_EDITOR_AI_INSTRUCTION_CHARS } from './promptBuilder';
+import {
+  MAX_EDITOR_AI_CONTEXT_CHARS,
+  MAX_EDITOR_AI_INSTRUCTION_CHARS,
+} from './promptBuilder';
 
 const mockAddToast = vi.fn();
 const mockSendMessageWithEndpointFallback = vi.fn();
@@ -69,7 +72,10 @@ vi.mock('./selectionEditing', () => ({
     mockGetSerializedSelectionContext(...args),
 }));
 
-import { createAiSelectionSuggestionResult } from './selectionRequest';
+import {
+  createAiSelectionSuggestionResult,
+  retryAiSelectionSuggestionResult,
+} from './selectionRequest';
 
 function createView(from: number, to: number) {
   return {
@@ -149,5 +155,70 @@ describe('selectionRequest', () => {
       errorCode: undefined,
     });
     expect(mockSendMessageWithEndpointFallback).not.toHaveBeenCalled();
+  });
+
+  it('stores bounded context from provided selection sources', async () => {
+    const beforeContext = 'b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 20);
+    const afterContext = 'a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 20);
+
+    const result = await createAiSelectionSuggestionResult(
+      createView(1, 14) as never,
+      'Edit the selected text.',
+      {
+        from: 1,
+        to: 14,
+        originalText: 'Selected text',
+        beforeContext,
+        afterContext,
+      },
+      undefined,
+      { suppressToast: true }
+    );
+
+    const sentContent = mockSendMessageWithEndpointFallback.mock.calls[0]?.[0]?.content;
+    expect(sentContent).toContain('b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS));
+    expect(sentContent).not.toContain('b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 1));
+    expect(sentContent).toContain('a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS));
+    expect(sentContent).not.toContain('a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 1));
+    expect(result.suggestion).toMatchObject({
+      originalText: 'Selected text',
+      suggestedText: 'Updated text',
+      beforeContext: 'b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS),
+      afterContext: 'a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS),
+    });
+  });
+
+  it('bounds legacy retry context before sending and storing the next suggestion', async () => {
+    const beforeContext = 'b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 20);
+    const afterContext = 'a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 20);
+
+    const result = await retryAiSelectionSuggestionResult(
+      {
+        requestKey: 'request',
+        from: 1,
+        to: 14,
+        instruction: 'Edit the selected text.',
+        commandId: null,
+        toneId: null,
+        originalText: 'Selected text',
+        beforeContext,
+        afterContext,
+        suggestedText: 'Previous text',
+      },
+      undefined,
+      { suppressToast: true }
+    );
+
+    const sentContent = mockSendMessageWithEndpointFallback.mock.calls[0]?.[0]?.content;
+    expect(sentContent).toContain('b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS));
+    expect(sentContent).not.toContain('b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 1));
+    expect(sentContent).toContain('a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS));
+    expect(sentContent).not.toContain('a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS + 1));
+    expect(result.suggestion).toMatchObject({
+      originalText: 'Selected text',
+      suggestedText: 'Updated text',
+      beforeContext: 'b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS),
+      afterContext: 'a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS),
+    });
   });
 });

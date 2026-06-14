@@ -18,14 +18,36 @@ import { normalizeImageAlignment } from './plugins/image-block/utils/imageNodeAt
 import { getMarkdownHtmlImageAttrs, normalizeMarkdownHtmlImageTextAttr } from './markdownHtmlImage';
 import { escapeHtmlAttr, getDomAttrs, mergeDomClassNames, updateSchemaFactory } from './themeSchemaUtils';
 
+const MAX_LIST_ITEM_DOM_ATTR_CHARS = 128;
+
+function normalizeOrderedListOrder(value: unknown): number {
+    return typeof value === 'number' && Number.isSafeInteger(value) ? value : 1;
+}
+
+function normalizeOrderedListSpread(value: unknown): string {
+    if (value === false || value === 'false') return 'false';
+    return 'true';
+}
+
+function normalizeListItemAttr(value: unknown): string {
+    return typeof value === 'string' ? value.slice(0, MAX_LIST_ITEM_DOM_ATTR_CHARS) : '';
+}
+
+function getOrderedListItemValue(label: string, listType: string): string | undefined {
+    if (listType !== 'ordered') return undefined;
+    const normalizedLabel = label.replace(/[.)]$/, '');
+    if (!/^-?\d{1,9}$/.test(normalizedLabel)) return undefined;
+    return normalizedLabel;
+}
+
 export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
     updateSchemaFactory(ctx, orderedListSchema.key, (prev: any) => ({
         ...prev,
         parseMarkdown: {
-            match: ({ type, ordered }: { type: string; ordered?: boolean }) => type === 'list' && !!ordered,
+            match: (node: any) => node?.type === 'list' && node.ordered === true,
             runner: (state: any, node: any, type: any) => {
-                const spread = node.spread != null ? `${node.spread}` : 'true';
-                const order = typeof node.start === 'number' ? node.start : 1;
+                const spread = normalizeOrderedListSpread(node.spread);
+                const order = normalizeOrderedListOrder(node.start);
                 state.openNode(type, { spread, order }).next(node.children).closeNode();
             },
         },
@@ -42,7 +64,7 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             },
         },
         toDOM: (node: any) => {
-            const order = typeof node.attrs?.order === 'number' ? node.attrs.order : 1;
+            const order = normalizeOrderedListOrder(node.attrs?.order);
             return [
                 'ol',
                 getDomAttrs({
@@ -56,14 +78,14 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
     updateSchemaFactory(ctx, listItemSchema.key, (prev: any) => ({
         ...prev,
         toDOM: (node: any) => {
-            const label = typeof node.attrs.label === 'string' ? node.attrs.label : '';
-            const numericValue = node.attrs.listType === 'ordered'
-                ? Number.parseInt(label, 10)
-                : Number.NaN;
+            const label = normalizeListItemAttr(node.attrs.label);
+            const listType = normalizeListItemAttr(node.attrs.listType);
+            const spread = normalizeListItemAttr(node.attrs.spread);
+            const itemValue = getOrderedListItemValue(label, listType);
             const isTaskItem = typeof node.attrs.checked === 'boolean';
             const taskState = isTaskItem ? (node.attrs.checked ? 'x' : ' ') : undefined;
 
-            return ['li', {
+            return ['li', getDomAttrs({
                 ...(isTaskItem ? {
                     class: mergeDomClassNames(
                         'md-task-list-item',
@@ -76,11 +98,11 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                     'data-task': taskState,
                     'aria-checked': String(node.attrs.checked),
                 } : {}),
-                'data-label': node.attrs.label,
-                'data-list-type': node.attrs.listType,
-                'data-spread': node.attrs.spread,
-                ...(Number.isFinite(numericValue) ? { value: String(numericValue) } : {}),
-            }, 0];
+                'data-label': label,
+                'data-list-type': listType,
+                'data-spread': spread,
+                ...(itemValue !== undefined ? { value: itemValue } : {}),
+            }), 0];
         }
     }));
 
@@ -96,14 +118,16 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
         },
         toDOM: (node: any) => {
             const safeSrc = sanitizeNoteMediaSrc(node.attrs.src);
+            const alt = normalizeMarkdownHtmlImageTextAttr(node.attrs.alt);
+            const title = normalizeMarkdownHtmlImageTextAttr(node.attrs.title);
             const width = normalizeImageWidth(node.attrs.width);
             const crop = serializeCropValue(node.attrs.crop);
             const align = normalizeImageAlignment(node.attrs.align);
             return ['img', {
                 class: 'md-image image-embed',
                 src: safeSrc || undefined,
-                alt: node.attrs.alt,
-                title: node.attrs.title,
+                alt,
+                title: title || undefined,
                 align: align || 'center',
                 width,
                 'data-src': safeSrc || undefined,

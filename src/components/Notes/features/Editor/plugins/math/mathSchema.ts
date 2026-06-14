@@ -6,6 +6,10 @@ import { renderLatex } from './katex';
 const MAX_LEGACY_MATH_DATA_LATEX_CHARS = 10000;
 const mathElementLatex = new WeakMap<HTMLElement, string>();
 
+export function normalizeMathLatexAttr(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
 function emptyMathMarkup() {
   return '<span class="math-empty" aria-hidden="true">\u200b</span>';
 }
@@ -67,7 +71,7 @@ export function serializeMathBlockNode(node: Node): DOMOutputSpec {
     tagName: 'div',
     dataType: 'math-block',
     className: 'math-block-wrapper',
-    latex: attrs.latex,
+    latex: normalizeMathLatexAttr(attrs.latex),
     displayMode: true,
   });
 }
@@ -78,7 +82,7 @@ export function serializeMathInlineNode(node: Node): DOMOutputSpec {
     tagName: 'span',
     dataType: 'math-inline',
     className: 'math-inline-wrapper',
-    latex: attrs.latex,
+    latex: normalizeMathLatexAttr(attrs.latex),
     displayMode: false,
   });
 }
@@ -88,7 +92,7 @@ export function parseMathBlockFromMarkdown(
   node: { value?: string },
   type: unknown
 ) {
-  state.addNode(type, { latex: node.value || '' });
+  state.addNode(type, { latex: normalizeMathLatexAttr(node.value) });
 }
 
 export function parseMathInlineFromMarkdown(
@@ -96,21 +100,21 @@ export function parseMathInlineFromMarkdown(
   node: { value?: string },
   type: unknown
 ) {
-  state.addNode(type, { latex: node.value || '' });
+  state.addNode(type, { latex: normalizeMathLatexAttr(node.value) });
 }
 
 export function serializeMathBlockToMarkdown(
   state: { addNode: (type: string, attrs: undefined, value: string) => void },
   node: { attrs?: Record<string, unknown> }
 ) {
-  state.addNode('math', undefined, String(node.attrs?.latex || ''));
+  state.addNode('math', undefined, normalizeMathLatexAttr(node.attrs?.latex));
 }
 
 export function serializeMathInlineToMarkdown(
   state: { addNode: (type: string, attrs: undefined, value: string) => void },
   node: { attrs?: Record<string, unknown> }
 ) {
-  state.addNode('inlineMath', undefined, String(node.attrs?.latex || ''));
+  state.addNode('inlineMath', undefined, normalizeMathLatexAttr(node.attrs?.latex));
 }
 
 export const mathBlockSchema = $node('math_block', () => ({

@@ -18,12 +18,16 @@ export function getAlignedBlockDomAttrs(align: unknown) {
     return attrs;
 }
 
-export function getDomAttrs(attrs: Record<string, string | undefined> = {}) {
+export function getDomAttrs(attrs: Record<string, unknown> = {}) {
     const result: Record<string, string> = {};
 
     for (const [key, value] of Object.entries(attrs)) {
-        if (value !== undefined) {
+        if (typeof value === 'string') {
             result[key] = value;
+        } else if (typeof value === 'number' && Number.isFinite(value)) {
+            result[key] = String(value);
+        } else if (typeof value === 'boolean') {
+            result[key] = String(value);
         }
     }
 

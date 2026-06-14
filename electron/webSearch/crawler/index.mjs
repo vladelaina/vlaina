@@ -11,6 +11,9 @@ const USER_AGENT =
 const MIN_CONTENT_LENGTH = 160;
 const MAX_RAW_TEXT_BYTES = 1_000_000;
 const CLOUDFLARE_MARKERS = ['cf-chl', 'cloudflare ray id', 'checking your browser'];
+const DEFAULT_CRAWLER_TIMEOUT_MS = 12000;
+const MAX_CRAWLER_TIMEOUT_INPUT_CHARS = 16;
+const MAX_CRAWLER_TIMEOUT_MS = 30000;
 
 function createAbortError() {
   return new DOMException('The web search request was cancelled.', 'AbortError');
@@ -19,6 +22,20 @@ function createAbortError() {
 function throwIfAborted(signal) {
   if (!signal?.aborted) return;
   throw createAbortError();
+}
+
+function normalizeCrawlerTimeoutMs(value) {
+  let parsed = Number.NaN;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string' && value.length <= MAX_CRAWLER_TIMEOUT_INPUT_CHARS) {
+    const trimmed = value.trim();
+    parsed = /^\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : Number.NaN;
+  }
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_CRAWLER_TIMEOUT_MS;
+  }
+  return Math.min(Math.floor(parsed), MAX_CRAWLER_TIMEOUT_MS);
 }
 
 async function raceWithAbort(promise, signal) {
@@ -300,9 +317,9 @@ async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal, consu
 }
 
 export class Crawler {
-  constructor({ fetchImpl, timeoutMs = 12000 } = {}) {
+  constructor({ fetchImpl, timeoutMs = DEFAULT_CRAWLER_TIMEOUT_MS } = {}) {
     this.fetchImpl = fetchImpl;
-    this.timeoutMs = timeoutMs;
+    this.timeoutMs = normalizeCrawlerTimeoutMs(timeoutMs);
   }
 
   async readUrl(rawUrl, options = {}) {

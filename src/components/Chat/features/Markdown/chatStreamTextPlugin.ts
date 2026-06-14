@@ -20,7 +20,7 @@ interface ChatStreamTextPluginOptions {
 function hasClass(node: any, className: string): boolean {
   const value = node.properties?.className;
   if (Array.isArray(value)) {
-    return value.some((item) => String(item).includes(className));
+    return value.some((item) => typeof item === 'string' && item.includes(className));
   }
   return typeof value === 'string' && value.includes(className);
 }

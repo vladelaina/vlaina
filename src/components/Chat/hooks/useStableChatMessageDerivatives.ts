@@ -235,11 +235,17 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
           return;
         }
         const { imageGallery, sentUserMessages } = cached;
-        if (imageGallery.signature) {
+        if (imageGallery.signature && imageItems.length < MAX_CHAT_MESSAGE_IMAGE_SOURCES) {
+          const remainingImageSlots = MAX_CHAT_MESSAGE_IMAGE_SOURCES - imageItems.length;
+          const includedImageItems = imageGallery.items.slice(0, remainingImageSlots);
           imageSignatureParts.push(imageGallery.signature);
-          imageItems.push(...imageGallery.items);
+          imageItems.push(...includedImageItems);
         }
         if (sentUserMessages.signature) {
+          if (sentUserItems.length >= MAX_CHAT_MESSAGE_IMAGE_SOURCES) {
+            sentUserItems.shift();
+            sentUserSignatureParts.shift();
+          }
           sentUserSignatureParts.push(sentUserMessages.signature);
           sentUserItems.push(...sentUserMessages.items);
         }

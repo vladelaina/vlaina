@@ -7,6 +7,7 @@ import {
   normalizeStarredVaultPath,
 } from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 const MAX_STARRED_ICON_CACHE_ENTRIES = 300;
 const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
@@ -20,31 +21,76 @@ interface StarredIconCacheEntry {
 }
 
 const starredIconCache = new Map<string, StarredIconCacheEntry>();
-const pendingStarredIconTasks: Array<() => void> = [];
+const pendingStarredIconTasks: ScheduledStarredIconTask[] = [];
 let activeStarredIconTaskCount = 0;
 
-function runQueuedStarredIconTask() {
-  if (activeStarredIconTaskCount >= MAX_CONCURRENT_STARRED_ICON_READS) {
-    return;
-  }
-
-  const task = pendingStarredIconTasks.shift();
-  if (!task) {
-    return;
-  }
-
-  activeStarredIconTaskCount += 1;
-  task();
+interface ScheduledStarredIconTask {
+  run: () => Promise<void>;
 }
 
-function scheduleStarredIconTask<T>(task: () => Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    pendingStarredIconTasks.push(() => {
-      void task().then(resolve, reject).finally(() => {
-        activeStarredIconTaskCount -= 1;
-        runQueuedStarredIconTask();
-      });
+function createAbortError() {
+  const error = new Error('Starred icon metadata read aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function runQueuedStarredIconTask() {
+  while (
+    activeStarredIconTaskCount < MAX_CONCURRENT_STARRED_ICON_READS &&
+    pendingStarredIconTasks.length > 0
+  ) {
+    const scheduled = pendingStarredIconTasks.shift();
+    if (!scheduled) {
+      return;
+    }
+
+    activeStarredIconTaskCount += 1;
+    void scheduled.run().finally(() => {
+      activeStarredIconTaskCount -= 1;
+      runQueuedStarredIconTask();
     });
+  }
+}
+
+function scheduleStarredIconTask<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (signal?.aborted) {
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    let scheduled: ScheduledStarredIconTask | null = null;
+    const abortPendingTask = () => {
+      if (!scheduled) {
+        return;
+      }
+
+      const pendingIndex = pendingStarredIconTasks.indexOf(scheduled);
+      if (pendingIndex === -1) {
+        return;
+      }
+
+      pendingStarredIconTasks.splice(pendingIndex, 1);
+      reject(createAbortError());
+    };
+
+    scheduled = {
+      run: async () => {
+        signal?.removeEventListener('abort', abortPendingTask);
+        if (signal?.aborted) {
+          reject(createAbortError());
+          return;
+        }
+
+        try {
+          resolve(await task());
+        } catch (error) {
+          reject(error);
+        }
+      },
+    };
+
+    signal?.addEventListener('abort', abortPendingTask, { once: true });
+    pendingStarredIconTasks.push(scheduled);
     runQueuedStarredIconTask();
   });
 }
@@ -52,6 +98,9 @@ function scheduleStarredIconTask<T>(task: () => Promise<T>): Promise<T> {
 function getStarredIconPathContext(entry: StarredEntry) {
   const relativePath = normalizeStarredRelativePath(entry.relativePath);
   if (!relativePath) {
+    return null;
+  }
+  if (!isSupportedMarkdownPath(relativePath)) {
     return null;
   }
 
@@ -151,6 +200,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
 
   useEffect(() => {
     if (!enabled || entry.kind !== 'note') {
+      setIcon(undefined);
       return;
     }
     if (!pathContext) {
@@ -160,6 +210,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
 
     const cacheKey = pathContext.cacheKey;
     let cancelled = false;
+    const abortController = new AbortController();
     void (async () => {
       try {
         await scheduleStarredIconTask(async () => {
@@ -200,8 +251,16 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
           if (!cancelled) {
             setIcon(nextIcon ?? undefined);
           }
-        });
-      } catch {
+        }, abortController.signal);
+      } catch (error) {
+        if (
+          cancelled ||
+          abortController.signal.aborted ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
+          return;
+        }
+
         setStarredIconCacheEntry(cacheKey, {
           modifiedAt: null,
           size: null,
@@ -215,6 +274,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
 
     return () => {
       cancelled = true;
+      abortController.abort();
     };
   }, [enabled, entry.kind, pathContext]);
 

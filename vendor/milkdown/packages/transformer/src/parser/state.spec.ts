@@ -79,6 +79,22 @@ const schema = {
   text: (text: string, marks: string[]) => ({ text, marks, isText: true }),
 } as unknown as Schema
 
+function createDeepTree(depth: number): MarkdownNode {
+  let current: MarkdownNode = {
+    type: 'paragraphNode',
+    value: 'leaf',
+  }
+
+  for (let index = 0; index < depth; index += 1) {
+    current = {
+      type: 'blockquoteNode',
+      children: [current],
+    }
+  }
+
+  return current
+}
+
 describe('parser-state', () => {
   it('node', () => {
     const state = new ParserState(schema)
@@ -309,5 +325,32 @@ describe('parser-state', () => {
       name: 'docNode',
       content: [{ text: 'good' }],
     })
+  })
+
+  it('rejects over-deep remark ASTs before transforming parser state', () => {
+    const parser = ParserState.create(schema, {
+      parse: () => ({
+        type: 'root',
+        children: [createDeepTree(201)],
+      }),
+      runSync: (tree: unknown) => tree,
+    } as never)
+
+    expect(() => parser('deep')).toThrow('Markdown document is too complex to parse safely.')
+  })
+
+  it('rejects over-large remark ASTs before scheduling every child', () => {
+    const parser = ParserState.create(schema, {
+      parse: () => ({
+        type: 'root',
+        children: new Array(250_000).fill({
+          type: 'paragraphNode',
+          value: 'leaf',
+        }),
+      }),
+      runSync: (tree: unknown) => tree,
+    } as never)
+
+    expect(() => parser('wide')).toThrow('Markdown document is too complex to parse safely.')
   })
 })

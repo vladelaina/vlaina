@@ -6,6 +6,7 @@ import {
   chatComposerFrameClass,
   chatComposerSurfaceClass,
 } from './composerStyles';
+import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 import { useChatComposer } from './hooks/useChatComposer';
 import { useChatAttachments } from './hooks/useChatAttachments';
 import { ChatAttachmentPreviewList } from './components/ChatAttachmentPreviewList';
@@ -191,11 +192,12 @@ export const ChatInput = memo(function ChatInput({
 
   const applyHistoryMessage = useCallback(
     (nextMessage: string) => {
-      if (nextMessage.includes('\n')) {
+      const limitedMessage = limitChatComposerText(nextMessage);
+      if (limitedMessage.includes('\n')) {
         markExplicitMultiline();
       }
-      handleMessageChange(nextMessage);
-      const nextCaret = nextMessage.length;
+      handleMessageChange(limitedMessage);
+      const nextCaret = limitedMessage.length;
       handleCaretChange(nextCaret);
       scheduleComposerFocus(nextCaret);
     },
@@ -394,8 +396,8 @@ export const ChatInput = memo(function ChatInput({
     const before = message.slice(0, selectionStart);
     const after = message.slice(selectionEnd);
     const prefix = before && !/\s$/.test(before) ? ' ' : '';
-    const nextMessage = `${before}${prefix}@${after}`;
-    const nextCaret = before.length + prefix.length + 1;
+    const nextMessage = limitChatComposerText(`${before}${prefix}@${after}`);
+    const nextCaret = Math.min(before.length + prefix.length + 1, nextMessage.length);
 
     handleMessageChange(nextMessage);
     clearHistoryNavigationOnInput();
@@ -449,9 +451,10 @@ export const ChatInput = memo(function ChatInput({
   const canSubmit = canSend && !isLoading && !isQuotaSendBlocked;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      handleMessageChange(event.target.value);
+      const nextValue = limitChatComposerText(event.target.value);
+      handleMessageChange(nextValue);
       clearHistoryNavigationOnInput();
-      handleCaretChange(event.target.selectionStart ?? event.target.value.length);
+      handleCaretChange(Math.min(event.target.selectionStart ?? nextValue.length, nextValue.length));
     },
     [clearHistoryNavigationOnInput, handleCaretChange, handleMessageChange]
   );
@@ -475,7 +478,7 @@ export const ChatInput = memo(function ChatInput({
       return;
     }
 
-    const recalledMessage = recalledDraft.message;
+    const recalledMessage = limitChatComposerText(recalledDraft.message);
     const recalledAttachments = recalledDraft.attachments ?? [];
     const recalledNoteMentions = recalledDraft.noteMentions ?? [];
     if (

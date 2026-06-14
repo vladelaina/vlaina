@@ -242,6 +242,36 @@ describe('mergePairedInlineHtml', () => {
     expect(stringReads).toBeLessThanOrEqual(children.length * 6)
   })
 
+  it('ignores non-primitive inline html values without coercion', () => {
+    let stringReads = 0
+    const throwingValue = {
+      toString() {
+        stringReads += 1
+        throw new Error('Unexpected markdown value coercion')
+      },
+    }
+    const tree = {
+      type: 'paragraph',
+      children: [
+        { type: 'html', value: '<span>' },
+        { type: 'text', value: throwingValue },
+        { type: 'inlineCode', value: throwingValue },
+        { type: 'html', value: '</span>' },
+        { type: 'html', value: throwingValue },
+      ],
+    } as MarkdownNode
+
+    expect(() => mergePairedInlineHtml(tree)).not.toThrow()
+    expect(stringReads).toBe(0)
+    expect(tree.children?.map((node) => node.type)).toEqual([
+      'html',
+      'text',
+      'inlineCode',
+      'html',
+      'html',
+    ])
+  })
+
   it('skips paired inline html merging when child count exceeds the merge budget', () => {
     const children = Array.from({ length: MAX_INLINE_HTML_MERGE_CHILDREN + 1 }, (_, index) => ({
       type: index === 0 || index === MAX_INLINE_HTML_MERGE_CHILDREN ? 'html' : 'text',

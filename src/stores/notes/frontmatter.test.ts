@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  normalizeNoteMetadataEntry,
   readNoteMetadataFromMarkdown,
   stripUpdatedFrontmatter,
   stripManagedFrontmatter,
@@ -79,6 +80,21 @@ describe('note frontmatter metadata', () => {
       },
       icon: '🐱',
       iconSize: 84,
+    });
+  });
+
+  it('normalizes hostile runtime icon sizes without coercion', () => {
+    const hostileSize = {
+      toString() {
+        throw new Error('icon size coercion');
+      },
+    };
+
+    expect(normalizeNoteMetadataEntry({
+      icon: 'sparkles',
+      iconSize: hostileSize as never,
+    })).toEqual({
+      icon: 'sparkles',
     });
   });
 
@@ -280,6 +296,41 @@ describe('note frontmatter metadata', () => {
       positionY: 100,
       height: 500,
       scale: 10,
+    });
+  });
+
+  it('ignores non-decimal managed inline numbers from untrusted frontmatter', () => {
+    const fusedMarkdown = [
+      '---',
+      'vlaina_cover: asset="assets/monet.jpg" x=1e2 y=0x2 height=220 scale=1.3',
+      'vlaina_icon: value="sparkles" size=8e1',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(fusedMarkdown)).toEqual({
+      cover: {
+        assetPath: 'assets/monet.jpg',
+        height: 220,
+        scale: 1.3,
+      },
+      icon: 'sparkles',
+    });
+
+    const legacyMarkdown = [
+      '---',
+      'vlaina_cover: "assets/monet.jpg"',
+      'vlaina_cover_layout: x=1e2 y=0x2 height=220 scale=1.3',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(legacyMarkdown).cover).toEqual({
+      assetPath: 'assets/monet.jpg',
+      height: 220,
+      scale: 1.3,
     });
   });
 

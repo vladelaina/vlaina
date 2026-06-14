@@ -29,6 +29,26 @@ describe('bounded JSON response reader', () => {
     expect(() => response.body?.getReader()).not.toThrow();
   });
 
+  it('ignores non-decimal or overlong content-length values before reading', async () => {
+    await expect(readBoundedJsonResponse(
+      new Response(JSON.stringify({ ok: true }), {
+        headers: {
+          'content-length': '1e9',
+        },
+      }),
+      { maxBytes: 1024 },
+    )).resolves.toEqual({ ok: true });
+
+    await expect(readBoundedJsonResponse(
+      new Response(JSON.stringify({ ok: true }), {
+        headers: {
+          'content-length': '9'.repeat(33),
+        },
+      }),
+      { maxBytes: 1024 },
+    )).resolves.toEqual({ ok: true });
+  });
+
   it('cancels streamed response bodies that exceed the byte limit', async () => {
     const cancel = vi.fn();
     const response = new Response(

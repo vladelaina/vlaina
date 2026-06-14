@@ -7,10 +7,14 @@ export interface ChatSidebarSearchEntry {
 }
 
 const MAX_CHAT_SIDEBAR_SEARCH_QUERY_CHARS = 256;
+const MAX_CHAT_SIDEBAR_SEARCH_RAW_QUERY_CHARS = 4096;
 const MAX_CHAT_SIDEBAR_SEARCH_FIELD_CHARS = 4096;
 
 function getChatSidebarSearchQuery(query: string): string {
-  return query.trim().slice(0, MAX_CHAT_SIDEBAR_SEARCH_QUERY_CHARS).toLowerCase();
+  const boundedQuery = query.length > MAX_CHAT_SIDEBAR_SEARCH_RAW_QUERY_CHARS
+    ? query.slice(0, MAX_CHAT_SIDEBAR_SEARCH_RAW_QUERY_CHARS)
+    : query;
+  return boundedQuery.trim().slice(0, MAX_CHAT_SIDEBAR_SEARCH_QUERY_CHARS).toLowerCase();
 }
 
 function getChatSidebarSearchField(value: string | undefined): string {

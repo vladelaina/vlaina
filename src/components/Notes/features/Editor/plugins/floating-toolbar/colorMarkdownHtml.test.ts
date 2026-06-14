@@ -14,5 +14,6 @@ describe('color markdown html security', () => {
     expect(sanitizeCssColorValue('url(https://example.com/pixel.png)')).toBeNull();
     expect(sanitizeCssColorValue('expression(alert(1))')).toBeNull();
     expect(sanitizeCssColorValue('red" onclick="alert(1)')).toBeNull();
+    expect(sanitizeCssColorValue(`${' '.repeat(81)}red`)).toBeNull();
   });
 });

@@ -33,6 +33,7 @@ const MAX_MENTION_CANDIDATE_TREE_NODES = 20_000;
 export const MAX_MENTION_TITLE_SCAN_ITEMS = 5_000;
 export const MAX_MENTION_TITLE_SCAN_CHARS = 128 * 1024;
 export const MAX_MENTION_TITLE_CHARS = 512;
+export const MAX_MENTION_QUERY_CHARS = 256;
 const MENTION_CANDIDATE_PRIORITY_BUCKETS = 4;
 
 function getMentionCandidateNodePriority(node: FileTreeNode): number {
@@ -99,20 +100,26 @@ export function getNoteMentionTrigger(value: string, caret: number): MentionTrig
   if (caret < 0) {
     return null;
   }
-  const before = value.slice(0, caret);
+  const boundedCaret = Math.min(caret, value.length);
+  const searchStart = Math.max(0, boundedCaret - MAX_MENTION_QUERY_CHARS - 1);
+  const before = value.slice(searchStart, boundedCaret);
   const atIndex = before.lastIndexOf('@');
   if (atIndex < 0) {
     return null;
   }
 
-  const query = before.slice(atIndex + 1);
+  const triggerStart = searchStart + atIndex;
+  const query = value.slice(triggerStart + 1, boundedCaret);
+  if (query.length > MAX_MENTION_QUERY_CHARS) {
+    return null;
+  }
   if (query.includes('\n') || query.includes('\r') || /\s/.test(query)) {
     return null;
   }
 
   return {
-    start: atIndex,
-    end: caret,
+    start: triggerStart,
+    end: boundedCaret,
     query,
   };
 }

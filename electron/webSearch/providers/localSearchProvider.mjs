@@ -3,7 +3,12 @@ import { getExcludedSitesForQuery } from '../sourceQuality/searchQualityPolicy.m
 import { buildAllSourceHints, buildOfficialSourceHints } from '../sourceHints/index.mjs';
 import { filterLowRelevanceResults, getMeaningfulTerms, getQueryMatchScore } from '../searchRelevance.mjs';
 import { isBlockedResultUrl, normalizeResultUrl } from '../searchResultUrlPolicy.mjs';
-import { DEFAULT_SEARCH_LIMIT, WebSearchError, normalizeLimit } from '../types.mjs';
+import {
+  DEFAULT_SEARCH_LIMIT,
+  MAX_WEB_SEARCH_QUERY_CHARS,
+  WebSearchError,
+  normalizeLimit,
+} from '../types.mjs';
 
 const SEARCH_ENGINES = [
   {
@@ -50,6 +55,39 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 const SEARCH_TIMEOUT_MS = 8000;
 const MAX_SEARCH_RESPONSE_TEXT_BYTES = 1_000_000;
+const MAX_SEARCH_ENGINE_ID_CHARS = 64;
+const MAX_SEARCH_TIME_RANGE_CHARS = 16;
+const MAX_SEARCH_TIMEOUT_INPUT_CHARS = 16;
+const MAX_SEARCH_TIMEOUT_MS = 30_000;
+
+function normalizeSearchQuery(query) {
+  if (typeof query !== 'string' || query.length > MAX_WEB_SEARCH_QUERY_CHARS) {
+    throw new WebSearchError('invalid_query', 'Search query is required.');
+  }
+  const normalized = query.trim();
+  if (!normalized) {
+    throw new WebSearchError('invalid_query', 'Search query is required.');
+  }
+  return normalized;
+}
+
+function normalizeSearchTimeoutMs(value, fallback = SEARCH_TIMEOUT_MS, max = MAX_SEARCH_TIMEOUT_MS) {
+  let parsed = Number.NaN;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string' && value.length <= MAX_SEARCH_TIMEOUT_INPUT_CHARS) {
+    const trimmed = value.trim();
+    parsed = /^\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : Number.NaN;
+  }
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.min(Math.floor(parsed), max);
+}
+
+function boundedInternalQueryText(query) {
+  return typeof query === 'string' && query.length <= MAX_WEB_SEARCH_QUERY_CHARS ? query : '';
+}
 
 function createAbortError() {
   return new DOMException('The web search request was cancelled.', 'AbortError');
@@ -158,13 +196,14 @@ async function readResponseText(response, signal) {
 }
 
 function buildSearchQuery(query, options) {
+  const normalizedQuery = boundedInternalQueryText(query);
   const parts = [
-    query,
-    ...getExcludedSitesForQuery(query).map((site) => `-site:${site}`),
+    normalizedQuery,
+    ...getExcludedSitesForQuery(normalizedQuery).map((site) => `-site:${site}`),
     '-site:player.bilibili.com',
     '-site:bilibili.com/video',
   ];
-  if (options.category === 'news' && !/\bnews\b/i.test(query)) {
+  if (options.category === 'news' && !/\bnews\b/i.test(normalizedQuery)) {
     parts.push('news');
   }
   return parts.join(' ');
@@ -174,13 +213,15 @@ function shouldUseFastOfficialHints(query, options, officialResults) {
   if (officialResults.length === 0) return false;
   if (options.category === 'news' || options.timeRange) return false;
 
-  const normalizedQuery = String(query).toLowerCase();
+  const normalizedQuery = boundedInternalQueryText(query).toLowerCase();
   const asksForFreshSearch = /(\b(today|breaking|current|recent|latest|updated|updates?|news|this week|this month|this year|just released|newly released|release notes?)\b|今天|今日|最新|最近|新闻|资讯|本周|本月|今年|刚发布|新发布|更新|版本说明|发布说明)/.test(normalizedQuery);
   return !asksForFreshSearch;
 }
 
 function buildTimeRangeParams(engineId, timeRange) {
-  const normalizedRange = String(timeRange || '').toLowerCase();
+  const normalizedRange = typeof timeRange === 'string' && timeRange.length <= MAX_SEARCH_TIME_RANGE_CHARS
+    ? timeRange.toLowerCase()
+    : '';
   if (!['day', 'week', 'month', 'year'].includes(normalizedRange)) {
     return {};
   }
@@ -204,12 +245,16 @@ function extractPublishedAt(snippet) {
   return match ? match[1] : null;
 }
 
+function getSearchHtmlString(html) {
+  return typeof html === 'string' ? html : '';
+}
+
 function collectBingBlocks(html) {
-  return [...String(html).matchAll(/<li class="b_algo[\s\S]*?<\/li>/g)].map((match) => match[0]);
+  return [...getSearchHtmlString(html).matchAll(/<li class="b_algo[\s\S]*?<\/li>/g)].map((match) => match[0]);
 }
 
 function collectGoogleBlocks(html) {
-  return [...String(html).matchAll(/<a[^>]*href="([^"]+)"[^>]*>\s*<h3[^>]*>([\s\S]*?)<\/h3>/gi)]
+  return [...getSearchHtmlString(html).matchAll(/<a[^>]*href="([^"]+)"[^>]*>\s*<h3[^>]*>([\s\S]*?)<\/h3>/gi)]
     .map((match) => ({
       url: match[1],
       title: match[2],
@@ -218,7 +263,7 @@ function collectGoogleBlocks(html) {
 }
 
 function collectDuckDuckGoBlocks(html) {
-  return [...String(html).matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
+  return [...getSearchHtmlString(html).matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
     .map((match) => ({
       url: match[1],
       title: match[2],
@@ -281,12 +326,12 @@ function parseResults(engine, html, limit, existingUrls = new Set(), options = {
 }
 
 function extractHtmlTitle(html) {
-  const title = cleanText((String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '');
+  const title = cleanText((getSearchHtmlString(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '');
   return title || null;
 }
 
 function getSingleBrandLikeTerm(query) {
-  const normalizedQuery = String(query).toLowerCase();
+  const normalizedQuery = boundedInternalQueryText(query).toLowerCase();
   const terms = [...new Set(getMeaningfulTerms(query))]
     .filter((term) => /^[a-z0-9][a-z0-9-]{2,30}$/.test(term));
   if (terms.length !== 1) return null;
@@ -306,7 +351,7 @@ async function fetchDirectOfficialSite(fetchImpl, query, options = {}) {
 
   const url = `https://${term}.com/`;
   const timeoutController = new AbortController();
-  const timeoutMs = Math.min(Number(options.timeoutMs) || SEARCH_TIMEOUT_MS, 2500);
+  const timeoutMs = normalizeSearchTimeoutMs(options.timeoutMs, SEARCH_TIMEOUT_MS, 2500);
   const timeout = setTimeout(() => timeoutController.abort(), timeoutMs);
   const signal = options.signal
     ? AbortSignal.any([options.signal, timeoutController.signal])
@@ -355,7 +400,8 @@ function selectSearchEngines(rawEngines) {
       : [];
   const requestedIds = new Set(
     requested
-      .map((engine) => String(engine).trim().toLowerCase())
+      .filter((engine) => typeof engine === 'string' && engine.length <= MAX_SEARCH_ENGINE_ID_CHARS)
+      .map((engine) => engine.trim().toLowerCase())
       .filter(Boolean)
   );
 
@@ -370,7 +416,7 @@ function selectSearchEngines(rawEngines) {
 export class LocalSearchProvider {
   constructor({ fetchImpl = fetch, timeoutMs = SEARCH_TIMEOUT_MS } = {}) {
     this.fetchImpl = fetchImpl;
-    this.timeoutMs = timeoutMs;
+    this.timeoutMs = normalizeSearchTimeoutMs(timeoutMs);
   }
 
   isConfigured() {
@@ -379,13 +425,14 @@ export class LocalSearchProvider {
 
   async search(query, options = {}) {
     throwIfAborted(options.signal);
+    const normalizedQuery = normalizeSearchQuery(query);
     const limit = normalizeLimit(options.limit, DEFAULT_SEARCH_LIMIT, 10);
-    const officialResults = buildAllSourceHints(query).slice(0, limit);
-    if (shouldUseFastOfficialHints(query, options, officialResults)) {
+    const officialResults = buildAllSourceHints(normalizedQuery).slice(0, limit);
+    if (shouldUseFastOfficialHints(normalizedQuery, options, officialResults)) {
       return officialResults;
     }
     const existingUrls = new Set(officialResults.map((result) => result.url));
-    const searchQuery = buildSearchQuery(query, options);
+    const searchQuery = buildSearchQuery(normalizedQuery, options);
     const engines = selectSearchEngines(options.engines);
     const directOfficialController = new AbortController();
     let directOfficialCancelledByCompletion = false;
@@ -398,7 +445,7 @@ export class LocalSearchProvider {
         directOfficialController.abort(createAbortError());
       }
     };
-    const directOfficialPromise = fetchDirectOfficialSite(this.fetchImpl, query, {
+    const directOfficialPromise = fetchDirectOfficialSite(this.fetchImpl, normalizedQuery, {
       signal: directOfficialSignal,
       timeoutMs: this.timeoutMs,
     }).catch((error) => {
@@ -434,12 +481,12 @@ export class LocalSearchProvider {
           }
 
           const parsedResults = parseResults(engine.id, await readResponseText(response, signal), limit - officialResults.length, existingUrls, {
-            query,
+            query: normalizedQuery,
             minQueryScore: officialResults.length > 0 ? 2 : 0,
           });
           return {
             engineId: engine.id,
-            results: filterLowRelevanceResults(query, parsedResults),
+            results: filterLowRelevanceResults(normalizedQuery, parsedResults),
           };
         } catch (error) {
           if (options.signal?.aborted && !cancelledByCompletion) {

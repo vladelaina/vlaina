@@ -21,6 +21,16 @@ export function normalizeEmojiHtml(value: unknown): string {
     : ''
 }
 
+export function getEmojiMarkdownText(value: unknown) {
+  const template = document.createElement('template')
+  template.innerHTML = normalizeEmojiHtml(value)
+
+  const img = template.content.querySelector('img')
+  const title = img?.getAttribute('title') || img?.getAttribute('alt') || ''
+  template.remove()
+  return title
+}
+
 /// HTML attributes for emoji node.
 export const emojiAttr = $nodeAttr('emoji', () => ({
   span: {},
@@ -78,12 +88,7 @@ export const emojiSchema = $nodeSchema('emoji', (ctx) => ({
   toMarkdown: {
     match: (node) => node.type.name === 'emoji',
     runner: (state, node) => {
-      const span = document.createElement('span')
-      span.innerHTML = normalizeEmojiHtml(node.attrs.html)
-      const img = span.querySelector('img')
-      const title = img?.title || img?.alt
-      span.remove()
-      state.addNode('text', undefined, title)
+      state.addNode('text', undefined, getEmojiMarkdownText(node.attrs.html))
     },
   },
 }))

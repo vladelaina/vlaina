@@ -78,6 +78,17 @@ describe('web account session helpers', () => {
     expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
   });
 
+  it('rejects account identity strings that exceed the raw length budget', () => {
+    sessionStorage.clear();
+
+    saveWebAccountCredentials({
+      provider: 'google',
+      username: `${' '.repeat(256)}vla`,
+    });
+
+    expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
+  });
+
   it('normalizes cached persisted identity fallback fields', () => {
     sessionStorage.clear();
     localStorage.setItem('vlaina_account_identity', JSON.stringify({

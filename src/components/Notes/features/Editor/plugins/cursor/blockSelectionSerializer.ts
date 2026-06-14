@@ -18,6 +18,7 @@ interface SerializeSelectedBlocksOptions {
 
 const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+[.)])(?:\s+(?:\[(?: |x|X)\]\s+)?|$)/;
 const ORDERED_LIST_ITEM_MARKER_PATTERN = /^(\s*)(\d+)([.)])(\s+(?:\[(?: |x|X)\]\s+)?|(?=$))/;
+const ORDERED_LIST_ORDER_PATTERN = /^-?\d+$/;
 const FENCED_CODE_MARKER_PATTERN = /^([ \t]*)(`{3,}|~{3,})/;
 const FENCED_CODE_CLOSING_PATTERN = /^([ \t]*)(`{3,}|~{3,})[ \t]*$/;
 
@@ -94,6 +95,16 @@ function getOrderedListMarkerNumber(text: string): number | null {
   return Number(match[2]);
 }
 
+function normalizeOrderedListOrder(value: unknown): number {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && ORDERED_LIST_ORDER_PATTERN.test(value.trim())
+      ? Number(value.trim())
+      : Number.NaN;
+  if (!Number.isSafeInteger(parsed) || parsed === 0) return 1;
+  return parsed;
+}
+
 function getListContinuationIndent(text: string): string | null {
   const match = /^(\s*)([-+*]|\d+[.)])(\s+(?:\[(?: |x|X)\]\s+)?)?/.exec(text);
   if (!match) return null;
@@ -136,7 +147,7 @@ function resolveOrderedListItemNumber(
     const listNode = doc.resolve(listContainer.from).nodeAfter;
     if (!listNode || listNode.type.name !== 'ordered_list') return null;
 
-    const start = Number(listNode.attrs?.order) || 1;
+    const start = normalizeOrderedListOrder(listNode.attrs?.order);
     let index = 0;
     let foundIndex: number | null = null;
     listNode.forEach((child: any, offset: number) => {
@@ -397,10 +408,11 @@ function commonPrefixLength(left: string, right: string): number {
 
 function trimLeadingBlankLines(text: string): string {
   const lines = text.split('\n');
-  while (lines.length > 1 && (lines[0] ?? '').trim().length === 0) {
-    lines.shift();
+  let start = 0;
+  while (start < lines.length - 1 && (lines[start] ?? '').trim().length === 0) {
+    start += 1;
   }
-  return lines.join('\n');
+  return start === 0 ? text : lines.slice(start).join('\n');
 }
 
 function isListItemChildRange(state: EditorState, range: BlockRange): boolean {

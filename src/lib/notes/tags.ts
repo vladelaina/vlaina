@@ -243,7 +243,7 @@ function collectInlineCodeRanges(content: string, ranges: NoteMarkdownExcludedRa
     if (markerLength === 1 && content[index + 1] === '`') {
       continue;
     }
-    const closeIndex = content.indexOf('`'.repeat(markerLength), markerEnd);
+    const closeIndex = findClosingInlineCodeMarker(content, markerEnd, markerLength);
     if (closeIndex === -1 || rangeContainsNewline(content, markerEnd, closeIndex)) {
       index = markerEnd - 1;
       continue;
@@ -251,6 +251,22 @@ function collectInlineCodeRanges(content: string, ranges: NoteMarkdownExcludedRa
     pushExcludedRange(ranges, { from: index, to: closeIndex + markerLength });
     index = closeIndex + markerLength - 1;
   }
+}
+
+function findClosingInlineCodeMarker(content: string, start: number, markerLength: number): number {
+  for (let index = start; index < content.length; index += 1) {
+    if (content[index] !== '`') {
+      continue;
+    }
+
+    const markerEnd = scanRepeatedChar(content, index, '`');
+    if (markerEnd - index === markerLength) {
+      return index;
+    }
+    index = markerEnd - 1;
+  }
+
+  return -1;
 }
 
 function rangeContainsNewline(content: string, from: number, to: number): boolean {

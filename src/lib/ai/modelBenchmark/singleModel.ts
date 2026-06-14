@@ -2,7 +2,10 @@ import { parseAPIError, parseHTTPError } from '../errors';
 import { parseErrorTag } from '../errorTag';
 import { buildAnthropicBaseUrl, buildOpenAIBaseUrl, resolveApiModelId } from '../utils';
 import { providerFetch } from '../providerHttp';
-import { readBoundedProviderResponseText } from '../providers/boundedResponseText';
+import {
+  MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES,
+  readBoundedProviderResponseText,
+} from '../providers/boundedResponseText';
 import type { AIModel, Provider } from '../types';
 import { DEFAULT_BENCHMARK_TIMEOUT_MS } from './constants';
 import { inferBenchmarkEndpoint } from './endpoint';
@@ -290,12 +293,13 @@ async function readBenchmarkResponseText(
   response: Response,
   signal: AbortSignal,
   fallbackOnReadError?: string,
+  maxBytes?: number,
 ): Promise<string> {
-  return await readBoundedProviderResponseText(response, signal, fallbackOnReadError);
+  return await readBoundedProviderResponseText(response, signal, fallbackOnReadError, maxBytes);
 }
 
 async function parseResponsePayload(response: Response, signal: AbortSignal): Promise<unknown> {
-  const text = await readBenchmarkResponseText(response, signal);
+  const text = await readBenchmarkResponseText(response, signal, 'Unknown error', MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES);
   if (!text.trim()) {
     return null;
   }

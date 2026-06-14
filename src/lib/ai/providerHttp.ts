@@ -11,6 +11,7 @@ const PROVIDER_GET_RETRY_DELAYS_MS = [300];
 const PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 const MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_DESKTOP_PROVIDER_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_PROVIDER_REQUEST_URL_CHARS = 16 * 1024;
 const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 const UNSAFE_PROVIDER_URL_CHARS_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
@@ -24,10 +25,14 @@ export async function providerFetch(url: string, init: ProviderFetchInit): Promi
   return fetchWithGetRetry(safeUrl, init);
 }
 
-function normalizeProviderRequestUrl(url: string): string {
+function normalizeProviderRequestUrl(url: unknown): string {
+  if (typeof url !== 'string' || url.length > MAX_PROVIDER_REQUEST_URL_CHARS) {
+    throw new Error('AI provider request URL is not supported.');
+  }
   const trimmed = url.trim();
   if (
     !trimmed ||
+    trimmed.length > MAX_PROVIDER_REQUEST_URL_CHARS ||
     !HTTP_AUTHORITY_URL_PATTERN.test(trimmed) ||
     UNSAFE_PROVIDER_URL_CHARS_PATTERN.test(trimmed) ||
     trimmed.includes('\\')

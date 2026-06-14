@@ -23,6 +23,17 @@ describe('svgRasterize', () => {
     expect(isSvgDataUrl('data:image/png;base64,PHN2Zz4=')).toBe(false);
   });
 
+  it('rejects non-string SVG inputs without coercion', async () => {
+    const source = {
+      toString() {
+        throw new Error('svg source coercion');
+      },
+    };
+
+    expect(isSvgDataUrl(source)).toBe(false);
+    await expect(rasterizeSvgDataUrlToPng(source as never)).resolves.toBeNull();
+  });
+
   it('sanitizes SVG data before assigning it to the decoder image', async () => {
     const assignedSources: string[] = [];
     vi.stubGlobal('Image', class {
@@ -85,6 +96,42 @@ describe('svgRasterize', () => {
     await expect(rasterizeSvgDataUrlToPng(`data:image/svg+xml;base64,${payload}`)).resolves.toBeNull();
 
     expect(ImageMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores malformed SVG dimensions while choosing the raster canvas size', async () => {
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+
+    const canvases: Array<{ width: number; height: number }> = [];
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
+      if (tagName === 'canvas') {
+        const canvas = {
+          width: 0,
+          height: 0,
+          getContext: () => ({
+            clearRect: vi.fn(),
+            drawImage: vi.fn(),
+          }),
+          toDataURL: () => 'data:image/png;base64,RASTER',
+        };
+        canvases.push(canvas);
+        return canvas as unknown as HTMLCanvasElement;
+      }
+      return originalCreateElement(tagName, options);
+    }) as typeof document.createElement);
+
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1.2.3" height="4" viewBox="0 0 20 30"></svg>';
+
+    await expect(rasterizeSvgDataUrlToPng(`data:image/svg+xml,${encodeURIComponent(svg)}`)).resolves.toBe(
+      'data:image/png;base64,RASTER',
+    );
+    expect(canvases[0]).toMatchObject({ width: 20, height: 30 });
   });
 
   it('rejects oversized SVG blobs before reading them into memory', async () => {

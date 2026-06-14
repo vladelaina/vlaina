@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 
@@ -342,6 +342,24 @@ describe('useStarredEntryIcon', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read icon metadata from stale non-markdown starred note entries', async () => {
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-non-markdown',
+        kind: 'note',
+        vaultPath: '/vault',
+        relativePath: 'docs/secret.txt',
+        addedAt: 1,
+      }, true),
+    );
+
+    await Promise.resolve();
+
+    expect(result.current).toBeUndefined();
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('limits concurrent starred note metadata reads', async () => {
     const pendingReads: Array<() => void> = [];
     mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });
@@ -368,11 +386,53 @@ describe('useStarredEntryIcon', () => {
       expect(mocked.readFile).toHaveBeenCalledTimes(4);
     });
 
-    pendingReads.splice(0).forEach((resolve) => resolve());
+    await act(async () => {
+      pendingReads.splice(0).forEach((resolve) => resolve());
+    });
     await waitFor(() => {
       expect(mocked.readFile).toHaveBeenCalledTimes(8);
     });
 
+    await act(async () => {
+      pendingReads.splice(0).forEach((resolve) => resolve());
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
     hooks.forEach((hook) => hook.unmount());
+  });
+
+  it('cancels queued starred note metadata reads after unmount', async () => {
+    const pendingReads: Array<() => void> = [];
+    mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });
+    mocked.readFile.mockImplementation(async () => {
+      await new Promise<void>((resolve) => {
+        pendingReads.push(resolve);
+      });
+      return '---\nvlaina_icon: "💡"\n---\n# Alpha';
+    });
+
+    const hooks = Array.from({ length: 8 }, (_, index) =>
+      renderHook(() =>
+        useStarredEntryIcon({
+          id: `starred-cancel-${index}`,
+          kind: 'note',
+          vaultPath: '/vault-b',
+          relativePath: `docs/cancel-${index}.md`,
+          addedAt: 1,
+        }, true),
+      )
+    );
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledTimes(4);
+    });
+
+    hooks.forEach((hook) => hook.unmount());
+    pendingReads.splice(0).forEach((resolve) => resolve());
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mocked.readFile).toHaveBeenCalledTimes(4);
   });
 });

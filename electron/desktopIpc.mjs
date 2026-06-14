@@ -20,8 +20,8 @@ import {
   assertAuthorizedFsPath,
   assertAuthorizedFsRenameTarget,
   assertAuthorizedFsWatchPath,
+  assertSafeFsAccessPath,
   authorizeFsPath,
-  normalizeFsPathForAccess,
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 
@@ -49,8 +49,14 @@ const LOW_PRIORITY_DESKTOP_DIRECTORY_NAMES = new Set([
 ]);
 const MAX_AI_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_AI_PROVIDER_REQUEST_BODY_BASE64_CHARS = Math.ceil(MAX_AI_PROVIDER_REQUEST_BODY_BYTES / 3) * 4;
+const MAX_AI_PROVIDER_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES = 256 * 1024;
+const MAX_AI_PROVIDER_URL_CHARS = 4096;
+const MAX_AI_PROVIDER_HEADER_NAME_CHARS = 256;
+const MAX_AI_PROVIDER_HEADER_VALUE_CHARS = 16 * 1024;
 const MAX_CLIPBOARD_IMAGE_DATA_URL_BYTES = 10 * 1024 * 1024;
+const MAX_DESKTOP_EXPORT_HTML_BYTES = 64 * 1024 * 1024;
+const MAX_DESKTOP_EXPORT_PDF_BYTES = 64 * 1024 * 1024;
 
 async function syncDirectoryBestEffort(dirPath) {
   let handle = null;
@@ -101,7 +107,9 @@ function isCurrentAiProviderRequest(requestId, controller) {
 
 function summarizeError(error) {
   if (!(error instanceof Error)) {
-    return String(error || 'Unknown error');
+    if (typeof error === 'string') return error || 'Unknown error';
+    if (typeof error === 'number' || typeof error === 'boolean') return String(error);
+    return 'Unknown error';
   }
 
   const cause = error.cause instanceof Error ? `: ${error.cause.message}` : '';
@@ -352,7 +360,7 @@ export function isPathInsideDirectory(parentPath, candidatePath) {
 }
 
 function requireSafeIpcRequestId(value, label) {
-  const id = String(value ?? '').trim();
+  const id = typeof value === 'string' ? value.trim() : '';
   if (!IPC_REQUEST_ID_PATTERN.test(id)) {
     throw new Error(`${label} must contain only safe channel characters.`);
   }
@@ -376,6 +384,16 @@ async function assertReadableDesktopFile(filePath, maxBytes) {
   }
   if (info.size > maxBytes) {
     throw new Error(`Desktop file is too large to read: ${filePath}`);
+  }
+}
+
+async function assertCopyableDesktopFile(filePath) {
+  const info = await stat(filePath);
+  if (!info.isFile()) {
+    throw new Error(`Desktop path must be a file: ${filePath}`);
+  }
+  if (info.size > MAX_DESKTOP_FS_WRITE_BYTES) {
+    throw new Error(`Desktop file is too large to copy: ${filePath}`);
   }
 }
 
@@ -513,8 +531,23 @@ function normalizeDesktopBinaryWriteBytes(bytes) {
   throw new Error('Desktop binary content must be a byte array.');
 }
 
+function assertDesktopExportHtmlBytes(html) {
+  if (Buffer.byteLength(html, 'utf8') > MAX_DESKTOP_EXPORT_HTML_BYTES) {
+    throw new Error('PDF export HTML is too large.');
+  }
+}
+
+function assertDesktopExportPdfBytes(byteLength) {
+  if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > MAX_DESKTOP_EXPORT_PDF_BYTES) {
+    throw new Error('PDF export output is too large.');
+  }
+}
+
 function normalizeDesktopTextWriteContent(content) {
-  const text = String(content ?? '');
+  if (typeof content !== 'string') {
+    throw new Error('Desktop text content must be a string.');
+  }
+  const text = content;
   assertWritableDesktopByteLength(Buffer.byteLength(text, 'utf8'));
   return text;
 }
@@ -539,6 +572,7 @@ async function renderHtmlToPdf(html, options) {
   if (typeof html !== 'string' || !html.trim()) {
     throw new Error('HTML content is required for PDF export.');
   }
+  assertDesktopExportHtmlBytes(html);
 
   const tempDir = await mkdtemp(path.join(app.getPath('temp'), 'vlaina-export-'));
   const tempHtmlPath = path.join(tempDir, 'export.html');
@@ -559,7 +593,9 @@ async function renderHtmlToPdf(html, options) {
     await writeFile(tempHtmlPath, html, 'utf8');
     await win.loadFile(tempHtmlPath);
     await new Promise((resolve) => setTimeout(resolve, 80));
-    return await win.webContents.printToPDF(normalizeExportPdfOptions(options));
+    const pdfBytes = await win.webContents.printToPDF(normalizeExportPdfOptions(options));
+    assertDesktopExportPdfBytes(pdfBytes?.byteLength);
+    return pdfBytes;
   } finally {
     if (!win.isDestroyed()) {
       win.destroy();
@@ -574,7 +610,11 @@ function normalizeAiProviderRequest(rawRequest) {
   }
 
   const url = normalizeAiProviderUrl(rawRequest.url);
-  const method = String(rawRequest.method ?? 'GET').toUpperCase();
+  const method = rawRequest.method == null
+    ? 'GET'
+    : typeof rawRequest.method === 'string'
+      ? rawRequest.method.toUpperCase()
+      : '';
   if (method !== 'GET' && method !== 'POST') {
     throw new Error(`Unsupported AI provider request method: ${method}`);
   }
@@ -607,7 +647,10 @@ function normalizeAiProviderRequestBody(rawRequest) {
     return undefined;
   }
 
-  const body = String(rawRequest.body);
+  if (typeof rawRequest.body !== 'string') {
+    throw new Error('Invalid AI provider request body.');
+  }
+  const body = rawRequest.body;
   if (Buffer.byteLength(body, 'utf8') > MAX_AI_PROVIDER_REQUEST_BODY_BYTES) {
     throw new Error('AI provider request body is too large.');
   }
@@ -643,12 +686,19 @@ function assertClipboardImageDataUrl(dataUrl) {
 }
 
 function normalizeAiProviderUrl(rawUrl) {
-  if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
+  if (typeof rawUrl !== 'string') {
     throw new Error('A non-empty AI provider URL is required.');
+  }
+  if (rawUrl.length > MAX_AI_PROVIDER_URL_CHARS) {
+    throw new Error('AI provider request URL is not supported.');
   }
 
   const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    throw new Error('A non-empty AI provider URL is required.');
+  }
   if (
+    trimmed.length > MAX_AI_PROVIDER_URL_CHARS ||
     !AI_PROVIDER_HTTP_AUTHORITY_URL_PATTERN.test(trimmed) ||
     UNSAFE_AI_PROVIDER_URL_CHARS_PATTERN.test(trimmed) ||
     trimmed.includes('\\')
@@ -681,9 +731,15 @@ function normalizeAiProviderHeaders(rawHeaders) {
   }
 
   for (const [key, value] of Object.entries(rawHeaders)) {
-    const normalizedKey = String(key).trim();
+    if (key.length > MAX_AI_PROVIDER_HEADER_NAME_CHARS) {
+      throw new Error(`Invalid AI provider request header: ${key.slice(0, MAX_AI_PROVIDER_HEADER_NAME_CHARS)}`);
+    }
+    const normalizedKey = key.trim();
     if (!normalizedKey) {
       continue;
+    }
+    if (normalizedKey.length > MAX_AI_PROVIDER_HEADER_NAME_CHARS) {
+      throw new Error(`Invalid AI provider request header: ${normalizedKey}`);
     }
     if (value == null) {
       continue;
@@ -691,7 +747,19 @@ function normalizeAiProviderHeaders(rawHeaders) {
     if (!HTTP_HEADER_NAME_PATTERN.test(normalizedKey)) {
       throw new Error(`Invalid AI provider request header: ${normalizedKey}`);
     }
-    const normalizedValue = String(value);
+    let normalizedValue = '';
+    if (typeof value === 'string') {
+      normalizedValue = value;
+    } else if (typeof value === 'number' && Number.isFinite(value)) {
+      normalizedValue = String(value);
+    } else if (typeof value === 'boolean') {
+      normalizedValue = String(value);
+    } else {
+      throw new Error(`Invalid AI provider request header value: ${normalizedKey}`);
+    }
+    if (normalizedValue.length > MAX_AI_PROVIDER_HEADER_VALUE_CHARS) {
+      throw new Error(`Invalid AI provider request header value: ${normalizedKey}`);
+    }
     if (/[\u0000\r\n]/.test(normalizedValue)) {
       throw new Error(`Invalid AI provider request header value: ${normalizedKey}`);
     }
@@ -742,11 +810,11 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:clipboard:write-text', async (_event, text) => {
-    clipboard.writeText(String(text ?? ''));
+    clipboard.writeText(typeof text === 'string' ? text : '');
   });
 
   handleIpc('desktop:clipboard:write-image', async (_event, dataUrl) => {
-    const normalizedDataUrl = String(dataUrl ?? '');
+    const normalizedDataUrl = typeof dataUrl === 'string' ? dataUrl : '';
     assertClipboardImageDataUrl(normalizedDataUrl);
 
     const image = nativeImage.createFromDataURL(normalizedDataUrl);
@@ -805,6 +873,7 @@ export function registerDesktopIpc({
             throw createAbortError();
           }
 
+          let responseBytesRead = 0;
           while (true) {
             const { done, value } = await raceWithAbort(reader.read(), controller.signal);
             if (controller.signal.aborted) {
@@ -812,6 +881,14 @@ export function registerDesktopIpc({
             }
             if (done) {
               break;
+            }
+            const chunkByteLength = value?.byteLength;
+            if (!Number.isFinite(chunkByteLength) || chunkByteLength < 0) {
+              throw new Error('Invalid AI provider response chunk.');
+            }
+            responseBytesRead += chunkByteLength;
+            if (responseBytesRead > MAX_AI_PROVIDER_RESPONSE_BODY_BYTES) {
+              throw new Error('AI provider response body is too large.');
             }
 
             if (!sendAiProviderResponseChunk(sendRequestEvent, value)) {
@@ -838,7 +915,7 @@ export function registerDesktopIpc({
           return;
         }
         sendRequestEvent('error', {
-          message: error instanceof Error ? error.message : String(error),
+          message: error instanceof Error ? error.message : summarizeError(error),
         });
       } finally {
         deleteActiveAiProviderRequest(id, controller);
@@ -862,7 +939,7 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:drag-drop:authorize-path', async (_event, filePath) => {
-    const resolvedPath = normalizeFsPathForAccess(filePath);
+    const resolvedPath = await assertSafeFsAccessPath(filePath);
     const info = await stat(resolvedPath);
     if (!info.isDirectory()) {
       await authorizeFsPath(resolvedPath, 'file');
@@ -994,7 +1071,9 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:fs:copy-file', async (_event, sourcePath, targetPath) => {
-    await copyFile(await assertAuthorizedFsPath(sourcePath), await assertAuthorizedFsPath(targetPath));
+    const resolvedSourcePath = await assertAuthorizedFsPath(sourcePath);
+    await assertCopyableDesktopFile(resolvedSourcePath);
+    await copyFile(resolvedSourcePath, await assertAuthorizedFsPath(targetPath));
   });
 
   handleIpc('desktop:fs:stat', async (_event, filePath) => {

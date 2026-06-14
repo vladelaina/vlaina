@@ -85,6 +85,9 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
   if (!src) {
     return null;
   }
+  if (src.length > MAX_RENDERABLE_IMAGE_SRC_CHARS && !startsWithDataImageCandidate(src)) {
+    return null;
+  }
 
   const trimmed = src.trim();
   if (!trimmed || CONTROL_OR_BIDI_PATTERN.test(trimmed)) {

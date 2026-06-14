@@ -6,13 +6,14 @@ import { resolveSafeChatImageSource } from "./chatImageSourceResolution";
 import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from "./svgRasterize";
 
 const IMAGE_EXT_BY_MIME: Record<string, string> = {
+  "image/avif": "avif",
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
   "image/gif": "gif",
   "image/bmp": "bmp",
 };
-const RASTER_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
+const RASTER_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif"]);
 const MAX_DOWNLOAD_FILENAME_STEM_CHARS = 180;
 
 function sanitizeFileStem(value: string): string {
@@ -50,8 +51,9 @@ function resolveFilename(alt: string | undefined, src: string, blobType: string)
   const base = normalizedAlt.toLowerCase() === "image" || normalizedAlt === ""
     ? buildTimestampStem()
     : normalizedAlt;
-  const mimeExt = IMAGE_EXT_BY_MIME[blobType] || null;
-  const srcExt = extensionFromSource(src);
+  const normalizedBlobType = blobType.split(";")[0]?.trim().toLowerCase() ?? "";
+  const mimeExt = IMAGE_EXT_BY_MIME[normalizedBlobType] || null;
+  const srcExt = normalizeRasterImageExtension(extensionFromSource(src));
   const ext = (mimeExt || srcExt || "png").replace(/^\./, "");
   if (base.toLowerCase().endsWith(`.${ext.toLowerCase()}`)) {
     return base;
@@ -99,6 +101,11 @@ function isRasterImageExtension(extension: string | null | undefined): boolean {
   return RASTER_IMAGE_EXTENSIONS.has((extension || "").replace(/^\./, "").toLowerCase());
 }
 
+function normalizeRasterImageExtension(extension: string | null | undefined): string | null {
+  const normalized = (extension || "").replace(/^\./, "").toLowerCase();
+  return RASTER_IMAGE_EXTENSIONS.has(normalized) ? normalized : null;
+}
+
 export async function downloadImageWithPrompt(src: string, alt?: string): Promise<void> {
   const resolvedSrc = await resolveSafeChatImageSource(src, "download-image");
   if (!resolvedSrc) {
@@ -143,7 +150,11 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
     if (!filePath) {
       return;
     }
-    await writeDesktopBinaryFile(filePath, await readBlobBytes(blob));
+    const bytes = await readBlobBytes(blob);
+    if (!isBlobByteLengthWithinLimit(bytes.byteLength, MAX_CHAT_IMAGE_FETCH_BYTES)) {
+      return;
+    }
+    await writeDesktopBinaryFile(filePath, bytes);
     return;
   }
 

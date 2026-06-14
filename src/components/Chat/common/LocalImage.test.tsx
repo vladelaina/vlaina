@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LocalImage } from './LocalImage';
+import { LocalImage, MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS } from './LocalImage';
 
 const MAX_ATTACHMENT_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -196,5 +196,38 @@ describe('LocalImage', () => {
       expect(screen.getByText('Image unavailable')).toBeInTheDocument();
     });
     expect(screen.queryByAltText('diagram')).not.toBeInTheDocument();
+  });
+
+  it('limits concurrent stored attachment reads and cancels queued reads after unmount', async () => {
+    const pendingReads: Array<() => void> = [];
+    mocks.readBinaryFile.mockImplementation(async () => {
+      await new Promise<void>((resolve) => {
+        pendingReads.push(resolve);
+      });
+      return new Uint8Array([1, 2, 3]);
+    });
+
+    const renderedImages = Array.from(
+      { length: MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS + 3 },
+      (_, index) => render(
+        <LocalImage
+          src={`attachment://image-${index}.png`}
+          alt={`image-${index}`}
+        />,
+      ),
+    );
+
+    await waitFor(() => {
+      expect(mocks.readBinaryFile).toHaveBeenCalledTimes(MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS);
+    });
+
+    renderedImages.forEach((rendered) => rendered.unmount());
+    await act(async () => {
+      pendingReads.splice(0).forEach((resolve) => resolve());
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(MAX_CONCURRENT_LOCAL_IMAGE_ATTACHMENT_READS);
   });
 });

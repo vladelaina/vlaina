@@ -152,6 +152,7 @@ describe('renderNoteExportHtml', () => {
         '<img src="docs/.git/raw.png" alt="raw git">',
         '<img src="docs/%2Egit/raw.png" alt="raw encoded git">',
         '<img src=".notes/raw.png" alt="raw user dot">',
+        `<img src="${' '.repeat(4097)}assets/trimmed-raw.png" alt="trimmed raw">`,
       ].join('\n'),
       'Images',
     );
@@ -180,6 +181,7 @@ describe('renderNoteExportHtml', () => {
     expect(html).not.toContain('.vlaina/raw.png');
     expect(html).not.toContain('docs/.git/raw.png');
     expect(html).not.toContain('docs/%2Egit/raw.png');
+    expect(html).not.toContain('trimmed-raw.png');
   });
 
   it('caps image decode waits while keeping all exported images in the document', async () => {

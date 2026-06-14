@@ -30,6 +30,8 @@ interface SendMessageWithEndpointFallbackOptions {
 }
 
 const PRE_STREAM_RETRY_DELAY_MS = 900;
+const MAX_ERROR_STATUS_STRING_CHARS = 16;
+const MAX_ERROR_CODE_STRING_CHARS = 128;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
@@ -55,9 +57,12 @@ function extractStatusCode(error: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+  if (typeof value === 'string' && value.length <= MAX_ERROR_STATUS_STRING_CHARS) {
+    const trimmed = value.trim();
+    if (!/^\d{3}$/.test(trimmed)) {
+      return null;
+    }
+    return Number.parseInt(trimmed, 10);
   }
 
   return null;
@@ -70,7 +75,9 @@ function extractErrorCode(error: unknown): string {
 
   const value = (error as { errorCode?: unknown; code?: unknown }).errorCode
     ?? (error as { code?: unknown }).code;
-  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return typeof value === 'string' && value.length <= MAX_ERROR_CODE_STRING_CHARS
+    ? value.trim().toLowerCase()
+    : '';
 }
 
 function isTransientPreStreamError(error: unknown, signal?: AbortSignal): boolean {

@@ -55,6 +55,12 @@ describe('chatSidebarSearch', () => {
     expect(filtered).toEqual([]);
   });
 
+  it('bounds oversized raw search queries before trimming', () => {
+    const filtered = filterChatSidebarSessions(sessions, `${' '.repeat(4096)}alpha`);
+
+    expect(filtered).toEqual([]);
+  });
+
   it('bounds session title text used for sidebar search entries', () => {
     const filtered = filterChatSidebarSessions([
       {

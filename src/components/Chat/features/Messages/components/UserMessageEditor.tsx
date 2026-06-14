@@ -13,6 +13,7 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { NoteMentionPicker } from '@/components/Chat/features/Input/components/NoteMentionPicker';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 import { focusVisibleTextareaAt } from '@/lib/ui/composerFocusRegistry';
+import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 import {
   composeUserMessageContent,
   type ParsedUserMessageContent,
@@ -37,14 +38,14 @@ export function UserMessageEditor({
 }: UserMessageEditorProps) {
   const { t } = useI18n();
   const content = message.content || '';
-  const [editValue, setEditValue] = useState(parsedContent.text);
+  const [editValue, setEditValue] = useState(() => limitChatComposerText(parsedContent.text));
   const [editAttachments, setEditAttachments] = useState<Attachment[]>(() =>
     parsedContent.imageSources.map((src, index) => toEditAttachment(src, index))
   );
   const [isComposing, setIsComposing] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const handleEditValueChange = useCallback((nextValue: string) => {
-    setEditValue(nextValue);
+    setEditValue(limitChatComposerText(nextValue));
   }, []);
 
   const {
@@ -92,7 +93,7 @@ export function UserMessageEditor({
   });
 
   const handleSave = useCallback(() => {
-    const normalized = composeUserMessageContent(editValue, editAttachments);
+    const normalized = composeUserMessageContent(limitChatComposerText(editValue), editAttachments);
     const normalizedCurrent = content.replace(/\r\n?/g, '\n');
     if (normalized.trim() !== normalizedCurrent.trim()) {
       onEdit?.(message.id, normalized);
@@ -176,7 +177,8 @@ export function UserMessageEditor({
           textareaScrollTop={textareaScrollTop}
           mentionPreviewParts={mentionPreviewParts}
           onChange={(event) => {
-            handleValueChange(event.target.value, event.target.selectionStart ?? event.target.value.length);
+            const nextValue = limitChatComposerText(event.target.value);
+            handleValueChange(nextValue, Math.min(event.target.selectionStart ?? nextValue.length, nextValue.length));
           }}
           onCompositionStart={() => setIsComposing(true)}
           onCompositionEnd={() => setIsComposing(false)}

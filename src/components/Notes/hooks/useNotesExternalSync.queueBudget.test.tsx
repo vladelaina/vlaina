@@ -1,6 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_PENDING_EXTERNAL_PATH_EVENTS } from './notesExternalSyncActions';
+import {
+  MAX_EXTERNAL_WATCH_EVENT_PATHS,
+  MAX_PENDING_EXTERNAL_PATH_EVENTS,
+} from './notesExternalSyncActions';
 import { useNotesExternalSync } from './useNotesExternalSync';
 import { buildExternalTreeSnapshot, detectExternalTreePathChanges } from './notesExternalPollingUtils';
 
@@ -120,6 +123,26 @@ describe('useNotesExternalSync queue budgets', () => {
     expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/vault');
     expect(detectExternalTreePathChanges).toHaveBeenCalled();
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('reconciles oversized native watch events without normalizing every path', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: Array.from(
+          { length: MAX_EXTERNAL_WATCH_EVENT_PATHS + 1 },
+          (_value, index) => `/vault/docs/new-${index}.md`,
+        ),
+      });
+    });
+
+    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/vault');
+    expect(detectExternalTreePathChanges).toHaveBeenCalled();
+    expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
 
     hook.unmount();
   });

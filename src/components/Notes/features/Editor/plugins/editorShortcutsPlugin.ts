@@ -127,11 +127,17 @@ function getViewportPosition(view: EditorView) {
   }
 }
 
+function getCurrentHeadingLevel(parent: { type: { name: string }; attrs?: Record<string, unknown> }): number | null {
+  if (parent.type.name !== 'heading') return 0;
+  const level = parent.attrs?.level;
+  return typeof level === 'number' && Number.isInteger(level) ? level : null;
+}
+
 function changeHeadingLevel(view: EditorView, delta: -1 | 1): boolean {
   const { $from } = view.state.selection;
   const parent = $from.parent;
-  const currentLevel = parent.type.name === 'heading' ? Number(parent.attrs.level) : 0;
-  if (!Number.isInteger(currentLevel)) return false;
+  const currentLevel = getCurrentHeadingLevel(parent);
+  if (currentLevel === null) return false;
 
   const nextLevel = Math.max(0, Math.min(6, currentLevel + delta));
   convertBlockType(view, nextLevel === 0 ? 'paragraph' : (`heading${nextLevel}` as BlockType));

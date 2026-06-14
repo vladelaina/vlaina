@@ -19,6 +19,7 @@ describe('webAccountCommands', () => {
     localStorage.clear();
     sessionStorage.clear();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -162,6 +163,29 @@ describe('webAccountCommands', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('normalizes email code request payloads before sending them to the API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.requestEmailCode(' OCTOCAT@example.com ')).resolves.toBe(true);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)).toEqual({
+      email: 'octocat@example.com',
+    });
+  });
+
+  it('rejects oversized email code request payloads before network access', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      webAccountCommands.requestEmailCode(`${' '.repeat(4097)}octocat@example.com`)
+    ).rejects.toThrow('Invalid email address');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('does not retry email-code business errors', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: 'Invalid email address' }), { status: 400 })
@@ -170,6 +194,53 @@ describe('webAccountCommands', () => {
 
     await expect(webAccountCommands.requestEmailCode('octocat@example.com')).rejects.toThrow('Invalid email address');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes email verification payloads before sending them to the API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        success: true,
+        provider: 'email',
+        username: 'octocat',
+        primaryEmail: 'octocat@example.com',
+      }), { status: 200 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.verifyEmailCode(' OCTOCAT@example.com ', ' 123456 ')).resolves.toMatchObject({
+      success: true,
+      provider: 'email',
+      username: 'octocat',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)).toEqual({
+      email: 'octocat@example.com',
+      code: '123456',
+      target: 'web',
+    });
+  });
+
+  it('rejects invalid email verification payloads before network access', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.verifyEmailCode('bad', '123456')).resolves.toMatchObject({
+      success: false,
+      error: 'Invalid email address',
+    });
+    await expect(webAccountCommands.verifyEmailCode('octocat@example.com', '12345')).resolves.toMatchObject({
+      success: false,
+      error: 'Invalid verification code',
+    });
+    await expect(
+      webAccountCommands.verifyEmailCode('octocat@example.com', `${'1'.repeat(65)}23456`)
+    ).resolves.toMatchObject({
+      success: false,
+      error: 'Invalid verification code',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('revokes the cookie session before clearing client metadata', async () => {
@@ -259,6 +330,54 @@ describe('webAccountCommands', () => {
     expect(status.username).toBe('octocat');
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('returns cached status when the declared session response body is oversized', async () => {
+    sessionStorage.setItem(
+      'vlaina_account_session',
+      JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
+    );
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({ cancel }),
+      {
+        status: 200,
+        headers: {
+          'content-length': String(MAX_ACCOUNT_RESPONSE_BODY_BYTES + 1),
+        },
+      }
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const status = await webAccountCommands.probeStatus();
+
+    expect(status.connected).toBe(true);
+    expect(status.username).toBe('octocat');
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('ignores invalid account content-length syntax', async () => {
+    const response = new Response(
+      JSON.stringify({
+        success: true,
+        connected: true,
+        provider: 'google',
+        username: 'octocat',
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-length': '1e12',
+        },
+      }
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const status = await webAccountCommands.probeStatus();
+
+    expect(status.connected).toBe(true);
+    expect(status.username).toBe('octocat');
   });
 
   it('uses the HTTP fallback when account error response bodies are oversized', async () => {
