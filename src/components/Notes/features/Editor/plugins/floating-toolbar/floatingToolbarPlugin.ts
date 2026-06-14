@@ -116,6 +116,7 @@ export const floatingToolbarPlugin = $prose(() => {
 
         if (tr.selectionSet) {
           const { selection } = newState;
+          const selectionIsEmpty = selection.empty;
           const isAiReviewPinned = mappedState.subMenu === 'aiReview' && Boolean(mappedState.aiReview);
           const isSelectionSubMenuOpen =
             mappedState.subMenu === 'ai' ||
@@ -128,15 +129,15 @@ export const floatingToolbarPlugin = $prose(() => {
                 return mappedState;
               }
 
-              if (isSelectionSubMenuOpen) {
+              if (selectionIsEmpty && isSelectionSubMenuOpen) {
                 return mappedState;
               }
 
-              if (mappedState.selectionRange) {
+              if (selectionIsEmpty && mappedState.selectionRange) {
                 return mappedState;
               }
 
-              if (interactionState.isPointerInsideToolbar) {
+              if (selectionIsEmpty && interactionState.isPointerInsideToolbar) {
                 return mappedState;
               }
 

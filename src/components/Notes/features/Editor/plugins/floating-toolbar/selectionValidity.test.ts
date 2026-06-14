@@ -16,6 +16,31 @@ async function createEditor(markdown: string) {
   return editor;
 }
 
+type FakeNode = {
+  isText?: boolean;
+  nodeSize: number;
+  text?: string;
+  type: { name: string };
+};
+
+function createDocWithSelectedNodes(
+  entries: Array<{ node: FakeNode; parent: FakeNode | null; pos: number }>
+) {
+  return {
+    content: { size: 128 },
+    nodesBetween: vi.fn((
+      _from: number,
+      _to: number,
+      callback: (node: FakeNode, pos: number, parent: FakeNode | null) => void
+    ) => {
+      entries.forEach((entry) => callback(entry.node, entry.pos, entry.parent));
+    }),
+    textBetween: vi.fn(() => {
+      throw new Error('textBetween should not be used when node scanning is available');
+    }),
+  };
+}
+
 describe('selectionValidity', () => {
   it('treats a real text selection as usable', async () => {
     const editor = await createEditor('hello');
@@ -25,6 +50,92 @@ describe('selectionValidity', () => {
     expect(hasUsableTextSelection(selection, view.state.doc)).toBe(true);
 
     await editor.destroy();
+  });
+
+  it('rejects text selections that only contain frontmatter text', () => {
+    const frontmatterNode = { type: { name: 'frontmatter' }, nodeSize: 13 };
+    const doc = createDocWithSelectedNodes([
+      {
+        node: frontmatterNode,
+        parent: { type: { name: 'doc' }, nodeSize: 128 },
+        pos: 0,
+      },
+      {
+        node: {
+          isText: true,
+          nodeSize: 11,
+          text: 'title: Demo',
+          type: { name: 'text' },
+        },
+        parent: frontmatterNode,
+        pos: 1,
+      },
+    ]);
+
+    expect(hasUsableTextRange(doc as never, 1, 12)).toBe(false);
+    expect(doc.textBetween).not.toHaveBeenCalled();
+  });
+
+  it('keeps code block text selections usable for the reduced toolbar', () => {
+    const codeBlockNode = { type: { name: 'code_block' }, nodeSize: 13 };
+    const doc = createDocWithSelectedNodes([
+      {
+        node: codeBlockNode,
+        parent: { type: { name: 'doc' }, nodeSize: 128 },
+        pos: 0,
+      },
+      {
+        node: {
+          isText: true,
+          nodeSize: 11,
+          text: 'const a = 1',
+          type: { name: 'text' },
+        },
+        parent: codeBlockNode,
+        pos: 1,
+      },
+    ]);
+
+    expect(hasUsableTextRange(doc as never, 1, 12)).toBe(true);
+  });
+
+  it('accepts selections that include body text after frontmatter', () => {
+    const frontmatterNode = { type: { name: 'frontmatter' }, nodeSize: 13 };
+    const paragraphNode = { type: { name: 'paragraph' }, nodeSize: 6 };
+    const doc = createDocWithSelectedNodes([
+      {
+        node: frontmatterNode,
+        parent: { type: { name: 'doc' }, nodeSize: 128 },
+        pos: 0,
+      },
+      {
+        node: {
+          isText: true,
+          nodeSize: 11,
+          text: 'title: Demo',
+          type: { name: 'text' },
+        },
+        parent: frontmatterNode,
+        pos: 1,
+      },
+      {
+        node: paragraphNode,
+        parent: { type: { name: 'doc' }, nodeSize: 128 },
+        pos: 13,
+      },
+      {
+        node: {
+          isText: true,
+          nodeSize: 4,
+          text: 'Body',
+          type: { name: 'text' },
+        },
+        parent: paragraphNode,
+        pos: 14,
+      },
+    ]);
+
+    expect(hasUsableTextRange(doc as never, 1, 18)).toBe(true);
   });
 
   it('rejects a non-empty range that only covers an empty paragraph boundary', async () => {
