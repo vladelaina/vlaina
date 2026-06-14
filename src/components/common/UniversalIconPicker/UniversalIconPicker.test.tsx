@@ -57,6 +57,7 @@ describe('UniversalIconPicker', () => {
     const pickerShell = Array.from(container.querySelectorAll('div'))
       .find((element) => element.className.includes('!rounded-[var(--vlaina-radius-26px)]'));
     expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
+    expect(container.querySelector('[data-no-editor-drag-box="true"]')).toBeInstanceOf(HTMLElement);
   });
 
   it('removes the current icon on pointer down without waiting for click', () => {

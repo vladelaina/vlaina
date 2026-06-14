@@ -53,7 +53,7 @@ describe('HeroIconHeader', () => {
   it('keeps the newly committed icon visible when hover preview clears before parent props update', async () => {
     const onIconChange = vi.fn();
 
-    render(
+    const { container } = render(
       <HeroIconHeader
         id="note-1"
         icon={null}
@@ -61,6 +61,8 @@ describe('HeroIconHeader', () => {
         onRequestRandomIcon={() => 'misc.star'}
       />,
     );
+
+    expect(container.querySelector('[data-no-editor-drag-box="true"]')).toBeInstanceOf(HTMLElement);
 
     fireEvent.click(screen.getByRole('button', { name: /add icon/i }));
 

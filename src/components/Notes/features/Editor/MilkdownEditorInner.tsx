@@ -30,6 +30,7 @@ import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/us
 import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import {
   normalizeAlternativeMathBlockFences,
@@ -52,7 +53,10 @@ import {
   clearCurrentEditorBlockPositionSnapshot,
   createCurrentEditorBlockPositionController,
 } from './utils/editorBlockPositionCache';
-import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
+import {
+  normalizeLeadingFrontmatterMarkdown,
+  serializeLeadingFrontmatterMarkdown,
+} from './plugins/frontmatter/frontmatterMarkdown';
 import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
 import { createDocumentStartTextSelection } from './utils/editorSelection';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
@@ -296,6 +300,24 @@ export function replaceEditorMarkdown(
 
   view.dispatch(tr);
   return true;
+}
+
+function normalizeComparableEditorMarkdown(markdown: string): string {
+  return normalizeEditorRuntimeMarkdownArtifacts(stripManagedFrontmatter(markdown));
+}
+
+export function isEditorMarkdownEquivalentToNoteContent(
+  editorMarkdown: string,
+  noteContent: string,
+): boolean {
+  const serializedEditorMarkdown = serializeLeadingFrontmatterMarkdown(
+    editorMarkdown,
+    noteContent,
+  );
+  return (
+    normalizeComparableEditorMarkdown(serializedEditorMarkdown) ===
+    normalizeComparableEditorMarkdown(noteContent)
+  );
 }
 
 export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
@@ -638,10 +660,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       if (liveSerializer && isSameNotePath) {
         try {
           const serializedCurrentDoc = liveSerializer(view.state.doc);
-          if (
-            normalizeEditorRuntimeMarkdownArtifacts(serializedCurrentDoc) ===
-            normalizeEditorRuntimeMarkdownArtifacts(currentNoteContent)
-          ) {
+          if (isEditorMarkdownEquivalentToNoteContent(serializedCurrentDoc, currentNoteContent)) {
             lastAppliedNoteRef.current = {
               path: currentNotePath,
               diskRevision: currentNoteDiskRevision,

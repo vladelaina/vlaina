@@ -196,6 +196,7 @@ export function CoverPicker({
       <PopoverAnchor className="absolute bottom-4 right-4 w-1 h-1 pointer-events-none" />
 
       <PopoverContent
+        data-no-editor-drag-box="true"
         className={cn(
           "w-[var(--vlaina-size-340px)] !rounded-[var(--vlaina-radius-26px)] p-0 flex flex-col overflow-hidden z-[var(--vlaina-z-50)] pointer-events-auto select-none backdrop-blur-[var(--vlaina-backdrop-blur-lg)]",
           chatComposerPillSurfaceClass,

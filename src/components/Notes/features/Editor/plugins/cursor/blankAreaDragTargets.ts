@@ -10,6 +10,7 @@ const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
 const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
+const NOTE_CONTENT_ROOT_SELECTOR = '[data-note-content-root="true"]';
 const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
 const MARKDOWN_BLANK_LINE_SELECTOR = "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']";
 const TRAILING_TEXT_SELECTION_GUTTER_PX = 48;
@@ -81,6 +82,39 @@ function isSidebarBlankStartTarget(target: HTMLElement): boolean {
   const sidebarScrollRoot = target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR) as HTMLElement | null;
   if (!sidebarScrollRoot) return false;
   return target === sidebarScrollRoot || !!target.closest(NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR);
+}
+
+function isSameEditorExternalBlankAreaTarget(
+  view: EditorView,
+  target: HTMLElement,
+  editorScrollRoot: HTMLElement | null,
+): boolean {
+  if (!editorScrollRoot || getScrollRoot(target) !== editorScrollRoot) {
+    return false;
+  }
+  if (target === editorScrollRoot) {
+    return true;
+  }
+
+  const contentRoot = view.dom.closest(NOTE_CONTENT_ROOT_SELECTOR);
+  return contentRoot instanceof HTMLElement && (
+    target === contentRoot ||
+    contentRoot.contains(target)
+  );
+}
+
+export function isSameEditorBlankAreaInteractionTarget(view: EditorView, target: EventTarget | null): boolean {
+  if (!(target instanceof Node)) return false;
+  if (view.dom.contains(target)) return true;
+
+  const targetElement = target instanceof HTMLElement ? target : target.parentElement;
+  if (!targetElement) return false;
+
+  return isSameEditorExternalBlankAreaTarget(
+    view,
+    targetElement,
+    getScrollRoot(view.dom),
+  );
 }
 
 export function isIgnoredBlankAreaDragBoxTarget(target: EventTarget | null): boolean {
@@ -270,6 +304,7 @@ export function isExternalTextLineGutterNativeSelectionTarget(view: EditorView, 
   if (!(event.target instanceof HTMLElement)) return false;
   const target = event.target;
   if (view.dom.contains(target)) return false;
+  if (!isSameEditorBlankAreaInteractionTarget(view, target)) return false;
   if (target.closest(COVER_REGION_SELECTOR)) return false;
   if (target.closest(INTERACTIVE_SELECTOR)) return false;
 
@@ -315,7 +350,12 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
   const targetScrollRoot = getScrollRoot(target);
   const isSameEditorScrollRoot = !!editorScrollRoot && !!targetScrollRoot && editorScrollRoot === targetScrollRoot;
   const isSidebarBlankStart = isSidebarBlankStartTarget(target);
-  if (!isSameEditorScrollRoot && !isSidebarBlankStart) return null;
+  const isSameEditorBlankAreaStart = isSameEditorScrollRoot
+    && (
+      view.dom.contains(target) ||
+      isSameEditorExternalBlankAreaTarget(view, target, editorScrollRoot)
+    );
+  if (!isSameEditorBlankAreaStart && !isSidebarBlankStart) return null;
 
   if (target.closest(COVER_REGION_SELECTOR)) return null;
   if (target.closest(INTERACTIVE_SELECTOR)) return null;
@@ -379,5 +419,5 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     return 'outside-editor';
   }
 
-  return 'outside-editor';
+  return isSameEditorBlankAreaStart ? 'outside-editor' : null;
 }

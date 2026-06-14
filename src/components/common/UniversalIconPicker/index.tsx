@@ -243,6 +243,7 @@ export function UniversalIconPicker({
   return (
     <div
       ref={containerRef}
+      data-no-editor-drag-box="true"
       className={cn(
         "flex flex-col gap-1 w-[var(--vlaina-size-352px)] select-none",
         !embedded && "absolute z-[var(--vlaina-z-50)]",

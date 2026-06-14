@@ -7,6 +7,7 @@ import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import {
   MilkdownEditorInner,
   createLargePlainMarkdownDocJSON,
+  isEditorMarkdownEquivalentToNoteContent,
   normalizeInitialEditorSelection,
   replaceEditorMarkdown,
   shouldUseLazyBlockVisibility,
@@ -316,6 +317,44 @@ describe('replaceEditorMarkdown', () => {
   });
 });
 
+describe('isEditorMarkdownEquivalentToNoteContent', () => {
+  it('treats managed-only frontmatter changes as equivalent to the visible editor markdown', () => {
+    expect(
+      isEditorMarkdownEquivalentToNoteContent(
+        '# Body',
+        [
+          '---',
+          'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
+          'vlaina_icon: value="sparkles" size=84',
+          '---',
+          '',
+          '# Body',
+        ].join('\n'),
+      )
+    ).toBe(true);
+  });
+
+  it('keeps user-authored frontmatter differences visible when comparing editor markdown', () => {
+    expect(
+      isEditorMarkdownEquivalentToNoteContent(
+        [
+          '```yaml-frontmatter vlaina-internal-frontmatter',
+          'title: Demo',
+          '```',
+          '# Body',
+        ].join('\n'),
+        [
+          '---',
+          'title: Changed',
+          'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
+          '---',
+          '# Body',
+        ].join('\n'),
+      )
+    ).toBe(false);
+  });
+});
+
 describe('MilkdownEditorInner lazy block visibility', () => {
   it('recomputes lazy block visibility when switching to a large plain note', () => {
     const { container, rerender } = render(<MilkdownEditorInner />);
@@ -332,6 +371,57 @@ describe('MilkdownEditorInner lazy block visibility', () => {
 });
 
 describe('MilkdownEditorInner external content sync', () => {
+  it('does not replace the editor document when same-note updates only change managed frontmatter', () => {
+    mocks.notesState.currentNote = { path: 'small.md', content: '# Body' };
+    mocks.editorState.serializedMarkdown = '# Body';
+    const editor = createMockActiveEditor();
+    const { rerender } = render(<MilkdownEditorInner />);
+
+    expect(editor.replace).not.toHaveBeenCalled();
+
+    mocks.notesState.currentNote = {
+      path: 'small.md',
+      content: [
+        '---',
+        'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
+        '---',
+        '',
+        '# Body',
+      ].join('\n'),
+    };
+    rerender(<MilkdownEditorInner showBodyLineNumbers />);
+
+    expect(editor.parser).not.toHaveBeenCalled();
+    expect(editor.replace).not.toHaveBeenCalled();
+    expect(editor.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not replace the editor document when managed frontmatter is removed from the same note', () => {
+    mocks.notesState.currentNote = {
+      path: 'small.md',
+      content: [
+        '---',
+        'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
+        'vlaina_icon: value="sparkles" size=84',
+        '---',
+        '',
+        '# Body',
+      ].join('\n'),
+    };
+    mocks.editorState.serializedMarkdown = '# Body';
+    const editor = createMockActiveEditor();
+    const { rerender } = render(<MilkdownEditorInner />);
+
+    expect(editor.replace).not.toHaveBeenCalled();
+
+    mocks.notesState.currentNote = { path: 'small.md', content: '# Body' };
+    rerender(<MilkdownEditorInner showBodyLineNumbers />);
+
+    expect(editor.parser).not.toHaveBeenCalled();
+    expect(editor.replace).not.toHaveBeenCalled();
+    expect(editor.dispatch).not.toHaveBeenCalled();
+  });
+
   it('replaces same-revision store content when the editor still has stale startup markdown', () => {
     const editor = createMockActiveEditor();
     const { rerender } = render(<MilkdownEditorInner />);
