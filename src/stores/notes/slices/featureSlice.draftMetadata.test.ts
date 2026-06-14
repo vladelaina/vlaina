@@ -100,7 +100,7 @@ describe('featureSlice draft metadata', () => {
       saveNote,
     });
 
-    store.getState().setNoteIcon('draft:blank', 'sparkles');
+    store.getState().setNoteIcon('draft:blank', '💡');
 
     await vi.waitFor(() => {
       expect(saveNote).toHaveBeenCalledWith({ explicit: false });
@@ -111,7 +111,7 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().openTabs).toEqual([
       { path: 'draft:blank', name: '', isDirty: true },
     ]);
-    expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('sparkles');
+    expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('💡');
   });
 
   it('stores active draft metadata in memory when no vault is selected', async () => {
@@ -128,7 +128,7 @@ describe('featureSlice draft metadata', () => {
       saveNote,
     });
 
-    store.getState().setNoteIcon('draft:blank', 'sparkles');
+    store.getState().setNoteIcon('draft:blank', '💡');
     store.getState().setNoteCover('draft:blank', {
       assetPath: '@monet/1',
       positionX: 50,
@@ -142,7 +142,7 @@ describe('featureSlice draft metadata', () => {
     });
 
     expect(saveNote).not.toHaveBeenCalled();
-    expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('sparkles');
+    expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('💡');
     expect(store.getState().currentNote?.path).toBe('draft:blank');
     expect(store.getState().isDirty).toBe(true);
     expect(store.getState().openTabs).toEqual([
@@ -163,7 +163,7 @@ describe('featureSlice draft metadata', () => {
       saveNote,
     });
 
-    store.getState().setNoteIcon('draft:blank', 'sparkles');
+    store.getState().setNoteIcon('draft:blank', '💡');
     store.getState().setNoteCover('draft:blank', {
       assetPath: '@monet/1',
       positionX: 50,
@@ -177,7 +177,7 @@ describe('featureSlice draft metadata', () => {
     });
 
     expect(saveNote).not.toHaveBeenCalled();
-    expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('sparkles');
+    expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('💡');
     expect(store.getState().currentNote?.path).toBe('draft:blank');
     expect(store.getState().isDirty).toBe(true);
     expect(store.getState().openTabs).toEqual([
@@ -194,14 +194,14 @@ describe('featureSlice draft metadata', () => {
       noteContentsCache: new Map([['/notes/alpha.md', { content: '# Alpha', modifiedAt: 1 }]]),
     });
 
-    store.getState().setNoteIcon('/notes/alpha.md', 'sparkles');
+    store.getState().setNoteIcon('/notes/alpha.md', '💡');
 
     await vi.waitFor(() => {
       expect(mocks.safeWriteTextFile).toHaveBeenCalled();
     });
 
     expect(mocks.safeWriteTextFile.mock.calls[0]?.[0]).toBe('/notes/alpha.md');
-    expect(store.getState().noteMetadata?.notes['/notes/alpha.md']?.icon).toBe('sparkles');
+    expect(store.getState().noteMetadata?.notes['/notes/alpha.md']?.icon).toBe('💡');
     expect(store.getState().currentNote?.content).toContain('vlaina_icon');
     expect(store.getState().isDirty).toBe(false);
   });
@@ -210,7 +210,7 @@ describe('featureSlice draft metadata', () => {
     const notePath = 'docs/alpha.md';
     const sourceContent = [
       '---',
-      'vlaina_icon: "sparkles"',
+      'vlaina_icon: "💡"',
       '---',
       '',
       '# Alpha',
@@ -229,7 +229,7 @@ describe('featureSlice draft metadata', () => {
     });
 
     const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
-    expect(writtenContent).toContain('vlaina_icon: value="sparkles" size=84');
+    expect(writtenContent).toContain('vlaina_icon: value="💡" size=84');
     expect(store.getState().noteMetadata?.notes[notePath]?.iconSize).toBe(84);
   });
 
@@ -243,14 +243,14 @@ describe('featureSlice draft metadata', () => {
       noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(mocks.safeWriteTextFile).toHaveBeenCalled();
     });
 
     expect(mocks.safeWriteTextFile.mock.calls[0]?.[0]).toBe(notePath);
-    expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('sparkles');
+    expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('💡');
     expect(store.getState().currentNote?.content).toContain('vlaina_icon');
     expect(store.getState().isDirty).toBe(false);
   });
@@ -263,7 +263,7 @@ describe('featureSlice draft metadata', () => {
       noteContentsCache: new Map([[notePath, { content: complexMarkdown, modifiedAt: 1 }]]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too complex to open safely.');
@@ -285,7 +285,7 @@ describe('featureSlice draft metadata', () => {
       notesPath: '/vault',
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too complex to open safely.');
@@ -304,7 +304,7 @@ describe('featureSlice draft metadata', () => {
       notesPath: '/vault',
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too large to update metadata.');
@@ -323,7 +323,7 @@ describe('featureSlice draft metadata', () => {
       notesPath: '/vault',
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too large to update metadata.');
@@ -343,7 +343,7 @@ describe('featureSlice draft metadata', () => {
       rootFolder: null,
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too large to update metadata.');
@@ -372,14 +372,14 @@ describe('featureSlice draft metadata', () => {
       ]]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(mocks.safeWriteTextFile).toHaveBeenCalled();
     });
 
     const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
-    expect(writtenContent).toContain('vlaina_icon: value="sparkles"');
+    expect(writtenContent).toContain('vlaina_icon: value="💡"');
     expect(writtenContent).toContain('Disk body');
     expect(writtenContent).not.toContain('Original body');
     expect(store.getState().currentNote?.content).toBe(writtenContent);
@@ -402,7 +402,7 @@ describe('featureSlice draft metadata', () => {
       noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('disk unavailable');
@@ -460,7 +460,7 @@ describe('featureSlice draft metadata', () => {
       noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(mocks.safeWriteTextFile).toHaveBeenCalled();
@@ -509,7 +509,7 @@ describe('featureSlice draft metadata', () => {
       noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(mocks.safeWriteTextFile).toHaveBeenCalled();
@@ -558,7 +558,7 @@ describe('featureSlice draft metadata', () => {
       noteContentsCache: new Map([['docs/beta.md', { content: '# Beta', modifiedAt: 1 }]]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
       expect(mocks.readFile).toHaveBeenCalled();
@@ -579,7 +579,7 @@ describe('featureSlice draft metadata', () => {
     resolveRead!('# Disk content');
 
     await vi.waitFor(() => {
-      expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('sparkles');
+      expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('💡');
     });
 
     expect(store.getState().currentNote?.path).toBe(notePath);
@@ -1048,7 +1048,7 @@ describe('featureSlice draft metadata', () => {
       'vlaina_cover_y: 50',
       'vlaina_cover_height: 200',
       'vlaina_cover_scale: 1',
-      'vlaina_icon: "sparkles"',
+      'vlaina_icon: "💡"',
       '---',
       '# Alpha',
     ].join('\n');
@@ -1062,7 +1062,7 @@ describe('featureSlice draft metadata', () => {
         version: 2,
         notes: {
           [notePath]: {
-            icon: 'sparkles',
+            icon: '💡',
             cover: {
               assetPath: '@monet/4',
               positionX: 50,

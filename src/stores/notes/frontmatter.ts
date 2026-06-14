@@ -1,5 +1,6 @@
 import type { NoteCoverMetadata, NoteMetadataEntry } from './types';
 import { normalizeNoteCoverMetadata } from './frontmatterCover';
+import { normalizeStandardNoteIconValue } from '@/lib/notes/iconValue';
 
 const LINE_ENDING_PATTERN = /\r\n?/g;
 const UTF8_BOM = '\uFEFF';
@@ -18,11 +19,9 @@ const KEY_ICON = `${MANAGED_FRONTMATTER_PREFIX}icon`;
 const KEY_ICON_SIZE = `${MANAGED_FRONTMATTER_PREFIX}icon_size`;
 const KEY_CREATED = `${MANAGED_FRONTMATTER_PREFIX}created`;
 const KEY_UPDATED = `${MANAGED_FRONTMATTER_PREFIX}updated`;
-const MAX_NOTE_ICON_CHARS = 4096;
 const MIN_NOTE_ICON_SIZE = 20;
 const MAX_NOTE_ICON_SIZE = 150;
 const MAX_MANAGED_NUMBER_CHARS = 64;
-const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
 const MANAGED_DECIMAL_NUMBER_PATTERN = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/;
 
@@ -332,17 +331,8 @@ function formatIconValue(icon: string, iconSize: number | undefined): string {
   return parts.join(' ');
 }
 
-function normalizeIcon(icon: unknown): string | undefined {
-  if (typeof icon !== 'string') {
-    return undefined;
-  }
-
-  const trimmed = icon.trim();
-  if (!trimmed || trimmed.length > MAX_NOTE_ICON_CHARS || CONTROL_OR_BIDI_PATTERN.test(trimmed)) {
-    return undefined;
-  }
-
-  return trimmed;
+function normalizeStoredIcon(icon: unknown): string | undefined {
+  return normalizeStandardNoteIconValue(icon) ?? undefined;
 }
 
 function normalizeIconSize(size: unknown): number | undefined {
@@ -368,7 +358,7 @@ export function normalizeNoteMetadataEntry(
   }
 
   const normalized: NoteMetadataEntry = {};
-  const icon = normalizeIcon(entry.icon);
+  const icon = normalizeStoredIcon(entry.icon);
 
   if (icon) {
     normalized.icon = icon;
@@ -424,7 +414,7 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
     ? getInlineString(iconFields, 'value')
     : undefined;
   const iconValue = fusedIconValue ?? rawIconValue;
-  const icon = normalizeIcon(iconValue);
+  const icon = normalizeStoredIcon(iconValue);
   if (icon) {
     normalized.icon = icon;
     const iconSize = normalizeIconSize(
@@ -526,10 +516,12 @@ export function writeNoteMetadataToMarkdown(
 ): string {
   const normalizedEntry = normalizeNoteMetadataEntry(entry);
   const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown, { includeBody: true });
-  const preservedLines = lines.filter((line) => {
-    const key = parseTopLevelKey(line);
-    return !key || !MANAGED_KEYS.has(key);
-  });
+  const preservedLines = trimTrailingBlankLines(
+    lines.filter((line) => {
+      const key = parseTopLevelKey(line);
+      return !key || !MANAGED_KEYS.has(key);
+    }),
+  );
 
   const managedLines: string[] = [];
   const cover = normalizedEntry.cover;

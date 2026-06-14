@@ -21,7 +21,7 @@ describe('VirtualEmojiGrid', () => {
     const onSelect = vi.fn();
     const imageLoader = vi.fn(async () => 'blob:logo');
     const recentIcons = [
-      'img:/app/.vlaina/assets/icons/logo.png',
+      'assets/icons/logo.png',
       'icon:star:currentColor',
       '😀',
     ];
@@ -43,13 +43,13 @@ describe('VirtualEmojiGrid', () => {
     expect(recentButtons.map((button) => button.dataset.icon)).toEqual(recentIcons);
 
     fireEvent.mouseOver(recentButtons[0]);
-    expect(onPreview).toHaveBeenCalledWith('img:/app/.vlaina/assets/icons/logo.png');
+    expect(onPreview).toHaveBeenCalledWith('assets/icons/logo.png');
 
     fireEvent.click(recentButtons[0]);
-    expect(onSelect).toHaveBeenCalledWith('img:/app/.vlaina/assets/icons/logo.png');
+    expect(onSelect).toHaveBeenCalledWith('assets/icons/logo.png');
 
     await waitFor(() => {
-      expect(imageLoader).toHaveBeenCalledWith('img:/app/.vlaina/assets/icons/logo.png');
+      expect(imageLoader).toHaveBeenCalledWith('assets/icons/logo.png');
     });
     expect(container.querySelector('img[alt="icon"]')).toHaveStyle({
       width: '20px',

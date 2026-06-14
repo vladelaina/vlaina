@@ -1,14 +1,9 @@
 import { useReducer, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { loadImageWithDimensions } from '../utils/coverDimensionCache';
-import { resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
+import { resolveCoverAssetUrl, shouldPreserveAssetAnimation } from '../utils/resolveCoverAssetUrl';
 import { coverSourceReducer, initialCoverSourceState } from './coverSourceState';
 
 const COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX = 1280;
-
-function shouldPreserveCoverAnimation(url: string) {
-    const pathname = url.split(/[?#]/, 1)[0]?.toLowerCase() ?? '';
-    return pathname.endsWith('.gif') || pathname.endsWith('.apng') || pathname.endsWith('.webp');
-}
 
 interface UseCoverSourceProps {
     url: string | null;
@@ -69,13 +64,14 @@ export function useCoverSource({ url, vaultPath, currentNotePath }: UseCoverSour
 
             let imageUrl: string;
             try {
-                const preserveAnimation = shouldPreserveCoverAnimation(url);
+                const preserveAnimation = shouldPreserveAssetAnimation(url);
                 imageUrl = await resolveCoverAssetUrl({
                     assetPath: url,
                     vaultPath,
                     currentNotePath,
                     thumbnail: !preserveAnimation,
                     thumbnailMaxEdgePx: preserveAnimation ? undefined : COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX,
+                    replayAnimated: preserveAnimation,
                 });
             } catch {
                 if (ignore) return;

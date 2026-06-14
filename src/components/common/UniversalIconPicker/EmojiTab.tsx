@@ -11,6 +11,7 @@ import {
   type EmojiItem,
 } from './constants';
 import { useI18n, type MessageKey } from '@/lib/i18n';
+import { hasIconImageScheme, hasIconSymbolScheme, isIconImageValue } from './iconImageValue';
 
 const EMOJI_CATEGORY_LABEL_KEYS: Record<string, MessageKey> = {
   frequent: 'icon.categoryRecent',
@@ -39,6 +40,7 @@ interface EmojiTabProps {
   searchQuery?: string;
   alwaysShowCategories?: boolean;
   imageLoader?: (src: string) => Promise<string>;
+  allowLegacyImageScheme?: boolean;
 }
 
 export function EmojiTab({
@@ -55,6 +57,7 @@ export function EmojiTab({
   searchQuery: externalSearchQuery,
   alwaysShowCategories = false,
   imageLoader,
+  allowLegacyImageScheme = false,
 }: EmojiTabProps) {
   const { t } = useI18n();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -101,7 +104,7 @@ export function EmojiTab({
           onPreviewSkinToneRef.current?.(tone);
           
           const icon = currentIconRef.current;
-          if (icon && !/^icon:/i.test(icon) && !/^img:/i.test(icon)) {
+          if (icon && !hasIconImageScheme(icon) && !hasIconSymbolScheme(icon) && !isIconImageValue(icon)) {
             const item = EMOJI_MAP.get(icon);
             if (item) {
               const previewEmoji = tone === 0 || !item.skins || item.skins.length <= tone
@@ -241,6 +244,7 @@ export function EmojiTab({
           categoryId={currentCategory.id}
           categoryName={t(EMOJI_CATEGORY_LABEL_KEYS[currentCategory.id] ?? 'icon.categorySmileysPeople')}
           imageLoader={imageLoader}
+          allowLegacyImageScheme={allowLegacyImageScheme}
         />
       )}
 

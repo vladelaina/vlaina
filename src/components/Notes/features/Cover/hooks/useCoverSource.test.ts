@@ -75,7 +75,7 @@ describe('useCoverSource', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('blob:animated-cover');
+      expect(result.current.resolvedSrc).toMatch(/^blob:animated-cover#vlaina-replay=/);
     });
 
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/animated.gif');

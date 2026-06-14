@@ -35,7 +35,7 @@ describe('notes metadata unknown-size files', () => {
     adapter.listDir.mockResolvedValue([{ name: 'alpha.md', isFile: true }]);
     adapter.readFile.mockResolvedValue([
       '---',
-      'vlaina_icon: "alpha"',
+      'vlaina_icon: "💡"',
       '---',
       '',
       '# Alpha',
@@ -48,7 +48,7 @@ describe('notes metadata unknown-size files', () => {
     await expect(loadNoteMetadata('/vault-unknown-size')).resolves.toEqual({
       version: 2,
       notes: {
-        'alpha.md': { icon: 'alpha', updatedAt: 7 },
+        'alpha.md': { icon: '💡', updatedAt: 7 },
       },
     });
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-unknown-size/alpha.md', MAX_METADATA_READ_BYTES);

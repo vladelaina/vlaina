@@ -2,19 +2,17 @@ import { useCallback, useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
-import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
-import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
-import { loadAppIconImageSrc } from '@/components/common/AppIcon';
+import { getParentPath } from '@/lib/storage/adapter';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
-import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
 import { CoverAddOverlay } from '../Cover';
+import { resolveCoverAssetUrl } from '../Cover/utils/resolveCoverAssetUrl';
 import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 import { focusEditorAtTop } from './utils/focusEditor';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import type { CustomIcon } from '@/lib/storage/unifiedStorage';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -49,22 +47,40 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
 
     const notesPath = useNotesStore(s => s.notesPath);
     const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
-    const {
-        customIcons,
-        onUploadFile: uploadGlobalIcon,
-        onDeleteCustomIcon,
-    } = useGlobalIconUpload();
+    const assetList = useNotesStore(s => s.assetList);
+    const loadAssets = useNotesStore(s => s.loadAssets);
+    const uploadAsset = useNotesStore(s => s.uploadAsset);
+
+    const customIcons = useMemo<CustomIcon[]>(() => assetList.map((asset) => {
+        const uploadedAt = Date.parse(asset.uploadedAt);
+        return {
+            id: asset.filename,
+            url: asset.filename,
+            name: asset.filename.split(/[\\/]/).pop() || asset.filename,
+            createdAt: Number.isFinite(uploadedAt) ? uploadedAt : Date.now(),
+        };
+    }), [assetList]);
+
+    const handleIconPickerOpen = useCallback(() => {
+        if (!vaultPath) return undefined;
+        return loadAssets(vaultPath);
+    }, [loadAssets, vaultPath]);
+
+    const uploadNoteIcon = useCallback(async (file: File) => {
+        const result = await uploadAsset(file, currentNotePath);
+        if (!result.success || !result.path) {
+            return { success: false, error: result.error || 'Upload failed' };
+        }
+        return { success: true, url: result.path };
+    }, [currentNotePath, uploadAsset]);
 
     const imageLoader = useCallback(async (src: string) => {
-        if (!/^img:/i.test(src)) return src;
-        const relativePath = src.substring(4);
-        if (isAbsolutePath(relativePath)) {
-            return (await loadAppIconImageSrc(src)) ?? '';
-        }
-        if (!vaultPath) return src;
-        const fullPath = await resolveExistingVaultAssetPath(vaultPath, relativePath, currentNotePath);
-        if (!fullPath) return '';
-        return await loadImageAsBlob(fullPath);
+        return resolveCoverAssetUrl({
+            assetPath: src,
+            vaultPath,
+            currentNotePath,
+            replayAnimated: true,
+        });
     }, [currentNotePath, vaultPath]);
 
 
@@ -136,10 +152,10 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
             
             coverUrl={coverUrl}
             coverLayoutActive={coverLayoutActive}
-            
+
             customIcons={customIcons}
-            onUploadFile={uploadGlobalIcon}
-            onDeleteCustomIcon={onDeleteCustomIcon}
+            onUploadFile={uploadNoteIcon}
+            onIconPickerOpen={handleIconPickerOpen}
             imageLoader={imageLoader}
             onRequestRandomIcon={handleRequestRandomIcon}
             

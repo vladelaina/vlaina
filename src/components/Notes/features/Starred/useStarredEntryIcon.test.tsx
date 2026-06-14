@@ -86,7 +86,7 @@ describe('useStarredEntryIcon', () => {
 
   it('does not reuse a cached starred note icon when stat has size but no modified time', async () => {
     mocked.stat.mockResolvedValueOnce({ size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     const first = renderHook(() =>
       useStarredEntryIcon({
@@ -99,12 +99,12 @@ describe('useStarredEntryIcon', () => {
     );
 
     await waitFor(() => {
-      expect(first.result.current).toBe('first');
+      expect(first.result.current).toBe('💡');
     });
     first.unmount();
 
     mocked.stat.mockResolvedValueOnce({ size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "📘"\n---\n# Alpha');
 
     const second = renderHook(() =>
       useStarredEntryIcon({
@@ -118,14 +118,14 @@ describe('useStarredEntryIcon', () => {
 
     expect(second.result.current).toBeUndefined();
     await waitFor(() => {
-      expect(second.result.current).toBe('second');
+      expect(second.result.current).toBe('📘');
     });
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
 
   it('does not reuse a cached starred note icon when stat has an invalid modified time', async () => {
     mocked.stat.mockResolvedValueOnce({ modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     const first = renderHook(() =>
       useStarredEntryIcon({
@@ -138,12 +138,12 @@ describe('useStarredEntryIcon', () => {
     );
 
     await waitFor(() => {
-      expect(first.result.current).toBe('first');
+      expect(first.result.current).toBe('💡');
     });
     first.unmount();
 
     mocked.stat.mockResolvedValueOnce({ modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "📘"\n---\n# Alpha');
 
     const second = renderHook(() =>
       useStarredEntryIcon({
@@ -157,7 +157,7 @@ describe('useStarredEntryIcon', () => {
 
     expect(second.result.current).toBeUndefined();
     await waitFor(() => {
-      expect(second.result.current).toBe('second');
+      expect(second.result.current).toBe('📘');
     });
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
@@ -252,7 +252,7 @@ describe('useStarredEntryIcon', () => {
 
   it('loads starred note metadata with bounded reads when stat has no size', async () => {
     mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false });
-    mocked.readFile.mockResolvedValue('---\nvlaina_icon: "no-size"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValue('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     const { result } = renderHook(() =>
       useStarredEntryIcon({
@@ -265,7 +265,7 @@ describe('useStarredEntryIcon', () => {
     );
 
     await waitFor(() => {
-      expect(result.current).toBe('no-size');
+      expect(result.current).toBe('💡');
     });
     expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/no-size.md', MAX_STARRED_ICON_METADATA_BYTES);
   });

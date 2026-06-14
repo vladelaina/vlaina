@@ -33,6 +33,7 @@ interface UploadTabProps {
     onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
     onDeleteCustomIcon?: (id: string) => void | Promise<void>;
     imageLoader?: (src: string) => Promise<string>;
+    allowLegacyImageScheme?: boolean;
 }
 
 export function UploadTab({ 
@@ -42,7 +43,8 @@ export function UploadTab({
     customIcons = [],
     onUploadFile,
     onDeleteCustomIcon,
-    imageLoader
+    imageLoader,
+    allowLegacyImageScheme = false,
 }: UploadTabProps) {
     const { t } = useI18n();
     const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -318,6 +320,7 @@ export function UploadTab({
                                         size={themeIconTokens.sizeUploadPreview}
                                         className="w-full h-full object-contain"
                                         imageLoader={imageLoader}
+                                        allowLegacyImageScheme={allowLegacyImageScheme}
                                     />
                                 </div>
                             ))}
