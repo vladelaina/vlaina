@@ -44,7 +44,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const [mediaLoadError, setMediaLoadError] = useState(false);
     const [isViewerOpen, setIsViewerOpen] = useState(false);
     const isBlockDragging = useBlockDragState();
-    const isNearViewport = useNearViewport(containerRef);
+    const imageLoadGate = useNearViewport(containerRef);
 
     const handleStateChange = useCallback((state: CropperViewportState) => {
         latestStateRef.current = state;
@@ -78,12 +78,11 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         isRemoteImageSource,
         isLoading,
         loadError,
-        isImageLoadDeferred,
         notesPath,
         currentNotePath,
         updateNodeAttrs,
         markImageUserInput,
-    } = useImageBlockState({ node, view, getPos, shouldLoadImage: isNearViewport });
+    } = useImageBlockState({ node, view, getPos, shouldLoadImage: imageLoadGate.shouldLoadImage });
 
     const {
         isSaving,
@@ -310,7 +309,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         sourceAlt={nodeAlt}
                         resolvedSrc={resolvedSrc}
                         isRemoteImageSource={isRemoteImageSource}
-                        isDeferred={isImageLoadDeferred}
+                        isDeferred={!imageLoadGate.isNearViewport}
                         isReady={isReady}
                         cropParams={cropParams}
                         containerSize={activeContainerSize}

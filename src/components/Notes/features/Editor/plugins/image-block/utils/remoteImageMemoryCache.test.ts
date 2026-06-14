@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     clearRemoteImageMemoryCache,
     clearRemoteImageMemoryCacheForTests,
+    getCachedRemoteImageSrc,
     MAX_REMOTE_IMAGE_CACHE_ENTRIES,
     MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES,
     REMOTE_IMAGE_FETCH_TIMEOUT_MS,
@@ -104,6 +105,7 @@ describe('remoteImageMemoryCache', () => {
 
         await expect(resolveRemoteImageFromMemoryCache('//example.com/remote.png')).resolves.toBe('blob:remote-image');
         await expect(resolveRemoteImageFromMemoryCache('https://example.com/remote.png')).resolves.toBe('blob:remote-image');
+        expect(getCachedRemoteImageSrc('//example.com/remote.png')).toBe('blob:remote-image');
 
         expect(fetch).toHaveBeenCalledTimes(1);
         expect(fetch).toHaveBeenCalledWith('https://example.com/remote.png', {

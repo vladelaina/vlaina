@@ -192,6 +192,21 @@ export async function resolveRemoteImageFromMemoryCache(url: string): Promise<st
     return promise;
 }
 
+export function getCachedRemoteImageSrc(url: string): string | undefined {
+    const safeUrl = normalizePublicRemoteMediaUrl(url);
+    if (!safeUrl) {
+        return undefined;
+    }
+
+    const existing = remoteImageCache.get(safeUrl);
+    if (!existing?.src) {
+        return undefined;
+    }
+
+    existing.lastUsed = Date.now();
+    return existing.src;
+}
+
 export function clearRemoteImageMemoryCache(): void {
     remoteImageCacheGeneration += 1;
     for (const entry of remoteImageCache.values()) {

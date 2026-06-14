@@ -29,7 +29,7 @@
   display: block !important;
   border-radius: var(--vlaina-radius-8px);
   background: var(--vlaina-block-selection-color);
-  box-shadow: var(--vlaina-block-selection-shadow);
+  box-shadow: none;
   pointer-events: none;
 }
 

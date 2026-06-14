@@ -344,6 +344,24 @@ describe('useLocalImage', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('returns a cached remote image without a loading frame on remount', async () => {
+    const first = renderHook(() =>
+      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(first.result.current.isLoading).toBe(false);
+    });
+
+    const second = renderHook(() =>
+      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+    );
+
+    expect(second.result.current.resolvedSrc).toBe('blob:remote-image');
+    expect(second.result.current.isLoading).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the original remote URL instead of caching oversized remote images', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,

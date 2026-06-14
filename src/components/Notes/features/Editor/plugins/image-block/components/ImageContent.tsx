@@ -7,6 +7,28 @@ import { getCropViewStyles } from '../utils/cropGeometry';
 import type { CropParams } from '../utils/imageSourceFragment';
 import type { CropArea, LoadedMediaSize, CropperViewportState, ResizeDirection } from '../types';
 
+const LOADED_IMAGE_SRC_CACHE_LIMIT = 300;
+const loadedImageSrcs = new Set<string>();
+
+function hasLoadedImageSrc(src: string | undefined): boolean {
+    return Boolean(src && loadedImageSrcs.has(src));
+}
+
+function rememberLoadedImageSrc(src: string | undefined): void {
+    if (!src) return;
+
+    if (loadedImageSrcs.has(src)) {
+        loadedImageSrcs.delete(src);
+    }
+
+    loadedImageSrcs.add(src);
+    while (loadedImageSrcs.size > LOADED_IMAGE_SRC_CACHE_LIMIT) {
+        const oldestSrc = loadedImageSrcs.values().next().value;
+        if (!oldestSrc) break;
+        loadedImageSrcs.delete(oldestSrc);
+    }
+}
+
 interface ImageContentProps {
     isLoading: boolean;
     loadError: boolean;
@@ -50,11 +72,11 @@ export const ImageContent = ({
 }: ImageContentProps) => {
     const { t } = useI18n();
     const [mediaError, setMediaError] = useState(false);
-    const [isImageLoaded, setIsImageLoaded] = useState(false);
+    const [isImageLoaded, setIsImageLoaded] = useState(() => hasLoadedImageSrc(resolvedSrc));
 
     useEffect(() => {
         setMediaError(false);
-        setIsImageLoaded(false);
+        setIsImageLoaded(hasLoadedImageSrc(resolvedSrc));
         onMediaErrorChange?.(false);
     }, [onMediaErrorChange, resolvedSrc]);
 
@@ -73,7 +95,7 @@ export const ImageContent = ({
         referrerPolicy: 'no-referrer' as const,
     };
 
-    if (isDeferred && !isReady) {
+    if (isDeferred) {
         return (
             <div
                 data-testid="deferred-image-placeholder"
@@ -128,6 +150,7 @@ export const ImageContent = ({
                     )}
                     onLoad={(event) => {
                         const image = event.currentTarget;
+                        rememberLoadedImageSrc(resolvedSrc);
                         setIsImageLoaded(true);
                         onMediaLoaded({
                             width: image.width,
@@ -156,6 +179,7 @@ export const ImageContent = ({
                     style={cropPreviewStyles.image}
                     onLoad={(event) => {
                         const image = event.currentTarget;
+                        rememberLoadedImageSrc(resolvedSrc);
                         onMediaLoaded({
                             width: image.width,
                             height: image.height,
@@ -185,4 +209,11 @@ export const ImageContent = ({
             onStateChange={onStateChange}
         />
     );
+};
+
+export const __testing__ = {
+    clearLoadedImageSrcCache() {
+        loadedImageSrcs.clear();
+    },
+    rememberLoadedImageSrc,
 };
