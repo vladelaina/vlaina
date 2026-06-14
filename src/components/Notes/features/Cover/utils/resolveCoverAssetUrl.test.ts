@@ -130,6 +130,37 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.webp', undefined);
   });
 
+  it('adds per-call replay tokens for animated original assets', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.gif');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:animated');
+
+    const first = await resolveCoverAssetUrl({
+      assetPath: 'assets/a.gif',
+      vaultPath: '/vault-a',
+      replayAnimated: true,
+    });
+    const second = await resolveCoverAssetUrl({
+      assetPath: 'assets/a.gif',
+      vaultPath: '/vault-a',
+      replayAnimated: true,
+    });
+
+    expect(first).toMatch(/^blob:animated#vlaina-replay=/);
+    expect(second).toMatch(/^blob:animated#vlaina-replay=/);
+    expect(second).not.toBe(first);
+  });
+
+  it('does not add replay tokens to non-animated image assets', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:static');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'assets/a.png',
+      vaultPath: '/vault-a',
+      replayAnimated: true,
+    })).resolves.toBe('blob:static');
+  });
+
   it('resolves note-relative cover paths against the current note', async () => {
     hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/notes/assets/cover.webp');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:relative');

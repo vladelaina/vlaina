@@ -91,14 +91,14 @@ describe('note frontmatter metadata', () => {
     };
 
     expect(normalizeNoteMetadataEntry({
-      icon: 'sparkles',
+      icon: '🐱',
       iconSize: hostileSize as never,
     })).toEqual({
-      icon: 'sparkles',
+      icon: '🐱',
     });
   });
 
-  it('keeps legacy cover paths and icon values that contain equals signs', () => {
+  it('keeps legacy cover paths with equals signs while dropping non-standard icon text', () => {
     const markdown = [
       '---',
       'vlaina_cover: "covers/cover=hero.webp"',
@@ -112,11 +112,10 @@ describe('note frontmatter metadata', () => {
       cover: {
         assetPath: 'covers/cover=hero.webp',
       },
-      icon: 'size=84',
     });
   });
 
-  it('does not treat legacy values named like fused fields as fused metadata', () => {
+  it('does not treat legacy cover values named like fused fields as fused metadata', () => {
     const markdown = [
       '---',
       'vlaina_cover: "asset=hero.webp"',
@@ -130,7 +129,6 @@ describe('note frontmatter metadata', () => {
       cover: {
         assetPath: 'asset=hero.webp',
       },
-      icon: 'value=sparkles',
     });
   });
 
@@ -138,7 +136,7 @@ describe('note frontmatter metadata', () => {
   it('reads managed note metadata from frontmatter after a UTF-8 BOM', () => {
     const markdown = [
       '\uFEFF---',
-      'vlaina_icon: "sparkles"',
+      'vlaina_icon: "🐱"',
       'vlaina_updated: "2026-04-16T01:02:03.000Z"',
       '---',
       '',
@@ -146,7 +144,7 @@ describe('note frontmatter metadata', () => {
     ].join('\n');
 
     expect(readNoteMetadataFromMarkdown(markdown)).toEqual({
-      icon: 'sparkles',
+      icon: '🐱',
     });
   });
 
@@ -220,6 +218,58 @@ describe('note frontmatter metadata', () => {
         '# Title',
       ].join('\n')
     );
+  });
+
+  it('does not accumulate blank lines between user and managed frontmatter on repeated writes', () => {
+    const markdown = [
+      '---',
+      'title: Example',
+      '',
+      '',
+      'vlaina_cover: asset="assets/old.webp" height=220',
+      'vlaina_icon: value="🐱" size=84',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    const first = updateNoteMetadataInMarkdown(markdown, {
+      cover: {
+        assetPath: 'assets/old.webp',
+        height: 240,
+      },
+      icon: '🐱',
+      iconSize: 90,
+    }).content;
+    const second = updateNoteMetadataInMarkdown(first, {
+      cover: {
+        assetPath: 'assets/old.webp',
+        height: 260,
+      },
+      icon: '🐱',
+      iconSize: 96,
+    }).content;
+
+    expect(first).toBe([
+      '---',
+      'title: Example',
+      '',
+      'vlaina_cover: asset="assets/old.webp" height=240',
+      'vlaina_icon: value="🐱" size=90',
+      '---',
+      '',
+      '# Title',
+    ].join('\n'));
+    expect(second).toBe([
+      '---',
+      'title: Example',
+      '',
+      'vlaina_cover: asset="assets/old.webp" height=260',
+      'vlaina_icon: value="🐱" size=96',
+      '---',
+      '',
+      '# Title',
+    ].join('\n'));
   });
 
   it('updates frontmatter after a UTF-8 BOM without duplicating it', () => {
@@ -303,7 +353,7 @@ describe('note frontmatter metadata', () => {
     const fusedMarkdown = [
       '---',
       'vlaina_cover: asset="assets/monet.jpg" x=1e2 y=0x2 height=220 scale=1.3',
-      'vlaina_icon: value="sparkles" size=8e1',
+      'vlaina_icon: value="🐱" size=8e1',
       '---',
       '',
       '# Title',
@@ -315,7 +365,7 @@ describe('note frontmatter metadata', () => {
         height: 220,
         scale: 1.3,
       },
-      icon: 'sparkles',
+      icon: '🐱',
     });
 
     const legacyMarkdown = [
@@ -361,9 +411,7 @@ describe('note frontmatter metadata', () => {
       `vlaina_cover: "${oversizedCover}"`,
       '---',
       '# Title',
-    ].join('\n'))).toEqual({
-      icon: 'sparkles',
-    });
+    ].join('\n'))).toEqual({});
 
     expect(readNoteMetadataFromMarkdown([
       '---',
@@ -424,12 +472,12 @@ describe('note frontmatter metadata', () => {
   it('keeps supported managed icon and cover string forms', () => {
     expect(readNoteMetadataFromMarkdown([
       '---',
-      'vlaina_icon: " icon:sparkles:#ffcc00 "',
+      'vlaina_icon: " icon:common.sparkle:#ffcc00 "',
       'vlaina_cover: " @biva/1 "',
       '---',
       '# Title',
     ].join('\n'))).toEqual({
-      icon: 'icon:sparkles:#ffcc00',
+      icon: 'icon:common.sparkle:#ffcc00',
       cover: {
         assetPath: '@biva/1',
       },
@@ -437,28 +485,60 @@ describe('note frontmatter metadata', () => {
 
     expect(readNoteMetadataFromMarkdown([
       '---',
-      'vlaina_icon: "img:/app/.vlaina/assets/icons/demo.png"',
+      'vlaina_icon: "assets/icons/demo.png"',
       'vlaina_cover: "assets/cover.webp"',
       '---',
       '# Title',
     ].join('\n'))).toEqual({
-      icon: 'img:/app/.vlaina/assets/icons/demo.png',
+      icon: 'assets/icons/demo.png',
       cover: {
         assetPath: 'assets/cover.webp',
       },
     });
   });
 
+  it('drops legacy img-scheme managed icon image paths', () => {
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_icon: "img:assets/icons/demo.png"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+  });
+
+  it('drops non-standard managed icon text from frontmatter', () => {
+    for (const icon of ['hello', 'emoji.file', 'size=84', 'icon:bad:name:extra']) {
+      expect(readNoteMetadataFromMarkdown([
+        '---',
+        `vlaina_icon: "${icon}"`,
+        '---',
+        '# Title',
+      ].join('\n'))).toEqual({});
+    }
+  });
+
+  it('drops non-standard managed icon text from runtime metadata writes', () => {
+    expect(normalizeNoteMetadataEntry({
+      icon: 'sparkles',
+      iconSize: 84,
+    })).toEqual({});
+
+    expect(writeNoteMetadataToMarkdown('# Title', {
+      icon: 'sparkles',
+      iconSize: 84,
+    })).toBe('# Title');
+  });
+
   it('round-trips escaped managed YAML string scalars', () => {
     const metadata = {
-      icon: 'quote " slash \\ icon',
+      icon: 'assets/quote " slash \\ icon.png',
       cover: {
         assetPath: 'assets/quote " slash \\ cover.webp',
       },
     };
     const written = writeNoteMetadataToMarkdown('# Title', metadata);
 
-    expect(written).toContain('vlaina_icon: value="quote \\" slash \\\\ icon"');
+    expect(written).toContain('vlaina_icon: value="assets/quote \\" slash \\\\ icon.png"');
     expect(written).toContain('vlaina_cover: asset="assets/quote \\" slash \\\\ cover.webp"');
     expect(readNoteMetadataFromMarkdown(written)).toEqual(metadata);
     expect(writeNoteMetadataToMarkdown(written, readNoteMetadataFromMarkdown(written))).toBe(written);

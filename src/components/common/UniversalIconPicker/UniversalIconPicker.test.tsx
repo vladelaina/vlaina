@@ -18,16 +18,19 @@ vi.mock('./EmojiTab', () => ({
     recentIcons,
     skinTone,
     imageLoader,
+    allowLegacyImageScheme,
   }: {
     recentIcons: string[];
     skinTone: number;
     imageLoader?: (src: string) => Promise<string>;
+    allowLegacyImageScheme?: boolean;
   }) => (
     <div
       data-testid="emoji-tab"
       data-recent={recentIcons.join(',')}
       data-skin-tone={skinTone}
       data-has-image-loader={imageLoader ? 'true' : 'false'}
+      data-allow-legacy-image-scheme={allowLegacyImageScheme ? 'true' : 'false'}
     />
   ),
 }));
@@ -172,7 +175,8 @@ describe('UniversalIconPicker', () => {
 
   it('passes image and symbol icons through to recent icons', async () => {
     localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify([
-      'IMG:/app/.vlaina/assets/icons/logo.png',
+      'assets/icons/logo.png',
+      'img:assets/icons/legacy.png',
       'ICON:star:currentColor',
       '😀',
     ]));
@@ -188,14 +192,36 @@ describe('UniversalIconPicker', () => {
 
     expect(screen.getByTestId('emoji-tab')).toHaveAttribute(
       'data-recent',
-      'IMG:/app/.vlaina/assets/icons/logo.png,ICON:star:currentColor,😀',
+      'assets/icons/logo.png,ICON:star:currentColor,😀',
     );
     expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-has-image-loader', 'true');
+    expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-allow-legacy-image-scheme', 'false');
+  });
+
+  it('keeps legacy image-scheme recent icons when explicitly allowed', async () => {
+    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify([
+      'img:assets/icons/legacy.png',
+      '😀',
+    ]));
+
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        allowLegacyImageScheme
+      />,
+    );
+
+    expect(screen.getByTestId('emoji-tab')).toHaveAttribute(
+      'data-recent',
+      'img:assets/icons/legacy.png,😀',
+    );
+    expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-allow-legacy-image-scheme', 'true');
   });
 
   it('keeps image and symbol icons out of emoji-only recent icons', async () => {
     localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify([
-      'IMG:/app/.vlaina/assets/icons/logo.png',
+      'assets/icons/logo.png',
       'ICON:star:currentColor',
       '😀',
     ]));

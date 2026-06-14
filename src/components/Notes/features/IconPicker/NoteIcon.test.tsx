@@ -3,9 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NoteIcon } from './NoteIcon';
 
 const mocked = vi.hoisted(() => ({
-  loadAppIconImageSrc: vi.fn(),
-  resolveExistingVaultAssetPath: vi.fn(),
-  loadImageAsBlob: vi.fn(),
+  resolveCoverAssetUrl: vi.fn(),
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -19,16 +17,8 @@ vi.mock('@/stores/uiSlice', () => ({
   }),
 }));
 
-vi.mock('@/components/common/AppIcon', () => ({
-  loadAppIconImageSrc: mocked.loadAppIconImageSrc,
-}));
-
-vi.mock('@/lib/assets/core/paths', () => ({
-  resolveExistingVaultAssetPath: mocked.resolveExistingVaultAssetPath,
-}));
-
-vi.mock('@/lib/assets/io/reader', () => ({
-  loadImageAsBlob: mocked.loadImageAsBlob,
+vi.mock('@/components/Notes/features/Cover/utils/resolveCoverAssetUrl', () => ({
+  resolveCoverAssetUrl: mocked.resolveCoverAssetUrl,
 }));
 
 describe('NoteIcon', () => {
@@ -36,94 +26,41 @@ describe('NoteIcon', () => {
     vi.clearAllMocks();
   });
 
-  it('loads absolute global custom icon images through the app icon loader', async () => {
-    mocked.loadAppIconImageSrc.mockResolvedValue('blob:global-icon');
+  it('resolves note icon image paths against the vault', async () => {
+    mocked.resolveCoverAssetUrl.mockResolvedValue('blob:vault-icon');
 
-    render(
-      <NoteIcon
-        icon="img:/app/.vlaina/assets/icons/demo.png"
-        notePath="/vault/demo.md"
-        size={20}
-      />,
-    );
+    render(<NoteIcon icon="assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:global-icon');
+      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:vault-icon');
     });
 
-    expect(mocked.loadAppIconImageSrc).toHaveBeenCalledWith('img:/app/.vlaina/assets/icons/demo.png');
-    expect(mocked.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
-    expect(mocked.loadImageAsBlob).not.toHaveBeenCalled();
+    expect(mocked.resolveCoverAssetUrl).toHaveBeenCalledWith({
+      assetPath: 'assets/icons/demo.png',
+      vaultPath: '/vault',
+      currentNotePath: '/vault/demo.md',
+      replayAnimated: true,
+    });
   });
 
-  it('loads absolute global custom icon images with a case-insensitive image scheme', async () => {
-    mocked.loadAppIconImageSrc.mockResolvedValue('blob:global-icon');
+  it('does not render a note icon image when the shared asset resolver rejects', async () => {
+    mocked.resolveCoverAssetUrl.mockRejectedValue(new Error('cover-path-unsupported'));
 
-    render(
-      <NoteIcon
-        icon="IMG:/app/.vlaina/assets/icons/demo.png"
-        notePath="/vault/demo.md"
-        size={20}
-      />,
-    );
+    render(<NoteIcon icon="assets/icons/missing.png" notePath="/vault/demo.md" size={20} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:global-icon');
+      expect(mocked.resolveCoverAssetUrl).toHaveBeenCalled();
     });
 
-    expect(mocked.loadAppIconImageSrc).toHaveBeenCalledWith('IMG:/app/.vlaina/assets/icons/demo.png');
-    expect(mocked.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
-    expect(mocked.loadImageAsBlob).not.toHaveBeenCalled();
+    expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
   });
 
-  it('keeps resolving relative note icon images against the vault', async () => {
-    mocked.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/icons/demo.png');
-    mocked.loadImageAsBlob.mockResolvedValue('blob:vault-icon');
+  it('does not render legacy img-scheme note icon images', async () => {
+    mocked.resolveCoverAssetUrl.mockRejectedValue(new Error('cover-path-unsupported'));
 
     render(<NoteIcon icon="img:assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
 
-    await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:vault-icon');
-    });
-
-    expect(mocked.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
-      'assets/icons/demo.png',
-      '/vault/demo.md',
-    );
-    expect(mocked.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/icons/demo.png');
-    expect(mocked.loadAppIconImageSrc).not.toHaveBeenCalled();
-  });
-
-  it('keeps resolving relative note icon images with a case-insensitive image scheme', async () => {
-    mocked.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/icons/demo.png');
-    mocked.loadImageAsBlob.mockResolvedValue('blob:vault-icon');
-
-    render(<NoteIcon icon="IMG:assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:vault-icon');
-    });
-
-    expect(mocked.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
-      'assets/icons/demo.png',
-      '/vault/demo.md',
-    );
-    expect(mocked.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/icons/demo.png');
-    expect(mocked.loadAppIconImageSrc).not.toHaveBeenCalled();
-  });
-
-  it('does not load an empty path when a relative note icon cannot be resolved', async () => {
-    mocked.resolveExistingVaultAssetPath.mockResolvedValue('');
-
-    render(<NoteIcon icon="img:assets/icons/missing.png" notePath="/vault/demo.md" size={20} />);
-
-    await waitFor(() => {
-      expect(mocked.resolveExistingVaultAssetPath).toHaveBeenCalled();
-    });
-
-    expect(mocked.loadImageAsBlob).not.toHaveBeenCalled();
+    expect(mocked.resolveCoverAssetUrl).not.toHaveBeenCalled();
     expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
   });
 });

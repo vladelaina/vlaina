@@ -108,7 +108,7 @@ describe('NotesTagsSection', () => {
 
   it('reads tag note icon metadata with bounded reads when stat has no size', async () => {
     mocked.stat.mockResolvedValue({ isFile: true, isDirectory: false });
-    mocked.readFile.mockResolvedValue('---\nvlaina_icon: "tag-no-size"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValue('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     render(
       <NotesTagsSection
@@ -127,7 +127,7 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('tag-no-size');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('💡');
     });
     expect(mocked.readFile).toHaveBeenCalledWith('/vault/docs/no-size-icon.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
   });
@@ -364,7 +364,7 @@ describe('NotesTagsSection', () => {
     });
 
     const firstBatch = readResolvers.slice();
-    firstBatch.forEach((resolve) => resolve('---\nvlaina_icon: "limited"\n---\n# Note'));
+    firstBatch.forEach((resolve) => resolve('---\nvlaina_icon: "💡"\n---\n# Note'));
 
     await waitFor(() => {
       expect(mocked.readFile).toHaveBeenCalledTimes(rowCount);
@@ -372,7 +372,7 @@ describe('NotesTagsSection', () => {
 
     readResolvers
       .slice(firstBatch.length)
-      .forEach((resolve) => resolve('---\nvlaina_icon: "limited"\n---\n# Note'));
+      .forEach((resolve) => resolve('---\nvlaina_icon: "💡"\n---\n# Note'));
 
     await waitFor(() => {
       expect(screen.getAllByTestId('note-icon')).toHaveLength(rowCount);
@@ -381,7 +381,7 @@ describe('NotesTagsSection', () => {
 
   it('reloads cached tag note icon metadata when file metadata changes', async () => {
     mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: 1, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     const first = render(
       <NotesTagsSection
@@ -400,13 +400,13 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('cache-topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('first');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('💡');
     });
     first.unmount();
 
     mocked.noteIcon.mockClear();
     mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: 2, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "📘"\n---\n# Alpha');
 
     render(
       <NotesTagsSection
@@ -425,14 +425,14 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('cache-topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('second');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('📘');
     });
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
 
   it('does not reuse cached tag note icon metadata when stat has size but no modified time', async () => {
     mocked.stat.mockResolvedValueOnce({ isFile: true, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     const first = render(
       <NotesTagsSection
@@ -451,13 +451,13 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('no-mtime-cache-topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('first');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('💡');
     });
     first.unmount();
 
     mocked.noteIcon.mockClear();
     mocked.stat.mockResolvedValueOnce({ isFile: true, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "📘"\n---\n# Alpha');
 
     render(
       <NotesTagsSection
@@ -476,14 +476,14 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('no-mtime-cache-topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('second');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('📘');
     });
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
 
   it('does not reuse cached tag note icon metadata when stat has an invalid modified time', async () => {
     mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     const first = render(
       <NotesTagsSection
@@ -502,13 +502,13 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('invalid-mtime-cache-topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('first');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('💡');
     });
     first.unmount();
 
     mocked.noteIcon.mockClear();
     mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: Number.POSITIVE_INFINITY, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "📘"\n---\n# Alpha');
 
     render(
       <NotesTagsSection
@@ -527,14 +527,14 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('invalid-mtime-cache-topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('second');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('📘');
     });
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
 
   it('does not reuse cached tag note icon metadata after the path stops being a readable file', async () => {
     mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: 1, size: 32 });
-    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "stale"\n---\n# Alpha');
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
     const first = render(
       <NotesTagsSection
@@ -553,7 +553,7 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('gone-topic'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('note-icon')).toHaveTextContent('stale');
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('💡');
     });
     first.unmount();
 

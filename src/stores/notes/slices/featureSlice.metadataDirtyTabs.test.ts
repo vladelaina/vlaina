@@ -100,10 +100,10 @@ describe('featureSlice metadata dirty background tabs', () => {
       ]),
     });
 
-    store.getState().setNoteIcon(notePath, 'sparkles');
+    store.getState().setNoteIcon(notePath, '💡');
 
     await vi.waitFor(() => {
-      expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('sparkles');
+      expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('💡');
     });
 
     expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();

@@ -28,14 +28,14 @@ describe('notes metadata cache validation', () => {
     adapter.readFile
       .mockResolvedValueOnce([
         '---',
-        'vlaina_icon: "a"',
+        'vlaina_icon: "💡"',
         '---',
         '',
         '# Alpha',
       ].join('\n'))
       .mockResolvedValueOnce([
         '---',
-        'vlaina_icon: "b"',
+        'vlaina_icon: "📘"',
         '---',
         '',
         '# Alpha',
@@ -44,13 +44,13 @@ describe('notes metadata cache validation', () => {
     await expect(loadNoteMetadata('/vault-no-mtime-cache')).resolves.toEqual({
       version: 2,
       notes: {
-        'alpha.md': { icon: 'a' },
+        'alpha.md': { icon: '💡' },
       },
     });
     await expect(loadNoteMetadata('/vault-no-mtime-cache')).resolves.toEqual({
       version: 2,
       notes: {
-        'alpha.md': { icon: 'b' },
+        'alpha.md': { icon: '📘' },
       },
     });
     expect(adapter.readFile).toHaveBeenCalledTimes(2);

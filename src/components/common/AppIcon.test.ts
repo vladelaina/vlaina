@@ -1,5 +1,7 @@
+import { createElement } from 'react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadAppIconImageSrc } from './AppIcon';
+import { AppIcon, loadAppIconImageSrc } from './AppIcon';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -25,6 +27,14 @@ describe('AppIcon image loading', () => {
 
   it('loads global icon assets from the app icon directory', async () => {
     await expect(loadAppIconImageSrc('img:/app/.vlaina/assets/icons/demo.png')).resolves.toBe('blob:icon');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/assets/icons/demo.png');
+  });
+
+  it('renders legacy global image-scheme icons through the app icon loader', async () => {
+    render(createElement(AppIcon, { icon: 'img:/app/.vlaina/assets/icons/demo.png' }));
+
+    const image = await screen.findByRole('img', { name: 'icon' });
+    expect(image).toHaveAttribute('src', 'blob:icon');
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/assets/icons/demo.png');
   });
 

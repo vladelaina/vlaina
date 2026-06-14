@@ -29,8 +29,8 @@ interface IconSelectorProps {
 }
 
 const QUICK_ICONS = [
-  'coffee', 'book', 'code', 'briefcase', 'heart', 'flame',
-  'music', 'gamepad', 'home', 'car', 'plane', 'wallet',
+  'common.home', 'file.text', 'editor.code', 'common.cloud', 'misc.heart', 'misc.star',
+  'media.play', 'misc.activity', 'file.folder', 'file.image', 'common.flag', 'misc.box',
 ];
 
 export function IconSelector({
@@ -99,6 +99,7 @@ export function IconSelector({
                       onUploadFile={onUploadFile}
                       onDeleteCustomIcon={onDeleteCustomIcon}
                       imageLoader={imageLoader}
+                      allowLegacyImageScheme
                    />
                  </Suspense>
             </PopoverContent>
@@ -168,6 +169,7 @@ export function IconSelector({
                       onUploadFile={onUploadFile}
                       onDeleteCustomIcon={onDeleteCustomIcon}
                       imageLoader={imageLoader}
+                      allowLegacyImageScheme
                    />
                  </Suspense>
             </PopoverContent>

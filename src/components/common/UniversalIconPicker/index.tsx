@@ -20,6 +20,7 @@ import {
   EMOJI_CATEGORIES,
 } from './constants';
 import { useI18n } from '@/lib/i18n';
+import { hasIconImageScheme, hasIconSymbolScheme, isIconImageValue } from './iconImageValue';
 
 export interface UniversalIconPickerProps {
   onSelect: (emoji: string) => void;
@@ -44,6 +45,7 @@ export interface UniversalIconPickerProps {
   emojiSearchQuery?: string;
   alwaysShowEmojiCategories?: boolean;
   surface?: boolean;
+  allowLegacyImageScheme?: boolean;
 }
 
 export function UniversalIconPicker({
@@ -72,6 +74,7 @@ export function UniversalIconPicker({
   emojiSearchQuery,
   alwaysShowEmojiCategories = false,
   surface = !embedded,
+  allowLegacyImageScheme = false,
 }: UniversalIconPickerProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,11 +88,14 @@ export function UniversalIconPicker({
   const lastRandomIconRef = useRef<string | null>(null);
 
   const visibleRecentIcons = useMemo(() =>
-    (emojiOnly
-      ? recentIcons.filter(i => !/^icon:/i.test(i) && !/^img:/i.test(i))
-      : recentIcons
-    ).slice(0, MAX_RECENT_EMOJIS),
-    [emojiOnly, recentIcons]
+    recentIcons
+      .filter((icon) => allowLegacyImageScheme || !hasIconImageScheme(icon))
+      .filter((icon) => (
+        !emojiOnly ||
+        (!hasIconSymbolScheme(icon) && !isIconImageValue(icon) && !hasIconImageScheme(icon))
+      ))
+      .slice(0, MAX_RECENT_EMOJIS),
+    [allowLegacyImageScheme, emojiOnly, recentIcons]
   );
 
   const handleTabChange = useCallback((tab: TabType) => {
@@ -343,6 +349,7 @@ export function UniversalIconPicker({
             searchQuery={emojiSearchQuery}
             alwaysShowCategories={alwaysShowEmojiCategories}
             imageLoader={imageLoader}
+            allowLegacyImageScheme={allowLegacyImageScheme}
           />
         ) : (
           <UploadTab
@@ -353,6 +360,7 @@ export function UniversalIconPicker({
             onUploadFile={onUploadFile}
             onDeleteCustomIcon={onDeleteCustomIcon}
             imageLoader={imageLoader}
+            allowLegacyImageScheme={allowLegacyImageScheme}
           />
         )}
       </div>

@@ -37,7 +37,9 @@ interface HeroIconHeaderProps {
   customIcons?: CustomIcon[];
   onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
   onDeleteCustomIcon?: (id: string) => void | Promise<void>;
+  onIconPickerOpen?: () => void | Promise<void>;
   imageLoader?: (src: string) => Promise<string>;
+  allowLegacyImageScheme?: boolean;
   onRequestRandomIcon?: () => string | null;
 
   className?: string;
@@ -58,12 +60,14 @@ function HeaderIcon({
   itemId,
   originalIcon,
   sizeVar,
-  imageLoader
+  imageLoader,
+  allowLegacyImageScheme = false,
 }: {
   itemId: string,
   originalIcon: string | null,
   sizeVar: string,
-  imageLoader?: (src: string) => Promise<string>
+  imageLoader?: (src: string) => Promise<string>,
+  allowLegacyImageScheme?: boolean
 }) {
     const universalPreviewTarget = useUIStore(s => s.universalPreviewTarget);
     const universalPreviewIcon = useUIStore(s => s.universalPreviewIcon);
@@ -87,6 +91,7 @@ function HeaderIcon({
           color={finalColorHex}
           size={sizeVar}
           imageLoader={imageLoader}
+          allowLegacyImageScheme={allowLegacyImageScheme}
         />
     );
 }
@@ -106,7 +111,9 @@ export function HeroIconHeader({
   customIcons,
   onUploadFile,
   onDeleteCustomIcon,
+  onIconPickerOpen,
   imageLoader,
+  allowLegacyImageScheme = false,
   onRequestRandomIcon,
   className,
   coverUrl,
@@ -159,6 +166,12 @@ export function HeroIconHeader({
     setCommittedIcon(newIcon);
     onIconChange(newIcon);
   }, [onIconChange]);
+
+  const handleOpenIconPicker = useCallback(() => {
+    notifyNotesOverlayOpen('header-icon-picker');
+    setShowIconPicker(true);
+    void Promise.resolve(onIconPickerOpen?.()).catch(() => undefined);
+  }, [onIconPickerOpen]);
 
   const handleRemoveIcon = useCallback(() => {
     setCommittedIcon(null);
@@ -227,8 +240,7 @@ export function HeroIconHeader({
                   <button
                       ref={iconButtonRef}
                       onClick={() => {
-                        notifyNotesOverlayOpen('header-icon-picker');
-                        setShowIconPicker(true);
+                        handleOpenIconPicker();
                       }}
                       className="hover:scale-[var(--vlaina-scale-105)] transition-transform cursor-pointer flex items-center group"
                       style={{
@@ -241,6 +253,7 @@ export function HeroIconHeader({
                           originalIcon={committedIcon}
                           sizeVar="var(--vlaina-hero-icon-header-size)"
                           imageLoader={imageLoader}
+                          allowLegacyImageScheme={allowLegacyImageScheme}
                       />
                   </button>
               </div>
@@ -257,10 +270,9 @@ export function HeroIconHeader({
                           if (!randomIcon) {
                             return;
                           }
-                          notifyNotesOverlayOpen('header-icon-picker');
                           setCommittedIcon(randomIcon);
                           onIconChange(randomIcon);
-                          setShowIconPicker(true);
+                          handleOpenIconPicker();
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-soft-placeholder)] hover:text-[var(--vlaina-sidebar-row-selected-text)] transition-colors")}
                   >
@@ -297,6 +309,7 @@ export function HeroIconHeader({
                         onUploadFile={onUploadFile}
                         onDeleteCustomIcon={onDeleteCustomIcon}
                         imageLoader={imageLoader}
+                        allowLegacyImageScheme={allowLegacyImageScheme}
                     />
                   </Suspense>
               </div>

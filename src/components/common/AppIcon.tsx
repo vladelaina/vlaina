@@ -20,11 +20,13 @@ export function AppIcon(props: UniversalIconProps) {
   const defaultImageLoader = useCallback(async (src: string) => {
     return (await loadAppIconImageSrc(src)) ?? '';
   }, []);
+  const { imageLoader, allowLegacyImageScheme, ...iconProps } = props;
 
   return (
     <UniversalIcon 
-      imageLoader={props.imageLoader || defaultImageLoader}
-      {...props} 
+      {...iconProps}
+      imageLoader={imageLoader || defaultImageLoader}
+      allowLegacyImageScheme={allowLegacyImageScheme ?? true}
     />
   );
 }

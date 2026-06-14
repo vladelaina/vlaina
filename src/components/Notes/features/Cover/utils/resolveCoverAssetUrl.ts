@@ -9,6 +9,7 @@ interface ResolveCoverAssetUrlOptions {
   currentNotePath?: string;
   thumbnail?: boolean;
   thumbnailMaxEdgePx?: number;
+  replayAnimated?: boolean;
 }
 
 interface PendingCoverAssetUrlResolve {
@@ -19,6 +20,24 @@ interface PendingCoverAssetUrlResolve {
 const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
 const COVER_RESOLVE_JOIN_WINDOW_MS = 50;
 export const MAX_PENDING_COVER_ASSET_URL_RESOLVES = 100;
+let animatedReplayTokenCounter = 0;
+
+export function shouldPreserveAssetAnimation(assetPath: string) {
+  const pathname = assetPath.split(/[?#]/, 1)[0]?.toLowerCase() ?? '';
+  return pathname.endsWith('.gif') || pathname.endsWith('.apng') || pathname.endsWith('.webp');
+}
+
+function appendAnimatedReplayToken(url: string): string {
+  animatedReplayTokenCounter += 1;
+  const token = `${Date.now().toString(36)}-${animatedReplayTokenCounter.toString(36)}`;
+  return `${url}${url.includes('#') ? '&' : '#'}vlaina-replay=${token}`;
+}
+
+function applyAnimatedReplayToken(url: string, assetPath: string, replayAnimated: boolean | undefined): string {
+  return replayAnimated && shouldPreserveAssetAnimation(assetPath)
+    ? appendAnimatedReplayToken(url)
+    : url;
+}
 
 function getCoverResolveKey({
   assetPath,
@@ -41,6 +60,7 @@ export async function resolveCoverAssetUrl({
   currentNotePath,
   thumbnail,
   thumbnailMaxEdgePx,
+  replayAnimated,
 }: ResolveCoverAssetUrlOptions): Promise<string> {
   const resolveKey = getCoverResolveKey({
     assetPath,
@@ -52,7 +72,7 @@ export async function resolveCoverAssetUrl({
   const pendingResolve = pendingCoverAssetUrlResolves.get(resolveKey);
   const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
   if (pendingResolve && now - pendingResolve.startedAt <= COVER_RESOLVE_JOIN_WINDOW_MS) {
-    return pendingResolve.promise;
+    return applyAnimatedReplayToken(await pendingResolve.promise, assetPath, replayAnimated);
   }
   if (pendingResolve) {
     pendingCoverAssetUrlResolves.delete(resolveKey);
@@ -73,7 +93,8 @@ export async function resolveCoverAssetUrl({
     startedAt: now,
   });
   try {
-    return await resolvePromise;
+    const resolvedUrl = await resolvePromise;
+    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated);
   } finally {
     if (pendingCoverAssetUrlResolves.get(resolveKey)?.promise === resolvePromise) {
       pendingCoverAssetUrlResolves.delete(resolveKey);

@@ -52,12 +52,14 @@ describe('HeroIconHeader', () => {
 
   it('keeps the newly committed icon visible when hover preview clears before parent props update', async () => {
     const onIconChange = vi.fn();
+    const onIconPickerOpen = vi.fn();
 
     const { container } = render(
       <HeroIconHeader
         id="note-1"
         icon={null}
         onIconChange={onIconChange}
+        onIconPickerOpen={onIconPickerOpen}
         onRequestRandomIcon={() => 'misc.star'}
       />,
     );
@@ -67,6 +69,7 @@ describe('HeroIconHeader', () => {
     fireEvent.click(screen.getByRole('button', { name: /add icon/i }));
 
     expect(onIconChange).toHaveBeenCalledWith('misc.star');
+    expect(onIconPickerOpen).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('header-icon')).toHaveTextContent('misc.star');
     expect(await screen.findByTestId('picker-current-icon')).toHaveTextContent('misc.star');
 

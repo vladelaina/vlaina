@@ -45,6 +45,7 @@ function CalloutIconPicker({
       customIcons={customIcons}
       onUploadFile={onUploadFile}
       onDeleteCustomIcon={onDeleteCustomIcon}
+      allowLegacyImageScheme
     />
   );
 }

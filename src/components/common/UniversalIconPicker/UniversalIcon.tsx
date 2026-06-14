@@ -5,6 +5,12 @@ import { cn } from '@/lib/utils';
 import { ImageEdgeMask } from '@/components/common/ImageEdgeMask';
 import { resolveEmojiForSkinTone } from './randomEmoji';
 import { themeColorTokens, themeDomStyleTokens, themeRenderingTokens, themeTypographyTokens } from '@/styles/themeTokens';
+import {
+  hasIconImageScheme,
+  isEmojiIconValue,
+  isIconImageValue,
+  parseIconSymbolValue,
+} from './iconImageValue';
 
 export interface UniversalIconProps {
   icon: string;
@@ -15,6 +21,7 @@ export interface UniversalIconProps {
   previewColor?: string | null;
   previewTone?: number | null;
   imageLoader?: (src: string) => Promise<string>;
+  allowLegacyImageScheme?: boolean;
 }
 
 const resolveSize = (size?: number | string | IconSize) => {
@@ -27,9 +34,6 @@ const resolveSize = (size?: number | string | IconSize) => {
 const defaultImageSrcCache = new Map<string, string>();
 const loaderImageSrcCaches = new WeakMap<(src: string) => Promise<string>, Map<string, string>>();
 const MAX_IMAGE_SRC_CACHE_ENTRIES = 512;
-
-const hasIconImageScheme = (value: string) => /^img:/i.test(value);
-const hasIconSymbolScheme = (value: string) => /^icon:/i.test(value);
 
 function getImageSrcCache(imageLoader?: (src: string) => Promise<string>) {
   if (!imageLoader) return defaultImageSrcCache;
@@ -63,6 +67,10 @@ function setCachedImageSrc(cache: Map<string, string>, icon: string, src: string
     }
     cache.delete(oldestKey);
   }
+}
+
+function isRenderableImageIcon(icon: string, allowLegacyImageScheme?: boolean): boolean {
+  return isIconImageValue(icon) || (!!allowLegacyImageScheme && hasIconImageScheme(icon));
 }
 
 const ImageIconRenderer = memo(function ImageIconRenderer({
@@ -235,11 +243,12 @@ export function UniversalIcon({
   color,
   previewColor,
   previewTone,
-  imageLoader
+  imageLoader,
+  allowLegacyImageScheme,
 }: UniversalIconProps) {
   const imageSrcCache = getImageSrcCache(imageLoader);
   const [loadedImage, setLoadedImage] = useState<{ icon: string; src: string | null }>(() => {
-    if (!hasIconImageScheme(icon)) {
+    if (!isRenderableImageIcon(icon, allowLegacyImageScheme)) {
       return { icon, src: null };
     }
     return { icon, src: getCachedImageSrc(imageSrcCache, icon) };
@@ -249,7 +258,7 @@ export function UniversalIcon({
   useEffect(() => {
     let active = true;
     const load = async () => {
-      if (icon && hasIconImageScheme(icon)) {
+      if (icon && isRenderableImageIcon(icon, allowLegacyImageScheme)) {
         const cachedSrc = getCachedImageSrc(imageSrcCache, icon);
         if (cachedSrc) {
           setLoadedImage({ icon, src: cachedSrc });
@@ -265,7 +274,7 @@ export function UniversalIcon({
             if (active) setLoadedImage({ icon, src: null });
           }
         } else {
-          const url = icon.substring(4);
+          const url = hasIconImageScheme(icon) ? icon.substring(4) : icon;
           if (url) setCachedImageSrc(imageSrcCache, icon, url);
           if (active) setLoadedImage({ icon, src: url || null });
         }
@@ -275,11 +284,11 @@ export function UniversalIcon({
     };
     load();
     return () => { active = false; };
-  }, [icon, imageLoader, imageSrcCache]);
+  }, [allowLegacyImageScheme, icon, imageLoader, imageSrcCache]);
 
   if (!icon) return null;
 
-  if (hasIconImageScheme(icon)) {
+  if (isRenderableImageIcon(icon, allowLegacyImageScheme)) {
     const imgSrc = loadedImage.icon === icon
       ? loadedImage.src
       : getCachedImageSrc(imageSrcCache, icon);
@@ -297,15 +306,15 @@ export function UniversalIcon({
     );
   }
 
-  if (hasIconSymbolScheme(icon) || icon in icons) {
-    let iconName = icon;
-    let originalColor: string = themeColorTokens.iconDefault;
-    if (hasIconSymbolScheme(icon)) {
-      const parts = icon.split(':');
-      iconName = parts[1];
-      originalColor = parts[2] || themeColorTokens.iconDefault;
-    }
+  const symbolIcon = parseIconSymbolValue(icon);
+  if (symbolIcon || icon in icons) {
+    const iconName = symbolIcon?.name ?? icon;
+    const originalColor = symbolIcon?.color || themeColorTokens.iconDefault;
     return <IconIconRenderer iconName={iconName} originalColor={originalColor} forcedColor={color} size={size} className={className} previewColor={previewColor} />;
+  }
+
+  if (!isEmojiIconValue(icon)) {
+    return null;
   }
 
   return <EmojiIconRenderer emoji={icon} size={size} className={className} previewTone={previewTone} />;
