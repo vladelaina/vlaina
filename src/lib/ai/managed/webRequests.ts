@@ -5,15 +5,31 @@ import { stringifyProviderJsonRequestBody } from '@/lib/ai/providerRequestBody';
 
 const MANAGED_JSON_TIMEOUT_MS = 30_000;
 const MANAGED_STREAM_TIMEOUT_MS = 300_000;
+const MANAGED_CLIENT_DIAGNOSTIC_TIMEOUT_MS = 2500;
 const MANAGED_GET_RETRY_DELAYS_MS = [300];
 const MANAGED_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 const MAX_MANAGED_JSON_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_MANAGED_CONTENT_LENGTH_CHARS = 32;
 const MAX_MANAGED_STREAM_ERROR_CODE_CHARS = 512;
+const MANAGED_BACKEND_STREAM_ERROR = Symbol('managedBackendStreamError');
 
 interface ManagedJsonRequestInit extends RequestInit {
   timeoutMs?: number;
 }
+
+interface ManagedClientDiagnosticInput {
+  kind: 'chat_stream' | 'chat_json';
+  source: string;
+  phase: string;
+  body?: Record<string, unknown>;
+  error: unknown;
+  requestId?: string;
+}
+
+type ManagedBackendStreamError = Error & {
+  [MANAGED_BACKEND_STREAM_ERROR]?: true;
+  errorCode?: string;
+};
 
 function publicManagedStreamErrorMessage(message: string | undefined, errorCode: string | undefined): string {
   const normalizedCode = normalizeManagedStreamErrorCode(errorCode).toLowerCase();
@@ -50,12 +66,80 @@ function isAbortError(error: unknown): boolean {
     || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
 }
 
+function isManagedBackendStreamError(error: unknown): boolean {
+  return !!error
+    && typeof error === 'object'
+    && (error as { [MANAGED_BACKEND_STREAM_ERROR]?: unknown })[MANAGED_BACKEND_STREAM_ERROR] === true;
+}
+
 function createAbortError(): DOMException {
   return new DOMException('Aborted', 'AbortError');
 }
 
 function createManagedTimeoutError(): Error {
   return new Error('Managed API request timed out.');
+}
+
+function extractManagedDiagnosticMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
+    const message = (error as { message: string }).message.trim();
+    if (message) return message;
+  }
+  return String(error ?? '').trim() || 'Unknown managed client failure';
+}
+
+function extractManagedDiagnosticErrorCode(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const value = (error as { errorCode?: unknown; code?: unknown }).errorCode
+      ?? (error as { code?: unknown }).code;
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function extractManagedDiagnosticStatusCode(error: unknown): number | null {
+  if (!error || typeof error !== 'object') return null;
+  const value = (error as { statusCode?: unknown; status?: unknown }).statusCode
+    ?? (error as { status?: unknown }).status;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : null;
+}
+
+async function reportManagedClientDiagnostic(input: ManagedClientDiagnosticInput): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MANAGED_CLIENT_DIAGNOSTIC_TIMEOUT_MS);
+  const statusCode = extractManagedDiagnosticStatusCode(input.error);
+  try {
+    await fetch(`${MANAGED_API_BASE}/client-diagnostics`, {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        kind: input.kind,
+        source: input.source,
+        phase: input.phase,
+        model: typeof input.body?.model === 'string' ? input.body.model : undefined,
+        isStream: input.kind === 'chat_stream',
+        requestId: input.requestId,
+        statusCode,
+        errorCode: extractManagedDiagnosticErrorCode(input.error),
+        message: extractManagedDiagnosticMessage(input.error),
+      }),
+    });
+  } catch {
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function createManagedResponseTooLargeError(): Error {
@@ -379,6 +463,8 @@ export async function requestManagedWebStream(
   const combinedSignal = signal
     ? AbortSignal.any([signal, timeoutController.signal])
     : timeoutController.signal;
+  let responseStarted = false;
+  let clientPhase = 'stream_fetch';
 
   try {
     throwIfExternallyAborted(signal);
@@ -405,12 +491,13 @@ export async function requestManagedWebStream(
       throw new Error('Managed API response body is null');
     }
 
+    responseStarted = true;
+    clientPhase = 'stream_consume';
     const content = await consumeOpenAIStream(response, onChunk, {
       signal: combinedSignal,
       mapErrorPayload(message, code) {
-        const error = new Error(publicManagedStreamErrorMessage(message, code)) as Error & {
-          errorCode?: string;
-        };
+        const error = new Error(publicManagedStreamErrorMessage(message, code)) as ManagedBackendStreamError;
+        error[MANAGED_BACKEND_STREAM_ERROR] = true;
         const normalizedCode = normalizeManagedStreamErrorCode(code);
         if (normalizedCode) {
           error.errorCode = normalizedCode;
@@ -421,6 +508,18 @@ export async function requestManagedWebStream(
     throwIfManagedRequestAborted(timeoutController, signal);
     return content;
   } catch (error) {
+    if (responseStarted && !signal?.aborted && !isManagedBackendStreamError(error)) {
+      const diagnosticError = isAbortError(error) && timeoutController.signal.aborted && !signal?.aborted
+        ? createManagedTimeoutError()
+        : error;
+      await reportManagedClientDiagnostic({
+        kind: 'chat_stream',
+        source: 'managed_web_stream',
+        phase: clientPhase,
+        body,
+        error: diagnosticError,
+      });
+    }
     return normalizeManagedAbortError(error, timeoutController, signal);
   } finally {
     clearTimeout(timer);
