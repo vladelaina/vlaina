@@ -1,0 +1,793 @@
+import { expect, test, type Page } from '@playwright/test';
+import {
+  EDITOR_SELECTOR,
+  NOTE_SCROLL_ROOT_SELECTOR,
+  cleanupIsolatedElectron,
+  getOpenBridgePages,
+  launchIsolatedElectron,
+  openMarkdownFixture,
+  waitForEditorAnimationFrame,
+} from './notesE2E';
+
+const SETTINGS_MODAL_SELECTOR = '[data-settings-modal="true"]';
+
+function createLongTypingMarkdown() {
+  const lines = ['# Typing Caret Position', ''];
+  for (let index = 0; index < 90; index += 1) {
+    lines.push(
+      `Typing caret paragraph ${index} sentinel text stays editable in the middle of a long note.`
+    );
+    lines.push('');
+  }
+  lines.push('Final typing caret sentinel should not receive middle input.');
+  return lines.join('\n');
+}
+
+function createStructuredTypingMarkdown() {
+  const lines = [
+    '# Structured Typing Caret Position',
+    '',
+    '| Key | Value |',
+    '| --- | --- |',
+    '| alpha | beta |',
+    '',
+    '- list item before target',
+    '- another list item before target',
+    '',
+    '```ts',
+    'const beforeTarget = true;',
+    '```',
+    '',
+  ];
+
+  for (let index = 0; index < 64; index += 1) {
+    lines.push(
+      `Structured caret paragraph ${index} sentinel plain segment before [a link](https://example.com/${index}) and **bold text** for parser coverage.`
+    );
+    lines.push('');
+    if (index % 11 === 0) {
+      lines.push('<!--vlaina-markdown-blank-line-->');
+      lines.push('');
+    }
+  }
+
+  lines.push('Final structured typing caret sentinel should not receive middle input.');
+  return lines.join('\n');
+}
+
+type TypingDiagnostics = {
+  markerParagraphs: Array<{
+    marker: string;
+    index: number;
+    text: string | null;
+  }>;
+  lastParagraphText: string | null;
+  paragraphCount: number;
+  scrollTop: number;
+  maxScrollTop: number;
+  selection: {
+    from: number;
+    to: number;
+    empty: boolean;
+    selectedText: string;
+    docTextLength: number;
+  } | null;
+  isDirty: boolean;
+  currentContentIncludesMarkers: boolean[];
+};
+
+async function setContentCommitThrottleMs(page: Page, throttleMs: number): Promise<void> {
+  await page.evaluate((ms) => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = ms;
+  }, throttleMs);
+}
+
+async function enableMarkdownTypewriterMode(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('open-settings'));
+  });
+  await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-settings-tab="markdown"]').click();
+  await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toHaveAttribute('data-settings-active-tab', 'markdown', {
+    timeout: 10_000,
+  });
+
+  const isEnabled = await page.evaluate(() => (
+    (window as any).__vlainaE2E.getUnifiedData().settings.markdown.typewriterMode === true
+  ));
+  if (!isEnabled) {
+    await page.locator('[data-settings-control="markdown-typewriter-mode"]').click();
+    await expect.poll(async () => page.evaluate(() => (
+      (window as any).__vlainaE2E.getUnifiedData().settings.markdown.typewriterMode === true
+    )), { timeout: 10_000 }).toBe(true);
+  }
+
+  await page.locator('[data-settings-action="close"]').click();
+  await expect(page.locator(SETTINGS_MODAL_SELECTOR)).toBeHidden({ timeout: 10_000 });
+}
+
+async function scrollTextIntoView(page: Page, text: string) {
+  const before = await page.evaluate(({ editorSelector, scrollRootSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const scrollRoot = document.querySelector<HTMLElement>(scrollRootSelector);
+    const paragraph = Array.from(editor?.querySelectorAll<HTMLElement>('p') ?? [])
+      .find((candidate) => candidate.textContent?.includes(text)) ?? null;
+    paragraph?.scrollIntoView({ block: 'center', inline: 'nearest' });
+    return {
+      scrollTop: Math.round(scrollRoot?.scrollTop ?? 0),
+      maxScrollTop: Math.round((scrollRoot?.scrollHeight ?? 0) - (scrollRoot?.clientHeight ?? 0)),
+      targetText: paragraph?.textContent ?? null,
+    };
+  }, { editorSelector: EDITOR_SELECTOR, scrollRootSelector: NOTE_SCROLL_ROOT_SELECTOR, text });
+  expect(before.targetText).toContain(text);
+  await waitForEditorAnimationFrame(page);
+  return before;
+}
+
+async function clickText(page: Page, text: string): Promise<void> {
+  const point = await page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return null;
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const value = node.textContent ?? '';
+      const index = value.indexOf(text);
+      if (index >= 0) {
+        const range = document.createRange();
+        const offset = index + Math.min(24, Math.max(1, text.length - 1));
+        range.setStart(node, offset);
+        range.setEnd(node, Math.min(value.length, offset + 1));
+        const rect = range.getBoundingClientRect();
+        range.detach();
+        if (rect.width > 0 && rect.height > 0) {
+          return {
+            x: rect.left + Math.min(4, rect.width / 2),
+            y: rect.top + rect.height / 2,
+          };
+        }
+      }
+      node = walker.nextNode();
+    }
+
+    return null;
+  }, { editorSelector: EDITOR_SELECTOR, text });
+
+  expect(point, `Expected visible text point for ${text}`).not.toBeNull();
+  await page.mouse.click(point!.x, point!.y);
+  await waitForEditorAnimationFrame(page);
+}
+
+async function clickParagraphRightBlank(page: Page, text: string): Promise<void> {
+  const point = await page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return null;
+    const paragraph = Array.from(editor.querySelectorAll<HTMLElement>('p'))
+      .find((candidate) => candidate.textContent?.includes(text)) ?? null;
+    if (!paragraph) return null;
+    const rect = paragraph.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    return {
+      x: rect.right - Math.min(36, Math.max(12, rect.width * 0.08)),
+      y: rect.top + Math.min(rect.height - 2, Math.max(2, rect.height / 2)),
+    };
+  }, { editorSelector: EDITOR_SELECTOR, text });
+
+  expect(point, `Expected paragraph right-side point for ${text}`).not.toBeNull();
+  await page.mouse.click(point!.x, point!.y);
+  await waitForEditorAnimationFrame(page);
+}
+
+async function insertImeText(page: Page, text: string): Promise<void> {
+  const started = await page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return false;
+    editor.dispatchEvent(new CompositionEvent('compositionstart', {
+      bubbles: true,
+      data: '',
+    }));
+    editor.dispatchEvent(new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      data: text,
+      inputType: 'insertCompositionText',
+    }));
+    return true;
+  }, { editorSelector: EDITOR_SELECTOR, text });
+  expect(started, 'Expected editor to receive IME composition start').toBe(true);
+
+  await page.keyboard.insertText(text);
+
+  await page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    editor?.dispatchEvent(new CompositionEvent('compositionend', {
+      bubbles: true,
+      data: text,
+    }));
+  }, { editorSelector: EDITOR_SELECTOR, text });
+}
+
+async function getTypingDiagnostics(page: Page, markers: string[]): Promise<TypingDiagnostics> {
+  return page.evaluate(({ editorSelector, markers, scrollRootSelector }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const scrollRoot = document.querySelector<HTMLElement>(scrollRootSelector);
+    const paragraphs = Array.from(editor?.querySelectorAll<HTMLElement>('p') ?? []);
+    const state = (window as any).__vlainaE2E.getNotesState();
+    return {
+      markerParagraphs: markers.map((marker: string) => {
+        const index = paragraphs.findIndex((paragraph) => paragraph.textContent?.includes(marker));
+        return {
+          marker,
+          index,
+          text: index >= 0 ? paragraphs[index]?.textContent ?? null : null,
+        };
+      }),
+      lastParagraphText: paragraphs.at(-1)?.textContent ?? null,
+      paragraphCount: paragraphs.length,
+      scrollTop: Math.round(scrollRoot?.scrollTop ?? 0),
+      maxScrollTop: Math.round((scrollRoot?.scrollHeight ?? 0) - (scrollRoot?.clientHeight ?? 0)),
+      selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+      isDirty: Boolean(state.isDirty),
+      currentContentIncludesMarkers: markers.map((marker: string) => (
+        typeof state.currentNote?.content === 'string' && state.currentNote.content.includes(marker)
+      )),
+    };
+  }, { editorSelector: EDITOR_SELECTOR, markers, scrollRootSelector: NOTE_SCROLL_ROOT_SELECTOR });
+}
+
+function expectMarkersAwayFromLastLine(diagnostics: TypingDiagnostics, markers: string[]) {
+  for (const marker of markers) {
+    const markerParagraph = diagnostics.markerParagraphs.find((paragraph) => paragraph.marker === marker);
+    expect(markerParagraph?.index, `Expected marker ${marker} to appear in an editor paragraph`).toBeGreaterThanOrEqual(0);
+    expect(markerParagraph?.text, `Expected marker ${marker} paragraph text`).toContain(marker);
+    expect(diagnostics.lastParagraphText, `Last paragraph must not receive marker ${marker}`).not.toContain(marker);
+    expect(markerParagraph?.index, `Marker ${marker} should not be in the final paragraph`)
+      .toBeLessThan(Math.max(0, diagnostics.paragraphCount - 1));
+  }
+}
+
+test.describe('notes typing caret position', () => {
+  test.setTimeout(120_000);
+
+  test('keeps middle-of-note typing at the clicked paragraph instead of jumping to the last line', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-position');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const marker = ' middle-input-e2e ';
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-position-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+
+      await clickText(page, targetText);
+      await page.keyboard.type(marker, { delay: 0 });
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.evaluate(({ editorSelector, marker, scrollRootSelector, targetText }) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        const scrollRoot = document.querySelector<HTMLElement>(scrollRootSelector);
+        const paragraphs = Array.from(editor?.querySelectorAll<HTMLElement>('p') ?? []);
+        const markerParagraph = paragraphs.find((paragraph) => paragraph.textContent?.includes(marker)) ?? null;
+        const targetParagraph = paragraphs.find((paragraph) => paragraph.textContent?.includes(targetText)) ?? null;
+        const lastParagraph = paragraphs.at(-1) ?? null;
+        const selection = (window as any).__vlainaE2E.getEditorSelectionSummary();
+        return {
+          markerParagraphText: markerParagraph?.textContent ?? null,
+          targetParagraphText: targetParagraph?.textContent ?? null,
+          lastParagraphText: lastParagraph?.textContent ?? null,
+          scrollTop: Math.round(scrollRoot?.scrollTop ?? 0),
+          maxScrollTop: Math.round((scrollRoot?.scrollHeight ?? 0) - (scrollRoot?.clientHeight ?? 0)),
+          selection,
+        };
+      }, { editorSelector: EDITOR_SELECTOR, marker, scrollRootSelector: NOTE_SCROLL_ROOT_SELECTOR, targetText });
+
+      console.info('[notes-typing-caret-position]', { before, after });
+
+      expect(after.markerParagraphText).toContain('Typing caret paragraph 4');
+      expect(after.markerParagraphText).toContain('2 sentinel text');
+      expect(after.markerParagraphText).toContain(marker.trim());
+      expect(after.lastParagraphText).not.toContain(marker.trim());
+      expect(after.scrollTop).toBeLessThan(after.maxScrollTop - 120);
+      expect(Math.abs(after.scrollTop - before.scrollTop)).toBeLessThan(220);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typing position after pending markdown is flushed by save before scheduled content commit', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-save-flush');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 5_000);
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const firstMarker = 'pendingFlushFirstE2E';
+      const secondMarker = 'afterSaveSecondE2E';
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-save-flush-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+      await page.keyboard.type(firstMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(firstMarker);
+
+      const beforeSave = await getTypingDiagnostics(page, [firstMarker]);
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(150);
+
+      const afterSave = await getTypingDiagnostics(page, [firstMarker]);
+      await page.keyboard.type(secondMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(secondMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(150);
+
+      const afterSecondType = await getTypingDiagnostics(page, [firstMarker, secondMarker]);
+      console.info('[notes-typing-caret-save-flush]', {
+        before,
+        beforeSave,
+        afterSave,
+        afterSecondType,
+      });
+
+      expectMarkersAwayFromLastLine(afterSecondType, [firstMarker, secondMarker]);
+      expect(afterSecondType.markerParagraphs[0]?.index).toBe(afterSecondType.markerParagraphs[1]?.index);
+      expect(afterSave.currentContentIncludesMarkers[0]).toBe(true);
+      expect(afterSecondType.scrollTop).toBeLessThan(afterSecondType.maxScrollTop - 120);
+      expect(Math.abs(afterSecondType.scrollTop - before.scrollTop)).toBeLessThan(260);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typing position after scheduled autosave content commit settles', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-autosave-commit');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const firstMarker = 'autoCommitFirstE2E';
+      const secondMarker = 'autoCommitSecondE2E';
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-autosave-commit-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+      await page.keyboard.type(firstMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(firstMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const afterFirstCommit = await getTypingDiagnostics(page, [firstMarker]);
+      await page.keyboard.type(secondMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(secondMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const afterSecondCommit = await getTypingDiagnostics(page, [firstMarker, secondMarker]);
+      console.info('[notes-typing-caret-autosave-commit]', {
+        before,
+        afterFirstCommit,
+        afterSecondCommit,
+      });
+
+      expectMarkersAwayFromLastLine(afterSecondCommit, [firstMarker, secondMarker]);
+      expect(afterSecondCommit.markerParagraphs[0]?.index).toBe(afterSecondCommit.markerParagraphs[1]?.index);
+      expect(afterFirstCommit.currentContentIncludesMarkers[0]).toBe(true);
+      expect(afterSecondCommit.currentContentIncludesMarkers).toEqual([true, true]);
+      expect(afterSecondCommit.scrollTop).toBeLessThan(afterSecondCommit.maxScrollTop - 120);
+      expect(Math.abs(afterSecondCommit.scrollTop - before.scrollTop)).toBeLessThan(260);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typing position after the debounced disk save completes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-disk-save');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const firstMarker = 'diskSaveFirstE2E';
+      const secondMarker = 'diskSaveSecondE2E';
+      const opened = await openMarkdownFixture(page, {
+        filename: 'typing-caret-disk-save-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+      await page.keyboard.type(firstMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(firstMarker);
+      await expect.poll(async () => page.evaluate((marker) => (
+        (window as any).__vlainaE2E.getNotesState().currentNote?.content?.includes(marker) === true
+      ), firstMarker), { timeout: 8_000 }).toBe(true);
+      await expect.poll(async () => page.evaluate((path) => (
+        (window as any).__vlainaE2E.readTextFile(path)
+      ), opened.notePath), { timeout: 8_000 }).toContain(firstMarker);
+
+      const afterDiskSave = await getTypingDiagnostics(page, [firstMarker]);
+      await page.keyboard.type(secondMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(secondMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const afterSecondCommit = await getTypingDiagnostics(page, [firstMarker, secondMarker]);
+      console.info('[notes-typing-caret-disk-save]', {
+        before,
+        afterDiskSave,
+        afterSecondCommit,
+      });
+
+      expectMarkersAwayFromLastLine(afterSecondCommit, [firstMarker, secondMarker]);
+      expect(afterSecondCommit.markerParagraphs[0]?.index).toBe(afterSecondCommit.markerParagraphs[1]?.index);
+      expect(afterSecondCommit.currentContentIncludesMarkers).toEqual([true, true]);
+      expect(afterSecondCommit.scrollTop).toBeLessThan(afterSecondCommit.maxScrollTop - 120);
+      expect(Math.abs(afterSecondCommit.scrollTop - before.scrollTop)).toBeLessThan(260);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typing position after a clean same-note disk reload replaces editor content', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-external-disk-reload');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const originalMarkdown = createLongTypingMarkdown();
+      const externalMarkdown = originalMarkdown.replace(
+        'Typing caret paragraph 10 sentinel text',
+        'Typing caret paragraph 10 external disk edit sentinel text'
+      );
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const externalMarker = 'external disk edit sentinel';
+      const inputMarker = 'afterExternalReloadE2E';
+      const opened = await openMarkdownFixture(page, {
+        filename: 'typing-caret-external-disk-reload-e2e.md',
+        content: originalMarkdown,
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+      const beforeReload = await getTypingDiagnostics(page, []);
+
+      await page.evaluate(
+        ({ path, content }) => (window as any).__vlainaE2E.writeTextFile(path, content),
+        { path: opened.notePath, content: externalMarkdown }
+      );
+      const reloadResult = await page.evaluate(() =>
+        (window as any).__vlainaE2E.syncCurrentNoteFromDisk({ force: true })
+      );
+      expect(['reloaded', 'unchanged']).toContain(reloadResult);
+      await expect.poll(async () => page.evaluate((marker) => (
+        (window as any).__vlainaE2E.getNotesState().currentNote?.content?.includes(marker) === true
+      ), externalMarker), { timeout: 8_000 }).toBe(true);
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+
+      const afterReload = await getTypingDiagnostics(page, []);
+      await page.keyboard.type(inputMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(inputMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const afterType = await getTypingDiagnostics(page, [inputMarker]);
+      console.info('[notes-typing-caret-external-disk-reload]', {
+        before,
+        beforeReload,
+        afterReload,
+        afterType,
+      });
+
+      expectMarkersAwayFromLastLine(afterType, [inputMarker]);
+      expect(afterType.markerParagraphs[0]?.text).toContain('caret paragraph 42');
+      expect(afterType.markerParagraphs[0]?.text).toContain('sentinel text');
+      expect(afterType.currentContentIncludesMarkers).toEqual([true]);
+      expect(afterType.lastParagraphText).toContain('Final typing caret sentinel');
+      expect(afterType.scrollTop).toBeLessThan(afterType.maxScrollTop - 120);
+      expect(Math.abs(afterType.scrollTop - before.scrollTop)).toBeLessThan(280);
+      expect(afterReload.selection?.from ?? 0).toBeLessThan((afterReload.selection?.docTextLength ?? 0) - 120);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typing position through repeated same-note save and disk reload cycles', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-repeated-replacements');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const finalSentinel = 'Final typing caret sentinel should not receive middle input.';
+      const markers = Array.from({ length: 5 }, (_, index) => `loopStress${index}E2E`);
+      const opened = await openMarkdownFixture(page, {
+        filename: 'typing-caret-repeated-replacements-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(finalSentinel);
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+
+      for (let index = 0; index < markers.length; index += 1) {
+        const marker = markers[index]!;
+        const reloadMarker = `External reload cycle ${index} after target.`;
+
+        await page.keyboard.type(marker, { delay: 0 });
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(marker);
+        await waitForEditorAnimationFrame(page);
+        await page.waitForTimeout(900);
+
+        const afterType = await getTypingDiagnostics(page, markers.slice(0, index + 1));
+        expectMarkersAwayFromLastLine(afterType, markers.slice(0, index + 1));
+        expect(afterType.markerParagraphs[index]?.text).toContain('Typing caret paragraph 4');
+        expect(afterType.markerParagraphs[index]?.text).toContain('2 sentinel text');
+
+        await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+        await expect.poll(async () => page.evaluate((path) => (
+          (window as any).__vlainaE2E.readTextFile(path)
+        ), opened.notePath), { timeout: 8_000 }).toContain(marker);
+
+        const currentContent = await page.evaluate(() => (
+          String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+        ));
+        expect(currentContent).toContain(marker);
+        const nextDiskContent = currentContent.includes(reloadMarker)
+          ? currentContent
+          : currentContent.replace(finalSentinel, `${reloadMarker}\n\n${finalSentinel}`);
+        await page.evaluate(
+          ({ path, content }) => (window as any).__vlainaE2E.writeTextFile(path, content),
+          { path: opened.notePath, content: nextDiskContent }
+        );
+        const reloadResult = await page.evaluate(() =>
+          (window as any).__vlainaE2E.syncCurrentNoteFromDisk({ force: true })
+        );
+        expect(['reloaded', 'unchanged']).toContain(reloadResult);
+        await expect.poll(async () => page.evaluate((text) => (
+          (window as any).__vlainaE2E.getNotesState().currentNote?.content?.includes(text) === true
+        ), reloadMarker), { timeout: 8_000 }).toBe(true);
+        await waitForEditorAnimationFrame(page);
+        await waitForEditorAnimationFrame(page);
+
+        const afterReload = await getTypingDiagnostics(page, markers.slice(0, index + 1));
+        expectMarkersAwayFromLastLine(afterReload, markers.slice(0, index + 1));
+        expect(afterReload.selection?.from ?? 0)
+          .toBeLessThan((afterReload.selection?.docTextLength ?? 0) - 120);
+        expect(Math.abs(afterReload.scrollTop - before.scrollTop)).toBeLessThan(320);
+      }
+
+      const afterAll = await getTypingDiagnostics(page, markers);
+      console.info('[notes-typing-caret-repeated-replacements]', { before, afterAll });
+
+      expectMarkersAwayFromLastLine(afterAll, markers);
+      for (const markerParagraph of afterAll.markerParagraphs) {
+        expect(markerParagraph.text).toContain('Typing caret paragraph 4');
+        expect(markerParagraph.text).toContain('2 sentinel text');
+      }
+      expect(afterAll.markerParagraphs.map((paragraph) => paragraph.index))
+        .toEqual(markers.map(() => afterAll.markerParagraphs[0]?.index));
+      expect(afterAll.lastParagraphText).toContain(finalSentinel);
+      expect(afterAll.currentContentIncludesMarkers).toEqual(markers.map(() => true));
+      expect(Math.abs(afterAll.scrollTop - before.scrollTop)).toBeLessThan(320);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typing position in structured markdown after autosave normalization settles', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-structured-markdown');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+
+      const targetText = 'Structured caret paragraph 28 sentinel plain segment before';
+      const firstMarker = 'structuredFirstE2E';
+      const secondMarker = 'structuredSecondE2E';
+      const thirdMarker = 'structuredThirdE2E';
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-structured-markdown-e2e.md',
+        content: createStructuredTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final structured typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+      await page.keyboard.type(firstMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(firstMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const afterFirstCommit = await getTypingDiagnostics(page, [firstMarker]);
+      await page.keyboard.type(secondMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(secondMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const afterSecondCommit = await getTypingDiagnostics(page, [firstMarker, secondMarker]);
+      await page.keyboard.type(thirdMarker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(thirdMarker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const afterThirdCommit = await getTypingDiagnostics(page, [firstMarker, secondMarker, thirdMarker]);
+      console.info('[notes-typing-caret-structured-markdown]', {
+        before,
+        afterFirstCommit,
+        afterSecondCommit,
+        afterThirdCommit,
+      });
+
+      expectMarkersAwayFromLastLine(afterThirdCommit, [firstMarker, secondMarker, thirdMarker]);
+      expect(afterThirdCommit.markerParagraphs[0]?.index).toBe(afterThirdCommit.markerParagraphs[1]?.index);
+      expect(afterThirdCommit.markerParagraphs[1]?.index).toBe(afterThirdCommit.markerParagraphs[2]?.index);
+      for (const paragraph of afterThirdCommit.markerParagraphs) {
+        expect(paragraph.text).toContain('Structured caret paragra');
+        expect(paragraph.text).toContain('ph 28 sentinel plain segment before');
+      }
+      expect(afterThirdCommit.currentContentIncludesMarkers).toEqual([true, true, true]);
+      expect(afterThirdCommit.lastParagraphText).toContain('Final structured typing caret sentinel');
+      expect(afterThirdCommit.scrollTop).toBeLessThan(afterThirdCommit.maxScrollTop - 120);
+      expect(Math.abs(afterThirdCommit.scrollTop - before.scrollTop)).toBeLessThan(280);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typewriter mode typing near the clicked paragraph instead of jumping to the tail', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-typewriter-mode');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+      await enableMarkdownTypewriterMode(page);
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const marker = 'typewriterModeE2E';
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-typewriter-mode-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickText(page, targetText);
+      await page.keyboard.type(marker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(marker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const after = await getTypingDiagnostics(page, [marker]);
+      console.info('[notes-typing-caret-typewriter-mode]', { before, after });
+
+      expectMarkersAwayFromLastLine(after, [marker]);
+      expect(after.markerParagraphs[0]?.index).toBeGreaterThan(35);
+      expect(after.markerParagraphs[0]?.index).toBeLessThan(50);
+      expect(after.currentContentIncludesMarkers).toEqual([true]);
+      expect(after.scrollTop).toBeLessThan(after.maxScrollTop - 120);
+      expect(Math.abs(after.scrollTop - before.scrollTop)).toBeLessThan(420);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps right-side blank clicks in the visible middle paragraph instead of the final line', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-right-blank');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+
+      const targetText = 'Typing caret paragraph 42 sentinel text';
+      const marker = 'rightBlankClickE2E';
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-right-blank-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, targetText);
+      await clickParagraphRightBlank(page, targetText);
+      await page.keyboard.type(marker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(marker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(900);
+
+      const after = await getTypingDiagnostics(page, [marker]);
+      console.info('[notes-typing-caret-right-blank]', { before, after });
+
+      expectMarkersAwayFromLastLine(after, [marker]);
+      expect(after.markerParagraphs[0]?.index).toBeGreaterThan(35);
+      expect(after.markerParagraphs[0]?.index).toBeLessThan(50);
+      expect(Math.abs(after.scrollTop - before.scrollTop)).toBeLessThan(260);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('replaces selected middle text with IME-style Chinese input without moving input to the document tail', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-selected-chinese');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+
+      const targetText = 'paragraph 42 sentinel';
+      const anchorText = 'Typing caret paragraph 42 sentinel text';
+      const marker = '我输入这输入这-e2e';
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-selected-chinese-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const before = await scrollTextIntoView(page, anchorText);
+      const selected = await page.evaluate(
+        ({ targetText, anchorText }) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, anchorText),
+        { targetText, anchorText }
+      );
+      expect(selected.selected).toBe(true);
+      await insertImeText(page, marker);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(marker);
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(1_200);
+
+      const after = await getTypingDiagnostics(page, [marker]);
+      console.info('[notes-typing-caret-selected-chinese]', { before, selected, after });
+
+      expectMarkersAwayFromLastLine(after, [marker]);
+      expect(after.lastParagraphText).toContain('Final typing caret sentinel');
+      expect(after.currentContentIncludesMarkers[0]).toBe(true);
+      expect(Math.abs(after.scrollTop - before.scrollTop)).toBeLessThan(260);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+});
