@@ -1,12 +1,14 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
-import { NodeSelection } from '@milkdown/kit/prose/state';
+import { ChatImageViewer } from '@/components/Chat/features/Markdown/components/ChatImageViewer';
+import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { cn } from '@/lib/utils';
 import { getContainerStyle, computeAspectRatio } from './utils/styleUtils';
 import { ImageContent } from './components/ImageContent';
 import { ImageDragOverlay } from './components/ImageDragOverlay';
 import { ImageBlockChrome } from './components/ImageBlockChrome';
+import { getImageSourceBase, isVirtualImageSource } from './utils/imageSourcePath';
 import { useImageBlockState } from './hooks/useImageBlockState';
 import { useImageActions } from './hooks/useImageActions';
 import { useImageBlockFrame } from './hooks/useImageBlockFrame';
@@ -40,6 +42,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [lockedEditFrame, setLockedEditFrame] = useState<LockedEditFrame | null>(null);
     const [mediaLoadError, setMediaLoadError] = useState(false);
+    const [isViewerOpen, setIsViewerOpen] = useState(false);
     const isBlockDragging = useBlockDragState();
     const isNearViewport = useNearViewport(containerRef);
 
@@ -157,6 +160,17 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     });
 
     const computedAspectRatio = computeAspectRatio(height, cropParams, naturalRatio);
+    const viewerResourceSrc = useMemo(() => {
+        const baseResourceSrc = getImageSourceBase(baseSrc);
+        const remoteResourceSrc = normalizePublicRemoteMediaUrl(baseResourceSrc);
+        if (remoteResourceSrc) {
+            return remoteResourceSrc;
+        }
+        if (baseResourceSrc && isVirtualImageSource(baseResourceSrc)) {
+            return baseResourceSrc;
+        }
+        return resolvedSrc || baseResourceSrc;
+    }, [baseSrc, resolvedSrc]);
     const lockedEditSize = lockedEditFrame
         ? { width: lockedEditFrame.width, height: lockedEditFrame.height }
         : null;
@@ -224,24 +238,25 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         setHeight,
     ]);
 
-    const handleSelect = useCallback((event: React.MouseEvent) => {
+    const handleOpenViewer = useCallback((event: React.MouseEvent) => {
         const target = event.target as HTMLElement;
         if (
             target.closest('button')
             || target.closest('input')
             || target.closest('[data-resize-handle]')
             || isActive
+            || isDragging
+            || isBlockDragging
+            || hasLoadError
+            || !resolvedSrc
         ) {
             return;
         }
 
-        const pos = getPos();
-        if (pos === undefined) return;
-
-        const selection = NodeSelection.create(view.state.doc, pos);
-        view.dispatch(view.state.tr.setSelection(selection));
-        view.focus();
-    }, [getPos, isActive, view]);
+        event.preventDefault();
+        event.stopPropagation();
+        setIsViewerOpen(true);
+    }, [hasLoadError, isActive, isBlockDragging, isDragging, resolvedSrc]);
 
     useEffect(() => {
         if (!isBlockDragging) return;
@@ -285,7 +300,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     onPointerDown={handlePointerDown}
-                    onClick={handleSelect}
+                    onClick={handleOpenViewer}
                     onDragStart={(e) => e.preventDefault()}
                 >
                     <ImageContent
@@ -333,6 +348,14 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     />
                 </div>
             </div>
+
+            <ChatImageViewer
+                open={isViewerOpen}
+                src={viewerResourceSrc}
+                alt={nodeAlt}
+                previewSrc={resolvedSrc || null}
+                onOpenChange={setIsViewerOpen}
+            />
         </>
     );
 };

@@ -289,6 +289,7 @@
   "chat.nextImage": "Следующее изображение",
   "chat.currentPage": "Текущая страница",
   "chat.copyImage": "Копировать изображение",
+  "chat.copyImageFailed": "Не удалось скопировать изображение",
   "chat.closePreview": "Закрыть предпросмотр",
   "chat.disableTemporaryChat": "Отключить временный чат",
   "chat.saveAsRegular": "Оставить этот чат",

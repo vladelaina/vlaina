@@ -3,7 +3,6 @@ import type { PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import { Icon } from "@/components/ui/icons";
-import { writeTextToClipboard } from "@/lib/clipboard";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
@@ -12,12 +11,10 @@ import {
   resolveSafeChatImageSource,
 } from "@/components/Chat/common/chatImageSourceResolution";
 import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
-import {
-  isRenderableDataImageSrc,
-} from "@/components/common/markdown/imagePolicy";
 import { isSvgDataUrl } from "@/components/Chat/common/svgRasterize";
 import { useI18n } from "@/lib/i18n";
 import { createStoredAttachmentFromSource } from "@/lib/storage/attachmentStorage";
+import { useToastStore } from "@/stores/useToastStore";
 import { themeChatImageViewerTokens, themeCropperTokens, themeStyleResetTokens } from "@/styles/themeTokens";
 
 interface ChatImageViewerProps {
@@ -87,14 +84,12 @@ function resolveInitialViewerZoom({
 }
 
 async function copyImageOrUrl(src: string): Promise<boolean> {
-  const copied = await copyImageSourceToClipboard(src);
-  if (copied) {
-    return true;
-  }
-  if (isRenderableDataImageSrc(src)) {
-    return false;
-  }
-  return writeTextToClipboard(src);
+  return copyImageSourceToClipboard(src);
+}
+
+function stopViewerControlMouseDown(event: React.MouseEvent<HTMLElement>) {
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function clampZoom(value: number): number {
@@ -231,6 +226,7 @@ export function ChatImageViewer({
   onOpenChange,
 }: ChatImageViewerProps) {
   const { t } = useI18n();
+  const addToast = useToastStore((state) => state.addToast);
   const [crop, setCrop] = useState<ViewerPoint>({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
@@ -536,9 +532,14 @@ export function ChatImageViewer({
 
   const handleCopy = async () => {
     try {
-      setCopied(await copyImageOrUrl(activeSrc));
+      const didCopy = await copyImageOrUrl(activeSrc);
+      setCopied(didCopy);
+      if (!didCopy) {
+        addToast(t('chat.copyImageFailed'), 'error');
+      }
     } catch {
       setCopied(false);
+      addToast(t('chat.copyImageFailed'), 'error');
     }
   };
 
@@ -572,7 +573,9 @@ export function ChatImageViewer({
             "absolute right-12 top-12 z-[var(--vlaina-z-10)] inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-all hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]",
             iconButtonStyles
           )}
+          onMouseDown={stopViewerControlMouseDown}
           onClick={(event) => {
+            event.preventDefault();
             event.stopPropagation();
             onOpenChange(false);
           }}
@@ -591,7 +594,9 @@ export function ChatImageViewer({
                 "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] text-[var(--vlaina-color-text-strong)] shadow-[var(--vlaina-shadow-floating-panel)] transition-colors hover:bg-[var(--vlaina-color-setting-field)]",
                 iconButtonStyles
               )}
+              onMouseDown={stopViewerControlMouseDown}
               onClick={(event) => {
+                event.preventDefault();
                 event.stopPropagation();
                 setActiveGalleryIndex((value) => Math.max(value - 1, 0));
               }}
@@ -612,7 +617,9 @@ export function ChatImageViewer({
                 "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] text-[var(--vlaina-color-text-strong)] shadow-[var(--vlaina-shadow-floating-panel)] transition-colors hover:bg-[var(--vlaina-color-setting-field)]",
                 iconButtonStyles
               )}
+              onMouseDown={stopViewerControlMouseDown}
               onClick={(event) => {
+                event.preventDefault();
                 event.stopPropagation();
                 setActiveGalleryIndex((value) => Math.min(value + 1, (gallery?.length ?? 1) - 1));
               }}
@@ -702,6 +709,7 @@ export function ChatImageViewer({
                   imageViewerToolbarButtonClass,
                   iconButtonStyles
                 )}
+                onMouseDown={stopViewerControlMouseDown}
                 onClick={() => setZoom((value) => clampZoom(value - ZOOM_STEP))}
               >
                 <Icon name="common.remove" size="md" />
@@ -717,6 +725,7 @@ export function ChatImageViewer({
                   imageViewerToolbarButtonClass,
                   iconButtonStyles
                 )}
+                onMouseDown={stopViewerControlMouseDown}
                 onClick={() => setZoom((value) => clampZoom(value + ZOOM_STEP))}
               >
                 <Icon name="common.add" size="md" />
@@ -738,8 +747,11 @@ export function ChatImageViewer({
                   iconButtonStyles,
                   copied && "text-[var(--vlaina-accent)] bg-[var(--vlaina-accent-soft)]"
                 )}
-                onClick={() => {
-                    void handleCopy();
+                onMouseDown={stopViewerControlMouseDown}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleCopy();
                 }}
               >
                 <Icon name={copied ? "common.check" : "common.copy"} size="md" />
@@ -752,8 +764,11 @@ export function ChatImageViewer({
                   imageViewerToolbarButtonClass,
                   iconButtonStyles
                 )}
-                onClick={() => {
-                  void downloadImageWithPrompt(resolvedActiveSrc, activeAlt);
+                onMouseDown={stopViewerControlMouseDown}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void downloadImageWithPrompt(activeSrc, activeAlt);
                 }}
               >
                 <Icon name="common.download" size="md" />

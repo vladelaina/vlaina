@@ -289,6 +289,7 @@
   "chat.nextImage": "รูปภาพถัดไป",
   "chat.currentPage": "หน้าปัจจุบัน",
   "chat.copyImage": "คัดลอกรูปภาพ",
+  "chat.copyImageFailed": "คัดลอกรูปภาพไม่สำเร็จ",
   "chat.closePreview": "ปิดตัวอย่าง",
   "chat.disableTemporaryChat": "ปิดแชทชั่วคราว",
   "chat.saveAsRegular": "เก็บแชทนี้ไว้",

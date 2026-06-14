@@ -289,6 +289,7 @@
   "chat.nextImage": "다음 이미지",
   "chat.currentPage": "현재 페이지",
   "chat.copyImage": "이미지 복사",
+  "chat.copyImageFailed": "이미지를 복사하지 못했습니다",
   "chat.closePreview": "미리보기 닫기",
   "chat.disableTemporaryChat": "임시 채팅 끄기",
   "chat.saveAsRegular": "이 채팅 유지",

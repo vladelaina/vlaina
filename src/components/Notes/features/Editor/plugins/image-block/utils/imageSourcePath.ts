@@ -9,6 +9,7 @@ import {
     normalizePublicRemoteMediaUrl,
     sanitizeNoteMediaSrc,
 } from '@/lib/notes/markdown/urlSecurity';
+import { stripImagePresentationFragment } from '@/lib/markdown/imageResourceSource';
 import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 interface ImageSourcePathDeps {
@@ -30,7 +31,7 @@ const defaultDeps: ImageSourcePathDeps = {
 };
 
 export function getImageSourceBase(rawSrc: string): string {
-    return rawSrc.split('#')[0] ?? '';
+    return stripImagePresentationFragment(rawSrc);
 }
 
 export function getLocalImageSourcePath(baseSrc: string): string {

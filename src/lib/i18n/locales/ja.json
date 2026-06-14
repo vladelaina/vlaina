@@ -289,6 +289,7 @@
   "chat.nextImage": "次の画像",
   "chat.currentPage": "現在のページ",
   "chat.copyImage": "画像をコピー",
+  "chat.copyImageFailed": "画像をコピーできませんでした",
   "chat.closePreview": "プレビューを閉じる",
   "chat.disableTemporaryChat": "一時チャットをオフにする",
   "chat.saveAsRegular": "このチャットを残す",

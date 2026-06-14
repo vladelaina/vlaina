@@ -1,6 +1,5 @@
 import React, { isValidElement, useEffect, useState } from 'react';
 import { getExternalLinkProps } from '@/lib/navigation/externalLinks';
-import { writeTextToClipboard } from '@/lib/clipboard';
 import { LocalImage } from '@/components/Chat/common/LocalImage';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -8,7 +7,7 @@ import { copyImageSourceToClipboard } from '@/components/Chat/common/messageClip
 import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload';
 import { ChatImageViewer } from './components/ChatImageViewer';
 import { ReadOnlyCodeBlock } from '@/components/common/code-block';
-import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { normalizeChatMessageImageSource } from '@/lib/ai/chatImageSourcePolicy';
 import { ReadOnlyMermaidBlock } from '@/components/common/markdown/ReadOnlyMermaidBlock';
 import { ReadOnlyVideoBlock } from '@/components/common/markdown/ReadOnlyVideoBlock';
@@ -19,6 +18,7 @@ import { translate, useI18n } from '@/lib/i18n';
 import { resolveCompactedChatImageSrc } from './chatInlineImageTokens';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
+import { useToastStore } from '@/stores/useToastStore';
 
 type ImageGalleryItem = { id: string; src: string };
 
@@ -135,15 +135,12 @@ function resolvePreCodePayload(children: React.ReactNode): {
 }
 
 async function copyImageOrUrl(src: string): Promise<boolean> {
-  const copied = await copyImageSourceToClipboard(src);
-  if (copied) {
-    return true;
-  }
-  if (isRenderableDataImageSrc(src)) {
-    return false;
-  }
+  return copyImageSourceToClipboard(src);
+}
 
-  return writeTextToClipboard(src);
+function stopImageControlMouseDown(event: React.MouseEvent<HTMLElement>) {
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function isInternalHashHref(href: unknown): href is string {
@@ -184,6 +181,7 @@ function MarkdownImage({
   const [copied, setCopied] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [resolvedImageSrc, setResolvedImageSrc] = useState<string | null>(null);
+  const addToast = useToastStore((state) => state.addToast);
 
   useEffect(() => {
     if (!copied) {
@@ -196,9 +194,14 @@ function MarkdownImage({
 
   const handleCopy = async () => {
     try {
-      setCopied(await copyImageOrUrl(src));
+      const didCopy = await copyImageOrUrl(src);
+      setCopied(didCopy);
+      if (!didCopy) {
+        addToast(t('chat.copyImageFailed'), 'error');
+      }
     } catch {
       setCopied(false);
+      addToast(t('chat.copyImageFailed'), 'error');
     }
   };
 
@@ -213,12 +216,16 @@ function MarkdownImage({
   const safeCrop = serializeCropValue(crop);
 
   return (
-    <span className={cn('flex max-w-full', justifyClass)} data-no-focus-input="true">
-      <span className="group relative inline-block max-w-full align-top">
+    <span
+      className={cn('flex max-w-full select-none', justifyClass)}
+      data-chat-selection-excluded="true"
+      data-no-focus-input="true"
+    >
+      <span className="group relative inline-block max-w-full select-none align-top">
         <LocalImage
           src={src}
           alt={alt || 'image'}
-          className="block max-h-[var(--vlaina-size-420px)] w-auto max-w-full object-contain"
+          className="block max-h-[var(--vlaina-size-420px)] w-auto max-w-full select-none object-contain"
           style={safeWidth ? { width: safeWidth } : undefined}
           data-vlaina-crop={safeCrop || undefined}
           onResolvedSrc={setResolvedImageSrc}
@@ -235,7 +242,9 @@ function MarkdownImage({
             data-no-focus-input="true"
             data-action="copy"
             aria-label={t('chat.copyImage')}
+            onMouseDown={stopImageControlMouseDown}
             onClick={(event) => {
+              event.preventDefault();
               event.stopPropagation();
               void handleCopy();
             }}
@@ -247,7 +256,9 @@ function MarkdownImage({
             type="button"
             data-no-focus-input="true"
             aria-label={t('chat.downloadImage')}
+            onMouseDown={stopImageControlMouseDown}
             onClick={(event) => {
+              event.preventDefault();
               event.stopPropagation();
               void downloadImageWithPrompt(src, alt);
             }}

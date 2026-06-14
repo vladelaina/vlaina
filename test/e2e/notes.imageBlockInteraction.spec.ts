@@ -18,6 +18,8 @@ import {
 
 const TINY_PNG_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+const GITHUB_RAW_COVER_IMAGE_SRC =
+  'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg#w=72%25';
 
 function createImageBlockMarkdown(): string {
   return [
@@ -33,6 +35,19 @@ function createImageBlockMarkdown(): string {
     '- Image block list item beta',
     '',
     'Final image block sentinel.',
+    '',
+  ].join('\n');
+}
+
+function createRemoteCoverImageMarkdown(): string {
+  return [
+    '# E2E Remote Cover Image Copy',
+    '',
+    'Paragraph before remote cover image.',
+    '',
+    `<img src="${GITHUB_RAW_COVER_IMAGE_SRC}" alt="cover" width="72%" data-vlaina-crop="37.891280,36.646501,35.700407,35.697249,2.349414" />`,
+    '',
+    'Paragraph after remote cover image.',
     '',
   ].join('\n');
 }
@@ -102,6 +117,65 @@ async function waitForCropperToolbarInteractive(page: Page) {
 
 test.describe('notes image block interaction', () => {
   test.setTimeout(120_000);
+
+  test('copies a remote HTML image with presentation fragment as an image', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-remote-image-copy');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'notes-remote-cover-copy.md',
+        content: createRemoteCoverImageMarkdown(),
+      });
+
+      const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).first();
+      await expect(imageBlock).toBeVisible({ timeout: 30_000 });
+      await expect.poll(() => getImageBlockDiagnostics(page), { timeout: 30_000 }).toMatchObject({
+        hasBlock: true,
+        hasImage: true,
+        imageComplete: true,
+        sourceFallbackCount: 0,
+      });
+
+      await imageBlock.hover();
+      await waitForToolbarInteractive(page);
+      await page.locator(`${NOTE_IMAGE_TOOLBAR_SELECTOR} [data-image-toolbar-action="copy"]`).click();
+
+      await expect.poll(async () => app.evaluate(({ clipboard }) => {
+        const image = clipboard.readImage();
+        return image.isEmpty() ? null : image.getSize();
+      }), {
+        timeout: 10_000,
+        message: 'Expected remote cover copy to place an image on the desktop clipboard',
+      }).toMatchObject({
+        width: expect.any(Number),
+        height: expect.any(Number),
+      });
+
+      await app.evaluate(({ clipboard }) => {
+        clipboard.clear();
+      });
+      await imageBlock.locator('img').dispatchEvent('click');
+      const viewer = page.locator('[role="dialog"][data-chat-image-viewer-surface="true"]');
+      await expect(viewer).toBeVisible({ timeout: 10_000 });
+      await viewer.locator('[data-action="copy"]').click();
+
+      await expect.poll(async () => app.evaluate(({ clipboard }) => {
+        const image = clipboard.readImage();
+        return image.isEmpty() ? null : image.getSize();
+      }), {
+        timeout: 10_000,
+        message: 'Expected remote cover viewer copy to place an image on the desktop clipboard',
+      }).toMatchObject({
+        width: expect.any(Number),
+        height: expect.any(Number),
+      });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('renders image blocks, opens crop controls, and keeps block selection usable', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-image-block-interaction');

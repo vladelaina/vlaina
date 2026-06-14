@@ -289,6 +289,7 @@
   "chat.nextImage": "下一张图片",
   "chat.currentPage": "当前页面",
   "chat.copyImage": "复制图片",
+  "chat.copyImageFailed": "复制图片失败",
   "chat.closePreview": "关闭预览",
   "chat.disableTemporaryChat": "关闭临时对话",
   "chat.saveAsRegular": "保留此对话",

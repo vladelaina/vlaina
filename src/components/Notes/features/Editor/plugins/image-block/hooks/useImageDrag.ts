@@ -137,6 +137,7 @@ export function useImageDrag({
 
         const sourcePos = getPos();
         if (sourcePos === undefined) return;
+        e.preventDefault();
         markImageUserInput(view);
 
         const containerRect = containerRef.current?.getBoundingClientRect();

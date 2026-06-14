@@ -73,6 +73,27 @@ describe('imageDownload', () => {
     );
   });
 
+  it('downloads presentation-fragment images from the underlying resource URL', async () => {
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/jpeg' })));
+
+    await downloadImageWithPrompt('https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg#w=72%25', '');
+
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg',
+      expect.objectContaining({
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+      }),
+    );
+    expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
+      defaultPath: expect.stringMatching(/^vlaina-\d{8}-\d{6}\.jpg$/),
+    }));
+    expect(mocks.writeDesktopBinaryFile).toHaveBeenCalledWith(
+      '/downloads/custom-image.png',
+      expect.any(Uint8Array),
+    );
+  });
+
   it('falls back to browser anchor download when fetch fails', async () => {
     mocks.fetch.mockRejectedValue(new Error('network'));
     const appendSpy = vi.spyOn(document.body, 'appendChild');
