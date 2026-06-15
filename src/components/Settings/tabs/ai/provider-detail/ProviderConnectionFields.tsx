@@ -62,6 +62,8 @@ export function ProviderConnectionFields({
   onApiKeyChange,
   onToggleApiKey,
   onCopyApiKey,
+  autoFocusBaseUrl = false,
+  onBaseUrlAutoFocusComplete,
 }: {
   providerId: string;
   name: string;
@@ -74,10 +76,13 @@ export function ProviderConnectionFields({
   onApiKeyChange: (value: string) => void;
   onToggleApiKey: () => void;
   onCopyApiKey: () => void;
+  autoFocusBaseUrl?: boolean;
+  onBaseUrlAutoFocusComplete?: () => void;
 }) {
   const { t } = useI18n();
   const [apiKeyRevealedForEditing, setApiKeyRevealedForEditing] = useState(false);
   const [apiKeyTextWidthPx, setApiKeyTextWidthPx] = useState(410);
+  const apiHostInputRef = useRef<HTMLInputElement>(null);
   const apiKeyInputRef = useRef<HTMLInputElement>(null);
   const shouldSelectApiKeyBodyRef = useRef(false);
   const apiKeyVisible = Boolean(apiKey) && (showApiKey || apiKeyRevealedForEditing);
@@ -88,6 +93,26 @@ export function ProviderConnectionFields({
     setApiKeyRevealedForEditing(false);
     shouldSelectApiKeyBodyRef.current = false;
   }, [providerId]);
+
+  useEffect(() => {
+    if (!autoFocusBaseUrl) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const input = apiHostInputRef.current;
+      if (!input) {
+        return;
+      }
+
+      input.focus();
+      const caretPosition = input.value.length;
+      input.setSelectionRange(caretPosition, caretPosition);
+      onBaseUrlAutoFocusComplete?.();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [autoFocusBaseUrl, onBaseUrlAutoFocusComplete, providerId]);
 
   useEffect(() => {
     const input = apiKeyInputRef.current;
@@ -208,6 +233,7 @@ export function ProviderConnectionFields({
           </div>
           <div className="min-w-[min(100%,var(--vlaina-size-240px))] flex-1">
             <SettingsTextInput
+              ref={apiHostInputRef}
               type="text"
               data-settings-provider-field="api-host"
               value={apiHost}

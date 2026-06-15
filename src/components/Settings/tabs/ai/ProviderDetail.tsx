@@ -18,11 +18,19 @@ const EMPTY_FETCHED_MODELS: string[] = [];
 
 interface ProviderDetailProps {
   provider: Provider | undefined;
+  focusBaseUrlOnMount?: boolean;
+  onBaseUrlAutoFocusComplete?: () => void;
   onDraftChange?: (draft: { name?: string; apiHost?: string }) => void;
   onDraftClear?: () => void;
 }
 
-export function ProviderDetail({ provider: initialProvider, onDraftChange, onDraftClear }: ProviderDetailProps) {
+export function ProviderDetail({
+  provider: initialProvider,
+  focusBaseUrlOnMount = false,
+  onBaseUrlAutoFocusComplete,
+  onDraftChange,
+  onDraftClear,
+}: ProviderDetailProps) {
   const {
     updateProvider,
     models,
@@ -332,6 +340,8 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
         apiKey={apiKey}
         showApiKey={showApiKey}
         apiKeyCopied={apiKeyCopied}
+        autoFocusBaseUrl={focusBaseUrlOnMount}
+        onBaseUrlAutoFocusComplete={onBaseUrlAutoFocusComplete}
         onNameChange={(nextName) => {
           setName(nextName);
           onDraftChange?.({ name: nextName });

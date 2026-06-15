@@ -188,3 +188,23 @@ describe('ProviderConnectionFields channel name input', () => {
     expect(input.selectionEnd).toBe(4);
   });
 });
+
+describe('ProviderConnectionFields base URL input', () => {
+  it('focuses the base URL field when requested on mount', async () => {
+    const onBaseUrlAutoFocusComplete = vi.fn();
+    renderFields({
+      apiHost: 'https://api.example.com',
+      autoFocusBaseUrl: true,
+      onBaseUrlAutoFocusComplete,
+    });
+    const input = screen.getByDisplayValue('https://api.example.com') as HTMLInputElement;
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+
+    expect(input.selectionStart).toBe('https://api.example.com'.length);
+    expect(input.selectionEnd).toBe('https://api.example.com'.length);
+    expect(onBaseUrlAutoFocusComplete).toHaveBeenCalledTimes(1);
+  });
+});

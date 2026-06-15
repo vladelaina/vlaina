@@ -204,6 +204,7 @@ export function AITab() {
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [providerDrafts, setProviderDrafts] = useState<Record<string, ProviderCardDraft>>({});
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteProvider | null>(null);
+  const [pendingBaseUrlFocusProviderId, setPendingBaseUrlFocusProviderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (customProviders.length === 0) {
@@ -255,6 +256,7 @@ export function AITab() {
       enabled: true,
     });
     setSelectedProviderId(nextId);
+    setPendingBaseUrlFocusProviderId(nextId);
   };
 
   const handleToggleProviderEnabled = (id: string, enabled: boolean) => {
@@ -455,6 +457,8 @@ export function AITab() {
             <ProviderDetail
               key={currentProvider.id}
               provider={currentProvider}
+              focusBaseUrlOnMount={pendingBaseUrlFocusProviderId === currentProvider.id}
+              onBaseUrlAutoFocusComplete={() => setPendingBaseUrlFocusProviderId(null)}
               onDraftChange={(draft) => handleProviderDraftChange(currentProvider.id, draft)}
               onDraftClear={() => handleProviderDraftClear(currentProvider.id)}
             />
