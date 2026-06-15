@@ -90,6 +90,7 @@
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  border-color: var(--vlaina-color-white);
   background-color: var(--vlaina-block-selection-color);
   box-shadow: var(--vlaina-block-selection-shadow);
 }

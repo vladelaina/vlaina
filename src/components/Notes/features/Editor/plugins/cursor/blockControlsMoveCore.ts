@@ -31,6 +31,9 @@ export interface PreparedBlockMove {
   movedContent: Fragment;
 }
 
+const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
+
 function areNodeAttrsEqual(
   a: SelectedListItemInfo['parentAttrs'],
   b: SelectedListItemInfo['parentAttrs'],
@@ -56,6 +59,47 @@ function resolveAdjustedTargetPos(insertPos: number, deleteRanges: readonly Bloc
   return insertPos - deletedBeforeInsert;
 }
 
+function isRemovableFrontmatterSeparatorNode(node: ProseNode | null | undefined): boolean {
+  if (!node) return false;
+  if (node.type.name === 'html_block' && node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE) {
+    return true;
+  }
+  if (node.type.name !== 'paragraph') {
+    return false;
+  }
+  if (node.content.size === 0) {
+    return true;
+  }
+  return (
+    node.content.size === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length &&
+    node.textBetween(0, EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length, '\0', '\0') ===
+      EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
+  );
+}
+
+function expandMovedFrontmatterDeleteRanges(
+  doc: EditorView['state']['doc'],
+  selectedRanges: readonly BlockRange[],
+  deleteRanges: readonly BlockRange[],
+  insertPos: number,
+): BlockRange[] {
+  if (insertPos === 0) return [...deleteRanges];
+
+  const expanded = [...deleteRanges];
+  for (const range of selectedRanges) {
+    if (range.from !== 0) continue;
+    const frontmatterNode = doc.nodeAt(range.from);
+    if (!frontmatterNode || frontmatterNode.type.name !== 'frontmatter') continue;
+
+    const separator = doc.nodeAt(range.to);
+    if (!separator || !isRemovableFrontmatterSeparatorNode(separator)) continue;
+    expanded.push({ from: range.to, to: range.to + separator.nodeSize });
+    break;
+  }
+
+  return pruneContainedBlockRanges(expanded);
+}
+
 export function resolveBlockMoveContext(
   view: EditorView,
   selectedRanges: readonly BlockRange[],
@@ -65,7 +109,12 @@ export function resolveBlockMoveContext(
   if (!movePlan) return null;
 
   const listItemInfoByRangeKey = collectSelectedListItemInfo(view.state, movePlan.selectedRanges);
-  const deleteRanges = buildDeleteRangesFromSelectedListItems(movePlan.selectedRanges, listItemInfoByRangeKey);
+  const deleteRanges = expandMovedFrontmatterDeleteRanges(
+    view.state.doc,
+    movePlan.selectedRanges,
+    buildDeleteRangesFromSelectedListItems(movePlan.selectedRanges, listItemInfoByRangeKey),
+    insertPos,
+  );
   if (deleteRanges.length === 0) return null;
   if (isInsertPosInsideRanges(insertPos, deleteRanges)) return null;
 
@@ -124,6 +173,41 @@ function buildLiftedSourceFragment(groups: readonly LiftedListGroup[], insertIns
     fragment = fragment.append(Fragment.from(wrappedList));
   }
   return fragment;
+}
+
+function createPlainTextParagraph(view: EditorView, text: string): ProseNode | null {
+  const paragraphType = view.state.schema.nodes.paragraph;
+  if (!paragraphType) return null;
+  return text.length > 0
+    ? paragraphType.create(null, view.state.schema.text(text))
+    : paragraphType.create();
+}
+
+function createPlainTextFragmentFromFrontmatter(view: EditorView, node: ProseNode): Fragment {
+  const frontmatterText = node.textContent.replace(/\r\n?/g, '\n');
+  const lines = frontmatterText.length > 0 ? frontmatterText.split('\n') : [''];
+  const paragraphs = lines
+    .map((line) => createPlainTextParagraph(view, line))
+    .filter((paragraph): paragraph is ProseNode => paragraph !== null);
+  return Fragment.fromArray(paragraphs);
+}
+
+export function convertMovedFrontmatterToPlainText(
+  view: EditorView,
+  content: Fragment,
+  targetPos: number,
+): Fragment {
+  if (targetPos === 0) return content;
+
+  let converted = Fragment.empty;
+  content.forEach((child) => {
+    converted = converted.append(
+      child.type.name === 'frontmatter'
+        ? createPlainTextFragmentFromFrontmatter(view, child)
+        : Fragment.from(child)
+    );
+  });
+  return converted;
 }
 
 function collectSourceResidualInsertions(
@@ -308,11 +392,19 @@ export function prepareBlockMove(
   const insertInsideList = isInsertionInsideList(tr.doc, safeTargetPos);
   const $target = tr.doc.resolve(safeTargetPos);
   const targetIndex = $target.index();
-  let movedContent = buildMovedContent(view, selectedRanges, listItemInfoByRangeKey, insertInsideList);
+  let movedContent = convertMovedFrontmatterToPlainText(
+    view,
+    buildMovedContent(view, selectedRanges, listItemInfoByRangeKey, insertInsideList),
+    safeTargetPos,
+  );
   if (movedContent.size === 0) return null;
 
   if (!$target.parent.canReplace(targetIndex, targetIndex, movedContent)) {
-    const fallbackContent = buildMovedContent(view, selectedRanges, listItemInfoByRangeKey, !insertInsideList);
+    const fallbackContent = convertMovedFrontmatterToPlainText(
+      view,
+      buildMovedContent(view, selectedRanges, listItemInfoByRangeKey, !insertInsideList),
+      safeTargetPos,
+    );
     if (fallbackContent.size === 0) return null;
     if (!$target.parent.canReplace(targetIndex, targetIndex, fallbackContent)) return null;
     movedContent = fallbackContent;

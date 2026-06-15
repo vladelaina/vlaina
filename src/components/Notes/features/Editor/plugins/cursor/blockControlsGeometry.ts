@@ -3,7 +3,6 @@ import { pruneContainedBlockRanges, type BlockRange } from './blockSelectionUtil
 import { pickPointerBlock } from './blockControlsUtils';
 import {
   collectSelectableBlockTargets,
-  isNonDraggableBlockRange,
   mapRangesToSelectableBlocks,
   resolveSelectableBlockTargetByPos,
 } from './blockUnitResolver';
@@ -63,7 +62,6 @@ function resolveListChildInsertPos(
 export function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
   const target = getCachedEditorBlockTargetByPos(view, blockPos) ?? resolveSelectableBlockTargetByPos(view, blockPos);
   if (!target) return null;
-  if (isNonDraggableBlockRange(view.state.doc, target.range)) return null;
   return {
     pos: target.range.from,
     rect: target.rect,
@@ -89,8 +87,7 @@ export function setControlsPosition(
 }
 
 export function getDraggableBlockRanges(view: EditorView, selectedRanges: readonly BlockRange[]): BlockRange[] {
-  const mapped = mapRangesToSelectableBlocks(view.state.doc, selectedRanges)
-    .filter((range) => !isNonDraggableBlockRange(view.state.doc, range));
+  const mapped = mapRangesToSelectableBlocks(view.state.doc, selectedRanges);
   const result = pruneContainedBlockRanges(mapped);
   return result;
 }
@@ -101,16 +98,8 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
     return null;
   }
 
-  const target = getCachedEditorBlockTargetNearY(
-    view,
-    clientY,
-    (block) => !isNonDraggableBlockRange(view.state.doc, block),
-  ) ?? pickPointerBlock(
-    (getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view)).filter(
-      (candidate) => !isNonDraggableBlockRange(view.state.doc, candidate.range),
-    ),
-    clientY,
-  );
+  const target = getCachedEditorBlockTargetNearY(view, clientY)
+    ?? pickPointerBlock(getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view), clientY);
   if (!target) return null;
 
   const rect = target.rect;

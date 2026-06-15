@@ -229,16 +229,18 @@ describe('getDraggableBlockRanges', () => {
     ]);
   });
 
-  it('drops frontmatter ranges from draggable block mapping', () => {
+  it('keeps frontmatter ranges in draggable block mapping', () => {
     const { view } = createFrontmatterViewMock();
     const ranges = getDraggableBlockRanges(view, [
       { from: 0, to: 5 },
     ]);
 
-    expect(ranges).toEqual([]);
+    expect(ranges).toEqual([
+      { from: 0, to: 5 },
+    ]);
   });
 
-  it('keeps regular blocks draggable when frontmatter is selected together with them', () => {
+  it('keeps frontmatter and regular blocks draggable when selected together', () => {
     const { view } = createFrontmatterViewMock();
     const ranges = getDraggableBlockRanges(view, [
       { from: 0, to: 5 },
@@ -246,6 +248,7 @@ describe('getDraggableBlockRanges', () => {
     ]);
 
     expect(ranges).toEqual([
+      { from: 0, to: 5 },
       { from: 5, to: 11 },
     ]);
   });
@@ -390,9 +393,11 @@ describe('resolveBlockTargetByPos', () => {
     expect(target?.rect).toEqual(itemOne.getBoundingClientRect());
   });
 
-  it('does not resolve a handle target for frontmatter blocks', () => {
+  it('resolves a handle target for frontmatter blocks', () => {
     const { view } = createFrontmatterViewMock();
-    expect(resolveBlockTargetByPos(view, 0)).toBeNull();
+    const target = resolveBlockTargetByPos(view, 0);
+    expect(target?.pos).toBe(0);
+    expect(target?.isListItem).toBe(false);
   });
 });
 

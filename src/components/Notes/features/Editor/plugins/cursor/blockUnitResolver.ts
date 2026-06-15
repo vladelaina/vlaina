@@ -33,10 +33,6 @@ interface SelectableBlockRangeCollectionState {
   scannedNodes: number;
 }
 
-function isNonDraggableBlockNode(name: string): boolean {
-  return name === 'frontmatter';
-}
-
 function isListContainerNode(name: string): boolean {
   return LIST_CONTAINER_NODE_NAMES.has(name);
 }
@@ -649,12 +645,6 @@ export function mapRangesToSelectableBlocks(
     })
     .filter((range): range is BlockRange => range !== null);
   return normalizeBlockRanges(resolved);
-}
-
-export function isNonDraggableBlockRange(doc: EditorDoc, range: BlockRange): boolean {
-  const topLevelNode = resolveTopLevelNodeAtPos(doc, range.from);
-  if (!topLevelNode) return false;
-  return topLevelNode.from === range.from && isNonDraggableBlockNode(topLevelNode.name);
 }
 
 export function expandListItemHeaderRanges(

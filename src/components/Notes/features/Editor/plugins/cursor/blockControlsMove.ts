@@ -4,7 +4,11 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
-import { prepareBlockMove, resolveBlockMoveContext } from './blockControlsMoveCore';
+import {
+  convertMovedFrontmatterToPlainText,
+  prepareBlockMove,
+  resolveBlockMoveContext,
+} from './blockControlsMoveCore';
 import { isInlineSelectableBlockRange, mapRangesToSelectableBlocks } from './blockUnitResolver';
 import { markEditorUserInput } from '../shared/userInputEvents';
 
@@ -214,6 +218,7 @@ function applyBlockMoveIntoInlineParagraph(
     for (const range of moveContext.selectedRanges) {
       movedContent = movedContent.append(view.state.doc.slice(range.from, range.to).content);
     }
+    movedContent = convertMovedFrontmatterToPlainText(view, movedContent, moveContext.targetPos);
     if (movedContent.size === 0) return false;
 
     let tr = view.state.tr;
