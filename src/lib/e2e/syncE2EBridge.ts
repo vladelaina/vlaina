@@ -6,7 +6,6 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { useAIUIStore } from '@/stores/ai/chatState';
 import { desktopWindow } from '@/lib/desktop/window';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { TextSelection } from '@milkdown/kit/prose/state';
@@ -36,7 +35,6 @@ import type { ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types';
 import type { NotesState, StarredEntry } from '@/stores/notes/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
 import type { VaultInfo } from '@/stores/useVaultStore';
-import type { ChatMessage } from '@/lib/ai/types';
 import {
   enqueueChatE2EMockResponse,
   getChatE2EMockPendingRequestIds,
@@ -122,7 +120,8 @@ export interface E2EBridge {
     currentSessionId: string | null;
     webSearchEnabled: boolean;
     generating: boolean;
-    messages: ChatMessage[];
+    sessions: ChatSession[];
+    messages: Record<string, ChatMessage[]>;
   };
   setTimezone(offset: number, city: string): Promise<void>;
   setMarkdownLineNumbers(showLineNumbers: boolean): Promise<void>;
@@ -177,11 +176,6 @@ export interface E2EBridge {
     activeSessionId: string | null;
   }>;
   switchChatSession(id: string): Promise<void>;
-  getChatState(): {
-    currentSessionId: string | null;
-    sessions: ChatSession[];
-    messages: Record<string, ChatMessage[]>;
-  };
   setAppViewMode(mode: 'notes' | 'chat'): Promise<void>;
   initializeVaultStore(): Promise<void>;
   openVault(path: string, name?: string): Promise<boolean>;
@@ -1003,11 +997,11 @@ export function installSyncE2EBridge(): void {
       resetChatE2EMock();
       useUIStore.getState().setAppViewMode('chat');
       useUIStore.getState().setLanguagePreference('en');
-      aiActions.setWebSearchEnabled(false);
-      aiActions.openNewChat();
+      providerActions.setWebSearchEnabled(false);
+      providerActions.openNewChat();
 
       const apiModelId = 'e2e-web-search-model';
-      const providerId = aiActions.addProvider({
+      const providerId = providerActions.addProvider({
         name: 'E2E web search channel',
         type: 'newapi',
         endpointType: 'openai',
@@ -1017,19 +1011,19 @@ export function installSyncE2EBridge(): void {
         enabled: true,
       });
       const modelId = `${providerId}::${apiModelId}`;
-      aiActions.addModel({
+      providerActions.addModel({
         id: modelId,
         apiModelId,
         name: 'E2E Web Search Model',
         providerId,
         enabled: true,
       });
-      aiActions.selectModel(modelId);
+      providerActions.selectModel(modelId);
       await flushPendingSave();
       return { providerId, modelId };
     },
     setChatWebSearchEnabled: async (enabled) => {
-      aiActions.setWebSearchEnabled(enabled);
+      providerActions.setWebSearchEnabled(enabled);
       await flushPendingSave();
     },
     enqueueChatMockResponse: async (response) => {
@@ -1039,20 +1033,6 @@ export function installSyncE2EBridge(): void {
     getChatMockPendingRequestIds: () => getChatE2EMockPendingRequestIds(),
     resolveChatMockPendingRequest: async (requestId, response) => {
       return resolveChatE2EMockPendingRequest(requestId, response);
-    },
-    getChatState: () => {
-      const currentSessionId = useAIUIStore.getState().currentSessionId;
-      const messages = currentSessionId
-        ? useUnifiedStore.getState().data.ai?.messages?.[currentSessionId] ?? []
-        : [];
-      return {
-        currentSessionId,
-        webSearchEnabled: useUnifiedStore.getState().data.ai?.webSearchEnabled === true,
-        generating: currentSessionId
-          ? useAIUIStore.getState().generatingSessions[currentSessionId] === true
-          : false,
-        messages: structuredClone(messages),
-      };
     },
     setTimezone: async (offset, city) => {
       useUnifiedStore.getState().setTimezone(offset, city);
@@ -1213,9 +1193,13 @@ export function installSyncE2EBridge(): void {
       await flushPendingSave();
     },
     getChatState: () => {
+      const ui = useAIUIStore.getState();
       const ai = useUnifiedStore.getState().data.ai;
+      const currentSessionId = ui.currentSessionId;
       return {
-        currentSessionId: useAIUIStore.getState().currentSessionId,
+        currentSessionId,
+        webSearchEnabled: ai?.webSearchEnabled === true,
+        generating: currentSessionId ? ui.generatingSessions[currentSessionId] === true : false,
         sessions: ai?.sessions.map((session) => ({ ...session })) ?? [],
         messages: Object.fromEntries(
           Object.entries(ai?.messages ?? {}).map(([sessionId, messages]) => [
