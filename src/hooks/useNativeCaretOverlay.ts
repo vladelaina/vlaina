@@ -17,6 +17,7 @@ const STYLE_ID = 'native-caret-overlay-style';
 const CARET_CLASS = 'native-caret-overlay';
 const ACTIVE_ATTR = 'data-native-caret-overlay-active';
 export const NATIVE_CARET_OVERLAY_REFRESH_EVENT = 'vlaina:native-caret-overlay-refresh';
+const CARET_VISIBILITY_SCOPE_SELECTOR = '[data-chat-input="true"]';
 
 const TEXT_INPUT_TYPES = new Set([
   '',
@@ -133,6 +134,84 @@ function createMirror(control: TextControl, styles: CSSStyleDeclaration): HTMLDi
   mirror.style.left = themeDomStyleTokens.sizeZero;
   mirror.style.zIndex = themeDomStyleTokens.zIndexBehindString;
   return mirror;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function resolveCaretVisibilityScope(control: TextControl): Element {
+  return control.closest(CARET_VISIBILITY_SCOPE_SELECTOR) ?? control;
+}
+
+function getElementFromPointIgnoringCaret(
+  doc: Document,
+  x: number,
+  y: number,
+  caret: HTMLElement | null,
+): Element | null | undefined {
+  const elementFromPoint = doc.elementFromPoint?.bind(doc);
+  if (!elementFromPoint) {
+    return undefined;
+  }
+
+  if (!caret) {
+    return elementFromPoint(x, y);
+  }
+
+  const previousDisplay = caret.style.display;
+  caret.style.display = themeStyleResetTokens.displayNone;
+  try {
+    return elementFromPoint(x, y);
+  } finally {
+    caret.style.display = previousDisplay;
+  }
+}
+
+function isCaretOverlayVisuallyVisible(
+  control: TextControl,
+  overlayRect: { left: number; top: number; height: number },
+  caret: HTMLElement | null,
+): boolean {
+  const doc = control.ownerDocument;
+  const controlRect = control.getBoundingClientRect();
+  const pointY = overlayRect.top + overlayRect.height / 2;
+
+  if (
+    !Number.isFinite(overlayRect.left) ||
+    !Number.isFinite(pointY) ||
+    overlayRect.left < controlRect.left ||
+    overlayRect.left > controlRect.right ||
+    pointY < controlRect.top ||
+    pointY > controlRect.bottom
+  ) {
+    return false;
+  }
+
+  const pointX = clamp(
+    overlayRect.left,
+    controlRect.left,
+    Math.max(controlRect.left, controlRect.right - 1),
+  );
+  const visiblePointY = clamp(
+    pointY,
+    controlRect.top,
+    Math.max(controlRect.top, controlRect.bottom - 1),
+  );
+  const hitElement = getElementFromPointIgnoringCaret(doc, pointX, visiblePointY, caret);
+  if (hitElement === undefined) {
+    return true;
+  }
+  if (!hitElement) {
+    return false;
+  }
+
+  if (hitElement === control || control.contains(hitElement)) {
+    return true;
+  }
+
+  const scope = resolveCaretVisibilityScope(control);
+  return scope !== control && scope.contains(hitElement);
 }
 
 function resolveSingleLineInputCaretHeight(
@@ -265,13 +344,18 @@ export function useNativeCaretOverlay(): void {
         return;
       }
 
+      const overlayRect = createCaretOverlayRect(rect);
+      if (!isCaretOverlayVisuallyVisible(activeElement, overlayRect, caret)) {
+        hide();
+        return;
+      }
+
       if (!caret) {
         caret = doc.createElement('div');
         caret.className = CARET_CLASS;
         doc.body.appendChild(caret);
       }
 
-      const overlayRect = createCaretOverlayRect(rect);
       caret.style.left = `${overlayRect.left}px`;
       caret.style.top = `${overlayRect.top}px`;
       caret.style.height = `${overlayRect.height}px`;

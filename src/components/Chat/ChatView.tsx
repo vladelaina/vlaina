@@ -10,7 +10,7 @@ import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { useStableChatMessageDerivatives } from './hooks/useStableChatMessageDerivatives';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
-import { focusComposerInput, insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
+import { blurComposerInput, focusComposerInput, insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
@@ -124,6 +124,8 @@ export function ChatView({
   const currentSessionIdRef = useRef(currentSessionId);
   const imageGalleryRef = useRef(imageGallery);
   const wasActiveRef = useRef(active);
+  const embeddedSidebarFocusFrameRef = useRef<number | null>(null);
+  const focusComposerAfterEmbeddedSidebarExitRef = useRef(false);
 
   useEffect(() => {
     if (!active) return;
@@ -361,11 +363,42 @@ export function ChatView({
   });
 
   const openEmbeddedSidebar = useCallback(() => {
+    focusComposerAfterEmbeddedSidebarExitRef.current = false;
+    if (embeddedSidebarFocusFrameRef.current !== null) {
+      cancelAnimationFrame(embeddedSidebarFocusFrameRef.current);
+      embeddedSidebarFocusFrameRef.current = null;
+    }
+    blurComposerInput();
     setIsEmbeddedSidebarOpen(true);
   }, []);
 
   const closeEmbeddedSidebar = useCallback(() => {
+    focusComposerAfterEmbeddedSidebarExitRef.current = true;
     setIsEmbeddedSidebarOpen(false);
+  }, []);
+
+  const handleEmbeddedSidebarExitComplete = useCallback(() => {
+    if (!focusComposerAfterEmbeddedSidebarExitRef.current) {
+      return;
+    }
+    focusComposerAfterEmbeddedSidebarExitRef.current = false;
+    if (embeddedSidebarFocusFrameRef.current !== null) {
+      cancelAnimationFrame(embeddedSidebarFocusFrameRef.current);
+    }
+    embeddedSidebarFocusFrameRef.current = requestAnimationFrame(() => {
+      embeddedSidebarFocusFrameRef.current = null;
+      focusComposerInput();
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      focusComposerAfterEmbeddedSidebarExitRef.current = false;
+      if (embeddedSidebarFocusFrameRef.current !== null) {
+        cancelAnimationFrame(embeddedSidebarFocusFrameRef.current);
+        embeddedSidebarFocusFrameRef.current = null;
+      }
+    };
   }, []);
 
   if (!loaded) return null;
@@ -460,7 +493,7 @@ export function ChatView({
         </div>
       )}
 
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={handleEmbeddedSidebarExitComplete}>
         {isEmbedded && isEmbeddedSidebarOpen && (
           <div
             className="absolute inset-0 z-[var(--vlaina-z-40)]"
