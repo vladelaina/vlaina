@@ -13,7 +13,7 @@ import { ProviderQuickAdd } from './ProviderQuickAdd';
 import { VirtualModelList } from './VirtualModelList';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, type MessageKey } from '@/lib/i18n';
 
 interface ProviderModelsPanelProps {
   providerId: string;
@@ -25,7 +25,7 @@ interface ProviderModelsPanelProps {
   modelQuery: string;
   quickAddModelId: string;
   quickAddError: string;
-  fetchError: string;
+  fetchError: MessageKey | '';
   isFetchingModels: boolean;
   canUseConnectionActions: boolean;
   canBenchmark: boolean;
@@ -52,6 +52,7 @@ interface ProviderModelsPanelProps {
 
 export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
   const { t } = useI18n();
+  const fetchErrorText = props.fetchError ? t(props.fetchError) : '';
   const hasFetchedModels = props.sortedFetchedModels.length > 0;
   const hasActiveQuery = props.modelQuery.trim().length > 0;
   const selectedModelsSource = hasActiveQuery
@@ -99,7 +100,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
       <div className={cn("min-w-0 overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1", chatComposerPillSurfaceClass)}>
         <div className="space-y-5 px-6 py-6 max-[640px]:px-4">
           {hasFetchedModels ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <ActionButton
                 label={props.isFetchingModels ? t('settings.ai.fetching') : t('settings.ai.fetch')}
                 icon="common.download"
@@ -118,28 +119,40 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   void props.onBenchmark();
                 }}
               />
+              {fetchErrorText ? (
+                <div className="min-w-0 truncate px-1 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-color-status-danger-fg)]">
+                  {fetchErrorText}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
               <div className="min-w-0 flex-1 text-[var(--vlaina-font-sm)] font-bold text-[var(--vlaina-sidebar-notes-text)]">{t('settings.ai.models')}</div>
-              <button
-                type="button"
-                disabled={!props.canUseConnectionActions || props.isFetchingModels}
-                onClick={() => {
-                  void props.onFetchModels();
-                }}
-                className={cn(
-                  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]',
-                  chatComposerPillSurfaceClass
-                )}
-              >
-                {props.isFetchingModels ? (
-                  <span className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-sidebar-row-selected-text)] animate-spin" />
-                ) : (
-                  <Icon name="common.download" size="xs" />
-                )}
-                {props.isFetchingModels ? t('settings.ai.fetching') : t('settings.ai.fetch')}
-              </button>
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={!props.canUseConnectionActions || props.isFetchingModels}
+                  onClick={() => {
+                    void props.onFetchModels();
+                  }}
+                  className={cn(
+                    'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]',
+                    chatComposerPillSurfaceClass
+                  )}
+                >
+                  {props.isFetchingModels ? (
+                    <span className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-sidebar-row-selected-text)] animate-spin" />
+                  ) : (
+                    <Icon name="common.download" size="xs" />
+                  )}
+                  {props.isFetchingModels ? t('settings.ai.fetching') : t('settings.ai.fetch')}
+                </button>
+                {fetchErrorText ? (
+                  <div className="min-w-0 truncate px-1 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-color-status-danger-fg)]">
+                    {fetchErrorText}
+                  </div>
+                ) : null}
+              </div>
             </div>
           )}
 
@@ -165,10 +178,6 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
           {props.quickAddError ? (
             <div className="text-[var(--vlaina-font-xs)] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.quickAddError}</div>
           ) : null}
-          {props.fetchError ? (
-            <div className="text-[var(--vlaina-font-xs)] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.fetchError}</div>
-          ) : null}
-
           {hasFetchedModels ? (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,var(--vlaina-size-300px)),1fr))] gap-6">
               <div className="space-y-3">
