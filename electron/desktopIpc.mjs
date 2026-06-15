@@ -239,10 +239,10 @@ function getLinuxItemRevealer(options = {}) {
     { command: 'nautilus', args: ['--new-window', '--select'], target: 'item' },
     { command: 'dolphin', args: ['--select'], target: 'item' },
     { command: 'thunar', args: ['--select'], target: 'item' },
-    { command: 'nemo', args: [], target: 'item' },
-    { command: 'pcmanfm', args: [], target: 'item' },
-    { command: 'caja', args: [], target: 'item' },
-    { command: 'io.elementary.files', args: [], target: 'item' },
+    { command: 'nemo', args: [], target: 'folder' },
+    { command: 'pcmanfm', args: [], target: 'folder' },
+    { command: 'caja', args: [], target: 'folder' },
+    { command: 'io.elementary.files', args: [], target: 'folder' },
   ];
 
   for (const candidate of candidates) {
@@ -282,20 +282,44 @@ function openItemWithLinuxFileManager(filePath, options = {}) {
   const fallbackShell = options.fallbackShell ?? shell;
   const folderPath = path.dirname(filePath);
   const targetPath = target === 'folder' ? folderPath : filePath;
-  const child = spawnDetached(command, [...args, targetPath], {
-    detached: true,
-    stdio: 'ignore',
-  });
+  let didFallback = false;
+  const fallbackToContainingFolder = () => {
+    if (didFallback) {
+      return;
+    }
+    didFallback = true;
 
-  child.once?.('error', () => {
-    if (path.basename(command) !== 'xdg-open') {
+    if (target === 'folder') {
+      if (path.basename(command) === 'xdg-open') {
+        void fallbackShell.openPath?.(folderPath);
+        return;
+      }
+
       openItemWithLinuxFileManager(filePath, {
         ...options,
         opener: { command: 'xdg-open', args: [], target: 'folder' },
       });
       return;
     }
-    void fallbackShell.openPath?.(path.dirname(filePath));
+
+    const folderOpener = getLinuxDirectoryOpener(options);
+    openItemWithLinuxFileManager(filePath, {
+      ...options,
+      opener: folderOpener
+        ? { ...folderOpener, target: 'folder' }
+        : { command: 'xdg-open', args: [], target: 'folder' },
+    });
+  };
+  const child = spawnDetached(command, [...args, targetPath], {
+    detached: true,
+    stdio: 'ignore',
+  });
+
+  child.once?.('error', fallbackToContainingFolder);
+  child.once?.('exit', (code) => {
+    if (code !== 0) {
+      fallbackToContainingFolder();
+    }
   });
   child.unref?.();
 }
