@@ -15,6 +15,7 @@ import { getDraggableBlockRanges } from './blockControlsInteractions';
 import { resolveBlockMoveContext } from './blockControlsMoveCore';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { frontmatterPlugin } from '../frontmatter';
 import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
 import { createTableNodeFromPipeCells } from '../table/pipeTableShortcut';
@@ -30,6 +31,7 @@ async function createEditor(markdown: string) {
     })
     .use(commonmark)
     .use(gfm)
+    .use(frontmatterPlugin)
     .use(mathPlugin)
     .use(mermaidPlugin);
 
@@ -72,6 +74,14 @@ function isCodeBlockRange(view: EditorView, range: { from: number }): boolean {
 
 function replaceDocument(view: EditorView, nodes: ProseNode[]): void {
   view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
+}
+
+function createMarkdownBlankLineNode(view: EditorView): ProseNode {
+  const htmlBlockType = view.state.schema.nodes.html_block;
+  if (htmlBlockType) {
+    return htmlBlockType.create({ value: '<!--vlaina-markdown-blank-line-->' });
+  }
+  return view.state.schema.nodes.paragraph.create();
 }
 
 function createPreviewBlockNode(view: EditorView, typeName: 'math_block' | 'mermaid' | 'table'): ProseNode {
@@ -185,6 +195,41 @@ describe('applyBlockMove content integrity', () => {
     expect(blocks.length).toBeGreaterThanOrEqual(3);
     expect(applyBlockMove(view, [blocks[2]], blocks[1].from)).toBe(true);
     expect(normalizeMarkdown(serializer(view.state.doc))).toBe('A<br />\n\nTail\n\nB');
+
+    await editor.destroy();
+  });
+
+  it('converts leading frontmatter to plain text when it is moved away from the top', async () => {
+    const editor = await createEditor('Body\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const bodyNodes: ProseNode[] = [];
+    view.state.doc.forEach((node) => {
+      bodyNodes.push(node);
+    });
+    replaceDocument(view, [
+      view.state.schema.nodes.frontmatter.create(null, view.state.schema.text('title: Demo')),
+      createMarkdownBlankLineNode(view),
+      ...bodyNodes,
+    ]);
+
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(view.state.doc.resolve(blocks[0].from).nodeAfter?.type.name).toBe('frontmatter');
+
+    const draggedRanges = getDraggableBlockRanges(view, [blocks[0]]);
+    expect(draggedRanges).toEqual([blocks[0]]);
+    expect(applyBlockMove(view, draggedRanges, view.state.doc.content.size)).toBe(true);
+    expect(Array.from({ length: view.state.doc.childCount }, (_, index) => (
+      view.state.doc.child(index).type.name
+    ))).toEqual(['paragraph', 'paragraph', 'paragraph']);
+    expect(Array.from({ length: view.state.doc.childCount }, (_, index) => (
+      view.state.doc.child(index).textContent
+    ))).toEqual(['Body', 'Tail', 'title: Demo']);
+
+    const movedBlocks = collectSelectableBlockRanges(view.state.doc);
+    expect(applyBlockMove(view, movedBlocks.slice(-1), 0)).toBe(true);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(0).textContent).toBe('title: Demo');
 
     await editor.destroy();
   });

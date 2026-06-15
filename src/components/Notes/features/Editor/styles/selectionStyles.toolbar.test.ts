@@ -72,6 +72,7 @@ describe("editor floating toolbar and preview styles", () => {
     expect(css).not.toContain('--vlaina-block-selection-bleed-y:');
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);');
     expect(css).toContain('--vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);');
+    expect(css).toContain('border-color: var(--vlaina-color-white);');
     expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
     expect(css).toContain(
       '.milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {'
