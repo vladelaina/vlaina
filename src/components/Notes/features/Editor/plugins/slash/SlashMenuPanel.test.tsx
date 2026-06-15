@@ -18,8 +18,10 @@ describe('SlashMenuPanel', () => {
 
     expect(menuViewSource).toContain('chatComposerPillSurfaceClass');
     expect(menuViewSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(menuViewSource).toContain("menu.setAttribute('data-no-editor-drag-box', 'true')");
     expect(videoPromptSource).toContain('chatComposerPillSurfaceClass');
     expect(videoPromptSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(videoPromptSource).toContain("prompt.setAttribute('data-no-editor-drag-box', 'true')");
   });
 
   it('renders options without groups or descriptions and selected state', () => {

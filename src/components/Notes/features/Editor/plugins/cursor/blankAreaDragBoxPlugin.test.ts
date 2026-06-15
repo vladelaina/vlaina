@@ -321,6 +321,14 @@ function domRect(left: number, top: number, right: number, bottom: number): DOMR
   } as DOMRect;
 }
 
+function domRectList(...rects: DOMRect[]): DOMRectList {
+  return Object.assign([...rects], {
+    item(index: number) {
+      return rects[index] ?? null;
+    },
+  }) as unknown as DOMRectList;
+}
+
 function attachNoteScrollRoot(view: any): HTMLElement {
   const scrollRoot = document.createElement('div');
   scrollRoot.setAttribute('data-note-scroll-root', 'true');
@@ -1290,6 +1298,45 @@ describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
       expect(view.state.selection.to).toBe(to);
       expect(view.state.selection.empty).toBe(false);
     } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not clear selection when a top chrome hit visually clicks through to the editor', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const scrollRoot = attachNoteScrollRoot(view);
+      const headerChrome = document.createElement('div');
+      headerChrome.setAttribute('data-no-editor-drag-box', 'true');
+      vi.spyOn(headerChrome, 'getClientRects').mockReturnValue(domRectList(domRect(80, 0, 720, 96)));
+      scrollRoot.insertBefore(headerChrome, view.dom);
+
+      const { from, to } = findTextRange(view.state.doc, 'Alpha');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+      expect(view.state.selection.empty).toBe(false);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 120,
+        clientY: 24,
+      });
+      view.dom.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.state.selection.from).toBe(from);
+      expect(view.state.selection.to).toBe(to);
+
+      document.dispatchEvent(createMouseEvent('mouseup', {
+        clientX: 120,
+        clientY: 24,
+      }));
+      await waitForPointerClickSettled();
+
+      expect(view.state.selection.from).toBe(from);
+      expect(view.state.selection.to).toBe(to);
+      expect(view.state.selection.empty).toBe(false);
+    } finally {
+      vi.restoreAllMocks();
       await editor.destroy();
     }
   });

@@ -1,8 +1,19 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { shouldIgnoreTableContextMenuTarget } from './tableContextMenuTarget';
 
 describe('table context menu target', () => {
+  it('marks the table context menu as non-editor chrome for blank-area pointer handling', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/table/tableContextMenuPlugin.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain("menuElement.setAttribute('data-no-editor-drag-box', 'true')");
+  });
+
   it('ignores internal table control targets', () => {
     const control = document.createElement('div');
     control.setAttribute('data-role', 'col-header-drag-control');

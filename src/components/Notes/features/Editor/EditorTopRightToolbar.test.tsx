@@ -18,16 +18,16 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
-    <div data-testid="note-menu-content" className={className}>{children}</div>
+  DropdownMenuContent: ({ children, className, ...props }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="note-menu-content" className={className} {...props}>{children}</div>
   ),
   DropdownMenuItem: ({ children, onSelect }: { children?: React.ReactNode; onSelect?: () => void }) => (
     <button type="button" onClick={onSelect}>{children}</button>
   ),
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuSub: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuSubContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
-    <div data-testid="note-export-menu-content" className={className}>{children}</div>
+  DropdownMenuSubContent: ({ children, className, ...props }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="note-export-menu-content" className={className} {...props}>{children}</div>
   ),
   DropdownMenuSubTrigger: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
@@ -127,6 +127,25 @@ describe('EditorTopRightToolbar', () => {
     mocks.notesChatFloatingOpen = false;
     mocks.setNotesChatPanelCollapsed.mockReset();
     mocks.setNotesChatFloatingOpen.mockReset();
+  });
+
+  it('marks toolbar chrome and menus as ignored by editor blank-area pointer handling', () => {
+    const { container, getByTestId } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="alpha.md"
+        currentNoteTitle="Alpha"
+        getCurrentNoteContent={() => '# Alpha'}
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+      />,
+    );
+
+    expect(container.firstElementChild).toHaveAttribute('data-no-editor-drag-box', 'true');
+    expect(getByTestId('note-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
+    expect(getByTestId('note-export-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
   });
 
   it('shows the remove-star button for starred external notes outside the current vault', () => {

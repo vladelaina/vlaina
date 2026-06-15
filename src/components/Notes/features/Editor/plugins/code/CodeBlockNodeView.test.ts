@@ -129,6 +129,7 @@ describe('CodeBlockNodeView', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
 
     expect(nodeView.headerDOM.contentEditable).toBe('false');
+    expect(nodeView.headerDOM.getAttribute('data-no-editor-drag-box')).toBe('true');
     expect(nodeView.dom.contentEditable).not.toBe('false');
     expect(nodeView.contentDOM).toBeUndefined();
   });

@@ -172,6 +172,7 @@ export function createToolbarElement(): HTMLElement {
   toolbar.className = 'floating-toolbar hidden';
   toolbar.setAttribute('role', 'toolbar');
   toolbar.setAttribute('aria-label', translate('editor.textFormatting'));
+  toolbar.setAttribute('data-no-editor-drag-box', 'true');
   return toolbar;
 }
 

@@ -77,6 +77,14 @@ describe('LinkTooltipView', () => {
         vi.restoreAllMocks();
     });
 
+    it('marks the tooltip container as non-editor chrome for blank-area pointer handling', () => {
+        const view = new LinkTooltipView(createView());
+
+        expect(view.dom.getAttribute('data-no-editor-drag-box')).toBe('true');
+
+        view.destroy();
+    });
+
     it('coalesces observer-driven reposition work into one animation frame', () => {
         const rafCallbacks = new Map<number, FrameRequestCallback>();
         let nextRafId = 1;

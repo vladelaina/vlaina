@@ -38,6 +38,7 @@ export class CalloutNodeView implements NodeView {
 
     this.titleDOM.className = 'callout-title';
     this.titleDOM.contentEditable = 'false';
+    this.titleDOM.setAttribute('data-no-editor-drag-box', 'true');
     this.iconDOM.className = 'callout-icon';
     this.iconDOM.contentEditable = 'false';
     this.titleInnerDOM.className = 'callout-title-inner';

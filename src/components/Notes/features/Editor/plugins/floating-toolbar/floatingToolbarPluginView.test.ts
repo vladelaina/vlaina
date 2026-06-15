@@ -4,10 +4,16 @@ import {
   collectToolbarSubmenus,
   correctToolbarSubmenusToContentBounds,
 } from './floatingToolbarSubmenus';
-import { correctToolbarYToViewportBounds } from './floatingToolbarDom';
+import { correctToolbarYToViewportBounds, createToolbarElement } from './floatingToolbarDom';
 import type { FloatingToolbarState } from './types';
 
 describe('floatingToolbarPluginView', () => {
+  it('marks floating toolbar roots as non-editor chrome for blank-area pointer handling', () => {
+    const toolbar = createToolbarElement();
+
+    expect(toolbar.getAttribute('data-no-editor-drag-box')).toBe('true');
+  });
+
   it('locks toolbar position while preview submenus are open', () => {
     const lockedSubMenus: Array<FloatingToolbarState['subMenu']> = [
       'block',

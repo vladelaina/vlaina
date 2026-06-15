@@ -49,6 +49,7 @@ export class LinkTooltipView {
 
         this.dom = document.createElement('div');
         this.dom.className = 'link-tooltip-container absolute hidden z-[var(--vlaina-z-50)]';
+        this.dom.setAttribute('data-no-editor-drag-box', 'true');
         (this.positionRoot ?? document.body).appendChild(this.dom);
         this.root = createRoot(this.dom);
 

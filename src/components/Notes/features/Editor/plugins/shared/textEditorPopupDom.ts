@@ -29,6 +29,7 @@ export function createTextEditorPopupElements(
 ): TextEditorPopupElements {
   const card = document.createElement('div');
   card.className = `text-editor-card math-editor-card !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+  card.setAttribute('data-no-editor-drag-box', 'true');
 
   const content = document.createElement('div');
   content.className = 'text-editor-content math-editor-content';

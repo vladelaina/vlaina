@@ -160,6 +160,7 @@ export class CodeBlockNodeView implements NodeView {
 
     this.headerDOM = document.createElement('div');
     this.headerDOM.contentEditable = 'false';
+    this.headerDOM.setAttribute('data-no-editor-drag-box', 'true');
     this.dom.appendChild(this.headerDOM);
 
     this.editorDOM = document.createElement('div');

@@ -149,6 +149,7 @@ export class SlashMenuView {
 
     const menu = document.createElement('div');
     menu.className = `slash-menu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+    menu.setAttribute('data-no-editor-drag-box', 'true');
     menu.style.position = this.positionRoot ? 'absolute' : 'fixed';
     (this.positionRoot ?? document.body).appendChild(menu);
     this.root = createRoot(menu);

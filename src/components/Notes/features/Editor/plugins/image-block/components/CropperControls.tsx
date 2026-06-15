@@ -37,6 +37,7 @@ export const CropperControls = ({
             )}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
+            data-no-editor-drag-box="true"
             draggable={false}
         >
             <div

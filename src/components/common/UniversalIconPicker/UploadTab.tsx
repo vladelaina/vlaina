@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { getCroppedImg } from '@/lib/assets/processing/crop';
 import { useToastStore } from '@/stores/useToastStore';
 import { PremiumSlider } from '@/components/ui/premium-slider';
-import { UniversalIcon } from './UniversalIcon';
+import { AppIcon } from '@/components/common/AppIcon';
 import { useI18n } from '@/lib/i18n';
 import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
 import {
@@ -315,7 +315,7 @@ export function UploadTab({
                                     onMouseEnter={() => onPreview?.(emoji.url)}
                                     onMouseLeave={() => onPreview?.(null)}
                                 >
-                                    <UniversalIcon
+                                    <AppIcon
                                         icon={emoji.url}
                                         size={themeIconTokens.sizeUploadPreview}
                                         className="w-full h-full object-contain"

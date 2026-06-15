@@ -10,6 +10,7 @@ describe('CoverAddOverlay', () => {
 
     expect(overlay).toHaveClass('z-[var(--vlaina-z-20)]');
     expect(overlay).not.toHaveClass('z-[var(--vlaina-z-30)]');
+    expect(overlay).toHaveAttribute('data-no-editor-drag-box', 'true');
 
     fireEvent.mouseDown(overlay!);
     expect(onAddCover).not.toHaveBeenCalled();

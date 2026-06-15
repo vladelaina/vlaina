@@ -112,7 +112,10 @@ export function EditorTopRightToolbar({
   };
 
   return (
-    <div className="absolute top-0 right-3 z-[var(--vlaina-z-30)] flex items-start gap-2">
+    <div
+      className="absolute top-0 right-3 z-[var(--vlaina-z-30)] flex items-start gap-2"
+      data-no-editor-drag-box="true"
+    >
       <NoteEditorFindBar controller={editorFind} />
 
       {!editorFind.isOpen ? (
@@ -170,13 +173,20 @@ export function EditorTopRightToolbar({
                 <Icon size="md" name="common.more" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className={cn('w-max min-w-56', noteMenuSurfaceClassName)}>
+            <DropdownMenuContent
+              align="end"
+              className={cn('w-max min-w-56', noteMenuSurfaceClassName)}
+              data-no-editor-drag-box="true"
+            >
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className={exportMenuItemClassName}>
                   <Icon size="md" name="common.download" className="mr-2" />
                   {t('notes.export')}
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className={cn('w-44', noteMenuSurfaceClassName)}>
+                <DropdownMenuSubContent
+                  className={cn('w-44', noteMenuSurfaceClassName)}
+                  data-no-editor-drag-box="true"
+                >
                   <DropdownMenuItem
                     className={exportMenuItemClassName}
                     onSelect={() => void exportCurrentNote('docx')}
