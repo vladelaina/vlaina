@@ -656,7 +656,7 @@ describe('workspace document actions', () => {
         },
       },
       noteContentsCache: new Map([['draft:blank', { content: 'draft text', modifiedAt: null }]]),
-      noteMetadata: { version: 2, notes: { 'draft:blank': { icon: 'emoji.sparkles' } } },
+      noteMetadata: { version: 2, notes: { 'draft:blank': { icon: '✨' } } },
     });
 
     await store.getState().saveNote({ explicit: true });
@@ -675,14 +675,14 @@ describe('workspace document actions', () => {
       name: 'Draft title',
       originNotesPath: '',
     });
-    expect(store.getState().noteMetadata?.notes['draft:blank']).toEqual({ icon: 'emoji.sparkles' });
+    expect(store.getState().noteMetadata?.notes['draft:blank']).toEqual({ icon: '✨' });
   });
 
   it('saves a preserved draft to an existing relative file chosen by the user', async () => {
     mocks.chooseDraftSavePath.mockResolvedValue('/vault-next/Untitled.md');
     mocks.saveNoteDocument.mockResolvedValue({
       content: 'draft text',
-      metadata: { icon: 'emoji.saved', updatedAt: 1 },
+      metadata: { icon: '💾', updatedAt: 1 },
       modifiedAt: 1,
       nextCache: new Map([
         ['draft:blank', { content: 'draft text', modifiedAt: null }],
@@ -716,7 +716,7 @@ describe('workspace document actions', () => {
         ['draft:blank', { content: 'draft text', modifiedAt: null }],
         ['other.md', { content: 'other', modifiedAt: 1 }],
       ]),
-      noteMetadata: { version: 2, notes: { 'draft:blank': { icon: 'emoji.draft' } } },
+      noteMetadata: { version: 2, notes: { 'draft:blank': { icon: '📝' } } },
     });
 
     await store.getState().saveNote({ explicit: true });
@@ -741,7 +741,7 @@ describe('workspace document actions', () => {
       { id: 'Untitled.md', name: 'Untitled', path: 'Untitled.md', isFolder: false },
     ]);
     expect(store.getState().noteMetadata?.notes['Untitled.md']).toEqual({
-      icon: 'emoji.saved',
+      icon: '💾',
       updatedAt: 1,
     });
   });

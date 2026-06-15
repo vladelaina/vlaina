@@ -361,7 +361,7 @@ describe('saveNoteDocument', () => {
 
     const expected = [
       '---',
-      'vlaina_icon: value="😃"',
+      'vlaina_icon: "😃"',
       '---',
       '',
     ].join('\n');

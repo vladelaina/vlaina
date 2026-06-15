@@ -67,13 +67,8 @@ describe('notes metadata storage', () => {
       if (path === '/vault-a/alpha.md') {
         return [
           '---',
-          'vlaina_cover: "assets/alpha.webp"',
-          'vlaina_cover_x: 12',
-          'vlaina_cover_y: 24',
-          'vlaina_cover_height: 260',
-          'vlaina_cover_scale: 1.4',
-          'vlaina_icon: "🐱"',
-          'vlaina_icon_size: 84',
+          'vlaina_cover: "assets/alpha.webp" x=12 y=24 height=260 scale=1.4',
+          'vlaina_icon: "🐱" size=84',
           'vlaina_created: "2026-04-15T00:00:00.000Z"',
           'vlaina_updated: "2026-04-16T00:00:00.000Z"',
           '---',

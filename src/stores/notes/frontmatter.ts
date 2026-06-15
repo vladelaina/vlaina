@@ -187,7 +187,10 @@ function normalizeCover(cover: NoteCoverMetadata | null | undefined): NoteCoverM
   return normalizeNoteCoverMetadata(cover);
 }
 
-type CoverLayoutMetadata = Omit<NoteCoverMetadata, 'assetPath'>;
+interface LeadingInlineValue {
+  value: string;
+  fields: Map<string, string>;
+}
 
 function parseInlineFields(value: string | number | null | undefined): Map<string, string> {
   const fields = new Map<string, string>();
@@ -245,17 +248,69 @@ function parseInlineFields(value: string | number | null | undefined): Map<strin
   return fields;
 }
 
-function getInlineString(fields: Map<string, string>, key: string): string | undefined {
-  const value = fields.get(key);
-  return typeof value === 'string' && value.trim() ? value : undefined;
-}
-
 function getInlineNumber(fields: Map<string, string>, key: string): number | undefined {
   const value = fields.get(key);
   if (value === undefined) {
     return undefined;
   }
   return parseManagedDecimalNumber(value);
+}
+
+function parseLeadingInlineValue(value: string | number | null | undefined): LeadingInlineValue | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  let index = 0;
+  let parsedValue = '';
+  const quote = trimmed[index];
+  if (quote === '"' || quote === "'") {
+    index += 1;
+    let closed = false;
+    while (index < trimmed.length) {
+      const character = trimmed[index];
+      if (character === quote) {
+        if (quote === "'" && trimmed[index + 1] === "'") {
+          parsedValue += "'";
+          index += 2;
+          continue;
+        }
+        index += 1;
+        closed = true;
+        break;
+      }
+      if (quote === '"' && character === '\\' && index + 1 < trimmed.length) {
+        parsedValue += trimmed[index + 1];
+        index += 2;
+        continue;
+      }
+      parsedValue += character;
+      index += 1;
+    }
+    if (!closed) {
+      return undefined;
+    }
+  } else {
+    const valueStart = index;
+    while (index < trimmed.length && !/[\s,;]/.test(trimmed[index] ?? '')) {
+      index += 1;
+    }
+    parsedValue = trimmed.slice(valueStart, index);
+  }
+
+  if (!parsedValue.trim()) {
+    return undefined;
+  }
+
+  return {
+    value: parsedValue,
+    fields: parseInlineFields(trimmed.slice(index)),
+  };
 }
 
 function parseManagedDecimalNumber(value: string): number | undefined {
@@ -272,48 +327,8 @@ function parseManagedDecimalNumber(value: string): number | undefined {
   return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
-function parseCoverLayout(value: string | number | null | undefined): CoverLayoutMetadata {
-  if (typeof value !== 'string') {
-    return {};
-  }
-
-  const layout: CoverLayoutMetadata = {};
-  for (const token of value.trim().split(/[\s,;]+/)) {
-    const match = /^(x|y|height|scale)=(.+)$/i.exec(token);
-    if (!match) {
-      continue;
-    }
-
-    const numericValue = parseManagedDecimalNumber(match[2] ?? '');
-    if (numericValue === undefined) {
-      continue;
-    }
-
-    const name = match[1]?.toLowerCase();
-    if (name === 'x') {
-      layout.positionX = numericValue;
-    } else if (name === 'y') {
-      layout.positionY = numericValue;
-    } else if (name === 'height') {
-      layout.height = numericValue;
-    } else if (name === 'scale') {
-      layout.scale = numericValue;
-    }
-  }
-
-  return layout;
-}
-
-function getParsedNumber(
-  parsedValues: Map<string, string | number | null>,
-  key: string,
-): number | undefined {
-  const value = parsedValues.get(key);
-  return typeof value === 'number' ? value : undefined;
-}
-
 function formatCoverLayout(cover: NoteCoverMetadata): string | null {
-  const parts = [`asset=${quoteInlineFieldValue(cover.assetPath)}`];
+  const parts = [quoteInlineFieldValue(cover.assetPath)];
 
   if (cover.positionX !== undefined) parts.push(`x=${cover.positionX}`);
   if (cover.positionY !== undefined) parts.push(`y=${cover.positionY}`);
@@ -324,7 +339,7 @@ function formatCoverLayout(cover: NoteCoverMetadata): string | null {
 }
 
 function formatIconValue(icon: string, iconSize: number | undefined): string {
-  const parts = [`value=${quoteInlineFieldValue(icon)}`];
+  const parts = [quoteInlineFieldValue(icon)];
   if (iconSize !== undefined) {
     parts.push(`size=${iconSize}`);
   }
@@ -391,6 +406,7 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
   }
 
   const parsedValues = new Map<string, string | number | null>();
+  const rawValues = new Map<string, string>();
 
   for (const line of lines) {
     const key = parseTopLevelKey(line);
@@ -401,58 +417,48 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
     const separatorIndex = line.indexOf(':');
     const rawValue = separatorIndex >= 0 ? line.slice(separatorIndex + 1) : '';
     parsedValues.set(key, parseYamlScalar(rawValue));
+    rawValues.set(key, rawValue);
   }
 
   const coverValue = parsedValues.get(KEY_COVER);
   const normalized: NoteMetadataEntry = {};
 
   const rawIconValue = parsedValues.get(KEY_ICON);
-  const iconFields = parseInlineFields(rawIconValue);
-  const hasQuotedIconValueField = typeof rawIconValue === 'string' && /^\s*value\s*=\s*["']/.test(rawIconValue);
-  const hasFusedIconSize = getInlineNumber(iconFields, 'size') !== undefined;
-  const fusedIconValue = hasQuotedIconValueField || hasFusedIconSize
-    ? getInlineString(iconFields, 'value')
-    : undefined;
-  const iconValue = fusedIconValue ?? rawIconValue;
-  const icon = normalizeStoredIcon(iconValue);
-  if (icon) {
-    normalized.icon = icon;
-    const iconSize = normalizeIconSize(
-      fusedIconValue !== undefined
-        ? getInlineNumber(iconFields, 'size')
-        : parsedValues.get(KEY_ICON_SIZE)
-    );
-    if (iconSize !== undefined) {
-      normalized.iconSize = iconSize;
+  const rawIconSource = rawValues.get(KEY_ICON) ?? '';
+  if (!/^\s*value\s*=/.test(rawIconSource)) {
+    const inlineIcon = parseLeadingInlineValue(rawIconSource);
+    const iconValue = inlineIcon?.value ?? rawIconValue;
+    const icon = normalizeStoredIcon(iconValue);
+    if (icon) {
+      normalized.icon = icon;
+      const iconSize = normalizeIconSize(
+        inlineIcon ? getInlineNumber(inlineIcon.fields, 'size') : undefined
+      );
+      if (iconSize !== undefined) {
+        normalized.iconSize = iconSize;
+      }
     }
   }
 
-  if (typeof coverValue === 'string' && coverValue) {
-    const coverFields = parseInlineFields(coverValue);
-    const legacyCoverLayout = parseCoverLayout(parsedValues.get(KEY_COVER_LAYOUT));
+  if (
+    typeof coverValue === 'string'
+    && coverValue
+    && !/^\s*asset\s*=/.test(rawValues.get(KEY_COVER) ?? '')
+  ) {
+    const inlineCover = parseLeadingInlineValue(rawValues.get(KEY_COVER));
     const coverLayout = {
-      positionX: getInlineNumber(coverFields, 'x') ?? legacyCoverLayout.positionX,
-      positionY: getInlineNumber(coverFields, 'y') ?? legacyCoverLayout.positionY,
-      height: getInlineNumber(coverFields, 'height') ?? legacyCoverLayout.height,
-      scale: getInlineNumber(coverFields, 'scale') ?? legacyCoverLayout.scale,
+      positionX: inlineCover ? getInlineNumber(inlineCover.fields, 'x') : undefined,
+      positionY: inlineCover ? getInlineNumber(inlineCover.fields, 'y') : undefined,
+      height: inlineCover ? getInlineNumber(inlineCover.fields, 'height') : undefined,
+      scale: inlineCover ? getInlineNumber(inlineCover.fields, 'scale') : undefined,
     };
-    const hasFusedCoverLayout = ['x', 'y', 'height', 'scale']
-      .some((key) => getInlineNumber(coverFields, key) !== undefined);
-    const hasQuotedCoverAssetField = /^\s*asset\s*=\s*["']/.test(coverValue);
-    const inlineCoverAssetPath = getInlineString(coverFields, 'asset');
-    const coverAssetPath =
-      inlineCoverAssetPath !== undefined && (hasQuotedCoverAssetField || hasFusedCoverLayout)
-        ? inlineCoverAssetPath
-        : !hasFusedCoverLayout
-          ? coverValue
-          : undefined;
-    if (coverAssetPath) {
+    if (inlineCover?.value) {
       normalized.cover = normalizeCover({
-        assetPath: coverAssetPath,
-        positionX: coverLayout.positionX ?? getParsedNumber(parsedValues, KEY_COVER_X),
-        positionY: coverLayout.positionY ?? getParsedNumber(parsedValues, KEY_COVER_Y),
-        height: coverLayout.height ?? getParsedNumber(parsedValues, KEY_COVER_HEIGHT),
-        scale: coverLayout.scale ?? getParsedNumber(parsedValues, KEY_COVER_SCALE),
+        assetPath: inlineCover.value,
+        positionX: coverLayout.positionX,
+        positionY: coverLayout.positionY,
+        height: coverLayout.height,
+        scale: coverLayout.scale,
       });
     }
   }

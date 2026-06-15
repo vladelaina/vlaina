@@ -513,8 +513,8 @@ describe('isEditorMarkdownEquivalentToNoteContent', () => {
         '# Body',
         [
           '---',
-          'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
-          'vlaina_icon: value="sparkles" size=84',
+          'vlaina_cover: "./assets/readme.gif" x=50 y=50 height=255 scale=1',
+          'vlaina_icon: "💡" size=84',
           '---',
           '',
           '# Body',
@@ -535,7 +535,7 @@ describe('isEditorMarkdownEquivalentToNoteContent', () => {
         [
           '---',
           'title: Changed',
-          'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
+          'vlaina_cover: "./assets/readme.gif" x=50 y=50 height=255 scale=1',
           '---',
           '# Body',
         ].join('\n'),
@@ -590,7 +590,7 @@ describe('MilkdownEditorInner external content sync', () => {
       path: 'small.md',
       content: [
         '---',
-        'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
+        'vlaina_cover: "./assets/readme.gif" x=50 y=50 height=255 scale=1',
         '---',
         '',
         '# Body',
@@ -608,8 +608,8 @@ describe('MilkdownEditorInner external content sync', () => {
       path: 'small.md',
       content: [
         '---',
-        'vlaina_cover: asset="./assets/readme.gif" x=50 y=50 height=255 scale=1',
-        'vlaina_icon: value="sparkles" size=84',
+        'vlaina_cover: "./assets/readme.gif" x=50 y=50 height=255 scale=1',
+        'vlaina_icon: "💡" size=84',
         '---',
         '',
         '# Body',

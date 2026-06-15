@@ -229,7 +229,7 @@ describe('featureSlice draft metadata', () => {
     });
 
     const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
-    expect(writtenContent).toContain('vlaina_icon: value="💡" size=84');
+    expect(writtenContent).toContain('vlaina_icon: "💡" size=84');
     expect(store.getState().noteMetadata?.notes[notePath]?.iconSize).toBe(84);
   });
 
@@ -379,7 +379,7 @@ describe('featureSlice draft metadata', () => {
     });
 
     const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
-    expect(writtenContent).toContain('vlaina_icon: value="💡"');
+    expect(writtenContent).toContain('vlaina_icon: "💡"');
     expect(writtenContent).toContain('Disk body');
     expect(writtenContent).not.toContain('Original body');
     expect(store.getState().currentNote?.content).toBe(writtenContent);
@@ -1043,11 +1043,7 @@ describe('featureSlice draft metadata', () => {
     const notePath = '/notes/alpha.md';
     const content = [
       '---',
-      'vlaina_cover: "@monet/4"',
-      'vlaina_cover_x: 50',
-      'vlaina_cover_y: 50',
-      'vlaina_cover_height: 200',
-      'vlaina_cover_scale: 1',
+      'vlaina_cover: "@monet/4" x=50 y=50 height=200 scale=1',
       'vlaina_icon: "💡"',
       '---',
       '# Alpha',
