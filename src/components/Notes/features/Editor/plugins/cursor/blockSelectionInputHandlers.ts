@@ -23,6 +23,18 @@ interface BlockSelectionInputHandlerOptions {
   deleteSelectedBlocks: DeleteSelectedBlocks;
 }
 
+const NON_TEXT_INPUT_TYPES = new Set([
+  'button',
+  'checkbox',
+  'color',
+  'file',
+  'image',
+  'radio',
+  'range',
+  'reset',
+  'submit',
+]);
+
 function areSameBlockRanges(a: readonly BlockRange[], b: readonly BlockRange[]): boolean {
   return a.length === b.length && a.every((range, index) => (
     range.from === b[index]?.from && range.to === b[index]?.to
@@ -56,6 +68,33 @@ function isClipboardCutShortcut(event: KeyboardEvent): boolean {
   );
 }
 
+function isBlockSelectionDeleteKey(event: KeyboardEvent): boolean {
+  return (
+    event.key === 'Delete' ||
+    event.key === 'Backspace' ||
+    event.code === 'Delete' ||
+    event.code === 'Backspace'
+  );
+}
+
+export function isTextEditingElement(element: HTMLElement, editorDom: HTMLElement): boolean {
+  if (element === editorDom) return false;
+  if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+    return true;
+  }
+
+  if (element instanceof HTMLInputElement) {
+    return !NON_TEXT_INPUT_TYPES.has(element.type.toLowerCase());
+  }
+
+  return element.isContentEditable;
+}
+
+function isTextEditingEventTarget(event: Event, editorDom: HTMLElement): boolean {
+  const target = event.target;
+  return target instanceof HTMLElement && isTextEditingElement(target, editorDom);
+}
+
 export function isClipboardEvent(event: Event): event is ClipboardEvent {
   return 'clipboardData' in event;
 }
@@ -70,6 +109,7 @@ export function handleBlockSelectionKeyDown(
   }: BlockSelectionInputHandlerOptions,
 ): boolean {
   if (selectedBlocks.length === 0) return false;
+  if (isTextEditingEventTarget(event, view.dom)) return false;
 
   if (isClipboardCopyShortcut(event)) {
     const text = serializeSelectedBlocks(view.state, selectedBlocks);
@@ -99,7 +139,7 @@ export function handleBlockSelectionKeyDown(
     return true;
   }
 
-  if (event.key === 'Delete' || event.key === 'Backspace') {
+  if (isBlockSelectionDeleteKey(event)) {
     if (event.metaKey || event.ctrlKey || event.altKey) return false;
     event.preventDefault();
     return deleteSelectedBlocks(view, selectedBlocks);
@@ -117,6 +157,7 @@ export function handleBlockSelectionCopy(
   }: Omit<BlockSelectionInputHandlerOptions, 'deleteSelectedBlocks'>,
 ): boolean {
   if (selectedBlocks.length === 0) return false;
+  if (isTextEditingEventTarget(event, view.dom)) return false;
 
   const text = serializeSelectedBlocks(view.state, selectedBlocks);
   const doc = view.state.doc;
@@ -145,6 +186,7 @@ export function handleBlockSelectionCut(
   }: BlockSelectionInputHandlerOptions,
 ): boolean {
   if (selectedBlocks.length === 0) return false;
+  if (isTextEditingEventTarget(event, view.dom)) return false;
 
   const text = serializeSelectedBlocks(view.state, selectedBlocks);
   const doc = view.state.doc;

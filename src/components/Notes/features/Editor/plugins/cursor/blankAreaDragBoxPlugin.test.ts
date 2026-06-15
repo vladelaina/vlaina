@@ -79,6 +79,17 @@ function dispatchDocumentKeydown(key: string, init: KeyboardEventInit = {}): Key
   return event;
 }
 
+function dispatchKeydownFromElement(element: HTMLElement, key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+  element.dispatchEvent(event);
+  return event;
+}
+
 function dispatchDocumentClipboardEvent(type: 'copy' | 'cut' | 'paste', text = '') {
   const clipboardData = {
     setData: vi.fn(),
@@ -94,6 +105,25 @@ function dispatchDocumentClipboardEvent(type: 'copy' | 'cut' | 'paste', text = '
     configurable: true,
   });
   document.dispatchEvent(event);
+  return { event, clipboardData };
+}
+
+function createClipboardEventWithTarget(type: 'copy' | 'cut', target: HTMLElement) {
+  const clipboardData = {
+    setData: vi.fn(),
+  };
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.defineProperty(event, 'clipboardData', {
+    value: clipboardData,
+    configurable: true,
+  });
+  Object.defineProperty(event, 'target', {
+    value: target,
+    configurable: true,
+  });
   return { event, clipboardData };
 }
 
@@ -969,6 +999,38 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
     }
   });
 
+  it('deletes selected blocks when the physical Delete key has a non-standard key label', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      view.dom.blur();
+      const deleteEvent = dispatchDocumentKeydown('Unidentified', { code: 'Delete' });
+
+      expect(deleteEvent.defaultPrevented).toBe(true);
+      expect(view.state.doc.textContent).toBe('Beta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('deletes selected blocks from document Delete when the editor root is still focused', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      view.dom.focus();
+      expect(document.activeElement).toBe(view.dom);
+
+      const deleteEvent = dispatchDocumentKeydown('Delete');
+
+      expect(deleteEvent.defaultPrevented).toBe(true);
+      expect(view.state.doc.textContent).toBe('Beta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('deletes consecutive selected ordered list items from editor Delete while the editor is focused', async () => {
     const { editor, view } = await createBlockSelectionEditor(['1. 1', '2. 2', '3. 3'].join('\n'));
 
@@ -987,6 +1049,88 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(list.childCount).toBe(1);
       expect(list.child(0).textContent).toBe('3');
       expect(list.child(0).attrs.label).toBe('1.');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('deletes selected blocks from document Delete when an editor chrome button has focus', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['- Alpha', '- Beta'].join('\n'));
+
+    try {
+      const blocks = collectSelectableBlockRanges(view.state.doc);
+      expect(blocks).toHaveLength(2);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [blocks[0]] });
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = 'List chrome';
+      view.dom.appendChild(button);
+      button.focus();
+      expect(document.activeElement).toBe(button);
+
+      const deleteEvent = dispatchKeydownFromElement(button, 'Delete');
+
+      expect(deleteEvent.defaultPrevented).toBe(true);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+      expect(view.state.doc.childCount).toBe(1);
+      const list = view.state.doc.child(0);
+      expect(list.type.name).toBe('bullet_list');
+      expect(list.childCount).toBe(1);
+      expect(list.child(0).textContent).toBe('Beta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('leaves selected blocks intact when a text input inside the editor has focus', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['- Alpha', '- Beta'].join('\n'));
+
+    try {
+      const blocks = collectSelectableBlockRanges(view.state.doc);
+      expect(blocks).toHaveLength(2);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [blocks[0]] });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      view.dom.appendChild(input);
+      input.focus();
+      expect(document.activeElement).toBe(input);
+
+      dispatchKeydownFromElement(input, 'Delete');
+
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not hijack copy or cut from a text input inside the editor', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['- Alpha', '- Beta'].join('\n'));
+
+    try {
+      const blocks = collectSelectableBlockRanges(view.state.doc);
+      expect(blocks).toHaveLength(2);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [blocks[0]] });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'input text';
+      view.dom.appendChild(input);
+      input.focus();
+
+      const copy = createClipboardEventWithTarget('copy', input);
+      expect(simulateDomEvent(view, 'copy', copy.event)).toBe(false);
+      expect(copy.event.defaultPrevented).toBe(false);
+      expect(copy.clipboardData.setData).not.toHaveBeenCalled();
+
+      const cut = createClipboardEventWithTarget('cut', input);
+      expect(simulateDomEvent(view, 'cut', cut.event)).toBe(false);
+      expect(cut.event.defaultPrevented).toBe(false);
+      expect(cut.clipboardData.setData).not.toHaveBeenCalled();
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
     } finally {
       await editor.destroy();
     }

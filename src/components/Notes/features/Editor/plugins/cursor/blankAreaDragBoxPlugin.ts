@@ -54,6 +54,7 @@ import {
   handleBlockSelectionCut,
   handleBlockSelectionKeyDown,
   isClipboardEvent,
+  isTextEditingElement,
 } from './blockSelectionInputHandlers';
 import { createBlockSelectionLineFillOverlay } from './blockSelectionLineFillOverlay';
 import {
@@ -425,10 +426,23 @@ function startUnclaimedBlankPlainClickSession(
 }
 
 function shouldHandleDocumentBlockSelectionEvent(view: EditorView, event: Event): boolean {
-  const target = event.target;
-  if (target instanceof Node && view.dom.contains(target)) return false;
+  if (getBlockSelectionPluginState(view.state).selectedBlocks.length === 0) return false;
 
+  const target = event.target;
+  const isTargetInsideEditor = target instanceof Node && view.dom.contains(target);
   const activeElement = view.dom.ownerDocument.activeElement;
+  if (activeElement instanceof HTMLElement && view.dom.contains(activeElement)) {
+    if (activeElement === view.dom) return !isTargetInsideEditor;
+    if (isTextEditingElement(activeElement, view.dom)) return false;
+    return true;
+  }
+
+  if (isTargetInsideEditor) {
+    const targetElement = target instanceof HTMLElement ? target : target.parentElement;
+    if (!targetElement || targetElement === view.dom) return false;
+    return !isTextEditingElement(targetElement, view.dom);
+  }
+
   if (
     activeElement instanceof HTMLElement
     && activeElement !== view.dom.ownerDocument.body
@@ -438,7 +452,7 @@ function shouldHandleDocumentBlockSelectionEvent(view: EditorView, event: Event)
     return false;
   }
 
-  return getBlockSelectionPluginState(view.state).selectedBlocks.length > 0;
+  return true;
 }
 
 function handleDocumentBlockSelectionPaste(view: EditorView, event: ClipboardEvent): boolean {

@@ -4,8 +4,10 @@ import {
   EDITOR_SELECTOR,
   SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
+  getBlankAreaDragTarget,
   getOpenBridgePages,
   launchIsolatedElectron,
+  openMarkdownFixture,
 } from "./notesE2E";
 import { expectDragSourceSelectionSurface, measureSelectedSurfaceCoverage } from "./notesBlockSelectionDragHelpers";
 import {
@@ -18,6 +20,155 @@ import {
 
 test.describe("notes block selection", () => {
   test.setTimeout(90_000);
+
+  test('deletes selected blocks with Delete across representative block types', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-delete-key');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-delete-key.md',
+        content: [
+          '# Delete Key Block Selection',
+          '',
+          'Delete paragraph sentinel',
+          '',
+          '## Delete heading sentinel',
+          '',
+          '- Delete bullet sentinel',
+          '- Keep bullet sentinel',
+          '',
+          '1. Delete ordered sentinel',
+          '2. Keep ordered sentinel',
+          '',
+          '- [ ] Delete task sentinel',
+          '- [ ] Keep task sentinel',
+          '',
+          '> Delete quote sentinel',
+          '',
+          '```ts',
+          'const deleteCodeSentinel = true;',
+          '```',
+          '',
+          'Keep final sentinel',
+          '',
+        ].join('\n'),
+      });
+
+      for (const target of [
+        'Delete paragraph sentinel',
+        'Delete heading sentinel',
+        'Delete bullet sentinel',
+        'Delete ordered sentinel',
+        'Delete task sentinel',
+        'Delete quote sentinel',
+        'deleteCodeSentinel',
+      ]) {
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(target);
+
+        const selectedCount = await page.evaluate(async (targetText) => {
+          const count = await (window as any).__vlainaE2E.selectNoteBlocksByText([targetText]);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          return count;
+        }, target);
+        expect(selectedCount, `Expected selectable block for ${target}`).toBe(1);
+
+        await page.evaluate(() => {
+          const active = document.activeElement;
+          if (active instanceof HTMLElement) active.blur();
+        });
+        await page.keyboard.press('Delete');
+
+        await expect.poll(async () => page.evaluate((targetText) => {
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          const state = (window as any).__vlainaE2E.getNotesState();
+          return {
+            editorHasText: editor?.textContent?.includes(targetText) ?? false,
+            markdownHasText: state.currentNote?.content?.includes(targetText) ?? false,
+            selectedCount: document.querySelectorAll('.milkdown .ProseMirror .editor-block-selected').length,
+          };
+        }, target), {
+          message: `Expected Delete to remove selected block "${target}"`,
+        }).toEqual({
+          editorHasText: false,
+          markdownHasText: false,
+          selectedCount: 0,
+        });
+      }
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Keep bullet sentinel');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Keep ordered sentinel');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Keep task sentinel');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Keep final sentinel');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('deletes a list block selected by real blank-area drag with Delete', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-drag-delete-list');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-drag-delete-list.md',
+        content: [
+          '# Drag Delete List',
+          '',
+          'Intro paragraph stays after drag delete.',
+          '',
+          '- Drag delete list sentinel',
+          '',
+        ].join('\n'),
+      });
+
+      const target = await getBlankAreaDragTarget(page, 'Drag delete list sentinel');
+      expect(target).not.toBeNull();
+      expect(target!.hitInsideEditor).toBe(false);
+
+      await page.mouse.move(target!.startX, target!.startY);
+      await page.mouse.down();
+      await page.mouse.move(target!.endX, target!.endY, { steps: 16 });
+      await page.mouse.up();
+
+      await expect.poll(async () => page.evaluate(() => {
+        const selected = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .editor-block-selected'));
+        return {
+          count: selected.length,
+          hasTarget: selected.some((element) => element.textContent?.includes('Drag delete list sentinel')),
+          activeTagName: document.activeElement instanceof HTMLElement ? document.activeElement.tagName : null,
+          activeClassName: document.activeElement instanceof HTMLElement ? document.activeElement.className : null,
+        };
+      })).toMatchObject({
+        count: expect.any(Number),
+        hasTarget: true,
+      });
+
+      await page.keyboard.press('Delete');
+
+      await expect.poll(async () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const state = (window as any).__vlainaE2E.getNotesState();
+        return {
+          editorHasTarget: editor?.textContent?.includes('Drag delete list sentinel') ?? false,
+          markdownHasTarget: state.currentNote?.content?.includes('Drag delete list sentinel') ?? false,
+          editorHasIntro: editor?.textContent?.includes('Intro paragraph stays after drag delete.') ?? false,
+          selectedCount: document.querySelectorAll('.milkdown .ProseMirror .editor-block-selected').length,
+        };
+      }), {
+        message: 'Expected Delete to remove the drag-selected list block',
+      }).toEqual({
+        editorHasTarget: false,
+        markdownHasTarget: false,
+        editorHasIntro: true,
+        selectedCount: 0,
+      });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('selects blocks from the text gutter and centers the drag handle on the selected block', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection');
