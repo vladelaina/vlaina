@@ -108,6 +108,7 @@ const EXPANDED_OFFICIAL_SOURCE_HINTS = [
   { pattern: /\bstack overflow\b.*\bofficial\b/i, title: 'Stack Overflow', url: 'https://stackoverflow.com/', snippet: 'Official Stack Overflow website.' },
   { pattern: /\bsteam\b.*\b(download|official)\b/i, title: 'Install Steam', url: 'https://store.steampowered.com/about/', snippet: 'Official Steam download page.' },
   { pattern: /\bepic games\b.*\b(launcher|download|official)\b/i, title: 'Download Epic Games Launcher', url: 'https://store.epicgames.com/download', snippet: 'Official Epic Games Launcher download page.' },
+  { pattern: /\bvite\b.*\b(latest|current|recent|release|blog|announcing)\b.*\b(official|blog|release)?\b/i, title: 'Announcing Vite 8', url: 'https://vite.dev/blog/announcing-vite8', snippet: 'Official Vite 8 release blog post.' },
   { pattern: /\bvite\b.*\b(docs?|documentation|official)\b/i, title: 'Vite Guide', url: 'https://vite.dev/guide/', snippet: 'Official Vite documentation.' },
   { pattern: /\breact\b(?!\s+router\b)(?!.*\buseeffect\b).*\b(docs?|documentation|official)\b/i, title: 'React Documentation', url: 'https://react.dev/learn', snippet: 'Official React documentation.' },
   { pattern: /\bvue\b.*\b(guide|docs?|documentation|official)\b/i, title: 'Vue Guide', url: 'https://vuejs.org/guide/introduction.html', snippet: 'Official Vue guide.' },

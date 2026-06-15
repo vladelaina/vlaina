@@ -6,6 +6,7 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import { desktopWindow } from '@/lib/desktop/window';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { TextSelection } from '@milkdown/kit/prose/state';
@@ -35,6 +36,17 @@ import type { ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types';
 import type { NotesState, StarredEntry } from '@/stores/notes/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
 import type { VaultInfo } from '@/stores/useVaultStore';
+import type { ChatMessage } from '@/lib/ai/types';
+import {
+  enqueueChatE2EMockResponse,
+  getChatE2EMockPendingRequestIds,
+  getChatE2EMockRequests,
+  installChatE2EMock,
+  resetChatE2EMock,
+  resolveChatE2EMockPendingRequest,
+  type ChatE2EMockRequest,
+  type ChatE2EMockResponse,
+} from './chatE2EMock';
 
 const E2E_LOCAL_STORAGE_KEY = 'vlaina:e2e:enabled';
 
@@ -100,6 +112,18 @@ export interface E2EBridge {
     selected?: boolean;
   }): Promise<string>;
   deleteProvider(id: string): Promise<void>;
+  prepareChatWebSearchE2E(): Promise<{ providerId: string; modelId: string }>;
+  setChatWebSearchEnabled(enabled: boolean): Promise<void>;
+  enqueueChatMockResponse(response: ChatE2EMockResponse): Promise<void>;
+  getChatMockRequests(): ChatE2EMockRequest[];
+  getChatMockPendingRequestIds(): string[];
+  resolveChatMockPendingRequest(requestId?: string, response?: ChatE2EMockResponse): Promise<boolean>;
+  getChatState(): {
+    currentSessionId: string | null;
+    webSearchEnabled: boolean;
+    generating: boolean;
+    messages: ChatMessage[];
+  };
   setTimezone(offset: number, city: string): Promise<void>;
   setMarkdownLineNumbers(showLineNumbers: boolean): Promise<void>;
   getImportedMarkdownThemesDirectoryPath(): Promise<string>;
@@ -973,6 +997,62 @@ export function installSyncE2EBridge(): void {
     deleteProvider: async (id) => {
       providerActions.deleteProvider(id);
       await flushPendingSave();
+    },
+    prepareChatWebSearchE2E: async () => {
+      installChatE2EMock();
+      resetChatE2EMock();
+      useUIStore.getState().setAppViewMode('chat');
+      useUIStore.getState().setLanguagePreference('en');
+      aiActions.setWebSearchEnabled(false);
+      aiActions.openNewChat();
+
+      const apiModelId = 'e2e-web-search-model';
+      const providerId = aiActions.addProvider({
+        name: 'E2E web search channel',
+        type: 'newapi',
+        endpointType: 'openai',
+        endpointTypeCheckedAt: Date.now(),
+        apiHost: 'https://example.invalid/v1',
+        apiKey: 'sk-e2e',
+        enabled: true,
+      });
+      const modelId = `${providerId}::${apiModelId}`;
+      aiActions.addModel({
+        id: modelId,
+        apiModelId,
+        name: 'E2E Web Search Model',
+        providerId,
+        enabled: true,
+      });
+      aiActions.selectModel(modelId);
+      await flushPendingSave();
+      return { providerId, modelId };
+    },
+    setChatWebSearchEnabled: async (enabled) => {
+      aiActions.setWebSearchEnabled(enabled);
+      await flushPendingSave();
+    },
+    enqueueChatMockResponse: async (response) => {
+      enqueueChatE2EMockResponse(response);
+    },
+    getChatMockRequests: () => getChatE2EMockRequests(),
+    getChatMockPendingRequestIds: () => getChatE2EMockPendingRequestIds(),
+    resolveChatMockPendingRequest: async (requestId, response) => {
+      return resolveChatE2EMockPendingRequest(requestId, response);
+    },
+    getChatState: () => {
+      const currentSessionId = useAIUIStore.getState().currentSessionId;
+      const messages = currentSessionId
+        ? useUnifiedStore.getState().data.ai?.messages?.[currentSessionId] ?? []
+        : [];
+      return {
+        currentSessionId,
+        webSearchEnabled: useUnifiedStore.getState().data.ai?.webSearchEnabled === true,
+        generating: currentSessionId
+          ? useAIUIStore.getState().generatingSessions[currentSessionId] === true
+          : false,
+        messages: structuredClone(messages),
+      };
     },
     setTimezone: async (offset, city) => {
       useUnifiedStore.getState().setTimezone(offset, city);

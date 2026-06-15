@@ -178,7 +178,7 @@ export function ChatInputActions({
         {isLoading ? (
           <button
             type="button"
-            aria-label="Stop response"
+            aria-label={t('shortcut.action.stopResponse')}
             data-chat-input-action="stop"
             onClick={onStop}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)] transition-[color,box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:text-[var(--vlaina-accent-hover)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"

@@ -2063,6 +2063,130 @@ describe('OpenAI web search JSON tool loop', () => {
     }
     expect(final).toContain(`Final answer with ${urls.join(' and ')}`);
   });
+
+  it('bounds parallel model-requested tools and reuses duplicate tool work while preserving tool message order', async () => {
+    const urls = [
+      'https://one.example',
+      'https://one.example',
+      'https://one.example',
+      'https://two.example',
+      'https://three.example',
+      'https://four.example',
+      'https://two.example',
+    ];
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: urls.map((url, index) => ({
+              id: `read-${index + 1}`,
+              type: 'function',
+              function: {
+                name: 'read_web_page',
+                arguments: index === 1
+                  ? JSON.stringify({ trace: 'ignored-one', url })
+                  : index === urls.length - 1
+                    ? JSON.stringify({ trace: 'ignored-two', url })
+                    : JSON.stringify({ url }),
+              },
+            })),
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Final answer with bounded reads.',
+          },
+        }],
+      });
+    const startedUrls: string[] = [];
+    const resolvers = new Map<string, (page: WebPageContent) => void>();
+    let activeReads = 0;
+    let maxActiveReads = 0;
+    const client = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn((url: string) => new Promise<WebPageContent>((resolve) => {
+        startedUrls.push(url);
+        activeReads += 1;
+        maxActiveReads = Math.max(maxActiveReads, activeReads);
+        resolvers.set(url, (page) => {
+          activeReads -= 1;
+          resolve(page);
+        });
+      })),
+      readWebPages: vi.fn(),
+    };
+
+    const pending = runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'read these pages' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    await vi.waitFor(() => {
+      expect(startedUrls).toEqual([
+        'https://one.example',
+        'https://two.example',
+        'https://three.example',
+      ]);
+    });
+    expect(maxActiveReads).toBe(3);
+
+    for (const url of ['https://one.example', 'https://two.example', 'https://three.example']) {
+      resolvers.get(url)?.({
+        title: url,
+        summary: '',
+        siteName: new URL(url).hostname,
+        finalUrl: url,
+        content: `Readable content for ${url}.`,
+        charCount: 30,
+      });
+    }
+
+    await vi.waitFor(() => {
+      expect(startedUrls).toEqual([
+        'https://one.example',
+        'https://two.example',
+        'https://three.example',
+        'https://four.example',
+      ]);
+    });
+    resolvers.get('https://four.example')?.({
+      title: 'https://four.example',
+      summary: '',
+      siteName: 'four.example',
+      finalUrl: 'https://four.example',
+      content: 'Readable content for https://four.example.',
+      charCount: 40,
+    });
+
+    const final = await pending;
+    const nextMessages = requestJson.mock.calls[1][0].messages;
+    const toolMessages = nextMessages.slice(-urls.length);
+    expect(client.readWebPage).toHaveBeenCalledTimes(4);
+    expect(toolMessages.map((message: { tool_call_id?: string }) => message.tool_call_id)).toEqual([
+      'read-1',
+      'read-2',
+      'read-3',
+      'read-4',
+      'read-5',
+      'read-6',
+      'read-7',
+    ]);
+    expect(toolMessages[0].content).toBe(toolMessages[1].content);
+    expect(toolMessages[0].content).toBe(toolMessages[2].content);
+    expect(toolMessages[3].content).toBe(toolMessages[6].content);
+    expect(final).toContain('Final answer with bounded reads.');
+  });
+
   it('stops repeated no-result streaming searches without another model recovery request', async () => {
     const request = vi.fn(async () => streamResponse([
       {

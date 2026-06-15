@@ -232,6 +232,107 @@ describe('LocalSearchProvider', () => {
     expect(abortedUrls[0]).toContain('duckduckgo.com');
   });
 
+  it('returns strong fresh official hints after a bounded grace when supplemental engines stall', async () => {
+    vi.useFakeTimers();
+    try {
+      const abortedUrls = [];
+      const fetchImpl = vi.fn((url, options = {}) => new Promise((_resolve, reject) => {
+        options.signal.addEventListener('abort', () => {
+          abortedUrls.push(String(url));
+          reject(new DOMException('cancelled', 'AbortError'));
+        }, { once: true });
+      }));
+      const provider = new LocalSearchProvider({
+        fetchImpl,
+        timeoutMs: 5000,
+        officialHintGraceMs: 25,
+      });
+
+      const request = provider.search('latest IRS tax inflation adjustments 2026 official', { limit: 5 });
+      let settled = false;
+      void request.finally(() => {
+        settled = true;
+      });
+
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(24);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(request).resolves.toEqual([
+        expect.objectContaining({
+          title: 'IRS Tax Inflation Adjustments for Tax Year 2026',
+          url: 'https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill',
+        }),
+      ]);
+      await Promise.resolve();
+
+      expect(abortedUrls).toEqual(expect.arrayContaining([
+        expect.stringMatching(/^https:\/\/www\.google\.com\/search/),
+        expect.stringMatching(/^https:\/\/www\.bing\.com\/search/),
+        expect.stringMatching(/^https:\/\/html\.duckduckgo\.com\/html\//),
+      ]));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns empty results after a bounded grace when only higher-priority engines are still stalled', async () => {
+    vi.useFakeTimers();
+    try {
+      const abortedUrls = [];
+      const fetchImpl = vi.fn((url, options = {}) => {
+        const textUrl = String(url);
+        if (textUrl.includes('google.com')) {
+          options.signal.addEventListener('abort', () => {
+            abortedUrls.push(textUrl);
+          }, { once: true });
+          return new Promise((_resolve, reject) => {
+            options.signal.addEventListener('abort', () => {
+              reject(new DOMException('cancelled', 'AbortError'));
+            }, { once: true });
+          });
+        }
+
+        return Promise.resolve(new Response(`
+          <li class="b_algo">
+            <h2><a href="https://weather.com/us/washington/city/seattle/tenday">10-Day Weather Forecast for Seattle</a></h2>
+            <div class="b_caption"><p>Seattle weather forecast and conditions.</p></div>
+          </li>
+        `, {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        }));
+      });
+      const provider = new LocalSearchProvider({
+        fetchImpl,
+        timeoutMs: 5000,
+        engineFallbackGraceMs: 25,
+      });
+
+      const request = provider.search('weather in shanghai today', {
+        engines: ['google', 'bing'],
+        limit: 5,
+      });
+      let settled = false;
+      void request.finally(() => {
+        settled = true;
+      });
+
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(24);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(request).resolves.toEqual([]);
+
+      expect(abortedUrls).toHaveLength(1);
+      expect(abortedUrls[0]).toContain('google.com');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('cancels search result body reads when the external signal aborts', async () => {
     const controller = new AbortController();
     const reader = {
@@ -417,15 +518,20 @@ describe('LocalSearchProvider', () => {
   it('parses Google and DuckDuckGo result links', () => {
     const googleHtml = `
       <a href="/url?q=https%3A%2F%2Fexample.com%2Fgoogle&sa=U"><h3>Google Result</h3></a>
+      <p>Unrelated paragraph text.</p>
+      <div class="VwiC3b">Google summary text.</div>
     `;
     const duckHtml = `
       <a class="result__a" href="/l/?uddg=https%3A%2F%2Fexample.com%2Fduck">Duck Result</a>
+      <p>Unrelated paragraph text.</p>
+      <a class="result__snippet">Duck summary text.</a>
     `;
 
     expect(localSearchInternals.parseGoogleResults(googleHtml, 5)).toEqual([
       expect.objectContaining({
         title: 'Google Result',
         url: 'https://example.com/google',
+        snippet: 'Google summary text.',
         source: 'local-web-search:google',
       }),
     ]);
@@ -433,6 +539,7 @@ describe('LocalSearchProvider', () => {
       expect.objectContaining({
         title: 'Duck Result',
         url: 'https://example.com/duck',
+        snippet: 'Duck summary text.',
         source: 'local-web-search:duckduckgo',
       }),
     ]);
