@@ -128,6 +128,11 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
   caret-color: transparent;
 }
 
+/* See nestedListPointerCaretPlugin: Electron drops mouse events when nested lists are the direct hit target. */
+.milkdown .ProseMirror li > :is(ol, ul) {
+  pointer-events: none;
+}
+
 .milkdown-editor[data-note-lazy-block-visibility='true'] .ProseMirror > :is(p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol):not(.editor-block-selected):not(.ProseMirror-selectednode) {
   content-visibility: auto;
   contain-intrinsic-size: auto var(--vlaina-height-block-intrinsic, 96px);

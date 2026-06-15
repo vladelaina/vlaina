@@ -25,12 +25,12 @@ describe("editor block selection styles", () => {
     expect(css).not.toContain('list-style-type: none !important;');
   });
 
-  it('tints native list markers when the list item or its parent marker class carries selection', () => {
+  it('tints native list markers only when the list item itself carries selection', () => {
     const css = readBlockSelectionStyle();
 
-    expect(css).toContain('.milkdown .ProseMirror li.editor-block-selected::marker,');
-    expect(css).toContain('.milkdown .ProseMirror li.editor-block-selected-parent-marker::marker {');
+    expect(css).toContain('.milkdown .ProseMirror li.editor-block-selected::marker {');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg);');
+    expect(css).not.toContain('.milkdown .ProseMirror li.editor-block-selected-parent-marker::marker {');
     expect(css).not.toContain('li:has(> p.editor-block-selected)::marker');
     expect(css).not.toContain('li:has(> .code-block-container.editor-block-selected)::marker');
   });
