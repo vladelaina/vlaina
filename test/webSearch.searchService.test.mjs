@@ -57,7 +57,7 @@ describe('SearchService', () => {
         resolvers.push({ attempt, resolve });
       })),
     };
-    const service = new SearchService({ providers: [provider] });
+    const service = new SearchService({ providers: [provider], fallbackResultGraceMs: 0 });
 
     const responsePromise = service.webSearch('query', {
       category: 'news',
@@ -80,6 +80,104 @@ describe('SearchService', () => {
       query: 'query',
       results: [expect.objectContaining({ title: 'Plain Result' })],
     });
+  });
+
+  it('prefers a higher-priority constrained attempt when it finishes during the fallback grace window', async () => {
+    const resolvers = [];
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn((_query, attempt) => new Promise((resolve) => {
+        resolvers.push({ attempt, resolve });
+      })),
+    };
+    const service = new SearchService({ providers: [provider], fallbackResultGraceMs: 50 });
+
+    const responsePromise = service.webSearch('query', {
+      category: 'news',
+      timeRange: 'week',
+    });
+
+    expect(provider.search).toHaveBeenCalledTimes(2);
+    resolvers[1].resolve([
+      {
+        title: 'Plain Result',
+        url: 'https://example.com/plain',
+        snippet: '',
+        publishedAt: null,
+        source: null,
+        thumbnail: null,
+      },
+    ]);
+    await Promise.resolve();
+    resolvers[0].resolve([
+      {
+        title: 'Fresh News Result',
+        url: 'https://example.com/news',
+        snippet: '',
+        publishedAt: null,
+        source: null,
+        thumbnail: null,
+      },
+    ]);
+
+    await expect(responsePromise).resolves.toEqual({
+      query: 'query',
+      results: [expect.objectContaining({ title: 'Fresh News Result' })],
+    });
+  });
+
+  it('returns ready fallback results after the grace window when constrained attempts stay pending', async () => {
+    vi.useFakeTimers();
+    try {
+      const aborts = [];
+      const resolvers = [];
+      const provider = {
+        isConfigured: () => true,
+        search: vi.fn((_query, attempt) => {
+          attempt.signal.addEventListener('abort', () => {
+            aborts.push(attempt.category || 'plain');
+          }, { once: true });
+          return new Promise((resolve) => {
+            resolvers.push({ attempt, resolve });
+          });
+        }),
+      };
+      const service = new SearchService({ providers: [provider], fallbackResultGraceMs: 25 });
+
+      const responsePromise = service.webSearch('query', {
+        category: 'news',
+        timeRange: 'week',
+      });
+      let settled = false;
+      void responsePromise.then(() => {
+        settled = true;
+      });
+
+      expect(provider.search).toHaveBeenCalledTimes(2);
+      resolvers[1].resolve([
+        {
+          title: 'Plain Result',
+          url: 'https://example.com/plain',
+          snippet: '',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        },
+      ]);
+      await Promise.resolve();
+
+      await vi.advanceTimersByTimeAsync(24);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(responsePromise).resolves.toEqual({
+        query: 'query',
+        results: [expect.objectContaining({ title: 'Plain Result' })],
+      });
+      expect(aborts).toEqual(['news']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('cancels slower fallback attempts after one attempt returns results', async () => {
@@ -105,7 +203,7 @@ describe('SearchService', () => {
         ]);
       }),
     };
-    const service = new SearchService({ providers: [provider] });
+    const service = new SearchService({ providers: [provider], fallbackResultGraceMs: 0 });
 
     await expect(service.webSearch('query', {
       category: 'news',

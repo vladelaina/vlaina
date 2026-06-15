@@ -1,5 +1,7 @@
 import { DEFAULT_SEARCH_LIMIT, WebSearchError, normalizeLimit } from './types.mjs';
 
+const DEFAULT_FALLBACK_RESULT_GRACE_MS = 1200;
+
 function createAbortError() {
   return new DOMException('The web search request was cancelled.', 'AbortError');
 }
@@ -59,21 +61,39 @@ function buildSearchAttempts(options, limit) {
   return attempts;
 }
 
-function searchProviderAttempts(provider, query, attempts) {
+function normalizeGraceMs(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return DEFAULT_FALLBACK_RESULT_GRACE_MS;
+  }
+  return Math.min(Math.round(parsed), 5000);
+}
+
+function searchProviderAttempts(provider, query, attempts, options = {}) {
   return new Promise((resolve, reject) => {
     if (attempts.length === 0) {
       resolve({ results: [], sawEmptyResult: false, lastError: null });
       return;
     }
 
+    const fallbackResultGraceMs = normalizeGraceMs(options.fallbackResultGraceMs);
     let remaining = attempts.length;
     let lastError = null;
     let sawEmptyResult = false;
     let settled = false;
+    let fallbackResultTimer = null;
+    const attemptStates = attempts.map(() => ({
+      done: false,
+      results: null,
+    }));
     const attemptControllers = new Set();
     const cleanupCallbacks = [];
 
     const cleanup = () => {
+      if (fallbackResultTimer) {
+        clearTimeout(fallbackResultTimer);
+        fallbackResultTimer = null;
+      }
       for (const cleanupCallback of cleanupCallbacks.splice(0)) {
         cleanupCallback();
       }
@@ -102,8 +122,41 @@ function searchProviderAttempts(provider, query, attempts) {
       reject(error);
     };
 
+    const hasPendingHigherPriorityAttempt = (attemptIndex) =>
+      attemptStates.slice(0, attemptIndex).some((state) => !state.done);
+
+    const resolveBestReadyResults = ({ allowPendingHigherPriority = false } = {}) => {
+      for (let attemptIndex = 0; attemptIndex < attemptStates.length; attemptIndex += 1) {
+        const state = attemptStates[attemptIndex];
+        if (!Array.isArray(state.results) || state.results.length === 0) continue;
+        if (!allowPendingHigherPriority && hasPendingHigherPriorityAttempt(attemptIndex)) return false;
+        settleResolve({ results: state.results, sawEmptyResult: true, lastError });
+        return true;
+      }
+      return false;
+    };
+
+    const hasReadyResults = () => attemptStates.some((state) =>
+      Array.isArray(state.results) && state.results.length > 0);
+
+    const scheduleFallbackResultResolution = () => {
+      if (settled || !hasReadyResults()) return;
+      if (resolveBestReadyResults()) return;
+      if (fallbackResultTimer) return;
+      if (fallbackResultGraceMs <= 0) {
+        resolveBestReadyResults({ allowPendingHigherPriority: true });
+        return;
+      }
+      fallbackResultTimer = setTimeout(() => {
+        fallbackResultTimer = null;
+        if (settled) return;
+        resolveBestReadyResults({ allowPendingHigherPriority: true });
+      }, fallbackResultGraceMs);
+    };
+
     const finishIfDone = () => {
       if (settled || remaining > 0) return;
+      if (resolveBestReadyResults()) return;
       settleResolve({ results: [], sawEmptyResult, lastError });
     };
 
@@ -121,7 +174,8 @@ function searchProviderAttempts(provider, query, attempts) {
       cleanupCallbacks.push(() => signal.removeEventListener('abort', abortFromParent));
     }
 
-    for (const attempt of attempts) {
+    for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
+      const attempt = attempts[attemptIndex];
       try {
         throwIfAborted(attempt.signal);
       } catch (error) {
@@ -153,12 +207,15 @@ function searchProviderAttempts(provider, query, attempts) {
             settleReject(error);
             return;
           }
+          attemptStates[attemptIndex].done = true;
+          remaining -= 1;
           if (Array.isArray(results) && results.length > 0) {
-            settleResolve({ results, sawEmptyResult: true, lastError });
+            attemptStates[attemptIndex].results = results;
+            scheduleFallbackResultResolution();
             return;
           }
           sawEmptyResult = true;
-          remaining -= 1;
+          if (resolveBestReadyResults()) return;
           finishIfDone();
         })
         .catch((error) => {
@@ -172,8 +229,10 @@ function searchProviderAttempts(provider, query, attempts) {
             settleReject(error);
             return;
           }
+          attemptStates[attemptIndex].done = true;
           lastError = error;
           remaining -= 1;
+          if (resolveBestReadyResults()) return;
           finishIfDone();
         });
     }
@@ -181,8 +240,9 @@ function searchProviderAttempts(provider, query, attempts) {
 }
 
 export class SearchService {
-  constructor({ providers }) {
+  constructor({ providers, fallbackResultGraceMs = DEFAULT_FALLBACK_RESULT_GRACE_MS }) {
     this.providers = providers.filter((provider) => provider?.isConfigured?.());
+    this.fallbackResultGraceMs = normalizeGraceMs(fallbackResultGraceMs);
   }
 
   async webSearch(query, options = {}) {
@@ -203,7 +263,9 @@ export class SearchService {
     let sawAnyEmptyResult = false;
     for (const provider of this.providers) {
       throwIfAborted(options.signal);
-      const result = await searchProviderAttempts(provider, normalizedQuery, attempts);
+      const result = await searchProviderAttempts(provider, normalizedQuery, attempts, {
+        fallbackResultGraceMs: this.fallbackResultGraceMs,
+      });
       throwIfAborted(options.signal);
       if (result.results.length > 0) {
         return { query: normalizedQuery, results: result.results };
@@ -223,5 +285,6 @@ export class SearchService {
 
 export const searchServiceInternals = {
   buildSearchAttempts,
+  DEFAULT_FALLBACK_RESULT_GRACE_MS,
   searchProviderAttempts,
 };

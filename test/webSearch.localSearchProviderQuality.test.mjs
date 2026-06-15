@@ -314,6 +314,8 @@ describe('LocalSearchProvider quality controls', () => {
   it('requires enough meaningful terms to avoid ambiguous Bing-style matches', () => {
     expect(localSearchInternals.getMeaningfulTerms('fish shell official documentation')).toEqual(['fish', 'shell']);
     expect(localSearchInternals.getMeaningfulTerms('my-app-demo official')).toEqual(['my-app-demo']);
+    expect(localSearchInternals.getMeaningfulTerms('current CISA known exploited vulnerabilities catalog official'))
+      .toEqual(['cisa', 'known', 'exploited', 'vulnerabilities', 'catalog']);
     expect(localSearchInternals.filterLowRelevanceResults('fish shell official documentation', [
       {
         title: 'Oregon Fishing Forum',
@@ -344,6 +346,22 @@ describe('LocalSearchProvider quality controls', () => {
     ])).toEqual([
       expect.objectContaining({
         title: 'MCP Inspector',
+      }),
+    ]);
+    expect(localSearchInternals.filterLowRelevanceResults('current CISA known exploited vulnerabilities catalog official', [
+      {
+        title: 'Current Catalog - Checks, Address Labels, Wrapping Paper',
+        url: 'https://www.currentcatalog.com/',
+        snippet: 'Shop checks, address labels, wrapping paper, and cards.',
+      },
+      {
+        title: 'Known Exploited Vulnerabilities Catalog',
+        url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
+        snippet: 'Official CISA KEV catalog.',
+      },
+    ])).toEqual([
+      expect.objectContaining({
+        title: 'Known Exploited Vulnerabilities Catalog',
       }),
     ]);
   });

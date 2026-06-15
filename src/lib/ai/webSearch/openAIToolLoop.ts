@@ -17,6 +17,11 @@ import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 
 const MAX_WEB_SEARCH_TOOL_LOOPS = 6;
 const MAX_NO_RESULT_SEARCH_ATTEMPTS = 3;
+const MAX_PARALLEL_WEB_SEARCH_TOOL_CALLS = 3;
+const MAX_WEB_SEARCH_QUERY_ARG_CHARS = 1000;
+const MAX_WEB_SEARCH_URL_ARG_CHARS = 16 * 1024;
+const MAX_WEB_SEARCH_OPTION_ARG_CHARS = 64;
+const MAX_WEB_SEARCH_BATCH_URLS = 8;
 
 interface ToolLoopOptions extends WebSearchToolRunnerOptions {
   body: ChatCompletionRequest;
@@ -259,6 +264,95 @@ function parseToolArguments(rawArguments: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function stringToolArg(args: Record<string, unknown>, key: string, maxChars: number): string {
+  const value = args[key];
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return trimmed.length <= maxChars ? trimmed : '';
+}
+
+function stringArrayToolArg(
+  args: Record<string, unknown>,
+  key: string,
+  maxChars: number,
+  maxItems: number,
+): string[] {
+  const value = args[key];
+  if (!Array.isArray(value)) return [];
+  const result: string[] = [];
+  for (const item of value) {
+    if (result.length >= maxItems) break;
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (trimmed.length > 0 && trimmed.length <= maxChars) {
+      result.push(trimmed);
+    }
+  }
+  return result;
+}
+
+function contentLimitToolArg(args: Record<string, unknown>): number {
+  const limit = args.contentLimit;
+  if (typeof limit !== 'number' || !Number.isFinite(limit)) return 3000;
+  return Math.min(3000, Math.max(500, Math.round(limit)));
+}
+
+function stringifyToolArgumentKey(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stringifyToolArgumentKey(item)).join(',')}]`;
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+    return `{${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stringifyToolArgumentKey(entryValue)}`)
+      .join(',')}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function buildToolCallDedupeKey(toolCall: OpenAIToolCall): string {
+  const args = parseToolArguments(toolCall.function.arguments);
+  if (isSearchToolName(toolCall.function.name)) {
+    return stringifyToolArgumentKey({
+      name: WEB_SEARCH_TOOL_NAMES.search,
+      arguments: {
+        query: stringToolArg(args, 'query', MAX_WEB_SEARCH_QUERY_ARG_CHARS),
+        category: stringToolArg(args, 'category', MAX_WEB_SEARCH_OPTION_ARG_CHARS),
+        timeRange: stringToolArg(args, 'timeRange', MAX_WEB_SEARCH_OPTION_ARG_CHARS),
+      },
+    });
+  }
+
+  if (isReadToolName(toolCall.function.name)) {
+    return stringifyToolArgumentKey({
+      name: WEB_SEARCH_TOOL_NAMES.read,
+      arguments: {
+        url: stringToolArg(args, 'url', MAX_WEB_SEARCH_URL_ARG_CHARS),
+        contentLimit: contentLimitToolArg(args),
+      },
+    });
+  }
+
+  if (isBatchReadToolName(toolCall.function.name)) {
+    return stringifyToolArgumentKey({
+      name: WEB_SEARCH_TOOL_NAMES.readBatch,
+      arguments: {
+        urls: stringArrayToolArg(args, 'urls', MAX_WEB_SEARCH_URL_ARG_CHARS, MAX_WEB_SEARCH_BATCH_URLS),
+        contentLimit: contentLimitToolArg(args),
+      },
+    });
+  }
+
+  return stringifyToolArgumentKey({
+    name: normalizeToolNameForLoop(toolCall.function.name),
+    arguments: args,
+  });
 }
 
 function normalizeReadCacheUrl(url: string): string {
@@ -687,18 +781,55 @@ async function runToolCallsInParallel(
   toolCalls: OpenAIToolCall[],
   options: WebSearchToolRunnerOptions,
 ): Promise<OpenAIWireMessage[]> {
-  const toolResults = await Promise.all(
-    toolCalls.map(async (toolCall) => ({
-      toolCall,
-      content: await runWebSearchToolCall(toolCall.function, options),
-    })),
-  );
+  const uniqueCalls: Array<{
+    key: string;
+    toolCall: OpenAIToolCall;
+    contentPromise?: Promise<string>;
+  }> = [];
+  const callsByKey = new Map<string, typeof uniqueCalls[number]>();
+  const callsByIndex = new Array<typeof uniqueCalls[number]>(toolCalls.length);
 
-  return toolResults.map(({ toolCall, content }) => ({
+  for (let index = 0; index < toolCalls.length; index += 1) {
+    const toolCall = toolCalls[index];
+    const key = buildToolCallDedupeKey(toolCall);
+    let uniqueCall = callsByKey.get(key);
+    if (!uniqueCall) {
+      uniqueCall = { key, toolCall };
+      callsByKey.set(key, uniqueCall);
+      uniqueCalls.push(uniqueCall);
+    }
+    callsByIndex[index] = uniqueCall;
+  }
+
+  let nextUniqueIndex = 0;
+
+  const worker = async () => {
+    while (nextUniqueIndex < uniqueCalls.length) {
+      const index = nextUniqueIndex;
+      nextUniqueIndex += 1;
+      const uniqueCall = uniqueCalls[index];
+      uniqueCall.contentPromise = runWebSearchToolCall(uniqueCall.toolCall.function, options);
+      await uniqueCall.contentPromise;
+    }
+  };
+
+  await Promise.all(Array.from(
+    { length: Math.min(MAX_PARALLEL_WEB_SEARCH_TOOL_CALLS, uniqueCalls.length) },
+    () => worker(),
+  ));
+
+  const contents = await Promise.all(callsByIndex.map(async (uniqueCall) => {
+    if (!uniqueCall.contentPromise) {
+      uniqueCall.contentPromise = runWebSearchToolCall(uniqueCall.toolCall.function, options);
+    }
+    return await uniqueCall.contentPromise;
+  }));
+
+  return toolCalls.map((toolCall, index) => ({
     role: 'tool',
     tool_call_id: toolCall.id,
     name: toolCall.function.name,
-    content,
+    content: contents[index],
   }));
 }
 

@@ -85,8 +85,10 @@ function rememberCompiledTheme(
   return compiled;
 }
 
-export function preloadMarkdownThemeCompiler(): void {
-  void loadMarkdownThemeCompilerModules();
+export function preloadMarkdownThemeCompiler(): Promise<void> {
+  return loadMarkdownThemeCompilerModules()
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
 export function preloadCompiledImportedMarkdownThemeStyles(id: string): void {

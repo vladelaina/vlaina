@@ -49,6 +49,8 @@ const SEARCH_ENGINES = [
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 const SEARCH_TIMEOUT_MS = 8000;
+const OFFICIAL_HINT_GRACE_MS = 500;
+const ENGINE_FALLBACK_GRACE_MS = 500;
 const MAX_SEARCH_RESPONSE_TEXT_BYTES = 1_000_000;
 
 function createAbortError() {
@@ -179,6 +181,21 @@ function shouldUseFastOfficialHints(query, options, officialResults) {
   return !asksForFreshSearch;
 }
 
+function hasStrongOfficialHint(query, officialResults) {
+  const terms = getMeaningfulTerms(query);
+  if (terms.length === 0) return false;
+
+  const minimumScore = Math.min(3, terms.length);
+  return officialResults.some((result) =>
+    getQueryMatchScore(query, `${result.title} ${result.snippet} ${result.url}`) >= minimumScore);
+}
+
+function shouldUseOfficialHintGrace(query, options, officialResults) {
+  if (officialResults.length === 0) return false;
+  if (options.category === 'news' || options.timeRange) return false;
+  return hasStrongOfficialHint(query, officialResults);
+}
+
 function buildTimeRangeParams(engineId, timeRange) {
   const normalizedRange = String(timeRange || '').toLowerCase();
   if (!['day', 'week', 'month', 'year'].includes(normalizedRange)) {
@@ -209,21 +226,41 @@ function collectBingBlocks(html) {
 }
 
 function collectGoogleBlocks(html) {
-  return [...String(html).matchAll(/<a[^>]*href="([^"]+)"[^>]*>\s*<h3[^>]*>([\s\S]*?)<\/h3>/gi)]
-    .map((match) => ({
+  const input = String(html);
+  const matches = [...input.matchAll(/<a[^>]*href="([^"]+)"[^>]*>\s*<h3[^>]*>([\s\S]*?)<\/h3>/gi)];
+  return matches
+    .map((match, index) => ({
       url: match[1],
       title: match[2],
-      block: match[0],
+      block: input.slice(match.index ?? 0, matches[index + 1]?.index ?? input.length),
     }));
 }
 
 function collectDuckDuckGoBlocks(html) {
-  return [...String(html).matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
-    .map((match) => ({
+  const input = String(html);
+  const matches = [...input.matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
+  return matches
+    .map((match, index) => ({
       url: match[1],
       title: match[2],
-      block: match[0],
+      block: input.slice(match.index ?? 0, matches[index + 1]?.index ?? input.length),
     }));
+}
+
+function extractResultSnippet(block, title) {
+  const patterns = [
+    /<(?:a|div|span)[^>]*class="[^"]*(?:result__snippet|VwiC3b|IsZvec|BNeawe|st|snippet)[^"]*"[^>]*>([\s\S]*?)<\/(?:a|div|span)>/i,
+    /<(?:a|div|span)[^>]*class='[^']*(?:result__snippet|VwiC3b|IsZvec|BNeawe|st|snippet)[^']*'[^>]*>([\s\S]*?)<\/(?:a|div|span)>/i,
+    /<p[^>]*>([\s\S]*?)<\/p>/i,
+  ];
+  const cleanTitle = cleanText(title);
+  for (const pattern of patterns) {
+    const snippet = cleanText((block.match(pattern) || [])[1] || '');
+    if (snippet && snippet !== cleanTitle) {
+      return snippet;
+    }
+  }
+  return '';
 }
 
 function parseResultItems(items, limit, existingUrls = new Set(), options = {}) {
@@ -236,7 +273,7 @@ function parseResultItems(items, limit, existingUrls = new Set(), options = {}) 
     if (!url || seenUrls.has(url)) continue;
     if (isBlockedResultUrl(url, { query: options.query })) continue;
     const title = cleanText(item.title);
-    const snippet = cleanText((item.block.match(/<p[^>]*>([\s\S]*?)<\/p>/i) || [])[1] || '');
+    const snippet = extractResultSnippet(item.block, title);
     if (!title) continue;
     if (minQueryScore > 0 && getQueryMatchScore(options.query, `${title} ${snippet}`) < minQueryScore) continue;
 
@@ -368,9 +405,20 @@ function selectSearchEngines(rawEngines) {
 }
 
 export class LocalSearchProvider {
-  constructor({ fetchImpl = fetch, timeoutMs = SEARCH_TIMEOUT_MS } = {}) {
+  constructor({
+    fetchImpl = fetch,
+    timeoutMs = SEARCH_TIMEOUT_MS,
+    officialHintGraceMs = OFFICIAL_HINT_GRACE_MS,
+    engineFallbackGraceMs = ENGINE_FALLBACK_GRACE_MS,
+  } = {}) {
     this.fetchImpl = fetchImpl;
     this.timeoutMs = timeoutMs;
+    this.officialHintGraceMs = Number.isFinite(officialHintGraceMs)
+      ? Math.max(0, officialHintGraceMs)
+      : OFFICIAL_HINT_GRACE_MS;
+    this.engineFallbackGraceMs = Number.isFinite(engineFallbackGraceMs)
+      ? Math.max(0, engineFallbackGraceMs)
+      : ENGINE_FALLBACK_GRACE_MS;
   }
 
   isConfigured() {
@@ -384,9 +432,12 @@ export class LocalSearchProvider {
     if (shouldUseFastOfficialHints(query, options, officialResults)) {
       return officialResults;
     }
+    const shouldReturnOfficialHintAfterGrace = shouldUseOfficialHintGrace(query, options, officialResults);
     const existingUrls = new Set(officialResults.map((result) => result.url));
     const searchQuery = buildSearchQuery(query, options);
     const engines = selectSearchEngines(options.engines);
+    const enginePriority = new Map(engines.map((engine, index) => [engine.id, index]));
+    const hasDirectOfficialCandidate = getSingleBrandLikeTerm(query) !== null;
     const directOfficialController = new AbortController();
     let directOfficialCancelledByCompletion = false;
     const directOfficialSignal = options.signal
@@ -514,9 +565,92 @@ export class LocalSearchProvider {
       };
     };
 
+    const summarizeReadyEngines = (byEngine) => {
+      const relevantResults = [];
+      const seenUrls = new Set(existingUrls);
+      let sawSuccessfulSearch = false;
+      let lowestPrioritySuccessfulEngineIndex = -1;
+
+      for (const engine of engines) {
+        const attempt = byEngine.get(engine.id);
+        if (!attempt || attempt.error) continue;
+        sawSuccessfulSearch = true;
+        lowestPrioritySuccessfulEngineIndex = Math.max(
+          lowestPrioritySuccessfulEngineIndex,
+          enginePriority.get(engine.id) ?? -1,
+        );
+        for (const result of attempt.results || []) {
+          if (seenUrls.has(result.url)) continue;
+          seenUrls.add(result.url);
+          relevantResults.push(result);
+          if (officialResults.length + relevantResults.length >= limit) {
+            break;
+          }
+        }
+      }
+
+      return {
+        relevantResults,
+        sawSuccessfulSearch,
+        lowestPrioritySuccessfulEngineIndex,
+      };
+    };
+
+    const hasOnlyHigherPriorityPendingEngines = (lowestPrioritySuccessfulEngineIndex) => {
+      if (lowestPrioritySuccessfulEngineIndex < 0 || pendingEngineAttempts.size === 0) return false;
+      for (const attempt of pendingEngineAttempts) {
+        const index = enginePriority.get(attempt.engine.id) ?? Number.MAX_SAFE_INTEGER;
+        if (index > lowestPrioritySuccessfulEngineIndex) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const pendingEngineAttempts = new Set(engineAttempts);
+    let officialHintGraceTimeout = null;
+    let officialHintGracePromise = null;
+    let engineFallbackGraceTimeout = null;
+    let engineFallbackGracePromise = null;
+    const clearOfficialHintGrace = () => {
+      if (officialHintGraceTimeout) {
+        clearTimeout(officialHintGraceTimeout);
+        officialHintGraceTimeout = null;
+      }
+      officialHintGracePromise = null;
+    };
+    const clearEngineFallbackGrace = () => {
+      if (engineFallbackGraceTimeout) {
+        clearTimeout(engineFallbackGraceTimeout);
+        engineFallbackGraceTimeout = null;
+      }
+      engineFallbackGracePromise = null;
+    };
+    const scheduleEngineFallbackGrace = () => {
+      if (engineFallbackGracePromise || pendingEngineAttempts.size === 0) return;
+      if (this.engineFallbackGraceMs <= 0) {
+        engineFallbackGracePromise = Promise.resolve({ engineFallbackGrace: true });
+        return;
+      }
+      engineFallbackGracePromise = new Promise((resolve) => {
+        engineFallbackGraceTimeout = setTimeout(() => {
+          engineFallbackGraceTimeout = null;
+          resolve({ engineFallbackGrace: true });
+        }, this.engineFallbackGraceMs);
+      });
+    };
+
     try {
       const byEngine = new Map();
       const pending = new Set(engineAttempts.map((attempt) => attempt.settledPromise));
+      officialHintGracePromise = shouldReturnOfficialHintAfterGrace
+        ? new Promise((resolve) => {
+          officialHintGraceTimeout = setTimeout(() => {
+            officialHintGraceTimeout = null;
+            resolve({ officialHintGrace: true });
+          }, this.officialHintGraceMs);
+        })
+        : null;
       let summary = {
         hasEnoughResults: false,
         lastError: null,
@@ -525,8 +659,28 @@ export class LocalSearchProvider {
       };
 
       while (pending.size > 0) {
-        const settled = await Promise.race(pending);
+        const racePromises = [...pending];
+        if (officialHintGracePromise) racePromises.push(officialHintGracePromise);
+        if (engineFallbackGracePromise) racePromises.push(engineFallbackGracePromise);
+        const settled = await Promise.race(racePromises);
+        if (settled.officialHintGrace) {
+          clearOfficialHintGrace();
+          clearEngineFallbackGrace();
+          throwIfAborted(options.signal);
+          cancelOutstandingEngines();
+          cancelDirectOfficial();
+          return [...officialResults, ...summary.relevantResults].slice(0, limit);
+        }
+        if (settled.engineFallbackGrace) {
+          const readySummary = summarizeReadyEngines(byEngine);
+          clearEngineFallbackGrace();
+          throwIfAborted(options.signal);
+          cancelOutstandingEngines();
+          cancelDirectOfficial();
+          return [...officialResults, ...readySummary.relevantResults].slice(0, limit);
+        }
         pending.delete(settled.attempt.settledPromise);
+        pendingEngineAttempts.delete(settled.attempt);
         settledEngineIds.add(settled.attempt.engine.id);
         if (settled.error) {
           throw settled.error;
@@ -535,12 +689,27 @@ export class LocalSearchProvider {
         throwIfAborted(options.signal);
         summary = summarizeResolvedEngines(byEngine);
         if (summary.hasEnoughResults) {
+          clearOfficialHintGrace();
+          clearEngineFallbackGrace();
           cancelOutstandingEngines();
           cancelDirectOfficial();
           return [...officialResults, ...summary.relevantResults].slice(0, limit);
         }
+
+        const readySummary = summarizeReadyEngines(byEngine);
+        if (readySummary.relevantResults.length > 0) {
+          scheduleEngineFallbackGrace();
+        } else if (
+          readySummary.sawSuccessfulSearch
+          && !hasDirectOfficialCandidate
+          && hasOnlyHigherPriorityPendingEngines(readySummary.lowestPrioritySuccessfulEngineIndex)
+        ) {
+          scheduleEngineFallbackGrace();
+        }
       }
 
+      clearOfficialHintGrace();
+      clearEngineFallbackGrace();
       if (summary.relevantResults.length > 0 || officialResults.length > 0) {
         throwIfAborted(options.signal);
         cancelDirectOfficial();
@@ -560,6 +729,8 @@ export class LocalSearchProvider {
 
       throw new WebSearchError('search_unavailable', 'Web search is temporarily unavailable.', summary.lastError);
     } catch (error) {
+      clearOfficialHintGrace();
+      clearEngineFallbackGrace();
       cancelOutstandingEngines();
       cancelDirectOfficial();
       throw error;
@@ -580,6 +751,7 @@ export const localSearchInternals = {
   parseGoogleResults,
   parseResults,
   selectSearchEngines,
+  shouldUseOfficialHintGrace,
   shouldUseFastOfficialHints,
   getSingleBrandLikeTerm,
   fetchDirectOfficialSite,

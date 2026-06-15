@@ -150,6 +150,8 @@ export function ChatInputActions({
       <div className="flex items-center gap-2">
         {isLoading ? (
           <button
+            type="button"
+            aria-label={t('shortcut.action.stopResponse')}
             onClick={onStop}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
           >
@@ -157,6 +159,8 @@ export function ChatInputActions({
           </button>
         ) : (
           <button
+            type="button"
+            aria-label={t('common.send')}
             onClick={onSend}
             disabled={!canSubmit}
             className={cn(

@@ -173,6 +173,22 @@ export async function sendMessageWithEndpointFallback({
   retryDelayMs = PRE_STREAM_RETRY_DELAY_MS,
 }: SendMessageWithEndpointFallbackOptions): Promise<string> {
   throwIfAborted(signal);
+  if (import.meta.env.DEV) {
+    const { maybeSendChatE2EMockMessage } = await import('@/lib/e2e/chatE2EMock');
+    const e2eMockResult = await maybeSendChatE2EMockMessage({
+      content,
+      history,
+      model,
+      provider,
+      onChunk,
+      signal,
+      options,
+    });
+    if (e2eMockResult.handled) {
+      return e2eMockResult.content;
+    }
+  }
+
   const shouldAutoRetry = options?.webSearchEnabled !== true;
 
   if (isManagedProviderId(provider.id) || (provider.endpointType && provider.endpointTypeCheckedAt)) {
