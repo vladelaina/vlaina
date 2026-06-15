@@ -2,11 +2,10 @@ import type { AIModel, Provider } from '@/lib/ai/types';
 import { MANAGED_PROVIDER_ID, createManagedProvider } from '@/lib/ai/managedService';
 
 export function sortProviders(providers: Provider[]): Provider[] {
-  return [...providers].sort((a, b) => {
-    if (a.id === MANAGED_PROVIDER_ID) return -1
-    if (b.id === MANAGED_PROVIDER_ID) return 1
-    return a.createdAt - b.createdAt
-  })
+  return [
+    ...providers.filter((provider) => provider.id === MANAGED_PROVIDER_ID),
+    ...providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID),
+  ]
 }
 
 export function ensureManagedProvider(providers: Provider[]): Provider[] {

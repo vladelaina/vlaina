@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, type DragEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
 import { SettingsSwitch } from '@/components/Settings/components/SettingsFields';
@@ -56,6 +56,38 @@ function getChannelBaseUrlTextClassName(label: string) {
   return 'text-[var(--vlaina-font-xs)]';
 }
 
+function moveProviderIdToTargetIndex(
+  providerIds: string[],
+  draggedProviderId: string,
+  targetProviderId: string
+): string[] {
+  if (draggedProviderId === targetProviderId) {
+    return providerIds;
+  }
+
+  const fromIndex = providerIds.indexOf(draggedProviderId);
+  const toIndex = providerIds.indexOf(targetProviderId);
+  if (fromIndex === -1 || toIndex === -1) {
+    return providerIds;
+  }
+
+  const nextProviderIds = [...providerIds];
+  const [movedProviderId] = nextProviderIds.splice(fromIndex, 1);
+  nextProviderIds.splice(toIndex, 0, movedProviderId);
+  return nextProviderIds;
+}
+
+function areProviderIdsEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((providerId, index) => providerId === right[index]);
+}
+
+function setTransparentDragImage(dataTransfer: DataTransfer) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  dataTransfer.setDragImage(canvas, 0, 0);
+}
+
 function ChannelObject({
   providerId,
   name,
@@ -63,10 +95,17 @@ function ChannelObject({
   enabled,
   modelCount,
   active = false,
+  dragging = false,
+  dragOver = false,
   onClick,
   onMiddleClick,
   onToggleEnabled,
   onDelete,
+  onDragStart,
+  onDragEnter,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   providerId: string;
   name: string;
@@ -74,10 +113,17 @@ function ChannelObject({
   enabled: boolean;
   modelCount: number;
   active?: boolean;
+  dragging?: boolean;
+  dragOver?: boolean;
   onClick?: () => void;
   onMiddleClick?: () => void;
   onToggleEnabled?: (enabled: boolean) => void;
   onDelete?: () => void;
+  onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
+  onDragEnter?: (event: DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (event: DragEvent<HTMLDivElement>) => void;
+  onDrop?: (event: DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (event: DragEvent<HTMLDivElement>) => void;
 }) {
   const { t } = useI18n();
   const baseUrlLabel = baseUrl ? formatChannelBaseUrl(baseUrl) : t('settings.ai.notConfiguredYet');
@@ -88,7 +134,14 @@ function ChannelObject({
       tabIndex={0}
       data-settings-ai-channel-card={providerId}
       data-active={active ? 'true' : undefined}
+      draggable
+      aria-grabbed={dragging ? true : undefined}
       onClick={onClick}
+      onDragStart={onDragStart}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -108,10 +161,14 @@ function ChannelObject({
         onMiddleClick?.();
       }}
       className={cn(
-        'group/channel relative min-h-[var(--vlaina-size-112px)] rounded-[var(--vlaina-radius-26px)] border transition-all duration-[var(--vlaina-duration-200)] cursor-pointer border-transparent',
+        'group/channel relative min-h-[var(--vlaina-size-112px)] cursor-grab rounded-[var(--vlaina-radius-26px)] border transition-all duration-[var(--vlaina-duration-200)] active:cursor-grabbing',
         active
           ? 'bg-[var(--vlaina-sidebar-row-selected-bg)]'
-          : chatComposerPillSurfaceClass
+          : chatComposerPillSurfaceClass,
+        dragOver
+          ? 'border-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-md)]'
+          : 'border-transparent',
+        dragging && 'opacity-0'
       )}
     >
       <div className="block w-full px-5 pb-3 pt-5 text-left">
@@ -189,7 +246,7 @@ function CreateChannelObject({ onClick }: { onClick: () => void }) {
 
 export function AITab() {
   const { t } = useI18n();
-  const { providers, models, addProvider, updateProvider, deleteProvider } = useAIStore();
+  const { providers, models, addProvider, updateProvider, deleteProvider, reorderCustomProviders } = useAIStore();
   const customProviders = useMemo(
     () => providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID),
     [providers]
@@ -205,6 +262,25 @@ export function AITab() {
   const [providerDrafts, setProviderDrafts] = useState<Record<string, ProviderCardDraft>>({});
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteProvider | null>(null);
   const [pendingBaseUrlFocusProviderId, setPendingBaseUrlFocusProviderId] = useState<string | null>(null);
+  const [draggingProviderId, setDraggingProviderId] = useState<string | null>(null);
+  const [dragOverProviderId, setDragOverProviderId] = useState<string | null>(null);
+  const [dragPreviewProviderIds, setDragPreviewProviderIds] = useState<string[] | null>(null);
+  const suppressChannelClickUntilRef = useRef(0);
+  const dragPreviewProviderIdsRef = useRef<string[] | null>(null);
+  const lastDragReorderTargetProviderIdRef = useRef<string | null>(null);
+  const orderedCustomProviders = useMemo(() => {
+    if (!dragPreviewProviderIds) {
+      return customProviders;
+    }
+
+    const providerById = new Map(customProviders.map((provider) => [provider.id, provider] as const));
+    const orderedProviders = dragPreviewProviderIds
+      .map((providerId) => providerById.get(providerId))
+      .filter((provider): provider is typeof customProviders[number] => !!provider);
+    const orderedProviderIds = new Set(orderedProviders.map((provider) => provider.id));
+    const missingProviders = customProviders.filter((provider) => !orderedProviderIds.has(provider.id));
+    return [...orderedProviders, ...missingProviders];
+  }, [customProviders, dragPreviewProviderIds]);
 
   useEffect(() => {
     if (customProviders.length === 0) {
@@ -246,6 +322,14 @@ export function AITab() {
     setSelectedProviderId(id);
   };
 
+  const handleChannelClick = (id: string) => {
+    if (Date.now() < suppressChannelClickUntilRef.current) {
+      return;
+    }
+
+    handleSelectProvider(id);
+  };
+
   const handleAddCustomProvider = () => {
     const customIndex = customProviders.length + 1;
     const nextId = addProvider({
@@ -257,6 +341,107 @@ export function AITab() {
     });
     setSelectedProviderId(nextId);
     setPendingBaseUrlFocusProviderId(nextId);
+  };
+
+  const clearChannelDragState = () => {
+    setDraggingProviderId(null);
+    setDragOverProviderId(null);
+    setDragPreviewProviderIds(null);
+    dragPreviewProviderIdsRef.current = null;
+    lastDragReorderTargetProviderIdRef.current = null;
+  };
+
+  const commitDragPreviewOrder = (providerIds: string[] | null): boolean => {
+    if (!providerIds) {
+      return false;
+    }
+
+    const currentProviderIds = customProviders.map((provider) => provider.id);
+    if (areProviderIdsEqual(providerIds, currentProviderIds)) {
+      return false;
+    }
+
+    reorderCustomProviders(providerIds);
+    return true;
+  };
+
+  const previewReorderCustomProviders = (draggedProviderId: string, targetProviderId: string) => {
+    if (
+      draggedProviderId === targetProviderId ||
+      lastDragReorderTargetProviderIdRef.current === targetProviderId
+    ) {
+      return;
+    }
+
+    const currentProviderIds =
+      dragPreviewProviderIdsRef.current ?? customProviders.map((provider) => provider.id);
+    const nextProviderIds = moveProviderIdToTargetIndex(
+      currentProviderIds,
+      draggedProviderId,
+      targetProviderId
+    );
+
+    if (nextProviderIds === currentProviderIds) {
+      return;
+    }
+
+    dragPreviewProviderIdsRef.current = nextProviderIds;
+    lastDragReorderTargetProviderIdRef.current = targetProviderId;
+    setDragPreviewProviderIds(nextProviderIds);
+  };
+
+  const handleChannelDragStart = (providerId: string, event: DragEvent<HTMLDivElement>) => {
+    const initialProviderIds = customProviders.map((provider) => provider.id);
+    suppressChannelClickUntilRef.current = 0;
+    dragPreviewProviderIdsRef.current = initialProviderIds;
+    lastDragReorderTargetProviderIdRef.current = null;
+    setDraggingProviderId(providerId);
+    setDragOverProviderId(null);
+    setDragPreviewProviderIds(initialProviderIds);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', providerId);
+    setTransparentDragImage(event.dataTransfer);
+  };
+
+  const handleChannelDragEnter = (providerId: string, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (draggingProviderId && draggingProviderId !== providerId) {
+      setDragOverProviderId(providerId);
+      previewReorderCustomProviders(draggingProviderId, providerId);
+    }
+  };
+
+  const handleChannelDragOver = (providerId: string, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (draggingProviderId && draggingProviderId !== providerId) {
+      setDragOverProviderId(providerId);
+      previewReorderCustomProviders(draggingProviderId, providerId);
+    }
+  };
+
+  const handleChannelDrop = (targetProviderId: string, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const draggedProviderId = draggingProviderId || event.dataTransfer.getData('text/plain');
+    const previewProviderIds = dragPreviewProviderIdsRef.current;
+    const previewMatchesDropTarget = lastDragReorderTargetProviderIdRef.current === targetProviderId;
+    suppressChannelClickUntilRef.current = Date.now() + 250;
+    if (!draggedProviderId || !previewProviderIds) {
+      clearChannelDragState();
+      return;
+    }
+    const nextProviderIds = previewMatchesDropTarget
+      ? previewProviderIds
+      : moveProviderIdToTargetIndex(previewProviderIds, draggedProviderId, targetProviderId);
+    commitDragPreviewOrder(nextProviderIds);
+    clearChannelDragState();
+  };
+
+  const handleChannelDragEnd = () => {
+    const previewProviderIds = dragPreviewProviderIdsRef.current;
+    suppressChannelClickUntilRef.current = Date.now() + 250;
+    commitDragPreviewOrder(previewProviderIds);
+    clearChannelDragState();
   };
 
   const handleToggleProviderEnabled = (id: string, enabled: boolean) => {
@@ -380,19 +565,28 @@ export function AITab() {
                 className="mb-5"
               >
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,var(--vlaina-size-180px)),1fr))] gap-3">
-                  {customProviders.map((provider) => (
-                    (() => {
+                  {orderedCustomProviders.map((provider) => (
+                    <motion.div
+                      key={provider.id}
+                      layout
+                      transition={{
+                        duration: themeMotionTokens.aiChannelPopulatedDuration,
+                        ease: themeMotionTokens.standardEase,
+                      }}
+                    >
+                      {(() => {
                       const draft = providerDrafts[provider.id];
                       return (
                         <ChannelObject
-                          key={provider.id}
                           providerId={provider.id}
                           name={draft?.name ?? provider.name}
                           baseUrl={draft?.apiHost ?? provider.apiHost ?? ''}
                           enabled={provider.enabled ?? true}
                           modelCount={providerModelCounts.get(provider.id) || 0}
                           active={provider.id === selectedProviderId}
-                          onClick={() => handleSelectProvider(provider.id)}
+                          dragging={provider.id === draggingProviderId}
+                          dragOver={provider.id === dragOverProviderId}
+                          onClick={() => handleChannelClick(provider.id)}
                           onMiddleClick={() =>
                             handleDeleteCustomProvider(provider.id, draft?.name ?? provider.name)
                           }
@@ -402,9 +596,15 @@ export function AITab() {
                           onDelete={() =>
                             handleDeleteCustomProvider(provider.id, draft?.name ?? provider.name)
                           }
+                          onDragStart={(event) => handleChannelDragStart(provider.id, event)}
+                          onDragEnter={(event) => handleChannelDragEnter(provider.id, event)}
+                          onDragOver={(event) => handleChannelDragOver(provider.id, event)}
+                          onDrop={(event) => handleChannelDrop(provider.id, event)}
+                          onDragEnd={handleChannelDragEnd}
                         />
                       );
-                    })()
+                    })()}
+                    </motion.div>
                   ))}
                   <CreateChannelObject onClick={handleAddCustomProvider} />
                 </div>

@@ -8,7 +8,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore'
 import { cn } from '@/lib/utils'
 import { useModelSelectorKeyboard } from './hooks/useModelSelectorKeyboard'
 import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
-import type { AIModel } from '@/lib/ai/types';
+import type { AIModel, Provider } from '@/lib/ai/types';
 import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
 import {
   focusComposerInput as focusRegisteredComposerInput,
@@ -55,6 +55,30 @@ const MODEL_SELECTOR_DROPDOWN_FALLBACK_MAX_HEIGHT = 460
 const MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT = 'min(460px, calc(100vh - 96px))'
 const MODEL_SELECTOR_LIST_HEIGHT = 'min(386px, calc(100vh - 170px))'
 const monochromeModelIconClass = 'dark:invert dark:brightness-[1.08] dark:contrast-[0.92] dark:opacity-[0.92]'
+
+export function createModelSelectorProviderOrder(providers: Array<Pick<Provider, 'id'>>): Map<string, number> {
+  return new Map(providers.map((provider, index) => [provider.id, index] as const));
+}
+
+export function compareModelSelectorProviderIds(
+  providerOrder: Map<string, number>,
+  leftProviderId: string,
+  rightProviderId: string
+): number {
+  const leftManaged = isManagedProviderId(leftProviderId);
+  const rightManaged = isManagedProviderId(rightProviderId);
+  if (leftManaged !== rightManaged) {
+    return leftManaged ? 1 : -1;
+  }
+
+  const leftOrder = providerOrder.get(leftProviderId) ?? Number.MAX_SAFE_INTEGER;
+  const rightOrder = providerOrder.get(rightProviderId) ?? Number.MAX_SAFE_INTEGER;
+  if (leftOrder !== rightOrder) {
+    return leftOrder - rightOrder;
+  }
+
+  return leftProviderId.localeCompare(rightProviderId);
+}
 
 const MODEL_SELECTOR_THEME_STYLES: Record<
   ModelSelectorTheme,
@@ -366,6 +390,7 @@ export function ModelSelector({
 
   const groupedFilteredModels = useMemo(() => {
       const providerMap = new Map(providers.map((provider) => [provider.id, provider]));
+      const providerOrder = createModelSelectorProviderOrder(providers);
       const modelsByProvider = new Map<string, AIModel[]>();
 
       categoryFilteredModels.forEach((model) => {
@@ -378,19 +403,9 @@ export function ModelSelector({
       });
 
       return Array.from(modelsByProvider.entries())
-          .sort(([leftProviderId], [rightProviderId]) => {
-              const leftManaged = isManagedProviderId(leftProviderId);
-              const rightManaged = isManagedProviderId(rightProviderId);
-              if (leftManaged !== rightManaged) {
-                  return leftManaged ? 1 : -1;
-              }
-
-              const leftProvider = providerMap.get(leftProviderId);
-              const rightProvider = providerMap.get(rightProviderId);
-              const leftCreatedAt = leftProvider?.createdAt ?? 0;
-              const rightCreatedAt = rightProvider?.createdAt ?? 0;
-              return leftCreatedAt - rightCreatedAt;
-          })
+          .sort(([leftProviderId], [rightProviderId]) =>
+              compareModelSelectorProviderIds(providerOrder, leftProviderId, rightProviderId)
+          )
           .map(([providerId, providerModels]) => ({
               providerId,
               providerName: isManagedProviderId(providerId)
@@ -873,7 +888,10 @@ export function ModelSelector({
                       >
                         {row.type === 'label' ? (
                           <div className="px-1">
-                            <div className={cn("px-2 pt-2 pb-1 text-[var(--vlaina-font-11)] font-medium", styles.sectionLabel)}>
+                            <div
+                              className={cn("px-2 pt-2 pb-1 text-[var(--vlaina-font-11)] font-medium", styles.sectionLabel)}
+                              data-model-selector-provider-label={row.id.replace(/^label:/, '')}
+                            >
                               {row.providerName}
                             </div>
                             <div className={cn("border-t", styles.divider)} />

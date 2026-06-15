@@ -237,6 +237,33 @@ describe('deleteIncompleteCustomProviders', () => {
   });
 });
 
+describe('reorderCustomProviders', () => {
+  beforeEach(() => {
+    fetchManagedModelsMock.mockReset();
+  });
+
+  it('reorders only custom channels and keeps the managed channel first', () => {
+    const managedProvider = buildProvider({
+      id: 'vlaina-managed',
+      name: 'vlaina',
+      apiHost: 'https://api.vlaina.com/v1',
+    });
+    const providerA = buildProvider({ id: 'provider-a', name: 'A', createdAt: 1 });
+    const providerB = buildProvider({ id: 'provider-b', name: 'B', createdAt: 2 });
+    const providerC = buildProvider({ id: 'provider-c', name: 'C', createdAt: 3 });
+    seedAI([managedProvider, providerA, providerB, providerC]);
+
+    actions.reorderCustomProviders(['provider-c', 'provider-a', 'provider-b']);
+
+    expect(useUnifiedStore.getState().data.ai?.providers.map((provider) => provider.id)).toEqual([
+      'vlaina-managed',
+      'provider-c',
+      'provider-a',
+      'provider-b',
+    ]);
+  });
+});
+
 describe('refreshManagedProviderInBackground', () => {
   beforeEach(() => {
     vi.useFakeTimers();
