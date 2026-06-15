@@ -155,6 +155,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     closeMenu();
     menu = document.createElement('div');
     menu.className = `slash-menu editor-preview-context-menu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+    menu.setAttribute('data-no-editor-drag-box', 'true');
     element.classList.add('editor-preview-context-menu-active');
 
     document.body.appendChild(menu);
@@ -194,6 +195,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
 
     const submenu = document.createElement('div');
     submenu.className = `slash-menu editor-preview-context-submenu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+    submenu.setAttribute('data-no-editor-drag-box', 'true');
     submenu.setAttribute('role', 'menu');
     items.forEach((item) => submenu.appendChild(item));
 

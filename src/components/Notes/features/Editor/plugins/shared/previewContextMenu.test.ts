@@ -281,6 +281,8 @@ describe('previewContextMenu', () => {
     expect(document.querySelector('.editor-preview-context-menu')).not.toBeNull();
     expect(document.querySelector('.editor-preview-context-menu')?.classList.contains('slash-menu')).toBe(true);
     expect(document.querySelector('.editor-preview-context-menu')?.className).toContain(chatComposerPillSurfaceClass);
+    expect(document.querySelector('.editor-preview-context-menu')).toHaveAttribute('data-no-editor-drag-box', 'true');
+    expect(document.querySelector('.editor-preview-context-submenu')).toHaveAttribute('data-no-editor-drag-box', 'true');
     expect(document.querySelectorAll('.editor-preview-context-submenu')).toHaveLength(2);
     expect(menuLabels()).toEqual(['Save as image', 'PNG', 'JPG', 'SVG', 'Insert paragraph', 'Above', 'Below']);
 

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   defaultValueCtx,
@@ -81,6 +83,20 @@ function createRecorder() {
 }
 
 describe('callout markdown serialization', () => {
+  it('marks callout icon controls as non-editor chrome for blank-area pointer handling', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/callout/CalloutIconControl.tsx'),
+      'utf8',
+    );
+    const nodeViewSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/callout/CalloutNodeView.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('data-no-editor-drag-box="true"');
+    expect(nodeViewSource).toContain("this.titleDOM.setAttribute('data-no-editor-drag-box', 'true')");
+  });
+
   it('preserves alignment for the first paragraph', () => {
     const { calls, state } = createRecorder();
     const firstParagraphContent = { id: 'first-paragraph-content', size: 1 };

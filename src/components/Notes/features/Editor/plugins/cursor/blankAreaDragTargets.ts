@@ -12,6 +12,10 @@ const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-r
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 const NOTE_CONTENT_ROOT_SELECTOR = '[data-note-content-root="true"]';
 const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
+const IGNORED_BLANK_AREA_DRAG_BOX_SELECTOR = [
+  COVER_REGION_SELECTOR,
+  NO_EDITOR_DRAG_BOX_SELECTOR,
+].join(', ');
 const MARKDOWN_BLANK_LINE_SELECTOR = "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']";
 const TRAILING_TEXT_SELECTION_GUTTER_PX = 48;
 const TRAILING_TEXT_SELECTION_TEXT_OVERLAP_PX = 24;
@@ -78,6 +82,29 @@ function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
   return element.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
 }
 
+function getElementFromEventTarget(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  if (target instanceof Node) return target.parentElement;
+  return null;
+}
+
+function isPointInsideElementClientRects(element: Element, clientX: number, clientY: number): boolean {
+  const rects = element.getClientRects();
+  for (let index = 0; index < rects.length; index += 1) {
+    const rect = rects.item?.(index) ?? rects[index];
+    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isSidebarBlankStartTarget(target: HTMLElement): boolean {
   const sidebarScrollRoot = target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR) as HTMLElement | null;
   if (!sidebarScrollRoot) return false;
@@ -118,10 +145,25 @@ export function isSameEditorBlankAreaInteractionTarget(view: EditorView, target:
 }
 
 export function isIgnoredBlankAreaDragBoxTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && (
-    !!target.closest(NO_EDITOR_DRAG_BOX_SELECTOR) ||
-    !!target.closest(COVER_REGION_SELECTOR)
-  );
+  return !!getElementFromEventTarget(target)?.closest(IGNORED_BLANK_AREA_DRAG_BOX_SELECTOR);
+}
+
+export function isPointInsideIgnoredBlankAreaDragBoxElement(view: EditorView, event: MouseEvent): boolean {
+  if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return false;
+  if (!isSameEditorBlankAreaInteractionTarget(view, event.target)) return false;
+
+  const editorScrollRoot = getScrollRoot(view.dom);
+  if (!editorScrollRoot) return false;
+
+  const ignoredElements = editorScrollRoot.querySelectorAll(IGNORED_BLANK_AREA_DRAG_BOX_SELECTOR);
+  for (let index = 0; index < ignoredElements.length; index += 1) {
+    const element = ignoredElements[index];
+    if (!element || element.contains(view.dom)) continue;
+    if (isPointInsideElementClientRects(element, event.clientX, event.clientY)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function isPointInTrailingTextSelectionGutter(

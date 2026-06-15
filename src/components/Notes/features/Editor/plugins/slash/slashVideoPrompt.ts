@@ -41,6 +41,7 @@ export function openSlashVideoPrompt(args: {
   };
 
   prompt.className = `slash-video-prompt !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+  prompt.setAttribute('data-no-editor-drag-box', 'true');
   prompt.style.position = positionRoot ? 'absolute' : 'fixed';
   (positionRoot ?? document.body).append(prompt);
   renderUrlRailEditor(prompt, {

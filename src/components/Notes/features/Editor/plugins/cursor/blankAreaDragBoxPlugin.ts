@@ -44,6 +44,7 @@ import {
 import {
   isExternalTextLineGutterNativeSelectionTarget,
   isIgnoredBlankAreaDragBoxTarget,
+  isPointInsideIgnoredBlankAreaDragBoxElement,
   isSameEditorBlankAreaInteractionTarget,
   resolveBlankAreaDragStartZone,
   resolveTargetTextLinePointerHit,
@@ -273,6 +274,17 @@ function scheduleExternalTextLineGutterWhitespaceSelectionCleanup(view: EditorVi
     timeoutWindow.setTimeout(() => clearWhitespaceNativeSelection(doc), 0);
   };
   doc.addEventListener('mouseup', handleMouseUp, { capture: true, once: true });
+}
+
+function shouldIgnoreBlankAreaDragBoxMouseDown(view: EditorView, event: MouseEvent): boolean {
+  if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
+    return true;
+  }
+  if (!isPointInsideIgnoredBlankAreaDragBoxElement(view, event)) {
+    return false;
+  }
+  event.preventDefault();
+  return true;
 }
 
 function startInsideBlockTrailingPlainClickSession(
@@ -701,7 +713,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
-          if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
+          if (shouldIgnoreBlankAreaDragBoxMouseDown(view, event)) {
             return false;
           }
           if (handleMarkdownBlankLinePointerDown(view, event)) {
@@ -787,7 +799,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         event.stopImmediatePropagation();
       };
       const handleDocumentMouseDown = (event: MouseEvent) => {
-        if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
+        if (shouldIgnoreBlankAreaDragBoxMouseDown(view, event)) {
           return;
         }
         const target = event.target;

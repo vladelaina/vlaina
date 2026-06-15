@@ -10,6 +10,7 @@ import {
   isExternalTextLineGutterNativeSelectionTarget,
   isIgnoredBlankAreaDragBoxTarget,
   isPointInTrailingTextSelectionGutter,
+  isPointInsideIgnoredBlankAreaDragBoxElement,
   resolveBlankAreaDragStartZone,
   resolveTextLinePointerHit,
 } from './blankAreaDragTargets';
@@ -26,6 +27,14 @@ function rect(top: number, bottom: number, left = 100, right = 240): DOMRect {
     y: top,
     toJSON: () => {},
   } as DOMRect;
+}
+
+function rectList(...rects: DOMRect[]): DOMRectList {
+  return Object.assign([...rects], {
+    item(index: number) {
+      return rects[index] ?? null;
+    },
+  }) as unknown as DOMRectList;
 }
 
 function createMouseDown(
@@ -117,6 +126,42 @@ describe('blankAreaDragTargets', () => {
       expect(isIgnoredBlankAreaDragBoxTarget(child)).toBe(true);
     } finally {
       chrome.remove();
+    }
+  });
+
+  it('ignores text node descendants of explicit non-editor chrome', () => {
+    const chrome = document.createElement('div');
+    chrome.setAttribute('data-no-editor-drag-box', 'true');
+    const label = document.createTextNode('Logo');
+    chrome.append(label);
+    document.body.append(chrome);
+
+    try {
+      expect(isIgnoredBlankAreaDragBoxTarget(label)).toBe(true);
+    } finally {
+      chrome.remove();
+    }
+  });
+
+  it('ignores pointer-through clicks whose coordinates are inside top editor chrome', () => {
+    const { view, scrollRoot, cleanup } = createView();
+    const headerChrome = document.createElement('div');
+    headerChrome.setAttribute('data-no-editor-drag-box', 'true');
+    vi.spyOn(headerChrome, 'getClientRects').mockReturnValue(rectList(rect(0, 96, 80, 720)));
+    scrollRoot.insertBefore(headerChrome, scrollRoot.firstChild);
+
+    try {
+      expect(isPointInsideIgnoredBlankAreaDragBoxElement(
+        view,
+        createMouseDown(view.dom, { clientX: 120, clientY: 24 }),
+      )).toBe(true);
+      expect(isPointInsideIgnoredBlankAreaDragBoxElement(
+        view,
+        createMouseDown(view.dom, { clientX: 120, clientY: 128 }),
+      )).toBe(false);
+    } finally {
+      cleanup();
+      vi.restoreAllMocks();
     }
   });
 

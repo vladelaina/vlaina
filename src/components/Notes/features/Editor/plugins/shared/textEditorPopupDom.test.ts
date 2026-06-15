@@ -73,6 +73,7 @@ describe('textEditorPopupDom', () => {
 
     expect(card.className).toContain('!rounded-[var(--vlaina-radius-26px)]');
     expect(card.className).toContain(chatComposerPillSurfaceClass);
+    expect(card.getAttribute('data-no-editor-drag-box')).toBe('true');
   });
 
   it('constrains the textarea and lets it scroll when content would exceed the viewport', () => {

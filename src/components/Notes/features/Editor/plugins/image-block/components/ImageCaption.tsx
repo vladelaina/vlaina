@@ -72,7 +72,9 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
             isVisible
                 ? "opacity-[var(--vlaina-opacity-100)] scale-[var(--vlaina-scale-100)] translate-y-0"
                 : "opacity-[var(--vlaina-opacity-0)] scale-[var(--vlaina-scale-95)] translate-y-2 pointer-events-none"
-        )}>
+        )}
+            data-no-editor-drag-box="true"
+        >
             {isEditing ? (
                 <input
                     ref={inputRef}

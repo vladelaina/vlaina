@@ -136,6 +136,7 @@ export const tableContextMenuPlugin = $prose(() => {
           if (!menuElement) {
             menuElement = document.createElement('div');
             menuElement.className = 'table-context-menu';
+            menuElement.setAttribute('data-no-editor-drag-box', 'true');
             menuElement.addEventListener('click', handleMenuClick);
             document.body.appendChild(menuElement);
           }

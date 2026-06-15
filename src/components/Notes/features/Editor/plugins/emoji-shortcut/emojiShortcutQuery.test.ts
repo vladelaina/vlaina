@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { filterEmojiShortcutItems, type EmojiShortcutItem } from './emojiShortcutQuery';
 
@@ -12,6 +14,15 @@ function emoji(id: string, name: string, keywords: string[] = []): EmojiShortcut
 }
 
 describe('filterEmojiShortcutItems', () => {
+  it('marks the embedded picker menu as non-editor chrome for blank-area pointer handling', () => {
+    const menuViewSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/emoji-shortcut/EmojiShortcutMenuView.ts'),
+      'utf8',
+    );
+
+    expect(menuViewSource).toContain("menu.setAttribute('data-no-editor-drag-box', 'true')");
+  });
+
   it('returns no results for an empty query so plain colon does not open the picker', () => {
     expect(filterEmojiShortcutItems('', [emoji('smile', 'Smile')])).toEqual([]);
   });

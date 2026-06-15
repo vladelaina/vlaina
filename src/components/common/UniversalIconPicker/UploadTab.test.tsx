@@ -52,8 +52,20 @@ vi.mock('@/components/ui/premium-slider', () => ({
   PremiumSlider: () => <div data-testid="premium-slider" />,
 }));
 
-vi.mock('./UniversalIcon', () => ({
-  UniversalIcon: ({ icon }: { icon: string }) => <img alt={`icon-${icon}`} src={icon} />,
+vi.mock('@/components/common/AppIcon', () => ({
+  AppIcon: ({
+    icon,
+    allowLegacyImageScheme,
+  }: {
+    icon: string;
+    allowLegacyImageScheme?: boolean;
+  }) => (
+    <img
+      alt={`icon-${icon}`}
+      data-allow-legacy-image-scheme={allowLegacyImageScheme ? 'true' : 'false'}
+      src={icon}
+    />
+  ),
 }));
 
 function buildIcon(id: string): CustomIcon {
@@ -159,5 +171,26 @@ describe('UploadTab', () => {
     await waitFor(() => {
       expect(onDeleteCustomIcon).toHaveBeenCalledWith('second');
     });
+  });
+
+  it('renders legacy global image-scheme custom icons through the app icon renderer', () => {
+    render(
+      <UploadTab
+        onSelect={() => {}}
+        onPreview={() => {}}
+        onClose={() => {}}
+        allowLegacyImageScheme
+        customIcons={[
+          {
+            id: '/app/.vlaina/assets/icons/custom.png',
+            url: 'img:/app/.vlaina/assets/icons/custom.png',
+            name: 'custom.png',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByAltText('icon-img:/app/.vlaina/assets/icons/custom.png'))
+      .toHaveAttribute('data-allow-legacy-image-scheme', 'true');
   });
 });

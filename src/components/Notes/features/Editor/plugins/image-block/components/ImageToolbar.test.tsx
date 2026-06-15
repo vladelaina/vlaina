@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ImageToolbar } from './ImageToolbar';
 
@@ -36,6 +38,26 @@ function renderToolbar(overrides: Partial<Parameters<typeof ImageToolbar>[0]> = 
 describe('ImageToolbar', () => {
   beforeEach(() => {
     mocks.addToast.mockClear();
+  });
+
+  it('marks the toolbar as non-editor chrome for blank-area pointer handling', () => {
+    const { container } = renderToolbar();
+
+    expect(container.firstElementChild).toHaveAttribute('data-no-editor-drag-box', 'true');
+  });
+
+  it('keeps related image chrome marked for blank-area pointer handling', () => {
+    const cropperControlsSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/image-block/components/CropperControls.tsx'),
+      'utf8',
+    );
+    const captionSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/image-block/components/ImageCaption.tsx'),
+      'utf8',
+    );
+
+    expect(cropperControlsSource).toContain('data-no-editor-drag-box="true"');
+    expect(captionSource).toContain('data-no-editor-drag-box="true"');
   });
 
   it('hides edit, copy, and download actions when media actions are disabled', () => {

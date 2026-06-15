@@ -70,7 +70,11 @@ export function CalloutIconControl({ icon, onChange }: CalloutIconControlProps) 
   }, [onChange]);
 
   return (
-    <span className="callout-icon-control" data-prevent-picker-close="true">
+    <span
+      className="callout-icon-control"
+      data-prevent-picker-close="true"
+      data-no-editor-drag-box="true"
+    >
       <button
         type="button"
         className="callout-icon-button"

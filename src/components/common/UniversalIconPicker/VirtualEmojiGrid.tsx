@@ -10,7 +10,7 @@ import {
 } from './constants';
 import { useI18n } from '@/lib/i18n';
 import { themeDomStyleTokens, themeEmojiPickerTokens, themeIconTokens, themeRenderingTokens } from '@/styles/themeTokens';
-import { UniversalIcon } from './UniversalIcon';
+import { AppIcon } from '@/components/common/AppIcon';
 
 const DEFAULT_EMOJI_CATEGORY_ID = 'people';
 const GRID_ICON_SIZE = themeIconTokens.sizeMd;
@@ -31,7 +31,7 @@ const IconRow = memo(
             data-icon={icon}
             className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-[var(--vlaina-bg-hover)]"
           >
-            <UniversalIcon
+            <AppIcon
               icon={icon}
               size={GRID_ICON_SIZE}
               imageLoader={imageLoader}

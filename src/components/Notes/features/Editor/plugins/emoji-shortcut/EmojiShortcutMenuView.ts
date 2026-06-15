@@ -131,6 +131,7 @@ export class EmojiShortcutMenuView {
 
     const menu = document.createElement('div');
     menu.className = 'emoji-shortcut-menu';
+    menu.setAttribute('data-no-editor-drag-box', 'true');
     menu.style.position = this.positionRoot ? 'absolute' : 'fixed';
     (this.positionRoot ?? document.body).appendChild(menu);
     this.root = createRoot(menu);
