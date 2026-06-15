@@ -98,11 +98,7 @@ type CoverFrontmatter = {
 function createCoveredMarkdown(title: string, paragraphCount = 80, coverAssetPath = COVER_ASSET_PATH): string {
   return [
     '---',
-    `vlaina_cover: "${coverAssetPath}"`,
-    'vlaina_cover_x: 50',
-    `vlaina_cover_y: ${COVER_INITIAL_Y}`,
-    `vlaina_cover_height: ${COVER_HEIGHT}`,
-    'vlaina_cover_scale: 1',
+    `vlaina_cover: "${coverAssetPath}" x=50 y=${COVER_INITIAL_Y} height=${COVER_HEIGHT} scale=1`,
     '---',
     '',
     `# ${title}`,
@@ -118,21 +114,21 @@ function createCoveredMarkdown(title: string, paragraphCount = 80, coverAssetPat
 }
 
 function parseCoverFrontmatter(markdown: string): CoverFrontmatter {
-  const getString = (key: string) => {
-    const match = new RegExp(`^${key}:\\s*"?([^"\\n]+)"?\\s*$`, 'm').exec(markdown);
-    return match?.[1] ?? null;
-  };
+  const coverLine = /^vlaina_cover:\s*(.+)$/m.exec(markdown)?.[1] ?? '';
+  const quotedAsset = /^\s*"((?:\\.|[^"\\])*)"/.exec(coverLine)?.[1];
+  const unquotedAsset = /^\s*([^\s,;]+)/.exec(coverLine)?.[1];
   const getNumber = (key: string) => {
-    const value = Number(getString(key));
+    const match = new RegExp(`(?:^|[\\s,;])${key}=(-?(?:\\d+(?:\\.\\d+)?|\\.\\d+))(?=$|[\\s,;])`).exec(coverLine);
+    const value = Number(match?.[1]);
     return Number.isFinite(value) ? value : null;
   };
 
   return {
-    assetPath: getString('vlaina_cover'),
-    x: getNumber('vlaina_cover_x'),
-    y: getNumber('vlaina_cover_y'),
-    height: getNumber('vlaina_cover_height'),
-    scale: getNumber('vlaina_cover_scale'),
+    assetPath: quotedAsset?.replace(/\\(["\\])/g, '$1') ?? unquotedAsset ?? null,
+    x: getNumber('x'),
+    y: getNumber('y'),
+    height: getNumber('height'),
+    scale: getNumber('scale'),
   };
 }
 

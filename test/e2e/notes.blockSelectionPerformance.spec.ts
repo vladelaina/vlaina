@@ -49,11 +49,7 @@ function createMalformedTyporaLikeBlockSelectionMarkdown(sectionCount: number): 
   const blankLine = '<!--vlaina-markdown-blank-line-->';
   const blocks = [
     '---',
-    'vlaina_cover: "./assets/13.jpg"',
-    'vlaina_cover_x: 50',
-    'vlaina_cover_y: 35.92496673701899',
-    'vlaina_cover_height: 200',
-    'vlaina_cover_scale: 1',
+    'vlaina_cover: "./assets/13.jpg" x=50 y=35.92496673701899 height=200 scale=1',
     'vlaina_icon: "🍓"',
     'vlaina_created: 2026-05-02 21:41:13 +08:00',
     'vlaina_updated: 2026-06-11 18:32:29 +08:00',

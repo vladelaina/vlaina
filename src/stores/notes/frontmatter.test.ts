@@ -12,13 +12,8 @@ describe('note frontmatter metadata', () => {
   it('reads managed note metadata from leading yaml frontmatter', () => {
     const markdown = [
       '---',
-      'vlaina_cover: "assets/monet.jpg"',
-      'vlaina_cover_x: 40',
-      'vlaina_cover_y: 60',
-      'vlaina_cover_height: 220',
-      'vlaina_cover_scale: 1.3',
-      'vlaina_icon: "🐱"',
-      'vlaina_icon_size: 84',
+      'vlaina_cover: "assets/monet.jpg" x=40 y=60 height=220 scale=1.3',
+      'vlaina_icon: "🐱" size=84',
       'vlaina_created: "2026-04-15T01:02:03.000Z"',
       'vlaina_updated: "2026-04-16T01:02:03.000Z"',
       '---',
@@ -39,11 +34,10 @@ describe('note frontmatter metadata', () => {
     });
   });
 
-  it('reads managed cover layout from the single-line layout frontmatter', () => {
+  it('reads managed cover layout from the inline cover frontmatter', () => {
     const markdown = [
       '---',
-      'vlaina_cover: "assets/monet.jpg"',
-      'vlaina_cover_layout: x=40 y=60 height=220 scale=1.3',
+      'vlaina_cover: "assets/monet.jpg" x=40 y=60 height=220 scale=1.3',
       '---',
       '',
       '# Title',
@@ -60,11 +54,11 @@ describe('note frontmatter metadata', () => {
     });
   });
 
-  it('reads managed cover and icon metadata from fused frontmatter values', () => {
+  it('reads managed cover and icon metadata from inline frontmatter values', () => {
     const markdown = [
       '---',
-      'vlaina_cover: asset="assets/monet.jpg" x=40 y=60 height=220 scale=1.3',
-      'vlaina_icon: value="🐱" size=84',
+      'vlaina_cover: "assets/monet.jpg" x=40 y=60 height=220 scale=1.3',
+      'vlaina_icon: "🐱" size=84',
       '---',
       '',
       '# Title',
@@ -115,7 +109,7 @@ describe('note frontmatter metadata', () => {
     });
   });
 
-  it('does not treat legacy cover values named like fused fields as fused metadata', () => {
+  it('keeps quoted cover paths named like removed inline fields', () => {
     const markdown = [
       '---',
       'vlaina_cover: "asset=hero.webp"',
@@ -130,6 +124,19 @@ describe('note frontmatter metadata', () => {
         assetPath: 'asset=hero.webp',
       },
     });
+  });
+
+  it('does not read removed asset/value inline prefixes as metadata', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: asset="assets/monet.jpg" x=40 y=60 height=220 scale=1.3',
+      'vlaina_icon: value="🐱" size=84',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({});
   });
 
 
@@ -190,7 +197,7 @@ describe('note frontmatter metadata', () => {
         'aliases: ["demo"]',
         'icon: "old"',
         '',
-        'vlaina_icon: value="🐱" size=84',
+        'vlaina_icon: "🐱" size=84',
         '---',
         '',
         '# Title',
@@ -212,7 +219,7 @@ describe('note frontmatter metadata', () => {
     ).toBe(
       [
         '---',
-        'vlaina_cover: asset="assets/monet.jpg" x=50 y=50 height=255 scale=1',
+        'vlaina_cover: "assets/monet.jpg" x=50 y=50 height=255 scale=1',
         '---',
         '',
         '# Title',
@@ -226,8 +233,8 @@ describe('note frontmatter metadata', () => {
       'title: Example',
       '',
       '',
-      'vlaina_cover: asset="assets/old.webp" height=220',
-      'vlaina_icon: value="🐱" size=84',
+      'vlaina_cover: "assets/old.webp" height=220',
+      'vlaina_icon: "🐱" size=84',
       '---',
       '',
       '# Title',
@@ -254,8 +261,8 @@ describe('note frontmatter metadata', () => {
       '---',
       'title: Example',
       '',
-      'vlaina_cover: asset="assets/old.webp" height=240',
-      'vlaina_icon: value="🐱" size=90',
+      'vlaina_cover: "assets/old.webp" height=240',
+      'vlaina_icon: "🐱" size=90',
       '---',
       '',
       '# Title',
@@ -264,8 +271,8 @@ describe('note frontmatter metadata', () => {
       '---',
       'title: Example',
       '',
-      'vlaina_cover: asset="assets/old.webp" height=260',
-      'vlaina_icon: value="🐱" size=96',
+      'vlaina_cover: "assets/old.webp" height=260',
+      'vlaina_icon: "🐱" size=96',
       '---',
       '',
       '# Title',
@@ -293,11 +300,7 @@ describe('note frontmatter metadata', () => {
   it('clamps managed cover numbers from untrusted frontmatter', () => {
     const markdown = [
       '---',
-      'vlaina_cover: "assets/monet.jpg"',
-      'vlaina_cover_x: -200',
-      'vlaina_cover_y: 900',
-      'vlaina_cover_height: 1000000',
-      'vlaina_cover_scale: 999',
+      'vlaina_cover: "assets/monet.jpg" x=-200 y=900 height=1000000 scale=999',
       '---',
       '',
       '# Title',
@@ -312,7 +315,7 @@ describe('note frontmatter metadata', () => {
     });
   });
 
-  it('clamps managed cover layout numbers from untrusted frontmatter', () => {
+  it('ignores removed cover layout metadata from untrusted frontmatter', () => {
     const markdown = [
       '---',
       'vlaina_cover: "assets/monet.jpg"',
@@ -324,17 +327,13 @@ describe('note frontmatter metadata', () => {
 
     expect(readNoteMetadataFromMarkdown(markdown).cover).toEqual({
       assetPath: 'assets/monet.jpg',
-      positionX: 0,
-      positionY: 100,
-      height: 500,
-      scale: 10,
     });
   });
 
   it('clamps managed fused cover layout numbers from untrusted frontmatter', () => {
     const markdown = [
       '---',
-      'vlaina_cover: asset="assets/monet.jpg" x=-200 y=900 height=1000000 scale=999',
+      'vlaina_cover: "assets/monet.jpg" x=-200 y=900 height=1000000 scale=999',
       '---',
       '',
       '# Title',
@@ -352,8 +351,8 @@ describe('note frontmatter metadata', () => {
   it('ignores non-decimal managed inline numbers from untrusted frontmatter', () => {
     const fusedMarkdown = [
       '---',
-      'vlaina_cover: asset="assets/monet.jpg" x=1e2 y=0x2 height=220 scale=1.3',
-      'vlaina_icon: value="🐱" size=8e1',
+      'vlaina_cover: "assets/monet.jpg" x=1e2 y=0x2 height=220 scale=1.3',
+      'vlaina_icon: "🐱" size=8e1',
       '---',
       '',
       '# Title',
@@ -368,7 +367,7 @@ describe('note frontmatter metadata', () => {
       icon: '🐱',
     });
 
-    const legacyMarkdown = [
+    const removedLayoutMarkdown = [
       '---',
       'vlaina_cover: "assets/monet.jpg"',
       'vlaina_cover_layout: x=1e2 y=0x2 height=220 scale=1.3',
@@ -377,10 +376,8 @@ describe('note frontmatter metadata', () => {
       '# Title',
     ].join('\n');
 
-    expect(readNoteMetadataFromMarkdown(legacyMarkdown).cover).toEqual({
+    expect(readNoteMetadataFromMarkdown(removedLayoutMarkdown).cover).toEqual({
       assetPath: 'assets/monet.jpg',
-      height: 220,
-      scale: 1.3,
     });
   });
 
@@ -538,8 +535,8 @@ describe('note frontmatter metadata', () => {
     };
     const written = writeNoteMetadataToMarkdown('# Title', metadata);
 
-    expect(written).toContain('vlaina_icon: value="assets/quote \\" slash \\\\ icon.png"');
-    expect(written).toContain('vlaina_cover: asset="assets/quote \\" slash \\\\ cover.webp"');
+    expect(written).toContain('vlaina_icon: "assets/quote \\" slash \\\\ icon.png"');
+    expect(written).toContain('vlaina_cover: "assets/quote \\" slash \\\\ cover.webp"');
     expect(readNoteMetadataFromMarkdown(written)).toEqual(metadata);
     expect(writeNoteMetadataToMarkdown(written, readNoteMetadataFromMarkdown(written))).toBe(written);
   });
@@ -590,7 +587,7 @@ describe('note frontmatter metadata', () => {
     expect(result.content).toBe(
       [
         '---',
-        'vlaina_icon: value="😃"',
+        'vlaina_icon: "😃"',
         '---',
         '',
       ].join('\n')
