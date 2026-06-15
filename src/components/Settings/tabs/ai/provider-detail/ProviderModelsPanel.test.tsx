@@ -63,7 +63,7 @@ function buildProps(overrides: Partial<ComponentProps<typeof ProviderModelsPanel
     modelQuery: '',
     quickAddModelId: '',
     quickAddError: '',
-    fetchError: '',
+    fetchError: '' as const,
     isFetchingModels: false,
     canUseConnectionActions: true,
     canBenchmark: true,

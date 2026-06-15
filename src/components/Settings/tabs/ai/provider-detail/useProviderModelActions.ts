@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import type { AIModel, Provider } from '@/lib/ai/types';
+import type { MessageKey } from '@/lib/i18n';
 
 export function useProviderModelActions({
   provider,
@@ -27,7 +28,7 @@ export function useProviderModelActions({
   setProviderFetchedModels: (providerId: string, models: string[]) => void;
   resetBenchmarkState: () => void;
 }) {
-  const [fetchError, setFetchError] = useState('');
+  const [fetchError, setFetchError] = useState<MessageKey | ''>('');
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const fetchRequestRef = useRef<{
     id: number;
@@ -60,7 +61,7 @@ export function useProviderModelActions({
 
   const handleFetchModels = async () => {
     if (!canUseConnectionActions) {
-      setFetchError('Please provide Base URL and API Key first.');
+      setFetchError('settings.ai.fetchModelsMissingCredentials');
       return;
     }
 
@@ -91,11 +92,11 @@ export function useProviderModelActions({
         endpointTypeCheckedAt: Date.now(),
       });
       if (modelsList.length === 0) {
-        setFetchError('Connected, but no models were returned.');
+        setFetchError('settings.ai.fetchModelsEmpty');
       }
     } catch {
       if (!isCurrentFetchRequest()) return;
-      setFetchError('Unable to fetch models from the current endpoint.');
+      setFetchError('settings.ai.fetchModelsFailed');
     } finally {
       if (fetchRequestRef.current?.id === requestId) {
         fetchRequestRef.current = null;
