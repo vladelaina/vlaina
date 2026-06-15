@@ -1,7 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { deflateSync } from 'node:zlib';
 import {
   CHAT_COMPOSER_TEXTAREA_SELECTOR,
   EDITOR_SELECTOR,
+  NOTE_IMAGE_BLOCK_SELECTOR,
+  NOTE_SCROLL_ROOT_SELECTOR,
   cleanupIsolatedElectron,
   getOpenBridgePages,
   launchIsolatedElectron,
@@ -14,6 +17,76 @@ const LIVE_EDITOR_SELECTOR = `${EDITOR_SELECTOR}:not(.toolbar-applied-preview-ov
 const PREVIEW_OVERLAY_SELECTOR = '.toolbar-applied-preview-overlay';
 const VISIBLE_LINK_TOOLTIP_SELECTOR = '.link-tooltip-container:not(.hidden)';
 const LARGE_PREVIEW_DOC_MIN_LENGTH = 300_000;
+
+let pngCrcTable: number[] | null = null;
+
+function getPngCrcTable(): number[] {
+  if (pngCrcTable) {
+    return pngCrcTable;
+  }
+
+  pngCrcTable = Array.from({ length: 256 }, (_, index) => {
+    let value = index;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    return value >>> 0;
+  });
+  return pngCrcTable;
+}
+
+function calculatePngCrc32(bytes: Buffer): number {
+  const table = getPngCrcTable();
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createPngChunk(type: string, data: Buffer): Buffer {
+  const typeBytes = Buffer.from(type, 'ascii');
+  const lengthBytes = Buffer.alloc(4);
+  lengthBytes.writeUInt32BE(data.length, 0);
+
+  const crcBytes = Buffer.alloc(4);
+  crcBytes.writeUInt32BE(calculatePngCrc32(Buffer.concat([typeBytes, data])), 0);
+
+  return Buffer.concat([lengthBytes, typeBytes, data, crcBytes]);
+}
+
+function createSolidPngDataUrl(width: number, height: number): string {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+
+  const rowLength = 1 + width * 4;
+  const raw = Buffer.alloc(rowLength * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * rowLength;
+    raw[rowOffset] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const pixelOffset = rowOffset + 1 + x * 4;
+      raw[pixelOffset] = 136;
+      raw[pixelOffset + 1] = 192;
+      raw[pixelOffset + 2] = 208;
+      raw[pixelOffset + 3] = 255;
+    }
+  }
+
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const png = Buffer.concat([
+    signature,
+    createPngChunk('IHDR', ihdr),
+    createPngChunk('IDAT', deflateSync(raw)),
+    createPngChunk('IEND', Buffer.alloc(0)),
+  ]);
+  return `data:image/png;base64,${png.toString('base64')}`;
+}
+
+const IMAGE_ANCHORED_TOOLBAR_PREVIEW_DATA_URL = createSolidPngDataUrl(900, 560);
 
 type ToolbarMarkCase = {
   action: string;
@@ -611,6 +684,34 @@ function createLargeToolbarPreviewMarkdown(): { content: string; target: string 
   return { content: lines.join('\n'), target };
 }
 
+function createImageAnchoredToolbarScrollMarkdown(): { content: string; target: string } {
+  const target = '：支持多品牌 3D 打印机的开源切片软件。这是一款开源的 3D 打印切片工具，内置流速调节、温度塔、回抽测试等校准套件，支持 Bambu Lab、Prusa、Creality 等主流打印机品牌，适用于 Windows、macOS 和 Linux 平台。';
+  const filler = Array.from({ length: 12 }, (_, index) =>
+    `Intro filler ${index + 1} keeps the image block below the first viewport so the test can exercise scroll anchoring.`
+  ).join('\n\n');
+
+  return {
+    target,
+    content: [
+      '# Floating Toolbar Scroll Regression',
+      '',
+      filler,
+      '',
+      `5、[OrcaSlicer](https://example.com/orca)${target}`,
+      '',
+      `<img src="${IMAGE_ANCHORED_TOOLBAR_PREVIEW_DATA_URL}" alt="preview image" width="72%" />`,
+      '',
+      '### Go 项目',
+      '',
+      '6、[glow](https://example.com/glow)：直接在命令行浏览 Markdown 的工具。该项目是基于 Go 开发的命令行 Markdown 阅读器。',
+      '',
+      Array.from({ length: 10 }, (_, index) =>
+        `Trailing filler ${index + 1} gives the scroll root room below the image.`
+      ).join('\n\n'),
+    ].join('\n'),
+  };
+}
+
 async function collectPreviewFrameMetrics(page: Page, durationMs: number) {
   return page.evaluate(({ durationMs, previewSelector, editorSelector }) => new Promise<{
     frameCount: number;
@@ -1044,6 +1145,218 @@ test.describe('notes floating toolbar coverage', () => {
       );
       const bluePixelCount = await countSelectionBluePixelsInClip(page, previewClip);
       expect(bluePixelCount).toBe(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps hover preview from scrolling selections above images', async () => {
+    const { content, target } = createImageAnchoredToolbarScrollMarkdown();
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-floating-toolbar-image-scroll');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'floating-toolbar-image-scroll.md',
+        content,
+      });
+
+      const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).first();
+      await expect(imageBlock).toBeVisible({ timeout: 10_000 });
+      await imageBlock.scrollIntoViewIfNeeded();
+      await waitForEditorAnimationFrame(page);
+      const previewImage = page.locator(`${NOTE_IMAGE_BLOCK_SELECTOR} img[alt="preview image"]`).first();
+      await expect(previewImage).toBeVisible({ timeout: 10_000 });
+      await expect.poll(() => page.evaluate(() => {
+        const image = document.querySelector<HTMLImageElement>(
+          '.image-block-container img[alt="preview image"]'
+        );
+        return {
+          complete: image?.complete ?? false,
+          naturalHeight: image?.naturalHeight ?? 0,
+          naturalWidth: image?.naturalWidth ?? 0,
+        };
+      })).toMatchObject({
+        complete: true,
+        naturalHeight: 560,
+        naturalWidth: 900,
+      });
+
+      await page.evaluate(({ scrollSelector, targetText }) => {
+        const scrollRoot = document.querySelector<HTMLElement>(scrollSelector);
+        const editor = document.querySelector<HTMLElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+        );
+        if (!scrollRoot || !editor) {
+          return;
+        }
+
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const text = node.textContent ?? '';
+          const index = text.indexOf(targetText);
+          if (index < 0) {
+            continue;
+          }
+
+          const range = document.createRange();
+          range.setStart(node, index);
+          range.setEnd(node, index + targetText.length);
+          const rect = range.getBoundingClientRect();
+          const rootRect = scrollRoot.getBoundingClientRect();
+          scrollRoot.scrollTop += rect.top - rootRect.top - 96;
+          range.detach();
+          break;
+        }
+      }, {
+        scrollSelector: NOTE_SCROLL_ROOT_SELECTOR,
+        targetText: target,
+      });
+
+      await selectEditorText(page, target);
+      const boldButton = page.locator(`${TOOLBAR_SELECTOR} [data-action="bold"]`).first();
+      await expect(boldButton).toBeVisible({ timeout: 5_000 });
+
+      const liveImageLayout = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+        );
+        const imageBlock = editor?.querySelector<HTMLElement>('.image-block-container') ?? null;
+        const image = imageBlock?.querySelector<HTMLImageElement>('img[alt="preview image"]') ?? null;
+        const paragraph = imageBlock?.closest('p') ?? null;
+        const alignmentWrapper = Array.from(imageBlock?.children ?? []).find(
+          (child): child is HTMLElement =>
+            child instanceof HTMLElement && child.classList.contains('group/image')
+        ) ?? null;
+        const frame = alignmentWrapper?.firstElementChild instanceof HTMLElement
+          ? alignmentWrapper.firstElementChild
+          : null;
+        const blockRect = imageBlock?.getBoundingClientRect();
+        const frameRect = frame?.getBoundingClientRect();
+        const centerOffset = blockRect && frameRect
+          ? (frameRect.left - blockRect.left) - ((blockRect.width - frameRect.width) / 2)
+          : null;
+
+        return {
+          centerOffset,
+          imageBlockFound: !!imageBlock,
+          imageSrc: image?.getAttribute('src') ?? null,
+          paragraphHasImageClass: paragraph?.classList.contains('editor-paragraph-has-image-block') ?? false,
+          paragraphLineHeight: paragraph ? getComputedStyle(paragraph).lineHeight : null,
+          wrapperJustifyCenter: alignmentWrapper?.classList.contains('justify-center') ?? false,
+        };
+      });
+      expect(liveImageLayout.imageBlockFound).toBe(true);
+      expect(liveImageLayout.imageSrc).toBeTruthy();
+      expect(liveImageLayout.paragraphHasImageClass).toBe(true);
+      expect(liveImageLayout.wrapperJustifyCenter).toBe(true);
+
+      const scrollTracePromise = page.evaluate(({ durationMs, scrollSelector }) => new Promise<{
+        after: number;
+        before: number;
+        hiddenEditorCount: number;
+        max: number;
+        min: number;
+        overlayCount: number;
+        scrollEvents: number[];
+        samples: number[];
+      }>((resolve) => {
+        const scrollRoot = document.querySelector<HTMLElement>(scrollSelector);
+        if (!scrollRoot) {
+          resolve({
+            after: 0,
+            before: 0,
+            hiddenEditorCount: 0,
+            max: 0,
+            min: 0,
+            overlayCount: 0,
+            scrollEvents: [],
+            samples: [],
+          });
+          return;
+        }
+
+        const before = scrollRoot.scrollTop;
+        const scrollEvents: number[] = [];
+        const samples: number[] = [before];
+        const handleScroll = () => {
+          scrollEvents.push(scrollRoot.scrollTop);
+        };
+        scrollRoot.addEventListener('scroll', handleScroll);
+        const startedAt = performance.now();
+        const sample = () => {
+          samples.push(scrollRoot.scrollTop);
+          if (performance.now() - startedAt < durationMs) {
+            requestAnimationFrame(sample);
+            return;
+          }
+
+          scrollRoot.removeEventListener('scroll', handleScroll);
+          resolve({
+            after: scrollRoot.scrollTop,
+            before,
+            hiddenEditorCount: document.querySelectorAll('[data-toolbar-preview-hidden="true"]').length,
+            max: Math.max(...samples, ...scrollEvents),
+            min: Math.min(...samples, ...scrollEvents),
+            overlayCount: document.querySelectorAll('.toolbar-applied-preview-overlay').length,
+            scrollEvents,
+            samples,
+          });
+        };
+        requestAnimationFrame(sample);
+      }), {
+        durationMs: 450,
+        scrollSelector: NOTE_SCROLL_ROOT_SELECTOR,
+      });
+
+      await boldButton.hover();
+      const scrollTrace = await scrollTracePromise;
+      const overlayImageLayout = await page.evaluate(() => {
+        const overlay = document.querySelector<HTMLElement>('.toolbar-applied-preview-overlay');
+        const imageBlock = overlay?.querySelector<HTMLElement>('.image-block-container') ?? null;
+        const image = imageBlock?.querySelector<HTMLImageElement>('img[alt="preview image"]') ?? null;
+        const paragraph = imageBlock?.closest('p') ?? null;
+        const alignmentWrapper = Array.from(imageBlock?.children ?? []).find(
+          (child): child is HTMLElement =>
+            child instanceof HTMLElement && child.classList.contains('group/image')
+        ) ?? null;
+        const frame = alignmentWrapper?.firstElementChild instanceof HTMLElement
+          ? alignmentWrapper.firstElementChild
+          : null;
+        const blockRect = imageBlock?.getBoundingClientRect();
+        const frameRect = frame?.getBoundingClientRect();
+        const centerOffset = blockRect && frameRect
+          ? (frameRect.left - blockRect.left) - ((blockRect.width - frameRect.width) / 2)
+          : null;
+
+        return {
+          bareSerializedImage: !!overlay?.querySelector('p > img[alt="preview image"]'),
+          centerOffset,
+          imageBlockFound: !!imageBlock,
+          imageSrc: image?.getAttribute('src') ?? null,
+          paragraphHasImageClass: paragraph?.classList.contains('editor-paragraph-has-image-block') ?? false,
+          paragraphLineHeight: paragraph ? getComputedStyle(paragraph).lineHeight : null,
+          wrapperJustifyCenter: alignmentWrapper?.classList.contains('justify-center') ?? false,
+        };
+      });
+
+      expect(scrollTrace.overlayCount).toBeGreaterThan(0);
+      expect(scrollTrace.hiddenEditorCount).toBeGreaterThan(0);
+      expect(Math.max(
+        Math.abs(scrollTrace.max - scrollTrace.before),
+        Math.abs(scrollTrace.min - scrollTrace.before),
+        Math.abs(scrollTrace.after - scrollTrace.before),
+      )).toBeLessThanOrEqual(1);
+      expect(overlayImageLayout.bareSerializedImage).toBe(false);
+      expect(overlayImageLayout.imageBlockFound).toBe(true);
+      expect(overlayImageLayout.imageSrc).toBe(liveImageLayout.imageSrc);
+      expect(overlayImageLayout.paragraphHasImageClass).toBe(true);
+      expect(overlayImageLayout.paragraphLineHeight).toBe(liveImageLayout.paragraphLineHeight);
+      expect(overlayImageLayout.wrapperJustifyCenter).toBe(true);
+      expect(Math.abs((overlayImageLayout.centerOffset ?? 0) - (liveImageLayout.centerOffset ?? 0)))
+        .toBeLessThanOrEqual(1);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

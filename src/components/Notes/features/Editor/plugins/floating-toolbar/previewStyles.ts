@@ -45,12 +45,26 @@ const BG_COLOR_MARK_BG_VAR = '--vlaina-bg-color-mark-bg';
 const BG_COLOR_MARK_PAINT_SHADOW = `var(--vlaina-space-015em) 0 0 var(${BG_COLOR_MARK_BG_VAR}), calc(var(--vlaina-space-015em) * -1) 0 0 var(${BG_COLOR_MARK_BG_VAR})`;
 const TOOLBAR_PREVIEW_SURFACE_BG = 'var(--vlaina-bg-primary)';
 const TOOLBAR_PREVIEW_SURFACE_SHADOW = `var(--vlaina-space-015em) 0 0 ${TOOLBAR_PREVIEW_SURFACE_BG}, calc(var(--vlaina-space-015em) * -1) 0 0 ${TOOLBAR_PREVIEW_SURFACE_BG}`;
+const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
 type SelectionColorPreviewSignature = {
   empty: boolean;
   from: number;
   to: number;
 } | null;
+
+type PreviewScrollSnapshot = {
+  element: HTMLElement;
+  releaseGuard: () => void;
+  scrollLeft: number;
+  scrollTop: number;
+};
+
+type PreviewScrollGuard = {
+  count: number;
+  originalOverflowAnchor: string;
+  originalOverflowAnchorPriority: string;
+};
 
 let previewOverlay: {
   key: string;
@@ -60,6 +74,7 @@ let previewOverlay: {
   previewState: EditorState;
   viewDom: HTMLElement;
 } | null = null;
+const previewScrollGuards = new WeakMap<HTMLElement, PreviewScrollGuard>();
 let selectionColorPreview: {
   key: string;
   originalDoc: EditorState['doc'];
@@ -192,6 +207,97 @@ function canRenderAppliedPreview(view: EditorView): boolean {
   return true;
 }
 
+function capturePreviewScrollSnapshot(viewDom: HTMLElement): PreviewScrollSnapshot | null {
+  const scrollRoot = viewDom.closest(NOTE_SCROLL_ROOT_SELECTOR);
+  if (!(scrollRoot instanceof HTMLElement)) {
+    return null;
+  }
+
+  const releaseGuard = retainPreviewScrollGuard(scrollRoot);
+  return {
+    element: scrollRoot,
+    releaseGuard,
+    scrollLeft: scrollRoot.scrollLeft,
+    scrollTop: scrollRoot.scrollTop,
+  };
+}
+
+function retainPreviewScrollGuard(element: HTMLElement): () => void {
+  let guard = previewScrollGuards.get(element);
+  if (!guard) {
+    guard = {
+      count: 0,
+      originalOverflowAnchor: element.style.getPropertyValue('overflow-anchor'),
+      originalOverflowAnchorPriority: element.style.getPropertyPriority('overflow-anchor'),
+    };
+    previewScrollGuards.set(element, guard);
+    element.style.setProperty('overflow-anchor', 'none', 'important');
+  }
+
+  guard.count += 1;
+
+  let released = false;
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+
+    const currentGuard = previewScrollGuards.get(element);
+    if (!currentGuard) {
+      return;
+    }
+
+    currentGuard.count -= 1;
+    if (currentGuard.count > 0) {
+      return;
+    }
+
+    previewScrollGuards.delete(element);
+    if (currentGuard.originalOverflowAnchor) {
+      element.style.setProperty(
+        'overflow-anchor',
+        currentGuard.originalOverflowAnchor,
+        currentGuard.originalOverflowAnchorPriority
+      );
+    } else {
+      element.style.removeProperty('overflow-anchor');
+    }
+  };
+}
+
+function restorePreviewScrollSnapshot(snapshot: PreviewScrollSnapshot | null): void {
+  if (!snapshot) {
+    return;
+  }
+
+  const restore = () => {
+    if (!snapshot.element.isConnected) {
+      return;
+    }
+    snapshot.element.scrollLeft = snapshot.scrollLeft;
+    snapshot.element.scrollTop = snapshot.scrollTop;
+  };
+  const ownerWindow = snapshot.element.ownerDocument.defaultView;
+  const releaseGuard = () => {
+    restore();
+    snapshot.releaseGuard();
+  };
+
+  restore();
+  queueMicrotask(restore);
+  ownerWindow?.requestAnimationFrame(() => {
+    restore();
+    ownerWindow.requestAnimationFrame(restore);
+  });
+  ownerWindow?.setTimeout(restore, 0);
+  if (ownerWindow) {
+    ownerWindow.setTimeout(releaseGuard, 50);
+  } else {
+    snapshot.releaseGuard();
+  }
+}
+
 function createAppliedPreviewDom(
   view: EditorView,
   apply: (previewView: EditorView) => void
@@ -292,10 +398,12 @@ function renderAppliedPreview(
     return renderSelectionHiddenPreview(view, key);
   }
 
+  const scrollSnapshot = capturePreviewScrollSnapshot(view.dom);
   const parent = view.dom.parentElement;
   const previewDom = preview.dom;
   previewDom.classList.add('toolbar-applied-preview-overlay', TOOLBAR_SELECTION_HIDDEN_PREVIEW_CLASS);
   previewDom.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
+  previewDom.style.setProperty('overflow-anchor', 'none');
 
   previewOverlay = {
     key,
@@ -309,6 +417,7 @@ function renderAppliedPreview(
   parent.insertBefore(previewDom, view.dom);
   view.dom.style.display = themeStyleResetTokens.displayNone;
   view.dom.setAttribute('data-toolbar-preview-hidden', 'true');
+  restorePreviewScrollSnapshot(scrollSnapshot);
   clearNativeSelectionForPreview(view);
   return true;
 }
@@ -544,9 +653,11 @@ function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
 
   clearPreviewOverlay();
 
+  const scrollSnapshot = capturePreviewScrollSnapshot(view.dom);
   const previewDom = renderAppliedPreviewDocument(view.state, view.dom, view.dom.ownerDocument);
   previewDom.classList.add('toolbar-applied-preview-overlay', TOOLBAR_SELECTION_HIDDEN_PREVIEW_CLASS);
   previewDom.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
+  previewDom.style.setProperty('overflow-anchor', 'none');
 
   previewOverlay = {
     key,
@@ -560,6 +671,7 @@ function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
   view.dom.parentElement.insertBefore(previewDom, view.dom);
   view.dom.style.display = themeStyleResetTokens.displayNone;
   view.dom.setAttribute('data-toolbar-preview-hidden', 'true');
+  restorePreviewScrollSnapshot(scrollSnapshot);
   clearNativeSelectionForPreview(view);
   return true;
 }
@@ -570,6 +682,7 @@ function clearPreviewOverlay(): void {
   }
 
   const { node, originalViewDisplay, viewDom } = previewOverlay;
+  const scrollSnapshot = capturePreviewScrollSnapshot(viewDom);
   cleanupAppliedPreviewDocument(node);
   node.remove();
   if (viewDom.isConnected) {
@@ -577,6 +690,7 @@ function clearPreviewOverlay(): void {
     viewDom.removeAttribute('data-toolbar-preview-hidden');
   }
   previewOverlay = null;
+  restorePreviewScrollSnapshot(scrollSnapshot);
 }
 
 function setCollapsedSelectionNear(tr: EditorState['tr'], pos: number): void {

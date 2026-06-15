@@ -199,6 +199,103 @@ describe('appliedPreviewState', () => {
     expect(previewDom!.querySelector('.frontmatter-block-container [contenteditable]')).toBeNull();
   });
 
+  it('preserves image block layout when the serialized preview contains other images', () => {
+    const SchemaCtor = (ProseModel as any).Schema;
+    const EditorStateCtor = (ProseState as any).EditorState;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'inline*',
+          group: 'block',
+          toDOM: () => ['p', 0],
+        },
+        html_block: {
+          atom: true,
+          group: 'block',
+          toDOM: () => ['div', { 'data-type': 'html-block' }, ['img', { src: 'raw.png', alt: 'raw' }]],
+        },
+        image: {
+          inline: true,
+          group: 'inline',
+          atom: true,
+          attrs: {
+            src: { default: '' },
+            alt: { default: '' },
+            align: { default: 'center' },
+            width: { default: '' },
+          },
+          toDOM: (node: ProseNode) => ['img', {
+            src: node.attrs.src,
+            alt: node.attrs.alt,
+            align: node.attrs.align,
+            width: node.attrs.width,
+            'data-src': node.attrs.src,
+          }],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('html_block'),
+        schema.node('paragraph', null, [
+          schema.node('image', {
+            src: 'image.png',
+            alt: 'preview',
+            align: 'center',
+            width: '72%',
+          }),
+        ]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    const rawBlock = document.createElement('div');
+    rawBlock.dataset.type = 'html-block';
+    rawBlock.innerHTML = '<img src="raw.png" alt="raw">';
+    const sourceParagraph = document.createElement('p');
+    sourceParagraph.className = 'editor-paragraph-has-image-block';
+    sourceParagraph.style.lineHeight = '0px';
+    sourceParagraph.style.marginBottom = '16px';
+    sourceParagraph.style.marginTop = '16px';
+    const sourceImageBlock = document.createElement('div');
+    sourceImageBlock.className = 'image-block-container md-image image-embed';
+    sourceImageBlock.dataset.src = 'image.png';
+    sourceImageBlock.dataset.alt = 'preview';
+    sourceImageBlock.dataset.align = 'center';
+    sourceImageBlock.dataset.width = '72%';
+    sourceImageBlock.setAttribute('src', 'image.png');
+    sourceImageBlock.setAttribute('align', 'center');
+    sourceImageBlock.setAttribute('width', '72%');
+    sourceImageBlock.innerHTML = [
+      '<div class="w-full flex group/image justify-center">',
+      '<div class="relative flex flex-col leading-none" style="width: 72%; line-height: 0px;">',
+      '<img src="blob:resolved-image" data-src="image.png" alt="preview">',
+      '<button tabindex="0">Resize</button>',
+      '</div>',
+      '</div>',
+    ].join('');
+    sourceParagraph.appendChild(sourceImageBlock);
+    sourceDom.append(rawBlock, sourceParagraph);
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewImageBlock = previewDom.querySelector<HTMLElement>('.image-block-container');
+    const previewParagraph = previewImageBlock?.closest('p');
+
+    expect(previewDom.querySelector('div[data-type="html-block"] img')?.getAttribute('src')).toBe('raw.png');
+    expect(previewDom.querySelector('p > img[src="image.png"]')).toBeNull();
+    expect(previewImageBlock).toBeInstanceOf(HTMLElement);
+    expect(previewImageBlock?.querySelector('img')?.getAttribute('src')).toBe('blob:resolved-image');
+    expect(previewImageBlock?.querySelector('.justify-center')).toBeInstanceOf(HTMLElement);
+    expect(previewImageBlock?.querySelector('button')?.hasAttribute('tabindex')).toBe(false);
+    expect(previewParagraph?.classList.contains('editor-paragraph-has-image-block')).toBe(true);
+    expect(previewParagraph?.style.lineHeight).toBe('0px');
+    expect(previewParagraph?.style.marginTop).toBe('16px');
+    expect(previewParagraph?.style.marginBottom).toBe('16px');
+  });
+
   it('bounds trailing break synchronization for oversized preview documents', () => {
     const previewDom = document.createElement('div');
     const maxNodes = 3;
