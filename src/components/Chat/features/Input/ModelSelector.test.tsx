@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ModelSelector } from './ModelSelector';
+import {
+  ModelSelector,
+  compareModelSelectorProviderIds,
+  createModelSelectorProviderOrder,
+} from './ModelSelector';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 
 const mocks = vi.hoisted(() => ({
   refreshManagedProviderInBackground: vi.fn(),
@@ -76,6 +81,59 @@ function setModelFixture() {
   }));
 }
 
+function setProviderOrderFixture() {
+  useUnifiedStore.setState((state) => ({
+    loaded: true,
+    data: {
+      ...state.data,
+      ai: {
+        ...state.data.ai!,
+        providers: [
+          {
+            id: 'provider-b',
+            name: 'Provider B',
+            type: 'newapi',
+            apiHost: 'https://b.example.com/v1',
+            apiKey: 'key-b',
+            enabled: true,
+            createdAt: 2,
+            updatedAt: 2,
+          },
+          {
+            id: 'provider-a',
+            name: 'Provider A',
+            type: 'newapi',
+            apiHost: 'https://a.example.com/v1',
+            apiKey: 'key-a',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+        models: [
+          {
+            id: 'model-a',
+            apiModelId: 'zzz-custom',
+            name: 'Model A',
+            providerId: 'provider-a',
+            enabled: true,
+            createdAt: 1,
+          },
+          {
+            id: 'model-b',
+            apiModelId: 'aaa-custom',
+            name: 'Model B',
+            providerId: 'provider-b',
+            enabled: true,
+            createdAt: 2,
+          },
+        ],
+        selectedModelId: 'model-b',
+      },
+    },
+  }));
+}
+
 describe('ModelSelector', () => {
   let rectSpy: ReturnType<typeof vi.spyOn>;
 
@@ -93,6 +151,10 @@ describe('ModelSelector', () => {
       const className = this.getAttribute('class') ?? '';
       if (className.includes('relative select-none w-fit')) {
         return createRect({ left: 620, top: 520, width: 120, height: 32 });
+      }
+
+      if (className.includes('relative min-h-0 overflow-hidden min-w-0 flex-1')) {
+        return createRect({ left: 0, top: 0, width: 360, height: 386 });
       }
 
       return createRect({ left: 0, top: 0, width: 0, height: 0 });
@@ -169,5 +231,31 @@ describe('ModelSelector', () => {
       requestAnimationFrameSpy.mockRestore();
       cancelAnimationFrameSpy.mockRestore();
     }
+  });
+
+  it('orders custom provider sections by the saved provider order', () => {
+    setProviderOrderFixture();
+    const providers = useUnifiedStore.getState().data.ai?.providers ?? [];
+    const providerOrder = createModelSelectorProviderOrder(providers);
+
+    expect(
+      ['provider-a', 'provider-b'].sort((leftProviderId, rightProviderId) =>
+        compareModelSelectorProviderIds(providerOrder, leftProviderId, rightProviderId)
+      )
+    ).toEqual(['provider-b', 'provider-a']);
+  });
+
+  it('keeps managed provider sections after user providers', () => {
+    const providerOrder = createModelSelectorProviderOrder([
+      { id: MANAGED_PROVIDER_ID },
+      { id: 'provider-b' },
+      { id: 'provider-a' },
+    ]);
+
+    expect(
+      ['provider-a', MANAGED_PROVIDER_ID, 'provider-b'].sort((leftProviderId, rightProviderId) =>
+        compareModelSelectorProviderIds(providerOrder, leftProviderId, rightProviderId)
+      )
+    ).toEqual(['provider-b', 'provider-a', MANAGED_PROVIDER_ID]);
   });
 });

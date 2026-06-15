@@ -186,6 +186,42 @@ export const actions = {
     })
   },
 
+  reorderCustomProviders: (orderedProviderIds: string[]) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const providers = ai.providers || [];
+    const managedProviders = providers.filter((provider) => isManagedProviderId(provider.id));
+    const customProviders = providers.filter((provider) => !isManagedProviderId(provider.id));
+    const customProviderById = new Map(customProviders.map((provider) => [provider.id, provider] as const));
+    const usedProviderIds = new Set<string>();
+    const nextCustomProviders: Provider[] = [];
+
+    orderedProviderIds.forEach((providerId) => {
+      const provider = customProviderById.get(providerId);
+      if (!provider || usedProviderIds.has(providerId)) {
+        return;
+      }
+      usedProviderIds.add(providerId);
+      nextCustomProviders.push(provider);
+    });
+
+    customProviders.forEach((provider) => {
+      if (!usedProviderIds.has(provider.id)) {
+        nextCustomProviders.push(provider);
+      }
+    });
+
+    const nextProviders = [...managedProviders, ...nextCustomProviders];
+    const orderChanged = nextProviders.length !== providers.length ||
+      nextProviders.some((provider, index) => providers[index]?.id !== provider.id);
+
+    if (!orderChanged) {
+      return;
+    }
+
+    state.updateAIData({ providers: nextProviders });
+  },
+
   deleteProvider: (id: string) => {
     if (isManagedProviderId(id)) return
 
