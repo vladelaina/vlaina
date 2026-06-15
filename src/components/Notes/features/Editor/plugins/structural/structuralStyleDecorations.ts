@@ -158,6 +158,25 @@ function addResolvedStructuralContextRanges(doc: ProseNode, pos: number, ranges:
     const node = $pos.node(depth);
     if (isRelevantStructuralNode(node)) {
       pushRange(ranges, $pos.before(depth), $pos.after(depth));
+
+      const parent = $pos.node(depth - 1);
+      const index = $pos.index(depth - 1);
+      const before = $pos.before(depth);
+      const after = $pos.after(depth);
+
+      if (index > 0) {
+        const previousSibling = parent.child(index - 1);
+        if (isRelevantStructuralNode(previousSibling)) {
+          pushRange(ranges, before - previousSibling.nodeSize, before);
+        }
+      }
+
+      if (index + 1 < parent.childCount) {
+        const nextSibling = parent.child(index + 1);
+        if (isRelevantStructuralNode(nextSibling)) {
+          pushRange(ranges, after, after + nextSibling.nodeSize);
+        }
+      }
     }
   }
 

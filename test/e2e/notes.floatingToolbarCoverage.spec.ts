@@ -6,8 +6,10 @@ import {
   NOTE_IMAGE_BLOCK_SELECTOR,
   NOTE_SCROLL_ROOT_SELECTOR,
   cleanupIsolatedElectron,
+  createVaultFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
+  openAbsoluteNote,
   openMarkdownFixture,
   waitForEditorAnimationFrame,
 } from './notesE2E';
@@ -87,6 +89,15 @@ function createSolidPngDataUrl(width: number, height: number): string {
 }
 
 const IMAGE_ANCHORED_TOOLBAR_PREVIEW_DATA_URL = createSolidPngDataUrl(900, 560);
+const CATALOG_IMAGE_PREVIEW_SPACING_SRC = 'catalog.svg#w=66.38%25';
+const CATALOG_IMAGE_PREVIEW_SPACING_SVG = [
+  '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="180" viewBox="0 0 420 180">',
+  '<rect width="420" height="180" fill="#88c0d0"/>',
+  '<rect x="36" y="42" width="348" height="96" rx="10" fill="#ffffff"/>',
+  '<rect x="70" y="72" width="196" height="16" fill="#3b4252"/>',
+  '<rect x="70" y="100" width="280" height="12" fill="#5e81ac"/>',
+  '</svg>',
+].join('');
 
 type ToolbarMarkCase = {
   action: string;
@@ -708,6 +719,18 @@ function createImageAnchoredToolbarScrollMarkdown(): { content: string; target: 
       Array.from({ length: 10 }, (_, index) =>
         `Trailing filler ${index + 1} gives the scroll root room below the image.`
       ).join('\n\n'),
+    ].join('\n'),
+  };
+}
+
+function createCatalogImagePreviewSpacingMarkdown(): { content: string; target: string } {
+  const target = '获得更好的阅读体验';
+  return {
+    target,
+    content: [
+      `<img src="${CATALOG_IMAGE_PREVIEW_SPACING_SRC}" alt="catalog" width="72%" />`,
+      '',
+      `点击右上角的 **「目录」** 图标打开目录，${target}。`,
     ].join('\n'),
   };
 }
@@ -1357,6 +1380,216 @@ test.describe('notes floating toolbar coverage', () => {
       expect(overlayImageLayout.wrapperJustifyCenter).toBe(true);
       expect(Math.abs((overlayImageLayout.centerOffset ?? 0) - (liveImageLayout.centerOffset ?? 0)))
         .toBeLessThanOrEqual(1);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps hover preview spacing between catalog images and following paragraphs', async () => {
+    const { content, target } = createCatalogImagePreviewSpacingMarkdown();
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-floating-toolbar-catalog-image-spacing');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'notes-floating-toolbar-catalog-image-spacing',
+        files: [
+          {
+            filename: 'floating-toolbar-catalog-image-spacing.md',
+            content,
+          },
+          {
+            filename: 'catalog.svg',
+            content: CATALOG_IMAGE_PREVIEW_SPACING_SVG,
+          },
+        ],
+      });
+      const [notePath] = fixture.notePaths;
+      if (!notePath) {
+        throw new Error('Expected catalog spacing note fixture');
+      }
+      await openAbsoluteNote(page, notePath);
+
+      const catalogImage = page.locator(`${LIVE_EDITOR_SELECTOR} img[alt="catalog"]`).first();
+      await expect(catalogImage).toBeVisible({ timeout: 10_000 });
+      await expect.poll(() => page.evaluate(() => {
+        const image = document.querySelector<HTMLImageElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"]) img[alt="catalog"]'
+        );
+        return {
+          complete: image?.complete ?? false,
+          loaded: Boolean(image?.complete && image.naturalHeight > 0 && image.naturalWidth > 0),
+          naturalHeight: image?.naturalHeight ?? 0,
+          naturalWidth: image?.naturalWidth ?? 0,
+        };
+      }), { timeout: 30_000 }).toMatchObject({
+        complete: true,
+        loaded: true,
+      });
+      const catalogImageSize = await page.evaluate(() => {
+        const image = document.querySelector<HTMLImageElement>(
+          '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"]) img[alt="catalog"]'
+        );
+        return {
+          naturalHeight: image?.naturalHeight ?? 0,
+          naturalWidth: image?.naturalWidth ?? 0,
+        };
+      });
+      expect(catalogImageSize.naturalHeight).toBeGreaterThan(0);
+      expect(catalogImageSize.naturalWidth).toBeGreaterThan(0);
+
+      const collectSpacingMetrics = async (rootSelector: string) => page.evaluate(({ rootSelector, targetText }) => {
+        const root = document.querySelector<HTMLElement>(rootSelector);
+        const image = root?.querySelector<HTMLImageElement>('img[alt="catalog"]') ?? null;
+        const imageBlock = image?.closest<HTMLElement>('.image-block-container') ?? null;
+        const mediaBlock = imageBlock?.closest<HTMLElement>('p')
+          ?? image?.closest<HTMLElement>('[data-type="html-block"]')
+          ?? image?.parentElement;
+        const textParagraph = Array.from(root?.querySelectorAll<HTMLElement>('p') ?? [])
+          .find((paragraph) => paragraph.textContent?.includes(targetText)) ?? null;
+        const mediaRect = mediaBlock?.getBoundingClientRect();
+        const textRect = textParagraph?.getBoundingClientRect();
+        const mediaStyle = mediaBlock ? getComputedStyle(mediaBlock) : null;
+        const textStyle = textParagraph ? getComputedStyle(textParagraph) : null;
+
+        return {
+          gap: mediaRect && textRect ? Math.round((textRect.top - mediaRect.bottom) * 10) / 10 : null,
+          hasImageBlock: Boolean(imageBlock),
+          hasMediaBlock: Boolean(mediaBlock),
+          hasOverlay: root?.classList.contains('toolbar-applied-preview-overlay') ?? false,
+          hasTextParagraph: Boolean(textParagraph),
+          mediaClasses: mediaBlock?.className ?? null,
+          mediaDisplay: mediaStyle?.display ?? null,
+          mediaLineHeight: mediaStyle?.lineHeight ?? null,
+          mediaMarginBottom: mediaStyle?.marginBottom ?? null,
+          mediaStyleAttr: mediaBlock?.getAttribute('style') ?? null,
+          mediaTag: mediaBlock?.tagName ?? null,
+          textClasses: textParagraph?.className ?? null,
+          textLineHeight: textStyle?.lineHeight ?? null,
+          textMarginTop: textStyle?.marginTop ?? null,
+          textStyleAttr: textParagraph?.getAttribute('style') ?? null,
+        };
+      }, { rootSelector, targetText: target });
+
+      const liveSpacingBeforeHover = await collectSpacingMetrics(LIVE_EDITOR_SELECTOR);
+      expect(liveSpacingBeforeHover.hasMediaBlock).toBe(true);
+      expect(liveSpacingBeforeHover.hasTextParagraph).toBe(true);
+      expect(liveSpacingBeforeHover.mediaClasses).toContain('editor-paragraph-has-image-block');
+      expect(liveSpacingBeforeHover.gap).not.toBeNull();
+      expect(liveSpacingBeforeHover.gap ?? 0).toBeGreaterThan(4);
+
+      const expectGapSamples = async (
+        rootSelector: string,
+        expectedOverlay: boolean,
+      ) => {
+        for (let index = 0; index < 3; index += 1) {
+          await waitForEditorAnimationFrame(page);
+          const spacing = await collectSpacingMetrics(rootSelector);
+
+          expect(spacing.hasOverlay).toBe(expectedOverlay);
+          expect(spacing.hasMediaBlock).toBe(true);
+          expect(spacing.hasTextParagraph).toBe(true);
+          expect(spacing.mediaClasses).toContain('editor-paragraph-has-image-block');
+          expect(spacing.gap).not.toBeNull();
+          expect(Math.abs((spacing.gap ?? 0) - (liveSpacingBeforeHover.gap ?? 0))).toBeLessThanOrEqual(2);
+        }
+      };
+
+      const expectPreviewCleared = async () => {
+        await expect(page.locator(PREVIEW_OVERLAY_SELECTOR)).toHaveCount(0);
+        await expect(page.locator(`${LIVE_EDITOR_SELECTOR}[data-toolbar-preview-hidden="true"]`)).toHaveCount(0);
+        const restoredSpacing = await collectSpacingMetrics(LIVE_EDITOR_SELECTOR);
+        expect(restoredSpacing.mediaClasses).toContain('editor-paragraph-has-image-block');
+        expect(Math.abs((restoredSpacing.gap ?? 0) - (liveSpacingBeforeHover.gap ?? 0))).toBeLessThanOrEqual(2);
+        expect(restoredSpacing.mediaLineHeight).toBe(liveSpacingBeforeHover.mediaLineHeight);
+        expect(restoredSpacing.textLineHeight).toBe(liveSpacingBeforeHover.textLineHeight);
+      };
+
+      const expectAppliedPreviewGap = async (action: string) => {
+        await dragSelectEditorText(page, target);
+        const button = page.locator(`${TOOLBAR_SELECTOR} [data-action="${action}"]`).first();
+        await expect(button).toBeVisible({ timeout: 5_000 });
+        await button.hover();
+        await expect(page.locator(PREVIEW_OVERLAY_SELECTOR)).toBeVisible({ timeout: 5_000 });
+        await expectGapSamples(PREVIEW_OVERLAY_SELECTOR, true);
+        await hideToolbar(page);
+        await expectPreviewCleared();
+      };
+
+      await expectAppliedPreviewGap('bold');
+      await expectAppliedPreviewGap('highlight');
+
+      await dragSelectEditorText(page, target);
+      await clickToolbarActionAndWaitForVisible(
+        page,
+        'color',
+        '.color-picker [data-type="text"] .color-picker-grid .color-picker-item[data-color="#866ec6"]',
+        'catalog text color preview swatch',
+        target,
+      );
+      await hoverColorSwatch(
+        page,
+        'text',
+        '.color-picker-grid .color-picker-item[data-color="#866ec6"]',
+        'catalog text color preview swatch',
+      );
+      await expect(page.locator(PREVIEW_OVERLAY_SELECTOR)).toBeVisible({ timeout: 5_000 });
+      await expectGapSamples(PREVIEW_OVERLAY_SELECTOR, true);
+      await hideToolbar(page);
+      await expectPreviewCleared();
+
+      await dragSelectEditorText(page, target);
+      await clickToolbarActionAndWaitForVisible(
+        page,
+        'color',
+        '.color-picker [data-type="bg"] .color-picker-grid .color-picker-item[data-color="#fca9bd"]',
+        'catalog background color preview swatch',
+        target,
+      );
+      await hoverColorSwatch(
+        page,
+        'bg',
+        '.color-picker-grid .color-picker-item[data-color="#fca9bd"]',
+        'catalog background color preview swatch',
+      );
+      await expect(page.locator(PREVIEW_OVERLAY_SELECTOR)).toBeVisible({ timeout: 5_000 });
+      await expectGapSamples(PREVIEW_OVERLAY_SELECTOR, true);
+      await hideToolbar(page);
+      await expectPreviewCleared();
+
+      await dragSelectEditorText(page, target);
+      await clickToolbarActionAndWaitForVisible(
+        page,
+        'alignment',
+        '.alignment-dropdown [data-alignment="center"]',
+        'catalog center alignment preview item',
+        target,
+      );
+      await page.locator('.alignment-dropdown [data-alignment="center"]').first().hover();
+      await expect(page.locator(PREVIEW_OVERLAY_SELECTOR)).toBeVisible({ timeout: 5_000 });
+      await expectGapSamples(PREVIEW_OVERLAY_SELECTOR, true);
+      await hideToolbar(page);
+      await expectPreviewCleared();
+
+      await dragSelectEditorText(page, target);
+      const boldButton = page.locator(`${TOOLBAR_SELECTOR} [data-action="bold"]`).first();
+      await expect(boldButton).toBeVisible({ timeout: 5_000 });
+      await boldButton.hover();
+      await expect(page.locator(PREVIEW_OVERLAY_SELECTOR)).toBeVisible({ timeout: 5_000 });
+      await boldButton.click();
+      await waitForEditorAnimationFrame(page);
+      await expect(page.locator(PREVIEW_OVERLAY_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} strong`, { hasText: target }).first()).toBeVisible({ timeout: 5_000 });
+
+      const spacingAfterBoldApply = await collectSpacingMetrics(LIVE_EDITOR_SELECTOR);
+      expect(spacingAfterBoldApply.mediaClasses).toContain('editor-paragraph-has-image-block');
+      expect(Math.abs((spacingAfterBoldApply.gap ?? 0) - (liveSpacingBeforeHover.gap ?? 0))).toBeLessThanOrEqual(2);
+      expect(spacingAfterBoldApply.mediaLineHeight).toBe(liveSpacingBeforeHover.mediaLineHeight);
+      expect(spacingAfterBoldApply.textLineHeight).toBe(liveSpacingBeforeHover.textLineHeight);
+      expect(spacingAfterBoldApply.mediaStyleAttr).toBe(liveSpacingBeforeHover.mediaStyleAttr);
+      expect(spacingAfterBoldApply.textStyleAttr).toBe(liveSpacingBeforeHover.textStyleAttr);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

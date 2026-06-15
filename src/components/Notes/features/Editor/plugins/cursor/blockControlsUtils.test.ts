@@ -20,6 +20,13 @@ describe('pickPointerBlock', () => {
     expect(pickPointerBlock(blocks, 35)).toBe(blocks[1]);
   });
 
+  it('prefers the smallest directly hit block for nested selected rows', () => {
+    const parent = { rect: { top: 20, bottom: 80, height: 60 } };
+    const child = { rect: { top: 50, bottom: 70, height: 20 } };
+
+    expect(pickPointerBlock([parent, child], 60)).toBe(child);
+  });
+
   it('returns nearest block by center when no direct hit', () => {
     expect(pickPointerBlock(blocks, 26)).toBe(blocks[1]);
   });

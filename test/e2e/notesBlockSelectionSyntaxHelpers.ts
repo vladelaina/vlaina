@@ -172,7 +172,8 @@ export async function moveMouseToSyntaxHandleGutter(page: Page, sample: Markdown
   expect(probe.ok, `${sample.label}: ${probe.reason}\n${JSON.stringify(probe, null, 2)}`).toBe(true);
 
   for (const point of probe.points) {
-    await page.mouse.move(point.x, point.y);
+    await page.mouse.move(Math.max(8, point.x - 80), point.y);
+    await page.mouse.move(point.x, point.y, { steps: 4 });
     const aligned = await page.waitForFunction(
       ({ expectedCenterY }) => {
         const controls = document.querySelector<HTMLElement>('.editor-block-controls.visible');

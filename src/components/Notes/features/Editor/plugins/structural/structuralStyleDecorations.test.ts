@@ -60,6 +60,12 @@ const schema = new SchemaCtor({
     },
     text: { group: 'inline' },
   },
+  marks: {
+    strong: {
+      parseDOM: [{ tag: 'strong' }],
+      toDOM: () => ['strong', 0],
+    },
+  },
 });
 
 function textNode(text: string) {
@@ -259,5 +265,37 @@ describe('structuralStyleDecorations', () => {
     expect(next.decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
       STRUCTURAL_EMPTY_PARAGRAPH_CLASS,
     ]);
+  });
+
+  it('keeps image paragraph classes when a preview commit marks following text', () => {
+    const target = 'target text';
+    const state = EditorStateCtor.create({
+      schema,
+      doc: docWith([paragraphWithChildren([image()]), paragraph(`Prefix ${target} suffix`)]),
+    });
+    const previousDecorations = createStructuralStyleDecorations(state.doc);
+    const from = findTextPosition(state.doc, target, 'start');
+    const to = findTextPosition(state.doc, target, 'end');
+    const previewDoc = state.tr.addMark(from, to, schema.marks.strong.create()).doc;
+    const diffStart = (state.doc.content as any).findDiffStart(previewDoc.content);
+    const diffEnd = (state.doc.content as any).findDiffEnd(previewDoc.content);
+
+    expect(diffStart).not.toBeNull();
+    expect(diffEnd).toBeTruthy();
+
+    const tr = state.tr.replace(
+      diffStart,
+      diffEnd.a,
+      previewDoc.slice(diffStart, diffEnd.b),
+    );
+
+    const next = applyStructuralStyleDecorationsState(tr, {
+      decorationCount: previousDecorations.find().length,
+      decorations: previousDecorations,
+    }, tr.doc);
+
+    expect(next.decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toContain(
+      STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
+    );
   });
 });

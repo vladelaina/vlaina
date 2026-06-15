@@ -210,7 +210,12 @@ test.describe("notes block selection list handles", () => {
         throw new Error('Could not resolve nested child geometry');
       }
 
-      await page.mouse.move(Math.max(8, nestedRect.x - 18), nestedRect.y + nestedRect.height / 2);
+      const debugPoint = {
+        x: Math.max(8, nestedRect.x - 18),
+        y: nestedRect.y + nestedRect.height / 2,
+      };
+      await page.mouse.move(Math.max(8, debugPoint.x - 80), debugPoint.y);
+      await page.mouse.move(debugPoint.x, debugPoint.y, { steps: 4 });
       await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
 
       const geometry = await page.evaluate(() => {

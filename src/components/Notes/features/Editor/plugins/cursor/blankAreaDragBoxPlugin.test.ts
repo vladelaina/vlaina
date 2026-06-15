@@ -10,6 +10,7 @@ import {
 } from './blankAreaDragBoxPlugin';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
+import { dispatchBlankAreaPlainClick } from './forcedLineEdgeCaret';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { listTabIndentPlugin } from '../task-list';
 import { clipboardPlugin } from '../clipboard/clipboardPlugin';
@@ -469,6 +470,145 @@ describe('shouldClearBlockSelectionForTransaction', () => {
         { selectedBlocks: [] }
       )
     ).toBe(false);
+  });
+});
+
+describe('blankAreaDragBoxPlugin document routing', () => {
+  it('claims inside-editor blank-area drags before view capture listeners can turn them into native text selection', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+    const viewCaptureListener = vi.fn((event: MouseEvent) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    });
+
+    try {
+      attachNoteScrollRoot(view);
+      vi.spyOn(document, 'createRange').mockImplementation(() => ({
+        selectNodeContents: vi.fn(),
+        getClientRects: vi.fn().mockReturnValue([{
+          left: 100,
+          top: 40,
+          right: 200,
+          bottom: 60,
+          width: 100,
+          height: 20,
+          x: 100,
+          y: 40,
+          toJSON: () => undefined,
+        }] as DOMRect[]),
+        detach: vi.fn(),
+      }) as any);
+
+      view.dom.addEventListener('mousedown', viewCaptureListener, true);
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 320,
+        clientY: 50,
+      });
+
+      view.dom.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(viewCaptureListener).not.toHaveBeenCalled();
+
+      document.dispatchEvent(createMouseEvent('mousemove', {
+        clientX: 280,
+        clientY: 90,
+        buttons: 1,
+      }));
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(true);
+
+      document.dispatchEvent(createMouseEvent('mouseup'));
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    } finally {
+      view.dom.removeEventListener('mousedown', viewCaptureListener, true);
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('clears an active forced line-edge caret when document routing claims an inside-editor blank-area drag', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      attachNoteScrollRoot(view);
+      vi.spyOn(document, 'createRange').mockImplementation(() => ({
+        selectNodeContents: vi.fn(),
+        getClientRects: vi.fn().mockReturnValue([{
+          left: 100,
+          top: 40,
+          right: 200,
+          bottom: 60,
+          width: 100,
+          height: 20,
+          x: 100,
+          y: 40,
+          toJSON: () => undefined,
+        }] as DOMRect[]),
+        detach: vi.fn(),
+      }) as any);
+
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      if (!firstBlock) {
+        throw new Error('Expected a selectable block');
+      }
+      dispatchBlankAreaPlainClick(view, {
+        blockFrom: firstBlock.from,
+        targetPos: Math.max(firstBlock.from + 1, firstBlock.to - 1),
+        bias: -1,
+      }, 320, 50);
+      expect(document.querySelector('.editor-forced-line-end-caret')).toBeInstanceOf(HTMLElement);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 320,
+        clientY: 50,
+      });
+
+      view.dom.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(document.querySelector('.editor-forced-line-end-caret')).toBeNull();
+
+      document.dispatchEvent(createMouseEvent('mouseup'));
+    } finally {
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('passes ordinary text clicks through after document routing inspects them', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+    const viewCaptureListener = vi.fn((event: MouseEvent) => {
+      event.stopImmediatePropagation();
+    });
+
+    try {
+      attachNoteScrollRoot(view);
+      const firstParagraph = view.dom.querySelector('p');
+      if (!(firstParagraph instanceof HTMLElement)) {
+        throw new Error('Expected first paragraph');
+      }
+      vi.spyOn(document, 'createRange').mockImplementation(() => ({
+        selectNodeContents: vi.fn(),
+        getClientRects: vi.fn().mockReturnValue([domRect(100, 40, 200, 60)]),
+        detach: vi.fn(),
+      }) as any);
+
+      view.dom.addEventListener('mousedown', viewCaptureListener, true);
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 120,
+        clientY: 50,
+      });
+
+      firstParagraph.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(false);
+      expect(viewCaptureListener).toHaveBeenCalledTimes(1);
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    } finally {
+      view.dom.removeEventListener('mousedown', viewCaptureListener, true);
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
   });
 });
 

@@ -296,6 +296,146 @@ describe('appliedPreviewState', () => {
     expect(previewParagraph?.style.marginBottom).toBe('16px');
   });
 
+  it('keeps image block spacing to adjacent paragraphs in applied previews', () => {
+    const SchemaCtor = (ProseModel as any).Schema;
+    const EditorStateCtor = (ProseState as any).EditorState;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'inline*',
+          group: 'block',
+          toDOM: () => ['p', 0],
+        },
+        image: {
+          inline: true,
+          group: 'inline',
+          atom: true,
+          attrs: {
+            src: { default: '' },
+            alt: { default: '' },
+            align: { default: 'center' },
+            width: { default: '' },
+          },
+          toDOM: (node: ProseNode) => ['img', {
+            src: node.attrs.src,
+            alt: node.attrs.alt,
+            align: node.attrs.align,
+            width: node.attrs.width,
+            'data-src': node.attrs.src,
+          }],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('paragraph', null, [
+          schema.node('image', {
+            src: 'catalog.png#w=66.38%25',
+            alt: 'catalog',
+            align: 'center',
+            width: '72%',
+          }),
+        ]),
+        schema.node('paragraph', null, [schema.text('After image paragraph')]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    const sourceImageParagraph = document.createElement('p');
+    sourceImageParagraph.className = 'md-p cm-line editor-paragraph-has-image-block';
+    sourceImageParagraph.style.marginBottom = '24px';
+    const sourceImageBlock = document.createElement('div');
+    sourceImageBlock.className = 'image-block-container md-image image-embed';
+    sourceImageBlock.dataset.src = 'catalog.png#w=66.38%25';
+    sourceImageBlock.dataset.alt = 'catalog';
+    sourceImageBlock.dataset.align = 'center';
+    sourceImageBlock.dataset.width = '72%';
+    sourceImageBlock.setAttribute('src', 'catalog.png#w=66.38%25');
+    sourceImageBlock.setAttribute('align', 'center');
+    sourceImageBlock.setAttribute('width', '72%');
+    sourceImageBlock.innerHTML = '<img src="blob:catalog" data-src="catalog.png#w=66.38%25" alt="catalog">';
+    sourceImageParagraph.append(sourceImageBlock);
+    const sourceTextParagraph = document.createElement('p');
+    sourceTextParagraph.className = 'md-p cm-line';
+    sourceTextParagraph.style.lineHeight = '29px';
+    sourceTextParagraph.style.marginTop = '18px';
+    sourceTextParagraph.textContent = 'After image paragraph';
+    sourceDom.append(sourceImageParagraph, sourceTextParagraph);
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewImageBlock = previewDom.querySelector<HTMLElement>('.image-block-container');
+    const previewImageParagraph = previewImageBlock?.closest('p');
+    const previewTextParagraph = Array.from(previewDom.querySelectorAll<HTMLElement>('p'))
+      .find((paragraph) => paragraph.textContent?.includes('After image paragraph')) ?? null;
+
+    expect(previewImageBlock).toBeInstanceOf(HTMLElement);
+    expect(previewImageParagraph?.classList.contains('editor-paragraph-has-image-block')).toBe(true);
+    expect(previewImageParagraph?.style.marginBottom).toBe('24px');
+    expect(previewTextParagraph?.classList.contains('md-p')).toBe(true);
+    expect(previewTextParagraph?.classList.contains('cm-line')).toBe(true);
+    expect(previewTextParagraph?.style.lineHeight).toBe('29px');
+    expect(previewTextParagraph?.style.marginTop).toBe('18px');
+  });
+
+  it('keeps raw html media block spacing to adjacent paragraphs in applied previews', () => {
+    const SchemaCtor = (ProseModel as any).Schema;
+    const EditorStateCtor = (ProseState as any).EditorState;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'inline*',
+          group: 'block',
+          toDOM: () => ['p', 0],
+        },
+        html_block: {
+          atom: true,
+          group: 'block',
+          attrs: { value: { default: '' } },
+          toDOM: () => ['div', { 'data-type': 'html-block' }, ['img', { src: 'catalog.png', alt: 'catalog' }]],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('html_block', { value: '<img src="catalog.png" alt="catalog" width="72%" />' }),
+        schema.node('paragraph', null, [schema.text('After raw html image')]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    const sourceHtmlBlock = document.createElement('div');
+    sourceHtmlBlock.className = 'md-htmlblock md-htmlblock-container v-caption iframe vlook-media-html-block';
+    sourceHtmlBlock.dataset.type = 'html-block';
+    sourceHtmlBlock.style.marginBottom = '21px';
+    sourceHtmlBlock.style.minHeight = '40px';
+    sourceHtmlBlock.innerHTML = '<img src="catalog.png" alt="catalog" width="72%">';
+    const sourceTextParagraph = document.createElement('p');
+    sourceTextParagraph.className = 'md-p cm-line';
+    sourceTextParagraph.style.marginTop = '15px';
+    sourceTextParagraph.textContent = 'After raw html image';
+    sourceDom.append(sourceHtmlBlock, sourceTextParagraph);
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewHtmlBlock = previewDom.querySelector<HTMLElement>('[data-type="html-block"]');
+    const previewTextParagraph = Array.from(previewDom.querySelectorAll<HTMLElement>('p'))
+      .find((paragraph) => paragraph.textContent?.includes('After raw html image')) ?? null;
+
+    expect(previewHtmlBlock?.classList.contains('md-htmlblock')).toBe(true);
+    expect(previewHtmlBlock?.classList.contains('vlook-media-html-block')).toBe(true);
+    expect(previewHtmlBlock?.classList.contains('iframe')).toBe(true);
+    expect(previewHtmlBlock?.style.marginBottom).toBe('21px');
+    expect(previewHtmlBlock?.style.minHeight).toBe('40px');
+    expect(previewTextParagraph?.classList.contains('md-p')).toBe(true);
+    expect(previewTextParagraph?.classList.contains('cm-line')).toBe(true);
+    expect(previewTextParagraph?.style.marginTop).toBe('15px');
+  });
+
   it('bounds trailing break synchronization for oversized preview documents', () => {
     const previewDom = document.createElement('div');
     const maxNodes = 3;

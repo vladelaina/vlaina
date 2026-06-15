@@ -250,7 +250,6 @@ body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-tex
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
 }
 
-.milkdown .ProseMirror li.editor-block-selected::marker,
-.milkdown .ProseMirror li.editor-block-selected-parent-marker::marker {
+.milkdown .ProseMirror li.editor-block-selected::marker {
   color: var(--vlaina-editor-block-selection-fg);
 }

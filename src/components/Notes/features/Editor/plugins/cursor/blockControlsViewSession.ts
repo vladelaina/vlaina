@@ -27,6 +27,7 @@ import {
   applyBlockMove,
   canApplyBlockMove,
   getDraggableBlockRanges,
+  getHandleBlockTargets,
   resolveBlockTargetByPos,
   resolveDropTarget,
   setControlsPosition,
@@ -125,6 +126,7 @@ export class BlockControlsViewSession {
 
     this.handleButton.addEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.addEventListener('mousemove', this.handleDocumentMouseMove, true);
+    this.doc.addEventListener('pointermove', this.handleDocumentPointerMove, true);
     this.doc.addEventListener('mouseup', this.handleDocumentMouseUp, true);
     this.doc.addEventListener('keydown', this.handleDocumentKeyDown, true);
     this.scrollRoot?.addEventListener('scroll', this.handleScrollOrResize, { passive: true });
@@ -158,6 +160,7 @@ export class BlockControlsViewSession {
     setBlockDraggingVisualState(false);
     this.handleButton.removeEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.removeEventListener('mousemove', this.handleDocumentMouseMove, true);
+    this.doc.removeEventListener('pointermove', this.handleDocumentPointerMove, true);
     this.doc.removeEventListener('mouseup', this.handleDocumentMouseUp, true);
     this.dragAutoScroll.stop();
     this.detachDragWheelListener();
@@ -321,10 +324,12 @@ export class BlockControlsViewSession {
 
   private getCachedHandleTargets(): HandleBlockTarget[] {
     const {
-      ranges: draggableRanges,
-      key: selectionKey,
+      selectedRanges,
     } = this.getDraggableSelection();
-    if (draggableRanges.length === 0) return [];
+    if (selectedRanges.length === 0) {
+      return this.getSelectedDomHandleTargets();
+    }
+    const selectionKey = getBlockRangesKey(selectedRanges);
 
     const nextScrollLeft = this.scrollRoot?.scrollLeft ?? 0;
     const nextScrollTop = this.scrollRoot?.scrollTop ?? 0;
@@ -345,10 +350,67 @@ export class BlockControlsViewSession {
     this.cachedScrollLeft = nextScrollLeft;
     this.cachedScrollTop = nextScrollTop;
     this.cachedSnapshotVersion = snapshotVersion;
-    this.cachedTargets = draggableRanges
-      .map((range) => resolveBlockTargetByPos(this.view, range.from))
-      .filter((target): target is HandleBlockTarget => target !== null);
+    const stateTargets = getHandleBlockTargets(this.view, selectedRanges);
+    this.cachedTargets = stateTargets.length > 0
+      ? stateTargets
+      : this.getSelectedDomHandleTargets();
     return this.cachedTargets;
+  }
+
+  private getSelectedDomHandleTargets(): HandleBlockTarget[] {
+    return Array.from(this.view.dom.querySelectorAll<HTMLElement>('.editor-block-selected'))
+      .map((element, index): HandleBlockTarget | null => {
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        let pos = -1 - index;
+        try {
+          pos = this.view.posAtDOM(element, 0);
+        } catch {
+        }
+        return {
+          pos,
+          rect,
+          isListItem: element.tagName === 'LI',
+          element,
+        };
+      })
+      .filter((target): target is HandleBlockTarget => target !== null)
+      .sort((left, right) => (
+        left.rect.height === right.rect.height
+          ? left.rect.top - right.rect.top
+          : left.rect.height - right.rect.height
+      ));
+  }
+
+  private resolveDomHorizontalAnchor(target: HandleBlockTarget): HandleBlockTarget | null {
+    const element = target.element;
+    if (!element || element.tagName !== 'LI') return null;
+
+    let anchor: HTMLElement | null = null;
+    for (let current = element.parentElement?.closest('li.editor-block-selected') as HTMLElement | null;
+      current && this.view.dom.contains(current);
+      current = current.parentElement?.closest('li.editor-block-selected') as HTMLElement | null
+    ) {
+      if (!current.contains(element)) continue;
+      if (!anchor || current.getBoundingClientRect().left < anchor.getBoundingClientRect().left) {
+        anchor = current;
+      }
+    }
+
+    if (!anchor) return null;
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    let pos = target.pos;
+    try {
+      pos = this.view.posAtDOM(anchor, 0);
+    } catch {
+    }
+    return {
+      pos,
+      rect,
+      isListItem: true,
+      element: anchor,
+    };
   }
 
   private resolveGroupedListHorizontalAnchor(
@@ -390,10 +452,15 @@ export class BlockControlsViewSession {
       return;
     }
     const horizontalAnchor = this.resolveGroupedListHorizontalAnchor(nextTarget, targets, selectedRanges);
-    if (horizontalAnchor === nextTarget) {
+    const domHorizontalAnchor = horizontalAnchor === nextTarget
+      ? this.resolveDomHorizontalAnchor(nextTarget)
+      : null;
+    if (horizontalAnchor === nextTarget && !domHorizontalAnchor) {
       setControlsPosition(this.controls, nextTarget, BLOCK_CONTROLS_LEFT_OFFSET_PX);
     } else {
-      setControlsPosition(this.controls, nextTarget, BLOCK_CONTROLS_LEFT_OFFSET_PX, { horizontalAnchor });
+      setControlsPosition(this.controls, nextTarget, BLOCK_CONTROLS_LEFT_OFFSET_PX, {
+        horizontalAnchor: domHorizontalAnchor ?? horizontalAnchor,
+      });
     }
     this.controls.classList.add('visible');
   }
@@ -504,6 +571,13 @@ export class BlockControlsViewSession {
       return;
     }
 
+    this.setPointer(event.clientX, event.clientY);
+    this.scheduleHandleRefresh();
+  };
+
+  private readonly handleDocumentPointerMove = (event: PointerEvent): void => {
+    if (event.pointerType && event.pointerType !== 'mouse') return;
+    if (this.draggedRanges) return;
     this.setPointer(event.clientX, event.clientY);
     this.scheduleHandleRefresh();
   };

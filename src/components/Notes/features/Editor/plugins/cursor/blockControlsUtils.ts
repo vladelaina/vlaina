@@ -26,7 +26,13 @@ export function pickPointerBlock<T extends PointerBlockTarget>(
   if (blocks.length === 0) return null;
   if (pointerY === null) return blocks[0];
 
-  const directHit = blocks.find((block) => pointerY >= block.rect.top && pointerY <= block.rect.bottom);
+  let directHit: T | null = null;
+  for (const block of blocks) {
+    if (pointerY < block.rect.top || pointerY > block.rect.bottom) continue;
+    if (!directHit || block.rect.height < directHit.rect.height) {
+      directHit = block;
+    }
+  }
   if (directHit) return directHit;
 
   let nearest: T | null = null;

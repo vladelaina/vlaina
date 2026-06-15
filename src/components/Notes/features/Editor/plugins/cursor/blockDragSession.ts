@@ -48,6 +48,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
   const previousCursorRootCursor = cursorRoot.style.cursor;
   const previousViewCursor = view.dom.style.cursor;
   const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
+  const ownerWindow = ownerDocument.defaultView ?? window;
 
   const applyVisualState = (nextCursor: string) => {
     if (!visualStateApplied) {
@@ -70,6 +71,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     if (editorRoot && editorRoot !== cursorRoot) editorRoot.style.cursor = previousEditorRootCursor;
     ownerDocument.removeEventListener('mousemove', handleMouseMove, true);
     ownerDocument.removeEventListener('mouseup', handleMouseUp, true);
+    ownerWindow.removeEventListener('blur', handleWindowBlur);
     onTeardown?.();
   };
 
@@ -103,8 +105,16 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     teardown();
   };
 
+  const handleWindowBlur = (blurEvent: Event) => {
+    if (blurEvent.target !== ownerWindow) {
+      return;
+    }
+    teardown();
+  };
+
   ownerDocument.addEventListener('mousemove', handleMouseMove, true);
   ownerDocument.addEventListener('mouseup', handleMouseUp, true);
+  ownerWindow.addEventListener('blur', handleWindowBlur);
   event.preventDefault();
 
   return {

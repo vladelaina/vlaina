@@ -1,8 +1,9 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { pruneContainedBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { normalizeBlockRanges, pruneContainedBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
 import {
   collectSelectableBlockTargets,
+  getListItemRangeEnd,
   isNonDraggableBlockRange,
   mapRangesToSelectableBlocks,
   resolveSelectableBlockTargetByPos,
@@ -68,6 +69,7 @@ export function resolveBlockTargetByPos(view: EditorView, blockPos: number): Han
     pos: target.range.from,
     rect: target.rect,
     isListItem: target.element.tagName === 'LI',
+    element: target.element,
   };
 }
 
@@ -93,6 +95,55 @@ export function getDraggableBlockRanges(view: EditorView, selectedRanges: readon
     .filter((range) => !isNonDraggableBlockRange(view.state.doc, range));
   const result = pruneContainedBlockRanges(mapped);
   return result;
+}
+
+export function getHandleBlockTargets(view: EditorView, selectedRanges: readonly BlockRange[]): HandleBlockTarget[] {
+  const mappedRanges = normalizeBlockRanges(
+    mapRangesToSelectableBlocks(view.state.doc, selectedRanges)
+      .filter((range) => !isNonDraggableBlockRange(view.state.doc, range))
+  );
+  if (mappedRanges.length === 0) return [];
+
+  const byKey = new Map<string, HandleBlockTarget>();
+  const addTarget = (range: BlockRange) => {
+    const target = resolveBlockTargetByPos(view, range.from);
+    if (!target) return;
+    byKey.set(`${target.pos}:${range.to}`, target);
+  };
+
+  let hasSelectedListContainer = false;
+  mappedRanges.forEach((range) => {
+    addTarget(range);
+    const listItemTo = getListItemRangeEnd(view.state.doc, range.from);
+    if (listItemTo !== null && range.to >= listItemTo) {
+      hasSelectedListContainer = true;
+    }
+  });
+
+  if (!hasSelectedListContainer) {
+    return [...byKey.values()];
+  }
+
+  const selectableTargets = collectSelectableBlockTargets(view)
+    .filter((target) => !isNonDraggableBlockRange(view.state.doc, target.range));
+  mappedRanges.forEach((range) => {
+    const listItemTo = getListItemRangeEnd(view.state.doc, range.from);
+    if (listItemTo === null || range.to < listItemTo) return;
+
+    for (const target of selectableTargets) {
+      if (target.range.from <= range.from) continue;
+      if (target.range.from >= listItemTo) break;
+      if (target.range.to > listItemTo) continue;
+      byKey.set(`${target.range.from}:${target.range.to}`, {
+        pos: target.range.from,
+        rect: target.rect,
+        isListItem: target.element.tagName === 'LI',
+        element: target.element,
+      });
+    }
+  });
+
+  return [...byKey.values()].sort((left, right) => left.pos - right.pos);
 }
 
 export function resolveDropTarget(view: EditorView, clientX: number, clientY: number): DropTarget | null {

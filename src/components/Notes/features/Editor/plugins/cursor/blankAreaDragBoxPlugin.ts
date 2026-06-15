@@ -488,6 +488,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopSession: (() => void) | null = null;
   let stopInsideBlockTrailingPlainClickSession: (() => void) | null = null;
   let stopUnclaimedBlankPlainClickSession: (() => void) | null = null;
+  const documentInspectedMouseDownEvents = new WeakSet<MouseEvent>();
   let markdownSerializer: Serializer | null = null;
   let serializerResolved = false;
 
@@ -523,6 +524,11 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     if (!stopUnclaimedBlankPlainClickSession) return;
     stopUnclaimedBlankPlainClickSession();
     stopUnclaimedBlankPlainClickSession = null;
+  };
+
+  const stopHandledDocumentMouseDown = (view: EditorView, event: MouseEvent) => {
+    clearForcedCaretForOwner(view.dom);
+    event.stopImmediatePropagation();
   };
 
   const tryStartUnclaimedBlankPlainClickSession = (view: EditorView, event: MouseEvent) => {
@@ -704,14 +710,17 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
             return false;
           }
-          if (handleMarkdownBlankLinePointerDown(view, event)) {
-            return true;
-          }
-          if (handleListGapPlaceholderPointerDown(view, event)) {
-            return true;
-          }
-          if (handleTrailingBlankClickInsideLastList(view, event)) {
-            return true;
+          const inspectedByDocumentRoute = documentInspectedMouseDownEvents.has(event);
+          if (!inspectedByDocumentRoute) {
+            if (handleMarkdownBlankLinePointerDown(view, event)) {
+              return true;
+            }
+            if (handleListGapPlaceholderPointerDown(view, event)) {
+              return true;
+            }
+            if (handleTrailingBlankClickInsideLastList(view, event)) {
+              return true;
+            }
           }
           const target = event.target;
           if (target instanceof Node && view.dom.contains(target) && hasSelectedBlocks(view.state)) {
@@ -719,8 +728,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           }
           // `below-last-block` starts drag-or-click behavior here.
           // `outside-editor` is handled by document-level listener below.
-          const startZone = tryStartSession(view, event);
-          if (startZone !== null) return true;
+          if (!inspectedByDocumentRoute) {
+            const startZone = tryStartSession(view, event);
+            if (startZone !== null) return true;
+          }
 
           const insideBlockTrailingClickAction = resolveInsideBlockTrailingPlainClick(view, event);
           if (insideBlockTrailingClickAction) {
@@ -792,6 +803,22 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
         const target = event.target;
         if (target instanceof Node && view.dom.contains(target)) {
+          documentInspectedMouseDownEvents.add(event);
+          if (
+            handleMarkdownBlankLinePointerDown(view, event) ||
+            handleListGapPlaceholderPointerDown(view, event) ||
+            handleTrailingBlankClickInsideLastList(view, event)
+          ) {
+            stopHandledDocumentMouseDown(view, event);
+            return;
+          }
+
+          const startZone = tryStartSession(view, event);
+          if (startZone) {
+            stopHandledDocumentMouseDown(view, event);
+            return;
+          }
+
           if (hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
           }

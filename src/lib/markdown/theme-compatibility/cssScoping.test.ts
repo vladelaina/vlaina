@@ -581,7 +581,7 @@ describe('markdown theme CSS scoping', () => {
         '#write span[md-inline=strong] > strong { font-weight: 700; }',
         '#write [md-inline=highlight]:only-child>mark:before { content: ""; }',
         '#write [md-inline=highlight]:only-child:has(>mark):after { content: ""; }',
-        '#write [md-inline=strong]:only-child:has(>strong) { display: block; }',
+        '#write [md-inline=strong]:only-child:has(>strong) { display: block; line-height: 2; color: var(--strong-only); }',
         '#write [md-inline=underline]:only-child:has(>u):after { width: 40%; }',
         'content>#write>p>[md-inline=em]:only-child:has(>em>[md-inline=plain]) { color: var(--df-a); }',
         '#write span[md-inline=em]:not(:first-child)>em { color: var(--df-a); }',
@@ -599,7 +599,9 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write strong { font-weight: 700; }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write mark:only-child:before { content: ""; }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write mark:only-child:after { content: ""; }');
-    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write strong:only-child { display: block; }');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write strong:only-child { color: var(--strong-only); }');
+    expect(scoped).not.toContain('strong:only-child { display: block;');
+    expect(scoped).not.toContain('strong:only-child { line-height: 2;');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write u:only-child:after { width: 40%; }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write >p>em:only-child { color: var(--df-a); }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write em:not(:first-child) { color: var(--df-a); }');
@@ -615,6 +617,24 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).not.toContain('[md-inline=strong]:only-child:has(>strong)');
     expect(scoped).not.toContain('[md-inline=underline]:only-child:has(>u)');
     expect(scoped).not.toContain('[md-inline=plain]');
+  });
+
+  it('keeps mixed non-inline selectors intact when removing Typora inline wrapper layout', () => {
+    const scoped = scopeImportedMarkdownThemeCss(
+      [
+        '#write [md-inline=strong]:only-child:has(>strong), #write .v-card { display: block; line-height: 2; color: red; }',
+        '#write [md-inline=em]:only-child:has(>em) { display: block; line-height: 2; }',
+        '#write table:has(th:first-child>span>span[md-inline=strong]:only-child) tbody>tr>:first-child { display: table-cell; line-height: 1.4; }',
+        '#write :not(span[md-inline=code]) code { line-height: 1.6; }',
+      ].join('\n'),
+      'typora'
+    );
+
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write strong:only-child { color: red; }');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write .v-card { display: block; line-height: 2; color: red; }');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write table:has(th:first-child strong:only-child) tbody>tr>:first-child { display: table-cell; line-height: 1.4; }');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write :not(span[md-inline=code]) code { line-height: 1.6; }');
+    expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write em:only-child');
   });
 
   it('maps Typora image hash selectors onto Vlaina image block internals', () => {

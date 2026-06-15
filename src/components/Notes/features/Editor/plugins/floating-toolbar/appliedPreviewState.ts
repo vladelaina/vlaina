@@ -112,6 +112,7 @@ export function renderAppliedPreviewDocument(
   preserveSourceImageBlockNodeViews(previewDom, sourceDom);
   preserveSourceFrontmatterNodeViews(previewDom, sourceDom);
   preserveSourceRenderedAtomNodes(previewDom, sourceDom);
+  stabilizePreviewMediaAdjacentLayout(previewDom, sourceDom);
   stabilizePreviewListLayout(previewDom, sourceDom);
   stabilizePreviewRootTypography(previewDom, sourceDom);
   return previewDom;
@@ -166,6 +167,36 @@ const IMAGE_BLOCK_PARAGRAPH_STYLE_PROPS = [
   'paddingBottom',
   'paddingTop',
 ] as const;
+
+const MEDIA_ADJACENT_LAYOUT_CLASS_NAMES = [
+  'cm-line',
+  'editor-paragraph-has-image-block',
+  'editor-paragraph-has-multiple-image-blocks',
+  'first-p',
+  'iframe',
+  'md-htmlblock',
+  'md-htmlblock-container',
+  'md-p',
+  'v-caption',
+  'vlook-media-html-block',
+] as const;
+
+const MEDIA_ADJACENT_LAYOUT_STYLE_PROPS = [
+  'display',
+  'fontSize',
+  'lineHeight',
+  'marginBottom',
+  'marginLeft',
+  'marginRight',
+  'marginTop',
+  'maxWidth',
+  'minHeight',
+  'paddingBottom',
+  'paddingTop',
+  'width',
+] as const;
+
+type MediaAdjacentLayoutStyleProp = typeof MEDIA_ADJACENT_LAYOUT_STYLE_PROPS[number];
 
 const LIST_LAYOUT_SELECTOR = 'ul, ol, li, li > p, li > [data-text-align]';
 
@@ -544,6 +575,112 @@ function mirrorImageBlockParagraphLayout(sourceImage: HTMLElement, previewImage:
     if (computedValue) {
       previewParagraph.style[prop] = computedValue;
     }
+  });
+}
+
+function canMirrorMediaAdjacentElement(sourceElement: HTMLElement, previewElement: HTMLElement): boolean {
+  return (
+    sourceElement.tagName === previewElement.tagName &&
+    (sourceElement.tagName === 'P' || sourceElement.dataset.type === 'html-block') &&
+    (sourceElement.dataset.type ?? '') === (previewElement.dataset.type ?? '')
+  );
+}
+
+function hasDirectImageBlock(element: HTMLElement): boolean {
+  for (let child = element.firstElementChild; child; child = child.nextElementSibling) {
+    if (child.classList.contains(IMAGE_BLOCK_CONTAINER_CLASS)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isMediaLayoutAnchor(element: HTMLElement | undefined): boolean {
+  if (!element) {
+    return false;
+  }
+
+  if (hasDirectImageBlock(element)) {
+    return true;
+  }
+
+  if (element.dataset.type !== 'html-block') {
+    return false;
+  }
+
+  return element.querySelector('img, iframe, video, object, embed') !== null;
+}
+
+function shouldMirrorMediaAdjacentLayout(elements: HTMLElement[], index: number): boolean {
+  return (
+    isMediaLayoutAnchor(elements[index]) ||
+    isMediaLayoutAnchor(elements[index - 1]) ||
+    isMediaLayoutAnchor(elements[index + 1])
+  );
+}
+
+function copyAllowedClasses(
+  sourceElement: HTMLElement,
+  previewElement: HTMLElement,
+  classNames: readonly string[]
+): void {
+  classNames.forEach((className) => {
+    if (sourceElement.classList.contains(className)) {
+      previewElement.classList.add(className);
+    }
+  });
+}
+
+function mirrorLayoutStyles(
+  sourceElement: HTMLElement,
+  previewElement: HTMLElement,
+  props: readonly MediaAdjacentLayoutStyleProp[]
+): void {
+  let computed: CSSStyleDeclaration | null = null;
+  props.forEach((prop) => {
+    const inlineValue = sourceElement.style[prop];
+    if (inlineValue) {
+      previewElement.style[prop] = inlineValue;
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    computed ??= window.getComputedStyle(sourceElement);
+    const computedValue = computed[prop];
+    if (computedValue) {
+      previewElement.style[prop] = computedValue;
+    }
+  });
+}
+
+function stabilizePreviewMediaAdjacentLayout(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom) {
+    return;
+  }
+
+  const sourceElements = Array.from(sourceDom.children)
+    .filter((element): element is HTMLElement => element instanceof HTMLElement);
+  const previewElements = Array.from(previewDom.children)
+    .filter((element): element is HTMLElement => element instanceof HTMLElement);
+  if (sourceElements.length !== previewElements.length) {
+    return;
+  }
+
+  sourceElements.forEach((sourceElement, index) => {
+    const previewElement = previewElements[index];
+    if (
+      !previewElement ||
+      !canMirrorMediaAdjacentElement(sourceElement, previewElement) ||
+      !shouldMirrorMediaAdjacentLayout(sourceElements, index)
+    ) {
+      return;
+    }
+
+    copyAllowedClasses(sourceElement, previewElement, MEDIA_ADJACENT_LAYOUT_CLASS_NAMES);
+    mirrorLayoutStyles(sourceElement, previewElement, MEDIA_ADJACENT_LAYOUT_STYLE_PROPS);
   });
 }
 
