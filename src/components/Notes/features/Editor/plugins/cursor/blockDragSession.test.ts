@@ -181,6 +181,98 @@ describe('startBlockDragSession', () => {
     expect(onTeardown).toHaveBeenCalledTimes(1);
   });
 
+  it('tears down on window blur without turning the gesture into a plain click', () => {
+    const { view } = setupViewDom();
+    const cursorRoot = document.createElement('div');
+    document.body.appendChild(cursorRoot);
+    const onActivate = vi.fn();
+    const onDragMove = vi.fn();
+    const onPlainClick = vi.fn();
+    const onTeardown = vi.fn();
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 10,
+      clientY: 10,
+    });
+
+    startBlockDragSession({
+      view,
+      event,
+      startZone: 'outside-editor',
+      dragThreshold: 1,
+      cursor: 'crosshair',
+      cursorRoot,
+      onActivate,
+      onDragMove,
+      onPlainClick,
+      onTeardown,
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 30,
+      buttons: 1,
+    }));
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(true);
+
+    window.dispatchEvent(new Event('blur'));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(onDragMove).toHaveBeenCalledTimes(1);
+    expect(onPlainClick).not.toHaveBeenCalled();
+    expect(onTeardown).toHaveBeenCalledTimes(1);
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    expect(cursorRoot.style.cursor).toBe('');
+    expect(view.dom.style.cursor).toBe('');
+  });
+
+  it('does not tear down when an editor child loses focus during drag activation', () => {
+    const { view } = setupViewDom();
+    const button = document.createElement('button');
+    view.dom.appendChild(button);
+    const onActivate = vi.fn();
+    const onDragMove = vi.fn();
+    const onPlainClick = vi.fn();
+    const onTeardown = vi.fn();
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 10,
+      clientY: 10,
+    });
+
+    startBlockDragSession({
+      view,
+      event,
+      startZone: 'outside-editor',
+      dragThreshold: 1,
+      cursor: 'crosshair',
+      onActivate,
+      onDragMove,
+      onPlainClick,
+      onTeardown,
+    });
+
+    button.dispatchEvent(new FocusEvent('blur'));
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 30,
+      buttons: 1,
+    }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(onDragMove).toHaveBeenCalledTimes(1);
+    expect(onPlainClick).not.toHaveBeenCalled();
+    expect(onTeardown).toHaveBeenCalledTimes(1);
+  });
+
   it('listens on the editor owner document instead of the global document', () => {
     const iframe = document.createElement('iframe');
     document.body.appendChild(iframe);

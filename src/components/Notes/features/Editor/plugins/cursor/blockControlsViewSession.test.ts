@@ -5,6 +5,7 @@ import { BlockControlsViewSession } from './blockControlsViewSession';
 import {
   applyBlockMove,
   getDraggableBlockRanges,
+  getHandleBlockTargets,
   resolveBlockTargetByPos,
   resolveDropTarget,
 } from './blockControlsInteractions';
@@ -55,6 +56,7 @@ vi.mock('./blockControlsInteractions', () => ({
   applyBlockMove: vi.fn(() => false),
   canApplyBlockMove: vi.fn(() => true),
   getDraggableBlockRanges: vi.fn(() => [{ from: 1, to: 5 }]),
+  getHandleBlockTargets: vi.fn(() => [createHandleTarget(1, 80, mocks.targetTop)]),
   resolveBlockTargetByPos: vi.fn(() => ({
     pos: 1,
     isListItem: false,
@@ -135,6 +137,8 @@ describe('BlockControlsViewSession', () => {
     vi.mocked(applyBlockMove).mockClear();
     vi.mocked(getDraggableBlockRanges).mockClear();
     vi.mocked(getDraggableBlockRanges).mockReturnValue([{ from: 1, to: 5 }]);
+    vi.mocked(getHandleBlockTargets).mockClear();
+    vi.mocked(getHandleBlockTargets).mockImplementation(() => [createHandleTarget(1, 80, mocks.targetTop)]);
     vi.mocked(resolveBlockTargetByPos).mockClear();
     vi.mocked(resolveBlockTargetByPos).mockImplementation(() => createHandleTarget(1, 80, mocks.targetTop));
     vi.mocked(resolveDropTarget).mockReset();
@@ -238,9 +242,17 @@ describe('BlockControlsViewSession', () => {
     const nestedFirstTarget = createHandleTarget(1, 128, 40, true);
     const normalHoveredTarget = createHandleTarget(10, 80, 70, false);
 
+    mocks.selectedBlocks = [
+      { from: 1, to: 5 },
+      { from: 10, to: 15 },
+    ];
     vi.mocked(getDraggableBlockRanges).mockReturnValue([
       { from: 1, to: 5 },
       { from: 10, to: 15 },
+    ]);
+    vi.mocked(getHandleBlockTargets).mockReturnValue([
+      nestedFirstTarget,
+      normalHoveredTarget,
     ]);
     vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
       pos === 1 ? nestedFirstTarget : normalHoveredTarget
@@ -266,9 +278,17 @@ describe('BlockControlsViewSession', () => {
     const outerParentTarget = createHandleTarget(1, 80, 40, true);
     const nestedHoveredTarget = createHandleTarget(10, 128, 70, true);
 
+    mocks.selectedBlocks = [
+      { from: 1, to: 6 },
+      { from: 10, to: 15 },
+    ];
     vi.mocked(getDraggableBlockRanges).mockReturnValue([
       { from: 1, to: 6 },
       { from: 10, to: 15 },
+    ]);
+    vi.mocked(getHandleBlockTargets).mockReturnValue([
+      outerParentTarget,
+      nestedHoveredTarget,
     ]);
     vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
       pos === 1 ? outerParentTarget : nestedHoveredTarget
@@ -313,6 +333,10 @@ describe('BlockControlsViewSession', () => {
     vi.mocked(getDraggableBlockRanges).mockReturnValue([
       { from: 8, to: 15 },
     ]);
+    vi.mocked(getHandleBlockTargets).mockReturnValue([
+      outerParentTarget,
+      childBlockTarget,
+    ]);
     vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
       pos === 1 ? outerParentTarget : childBlockTarget
     ));
@@ -335,6 +359,53 @@ describe('BlockControlsViewSession', () => {
       expect(mocks.setControlsPosition).toHaveBeenCalledWith(
         expect.any(HTMLElement),
         childBlockTarget,
+        BLOCK_CONTROLS_LEFT_OFFSET_PX,
+        { horizontalAnchor: outerParentTarget },
+      );
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('keeps child-row handle targets available when drag ranges are pruned to the parent list item', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+    const outerParentTarget = createHandleTarget(1, 80, 40, true);
+    const nestedChildTarget = createHandleTarget(10, 128, 70, true);
+
+    mocks.selectedBlocks = [
+      { from: 1, to: 20 },
+      { from: 10, to: 15 },
+    ];
+    vi.mocked(getDraggableBlockRanges).mockReturnValue([
+      { from: 1, to: 20 },
+    ]);
+    vi.mocked(getHandleBlockTargets).mockReturnValue([
+      outerParentTarget,
+      nestedChildTarget,
+    ]);
+    vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
+      pos === 1 ? outerParentTarget : nestedChildTarget
+    ));
+    (view.state.doc as any).resolve = vi.fn((pos: number) => {
+      if (pos === 1) {
+        return {
+          nodeAfter: {
+            type: { name: 'list_item' },
+            nodeSize: 19,
+          },
+        };
+      }
+      return { nodeAfter: null };
+    });
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 80, bubbles: true }));
+      await nextFrame();
+
+      expect(mocks.setControlsPosition).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        nestedChildTarget,
         BLOCK_CONTROLS_LEFT_OFFSET_PX,
         { horizontalAnchor: outerParentTarget },
       );

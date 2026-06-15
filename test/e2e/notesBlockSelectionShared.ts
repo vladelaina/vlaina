@@ -86,7 +86,9 @@ export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator)
     throw new Error('Could not resolve block geometry');
   }
   const targetCenterY = rect.y + rect.height / 2;
-  await page.mouse.move(Math.max(8, rect.x - 18), targetCenterY);
+  const targetX = Math.max(8, rect.x - 18);
+  await page.mouse.move(Math.max(8, targetX - 80), targetCenterY);
+  await page.mouse.move(targetX, targetCenterY, { steps: 4 });
   await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
   await expect.poll(async () => page.evaluate(({ controlsSelector, expectedCenterY }) => {
     const controls = document.querySelector<HTMLElement>(controlsSelector);
