@@ -138,7 +138,7 @@ describe('desktop export ipc', () => {
     },
   );
 
-  it('selects the target item with a supported file manager on Linux', async () => {
+  it('opens the containing folder in a new file manager window on Linux', async () => {
     const child = {
       once: vi.fn(),
       unref: vi.fn(),
@@ -163,7 +163,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       1,
       '/usr/bin/nautilus',
-      ['--new-window', '--select', '/vault/docs/readme.md'],
+      ['--new-window', '/vault/docs'],
       {
         detached: true,
         stdio: 'ignore',
@@ -172,7 +172,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
       '/usr/bin/nautilus',
-      ['--new-window', '--select', '/vault/docs/readme.md'],
+      ['--new-window', '/vault/docs'],
       {
         detached: true,
         stdio: 'ignore',
@@ -182,7 +182,7 @@ describe('desktop export ipc', () => {
     expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
   });
 
-  it('opens the containing folder when Linux item selection exits unsuccessfully', async () => {
+  it('falls back to xdg-open when Linux directory opening exits unsuccessfully', async () => {
     const firstHandlers = new Map<string, (...args: unknown[]) => void>();
     const firstChild = {
       once: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
@@ -218,7 +218,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       1,
       '/usr/bin/nautilus',
-      ['--new-window', '--select', '/vault/docs/readme.md'],
+      ['--new-window', '/vault/docs'],
       {
         detached: true,
         stdio: 'ignore',
@@ -226,8 +226,8 @@ describe('desktop export ipc', () => {
     );
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
-      '/usr/bin/nautilus',
-      ['--new-window', '/vault/docs'],
+      'xdg-open',
+      ['/vault/docs'],
       {
         detached: true,
         stdio: 'ignore',

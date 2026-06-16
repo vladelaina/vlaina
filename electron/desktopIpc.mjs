@@ -355,9 +355,13 @@ export async function revealItemInFolder(filePath, options = {}) {
   const shellImpl = options.shellImpl ?? shell;
 
   if (platform === 'linux') {
+    const folderOpener = getLinuxDirectoryOpener(options);
     openItemWithLinuxFileManager(filePath, {
       ...options,
       fallbackShell: shellImpl,
+      opener: folderOpener
+        ? { ...folderOpener, target: 'folder' }
+        : { command: 'xdg-open', args: [], target: 'folder' },
     });
     return;
   }
