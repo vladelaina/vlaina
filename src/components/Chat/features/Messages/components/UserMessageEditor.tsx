@@ -214,7 +214,7 @@ export function UserMessageEditor({
             type="button"
             data-chat-message-editor-action="save"
             onClick={handleSave}
-            className="h-9 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
+            className="h-9 rounded-full bg-[#41a8ea] px-4 text-[length:var(--vlaina-font-13)] font-semibold text-[#ffffff] shadow-[0_0_0_3px_rgba(65,168,234,0.16),0_10px_24px_rgba(65,168,234,0.24)] transition-[box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:bg-[#41a8ea] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
           >
             {t('common.send')}
           </button>

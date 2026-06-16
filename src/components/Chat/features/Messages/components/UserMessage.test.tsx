@@ -113,6 +113,20 @@ describe('UserMessage', () => {
     expect(onEdit).toHaveBeenCalledWith('u1', 'x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS));
   });
 
+  it('uses the dark-theme accent treatment for the edit send button in light mode', () => {
+    const { container } = render(<UserMessage message={createMessage()} containerWidth={880} onEdit={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('Edit message'));
+
+    const saveButton = container.querySelector('[data-chat-message-editor-action="save"]');
+    expect(saveButton).not.toBeNull();
+    expect(saveButton?.className).toContain('bg-[#41a8ea]');
+    expect(saveButton?.className).toContain('text-[length:var(--vlaina-font-13)]');
+    expect(saveButton?.className).toContain('text-[#ffffff]');
+    expect(saveButton?.className).toContain('rgba(65,168,234,0.16)');
+    expect(saveButton?.className).not.toContain('dark:bg-');
+  });
+
   it('does not render the hover toolbar while waiting for an assistant response', () => {
     render(
       <UserMessage
