@@ -330,7 +330,6 @@ export class BlockControlsViewSession {
       return this.getSelectedDomHandleTargets();
     }
     const selectionKey = getBlockRangesKey(selectedRanges);
-
     const nextScrollLeft = this.scrollRoot?.scrollLeft ?? 0;
     const nextScrollTop = this.scrollRoot?.scrollTop ?? 0;
     const snapshot = getCurrentEditorBlockPositionSnapshot();

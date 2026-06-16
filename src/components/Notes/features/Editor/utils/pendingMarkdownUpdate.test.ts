@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePendingMarkdownUpdate } from './pendingMarkdownUpdate';
+import { resolvePendingMarkdownUpdate, serializeEditorMarkdownSnapshot } from './pendingMarkdownUpdate';
 
 describe('resolvePendingMarkdownUpdate', () => {
   it('replaces a stale markdown listener snapshot with the live editor doc', () => {
@@ -24,7 +24,6 @@ describe('resolvePendingMarkdownUpdate', () => {
       'dfdsfd',
       '',
       'rtgyhui',
-      '',
     ].join('\n');
 
     const expected = [
@@ -36,9 +35,7 @@ describe('resolvePendingMarkdownUpdate', () => {
       '### strip',
       '',
       'dfdsfd',
-      '',
       'rtgyhui',
-      '',
     ].join('\n');
 
     expect(
@@ -77,7 +74,6 @@ describe('resolvePendingMarkdownUpdate', () => {
       'dfdsfd',
       '',
       'rtgyhui',
-      '',
     ].join('\n');
 
     const expected = [
@@ -89,9 +85,7 @@ describe('resolvePendingMarkdownUpdate', () => {
       '### strip',
       '',
       'dfdsfd',
-      '',
       'rtgyhui',
-      '',
     ].join('\n');
 
     expect(
@@ -131,7 +125,6 @@ describe('resolvePendingMarkdownUpdate', () => {
       'vlaina_cover: "@biva/2"',
       '---',
       '\\==highlight==',
-      '',
       '\\*[ABBR]: Full phrase',
       '',
       '[^1]:',
@@ -152,6 +145,131 @@ describe('resolvePendingMarkdownUpdate', () => {
       source: 'live-editor',
       liveMarkdown: expected,
     });
+  });
+
+  it('strips the automatic trailing newline from editor serialization', () => {
+    expect(serializeEditorMarkdownSnapshot('1\n\n2\n', '1')).toBe('1\n2');
+  });
+
+  it('keeps one trailing newline for an editor-created terminal empty paragraph', () => {
+    expect(serializeEditorMarkdownSnapshot('1\n\n2\n\n', '1')).toBe('1\n2\n');
+  });
+
+  it('preserves an explicit markdown blank line placeholder while compacting editor paragraph separators', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          '1',
+          '',
+          '<!--vlaina-markdown-blank-line-->',
+          '2',
+          '',
+          '3',
+          '',
+        ].join('\n'),
+        '1',
+      ),
+    ).toBe(['1', '', '2', '3'].join('\n'));
+  });
+
+  it('preserves editor-created empty paragraphs without keeping serializer separator blanks', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          '1',
+          '',
+          '<br />',
+          '',
+          '2',
+          '',
+        ].join('\n'),
+        '1',
+      ),
+    ).toBe(['1', '', '2'].join('\n'));
+  });
+
+  it('preserves multiple editor-created empty paragraphs without extra separator blanks', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          '1',
+          '',
+          '<br />',
+          '',
+          '<br />',
+          '',
+          '2',
+          '',
+        ].join('\n'),
+        '1',
+      ),
+    ).toBe(['1', '', '', '2'].join('\n'));
+  });
+
+  it('preserves reference-authored blank line gaps around inserted text', () => {
+    const referenceMarkdown = [
+      '---',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
+      '',
+      '2',
+    ].join('\n');
+
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          '1',
+          '',
+          'hi',
+          '',
+          '2',
+          '',
+        ].join('\n'),
+        referenceMarkdown,
+      ),
+    ).toBe([
+      '---',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
+      '',
+      'hi',
+      '',
+      '2',
+    ].join('\n'));
+  });
+
+  it('keeps Shift+Enter hard breaks as markdown hard breaks', () => {
+    expect(serializeEditorMarkdownSnapshot('1\\\n2\n', '1')).toBe('1\\\n2');
+  });
+
+  it('does not compact structural markdown blank lines', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          'Intro',
+          '',
+          '- one',
+          '- two',
+          '',
+          '| A | B |',
+          '| - | - |',
+          '| 1 | 2 |',
+          '',
+        ].join('\n'),
+        'Intro',
+      ),
+    ).toBe([
+      'Intro',
+      '',
+      '- one',
+      '- two',
+      '',
+      '| A | B |',
+      '| - | - |',
+      '| 1 | 2 |',
+    ].join('\n'));
   });
 
   it('strips editor-only blank line comments and serializer space entities before note state', () => {

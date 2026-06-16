@@ -59,7 +59,7 @@ function resolveAdjustedTargetPos(insertPos: number, deleteRanges: readonly Bloc
   return insertPos - deletedBeforeInsert;
 }
 
-function isRemovableFrontmatterSeparatorNode(node: ProseNode | null | undefined): boolean {
+function isRemovableMarkdownBlankLineNode(node: ProseNode | null | undefined): boolean {
   if (!node) return false;
   if (node.type.name === 'html_block' && node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE) {
     return true;
@@ -92,12 +92,134 @@ function expandMovedFrontmatterDeleteRanges(
     if (!frontmatterNode || frontmatterNode.type.name !== 'frontmatter') continue;
 
     const separator = doc.nodeAt(range.to);
-    if (!separator || !isRemovableFrontmatterSeparatorNode(separator)) continue;
+    if (!separator || !isRemovableMarkdownBlankLineNode(separator)) continue;
     expanded.push({ from: range.to, to: range.to + separator.nodeSize });
     break;
   }
 
   return pruneContainedBlockRanges(expanded);
+}
+
+function findTopLevelBlankLineBefore(
+  doc: EditorView['state']['doc'],
+  pos: number,
+): BlockRange | null {
+  let result: BlockRange | null = null;
+  doc.forEach((node, offset) => {
+    if (result) return;
+    const to = offset + node.nodeSize;
+    if (to !== pos || !isRemovableMarkdownBlankLineNode(node)) return;
+    result = { from: offset, to };
+  });
+  return result;
+}
+
+function findTopLevelBlankLineAfter(
+  doc: EditorView['state']['doc'],
+  pos: number,
+): BlockRange | null {
+  let result: BlockRange | null = null;
+  doc.forEach((node, offset) => {
+    if (result || offset !== pos || !isRemovableMarkdownBlankLineNode(node)) return;
+    result = { from: offset, to: offset + node.nodeSize };
+  });
+  return result;
+}
+
+function isTopLevelBlankLineRange(
+  doc: EditorView['state']['doc'],
+  range: BlockRange,
+): boolean {
+  let result = false;
+  doc.forEach((node, offset) => {
+    if (result || offset !== range.from) return;
+    result = offset + node.nodeSize === range.to && isRemovableMarkdownBlankLineNode(node);
+  });
+  return result;
+}
+
+function hasMovedNonBlankContent(
+  doc: EditorView['state']['doc'],
+  selectedRanges: readonly BlockRange[],
+): boolean {
+  return selectedRanges.some((range) => !isTopLevelBlankLineRange(doc, range));
+}
+
+function hasTopLevelNonBlankBlockBefore(
+  doc: EditorView['state']['doc'],
+  pos: number,
+): boolean {
+  let result = false;
+  doc.forEach((node, offset) => {
+    if (result) return;
+    const to = offset + node.nodeSize;
+    if (to > pos) return;
+    if (!isRemovableMarkdownBlankLineNode(node)) {
+      result = true;
+    }
+  });
+  return result;
+}
+
+function hasTopLevelNonBlankBlockAfter(
+  doc: EditorView['state']['doc'],
+  pos: number,
+): boolean {
+  let result = false;
+  doc.forEach((node, offset) => {
+    if (result || offset < pos) return;
+    if (!isRemovableMarkdownBlankLineNode(node)) {
+      result = true;
+    }
+  });
+  return result;
+}
+
+function expandMoveDeleteRangesWithAdjacentBlankLines(
+  doc: EditorView['state']['doc'],
+  selectedRanges: readonly BlockRange[],
+  deleteRanges: readonly BlockRange[],
+): BlockRange[] {
+  if (!hasMovedNonBlankContent(doc, selectedRanges)) return [...deleteRanges];
+
+  const expanded = [...deleteRanges];
+  for (const range of selectedRanges) {
+    const before = findTopLevelBlankLineBefore(doc, range.from);
+    if (before && hasTopLevelNonBlankBlockBefore(doc, before.from)) {
+      expanded.push(before);
+    }
+
+    const after = findTopLevelBlankLineAfter(doc, range.to);
+    if (after && hasTopLevelNonBlankBlockAfter(doc, after.to)) {
+      expanded.push(after);
+    }
+  }
+
+  return pruneContainedBlockRanges(expanded);
+}
+
+function removeAdjacentBlankLinesForMoveTarget(
+  tr: EditorView['state']['tr'],
+  targetPos: number,
+): { tr: EditorView['state']['tr']; targetPos: number } {
+  let nextTr = tr;
+  let nextTargetPos = targetPos;
+
+  const before = findTopLevelBlankLineBefore(nextTr.doc, nextTargetPos);
+  if (before && hasTopLevelNonBlankBlockAfter(nextTr.doc, nextTargetPos)) {
+    nextTr = nextTr.delete(before.from, before.to);
+    nextTargetPos -= before.to - before.from;
+  }
+
+  const after = findTopLevelBlankLineAfter(nextTr.doc, nextTargetPos);
+  if (after && hasTopLevelNonBlankBlockBefore(nextTr.doc, nextTargetPos)) {
+    nextTr = nextTr.delete(after.from, after.to);
+  }
+
+  return {
+    tr: nextTr,
+    targetPos: Math.max(0, Math.min(nextTargetPos, nextTr.doc.content.size)),
+  };
 }
 
 export function resolveBlockMoveContext(
@@ -109,11 +231,16 @@ export function resolveBlockMoveContext(
   if (!movePlan) return null;
 
   const listItemInfoByRangeKey = collectSelectedListItemInfo(view.state, movePlan.selectedRanges);
-  const deleteRanges = expandMovedFrontmatterDeleteRanges(
+  const baseDeleteRanges = expandMovedFrontmatterDeleteRanges(
     view.state.doc,
     movePlan.selectedRanges,
     buildDeleteRangesFromSelectedListItems(movePlan.selectedRanges, listItemInfoByRangeKey),
     insertPos,
+  );
+  const deleteRanges = expandMoveDeleteRangesWithAdjacentBlankLines(
+    view.state.doc,
+    movePlan.selectedRanges,
+    baseDeleteRanges,
   );
   if (deleteRanges.length === 0) return null;
   if (isInsertPosInsideRanges(insertPos, deleteRanges)) return null;
@@ -175,21 +302,31 @@ function buildLiftedSourceFragment(groups: readonly LiftedListGroup[], insertIns
   return fragment;
 }
 
-function createPlainTextParagraph(view: EditorView, text: string): ProseNode | null {
-  const paragraphType = view.state.schema.nodes.paragraph;
-  if (!paragraphType) return null;
-  return text.length > 0
-    ? paragraphType.create(null, view.state.schema.text(text))
-    : paragraphType.create();
+function createHardBreak(view: EditorView): ProseNode | null {
+  const hardBreakType = view.state.schema.nodes.hardbreak ?? view.state.schema.nodes.hard_break;
+  return hardBreakType?.create() ?? null;
 }
 
 function createPlainTextFragmentFromFrontmatter(view: EditorView, node: ProseNode): Fragment {
   const frontmatterText = node.textContent.replace(/\r\n?/g, '\n');
   const lines = frontmatterText.length > 0 ? frontmatterText.split('\n') : [''];
-  const paragraphs = lines
-    .map((line) => createPlainTextParagraph(view, line))
-    .filter((paragraph): paragraph is ProseNode => paragraph !== null);
-  return Fragment.fromArray(paragraphs);
+  const paragraphType = view.state.schema.nodes.paragraph;
+  if (!paragraphType) return Fragment.empty;
+
+  const content: ProseNode[] = [];
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      const hardBreak = createHardBreak(view);
+      if (hardBreak) {
+        content.push(hardBreak);
+      }
+    }
+    if (line.length > 0) {
+      content.push(view.state.schema.text(line));
+    }
+  });
+
+  return Fragment.from(paragraphType.create(null, content));
 }
 
 export function convertMovedFrontmatterToPlainText(
@@ -389,6 +526,12 @@ export function prepareBlockMove(
   }
 
   safeTargetPos = Math.max(0, Math.min(safeTargetPos, tr.doc.content.size));
+  if (hasMovedNonBlankContent(state.doc, selectedRanges)) {
+    const cleaned = removeAdjacentBlankLinesForMoveTarget(tr, safeTargetPos);
+    tr = cleaned.tr;
+    safeTargetPos = cleaned.targetPos;
+  }
+
   const insertInsideList = isInsertionInsideList(tr.doc, safeTargetPos);
   const $target = tr.doc.resolve(safeTargetPos);
   const targetIndex = $target.index();

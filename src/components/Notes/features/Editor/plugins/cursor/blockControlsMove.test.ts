@@ -13,8 +13,10 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { applyBlockMove } from './blockControlsMove';
 import { getDraggableBlockRanges } from './blockControlsInteractions';
 import { resolveBlockMoveContext } from './blockControlsMoveCore';
+import type { BlockRange } from './blockSelectionUtils';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { serializeEditorMarkdownSnapshot } from '../../utils/pendingMarkdownUpdate';
 import { frontmatterPlugin } from '../frontmatter';
 import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
@@ -76,12 +78,34 @@ function replaceDocument(view: EditorView, nodes: ProseNode[]): void {
   view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
 }
 
+function createParagraphNode(view: EditorView, text: string): ProseNode {
+  return view.state.schema.nodes.paragraph.create(null, view.state.schema.text(text));
+}
+
 function createMarkdownBlankLineNode(view: EditorView): ProseNode {
   const htmlBlockType = view.state.schema.nodes.html_block;
   if (htmlBlockType) {
     return htmlBlockType.create({ value: '<!--vlaina-markdown-blank-line-->' });
   }
   return view.state.schema.nodes.paragraph.create();
+}
+
+function findTopLevelBlockByText(view: EditorView, text: string): BlockRange {
+  let result: BlockRange | null = null;
+  view.state.doc.forEach((node, offset) => {
+    if (result || node.textContent !== text) return;
+    result = { from: offset, to: offset + node.nodeSize };
+  });
+  if (!result) {
+    throw new Error(`Expected top-level block with text ${text}`);
+  }
+  return result;
+}
+
+function topLevelTextContents(view: EditorView): string[] {
+  return Array.from({ length: view.state.doc.childCount }, (_, index) => (
+    view.state.doc.child(index).textContent
+  ));
 }
 
 function createPreviewBlockNode(view: EditorView, typeName: 'math_block' | 'mermaid' | 'table'): ProseNode {
@@ -132,6 +156,49 @@ describe('applyBlockMove content integrity', () => {
     expectSemanticContentPreserved(markdown, serializer(view.state.doc));
 
     view.dom.removeEventListener('editor:block-user-input', userInputListener);
+    await editor.destroy();
+  });
+
+  it('removes a redundant target markdown blank-line block for ordinary paragraph moves', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    replaceDocument(view, [
+      createParagraphNode(view, 'A'),
+      createMarkdownBlankLineNode(view),
+      createParagraphNode(view, 'B'),
+      createParagraphNode(view, 'C'),
+    ]);
+
+    const cBlock = findTopLevelBlockByText(view, 'C');
+    const bBlock = findTopLevelBlockByText(view, 'B');
+    expect(applyBlockMove(view, [cBlock], bBlock.from)).toBe(true);
+
+    expect(topLevelTextContents(view)).toEqual(['A', 'C', 'B']);
+    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('A\n\nC\n\nB');
+
+    await editor.destroy();
+  });
+
+  it('removes a redundant source markdown blank-line block for ordinary paragraph moves', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    replaceDocument(view, [
+      createParagraphNode(view, 'A'),
+      createMarkdownBlankLineNode(view),
+      createParagraphNode(view, 'B'),
+      createParagraphNode(view, 'C'),
+    ]);
+
+    const aBlock = findTopLevelBlockByText(view, 'A');
+    expect(applyBlockMove(view, [aBlock], view.state.doc.content.size)).toBe(true);
+
+    expect(topLevelTextContents(view)).toEqual(['B', 'C', 'A']);
+    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('B\n\nC\n\nA');
+
     await editor.destroy();
   });
 
@@ -202,6 +269,7 @@ describe('applyBlockMove content integrity', () => {
   it('converts leading frontmatter to plain text when it is moved away from the top', async () => {
     const editor = await createEditor('Body\n\nTail');
     const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
     const bodyNodes: ProseNode[] = [];
     view.state.doc.forEach((node) => {
       bodyNodes.push(node);
@@ -225,11 +293,115 @@ describe('applyBlockMove content integrity', () => {
     expect(Array.from({ length: view.state.doc.childCount }, (_, index) => (
       view.state.doc.child(index).textContent
     ))).toEqual(['Body', 'Tail', 'title: Demo']);
+    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('Body\n\nTail\n\ntitle: Demo');
 
     const movedBlocks = collectSelectableBlockRanges(view.state.doc);
     expect(applyBlockMove(view, movedBlocks.slice(-1), 0)).toBe(true);
     expect(view.state.doc.child(0).type.name).toBe('paragraph');
     expect(view.state.doc.child(0).textContent).toBe('title: Demo');
+    expect(normalizeMarkdown(serializer(view.state.doc))).not.toContain('---');
+
+    await editor.destroy();
+  });
+
+  it('keeps managed frontmatter when visible frontmatter text is moved into the body', async () => {
+    const referenceMarkdown = [
+      '---',
+      'hi',
+      '',
+      'vlaina_cover: asset="./assets/13.jpg" x=50 y=38.56146469049695 height=200 scale=1',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
+      '',
+      '2',
+    ].join('\n');
+    const editor = await createEditor('1\n\n2');
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const userInputListener = vi.fn();
+    const bodyNodes: ProseNode[] = [];
+    view.state.doc.forEach((node) => {
+      bodyNodes.push(node);
+    });
+    replaceDocument(view, [
+      view.state.schema.nodes.frontmatter.create(null, view.state.schema.text('hi')),
+      ...bodyNodes,
+    ]);
+
+    let twoFrom = 0;
+    view.state.doc.forEach((node, offset) => {
+      if (node.textContent === '2') {
+        twoFrom = offset;
+      }
+    });
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(view.state.doc.resolve(blocks[0].from).nodeAfter?.type.name).toBe('frontmatter');
+    expect(view.state.doc.resolve(blocks[0].from).nodeAfter?.textContent).toBe('hi');
+
+    const draggedRanges = getDraggableBlockRanges(view, [blocks[0]]);
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
+
+    expect(applyBlockMove(view, draggedRanges, twoFrom)).toBe(true);
+    expect(userInputListener).toHaveBeenCalledTimes(1);
+    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('1\n\nhi\n\n2');
+    expect(normalizeMarkdown(serializeEditorMarkdownSnapshot(serializer(view.state.doc), referenceMarkdown))).toBe([
+      '---',
+      'vlaina_cover: asset="./assets/13.jpg" x=50 y=38.56146469049695 height=200 scale=1',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
+      '',
+      'hi',
+      '',
+      '2',
+    ].join('\n'));
+
+    view.dom.removeEventListener('editor:block-user-input', userInputListener);
+    await editor.destroy();
+  });
+
+  it('removes target markdown blank-line blocks when moved frontmatter becomes body text', async () => {
+    const referenceMarkdown = [
+      '---',
+      'hi',
+      '',
+      'vlaina_cover: asset="./assets/13.jpg" x=50 y=38.56146469049695 height=200 scale=1',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
+      '',
+      '2',
+    ].join('\n');
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    replaceDocument(view, [
+      view.state.schema.nodes.frontmatter.create(null, view.state.schema.text('hi')),
+      createParagraphNode(view, '1'),
+      createMarkdownBlankLineNode(view),
+      createParagraphNode(view, '2'),
+    ]);
+
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const draggedRanges = getDraggableBlockRanges(view, [blocks[0]]);
+    const twoBlock = findTopLevelBlockByText(view, '2');
+
+    expect(applyBlockMove(view, draggedRanges, twoBlock.from)).toBe(true);
+    expect(topLevelTextContents(view)).toEqual(['1', 'hi', '2']);
+    expect(normalizeMarkdown(serializeEditorMarkdownSnapshot(serializer(view.state.doc), referenceMarkdown))).toBe([
+      '---',
+      'vlaina_cover: asset="./assets/13.jpg" x=50 y=38.56146469049695 height=200 scale=1',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
+      '',
+      'hi',
+      '',
+      '2',
+    ].join('\n'));
 
     await editor.destroy();
   });

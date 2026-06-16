@@ -14,7 +14,7 @@ import { isDraftNotePath } from '../draftNote';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
-import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 
 const MAX_NOTE_DISK_SYNC_BYTES = 10 * 1024 * 1024;
@@ -74,7 +74,7 @@ async function readNormalizedDiskSyncContent(
   const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
   assertDiskSyncContentWithinReadLimit(rawDiskContent);
   assertEditorSafeMarkdownContent(rawDiskContent);
-  return normalizeSerializedMarkdownDocument(rawDiskContent);
+  return normalizeEditorStateMarkdownDocument(rawDiskContent);
 }
 
 export function createWorkspaceDiskSyncAction(

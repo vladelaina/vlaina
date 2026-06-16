@@ -367,15 +367,15 @@ describe('BlockControlsViewSession', () => {
     }
   });
 
-  it('keeps child-row handle targets available when drag ranges are pruned to the parent list item', async () => {
+  it('keeps child hover targets when draggable ranges are pruned to a selected parent list item', async () => {
     const view = createView({ scrollRoot: true });
     const session = new BlockControlsViewSession(view);
     const outerParentTarget = createHandleTarget(1, 80, 40, true);
-    const nestedChildTarget = createHandleTarget(10, 128, 70, true);
+    const nestedChildTarget = createHandleTarget(8, 128, 70, true);
 
     mocks.selectedBlocks = [
       { from: 1, to: 20 },
-      { from: 10, to: 15 },
+      { from: 8, to: 15 },
     ];
     vi.mocked(getDraggableBlockRanges).mockReturnValue([
       { from: 1, to: 20 },

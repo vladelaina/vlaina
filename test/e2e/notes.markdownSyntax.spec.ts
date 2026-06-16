@@ -16,6 +16,7 @@ import {
   scrollElementIntoViewByText,
   scrollNoteToTop,
   selectNoteBlocksByText,
+  waitForStableSelectableBlockCount,
 } from './notesE2E';
 import { createMarkdownSyntaxFixture } from './notesMarkdownSyntaxFixture';
 
@@ -778,10 +779,12 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="hr"]`)).toHaveCount(3);
       await expectFullMarkdownSyntaxFixtureCoverage(page);
 
+      const stableSelectableBlockCount = await waitForStableSelectableBlockCount(page);
       const metrics = await collectEditorDomMetrics(page);
       const blockScanMetrics = await measureRepeatedBlockScan(page, 10);
       console.info('[notes-markdown-syntax-paste]', {
         pasteMs: Date.now() - pastedAt,
+        stableSelectableBlockCount,
         metrics,
         blockScanMetrics,
       });
@@ -812,7 +815,8 @@ test.describe('notes markdown syntax rendering', () => {
       expect(metrics.countsBySelector.explicitLinks).toBeGreaterThanOrEqual(4);
       expect(metrics.countsBySelector.horizontalRules).toBeGreaterThanOrEqual(3);
       expect(metrics.selectableBlockCount).toBeGreaterThan(50);
-      expect(blockScanMetrics.blockCount).toBe(metrics.selectableBlockCount);
+      expect(metrics.selectableBlockCount).toBe(stableSelectableBlockCount);
+      expect(blockScanMetrics.blockCount).toBe(stableSelectableBlockCount);
       expect(blockScanMetrics.p95Ms).toBeLessThan(250);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
@@ -865,11 +869,13 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Image alt sentinel"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div.footnote-def`, { hasText: 'Footnote definition sentinel' })).toBeVisible();
 
-      const metrics = await collectEditorDomMetrics(page);
       const visibilityProblems = await collectEditorVisibilityProblems(page);
+      const stableSelectableBlockCount = await waitForStableSelectableBlockCount(page);
+      const metrics = await collectEditorDomMetrics(page);
       const blockScanMetrics = await measureRepeatedBlockScan(page, 10);
       const scrollMetrics = await measureScrollFrames(page, 30);
       console.info('[notes-markdown-syntax-typora-dom]', {
+        stableSelectableBlockCount,
         metrics,
         visibilityProblems,
         blockScanMetrics,
@@ -886,7 +892,8 @@ test.describe('notes markdown syntax rendering', () => {
       expect(metrics.countsBySelector.images).toBeGreaterThanOrEqual(5);
       expect(metrics.selectableBlockCount).toBeGreaterThan(50);
       expect(visibilityProblems).toEqual([]);
-      expect(blockScanMetrics.blockCount).toBe(metrics.selectableBlockCount);
+      expect(metrics.selectableBlockCount).toBe(stableSelectableBlockCount);
+      expect(blockScanMetrics.blockCount).toBe(stableSelectableBlockCount);
       expect(blockScanMetrics.p95Ms).toBeLessThan(250);
       expect(scrollMetrics).not.toBeNull();
       expect(scrollMetrics!.maxFrameMs).toBeLessThan(1_500);

@@ -10,6 +10,7 @@ import {
   normalizeFullwidthTablePipes,
   normalizeLenientMarkdownLineMarkers,
   normalizeMalformedTaskListMarkers,
+  normalizeEditorStateMarkdownDocument,
   normalizeMarkdownAutolinkLiterals,
   normalizeMissingBlockquoteMarkerSpaces,
   normalizeMissingOrderedListMarkerSpaces,
@@ -725,6 +726,12 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(
       normalizeSerializedMarkdownDocument(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'))
     ).toBe(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one\\', 'Line two'].join('\n'));
+  });
+
+  it('keeps editor-state paragraph line breaks as plain newlines for persistence', () => {
+    expect(
+      normalizeEditorStateMarkdownDocument(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'))
+    ).toBe(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'));
   });
 
   it('normalizes serializer space entities before persistence', () => {

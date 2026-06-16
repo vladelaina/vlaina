@@ -10,6 +10,7 @@ import {
   measureScrollFrames,
   openMarkdownFixture,
   selectNoteBlocksByText,
+  waitForStableSelectableBlockCount,
 } from './notesE2E';
 
 function createSyntaxSection(index: number): string {
@@ -94,6 +95,9 @@ test.describe('notes markdown syntax performance smoke', () => {
       });
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final syntax performance sentinel');
 
+      const stableSelectableBlockCount = await waitForStableSelectableBlockCount(page, {
+        timeoutMs: 10_000,
+      });
       const domMetrics = await collectEditorDomMetrics(page);
       const scrollMetrics = await measureScrollFrames(page, 45);
       const blockScanMetrics = await measureRepeatedBlockScan(page, 20);
@@ -116,6 +120,7 @@ test.describe('notes markdown syntax performance smoke', () => {
       console.info('[notes-markdown-syntax-performance]', {
         sourceLength: content.length,
         opened,
+        stableSelectableBlockCount,
         domMetrics,
         scrollMetrics,
         blockScanMetrics,
@@ -132,7 +137,8 @@ test.describe('notes markdown syntax performance smoke', () => {
       expect(domMetrics.countsBySelector.codeBlocks).toBeGreaterThanOrEqual(80);
       expect(domMetrics.countsBySelector.toc).toBeGreaterThanOrEqual(1);
       expect(domMetrics.selectableBlockCount).toBeGreaterThan(700);
-      expect(blockScanMetrics.blockCount).toBe(domMetrics.selectableBlockCount);
+      expect(domMetrics.selectableBlockCount).toBe(stableSelectableBlockCount);
+      expect(blockScanMetrics.blockCount).toBe(stableSelectableBlockCount);
       expect(blockScanMetrics.p95Ms).toBeLessThan(250);
       expect(selectedCount).toBeGreaterThanOrEqual(7);
       expect(selectedWallMs).toBeLessThan(5_000);

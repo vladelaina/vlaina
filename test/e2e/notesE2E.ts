@@ -628,6 +628,77 @@ export async function getSelectableBlocks(page: Page): Promise<NoteSelectableBlo
   return page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks());
 }
 
+export async function waitForStableSelectableBlockCount(
+  page: Page,
+  options: {
+    timeoutMs?: number;
+    stableFrames?: number;
+    stableMs?: number;
+  } = {},
+): Promise<number> {
+  const result = await page.evaluate(async ({ timeoutMs, stableFrames, stableMs }) => {
+    const bridge = (window as any).__vlainaE2E;
+    if (!bridge?.getNoteSelectableBlocks) {
+      return {
+        ok: false,
+        reason: 'e2e-bridge-missing',
+        count: 0,
+        samples: [] as Array<{ atMs: number; count: number }>,
+      };
+    }
+
+    const startedAt = performance.now();
+    let lastCount = bridge.getNoteSelectableBlocks().length;
+    let stableStartedAt = startedAt;
+    let consecutiveStableFrames = 0;
+    const samples: Array<{ atMs: number; count: number }> = [{
+      atMs: 0,
+      count: lastCount,
+    }];
+
+    while (performance.now() - startedAt < timeoutMs) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const now = performance.now();
+      const count = bridge.getNoteSelectableBlocks().length;
+      samples.push({
+        atMs: Math.round(now - startedAt),
+        count,
+      });
+
+      if (count === lastCount) {
+        consecutiveStableFrames += 1;
+      } else {
+        lastCount = count;
+        stableStartedAt = now;
+        consecutiveStableFrames = 0;
+      }
+
+      if (consecutiveStableFrames >= stableFrames && now - stableStartedAt >= stableMs) {
+        return {
+          ok: true,
+          reason: null,
+          count,
+          samples: samples.slice(-12),
+        };
+      }
+    }
+
+    return {
+      ok: false,
+      reason: 'timeout',
+      count: lastCount,
+      samples: samples.slice(-20),
+    };
+  }, {
+    timeoutMs: options.timeoutMs ?? 5_000,
+    stableFrames: options.stableFrames ?? 8,
+    stableMs: options.stableMs ?? 250,
+  });
+
+  expect(result.ok, `Selectable block count did not stabilize: ${JSON.stringify(result)}`).toBe(true);
+  return result.count;
+}
+
 export async function clearSelectedNoteBlocks(page: Page): Promise<void> {
   await page.evaluate(() => (window as any).__vlainaE2E.selectNoteBlocksByText([]));
 }

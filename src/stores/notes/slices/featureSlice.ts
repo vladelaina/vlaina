@@ -38,7 +38,7 @@ import {
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
 } from '../utils/fs/vaultPathContainment';
-import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import {
   extractNoteTags,
   getNoteMarkdownExcludedRanges,
@@ -471,7 +471,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           return;
         }
 
-        const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
+        const normalizedSourceContent = normalizeEditorStateMarkdownDocument(sourceContent);
         const cachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, path);
         const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, updates);
         const nextMetadata = replaceNoteEntry(
@@ -515,7 +515,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           return;
         }
 
-        const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
+        const normalizedSourceContent = normalizeEditorStateMarkdownDocument(sourceContent);
         const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, updates);
         const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
         const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
@@ -583,7 +583,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       return;
     }
 
-    const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
+    const normalizedSourceContent = normalizeEditorStateMarkdownDocument(sourceContent);
     const cachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, path);
     const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, updates);
     const isDraftNote = isDraftMetadataTarget;
@@ -782,7 +782,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
                   return { path, content: '', modifiedAt, size };
                 }
 
-                const content = normalizeSerializedMarkdownDocument(rawContent);
+                const content = normalizeEditorStateMarkdownDocument(rawContent);
                 if (!isScanActive()) {
                   return { path, content: '', modifiedAt: null, size: null };
                 }

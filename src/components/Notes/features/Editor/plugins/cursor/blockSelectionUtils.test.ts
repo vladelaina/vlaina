@@ -571,6 +571,42 @@ describe('blockSelectionUtils', () => {
     await editor.destroy();
   });
 
+  it('does not mark list parent markers when selecting continuation paragraphs', async () => {
+    const editor = await createEditor([
+      '1. parent marker sentinel',
+      '',
+      '   continuation marker sentinel',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    let listItemRange: { from: number; to: number } | null = null;
+    let continuationParagraphRange: { from: number; to: number } | null = null;
+
+    view.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'list_item' && node.textContent.includes('parent marker sentinel')) {
+        listItemRange = { from: pos, to: pos + node.nodeSize };
+      }
+      if (node.type.name === 'paragraph' && node.textContent === 'continuation marker sentinel') {
+        continuationParagraphRange = { from: pos, to: pos + node.nodeSize };
+      }
+    });
+
+    expect(listItemRange).not.toBeNull();
+    expect(continuationParagraphRange).not.toBeNull();
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, [continuationParagraphRange!]);
+    const classesByRange = new Map(decorations.find().map((decoration: Decoration) => [
+      `${decoration.from}:${decoration.to}`,
+      String((decoration.type as any).attrs?.class ?? ''),
+    ]));
+
+    expect(classesByRange.get(`${continuationParagraphRange!.from}:${continuationParagraphRange!.to}`))
+      .toContain('editor-block-selected');
+    expect(classesByRange.get(`${listItemRange!.from}:${listItemRange!.to}`) ?? '')
+      .not.toContain('editor-block-selected-parent-marker');
+
+    await editor.destroy();
+  });
+
   // doc: bullet_list(14)[ list_item(12)[ paragraph(4), code_block(6) ] ]
   // Range A: { from:1, to:13 } — whole list item; pos=1 resolves to list_item
   // Range B: { from:6, to:12 } — code block alone; pos=6 resolves to code_block (not list_item)

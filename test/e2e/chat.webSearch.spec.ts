@@ -2,6 +2,7 @@ import { expect, test, _electron as electron, type ElectronApplication, type Pag
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { E2E_DEV_SERVER_URL } from './notesE2E';
 
 async function waitForE2EBridge(page: Page) {
   await page.waitForFunction(() => Boolean((window as any).__vlainaE2E));
@@ -19,7 +20,7 @@ async function launchIsolatedElectron(): Promise<{
     args: ['.'],
     env: {
       ...process.env,
-      VITE_DEV_SERVER_URL: 'http://127.0.0.1:3100?e2e=1',
+      VITE_DEV_SERVER_URL: `${E2E_DEV_SERVER_URL}?e2e=1`,
       VLAINA_USER_DATA_DIR: userDataDir,
       APP_API_BASE_URL: 'http://127.0.0.1:9',
       APP_UPDATE_MANIFEST_URL: 'http://127.0.0.1:9/latest',
@@ -82,9 +83,9 @@ function webSearchStatusMarkup(status: Record<string, unknown>): string {
 }
 
 async function enableWebSearchFromComposer(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Open chat actions' }).click();
-  await page.getByRole('button', { name: 'Internet search' }).click();
-  await expect(page.getByRole('button', { name: 'Disable internet search' })).toBeVisible();
+  await page.locator('[data-chat-input-action="open-actions"]').click();
+  await page.locator('[data-chat-input-action="enable-web-search"]').click();
+  await expect(page.locator('[data-chat-input-action="disable-web-search"]')).toBeVisible();
 }
 
 async function sendComposerMessage(page: Page, text: string): Promise<void> {
@@ -100,17 +101,17 @@ test.describe('chat web search user flows', () => {
     const { app, page, userDataDir } = await openPreparedChatPage();
 
     try {
-      await expect(page.getByRole('button', { name: 'Disable internet search' })).toHaveCount(0);
+      await expect(page.locator('[data-chat-input-action="disable-web-search"]')).toHaveCount(0);
       await expect.poll(async () => page.evaluate(() => (window as any).__vlainaE2E.getChatState().webSearchEnabled))
         .toBe(false);
 
       await enableWebSearchFromComposer(page);
-      await expect(page.getByRole('button', { name: 'Disable internet search' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('[data-chat-input-action="disable-web-search"]')).toHaveAttribute('aria-pressed', 'true');
       await expect.poll(async () => page.evaluate(() => (window as any).__vlainaE2E.getUnifiedData().ai?.webSearchEnabled))
         .toBe(true);
 
-      await page.getByRole('button', { name: 'Disable internet search' }).click();
-      await expect(page.getByRole('button', { name: 'Disable internet search' })).toHaveCount(0);
+      await page.locator('[data-chat-input-action="disable-web-search"]').click();
+      await expect(page.locator('[data-chat-input-action="disable-web-search"]')).toHaveCount(0);
       await expect.poll(async () => page.evaluate(() => (window as any).__vlainaE2E.getUnifiedData().ai?.webSearchEnabled))
         .toBe(false);
     } finally {
@@ -156,7 +157,7 @@ test.describe('chat web search user flows', () => {
       await expect(page.getByRole('link', { name: /Browser Release Notes/ })).toBeVisible();
       await expect(page.getByText('The browser release notes mention a search quality fix.')).toBeVisible();
 
-      await page.getByRole('button', { name: 'Disable internet search' }).click();
+      await page.locator('[data-chat-input-action="disable-web-search"]').click();
       await page.evaluate(() => (window as any).__vlainaE2E.enqueueChatMockResponse({
         final: 'Plain answer without web search.',
         apiTranscript: [{ role: 'assistant', content: 'Plain answer without web search.' }],

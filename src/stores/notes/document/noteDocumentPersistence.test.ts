@@ -159,7 +159,7 @@ describe('saveNoteDocument', () => {
     expect(written).toBe([
       '# Alpha',
       '',
-      '  Pro:   \\$76.80 / year\\',
+      '  Pro:   \\$76.80 / year',
       ' Max:   \\$191.90 / year',
     ].join('\n'));
     expect(written).not.toContain('vlaina-markdown-blank-line');
@@ -197,7 +197,7 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
-  it('preserves user-authored line breaks before writing markdown', async () => {
+  it('preserves editor-state line breaks before writing markdown', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
@@ -215,10 +215,10 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
       [
-        '1\\',
+        '1',
         '2',
         '',
-        '3\\',
+        '3',
         '4',
       ].join('\n')
     );
@@ -469,7 +469,7 @@ describe('saveNoteDocument', () => {
     const expected = [
       '# Alpha',
       '',
-      '  Pro:   \\$76.80 / year\\',
+      '  Pro:   \\$76.80 / year',
       ' Max:   \\$191.90 / year',
     ].join('\n');
     expect(result.content).toBe(expected);
