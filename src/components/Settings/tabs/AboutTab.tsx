@@ -32,6 +32,7 @@ interface UpdateInfo {
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
 const officialWebsiteUrl = 'https://vlaina.com';
+const officialWebsiteLabel = 'vlaina.com';
 const githubRepositoryUrl = 'https://github.com/vladelaina/vlaina';
 const discordInviteUrl = 'https://discord.gg/nvsh9QpTqS';
 const slackInviteUrl = 'https://join.slack.com/t/vlainafeedback/shared_invite/zt-406ohel4j-lIBFjHpDinWbMunatud_xA';
@@ -187,7 +188,7 @@ function WebsitePill() {
       className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
     >
       <Globe size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-accent)]" />
-      <span>{t('settings.about.website')}</span>
+      <span>{officialWebsiteLabel}</span>
     </button>
   );
 }
