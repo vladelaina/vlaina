@@ -12,6 +12,7 @@ import {
   resolveSelectableBlockRange,
   expandKnownSelectableListItemHeaderRanges,
   expandListItemHeaderRanges,
+  isNonDraggableBlockRange,
 } from './blockUnitResolver';
 
 interface MockNode {
@@ -547,6 +548,24 @@ describe('resolveSelectableBlockRange — list_item with paragraph then code_blo
     const range = resolveSelectableBlockRange(doc, 6);
     // smallest range wins: [6,12) size=6 < [1,12) size=11
     expect(range).toEqual({ from: 6, to: 12 });
+  });
+});
+
+describe('isNonDraggableBlockRange', () => {
+  it('filters invalid and list item marker-only ranges', () => {
+    const listItem = createNode('list_item', 8);
+    const doc = {
+      content: { size: 12 },
+      resolve(pos: number) {
+        return {
+          nodeAfter: pos === 1 ? listItem : null,
+        };
+      },
+    };
+
+    expect(isNonDraggableBlockRange(doc as any, { from: 4, to: 4 })).toBe(true);
+    expect(isNonDraggableBlockRange(doc as any, { from: 1, to: 2 })).toBe(true);
+    expect(isNonDraggableBlockRange(doc as any, { from: 1, to: 9 })).toBe(false);
   });
 });
 

@@ -47,7 +47,7 @@ const mocks = vi.hoisted(() => {
   return {
     notesState,
     milkdownRuntimeMode: {
-      value: 'throw' as 'throw' | 'never-ready',
+      value: 'throw' as 'throw' | 'never-ready' | 'live-dom-never-ready',
     },
   };
 });
@@ -167,6 +167,14 @@ vi.mock('./MilkdownEditorInner', () => ({
       throw new Error('Milkdown failed to create');
     }
 
+    if (mocks.milkdownRuntimeMode.value === 'live-dom-never-ready') {
+      return (
+        <div className="milkdown">
+          <div className="ProseMirror" data-testid="milkdown-live-dom" />
+        </div>
+      );
+    }
+
     return <div data-testid="milkdown-never-ready" />;
   },
 }));
@@ -221,6 +229,23 @@ describe('MarkdownEditor source fallback', () => {
 
     const sourceEditor = screen.getByLabelText('Markdown source editor');
     expect(sourceEditor).toHaveValue('# Alpha\n\nInitial body');
+  });
+
+  it('does not switch to source fallback when a live ProseMirror editor is present', async () => {
+    vi.useFakeTimers();
+    mocks.milkdownRuntimeMode.value = 'live-dom-never-ready';
+
+    render(<MarkdownEditor />);
+
+    await act(async () => {});
+    expect(screen.getByTestId('milkdown-live-dom')).toBeInstanceOf(HTMLElement);
+
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(screen.queryByLabelText('Markdown source editor')).toBeNull();
+    expect(screen.getByTestId('milkdown-live-dom')).toBeInstanceOf(HTMLElement);
   });
 
   it('cancels pending fallback autosaves when switching notes', async () => {

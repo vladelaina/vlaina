@@ -99,6 +99,7 @@ type ActiveMilkdownEditor = {
   };
   action?: <T>(action: (ctx: Ctx) => T) => T;
   onStatusChange?: (onChange: (status: string) => void) => unknown;
+  status?: string;
 };
 
 type ProseMirrorJSONNode = {
@@ -410,6 +411,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const isDraftNote = isDraftNotePath(currentNotePath);
   const onEditorViewReadyRef = useRef(onEditorViewReady);
   const activeRef = useRef(active);
+  const readyReportedRef = useRef<{
+    content: string;
+    diskRevision: number;
+    editor: ActiveMilkdownEditor;
+    path: string | undefined;
+  } | null>(null);
 
   const hasAutoFocused = useRef(false);
   const hasScheduledAutoFocus = useRef(false);
@@ -532,6 +539,26 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     activationCleanupRef.current = null;
     activatedEditorRef.current = null;
   }, []);
+
+  const reportEditorReady = useCallback((editor: ActiveMilkdownEditor) => {
+    const readyReported = readyReportedRef.current;
+    if (
+      readyReported?.editor === editor &&
+      readyReported.path === currentNotePath &&
+      readyReported.diskRevision === currentNoteDiskRevision &&
+      readyReported.content === currentNoteContentRef.current
+    ) {
+      return;
+    }
+
+    readyReportedRef.current = {
+      editor,
+      path: currentNotePath,
+      diskRevision: currentNoteDiskRevision,
+      content: currentNoteContentRef.current,
+    };
+    onEditorViewReadyRef.current?.();
+  }, [currentNoteDiskRevision, currentNotePath]);
 
   const activateEditor = useCallback((editor: ActiveMilkdownEditor) => {
     if (activatedEditorRef.current === editor) {
@@ -674,7 +701,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
           totalSinceFactoryMs: Math.round(performance.now() - editorFactoryStartedAt),
         });
         activateEditor(statusEditor);
-        onEditorViewReadyRef.current?.();
+        reportEditorReady(statusEditor);
       }
       if (status === 'OnDestroy' || status === 'Destroyed') {
         if (activatedEditorRef.current === statusEditor) {
@@ -783,7 +810,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         diskRevision: currentNoteDiskRevision,
         content: currentNoteContent,
       };
-      onEditorViewReadyRef.current?.();
+      reportEditorReady(editor);
 
       if (scrollRoot && scrollTop !== null) {
         const restoreScroll = () => {
@@ -802,7 +829,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       cancelAnimationFrame(restoreFrame);
       window.clearTimeout(restoreTimeout);
     };
-  }, [activatedRevision, currentNoteContent, currentNoteDiskRevision, currentNotePath, get]);
+  }, [activatedRevision, currentNoteContent, currentNoteDiskRevision, currentNotePath, get, reportEditorReady]);
 
   useEffect(() => {
     return () => {
@@ -825,11 +852,28 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       if (activatedEditorRef.current !== editor) {
         activateEditor(editor);
       }
+      if (
+        editor.status === 'Created' &&
+        lastAppliedNoteRef.current.path === currentNotePath &&
+        lastAppliedNoteRef.current.diskRevision === currentNoteDiskRevision &&
+        lastAppliedNoteRef.current.content === currentNoteContent
+      ) {
+        reportEditorReady(editor);
+      }
     } catch {
       cleanupActivatedEditor();
       return;
     }
-  }, [activateEditor, active, cleanupActivatedEditor, get, currentNotePath]);
+  }, [
+    activateEditor,
+    active,
+    cleanupActivatedEditor,
+    currentNoteContent,
+    currentNoteDiskRevision,
+    currentNotePath,
+    get,
+    reportEditorReady,
+  ]);
 
   const isEmptyContent = useMemo(() => {
     const content = currentNoteContent.trim();

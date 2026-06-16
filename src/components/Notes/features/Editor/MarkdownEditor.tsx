@@ -14,6 +14,7 @@ import { createScrollRestoreSession } from './utils/scrollRestoreSession';
 import {
   subscribeCurrentEditorBlockPositionSnapshot,
 } from './utils/editorBlockPositionCache';
+import { getCurrentEditorView } from './utils/editorViewRegistry';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find/useNoteEditorFind';
 import type { EditorTopRightToolbarProps } from './EditorTopRightToolbar';
@@ -173,6 +174,17 @@ export function MarkdownEditor({
     }
 
     const timeoutId = window.setTimeout(() => {
+      const hasLiveEditor =
+        Boolean(getCurrentEditorView()) ||
+        Boolean(scrollRootRef.current?.querySelector('.milkdown .ProseMirror'));
+      if (hasLiveEditor) {
+        setEditorReadyTarget({
+          path: currentNotePath,
+        });
+        onEditorViewReady?.();
+        return;
+      }
+
       setEditorInitTimedOutPath(currentNotePath);
       onEditorViewReady?.();
     }, themeEditorLayoutTokens.editorInitFallbackDelayMs);

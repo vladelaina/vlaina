@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { editorViewCtx, parserCtx, serializerCtx } from '@milkdown/kit/core';
@@ -182,7 +182,7 @@ function createMockActiveEditor() {
     }),
   };
   const action = vi.fn((callback: (ctx: unknown) => unknown) => callback(ctx));
-  const editor = { action, ctx };
+  const editor = { action, ctx, status: 'Created' };
   mocks.editorState.activeEditor = editor;
   return { action, dispatch, parser, replace };
 }
@@ -578,6 +578,17 @@ describe('MilkdownEditorInner lazy block visibility', () => {
 });
 
 describe('MilkdownEditorInner external content sync', () => {
+  it('reports ready when an already-created editor is available before the status callback is observed', async () => {
+    createMockActiveEditor();
+    const onEditorViewReady = vi.fn();
+
+    render(<MilkdownEditorInner onEditorViewReady={onEditorViewReady} />);
+
+    await waitFor(() => {
+      expect(onEditorViewReady).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('does not replace the editor document when same-note updates only change managed frontmatter', () => {
     mocks.notesState.currentNote = { path: 'small.md', content: '# Body' };
     mocks.editorState.serializedMarkdown = '# Body';

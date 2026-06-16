@@ -562,6 +562,18 @@ export function isInlineSelectableBlockRange(doc: EditorDoc, range: BlockRange):
   return range.from > topLevelNode.from || range.to < topLevelNode.to;
 }
 
+export function isNonDraggableBlockRange(doc: EditorDoc, range: BlockRange): boolean {
+  if (range.to <= range.from) return true;
+
+  try {
+    const $from = doc.resolve(Math.max(0, Math.min(range.from, doc.content.size)));
+    const nodeAfter = $from.nodeAfter;
+    return nodeAfter?.type.name === 'list_item' && range.to <= range.from + 1;
+  } catch {
+    return false;
+  }
+}
+
 export function mapInlineSelectableRangesToMovableBlocks(
   doc: EditorDoc,
   ranges: readonly BlockRange[],
