@@ -532,6 +532,72 @@ describe('useChatService session context isolation', () => {
     ]);
   });
 
+  it('returns a brand-new chat to the empty new chat state when its first request is recalled', async () => {
+    let resolveProvider!: (value: string) => void;
+    const pendingProviderResponse = new Promise<string>((resolve) => {
+      resolveProvider = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async () => {
+      return await pendingProviderResponse;
+    });
+    useAIUIStore.setState({
+      currentSessionId: null,
+      temporaryChatEnabled: false,
+    });
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          currentSessionId: null,
+          temporaryChatEnabled: false,
+        },
+      },
+    }));
+    const initialSessionIds = useUnifiedStore.getState().data.ai!.sessions.map((session) => session.id);
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('first pending prompt', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    const createdSession = useUnifiedStore.getState().data.ai!.sessions.find(
+      (session) => !initialSessionIds.includes(session.id),
+    );
+    expect(createdSession).toBeDefined();
+    expect(useAIUIStore.getState().currentSessionId).toBe(createdSession?.id);
+
+    let recalled: ReturnType<typeof result.current.stopAndRecallLastUserMessage> = null;
+    act(() => {
+      recalled = result.current.stopAndRecallLastUserMessage('first pending prompt');
+    });
+
+    expect(recalled).toEqual({
+      message: 'first pending prompt',
+      attachments: [],
+      noteMentions: [],
+    });
+    expect(useUnifiedStore.getState().data.ai!.sessions.map((session) => session.id)).toEqual(initialSessionIds);
+    expect(useUnifiedStore.getState().data.ai!.messages[createdSession!.id]).toBeUndefined();
+    expect(useAIUIStore.getState().currentSessionId).toBeNull();
+    expect(mocked.cancelSessionJsonSave).toHaveBeenCalledWith(createdSession!.id);
+    expect(mocked.deleteSessionJson).toHaveBeenCalledWith(createdSession!.id);
+
+    await act(async () => {
+      resolveProvider('late answer');
+      await pendingProviderResponse;
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+    expect(useUnifiedStore.getState().data.ai!.sessions.map((session) => session.id)).toEqual(initialSessionIds);
+  });
+
   it('recalls attachments and note mentions with the stopped composer request', async () => {
     let resolveProvider!: (value: string) => void;
     const pendingProviderResponse = new Promise<string>((resolve) => {

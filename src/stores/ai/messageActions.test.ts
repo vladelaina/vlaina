@@ -4,10 +4,12 @@ import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { ChatMessage } from '@/lib/ai/types';
 import { aliasSessionId, clearSessionIdAliases } from '@/lib/ai/sessionIdAliases';
-import { saveSessionJson } from '@/lib/storage/chatStorage';
+import { cancelSessionJsonSave, deleteSessionJson, saveSessionJson } from '@/lib/storage/chatStorage';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 
 vi.mock('@/lib/storage/chatStorage', () => ({
+  cancelSessionJsonSave: vi.fn(),
+  deleteSessionJson: vi.fn(async () => {}),
   saveSessionJson: vi.fn(async () => {}),
   scheduleSessionJsonSave: vi.fn(),
 }));
@@ -574,6 +576,51 @@ describe('message actions API transcript handling', () => {
     expect(recalled).toBe('pending prompt');
     expect(ai.messages['session-1']).toEqual([]);
     expect(saveSessionJson).toHaveBeenCalledWith('session-1', []);
+  });
+
+  it('rolls an auto-created empty chat back to the new chat state after retracting its first request', () => {
+    seedMessages([
+      createUserMessage('prompt-1', 'pending prompt'),
+      {
+        ...createAssistantMessage(),
+        id: 'assistant-1',
+        content: '',
+        apiTranscript: undefined,
+        versions: [{
+          content: '',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      },
+    ]);
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          sessions: state.data.ai!.sessions.map((session) =>
+            session.id === 'session-1' ? { ...session, title: '' } : session
+          ),
+        },
+      },
+    }));
+
+    const recalled = createMessageActions().retractPendingUserRequest(
+      'session-1',
+      'prompt-1',
+      'assistant-1',
+    );
+
+    const ai = useUnifiedStore.getState().data.ai!;
+    const ui = useAIUIStore.getState();
+    expect(recalled).toBe('pending prompt');
+    expect(ai.sessions.some((session) => session.id === 'session-1')).toBe(false);
+    expect(ai.messages['session-1']).toBeUndefined();
+    expect(ui.currentSessionId).toBeNull();
+    expect(cancelSessionJsonSave).toHaveBeenCalledWith('session-1');
+    expect(deleteSessionJson).toHaveBeenCalledWith('session-1');
+    expect(saveSessionJson).not.toHaveBeenCalled();
   });
 
   it('retracts a pending composer request while the assistant only has status and thinking content', () => {

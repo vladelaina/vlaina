@@ -2,10 +2,17 @@ import type { ApiTranscriptMessage, ChatMessage, MessageVersion } from '@/lib/ai
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript'
 import { generateId } from '@/lib/id'
 import {
+  cancelSessionJsonSave,
+  deleteSessionJson,
   saveSessionJson,
   scheduleSessionJsonSave,
 } from '@/lib/storage/chatStorage'
-import { shouldPersistSession } from '@/lib/ai/temporaryChat'
+import {
+  isTemporarySession,
+  isTemporarySessionId,
+  needsAutoTitle,
+  shouldPersistSession,
+} from '@/lib/ai/temporaryChat'
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import {
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
@@ -14,6 +21,7 @@ import {
 import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
+import { requestManager } from '@/lib/ai/requestManager'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
 
@@ -166,6 +174,10 @@ interface AddMessageOptions {
 
 function saveSessionJsonInBackground(sessionId: string, messages: ChatMessage[]) {
   void saveSessionJson(sessionId, messages).catch(() => {})
+}
+
+function deleteSessionJsonInBackground(sessionId: string) {
+  void deleteSessionJson(sessionId).catch(() => {})
 }
 
 function limitMessageVersions(
@@ -480,6 +492,36 @@ export function createMessageActions() {
         ...messages.slice(0, userIndex),
         ...messages.slice(removeEnd),
       ]
+      const session = ai.sessions.find((item) => item.id === targetSessionId)
+      const currentSessionId = useAIUIStore.getState().currentSessionId
+      const shouldRollbackSessionToNewChat =
+        newMessages.length === 0 &&
+        userIndex === 0 &&
+        currentSessionId !== null &&
+        resolveSessionIdAlias(currentSessionId) === targetSessionId &&
+        needsAutoTitle(session?.title) &&
+        !isTemporarySessionId(targetSessionId) &&
+        !isTemporarySession(session)
+
+      if (shouldRollbackSessionToNewChat) {
+        const nextMessages = { ...ai.messages }
+        delete nextMessages[targetSessionId]
+        cancelSessionJsonSave(targetSessionId)
+        requestManager.abort(targetSessionId)
+        useAIUIStore.getState().clearSessionState(targetSessionId)
+        useAIUIStore.getState().setChatSelection({
+          currentSessionId: null,
+          temporaryChatEnabled: false,
+        })
+
+        state.updateAIData({
+          sessions: ai.sessions.filter((item) => item.id !== targetSessionId),
+          messages: nextMessages,
+          unreadSessionIds: (ai.unreadSessionIds || []).filter((id) => id !== targetSessionId),
+        })
+        deleteSessionJsonInBackground(targetSessionId)
+        return userMessage.content
+      }
 
       state.updateAIData({
         messages: { ...ai.messages, [targetSessionId]: newMessages }
