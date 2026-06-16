@@ -55,7 +55,7 @@ describe('flushPendingEditorMarkdown', () => {
     const expected = [
       '# Alpha',
       '',
-      '  Pro:   \\$76.80 / year\\',
+      '  Pro:   \\$76.80 / year',
       ' Max:   \\$191.90 / year',
     ].join('\n');
     const state = useNotesStore.getState();
@@ -70,11 +70,31 @@ describe('flushPendingEditorMarkdown', () => {
     expect(state.currentNote?.content).not.toContain('&#32');
   });
 
+  it('keeps ordinary typed line breaks as ordinary markdown newlines during flush', () => {
+    useNotesStore.setState({
+      currentNote: { path: 'alpha.md', content: 'Old content' },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old content', modifiedAt: 7 }]]),
+    });
+
+    const didFlush = flushPendingEditorMarkdown('alpha.md', '1\n2');
+
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(true);
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: '1\n2' });
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: '1\n2',
+      modifiedAt: 7,
+    });
+  });
+
   it('ignores pending markdown that only differs by editor-only artifacts after normalization', () => {
     const currentContent = [
       '# Alpha',
       '',
-      '  Pro:   \\$76.80 / year\\',
+      '  Pro:   \\$76.80 / year',
       ' Max:   \\$191.90 / year',
     ].join('\n');
 

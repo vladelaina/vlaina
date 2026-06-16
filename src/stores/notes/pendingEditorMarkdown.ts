@@ -1,4 +1,4 @@
-import { normalizeEditorRuntimeMarkdownArtifacts } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeEditorRuntimeMarkdownArtifactsForState } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { getCachedNoteModifiedAt, setCachedNoteContent } from './document/noteContentCache';
@@ -14,7 +14,7 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
     return false;
   }
 
-  const normalizedMarkdown = normalizeEditorRuntimeMarkdownArtifacts(markdown);
+  const normalizedMarkdown = normalizeEditorRuntimeMarkdownArtifactsForState(markdown);
   const state = useNotesStore.getState();
   const isKnownWorkspaceNote =
     state.currentNote?.path === notePath ||

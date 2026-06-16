@@ -34,7 +34,7 @@ import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import {
   normalizeAlternativeMathBlockFences,
-  normalizeEditorRuntimeMarkdownArtifacts,
+  normalizeEditorStateMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { themeEditorLayoutTokens } from '@/styles/themeTokens';
@@ -55,9 +55,9 @@ import {
 } from './utils/editorBlockPositionCache';
 import {
   normalizeLeadingFrontmatterMarkdown,
-  serializeLeadingFrontmatterMarkdown,
 } from './plugins/frontmatter/frontmatterMarkdown';
 import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
+import { serializeEditorMarkdownSnapshot } from './utils/pendingMarkdownUpdate';
 import { createDocumentStartTextSelection } from './utils/editorSelection';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
 import {
@@ -365,17 +365,14 @@ export function replaceEditorMarkdown(
 }
 
 function normalizeComparableEditorMarkdown(markdown: string): string {
-  return normalizeEditorRuntimeMarkdownArtifacts(stripManagedFrontmatter(markdown));
+  return normalizeEditorStateMarkdownDocument(stripManagedFrontmatter(markdown));
 }
 
 export function isEditorMarkdownEquivalentToNoteContent(
   editorMarkdown: string,
   noteContent: string,
 ): boolean {
-  const serializedEditorMarkdown = serializeLeadingFrontmatterMarkdown(
-    editorMarkdown,
-    noteContent,
-  );
+  const serializedEditorMarkdown = serializeEditorMarkdownSnapshot(editorMarkdown, noteContent);
   return (
     normalizeComparableEditorMarkdown(serializedEditorMarkdown) ===
     normalizeComparableEditorMarkdown(noteContent)
