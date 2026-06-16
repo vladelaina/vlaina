@@ -191,41 +191,20 @@ test.describe("notes block selection", () => {
 
       const dragStartX = handleBox.x + handleBox.width / 2;
       const dragStartY = handleBox.y + handleBox.height / 2;
-      const leftGutterX = Math.max(8, targetBox.x - 28);
+      const leftGutterX = Math.max(8, targetBox.x - 96);
       const targetLowerHalfY = targetBox.y + targetBox.height * 0.75;
 
       await page.mouse.move(dragStartX, dragStartY);
       await page.mouse.down();
       await page.mouse.move(leftGutterX, targetLowerHalfY, { steps: 12 });
 
-      const dragDiagnostics = await page.evaluate(({ x, y }) => {
-        const indicator = document.querySelector<HTMLElement>('.editor-block-drop-indicator');
-        const pointElement = document.elementFromPoint(x, y);
-        const elements = typeof document.elementsFromPoint === 'function'
-          ? document.elementsFromPoint(x, y).map((element) => ({
-            tagName: element.tagName,
-            className: element instanceof HTMLElement ? element.className : '',
-            text: element.textContent?.trim().slice(0, 80) ?? '',
-            notesDropTarget: Boolean(element.closest('[data-notes-block-drop-target="true"]')),
-          }))
-          : [];
-        return {
-          pointer: { x, y },
-          pointTagName: pointElement?.tagName ?? null,
-          pointClassName: pointElement instanceof HTMLElement ? pointElement.className : null,
-          pointText: pointElement?.textContent?.trim().slice(0, 80) ?? null,
-          indicatorClassName: indicator?.className ?? null,
-          indicatorDisplay: indicator ? getComputedStyle(indicator).display : null,
-          indicatorOpacity: indicator ? getComputedStyle(indicator).opacity : null,
-          dragActive: document.body.classList.contains('editor-block-drag-active'),
-          elements,
-        };
-      }, { x: leftGutterX, y: targetLowerHalfY });
-
-      expect(dragDiagnostics).toMatchObject({
-        dragActive: true,
-        indicatorClassName: expect.stringContaining('visible'),
-      });
+      const indicator = page.locator('.editor-block-drop-indicator.visible');
+      await expect(indicator).toBeVisible();
+      const indicatorBox = await indicator.boundingBox();
+      expect(indicatorBox).not.toBeNull();
+      expect(indicatorBox!.x).toBeGreaterThan(leftGutterX);
+      expect(indicatorBox!.x + indicatorBox!.width).toBeGreaterThanOrEqual(leftGutterX);
+      expect(Math.round(indicatorBox!.height)).toBe(3);
 
       await page.mouse.up();
 
