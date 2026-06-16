@@ -11,7 +11,15 @@ import { LanguageTab } from './tabs/LanguageTab';
 import { cn } from '@/lib/utils';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
-import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
+import {
+  OPEN_SETTINGS_EVENT,
+  SETTINGS_BEFORE_CLOSE_EVENT,
+  SETTINGS_CLOSED_EVENT,
+  resolveSettingsOpenTab,
+  type OpenSettingsDetail,
+  type SettingsOpenTab,
+  type SettingsTab,
+} from './settingsEvents';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import type { CommunitySettings } from './tabs/aboutCommunitySettings';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -20,11 +28,9 @@ import { themeBackdropTokens, themeMotionTokens } from '@/styles/themeTokens';
 interface SettingsModalProps {
   open: boolean;
   communitySettings: CommunitySettings;
+  requestedTab?: SettingsOpenTab;
   onClose: () => void;
 }
-
-type SettingsTab = 'markdown' | 'appearance' | 'language' | 'ai' | 'about';
-type SettingsOpenTab = SettingsTab | 'feedback';
 
 interface SidebarItem {
   id: SettingsTab;
@@ -51,7 +57,7 @@ const sidebarGroups: SidebarGroup[] = [
   }
 ];
 
-export function SettingsModal({ open, communitySettings, onClose }: SettingsModalProps) {
+export function SettingsModal({ open, communitySettings, requestedTab, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
   const [isAppearanceFontPreviewing, setIsAppearanceFontPreviewing] = useState(false);
   const { t } = useI18n();
@@ -64,18 +70,23 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
   }, [onClose]);
 
   useEffect(() => {
-    const handleOpenSettings = (e: CustomEvent<{ tab?: SettingsOpenTab }>) => {
-      if (e.detail?.tab) {
-        if (e.detail.tab === 'feedback') {
-          setActiveTab('about');
-          return;
-        }
-        setActiveTab(e.detail.tab)
+    const handleOpenSettings = (e: CustomEvent<OpenSettingsDetail>) => {
+      const nextTab = resolveSettingsOpenTab(e.detail?.tab);
+      if (nextTab) {
+        setActiveTab(nextTab);
       }
     }
-    window.addEventListener('open-settings', handleOpenSettings as EventListener)
-    return () => window.removeEventListener('open-settings', handleOpenSettings as EventListener)
+    window.addEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings as EventListener)
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings as EventListener)
   }, [])
+
+  useEffect(() => {
+    if (!open) return;
+    const nextTab = resolveSettingsOpenTab(requestedTab);
+    if (nextTab) {
+      setActiveTab(nextTab);
+    }
+  }, [open, requestedTab])
 
   useModalBehavior({
     open,

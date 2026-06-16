@@ -14,7 +14,7 @@ import {
   focusComposerInput as focusRegisteredComposerInput,
   focusVisibleTextareaAt,
 } from '@/lib/ui/composerFocusRegistry'
-import { SETTINGS_CLOSED_EVENT } from '@/components/Settings/settingsEvents'
+import { OPEN_SETTINGS_EVENT, type OpenSettingsDetail } from '@/components/Settings/settingsEvents'
 import { useI18n } from '@/lib/i18n'
 import {
   getSidebarIdleRowSurfaceClass,
@@ -275,7 +275,6 @@ export function ModelSelector({
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const isKeyboardNavigating = useRef(false)
-  const reopenAfterSettingsCloseRef = useRef(false)
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const embeddedPositionFrameRef = useRef<number | null>(null)
   const [embeddedDropdownStyle, setEmbeddedDropdownStyle] = useState<CSSProperties | null>(null)
@@ -616,23 +615,6 @@ export function ModelSelector({
   }, [closeSelector, isOpen, openSelector]);
 
   useEffect(() => {
-      const handleSettingsClosed = () => {
-          if (!reopenAfterSettingsCloseRef.current) {
-              return;
-          }
-          reopenAfterSettingsCloseRef.current = false;
-          window.requestAnimationFrame(() => {
-              openSelector();
-          });
-      };
-
-      window.addEventListener(SETTINGS_CLOSED_EVENT, handleSettingsClosed);
-      return () => {
-          window.removeEventListener(SETTINGS_CLOSED_EVENT, handleSettingsClosed);
-      };
-  }, [openSelector]);
-
-  useEffect(() => {
       const handleMouseMove = () => {
           isKeyboardNavigating.current = false;
       };
@@ -775,9 +757,8 @@ export function ModelSelector({
               />
               <button
                   onClick={() => {
-                      reopenAfterSettingsCloseRef.current = true;
                       closeSelector(false);
-                      const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
+                      const event = new CustomEvent<OpenSettingsDetail>(OPEN_SETTINGS_EVENT, { detail: { tab: 'ai' } });
                       window.dispatchEvent(event);
                   }}
                   className={cn(

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type DragEvent } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, type DragEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
 import { SettingsSwitch } from '@/components/Settings/components/SettingsFields';
@@ -38,22 +38,103 @@ function formatChannelBaseUrl(baseUrl: string) {
   }
 }
 
-function getChannelBaseUrlTextClassName(label: string) {
-  const length = label.length;
+const CHANNEL_BASE_URL_MIN_FONT_SIZE_PX = 8;
+const CHANNEL_BASE_URL_FIT_GUTTER_PX = 1;
 
-  if (length >= 32) {
-    return 'text-[var(--vlaina-font-8)] tracking-[var(--vlaina-tracking-tight-sm)]';
+function fitChannelBaseUrlTextToWidth(element: HTMLElement) {
+  element.style.fontSize = '';
+
+  const availableWidth = element.clientWidth - CHANNEL_BASE_URL_FIT_GUTTER_PX;
+  if (availableWidth <= 0) {
+    return;
   }
 
-  if (length >= 24) {
-    return 'text-[var(--vlaina-font-9)] tracking-[var(--vlaina-tracking-tight-sm)]';
+  const computedFontSize = Number.parseFloat(window.getComputedStyle(element).fontSize);
+  if (!Number.isFinite(computedFontSize) || computedFontSize <= 0) {
+    return;
   }
 
-  if (length >= 18) {
-    return 'text-[var(--vlaina-font-10)]';
+  const naturalWidth = element.scrollWidth;
+  if (naturalWidth <= availableWidth) {
+    return;
   }
 
-  return 'text-[var(--vlaina-font-xs)]';
+  const nextFontSize = Math.max(
+    CHANNEL_BASE_URL_MIN_FONT_SIZE_PX,
+    Math.min(computedFontSize, computedFontSize * (availableWidth / naturalWidth))
+  );
+  element.style.fontSize = `${nextFontSize}px`;
+}
+
+function ChannelBaseUrlLabel({
+  label,
+  title,
+  active,
+}: {
+  label: string;
+  title?: string;
+  active?: boolean;
+}) {
+  const textRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const element = textRef.current;
+    if (!element || typeof window === 'undefined') {
+      return;
+    }
+
+    let animationFrameId = 0;
+    let lastObservedWidth = -1;
+    const scheduleFit = (observedWidth?: number) => {
+      if (typeof observedWidth === 'number') {
+        if (Math.abs(observedWidth - lastObservedWidth) < 0.5) {
+          return;
+        }
+        lastObservedWidth = observedWidth;
+      }
+
+      window.cancelAnimationFrame(animationFrameId);
+      animationFrameId = window.requestAnimationFrame(() => {
+        fitChannelBaseUrlTextToWidth(element);
+      });
+    };
+
+    scheduleFit();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver((entries) => {
+        const observedWidth = entries[0]?.contentRect.width;
+        scheduleFit(observedWidth);
+      })
+      : null;
+    const handleWindowResize = () => scheduleFit();
+
+    if (resizeObserver) {
+      resizeObserver.observe(element);
+    } else {
+      window.addEventListener('resize', handleWindowResize);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+      element.style.fontSize = '';
+    };
+  }, [label]);
+
+  return (
+    <div
+      ref={textRef}
+      className={cn(
+        "mt-1 truncate text-[var(--vlaina-font-xs)]",
+        active ? "text-[var(--vlaina-sidebar-row-selected-text-soft)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
+      )}
+      title={title}
+    >
+      {label}
+    </div>
+  );
 }
 
 function moveProviderIdToTargetIndex(
@@ -180,15 +261,11 @@ function ChannelObject({
             {name}
           </div>
         </div>
-        <div className={cn(
-          "mt-1 line-clamp-1 pr-7",
-          getChannelBaseUrlTextClassName(baseUrlLabel),
-          active ? "text-[var(--vlaina-sidebar-row-selected-text-soft)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
-        )}
+        <ChannelBaseUrlLabel
+          label={baseUrlLabel}
           title={baseUrl || undefined}
-        >
-          {baseUrlLabel}
-        </div>
+          active={active}
+        />
       </div>
 
       <div className={cn(
