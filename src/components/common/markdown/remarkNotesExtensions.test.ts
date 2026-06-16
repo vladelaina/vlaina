@@ -33,6 +33,74 @@ function buildDeepTree(leafChildren: MdastNode[]): {
 }
 
 describe('remarkNotesInlineExtensions', () => {
+  it('treats plain unclosed html block text as paragraph text', () => {
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        { type: 'html', value: '<p>' },
+        { type: 'html', value: '</p>' },
+        { type: 'paragraph', children: [{ type: 'html', value: '<p>inline' }] },
+        { type: 'html', value: '<div>literal' },
+        { type: 'html', value: '<div>raw</div>' },
+        { type: 'html', value: ['<div>', 'raw', '</div>'].join('\n') },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree);
+
+    expect(tree.children?.[0]).toEqual({
+      type: 'paragraph',
+      children: [{ type: 'text', value: '<p>' }],
+    });
+    expect(tree.children?.[1]).toEqual({
+      type: 'paragraph',
+      children: [{ type: 'text', value: '</p>' }],
+    });
+    expect(tree.children?.[2]).toEqual({
+      type: 'paragraph',
+      children: [{ type: 'text', value: '<p>inline' }],
+    });
+    expect(tree.children?.[3]).toEqual({
+      type: 'paragraph',
+      children: [{ type: 'text', value: '<div>literal' }],
+    });
+    expect(tree.children?.[4]).toEqual({ type: 'html', value: '<div>raw</div>' });
+    expect(tree.children?.[5]).toEqual({ type: 'html', value: ['<div>', 'raw', '</div>'].join('\n') });
+  });
+
+  it('treats empty paired html-like text as visible paragraph text', () => {
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            { type: 'html', value: '<a></a>' },
+            { type: 'text', value: ' ' },
+            { type: 'html', value: '<span>' },
+            { type: 'html', value: '</span>' },
+            { type: 'text', value: ' ' },
+            { type: 'html', value: '<a href="#anchor"></a>' },
+            { type: 'text', value: ' ' },
+            { type: 'html', value: '<kbd>Ctrl</kbd>' },
+          ],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree);
+
+    expect(tree.children?.[0].children).toEqual([
+      { type: 'text', value: '<a></a>' },
+      { type: 'text', value: ' ' },
+      { type: 'text', value: '<span></span>' },
+      { type: 'text', value: ' ' },
+      { type: 'html', value: '<a href="#anchor"></a>' },
+      { type: 'text', value: ' ' },
+      { type: 'html', value: '<kbd>Ctrl</kbd>' },
+    ]);
+  });
+
   it('parses split inline color html with CSS declaration whitespace', () => {
     const tree: MdastNode = {
       type: 'root',
