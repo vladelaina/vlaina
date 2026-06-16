@@ -156,7 +156,7 @@ export function RootFolderMenu({
           label: t('sidebar.openFolderLocation'),
           onClick: async () => {
             onClose();
-            await handleOpenLocation();
+            await handleOpenLocation('folder');
           },
           disabled: !vaultPath,
         },

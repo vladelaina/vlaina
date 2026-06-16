@@ -198,7 +198,7 @@ export function ExternalStarredEntryRow({
           label: entry.kind === 'folder' ? t('sidebar.openFolderLocation') : t('sidebar.openFileLocation'),
           onClick: async () => {
             setShowMenu(false);
-            await handleOpenLocation();
+            await handleOpenLocation(entry.kind === 'folder' ? 'folder' : 'file');
           },
         },
       ],

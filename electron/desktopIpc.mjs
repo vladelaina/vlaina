@@ -258,9 +258,9 @@ function getLinuxItemRevealer(options = {}) {
 function getLinuxDirectoryOpener(options = {}) {
   const candidates = [
     { command: 'nautilus', args: ['--new-window'] },
-    { command: 'dolphin', args: [] },
-    { command: 'thunar', args: [] },
-    { command: 'nemo', args: [] },
+    { command: 'dolphin', args: ['--new-window'] },
+    { command: 'thunar', args: ['--new-window'] },
+    { command: 'nemo', args: ['--new-window'] },
     { command: 'pcmanfm', args: [] },
     { command: 'caja', args: [] },
     { command: 'io.elementary.files', args: [] },

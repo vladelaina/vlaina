@@ -149,4 +149,15 @@ describe('RootFolderMenu', () => {
     expect(openLocationAction?.querySelector('[data-icon-name="file.folderOpenArrow"]'))
       .not.toBeNull();
   });
+
+  it('opens the root folder as a folder location action', async () => {
+    const { getByText, onClose } = renderMenu();
+
+    fireEvent.click(getByText('Open Folder Location'));
+
+    await waitFor(() => {
+      expect(hoisted.handleOpenLocation).toHaveBeenCalledWith('folder');
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

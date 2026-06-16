@@ -34,9 +34,9 @@ export function useTreeItemPathActions({
     }
   }, [addToast, copyErrorMessage, itemPath, notesPath]);
 
-  const handleOpenLocation = useCallback(async () => {
+  const handleOpenLocation = useCallback(async (itemKind: 'file' | 'folder' = 'file') => {
     try {
-      await openTreeItemLocation(notesPath, itemPath);
+      await openTreeItemLocation(notesPath, itemPath, itemKind);
     } catch (error) {
       if (isUnavailableNotesPathError(error)) {
         return;

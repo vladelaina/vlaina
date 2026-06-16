@@ -166,7 +166,7 @@ export const FolderItem = memo(function FolderItem({
           label: t('sidebar.openFolderLocation'),
           onClick: async () => {
             setShowMenu(false);
-            await handleOpenLocation();
+            await handleOpenLocation('folder');
           },
         },
       ],
