@@ -436,6 +436,9 @@ function resolveParentMarkerDecorationRanges(
       if (!PARENT_MARKER_SELECTION_NODE_NAMES.has(node.type.name)) {
         continue;
       }
+      if (node.type.name === 'list_item' && !isListItemHeadSelection(node, $from.before(depth), range)) {
+        continue;
+      }
 
       const from = $from.before(depth);
       const to = from + node.nodeSize;
@@ -448,6 +451,19 @@ function resolveParentMarkerDecorationRanges(
   }
 
   return result;
+}
+
+function isListItemHeadSelection(
+  listItem: EditorState['doc'],
+  itemFrom: number,
+  range: BlockRange,
+): boolean {
+  const firstChild = listItem.firstChild;
+  if (!firstChild) return false;
+
+  const firstChildFrom = itemFrom + 1;
+  const firstChildTo = firstChildFrom + firstChild.nodeSize;
+  return range.from >= firstChildFrom && range.from < firstChildTo;
 }
 
 function isTextLikeDecorationRange(doc: EditorState['doc'], range: BlockRange, isNodeRange: boolean): boolean {

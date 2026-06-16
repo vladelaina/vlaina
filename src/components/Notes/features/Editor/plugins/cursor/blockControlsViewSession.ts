@@ -322,10 +322,12 @@ export class BlockControlsViewSession {
   private getCachedHandleTargets(): HandleBlockTarget[] {
     const {
       ranges: draggableRanges,
-      key: selectionKey,
+      selectedRanges,
     } = this.getDraggableSelection();
     if (draggableRanges.length === 0) return [];
 
+    const handleRanges = selectedRanges.length > 0 ? selectedRanges : draggableRanges;
+    const selectionKey = getBlockRangesKey(handleRanges);
     const nextScrollLeft = this.scrollRoot?.scrollLeft ?? 0;
     const nextScrollTop = this.scrollRoot?.scrollTop ?? 0;
     const snapshot = getCurrentEditorBlockPositionSnapshot();
@@ -345,9 +347,13 @@ export class BlockControlsViewSession {
     this.cachedScrollLeft = nextScrollLeft;
     this.cachedScrollTop = nextScrollTop;
     this.cachedSnapshotVersion = snapshotVersion;
-    this.cachedTargets = draggableRanges
-      .map((range) => resolveBlockTargetByPos(this.view, range.from))
-      .filter((target): target is HandleBlockTarget => target !== null);
+    const seenTargetPositions = new Set<number>();
+    this.cachedTargets = handleRanges.flatMap((range) => {
+      const target = resolveBlockTargetByPos(this.view, range.from);
+      if (!target || seenTargetPositions.has(target.pos)) return [];
+      seenTargetPositions.add(target.pos);
+      return [target];
+    });
     return this.cachedTargets;
   }
 

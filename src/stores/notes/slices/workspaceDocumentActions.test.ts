@@ -682,7 +682,7 @@ describe('workspace document actions', () => {
     mocks.chooseDraftSavePath.mockResolvedValue('/vault-next/Untitled.md');
     mocks.saveNoteDocument.mockResolvedValue({
       content: 'draft text',
-      metadata: { icon: 'emoji.saved', updatedAt: 1 },
+      metadata: { icon: '💾', updatedAt: 1 },
       modifiedAt: 1,
       nextCache: new Map([
         ['draft:blank', { content: 'draft text', modifiedAt: null }],
@@ -741,7 +741,7 @@ describe('workspace document actions', () => {
       { id: 'Untitled.md', name: 'Untitled', path: 'Untitled.md', isFolder: false },
     ]);
     expect(store.getState().noteMetadata?.notes['Untitled.md']).toEqual({
-      icon: 'emoji.saved',
+      icon: '💾',
       updatedAt: 1,
     });
   });

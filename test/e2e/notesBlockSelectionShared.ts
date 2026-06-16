@@ -81,12 +81,38 @@ export async function selectNoteBlocksByMatchers(page: Page, matchers: BlockText
 }
 
 export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator): Promise<void> {
-  const rect = await locator.boundingBox();
+  const rect = await locator.evaluateAll((elements) => {
+    for (const element of elements) {
+      if (!(element instanceof HTMLElement)) continue;
+      const style = getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      const box = element.getBoundingClientRect();
+      if (box.width <= 0 || box.height <= 0) continue;
+      return {
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+      };
+    }
+    return null;
+  });
   if (!rect) {
     throw new Error('Could not resolve block geometry');
   }
   const targetCenterY = rect.y + rect.height / 2;
-  await page.mouse.move(Math.max(8, rect.x - 18), targetCenterY);
+  const targetX = Math.max(8, rect.x - 18);
+  const primingX = targetX > 8 ? targetX - 1 : targetX + 1;
+  await page.mouse.move(primingX, targetCenterY);
+  await page.mouse.move(targetX, targetCenterY);
+  // Electron can skip dispatching a real mousemove when Playwright's cursor is already at the same screen point.
+  await page.evaluate(({ x, y }) => {
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+    }));
+  }, { x: targetX, y: targetCenterY });
   await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
   await expect.poll(async () => page.evaluate(({ controlsSelector, expectedCenterY }) => {
     const controls = document.querySelector<HTMLElement>(controlsSelector);

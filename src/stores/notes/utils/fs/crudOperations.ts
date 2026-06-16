@@ -10,7 +10,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../../frontmatter';
-import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { resolveVaultRelativeFullPath } from './vaultPathContainment';
 
 type CreatedNoteFileInfo = { modifiedAt?: number | null; size?: number | null } | null | undefined;
@@ -48,7 +48,7 @@ export async function createNoteImpl(
         await adapter.mkdir(folderFullPath, true);
     }
 
-    const normalizedContent = normalizeSerializedMarkdownDocument(content);
+    const normalizedContent = normalizeEditorStateMarkdownDocument(content);
     const initialMetadata = readNoteMetadataFromMarkdown(normalizedContent);
     const { content: initialContent, metadata: frontmatterMetadata } =
         updateNoteMetadataInMarkdown(normalizedContent, initialMetadata);

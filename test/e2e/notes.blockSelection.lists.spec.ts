@@ -205,13 +205,10 @@ test.describe("notes block selection list handles", () => {
       });
       expect(selectedCount).toBe(2);
 
-      const nestedRect = await page.locator(`${EDITOR_SELECTOR} li li`, { hasText: 'Nested child stays visually grouped' }).boundingBox();
-      if (!nestedRect) {
-        throw new Error('Could not resolve nested child geometry');
-      }
-
-      await page.mouse.move(Math.max(8, nestedRect.x - 18), nestedRect.y + nestedRect.height / 2);
-      await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
+      await moveMouseToBlockHandleGutter(
+        page,
+        page.locator(`${EDITOR_SELECTOR} li li`, { hasText: 'Nested child stays visually grouped' }),
+      );
 
       const geometry = await page.evaluate(() => {
         const controls = document.querySelector<HTMLElement>('.editor-block-controls.visible');

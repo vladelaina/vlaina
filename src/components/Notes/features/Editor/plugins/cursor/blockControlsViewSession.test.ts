@@ -238,6 +238,10 @@ describe('BlockControlsViewSession', () => {
     const nestedFirstTarget = createHandleTarget(1, 128, 40, true);
     const normalHoveredTarget = createHandleTarget(10, 80, 70, false);
 
+    mocks.selectedBlocks = [
+      { from: 1, to: 5 },
+      { from: 10, to: 15 },
+    ];
     vi.mocked(getDraggableBlockRanges).mockReturnValue([
       { from: 1, to: 5 },
       { from: 10, to: 15 },
@@ -266,6 +270,10 @@ describe('BlockControlsViewSession', () => {
     const outerParentTarget = createHandleTarget(1, 80, 40, true);
     const nestedHoveredTarget = createHandleTarget(10, 128, 70, true);
 
+    mocks.selectedBlocks = [
+      { from: 1, to: 6 },
+      { from: 10, to: 15 },
+    ];
     vi.mocked(getDraggableBlockRanges).mockReturnValue([
       { from: 1, to: 6 },
       { from: 10, to: 15 },
@@ -335,6 +343,49 @@ describe('BlockControlsViewSession', () => {
       expect(mocks.setControlsPosition).toHaveBeenCalledWith(
         expect.any(HTMLElement),
         childBlockTarget,
+        BLOCK_CONTROLS_LEFT_OFFSET_PX,
+        { horizontalAnchor: outerParentTarget },
+      );
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('keeps child hover targets when draggable ranges are pruned to a selected parent list item', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+    const outerParentTarget = createHandleTarget(1, 80, 40, true);
+    const nestedChildTarget = createHandleTarget(8, 128, 70, true);
+
+    mocks.selectedBlocks = [
+      { from: 1, to: 20 },
+      { from: 8, to: 15 },
+    ];
+    vi.mocked(getDraggableBlockRanges).mockReturnValue([
+      { from: 1, to: 20 },
+    ]);
+    vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
+      pos === 1 ? outerParentTarget : nestedChildTarget
+    ));
+    (view.state.doc as any).resolve = vi.fn((pos: number) => {
+      if (pos === 1) {
+        return {
+          nodeAfter: {
+            type: { name: 'list_item' },
+            nodeSize: 19,
+          },
+        };
+      }
+      return { nodeAfter: null };
+    });
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 80, bubbles: true }));
+      await nextFrame();
+
+      expect(mocks.setControlsPosition).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        nestedChildTarget,
         BLOCK_CONTROLS_LEFT_OFFSET_PX,
         { horizontalAnchor: outerParentTarget },
       );

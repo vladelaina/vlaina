@@ -21,9 +21,7 @@ import {
   resolveVaultRelativeFullPath,
 } from '../utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import {
-  normalizeSerializedMarkdownDocument,
-} from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { mergeNonConflictingNoteChanges } from './noteThreeWayMerge';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
@@ -232,7 +230,7 @@ export async function loadNoteDocument({
         assertReadableNoteFileInfo(fileInfo);
         const diskContent = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
         assertEditorSafeMarkdownContent(diskContent);
-        const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
+        const normalizedDiskContent = normalizeEditorStateMarkdownDocument(diskContent);
         return {
           content: normalizedDiskContent,
           modifiedAt: diskModifiedAt,
@@ -246,7 +244,7 @@ export async function loadNoteDocument({
       }
     }
 
-    const normalizedCachedContent = normalizeSerializedMarkdownDocument(cachedContent);
+    const normalizedCachedContent = normalizeEditorStateMarkdownDocument(cachedContent);
     return {
       content: normalizedCachedContent,
       modifiedAt: cachedModifiedAt,
@@ -266,7 +264,7 @@ export async function loadNoteDocument({
   assertReadableNoteFileInfo(fileInfo);
   const content = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
   assertEditorSafeMarkdownContent(content);
-  const normalizedContent = normalizeSerializedMarkdownDocument(content);
+  const normalizedContent = normalizeEditorStateMarkdownDocument(content);
   const modifiedAt = getKnownModifiedAt(fileInfo);
   const size = getKnownFileSize(fileInfo);
 
@@ -296,7 +294,7 @@ export async function saveNoteDocument({
   assertEditorSafeMarkdownContent(currentNote.content);
   const diskModifiedAt = getKnownModifiedAt(fileInfoBeforeWrite);
   const diskSize = getKnownFileSize(fileInfoBeforeWrite);
-  const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
+  const normalizedCurrentContent = normalizeEditorStateMarkdownDocument(currentNote.content);
   const cachedEntry = cache.get(notePath);
   const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
   const knownFileSizeChanged = hasKnownFileSizeChanged(cachedEntry?.size, diskSize);
@@ -338,8 +336,8 @@ export async function saveNoteDocument({
     assertReadableNoteFileInfo(fileInfoBeforeWrite);
     const diskContent = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
     assertEditorSafeMarkdownContent(diskContent);
-    const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
-    const normalizedCachedContent = normalizeSerializedMarkdownDocument(
+    const normalizedDiskContent = normalizeEditorStateMarkdownDocument(diskContent);
+    const normalizedCachedContent = normalizeEditorStateMarkdownDocument(
       cachedEntry.savedContent ?? cachedEntry.content
     );
     const comparableDiskContent = stripUpdatedFrontmatter(normalizedDiskContent);

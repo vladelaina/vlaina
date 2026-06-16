@@ -12,7 +12,7 @@ import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlush
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { saveDraftNote } from './workspaceDraftSave';
-import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 type WorkspaceDocumentActions = Pick<
   WorkspaceSlice,
@@ -26,7 +26,7 @@ function shouldKeepEditorContentAfterSave(editorContent: string | undefined, sav
   if (!editorContent.includes('\u2800') && !/<br\s/i.test(editorContent)) {
     return false;
   }
-  return stripUpdatedFrontmatter(normalizeSerializedMarkdownDocument(editorContent))
+  return stripUpdatedFrontmatter(normalizeEditorStateMarkdownDocument(editorContent))
     === stripUpdatedFrontmatter(savedContent);
 }
 

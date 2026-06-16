@@ -172,7 +172,17 @@ export async function moveMouseToSyntaxHandleGutter(page: Page, sample: Markdown
   expect(probe.ok, `${sample.label}: ${probe.reason}\n${JSON.stringify(probe, null, 2)}`).toBe(true);
 
   for (const point of probe.points) {
+    const primingX = point.x > 8 ? point.x - 1 : point.x + 1;
+    await page.mouse.move(primingX, point.y);
     await page.mouse.move(point.x, point.y);
+    // Electron can skip dispatching a real mousemove when Playwright's cursor is already at the same screen point.
+    await page.evaluate(({ x, y }) => {
+      document.dispatchEvent(new MouseEvent('mousemove', {
+        clientX: x,
+        clientY: y,
+        bubbles: true,
+      }));
+    }, point);
     const aligned = await page.waitForFunction(
       ({ expectedCenterY }) => {
         const controls = document.querySelector<HTMLElement>('.editor-block-controls.visible');

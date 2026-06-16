@@ -994,6 +994,18 @@ export function normalizeSerializedMarkdownDocument(text: string): string {
   return output;
 }
 
+export function normalizeEditorStateMarkdownDocument(text: string): string {
+  const source = stripLeadingBom(text);
+
+  if (canUseLargePlainMarkdownNormalizationFastPath(source)) {
+    return source;
+  }
+
+  return normalizeUrlSerializationArtifacts(
+    runMarkdownDocumentNormalizationPipeline(source).afterMarkdownSpaceEntities
+  );
+}
+
 export function normalizeEditorRuntimeMarkdownArtifacts(text: string): string {
   const afterInternalTightHeadingComments = normalizeInternalTightHeadingComments(text);
   const afterInternalMarkdownBlankLineComments =
