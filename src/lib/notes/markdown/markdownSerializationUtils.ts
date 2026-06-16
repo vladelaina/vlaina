@@ -32,6 +32,7 @@ const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
+const ESCAPED_LESS_THAN_PATTERN = /(^|[^\\])\\</g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
 const LEAKED_LIST_GAP_SENTINEL_PATTERN =
@@ -231,6 +232,14 @@ function unescapeMarkdownPunctuation(text: string): string {
   if (!text.includes('\\')) return text;
 
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
+}
+
+export function normalizeEscapedAngleBracketText(text: string): string {
+  if (!text.includes('\\<')) return text;
+
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(ESCAPED_LESS_THAN_PATTERN, '$1<')
+  );
 }
 
 export function normalizeEscapedUrlSchemes(text: string): string {
@@ -968,7 +977,9 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
   );
   if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '';
   return normalizeUrlSerializationArtifacts(
-    normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines))
+    normalizeEscapedHighlightSyntax(normalizeEscapedAngleBracketText(
+      unescapeMarkdownPunctuation(withoutTrailingNewlines)
+    ))
   );
 }
 
@@ -1020,8 +1031,9 @@ export function normalizeEditorRuntimeMarkdownArtifacts(text: string): string {
   const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterLeakedInternalArtifacts);
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
+  const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterMarkdownSpaceEntities);
 
-  return preserveParagraphSoftBreaksAsHardBreaks(afterMarkdownSpaceEntities);
+  return preserveParagraphSoftBreaksAsHardBreaks(afterEscapedAngleBracketText);
 }
 
 export function summarizeMarkdownNormalizationPipeline(text: string) {
@@ -1045,7 +1057,8 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     normalizeInternalMarkdownBlankLineComments(afterHeadingSpacing);
   const afterSyntheticBlankLines =
     collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterInternalMarkdownBlankLineComments);
-  const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterSyntheticBlankLines);
+  const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterSyntheticBlankLines);
+  const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterEscapedAngleBracketText);
   const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterCanonicalSpacing);
   const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterLenientLineMarkers);
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
@@ -1070,6 +1083,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterHeadingSpacing,
     afterInternalMarkdownBlankLineComments,
     afterSyntheticBlankLines,
+    afterEscapedAngleBracketText,
     afterCanonicalSpacing,
     afterLenientLineMarkers,
     afterStripPlaceholders,
@@ -1686,7 +1700,9 @@ export function normalizeSerializedMarkdownSelection(text: string): string {
     || BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())
   ) return '\n';
   return normalizeUrlSerializationArtifacts(
-    normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines))
+    normalizeEscapedHighlightSyntax(normalizeEscapedAngleBracketText(
+      unescapeMarkdownPunctuation(withoutTrailingNewlines)
+    ))
   );
 }
 

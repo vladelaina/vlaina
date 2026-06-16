@@ -228,6 +228,31 @@ describe('clipboard paste markdown persistence', () => {
     await editor.destroy();
   });
 
+  it('keeps plain html-like text visible when pasted as markdown', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+    const pasted = ['<p>', '</p>', '<div>literal', '<a></a>'].join('\n');
+
+    expect(simulatePasteText(view, pasted)).toBe(true);
+    expect(view.dom.textContent).toContain('<p>');
+    expect(view.dom.textContent).toContain('</p>');
+    expect(view.dom.textContent).toContain('<div>literal');
+    expect(view.dom.textContent).toContain('<a></a>');
+    expect(view.dom.querySelector('a')).toBeNull();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const persisted = stripTrailingNewlines(
+      serializeLeadingFrontmatterMarkdown(
+        normalizeSerializedMarkdownDocument(serializer(view.state.doc)),
+        pasted
+      )
+    );
+    expect(persisted).toBe(['<p>\\', '</p>\\', '<div>literal\\', '<a></a>'].join('\n'));
+    expect(persisted).not.toContain('\\<');
+
+    await editor.destroy();
+  });
+
   it.each([
     ['image', '<img src="cover.png" />', 'img'],
     ['iframe', '<iframe src="https://example.com/embed"></iframe>', 'iframe'],

@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  Editor,
+  defaultValueCtx,
+  editorViewCtx,
+  remarkStringifyOptionsCtx,
+  serializerCtx,
+} from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import {
   joinSerializedBlocks,
   normalizeAlternativeMathBlockFences,
   normalizeChineseOrderedListMarkers,
   normalizeCjkAtxHeadingMarkerSpaces,
+  normalizeEscapedAngleBracketText,
   normalizeEscapedUrlSchemes,
   normalizeFullwidthMarkdownLineMarkers,
   normalizeFullwidthOrderedListDigits,
@@ -22,6 +31,7 @@ import {
   restoreMathBlockFenceStylesFromReference,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 
 describe('stripTrailingNewlines', () => {
   it('removes trailing newlines only', () => {
@@ -139,6 +149,27 @@ describe('normalizeMarkdownAutolinkLiterals', () => {
     const markdown = ['```sh', 'curl <http://example.test:8317>', '```'].join('\n');
 
     expect(normalizeMarkdownAutolinkLiterals(markdown)).toBe(markdown);
+  });
+});
+
+describe('normalizeEscapedAngleBracketText', () => {
+  it('restores serializer-escaped literal less-than text outside protected content', () => {
+    expect(normalizeEscapedAngleBracketText('\\<p>')).toBe('<p>');
+    expect(normalizeEscapedAngleBracketText('\\</p>')).toBe('</p>');
+    expect(normalizeEscapedAngleBracketText('Use \\<p> in text')).toBe('Use <p> in text');
+    expect(normalizeEscapedAngleBracketText('1 \\< 2')).toBe('1 < 2');
+  });
+
+  it('keeps user-authored escaped backslashes before less-than text', () => {
+    expect(normalizeEscapedAngleBracketText('\\\\<p>')).toBe('\\\\<p>');
+  });
+
+  it('does not restore escaped less-than text inside protected blocks', () => {
+    const fenced = ['```md', '\\<p>', '```'].join('\n');
+    const html = ['<pre>', '\\<p>', '</pre>'].join('\n');
+
+    expect(normalizeEscapedAngleBracketText(fenced)).toBe(fenced);
+    expect(normalizeEscapedAngleBracketText(html)).toBe(html);
   });
 });
 
@@ -439,6 +470,11 @@ describe('normalizeSerializedMarkdownBlock', () => {
     expect(
       normalizeSerializedMarkdownBlock(['```md', '\\==literal==', '```'].join('\n'))
     ).toBe(['```md', '\\==literal==', '```'].join('\n'));
+  });
+
+  it('restores serializer-escaped less-than text in copied blocks', () => {
+    expect(normalizeSerializedMarkdownBlock('\\<p>\n')).toBe('<p>');
+    expect(normalizeSerializedMarkdownBlock('Use \\<p> here\n')).toBe('Use <p> here');
   });
 
   it('does not collapse user-authored blank lines inside copied fenced code blocks', () => {
@@ -809,6 +845,44 @@ describe('normalizeSerializedMarkdownDocument', () => {
     );
   });
 
+  it('restores serializer-escaped less-than text in persisted markdown', () => {
+    expect(normalizeSerializedMarkdownDocument('\\<p>')).toBe('<p>');
+    expect(normalizeSerializedMarkdownDocument('\\</p>')).toBe('</p>');
+    expect(normalizeSerializedMarkdownDocument('Use \\<p> in text')).toBe('Use <p> in text');
+    expect(normalizeSerializedMarkdownDocument(['```md', '\\<p>', '```'].join('\n'))).toBe(
+      ['```md', '\\<p>', '```'].join('\n')
+    );
+  });
+
+  it('persists editor-authored html-like paragraph text without serializer backslashes', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark);
+
+    await editor.create();
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const schema = view.state.schema;
+      const paragraph = schema.nodes.paragraph.create(null, schema.text('<p>'));
+      const doc = schema.nodes.doc.create(null, [paragraph]);
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content));
+
+      const serializer = editor.ctx.get(serializerCtx);
+      const serialized = serializer(view.state.doc);
+
+      expect(serialized.trim()).toBe('\\<p>');
+      expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serialized))).toBe('<p>');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('unwraps markdown autolink URL literals in persisted markdown', () => {
     expect(
       normalizeSerializedMarkdownDocument('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')
@@ -1139,6 +1213,11 @@ describe('normalizeSerializedMarkdownSelection', () => {
     expect(normalizeSerializedMarkdownSelection('file\\:///tmp/secret.png\n')).toBe(
       'file\\:///tmp/secret.png'
     );
+  });
+
+  it('restores serializer-escaped less-than text in copied selections', () => {
+    expect(normalizeSerializedMarkdownSelection('\\<p>\n')).toBe('<p>');
+    expect(normalizeSerializedMarkdownSelection('Use \\<p> here\n')).toBe('Use <p> here');
   });
 
   it('unwraps markdown autolink URL literals in copied selections', () => {

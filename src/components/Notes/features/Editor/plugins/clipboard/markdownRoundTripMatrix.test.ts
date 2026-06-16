@@ -197,6 +197,46 @@ describe('markdown syntax persistence matrix', () => {
       expectedText: 'plain < text',
     },
     {
+      name: 'plain unclosed html-like paragraph text',
+      markdown: '<p>',
+      expectedText: '<p>',
+    },
+    {
+      name: 'plain closing html-like paragraph text',
+      markdown: '</p>',
+      expectedText: '</p>',
+    },
+    {
+      name: 'plain unclosed html-like text with trailing content',
+      markdown: '<div>literal',
+      expectedText: '<div>literal',
+    },
+    {
+      name: 'plain empty inline html-like text',
+      markdown: '<a></a>',
+      expectedText: '<a></a>',
+    },
+    {
+      name: 'plain empty block html-like text',
+      markdown: '<p></p>',
+      expectedText: '<p></p>',
+    },
+    {
+      name: 'raw html block with content',
+      markdown: '<div>raw</div>',
+      expectedText: 'raw',
+    },
+    {
+      name: 'raw empty html with attributes',
+      markdown: '<a href="#anchor"></a>',
+      expectedText: '',
+    },
+    {
+      name: 'raw inline keyboard html',
+      markdown: '<kbd>Ctrl</kbd>',
+      expectedText: 'Ctrl',
+    },
+    {
       name: 'underline syntax',
       markdown: 'Use ++underlined text++ here.',
     },

@@ -57,6 +57,10 @@ export const MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS = 1000;
 const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
+const PLAIN_EMPTY_PAIRED_HTML_TEXT_PATTERN =
+    /<([A-Za-z][A-Za-z0-9-]*)\s*>\s*<\/\1\s*>/i;
+const PLAIN_HTML_BLOCK_TAG_TEXT_PATTERN =
+    /^(?: {0,3})(?:<\/(?:address|article|aside|basefont|blockquote|body|caption|center|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frameset|h[1-6]|head|header|html|legend|li|main|menu|menuitem|nav|ol|optgroup|option|p|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|ul)\s*>|<(?:address|article|aside|basefont|blockquote|body|caption|center|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frameset|h[1-6]|head|header|html|legend|li|main|menu|menuitem|nav|ol|optgroup|option|p|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|ul)(?:\s[^<>]*)?>[^<]*)$/i;
 
 function isMarkdownPasteParserInputWithinBounds(text: string): boolean {
     return text.length <= MAX_MARKDOWN_PASTE_CHARS;
@@ -81,6 +85,20 @@ function isClipboardCutShortcut(event: KeyboardEvent): boolean {
         ((event.metaKey || event.ctrlKey) && !event.shiftKey && key === 'x') ||
         (!(event.metaKey || event.ctrlKey) && event.shiftKey && key === 'delete')
     );
+}
+
+function looksLikePlainHtmlLikeTextPaste(text: string): boolean {
+    if (!text.includes('<')) return false;
+
+    return text
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .some((line) => {
+            const trimmed = line.trim();
+            if (!trimmed) return false;
+            return PLAIN_EMPTY_PAIRED_HTML_TEXT_PATTERN.test(trimmed)
+                || PLAIN_HTML_BLOCK_TAG_TEXT_PATTERN.test(line);
+        });
 }
 
 function isNonEmptyTextSelection(selection: Selection): boolean {
@@ -973,6 +991,17 @@ export const clipboardPlugin = $prose((ctx) => {
                 new Slice(Fragment.from(headingNode), 0, 0),
             );
             return true;
+        }
+
+        if (looksLikePlainHtmlLikeTextPaste(text)) {
+            const plainTextSlice = createPlainTextLineBreakSlice(state, text);
+            if (plainTextSlice) {
+                dispatchSliceAndKeepCursorAtTail(
+                    view,
+                    plainTextSlice,
+                );
+                return true;
+            }
         }
 
         if (looksLikePlainTextWithOnlyBackslashHardBreakSignal(text)) {

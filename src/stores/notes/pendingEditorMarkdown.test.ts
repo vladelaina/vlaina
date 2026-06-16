@@ -70,6 +70,26 @@ describe('flushPendingEditorMarkdown', () => {
     expect(state.currentNote?.content).not.toContain('&#32');
   });
 
+  it('normalizes serializer-escaped html-like paragraph text before it enters note state', () => {
+    useNotesStore.setState({
+      currentNote: { path: 'alpha.md', content: 'Old content' },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old content', modifiedAt: 7 }]]),
+    });
+
+    const didFlush = flushPendingEditorMarkdown('alpha.md', '\\<p>');
+
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(true);
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: '<p>' });
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: '<p>',
+      modifiedAt: 7,
+    });
+  });
+
   it('ignores pending markdown that only differs by editor-only artifacts after normalization', () => {
     const currentContent = [
       '# Alpha',
