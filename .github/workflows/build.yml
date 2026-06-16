@@ -264,10 +264,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y imagemagick
 
-      - name: Install ImageMagick on macOS
-        if: runner.os == 'macOS'
-        run: brew install imagemagick
-
       - name: Install ImageMagick on Windows
         if: runner.os == 'Windows'
         shell: pwsh
