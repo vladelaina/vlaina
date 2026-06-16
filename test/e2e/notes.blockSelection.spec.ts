@@ -21,6 +21,164 @@ import {
 test.describe("notes block selection", () => {
   test.setTimeout(90_000);
 
+  test('keeps selected markdown blank-line rows on the same visual rhythm as text rows', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-blank-line-rhythm');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-blank-line-rhythm.md',
+        content: ['1', '', '2'].join('\n'),
+      });
+
+      const selectableBlocks = await page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks());
+      expect(selectableBlocks.map((block: { text: string }) => block.text)).toEqual(['1', '', '2']);
+
+      const selectedCount = await page.evaluate(async () => {
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([0, 1, 2]);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      });
+      expect(selectedCount).toBe(3);
+
+      const geometry = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const resolvePaintRect = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const after = getComputedStyle(element, '::after');
+          if (after.content !== 'none' && after.display !== 'none' && after.position === 'absolute') {
+            return {
+              top: rect.top + parsePx(after.top),
+              bottom: rect.bottom - parsePx(after.bottom),
+              height: rect.height - parsePx(after.top) - parsePx(after.bottom),
+            };
+          }
+
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+            height: rect.height,
+          };
+        };
+
+        const rows = Array.from(editor.children)
+          .filter((element): element is HTMLElement =>
+            element instanceof HTMLElement && element.classList.contains('editor-block-selected')
+          )
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const paint = resolvePaintRect(element);
+            const style = getComputedStyle(element);
+            const after = getComputedStyle(element, '::after');
+            return {
+              tagName: element.tagName,
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              rectHeight: Math.round(rect.height * 100) / 100,
+              paintTop: Math.round(paint.top * 100) / 100,
+              paintBottom: Math.round(paint.bottom * 100) / 100,
+              paintHeight: Math.round(paint.height * 100) / 100,
+              marginTop: style.marginTop,
+              marginBottom: style.marginBottom,
+              minHeight: style.minHeight,
+              lineHeight: style.lineHeight,
+              afterTop: after.top,
+              afterBottom: after.bottom,
+            };
+          })
+          .sort((left, right) => left.rectTop - right.rectTop);
+
+        const rectTopDeltas = rows.slice(1).map((row, index) => (
+          Math.round((row.rectTop - rows[index].rectTop) * 100) / 100
+        ));
+        const paintGaps = rows.slice(1).map((row, index) => (
+          Math.round((row.paintTop - rows[index].paintBottom) * 100) / 100
+        ));
+
+        return { rows, rectTopDeltas, paintGaps };
+      });
+
+      expect(geometry).not.toBeNull();
+      expect(geometry!.rows, JSON.stringify(geometry, null, 2)).toHaveLength(3);
+      expect(Math.abs(geometry!.rectTopDeltas[0] - geometry!.rectTopDeltas[1]), JSON.stringify(geometry, null, 2)).toBeLessThanOrEqual(1);
+      expect(Math.abs(geometry!.paintGaps[0] - geometry!.paintGaps[1]), JSON.stringify(geometry, null, 2)).toBeLessThanOrEqual(1);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('does not stack top margins onto generated top-level blocks after markdown blank-line placeholders', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-blank-line-margin-audit');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-blank-line-margin-audit.md',
+        content: [
+          'Paragraph before paragraph blank audit',
+          '<!--vlaina-markdown-blank-line-->',
+          'Paragraph after blank audit',
+          '<!--vlaina-markdown-blank-line-->',
+          '# Heading after blank audit',
+          '<!--vlaina-markdown-blank-line-->',
+          'Final paragraph after heading audit',
+        ].join('\n'),
+      });
+
+      const report = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+        const blankLines = Array.from(editor.querySelectorAll<HTMLElement>(
+          '[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]'
+        ));
+        return blankLines.map((blankLine) => {
+          const next = blankLine.nextElementSibling instanceof HTMLElement
+            ? blankLine.nextElementSibling
+            : null;
+          const blankRect = blankLine.getBoundingClientRect();
+          const nextRect = next?.getBoundingClientRect();
+          const nextStyle = next ? getComputedStyle(next) : null;
+          return {
+            blankClassName: blankLine.className,
+            blankText: blankLine.textContent?.trim() ?? '',
+            nextClassName: next?.className ?? null,
+            nextMarginBlockStart: nextStyle?.marginBlockStart ?? null,
+            nextMarginTop: nextStyle?.marginTop ?? null,
+            nextTagName: next?.tagName ?? null,
+            nextText: next?.textContent?.trim().slice(0, 80) ?? null,
+            topGap: nextRect ? Math.round((nextRect.top - blankRect.bottom) * 100) / 100 : null,
+          };
+        });
+      });
+
+      expect(report).not.toBeNull();
+      expect(report, JSON.stringify(report, null, 2)).toHaveLength(3);
+      expect(report!.map((row) => row.nextTagName), JSON.stringify(report, null, 2)).toEqual([
+        'P',
+        'H1',
+        'P',
+      ]);
+      for (const row of report!) {
+        expect(Number.parseFloat(row.nextMarginBlockStart ?? row.nextMarginTop ?? '0'), JSON.stringify(report, null, 2)).toBeLessThanOrEqual(0.5);
+        expect(row.topGap, JSON.stringify(report, null, 2)).toBeLessThanOrEqual(0.5);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('deletes selected blocks with Delete across representative block types', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-delete-key');
 

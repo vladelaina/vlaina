@@ -34,6 +34,12 @@
   padding: var(--vlaina-space-0);
 }
 
+.milkdown :is(#write, .ProseMirror) > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'] + :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, .milkdown-table-block, table),
+.milkdown :is(#write, .ProseMirror) > p.editor-editable-markdown-blank-line + :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, .milkdown-table-block, table),
+.milkdown :is(#write, .ProseMirror) > p.editor-empty-paragraph:not(.is-editor-empty) + :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, .milkdown-table-block, table) {
+  margin-block-start: var(--vlaina-space-0);
+}
+
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--vlaina-soft-placeholder);
