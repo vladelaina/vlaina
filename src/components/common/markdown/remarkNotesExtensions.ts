@@ -35,8 +35,8 @@ export interface MdastNode {
     hProperties?: Record<string, unknown>;
   };
   position?: {
-    start?: { offset?: number };
-    end?: { offset?: number };
+    start?: { column?: number; line?: number; offset?: number };
+    end?: { column?: number; line?: number; offset?: number };
   };
 }
 
@@ -56,8 +56,6 @@ const INLINE_HTML_CONTAINER_SEARCH_EXCEEDED = -2;
 const INLINE_HTML_CLOSE_TAG_PATTERN = /^<\/([A-Za-z][A-Za-z0-9-]*)>$/i;
 const PLAIN_UNCLOSED_HTML_BLOCK_TEXT_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s[^<>]*)?>(?:[^<]*)$/;
-const PLAIN_CLOSING_HTML_BLOCK_TEXT_PATTERN =
-  /^(?: {0,3})<\/([A-Za-z][A-Za-z0-9-]*)\s*>(?:[^<]*)$/;
 const PLAIN_EMPTY_PAIRED_HTML_TEXT_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)\s*>\s*<\/\1\s*>$/i;
 const PLAIN_EMPTY_HTML_OPEN_TEXT_PATTERN =
@@ -361,6 +359,19 @@ function isInlineEmbeddedHtmlExampleText(value: string | null | undefined): valu
   return INLINE_EMBEDDED_HTML_EXAMPLE_PATTERN.test(value.trim());
 }
 
+function isStandaloneHtmlLineNode(node: MdastNode): boolean {
+  const startLine = node.position?.start?.line;
+  const startColumn = node.position?.start?.column;
+  const endLine = node.position?.end?.line;
+  return (
+    typeof startLine === 'number' &&
+    typeof endLine === 'number' &&
+    startLine === endLine &&
+    typeof startColumn === 'number' &&
+    startColumn <= 4
+  );
+}
+
 function hasVisibleTextSibling(
   children: readonly MdastNode[],
   excludedIndexes: readonly number[]
@@ -448,6 +459,7 @@ function applyPlainHtmlBlockTextToTree(tree: MdastNode) {
         node.type === 'paragraph' &&
         child.type === 'html' &&
         isInlineEmbeddedHtmlExampleText(child.value) &&
+        !isStandaloneHtmlLineNode(child) &&
         hasVisibleTextSibling(children, [index])
       ) {
         children[index] = createPlainHtmlTextReplacement(node, child.value, child.position);

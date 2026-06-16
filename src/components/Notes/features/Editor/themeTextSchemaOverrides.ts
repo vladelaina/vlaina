@@ -29,6 +29,8 @@ import {
 import { sanitizeHtml } from './plugins/clipboard/sanitizer';
 
 const MAX_RAW_MARKDOWN_HTML_CHARS = 2 * 1024 * 1024;
+const PLAIN_UNCLOSED_HTML_BLOCK_START_PATTERN =
+    /^(?: {0,3})<(div|blockquote|details|figure|section|article|aside|table|tbody|thead|tfoot|tr|td|th|ul|ol|li|dl|dt|dd|p|pre)>\n/i;
 
 function getHeadingCompatibilityClass(level: unknown): string {
     const normalizedLevel = typeof level === 'number' && level >= 1 && level <= 6 ? level : 1;
@@ -58,6 +60,11 @@ function isSafeStaticMarkdownHtmlValue(value: string): boolean {
     return /^<div\s+class\s*=\s*(?:"v-page-break"|'v-page-break')\s*>\s*<\/div>$/i.test(trimmed);
 }
 
+function isPlainUnclosedHtmlBlockStart(value: string): boolean {
+    const tagName = PLAIN_UNCLOSED_HTML_BLOCK_START_PATTERN.exec(value)?.[1];
+    return Boolean(tagName && !new RegExp(`</${tagName}\\s*>`, 'i').test(value));
+}
+
 export function sanitizeRawMarkdownHtmlValue(value: unknown): string {
     if (typeof value !== 'string') return '';
     if (value.length > MAX_RAW_MARKDOWN_HTML_CHARS) return '';
@@ -68,6 +75,7 @@ export function sanitizeRawMarkdownHtmlValue(value: unknown): string {
     ) {
         return value.trim();
     }
+    if (isPlainUnclosedHtmlBlockStart(value)) return value;
     return sanitizeHtml(value);
 }
 

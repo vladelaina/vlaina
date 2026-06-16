@@ -111,6 +111,10 @@ const MISSING_BLOCKQUOTE_SPACE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})>)(\S.*)$/;
 const CJK_ATX_HEADING_WITHOUT_SPACE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})#{1,6})([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}].*)$/u;
+const GENERIC_HTML_BLOCK_OPEN_LINE_PATTERN =
+  /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s[^<>]*)?>\s*$/;
+const RAW_HTML_BLOCK_OPEN_LINE_PATTERN =
+  /^(?: {0,3})<(pre|script|style|textarea|title|xmp|noembed|noframes|plaintext|math|noscript|svg)(?:\s|>|$)/i;
 const MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH = 1_000_000;
 const FAST_NORMALIZATION_MIN_LENGTH = 1_000_000;
 const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
@@ -131,6 +135,61 @@ const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_SUFFIX_PATTERN = /^(.*)\\\]\s*$/;
 const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_SUFFIX_PATTERN = /^(.*)]\s*$/;
 const DOLLAR_MATH_BLOCK_FENCE_PATTERN = /^(\s*(?:>\s*)*)\$\$\s*$/;
 const LATEX_LIKE_MATH_CONTENT_PATTERN = /\\[A-Za-z]+|(?:^|[^\w])(?:\\?[A-Za-z]\w*)\s*(?:[=^_]|\\(?:le|ge|neq|approx|times|cdot|frac|sqrt|mu|alpha|beta|gamma|theta)\b)|[{}^_]/;
+const GENERIC_HTML_BLOCK_TAGS = new Set([
+  'address',
+  'article',
+  'aside',
+  'blockquote',
+  'body',
+  'caption',
+  'center',
+  'colgroup',
+  'dd',
+  'details',
+  'dialog',
+  'dir',
+  'div',
+  'dl',
+  'dt',
+  'fieldset',
+  'figcaption',
+  'figure',
+  'footer',
+  'form',
+  'frame',
+  'frameset',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'head',
+  'header',
+  'html',
+  'iframe',
+  'legend',
+  'li',
+  'main',
+  'menu',
+  'menuitem',
+  'nav',
+  'ol',
+  'optgroup',
+  'option',
+  'p',
+  'search',
+  'section',
+  'summary',
+  'table',
+  'tbody',
+  'td',
+  'tfoot',
+  'th',
+  'thead',
+  'tr',
+  'ul',
+]);
 
 type MathBlockFenceStyle = 'dollar' | 'bracket';
 
@@ -151,6 +210,11 @@ interface DollarMathFenceMatch {
 
 interface MarkdownFenceLine {
   infoStart: number;
+  length: number;
+  marker: string;
+}
+
+interface GenericHtmlSpacingFenceState {
   length: number;
   marker: string;
 }
@@ -464,6 +528,116 @@ export function normalizeFullwidthTablePipes(text: string): string {
 
     return output.join('\n');
   });
+}
+
+export function normalizeGenericHtmlBlockClosingSpacing(text: string): string {
+  if (!text.includes('</')) return text;
+
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const output: string[] = [];
+  let activeFence: GenericHtmlSpacingFenceState | null = null;
+  let activeGenericTagName: string | null = null;
+  let activeRawTagName: string | null = null;
+
+  for (const line of lines) {
+    const content = getMarkdownBlockContent(line);
+
+    if (activeFence) {
+      output.push(line);
+      if (isGenericHtmlSpacingFenceClose(content, activeFence)) {
+        activeFence = null;
+      }
+      continue;
+    }
+
+    if (activeRawTagName) {
+      output.push(line);
+      if (new RegExp(`</${activeRawTagName}(?:\\s[^>]*)?>`, 'i').test(content)) {
+        activeRawTagName = null;
+      }
+      continue;
+    }
+
+    if (activeGenericTagName) {
+      const closePattern = new RegExp(`^(?: {0,3})<\\/${activeGenericTagName}\\s*>\\s*$`, 'i');
+      const isCloseLine = closePattern.test(content);
+      if (isCloseLine && output[output.length - 1] === '') {
+        output.pop();
+      }
+      output.push(line);
+      if (isCloseLine) {
+        activeGenericTagName = null;
+      }
+      continue;
+    }
+
+    output.push(line);
+
+    activeFence = getGenericHtmlSpacingFenceOpen(content);
+    if (activeFence) {
+      continue;
+    }
+
+    const rawTagName = RAW_HTML_BLOCK_OPEN_LINE_PATTERN.exec(content)?.[1]?.toLowerCase();
+    if (rawTagName && !new RegExp(`</${rawTagName}(?:\\s[^>]*)?>`, 'i').test(content)) {
+      activeRawTagName = rawTagName;
+      continue;
+    }
+
+    const openTagName = GENERIC_HTML_BLOCK_OPEN_LINE_PATTERN.exec(content)?.[1]?.toLowerCase();
+    if (
+      openTagName &&
+      GENERIC_HTML_BLOCK_TAGS.has(openTagName) &&
+      !/\/>\s*$/.test(content)
+    ) {
+      activeGenericTagName = openTagName;
+    }
+  }
+
+  return output.join('\n');
+}
+
+function getGenericHtmlSpacingFenceOpen(content: string): GenericHtmlSpacingFenceState | null {
+  const fence = parseGenericHtmlSpacingFenceLine(content);
+  if (!fence) return null;
+  if (fence.marker === '`' && content.indexOf('`', fence.infoStart) !== -1) return null;
+  return { marker: fence.marker, length: fence.length };
+}
+
+function isGenericHtmlSpacingFenceClose(
+  content: string,
+  activeFence: GenericHtmlSpacingFenceState,
+): boolean {
+  const fence = parseGenericHtmlSpacingFenceLine(content);
+  return Boolean(
+    fence &&
+    fence.marker === activeFence.marker &&
+    fence.length >= activeFence.length &&
+    content.slice(fence.infoStart).trim() === ''
+  );
+}
+
+function parseGenericHtmlSpacingFenceLine(content: string): MarkdownFenceLine | null {
+  let index = 0;
+  while (index < content.length && index <= 3 && content[index] === ' ') {
+    index += 1;
+  }
+  if (index > 3) return null;
+
+  const marker = content[index];
+  if (marker !== '`' && marker !== '~') return null;
+
+  let length = 0;
+  while (content[index + length] === marker) {
+    length += 1;
+  }
+  if (length < 3) return null;
+
+  return {
+    infoStart: index + length,
+    length,
+    marker,
+  };
 }
 
 export function normalizeMissingBlockquoteMarkerSpaces(text: string): string {
@@ -1075,7 +1249,8 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterInternalMarkdownBlankLineComments);
   const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterSyntheticBlankLines);
   const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterEscapedAngleBracketText);
-  const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterCanonicalSpacing);
+  const afterGenericHtmlBlockClosingSpacing = normalizeGenericHtmlBlockClosingSpacing(afterCanonicalSpacing);
+  const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterGenericHtmlBlockClosingSpacing);
   const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterLenientLineMarkers);
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
   const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
@@ -1101,6 +1276,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterSyntheticBlankLines,
     afterEscapedAngleBracketText,
     afterCanonicalSpacing,
+    afterGenericHtmlBlockClosingSpacing,
     afterLenientLineMarkers,
     afterStripPlaceholders,
     afterEmptyParagraphBreaks,

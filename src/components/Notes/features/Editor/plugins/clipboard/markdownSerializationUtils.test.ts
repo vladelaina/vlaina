@@ -1097,6 +1097,12 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('removes serializer-added spacing before generic html block closing tags', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['<div>', 'Alpha', '', 'Beta', '', '</div>'].join('\n'))
+    ).toBe(['<div>', 'Alpha', '', 'Beta', '</div>'].join('\n'));
+  });
+
   it('does not rewrite placeholder-like text inside blockquote fenced code', () => {
     const markdown = [
       '> ```md',
