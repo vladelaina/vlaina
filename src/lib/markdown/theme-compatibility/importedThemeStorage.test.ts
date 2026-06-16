@@ -901,6 +901,34 @@ describe('imported markdown theme storage', () => {
     expect(binaryFiles.get('/app/.vlaina/store/markdown-theme-cache/vlook-fancy-assets/0-vlook.woff2')).toEqual(new Uint8Array([1, 2, 3]));
   });
 
+  it('skips missing relative CSS imports without reading them', async () => {
+    files.set('/app/.vlaina/themes/vlook-fancy.css', [
+      '@import "vlook/pages-dev/fs-ink-min.css";',
+      '@import "vlook/github-io/fs-ink-min.css";',
+      ':root { --bg-color: #fff; --text-color: #222; }',
+      '#write { color: var(--text-color); }',
+    ].join('\n'));
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'vlook-fancy.css',
+        path: '/app/.vlaina/themes/vlook-fancy.css',
+        isDirectory: false,
+        isFile: true,
+        size: 160,
+        modifiedAt: 10,
+      },
+    ]);
+
+    const result = await syncImportedMarkdownThemesFromDirectory();
+
+    expect(result.activeThemeId).toBe('vlook-fancy');
+    expect(adapter.exists).toHaveBeenCalledWith('/app/.vlaina/themes/vlook/pages-dev/fs-ink-min.css');
+    expect(adapter.exists).toHaveBeenCalledWith('/app/.vlaina/themes/vlook/github-io/fs-ink-min.css');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/vlook/pages-dev/fs-ink-min.css', MAX_IMPORTED_THEME_CSS_BYTES);
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/vlook/github-io/fs-ink-min.css', MAX_IMPORTED_THEME_CSS_BYTES);
+    expect(files.get('/app/.vlaina/store/markdown-theme-cache/vlook-fancy.css')).toContain('#write { color: var(--text-color); }');
+  });
+
   it('lists only themes currently sourced from the fixed theme directory for settings dropdowns', async () => {
     await importMarkdownThemeCss({
       name: 'Historical Obsidian.css',

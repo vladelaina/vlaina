@@ -134,6 +134,9 @@ export async function inlineRelativeThemeCssImports(
     remainingImports.count -= 1;
 
     try {
+      if (!(await storage.exists(importedPath).catch(() => false))) {
+        continue;
+      }
       const info = await storage.stat(importedPath).catch(() => null);
       if (
         info?.isFile === false ||

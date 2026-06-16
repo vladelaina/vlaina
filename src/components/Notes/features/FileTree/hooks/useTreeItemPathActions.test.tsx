@@ -47,7 +47,23 @@ describe('useTreeItemPathActions', () => {
       await result.current.handleOpenInNewWindow('file');
     });
 
+    expect(mocks.openTreeItemLocation).toHaveBeenCalledWith('', 'docs/readme.md', 'file');
     expect(mocks.addToast).not.toHaveBeenCalled();
+  });
+
+  it('passes folder location requests through to the path action', async () => {
+    const { result } = renderHook(() =>
+      useTreeItemPathActions({
+        notesPath: '/vault',
+        itemPath: 'docs',
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleOpenLocation('folder');
+    });
+
+    expect(mocks.openTreeItemLocation).toHaveBeenCalledWith('/vault', 'docs', 'folder');
   });
 
   it('still reports real path action failures', async () => {

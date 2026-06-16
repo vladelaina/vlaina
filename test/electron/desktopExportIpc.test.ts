@@ -317,6 +317,32 @@ describe('desktop export ipc', () => {
     expect(child.unref).toHaveBeenCalledTimes(1);
   });
 
+  it('requests a new Dolphin window when opening directories on Linux', async () => {
+    const child = {
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    const spawnDetached = vi.fn(() => child);
+    const shellImpl = {
+      openPath: vi.fn(),
+      showItemInFolder: vi.fn(),
+    };
+
+    await openPathInFileManager('/vault', {
+      platform: 'linux',
+      shellImpl,
+      spawnDetached,
+      envPath: '/usr/bin',
+      exists: (candidatePath: string) => candidatePath === '/usr/bin/dolphin',
+    });
+
+    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/dolphin', ['--new-window', '/vault'], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    expect(shellImpl.openPath).not.toHaveBeenCalled();
+  });
+
   it('uses the native shell open path behavior outside Linux', async () => {
     const shellImpl = {
       openPath: vi.fn().mockResolvedValue(''),

@@ -3,6 +3,7 @@ import { copyTreeItemPath, openTreeItemInNewWindow, openTreeItemLocation } from 
 
 const mocks = vi.hoisted(() => ({
   createWindow: vi.fn(),
+  openPathInFileManager: vi.fn(),
   revealItemInFolder: vi.fn(),
   writeTextToClipboard: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock('@/lib/desktop/window', () => ({
 }));
 
 vi.mock('@/lib/desktop/shell', () => ({
+  openPathInFileManager: mocks.openPathInFileManager,
   revealItemInFolder: mocks.revealItemInFolder,
 }));
 
@@ -29,9 +31,11 @@ vi.mock('@/lib/storage/adapter', () => ({
 describe('file tree path actions', () => {
   beforeEach(() => {
     mocks.createWindow.mockReset();
+    mocks.openPathInFileManager.mockReset();
     mocks.revealItemInFolder.mockReset();
     mocks.writeTextToClipboard.mockReset();
     mocks.createWindow.mockResolvedValue(undefined);
+    mocks.openPathInFileManager.mockResolvedValue(undefined);
     mocks.revealItemInFolder.mockResolvedValue(undefined);
     mocks.writeTextToClipboard.mockResolvedValue(true);
   });
@@ -46,10 +50,18 @@ describe('file tree path actions', () => {
 
   it('allows the vault root path through an empty item path', async () => {
     await copyTreeItemPath('/vault', '');
-    await openTreeItemLocation('/vault', '');
+    await openTreeItemLocation('/vault', '', 'folder');
 
     expect(mocks.writeTextToClipboard).toHaveBeenCalledWith('/vault');
-    expect(mocks.revealItemInFolder).toHaveBeenCalledWith('/vault');
+    expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/vault');
+    expect(mocks.revealItemInFolder).not.toHaveBeenCalled();
+  });
+
+  it('opens folder locations directly instead of revealing them in their parent folder', async () => {
+    await openTreeItemLocation('/vault', 'docs', 'folder');
+
+    expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/vault/docs');
+    expect(mocks.revealItemInFolder).not.toHaveBeenCalled();
   });
 
   it('opens files and folders in a new notes window', async () => {
@@ -76,6 +88,7 @@ describe('file tree path actions', () => {
     await expect(openTreeItemInNewWindow('/vault', '../secret.md', 'file')).rejects.toThrow('Path must stay inside the current vault.');
 
     expect(mocks.writeTextToClipboard).not.toHaveBeenCalled();
+    expect(mocks.openPathInFileManager).not.toHaveBeenCalled();
     expect(mocks.revealItemInFolder).not.toHaveBeenCalled();
     expect(mocks.createWindow).not.toHaveBeenCalled();
   });
