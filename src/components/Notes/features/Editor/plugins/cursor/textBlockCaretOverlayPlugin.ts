@@ -114,13 +114,17 @@ function resolvePreviousCharacterRight(view: EditorView): number | null {
   return rect?.right ?? null;
 }
 
-class TextBlockCaretOverlayView {
+export class TextBlockCaretOverlayView {
   private caret: HTMLElement | null = null;
   private frameId: number | null = null;
   private keyboardCaretNavigationActive = false;
+  private readonly resizeObserver: ResizeObserver | null = null;
 
   constructor(private view: EditorView) {
     ensureTextBlockCaretStyle(view.dom.ownerDocument);
+    this.resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(this.scheduleUpdate);
     view.dom.addEventListener('focus', this.scheduleUpdate);
     view.dom.addEventListener('blur', this.hide);
     view.dom.addEventListener('keydown', this.handleKeyDown);
@@ -130,6 +134,11 @@ class TextBlockCaretOverlayView {
     view.dom.ownerDocument.addEventListener('selectionchange', this.scheduleUpdate);
     view.dom.ownerDocument.defaultView?.addEventListener('resize', this.scheduleUpdate);
     view.dom.closest('[data-note-scroll-root="true"]')?.addEventListener('scroll', this.scheduleUpdate, { passive: true });
+    this.resizeObserver?.observe(view.dom);
+    const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]');
+    if (scrollRoot) {
+      this.resizeObserver?.observe(scrollRoot);
+    }
     this.scheduleUpdate();
   }
 
@@ -149,6 +158,7 @@ class TextBlockCaretOverlayView {
     this.view.dom.ownerDocument.removeEventListener('selectionchange', this.scheduleUpdate);
     this.view.dom.ownerDocument.defaultView?.removeEventListener('resize', this.scheduleUpdate);
     this.view.dom.closest('[data-note-scroll-root="true"]')?.removeEventListener('scroll', this.scheduleUpdate);
+    this.resizeObserver?.disconnect();
     this.hide();
   }
 

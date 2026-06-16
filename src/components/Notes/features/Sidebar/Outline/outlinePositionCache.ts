@@ -82,6 +82,25 @@ export function buildOutlinePositionMap(
   return new Map(metrics.map((metric) => [metric.id, metric.top]));
 }
 
+export function refreshOutlineHeadingMetricTops(
+  metrics: readonly OutlineHeadingMetric[],
+  scrollRoot: HTMLElement,
+  scrollTop = scrollRoot.scrollTop,
+): OutlineHeadingMetric[] {
+  const scrollRootTop = scrollRoot.getBoundingClientRect().top;
+
+  return metrics.flatMap((metric) => {
+    if (!metric.element.isConnected) {
+      return [];
+    }
+
+    return [{
+      ...metric,
+      top: metric.element.getBoundingClientRect().top - scrollRootTop + scrollTop,
+    }];
+  });
+}
+
 export function selectActiveOutlineHeadingId(
   metrics: readonly OutlineHeadingMetric[],
   scrollTop: number,

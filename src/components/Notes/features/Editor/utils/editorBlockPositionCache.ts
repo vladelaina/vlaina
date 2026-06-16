@@ -44,6 +44,8 @@ export interface EditorBlockPositionSnapshot {
   scrollRoot: HTMLElement | null;
   scrollLeft: number;
   scrollTop: number;
+  geometryValidationScrollLeft?: number;
+  geometryValidationScrollTop?: number;
   blocks: EditorBlockPositionEntry[];
   blockIndex: Map<string, EditorBlockPositionEntry>;
   headings: EditorHeadingPositionEntry[];
@@ -61,6 +63,7 @@ const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
 const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
 export const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
 const CONTENT_MUTATION_REFRESH_DELAY_MS = 240;
+const SNAPSHOT_GEOMETRY_TOLERANCE_PX = 1;
 
 function getBlockRangeKey(from: number, to: number): string {
   return `${from}:${to}`;
@@ -159,6 +162,8 @@ function createEmptySnapshot(view: EditorView): EditorBlockPositionSnapshot | nu
     scrollRoot,
     scrollLeft: scrollRoot?.scrollLeft ?? 0,
     scrollTop: scrollRoot?.scrollTop ?? 0,
+    geometryValidationScrollLeft: scrollRoot?.scrollLeft ?? 0,
+    geometryValidationScrollTop: scrollRoot?.scrollTop ?? 0,
     blocks: [],
     blockIndex: new Map(),
     headings: [],
@@ -254,6 +259,8 @@ function createPreviewSnapshot(
     scrollRoot,
     scrollLeft,
     scrollTop,
+    geometryValidationScrollLeft: scrollLeft,
+    geometryValidationScrollTop: scrollTop,
     blocks,
     blockIndex: createBlockIndex(blocks),
     headings,
@@ -338,6 +345,8 @@ function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
     scrollRoot,
     scrollLeft,
     scrollTop,
+    geometryValidationScrollLeft: scrollLeft,
+    geometryValidationScrollTop: scrollTop,
     blocks,
     blockIndex: createBlockIndex(blocks),
     headings,
@@ -451,6 +460,106 @@ function getSnapshotScrollRootRect(snapshot: EditorBlockPositionSnapshot): DOMRe
   return snapshot.scrollRoot?.getBoundingClientRect() ?? null;
 }
 
+function isWithinSnapshotGeometryTolerance(left: number, right: number): boolean {
+  return Math.abs(left - right) <= SNAPSHOT_GEOMETRY_TOLERANCE_PX;
+}
+
+function getSampledSnapshotBlocks(
+  blocks: readonly EditorBlockPositionEntry[],
+): EditorBlockPositionEntry[] {
+  if (blocks.length <= 2) {
+    return [...blocks];
+  }
+
+  const middleIndex = Math.floor(blocks.length / 2);
+  return [
+    blocks[0],
+    blocks[middleIndex],
+    blocks[blocks.length - 1],
+  ].filter((block): block is EditorBlockPositionEntry => Boolean(block));
+}
+
+function isSnapshotBlockGeometryFresh(
+  block: EditorBlockPositionEntry,
+  scrollRootRect: DOMRect | null,
+  scrollLeft: number,
+  scrollTop: number,
+  validateRect: boolean,
+): boolean {
+  if (!block.element.isConnected) {
+    return false;
+  }
+  if (!validateRect) {
+    return true;
+  }
+
+  const rect = block.element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    return false;
+  }
+
+  const currentDocumentTop = resolveDocumentTop(rect, scrollRootRect?.top ?? null, scrollTop);
+  const currentDocumentBottom = resolveDocumentBottom(rect, scrollRootRect?.top ?? null, scrollTop);
+  if (!isWithinSnapshotGeometryTolerance(currentDocumentTop, block.documentTop)) {
+    return false;
+  }
+  if (!isWithinSnapshotGeometryTolerance(currentDocumentBottom, block.documentBottom)) {
+    return false;
+  }
+
+  if (block.documentLeft !== undefined) {
+    const currentDocumentLeft = resolveDocumentLeft(rect, scrollRootRect?.left ?? null, scrollLeft);
+    if (!isWithinSnapshotGeometryTolerance(currentDocumentLeft, block.documentLeft)) {
+      return false;
+    }
+  }
+  if (block.documentRight !== undefined) {
+    const currentDocumentRight = resolveDocumentRight(rect, scrollRootRect?.left ?? null, scrollLeft);
+    if (!isWithinSnapshotGeometryTolerance(currentDocumentRight, block.documentRight)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isSnapshotGeometryFresh(
+  snapshot: EditorBlockPositionSnapshot,
+  snapshotView: { scrollRoot: HTMLElement | null; scrollLeft: number; scrollTop: number },
+): boolean {
+  const hasGeometryValidation =
+    snapshot.geometryValidationScrollLeft !== undefined &&
+    snapshot.geometryValidationScrollTop !== undefined;
+  if (!hasGeometryValidation) {
+    return true;
+  }
+  if (!snapshot.editorRoot.isConnected || snapshot.scrollRoot !== snapshotView.scrollRoot) {
+    return false;
+  }
+  if (snapshot.blocks.length === 0) {
+    return true;
+  }
+
+  const scrollRootRect = getSnapshotScrollRootRect(snapshot);
+  const validateBlockRects =
+    snapshot.geometryValidationScrollLeft === snapshotView.scrollLeft &&
+    snapshot.geometryValidationScrollTop === snapshotView.scrollTop;
+
+  try {
+    return getSampledSnapshotBlocks(snapshot.blocks).every((block) => (
+      isSnapshotBlockGeometryFresh(
+        block,
+        scrollRootRect,
+        snapshotView.scrollLeft,
+        snapshotView.scrollTop,
+        validateBlockRects,
+      )
+    ));
+  } catch {
+    return false;
+  }
+}
+
 function mapSnapshotBlockToTarget(
   block: EditorBlockPositionEntry,
   scrollRootRect: DOMRect | null,
@@ -497,7 +606,7 @@ export function getCachedEditorBlockTargets(
 ): SelectableBlockTarget[] | null {
   const snapshot = currentSnapshot;
   const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
-  if (!snapshot || !snapshotView) {
+  if (!snapshot || !snapshotView || !isSnapshotGeometryFresh(snapshot, snapshotView)) {
     return null;
   }
 
@@ -526,6 +635,7 @@ export function getFreshCachedEditorBlockTargets(
     !snapshot
     || !snapshotView
     || snapshot.scrollRoot !== scrollRoot
+    || !isSnapshotGeometryFresh(snapshot, snapshotView)
   ) {
     return null;
   }
@@ -545,7 +655,7 @@ export function getCachedEditorBlockTargetByPos(
 ): SelectableBlockTarget | null {
   const snapshot = currentSnapshot;
   const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
-  if (!snapshot || !snapshotView) {
+  if (!snapshot || !snapshotView || !isSnapshotGeometryFresh(snapshot, snapshotView)) {
     return null;
   }
 
@@ -578,7 +688,12 @@ export function getCachedEditorBlockTargetNearY(
 ): SelectableBlockTarget | null {
   const snapshot = currentSnapshot;
   const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
-  if (!snapshot || !snapshotView || snapshot.blocks.length === 0) {
+  if (
+    !snapshot
+    || !snapshotView
+    || snapshot.blocks.length === 0
+    || !isSnapshotGeometryFresh(snapshot, snapshotView)
+  ) {
     return null;
   }
 
@@ -647,7 +762,12 @@ export function getCachedEditorBlockTargetsNearY(
 ): SelectableBlockTarget[] | null {
   const snapshot = currentSnapshot;
   const snapshotView = snapshot ? isSnapshotForView(snapshot, view) : null;
-  if (!snapshot || !snapshotView || snapshot.blocks.length === 0) {
+  if (
+    !snapshot
+    || !snapshotView
+    || snapshot.blocks.length === 0
+    || !isSnapshotGeometryFresh(snapshot, snapshotView)
+  ) {
     return null;
   }
 

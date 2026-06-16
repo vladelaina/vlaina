@@ -1,10 +1,74 @@
-import { describe, expect, it } from 'vitest';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   blurActiveEditableElement,
   filterExternalBlankAreaSelectionEdgeGrazes,
   resolveBlankAreaSelectionAutoScrollDelta,
+  startBlankAreaSelectionSession,
 } from './blankAreaSelectionSession';
 import type { BlockRect } from './blockSelectionUtils';
+
+const rectResolverMockState = vi.hoisted(() => ({
+  currentRects: [] as BlockRect[],
+  invalidate: vi.fn(),
+}));
+
+vi.mock('./blockRectResolver', () => ({
+  createBlockRectResolver: vi.fn(() => ({
+    getSelectionBlockRects: vi.fn(() => rectResolverMockState.currentRects),
+    getTopLevelBlockRects: vi.fn(() => rectResolverMockState.currentRects),
+    invalidate: rectResolverMockState.invalidate,
+  })),
+}));
+
+class TestResizeObserver {
+  static instances: TestResizeObserver[] = [];
+
+  readonly observe = vi.fn();
+  readonly disconnect = vi.fn();
+
+  constructor(readonly callback: ResizeObserverCallback) {
+    TestResizeObserver.instances.push(this);
+  }
+}
+
+function blockRect(from: number, to: number, top: number, bottom: number): BlockRect {
+  return {
+    from,
+    to,
+    left: 100,
+    top,
+    right: 500,
+    bottom,
+  };
+}
+
+function createView(): EditorView {
+  const scrollRoot = document.createElement('div');
+  scrollRoot.setAttribute('data-note-scroll-root', 'true');
+  const editorDom = document.createElement('div');
+  scrollRoot.append(editorDom);
+  document.body.append(scrollRoot);
+
+  return {
+    dom: editorDom,
+    state: {
+      doc: {
+        content: { size: 20 },
+        resolve: vi.fn(() => ({ nodeAfter: null })),
+      },
+    },
+  } as unknown as EditorView;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  TestResizeObserver.instances = [];
+  rectResolverMockState.currentRects = [];
+  rectResolverMockState.invalidate.mockClear();
+  document.body.innerHTML = '';
+});
 
 describe('resolveBlankAreaSelectionAutoScrollDelta', () => {
   const scrollRootRect = { top: 100, bottom: 500 };
@@ -91,5 +155,76 @@ describe('filterExternalBlankAreaSelectionEdgeGrazes', () => {
       [{ from: 1, to: 16 }],
       { left: 360, top: 44, right: 420, bottom: 60 },
     )).toEqual([{ from: 1, to: 16 }]);
+  });
+});
+
+describe('startBlankAreaSelectionSession', () => {
+  it('refreshes hit testing when block geometry changes during a drag', () => {
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+
+    const view = createView();
+    rectResolverMockState.currentRects = [
+      blockRect(1, 6, 100, 160),
+      blockRect(7, 12, 180, 240),
+    ];
+    const selectionChanges = vi.fn();
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 80,
+      clientY: 90,
+      button: 0,
+      buttons: 1,
+    });
+    Object.defineProperty(event, 'target', {
+      configurable: true,
+      value: view.dom,
+    });
+
+    const session = startBlankAreaSelectionSession({
+      view,
+      event,
+      startZone: 'outside-editor',
+      dragThreshold: 0,
+      cursor: 'crosshair',
+      dragBoxColor: 'rgba(0, 0, 0, 0.1)',
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+      initialSelectedBlocks: [],
+      onSelectionChange: selectionChanges,
+      onPlainClick: vi.fn(),
+      onActivateSelectionState: vi.fn(),
+      onSyncSelectionState: vi.fn(),
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 220,
+      clientY: 170,
+      buttons: 1,
+    }));
+    animationFrames.pop()?.(0);
+
+    expect(selectionChanges).toHaveBeenLastCalledWith([{ from: 1, to: 6 }]);
+
+    rectResolverMockState.currentRects = [
+      blockRect(1, 6, 100, 130),
+      blockRect(7, 12, 140, 200),
+    ];
+    TestResizeObserver.instances[0]!.callback([], TestResizeObserver.instances[0] as unknown as ResizeObserver);
+    animationFrames.pop()?.(0);
+
+    expect(rectResolverMockState.invalidate).toHaveBeenCalled();
+    expect(selectionChanges).toHaveBeenLastCalledWith([
+      { from: 1, to: 6 },
+      { from: 7, to: 12 },
+    ]);
+
+    session.stop();
+    expect(TestResizeObserver.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
   });
 });

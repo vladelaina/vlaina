@@ -46,7 +46,7 @@ function resolveEditorFindMatchScrollTop(
   scrollRoot: HTMLElement,
 ): number | null {
   const snapshot = getCurrentEditorBlockPositionSnapshot();
-  if (snapshot?.view !== view || snapshot.scrollRoot !== scrollRoot) {
+  if (snapshot?.view !== view || snapshot.doc !== view.state.doc || snapshot.scrollRoot !== scrollRoot) {
     return null;
   }
 
@@ -75,6 +75,10 @@ function resolveEditorFindMatchScrollTop(
     return Math.max(centeredScrollTop, 0);
   }
 
+  const containingBlockTop = containingBlock.element.isConnected
+    ? toDocumentOffset(containingBlock.element.getBoundingClientRect().top, scrollRoot)
+    : containingBlock.documentTop;
+
   const minScrollTop = bounds.bottom - (scrollRoot.clientHeight - padding);
   const maxScrollTop = bounds.top - padding;
   if (minScrollTop > maxScrollTop) {
@@ -82,7 +86,7 @@ function resolveEditorFindMatchScrollTop(
   }
 
   const preferredScrollTop =
-    containingBlock.documentTop - Math.max(
+    containingBlockTop - Math.max(
       themeEditorLayoutTokens.findBlockTopMinOffsetPx,
       Math.min(
         themeEditorLayoutTokens.findBlockTopMaxOffsetPx,

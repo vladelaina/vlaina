@@ -198,6 +198,7 @@ export function startBlankAreaSelectionSession(
   let cachedDocSpaceScrollTop = Number.NaN;
   let cachedDocSpaceBlockRects: readonly BlockRect[] = [];
   let cachedDocSpaceBlockIndex: BlockRectYIndex = createBlockRectYIndex([]);
+  let resizeObserver: ResizeObserver | null = null;
 
   const getDocSpaceBlockRectIndex = (
     currentScrollLeft: number,
@@ -281,7 +282,37 @@ export function startBlankAreaSelectionSession(
     onSelectionChange(expandedBlocks);
   };
 
-  const scheduleDragRectSelection = (viewportDragRect: RectBounds) => {
+  const invalidateGeometryCache = () => {
+    rectResolver.invalidate();
+    cachedDocSpaceSourceRects = null;
+    cachedDocSpaceScrollLeft = Number.NaN;
+    cachedDocSpaceScrollTop = Number.NaN;
+    cachedDocSpaceBlockRects = [];
+    cachedDocSpaceBlockIndex = createBlockRectYIndex([]);
+    cachedSelectionResolutionKey = '';
+    cachedSelectionResolutionBlocks = [];
+    cachedSelectionResolutionExpandedKey = '';
+    lastAppliedViewportDragRect = null;
+    lastAppliedScrollLeft = Number.NaN;
+    lastAppliedScrollTop = Number.NaN;
+  };
+
+  const handleGeometryResize = () => {
+    invalidateGeometryCache();
+    dragBoxTopBoundary = getDragBoxTopBoundary(scrollRoot);
+    if (!lastViewportDragRect) return;
+    scheduleDragRectSelection(lastViewportDragRect);
+  };
+
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(handleGeometryResize);
+    resizeObserver.observe(view.dom);
+    if (scrollRoot) {
+      resizeObserver.observe(scrollRoot);
+    }
+  }
+
+  function scheduleDragRectSelection(viewportDragRect: RectBounds): void {
     const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
     const currentScrollTop = scrollRoot?.scrollTop ?? 0;
     if (
@@ -303,7 +334,7 @@ export function startBlankAreaSelectionSession(
       pendingDragRect = null;
       applyDragRectSelection(nextRect);
     });
-  };
+  }
 
   const scheduleDragBoxUpdate = (viewportRect: RectBounds) => {
     pendingDragBoxRect = viewportRect;
@@ -431,6 +462,8 @@ export function startBlankAreaSelectionSession(
         dragBoxRafId = 0;
       }
       pendingDragBoxRect = null;
+      resizeObserver?.disconnect();
+      resizeObserver = null;
       scrollRoot?.removeEventListener('scroll', handleScrollWhileDragging);
       autoScroll.stop();
       rectResolver.invalidate();
