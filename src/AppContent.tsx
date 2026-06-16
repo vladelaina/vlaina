@@ -20,6 +20,12 @@ import {
   getCachedCommunitySettings,
   loadCommunitySettings,
 } from '@/components/Settings/tabs/aboutCommunitySettings';
+import {
+  OPEN_SETTINGS_EVENT,
+  resolveSettingsOpenTab,
+  type OpenSettingsDetail,
+  type SettingsOpenTab,
+} from '@/components/Settings/settingsEvents';
 import { installSyncE2EBridge } from '@/lib/e2e/syncE2EBridge';
 
 function once<T>(factory: () => Promise<T>): () => Promise<T> {
@@ -165,6 +171,7 @@ export function AppContent() {
   const effectiveAppViewMode = initialUnifiedAppViewMode ?? appViewMode;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsRequestedTab, setSettingsRequestedTab] = useState<SettingsOpenTab | undefined>();
   const [hasOpenedSettings, setHasOpenedSettings] = useState(false);
   const [communitySettings, setCommunitySettings] = useState<CommunitySettings>(() => getCachedCommunitySettings());
   const [mountedAppViews, setMountedAppViews] = useState<Set<typeof appViewMode>>(() =>
@@ -362,12 +369,20 @@ export function AppContent() {
   }, [settingsOpen]);
 
   useEffect(() => {
-    const handleOpenSettings = () => setSettingsOpen(true);
+    const handleOpenSettings = (event: Event) => {
+      const detail = (event as CustomEvent<OpenSettingsDetail>).detail;
+      if (resolveSettingsOpenTab(detail?.tab)) {
+        setSettingsRequestedTab(detail.tab);
+      } else {
+        setSettingsRequestedTab(undefined);
+      }
+      setSettingsOpen(true);
+    };
     const handleToggleSettings = () => setSettingsOpen((open) => !open);
-    window.addEventListener('open-settings', handleOpenSettings);
+    window.addEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings);
     window.addEventListener('toggle-settings', handleToggleSettings);
     return () => {
-      window.removeEventListener('open-settings', handleOpenSettings);
+      window.removeEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings);
       window.removeEventListener('toggle-settings', handleToggleSettings);
     };
   }, []);
@@ -662,6 +677,7 @@ export function AppContent() {
           <SettingsModal
             open={settingsOpen}
             communitySettings={communitySettings}
+            requestedTab={settingsRequestedTab}
             onClose={() => setSettingsOpen(false)}
           />
         ) : null}
