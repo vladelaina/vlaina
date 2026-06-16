@@ -86,6 +86,10 @@ export function normalizeCanonicalMarkdownSpacingForPersistence(text: string): s
   return normalizeCanonicalMarkdownSpacing(text, { compactListGaps: true });
 }
 
+export function normalizeInlineHtmlTextForPersistence(text: string): string {
+  return normalizeCustomInlineHtmlText(text);
+}
+
 function normalizeCalloutBlockquoteListSpacing(lines: string[]): string[] {
   if (!lines.some(isCalloutBlockquoteStartLine)) return lines;
 

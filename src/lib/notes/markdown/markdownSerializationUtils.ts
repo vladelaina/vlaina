@@ -7,7 +7,10 @@ import {
   collapseSyntheticBlankLinesAroundEmptyPlaceholders,
   collapseSyntheticBlankLinesBetweenAdjacentHeadings,
 } from './markdownHeadingSpacing';
-import { normalizeCanonicalMarkdownSpacingForPersistence } from './markdownCanonicalSpacing';
+import {
+  normalizeCanonicalMarkdownSpacingForPersistence,
+  normalizeInlineHtmlTextForPersistence,
+} from './markdownCanonicalSpacing';
 import { isMarkdownImageOnlyLine } from './markdownImageLine';
 import { preserveParagraphSoftBreaksAsHardBreaks } from './markdownSoftBreaks';
 export {
@@ -1006,15 +1009,7 @@ export function normalizeSerializedMarkdownDocument(text: string): string {
 }
 
 export function normalizeEditorStateMarkdownDocument(text: string): string {
-  const source = stripLeadingBom(text);
-
-  if (canUseLargePlainMarkdownNormalizationFastPath(source)) {
-    return source;
-  }
-
-  return normalizeUrlSerializationArtifacts(
-    runMarkdownDocumentNormalizationPipeline(source).afterMarkdownSpaceEntities
-  );
+  return normalizeEditorRuntimeMarkdownArtifactsForState(text);
 }
 
 export function normalizeEditorRuntimeMarkdownArtifacts(text: string): string {
@@ -1034,6 +1029,27 @@ export function normalizeEditorRuntimeMarkdownArtifacts(text: string): string {
   const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterMarkdownSpaceEntities);
 
   return preserveParagraphSoftBreaksAsHardBreaks(afterEscapedAngleBracketText);
+}
+
+export function normalizeEditorRuntimeMarkdownArtifactsForState(text: string): string {
+  const source = stripLeadingBom(text).replace(/\r\n?/g, '\n');
+  const afterInternalTightHeadingComments = normalizeInternalTightHeadingComments(source);
+  const afterInternalMarkdownBlankLineComments =
+    normalizeInternalMarkdownBlankLineComments(afterInternalTightHeadingComments);
+  const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterInternalMarkdownBlankLineComments);
+  const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
+  const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
+  const afterListItems = normalizeListItemBlankLines(afterUserBreaks);
+  const afterLeakedInternalArtifacts = normalizeUserBreakSentinels(
+    normalizeLeakedInternalArtifacts(afterListItems)
+  );
+  const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterLeakedInternalArtifacts);
+  const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
+  const afterInlineHtmlText = normalizeInlineHtmlTextForPersistence(afterStandaloneBreakHtml);
+  const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterInlineHtmlText);
+  const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterMarkdownSpaceEntities);
+
+  return normalizeUrlSerializationArtifacts(afterEscapedAngleBracketText);
 }
 
 export function summarizeMarkdownNormalizationPipeline(text: string) {

@@ -770,6 +770,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'));
   });
 
+  it('keeps editor-state user-authored structural blank lines unchanged', () => {
+    expect(
+      normalizeEditorStateMarkdownDocument(['- one', '', '- two'].join('\n'))
+    ).toBe(['- one', '', '- two'].join('\n'));
+    expect(
+      normalizeEditorStateMarkdownDocument(['# Alpha', '', '## Beta'].join('\n'))
+    ).toBe(['# Alpha', '', '## Beta'].join('\n'));
+    expect(
+      normalizeEditorStateMarkdownDocument(['1', '', '2'].join('\n'))
+    ).toBe(['1', '', '2'].join('\n'));
+  });
+
   it('normalizes serializer space entities before persistence', () => {
     expect(
       normalizeSerializedMarkdownDocument(

@@ -507,6 +507,27 @@ describe('replaceEditorMarkdown', () => {
 });
 
 describe('isEditorMarkdownEquivalentToNoteContent', () => {
+  it('treats Milkdown paragraph separators as ordinary typed line breaks', () => {
+    expect(
+      isEditorMarkdownEquivalentToNoteContent('1\n\n2\n', '1\n2')
+    ).toBe(true);
+  });
+
+  it('does not treat ordinary typed line breaks as markdown hard breaks', () => {
+    expect(
+      isEditorMarkdownEquivalentToNoteContent('1\n\n2\n', '1\\\n2')
+    ).toBe(false);
+  });
+
+  it('keeps explicit markdown hard breaks distinct from ordinary line breaks', () => {
+    expect(
+      isEditorMarkdownEquivalentToNoteContent('1\\\n2\n', '1\\\n2')
+    ).toBe(true);
+    expect(
+      isEditorMarkdownEquivalentToNoteContent('1\\\n2\n', '1\n2')
+    ).toBe(false);
+  });
+
   it('treats managed-only frontmatter changes as equivalent to the visible editor markdown', () => {
     expect(
       isEditorMarkdownEquivalentToNoteContent(
