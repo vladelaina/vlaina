@@ -60,6 +60,24 @@ function mockRect(element: Element, rect: Partial<DOMRect>) {
   vi.spyOn(element, 'getBoundingClientRect').mockReturnValue(fullRect);
 }
 
+function mockRectGetter(element: Element, readRect: () => Partial<DOMRect>) {
+  vi.spyOn(element, 'getBoundingClientRect').mockImplementation(() => {
+    const rect = readRect();
+    return {
+      x: rect.left ?? 0,
+      y: rect.top ?? 0,
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 0,
+      height: 0,
+      toJSON: () => ({}),
+      ...rect,
+    } as DOMRect;
+  });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   document.body.innerHTML = '';
@@ -274,5 +292,83 @@ describe('blockSelectionLineFillOverlay', () => {
     expect(fill?.style.height).toBe('60px');
 
     overlay.destroy();
+  });
+
+  it('refreshes line fills when selected block geometry changes without selection changes', async () => {
+    let resizeCallback: ResizeObserverCallback = () => {};
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+    class TestResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+
+    const host = document.createElement('div');
+    const editorDom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const image = document.createElement('div');
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          content: { size: 1 },
+          childCount: 0,
+          child: vi.fn(),
+          resolve: vi.fn(() => ({ nodeBefore: null })),
+        },
+        [blankAreaDragBoxPluginKey.key]: {
+          selectedBlocks: [{ from: 0, to: 1 }],
+        },
+      },
+    } as unknown as EditorView;
+
+    let imageTop = 96;
+    let imageBottom = 156;
+
+    document.body.appendChild(host);
+    host.appendChild(editorDom);
+    paragraph.className = 'editor-paragraph-has-image-block';
+    image.className = 'image-block-container editor-block-selected';
+    image.style.setProperty('--vlaina-block-selection-bleed-x-start', '72px');
+    image.style.setProperty('--vlaina-block-selection-bleed-x-end', '72px');
+    paragraph.appendChild(image);
+    editorDom.appendChild(paragraph);
+
+    mockRect(host, { left: 100, top: 20, right: 600, bottom: 420, width: 500, height: 400 });
+    mockRect(editorDom, { left: 100, top: 20, right: 600, bottom: 420, width: 500, height: 400 });
+    mockRect(paragraph, { left: 100, top: 80, right: 600, bottom: 180, width: 500, height: 100 });
+    mockRectGetter(image, () => ({
+      left: 100,
+      top: imageTop,
+      right: 100,
+      bottom: imageBottom,
+      width: 0,
+      height: imageBottom - imageTop,
+    }));
+
+    try {
+      const overlay = createBlockSelectionLineFillOverlay(view);
+      const initialFill = host.querySelector<HTMLElement>('.editor-block-selection-line-fill');
+      expect(initialFill?.style.top).toBe('76px');
+      expect(initialFill?.style.height).toBe('60px');
+
+      imageTop = 126;
+      imageBottom = 206;
+      resizeCallback([], {} as ResizeObserver);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const refreshedFill = host.querySelector<HTMLElement>('.editor-block-selection-line-fill');
+      expect(refreshedFill?.style.top).toBe('106px');
+      expect(refreshedFill?.style.height).toBe('80px');
+
+      overlay.destroy();
+    } finally {
+      vi.stubGlobal('ResizeObserver', OriginalResizeObserver);
+    }
   });
 });

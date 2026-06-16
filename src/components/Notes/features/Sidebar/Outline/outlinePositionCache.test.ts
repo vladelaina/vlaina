@@ -5,6 +5,7 @@ import {
   MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS,
   MAX_OUTLINE_HEADING_METRICS,
   readOutlineHeadingMetrics,
+  refreshOutlineHeadingMetricTops,
   selectActiveOutlineHeadingId,
 } from './outlinePositionCache';
 
@@ -143,6 +144,54 @@ describe('outlinePositionCache', () => {
     expect(selectActiveOutlineHeadingId(metrics, 0, 72, 12)).toBe('a');
     expect(selectActiveOutlineHeadingId(metrics, 168, 72, 12)).toBe('b');
     expect(selectActiveOutlineHeadingId(metrics, 396, 72, 12)).toBe('c');
+  });
+
+  it('refreshes heading metric tops from live DOM geometry', () => {
+    const scrollRoot = document.createElement('div');
+    const heading = document.createElement('h2');
+    document.body.append(scrollRoot);
+    scrollRoot.append(heading);
+    scrollRoot.scrollTop = 200;
+    scrollRoot.getBoundingClientRect = () => ({
+      bottom: 600,
+      height: 600,
+      left: 0,
+      right: 600,
+      top: 50,
+      width: 600,
+      x: 0,
+      y: 50,
+      toJSON: () => ({}),
+    });
+    heading.getBoundingClientRect = () => ({
+      bottom: 350,
+      height: 40,
+      left: 0,
+      right: 300,
+      top: 310,
+      width: 300,
+      x: 0,
+      y: 310,
+      toJSON: () => ({}),
+    });
+
+    try {
+      const [metric] = refreshOutlineHeadingMetricTops([
+        {
+          id: 'outline-0-h2-stale',
+          level: 2,
+          text: 'Stale',
+          from: 0,
+          to: 10,
+          top: 80,
+          element: heading,
+        },
+      ], scrollRoot);
+
+      expect(metric?.top).toBe(460);
+    } finally {
+      scrollRoot.remove();
+    }
   });
 
   it('reads heading metrics without materializing selector results', () => {

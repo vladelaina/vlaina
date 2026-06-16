@@ -375,6 +375,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   let lastSelectionKey: string | null = null;
   let currentView = view;
   let scrollRafId = 0;
+  let resizeObserver: ResizeObserver | null = null;
   if (host instanceof HTMLElement) {
     host.classList.add('editor-block-selection-line-fill-host');
   }
@@ -445,7 +446,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     );
   };
 
-  const scheduleViewportUpdate = () => {
+  const scheduleGeometryUpdate = () => {
     if (!win || scrollRafId !== 0) return;
     scrollRafId = win.requestAnimationFrame(() => {
       scrollRafId = 0;
@@ -455,14 +456,28 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     });
   };
 
-  scrollRoot?.addEventListener('scroll', scheduleViewportUpdate, { passive: true });
+  scrollRoot?.addEventListener('scroll', scheduleGeometryUpdate, { passive: true });
+  win?.addEventListener('resize', scheduleGeometryUpdate);
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(scheduleGeometryUpdate);
+    resizeObserver.observe(view.dom);
+    if (host instanceof HTMLElement && host !== view.dom) {
+      resizeObserver.observe(host);
+    }
+    if (scrollRoot && scrollRoot !== view.dom && scrollRoot !== host) {
+      resizeObserver.observe(scrollRoot);
+    }
+  }
 
   update(view);
 
   return {
     update,
     destroy() {
-      scrollRoot?.removeEventListener('scroll', scheduleViewportUpdate);
+      scrollRoot?.removeEventListener('scroll', scheduleGeometryUpdate);
+      win?.removeEventListener('resize', scheduleGeometryUpdate);
+      resizeObserver?.disconnect();
+      resizeObserver = null;
       if (win && scrollRafId !== 0) {
         win.cancelAnimationFrame(scrollRafId);
         scrollRafId = 0;

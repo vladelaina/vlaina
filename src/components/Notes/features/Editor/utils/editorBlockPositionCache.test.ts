@@ -8,6 +8,7 @@ import {
   getCachedEditorBlockTargetNearY,
   getCachedEditorBlockTargetsNearY,
   getCachedEditorBlockTargets,
+  getFreshCachedEditorBlockTargets,
   getCurrentEditorBlockPositionSnapshot,
   isEditorHiddenByToolbarPreview,
   MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS,
@@ -528,6 +529,69 @@ describe('editorBlockPositionCache', () => {
     try {
       expect(getCachedEditorBlockTargets(view as any)).toBeNull();
       expect(getCachedEditorBlockTargetByPos(view as any, 0)).toBeNull();
+    } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+      dom.remove();
+    }
+  });
+
+  it('does not return cached block targets when same-document DOM geometry has changed', () => {
+    const dom = document.createElement('div');
+    document.body.appendChild(dom);
+    const block = document.createElement('p');
+    block.textContent = 'Ready';
+    dom.appendChild(block);
+
+    let currentRect = rect(10, 30);
+    block.getBoundingClientRect = () => currentRect;
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      nodeSize: 4,
+      forEach: () => {},
+    };
+    const doc = {
+      childCount: 1,
+      content: { size: 4 },
+      forEach(callback: (node: typeof paragraphNode, offset: number) => void) {
+        callback(paragraphNode, 0);
+      },
+      child(index: number) {
+        return index === 0 ? paragraphNode : null;
+      },
+      resolve() {
+        return {
+          parent: { type: { name: 'doc' } },
+          nodeAfter: paragraphNode,
+          index: () => 0,
+          posAtIndex: () => 0,
+        };
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+      domAtPos() {
+        throw new Error('not needed');
+      },
+      nodeDOM() {
+        return block;
+      },
+    };
+
+    try {
+      expect(refreshCurrentEditorBlockPositionSnapshot(view as any)?.blocks).toHaveLength(1);
+      expect(getCachedEditorBlockTargets(view as any)).toHaveLength(1);
+
+      currentRect = rect(48, 72);
+
+      expect(getCachedEditorBlockTargets(view as any)).toBeNull();
+      expect(getFreshCachedEditorBlockTargets(view as any, null)).toBeNull();
+      expect(getCachedEditorBlockTargetNearY(view as any, 56)).toBeNull();
+      expect(getCachedEditorBlockTargetsNearY(
+        view as any,
+        56,
+        (candidateRect, candidateY) => candidateY >= candidateRect.top && candidateY <= candidateRect.bottom,
+      )).toBeNull();
     } finally {
       clearCurrentEditorBlockPositionSnapshot();
       dom.remove();

@@ -3,6 +3,7 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { NotesOutlineHeading } from './types';
 import { areOutlineHeadingsEqual } from './outlineUtils';
 import {
+  refreshOutlineHeadingMetricTops,
   selectActiveOutlineHeadingId,
   type OutlineHeadingMetric,
 } from './outlinePositionCache';
@@ -24,7 +25,6 @@ export function useNotesOutline(enabled: boolean) {
   const headingsRef = useRef<NotesOutlineHeading[]>([]);
   const headingMetricsRef = useRef<OutlineHeadingMetric[]>([]);
   const elementMapRef = useRef<Map<string, HTMLElement>>(new Map());
-  const positionMapRef = useRef<Map<string, number>>(new Map());
   const editorRootRef = useRef<HTMLElement | null>(null);
   const scrollRootRef = useRef<HTMLElement | null>(null);
   const snapshotHeadingsRef = useRef<EditorBlockPositionSnapshot['headings'] | null>(null);
@@ -55,8 +55,13 @@ export function useNotesOutline(enabled: boolean) {
       return;
     }
 
-    const nextActiveId = selectActiveOutlineHeadingId(
+    const liveHeadingMetrics = refreshOutlineHeadingMetricTops(
       headingMetricsRef.current,
+      scrollRoot,
+      nextScrollTop,
+    );
+    const nextActiveId = selectActiveOutlineHeadingId(
+      liveHeadingMetrics,
       nextScrollTop,
       ACTIVE_OFFSET_PX,
       ACTIVE_SNAP_PX,
@@ -73,7 +78,6 @@ export function useNotesOutline(enabled: boolean) {
       headingsRef.current = [];
       headingMetricsRef.current = [];
       elementMapRef.current = new Map();
-      positionMapRef.current = new Map();
       editorRootRef.current = null;
       scrollRootRef.current = null;
       snapshotHeadingsRef.current = null;
@@ -96,7 +100,6 @@ export function useNotesOutline(enabled: boolean) {
         headingsRef.current = [];
         headingMetricsRef.current = [];
         elementMapRef.current = new Map();
-        positionMapRef.current = new Map();
         snapshotHeadingsRef.current = null;
         jumpLockRef.current = null;
         setHeadings((previous) => (previous.length === 0 ? previous : []));
@@ -132,7 +135,6 @@ export function useNotesOutline(enabled: boolean) {
 
       headingMetricsRef.current = metrics;
       elementMapRef.current = new Map(snapshot.headings.map((heading) => [heading.id, heading.element]));
-      positionMapRef.current = new Map(snapshot.headings.map((heading) => [heading.id, heading.top]));
       snapshotHeadingsRef.current = snapshot.headings;
 
       if (!areOutlineHeadingsEqual(headingsRef.current, nextHeadings)) {
@@ -183,10 +185,9 @@ export function useNotesOutline(enabled: boolean) {
       return;
     }
 
-    const cachedTop = positionMapRef.current.get(headingId);
     const fallbackTop =
       headingElement.getBoundingClientRect().top - scrollRoot.getBoundingClientRect().top + scrollRoot.scrollTop;
-    const targetScrollTop = Math.max(0, (cachedTop ?? fallbackTop) - ACTIVE_OFFSET_PX);
+    const targetScrollTop = Math.max(0, fallbackTop - ACTIVE_OFFSET_PX);
 
     jumpLockRef.current = {
       headingId,
