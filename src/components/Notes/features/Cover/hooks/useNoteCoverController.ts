@@ -33,32 +33,40 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
     }, [currentNotePath])
   );
 
-  const [isPickerOpen, setPickerOpen] = useState(false);
-  const [optimisticCover, setOptimisticCover] = useState<NoteCoverController['cover'] | undefined>(undefined);
+  const [pickerOpenPath, setPickerOpenPath] = useState<string | null>(null);
+  const [optimisticCover, setOptimisticCover] = useState<{
+    path: string;
+    cover: NoteCoverController['cover'];
+  } | undefined>(undefined);
+  const isPickerOpen = Boolean(currentNotePath && pickerOpenPath === currentNotePath);
 
   useEffect(() => {
     return onNotesOverlayOpen(({ source }) => {
       if (source !== 'cover-picker') {
-        setPickerOpen(false);
+        setPickerOpenPath(null);
       }
     });
   }, []);
 
   const setExclusivePickerOpen = useCallback((open: boolean) => {
+    if (!currentNotePath) {
+      setPickerOpenPath(null);
+      return;
+    }
     if (open) {
       notifyNotesOverlayOpen('cover-picker');
     }
-    setPickerOpen(open);
-  }, []);
+    setPickerOpenPath(open ? currentNotePath : null);
+  }, [currentNotePath]);
 
   useEffect(() => {
-    setPickerOpen(false);
+    setPickerOpenPath(null);
     setOptimisticCover(undefined);
   }, [currentNotePath]);
 
   const cover = useMemo(() => {
-    if (optimisticCover !== undefined) {
-      return optimisticCover;
+    if (optimisticCover !== undefined && optimisticCover.path === currentNotePath) {
+      return optimisticCover.cover;
     }
 
     return {
@@ -68,37 +76,39 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
       height: coverEntry?.height,
       scale: coverEntry?.scale ?? 1,
     };
-  }, [coverEntry, optimisticCover]);
+  }, [coverEntry, currentNotePath, optimisticCover]);
 
   useEffect(() => {
     if (optimisticCover === undefined) return;
-    if (!coverEntryMatchesControllerCover(coverEntry, optimisticCover)) return;
+    if (optimisticCover.path !== currentNotePath) return;
+    if (!coverEntryMatchesControllerCover(coverEntry, optimisticCover.cover)) return;
 
     setOptimisticCover(undefined);
-  }, [coverEntry, optimisticCover]);
+  }, [coverEntry, currentNotePath, optimisticCover]);
 
   const updateCover = useCallback(
     (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => {
       if (!currentNotePath) {
         return;
       }
-      setOptimisticCover(
-        url
+      setOptimisticCover({
+        path: currentNotePath,
+        cover: url
           ? {
-              url,
-              positionX,
-              positionY,
-              height,
-              scale: scale ?? 1,
-            }
+            url,
+            positionX,
+            positionY,
+            height,
+            scale: scale ?? 1,
+          }
           : {
-              url: null,
-              positionX,
-              positionY,
-              height,
-              scale: scale ?? 1,
-            }
-      );
+            url: null,
+            positionX,
+            positionY,
+            height,
+            scale: scale ?? 1,
+          },
+      });
       setNoteCover(
         currentNotePath,
         url

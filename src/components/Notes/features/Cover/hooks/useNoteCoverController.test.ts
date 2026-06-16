@@ -215,4 +215,47 @@ describe('useNoteCoverController', () => {
     rerender({ notePath: 'b.md' });
     expect(result.current.isPickerOpen).toBe(false);
   });
+
+  it('does not expose a picker opened for another note', () => {
+    const { result, rerender } = renderHook(
+      ({ notePath }) => useNoteCoverController(notePath),
+      { initialProps: { notePath: 'a.md' as string | undefined } }
+    );
+
+    act(() => {
+      result.current.setPickerOpen(true);
+    });
+    expect(result.current.isPickerOpen).toBe(true);
+
+    rerender({ notePath: 'b.md' });
+    expect(result.current.isPickerOpen).toBe(false);
+    expect(result.current.cover).toEqual({
+      url: null,
+      positionX: 50,
+      positionY: 50,
+      height: undefined,
+      scale: 1,
+    });
+  });
+
+  it('does not expose optimistic cover state for another note', () => {
+    const { result, rerender } = renderHook(
+      ({ notePath }) => useNoteCoverController(notePath),
+      { initialProps: { notePath: 'a.md' as string | undefined } }
+    );
+
+    act(() => {
+      result.current.updateCover('assets/a.png', 25, 35, 240, 1.3);
+    });
+    expect(result.current.cover.url).toBe('assets/a.png');
+
+    rerender({ notePath: 'b.md' });
+    expect(result.current.cover).toEqual({
+      url: null,
+      positionX: 50,
+      positionY: 50,
+      height: undefined,
+      scale: 1,
+    });
+  });
 });

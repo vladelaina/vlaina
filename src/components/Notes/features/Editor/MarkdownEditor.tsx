@@ -459,6 +459,7 @@ export function MarkdownEditor({
           {hasRenderableNote ? (
             <>
               <NoteHeader
+                key={currentNotePath}
                 coverUrl={coverUrl}
                 coverLayoutActive={coverLayoutActive}
                 onAddCover={coverController.openCoverPicker}
