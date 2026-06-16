@@ -170,6 +170,83 @@ test.describe("notes block selection", () => {
     }
   });
 
+  test('moves a dragged block when hovering the target row left gutter', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-drag-left-gutter-drop');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await openBlockSelectionFixture(page);
+
+      await selectNoteBlocksByMatchers(page, [{ include: 'First selectable paragraph' }]);
+      const source = page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'First selectable paragraph' });
+      const target = page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Second selectable paragraph' });
+      await moveMouseToBlockHandleGutter(page, source);
+
+      const handleBox = await page.locator('.editor-block-control-handle').boundingBox();
+      const targetBox = await target.boundingBox();
+      if (!handleBox || !targetBox) {
+        throw new Error('Could not resolve drag handle or target paragraph geometry');
+      }
+
+      const dragStartX = handleBox.x + handleBox.width / 2;
+      const dragStartY = handleBox.y + handleBox.height / 2;
+      const leftGutterX = Math.max(8, targetBox.x - 28);
+      const targetLowerHalfY = targetBox.y + targetBox.height * 0.75;
+
+      await page.mouse.move(dragStartX, dragStartY);
+      await page.mouse.down();
+      await page.mouse.move(leftGutterX, targetLowerHalfY, { steps: 12 });
+
+      const dragDiagnostics = await page.evaluate(({ x, y }) => {
+        const indicator = document.querySelector<HTMLElement>('.editor-block-drop-indicator');
+        const pointElement = document.elementFromPoint(x, y);
+        const elements = typeof document.elementsFromPoint === 'function'
+          ? document.elementsFromPoint(x, y).map((element) => ({
+            tagName: element.tagName,
+            className: element instanceof HTMLElement ? element.className : '',
+            text: element.textContent?.trim().slice(0, 80) ?? '',
+            notesDropTarget: Boolean(element.closest('[data-notes-block-drop-target="true"]')),
+          }))
+          : [];
+        return {
+          pointer: { x, y },
+          pointTagName: pointElement?.tagName ?? null,
+          pointClassName: pointElement instanceof HTMLElement ? pointElement.className : null,
+          pointText: pointElement?.textContent?.trim().slice(0, 80) ?? null,
+          indicatorClassName: indicator?.className ?? null,
+          indicatorDisplay: indicator ? getComputedStyle(indicator).display : null,
+          indicatorOpacity: indicator ? getComputedStyle(indicator).opacity : null,
+          dragActive: document.body.classList.contains('editor-block-drag-active'),
+          elements,
+        };
+      }, { x: leftGutterX, y: targetLowerHalfY });
+
+      expect(dragDiagnostics).toMatchObject({
+        dragActive: true,
+        indicatorClassName: expect.stringContaining('visible'),
+      });
+
+      await page.mouse.up();
+
+      await expect.poll(async () => page.evaluate(() => {
+        const content = String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '');
+        const indexes = [
+          content.indexOf('Second selectable paragraph'),
+          content.indexOf('First selectable paragraph'),
+          content.indexOf('Parent item'),
+        ];
+        return indexes.every((index) => index >= 0)
+          && indexes[0] < indexes[1]
+          && indexes[1] < indexes[2];
+      }), {
+        message: 'Expected dropping from the left gutter to move First after Second',
+      }).toBe(true);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('selects blocks from the text gutter and centers the drag handle on the selected block', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection');
 
