@@ -435,6 +435,7 @@ describe('resolveDropTarget', () => {
     expect(leftBlankTarget).toMatchObject({
       insertPos: 6,
       lineY: 80,
+      lineLeft: 70,
     });
 
     const rightBlankTarget = resolveDropTarget(view, 760, 102);
@@ -455,5 +456,29 @@ describe('resolveDropTarget', () => {
       lineLeft: 50,
       lineWidth: 440,
     });
+  });
+
+  it('does not extend the drop indicator into the note scroll root left gutter', () => {
+    const { view } = createViewMock();
+    const scrollRoot = document.createElement('div');
+    scrollRoot.setAttribute('data-note-scroll-root', 'true');
+    document.body.append(scrollRoot);
+    scrollRoot.append(view.dom);
+    withRect(scrollRoot, { left: 120, top: 0, width: 900, height: 600 });
+    withRect(view.dom, { left: 300, top: 20, width: 600, height: 300 });
+    withRect(view.dom.querySelector('p')!, { left: 360, top: 40, width: 420, height: 24 });
+
+    try {
+      const paragraphTarget = resolveDropTarget(view, 120, 50);
+
+      expect(paragraphTarget).toMatchObject({
+        insertPos: 0,
+        lineY: 40,
+        lineLeft: 350,
+        lineWidth: 440,
+      });
+    } finally {
+      scrollRoot.remove();
+    }
   });
 });
