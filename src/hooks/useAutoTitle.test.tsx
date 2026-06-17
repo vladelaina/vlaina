@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_AUTO_TITLE_CHARS, useAutoTitle } from './useAutoTitle';
+import { MAX_AUTO_TITLE_CHARS, buildAutoTitlePrompt, useAutoTitle } from './useAutoTitle';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import type { AIModel, Provider } from '@/lib/ai/types';
 
@@ -99,6 +100,7 @@ function seedStore() {
 describe('useAutoTitle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useUIStore.setState({ languagePreference: 'system' });
     seedStore();
   });
 
@@ -226,5 +228,25 @@ describe('useAutoTitle', () => {
     });
 
     expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe('A'.repeat(MAX_AUTO_TITLE_CHARS));
+  });
+
+  it('keeps the title prompt concise while naming in the app language', () => {
+    expect(buildAutoTitlePrompt('整理这段对话', 'zh-CN')).toBe(`Name this chat in 简体中文 (zh-CN).
+Max 5 words or 10 CJK characters. Return only the title, no quotes or punctuation.
+
+USER_MESSAGES
+整理这段对话`);
+  });
+
+  it('passes the selected app language to title generation', async () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+    mocked.sendMessageWithEndpointFallback.mockResolvedValueOnce('迁移计划');
+    const { result } = renderHook(() => useAutoTitle());
+
+    await act(async () => {
+      await result.current.generateAutoTitle('session-1', provider.id, model.id);
+    });
+
+    expect(mocked.sendMessageWithEndpointFallback.mock.calls[0]?.[0].content).toContain('Name this chat in 简体中文 (zh-CN).');
   });
 });

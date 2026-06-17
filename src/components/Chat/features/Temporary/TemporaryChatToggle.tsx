@@ -21,6 +21,9 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
   const { t } = useI18n();
   const temporaryChatEnabled = useAIUIStore((state) => state.temporaryChatEnabled);
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
+  const currentSessionGenerating = useAIUIStore((state) =>
+    currentSessionId ? !!state.generatingSessions[currentSessionId] : false
+  );
   const currentMessages = useUnifiedStore((state) => {
     if (!currentSessionId) {
       return EMPTY_MESSAGES;
@@ -65,6 +68,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
     if (isPromoteMode) {
       void aiActions.promoteTemporarySession().then((promotedSessionId) => {
         if (!promotedSessionId) return;
+        if (currentSessionGenerating) return;
 
         const modelForTitle = (currentSessionModelId
           ? models.find((model) => model.id === currentSessionModelId)

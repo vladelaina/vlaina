@@ -308,6 +308,45 @@ describe('useChatService session context isolation', () => {
     });
   });
 
+  it('generates a title after a promoted temporary request completes', async () => {
+    seedTemporaryChatState();
+    let resolveProvider!: (value: string) => void;
+    const pendingProviderResponse = new Promise<string>((resolve) => {
+      resolveProvider = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({ onChunk }: { onChunk: (chunk: string) => void }) => {
+      onChunk('partial temporary answer');
+      return await pendingProviderResponse;
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('name this promoted temporary chat', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({ 'temp-session-1': true });
+    });
+
+    let promotedSessionId: string | null = null;
+    await act(async () => {
+      promotedSessionId = await aiActions.promoteTemporarySession();
+    });
+
+    expect(promotedSessionId).toMatch(/^session-/);
+    expect(mocked.generateAutoTitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveProvider('final temporary answer');
+      await pendingProviderResponse;
+    });
+
+    await waitFor(() => {
+      expect(mocked.generateAutoTitle).toHaveBeenCalledWith(promotedSessionId, provider.id, model.id);
+    });
+  });
+
   it('does not call the provider when stopped before pre-request hydration completes', async () => {
     let resolvePendingHydration!: () => void;
     const pendingHydration = new Promise<void>((resolve) => {
