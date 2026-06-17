@@ -39,6 +39,21 @@ function createImageBlockMarkdown(): string {
   ].join('\n');
 }
 
+function createHtmlImageBlockMarkdown(): string {
+  return [
+    '# E2E Notes HTML Image Block',
+    '',
+    'Paragraph before image sentinel for block selection.',
+    '',
+    `<img src="${TINY_PNG_DATA_URL}" alt="Notes html image block alt sentinel" width="72%" />`,
+    '',
+    'Paragraph after image sentinel for drag selection.',
+    '',
+    'Final image block sentinel.',
+    '',
+  ].join('\n');
+}
+
 function createRemoteCoverImageMarkdown(): string {
   return [
     '# E2E Remote Cover Image Copy',
@@ -270,6 +285,136 @@ test.describe('notes image block interaction', () => {
 
       expect(cropOpenMs).toBeLessThan(5_000);
       expect(dragMs).toBeLessThan(5_000);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('uses the same block selection surface for image blocks and text blocks', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-image-block-selection-surface');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'notes-image-block-selection-surface.md',
+        content: createHtmlImageBlockMarkdown(),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Paragraph before image sentinel', {
+        timeout: 30_000,
+      });
+      await expect(page.locator(
+        `${NOTE_IMAGE_BLOCK_SELECTOR}[data-alt="Notes html image block alt sentinel"]`
+      )).toBeVisible({ timeout: 30_000 });
+
+      await page.evaluate(() => document.documentElement.classList.add('dark'));
+
+      const selectableBlocks = await page.evaluate(() =>
+        (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          text: string;
+          tagName: string;
+          from: number;
+          to: number;
+        }>
+      );
+      const textIndex = selectableBlocks.findIndex((block) =>
+        block.text.includes('Paragraph before image sentinel')
+      );
+      const imageIndex = selectableBlocks.findIndex((block) =>
+        block.tagName === 'DIV' && block.to - block.from > 1
+      );
+
+      expect(textIndex, JSON.stringify(selectableBlocks, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(imageIndex, JSON.stringify(selectableBlocks, null, 2)).toBeGreaterThanOrEqual(0);
+
+      const readSelectionPaint = async (index: number) => {
+        const selectedCount = await page.evaluate(async (targetIndex) => {
+          const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([targetIndex]);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          return count;
+        }, index);
+        expect(selectedCount).toBe(1);
+
+        return page.evaluate(() => {
+          const selected = document.querySelector<HTMLElement>(
+            '.milkdown .ProseMirror .editor-block-selected'
+          );
+          if (!selected) return null;
+
+          const tokenProbe = document.createElement('div');
+          tokenProbe.style.position = 'fixed';
+          tokenProbe.style.left = '-9999px';
+          tokenProbe.style.top = '-9999px';
+          tokenProbe.style.background = 'var(--vlaina-block-selection-color-default)';
+          document.body.appendChild(tokenProbe);
+          const tokenColor = getComputedStyle(tokenProbe).backgroundColor;
+          tokenProbe.remove();
+
+          const resolvePaint = (element: HTMLElement) => {
+            const style = getComputedStyle(element);
+            const before = getComputedStyle(element, '::before');
+            const after = getComputedStyle(element, '::after');
+            const activePseudo = [before, after].find((pseudo) =>
+              pseudo.content !== 'none' &&
+              pseudo.display !== 'none' &&
+              pseudo.backgroundColor !== 'rgba(0, 0, 0, 0)'
+            );
+
+            return {
+              tagName: element.tagName,
+              className: element.className,
+              text: element.textContent?.trim().slice(0, 120) ?? '',
+              backgroundColor: style.backgroundColor,
+              pseudoBackgroundColor: activePseudo?.backgroundColor ?? null,
+              beforeDisplay: before.display,
+              beforeBackgroundColor: before.backgroundColor,
+              afterDisplay: after.display,
+              afterBackgroundColor: after.backgroundColor,
+            };
+          };
+
+          const directImage = selected.matches('.image-block-container')
+            ? selected
+            : selected.querySelector<HTMLElement>(':scope > .image-block-container');
+          const lineFills = Array.from(document.querySelectorAll<HTMLElement>(
+            '.editor-block-selection-line-fill'
+          )).map((fill) => {
+            const style = getComputedStyle(fill);
+            return {
+              backgroundColor: style.backgroundColor,
+              display: style.display,
+              rect: (() => {
+                const rect = fill.getBoundingClientRect();
+                return {
+                  width: Math.round(rect.width),
+                  height: Math.round(rect.height),
+                };
+              })(),
+            };
+          });
+
+          return {
+            selected: resolvePaint(selected),
+            directImage: directImage ? resolvePaint(directImage) : null,
+            lineFills,
+            tokenColor,
+          };
+        });
+      };
+
+      const textPaint = await readSelectionPaint(textIndex);
+      const imagePaint = await readSelectionPaint(imageIndex);
+
+      expect(textPaint).not.toBeNull();
+      expect(imagePaint).not.toBeNull();
+      expect(textPaint!.selected.pseudoBackgroundColor ?? textPaint!.selected.backgroundColor)
+        .toBe(textPaint!.tokenColor);
+      expect(imagePaint!.lineFills.some((fill) => fill.backgroundColor === imagePaint!.tokenColor))
+        .toBe(true);
+      expect(imagePaint!.selected.pseudoBackgroundColor).not.toBe(imagePaint!.tokenColor);
+      expect(imagePaint!.directImage?.pseudoBackgroundColor).not.toBe(imagePaint!.tokenColor);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

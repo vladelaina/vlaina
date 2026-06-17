@@ -33,8 +33,20 @@
   pointer-events: none;
 }
 
+.milkdown .ProseMirror .image-block-container.editor-block-selected:not(.ProseMirror-selectednode)::before {
+  display: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {
   --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);
+}
+
+.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image > .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected)::before {
+  display: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .milkdown .ProseMirror .video-block.ProseMirror-selectednode::after,
