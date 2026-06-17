@@ -4,6 +4,7 @@ import { saveDialog } from '@/lib/storage/dialog';
 import { translate } from '@/lib/i18n';
 import { getBase64DecodedByteLength } from '@/lib/markdown/dataImagePolicy';
 import { sanitizeSvgMarkup } from '@/lib/markdown/svgSanitizer';
+import { toBlobPart } from '@/lib/blobPart';
 import { themeColorTokens } from '@/styles/themeTokens';
 
 export type PreviewExportFormat = 'svg' | 'png' | 'jpg';
@@ -91,7 +92,7 @@ function svgMarkupToBytes(markup: string): Uint8Array {
 }
 
 function downloadInBrowser(fileName: string, bytes: Uint8Array, mimeType: string) {
-  const blob = new Blob([bytes], { type: mimeType });
+  const blob = new Blob([toBlobPart(bytes)], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

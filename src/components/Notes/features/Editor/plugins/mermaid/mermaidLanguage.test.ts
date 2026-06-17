@@ -33,6 +33,7 @@ describe('mermaidLanguage', () => {
       'stateDiagram-v2',
       'er',
       'erDiagram',
+      'eventModeling',
       'gantt',
       'pie',
       'journey',
@@ -112,6 +113,7 @@ describe('mermaidLanguage', () => {
     expect(parseMermaidFenceLanguage('~~~ sequence title="Sequence"')).toBe('sequence');
     expect(parseMermaidFenceLanguage('```flow')).toBe('flow');
     expect(parseMermaidFenceLanguage('```flowchart-v2')).toBe('flowchart-v2');
+    expect(parseMermaidFenceLanguage('```eventmodeling')).toBe('eventmodeling');
     expect(parseMermaidFenceLanguage('```zenuml')).toBe('zenuml');
     expect(parseMermaidFenceLanguage('```ts')).toBeNull();
     expect(parseMermaidFenceLanguage('```mermaid `bad`')).toBeNull();

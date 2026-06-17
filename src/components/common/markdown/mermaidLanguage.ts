@@ -23,6 +23,7 @@ export const MERMAID_FENCE_LANGUAGE_ALIAS_LIST = [
   'statediagramv2',
   'er',
   'erdiagram',
+  'eventmodeling',
   'gantt',
   'pie',
   'journey',

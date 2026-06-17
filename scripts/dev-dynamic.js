@@ -197,6 +197,7 @@ function waitForPortOpen(port, timeoutMs) {
 function shouldRecursivelyWarmPath(pathname) {
   if (pathname === '/') return false;
   if (pathname.startsWith('/@vite/')) return false;
+  if (pathname.startsWith('/node_modules/.vite/')) return false;
 
   const extension = path.extname(pathname);
   return RENDERER_WARMUP_RECURSIVE_EXTENSIONS.has(extension);

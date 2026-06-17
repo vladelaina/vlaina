@@ -2,6 +2,7 @@ import { getStorageAdapter, joinPath, type StorageAdapter } from '@/lib/storage/
 import { getMimeType, isImageFilename } from '../core/naming';
 import { computeBufferHash } from '../core/hashing';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
+import { toBlobPart } from '@/lib/blobPart';
 
 const MAX_CACHE_SIZE = 500;
 const MAX_THUMBNAIL_CACHE_SIZE = 300;
@@ -189,7 +190,7 @@ async function loadPersistentThumbnailBlobUrl(
     assertPreviewableImageInfo(info);
     const bytes = await storage.readBinaryFile(persistentCachePath, MAX_LOCAL_IMAGE_BYTES);
     assertPreviewableImageSize(bytes.byteLength);
-    return URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
+    return URL.createObjectURL(new Blob([toBlobPart(bytes)], { type: 'image/webp' }));
   } catch {
     return null;
   }
@@ -264,7 +265,7 @@ async function createThumbnailBlobUrl(
   onThumbnailBlob?: (blob: Blob) => void
 ): Promise<string> {
   if (isSvgImagePath(fullPath)) {
-    const blob = new Blob([prepareImageBytes(fullPath, bytes)], { type: mimeType });
+    const blob = new Blob([toBlobPart(prepareImageBytes(fullPath, bytes))], { type: mimeType });
     return URL.createObjectURL(blob);
   }
 
@@ -278,11 +279,11 @@ async function createThumbnailBlobUrl(
   }
 
   if (!allowMainThreadFallback) {
-    const blob = new Blob([bytes], { type: mimeType });
+    const blob = new Blob([toBlobPart(bytes)], { type: mimeType });
     return URL.createObjectURL(blob);
   }
 
-  const sourceBlob = new Blob([bytes], { type: mimeType });
+  const sourceBlob = new Blob([toBlobPart(bytes)], { type: mimeType });
   const sourceUrl = URL.createObjectURL(sourceBlob);
 
   try {
@@ -356,7 +357,7 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     const mimeType = getMimeType(fullPath);
     const bytes = prepareImageBytes(fullPath, data);
     assertPreviewableImageSize(bytes.byteLength);
-    const blob = new Blob([bytes], { type: mimeType });
+    const blob = new Blob([toBlobPart(bytes)], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
     revokeLoadedUrlIfInvalidated(fullPath, loadGeneration, loadPathGeneration, blobUrl);
 
@@ -511,7 +512,7 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
 
     const bytes = prepareImageBytes(fullPath, data);
     assertPreviewableImageSize(bytes.byteLength);
-    const blob = new Blob([bytes], { type: mimeType });
+    const blob = new Blob([toBlobPart(bytes)], { type: mimeType });
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

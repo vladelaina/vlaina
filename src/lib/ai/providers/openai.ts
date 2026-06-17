@@ -32,6 +32,7 @@ import {
   MAX_INLINE_IMAGE_BYTES,
   normalizeSafeRasterDataImageSrc,
 } from '@/lib/markdown/dataImagePolicy'
+import { toBlobParts } from '@/lib/blobPart'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
 import {
   MAX_CURRENT_REQUEST_CONTENT_PARTS,
@@ -407,7 +408,7 @@ function buildImageEditMultipartBody({
   chunks.push(`--${boundary}--\r\n`);
 
   return {
-    body: new Blob(chunks),
+    body: new Blob(toBlobParts(chunks)),
     headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
   };
 }

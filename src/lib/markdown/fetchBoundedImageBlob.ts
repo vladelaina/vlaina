@@ -1,4 +1,5 @@
 import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
+import { toBlobPart } from '@/lib/blobPart';
 
 export const MAX_FETCHED_IMAGE_BYTES = MAX_INLINE_IMAGE_BYTES;
 
@@ -171,7 +172,7 @@ async function readResponseStreamBlob(
     reader.releaseLock();
   }
 
-  return new Blob(chunks, {
+  return new Blob(chunks.map(toBlobPart), {
     type: response.headers?.get?.('content-type') || '',
   });
 }
