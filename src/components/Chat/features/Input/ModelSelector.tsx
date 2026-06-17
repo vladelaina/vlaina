@@ -153,7 +153,7 @@ const ModelOption = memo(({
     onTogglePinned,
     onHover,
     theme,
-    showModelIcon,
+    showFamilyIcon,
 }: {
     model: AIModel;
     isSelected: boolean;
@@ -162,7 +162,7 @@ const ModelOption = memo(({
     onTogglePinned: (id: string, pinned: boolean) => void;
     onHover: (id: string) => void;
     theme: ModelSelectorTheme;
-    showModelIcon: boolean;
+    showFamilyIcon: boolean;
 }) => {
     const styles = MODEL_SELECTOR_THEME_STYLES[theme]
     const sidebarTone: SidebarTone = theme
@@ -187,7 +187,7 @@ const ModelOption = memo(({
             )}
         >
             <span className="flex min-w-0 items-center text-left">
-                {showModelIcon && family && (
+                {showFamilyIcon && family && (
                     <img
                         src={family.icon}
                         alt=""
@@ -197,9 +197,6 @@ const ModelOption = memo(({
                         )}
                         draggable={false}
                     />
-                )}
-                {showModelIcon && !family && (
-                    <CustomModelIcon size="sm" className="mr-2" />
                 )}
                 <span className={cn(
                     "whitespace-nowrap text-[var(--vlaina-font-15)] font-semibold tracking-tight",
@@ -907,7 +904,7 @@ export function ModelSelector({
                             onTogglePinned={handleTogglePinned}
                             onHover={handleHover}
                             theme={theme}
-                            showModelIcon={visibleActiveCategoryId === 'favorites' || visibleActiveCategoryId === 'custom'}
+                            showFamilyIcon={visibleActiveCategoryId === 'favorites'}
                           />
                         )}
                       </div>

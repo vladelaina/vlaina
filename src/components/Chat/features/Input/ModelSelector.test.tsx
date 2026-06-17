@@ -255,14 +255,14 @@ describe('ModelSelector', () => {
     }
   });
 
-  it('shows the custom model box icon for unmatched models in the list', async () => {
+  it('shows the custom model box icon for the trigger and custom category only', async () => {
     render(<ModelSelector />);
 
     fireEvent.click(screen.getByRole('button', { name: /Model Alpha/ }));
 
     await waitFor(() => {
       expect(document.querySelector('[data-model-selector-dropdown="true"]')).not.toBeNull();
-      expect(document.querySelectorAll('[data-model-selector-custom-icon="true"]').length).toBeGreaterThanOrEqual(3);
+      expect(document.querySelectorAll('[data-model-selector-custom-icon="true"]')).toHaveLength(2);
     });
   });
 
