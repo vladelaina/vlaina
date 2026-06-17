@@ -5,6 +5,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { getBase64DecodedByteLength } from '@/lib/markdown/dataImagePolicy';
+import { toBlobPart } from '@/lib/blobPart';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { createDocxExportBytes } from './noteExportDocx';
 import { renderNoteExportElement, renderNoteExportHtml } from './noteExportHtml';
@@ -82,7 +83,7 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
 }
 
 function downloadInBrowser(fileName: string, bytes: Uint8Array, mimeType: string) {
-  const blob = new Blob([bytes], { type: mimeType });
+  const blob = new Blob([toBlobPart(bytes)], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

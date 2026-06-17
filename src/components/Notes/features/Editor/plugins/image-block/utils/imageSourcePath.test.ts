@@ -40,6 +40,14 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toEqual(['/vault/daily/assets/demo.png']);
     });
 
+    it('decodes URL-encoded local filesystem paths before resolving', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: './assets/Pasted%20image%2020251117105052.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual(['/vault/daily/assets/Pasted image 20251117105052.png']);
+    });
+
     it('resolves internal img asset refs through the same contained local path rules', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'img:assets/demo.png?cache=1#preview',
@@ -189,8 +197,8 @@ describe('imageSourcePath', () => {
             notesPath: '/vault',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([
-            '/vault/daily/%2enotes/assets/demo.png',
-            '/vault/%2enotes/assets/demo.png',
+            '/vault/daily/.notes/assets/demo.png',
+            '/vault/.notes/assets/demo.png',
         ]);
     });
 
@@ -325,6 +333,12 @@ describe('imageSourcePath', () => {
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/\u202Ecod.exe.png',
+            notesPath: '/vault',
+            currentNotePath: 'note.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/%E2%80%AEcod.exe.png',
             notesPath: '/vault',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);

@@ -9,7 +9,7 @@ const MERMAID_DIAGRAM_DIRECTIVE_PATTERN = new RegExp(
     '^\\s*',
     '(?:---\\r?\\n[\\s\\S]*?\\r?\\n---\\s*)?',
     '(?:(?:%%\\{[\\s\\S]*?\\}%%|%%[^\\r\\n]*)\\s*)*',
-    '(?:architecture(?:-beta)?|block(?:-beta)?|c4(?:context|container|component|dynamic|deployment)?|classDiagram(?:-v2)?|erDiagram|flowchart(?:-elk)?|gantt|gitGraph|graph|info|ishikawa(?:-beta)?|journey|kanban|mindmap|packet(?:-beta)?|pie|quadrantChart|radar(?:-beta)?|requirementDiagram|sankey(?:-beta)?|sequenceDiagram|stateDiagram(?:-v2)?|timeline|treeView(?:-beta)?|treemap(?:-beta)?|venn(?:-beta)?|wardley(?:-beta)?|xychart(?:-beta)?|zenuml)\\b',
+    '(?:architecture(?:-beta)?|block(?:-beta)?|c4(?:context|container|component|dynamic|deployment)?|classDiagram(?:-v2)?|erDiagram|eventModeling|flowchart(?:-elk)?|gantt|gitGraph|graph|info|ishikawa(?:-beta)?|journey|kanban|mindmap|packet(?:-beta)?|pie|quadrantChart|radar(?:-beta)?|requirementDiagram|sankey(?:-beta)?|sequenceDiagram|stateDiagram(?:-v2)?|timeline|treeView(?:-beta)?|treemap(?:-beta)?|venn(?:-beta)?|wardley(?:-beta)?|xychart(?:-beta)?|zenuml)\\b',
   ].join(''),
   'i'
 );
@@ -37,6 +37,7 @@ const STANDARD_DIRECTIVE_BY_LANGUAGE = new Map<string, string>([
   ['statediagramv2', 'stateDiagram-v2'],
   ['er', 'erDiagram'],
   ['erdiagram', 'erDiagram'],
+  ['eventmodeling', 'eventModeling'],
   ['gantt', 'gantt'],
   ['pie', 'pie'],
   ['journey', 'journey'],

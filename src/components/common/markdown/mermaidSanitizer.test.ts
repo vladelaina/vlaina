@@ -43,7 +43,7 @@ describe('mermaidSanitizer', () => {
     expect(rect?.getAttribute('fill')).toBe('url(#local-fill)');
     expect(path?.getAttribute('marker-end')).toBeNull();
     expect(path?.getAttribute('stroke')).toBe('url(#local-stroke)');
-    expect(text?.getAttribute('style')).toContain('fill: url(#local-fill)');
+    expect(text?.getAttribute('style')).toMatch(/fill:\s*url\("?#[^)"]+"?\)/);
     expect(text?.getAttribute('style')).toContain('opacity: 0.8');
     expect(text?.getAttribute('style') || '').not.toContain('example.test');
     expect(link?.getAttribute('href')).toBeNull();

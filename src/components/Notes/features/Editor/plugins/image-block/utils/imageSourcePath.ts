@@ -104,6 +104,14 @@ function hasUnsafeImagePathSegment(path: string | null | undefined): boolean {
     return hasUnsafeVaultPathSegment(path, { allowNavigationSegments: true });
 }
 
+function decodeLocalImagePath(path: string): string {
+    try {
+        return decodeURIComponent(path);
+    } catch {
+        return path;
+    }
+}
+
 export async function resolveImageSourcePath(
     options: ResolveImageSourcePathOptions,
     deps: ImageSourcePathDeps = defaultDeps,
@@ -136,8 +144,13 @@ export async function resolveImageSourcePathCandidates(
         return [safeBaseSrc];
     }
 
-    const localSrc = getLocalImageSourcePath(safeBaseSrc);
-    if (!localSrc || deps.isAbsolutePath(localSrc) || hasInternalNoteAssetUrlPathSegment(localSrc)) {
+    const localSrc = decodeLocalImagePath(getLocalImageSourcePath(safeBaseSrc));
+    if (
+        !localSrc
+        || deps.isAbsolutePath(localSrc)
+        || hasInternalNoteAssetUrlPathSegment(localSrc)
+        || hasUnsafeImagePathSegment(localSrc)
+    ) {
         return [];
     }
 

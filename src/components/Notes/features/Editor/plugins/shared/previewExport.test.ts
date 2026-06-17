@@ -159,9 +159,9 @@ describe('savePreview', () => {
     const originalEncode = TextEncoder.prototype.encode;
     const encodeSpy = vi.spyOn(TextEncoder.prototype, 'encode').mockImplementation(function encode(this: TextEncoder, value?: string) {
       if (value?.startsWith('<?xml version=')) {
-        return { byteLength: MAX_PREVIEW_EXPORT_BYTES + 1 } as Uint8Array;
+        return { byteLength: MAX_PREVIEW_EXPORT_BYTES + 1 } as Uint8Array<ArrayBuffer>;
       }
-      return originalEncode.call(this, value);
+      return new Uint8Array(originalEncode.call(this, value));
     });
 
     try {

@@ -60,15 +60,21 @@ export default defineConfig(async () => ({
     spaFallbackPlugin(),
   ],
   resolve: {
+    dedupe: [
+      '@codemirror/autocomplete',
+      '@codemirror/commands',
+      '@codemirror/language',
+      '@codemirror/language-data',
+      '@codemirror/lint',
+      '@codemirror/search',
+      '@codemirror/state',
+      '@codemirror/theme-one-dark',
+      '@codemirror/view',
+    ],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@milkdown/core": path.resolve(__dirname, "./vendor/milkdown/packages/core/src/index.ts"),
       "@milkdown/ctx": path.resolve(__dirname, "./vendor/milkdown/packages/ctx/src/index.ts"),
-      "@codemirror/language": path.resolve(__dirname, "./node_modules/@codemirror/language"),
-      "@codemirror/language-data": path.resolve(__dirname, "./node_modules/@codemirror/language-data"),
-      "@codemirror/state": path.resolve(__dirname, "./node_modules/@codemirror/state"),
-      "@codemirror/theme-one-dark": path.resolve(__dirname, "./node_modules/@codemirror/theme-one-dark"),
-      "@codemirror/view": path.resolve(__dirname, "./node_modules/@codemirror/view"),
     },
   },
   // Use relative asset URLs so packaged Electron builds can load dist/index.html via file://.

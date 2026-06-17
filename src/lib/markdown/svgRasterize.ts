@@ -4,6 +4,7 @@ import {
   MAX_INLINE_IMAGE_BYTES,
   normalizeSafeRasterDataImageSrc,
 } from '@/lib/markdown/dataImagePolicy';
+import { toBlobPart } from '@/lib/blobPart';
 
 const SVG_RASTERIZE_TIMEOUT_MS = 2500;
 export const MAX_PENDING_SVG_RASTERIZATIONS = 32;
@@ -128,7 +129,7 @@ function dataUrlToBlob(dataUrl: string): Blob | null {
       for (let index = 0; index < binary.length; index += 1) {
         bytes[index] = binary.charCodeAt(index);
       }
-      return new Blob([bytes], { type: mimeType });
+      return new Blob([toBlobPart(bytes)], { type: mimeType });
     }
     return new Blob([decodeURIComponent(payload)], { type: mimeType });
   } catch {
