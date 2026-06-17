@@ -55,6 +55,24 @@ const MODEL_SELECTOR_DROPDOWN_FALLBACK_MAX_HEIGHT = 460
 const MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT = 'min(460px, calc(100vh - 96px))'
 const MODEL_SELECTOR_LIST_HEIGHT = 'min(386px, calc(100vh - 170px))'
 const monochromeModelIconClass = 'dark:invert dark:brightness-[1.08] dark:contrast-[0.92] dark:opacity-[0.92]'
+const customModelIconClass = 'flex-shrink-0 text-[var(--vlaina-sidebar-chat-icon)]'
+
+function CustomModelIcon({
+  size,
+  className,
+}: {
+  size: number | string
+  className?: string
+}) {
+  return (
+    <Icon
+      name="misc.box"
+      size={size}
+      className={cn(customModelIconClass, className)}
+      data-model-selector-custom-icon="true"
+    />
+  )
+}
 
 export function createModelSelectorProviderOrder(providers: Array<Pick<Provider, 'id'>>): Map<string, number> {
   return new Map(providers.map((provider, index) => [provider.id, index] as const));
@@ -135,7 +153,7 @@ const ModelOption = memo(({
     onTogglePinned,
     onHover,
     theme,
-    showFamilyIcon,
+    showModelIcon,
 }: {
     model: AIModel;
     isSelected: boolean;
@@ -144,7 +162,7 @@ const ModelOption = memo(({
     onTogglePinned: (id: string, pinned: boolean) => void;
     onHover: (id: string) => void;
     theme: ModelSelectorTheme;
-    showFamilyIcon: boolean;
+    showModelIcon: boolean;
 }) => {
     const styles = MODEL_SELECTOR_THEME_STYLES[theme]
     const sidebarTone: SidebarTone = theme
@@ -169,7 +187,7 @@ const ModelOption = memo(({
             )}
         >
             <span className="flex min-w-0 items-center text-left">
-                {showFamilyIcon && family && (
+                {showModelIcon && family && (
                     <img
                         src={family.icon}
                         alt=""
@@ -179,6 +197,9 @@ const ModelOption = memo(({
                         )}
                         draggable={false}
                     />
+                )}
+                {showModelIcon && !family && (
+                    <CustomModelIcon size="sm" className="mr-2" />
                 )}
                 <span className={cn(
                     "whitespace-nowrap text-[var(--vlaina-font-15)] font-semibold tracking-tight",
@@ -819,7 +840,7 @@ export function ModelSelector({
                             draggable={false}
                           />
                         ) : (
-                          <Icon name="misc.box" size={isActive ? 32 : "md"} className={styles.optionText} />
+                          <CustomModelIcon size={isActive ? 32 : "md"} className={styles.optionText} />
                         )}
                       </button>
                       </div>
@@ -886,7 +907,7 @@ export function ModelSelector({
                             onTogglePinned={handleTogglePinned}
                             onHover={handleHover}
                             theme={theme}
-                            showFamilyIcon={visibleActiveCategoryId === 'favorites'}
+                            showModelIcon={visibleActiveCategoryId === 'favorites' || visibleActiveCategoryId === 'custom'}
                           />
                         )}
                       </div>
@@ -920,7 +941,7 @@ export function ModelSelector({
             draggable={false}
           />
         ) : (
-          <Icon name="misc.box" size={themeIconTokens.sizeCompact} className="flex-shrink-0 text-[var(--vlaina-sidebar-chat-icon)]" />
+          <CustomModelIcon size={themeIconTokens.sizeCompact} />
         )}
         <span className="whitespace-nowrap text-[var(--vlaina-font-15)] font-semibold tracking-tight">
           {selectedModel ? getModelPresentationName(selectedModel) : t('chat.selectModel')}
