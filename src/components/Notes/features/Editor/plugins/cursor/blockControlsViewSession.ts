@@ -44,6 +44,7 @@ const WHEEL_DELTA_MODE_LINE = 1;
 const WHEEL_DELTA_MODE_PAGE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const NOTES_BLOCK_DROP_TARGET_SELECTOR = '[data-notes-block-drop-target="true"]';
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 
 function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number): number {
   if (deltaMode === WHEEL_DELTA_MODE_LINE) return delta * WHEEL_LINE_HEIGHT_PX;
@@ -138,6 +139,10 @@ export class BlockControlsViewSession {
   }
 
   update(): void {
+    if (this.isBlockSelectionPending()) {
+      this.hideControls();
+      return;
+    }
     if (this.pointerY === null && !this.controls.classList.contains('visible') && !this.draggedRanges) {
       return;
     }
@@ -216,6 +221,10 @@ export class BlockControlsViewSession {
       && this.pointerX <= rect.right
       && this.pointerY >= rect.top
       && this.pointerY <= rect.bottom;
+  }
+
+  private isBlockSelectionPending(): boolean {
+    return this.view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
   }
 
   private isPointerNearTarget(target: HandleBlockTarget): boolean {
@@ -439,6 +448,10 @@ export class BlockControlsViewSession {
 
   private showHandleForPointer(): void {
     if (this.draggedRanges) return;
+    if (this.isBlockSelectionPending()) {
+      this.hideControls();
+      return;
+    }
     if (!this.isPointerInEditorScrollRoot()) {
       this.hideControls();
       return;
@@ -465,6 +478,10 @@ export class BlockControlsViewSession {
   }
 
   private scheduleHandleRefresh(): void {
+    if (!this.draggedRanges && this.isBlockSelectionPending()) {
+      this.hideControls();
+      return;
+    }
     if (this.refreshRafId !== 0) return;
     this.refreshRafId = window.requestAnimationFrame(() => {
       this.refreshRafId = 0;
@@ -570,6 +587,12 @@ export class BlockControlsViewSession {
       return;
     }
 
+    if (this.isBlockSelectionPending()) {
+      this.clearPointer();
+      this.hideControls();
+      return;
+    }
+
     this.setPointer(event.clientX, event.clientY);
     this.scheduleHandleRefresh();
   };
@@ -577,6 +600,11 @@ export class BlockControlsViewSession {
   private readonly handleDocumentPointerMove = (event: PointerEvent): void => {
     if (event.pointerType && event.pointerType !== 'mouse') return;
     if (this.draggedRanges) return;
+    if (this.isBlockSelectionPending()) {
+      this.clearPointer();
+      this.hideControls();
+      return;
+    }
     this.setPointer(event.clientX, event.clientY);
     this.scheduleHandleRefresh();
   };
@@ -586,12 +614,20 @@ export class BlockControlsViewSession {
       this.refreshDragDropAfterScroll();
       return;
     }
+    if (this.isBlockSelectionPending()) {
+      this.hideControls();
+      return;
+    }
     this.invalidateTargetCache();
     this.scheduleHandleRefresh();
   };
 
   private readonly handleBlockPositionSnapshot = (snapshot: EditorBlockPositionSnapshot | null): void => {
     if (snapshot && snapshot.view !== this.view) return;
+    if (this.isBlockSelectionPending()) {
+      this.hideControls();
+      return;
+    }
     if (this.pointerY === null && !this.controls.classList.contains('visible') && !this.draggedRanges) return;
 
     this.invalidateTargetCache();

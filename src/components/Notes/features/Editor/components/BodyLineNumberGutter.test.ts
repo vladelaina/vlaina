@@ -1,5 +1,8 @@
+import { act, cleanup, render } from '@testing-library/react';
+import { createElement, type RefObject } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  BodyLineNumberGutter,
   collectBodyLineNumberTargets,
   MAX_BODY_LINE_NUMBER_TARGETS,
   resolveBodyLineNumberLabels,
@@ -150,6 +153,80 @@ describe('BodyLineNumberGutter', () => {
     } finally {
       firstQuerySelectorSpy.mockRestore();
       secondQuerySelectorSpy.mockRestore();
+    }
+  });
+
+  it('defers expensive label refreshes while block selection is pending', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    let resizeCallback: ResizeObserverCallback = () => {};
+    class TestResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    class TestMutationObserver {
+      constructor(_callback: MutationCallback) {}
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+
+    editorRoot.className = 'ProseMirror editor-block-selection-pending';
+    paragraph.textContent = 'Body';
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(paragraph);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(paragraph, { left: 106, top: 40, height: 24 });
+
+    try {
+      const { container } = render(createElement(BodyLineNumberGutter, {
+        markdown: 'Body',
+        revision: 1,
+        shellRef,
+      }));
+
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(container.querySelectorAll('.body-line-number')).toHaveLength(0);
+
+      act(() => {
+        resizeCallback([], {} as ResizeObserver);
+        vi.advanceTimersByTime(0);
+      });
+      expect(container.querySelectorAll('.body-line-number')).toHaveLength(0);
+
+      editorRoot.classList.remove('editor-block-selection-pending');
+      act(() => {
+        vi.advanceTimersByTime(80);
+        vi.runOnlyPendingTimers();
+      });
+
+      expect(Array.from(container.querySelectorAll('.body-line-number')).map((node) => node.textContent)).toEqual(['1']);
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
     }
   });
 });

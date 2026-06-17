@@ -3,6 +3,8 @@ import { getMarkdownBodySourceLineNumbers } from '../utils/bodyLineNumbers';
 
 const BODY_LINE_NUMBER_LABEL_WIDTH = 40;
 const BODY_LINE_NUMBER_LABEL_GAP = 18;
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
+const PENDING_BLOCK_SELECTION_REFRESH_RETRY_MS = 80;
 export const MAX_BODY_LINE_NUMBER_TARGETS = 5000;
 export const MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS = 10000;
 export const MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS = 20000;
@@ -126,24 +128,65 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       return;
     }
 
+    const resolvedShell: HTMLDivElement = shell;
     let frameId: number | null = null;
+    let pendingBlockSelectionRefreshTimerId: number | null = null;
+    let needsRefreshAfterPendingBlockSelection = false;
+    const editorRoot = resolvedShell.querySelector<HTMLElement>('.ProseMirror');
 
-    const refresh = () => {
+    function isBlockSelectionPending() {
+      return editorRoot?.classList.contains(BLOCK_SELECTION_PENDING_CLASS) === true;
+    }
+
+    function clearPendingBlockSelectionRefresh() {
+      if (pendingBlockSelectionRefreshTimerId === null) {
+        return;
+      }
+      window.clearTimeout(pendingBlockSelectionRefreshTimerId);
+      pendingBlockSelectionRefreshTimerId = null;
+    }
+
+    function scheduleRefreshAfterPendingBlockSelection() {
+      needsRefreshAfterPendingBlockSelection = true;
+      if (pendingBlockSelectionRefreshTimerId !== null) {
+        return;
+      }
+
+      pendingBlockSelectionRefreshTimerId = window.setTimeout(() => {
+        pendingBlockSelectionRefreshTimerId = null;
+        if (isBlockSelectionPending()) {
+          scheduleRefreshAfterPendingBlockSelection();
+          return;
+        }
+        if (!needsRefreshAfterPendingBlockSelection) {
+          return;
+        }
+        needsRefreshAfterPendingBlockSelection = false;
+        refresh();
+      }, PENDING_BLOCK_SELECTION_REFRESH_RETRY_MS);
+    }
+
+    function refresh() {
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
 
       frameId = requestAnimationFrame(() => {
         frameId = null;
-        setLabels(resolveBodyLineNumberLabels(shell, markdown));
+        if (isBlockSelectionPending()) {
+          scheduleRefreshAfterPendingBlockSelection();
+          return;
+        }
+        needsRefreshAfterPendingBlockSelection = false;
+        clearPendingBlockSelectionRefresh();
+        setLabels(resolveBodyLineNumberLabels(resolvedShell, markdown));
       });
-    };
+    }
 
     refresh();
 
-    const editorRoot = shell.querySelector<HTMLElement>('.ProseMirror');
     const resizeObserver = new ResizeObserver(refresh);
-    resizeObserver.observe(shell);
+    resizeObserver.observe(resolvedShell);
     if (editorRoot) {
       resizeObserver.observe(editorRoot);
     }
@@ -163,6 +206,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
+      clearPendingBlockSelectionRefresh();
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       window.removeEventListener('resize', refresh);
