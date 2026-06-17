@@ -51,6 +51,8 @@ interface StartBlankAreaSelectionSessionOptions {
 }
 
 const EXTERNAL_BLANK_AREA_SELECTION_MIN_BLOCK_OVERLAP_PX = 12;
+const GEOMETRY_RESIZE_TOLERANCE_PX = 1;
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 
 function getBlockRangeKey(range: BlockRange): string {
   return `${range.from}:${range.to}`;
@@ -126,6 +128,17 @@ function resolveDragPointerY(startY: number, rect: RectBounds): number {
   return startY === rect.top ? rect.bottom : rect.top;
 }
 
+function hasMeaningfulResizeDelta(
+  previous: { width: number; height: number } | undefined,
+  next: { width: number; height: number },
+): boolean {
+  if (!previous) return true;
+  return (
+    Math.abs(previous.width - next.width) > GEOMETRY_RESIZE_TOLERANCE_PX ||
+    Math.abs(previous.height - next.height) > GEOMETRY_RESIZE_TOLERANCE_PX
+  );
+}
+
 export function resolveBlankAreaSelectionAutoScrollDelta(
   pointerY: number,
   scrollRootRect: Pick<DOMRect, 'top' | 'bottom'>,
@@ -193,37 +206,46 @@ export function startBlankAreaSelectionSession(
   let cachedSelectionResolutionKey = '';
   let cachedSelectionResolutionBlocks: BlockRange[] = [];
   let cachedSelectionResolutionExpandedKey = '';
-  let cachedDocSpaceSourceRects: readonly BlockRect[] | null = null;
-  let cachedDocSpaceScrollLeft = Number.NaN;
-  let cachedDocSpaceScrollTop = Number.NaN;
-  let cachedDocSpaceBlockRects: readonly BlockRect[] = [];
-  let cachedDocSpaceBlockIndex: BlockRectYIndex = createBlockRectYIndex([]);
+  let cachedDocSpaceBlockRects: readonly BlockRect[] | null = null;
+  let cachedDocSpaceBlockIndex: BlockRectYIndex | null = null;
   let resizeObserver: ResizeObserver | null = null;
+  const observedResizeSizes = new WeakMap<Element, { width: number; height: number }>();
+
+  const rememberObservedResizeSize = (element: Element) => {
+    if (!(element instanceof HTMLElement)) return;
+    const rect = element.getBoundingClientRect();
+    observedResizeSizes.set(element, {
+      width: rect.width,
+      height: rect.height,
+    });
+  };
 
   const getDocSpaceBlockRectIndex = (
     currentScrollLeft: number,
     currentScrollTop: number,
   ): { blockRects: readonly BlockRect[]; index: BlockRectYIndex } => {
-    const sourceRects = rectResolver.getSelectionBlockRects();
-    if (
-      cachedDocSpaceSourceRects === sourceRects
-      && cachedDocSpaceScrollLeft === currentScrollLeft
-      && cachedDocSpaceScrollTop === currentScrollTop
-    ) {
+    if (cachedDocSpaceBlockRects && cachedDocSpaceBlockIndex) {
       return {
         blockRects: cachedDocSpaceBlockRects,
         index: cachedDocSpaceBlockIndex,
       };
     }
 
-    cachedDocSpaceSourceRects = sourceRects;
-    cachedDocSpaceScrollLeft = currentScrollLeft;
-    cachedDocSpaceScrollTop = currentScrollTop;
-    cachedDocSpaceBlockRects = convertBlockRectsToDocumentSpace(sourceRects, currentScrollLeft, currentScrollTop);
-    cachedDocSpaceBlockIndex = createBlockRectYIndex(cachedDocSpaceBlockRects);
+    const sourceRects = rectResolver.getSelectionBlockRects();
+    if (sourceRects.length === 0) {
+      return {
+        blockRects: [],
+        index: createBlockRectYIndex([]),
+      };
+    }
+
+    const docSpaceBlockRects = convertBlockRectsToDocumentSpace(sourceRects, currentScrollLeft, currentScrollTop);
+    const docSpaceBlockIndex = createBlockRectYIndex(docSpaceBlockRects);
+    cachedDocSpaceBlockRects = docSpaceBlockRects;
+    cachedDocSpaceBlockIndex = docSpaceBlockIndex;
     return {
-      blockRects: cachedDocSpaceBlockRects,
-      index: cachedDocSpaceBlockIndex,
+      blockRects: docSpaceBlockRects,
+      index: docSpaceBlockIndex,
     };
   };
 
@@ -258,7 +280,7 @@ export function startBlankAreaSelectionSession(
       didResolveFirstNonEmptySelection = true;
       preserveContainingBlocksForSession = preferNestedBlockRanges(selectedBlocks).length === selectedBlocks.length;
     }
-    const selectionResolutionKey = `${selectedIntersectionKey}|${preserveContainingBlocksForSession ? 'preserve' : 'nested'}|${Math.round(docSpaceDragRect.top * 100) / 100}|${cachedDocSpaceScrollLeft}|${cachedDocSpaceScrollTop}`;
+    const selectionResolutionKey = `${selectedIntersectionKey}|${preserveContainingBlocksForSession ? 'preserve' : 'nested'}|${Math.round(docSpaceDragRect.top * 100) / 100}|${currentScrollLeft}|${currentScrollTop}`;
     let expandedBlocks = cachedSelectionResolutionBlocks;
     let nextKey = cachedSelectionResolutionExpandedKey;
 
@@ -284,11 +306,8 @@ export function startBlankAreaSelectionSession(
 
   const invalidateGeometryCache = () => {
     rectResolver.invalidate();
-    cachedDocSpaceSourceRects = null;
-    cachedDocSpaceScrollLeft = Number.NaN;
-    cachedDocSpaceScrollTop = Number.NaN;
-    cachedDocSpaceBlockRects = [];
-    cachedDocSpaceBlockIndex = createBlockRectYIndex([]);
+    cachedDocSpaceBlockRects = null;
+    cachedDocSpaceBlockIndex = null;
     cachedSelectionResolutionKey = '';
     cachedSelectionResolutionBlocks = [];
     cachedSelectionResolutionExpandedKey = '';
@@ -297,7 +316,27 @@ export function startBlankAreaSelectionSession(
     lastAppliedScrollTop = Number.NaN;
   };
 
-  const handleGeometryResize = () => {
+  const handleGeometryResize: ResizeObserverCallback = (entries) => {
+    if (entries.length > 0 && view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS)) {
+      return;
+    }
+
+    if (entries.length > 0) {
+      let hasMeaningfulResize = false;
+      for (const entry of entries) {
+        const nextSize = {
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        };
+        const previousSize = observedResizeSizes.get(entry.target);
+        observedResizeSizes.set(entry.target, nextSize);
+        if (hasMeaningfulResizeDelta(previousSize, nextSize)) {
+          hasMeaningfulResize = true;
+        }
+      }
+      if (!hasMeaningfulResize) return;
+    }
+
     invalidateGeometryCache();
     dragBoxTopBoundary = getDragBoxTopBoundary(scrollRoot);
     if (!lastViewportDragRect) return;
@@ -306,8 +345,10 @@ export function startBlankAreaSelectionSession(
 
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(handleGeometryResize);
+    rememberObservedResizeSize(view.dom);
     resizeObserver.observe(view.dom);
     if (scrollRoot) {
+      rememberObservedResizeSize(scrollRoot);
       resizeObserver.observe(scrollRoot);
     }
   }

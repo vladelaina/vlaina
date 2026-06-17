@@ -124,6 +124,7 @@ export interface E2EBridge {
   };
   setTimezone(offset: number, city: string): Promise<void>;
   setMarkdownLineNumbers(showLineNumbers: boolean): Promise<void>;
+  setMarkdownBodyLineNumbers(showLineNumbers: boolean): Promise<void>;
   getImportedMarkdownThemesDirectoryPath(): Promise<string>;
   syncImportedMarkdownThemesFromDirectory(): Promise<{
     directoryPath: string;
@@ -1042,6 +1043,10 @@ export function installSyncE2EBridge(): void {
     },
     setMarkdownLineNumbers: async (showLineNumbers) => {
       useUnifiedStore.getState().setMarkdownCodeBlockLineNumbers(showLineNumbers);
+      await flushPendingSave();
+    },
+    setMarkdownBodyLineNumbers: async (showLineNumbers) => {
+      useUnifiedStore.getState().setMarkdownBodyLineNumbers(showLineNumbers);
       await flushPendingSave();
     },
     getImportedMarkdownThemesDirectoryPath,

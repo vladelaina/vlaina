@@ -11,6 +11,7 @@ export const MAX_BLOCK_SELECTION_LINE_FILL_RANGES = 512;
 const MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE = 128;
 const MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS = 1024;
 export const MAX_BLOCK_SELECTION_LINE_FILL_DOM_RECTS = 1024;
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const SELECTED_IMAGE_BLOCK_SELECTOR = '.image-block-container.editor-block-selected';
 
 interface LineFillOverlay {
@@ -375,6 +376,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   let lastSelectionKey: string | null = null;
   let currentView = view;
   let scrollRafId = 0;
+  let deferredGeometryUpdateTimeoutId = 0;
   let resizeObserver: ResizeObserver | null = null;
   if (host instanceof HTMLElement) {
     host.classList.add('editor-block-selection-line-fill-host');
@@ -446,15 +448,33 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     );
   };
 
-  const scheduleGeometryUpdate = () => {
+  const isBlockSelectionDragPending = () => currentView.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
+
+  const scheduleDeferredGeometryUpdateAfterDrag = () => {
+    if (!win || deferredGeometryUpdateTimeoutId !== 0) return;
+    deferredGeometryUpdateTimeoutId = win.setTimeout(() => {
+      deferredGeometryUpdateTimeoutId = 0;
+      if (isBlockSelectionDragPending()) {
+        scheduleDeferredGeometryUpdateAfterDrag();
+        return;
+      }
+      scheduleGeometryUpdate();
+    }, 80);
+  };
+
+  function scheduleGeometryUpdate() {
     if (!win || scrollRafId !== 0) return;
+    if (isBlockSelectionDragPending()) {
+      scheduleDeferredGeometryUpdateAfterDrag();
+      return;
+    }
     scrollRafId = win.requestAnimationFrame(() => {
       scrollRafId = 0;
       lastSelectedBlocks = null;
       lastSelectionKey = null;
       update(currentView);
     });
-  };
+  }
 
   scrollRoot?.addEventListener('scroll', scheduleGeometryUpdate, { passive: true });
   win?.addEventListener('resize', scheduleGeometryUpdate);
@@ -481,6 +501,10 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       if (win && scrollRafId !== 0) {
         win.cancelAnimationFrame(scrollRafId);
         scrollRafId = 0;
+      }
+      if (win && deferredGeometryUpdateTimeoutId !== 0) {
+        win.clearTimeout(deferredGeometryUpdateTimeoutId);
+        deferredGeometryUpdateTimeoutId = 0;
       }
       if (host instanceof HTMLElement) {
         host.classList.remove('editor-block-selection-line-fill-host');

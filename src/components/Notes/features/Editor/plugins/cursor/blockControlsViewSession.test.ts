@@ -185,6 +185,29 @@ describe('BlockControlsViewSession', () => {
     }
   });
 
+  it('skips handle target scans while blank-area block selection is pending', async () => {
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+
+    try {
+      view.dom.classList.add('editor-block-selection-pending');
+      document.dispatchEvent(new MouseEvent('mousemove', { clientY: 50, bubbles: true }));
+      await nextFrame();
+
+      const controls = document.querySelector<HTMLElement>('.editor-block-controls');
+      expect(controls?.classList.contains('visible')).toBe(false);
+      expect(getHandleBlockTargets).not.toHaveBeenCalled();
+
+      view.dom.classList.remove('editor-block-selection-pending');
+      document.dispatchEvent(new MouseEvent('mousemove', { clientY: 50, bubbles: true }));
+      await nextFrame();
+
+      expect(getHandleBlockTargets).toHaveBeenCalledTimes(1);
+    } finally {
+      session.destroy();
+    }
+  });
+
   it('hides the handle when the pointer leaves the current note scroll root', async () => {
     const view = createView({ scrollRoot: true });
     const session = new BlockControlsViewSession(view);

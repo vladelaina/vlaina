@@ -61,8 +61,10 @@ let currentVersion = 0;
 const listeners = new Set<(snapshot: EditorBlockPositionSnapshot | null) => void>();
 const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
 const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 export const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
 const CONTENT_MUTATION_REFRESH_DELAY_MS = 240;
+const PENDING_BLOCK_SELECTION_REFRESH_RETRY_MS = 80;
 const SNAPSHOT_GEOMETRY_TOLERANCE_PX = 1;
 
 function getBlockRangeKey(from: number, to: number): string {
@@ -820,6 +822,8 @@ export function createCurrentEditorBlockPositionController(
 ): EditorBlockPositionController {
   let frameId = 0;
   let contentMutationTimerId = 0;
+  let pendingBlockSelectionRefreshTimerId = 0;
+  let needsRefreshAfterPendingBlockSelection = false;
   let destroyed = false;
   let mutationObserver: MutationObserver | null = null;
   let resizeObserver: ResizeObserver | null = null;
@@ -831,6 +835,43 @@ export function createCurrentEditorBlockPositionController(
     }
     window.clearTimeout(contentMutationTimerId);
     contentMutationTimerId = 0;
+  };
+
+  const clearPendingBlockSelectionRefresh = () => {
+    if (pendingBlockSelectionRefreshTimerId === 0) {
+      return;
+    }
+    window.clearTimeout(pendingBlockSelectionRefreshTimerId);
+    pendingBlockSelectionRefreshTimerId = 0;
+  };
+
+  const isBlockSelectionPending = () => view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
+
+  const scheduleRefreshAfterPendingBlockSelection = () => {
+    if (destroyed) {
+      return;
+    }
+
+    needsRefreshAfterPendingBlockSelection = true;
+    if (pendingBlockSelectionRefreshTimerId !== 0) {
+      return;
+    }
+
+    pendingBlockSelectionRefreshTimerId = window.setTimeout(() => {
+      pendingBlockSelectionRefreshTimerId = 0;
+      if (destroyed) {
+        return;
+      }
+      if (isBlockSelectionPending()) {
+        scheduleRefreshAfterPendingBlockSelection();
+        return;
+      }
+      if (!needsRefreshAfterPendingBlockSelection) {
+        return;
+      }
+      needsRefreshAfterPendingBlockSelection = false;
+      scheduleRefresh();
+    }, PENDING_BLOCK_SELECTION_REFRESH_RETRY_MS);
   };
 
   const refresh = () => {
@@ -850,6 +891,10 @@ export function createCurrentEditorBlockPositionController(
 
     frameId = requestAnimationFrame(() => {
       frameId = 0;
+      if (isBlockSelectionPending()) {
+        scheduleRefreshAfterPendingBlockSelection();
+        return;
+      }
       refresh();
     });
   };
@@ -862,11 +907,21 @@ export function createCurrentEditorBlockPositionController(
     clearContentMutationRefresh();
     contentMutationTimerId = window.setTimeout(() => {
       contentMutationTimerId = 0;
+      if (isBlockSelectionPending()) {
+        scheduleRefreshAfterPendingBlockSelection();
+        return;
+      }
       scheduleRefresh();
     }, CONTENT_MUTATION_REFRESH_DELAY_MS);
   };
 
   const scheduleMutationRefresh = (records: MutationRecord[]) => {
+    if (isBlockSelectionPending()) {
+      clearContentMutationRefresh();
+      scheduleRefreshAfterPendingBlockSelection();
+      return;
+    }
+
     const onlyContentMutations = records.length > 0 && records.every(
       (record) => record.type === 'characterData' || record.type === 'childList',
     );
@@ -892,6 +947,12 @@ export function createCurrentEditorBlockPositionController(
 
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver((entries) => {
+      if (isBlockSelectionPending()) {
+        clearContentMutationRefresh();
+        scheduleRefreshAfterPendingBlockSelection();
+        return;
+      }
+
       const onlyEditorContentResize = entries.length > 0 && entries.every((entry) => entry.target === view.dom);
       if (onlyEditorContentResize) {
         scheduleContentMutationRefresh();
@@ -910,9 +971,17 @@ export function createCurrentEditorBlockPositionController(
     if (destroyed || frameId !== 0) {
       return;
     }
+    if (isBlockSelectionPending()) {
+      scheduleRefreshAfterPendingBlockSelection();
+      return;
+    }
 
     frameId = requestAnimationFrame(() => {
       frameId = 0;
+      if (isBlockSelectionPending()) {
+        scheduleRefreshAfterPendingBlockSelection();
+        return;
+      }
       const snapshot = currentSnapshot;
       if (
         snapshot
@@ -949,6 +1018,7 @@ export function createCurrentEditorBlockPositionController(
         frameId = 0;
       }
       clearContentMutationRefresh();
+      clearPendingBlockSelectionRefresh();
       mutationObserver?.disconnect();
       resizeObserver?.disconnect();
       scrollRoot?.removeEventListener('scroll', handleScroll);

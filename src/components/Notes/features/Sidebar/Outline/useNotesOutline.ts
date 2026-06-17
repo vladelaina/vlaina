@@ -3,7 +3,6 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { NotesOutlineHeading } from './types';
 import { areOutlineHeadingsEqual } from './outlineUtils';
 import {
-  refreshOutlineHeadingMetricTops,
   selectActiveOutlineHeadingId,
   type OutlineHeadingMetric,
 } from './outlinePositionCache';
@@ -55,13 +54,8 @@ export function useNotesOutline(enabled: boolean) {
       return;
     }
 
-    const liveHeadingMetrics = refreshOutlineHeadingMetricTops(
-      headingMetricsRef.current,
-      scrollRoot,
-      nextScrollTop,
-    );
     const nextActiveId = selectActiveOutlineHeadingId(
-      liveHeadingMetrics,
+      headingMetricsRef.current,
       nextScrollTop,
       ACTIVE_OFFSET_PX,
       ACTIVE_SNAP_PX,
