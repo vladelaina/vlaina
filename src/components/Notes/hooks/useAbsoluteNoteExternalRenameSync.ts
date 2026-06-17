@@ -3,7 +3,6 @@ import { watchDesktopPath } from '@/lib/desktop/watch';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
 import {
-  getNotesExternalPathEventsRelativePath,
   readNotesExternalPathEvents,
   subscribeNotesExternalPathRename,
 } from '@/stores/notes/document/externalPathBroadcast';
@@ -16,7 +15,6 @@ import {
   isMarkdownPath,
   isRemoveWatchEvent,
   normalizeFsPath,
-  toVaultRelativePath,
 } from './notesExternalSyncUtils';
 import { rememberProcessedRenameEventNonce } from './notesExternalRenameQueue';
 
@@ -160,11 +158,6 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       }
     };
 
-    const isExternalPathEventFileWatchPath = (path: string) => {
-      const eventRelativePath = getNotesExternalPathEventsRelativePath();
-      return toVaultRelativePath(watchedParentPath, path) === eventRelativePath;
-    };
-
     const isCurrentNoteWatchEvent = (paths: string[]) => (
       paths.some((path) => isSameFsPath(normalizeFsPath(path), watchedNotePath))
     );
@@ -174,6 +167,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
         return;
       }
 
+      void reconcileExternalPathEventFile();
       void syncCurrentNoteFromDisk({ force: true }).catch(() => undefined);
     };
 
@@ -188,6 +182,8 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
     };
 
     const run = async () => {
+      void reconcileExternalPathEventFile();
+
       if (shouldAvoidNativeAbsoluteNoteWatch(watchedParentPath)) {
         startPollingSync();
         return;
@@ -206,17 +202,9 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
               return;
             }
 
-            const remainingPaths = event.paths.filter((path) => !isExternalPathEventFileWatchPath(path));
-            if (remainingPaths.length !== event.paths.length) {
-              await reconcileExternalPathEventFile();
-              if (remainingPaths.length === 0) {
-                return;
-              }
-            }
-
             const renamePaths = getAbsoluteRenameWatchPaths({
               ...event,
-              paths: remainingPaths.map((path) => normalizeFsPath(path)),
+              paths: event.paths.map((path) => normalizeFsPath(path)),
             });
             if (renamePaths) {
               if (renamePaths.oldPath && renamePaths.newPath) {
@@ -228,7 +216,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
               return;
             }
 
-            if (isCurrentNoteWatchEvent(remainingPaths)) {
+            if (isCurrentNoteWatchEvent(event.paths)) {
               await syncCurrentNoteFromDisk({ force: true });
               if (isRemoveWatchEvent(event)) {
                 return;

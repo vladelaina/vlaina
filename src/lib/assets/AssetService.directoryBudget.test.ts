@@ -37,7 +37,9 @@ vi.mock('./io/writer', () => ({
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   ensureSystemDirectory: vi.fn(),
-  getVaultSystemStorePath: (vaultPath: string, fileName: string) => Promise.resolve(`${vaultPath}/.system/${fileName}`),
+  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
+  ),
 }));
 
 import { AssetService, MAX_ASSET_LIST_DIRECTORY_ENTRIES } from './AssetService';

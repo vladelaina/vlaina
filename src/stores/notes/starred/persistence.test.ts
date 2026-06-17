@@ -43,7 +43,7 @@ vi.mock('@/lib/storage/adapter', () => ({
 
 vi.mock('@/lib/storage/paths', () => ({
   ensureDirectories: () => Promise.resolve(),
-  getPaths: () => Promise.resolve({ store: '/store' }),
+  getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
 }));
 
 vi.mock('@/lib/storage/storageAutoSync', () => ({
@@ -96,7 +96,7 @@ describe('starred persistence', () => {
   it('preserves entries added by another window during a stale save', async () => {
     const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
     const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
@@ -117,7 +117,7 @@ describe('starred persistence', () => {
   it('preserves entries from an unknown-size registry during a stale save', async () => {
     const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
     const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
@@ -131,7 +131,7 @@ describe('starred persistence', () => {
 
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json', MAX_STARRED_REGISTRY_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/starred.json', MAX_STARRED_REGISTRY_BYTES);
     const [, content] = adapter.writeFile.mock.calls[0];
     expect(JSON.parse(content).entries).toEqual([localEntry, diskEntry]);
   });
@@ -139,7 +139,7 @@ describe('starred persistence', () => {
   it('does not resurrect explicitly removed entries while merging disk state', async () => {
     const removedEntry = createEntry('removed', 'note', 'C:/vault-a', 'removed.md');
     const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
@@ -163,7 +163,7 @@ describe('starred persistence', () => {
     const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
     const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
     const removedEntry = createEntry('removed', 'note', 'C:/vault-a', 'removed.md');
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
@@ -197,7 +197,7 @@ describe('starred persistence', () => {
 
   it('normalizes deleted entry tombstone vault paths before filtering merged entries', async () => {
     const diskEntry = createEntry('disk', 'note', 'C:/vault-a/docs/..', 'removed.md');
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
@@ -219,7 +219,7 @@ describe('starred persistence', () => {
 
   it('matches Windows deleted entry tombstones case-insensitively', async () => {
     const diskEntry = createEntry('disk', 'note', 'C:/Users/Me/Vault', 'removed.md');
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
@@ -241,7 +241,7 @@ describe('starred persistence', () => {
 
   it('bounds deleted entry tombstone scans while merging disk state', async () => {
     const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
@@ -295,10 +295,10 @@ describe('starred persistence', () => {
     const invalidEntry = createEntry('2', 'note', 'C:/vault-b', 'missing.md');
 
     adapter.exists.mockImplementation(async (path: string) => {
-      return path === '/store/notes-starred.json' || path === 'C:/vault-a' || path === 'C:/vault-a/alive.md';
+      return path === '/app/.vlaina/notes/starred.json' || path === 'C:/vault-a' || path === 'C:/vault-a/alive.md';
     });
     adapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/store/notes-starred.json') {
+      if (path === '/app/.vlaina/notes/starred.json') {
         return { isDirectory: false, isFile: true, size: 200 };
       }
 
@@ -336,14 +336,14 @@ describe('starred persistence', () => {
 
     adapter.exists.mockImplementation(async (path: string) => {
       return (
-        path === '/store/notes-starred.json' ||
+        path === '/app/.vlaina/notes/starred.json' ||
         path === 'C:/vault-a' ||
         path === 'C:/vault-a/alive.mkd' ||
         path === 'C:/vault-a/assets.png'
       );
     });
     adapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/store/notes-starred.json') {
+      if (path === '/app/.vlaina/notes/starred.json') {
         return { isDirectory: false, isFile: true, size: 200 };
       }
 
@@ -375,7 +375,7 @@ describe('starred persistence', () => {
   });
 
   it('drops traversal entries before checking targets on disk', async () => {
-    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue(null);
     adapter.readFile.mockResolvedValue(
       JSON.stringify({
@@ -396,13 +396,13 @@ describe('starred persistence', () => {
 
     adapter.exists.mockImplementation(async (path: string) => {
       return (
-        path === '/store/notes-starred.json' ||
+        path === '/app/.vlaina/notes/starred.json' ||
         path === 'C:/vault-a' ||
         path === 'C:/vault-a/alive.md'
       );
     });
     adapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/store/notes-starred.json') {
+      if (path === '/app/.vlaina/notes/starred.json') {
         return { isDirectory: false, isFile: true, size: 400_000 };
       }
       if (path === 'C:/vault-a') {
@@ -433,7 +433,7 @@ describe('starred persistence', () => {
   it('does not parse oversized starred registries', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockImplementation(async (path: string) => (
-      path === '/store/notes-starred.json'
+      path === '/app/.vlaina/notes/starred.json'
         ? { isDirectory: false, isFile: true, size: 6 * 1024 * 1024 }
         : null
     ));
@@ -448,7 +448,7 @@ describe('starred persistence', () => {
   it('does not parse starred registries with invalid known stat sizes', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockImplementation(async (path: string) => (
-      path === '/store/notes-starred.json'
+      path === '/app/.vlaina/notes/starred.json'
         ? { isDirectory: false, isFile: true, size: -1 }
         : null
     ));
@@ -464,13 +464,13 @@ describe('starred persistence', () => {
     const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
     adapter.exists.mockImplementation(async (path: string) => {
       return (
-        path === '/store/notes-starred.json' ||
+        path === '/app/.vlaina/notes/starred.json' ||
         path === 'C:/vault-a' ||
         path === 'C:/vault-a/alive.md'
       );
     });
     adapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/store/notes-starred.json') {
+      if (path === '/app/.vlaina/notes/starred.json') {
         return { isDirectory: false, isFile: true };
       }
       if (path === 'C:/vault-a') {
@@ -490,7 +490,7 @@ describe('starred persistence', () => {
     const result = await persistence.loadStarredRegistry();
 
     expect(result.entries).toEqual([validEntry]);
-    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json', MAX_STARRED_REGISTRY_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/starred.json', MAX_STARRED_REGISTRY_BYTES);
   });
 
   it('does not parse starred registry content that exceeds the limit after read', async () => {
@@ -502,7 +502,7 @@ describe('starred persistence', () => {
     const result = await persistence.loadStarredRegistry();
 
     expect(result.entries).toEqual([]);
-    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json', MAX_STARRED_REGISTRY_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/starred.json', MAX_STARRED_REGISTRY_BYTES);
   });
 
   it('keeps entries when the target still exists but stat metadata is unavailable', async () => {
@@ -510,7 +510,7 @@ describe('starred persistence', () => {
 
     adapter.exists.mockImplementation(async (path: string) => {
       return (
-        path === '/store/notes-starred.json' ||
+        path === '/app/.vlaina/notes/starred.json' ||
         path === 'C:/vault-a' ||
         path === 'C:/vault-a/alive.md'
       );
@@ -522,7 +522,7 @@ describe('starred persistence', () => {
       })
     );
     adapter.stat.mockImplementation(async (path: string) => (
-      path === '/store/notes-starred.json'
+      path === '/app/.vlaina/notes/starred.json'
         ? { isDirectory: false, isFile: true, size: 200 }
         : null
     ));

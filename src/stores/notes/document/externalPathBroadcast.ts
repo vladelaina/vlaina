@@ -17,7 +17,7 @@ export interface NotesExternalPathRenameEvent {
 
 const CHANNEL_NAME = 'vlaina-notes-external-path';
 const STORAGE_KEY = 'vlaina-notes-external-path-event';
-const EVENT_FILE_NAME = 'external-path-events.json';
+const EVENT_FILE_NAME = 'events.json';
 const MAX_STORED_EVENTS = 20;
 const MAX_EVENT_FILE_BYTES = 256 * 1024;
 const MAX_EVENT_STRING_LENGTH = 4096;
@@ -258,10 +258,6 @@ export function subscribeNotesExternalPathRename(
     listeners.delete(wrappedListener);
     releaseExternalPathListenersIfIdle();
   };
-}
-
-export function getNotesExternalPathEventsRelativePath() {
-  return `__vlaina_system__/${EVENT_FILE_NAME}`;
 }
 
 export async function readNotesExternalPathEvents(

@@ -714,8 +714,8 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
   const storage = getStorageAdapter();
   const base = await getStorageBasePath();
   const chatRoot = await joinPath(base, '.vlaina', 'chat');
-  const dir = await joinPath(chatRoot, 'sessions');
-  const path = await joinPath(dir, `${sessionId}.json`);
+  const dir = await joinPath(chatRoot, 'sessions', sessionId);
+  const path = await joinPath(dir, 'messages.json');
 
   if (!(await storage.exists(chatRoot))) {
     await storage.mkdir(chatRoot, true);
@@ -748,7 +748,7 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
 async function getSessionJsonPath(sessionId: string): Promise<string> {
   assertSafeChatSessionId(sessionId);
   const base = await getStorageBasePath();
-  return joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
+  return joinPath(base, '.vlaina', 'chat', 'sessions', sessionId, 'messages.json');
 }
 
 async function canReadSessionJson(path: string): Promise<boolean> {
@@ -886,6 +886,9 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
   try {
     if (await storage.exists(path)) {
       await storage.deleteFile(path);
+      if (typeof storage.deleteDir === 'function') {
+        await storage.deleteDir(await joinPath(await getStorageBasePath(), '.vlaina', 'chat', 'sessions', sessionId), false).catch(() => undefined);
+      }
       autoSyncTrigger?.(sessionId);
     }
     deleted = true;

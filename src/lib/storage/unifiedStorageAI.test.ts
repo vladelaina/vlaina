@@ -73,7 +73,7 @@ describe('normalizeLoadedAIModels', () => {
     expect(Number.isFinite(normalized[0]?.createdAt)).toBe(true);
   });
 
-  it('accepts only provider ids that are safe to use as channel filenames', () => {
+  it('accepts only provider ids that are safe to use as provider filenames', () => {
     expect(isSafeProviderId('provider-123_ABC.v1')).toBe(true);
     expect(isSafeProviderId('vlaina-managed')).toBe(true);
     expect(isSafeProviderId('../provider')).toBe(false);

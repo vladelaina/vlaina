@@ -57,7 +57,7 @@ describe('deleteOperations', () => {
       kind: 'file',
       originalPath: 'docs/remove.md',
       originalFullPath: '/vault/docs/remove.md',
-      stagingPath: '/app/pending-trash/delete-1/remove.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/remove.md',
       deletedAt: 1,
     });
   });
@@ -204,7 +204,7 @@ describe('deleteOperations', () => {
       kind: 'folder',
       originalPath: 'docs',
       originalFullPath: '/vault/docs',
-      stagingPath: '/app/pending-trash/delete-1/docs',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
       deletedAt: 1,
     });
 

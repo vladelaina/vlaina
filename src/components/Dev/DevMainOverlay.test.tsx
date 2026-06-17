@@ -120,7 +120,7 @@ describe('DevMainOverlay', () => {
     mocks.importedMarkdownThemeId = null;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue(themes);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
-      directoryPath: '/app/.vlaina/themes',
+      directoryPath: '/app/.vlaina/app/themes',
       themes,
       activeThemeId: 'clean-light',
     });

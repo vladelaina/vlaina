@@ -500,11 +500,11 @@ describe('notes metadata storage', () => {
     });
 
     expect(adapter.mkdir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1dwgd8k',
+      '/app/.vlaina/notes/vaults/vault-1dwgd8k',
       true
     );
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1dwgd8k/workspace.json',
+      '/app/.vlaina/notes/vaults/vault-1dwgd8k/workspace.json',
       JSON.stringify({
         currentNotePath: 'alpha.md',
         expandedFolders: ['docs'],
@@ -529,7 +529,7 @@ describe('notes metadata storage', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1dwgd8k/workspace.json',
+      '/app/.vlaina/notes/vaults/vault-1dwgd8k/workspace.json',
       JSON.stringify({
         currentNotePath: 'alpha.md',
         expandedFolders: ['archive', 'docs'],

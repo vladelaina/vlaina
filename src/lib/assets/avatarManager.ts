@@ -3,8 +3,8 @@ import { createSafeImageFetchInit, readBoundedImageBlobResponse } from '@/lib/ma
 import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { loadImageAsBase64 } from './io/reader';
 
-const SYSTEM_DIR_NAME = '.vlaina';
-const SYSTEM_SUBDIR = 'system';
+const APP_DATA_DIR_NAME = '.vlaina';
+const AVATAR_DIR_SEGMENTS = ['app', 'assets', 'avatars'] as const;
 const AVATAR_FETCH_TIMEOUT_MS = 8000;
 const AVATAR_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 const MAX_AVATAR_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -178,14 +178,14 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
 
             const storage = getStorageAdapter();
             const basePath = await storage.getBasePath();
-            const systemDir = await joinPath(basePath, SYSTEM_DIR_NAME, SYSTEM_SUBDIR);
+            const avatarDir = await joinPath(basePath, APP_DATA_DIR_NAME, ...AVATAR_DIR_SEGMENTS);
 
-            if (!await storage.exists(systemDir)) {
-                await storage.mkdir(systemDir, true);
+            if (!await storage.exists(avatarDir)) {
+                await storage.mkdir(avatarDir, true);
             }
 
             const filename = getAvatarFilename(username, AVATAR_MIME_EXTENSIONS[mimeType]);
-            const avatarPath = await joinPath(systemDir, filename);
+            const avatarPath = await joinPath(avatarDir, filename);
             await storage.writeBinaryFile(avatarPath, uint8Array, { recursive: true });
 
             failedDownloads.delete(downloadKey);
@@ -213,7 +213,7 @@ export async function getLocalAvatarUrl(username: string): Promise<string | null
         const basePath = await storage.getBasePath();
         const candidates = await Promise.all(AVATAR_EXTENSIONS.map(async (extension) => {
             const filename = getAvatarFilename(username, extension);
-            const avatarPath = await joinPath(basePath, SYSTEM_DIR_NAME, SYSTEM_SUBDIR, filename);
+            const avatarPath = await joinPath(basePath, APP_DATA_DIR_NAME, ...AVATAR_DIR_SEGMENTS, filename);
             if (!(await storage.exists(avatarPath))) {
                 return null;
             }

@@ -182,15 +182,15 @@ describe('UploadTab', () => {
         allowLegacyImageScheme
         customIcons={[
           {
-            id: '/app/.vlaina/assets/icons/custom.png',
-            url: 'img:/app/.vlaina/assets/icons/custom.png',
+            id: '/app/.vlaina/app/assets/icons/custom.png',
+            url: 'img:/app/.vlaina/app/assets/icons/custom.png',
             name: 'custom.png',
           },
         ]}
       />,
     );
 
-    expect(screen.getByAltText('icon-img:/app/.vlaina/assets/icons/custom.png'))
+    expect(screen.getByAltText('icon-img:/app/.vlaina/app/assets/icons/custom.png'))
       .toHaveAttribute('data-allow-legacy-image-scheme', 'true');
   });
 });

@@ -47,10 +47,10 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
-  MAX_AI_PROVIDER_CHANNEL_BYTES,
-  MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS,
-  MAX_AI_PROVIDER_CHANNEL_MODELS,
-  MAX_AI_PROVIDER_CHANNELS,
+  MAX_AI_PROVIDER_FILE_BYTES,
+  MAX_AI_PROVIDER_FETCHED_MODELS,
+  MAX_AI_PROVIDER_MODELS,
+  MAX_AI_PROVIDERS,
   MAX_AI_SESSIONS_BYTES,
   MAX_AI_SESSION_RECORDS,
   MAX_MAIN_DATA_BYTES,
@@ -83,16 +83,10 @@ describe('unifiedStorage electron save', () => {
     mocks.storage.deleteFile.mockResolvedValue(undefined);
     mocks.joinPath.mockImplementation(async (...parts: string[]) => parts.join('/'));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/channels')) {
+      if (path.endsWith('/chat/providers')) {
         return [
-          { name: 'active-provider.json', path: '/appdata/.vlaina/chat/channels/active-provider.json', isFile: true, isDirectory: false },
-          { name: 'stale-provider.json', path: '/appdata/.vlaina/chat/channels/stale-provider.json', isFile: true, isDirectory: false },
-        ];
-      }
-
-      if (path.endsWith('/chat/tts-channels')) {
-        return [
-          { name: 'legacy-tts.json', path: '/appdata/.vlaina/chat/tts-channels/legacy-tts.json', isFile: true, isDirectory: false },
+          { name: 'active-provider.json', path: '/appdata/.vlaina/chat/providers/active-provider.json', isFile: true, isDirectory: false },
+          { name: 'stale-provider.json', path: '/appdata/.vlaina/chat/providers/stale-provider.json', isFile: true, isDirectory: false },
         ];
       }
 
@@ -122,7 +116,7 @@ describe('unifiedStorage electron save', () => {
     unregisterActive();
   });
 
-  it('syncs provider secrets and removes stale channel files in electron runtime', async () => {
+  it('syncs provider secrets and removes stale provider files in electron runtime', async () => {
     const data: UnifiedData = {
       settings: {
         timezone: { offset: 480, city: 'Beijing' },
@@ -193,12 +187,10 @@ describe('unifiedStorage electron save', () => {
     expect(mocks.setProviderSecret).not.toHaveBeenCalledWith('../outside', 'sk-unsafe');
     expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('empty-provider');
     expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('stale-provider');
-    expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('legacy-tts');
-    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/stale-provider.json');
-    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/tts-channels/legacy-tts.json');
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/providers/stale-provider.json');
 
     const providerWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/channels/active-provider.json'),
+      String(path).endsWith('/chat/providers/active-provider.json'),
     );
     expect(providerWrite).toBeTruthy();
     const providerPayload = JSON.parse(String(providerWrite?.[1]));
@@ -219,7 +211,7 @@ describe('unifiedStorage electron save', () => {
     );
 
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/sessions.json'),
+      String(path).endsWith('/chat/sessions/index.json'),
     );
     expect(JSON.parse(String(sessionsWrite?.[1]))).toMatchObject({
       version: 1,
@@ -233,7 +225,7 @@ describe('unifiedStorage electron save', () => {
   it('bounds AI metadata written during split saves', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.listDir.mockResolvedValue([]);
-    const boundedProviderId = `provider-${MAX_AI_PROVIDER_CHANNELS - 1}`;
+    const boundedProviderId = `provider-${MAX_AI_PROVIDERS - 1}`;
 
     await saveUnifiedDataImmediate({
       settings: {
@@ -243,7 +235,7 @@ describe('unifiedStorage electron save', () => {
       customIcons: [],
       ai: {
         providers: [
-          ...Array.from({ length: MAX_AI_PROVIDER_CHANNELS + 2 }, (_, index) => ({
+          ...Array.from({ length: MAX_AI_PROVIDERS + 2 }, (_, index) => ({
             id: `provider-${index}`,
             name: `Provider ${index}`,
             type: 'newapi' as const,
@@ -265,7 +257,7 @@ describe('unifiedStorage electron save', () => {
           },
         ],
         models: [
-          ...Array.from({ length: MAX_AI_PROVIDER_CHANNEL_MODELS + 10 }, (_, index) => ({
+          ...Array.from({ length: MAX_AI_PROVIDER_MODELS + 10 }, (_, index) => ({
             id: `provider-0::model-${index}`,
             apiModelId: `model-${index}`,
             name: `Model ${index}`,
@@ -286,7 +278,7 @@ describe('unifiedStorage electron save', () => {
         ],
         benchmarkResults: {},
         fetchedModels: {
-          'provider-0': Array.from({ length: MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS + 10 }, (_, index) => (
+          'provider-0': Array.from({ length: MAX_AI_PROVIDER_FETCHED_MODELS + 10 }, (_, index) => (
             index === 1 ? 'model-0' : `fetched-${index}`
           )),
         },
@@ -312,12 +304,12 @@ describe('unifiedStorage electron save', () => {
     });
 
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/sessions.json'),
+      String(path).endsWith('/chat/sessions/index.json'),
     );
     const sessionsPayload = JSON.parse(String(sessionsWrite?.[1]));
-    expect(sessionsPayload.data.providerIds).toHaveLength(MAX_AI_PROVIDER_CHANNELS);
+    expect(sessionsPayload.data.providerIds).toHaveLength(MAX_AI_PROVIDERS);
     expect(sessionsPayload.data.providerIds.at(-1)).toBe(boundedProviderId);
-    expect(sessionsPayload.data.providerIds).not.toContain(`provider-${MAX_AI_PROVIDER_CHANNELS}`);
+    expect(sessionsPayload.data.providerIds).not.toContain(`provider-${MAX_AI_PROVIDERS}`);
     expect(sessionsPayload.data.providerIds).not.toContain('../outside');
     expect(sessionsPayload.data.sessions).toHaveLength(MAX_AI_SESSION_RECORDS);
     expect(sessionsPayload.data.sessions[0].id).toBe(`session-${MAX_AI_SESSION_RECORDS - 1}`);
@@ -329,27 +321,27 @@ describe('unifiedStorage electron save', () => {
     expect(sessionsPayload.data.selectedModelId).toBe('provider-0::model-0');
 
     const providerWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/channels/provider-0.json'),
+      String(path).endsWith('/chat/providers/provider-0.json'),
     );
     const providerPayload = JSON.parse(String(providerWrite?.[1]));
-    expect(providerPayload.data.models).toHaveLength(MAX_AI_PROVIDER_CHANNEL_MODELS);
-    expect(providerPayload.data.models.at(-1).apiModelId).toBe(`model-${MAX_AI_PROVIDER_CHANNEL_MODELS - 1}`);
-    expect(providerPayload.data.fetchedModels).toHaveLength(MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS);
-    expect(providerPayload.data.fetchedModels.at(-1)).toBe(`fetched-${MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS - 1}`);
+    expect(providerPayload.data.models).toHaveLength(MAX_AI_PROVIDER_MODELS);
+    expect(providerPayload.data.models.at(-1).apiModelId).toBe(`model-${MAX_AI_PROVIDER_MODELS - 1}`);
+    expect(providerPayload.data.fetchedModels).toHaveLength(MAX_AI_PROVIDER_FETCHED_MODELS);
+    expect(providerPayload.data.fetchedModels.at(-1)).toBe(`fetched-${MAX_AI_PROVIDER_FETCHED_MODELS - 1}`);
     expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
       expect.stringContaining('../outside.json'),
       expect.anything(),
     );
     expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
-      expect.stringContaining(`/chat/channels/provider-${MAX_AI_PROVIDER_CHANNELS}.json`),
+      expect.stringContaining(`/chat/providers/provider-${MAX_AI_PROVIDERS}.json`),
       expect.anything(),
     );
   });
 
-  it('preserves provider channels added by another window during a stale save', async () => {
+  it('preserves provider files added by another window during a stale save', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -372,9 +364,9 @@ describe('unifiedStorage electron save', () => {
       throw new Error(`Unexpected read: ${path}`);
     });
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/channels')) {
+      if (path.endsWith('/chat/providers')) {
         return [
-          { name: 'other-provider.json', path: '/appdata/.vlaina/chat/channels/other-provider.json', isFile: true, isDirectory: false },
+          { name: 'other-provider.json', path: '/appdata/.vlaina/chat/providers/other-provider.json', isFile: true, isDirectory: false },
         ];
       }
       return [];
@@ -402,17 +394,17 @@ describe('unifiedStorage electron save', () => {
     await saveUnifiedDataImmediate(data);
 
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/sessions.json'),
+      String(path).endsWith('/chat/sessions/index.json'),
     );
     const payload = JSON.parse(String(sessionsWrite?.[1]));
     expect(payload.data.providerIds).toEqual(['other-provider']);
-    expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/other-provider.json');
+    expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/providers/other-provider.json');
   });
 
-  it('does not resurrect provider channels deleted by another window during a stale save', async () => {
+  it('does not resurrect provider files deleted by another window during a stale save', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 2,
@@ -435,9 +427,9 @@ describe('unifiedStorage electron save', () => {
       throw new Error(`Unexpected read: ${path}`);
     });
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/channels')) {
+      if (path.endsWith('/chat/providers')) {
         return [
-          { name: 'deleted-provider.json', path: '/appdata/.vlaina/chat/channels/deleted-provider.json', isFile: true, isDirectory: false },
+          { name: 'deleted-provider.json', path: '/appdata/.vlaina/chat/providers/deleted-provider.json', isFile: true, isDirectory: false },
         ];
       }
       return [];
@@ -488,17 +480,17 @@ describe('unifiedStorage electron save', () => {
     });
 
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/sessions.json'),
+      String(path).endsWith('/chat/sessions/index.json'),
     );
     const payload = JSON.parse(String(sessionsWrite?.[1]));
     expect(payload.data.providerIds).toEqual([]);
     expect(payload.data.deletedProviderIds).toEqual(['deleted-provider']);
     expect(payload.data.selectedModelId).toBeNull();
     expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
-      expect.stringContaining('/chat/channels/deleted-provider.json'),
+      expect.stringContaining('/chat/providers/deleted-provider.json'),
       expect.anything(),
     );
-    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/deleted-provider.json');
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/providers/deleted-provider.json');
   });
 
   it('preserves independent provider, settings, and icon edits from two stale windows', async () => {
@@ -507,9 +499,8 @@ describe('unifiedStorage electron save', () => {
     const directoryPaths = new Set([
       '/appdata/.vlaina',
       '/appdata/.vlaina/chat',
-      '/appdata/.vlaina/chat/channels',
+      '/appdata/.vlaina/chat/providers',
       '/appdata/.vlaina/chat/sessions',
-      '/appdata/.vlaina/chat/tts-channels',
     ]);
     mocks.storage.exists.mockImplementation(async (path: string) =>
       disk.has(path) || directoryPaths.has(path)
@@ -546,7 +537,7 @@ describe('unifiedStorage electron save', () => {
         ui: { lastAppViewMode: 'notes' },
       },
       customIcons: [
-        { id: '/app/.vlaina/assets/icons/a.png', url: 'img:/app/.vlaina/assets/icons/a.png', name: 'a.png', createdAt: 10 },
+        { id: '/app/.vlaina/app/assets/icons/a.png', url: 'img:/app/.vlaina/app/assets/icons/a.png', name: 'a.png', createdAt: 10 },
       ],
       deletedCustomIconIds: [],
       ai: {
@@ -586,7 +577,7 @@ describe('unifiedStorage electron save', () => {
         ui: { lastAppViewMode: 'chat' },
       },
       customIcons: [
-        { id: '/app/.vlaina/assets/icons/b.png', url: 'img:/app/.vlaina/assets/icons/b.png', name: 'b.png', createdAt: 20 },
+        { id: '/app/.vlaina/app/assets/icons/b.png', url: 'img:/app/.vlaina/app/assets/icons/b.png', name: 'b.png', createdAt: 20 },
       ],
       deletedCustomIconIds: [],
       ai: {
@@ -633,7 +624,7 @@ describe('unifiedStorage electron save', () => {
       },
     });
 
-    const mainPayload = JSON.parse(disk.get('/appdata/.vlaina/data.json') || '{}');
+    const mainPayload = JSON.parse(disk.get('/appdata/.vlaina/app/settings.json') || '{}');
     expect(mainPayload.data.settings).toEqual({
       timezone: { offset: 480, city: 'Beijing' },
       markdown: {
@@ -652,21 +643,21 @@ describe('unifiedStorage electron save', () => {
       },
     });
     expect(mainPayload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
-      '/app/.vlaina/assets/icons/b.png',
-      '/app/.vlaina/assets/icons/a.png',
+      '/app/.vlaina/app/assets/icons/b.png',
+      '/app/.vlaina/app/assets/icons/a.png',
     ]);
 
-    const sessionsPayload = JSON.parse(disk.get('/appdata/.vlaina/chat/sessions.json') || '{}');
+    const sessionsPayload = JSON.parse(disk.get('/appdata/.vlaina/chat/sessions/index.json') || '{}');
     expect(new Set(sessionsPayload.data.providerIds)).toEqual(new Set(['provider-a', 'provider-b']));
     expect(sessionsPayload.data.selectedModelId).toBe('provider-b:model-b');
-    expect(disk.has('/appdata/.vlaina/chat/channels/provider-a.json')).toBe(true);
-    expect(disk.has('/appdata/.vlaina/chat/channels/provider-b.json')).toBe(true);
+    expect(disk.has('/appdata/.vlaina/chat/providers/provider-a.json')).toBe(true);
+    expect(disk.has('/appdata/.vlaina/chat/providers/provider-b.json')).toBe(true);
   });
 
   it('preserves custom icons added by another window during a stale main-data save', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -676,14 +667,14 @@ describe('unifiedStorage electron save', () => {
               markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
             },
             customIcons: [
-              { id: '/app/.vlaina/assets/icons/other.png', url: 'img:/app/.vlaina/assets/icons/other.png', name: 'other.png', createdAt: 20 },
+              { id: '/app/.vlaina/app/assets/icons/other.png', url: 'img:/app/.vlaina/app/assets/icons/other.png', name: 'other.png', createdAt: 20 },
             ],
             deletedCustomIconIds: [],
           },
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -712,7 +703,7 @@ describe('unifiedStorage electron save', () => {
         markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
       },
       customIcons: [
-        { id: '/app/.vlaina/assets/icons/local.png', url: 'img:/app/.vlaina/assets/icons/local.png', name: 'local.png', createdAt: 10 },
+        { id: '/app/.vlaina/app/assets/icons/local.png', url: 'img:/app/.vlaina/app/assets/icons/local.png', name: 'local.png', createdAt: 10 },
       ],
       deletedCustomIconIds: [],
       ai: {
@@ -729,19 +720,19 @@ describe('unifiedStorage electron save', () => {
     });
 
     const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/.vlaina/data.json'),
+      String(path).endsWith('/.vlaina/app/settings.json'),
     );
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
-      '/app/.vlaina/assets/icons/other.png',
-      '/app/.vlaina/assets/icons/local.png',
+      '/app/.vlaina/app/assets/icons/other.png',
+      '/app/.vlaina/app/assets/icons/local.png',
     ]);
   });
 
   it('does not resurrect custom icons deleted by another window during a stale main-data save', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -751,12 +742,12 @@ describe('unifiedStorage electron save', () => {
               markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
             },
             customIcons: [],
-            deletedCustomIconIds: ['/app/.vlaina/assets/icons/deleted.png'],
+            deletedCustomIconIds: ['/app/.vlaina/app/assets/icons/deleted.png'],
           },
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -785,7 +776,7 @@ describe('unifiedStorage electron save', () => {
         markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
       },
       customIcons: [
-        { id: '/app/.vlaina/assets/icons/deleted.png', url: 'img:/app/.vlaina/assets/icons/deleted.png', name: 'deleted.png', createdAt: 10 },
+        { id: '/app/.vlaina/app/assets/icons/deleted.png', url: 'img:/app/.vlaina/app/assets/icons/deleted.png', name: 'deleted.png', createdAt: 10 },
       ],
       deletedCustomIconIds: [],
       ai: {
@@ -802,22 +793,22 @@ describe('unifiedStorage electron save', () => {
     });
 
     const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/.vlaina/data.json'),
+      String(path).endsWith('/.vlaina/app/settings.json'),
     );
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.customIcons).toEqual([]);
-    expect(payload.data.deletedCustomIconIds).toEqual(['/app/.vlaina/assets/icons/deleted.png']);
+    expect(payload.data.deletedCustomIconIds).toEqual(['/app/.vlaina/app/assets/icons/deleted.png']);
   });
 
   it('reads existing main data during save when stat has no size', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json')
+      path.endsWith('/.vlaina/app/settings.json')
         ? { isFile: true, isDirectory: false }
         : { isFile: true, isDirectory: false, size: 1024 }
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -827,14 +818,14 @@ describe('unifiedStorage electron save', () => {
               markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
             },
             customIcons: [
-              { id: '/app/.vlaina/assets/icons/existing.png', url: 'img:/app/.vlaina/assets/icons/existing.png', name: 'existing.png', createdAt: 20 },
+              { id: '/app/.vlaina/app/assets/icons/existing.png', url: 'img:/app/.vlaina/app/assets/icons/existing.png', name: 'existing.png', createdAt: 20 },
             ],
             deletedCustomIconIds: [],
           },
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -863,7 +854,7 @@ describe('unifiedStorage electron save', () => {
         markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
       },
       customIcons: [
-        { id: '/app/.vlaina/assets/icons/local.png', url: 'img:/app/.vlaina/assets/icons/local.png', name: 'local.png', createdAt: 10 },
+        { id: '/app/.vlaina/app/assets/icons/local.png', url: 'img:/app/.vlaina/app/assets/icons/local.png', name: 'local.png', createdAt: 10 },
       ],
       ai: {
         providers: [],
@@ -878,21 +869,21 @@ describe('unifiedStorage electron save', () => {
       },
     });
 
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/data.json', MAX_MAIN_DATA_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/app/settings.json', MAX_MAIN_DATA_BYTES);
     const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/.vlaina/data.json'),
+      String(path).endsWith('/.vlaina/app/settings.json'),
     );
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
-      '/app/.vlaina/assets/icons/existing.png',
-      '/app/.vlaina/assets/icons/local.png',
+      '/app/.vlaina/app/assets/icons/existing.png',
+      '/app/.vlaina/app/assets/icons/local.png',
     ]);
   });
 
   it('applies settings patches without overwriting unrelated settings from another window', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -908,7 +899,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -960,7 +951,7 @@ describe('unifiedStorage electron save', () => {
     });
 
     const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/.vlaina/data.json'),
+      String(path).endsWith('/.vlaina/app/settings.json'),
     );
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.settings).toEqual({
@@ -985,7 +976,7 @@ describe('unifiedStorage electron save', () => {
   it('preserves disk settings when a stale save only changes non-settings data', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -1001,7 +992,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1031,7 +1022,7 @@ describe('unifiedStorage electron save', () => {
         ui: { lastAppViewMode: 'notes' },
       },
       customIcons: [
-        { id: '/app/.vlaina/assets/icons/local.png', url: 'img:/app/.vlaina/assets/icons/local.png', name: 'local.png', createdAt: 10 },
+        { id: '/app/.vlaina/app/assets/icons/local.png', url: 'img:/app/.vlaina/app/assets/icons/local.png', name: 'local.png', createdAt: 10 },
       ],
       deletedCustomIconIds: [],
       ai: {
@@ -1048,7 +1039,7 @@ describe('unifiedStorage electron save', () => {
     });
 
     const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/.vlaina/data.json'),
+      String(path).endsWith('/.vlaina/app/settings.json'),
     );
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.settings).toEqual({
@@ -1069,7 +1060,7 @@ describe('unifiedStorage electron save', () => {
       },
     });
     expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
-      '/app/.vlaina/assets/icons/local.png',
+      '/app/.vlaina/app/assets/icons/local.png',
     ]);
   });
 
@@ -1104,7 +1095,7 @@ describe('unifiedStorage electron save', () => {
   it('preserves existing disk sessions that a stale window does not know about', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1152,7 +1143,7 @@ describe('unifiedStorage electron save', () => {
     await saveUnifiedDataImmediate(data);
 
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/sessions.json'),
+      String(path).endsWith('/chat/sessions/index.json'),
     );
     const payload = JSON.parse(String(sessionsWrite?.[1]));
     expect(payload.data.sessions.map((session: { id: string }) => session.id)).toEqual([
@@ -1164,13 +1155,13 @@ describe('unifiedStorage electron save', () => {
   it('does not resurrect a disk-deleted session from stale window state', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.exists.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions/session-2.json')) {
+      if (path.endsWith('/chat/sessions/session-2/messages.json')) {
         return false;
       }
       return true;
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1219,7 +1210,7 @@ describe('unifiedStorage electron save', () => {
     await saveUnifiedDataImmediate(data);
 
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/sessions.json'),
+      String(path).endsWith('/chat/sessions/index.json'),
     );
     const payload = JSON.parse(String(sessionsWrite?.[1]));
     expect(payload.data.sessions.map((session: { id: string }) => session.id)).toEqual(['session-1']);
@@ -1230,7 +1221,7 @@ describe('unifiedStorage electron save', () => {
   it('drops temporary sessions when merging existing disk metadata', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1279,7 +1270,7 @@ describe('unifiedStorage electron save', () => {
     await saveUnifiedDataImmediate(data);
 
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/sessions.json'),
+      String(path).endsWith('/chat/sessions/index.json'),
     );
     const payload = JSON.parse(String(sessionsWrite?.[1]));
     expect(payload.data.sessions.map((session: { id: string }) => session.id)).toEqual([
@@ -1291,10 +1282,10 @@ describe('unifiedStorage electron save', () => {
     expect(payload.data.temporaryChatEnabled).toBe(false);
   });
 
-  it('trusts provider channel filenames over mismatched provider ids when loading split storage', async () => {
+  it('trusts provider file filenames over mismatched provider ids when loading split storage', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -1308,7 +1299,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1319,7 +1310,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/channels/good-provider.json')) {
+      if (path.endsWith('/chat/providers/good-provider.json')) {
         return JSON.stringify({
           version: 1,
           providerId: 'good-provider',
@@ -1349,7 +1340,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/channels/evil-provider.json')) {
+      if (path.endsWith('/chat/providers/evil-provider.json')) {
         return JSON.stringify({
           version: 1,
           providerId: 'evil-provider',
@@ -1398,12 +1389,12 @@ describe('unifiedStorage electron save', () => {
   it('reads AI sessions metadata when stat has no size', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path.endsWith('/chat/sessions.json')
+      path.endsWith('/chat/sessions/index.json')
         ? { isFile: true, isDirectory: false }
         : { isFile: true, isDirectory: false, size: 1024 }
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -1417,7 +1408,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1446,18 +1437,18 @@ describe('unifiedStorage electron save', () => {
 
     expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-a']);
     expect(data.ai?.currentSessionId).toBe('session-a');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions.json', MAX_AI_SESSIONS_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/index.json', MAX_AI_SESSIONS_BYTES);
   });
 
-  it('reads provider channel files when stat has no size', async () => {
+  it('reads provider file files when stat has no size', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path.endsWith('/chat/channels/good-provider.json')
+      path.endsWith('/chat/providers/good-provider.json')
         ? { isFile: true, isDirectory: false }
         : { isFile: true, isDirectory: false, size: 1024 }
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -1471,7 +1462,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1491,7 +1482,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/channels/good-provider.json')) {
+      if (path.endsWith('/chat/providers/good-provider.json')) {
         return JSON.stringify({
           version: 1,
           providerId: 'good-provider',
@@ -1524,8 +1515,8 @@ describe('unifiedStorage electron save', () => {
     expect(data.ai?.providers.map((provider) => provider.id)).toEqual(['good-provider']);
     expect(data.ai?.models.map((model) => model.providerId)).toEqual(['good-provider']);
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/channels/good-provider.json',
-      MAX_AI_PROVIDER_CHANNEL_BYTES,
+      '/appdata/.vlaina/chat/providers/good-provider.json',
+      MAX_AI_PROVIDER_FILE_BYTES,
     );
   });
 
@@ -1536,13 +1527,13 @@ describe('unifiedStorage electron save', () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path.endsWith('/chat/sessions')) {
         return [
-          { name: 'session-1.json', path: '/appdata/.vlaina/chat/sessions/session-1.json', isFile: true, isDirectory: false },
+          { name: 'session-1', path: '/appdata/.vlaina/chat/sessions/session-1', isFile: false, isDirectory: true },
         ];
       }
       return [];
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -1556,14 +1547,14 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           sessions: [{ id: 'session-1', title: 'Legacy', modelId: '', createdAt: 1, updatedAt: 1 }],
           providerIds: ['legacy-provider'],
         });
       }
 
-      if (path.endsWith('/chat/sessions/session-1.json')) {
+      if (path.endsWith('/chat/sessions/session-1/messages.json')) {
         return JSON.stringify({
           version: 1,
           sessionId: 'session-1',
@@ -1605,7 +1596,7 @@ describe('unifiedStorage electron save', () => {
     expect(data.ai?.providers).toEqual([]);
     expect(warnSpy).toHaveBeenCalledWith(
       '[Storage] Ignoring invalid AI sessions file:',
-      '/appdata/.vlaina/chat/sessions.json',
+      '/appdata/.vlaina/chat/sessions/index.json',
     );
     warnSpy.mockRestore();
   });
@@ -1616,14 +1607,14 @@ describe('unifiedStorage electron save', () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path.endsWith('/chat/sessions')) {
         return [
-          { name: 'temp-session-legacy.json', path: '/appdata/.vlaina/chat/sessions/temp-session-legacy.json', isFile: true, isDirectory: false },
-          { name: 'session-1.json', path: '/appdata/.vlaina/chat/sessions/session-1.json', isFile: true, isDirectory: false },
+          { name: 'temp-session-legacy', path: '/appdata/.vlaina/chat/sessions/temp-session-legacy', isFile: false, isDirectory: true },
+          { name: 'session-1', path: '/appdata/.vlaina/chat/sessions/session-1', isFile: false, isDirectory: true },
         ];
       }
       return [];
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -1637,18 +1628,18 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           sessions: [],
           providerIds: [],
         });
       }
 
-      if (path.endsWith('/chat/sessions/temp-session-legacy.json')) {
+      if (path.endsWith('/chat/sessions/temp-session-legacy/messages.json')) {
         throw new Error('Temporary sessions must not be loaded');
       }
 
-      if (path.endsWith('/chat/sessions/session-1.json')) {
+      if (path.endsWith('/chat/sessions/session-1/messages.json')) {
         return JSON.stringify({
           version: 1,
           sessionId: 'session-1',
@@ -1686,14 +1677,14 @@ describe('unifiedStorage electron save', () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path.endsWith('/chat/sessions')) {
         return [
-          { name: 'session-1.json', path: '/appdata/.vlaina/chat/sessions/session-1.json', isFile: true, isDirectory: false },
-          { name: 'session-2.json', path: '/appdata/.vlaina/chat/sessions/session-2.json', isFile: true, isDirectory: false },
+          { name: 'session-1', path: '/appdata/.vlaina/chat/sessions/session-1', isFile: false, isDirectory: true },
+          { name: 'session-2', path: '/appdata/.vlaina/chat/sessions/session-2', isFile: false, isDirectory: true },
         ];
       }
       return [];
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -1707,7 +1698,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -1727,7 +1718,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions/session-1.json')) {
+      if (path.endsWith('/chat/sessions/session-1/messages.json')) {
         return JSON.stringify({
           version: 1,
           sessionId: 'session-1',
@@ -1751,7 +1742,7 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions/session-2.json')) {
+      if (path.endsWith('/chat/sessions/session-2/messages.json')) {
         return JSON.stringify({
           version: 1,
           sessionId: 'session-2',

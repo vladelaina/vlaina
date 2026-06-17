@@ -44,7 +44,9 @@ vi.mock('./io/writer', () => ({
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   ensureSystemDirectory: vi.fn(),
-  getVaultSystemStorePath: (vaultPath: string, fileName: string) => Promise.resolve(`${vaultPath}/.system/${fileName}`),
+  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
+  ),
 }));
 
 describe('AssetService', () => {
@@ -755,8 +757,8 @@ describe('AssetService', () => {
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/.system/asset-hash-index.json'
-        ? { name: 'asset-hash-index.json', path, isFile: true, isDirectory: false, size: 220 }
+      path === '/app/.vlaina/notes/vaults/vault-test/assets.json'
+        ? { name: 'assets.json', path, isFile: true, isDirectory: false, size: 220 }
         : path === '/vault/docs/assets/alpha.png'
           ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null

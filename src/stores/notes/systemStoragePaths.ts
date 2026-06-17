@@ -17,8 +17,8 @@ export function getVaultStorageKey(vaultPath: string): string {
 }
 
 export async function getNotesSystemStorePath(...segments: string[]): Promise<string> {
-  const { store } = await getPaths();
-  return joinPath(store, 'notes', ...segments);
+  const { notes } = await getPaths();
+  return joinPath(notes, ...segments);
 }
 
 export async function getVaultSystemStorePath(

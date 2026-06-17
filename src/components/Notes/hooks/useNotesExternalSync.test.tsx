@@ -87,7 +87,6 @@ vi.mock('@/stores/notes/document/externalSyncControl', () => ({
 }));
 
 vi.mock('@/stores/notes/document/externalPathBroadcast', () => ({
-  getNotesExternalPathEventsRelativePath: () => '__vlaina_system__/external-path-events.json',
   readNotesExternalPathEvents: hoisted.readNotesExternalPathEvents,
   subscribeNotesExternalPathRename: hoisted.subscribeNotesExternalPathRename,
 }));
@@ -742,7 +741,7 @@ describe('useNotesExternalSync', () => {
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['/vault/.vlaina/external-path-events.json', '/vault/docs/beta.md'],
+        paths: ['/vault/.vlaina/internal.json', '/vault/docs/beta.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -912,7 +911,7 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('applies rename events written to the vault event file', async () => {
+  it('applies rename events from the persisted vault event file on startup', async () => {
     hoisted.readNotesExternalPathEvents.mockResolvedValueOnce([
       {
         nonce: 'rename-file-event-1',
@@ -923,10 +922,7 @@ describe('useNotesExternalSync', () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 
     await act(async () => {
-      await hoisted.watchHandler?.({
-        type: { modify: { kind: 'data', mode: 'any' } },
-        paths: ['/vault/__vlaina_system__/external-path-events.json'],
-      });
+      await Promise.resolve();
       await Promise.resolve();
     });
 
@@ -939,7 +935,7 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('continues handling note paths batched with the vault event file', async () => {
+  it('continues handling note paths after replaying persisted vault events', async () => {
     hoisted.readNotesExternalPathEvents.mockResolvedValueOnce([
       {
         nonce: 'rename-file-event-1',
@@ -952,10 +948,7 @@ describe('useNotesExternalSync', () => {
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'data', mode: 'any' } },
-        paths: [
-          '/vault/__vlaina_system__/external-path-events.json',
-          '/vault/docs/other.md',
-        ],
+        paths: ['/vault/docs/other.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -970,17 +963,14 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('continues handling note paths when vault event file replay fails', async () => {
+  it('continues handling note paths when persisted vault event replay fails', async () => {
     hoisted.readNotesExternalPathEvents.mockRejectedValueOnce(new Error('event file unavailable'));
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'data', mode: 'any' } },
-        paths: [
-          '/vault/__vlaina_system__/external-path-events.json',
-          '/vault/docs/other.md',
-        ],
+        paths: ['/vault/docs/other.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });

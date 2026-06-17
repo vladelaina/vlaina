@@ -49,7 +49,7 @@ describe('attachmentStorage', () => {
     mocks.adapter.stat.mockReset();
     mocks.adapter.stat.mockResolvedValue({
       name: 'file.png',
-      path: '/appdata/.vlaina/attachments/file.png',
+      path: '/appdata/.vlaina/chat/attachments/file.png',
       isDirectory: false,
       isFile: true,
       size: 2,
@@ -58,7 +58,7 @@ describe('attachmentStorage', () => {
     mocks.joinPath.mockImplementation(async (...segments: string[]) => segments.join('/'));
     mocks.getElectronBridge.mockReturnValue({
       path: {
-        toFileUrl: vi.fn().mockResolvedValue('file:///appdata/.vlaina/attachments/12345678-note.png'),
+        toFileUrl: vi.fn().mockResolvedValue('file:///appdata/.vlaina/chat/attachments/12345678-note.png'),
       },
     });
     vi.spyOn(Date, 'now').mockReturnValue(12345678);
@@ -74,17 +74,17 @@ describe('attachmentStorage', () => {
     const attachment = await saveAttachment(file);
 
     expect(mocks.adapter.getBasePath).toHaveBeenCalledTimes(1);
-    expect(mocks.adapter.exists).toHaveBeenCalledWith('/appdata/.vlaina/attachments');
-    expect(mocks.adapter.mkdir).toHaveBeenCalledWith('/appdata/.vlaina/attachments', true);
+    expect(mocks.adapter.exists).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments');
+    expect(mocks.adapter.mkdir).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments', true);
     expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/12345678-12345678.png',
+      '/appdata/.vlaina/chat/attachments/12345678-12345678.png',
       new Uint8Array([1, 2, 3]),
       { recursive: true },
     );
     expect(attachment).toMatchObject({
-      path: '/appdata/.vlaina/attachments/12345678-12345678.png',
+      path: '/appdata/.vlaina/chat/attachments/12345678-12345678.png',
       previewUrl: 'data:image/png;base64,AQID',
-      assetUrl: 'file:///appdata/.vlaina/attachments/12345678-note.png',
+      assetUrl: 'file:///appdata/.vlaina/chat/attachments/12345678-note.png',
       name: 'note.png',
       type: 'image/png',
       size: 3,
@@ -198,11 +198,11 @@ describe('attachmentStorage', () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'note.txt', { type: 'image/png' });
 
     await expect(saveAttachment(file)).resolves.toMatchObject({
-      path: '/appdata/.vlaina/attachments/12345678-12345678.png',
+      path: '/appdata/.vlaina/chat/attachments/12345678-12345678.png',
       type: 'image/png',
     });
     expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/12345678-12345678.png',
+      '/appdata/.vlaina/chat/attachments/12345678-12345678.png',
       new Uint8Array([1, 2, 3]),
       { recursive: true },
     );
@@ -223,15 +223,15 @@ describe('attachmentStorage', () => {
   it('deletes persisted attachment files', async () => {
     await deleteAttachment({
       id: 'a',
-      path: '/appdata/.vlaina/attachments/file.png',
+      path: '/appdata/.vlaina/chat/attachments/file.png',
       previewUrl: 'data:image/png;base64,INLINE',
-      assetUrl: 'file:///appdata/.vlaina/attachments/file.png',
+      assetUrl: 'file:///appdata/.vlaina/chat/attachments/file.png',
       name: 'file.png',
       type: 'image/png',
       size: 1,
     });
 
-    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png');
+    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/file.png');
   });
 
   it('does not delete attachment paths outside the managed attachments directory', async () => {
@@ -251,7 +251,7 @@ describe('attachmentStorage', () => {
   it('does not delete nested paths inside the managed attachments directory', async () => {
     await deleteAttachment({
       id: 'a',
-      path: '/appdata/.vlaina/attachments/nested/file.png',
+      path: '/appdata/.vlaina/chat/attachments/nested/file.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'file.png',
@@ -273,7 +273,7 @@ describe('attachmentStorage', () => {
       size: 1,
     });
 
-    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/demo image.png');
+    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/demo image.png');
   });
 
   it('persists inline data URLs into the attachments directory', async () => {
@@ -282,7 +282,7 @@ describe('attachmentStorage', () => {
     );
 
     expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/12345678-12345678.png',
+      '/appdata/.vlaina/chat/attachments/12345678-12345678.png',
       new Uint8Array([1, 2]),
       { recursive: true },
     );
@@ -294,7 +294,7 @@ describe('attachmentStorage', () => {
     );
 
     expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/12345678-12345678.webp',
+      '/appdata/.vlaina/chat/attachments/12345678-12345678.webp',
       new Uint8Array([1, 2]),
       { recursive: true },
     );
@@ -341,7 +341,7 @@ describe('attachmentStorage', () => {
     const attachment = await saveAttachment(file);
 
     expect(attachment).toMatchObject({
-      path: '/appdata/.vlaina/attachments/12345678-12345678.png',
+      path: '/appdata/.vlaina/chat/attachments/12345678-12345678.png',
       previewUrl: 'data:image/png;base64,AQID',
       assetUrl: 'data:image/png;base64,AQID',
     });
@@ -413,7 +413,7 @@ describe('attachmentStorage', () => {
   it('reads managed attachment paths when preview data is not inline', async () => {
     await expect(convertToBase64({
       id: 'a',
-      path: '/appdata/.vlaina/attachments/file.png',
+      path: '/appdata/.vlaina/chat/attachments/file.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'file.png',
@@ -421,7 +421,7 @@ describe('attachmentStorage', () => {
       size: 2,
     })).resolves.toBe('data:image/png;base64,SEk=');
 
-    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
   });
 
   it('sanitizes managed SVG attachment files when converting to base64', async () => {
@@ -431,7 +431,7 @@ describe('attachmentStorage', () => {
 
     await expect(convertToBase64({
       id: 'a',
-      path: '/appdata/.vlaina/attachments/diagram.svg',
+      path: '/appdata/.vlaina/chat/attachments/diagram.svg',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'diagram.svg',
@@ -440,7 +440,7 @@ describe('attachmentStorage', () => {
     })).resolves.toBe(`data:image/svg+xml;base64,${window.btoa(safeSvg)}`);
 
     expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/diagram.svg',
+      '/appdata/.vlaina/chat/attachments/diagram.svg',
       MAX_ATTACHMENT_IMAGE_BYTES,
     );
   });
@@ -574,7 +574,7 @@ describe('attachmentStorage', () => {
       size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
     })).rejects.toThrow('Attachment image is too large.');
 
-    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/huge.png');
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/huge.png');
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
@@ -593,7 +593,7 @@ describe('attachmentStorage', () => {
       size: 2,
     })).rejects.toThrow('Attachment image is too large.');
 
-    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/invalid.png');
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/invalid.png');
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
@@ -610,9 +610,9 @@ describe('attachmentStorage', () => {
       size: 2,
     })).resolves.toBe('data:image/png;base64,SEk=');
 
-    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png');
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/file.png');
     expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/file.png',
+      '/appdata/.vlaina/chat/attachments/file.png',
       MAX_ATTACHMENT_IMAGE_BYTES,
     );
   });
@@ -629,9 +629,9 @@ describe('attachmentStorage', () => {
     })).resolves.toBe('data:image/png;base64,SEk=');
 
     expect(mocks.adapter.getBasePath).toHaveBeenCalled();
-    expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'demo image.png');
+    expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'chat', 'attachments', 'demo image.png');
     expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/demo image.png',
+      '/appdata/.vlaina/chat/attachments/demo image.png',
       MAX_ATTACHMENT_IMAGE_BYTES,
     );
   });

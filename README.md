@@ -40,6 +40,49 @@ See [PRIVACY.md](PRIVACY.md) for a summary of how vlaina handles local data, AI 
 
 `%APPDATA%\vlaina\.vlaina\`
 
+## Local Data Layout
+
+```text
+.vlaina/
+├── notes/
+│   ├── state.json
+│   ├── starred.json
+│   └── vaults/
+│       └── <vaultId>/
+│           ├── config.json
+│           ├── workspace.json
+│           ├── events.json
+│           ├── assets.json
+│           └── trash/
+├── chat/
+│   ├── attachments/
+│   ├── providers/
+│   │   └── <providerId>.json
+│   └── sessions/
+│       ├── index.json
+│       └── <sessionId>/
+│           └── messages.json
+└── app/
+    ├── settings.json
+    ├── settings.backup.json
+    ├── permissions/
+    │   └── filesystem.json
+    ├── account/
+    │   └── profile.json
+    ├── secrets/
+    │   ├── account.json
+    │   └── ai-providers.json
+    ├── window/
+    │   └── state.json
+    ├── themes/
+    ├── assets/
+    │   ├── avatars/
+    │   └── icons/
+    └── cache/
+        ├── markdown-themes/
+        └── thumbnails/
+```
+
 ## Third-Party Notices
 
 This project includes and adapts third-party open-source material. See
@@ -78,4 +121,3 @@ By vladelaina\
 Made with ❤️ & ⌨️
 
 </div>
-

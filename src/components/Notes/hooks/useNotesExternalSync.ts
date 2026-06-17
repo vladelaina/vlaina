@@ -7,7 +7,6 @@ import {
   subscribeExternalSyncPause,
 } from '@/stores/notes/document/externalSyncControl';
 import {
-  getNotesExternalPathEventsRelativePath,
   readNotesExternalPathEvents,
   subscribeNotesExternalPathRename,
 } from '@/stores/notes/document/externalPathBroadcast';
@@ -16,7 +15,6 @@ import {
   rememberProcessedRenameEventNonce,
   type PendingRenameEntry,
 } from './notesExternalRenameQueue';
-import { toVaultRelativePath } from './notesExternalSyncUtils';
 import { createNotesExternalSyncActions, type PendingCreateEntry } from './notesExternalSyncActions';
 
 const NOTES_RECONCILE_POLL_MS = 1500;
@@ -132,11 +130,6 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
     };
 
-    const isExternalPathEventFileWatchPath = (path: string) => {
-      const eventRelativePath = getNotesExternalPathEventsRelativePath();
-      return toVaultRelativePath(notesPath, path) === eventRelativePath;
-    };
-
     const stopReconcilePolling = () => {
       if (reconcilePollTimer !== null) {
         window.clearInterval(reconcilePollTimer);
@@ -157,12 +150,15 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         if (document.visibilityState !== 'visible') {
           return;
         }
+        void reconcileExternalPathEventFile();
         void syncActions.runPollingReconcile({ skipTreeSnapshot: broadNotesPath });
       }, reconcilePollMs);
+      void reconcileExternalPathEventFile();
       void syncActions.runPollingReconcile({ skipTreeSnapshot: broadNotesPath });
     };
 
     const reconcileOnFocus = () => {
+      void reconcileExternalPathEventFile();
       void syncActions.runPollingReconcile({
         skipTreeSnapshot: shouldAvoidRecursiveNativeWatch(notesPath),
       });
@@ -170,6 +166,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
     const reconcileOnVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        void reconcileExternalPathEventFile();
         void syncActions.runPollingReconcile({
           skipTreeSnapshot: shouldAvoidRecursiveNativeWatch(notesPath),
         });
@@ -177,6 +174,8 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     };
 
     const run = async () => {
+      void reconcileExternalPathEventFile();
+
       if (shouldAvoidRecursiveNativeWatch(notesPath)) {
         startReconcilePolling();
         return;
@@ -190,17 +189,8 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
               return;
             }
 
-            const remainingPaths = event.paths.filter((path) => !isExternalPathEventFileWatchPath(path));
-            if (remainingPaths.length !== event.paths.length) {
-              await reconcileExternalPathEventFile();
-              if (remainingPaths.length === 0) {
-                return;
-              }
-            }
-
             await syncActions.handleWatchEvent(notesPath, {
               ...event,
-              paths: remainingPaths,
             });
           },
           { recursive: true }

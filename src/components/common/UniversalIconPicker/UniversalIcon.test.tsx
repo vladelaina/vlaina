@@ -35,7 +35,7 @@ describe('UniversalIcon', () => {
   it('does not render legacy image-scheme icon values', () => {
     const imageLoader = vi.fn().mockResolvedValue('blob:logo');
 
-    const { container } = render(<UniversalIcon icon="IMG:/app/.vlaina/assets/icons/logo.png" imageLoader={imageLoader} />);
+    const { container } = render(<UniversalIcon icon="IMG:/app/.vlaina/app/assets/icons/logo.png" imageLoader={imageLoader} />);
 
     expect(container).toBeEmptyDOMElement();
     expect(imageLoader).not.toHaveBeenCalled();
@@ -46,7 +46,7 @@ describe('UniversalIcon', () => {
 
     render(
       <UniversalIcon
-        icon="IMG:/app/.vlaina/assets/icons/logo.png"
+        icon="IMG:/app/.vlaina/app/assets/icons/logo.png"
         imageLoader={imageLoader}
         allowLegacyImageScheme
       />,
@@ -55,7 +55,7 @@ describe('UniversalIcon', () => {
     await waitFor(() => {
       expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:logo');
     });
-    expect(imageLoader).toHaveBeenCalledWith('IMG:/app/.vlaina/assets/icons/logo.png');
+    expect(imageLoader).toHaveBeenCalledWith('IMG:/app/.vlaina/app/assets/icons/logo.png');
   });
 
   it('loads plain image icon paths', async () => {

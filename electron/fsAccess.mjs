@@ -115,7 +115,7 @@ async function addAuthorizedFsPathWithRealKey(rawPath, kind) {
 }
 
 function getAuthorizedFsPathsPath() {
-  return path.join(app.getPath('userData'), '.vlaina', 'store', 'authorized-fs-paths.json');
+  return path.join(app.getPath('userData'), '.vlaina', 'app', 'permissions', 'filesystem.json');
 }
 
 function normalizeAuthorizedFsPathEntries(value, maxEntries) {
@@ -152,12 +152,11 @@ function getPersistedAuthorizedFsPathEntries(pathSet, maxEntries) {
 
 export function isProtectedAppDataPath(candidatePath, userDataPath = app.getPath('userData')) {
   const candidateKey = normalizeFsPathKey(candidatePath);
-  const protectedRoots = [path.join(userDataPath, '.vlaina', 'secrets')]
+  const protectedRoots = [path.join(userDataPath, '.vlaina', 'app', 'secrets')]
     .map((protectedPath) => normalizeFsPathKey(protectedPath));
   const protectedFiles = [
-    path.join(userDataPath, '.vlaina', 'store', 'account-secrets.json'),
-    path.join(userDataPath, '.vlaina', 'store', 'account-meta.json'),
-    path.join(userDataPath, '.vlaina', 'store', 'authorized-fs-paths.json'),
+    path.join(userDataPath, '.vlaina', 'app', 'account', 'profile.json'),
+    path.join(userDataPath, '.vlaina', 'app', 'permissions', 'filesystem.json'),
   ].map((protectedPath) => normalizeFsPathKey(protectedPath));
 
   return (

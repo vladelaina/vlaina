@@ -38,7 +38,7 @@ describe('LocalImage', () => {
     mocks.stat.mockReset();
     mocks.stat.mockResolvedValue({
       name: 'diagram.svg',
-      path: '/appdata/.vlaina/attachments/diagram.svg',
+      path: '/appdata/.vlaina/chat/attachments/diagram.svg',
       isDirectory: false,
       isFile: true,
       size: 5,
@@ -57,7 +57,7 @@ describe('LocalImage', () => {
     render(<LocalImage src="attachment://diagram.svg" alt="diagram" />);
 
     const image = await screen.findByAltText('diagram');
-    expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'diagram.svg');
+    expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'chat', 'attachments', 'diagram.svg');
     expect(mocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith('data:image/svg+xml;base64,PHN2Zz4=');
     expect(image).toHaveAttribute('src', 'data:image/png;base64,RASTER');
   });
@@ -121,7 +121,7 @@ describe('LocalImage', () => {
       expect(screen.getByText('Image unavailable')).toBeInTheDocument();
     });
     expect(screen.queryByAltText('attachment')).not.toBeInTheDocument();
-    expect(mocks.joinPath).not.toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'demo.png');
+    expect(mocks.joinPath).not.toHaveBeenCalledWith('/appdata', '.vlaina', 'chat', 'attachments', 'demo.png');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
@@ -144,7 +144,7 @@ describe('LocalImage', () => {
     await waitFor(() => {
       expect(screen.getByText('Image unavailable')).toBeInTheDocument();
     });
-    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/huge.png');
+    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/huge.png');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
     expect(screen.queryByAltText('huge')).not.toBeInTheDocument();
   });
@@ -157,7 +157,7 @@ describe('LocalImage', () => {
     await waitFor(() => {
       expect(screen.getByText('Image unavailable')).toBeInTheDocument();
     });
-    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/invalid.png');
+    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/invalid.png');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
     expect(screen.queryByAltText('invalid')).not.toBeInTheDocument();
   });
@@ -168,9 +168,9 @@ describe('LocalImage', () => {
     render(<LocalImage src="attachment://missing-size.png" alt="missing" />);
 
     const image = await screen.findByAltText('missing');
-    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/missing-size.png');
+    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/chat/attachments/missing-size.png');
     expect(mocks.readBinaryFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/attachments/missing-size.png',
+      '/appdata/.vlaina/chat/attachments/missing-size.png',
       MAX_ATTACHMENT_IMAGE_BYTES,
     );
     expect(image).toHaveAttribute('src', 'data:image/png;base64,PHN2Zz4=');

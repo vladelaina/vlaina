@@ -43,7 +43,7 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
-  MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES,
+  MAX_AI_PROVIDER_FILE_SCAN_ENTRIES,
   MAX_CUSTOM_ICON_ID_CHARS,
   MAX_CUSTOM_ICON_NAME_CHARS,
   MAX_CUSTOM_ICON_URL_CHARS,
@@ -51,9 +51,9 @@ import {
   MAX_DELETED_CUSTOM_ICON_IDS,
   MAX_SETTINGS_TIMEZONE_CITY_CHARS,
   MAX_SETTINGS_UI_THEME_ID_CHARS,
-  MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS,
+  MAX_AI_PROVIDER_FETCHED_MODELS,
   MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
-  MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES,
+  MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES,
   loadUnifiedData,
 } from './unifiedStorage';
 import { MAX_LOADED_AI_FIELD_CHARS } from './unifiedStorageAI';
@@ -76,18 +76,18 @@ describe('unifiedStorage load bounds', () => {
     mocks.storage.listDir.mockResolvedValue([]);
   });
 
-  it('bounds provider channel lookups from persisted session metadata', async () => {
+  it('bounds provider file lookups from persisted session metadata', async () => {
     const providerIds = [
       'provider-0',
       ...Array.from({ length: 205 }, (_, index) => `provider-${index}`),
       '../outside',
     ];
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith('/chat/sessions.json')
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith('/chat/sessions/index.json')
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -101,7 +101,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -116,18 +116,18 @@ describe('unifiedStorage load bounds', () => {
     });
 
     const data = await loadUnifiedData();
-    const channelExistsPaths = mocks.storage.exists.mock.calls
+    const providerExistsPaths = mocks.storage.exists.mock.calls
       .map(([path]) => String(path))
-      .filter((path) => path.includes('/chat/channels/'));
+      .filter((path) => path.includes('/chat/providers/'));
 
     expect(data.ai?.providers).toEqual([]);
-    expect(new Set(channelExistsPaths)).toHaveLength(200);
-    expect(channelExistsPaths).toContain('/appdata/.vlaina/chat/channels/provider-199.json');
-    expect(channelExistsPaths).not.toContain('/appdata/.vlaina/chat/channels/provider-200.json');
-    expect(channelExistsPaths).not.toContain('/appdata/.vlaina/chat/channels/../outside.json');
+    expect(new Set(providerExistsPaths)).toHaveLength(200);
+    expect(providerExistsPaths).toContain('/appdata/.vlaina/chat/providers/provider-199.json');
+    expect(providerExistsPaths).not.toContain('/appdata/.vlaina/chat/providers/provider-200.json');
+    expect(providerExistsPaths).not.toContain('/appdata/.vlaina/chat/providers/../outside.json');
   });
 
-  it('limits concurrent provider channel reads during load', async () => {
+  it('limits concurrent provider file reads during load', async () => {
     const providerIds = Array.from(
       { length: MAX_AI_PROVIDER_STORAGE_CONCURRENCY + 3 },
       (_value, index) => `provider-${index}`
@@ -135,12 +135,12 @@ describe('unifiedStorage load bounds', () => {
     let activeReads = 0;
     let maxActiveReads = 0;
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith('/chat/sessions.json') ||
-      path.includes('/chat/channels/')
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith('/chat/sessions/index.json') ||
+      path.includes('/chat/providers/')
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -154,7 +154,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -165,7 +165,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.includes('/chat/channels/')) {
+      if (path.includes('/chat/providers/')) {
         activeReads += 1;
         maxActiveReads = Math.max(maxActiveReads, activeReads);
         await new Promise((resolve) => setTimeout(resolve, 0));
@@ -201,14 +201,14 @@ describe('unifiedStorage load bounds', () => {
     expect(maxActiveReads).toBeLessThanOrEqual(MAX_AI_PROVIDER_STORAGE_CONCURRENCY);
   });
 
-  it('bounds models restored from a provider channel file', async () => {
+  it('bounds models restored from a provider file file', async () => {
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith('/chat/sessions.json') ||
-      path.endsWith('/chat/channels/provider-1.json')
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith('/chat/sessions/index.json') ||
+      path.endsWith('/chat/providers/provider-1.json')
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -222,7 +222,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -233,7 +233,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/channels/provider-1.json')) {
+      if (path.endsWith('/chat/providers/provider-1.json')) {
         return JSON.stringify({
           version: 1,
           providerId: 'provider-1',
@@ -273,18 +273,18 @@ describe('unifiedStorage load bounds', () => {
     expect(data.ai?.fetchedModels?.['provider-1']?.at(-1)).toBe('model-1999');
   });
 
-  it('bounds split AI session and provider channel string fields on load', async () => {
+  it('bounds split AI session and provider file string fields on load', async () => {
     const longModelId = `${'m'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`;
     const longPrompt = `${'p'.repeat(64 * 1024)}x`;
     const longFetchedModel = `${'f'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`;
 
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith('/chat/sessions.json') ||
-      path.endsWith('/chat/channels/provider-1.json')
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith('/chat/sessions/index.json') ||
+      path.endsWith('/chat/providers/provider-1.json')
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -298,7 +298,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -316,7 +316,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/channels/provider-1.json')) {
+      if (path.endsWith('/chat/providers/provider-1.json')) {
         return JSON.stringify({
           version: 1,
           providerId: 'provider-1',
@@ -342,7 +342,7 @@ describe('unifiedStorage load bounds', () => {
               longFetchedModel,
               '',
               ...Array.from(
-                { length: MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS + 1 },
+                { length: MAX_AI_PROVIDER_FETCHED_MODELS + 1 },
                 (_, index) => `model-${index}`,
               ),
             ],
@@ -360,12 +360,12 @@ describe('unifiedStorage load bounds', () => {
     expect(data.ai?.customSystemPrompt).toHaveLength(64 * 1024);
     expect(data.ai?.models[0]?.apiModelId).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
     expect(data.ai?.sessions[0]?.modelId).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
-    expect(data.ai?.fetchedModels?.['provider-1']).toHaveLength(MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS);
+    expect(data.ai?.fetchedModels?.['provider-1']).toHaveLength(MAX_AI_PROVIDER_FETCHED_MODELS);
     expect(data.ai?.fetchedModels?.['provider-1']?.[0]).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
   });
 
   it('ignores main data content that exceeds the limit after read', async () => {
-    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/app/settings.json'));
     mocks.storage.readFile.mockResolvedValue('x'.repeat(2 * 1024 * 1024 + 1));
 
     const data = await loadUnifiedData();
@@ -375,7 +375,7 @@ describe('unifiedStorage load bounds', () => {
   });
 
   it('ignores main data with invalid known stat size before reading', async () => {
-    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/app/settings.json'));
     mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: -1 });
     mocks.storage.readFile.mockRejectedValue(new Error('Invalid stat size should not be read'));
 
@@ -389,9 +389,9 @@ describe('unifiedStorage load bounds', () => {
   it('bounds settings string fields loaded from main data', async () => {
     const longCity = `${'c'.repeat(MAX_SETTINGS_TIMEZONE_CITY_CHARS)}x`;
     const longThemeId = `${'t'.repeat(MAX_SETTINGS_UI_THEME_ID_CHARS)}x`;
-    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/app/settings.json'));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -420,9 +420,9 @@ describe('unifiedStorage load bounds', () => {
   });
 
   it('bounds custom icon metadata loaded from main data', async () => {
-    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/app/settings.json'));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -434,19 +434,19 @@ describe('unifiedStorage load bounds', () => {
             customIcons: [
               {
                 id: 'icon-0',
-                url: 'img:/app/.vlaina/assets/icons/icon-0.png',
+                url: 'img:/app/.vlaina/app/assets/icons/icon-0.png',
                 name: 'icon-0.png',
                 createdAt: 1,
               },
               {
                 id: 'icon-0',
-                url: 'img:/app/.vlaina/assets/icons/duplicate.png',
+                url: 'img:/app/.vlaina/app/assets/icons/duplicate.png',
                 name: 'duplicate.png',
                 createdAt: 2,
               },
               {
                 id: `${'i'.repeat(MAX_CUSTOM_ICON_ID_CHARS)}x`,
-                url: 'img:/app/.vlaina/assets/icons/too-long-id.png',
+                url: 'img:/app/.vlaina/app/assets/icons/too-long-id.png',
                 name: 'too-long-id.png',
                 createdAt: 3,
               },
@@ -458,13 +458,13 @@ describe('unifiedStorage load bounds', () => {
               },
               {
                 id: 'too-long-name',
-                url: 'img:/app/.vlaina/assets/icons/too-long-name.png',
+                url: 'img:/app/.vlaina/app/assets/icons/too-long-name.png',
                 name: `${'n'.repeat(MAX_CUSTOM_ICON_NAME_CHARS)}x`,
                 createdAt: 5,
               },
               ...Array.from({ length: MAX_CUSTOM_ICONS + 10 }, (_, index) => ({
                 id: `icon-${index + 1}`,
-                url: `img:/app/.vlaina/assets/icons/icon-${index + 1}.png`,
+                url: `img:/app/.vlaina/app/assets/icons/icon-${index + 1}.png`,
                 name: `icon-${index + 1}.png`,
                 createdAt: index + 10,
               })),
@@ -494,28 +494,28 @@ describe('unifiedStorage load bounds', () => {
   });
 
   it('bounds orphan chat session recovery directory scans', async () => {
-    const recoverableSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES - 1}`;
-    const skippedSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES}`;
+    const recoverableSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES - 1}`;
+    const skippedSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES}`;
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith(`/chat/sessions/${recoverableSessionId}.json`) ||
-      path.endsWith(`/chat/sessions/${skippedSessionId}.json`)
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith(`/chat/sessions/${recoverableSessionId}/messages.json`) ||
+      path.endsWith(`/chat/sessions/${skippedSessionId}/messages.json`)
     ));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (!path.endsWith('/chat/sessions')) return [];
-      return Array.from({ length: MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES + 1 }, (_, index) => ({
-        name: index === MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES - 1
-          ? `${recoverableSessionId}.json`
-          : index === MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES
-            ? `${skippedSessionId}.json`
-            : `temp-session-${index}.json`,
-        path: `/appdata/.vlaina/chat/sessions/session-${index}.json`,
-        isFile: true,
-        isDirectory: false,
+      return Array.from({ length: MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES + 1 }, (_, index) => ({
+        name: index === MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES - 1
+          ? recoverableSessionId
+          : index === MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES
+            ? skippedSessionId
+            : `temp-session-${index}`,
+        path: `/appdata/.vlaina/chat/sessions/session-${index}`,
+        isFile: false,
+        isDirectory: true,
       }));
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -529,7 +529,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith(`/chat/sessions/${recoverableSessionId}.json`)) {
+      if (path.endsWith(`/chat/sessions/${recoverableSessionId}/messages.json`)) {
         return JSON.stringify({
           version: 1,
           sessionId: recoverableSessionId,
@@ -551,7 +551,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith(`/chat/sessions/${skippedSessionId}.json`)) {
+      if (path.endsWith(`/chat/sessions/${skippedSessionId}/messages.json`)) {
         throw new Error('Out-of-budget orphan sessions must not be loaded');
       }
 
@@ -563,37 +563,37 @@ describe('unifiedStorage load bounds', () => {
     expect(data.ai?.sessions.map((session) => session.id)).toEqual([recoverableSessionId]);
     expect(data.ai?.sessions[0]?.title).toBe('Recover bounded orphan chat');
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
-      `/appdata/.vlaina/chat/sessions/${skippedSessionId}.json`,
+      `/appdata/.vlaina/chat/sessions/${skippedSessionId}/messages.json`,
     );
   });
 
-  it('bounds orphan provider channel recovery when AI session metadata is invalid', async () => {
-    const recoverableProviderId = `provider-${MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES - 1}`;
-    const skippedProviderId = `provider-${MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES}`;
+  it('bounds orphan provider file recovery when AI session metadata is invalid', async () => {
+    const recoverableProviderId = `provider-${MAX_AI_PROVIDER_FILE_SCAN_ENTRIES - 1}`;
+    const skippedProviderId = `provider-${MAX_AI_PROVIDER_FILE_SCAN_ENTRIES}`;
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith('/chat/sessions.json') ||
-      path.endsWith(`/chat/channels/${recoverableProviderId}.json`) ||
-      path.endsWith(`/chat/channels/${skippedProviderId}.json`)
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith('/chat/sessions/index.json') ||
+      path.endsWith(`/chat/providers/${recoverableProviderId}.json`) ||
+      path.endsWith(`/chat/providers/${skippedProviderId}.json`)
     ));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (!path.endsWith('/chat/channels')) return [];
-      return Array.from({ length: MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES + 1 }, (_, index) => ({
+      if (!path.endsWith('/chat/providers')) return [];
+      return Array.from({ length: MAX_AI_PROVIDER_FILE_SCAN_ENTRIES + 1 }, (_, index) => ({
         name: index === 0
           ? '../outside.json'
-          : index === MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES - 1
+          : index === MAX_AI_PROVIDER_FILE_SCAN_ENTRIES - 1
             ? `${recoverableProviderId}.json`
-            : index === MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES
+            : index === MAX_AI_PROVIDER_FILE_SCAN_ENTRIES
               ? `${skippedProviderId}.json`
               : `skip-${index}.txt`,
-        path: `/appdata/.vlaina/chat/channels/provider-${index}.json`,
+        path: `/appdata/.vlaina/chat/providers/provider-${index}.json`,
         isFile: true,
         isDirectory: false,
       }));
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -607,14 +607,14 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           sessions: [],
           providerIds: [recoverableProviderId],
         });
       }
 
-      if (path.endsWith(`/chat/channels/${recoverableProviderId}.json`)) {
+      if (path.endsWith(`/chat/providers/${recoverableProviderId}.json`)) {
         return JSON.stringify({
           version: 1,
           providerId: recoverableProviderId,
@@ -641,8 +641,8 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith(`/chat/channels/${skippedProviderId}.json`)) {
-        throw new Error('Out-of-budget provider channels must not be loaded');
+      if (path.endsWith(`/chat/providers/${skippedProviderId}.json`)) {
+        throw new Error('Out-of-budget provider files must not be loaded');
       }
 
       throw new Error(`Unexpected read: ${path}`);
@@ -655,34 +655,34 @@ describe('unifiedStorage load bounds', () => {
       expect(data.ai?.models.map((model) => model.providerId)).toEqual([recoverableProviderId]);
       expect(data.ai?.fetchedModels).toEqual({ [recoverableProviderId]: ['model-a'] });
       expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
-        `/appdata/.vlaina/chat/channels/${skippedProviderId}.json`,
+        `/appdata/.vlaina/chat/providers/${skippedProviderId}.json`,
       );
       expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
-        '/appdata/.vlaina/chat/channels/../outside.json',
+        '/appdata/.vlaina/chat/providers/../outside.json',
       );
       expect(warnSpy).toHaveBeenCalledWith(
         '[Storage] Ignoring invalid AI sessions file:',
-        '/appdata/.vlaina/chat/sessions.json',
+        '/appdata/.vlaina/chat/sessions/index.json',
       );
     } finally {
       warnSpy.mockRestore();
     }
   });
 
-  it('recovers provider channels when AI session metadata is missing', async () => {
+  it('recovers provider files when AI session metadata is missing', async () => {
     const providerId = 'recovered-provider';
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith(`/chat/channels/${providerId}.json`)
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith(`/chat/providers/${providerId}.json`)
     ));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (!path.endsWith('/chat/channels')) return [];
+      if (!path.endsWith('/chat/providers')) return [];
       return [
-        { name: `${providerId}.json`, path: `/appdata/.vlaina/chat/channels/${providerId}.json`, isFile: true, isDirectory: false },
+        { name: `${providerId}.json`, path: `/appdata/.vlaina/chat/providers/${providerId}.json`, isFile: true, isDirectory: false },
       ];
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -696,7 +696,7 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith(`/chat/channels/${providerId}.json`)) {
+      if (path.endsWith(`/chat/providers/${providerId}.json`)) {
         return JSON.stringify({
           version: 1,
           providerId,
@@ -724,6 +724,6 @@ describe('unifiedStorage load bounds', () => {
     const data = await loadUnifiedData();
 
     expect(data.ai?.providers.map((provider) => provider.id)).toEqual([providerId]);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions.json');
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/index.json');
   });
 });

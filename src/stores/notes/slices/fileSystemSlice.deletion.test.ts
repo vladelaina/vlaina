@@ -100,7 +100,7 @@ function createPendingDeletedItem(overrides: Record<string, unknown> = {}) {
     kind: 'file' as const,
     originalPath: 'alpha.md',
     originalFullPath: '/vault/alpha.md',
-    stagingPath: '/app/pending-trash/delete-1/alpha.md',
+    stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
     deletedAt: 1,
     previousCurrentNote: null,
     previousIsDirty: false,
@@ -156,7 +156,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -181,7 +181,7 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(state.isDirty).toBe(false);
     expect(state.pendingDeletedItems).toEqual([expect.objectContaining({
       originalPath: 'alpha.md',
-      stagingPath: '/app/pending-trash/delete-1/alpha.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
       previousCurrentNote: { path: 'alpha.md', content: 'alpha' },
       deletedStarredEntries: [],
       deletedMetadata: null,
@@ -207,7 +207,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -247,7 +247,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -315,7 +315,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -373,7 +373,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'beta.md',
         originalFullPath: '/vault/beta.md',
-        stagingPath: '/app/pending-trash/delete-1/beta.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/beta.md',
         deletedAt: 1,
       },
     });
@@ -422,7 +422,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -473,7 +473,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'folder',
         originalPath: 'docs',
         originalFullPath: '/vault/docs',
-        stagingPath: '/app/pending-trash/delete-1/docs',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
         deletedAt: 1,
       },
     });
@@ -528,7 +528,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'folder',
         originalPath: 'docs',
         originalFullPath: '/vault/docs',
-        stagingPath: '/app/pending-trash/delete-1/docs',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
         deletedAt: 1,
       },
     });
@@ -568,7 +568,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,
@@ -583,7 +583,7 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(hoisted.cancelPendingSystemTrash).toHaveBeenCalledWith('delete-1');
     expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenCalledWith('/vault', expect.objectContaining({
       originalPath: 'alpha.md',
-      stagingPath: '/app/pending-trash/delete-1/alpha.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
     }));
     expect(state.loadFileTree).not.toHaveBeenCalled();
     expect(state.rootFolder.children).toEqual([{
@@ -622,7 +622,7 @@ describe('createFileSystemSlice deletion flows', () => {
           id: 'delete-2',
           originalPath: 'beta.md',
           originalFullPath: '/vault/beta.md',
-          stagingPath: '/app/pending-trash/delete-2/beta.md',
+          stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-2/beta.md',
           deletedAt: 2,
         }),
       ],
@@ -668,7 +668,7 @@ describe('createFileSystemSlice deletion flows', () => {
             id: 'delete-2',
             originalPath: 'beta.md',
             originalFullPath: '/vault/beta.md',
-            stagingPath: '/app/pending-trash/delete-2/beta.md',
+            stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-2/beta.md',
             deletedAt: 2,
           }),
         ],
@@ -727,7 +727,7 @@ describe('createFileSystemSlice deletion flows', () => {
           kind: 'folder',
           originalPath: 'docs',
           originalFullPath: '/vault/docs',
-          stagingPath: '/app/pending-trash/delete-1/docs',
+          stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
         }),
       ],
     });
@@ -817,7 +817,7 @@ describe('createFileSystemSlice deletion flows', () => {
         kind: 'file',
         originalPath: 'alpha.md',
         originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/pending-trash/delete-1/alpha.md',
+        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,

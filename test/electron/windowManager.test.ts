@@ -256,13 +256,13 @@ describe('window manager reveal timing', () => {
     firstWindow.emit('resize');
 
     vi.advanceTimersByTime(250);
-    const storeDir = path.join(hoisted.userDataPath, '.vlaina', 'store');
-    const statePath = path.join(storeDir, 'window-state.json');
+    const storeDir = path.join(hoisted.userDataPath, '.vlaina', 'app', 'window');
+    const statePath = path.join(storeDir, 'state.json');
     expect(JSON.parse(fs.readFileSync(statePath, 'utf8'))).toMatchObject({
       bounds: { width: 1234, height: 777 },
       isMaximized: false,
     });
-    expect(fs.readdirSync(storeDir).filter((name) => name.startsWith('window-state.json.tmp-'))).toEqual([]);
+    expect(fs.readdirSync(storeDir).filter((name) => name.startsWith('state.json.tmp-'))).toEqual([]);
 
     const secondManager = createWindowManager({
       rendererDevUrl: 'http://localhost:3000',
@@ -277,7 +277,7 @@ describe('window manager reveal timing', () => {
   });
 
   it('restores maximized windows after creating them at their saved normal bounds', () => {
-    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'window', 'state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     fs.writeFileSync(statePath, JSON.stringify({
       bounds: { width: 1111, height: 700 },
@@ -291,7 +291,7 @@ describe('window manager reveal timing', () => {
   });
 
   it('ignores oversized stored window state on startup', () => {
-    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'window', 'state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     fs.writeFileSync(statePath, JSON.stringify({
       bounds: { width: 1111, height: 700 },
@@ -306,7 +306,7 @@ describe('window manager reveal timing', () => {
   });
 
   it('ignores stored window state that grows after stat', () => {
-    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'window', 'state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     fs.writeFileSync(statePath, JSON.stringify({
       bounds: { width: 1111, height: 700 },
@@ -326,7 +326,7 @@ describe('window manager reveal timing', () => {
   });
 
   it('ignores non-decimal stored window bounds on startup', () => {
-    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'window', 'state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     fs.writeFileSync(statePath, JSON.stringify({
       bounds: { width: '1e3', height: '700' },
@@ -340,7 +340,7 @@ describe('window manager reveal timing', () => {
   });
 
   it('does not maximize secondary windows from the persisted main window state', () => {
-    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'window', 'state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     fs.writeFileSync(statePath, JSON.stringify({
       bounds: { width: 1111, height: 700 },
@@ -356,7 +356,7 @@ describe('window manager reveal timing', () => {
   });
 
   it('caps restored bounds to the current display work area', () => {
-    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'window', 'state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });
     fs.writeFileSync(statePath, JSON.stringify({
       bounds: { width: 3000, height: 2000 },

@@ -44,8 +44,8 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
-  MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS,
-  MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS,
+  MAX_AI_PROVIDER_BENCHMARK_ITEMS,
+  MAX_AI_PROVIDER_BENCHMARK_SCAN_ITEMS,
   loadUnifiedData,
   saveUnifiedDataImmediate,
   setUnifiedStorageAutoSyncTrigger,
@@ -63,7 +63,7 @@ const mainDataFile = {
   },
 };
 
-function createProviderChannel(benchmarkResults: unknown) {
+function createProviderFile(benchmarkResults: unknown) {
   return {
     version: 1,
     providerId: 'provider-1',
@@ -88,16 +88,16 @@ function createProviderChannel(benchmarkResults: unknown) {
 
 function setupBenchmarkLoad(benchmarkResults: unknown) {
   mocks.storage.exists.mockImplementation(async (path: string) => (
-    path.endsWith('/.vlaina/data.json') ||
-    path.endsWith('/chat/sessions.json') ||
-    path.endsWith('/chat/channels/provider-1.json')
+    path.endsWith('/.vlaina/app/settings.json') ||
+    path.endsWith('/chat/sessions/index.json') ||
+    path.endsWith('/chat/providers/provider-1.json')
   ));
   mocks.storage.readFile.mockImplementation(async (path: string) => {
-    if (path.endsWith('/.vlaina/data.json')) {
+    if (path.endsWith('/.vlaina/app/settings.json')) {
       return JSON.stringify(mainDataFile);
     }
 
-    if (path.endsWith('/chat/sessions.json')) {
+    if (path.endsWith('/chat/sessions/index.json')) {
       return JSON.stringify({
         version: 1,
         updatedAt: 1,
@@ -108,8 +108,8 @@ function setupBenchmarkLoad(benchmarkResults: unknown) {
       });
     }
 
-    if (path.endsWith('/chat/channels/provider-1.json')) {
-      return JSON.stringify(createProviderChannel(benchmarkResults));
+    if (path.endsWith('/chat/providers/provider-1.json')) {
+      return JSON.stringify(createProviderFile(benchmarkResults));
     }
 
     throw new Error(`Unexpected read: ${path}`);
@@ -170,11 +170,11 @@ describe('unifiedStorage provider benchmark bounds', () => {
     mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 1024 });
     mocks.storage.listDir.mockResolvedValue([]);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify(mainDataFile);
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -198,7 +198,7 @@ describe('unifiedStorage provider benchmark bounds', () => {
     });
   });
 
-  it('normalizes provider benchmark records restored from channel files', async () => {
+  it('normalizes provider benchmark records restored from provider files', async () => {
     const longError = `${'e'.repeat(4096)}x`;
     const itemsWithUnsafeKey = {
       'model-ok': { status: 'success', latency: 120, checkedAt: 10 },
@@ -229,7 +229,7 @@ describe('unifiedStorage provider benchmark bounds', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
-  it('drops malformed provider benchmark records restored from channel files', async () => {
+  it('drops malformed provider benchmark records restored from provider files', async () => {
     setupBenchmarkLoad({
       items: null,
       overall: 'error',
@@ -241,10 +241,10 @@ describe('unifiedStorage provider benchmark bounds', () => {
     expect(data.ai?.benchmarkResults).toEqual({});
   });
 
-  it('bounds provider benchmark records restored from channel files', async () => {
+  it('bounds provider benchmark records restored from provider files', async () => {
     setupBenchmarkLoad({
       items: Object.fromEntries(
-        Array.from({ length: MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS + 1 }, (_, index) => [
+        Array.from({ length: MAX_AI_PROVIDER_BENCHMARK_ITEMS + 1 }, (_, index) => [
           `model-${index}`,
           { status: 'success', checkedAt: index },
         ]),
@@ -256,7 +256,7 @@ describe('unifiedStorage provider benchmark bounds', () => {
     const data = await loadUnifiedData();
 
     expect(Object.keys(data.ai?.benchmarkResults?.['provider-1']?.items || {})).toHaveLength(
-      MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS,
+      MAX_AI_PROVIDER_BENCHMARK_ITEMS,
     );
     expect(data.ai?.benchmarkResults?.['provider-1']?.items['model-1999']).toEqual({
       status: 'success',
@@ -269,7 +269,7 @@ describe('unifiedStorage provider benchmark bounds', () => {
     setupBenchmarkLoad({
       items: {
         ...Object.fromEntries(
-          Array.from({ length: MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS }, (_, index) => [
+          Array.from({ length: MAX_AI_PROVIDER_BENCHMARK_SCAN_ITEMS }, (_, index) => [
             `invalid-${index}`,
             { status: 'loading', checkedAt: index },
           ]),
@@ -286,7 +286,7 @@ describe('unifiedStorage provider benchmark bounds', () => {
     expect(data.ai?.benchmarkResults?.['provider-1']?.overall).toBe('success');
   });
 
-  it('normalizes provider benchmark records before saving channel files', async () => {
+  it('normalizes provider benchmark records before saving provider files', async () => {
     await saveUnifiedDataImmediate(createDataForSave({
       items: {
         'model-ok': { status: 'success', latency: 50, checkedAt: 1 },
@@ -296,10 +296,10 @@ describe('unifiedStorage provider benchmark bounds', () => {
       updatedAt: 3,
     }));
 
-    const channelWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/channels/provider-1.json'),
+    const providerWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/providers/provider-1.json'),
     );
-    const payload = JSON.parse(String(channelWrite?.[1]));
+    const payload = JSON.parse(String(providerWrite?.[1]));
 
     expect(payload.data.benchmarkResults).toEqual({
       items: {
@@ -310,17 +310,17 @@ describe('unifiedStorage provider benchmark bounds', () => {
     });
   });
 
-  it('drops malformed provider benchmark records before saving channel files', async () => {
+  it('drops malformed provider benchmark records before saving provider files', async () => {
     await saveUnifiedDataImmediate(createDataForSave({
       items: null,
       overall: 'error',
       updatedAt: 1,
     }));
 
-    const channelWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
-      String(path).endsWith('/chat/channels/provider-1.json'),
+    const providerWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/providers/provider-1.json'),
     );
-    const payload = JSON.parse(String(channelWrite?.[1]));
+    const payload = JSON.parse(String(providerWrite?.[1]));
 
     expect(payload.data).not.toHaveProperty('benchmarkResults');
   });

@@ -97,10 +97,10 @@ describe('desktop filesystem symlink boundary', () => {
     await mkdir(realRoot, { recursive: true });
     await symlink(realRoot, linkedRoot, 'dir');
     await writeFile(path.join(realRoot, 'note.md'), '# note', 'utf8');
-    const storeDir = path.join(hoisted.userDataPath, '.vlaina', 'store');
-    await mkdir(storeDir, { recursive: true });
+    const permissionsDir = path.join(hoisted.userDataPath, '.vlaina', 'app', 'permissions');
+    await mkdir(permissionsDir, { recursive: true });
     await writeFile(
-      path.join(storeDir, 'authorized-fs-paths.json'),
+      path.join(permissionsDir, 'filesystem.json'),
       JSON.stringify({ roots: [linkedRoot], files: [], watchRoots: [] }),
       'utf8',
     );

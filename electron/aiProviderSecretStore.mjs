@@ -25,8 +25,8 @@ function sanitizeSecretsData(data) {
 }
 
 export async function readSecretsStore() {
-  const secretsDir = path.join(app.getPath('userData'), '.vlaina', 'secrets');
-  const secretsPath = path.join(secretsDir, 'ai-provider-secrets.json');
+  const secretsDir = path.join(app.getPath('userData'), '.vlaina', 'app', 'secrets');
+  const secretsPath = path.join(secretsDir, 'ai-providers.json');
 
   await mkdir(secretsDir, { recursive: true });
 

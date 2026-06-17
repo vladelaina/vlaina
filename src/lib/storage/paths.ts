@@ -7,11 +7,19 @@ export async function getBasePath(): Promise<string> {
 
 export async function getPaths() {
   const base = await getBasePath();
+  const root = await joinPath(base, '.vlaina');
+  const notes = await joinPath(root, 'notes');
+  const chat = await joinPath(root, 'chat');
+  const app = await joinPath(root, 'app');
+
   return {
     base,
-    metadata: await joinPath(base, '.vlaina'),
-    store: await joinPath(base, '.vlaina', 'store'),
-    dataJson: await joinPath(base, '.vlaina', 'store', 'data.json'),
+    root,
+    notes,
+    chat,
+    app,
+    settingsJson: await joinPath(app, 'settings.json'),
+    settingsBackupJson: await joinPath(app, 'settings.backup.json'),
     markdown: await joinPath(base, 'vlaina.md'),
   };
 }
@@ -19,11 +27,13 @@ export async function getPaths() {
 export async function ensureDirectories(): Promise<void> {
   try {
     const storage = getStorageAdapter();
-    const base = await getBasePath();
-    const storeDir = await joinPath(base, '.vlaina', 'store');
-    
-    if (!(await storage.exists(storeDir))) {
-      await storage.mkdir(storeDir, true);
+    const { notes, chat, app } = await getPaths();
+
+    for (const directory of [notes, chat, app]) {
+      if (!(await storage.exists(directory))) {
+        await storage.mkdir(directory, true);
+      }
     }
-  } catch (error) {  }
+  } catch (error) {
+  }
 }

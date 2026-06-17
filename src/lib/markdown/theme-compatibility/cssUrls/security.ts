@@ -4,7 +4,7 @@ import { decodeCssEscapesForUrl } from './cssEscapes';
 
 const UNSAFE_SCRIPT_CSS_URL_PATTERN = /^(?:javascript|vbscript):/i;
 const FILE_CSS_URL_PATTERN = /^file:/i;
-const MANAGED_THEME_CACHE_PATH_SEGMENT = '/.vlaina/store/markdown-theme-cache/';
+const MANAGED_THEME_CACHE_PATH_SEGMENT = '/.vlaina/app/cache/markdown-themes/';
 
 function normalizeCssUrlForProtocolCheck(url: string): string {
   return decodeCssEscapesForUrl(url.trim())

@@ -173,7 +173,7 @@ async function getPersistentThumbnailCachePath(
 
   const hashInput = new TextEncoder().encode(`${PERSISTENT_THUMBNAIL_CACHE_VERSION}\0${cacheKey}`);
   const hash = await computeBufferHash(hashInput);
-  return joinPath(await storage.getBasePath(), '.vlaina', 'cache', 'image-thumbnails', `${hash}.webp`);
+  return joinPath(await storage.getBasePath(), '.vlaina', 'app', 'cache', 'thumbnails', `${hash}.webp`);
 }
 
 async function loadPersistentThumbnailBlobUrl(
