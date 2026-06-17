@@ -22,6 +22,28 @@ vi.mock('@/stores/useAIStore', () => ({
   },
 }));
 
+vi.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: ({
+    count,
+    estimateSize,
+  }: {
+    count: number;
+    estimateSize: (index: number) => number;
+  }) => {
+    const sizes = Array.from({ length: count }, (_, index) => estimateSize(index));
+    return {
+      getTotalSize: () => sizes.reduce((total, size) => total + size, 0),
+      getVirtualItems: () => sizes.map((size, index) => ({
+        index,
+        size,
+        start: sizes.slice(0, index).reduce((total, previousSize) => total + previousSize, 0),
+      })),
+      measure: vi.fn(),
+      scrollToIndex: vi.fn(),
+    };
+  },
+}));
+
 function createRect({
   left,
   top,
@@ -231,6 +253,17 @@ describe('ModelSelector', () => {
       requestAnimationFrameSpy.mockRestore();
       cancelAnimationFrameSpy.mockRestore();
     }
+  });
+
+  it('shows the custom model box icon for unmatched models in the list', async () => {
+    render(<ModelSelector />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Model Alpha/ }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-model-selector-dropdown="true"]')).not.toBeNull();
+      expect(document.querySelectorAll('[data-model-selector-custom-icon="true"]').length).toBeGreaterThanOrEqual(3);
+    });
   });
 
   it('orders custom provider sections by the saved provider order', () => {
