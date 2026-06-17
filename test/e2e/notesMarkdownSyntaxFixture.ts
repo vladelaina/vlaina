@@ -1,5 +1,7 @@
 export const TINY_PNG_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+export const REMOTE_COVER_IMAGE_URL =
+  'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg#w=72%25';
 
 export type MarkdownSyntaxRoundtripCase = {
   label: string;
@@ -234,6 +236,8 @@ export function createMarkdownSyntaxRoundtripCases(): MarkdownSyntaxRoundtripCas
         `![Image alt sentinel](${TINY_PNG_DATA_URL} "Image title sentinel")`,
         '',
         `<img src="${TINY_PNG_DATA_URL}" alt="HTML image alt sentinel" width="40%" align="right" title="HTML image title sentinel" data-vlaina-crop="1,2,30,40,1" />`,
+        '',
+        `<img src="${REMOTE_COVER_IMAGE_URL}" alt="HTML crop cover sentinel" width="72%" data-vlaina-crop="0.108735,0.117569,99.891265,99.882431,2.349414" />`,
         '',
         `![Second markdown image sentinel](${TINY_PNG_DATA_URL})`,
         '',
@@ -562,6 +566,8 @@ export function createMarkdownSyntaxFixture(): string {
     `![Image alt sentinel](${TINY_PNG_DATA_URL} "Image title sentinel")`,
     '',
     `<img src="${TINY_PNG_DATA_URL}" alt="HTML image alt sentinel" width="40%" align="right" title="HTML image title sentinel" data-vlaina-crop="1,2,30,40,1" />`,
+    '',
+    `<img src="${REMOTE_COVER_IMAGE_URL}" alt="HTML crop cover sentinel" width="72%" data-vlaina-crop="0.108735,0.117569,99.891265,99.882431,2.349414" />`,
     '',
     `<img src='${TINY_PNG_DATA_URL}' alt='HTML single quote image sentinel' width='50%' align='left' title='HTML single quote title sentinel' />`,
     '',

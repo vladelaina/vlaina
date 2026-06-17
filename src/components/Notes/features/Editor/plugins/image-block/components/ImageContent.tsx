@@ -99,6 +99,7 @@ export const ImageContent = ({
         return (
             <div
                 data-testid="deferred-image-placeholder"
+                data-image-selection-surface="true"
                 className="w-full h-full min-h-[var(--vlaina-size-100px)] flex items-center justify-center bg-[var(--vlaina-color-editor-image-surface)] border border-dashed border-[var(--vlaina-color-editor-image-border)] rounded-md"
             >
                 <Icon name="file.image" className="size-6 text-[var(--vlaina-color-editor-image-placeholder)]" />
@@ -108,7 +109,10 @@ export const ImageContent = ({
 
     if ((isLoading || !resolvedSrc) && !isReady) {
         return (
-            <div className="w-full h-full min-h-[var(--vlaina-size-100px)] flex flex-col items-center justify-center bg-[var(--vlaina-color-editor-image-surface)] rounded-md">
+            <div
+                data-image-selection-surface="true"
+                className="w-full h-full min-h-[var(--vlaina-size-100px)] flex flex-col items-center justify-center bg-[var(--vlaina-color-editor-image-surface)] rounded-md"
+            >
                 <div className="size-6 border-2 border-[var(--vlaina-color-editor-image-placeholder)] border-t-[var(--vlaina-accent)] rounded-full animate-spin" />
             </div>
         );
@@ -126,6 +130,7 @@ export const ImageContent = ({
     if (shouldRenderPlainRemoteImage) {
         return (
             <div
+                data-image-selection-surface="true"
                 className={cn(
                     'relative w-full overflow-hidden rounded-md bg-[var(--vlaina-color-editor-image-surface)]',
                     !isImageLoaded && 'min-h-[var(--vlaina-size-100px)]'

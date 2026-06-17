@@ -23,7 +23,6 @@ import { flushStarredRegistry } from '@/stores/notes/starred';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
-import { getCachedEditorBlockTargets } from '@/components/Notes/features/Editor/utils/editorBlockPositionCache';
 import {
   blankAreaDragBoxPluginKey,
   dispatchBlockSelectionAction,
@@ -196,6 +195,9 @@ export interface E2EBridge {
   getNoteSelectableBlocks(): Array<{
     text: string;
     tagName: string;
+    className: string;
+    dataset: Record<string, string>;
+    rect: { left: number; top: number; width: number; height: number };
     from: number;
     to: number;
   }>;
@@ -482,7 +484,7 @@ function editorTextHasMark(text: string, markName: string, anchorText?: string):
 }
 
 function getSelectableBlockTargetsForE2E(view: NonNullable<ReturnType<typeof getCurrentEditorView>>) {
-  return getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view);
+  return collectSelectableBlockTargets(view);
 }
 
 function normalizeE2EMessageVersions(
@@ -1260,6 +1262,20 @@ export function installSyncE2EBridge(): void {
       return getSelectableBlockTargetsForE2E(view).map((target) => ({
         text: target.element.textContent?.trim() ?? '',
         tagName: target.element.tagName,
+        className: target.element.className,
+        dataset: Object.fromEntries(
+          Object.entries(target.element.dataset)
+            .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+        ),
+        rect: (() => {
+          const rect = target.element.getBoundingClientRect();
+          return {
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+          };
+        })(),
         from: target.range.from,
         to: target.range.to,
       }));

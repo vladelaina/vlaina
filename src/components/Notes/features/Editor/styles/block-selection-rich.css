@@ -9,28 +9,40 @@
   --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
   isolation: isolate;
+  position: relative;
+  z-index: var(--vlaina-z-1);
   display: block !important;
   width: 100% !important;
   min-width: 100% !important;
+  overflow: visible !important;
   background-color: transparent;
   border-radius: var(--vlaina-radius-8px);
-  box-shadow: none;
+  box-shadow: var(--vlaina-block-selection-shadow);
 }
 
 .milkdown .ProseMirror .image-block-container.ProseMirror-selectednode::before,
-.milkdown .ProseMirror .image-block-container.editor-block-selected::before {
-  content: '';
-  position: absolute;
-  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
-  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
-  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
-  z-index: var(--vlaina-z-behind);
-  display: block !important;
-  border-radius: var(--vlaina-radius-8px);
-  background: var(--vlaina-block-selection-color);
-  box-shadow: none;
-  pointer-events: none;
+.milkdown .ProseMirror .image-block-container.editor-block-selected::before,
+.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode::after,
+.milkdown .ProseMirror .image-block-container.editor-block-selected::after {
+  display: none !important;
+}
+
+.milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-wrapper='true'] {
+  position: relative;
+  z-index: var(--vlaina-z-1);
+  border-radius: inherit;
+  background: var(--vlaina-block-selection-color) !important;
+  background-color: var(--vlaina-block-selection-color) !important;
+}
+
+.milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-wrapper='true'] > * {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-surface='true'] {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .milkdown .ProseMirror .image-block-container.editor-block-selected:not(.ProseMirror-selectednode)::before {

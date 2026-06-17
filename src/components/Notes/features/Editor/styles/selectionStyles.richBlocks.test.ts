@@ -49,6 +49,18 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .code-block-editable,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .code-block-lazy-preview,');
     expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-line-numbers");
+    expect(extractCssRule(
+      css,
+      '.milkdown .code-block-container.ProseMirror-selectednode .cm-editor,'
+    )).toContain('background: transparent !important;');
+    expect(extractCssRule(
+      css,
+      '.milkdown .code-block-container.ProseMirror-selectednode .code-block-chrome-header,'
+    )).toContain('background: transparent !important;');
+    expect(extractCssRule(
+      css,
+      '.milkdown .code-block-container.ProseMirror-selectednode .cm-gutters,'
+    )).toContain('background-color: transparent !important;');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected-contained {');
     expect(css).not.toContain('.milkdown .ProseMirror li.editor-block-selected > .code-block-container {');
     expect(css).not.toContain('.milkdown .ProseMirror li.editor-block-selected > .code-block-container::before {');
@@ -71,7 +83,7 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
     expect(css).toContain('isolation: isolate;');
     expect(css).toContain('overflow: visible !important;');
-    expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
+    expect(css).toContain('background-color: transparent;');
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode::after,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected::after {');
     expect(css).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));');

@@ -58,7 +58,10 @@ type RichBlockPaintSample = {
   paintLeft: number;
   rectLeft: number;
   selectedCount: number;
+  selectionColor: string;
   text: string;
+  wrapperBackgroundColor: string | null;
+  wrapperPaintLeft: number | null;
 };
 
 type DraggedCodeBlockPaintSample = {
@@ -609,8 +612,15 @@ test.describe('notes block selection visual coverage', () => {
         expect(sample.largeActive, `${paintCase.label}: large selection class`).toBe(true);
         expect(sample.selectedCount, `${paintCase.label}: selected count`).toBeGreaterThanOrEqual(128);
         expect(sample.className, `${paintCase.label}: large paint class`).toContain(expectedClass);
-        expect(sample.afterDisplay, `${paintCase.label}: selection pseudo display`).not.toBe('none');
-        expect(Math.abs(sample.leftGap), `${paintCase.label}: left bleed gap`).toBeLessThanOrEqual(1);
+        if (paintCase.label === 'image-block') {
+          expect(sample.afterDisplay, `${paintCase.label}: disabled pseudo display`).toBe('none');
+          expect(sample.wrapperBackgroundColor, `${paintCase.label}: wrapper background`).toBe(sample.selectionColor);
+          expect(sample.wrapperPaintLeft, `${paintCase.label}: wrapper paint left`).not.toBeNull();
+          expect(Math.abs((sample.wrapperPaintLeft ?? 0) - sample.rectLeft), `${paintCase.label}: wrapper left gap`).toBeLessThanOrEqual(1);
+        } else {
+          expect(sample.afterDisplay, `${paintCase.label}: selection pseudo display`).not.toBe('none');
+          expect(Math.abs(sample.leftGap), `${paintCase.label}: left bleed gap`).toBeLessThanOrEqual(1);
+        }
         expect(sample.bleedStart, `${paintCase.label}: bleed start`).toBeGreaterThanOrEqual(paintCase.minBleedStart ?? 72);
 
         samples.push({
@@ -628,6 +638,9 @@ test.describe('notes block selection visual coverage', () => {
         bleedStart: sample.bleedStart,
         leftGap: sample.leftGap,
         paintLeft: sample.paintLeft,
+        selectionColor: sample.selectionColor,
+        wrapperBackgroundColor: sample.wrapperBackgroundColor,
+        wrapperPaintLeft: sample.wrapperPaintLeft,
         selectedStartIndex: sample.selectedStartIndex,
         targetIndex: sample.targetIndex,
         text: sample.text,
@@ -1032,8 +1045,15 @@ async function measureSelectedRichBlockPaint(
     const style = getComputedStyle(selected);
     const afterStyle = getComputedStyle(selected, '::after');
     const inner = innerSelector ? selected.querySelector<HTMLElement>(innerSelector) : null;
+    const wrapper = selected.querySelector<HTMLElement>('[data-image-selection-wrapper="true"]');
+    const selectionProbe = document.createElement('span');
+    selectionProbe.style.backgroundColor = 'var(--vlaina-block-selection-color)';
+    selected.appendChild(selectionProbe);
+    const selectionColor = getComputedStyle(selectionProbe).backgroundColor;
+    selectionProbe.remove();
     const bleedStart = Number.parseFloat(style.getPropertyValue('--vlaina-block-selection-bleed-x-start')) || 0;
     const afterLeft = Number.parseFloat(afterStyle.left);
+    const wrapperRect = wrapper?.getBoundingClientRect() ?? null;
     const paintLeft = afterStyle.display !== 'none' && Number.isFinite(afterLeft)
       ? rect.left + afterLeft
       : rect.left;
@@ -1052,7 +1072,10 @@ async function measureSelectedRichBlockPaint(
       paintLeft: Math.round(paintLeft * 10) / 10,
       rectLeft: Math.round(rect.left * 10) / 10,
       selectedCount: editor.querySelectorAll('.editor-block-selected').length,
+      selectionColor,
       text: selected.textContent?.trim().slice(0, 120) ?? '',
+      wrapperBackgroundColor: wrapper ? getComputedStyle(wrapper).backgroundColor : null,
+      wrapperPaintLeft: wrapperRect ? Math.round(wrapperRect.left * 10) / 10 : null,
     };
   }, { editorSelector: EDITOR_SELECTOR, ...input });
 

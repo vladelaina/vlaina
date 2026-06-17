@@ -138,6 +138,12 @@ function renderImageBlock(overrides: Record<string, unknown> = {}) {
 }
 
 describe('ImageBlockView', () => {
+    it('marks the outer wrapper as the selected-image background layer', () => {
+        renderImageBlock();
+
+        expect(screen.getByTestId('notes-image-content').closest('[data-image-selection-wrapper="true"]')).not.toBeNull();
+    });
+
     it('opens the shared image viewer with the original remote resource and cached preview when clicked', () => {
         renderImageBlock();
 
