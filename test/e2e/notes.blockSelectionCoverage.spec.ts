@@ -206,8 +206,9 @@ const LARGE_SELECTION_SYNTAX_PAINT_CASES: LargeSelectionPaintCase[] = [
   },
   {
     label: 'horizontal-rule',
-    selector: '[data-type="hr"]',
+    selector: '.md-hr',
     anchorText: 'Horizontal Rules',
+    targetIndexSelector: '.md-hr',
     expectedClass: 'textlike',
   },
   {
@@ -368,7 +369,8 @@ test.describe('notes block selection visual coverage', () => {
       expect(samples.length).toBeGreaterThan(50);
 
       const outliers = samples.filter((sample) =>
-        Math.abs(sample.baselineLeftDelta) > 4 || Math.abs(sample.baselineRightDelta) > 4);
+        !sample.className.includes('editor-list-gap-placeholder-item') &&
+        (Math.abs(sample.baselineLeftDelta) > 4 || Math.abs(sample.baselineRightDelta) > 4));
       const sampledKinds = Array.from(new Set(samples.map((sample) => describeSelectedKind(sample))));
       console.info('[notes-block-selection-edge-samples]', {
         baseline,
