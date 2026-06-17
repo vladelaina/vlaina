@@ -258,13 +258,14 @@ describe("TemporaryChatToggle", () => {
     expect(mocks.openNewChat).not.toHaveBeenCalled();
   });
 
-  it("promote button stays clickable while session is generating", () => {
+  it("promote button stays clickable while session is generating and defers title generation", async () => {
     const store = createStore({
       generatingSessions: {
         "temp-session-1": true,
       },
     });
     const uiState = createUIState(store);
+    mocks.promoteTemporarySession.mockResolvedValue("session-123");
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
     mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
@@ -276,5 +277,9 @@ describe("TemporaryChatToggle", () => {
 
     fireEvent.click(button);
     expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.generateAutoTitle).not.toHaveBeenCalled();
   });
 });
