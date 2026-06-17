@@ -1,7 +1,30 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extractCssRule } from './selectionStylesTestUtils';
+
+function extractCssRuleContaining(source: string, marker: string) {
+  const markerIndex = source.indexOf(marker);
+  expect(markerIndex).toBeGreaterThanOrEqual(0);
+
+  const previousRuleEnd = source.lastIndexOf('}', markerIndex);
+  const selectorIndex = previousRuleEnd < 0 ? 0 : previousRuleEnd + 1;
+  const start = source.indexOf('{', selectorIndex);
+  expect(start).toBeGreaterThanOrEqual(0);
+
+  let depth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(selectorIndex, index + 1).trimStart();
+      }
+    }
+  }
+
+  throw new Error(`Could not extract CSS rule containing marker: ${marker}`);
+}
 
 function readMathStyles() {
   return readFileSync(
@@ -40,11 +63,12 @@ describe('math hover styles', () => {
 
   it('uses the shared block selection surface for selected math and mermaid nodes', () => {
     const css = readMathStyles();
-    const selectedRule = extractCssRule(
+    const selectedRule = extractCssRuleContaining(
       css,
-      ".milkdown [data-type='math-inline'].ProseMirror-selectednode,\n.milkdown [data-type='math-block'].ProseMirror-selectednode,"
+      '--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);'
     );
 
+    expect(selectedRule).toContain(".milkdown [data-type='math-inline'].ProseMirror-selectednode,");
     expect(selectedRule).toContain(".milkdown [data-type='math-block'].ProseMirror-selectednode,");
     expect(selectedRule).toContain('.milkdown .mermaid-block.ProseMirror-selectednode {');
     expect(selectedRule).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
