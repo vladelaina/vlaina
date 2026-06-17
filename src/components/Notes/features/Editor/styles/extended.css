@@ -523,6 +523,11 @@ body.editor-block-drag-active .milkdown .video-block video {
   background-color: var(--vlaina-color-panel-muted);
 }
 
+.milkdown .ProseMirror .callout:is(.editor-block-selected-textlike, .editor-block-selected, .ProseMirror-selectednode) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 /* === List Collapse Toggle Button === */
 
 /* List items need position:relative for absolute positioning of toggle */

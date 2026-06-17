@@ -1003,7 +1003,7 @@
   --vlaina-color-text-disabled: #54545c;
   --vlaina-color-soft-placeholder: #4a4a50;
   --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
-  --vlaina-color-editor-block-selection-bg: rgb(30 150 235 / 0.22);
+  --vlaina-color-editor-block-selection-bg: #0b2538;
   --vlaina-color-editor-block-selection-fg: #fcfcfc;
   --vlaina-color-editor-block-selection-drag-box: rgb(30 150 235 / 0.32);
   --vlaina-color-editor-block-selection-handle: var(--vlaina-color-text-primary);

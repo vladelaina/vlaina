@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { extractCssRule } from './selectionStylesTestUtils';
 
 function readMathStyles() {
   return readFileSync(
@@ -35,6 +36,20 @@ describe('math hover styles', () => {
     expect(css).toContain('inset 0 0 0 1px var(--vlaina-math-hover-color),');
     expect(css).toContain('border-radius: var(--vlaina-radius-0);');
     expect(css).toContain('cursor: pointer !important;');
+  });
+
+  it('uses the shared block selection surface for selected math and mermaid nodes', () => {
+    const css = readMathStyles();
+    const selectedRule = extractCssRule(
+      css,
+      ".milkdown [data-type='math-inline'].ProseMirror-selectednode,\n.milkdown [data-type='math-block'].ProseMirror-selectednode,"
+    );
+
+    expect(selectedRule).toContain(".milkdown [data-type='math-block'].ProseMirror-selectednode,");
+    expect(selectedRule).toContain('.milkdown .mermaid-block.ProseMirror-selectednode {');
+    expect(selectedRule).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
+    expect(selectedRule).toContain('background: var(--vlaina-block-selection-color);');
+    expect(selectedRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
   });
 
   it('keeps mermaid blocks on the shared math hover treatment without a standalone frame', () => {

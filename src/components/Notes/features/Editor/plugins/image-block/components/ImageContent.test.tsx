@@ -50,6 +50,7 @@ describe('ImageContent', () => {
 
     expect(screen.queryByTestId('image-cropper')).toBeNull();
     expect(screen.getByTestId('remote-image-placeholder')).toBeInTheDocument();
+    expect(screen.getByTestId('remote-image-placeholder').parentElement).toHaveAttribute('data-image-selection-surface', 'true');
 
     const image = container.querySelector('img');
     expect(image).not.toBeNull();
@@ -113,6 +114,18 @@ describe('ImageContent', () => {
     });
 
     expect(screen.getByTestId('deferred-image-placeholder')).toBeInTheDocument();
+    expect(screen.getByTestId('deferred-image-placeholder')).toHaveAttribute('data-image-selection-surface', 'true');
+    expect(screen.queryByTestId('image-cropper')).toBeNull();
+  });
+
+  it('marks the loading surface for selected-image background resets', () => {
+    const { container } = renderImageContent({
+      resolvedSrc: undefined,
+      isReady: false,
+      isLoading: true,
+    });
+
+    expect(container.querySelector('[data-image-selection-surface="true"]')).toBeInTheDocument();
     expect(screen.queryByTestId('image-cropper')).toBeNull();
   });
 

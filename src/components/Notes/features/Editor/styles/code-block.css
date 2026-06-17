@@ -37,7 +37,7 @@
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
   isolation: isolate;
   overflow: visible !important;
-  background-color: var(--vlaina-block-selection-color);
+  background-color: transparent;
   border-radius: var(--vlaina-radius-1rem);
   box-shadow: var(--vlaina-block-selection-shadow);
   transition: none;
@@ -89,7 +89,7 @@
 .milkdown .code-block-container.editor-block-selected .cm-gutterElement,
 .milkdown .code-block-container.editor-block-selected .cm-lineNumbers,
 .milkdown .code-block-container.editor-block-selected .cm-gutter-filler {
-  background-color: var(--vlaina-code-block-background) !important;
+  background-color: transparent !important;
 }
 
 .milkdown .code-block-container.editor-block-selected-contained .cm-gutters,
@@ -113,8 +113,8 @@
 .milkdown .code-block-container.editor-block-selected .cm-line,
 .milkdown .code-block-container.editor-block-selected .cm-activeLine,
 .milkdown .code-block-container.editor-block-selected .cm-activeLineGutter {
-  background: var(--vlaina-code-block-background) !important;
-  background-color: var(--vlaina-code-block-background) !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode .code-block-chrome-header,
@@ -125,8 +125,8 @@
 .milkdown .code-block-container.editor-block-selected .code-block-editable,
 .milkdown .code-block-container.editor-block-selected .code-block-lazy-preview,
 .milkdown .code-block-container.editor-block-selected .code-block-lazy-line-numbers {
-  background: var(--vlaina-code-block-background) !important;
-  background-color: var(--vlaina-code-block-background) !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .milkdown .code-block-container .cm-scroller {

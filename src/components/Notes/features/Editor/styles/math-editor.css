@@ -34,6 +34,14 @@
   border-radius: var(--vlaina-radius-0);
 }
 
+.milkdown [data-type='math-inline'].ProseMirror-selectednode,
+.milkdown [data-type='math-block'].ProseMirror-selectednode,
+.milkdown .mermaid-block.ProseMirror-selectednode {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  background: var(--vlaina-block-selection-color);
+  box-shadow: var(--vlaina-block-selection-shadow);
+}
+
 .milkdown [data-type='math-inline']:hover,
 .milkdown [data-type='math-inline']:hover *,
 .milkdown [data-type='math-inline']:focus-visible,

@@ -281,6 +281,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             />
 
             <div
+                data-image-selection-wrapper="true"
                 className={cn(
                     'w-full flex group/image',
                     isActive && lockedEditFrame ? 'justify-start' : WRAPPER_ALIGNMENT_CLASSES[alignment],

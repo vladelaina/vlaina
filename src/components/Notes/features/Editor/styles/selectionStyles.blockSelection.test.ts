@@ -88,6 +88,7 @@ describe("editor block selection styles", () => {
 
   it('keeps selected text block backgrounds separated by the shared vertical gap token', () => {
     const css = readBlockSelectionStyle();
+    const extendedCss = readStyleFile('extended.css');
     const themeCss = readThemeStyle();
     const textBlockRule = extractCssRule(
       css,
@@ -141,6 +142,11 @@ describe("editor block selection styles", () => {
     expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
     expect(adjacentTopRule).toContain('.editor-block-selected-has-previous');
     expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
+    expect(extendedCss).toContain('.milkdown .ProseMirror .callout:is(.editor-block-selected-textlike, .editor-block-selected, .ProseMirror-selectednode) {');
+    expect(extractCssRule(
+      extendedCss,
+      '.milkdown .ProseMirror .callout:is(.editor-block-selected-textlike, .editor-block-selected, .ProseMirror-selectednode) {'
+    )).toContain('background: transparent !important;');
   });
 
   it('uses a lightweight paint path for large block selections', () => {
@@ -315,27 +321,45 @@ describe("editor block selection styles", () => {
       css,
       '.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode,'
     );
-    const imageSelectionFillRule = extractCssRule(
+    const imageSelectionBeforeRule = extractCssRule(
       css,
       '.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode::before,'
+    );
+    const imageSelectionWrapperRule = extractCssRule(
+      css,
+      ".milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-wrapper='true'] {"
+    );
+    const imageSelectionWrapperChildRule = extractCssRule(
+      css,
+      ".milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-wrapper='true'] > * {"
     );
 
     expect(css).toContain('.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode,');
     expect(css).toContain('.milkdown .ProseMirror .image-block-container.editor-block-selected {');
     expect(css).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
     expect(css).toContain('--vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);');
+    expect(imageSelectionRule).toContain('position: relative;');
+    expect(imageSelectionRule).toContain('z-index: var(--vlaina-z-1);');
     expect(imageSelectionRule).toContain('display: block !important;');
     expect(imageSelectionRule).toContain('width: 100% !important;');
     expect(imageSelectionRule).toContain('min-width: 100% !important;');
+    expect(imageSelectionRule).toContain('overflow: visible !important;');
     expect(imageSelectionRule).toContain('background-color: transparent;');
-    expect(imageSelectionRule).toContain('box-shadow: none;');
-    expect(imageSelectionFillRule).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y));');
-    expect(imageSelectionFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
-    expect(imageSelectionFillRule).toContain('bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));');
-    expect(imageSelectionFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
-    expect(imageSelectionFillRule).toContain('display: block !important;');
-    expect(imageSelectionFillRule).toContain('background: var(--vlaina-block-selection-color);');
-    expect(imageSelectionFillRule).toContain('box-shadow: none;');
+    expect(imageSelectionRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
+    expect(imageSelectionBeforeRule).toContain('display: none !important;');
+    expect(imageSelectionBeforeRule).toContain('.image-block-container.editor-block-selected::after');
+    expect(css).toContain(".milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-wrapper='true'] {");
+    expect(imageSelectionWrapperRule).toContain('z-index: var(--vlaina-z-1);');
+    expect(imageSelectionWrapperRule).toContain('border-radius: inherit;');
+    expect(imageSelectionWrapperRule).toContain('background: var(--vlaina-block-selection-color) !important;');
+    expect(imageSelectionWrapperRule).toContain('background-color: var(--vlaina-block-selection-color) !important;');
+    expect(css).toContain(".milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-wrapper='true'] > * {");
+    expect(imageSelectionWrapperChildRule).toContain('background: transparent !important;');
+    expect(css).toContain(".milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-surface='true'] {");
+    expect(extractCssRule(
+      css,
+      ".milkdown .ProseMirror .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected) [data-image-selection-surface='true'] {"
+    )).toContain('background: transparent !important;');
     expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {');
     expect(css).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });
