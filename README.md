@@ -28,6 +28,18 @@ See [LICENSE](LICENSE).
 
 See [PRIVACY.md](PRIVACY.md) for a summary of how vlaina handles local data, AI provider requests, account features, web access, and update checks.
 
+## Linux
+
+`~/.config/vlaina/.vlaina/`
+
+## macOS
+
+`~/Library/Application Support/vlaina/.vlaina/`
+
+## Windows
+
+`%APPDATA%\vlaina\.vlaina\`
+
 ## Third-Party Notices
 
 This project includes and adapts third-party open-source material. See
