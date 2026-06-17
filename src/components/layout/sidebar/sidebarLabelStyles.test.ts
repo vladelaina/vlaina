@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getSidebarLabelClass, getSidebarSelectedRowSurfaceClass, getSidebarToneStyles } from './sidebarLabelStyles';
+import {
+  getSidebarIdleRowSurfaceClass,
+  getSidebarLabelClass,
+  getSidebarSelectedRowSurfaceClass,
+  getSidebarToneStyles,
+} from './sidebarLabelStyles';
 
 describe('sidebarLabelStyles', () => {
   it('uses one selected row surface for notes and chat sidebars', () => {
@@ -19,5 +24,10 @@ describe('sidebarLabelStyles', () => {
   it('keeps selected rows flat on hover', () => {
     expect(getSidebarSelectedRowSurfaceClass('notes')).toContain('hover:shadow-[var(--vlaina-shadow-none)]');
     expect(getSidebarSelectedRowSurfaceClass('chat')).toContain('hover:shadow-[var(--vlaina-shadow-none)]');
+  });
+
+  it('adds the shared hover shadow to idle rows', () => {
+    expect(getSidebarIdleRowSurfaceClass('notes')).toContain('hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)]');
+    expect(getSidebarIdleRowSurfaceClass('chat')).toContain('hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)]');
   });
 });

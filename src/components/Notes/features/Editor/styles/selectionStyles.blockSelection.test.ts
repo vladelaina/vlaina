@@ -336,7 +336,11 @@ describe("editor block selection styles", () => {
     expect(imageSelectionFillRule).toContain('display: block !important;');
     expect(imageSelectionFillRule).toContain('background: var(--vlaina-block-selection-color);');
     expect(imageSelectionFillRule).toContain('box-shadow: none;');
+    expect(css).toContain('.milkdown .ProseMirror .image-block-container.editor-block-selected:not(.ProseMirror-selectednode)::before {');
+    expect(css).toContain('display: none !important;');
     expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image {');
+    expect(css).toContain('.milkdown .ProseMirror p.editor-block-selected.editor-block-selected-has-direct-image > .image-block-container:is(.ProseMirror-selectednode, .editor-block-selected)::before {');
+    expect(css).toContain('background: transparent !important;');
     expect(css).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });
 
