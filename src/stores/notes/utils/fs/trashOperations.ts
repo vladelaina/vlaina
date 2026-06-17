@@ -10,7 +10,7 @@ import {
   resolveVaultRelativeFullPath,
 } from './vaultPathContainment';
 
-const PENDING_TRASH_ROOT = 'pending-trash';
+const PENDING_TRASH_ROOT = 'trash';
 const INVALID_PENDING_TRASH_STAGING_PATH_ERROR =
   'Pending trash staging path must stay inside the current vault pending trash.';
 export const NOTES_DELETE_UNDO_GRACE_PERIOD_MS = 30_000;

@@ -84,7 +84,7 @@ describe('accountCredentialStore', () => {
       authenticatedAt: 1,
     });
 
-    const secretsPath = path.join(mocks.userDataPath, '.vlaina', 'store', 'account-secrets.json');
+    const secretsPath = path.join(mocks.userDataPath, '.vlaina', 'app', 'secrets', 'account.json');
     const rawSecrets = await readFile(secretsPath, 'utf8');
     expect(rawSecrets).not.toContain('nts_super_secret_token');
     expect(JSON.parse(rawSecrets).appSessionToken).toMatchObject({
@@ -109,7 +109,7 @@ describe('accountCredentialStore', () => {
       authenticatedAt: 1,
     });
 
-    const metaPath = path.join(mocks.userDataPath, '.vlaina', 'store', 'account-meta.json');
+    const metaPath = path.join(mocks.userDataPath, '.vlaina', 'app', 'account', 'profile.json');
     const rawMeta = JSON.parse(await readFile(metaPath, 'utf8'));
     expect(rawMeta).toMatchObject({
       provider: 'google',
@@ -154,7 +154,7 @@ describe('accountCredentialStore', () => {
       persistent: false,
     });
 
-    const secretsPath = path.join(mocks.userDataPath, '.vlaina', 'store', 'account-secrets.json');
+    const secretsPath = path.join(mocks.userDataPath, '.vlaina', 'app', 'secrets', 'account.json');
     await expect(readFile(secretsPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
@@ -163,11 +163,12 @@ describe('accountCredentialStore', () => {
     const store = createAccountCredentialStore({
       desktopLegacySessionHeader: 'x-app-session-token',
     });
-    const storeDir = path.join(mocks.userDataPath, '.vlaina', 'store');
-    const metaPath = path.join(storeDir, 'account-meta.json');
-    const secretsPath = path.join(storeDir, 'account-secrets.json');
+    const storeDir = path.join(mocks.userDataPath, '.vlaina', 'app');
+    const metaPath = path.join(storeDir, 'account', 'profile.json');
+    const secretsPath = path.join(storeDir, 'secrets', 'account.json');
 
-    await mkdir(storeDir, { recursive: true });
+    await mkdir(path.dirname(metaPath), { recursive: true });
+    await mkdir(path.dirname(secretsPath), { recursive: true });
     await writeFile(metaPath, JSON.stringify({ provider: 'google', username: 'alice' }), 'utf8');
     await writeFile(secretsPath, JSON.stringify({ appSessionToken: 'nts_plaintext' }), 'utf8');
 
@@ -180,11 +181,12 @@ describe('accountCredentialStore', () => {
     const store = createAccountCredentialStore({
       desktopLegacySessionHeader: 'x-app-session-token',
     });
-    const storeDir = path.join(mocks.userDataPath, '.vlaina', 'store');
-    const metaPath = path.join(storeDir, 'account-meta.json');
-    const secretsPath = path.join(storeDir, 'account-secrets.json');
+    const storeDir = path.join(mocks.userDataPath, '.vlaina', 'app');
+    const metaPath = path.join(storeDir, 'account', 'profile.json');
+    const secretsPath = path.join(storeDir, 'secrets', 'account.json');
 
-    await mkdir(storeDir, { recursive: true });
+    await mkdir(path.dirname(metaPath), { recursive: true });
+    await mkdir(path.dirname(secretsPath), { recursive: true });
     await writeFile(metaPath, ' '.repeat(300 * 1024), 'utf8');
     await writeFile(secretsPath, ' '.repeat(300 * 1024), 'utf8');
 

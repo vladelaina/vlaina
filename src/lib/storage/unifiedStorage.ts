@@ -47,21 +47,21 @@ interface UnifiedSaveRequest {
   patch?: UnifiedSavePatch;
 }
 
-const MAIN_DATA_FILE = 'data.json';
-const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
+const MAIN_DATA_FILE = 'settings.json';
+const MAIN_DATA_BACKUP_FILE = 'settings.backup.json';
 const AI_SESSIONS_FILE_VERSION = 1;
-const AI_PROVIDER_CHANNEL_FILE_VERSION = 1;
+const AI_PROVIDER_FILE_VERSION = 1;
 export const MAX_MAIN_DATA_BYTES = 2 * 1024 * 1024;
 export const MAX_AI_SESSIONS_BYTES = 2 * 1024 * 1024;
-export const MAX_AI_PROVIDER_CHANNEL_BYTES = 2 * 1024 * 1024;
+export const MAX_AI_PROVIDER_FILE_BYTES = 2 * 1024 * 1024;
 export const MAX_AI_SESSION_RECORDS = 5000;
 const MAX_AI_ID_LIST_ENTRIES = 5000;
-export const MAX_AI_PROVIDER_CHANNELS = 200;
-export const MAX_AI_PROVIDER_CHANNEL_MODELS = 2000;
-export const MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS = 2000;
-export const MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS = 2000;
-export const MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS = 10_000;
-export const MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES = 10_000;
+export const MAX_AI_PROVIDERS = 200;
+export const MAX_AI_PROVIDER_MODELS = 2000;
+export const MAX_AI_PROVIDER_FETCHED_MODELS = 2000;
+export const MAX_AI_PROVIDER_BENCHMARK_ITEMS = 2000;
+export const MAX_AI_PROVIDER_BENCHMARK_SCAN_ITEMS = 10_000;
+export const MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES = 10_000;
 const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
 export const MAX_SETTINGS_TIMEZONE_CITY_CHARS = 512;
@@ -78,7 +78,7 @@ const MAX_AI_MODEL_SAVE_SCAN_RECORDS = 20_000;
 const MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS = 10_000;
 const MAX_AI_MODEL_FIELD_CHARS = 4096;
 const MAX_AI_BENCHMARK_ERROR_CHARS = 4096;
-export const MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES = 10_000;
+export const MAX_AI_PROVIDER_FILE_SCAN_ENTRIES = 10_000;
 export const MAX_AI_PROVIDER_STORAGE_CONCURRENCY = 10;
 export const MAX_CUSTOM_ICONS = 2000;
 export const MAX_CUSTOM_ICON_ID_CHARS = 4096;
@@ -108,18 +108,18 @@ interface AISessionsFile {
   data: AISessionsFileData;
 }
 
-interface AIProviderChannelFileData {
+interface AIProviderFileData {
   provider: Provider;
   models: AIModel[];
   benchmarkResults?: ProviderBenchmarkRecord;
   fetchedModels: string[];
 }
 
-interface AIProviderChannelFile {
-  version: typeof AI_PROVIDER_CHANNEL_FILE_VERSION;
+interface AIProviderFile {
+  version: typeof AI_PROVIDER_FILE_VERSION;
   providerId: string;
   updatedAt: number;
-  data: AIProviderChannelFileData;
+  data: AIProviderFileData;
 }
 
 let autoSyncTrigger: (() => void) | null = null;
@@ -294,7 +294,7 @@ function normalizeProvidersForSave(value: unknown): Provider[] {
   const providers: Provider[] = [];
   const seenIds = new Set<string>();
   const scanLimit = Math.min(value.length, MAX_AI_PROVIDER_SAVE_SCAN_RECORDS);
-  for (let index = 0; index < scanLimit && providers.length < MAX_AI_PROVIDER_CHANNELS; index += 1) {
+  for (let index = 0; index < scanLimit && providers.length < MAX_AI_PROVIDERS; index += 1) {
     const item = value[index];
     if (!isRecord(item)) {
       continue;
@@ -389,7 +389,7 @@ function collectProviderModelsForSave(
     }
 
     const models = modelsByProvider.get(model.providerId);
-    if (!models || models.length >= MAX_AI_PROVIDER_CHANNEL_MODELS) {
+    if (!models || models.length >= MAX_AI_PROVIDER_MODELS) {
       continue;
     }
 
@@ -416,7 +416,7 @@ function normalizeFetchedModelsForSave(value: unknown): string[] {
   const models: string[] = [];
   const seen = new Set<string>();
   const scanLimit = Math.min(value.length, MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS);
-  for (let index = 0; index < scanLimit && models.length < MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS; index += 1) {
+  for (let index = 0; index < scanLimit && models.length < MAX_AI_PROVIDER_FETCHED_MODELS; index += 1) {
     const item = value[index];
     const model = typeof item === 'string' ? item.trim().slice(0, MAX_AI_MODEL_FIELD_CHARS) : '';
     if (!model || seen.has(model)) {
@@ -435,7 +435,7 @@ function normalizeFetchedModelsForLoad(value: unknown): string[] {
 
   const models: string[] = [];
   const scanLimit = Math.min(value.length, MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS);
-  for (let index = 0; index < scanLimit && models.length < MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS; index += 1) {
+  for (let index = 0; index < scanLimit && models.length < MAX_AI_PROVIDER_FETCHED_MODELS; index += 1) {
     const model = normalizeBoundedString(value[index], MAX_AI_MODEL_FIELD_CHARS).trim();
     if (!model) {
       continue;
@@ -480,8 +480,8 @@ function normalizeProviderBenchmarkRecord(value: unknown): ProviderBenchmarkReco
   let acceptedItems = 0;
   for (const modelId in value.items) {
     if (
-      scannedItems >= MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS ||
-      acceptedItems >= MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS
+      scannedItems >= MAX_AI_PROVIDER_BENCHMARK_SCAN_ITEMS ||
+      acceptedItems >= MAX_AI_PROVIDER_BENCHMARK_ITEMS
     ) {
       break;
     }
@@ -539,7 +539,7 @@ function parseAISessionsFile(value: unknown): AISessionsFileData | null {
     customSystemPrompt: normalizeBoundedString(data.customSystemPrompt, MAX_AI_CUSTOM_SYSTEM_PROMPT_CHARS),
     includeTimeContext: data.includeTimeContext !== false,
     webSearchEnabled: data.webSearchEnabled === true,
-    providerIds: normalizeBoundedIdList(data.providerIds, isSafeProviderId, MAX_AI_PROVIDER_CHANNELS),
+    providerIds: normalizeBoundedIdList(data.providerIds, isSafeProviderId, MAX_AI_PROVIDERS),
     deletedSessionIds: normalizeBoundedIdList(data.deletedSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES),
     deletedProviderIds: normalizeBoundedIdList(data.deletedProviderIds, isSafeProviderId, MAX_AI_ID_LIST_ENTRIES),
   };
@@ -598,17 +598,17 @@ function serializeBoundedAISessionsFile(data: AISessionsFileData): string {
   return serialize();
 }
 
-function parseAIProviderChannelFile(
+function parseAIProviderFile(
   expectedProviderId: string,
   value: unknown,
-): AIProviderChannelFileData | null {
+): AIProviderFileData | null {
   if (!isSafeProviderId(expectedProviderId)) {
     return null;
   }
 
   if (
     !isRecord(value) ||
-    value.version !== AI_PROVIDER_CHANNEL_FILE_VERSION ||
+    value.version !== AI_PROVIDER_FILE_VERSION ||
     value.providerId !== expectedProviderId ||
     !isRecord(value.data)
   ) {
@@ -624,19 +624,19 @@ function parseAIProviderChannelFile(
   return {
     provider: data.provider as unknown as Provider,
     models: Array.isArray(data.models)
-      ? data.models.slice(0, MAX_AI_PROVIDER_CHANNEL_MODELS) as AIModel[]
+      ? data.models.slice(0, MAX_AI_PROVIDER_MODELS) as AIModel[]
       : [],
     ...(benchmarkResults ? { benchmarkResults } : {}),
     fetchedModels: normalizeFetchedModelsForLoad(data.fetchedModels),
   };
 }
 
-function serializeAIProviderChannelFile(
+function serializeAIProviderFile(
   providerId: string,
-  data: AIProviderChannelFileData,
+  data: AIProviderFileData,
 ): string {
-  const payload: AIProviderChannelFile = {
-    version: AI_PROVIDER_CHANNEL_FILE_VERSION,
+  const payload: AIProviderFile = {
+    version: AI_PROVIDER_FILE_VERSION,
     providerId,
     updatedAt: Date.now(),
     data,
@@ -644,17 +644,17 @@ function serializeAIProviderChannelFile(
   return JSON.stringify(payload, null, 2);
 }
 
-function serializeBoundedAIProviderChannelFile(
+function serializeBoundedAIProviderFile(
   providerId: string,
-  data: AIProviderChannelFileData,
+  data: AIProviderFileData,
 ): string {
   let models = Array.isArray(data.models)
-    ? data.models.slice(0, MAX_AI_PROVIDER_CHANNEL_MODELS)
+    ? data.models.slice(0, MAX_AI_PROVIDER_MODELS)
     : [];
   let fetchedModels = normalizeFetchedModelsForSave(data.fetchedModels);
   let benchmarkResults = normalizeProviderBenchmarkRecord(data.benchmarkResults);
 
-  const serialize = () => serializeAIProviderChannelFile(providerId, {
+  const serialize = () => serializeAIProviderFile(providerId, {
     ...data,
     models,
     benchmarkResults,
@@ -662,26 +662,26 @@ function serializeBoundedAIProviderChannelFile(
   });
 
   let payload = serialize();
-  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_CHANNEL_BYTES)) {
+  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_FILE_BYTES)) {
     return payload;
   }
 
   benchmarkResults = undefined;
   payload = serialize();
-  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_CHANNEL_BYTES)) {
+  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_FILE_BYTES)) {
     return payload;
   }
 
-  fetchedModels = trimArrayForSerializedLimit(fetchedModels, MAX_AI_PROVIDER_CHANNEL_BYTES, (nextFetchedModels) => {
+  fetchedModels = trimArrayForSerializedLimit(fetchedModels, MAX_AI_PROVIDER_FILE_BYTES, (nextFetchedModels) => {
     fetchedModels = nextFetchedModels;
     return serialize();
   });
   payload = serialize();
-  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_CHANNEL_BYTES)) {
+  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_FILE_BYTES)) {
     return payload;
   }
 
-  models = trimArrayForSerializedLimit(models, MAX_AI_PROVIDER_CHANNEL_BYTES, (nextModels) => {
+  models = trimArrayForSerializedLimit(models, MAX_AI_PROVIDER_FILE_BYTES, (nextModels) => {
     models = nextModels;
     return serialize();
   });
@@ -773,6 +773,35 @@ function collectSafeJsonEntryIds(
   return ids;
 }
 
+function collectSafeDirectoryEntryIds(
+  entries: FileInfo[],
+  maxCandidates: number,
+  isSafeId: (value: unknown) => value is string,
+  shouldInclude: (id: string) => boolean,
+): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    if (ids.length >= maxCandidates) {
+      break;
+    }
+    if (!entry.isDirectory) {
+      continue;
+    }
+
+    const id = entry.name;
+    if (!isSafeId(id) || seen.has(id) || !shouldInclude(id)) {
+      continue;
+    }
+
+    seen.add(id);
+    ids.push(id);
+  }
+
+  return ids;
+}
+
 async function recoverOrphanChatSessions(
   sessionsDir: string,
   existingSessions: ChatSession[],
@@ -783,9 +812,9 @@ async function recoverOrphanChatSessions(
   const entries = await storage.listDir(sessionsDir).catch(() => []);
   const recoveredSessions: ChatSession[] = [];
   const maxRecoveredSessions = Math.max(0, MAX_AI_SESSION_RECORDS - existingSessions.length);
-  const sessionIds = collectSafeJsonEntryIds(
+  const sessionIds = collectSafeDirectoryEntryIds(
     entries,
-    MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES,
+    MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES,
     isSafeChatSessionId,
     (sessionId) => (
       !existingSessionIds.has(sessionId) &&
@@ -811,27 +840,27 @@ async function recoverOrphanChatSessions(
   return recoveredSessions;
 }
 
-async function recoverOrphanProviderChannelIds(
-  channelsDir: string,
+async function recoverOrphanProviderIds(
+  providersDir: string,
   existingProviderIds: string[],
   deletedProviderIds: ReadonlySet<string> = new Set(),
 ): Promise<string[]> {
   const providerIds = new Set(existingProviderIds);
   const recoveredProviderIds: string[] = [];
-  if (providerIds.size >= MAX_AI_PROVIDER_CHANNELS) {
+  if (providerIds.size >= MAX_AI_PROVIDERS) {
     return recoveredProviderIds;
   }
 
-  const entries = await getStorageAdapter().listDir(channelsDir).catch(() => []);
+  const entries = await getStorageAdapter().listDir(providersDir).catch(() => []);
   const recoveredCandidates = collectSafeJsonEntryIds(
     entries,
-    MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES,
+    MAX_AI_PROVIDER_FILE_SCAN_ENTRIES,
     isSafeProviderId,
     (providerId) => !providerIds.has(providerId) && !deletedProviderIds.has(providerId),
   );
 
   for (const providerId of recoveredCandidates) {
-    if (providerIds.size >= MAX_AI_PROVIDER_CHANNELS) {
+    if (providerIds.size >= MAX_AI_PROVIDERS) {
       break;
     }
 
@@ -868,7 +897,7 @@ async function sessionMessageFileExists(sessionFilesDir: string, sessionId: stri
   }
 
   const storage = getStorageAdapter();
-  const path = await joinPath(sessionFilesDir, `${sessionId}.json`);
+  const path = await joinPath(sessionFilesDir, sessionId, 'messages.json');
   return storage.exists(path).catch(() => false);
 }
 
@@ -1339,12 +1368,13 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     const storage = getStorageAdapter();
     const base = await getBasePath();
     const configDir = await joinPath(base, '.vlaina');
+    const appDir = await joinPath(configDir, 'app');
     const chatDir = await joinPath(configDir, 'chat');
-    const mainPath = await joinPath(configDir, MAIN_DATA_FILE);
-    const mainBackupPath = await joinPath(configDir, MAIN_DATA_BACKUP_FILE);
-    const sessionsPath = await joinPath(chatDir, 'sessions.json');
+    const mainPath = await joinPath(appDir, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(appDir, MAIN_DATA_BACKUP_FILE);
     const sessionFilesDir = await joinPath(chatDir, 'sessions');
-    const channelsDir = await joinPath(chatDir, 'channels');
+    const sessionsPath = await joinPath(sessionFilesDir, 'index.json');
+    const providersDir = await joinPath(chatDir, 'providers');
 
     let combinedData = createDefaultUnifiedData();
 
@@ -1397,7 +1427,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     };
 
     let providerIds: string[] = [];
-    let shouldRecoverProviderChannels = false;
+    let shouldRecoverProviderFiles = false;
     if (await storage.exists(sessionsPath)) {
         try {
             const content = await readBoundedTextFile(storage, sessionsPath, MAX_AI_SESSIONS_BYTES);
@@ -1408,7 +1438,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             const sessionsData = parseAISessionsFile(parsedSessionsData);
             if (!sessionsData) {
               console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
-              shouldRecoverProviderChannels = true;
+              shouldRecoverProviderFiles = true;
             } else {
               const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
               const aiData = combinedData.ai;
@@ -1433,10 +1463,10 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             }
         } catch {
             console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
-            shouldRecoverProviderChannels = true;
+            shouldRecoverProviderFiles = true;
         }
     } else {
-      shouldRecoverProviderChannels = true;
+      shouldRecoverProviderFiles = true;
     }
 
     const recoveredSessions = await recoverOrphanChatSessions(
@@ -1453,15 +1483,15 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
       ].sort((a, b) => b.updatedAt - a.updatedAt);
     }
 
-    if (shouldRecoverProviderChannels) {
+    if (shouldRecoverProviderFiles) {
       providerIds = [
         ...providerIds,
-        ...await recoverOrphanProviderChannelIds(
-          channelsDir,
+        ...await recoverOrphanProviderIds(
+          providersDir,
           providerIds,
           new Set((combinedData.ai.deletedProviderIds || []).filter(isSafeProviderId)),
         ),
-      ].slice(0, MAX_AI_PROVIDER_CHANNELS);
+      ].slice(0, MAX_AI_PROVIDERS);
     }
 
     if (providerIds.length > 0) {
@@ -1469,15 +1499,15 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
           providerIds,
           MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
           async (id) => {
-            const pPath = await joinPath(channelsDir, `${id}.json`);
+            const pPath = await joinPath(providersDir, `${id}.json`);
             if (await storage.exists(pPath)) {
                 try {
-                    const content = await readBoundedTextFile(storage, pPath, MAX_AI_PROVIDER_CHANNEL_BYTES);
+                    const content = await readBoundedTextFile(storage, pPath, MAX_AI_PROVIDER_FILE_BYTES);
                     if (content === null) {
                       return null;
                     }
                     const parsedProviderData: unknown = JSON.parse(content);
-                    return parseAIProviderChannelFile(id, parsedProviderData);
+                    return parseAIProviderFile(id, parsedProviderData);
                 } catch (error) {
                     return null;
                 }
@@ -1527,16 +1557,19 @@ async function performSplitSave(request: UnifiedSaveRequest) {
     const base = await getBasePath();
     
     const configDir = await joinPath(base, '.vlaina');
+    const appDir = await joinPath(configDir, 'app');
     const chatDir = await joinPath(configDir, 'chat');
-    const channelsDir = await joinPath(chatDir, 'channels');
+    const providersDir = await joinPath(chatDir, 'providers');
     const sessionFilesDir = await joinPath(chatDir, 'sessions');
     
-    const mainPath = await joinPath(configDir, MAIN_DATA_FILE);
-    const mainBackupPath = await joinPath(configDir, MAIN_DATA_BACKUP_FILE);
-    const sessionsPath = await joinPath(chatDir, 'sessions.json');
+    const mainPath = await joinPath(appDir, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(appDir, MAIN_DATA_BACKUP_FILE);
+    const sessionsPath = await joinPath(sessionFilesDir, 'index.json');
 
-    if (!(await storage.exists(channelsDir))) {
-        await storage.mkdir(channelsDir, true);
+    for (const directory of [appDir, chatDir, providersDir, sessionFilesDir]) {
+        if (!(await storage.exists(directory))) {
+            await storage.mkdir(directory, true);
+        }
     }
 
     const sanitizedData = sanitizeUnifiedData(request.data);
@@ -1594,7 +1627,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
           ...(existingSessionsData?.providerIds || []),
         ]))
           .filter((providerId) => isSafeProviderId(providerId) && !tombstonedProviderIds.has(providerId))
-          .slice(0, MAX_AI_PROVIDER_CHANNELS);
+          .slice(0, MAX_AI_PROVIDERS);
         const activeProviderIds = new Set(mergedProviderIds);
         const deletedProviderIds = Array.from(tombstonedProviderIds).filter(
           (providerId) => !activeProviderIds.has(providerId)
@@ -1632,17 +1665,17 @@ async function performSplitSave(request: UnifiedSaveRequest) {
                 benchmarkResults: normalizeProviderBenchmarkRecord(ai.benchmarkResults?.[provider.id]),
                 fetchedModels: normalizeFetchedModelsForSave(ai.fetchedModels?.[provider.id])
             };
-            const pPath = await joinPath(channelsDir, `${provider.id}.json`);
-            await storage.writeFile(pPath, serializeBoundedAIProviderChannelFile(provider.id, pData));
+            const pPath = await joinPath(providersDir, `${provider.id}.json`);
+            await storage.writeFile(pPath, serializeBoundedAIProviderFile(provider.id, pData));
         }
 
-        const channelEntries = await storage.listDir(channelsDir).catch(() => []);
+        const providerEntries = await storage.listDir(providersDir).catch(() => []);
         for (
             let entryIndex = 0;
-            entryIndex < channelEntries.length && entryIndex < MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES;
+            entryIndex < providerEntries.length && entryIndex < MAX_AI_PROVIDER_FILE_SCAN_ENTRIES;
             entryIndex += 1
         ) {
-            const entry = channelEntries[entryIndex];
+            const entry = providerEntries[entryIndex];
             if (!entry.isFile || !entry.name.endsWith('.json')) {
                 continue;
             }
@@ -1657,24 +1690,6 @@ async function performSplitSave(request: UnifiedSaveRequest) {
             }
         }
 
-        const ttsChannelsDir = await joinPath(chatDir, 'tts-channels');
-        const ttsChannelEntries = await storage.listDir(ttsChannelsDir).catch(() => []);
-        for (
-            let entryIndex = 0;
-            entryIndex < ttsChannelEntries.length && entryIndex < MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES;
-            entryIndex += 1
-        ) {
-            const entry = ttsChannelEntries[entryIndex];
-            if (!entry.isFile || !entry.name.endsWith('.json')) {
-                continue;
-            }
-            const providerId = entry.name.slice(0, -5);
-            try {
-                await deleteProviderSecretsBestEffort([providerId], deletedProviderSecrets);
-                await storage.deleteFile(entry.path);
-            } catch (error) {
-            }
-        }
     }
 }
 

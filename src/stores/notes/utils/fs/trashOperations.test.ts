@@ -32,7 +32,7 @@ vi.mock('@/lib/desktop/trash', () => ({
 vi.mock('../../systemStoragePaths', () => ({
   ensureSystemDirectory: hoisted.ensureSystemDirectory,
   getVaultSystemStorePath: async (_vaultPath: string, ...segments: string[]) =>
-    ['/app/.vlaina/store/notes/vaults/vault-test', ...segments].join('/'),
+    ['/app/.vlaina/notes/vaults/vault-test', ...segments].join('/'),
 }));
 
 vi.mock('../../document/externalChangeRegistry', () => ({
@@ -85,15 +85,15 @@ describe('pending note trash operations', () => {
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/note.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/1000-i/note.md',
       deletedAt: 1000,
     });
     expect(hoisted.ensureSystemDirectory).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i',
+      '/app/.vlaina/notes/vaults/vault-test/trash/1000-i',
     );
     expect(hoisted.rename).toHaveBeenCalledWith(
       '/vault/docs/note.md',
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/note.md',
+      '/app/.vlaina/notes/vaults/vault-test/trash/1000-i/note.md',
     );
     expect(mockedMoveDesktopItemToTrash).not.toHaveBeenCalled();
   });
@@ -108,7 +108,7 @@ describe('pending note trash operations', () => {
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/note.md',
       deletedAt: 1000,
     });
 
@@ -118,12 +118,12 @@ describe('pending note trash operations', () => {
     });
     expect(hoisted.mkdir).toHaveBeenCalledWith('/vault/docs', true);
     expect(hoisted.rename).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
+      '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/note.md',
       '/vault/docs/note 1.md',
     );
     expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs/note 1.md');
     expect(hoisted.deleteDir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      '/app/.vlaina/notes/vaults/vault-test/trash/delete-1',
       true,
     );
   });
@@ -143,7 +143,7 @@ describe('pending note trash operations', () => {
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/note.md',
       deletedAt: 1000,
     })).rejects.toThrow('Pending trash staging path must stay inside the current vault pending trash.');
 
@@ -151,7 +151,7 @@ describe('pending note trash operations', () => {
   });
 
   it('commits pending items to the system trash', async () => {
-    const stagingPath = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/docs';
+    const stagingPath = '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs';
 
     await movePendingDeletedItemToSystemTrash({
       id: 'delete-1',
@@ -168,14 +168,14 @@ describe('pending note trash operations', () => {
     expect(mockedMoveDesktopItemToTrash).toHaveBeenCalledWith('/vault/docs');
     expect(mockedMoveDesktopItemToTrash).not.toHaveBeenCalledWith(stagingPath);
     expect(hoisted.deleteDir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      '/app/.vlaina/notes/vaults/vault-test/trash/delete-1',
       true,
     );
   });
 
   it('commits staged items directly when the original path has been reused', async () => {
     hoisted.exists.mockResolvedValueOnce(true);
-    const stagingPath = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md';
+    const stagingPath = '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/note.md';
 
     await movePendingDeletedItemToSystemTrash({
       id: 'delete-1',
@@ -189,13 +189,13 @@ describe('pending note trash operations', () => {
     expect(hoisted.rename).not.toHaveBeenCalled();
     expect(mockedMoveDesktopItemToTrash).toHaveBeenCalledWith(stagingPath);
     expect(hoisted.deleteDir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      '/app/.vlaina/notes/vaults/vault-test/trash/delete-1',
       true,
     );
   });
 
   it('rolls moved items back to pending trash if system trash fails at the original path', async () => {
-    const stagingPath = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/docs';
+    const stagingPath = '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs';
     mockedMoveDesktopItemToTrash.mockRejectedValue(new Error('trash failed'));
 
     await expect(movePendingDeletedItemToSystemTrash({
@@ -210,13 +210,13 @@ describe('pending note trash operations', () => {
     expect(hoisted.rename).toHaveBeenNthCalledWith(1, stagingPath, '/vault/docs');
     expect(hoisted.rename).toHaveBeenNthCalledWith(2, '/vault/docs', stagingPath);
     expect(hoisted.deleteDir).not.toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1',
+      '/app/.vlaina/notes/vaults/vault-test/trash/delete-1',
       true,
     );
   });
 
   it('keeps stale pending trash when moving it to system trash fails', async () => {
-    const pendingRoot = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash';
+    const pendingRoot = '/app/.vlaina/notes/vaults/vault-test/trash';
     const stagingDir = `${pendingRoot}/delete-1`;
     hoisted.exists.mockImplementation(async (path: string) => path === pendingRoot);
     hoisted.listDir.mockImplementation(async (path: string) => {
@@ -237,7 +237,7 @@ describe('pending note trash operations', () => {
   });
 
   it('deletes stale pending trash containers only after all staged entries move', async () => {
-    const pendingRoot = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash';
+    const pendingRoot = '/app/.vlaina/notes/vaults/vault-test/trash';
     const stagingDir = `${pendingRoot}/delete-1`;
     hoisted.exists.mockImplementation(async (path: string) => path === pendingRoot);
     hoisted.listDir.mockImplementation(async (path: string) => {
@@ -257,7 +257,7 @@ describe('pending note trash operations', () => {
   });
 
   it('bounds stale pending trash root cleanup work', async () => {
-    const pendingRoot = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash';
+    const pendingRoot = '/app/.vlaina/notes/vaults/vault-test/trash';
     hoisted.exists.mockImplementation(async (path: string) => path === pendingRoot);
     hoisted.listDir.mockImplementation(async (path: string) => {
       if (path === pendingRoot) {
@@ -278,7 +278,7 @@ describe('pending note trash operations', () => {
   });
 
   it('keeps oversized stale pending trash containers for later cleanup', async () => {
-    const pendingRoot = '/app/.vlaina/store/notes/vaults/vault-test/pending-trash';
+    const pendingRoot = '/app/.vlaina/notes/vaults/vault-test/trash';
     const stagingDir = `${pendingRoot}/delete-1`;
     hoisted.exists.mockImplementation(async (path: string) => path === pendingRoot);
     hoisted.listDir.mockImplementation(async (path: string) => {
@@ -320,10 +320,10 @@ describe('pending note trash operations', () => {
 
     expect(hoisted.copyFile).toHaveBeenCalledWith(
       '/vault/docs/safe.md',
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/docs/safe.md',
+      '/app/.vlaina/notes/vaults/vault-test/trash/1000-i/docs/safe.md',
     );
     expect(hoisted.deleteDir).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/1000-i/docs',
+      '/app/.vlaina/notes/vaults/vault-test/trash/1000-i/docs',
       true,
     );
     expect(hoisted.deleteDir).not.toHaveBeenCalledWith('/vault/docs', true);
@@ -340,7 +340,7 @@ describe('pending note trash operations', () => {
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/note.md',
       deletedAt: 1000,
     });
 
@@ -370,7 +370,7 @@ describe('pending note trash operations', () => {
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      stagingPath: '/app/.vlaina/store/notes/vaults/vault-test/pending-trash/delete-1/note.md',
+      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/note.md',
       deletedAt: 1000,
     }, undefined, onError);
 

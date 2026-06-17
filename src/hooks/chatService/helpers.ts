@@ -233,7 +233,8 @@ function extractTrustedManagedAttachmentPathFilename(path: unknown): string | nu
   if (
     !filename ||
     segments.at(-2)?.toLowerCase() !== 'attachments' ||
-    segments.at(-3)?.toLowerCase() !== '.vlaina'
+    segments.at(-3)?.toLowerCase() !== 'chat' ||
+    segments.at(-4)?.toLowerCase() !== '.vlaina'
   ) {
     return null;
   }

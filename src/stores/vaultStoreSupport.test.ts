@@ -111,7 +111,7 @@ describe('vaultStoreSupport persistence merging', () => {
     vi.useFakeTimers();
     const storage = {
       getBasePath: vi.fn(async () => '/app'),
-      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/notes/state.json'),
       readFile: vi.fn(async () => JSON.stringify({
         version: 1,
         recentVaults: [
@@ -132,7 +132,7 @@ describe('vaultStoreSupport persistence merging', () => {
     }));
     vi.doMock('@/lib/storage/paths', () => ({
       ensureDirectories: () => Promise.resolve(),
-      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
     }));
 
     const { persistVaultState } = await import('./vaultStoreSupport');
@@ -145,7 +145,7 @@ describe('vaultStoreSupport persistence merging', () => {
 
     const writeCalls = storage.writeFile.mock.calls as unknown as Array<[string, string]>;
     const payload = JSON.parse(String(writeCalls[0]?.[1]));
-    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json', 256 * 1024);
+    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/state.json', 256 * 1024);
     expect(payload.recentVaults.map((vault: { id: string }) => vault.id)).toEqual([
       'vault-local',
       'vault-other',
@@ -158,7 +158,7 @@ describe('vaultStoreSupport persistence merging', () => {
     const removedVault = { id: 'vault-removed', name: 'Removed', path: '/vault/removed', lastOpened: 1 };
     const storage = {
       getBasePath: vi.fn(async () => '/app'),
-      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/notes/state.json'),
       readFile: vi.fn(async () => JSON.stringify({
         version: 1,
         recentVaults: [removedVault],
@@ -177,7 +177,7 @@ describe('vaultStoreSupport persistence merging', () => {
     }));
     vi.doMock('@/lib/storage/paths', () => ({
       ensureDirectories: () => Promise.resolve(),
-      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
     }));
 
     const { removeRecentVaultAction } = await import('./vaultStoreSupport');
@@ -202,7 +202,7 @@ describe('vaultStoreSupport persistence merging', () => {
     vi.useFakeTimers();
     const storage = {
       getBasePath: vi.fn(async () => '/app'),
-      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/notes/state.json'),
       readFile: vi.fn(async () => JSON.stringify({
         version: 1,
         recentVaults: [
@@ -223,7 +223,7 @@ describe('vaultStoreSupport persistence merging', () => {
     }));
     vi.doMock('@/lib/storage/paths', () => ({
       ensureDirectories: () => Promise.resolve(),
-      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
     }));
 
     const { loadPersistedVaultState } = await import('./vaultStoreSupport');
@@ -232,14 +232,14 @@ describe('vaultStoreSupport persistence merging', () => {
     expect(state.recentVaults).toEqual([
       { id: 'vault-other', name: 'Other', path: '/vault/other', lastOpened: 2 },
     ]);
-    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json', 256 * 1024);
+    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/state.json', 256 * 1024);
   });
 
   it('does not read vault state files with invalid known stat sizes', async () => {
     vi.useFakeTimers();
     const storage = {
       getBasePath: vi.fn(async () => '/app'),
-      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/notes/state.json'),
       readFile: vi.fn(async () => {
         throw new Error('Invalid stat size should not be read');
       }),
@@ -255,7 +255,7 @@ describe('vaultStoreSupport persistence merging', () => {
     }));
     vi.doMock('@/lib/storage/paths', () => ({
       ensureDirectories: () => Promise.resolve(),
-      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
     }));
 
     const { loadPersistedVaultState } = await import('./vaultStoreSupport');
@@ -269,7 +269,7 @@ describe('vaultStoreSupport persistence merging', () => {
     vi.useFakeTimers();
     const storage = {
       getBasePath: vi.fn(async () => '/app'),
-      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/notes/state.json'),
       readFile: vi.fn(async () => '你'.repeat(Math.floor((256 * 1024) / 3) + 1)),
       stat: vi.fn(async () => ({ size: 256 })),
       writeFile: vi.fn(async () => undefined),
@@ -283,14 +283,14 @@ describe('vaultStoreSupport persistence merging', () => {
     }));
     vi.doMock('@/lib/storage/paths', () => ({
       ensureDirectories: () => Promise.resolve(),
-      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
     }));
 
     const { loadPersistedVaultState } = await import('./vaultStoreSupport');
     const state = await loadPersistedVaultState();
 
     expect(state.recentVaults).toEqual([]);
-    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json', 256 * 1024);
+    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/state.json', 256 * 1024);
   });
 });
 

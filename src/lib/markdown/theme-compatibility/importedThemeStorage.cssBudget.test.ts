@@ -89,7 +89,7 @@ describe('imported markdown theme CSS cache budget', () => {
       ].join('\n'),
     });
 
-    const cachedCss = files.get('/app/.vlaina/store/markdown-theme-cache/budget.css') ?? '';
+    const cachedCss = files.get('/app/.vlaina/app/cache/markdown-themes/budget.css') ?? '';
     expect(byteLength(cachedCss)).toBeLessThanOrEqual(MAX_IMPORTED_THEME_CSS_BYTES);
     expect(cachedCss).toContain('#write { color: red; }');
     expect(cachedCss).not.toContain('--helper');

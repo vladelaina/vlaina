@@ -25,8 +25,8 @@ vi.mock('@/stores/notes/systemStoragePaths', () => ({
       await mocks.storage.mkdir(path, true);
     }
   }),
-  getVaultSystemStorePath: (vaultPath: string, fileName: string) => (
-    Promise.resolve(`${vaultPath}/.system/${fileName}`)
+  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
   ),
 }));
 
@@ -59,7 +59,7 @@ describe('AssetHashIndex', () => {
     const index = await loadAssetHashIndex('/vault');
 
     expect(index.entries['image.png']?.hash).toBe('abc');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.system/asset-hash-index.json', 2 * 1024 * 1024);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-test/assets.json', 2 * 1024 * 1024);
   });
 
   it('does not parse hash index content that exceeds the limit after read', async () => {
@@ -69,7 +69,7 @@ describe('AssetHashIndex', () => {
     const index = await loadAssetHashIndex('/vault');
 
     expect(index.entries).toEqual({});
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.system/asset-hash-index.json', 2 * 1024 * 1024);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-test/assets.json', 2 * 1024 * 1024);
   });
 
   it('does not read hash index files with invalid known stat sizes', async () => {
@@ -181,9 +181,9 @@ describe('AssetHashIndex', () => {
       entries: {},
     });
 
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/.system', true);
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-test', true);
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/vault/.system/asset-hash-index.json',
+      '/app/.vlaina/notes/vaults/vault-test/assets.json',
       expect.any(String),
     );
   });

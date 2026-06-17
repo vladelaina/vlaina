@@ -293,7 +293,7 @@ const importedTheme = {
   name: 'vlook-fancy',
   platform: 'typora' as const,
   cssFile: 'vlook-fancy.css',
-  sourcePath: '/app/.vlaina/themes/vlook-fancy.css',
+  sourcePath: '/app/.vlaina/app/themes/vlook-fancy.css',
   sourceModifiedAt: 10,
   sourceSize: 100,
   createdAt: 1,
@@ -304,7 +304,7 @@ describe('AppContent view switching chrome readiness', () => {
   beforeEach(() => {
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
-      directoryPath: '/app/.vlaina/themes',
+      directoryPath: '/app/.vlaina/app/themes',
       themes: [importedTheme],
       activeThemeId: 'vlook-fancy',
     });

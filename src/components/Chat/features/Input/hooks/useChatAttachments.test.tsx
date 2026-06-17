@@ -117,8 +117,8 @@ describe('useChatAttachments', () => {
   });
 
   it('deletes pending attachment files when the user removes them before sending', async () => {
-    const first = createAttachment({ id: 'first', path: '/appdata/.vlaina/attachments/first.png' });
-    const second = createAttachment({ id: 'second', path: '/appdata/.vlaina/attachments/second.png' });
+    const first = createAttachment({ id: 'first', path: '/appdata/.vlaina/chat/attachments/first.png' });
+    const second = createAttachment({ id: 'second', path: '/appdata/.vlaina/chat/attachments/second.png' });
     mocks.saveAttachment
       .mockResolvedValueOnce(first)
       .mockResolvedValueOnce(second);
@@ -146,7 +146,7 @@ describe('useChatAttachments', () => {
   });
 
   it('does not delete attachment files when clearing after a successful send', async () => {
-    const sent = createAttachment({ id: 'sent', path: '/appdata/.vlaina/attachments/sent.png' });
+    const sent = createAttachment({ id: 'sent', path: '/appdata/.vlaina/chat/attachments/sent.png' });
     mocks.saveAttachment.mockResolvedValueOnce(sent);
     const { result } = renderHook(() => useChatAttachments());
 
@@ -170,7 +170,7 @@ describe('useChatAttachments', () => {
   it('does not re-add attachments that finish saving after attachments are cleared', async () => {
     const lateAttachment = createAttachment({
       id: 'late',
-      path: '/appdata/.vlaina/attachments/late.png',
+      path: '/appdata/.vlaina/chat/attachments/late.png',
     });
     let resolveSave!: (attachment: Attachment) => void;
     mocks.saveAttachment.mockImplementationOnce(
@@ -209,11 +209,11 @@ describe('useChatAttachments', () => {
   it('keeps restored attachments when older pending saves finish later', async () => {
     const staleAttachment = createAttachment({
       id: 'stale',
-      path: '/appdata/.vlaina/attachments/stale.png',
+      path: '/appdata/.vlaina/chat/attachments/stale.png',
     });
     const restoredAttachment = createAttachment({
       id: 'restored',
-      path: '/appdata/.vlaina/attachments/restored.png',
+      path: '/appdata/.vlaina/chat/attachments/restored.png',
       name: 'restored.png',
     });
     let resolveSave!: (attachment: Attachment) => void;
@@ -253,7 +253,7 @@ describe('useChatAttachments', () => {
   it('cleans up attachments that finish saving after the hook unmounts', async () => {
     const lateAttachment = createAttachment({
       id: 'late-unmounted',
-      path: '/appdata/.vlaina/attachments/late-unmounted.png',
+      path: '/appdata/.vlaina/chat/attachments/late-unmounted.png',
     });
     let resolveSave!: (attachment: Attachment) => void;
     mocks.saveAttachment.mockImplementationOnce(

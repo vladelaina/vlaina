@@ -1,5 +1,5 @@
-export const USER_THEMES_DIR = 'themes';
-export const THEME_CACHE_DIR = 'store/markdown-theme-cache';
+export const USER_THEMES_DIR = 'app/themes';
+export const THEME_CACHE_DIR = 'app/cache/markdown-themes';
 export const THEME_INDEX_FILE = 'themes.json';
 export const CSS_EXTENSION = '.css';
 export const MAX_IMPORTED_THEME_CSS_BYTES = 1024 * 1024;

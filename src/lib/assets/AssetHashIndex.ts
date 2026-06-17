@@ -1,7 +1,7 @@
 import { getStorageAdapter, getParentPath } from '@/lib/storage/adapter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
 
-const ASSET_HASH_INDEX_FILE = 'asset-hash-index.json';
+const ASSET_HASH_INDEX_FILE = 'assets.json';
 const ASSET_HASH_INDEX_VERSION = 1;
 const MAX_INDEX_BYTES = 2 * 1024 * 1024;
 const MAX_INDEX_ENTRIES = 5000;

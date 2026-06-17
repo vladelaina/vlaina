@@ -66,7 +66,6 @@ vi.mock('@/stores/notes/document/externalSyncControl', () => ({
 }));
 
 vi.mock('@/stores/notes/document/externalPathBroadcast', () => ({
-  getNotesExternalPathEventsRelativePath: () => '__vlaina_system__/external-path-events.json',
   readNotesExternalPathEvents: vi.fn(async () => []),
   subscribeNotesExternalPathRename: hoisted.subscribeNotesExternalPathRename,
 }));

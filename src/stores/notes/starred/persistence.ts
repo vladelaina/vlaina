@@ -34,8 +34,8 @@ interface StarredSavePayload {
 
 async function getStarredRegistryPath(): Promise<string> {
   await ensureDirectories();
-  const { store } = await getPaths();
-  return joinPath(store, STARRED_FILE);
+  const { notes } = await getPaths();
+  return joinPath(notes, STARRED_FILE);
 }
 
 function normalizeDeletedEntryKey(value: unknown): string | null {

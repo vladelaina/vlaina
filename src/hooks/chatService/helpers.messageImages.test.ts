@@ -483,7 +483,7 @@ describe('buildStoredUserMessageContent image parsing', () => {
       id: 'stored-image',
       path: '',
       previewUrl: '',
-      assetUrl: 'file:///appdata/.vlaina/attachments/demo%20image.png',
+      assetUrl: 'file:///appdata/.vlaina/chat/attachments/demo%20image.png',
       name: 'demo image.png',
       type: 'image/png',
       size: 128,

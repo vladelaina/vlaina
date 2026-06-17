@@ -83,7 +83,7 @@ describe('MarkdownThemeDirectorySync', () => {
       setImportedThemeId(importedThemeId);
     });
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
-      directoryPath: '/app/.vlaina/themes',
+      directoryPath: '/app/.vlaina/app/themes',
       themes: [],
       activeThemeId: 'clean-light',
     });
@@ -118,7 +118,7 @@ describe('MarkdownThemeDirectorySync', () => {
   it('does not rewrite a manually selected synced theme id', async () => {
     setImportedThemeId('minimal');
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValueOnce({
-      directoryPath: '/app/.vlaina/themes',
+      directoryPath: '/app/.vlaina/app/themes',
       themes: [
         { id: 'clean-light' },
         { id: 'minimal' },
@@ -137,7 +137,7 @@ describe('MarkdownThemeDirectorySync', () => {
   it('selects the active synced theme when the current selection disappeared', async () => {
     setImportedThemeId('deleted-theme');
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValueOnce({
-      directoryPath: '/app/.vlaina/themes',
+      directoryPath: '/app/.vlaina/app/themes',
       themes: [
         { id: 'clean-light' },
       ],
@@ -163,14 +163,14 @@ describe('MarkdownThemeDirectorySync', () => {
     });
     mocks.syncImportedMarkdownThemesFromDirectory
       .mockResolvedValueOnce({
-        directoryPath: '/app/.vlaina/themes',
+        directoryPath: '/app/.vlaina/app/themes',
         themes: [
           { id: 'clean-light' },
         ],
         activeThemeId: 'clean-light',
       })
       .mockResolvedValueOnce({
-        directoryPath: '/app/.vlaina/themes',
+        directoryPath: '/app/.vlaina/app/themes',
         themes: [
           { id: 'minimal' },
         ],
@@ -180,7 +180,7 @@ describe('MarkdownThemeDirectorySync', () => {
     render(<MarkdownThemeDirectorySync />);
 
     await waitFor(() => {
-      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/themes', expect.any(Function));
+      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/app/themes', expect.any(Function));
     });
 
     notifyChange();
@@ -201,7 +201,7 @@ describe('MarkdownThemeDirectorySync', () => {
     const view = render(<MarkdownThemeDirectorySync />);
 
     await waitFor(() => {
-      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/themes', expect.any(Function));
+      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/app/themes', expect.any(Function));
     });
 
     view.unmount();
@@ -220,7 +220,7 @@ describe('MarkdownThemeDirectorySync', () => {
 
     await waitFor(() => {
       expect(mocks.syncImportedMarkdownThemesFromDirectory).toHaveBeenCalledTimes(1);
-      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/themes', expect.any(Function));
+      expect(mocks.watchDesktopPath).toHaveBeenCalledWith('/app/.vlaina/app/themes', expect.any(Function));
     });
   });
 });

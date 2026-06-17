@@ -79,17 +79,24 @@ async function readJsonFile(filePath, fallbackValue) {
   }
 }
 
-async function getAppStoreDir() {
-  const storeDir = path.join(app.getPath('userData'), '.vlaina', 'store');
-  await mkdir(storeDir, { recursive: true });
-  return storeDir;
+async function getAccountDir() {
+  const accountDir = path.join(app.getPath('userData'), '.vlaina', 'app', 'account');
+  await mkdir(accountDir, { recursive: true });
+  return accountDir;
+}
+
+async function getSecretsDir() {
+  const secretsDir = path.join(app.getPath('userData'), '.vlaina', 'app', 'secrets');
+  await mkdir(secretsDir, { recursive: true });
+  return secretsDir;
 }
 
 async function getAccountStorePaths() {
-  const storeDir = await getAppStoreDir();
+  const accountDir = await getAccountDir();
+  const secretsDir = await getSecretsDir();
   return {
-    metaPath: path.join(storeDir, 'account-meta.json'),
-    secretsPath: path.join(storeDir, 'account-secrets.json'),
+    metaPath: path.join(accountDir, 'profile.json'),
+    secretsPath: path.join(secretsDir, 'account.json'),
   };
 }
 

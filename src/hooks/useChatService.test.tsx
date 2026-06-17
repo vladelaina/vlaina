@@ -744,7 +744,7 @@ describe('useChatService session context isolation', () => {
     seedTemporaryChatState();
     const attachment = createAttachment({
       previewUrl: '',
-      assetUrl: 'FILE:///appdata/.vlaina/attachments/demo.png',
+      assetUrl: 'FILE:///appdata/.vlaina/chat/attachments/demo.png',
     });
 
     const { result } = renderHook(() => useChatService());

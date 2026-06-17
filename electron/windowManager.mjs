@@ -18,7 +18,7 @@ const WINDOW_STATE_WRITE_DELAY_MS = 250;
 const MAX_WINDOW_STATE_JSON_BYTES = 64 * 1024;
 
 function getWindowStatePath() {
-  return path.join(app.getPath('userData'), '.vlaina', 'store', 'window-state.json');
+  return path.join(app.getPath('userData'), '.vlaina', 'app', 'window', 'state.json');
 }
 
 function readFiniteWindowDimension(value) {

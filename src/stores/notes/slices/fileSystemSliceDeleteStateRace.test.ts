@@ -114,7 +114,7 @@ function deletionResult(path: string, kind: 'file' | 'folder') {
       kind,
       originalPath: path,
       originalFullPath: `/vault/${path}`,
-      stagingPath: `/app/pending-trash/delete-${path}/${path.split('/').pop() ?? path}`,
+      stagingPath: `/app/.vlaina/notes/vaults/vault-test/trash/delete-${path}/${path.split('/').pop() ?? path}`,
       deletedAt: 1,
     },
   };

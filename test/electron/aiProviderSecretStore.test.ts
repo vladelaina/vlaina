@@ -69,8 +69,9 @@ describe('aiProviderSecretStore', () => {
     const secretsPath = path.join(
       mocks.userDataPath,
       '.vlaina',
+      'app',
       'secrets',
-      'ai-provider-secrets.json',
+      'ai-providers.json',
     );
     await mkdir(path.dirname(secretsPath), { recursive: true });
     await writeFile(secretsPath, JSON.stringify({
@@ -93,8 +94,9 @@ describe('aiProviderSecretStore', () => {
     const secretsPath = path.join(
       mocks.userDataPath,
       '.vlaina',
+      'app',
       'secrets',
-      'ai-provider-secrets.json',
+      'ai-providers.json',
     );
     await mkdir(path.dirname(secretsPath), { recursive: true });
     await writeFile(secretsPath, ' '.repeat(600 * 1024), 'utf8');

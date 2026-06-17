@@ -10,8 +10,8 @@ export async function loadAppIconImageSrc(src: string): Promise<string | null> {
 
   const path = src.substring(4).split(/[?#]/, 1)[0] ?? '';
   if (!path) return null;
-  const { metadata } = await getPaths();
-  const iconsRoot = await joinPath(metadata, 'assets', 'icons');
+  const { app } = await getPaths();
+  const iconsRoot = await joinPath(app, 'assets', 'icons');
   const safePath = normalizeContainedAssetPath(path, iconsRoot);
   return safePath ? loadImageAsBlob(safePath) : null;
 }

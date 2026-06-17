@@ -45,10 +45,6 @@ function resolveGitCommonRepoRoot(repoRoot) {
   }
 }
 
-function hasAppData(userDataPath) {
-  return fs.existsSync(path.join(userDataPath, '.vlaina'));
-}
-
 function normalizePathForCompare(filePath) {
   return path.resolve(filePath);
 }
@@ -57,7 +53,6 @@ const DEVELOPMENT_PROFILE_SHELL_SEED_MARKER = '.vlaina-dev-profile-shell-seeded'
 const MAX_DEVELOPMENT_PROFILE_SHELL_COPY_ENTRIES = 10000;
 const MAX_DEVELOPMENT_PROFILE_SHELL_COPY_DEPTH = 32;
 const MAX_DEVELOPMENT_PROFILE_SHELL_COPY_BYTES = 256 * 1024 * 1024;
-const MAX_STARRED_REGISTRY_JSON_BYTES = 5 * 1024 * 1024;
 
 function hasProfileShellData(userDataPath) {
   try {
@@ -295,128 +290,6 @@ function linkSharedDevelopmentAppData(userDataPath, sharedAppDataPath) {
   return true;
 }
 
-function getStarredRegistryPath(userDataPath) {
-  return path.join(userDataPath, '.vlaina', 'store', 'notes-starred.json');
-}
-
-function readStarredEntries(userDataPath) {
-  const registryPath = getStarredRegistryPath(userDataPath);
-  if (!fs.existsSync(registryPath)) {
-    return [];
-  }
-
-  try {
-    const fileInfo = fs.statSync(registryPath);
-    if (!fileInfo.isFile() || fileInfo.size > MAX_STARRED_REGISTRY_JSON_BYTES) {
-      return [];
-    }
-
-    const content = fs.readFileSync(registryPath, 'utf8');
-    if (Buffer.byteLength(content, 'utf8') > MAX_STARRED_REGISTRY_JSON_BYTES) {
-      return [];
-    }
-
-    const parsed = JSON.parse(content);
-    return Array.isArray(parsed?.entries) ? parsed.entries : [];
-  } catch {
-    return [];
-  }
-}
-
-function getStarredEntryMergeKey(entry) {
-  if (!entry || typeof entry !== 'object') {
-    return JSON.stringify(entry);
-  }
-
-  const kind = typeof entry.kind === 'string' ? entry.kind : '';
-  const vaultPath = typeof entry.vaultPath === 'string' ? entry.vaultPath : '';
-  const relativePath = typeof entry.relativePath === 'string' ? entry.relativePath : '';
-  if (kind || vaultPath || relativePath) {
-    return `${kind}\0${vaultPath.replace(/\\/g, '/')}\0${relativePath.replace(/\\/g, '/')}`;
-  }
-
-  return typeof entry.id === 'string' ? `id\0${entry.id}` : JSON.stringify(entry);
-}
-
-function mergeLegacyStarredRegistry(legacyUserDataPath, targetUserDataPath) {
-  if (legacyUserDataPath === targetUserDataPath || !hasAppData(legacyUserDataPath)) {
-    return false;
-  }
-
-  const legacyEntries = readStarredEntries(legacyUserDataPath);
-  if (legacyEntries.length === 0) {
-    return false;
-  }
-
-  const targetEntries = readStarredEntries(targetUserDataPath);
-  const knownKeys = new Set(targetEntries.map(getStarredEntryMergeKey));
-  const mergedEntries = [...targetEntries];
-
-  for (const entry of legacyEntries) {
-    const key = getStarredEntryMergeKey(entry);
-    if (knownKeys.has(key)) {
-      continue;
-    }
-    knownKeys.add(key);
-    mergedEntries.push(entry);
-  }
-
-  if (mergedEntries.length === targetEntries.length) {
-    return false;
-  }
-
-  try {
-    const targetPath = getStarredRegistryPath(targetUserDataPath);
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.writeFileSync(
-      targetPath,
-      JSON.stringify({ version: 1, entries: mergedEntries }, null, 2),
-      'utf8'
-    );
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-export function seedDevelopmentAppData(defaultUserDataPath, targetUserDataPath) {
-  const sourceAppDataPath = path.join(defaultUserDataPath, '.vlaina');
-  const targetAppDataPath = path.join(targetUserDataPath, '.vlaina');
-  const seedMarkerPath = path.join(targetUserDataPath, '.vlaina-dev-profile-seeded');
-
-  if (
-    defaultUserDataPath === targetUserDataPath ||
-    fs.existsSync(seedMarkerPath) ||
-    !fs.existsSync(sourceAppDataPath)
-  ) {
-    return false;
-  }
-
-  try {
-    fs.mkdirSync(targetUserDataPath, { recursive: true });
-    if (fs.existsSync(targetAppDataPath)) {
-      const backupPath = path.join(
-        targetUserDataPath,
-        `.vlaina-pre-seed-backup-${Date.now()}`
-      );
-      fs.cpSync(targetAppDataPath, backupPath, {
-        recursive: true,
-        force: false,
-        dereference: false,
-      });
-    }
-    fs.cpSync(sourceAppDataPath, targetAppDataPath, {
-      recursive: true,
-      force: true,
-      dereference: false,
-    });
-    fs.writeFileSync(seedMarkerPath, `${new Date().toISOString()}\nsource=${sourceAppDataPath}\n`);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
 function isSameOrChildPath(rootPath, candidatePath) {
   const relativePath = path.relative(rootPath, candidatePath);
   return relativePath === '' || (
@@ -465,7 +338,6 @@ function configurePackagedUserDataPath({
     return {
       changed: false,
       userDataPath: currentUserDataPath,
-      seeded: false,
     };
   }
 
@@ -474,7 +346,6 @@ function configurePackagedUserDataPath({
     return {
       changed: false,
       userDataPath: currentUserDataPath,
-      seeded: false,
     };
   }
 
@@ -483,7 +354,6 @@ function configurePackagedUserDataPath({
   return {
     changed: true,
     userDataPath: fallbackUserDataPath,
-    seeded: false,
   };
 }
 
@@ -497,7 +367,6 @@ export function configureDevelopmentUserDataPath({
     return configurePackagedUserDataPath({ app, runtime });
   }
 
-  const defaultUserDataPath = app.getPath('userData');
   const overridePath = env.VLAINA_USER_DATA_DIR?.trim();
   if (overridePath) {
     const userDataPath = path.resolve(overridePath);
@@ -514,28 +383,15 @@ export function configureDevelopmentUserDataPath({
     return {
       changed: true,
       userDataPath,
-      seeded: false,
     };
   }
 
   const sharedRepoRoot = resolveGitCommonRepoRoot(repoRoot);
   const userDataPath = path.join(sharedRepoRoot, 'temp', 'electron-user-data');
-  const legacyUserDataPath = path.join(repoRoot, 'temp', 'electron-user-data');
-  const seedSourcePath = (
-    legacyUserDataPath !== userDataPath &&
-    hasAppData(legacyUserDataPath)
-  )
-    ? legacyUserDataPath
-    : defaultUserDataPath;
-  const seeded = hasAppData(userDataPath)
-    ? false
-    : seedDevelopmentAppData(seedSourcePath, userDataPath);
-  mergeLegacyStarredRegistry(legacyUserDataPath, userDataPath);
   fs.mkdirSync(userDataPath, { recursive: true });
   app.setPath('userData', userDataPath);
   return {
     changed: true,
     userDataPath,
-    seeded,
   };
 }

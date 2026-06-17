@@ -226,11 +226,11 @@ describe('avatarManager request cleanup', () => {
     expect(blob).toHaveBeenCalledTimes(1);
     expect(avatarBlob.arrayBuffer).toHaveBeenCalledTimes(1);
     expect(hoisted.writeBinaryFile).toHaveBeenCalledWith(
-      '/app-data/.vlaina/system/avatar_octocat.webp',
+      '/app-data/.vlaina/app/assets/avatars/avatar_octocat.webp',
       new Uint8Array([1, 2, 3]),
       { recursive: true },
     );
-    expect(result).toBe('/app-data/.vlaina/system/avatar_octocat.webp');
+    expect(result).toBe('/app-data/.vlaina/app/assets/avatars/avatar_octocat.webp');
   });
 
   it('loads the newest cached local avatar while preserving png compatibility', async () => {
@@ -246,7 +246,7 @@ describe('avatarManager request cleanup', () => {
 
     await expect(getLocalAvatarUrl('octocat')).resolves.toBe('data:image/webp;base64,LOCAL');
 
-    expect(hoisted.loadImageAsBase64).toHaveBeenCalledWith('/app-data/.vlaina/system/avatar_octocat.webp');
+    expect(hoisted.loadImageAsBase64).toHaveBeenCalledWith('/app-data/.vlaina/app/assets/avatars/avatar_octocat.webp');
   });
 
   it('ignores invalid local avatar modified times when selecting the newest cache file', async () => {
@@ -262,6 +262,6 @@ describe('avatarManager request cleanup', () => {
 
     await expect(getLocalAvatarUrl('octocat')).resolves.toBe('data:image/webp;base64,LOCAL');
 
-    expect(hoisted.loadImageAsBase64).toHaveBeenCalledWith('/app-data/.vlaina/system/avatar_octocat.webp');
+    expect(hoisted.loadImageAsBase64).toHaveBeenCalledWith('/app-data/.vlaina/app/assets/avatars/avatar_octocat.webp');
   });
 });

@@ -210,7 +210,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects protected app data files during drag-drop authorization', async () => {
-    const protectedPath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'account-secrets.json');
+    const protectedPath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'secrets', 'account.json');
     await mkdir(path.dirname(protectedPath), { recursive: true });
     await writeFile(protectedPath, '{}', 'utf8');
     const { handlers } = registerHarness();
@@ -221,7 +221,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects protected drag-drop paths before probing the filesystem', async () => {
-    const protectedPath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'account-secrets.json');
+    const protectedPath = path.join(hoisted.userDataPath, '.vlaina', 'app', 'secrets', 'account.json');
     const { handlers } = registerHarness();
 
     await expect(handlers.get('desktop:drag-drop:authorize-path')?.({}, protectedPath)).rejects.toThrow(

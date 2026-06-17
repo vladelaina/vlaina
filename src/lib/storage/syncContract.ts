@@ -140,7 +140,7 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     mergePolicy: 'tombstone-wins',
     autoSyncKinds: ['unified'],
     crossWindow: true,
-    notes: 'Provider channels are split files; deleted provider tombstones remove stale channel files and secrets.',
+    notes: 'AI providers are split files; deleted provider tombstones remove stale provider files and secrets.',
   },
   {
     id: 'ai.provider-benchmark',

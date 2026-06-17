@@ -43,8 +43,8 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
-  MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES,
-  MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES,
+  MAX_AI_PROVIDER_FILE_SCAN_ENTRIES,
+  MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES,
   loadUnifiedData,
 } from './unifiedStorage';
 
@@ -73,32 +73,32 @@ describe('unifiedStorage orphan recovery priority', () => {
   it('does not spend orphan chat session recovery budget on non-session files', async () => {
     const sessionId = 'session-kept';
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith(`/chat/sessions/${sessionId}.json`)
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith(`/chat/sessions/${sessionId}/messages.json`)
     ));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (!path.endsWith('/chat/sessions')) return [];
       return [
-        ...Array.from({ length: MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES }, (_value, index) => ({
+        ...Array.from({ length: MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES }, (_value, index) => ({
           name: `noise-${index}.txt`,
           path: `/appdata/.vlaina/chat/sessions/noise-${index}.txt`,
           isFile: true,
           isDirectory: false,
         })),
         {
-          name: `${sessionId}.json`,
-          path: `/appdata/.vlaina/chat/sessions/${sessionId}.json`,
-          isFile: true,
-          isDirectory: false,
+          name: sessionId,
+          path: `/appdata/.vlaina/chat/sessions/${sessionId}`,
+          isFile: false,
+          isDirectory: true,
         },
       ];
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return createMainDataPayload();
       }
 
-      if (path.endsWith(`/chat/sessions/${sessionId}.json`)) {
+      if (path.endsWith(`/chat/sessions/${sessionId}/messages.json`)) {
         return JSON.stringify({
           version: 1,
           sessionId,
@@ -129,41 +129,41 @@ describe('unifiedStorage orphan recovery priority', () => {
     expect(data.ai?.sessions[0]?.title).toBe('Recovered later chat');
   });
 
-  it('does not spend orphan provider recovery budget on non-channel files', async () => {
+  it('does not spend orphan provider recovery budget on non-provider files', async () => {
     const providerId = 'provider-kept';
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/data.json') ||
-      path.endsWith(`/chat/channels/${providerId}.json`)
+      path.endsWith('/.vlaina/app/settings.json') ||
+      path.endsWith(`/chat/providers/${providerId}.json`)
     ));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (!path.endsWith('/chat/channels')) return [];
+      if (!path.endsWith('/chat/providers')) return [];
       return [
-        ...Array.from({ length: MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES }, (_value, index) => ({
+        ...Array.from({ length: MAX_AI_PROVIDER_FILE_SCAN_ENTRIES }, (_value, index) => ({
           name: `noise-${index}.txt`,
-          path: `/appdata/.vlaina/chat/channels/noise-${index}.txt`,
+          path: `/appdata/.vlaina/chat/providers/noise-${index}.txt`,
           isFile: true,
           isDirectory: false,
         })),
         {
           name: '../outside.json',
-          path: '/appdata/.vlaina/chat/channels/../outside.json',
+          path: '/appdata/.vlaina/chat/providers/../outside.json',
           isFile: true,
           isDirectory: false,
         },
         {
           name: `${providerId}.json`,
-          path: `/appdata/.vlaina/chat/channels/${providerId}.json`,
+          path: `/appdata/.vlaina/chat/providers/${providerId}.json`,
           isFile: true,
           isDirectory: false,
         },
       ];
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return createMainDataPayload();
       }
 
-      if (path.endsWith(`/chat/channels/${providerId}.json`)) {
+      if (path.endsWith(`/chat/providers/${providerId}.json`)) {
         return JSON.stringify({
           version: 1,
           providerId,
@@ -193,7 +193,7 @@ describe('unifiedStorage orphan recovery priority', () => {
     expect(data.ai?.providers.map((provider) => provider.id)).toEqual([providerId]);
     expect(data.ai?.fetchedModels).toEqual({ [providerId]: ['model-a'] });
     expect(mocks.storage.readFile.mock.calls.some(([path]) => (
-      path === '/appdata/.vlaina/chat/channels/../outside.json'
+      path === '/appdata/.vlaina/chat/providers/../outside.json'
     ))).toBe(false);
   });
 });

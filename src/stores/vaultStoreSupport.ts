@@ -16,7 +16,7 @@ import type { VaultInfo } from './useVaultStore';
 
 export const VAULTS_STORAGE_KEY = 'vlaina-vaults';
 export const CURRENT_VAULT_KEY = 'vlaina-current-vault';
-const VAULT_STATE_FILE = 'vault-state.json';
+const VAULT_STATE_FILE = 'state.json';
 const VAULT_STATE_VERSION = 1;
 const MAX_VAULT_STATE_BYTES = 256 * 1024;
 const vaultStateUtf8Encoder = new TextEncoder();
@@ -82,8 +82,8 @@ async function getVaultStatePath(): Promise<string | null> {
   }
 
   await ensureDirectories();
-  const { store } = await getPaths();
-  return joinPath(store, VAULT_STATE_FILE);
+  const { notes } = await getPaths();
+  return joinPath(notes, VAULT_STATE_FILE);
 }
 
 function loadLocalVaultState(): PersistedVaultState {

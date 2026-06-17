@@ -364,9 +364,9 @@ describe('asset image reader cache', () => {
     expect(hoisted.getBasePath).toHaveBeenCalledTimes(1);
     const existsPath = hoisted.exists.mock.calls[0]?.[0] as string;
     const readPath = hoisted.readBinaryFile.mock.calls[0]?.[0] as string;
-    expect(existsPath).toContain('/app-data/.vlaina/cache/image-thumbnails/');
+    expect(existsPath).toContain('/app-data/.vlaina/app/cache/thumbnails/');
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
-    expect(readPath).toContain('/app-data/.vlaina/cache/image-thumbnails/');
+    expect(readPath).toContain('/app-data/.vlaina/app/cache/thumbnails/');
     expect(readPath).not.toBe('/vault/assets/cover.png');
   });
 
@@ -415,7 +415,7 @@ describe('asset image reader cache', () => {
     });
     const writePath = hoisted.writeBinaryFile.mock.calls[0]?.[0] as string;
     const writeOptions = hoisted.writeBinaryFile.mock.calls[0]?.[2] as { recursive?: boolean };
-    expect(writePath).toContain('/app-data/.vlaina/cache/image-thumbnails/');
+    expect(writePath).toContain('/app-data/.vlaina/app/cache/thumbnails/');
     expect(writeOptions).toEqual({ recursive: true });
   });
 

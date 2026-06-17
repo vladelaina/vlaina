@@ -272,15 +272,15 @@ describe('themeCssUrls', () => {
 
   it('preserves managed cached theme file URLs while dropping file URL traversal', () => {
     const css = [
-      '.cached { src: url("file:///app/.vlaina/store/markdown-theme-cache/theme-assets/0-font.woff2"); }',
-      '.escaped-cache { src: url("file\\3a ///app/.vlaina/store/markdown-theme-cache/theme-assets/1-font.woff2"); }',
-      '.traversal { src: url("file:///app/.vlaina/store/markdown-theme-cache/../secret.woff2"); }',
+      '.cached { src: url("file:///app/.vlaina/app/cache/markdown-themes/theme-assets/0-font.woff2"); }',
+      '.escaped-cache { src: url("file\\3a ///app/.vlaina/app/cache/markdown-themes/theme-assets/1-font.woff2"); }',
+      '.traversal { src: url("file:///app/.vlaina/app/cache/markdown-themes/../secret.woff2"); }',
       '.outside { src: url("file:///tmp/secret.woff2"); }',
     ].join('\n');
 
     expect(sanitizeUnsafeMarkdownThemeCssUrls(css)).toBe([
-      '.cached { src: url("file:///app/.vlaina/store/markdown-theme-cache/theme-assets/0-font.woff2"); }',
-      '.escaped-cache { src: url("file\\3a ///app/.vlaina/store/markdown-theme-cache/theme-assets/1-font.woff2"); }',
+      '.cached { src: url("file:///app/.vlaina/app/cache/markdown-themes/theme-assets/0-font.woff2"); }',
+      '.escaped-cache { src: url("file\\3a ///app/.vlaina/app/cache/markdown-themes/theme-assets/1-font.woff2"); }',
       '.traversal { src: url(""); }',
       '.outside { src: url(""); }',
     ].join('\n'));

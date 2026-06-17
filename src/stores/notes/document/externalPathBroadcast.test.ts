@@ -18,7 +18,7 @@ vi.mock('@/lib/storage/adapter', () => ({
 }));
 
 vi.mock('@/lib/storage/paths', () => ({
-  getPaths: () => Promise.resolve({ store: '/store' }),
+  getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
 }));
 
 describe('external path broadcast persistence', () => {
@@ -80,7 +80,7 @@ describe('external path broadcast persistence', () => {
     ]);
 
     expect(adapter.readFile).toHaveBeenCalledWith(
-      expect.stringContaining('/external-path-events.json'),
+      expect.stringContaining('/events.json'),
       256 * 1024,
     );
   });

@@ -40,7 +40,9 @@ vi.mock('./io/writer', () => ({
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   ensureSystemDirectory: vi.fn(),
-  getVaultSystemStorePath: (vaultPath: string, fileName: string) => Promise.resolve(`${vaultPath}/.system/${fileName}`),
+  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
+  ),
 }));
 
 describe('AssetService hash index cache validation', () => {
@@ -58,8 +60,8 @@ describe('AssetService hash index cache validation', () => {
       },
     ]);
     mocks.storage.stat.mockImplementation(async (path: string) => {
-      if (path === '/vault/.system/asset-hash-index.json') {
-        return { name: 'asset-hash-index.json', path, isFile: true, isDirectory: false, size: 220 };
+      if (path === '/app/.vlaina/notes/vaults/vault-test/assets.json') {
+        return { name: 'assets.json', path, isFile: true, isDirectory: false, size: 220 };
       }
       if (path === '/vault/docs/assets/alpha.png') {
         return { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5 };
@@ -88,8 +90,8 @@ describe('AssetService hash index cache validation', () => {
 
   it('does not trust same-size hash index entries when mtime is unavailable', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => {
-      if (path === '/vault/.system/asset-hash-index.json') {
-        return { name: 'asset-hash-index.json', path, isFile: true, isDirectory: false, size: 220 };
+      if (path === '/app/.vlaina/notes/vaults/vault-test/assets.json') {
+        return { name: 'assets.json', path, isFile: true, isDirectory: false, size: 220 };
       }
       if (path === '/vault/docs/assets/alpha.png') {
         return { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5 };

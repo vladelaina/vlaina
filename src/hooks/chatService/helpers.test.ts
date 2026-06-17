@@ -124,9 +124,9 @@ vi.mock('@/lib/storage/adapter', () => ({
 function createAttachment(overrides: Partial<Attachment> = {}): Attachment {
   return {
     id: 'attachment-1',
-    path: '/home/user/.vlaina/attachments/demo image.png',
+    path: '/home/user/.vlaina/chat/attachments/demo image.png',
     previewUrl: 'data:image/png;base64,PREVIEW',
-    assetUrl: 'file:///home/user/.vlaina/attachments/demo%20image.png',
+    assetUrl: 'file:///home/user/.vlaina/chat/attachments/demo%20image.png',
     name: 'demo image.png',
     type: 'image/png',
     size: 123,
@@ -181,7 +181,7 @@ describe('chat service helpers', () => {
       { length: MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS + 8 },
       (_value, index) => createAttachment({
         id: `attachment-${index}`,
-        path: `/home/user/.vlaina/attachments/attachment-${index}.png`,
+        path: `/home/user/.vlaina/chat/attachments/attachment-${index}.png`,
         name: `attachment-${index}.png`,
       }),
     );
@@ -198,7 +198,7 @@ describe('chat service helpers', () => {
       { length: MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS - 1 },
       (_value, index) => createAttachment({
         id: `user-${index}`,
-        path: `/home/user/.vlaina/attachments/user-${index}.png`,
+        path: `/home/user/.vlaina/chat/attachments/user-${index}.png`,
         name: `user-${index}.png`,
       }),
     );
@@ -240,7 +240,7 @@ describe('chat service helpers', () => {
     const result = await buildMessageImageSources([
       createAttachment({
         path: '',
-        assetUrl: 'file:///home/user/.vlaina/attachments/demo%20image.png?cache=1',
+        assetUrl: 'file:///home/user/.vlaina/chat/attachments/demo%20image.png?cache=1',
         previewUrl: 'blob:preview',
       }),
     ]);
@@ -320,8 +320,8 @@ describe('chat service helpers', () => {
   it('stores persisted SVG attachments by attachment reference instead of inline SVG data', async () => {
     const result = await buildMessageImageSources([
       createAttachment({
-        path: '/home/user/.vlaina/attachments/diagram.svg',
-        assetUrl: 'file:///home/user/.vlaina/attachments/diagram.svg',
+        path: '/home/user/.vlaina/chat/attachments/diagram.svg',
+        assetUrl: 'file:///home/user/.vlaina/chat/attachments/diagram.svg',
         previewUrl: 'data:image/svg+xml;base64,PHN2Zz4=',
         name: 'diagram.svg',
         type: 'image/svg+xml',

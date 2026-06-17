@@ -82,7 +82,6 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
 }));
 
 vi.mock('@/stores/notes/document/externalPathBroadcast', () => ({
-  getNotesExternalPathEventsRelativePath: () => '__vlaina_system__/external-path-events.json',
   readNotesExternalPathEvents: hoisted.readNotesExternalPathEvents,
   subscribeNotesExternalPathRename: hoisted.subscribeNotesExternalPathRename,
 }));
@@ -146,16 +145,13 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
     hook.unmount();
   });
 
-  it('continues handling current-note paths batched with the event file', async () => {
+  it('continues handling current-note paths after checking persisted rename events', async () => {
     const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: [
-          '/external/docs/__vlaina_system__/external-path-events.json',
-          '/external/docs/current.md',
-        ],
+        paths: ['/external/docs/current.md'],
       });
     });
 
@@ -167,17 +163,14 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
     hook.unmount();
   });
 
-  it('continues handling current-note paths when event file replay fails', async () => {
+  it('continues handling current-note paths when persisted event replay fails', async () => {
     hoisted.readNotesExternalPathEvents.mockRejectedValueOnce(new Error('event file unavailable'));
     const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: [
-          '/external/docs/__vlaina_system__/external-path-events.json',
-          '/external/docs/current.md',
-        ],
+        paths: ['/external/docs/current.md'],
       });
     });
 

@@ -152,7 +152,7 @@ const directoryTheme = {
   name: 'vlook-fancy',
   platform: 'typora' as const,
   cssFile: 'vlook-fancy.css',
-  sourcePath: '/app/.vlaina/themes/vlook-fancy.css',
+  sourcePath: '/app/.vlaina/app/themes/vlook-fancy.css',
   sourceModifiedAt: 10,
   sourceSize: 100,
   createdAt: 1,
@@ -164,10 +164,10 @@ describe('AppearanceTab theme entry', () => {
     mocks.uiState.fontSize = 17;
     mocks.unifiedState.data.settings.ui.colorMode = 'system';
     mocks.unifiedState.data.settings.markdown.theme.importedThemeId = null;
-    mocks.ensureImportedMarkdownThemesDirectory.mockResolvedValue('/app/.vlaina/themes');
+    mocks.ensureImportedMarkdownThemesDirectory.mockResolvedValue('/app/.vlaina/app/themes');
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([directoryTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
-      directoryPath: '/app/.vlaina/themes',
+      directoryPath: '/app/.vlaina/app/themes',
       themes: [directoryTheme],
       activeThemeId: 'vlook-fancy',
     });
@@ -211,7 +211,7 @@ describe('AppearanceTab theme entry', () => {
 
     await waitFor(() => {
       expect(mocks.ensureImportedMarkdownThemesDirectory).toHaveBeenCalledTimes(1);
-      expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/app/.vlaina/themes');
+      expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/app/.vlaina/app/themes');
     });
   });
 

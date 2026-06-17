@@ -664,7 +664,7 @@ describe('chatStorage auto sync registration', () => {
 
   it('reads existing session files with bounded reads while saving when stat has no size', async () => {
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+      path === '/appdata/.vlaina/chat/sessions/session-1/messages.json'
     ));
     mocks.storage.stat.mockResolvedValue({ isFile: true });
     mocks.storage.readFile.mockResolvedValue(JSON.stringify({
@@ -683,22 +683,22 @@ describe('chatStorage auto sync registration', () => {
     await saveSessionJson('session-1', [createMessage('m1')]);
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       MAX_SESSION_MESSAGES_BYTES,
     );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       expect.stringContaining('"m1"'),
     );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       expect.stringContaining('"m0"'),
     );
   });
 
   it('does not merge existing session files while saving when content exceeds the limit after read', async () => {
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+      path === '/appdata/.vlaina/chat/sessions/session-1/messages.json'
     ));
     mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
     mocks.storage.readFile.mockResolvedValue('x'.repeat(25 * 1024 * 1024 + 1));
@@ -706,18 +706,18 @@ describe('chatStorage auto sync registration', () => {
     await saveSessionJson('session-1', [createMessage('m1')]);
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       MAX_SESSION_MESSAGES_BYTES,
     );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       expect.stringContaining('"m1"'),
     );
   });
 
   it('overwrites unreadable existing session files instead of leaving saves pending', async () => {
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+      path === '/appdata/.vlaina/chat/sessions/session-1/messages.json'
     ));
     mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
     mocks.storage.readFile.mockResolvedValue('{broken json');
@@ -725,18 +725,18 @@ describe('chatStorage auto sync registration', () => {
     await expect(saveSessionJson('session-1', [createMessage('m1')])).resolves.toBeUndefined();
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       MAX_SESSION_MESSAGES_BYTES,
     );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       expect.stringContaining('"m1"'),
     );
   });
 
   it('overwrites existing session files that disappear after stat', async () => {
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+      path === '/appdata/.vlaina/chat/sessions/session-1/messages.json'
     ));
     mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
     mocks.storage.readFile.mockRejectedValue(new Error('file disappeared'));
@@ -744,11 +744,11 @@ describe('chatStorage auto sync registration', () => {
     await expect(saveSessionJson('session-1', [createMessage('m1')])).resolves.toBeUndefined();
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       MAX_SESSION_MESSAGES_BYTES,
     );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       expect.stringContaining('"m1"'),
     );
   });
@@ -762,7 +762,7 @@ describe('chatStorage auto sync registration', () => {
 
     expect(mocks.storage.writeFile).toHaveBeenCalledTimes(1);
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       expect.stringContaining('"m1"'),
     );
   });
@@ -831,7 +831,7 @@ describe('chatStorage auto sync registration', () => {
     ]);
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       MAX_SESSION_MESSAGES_BYTES,
     );
   });
@@ -854,7 +854,7 @@ describe('chatStorage auto sync registration', () => {
     await expect(loadSessionJson('session-1')).resolves.toBeNull();
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       MAX_SESSION_MESSAGES_BYTES,
     );
   });
@@ -867,7 +867,7 @@ describe('chatStorage auto sync registration', () => {
     await expect(loadSessionJson('session-1')).resolves.toBeNull();
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/sessions/session-1.json',
+      '/appdata/.vlaina/chat/sessions/session-1/messages.json',
       MAX_SESSION_MESSAGES_BYTES,
     );
   });
@@ -875,7 +875,7 @@ describe('chatStorage auto sync registration', () => {
   it('deletes session files even when a canceled in-flight save fails', async () => {
     let rejectWrite!: (error: Error) => void;
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+      path === '/appdata/.vlaina/chat/sessions/session-1/messages.json'
     ));
     mocks.storage.writeFile.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
       rejectWrite = reject;
@@ -884,7 +884,7 @@ describe('chatStorage auto sync registration', () => {
     const saveRequest = saveSessionJson('session-1', [createMessage('m1')]).catch(() => undefined);
     await vi.waitFor(() => {
       expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-        '/appdata/.vlaina/chat/sessions/session-1.json',
+        '/appdata/.vlaina/chat/sessions/session-1/messages.json',
         expect.stringContaining('"m1"'),
       );
     });
@@ -894,13 +894,13 @@ describe('chatStorage auto sync registration', () => {
 
     await expect(deleteRequest).resolves.toBeUndefined();
     await saveRequest;
-    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1/messages.json');
   });
 
   it('ignores stale session saves while and after deleting the session file', async () => {
     let resolveDelete!: () => void;
     const sessionId = 'session-delete-guard';
-    const sessionPath = `/appdata/.vlaina/chat/sessions/${sessionId}.json`;
+    const sessionPath = `/appdata/.vlaina/chat/sessions/${sessionId}/messages.json`;
     mocks.storage.exists.mockImplementation(async (path: string) => path === sessionPath);
     mocks.storage.deleteFile.mockImplementationOnce(() => new Promise<void>((resolve) => {
       resolveDelete = resolve;

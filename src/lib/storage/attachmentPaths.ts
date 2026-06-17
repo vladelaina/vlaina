@@ -1,9 +1,9 @@
 import { joinPath } from './adapter';
 
 export async function getPrimaryAttachmentDir(basePath: string): Promise<string> {
-  return joinPath(basePath, '.vlaina', 'attachments');
+  return joinPath(basePath, '.vlaina', 'chat', 'attachments');
 }
 
 export async function getPrimaryAttachmentPath(basePath: string, filename: string): Promise<string> {
-  return joinPath(basePath, '.vlaina', 'attachments', filename);
+  return joinPath(basePath, '.vlaina', 'chat', 'attachments', filename);
 }

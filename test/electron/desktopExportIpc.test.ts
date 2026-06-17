@@ -301,7 +301,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await openPathInFileManager('/vault/.vlaina/themes', {
+    await openPathInFileManager('/vault/.vlaina/app/themes', {
       platform: 'linux',
       shellImpl,
       spawnDetached,
@@ -309,7 +309,7 @@ describe('desktop export ipc', () => {
       exists: (candidatePath: string) => candidatePath === '/usr/bin/nautilus',
     });
 
-    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/nautilus', ['--new-window', '/vault/.vlaina/themes'], {
+    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/nautilus', ['--new-window', '/vault/.vlaina/app/themes'], {
       detached: true,
       stdio: 'ignore',
     });
@@ -349,13 +349,13 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await openPathInFileManager('/vault/.vlaina/themes', {
+    await openPathInFileManager('/vault/.vlaina/app/themes', {
       platform: 'darwin',
       shellImpl,
       spawnDetached: vi.fn(),
     });
 
-    expect(shellImpl.openPath).toHaveBeenCalledWith('/vault/.vlaina/themes');
+    expect(shellImpl.openPath).toHaveBeenCalledWith('/vault/.vlaina/app/themes');
   });
 
   it('surfaces native shell open path errors outside Linux', async () => {
@@ -364,7 +364,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await expect(openPathInFileManager('/vault/.vlaina/themes', {
+    await expect(openPathInFileManager('/vault/.vlaina/app/themes', {
       platform: 'darwin',
       shellImpl,
       spawnDetached: vi.fn(),

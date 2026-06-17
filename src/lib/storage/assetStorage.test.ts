@@ -22,7 +22,7 @@ const adapter = {
 };
 
 vi.mock('./paths', () => ({
-  getPaths: () => Promise.resolve({ metadata: '/app/.vlaina' }),
+  getPaths: () => Promise.resolve({ app: '/app/.vlaina/app' }),
 }));
 
 vi.mock('./adapter', () => ({
@@ -86,16 +86,16 @@ describe('assetStorage', () => {
 
   it('filters unsupported and oversized icon files while scanning', async () => {
     adapter.listDir.mockResolvedValue([
-      { name: 'ok.png', path: '/app/.vlaina/assets/icons/ok.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 1 },
-      { name: 'huge.svg', path: '/app/.vlaina/assets/icons/huge.svg', isDirectory: false, isFile: true, size: 11 * 1024 * 1024, modifiedAt: 2 },
-      { name: 'invalid.webp', path: '/app/.vlaina/assets/icons/invalid.webp', isDirectory: false, isFile: true, size: -1, modifiedAt: 3 },
-      { name: 'secret.md', path: '/app/.vlaina/assets/icons/secret.md', isDirectory: false, isFile: true, size: 100, modifiedAt: 3 },
+      { name: 'ok.png', path: '/app/.vlaina/app/assets/icons/ok.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 1 },
+      { name: 'huge.svg', path: '/app/.vlaina/app/assets/icons/huge.svg', isDirectory: false, isFile: true, size: 11 * 1024 * 1024, modifiedAt: 2 },
+      { name: 'invalid.webp', path: '/app/.vlaina/app/assets/icons/invalid.webp', isDirectory: false, isFile: true, size: -1, modifiedAt: 3 },
+      { name: 'secret.md', path: '/app/.vlaina/app/assets/icons/secret.md', isDirectory: false, isFile: true, size: 100, modifiedAt: 3 },
     ]);
 
     await expect(scanGlobalIcons()).resolves.toEqual([
       {
-        id: '/app/.vlaina/assets/icons/ok.png',
-        url: 'img:/app/.vlaina/assets/icons/ok.png',
+        id: '/app/.vlaina/app/assets/icons/ok.png',
+        url: 'img:/app/.vlaina/app/assets/icons/ok.png',
         name: 'ok.png',
         createdAt: 1,
       },
@@ -104,16 +104,16 @@ describe('assetStorage', () => {
 
   it('ignores unsafe icon directory entries while scanning', async () => {
     adapter.listDir.mockResolvedValue([
-      { name: 'ok.png', path: '/app/.vlaina/assets/icons/ok.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 1 },
-      { name: '../secret.png', path: '/app/.vlaina/assets/secret.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 2 },
-      { name: 'escape.png', path: '/app/.vlaina/assets/icons/../escape.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 3 },
-      { name: 'unsafe\u202Egnp.png', path: '/app/.vlaina/assets/icons/unsafe\u202Egnp.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 4 },
+      { name: 'ok.png', path: '/app/.vlaina/app/assets/icons/ok.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 1 },
+      { name: '../secret.png', path: '/app/.vlaina/app/assets/secret.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 2 },
+      { name: 'escape.png', path: '/app/.vlaina/app/assets/icons/../escape.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 3 },
+      { name: 'unsafe\u202Egnp.png', path: '/app/.vlaina/app/assets/icons/unsafe\u202Egnp.png', isDirectory: false, isFile: true, size: 100, modifiedAt: 4 },
     ]);
 
     await expect(scanGlobalIcons()).resolves.toEqual([
       {
-        id: '/app/.vlaina/assets/icons/ok.png',
-        url: 'img:/app/.vlaina/assets/icons/ok.png',
+        id: '/app/.vlaina/app/assets/icons/ok.png',
+        url: 'img:/app/.vlaina/app/assets/icons/ok.png',
         name: 'ok.png',
         createdAt: 1,
       },
@@ -123,7 +123,7 @@ describe('assetStorage', () => {
   it('bounds custom icon directory scan results', async () => {
     adapter.listDir.mockResolvedValue(Array.from({ length: MAX_GLOBAL_ICON_SCAN_RESULTS + 1 }, (_, index) => ({
       name: `icon-${index}.png`,
-      path: `/app/.vlaina/assets/icons/icon-${index}.png`,
+      path: `/app/.vlaina/app/assets/icons/icon-${index}.png`,
       isDirectory: false,
       isFile: true,
       size: 100,
@@ -133,7 +133,7 @@ describe('assetStorage', () => {
     const icons = await scanGlobalIcons();
 
     expect(icons).toHaveLength(MAX_GLOBAL_ICON_SCAN_RESULTS);
-    expect(icons.at(-1)?.id).toBe(`/app/.vlaina/assets/icons/icon-${MAX_GLOBAL_ICON_SCAN_RESULTS - 1}.png`);
+    expect(icons.at(-1)?.id).toBe(`/app/.vlaina/app/assets/icons/icon-${MAX_GLOBAL_ICON_SCAN_RESULTS - 1}.png`);
     expect(icons.some((icon) => icon.id.endsWith(`icon-${MAX_GLOBAL_ICON_SCAN_RESULTS}.png`))).toBe(false);
   });
 
@@ -147,10 +147,10 @@ describe('assetStorage', () => {
     } as unknown as File;
 
     try {
-      await expect(saveGlobalAsset(file, 'icons')).resolves.toBe('/app/.vlaina/assets/icons/0_icon.webp');
+      await expect(saveGlobalAsset(file, 'icons')).resolves.toBe('/app/.vlaina/app/assets/icons/0_icon.webp');
 
       expect(adapter.writeBinaryFile).toHaveBeenCalledWith(
-        '/app/.vlaina/assets/icons/0_icon.webp',
+        '/app/.vlaina/app/assets/icons/0_icon.webp',
         new Uint8Array([1, 2, 3]),
       );
     } finally {
@@ -177,7 +177,7 @@ describe('assetStorage', () => {
     } as unknown as File;
 
     try {
-      await expect(saveGlobalAsset(file, 'icons')).resolves.toBe('/app/.vlaina/assets/icons/0_icon.svg');
+      await expect(saveGlobalAsset(file, 'icons')).resolves.toBe('/app/.vlaina/app/assets/icons/0_icon.svg');
       const bytes = adapter.writeBinaryFile.mock.calls[0]?.[1] as Uint8Array;
       const output = new TextDecoder().decode(bytes);
 
@@ -195,13 +195,13 @@ describe('assetStorage', () => {
   });
 
   it('deletes global icon assets inside the icon asset directory', async () => {
-    await expect(deleteGlobalIconAsset('/app/.vlaina/assets/icons/old.png')).resolves.toBe(true);
+    await expect(deleteGlobalIconAsset('/app/.vlaina/app/assets/icons/old.png')).resolves.toBe(true);
 
-    expect(adapter.deleteFile).toHaveBeenCalledWith('/app/.vlaina/assets/icons/old.png');
+    expect(adapter.deleteFile).toHaveBeenCalledWith('/app/.vlaina/app/assets/icons/old.png');
   });
 
   it('does not delete paths outside the global icon asset directory', async () => {
-    await expect(deleteGlobalIconAsset('/app/.vlaina/assets/secret.png')).resolves.toBe(false);
+    await expect(deleteGlobalIconAsset('/app/.vlaina/app/assets/secret.png')).resolves.toBe(false);
 
     expect(adapter.deleteFile).not.toHaveBeenCalled();
   });

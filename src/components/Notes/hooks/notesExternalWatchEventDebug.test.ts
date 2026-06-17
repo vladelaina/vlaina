@@ -11,9 +11,9 @@ describe('notesExternalWatchEventDebug', () => {
     markExpectedExternalChange(vaultPath, true);
 
     const result = classifyWatchEventPaths(vaultPath, [
-      `${vaultPath}/.vlaina/workspace.json`,
-      `${vaultPath}/.vlaina/external-path-events.json`,
-      `${vaultPath}/.vlaina/notes-starred.json`,
+      `${vaultPath}/.vlaina/internal.json`,
+      `${vaultPath}/.vlaina/sync.json`,
+      `${vaultPath}/.vlaina/internal.json`,
       `${vaultPath}/docs/.git/config`,
       `${vaultPath}/.vlaina/cache.tmp`,
     ]);

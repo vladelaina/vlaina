@@ -34,9 +34,9 @@ describe('vaultConfig', () => {
   it('creates vault config in the system store', async () => {
     await ensureVaultConfig('/vault');
 
-    expect(adapter.mkdir).toHaveBeenCalledWith('/app/.vlaina/store/notes/vaults/vault-1y3s8he', true);
+    expect(adapter.mkdir).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-1y3s8he', true);
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
     );
   });
@@ -49,7 +49,7 @@ describe('vaultConfig', () => {
     await ensureVaultConfig('/vault');
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 100, vaultPath: '/vault' }, null, 2)
     );
   });
@@ -62,7 +62,7 @@ describe('vaultConfig', () => {
     await ensureVaultConfig('/vault');
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
     );
   });
@@ -75,7 +75,7 @@ describe('vaultConfig', () => {
 
     expect(adapter.readFile).not.toHaveBeenCalled();
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
     );
   });
@@ -88,7 +88,7 @@ describe('vaultConfig', () => {
 
     expect(adapter.readFile).not.toHaveBeenCalled();
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
     );
   });
@@ -101,11 +101,11 @@ describe('vaultConfig', () => {
     await ensureVaultConfig('/vault');
 
     expect(adapter.readFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       64 * 1024,
     );
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 100, vaultPath: '/vault' }, null, 2)
     );
   });
@@ -118,11 +118,11 @@ describe('vaultConfig', () => {
     await ensureVaultConfig('/vault');
 
     expect(adapter.readFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       64 * 1024,
     );
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
     );
   });

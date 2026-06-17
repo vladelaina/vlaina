@@ -108,18 +108,18 @@ export async function saveGlobalAsset(file: File, folder: 'icons'): Promise<stri
   }
 
   const adapter = getStorageAdapter();
-  const { metadata } = await getPaths();
-  const assetsDir = await joinPath(metadata, 'assets', folder);
-  
+  const { app } = await getPaths();
+  const assetsDir = await joinPath(app, 'assets', folder);
+
   if (!(await adapter.exists(assetsDir))) {
     await adapter.mkdir(assetsDir, true);
   }
-  
+
   const timestamp = Date.now();
   const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
   const filename = `${timestamp}_${safeName}`;
   const filePath = await joinPath(assetsDir, filename);
-  
+
   const buffer = await file.arrayBuffer();
   const bytes = prepareGlobalAssetBytes(new Uint8Array(buffer), mimeType);
   if (bytes.byteLength > MAX_GLOBAL_ASSET_BYTES) {
@@ -127,19 +127,19 @@ export async function saveGlobalAsset(file: File, folder: 'icons'): Promise<stri
   }
 
   await adapter.writeBinaryFile(filePath, bytes);
-  
+
   return filePath;
 }
 
 export async function scanGlobalIcons(): Promise<CustomIcon[]> {
   const adapter = getStorageAdapter();
-  const { metadata } = await getPaths();
-  const iconsDir = await joinPath(metadata, 'assets', 'icons');
-  
+  const { app } = await getPaths();
+  const iconsDir = await joinPath(app, 'assets', 'icons');
+
   if (!(await adapter.exists(iconsDir))) {
     return [];
   }
-  
+
   try {
     const files = await adapter.listDir(iconsDir);
 
@@ -156,14 +156,15 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
         imageFiles.push(file);
       }
     }
-    
+
     return imageFiles.map(f => ({
       id: f.path,
       url: `img:${f.path}`,
       name: f.name,
       createdAt: f.modifiedAt || Date.now(),
     }));
-  } catch (error) {    return [];
+  } catch (error) {
+    return [];
   }
 }
 
@@ -173,8 +174,8 @@ export async function deleteGlobalIconAsset(path: string): Promise<boolean> {
   }
 
   const adapter = getStorageAdapter();
-  const { metadata } = await getPaths();
-  const iconsDir = await joinPath(metadata, 'assets', 'icons');
+  const { app } = await getPaths();
+  const iconsDir = await joinPath(app, 'assets', 'icons');
   const safePath = normalizeContainedAssetPath(path, iconsDir);
 
   if (!safePath || !(await adapter.exists(safePath))) {

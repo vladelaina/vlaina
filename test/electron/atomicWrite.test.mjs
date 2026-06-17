@@ -16,7 +16,7 @@ describe('Electron atomic file writes', () => {
 
   it('fully replaces existing important files on successful writes', async () => {
     const { writeFileAtomically } = await import('../../electron/desktopIpc.mjs');
-    const filePath = path.join(tempRoot, 'notes-starred.json');
+    const filePath = path.join(tempRoot, 'starred.json');
     await writeFile(filePath, 'old-content', 'utf8');
 
     await writeFileAtomically(filePath, 'new-complete-content');
@@ -29,7 +29,7 @@ describe('Electron atomic file writes', () => {
 
   it('preserves the existing file if the temporary write fails before rename', async () => {
     const { writeFileAtomically } = await import('../../electron/desktopIpc.mjs');
-    const filePath = path.join(tempRoot, 'sessions.json');
+    const filePath = path.join(tempRoot, 'index.json');
     await writeFile(filePath, 'old-complete-content', 'utf8');
 
     const openFile = async (targetPath) => ({

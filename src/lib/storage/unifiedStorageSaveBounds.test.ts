@@ -43,8 +43,8 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
-  MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES,
-  MAX_AI_PROVIDER_CHANNEL_BYTES,
+  MAX_AI_PROVIDER_FILE_SCAN_ENTRIES,
+  MAX_AI_PROVIDER_FILE_BYTES,
   MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
   MAX_AI_SESSIONS_BYTES,
   MAX_CUSTOM_ICON_URL_CHARS,
@@ -72,7 +72,7 @@ describe('unifiedStorage save bounds', () => {
     mocks.storage.exists.mockResolvedValue(true);
     mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 1024 });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/data.json')) {
+      if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
           version: 2,
           lastModified: 1,
@@ -86,7 +86,7 @@ describe('unifiedStorage save bounds', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions.json')) {
+      if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           version: 1,
           updatedAt: 1,
@@ -101,7 +101,7 @@ describe('unifiedStorage save bounds', () => {
             webSearchEnabled: false,
             providerIds: [],
             deletedSessionIds: [],
-            deletedProviderIds: ['deleted-provider', 'overflow-tts'],
+            deletedProviderIds: ['deleted-provider'],
           },
         });
       }
@@ -110,36 +110,19 @@ describe('unifiedStorage save bounds', () => {
     });
   });
 
-  it('bounds provider and legacy TTS channel cleanup directory scans', async () => {
+  it('bounds provider file cleanup directory scans', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/channels')) {
+      if (path.endsWith('/chat/providers')) {
         return [
-          ...Array.from({ length: MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES }, (_, index) => ({
+          ...Array.from({ length: MAX_AI_PROVIDER_FILE_SCAN_ENTRIES }, (_, index) => ({
             name: `skip-${index}.txt`,
-            path: `/appdata/.vlaina/chat/channels/skip-${index}.txt`,
+            path: `/appdata/.vlaina/chat/providers/skip-${index}.txt`,
             isFile: true,
             isDirectory: false,
           })),
           {
             name: 'deleted-provider.json',
-            path: '/appdata/.vlaina/chat/channels/deleted-provider.json',
-            isFile: true,
-            isDirectory: false,
-          },
-        ];
-      }
-
-      if (path.endsWith('/chat/tts-channels')) {
-        return [
-          ...Array.from({ length: MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES }, (_, index) => ({
-            name: `skip-${index}.txt`,
-            path: `/appdata/.vlaina/chat/tts-channels/skip-${index}.txt`,
-            isFile: true,
-            isDirectory: false,
-          })),
-          {
-            name: 'overflow-tts.json',
-            path: '/appdata/.vlaina/chat/tts-channels/overflow-tts.json',
+            path: '/appdata/.vlaina/chat/providers/deleted-provider.json',
             isFile: true,
             isDirectory: false,
           },
@@ -170,13 +153,9 @@ describe('unifiedStorage save bounds', () => {
     });
 
     expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/channels/deleted-provider.json',
-    );
-    expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith(
-      '/appdata/.vlaina/chat/tts-channels/overflow-tts.json',
+      '/appdata/.vlaina/chat/providers/deleted-provider.json',
     );
     expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('deleted-provider');
-    expect(mocks.deleteProviderSecret).not.toHaveBeenCalledWith('overflow-tts');
   });
 
   it('limits concurrent provider secret syncs during save', async () => {
@@ -256,7 +235,7 @@ describe('unifiedStorage save bounds', () => {
       },
     });
 
-    const mainPayload = getWritePayload('/.vlaina/data.json');
+    const mainPayload = getWritePayload('/.vlaina/app/settings.json');
     const parsed = JSON.parse(mainPayload);
     expect(getUtf8ByteLength(mainPayload)).toBeLessThanOrEqual(MAX_MAIN_DATA_BYTES);
     expect(parsed.data.customIcons.length).toBeLessThan(customIcons.length);
@@ -292,13 +271,13 @@ describe('unifiedStorage save bounds', () => {
       },
     });
 
-    const sessionsPayload = getWritePayload('/chat/sessions.json');
+    const sessionsPayload = getWritePayload('/chat/sessions/index.json');
     const parsed = JSON.parse(sessionsPayload);
     expect(getUtf8ByteLength(sessionsPayload)).toBeLessThanOrEqual(MAX_AI_SESSIONS_BYTES);
     expect(parsed.data.sessions.length).toBeLessThan(sessions.length);
   });
 
-  it('keeps saved provider channels within the loadable file size limit', async () => {
+  it('keeps saved provider files within the loadable file size limit', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.listDir.mockResolvedValue([]);
     const models = Array.from({ length: 600 }, (_value, index) => ({
@@ -340,9 +319,9 @@ describe('unifiedStorage save bounds', () => {
       },
     });
 
-    const providerPayload = getWritePayload('/chat/channels/provider-1.json');
+    const providerPayload = getWritePayload('/chat/providers/provider-1.json');
     const parsed = JSON.parse(providerPayload);
-    expect(getUtf8ByteLength(providerPayload)).toBeLessThanOrEqual(MAX_AI_PROVIDER_CHANNEL_BYTES);
+    expect(getUtf8ByteLength(providerPayload)).toBeLessThanOrEqual(MAX_AI_PROVIDER_FILE_BYTES);
     expect(parsed.data.provider.name).toHaveLength(4096);
     expect(parsed.data.provider.apiKey).toHaveLength(4096);
     expect(parsed.data.models.length).toBeLessThan(models.length);
