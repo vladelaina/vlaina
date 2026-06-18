@@ -24,6 +24,7 @@ import {
   normalizeMissingBlockquoteMarkerSpaces,
   normalizeMissingOrderedListMarkerSpaces,
   normalizeMissingUnorderedListMarkerSpaces,
+  normalizeRedundantMarkdownEscapes,
   normalizeSerializedMarkdownBlock,
   normalizeSerializedMarkdownDocument,
   normalizeSerializedMarkdownSelection,
@@ -170,6 +171,34 @@ describe('normalizeEscapedAngleBracketText', () => {
 
     expect(normalizeEscapedAngleBracketText(fenced)).toBe(fenced);
     expect(normalizeEscapedAngleBracketText(html)).toBe(html);
+  });
+});
+
+describe('normalizeRedundantMarkdownEscapes', () => {
+  it('restores serializer-escaped plain punctuation outside protected content', () => {
+    expect(normalizeRedundantMarkdownEscapes('h\\_i')).toBe('h_i');
+    expect(normalizeRedundantMarkdownEscapes('foo\\_\\_bar')).toBe('foo__bar');
+    expect(normalizeRedundantMarkdownEscapes('assets/2026-05-22\\_18-51-57.png')).toBe(
+      'assets/2026-05-22_18-51-57.png'
+    );
+    expect(normalizeRedundantMarkdownEscapes('path\\_(x)')).toBe('path_(x)');
+    expect(normalizeRedundantMarkdownEscapes('a\\*b and a \\* b')).toBe('a*b and a * b');
+    expect(normalizeRedundantMarkdownEscapes('a\\[b]')).toBe('a[b]');
+    expect(normalizeRedundantMarkdownEscapes('a\\~b')).toBe('a~b');
+    expect(normalizeRedundantMarkdownEscapes('a\\`b')).toBe('a`b');
+    expect(normalizeRedundantMarkdownEscapes('\\#tag')).toBe('#tag');
+  });
+
+  it('keeps syntax-protecting escaped underscores and protected content intact', () => {
+    expect(normalizeRedundantMarkdownEscapes('\\_literal\\_')).toBe('\\_literal\\_');
+    expect(normalizeRedundantMarkdownEscapes('\\*literal\\*')).toBe('\\*literal\\*');
+    expect(normalizeRedundantMarkdownEscapes('H\\~2\\~O')).toBe('H\\~2\\~O');
+    expect(normalizeRedundantMarkdownEscapes('\\`not code\\`')).toBe('\\`not code\\`');
+    expect(normalizeRedundantMarkdownEscapes('\\[not a link]')).toBe('\\[not a link]');
+    expect(normalizeRedundantMarkdownEscapes('\\# Heading')).toBe('\\# Heading');
+    expect(normalizeRedundantMarkdownEscapes(['```md', 'h\\_i', '```'].join('\n'))).toBe(
+      ['```md', 'h\\_i', '```'].join('\n')
+    );
   });
 });
 
@@ -881,6 +910,15 @@ describe('normalizeSerializedMarkdownDocument', () => {
     );
   });
 
+  it('restores serializer-escaped intraword underscores in persisted markdown', () => {
+    expect(normalizeSerializedMarkdownDocument('h\\_i')).toBe('h_i');
+    expect(normalizeSerializedMarkdownDocument('foo\\_\\_bar')).toBe('foo__bar');
+    expect(normalizeSerializedMarkdownDocument('path\\_(x)')).toBe('path_(x)');
+    expect(normalizeSerializedMarkdownDocument(['```md', 'h\\_i', '```'].join('\n'))).toBe(
+      ['```md', 'h\\_i', '```'].join('\n')
+    );
+  });
+
   it('persists editor-authored html-like paragraph text without serializer backslashes', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -905,6 +943,35 @@ describe('normalizeSerializedMarkdownDocument', () => {
 
       expect(serialized.trim()).toBe('\\<p>');
       expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serialized))).toBe('<p>');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('persists editor-authored intraword underscores without serializer backslashes', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark);
+
+    await editor.create();
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const schema = view.state.schema;
+      const paragraph = schema.nodes.paragraph.create(null, schema.text('h_i and foo__bar'));
+      const doc = schema.nodes.doc.create(null, [paragraph]);
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content));
+
+      const serializer = editor.ctx.get(serializerCtx);
+      const serialized = serializer(view.state.doc);
+
+      expect(serialized.trim()).toBe('h\\_i and foo\\_\\_bar');
+      expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serialized))).toBe('h_i and foo__bar');
     } finally {
       await editor.destroy();
     }

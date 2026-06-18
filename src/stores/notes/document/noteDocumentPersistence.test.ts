@@ -394,6 +394,29 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('removes redundant serializer escapes from intraword underscores before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: 'h\\_i and foo\\_\\_bar',
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      'h_i and foo__bar'
+    );
+
+    vi.useRealTimers();
+  });
+
   it('normalizes custom editor markdown syntax before writing markdown', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
