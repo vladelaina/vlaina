@@ -125,6 +125,14 @@ describe('markdown syntax persistence matrix', () => {
       markdown: ['---', 'title: Demo', '---', 'Body text.'].join('\n'),
     },
     {
+      name: 'plain markdown punctuation text persists without redundant escapes',
+      markdown: [
+        'Plain punctuation: h_i, foo__bar, a*b, a * b, C++, a+b, a-b, v1.2, wow!, a#b, #tag, a[b], path_(x), a~b, a`b, a|b, a:b, and 1 < 2.',
+        '',
+        '#tag',
+      ].join('\n'),
+    },
+    {
       name: 'highlight superscript and subscript',
       markdown: 'Use ==highlight==, X^2^, and H~2~O.',
     },

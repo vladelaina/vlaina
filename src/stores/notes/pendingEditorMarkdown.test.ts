@@ -90,6 +90,27 @@ describe('flushPendingEditorMarkdown', () => {
     });
   });
 
+  it('normalizes serializer-escaped intraword underscores before they enter note state', () => {
+    useNotesStore.setState({
+      currentNote: { path: 'alpha.md', content: 'Old content' },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old content', modifiedAt: 7 }]]),
+    });
+
+    const didFlush = flushPendingEditorMarkdown('alpha.md', 'h\\_i and foo\\_\\_bar');
+
+    const expected = 'h_i and foo__bar';
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(true);
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: expected });
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: expected,
+      modifiedAt: 7,
+    });
+  });
+
   it('keeps ordinary typed line breaks as ordinary markdown newlines during flush', () => {
     useNotesStore.setState({
       currentNote: { path: 'alpha.md', content: 'Old content' },
