@@ -179,6 +179,9 @@ describe('appliedPreviewState', () => {
     ].join('');
     const sourceListItem = sourceDom.querySelector<HTMLElement>('li');
     expect(sourceListItem).toBeInstanceOf(HTMLElement);
+    sourceListItem!.classList.add('HyperMD-list-line', 'cm-line', 'md-task-list-item');
+    sourceListItem!.setAttribute('data-task', ' ');
+    sourceListItem!.setAttribute('aria-checked', 'false');
     sourceListItem!.style.lineHeight = '32px';
 
     const querySelectorAllSpy = vi.spyOn(Element.prototype, 'querySelectorAll').mockImplementation(() => {
@@ -194,6 +197,10 @@ describe('appliedPreviewState', () => {
 
     const previewListItem = previewDom!.querySelector<HTMLElement>('li');
     expect(previewListItem?.style.lineHeight).toBe('32px');
+    expect(previewListItem?.classList.contains('HyperMD-list-line')).toBe(true);
+    expect(previewListItem?.classList.contains('md-task-list-item')).toBe(true);
+    expect(previewListItem?.getAttribute('data-task')).toBe(' ');
+    expect(previewListItem?.getAttribute('aria-checked')).toBe('false');
     expect(previewDom!.querySelector('.editor-collapsed-content')).toBeInstanceOf(HTMLElement);
     expect(previewDom!.querySelector('.image-block-container button')?.hasAttribute('tabindex')).toBe(false);
     expect(previewDom!.querySelector('.frontmatter-block-container [contenteditable]')).toBeNull();
@@ -434,6 +441,142 @@ describe('appliedPreviewState', () => {
     expect(previewTextParagraph?.classList.contains('md-p')).toBe(true);
     expect(previewTextParagraph?.classList.contains('cm-line')).toBe(true);
     expect(previewTextParagraph?.style.marginTop).toBe('15px');
+  });
+
+  it('keeps markdown blank-line layout stable in applied previews', () => {
+    const SchemaCtor = (ProseModel as any).Schema;
+    const EditorStateCtor = (ProseState as any).EditorState;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'inline*',
+          group: 'block',
+          toDOM: () => ['p', 0],
+        },
+        html_block: {
+          atom: true,
+          group: 'block',
+          attrs: { value: { default: '' } },
+          toDOM: (node: ProseNode) => ['div', {
+            'data-type': 'html-block',
+            'data-value': node.attrs.value,
+          }],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('paragraph', null, [schema.text('Before')]),
+        schema.node('html_block', { value: '<!--vlaina-markdown-blank-line-->' }),
+        schema.node('paragraph'),
+        schema.node('paragraph', null, [schema.text('After')]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    const sourceBefore = document.createElement('p');
+    sourceBefore.textContent = 'Before';
+    const sourceHtmlBlankLine = document.createElement('div');
+    sourceHtmlBlankLine.dataset.type = 'html-block';
+    sourceHtmlBlankLine.dataset.value = '<!--vlaina-markdown-blank-line-->';
+    sourceHtmlBlankLine.style.minHeight = '24px';
+    sourceHtmlBlankLine.style.marginTop = '0px';
+    sourceHtmlBlankLine.style.marginBottom = '0px';
+    sourceHtmlBlankLine.style.lineHeight = '24px';
+    const sourceEditableBlankLine = document.createElement('p');
+    sourceEditableBlankLine.className = 'editor-empty-paragraph';
+    sourceEditableBlankLine.style.minHeight = '24px';
+    sourceEditableBlankLine.style.marginTop = '0px';
+    sourceEditableBlankLine.style.marginBottom = '0px';
+    sourceEditableBlankLine.style.paddingTop = '0px';
+    sourceEditableBlankLine.style.paddingBottom = '0px';
+    const sourceAfter = document.createElement('p');
+    sourceAfter.textContent = 'After';
+    sourceDom.append(sourceBefore, sourceHtmlBlankLine, sourceEditableBlankLine, sourceAfter);
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewHtmlBlankLine = previewDom.children.item(1) as HTMLElement | null;
+    const previewEditableBlankLine = previewDom.children.item(2) as HTMLElement | null;
+
+    expect(previewHtmlBlankLine?.dataset.value).toBe('<!--vlaina-markdown-blank-line-->');
+    expect(previewHtmlBlankLine?.style.minHeight).toBe('24px');
+    expect(previewHtmlBlankLine?.style.marginTop).toBe('0px');
+    expect(previewHtmlBlankLine?.style.marginBottom).toBe('0px');
+    expect(previewHtmlBlankLine?.style.lineHeight).toBe('24px');
+    expect(previewEditableBlankLine?.classList.contains('editor-empty-paragraph')).toBe(true);
+    expect(previewEditableBlankLine?.style.minHeight).toBe('24px');
+    expect(previewEditableBlankLine?.style.marginTop).toBe('0px');
+    expect(previewEditableBlankLine?.style.marginBottom).toBe('0px');
+    expect(previewEditableBlankLine?.style.paddingTop).toBe('0px');
+    expect(previewEditableBlankLine?.style.paddingBottom).toBe('0px');
+    expect(previewEditableBlankLine?.querySelector('.ProseMirror-trailingBreak')).toBeInstanceOf(HTMLBRElement);
+  });
+
+  it('mirrors top-level layout decorations that can change preview document height', () => {
+    const SchemaCtor = (ProseModel as any).Schema;
+    const EditorStateCtor = (ProseState as any).EditorState;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'block+' },
+        heading: {
+          content: 'text*',
+          group: 'block',
+          attrs: { level: { default: 1 } },
+          toDOM: (node: ProseNode) => [`h${node.attrs.level}`, 0],
+        },
+        paragraph: {
+          content: 'inline*',
+          group: 'block',
+          toDOM: () => ['p', 0],
+        },
+        blockquote: {
+          content: 'block+',
+          group: 'block',
+          toDOM: () => ['blockquote', 0],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('heading', { level: 2 }, [schema.text('Collapsed')]),
+        schema.node('paragraph', null, [schema.text('Hidden content')]),
+        schema.node('blockquote', null, [
+          schema.node('paragraph', null, [schema.text('Column content')]),
+        ]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    const sourceHeading = document.createElement('h2');
+    sourceHeading.textContent = 'Collapsed';
+    const sourceCollapsedContent = document.createElement('p');
+    sourceCollapsedContent.className = 'heading-collapsed-content';
+    sourceCollapsedContent.style.display = 'none';
+    sourceCollapsedContent.textContent = 'Hidden content';
+    const sourceColumn = document.createElement('blockquote');
+    sourceColumn.className = 'vlook-column-block vlook-column-3 vlook-column-item-2 vlook-column-quote';
+    sourceColumn.style.columnCount = '3';
+    sourceColumn.style.marginLeft = '32px';
+    sourceColumn.innerHTML = '<p>Column content</p>';
+    sourceDom.append(sourceHeading, sourceCollapsedContent, sourceColumn);
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewCollapsedContent = previewDom.children.item(1) as HTMLElement | null;
+    const previewColumn = previewDom.children.item(2) as HTMLElement | null;
+
+    expect(previewCollapsedContent?.classList.contains('heading-collapsed-content')).toBe(true);
+    expect(previewCollapsedContent?.style.display).toBe('none');
+    expect(previewColumn?.classList.contains('vlook-column-block')).toBe(true);
+    expect(previewColumn?.classList.contains('vlook-column-3')).toBe(true);
+    expect(previewColumn?.classList.contains('vlook-column-item-2')).toBe(true);
+    expect(previewColumn?.classList.contains('vlook-column-quote')).toBe(true);
+    expect(previewColumn?.style.columnCount).toBe('3');
+    expect(previewColumn?.style.marginLeft).toBe('32px');
   });
 
   it('bounds trailing break synchronization for oversized preview documents', () => {

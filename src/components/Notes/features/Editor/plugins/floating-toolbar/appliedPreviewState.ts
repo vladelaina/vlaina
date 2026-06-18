@@ -113,6 +113,8 @@ export function renderAppliedPreviewDocument(
   preserveSourceFrontmatterNodeViews(previewDom, sourceDom);
   preserveSourceRenderedAtomNodes(previewDom, sourceDom);
   stabilizePreviewMediaAdjacentLayout(previewDom, sourceDom);
+  stabilizePreviewBlankLineLayout(previewDom, sourceDom);
+  stabilizePreviewTopLevelLayoutDecorations(previewDom, sourceDom);
   stabilizePreviewListLayout(previewDom, sourceDom);
   stabilizePreviewRootTypography(previewDom, sourceDom);
   return previewDom;
@@ -198,6 +200,124 @@ const MEDIA_ADJACENT_LAYOUT_STYLE_PROPS = [
 
 type MediaAdjacentLayoutStyleProp = typeof MEDIA_ADJACENT_LAYOUT_STYLE_PROPS[number];
 
+const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+
+const MARKDOWN_BLANK_LINE_CLASS_NAMES = [
+  'editor-editable-markdown-blank-line',
+  'editor-empty-paragraph',
+] as const;
+
+const MARKDOWN_BLANK_LINE_STYLE_PROPS = [
+  'display',
+  'fontSize',
+  'lineHeight',
+  'marginBottom',
+  'marginTop',
+  'minHeight',
+  'paddingBottom',
+  'paddingTop',
+] as const;
+
+type MarkdownBlankLineStyleProp = typeof MARKDOWN_BLANK_LINE_STYLE_PROPS[number];
+
+const TOP_LEVEL_LAYOUT_DECORATION_CLASS_NAMES = [
+  'heading-collapsed-content',
+  'editor-collapsed-content',
+  'HyperMD-list-line',
+  'cm-line',
+  'md-task-list-item',
+  'task-list-item',
+  'HyperMD-task-line',
+  'is-checked',
+  'has-list-bullet',
+  'contains-task-list',
+  'first-p',
+  'v-caption',
+  'vlook-caption-block',
+  'vlook-caption-target',
+  'vlook-caption-target-table',
+  'vlook-caption-target-codeblock',
+  'vlook-caption-target-formula',
+  'vlook-caption-target-iframe',
+  'vlook-caption-target-mermaid',
+  'vlook-caption-gap',
+  'vlook-tab-caption',
+  'vlook-highlight-block',
+  'vlook-emphasis-block',
+  'vlook-strong-block',
+  'vlook-underline-block',
+  'vlook-sup-line',
+  'vlook-sub-line',
+  'v-column',
+  'vlook-column-marker',
+  'vlook-column-block',
+  'vlook-column-2',
+  'vlook-column-3',
+  'vlook-column-4',
+  'vlook-column-5',
+  'vlook-column-item-1',
+  'vlook-column-item-2',
+  'vlook-column-item-3',
+  'vlook-column-item-4',
+  'vlook-column-item-5',
+  'vlook-column-first',
+  'vlook-column-list',
+  'vlook-column-quote',
+  'vlook-column-gap',
+  'v-post-card',
+  'vlook-post-card',
+  'vlook-post-card-dual',
+  'v-card-image',
+  'v-card-title',
+  'v-card-text',
+  'v-page-break',
+  'vlook-page-break',
+  'vlook-media-html-block',
+  'vlook-inline-html',
+  'vlook-kbd-html',
+  'v-btn',
+  'table',
+  'codeblock',
+  'formula',
+  'iframe',
+  'mermaid',
+  'v-cap-cntr',
+  'em',
+] as const;
+
+const TOP_LEVEL_LAYOUT_DECORATION_STYLE_PROPS = [
+  'alignItems',
+  'columnCount',
+  'columnGap',
+  'columnRule',
+  'display',
+  'flexBasis',
+  'flexGrow',
+  'flexShrink',
+  'flexWrap',
+  'fontSize',
+  'height',
+  'justifyContent',
+  'lineHeight',
+  'marginBottom',
+  'marginLeft',
+  'marginRight',
+  'marginTop',
+  'maxHeight',
+  'maxWidth',
+  'minHeight',
+  'minWidth',
+  'paddingBottom',
+  'paddingLeft',
+  'paddingRight',
+  'paddingTop',
+  'rowGap',
+  'visibility',
+  'width',
+] as const;
+
+type TopLevelLayoutDecorationStyleProp = typeof TOP_LEVEL_LAYOUT_DECORATION_STYLE_PROPS[number];
+
 const LIST_LAYOUT_SELECTOR = 'ul, ol, li, li > p, li > [data-text-align]';
 
 const LIST_LAYOUT_STYLE_PROPS = [
@@ -278,6 +398,13 @@ function stabilizePreviewListLayout(previewDom: HTMLElement, sourceDom: HTMLElem
 
     if (sourceElement.classList.contains(LIST_COLLAPSED_CONTENT_CLASS)) {
       previewElement.classList.add(LIST_COLLAPSED_CONTENT_CLASS);
+    }
+    copyAllowedClasses(sourceElement, previewElement, TOP_LEVEL_LAYOUT_DECORATION_CLASS_NAMES);
+    if (sourceElement.hasAttribute('data-task')) {
+      previewElement.setAttribute('data-task', sourceElement.getAttribute('data-task') ?? '');
+    }
+    if (sourceElement.hasAttribute('aria-checked')) {
+      previewElement.setAttribute('aria-checked', sourceElement.getAttribute('aria-checked') ?? '');
     }
 
     const computed = window.getComputedStyle(sourceElement);
@@ -634,7 +761,7 @@ function copyAllowedClasses(
 function mirrorLayoutStyles(
   sourceElement: HTMLElement,
   previewElement: HTMLElement,
-  props: readonly MediaAdjacentLayoutStyleProp[]
+  props: readonly (MediaAdjacentLayoutStyleProp | MarkdownBlankLineStyleProp | TopLevelLayoutDecorationStyleProp)[]
 ): void {
   let computed: CSSStyleDeclaration | null = null;
   props.forEach((prop) => {
@@ -681,6 +808,106 @@ function stabilizePreviewMediaAdjacentLayout(previewDom: HTMLElement, sourceDom:
 
     copyAllowedClasses(sourceElement, previewElement, MEDIA_ADJACENT_LAYOUT_CLASS_NAMES);
     mirrorLayoutStyles(sourceElement, previewElement, MEDIA_ADJACENT_LAYOUT_STYLE_PROPS);
+  });
+}
+
+function isMarkdownBlankLineElement(element: HTMLElement): boolean {
+  if (
+    element.dataset.type === 'html-block' &&
+    element.dataset.value === MARKDOWN_BLANK_LINE_VALUE
+  ) {
+    return true;
+  }
+
+  return (
+    element.tagName === 'P' &&
+    (
+      element.classList.contains('editor-editable-markdown-blank-line') ||
+      (
+        element.classList.contains('editor-empty-paragraph') &&
+        !element.classList.contains('is-editor-empty')
+      )
+    )
+  );
+}
+
+function canMirrorMarkdownBlankLineLayout(sourceElement: HTMLElement, previewElement: HTMLElement): boolean {
+  if (!isMarkdownBlankLineElement(sourceElement)) {
+    return false;
+  }
+
+  if (sourceElement.dataset.type === 'html-block') {
+    return previewElement.dataset.type === 'html-block';
+  }
+
+  return previewElement.tagName === 'P';
+}
+
+function stabilizePreviewBlankLineLayout(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom) {
+    return;
+  }
+
+  const sourceElements = Array.from(sourceDom.children)
+    .filter((element): element is HTMLElement => element instanceof HTMLElement);
+  const previewElements = Array.from(previewDom.children)
+    .filter((element): element is HTMLElement => element instanceof HTMLElement);
+  if (sourceElements.length !== previewElements.length) {
+    return;
+  }
+
+  sourceElements.forEach((sourceElement, index) => {
+    const previewElement = previewElements[index];
+    if (!previewElement || !canMirrorMarkdownBlankLineLayout(sourceElement, previewElement)) {
+      return;
+    }
+
+    copyAllowedClasses(sourceElement, previewElement, MARKDOWN_BLANK_LINE_CLASS_NAMES);
+    if (sourceElement.dataset.type === 'html-block') {
+      previewElement.dataset.value = MARKDOWN_BLANK_LINE_VALUE;
+    }
+    mirrorLayoutStyles(sourceElement, previewElement, MARKDOWN_BLANK_LINE_STYLE_PROPS);
+  });
+}
+
+function hasTopLevelLayoutDecoration(element: HTMLElement): boolean {
+  return TOP_LEVEL_LAYOUT_DECORATION_CLASS_NAMES.some((className) => element.classList.contains(className));
+}
+
+function canMirrorTopLevelLayoutDecoration(sourceElement: HTMLElement, previewElement: HTMLElement): boolean {
+  return (
+    sourceElement.tagName === previewElement.tagName &&
+    hasTopLevelLayoutDecoration(sourceElement)
+  );
+}
+
+function stabilizePreviewTopLevelLayoutDecorations(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom) {
+    return;
+  }
+
+  const sourceElements = Array.from(sourceDom.children)
+    .filter((element): element is HTMLElement => element instanceof HTMLElement);
+  const previewElements = Array.from(previewDom.children)
+    .filter((element): element is HTMLElement => element instanceof HTMLElement);
+  if (sourceElements.length !== previewElements.length) {
+    return;
+  }
+
+  sourceElements.forEach((sourceElement, index) => {
+    const previewElement = previewElements[index];
+    if (!previewElement || !canMirrorTopLevelLayoutDecoration(sourceElement, previewElement)) {
+      return;
+    }
+
+    copyAllowedClasses(sourceElement, previewElement, TOP_LEVEL_LAYOUT_DECORATION_CLASS_NAMES);
+    if (sourceElement.hasAttribute('data-task')) {
+      previewElement.setAttribute('data-task', sourceElement.getAttribute('data-task') ?? '');
+    }
+    if (sourceElement.hasAttribute('aria-checked')) {
+      previewElement.setAttribute('aria-checked', sourceElement.getAttribute('aria-checked') ?? '');
+    }
+    mirrorLayoutStyles(sourceElement, previewElement, TOP_LEVEL_LAYOUT_DECORATION_STYLE_PROPS);
   });
 }
 
