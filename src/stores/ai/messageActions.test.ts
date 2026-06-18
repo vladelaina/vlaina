@@ -4,7 +4,12 @@ import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { ChatMessage } from '@/lib/ai/types';
 import { aliasSessionId, clearSessionIdAliases } from '@/lib/ai/sessionIdAliases';
-import { cancelSessionJsonSave, deleteSessionJson, saveSessionJson } from '@/lib/storage/chatStorage';
+import {
+  cancelSessionJsonSave,
+  deleteSessionJson,
+  saveSessionJson,
+  scheduleSessionJsonSave,
+} from '@/lib/storage/chatStorage';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 
 vi.mock('@/lib/storage/chatStorage', () => ({
@@ -124,6 +129,21 @@ describe('message actions API transcript handling', () => {
     expect(message.versions).toHaveLength(1);
     expect(message.versions[0].kind).toBe('original');
     expect(saveSessionJson).not.toHaveBeenCalled();
+  });
+
+  it('does not schedule session writes for missing or unchanged message updates', () => {
+    const assistantMessage = createAssistantMessage();
+    seedMessages([assistantMessage]);
+
+    createMessageActions().updateMessage('session-1', 'missing-message', 'new content');
+    createMessageActions().updateMessage('session-1', 'assistant-1', 'old answer');
+    createMessageActions().updateMessageApiTranscript('session-1', 'missing-message', assistantMessage.apiTranscript || []);
+    createMessageActions().updateMessageApiTranscript('session-1', 'assistant-1', assistantMessage.apiTranscript || []);
+    createMessageActions().completeMessage('session-1', 'missing-message');
+
+    expect(scheduleSessionJsonSave).not.toHaveBeenCalled();
+    expect(saveSessionJson).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.messages['session-1']).toEqual([assistantMessage]);
   });
 
   it('restores the selected version transcript when switching versions', () => {

@@ -3,6 +3,7 @@ import { actions, managedProviderSync } from './providerActions';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import { useAccountSessionStore } from '../accountSession';
 import { useManagedAIStore } from '../useManagedAIStore';
+import { saveUnifiedData } from '@/lib/storage/unifiedStorage';
 import type { AIModel, Provider } from '@/lib/ai/types';
 
 const { fetchManagedModelsMock, fetchManagedModelsVersionMock } = vi.hoisted(() => ({
@@ -261,6 +262,43 @@ describe('reorderCustomProviders', () => {
       'provider-a',
       'provider-b',
     ]);
+  });
+});
+
+describe('provider action no-ops', () => {
+  beforeEach(() => {
+    fetchManagedModelsMock.mockReset();
+    seedAI([buildProvider({ id: 'provider-1' })], [
+      buildModel({
+        id: 'provider-1::gpt-test',
+        apiModelId: 'gpt-test',
+      }),
+    ]);
+    vi.mocked(saveUnifiedData).mockClear();
+  });
+
+  it('does not persist unchanged or missing provider/model updates', () => {
+    actions.updateProvider('provider-1', { name: 'Channel 1' });
+    actions.updateProvider('missing-provider', { name: 'Missing' });
+    actions.updateModel('provider-1::gpt-test', { name: 'GPT Test' });
+    actions.updateModel('missing-model', { name: 'Missing' });
+    actions.deleteProvider('missing-provider');
+    actions.deleteModel('missing-model');
+    actions.setProviderBenchmarkResults('provider-1', {
+      items: {},
+      overall: 'success',
+      updatedAt: 1,
+    });
+    actions.setProviderFetchedModels('provider-1', ['gpt-test']);
+    actions.addModel({
+      id: 'ignored',
+      apiModelId: 'gpt-test',
+      name: 'GPT Test',
+      providerId: 'provider-1',
+      enabled: true,
+    });
+
+    expect(saveUnifiedData).not.toHaveBeenCalled();
   });
 });
 

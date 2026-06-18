@@ -40,7 +40,7 @@ interface UnifiedStoreActions {
   setMarkdownBodyLineNumbers: (showLineNumbers: boolean) => void;
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
   setMarkdownImportedThemeId: (importedThemeId: string | null) => void;
-  setLastAppViewMode: (mode: 'notes' | 'chat') => void;
+  setLastAppViewMode: (mode: 'notes' | 'chat', skipPersist?: boolean) => void;
   setColorMode: (mode: NonNullable<UnifiedData['settings']['ui']>['colorMode']) => void;
   setThemeId: (themeId: string) => void;
   setNotesChatFloatingSize: (size: NonNullable<UnifiedData['settings']['ui']>['notesChatFloatingSize']) => void;
@@ -56,6 +56,26 @@ type UnifiedStore = UnifiedStoreState & UnifiedStoreActions;
 
 function persist(data: UnifiedData, patch?: UnifiedSavePatch) {
   saveUnifiedData(data, patch);
+}
+
+const AI_PROVIDER_PERSISTENCE_KEYS = new Set<keyof NonNullable<UnifiedData['ai']>>([
+  'providers',
+  'models',
+  'benchmarkResults',
+  'fetchedModels',
+  'deletedProviderIds',
+]);
+
+function getAIDataSavePatch(
+  updateKeys: Array<keyof NonNullable<UnifiedData['ai']>>
+): UnifiedSavePatch {
+  const touchesProviders = updateKeys.some((key) => AI_PROVIDER_PERSISTENCE_KEYS.has(key));
+  return {
+    ai: {
+      sessions: true,
+      providers: touchesProviders || undefined,
+    },
+  };
 }
 
 export function retainLoadedSessionMessages(
@@ -193,7 +213,7 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
         deletedCustomIconIds: (state.data.deletedCustomIconIds || []).filter(id => id !== icon.id),
       };
       set({ data: newData });
-      persist(newData);
+      persist(newData, { customIcons: true });
     },
 
     removeCustomIcon: async (id: string) => {
@@ -207,7 +227,7 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
         deletedCustomIconIds: [...deletedIconIds],
       };
       set({ data: newData });
-      persist(newData);
+      persist(newData, { customIcons: true });
 
       if (removedIcon) {
         await deleteGlobalIconAsset(removedIcon.id);
@@ -231,23 +251,30 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
           customIcons: updatedIcons
         };
         
-        persist(newData);
+        persist(newData, { customIcons: true });
         return { data: newData };
       });
     },
 
     updateAIData: (updates, skipPersist = false) => {
         const state = get();
+        const currentAI = state.data.ai || initialState.data.ai!;
+        const updateKeys = Object.keys(updates) as Array<keyof NonNullable<UnifiedData['ai']>>;
+        const hasChanges = updateKeys.some((key) => !Object.is(currentAI[key], updates[key]));
+        if (!hasChanges) {
+            return;
+        }
+
         const newData = {
             ...state.data,
             ai: {
-                ...(state.data.ai || initialState.data.ai!),
+                ...currentAI,
                 ...updates
             }
         };
         set({ data: newData });
         if (!skipPersist) {
-            persist(newData);
+            persist(newData, getAIDataSavePatch(updateKeys));
         }
     },
 

@@ -54,6 +54,10 @@ function getSafeCurrentVersionIndex(message: ChatMessage, versions: MessageVersi
   return index >= 0 && index < versions.length ? index : 0
 }
 
+function areJsonValuesEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
 function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['kind']): boolean {
   if (message.role === 'assistant') {
     return kind === 'original' || kind === 'regeneration'
@@ -280,6 +284,17 @@ export function createMessageActions() {
 
       if (!hasSession(ai, targetSessionId)) return
       if (sessionMessages.length === 0) return
+      const existingMessage = sessionMessages.find((message) => message.id === id)
+      if (!existingMessage) return
+
+      const existingVersions = getSafeMessageVersions(existingMessage)
+      const existingVersionIndex = getSafeCurrentVersionIndex(existingMessage, existingVersions)
+      if (
+        existingMessage.content === content &&
+        existingVersions[existingVersionIndex]?.content === content
+      ) {
+        return
+      }
 
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
@@ -323,6 +338,21 @@ export function createMessageActions() {
 
       if (!hasSession(ai, targetSessionId)) return
       if (sessionMessages.length === 0) return
+      const existingMessage = sessionMessages.find((message) => message.id === id)
+      if (!existingMessage) return
+
+      const existingVersions = getSafeMessageVersions(existingMessage)
+      const existingVersionIndex = getSafeCurrentVersionIndex(existingMessage, existingVersions)
+      const normalizedExistingTranscript = normalizeApiTranscriptMessages(existingMessage.apiTranscript)
+      const normalizedExistingVersionTranscript = normalizeApiTranscriptMessages(
+        existingVersions[existingVersionIndex]?.apiTranscript
+      )
+      if (
+        areJsonValuesEqual(normalizedExistingTranscript, normalizedApiTranscript) &&
+        areJsonValuesEqual(normalizedExistingVersionTranscript, normalizedApiTranscript)
+      ) {
+        return
+      }
 
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
@@ -354,12 +384,13 @@ export function createMessageActions() {
       }
     },
 
-    completeMessage: (sessionId: string, _id: string) => {
+    completeMessage: (sessionId: string, id: string) => {
       const targetSessionId = resolveSessionIdAlias(sessionId)
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
       if (!hasSession(ai, targetSessionId)) return
       const sessionMessages = ai.messages[targetSessionId]
+      if (!sessionMessages?.some((message) => message.id === id)) return
       if (sessionMessages && shouldPersistSession(ai, targetSessionId)) {
         saveSessionJsonInBackground(targetSessionId, sessionMessages)
       }

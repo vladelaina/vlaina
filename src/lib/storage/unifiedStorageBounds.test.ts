@@ -43,7 +43,6 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
-  MAX_AI_PROVIDER_FILE_SCAN_ENTRIES,
   MAX_CUSTOM_ICON_ID_CHARS,
   MAX_CUSTOM_ICON_NAME_CHARS,
   MAX_CUSTOM_ICON_URL_CHARS,
@@ -53,7 +52,6 @@ import {
   MAX_SETTINGS_UI_THEME_ID_CHARS,
   MAX_AI_PROVIDER_FETCHED_MODELS,
   MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
-  MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES,
   loadUnifiedData,
 } from './unifiedStorage';
 import { MAX_LOADED_AI_FIELD_CHARS } from './unifiedStorageAI';
@@ -493,27 +491,10 @@ describe('unifiedStorage load bounds', () => {
     expect(data.deletedCustomIconIds).not.toContain(`${'d'.repeat(MAX_CUSTOM_ICON_ID_CHARS)}x`);
   });
 
-  it('bounds orphan chat session recovery directory scans', async () => {
-    const recoverableSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES - 1}`;
-    const skippedSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES}`;
+  it('does not recover chat sessions by scanning directories when the session index is missing', async () => {
     mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/app/settings.json') ||
-      path.endsWith(`/chat/sessions/${recoverableSessionId}/messages.json`) ||
-      path.endsWith(`/chat/sessions/${skippedSessionId}/messages.json`)
+      path.endsWith('/.vlaina/app/settings.json')
     ));
-    mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (!path.endsWith('/chat/sessions')) return [];
-      return Array.from({ length: MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES + 1 }, (_, index) => ({
-        name: index === MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES - 1
-          ? recoverableSessionId
-          : index === MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES
-            ? skippedSessionId
-            : `temp-session-${index}`,
-        path: `/appdata/.vlaina/chat/sessions/session-${index}`,
-        isFile: false,
-        isDirectory: true,
-      }));
-    });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
       if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
@@ -529,69 +510,23 @@ describe('unifiedStorage load bounds', () => {
         });
       }
 
-      if (path.endsWith(`/chat/sessions/${recoverableSessionId}/messages.json`)) {
-        return JSON.stringify({
-          version: 1,
-          sessionId: recoverableSessionId,
-          updatedAt: 2,
-          messages: [{
-            id: 'm1',
-            role: 'user',
-            content: '<img src="https://example.com/orphan.png">\nRecover bounded orphan chat',
-            modelId: '',
-            timestamp: 10,
-            versions: [{
-              content: '<img src="https://example.com/orphan.png">\nRecover bounded orphan chat',
-              createdAt: 10,
-              kind: 'original',
-              subsequentMessages: [],
-            }],
-            currentVersionIndex: 0,
-          }],
-        });
-      }
-
-      if (path.endsWith(`/chat/sessions/${skippedSessionId}/messages.json`)) {
-        throw new Error('Out-of-budget orphan sessions must not be loaded');
-      }
-
       throw new Error(`Unexpected read: ${path}`);
     });
 
     const data = await loadUnifiedData();
 
-    expect(data.ai?.sessions.map((session) => session.id)).toEqual([recoverableSessionId]);
-    expect(data.ai?.sessions[0]?.title).toBe('Recover bounded orphan chat');
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
-      `/appdata/.vlaina/chat/sessions/${skippedSessionId}/messages.json`,
-    );
+    expect(data.ai?.sessions).toEqual([]);
+    expect(data.ai?.providers).toEqual([]);
+    expect(mocks.storage.listDir).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/index.json');
   });
 
-  it('bounds orphan provider file recovery when AI session metadata is invalid', async () => {
-    const recoverableProviderId = `provider-${MAX_AI_PROVIDER_FILE_SCAN_ENTRIES - 1}`;
-    const skippedProviderId = `provider-${MAX_AI_PROVIDER_FILE_SCAN_ENTRIES}`;
+  it('does not recover provider files by scanning directories when AI session metadata is invalid', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.storage.exists.mockImplementation(async (path: string) => (
       path.endsWith('/.vlaina/app/settings.json') ||
-      path.endsWith('/chat/sessions/index.json') ||
-      path.endsWith(`/chat/providers/${recoverableProviderId}.json`) ||
-      path.endsWith(`/chat/providers/${skippedProviderId}.json`)
+      path.endsWith('/chat/sessions/index.json')
     ));
-    mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (!path.endsWith('/chat/providers')) return [];
-      return Array.from({ length: MAX_AI_PROVIDER_FILE_SCAN_ENTRIES + 1 }, (_, index) => ({
-        name: index === 0
-          ? '../outside.json'
-          : index === MAX_AI_PROVIDER_FILE_SCAN_ENTRIES - 1
-            ? `${recoverableProviderId}.json`
-            : index === MAX_AI_PROVIDER_FILE_SCAN_ENTRIES
-              ? `${skippedProviderId}.json`
-              : `skip-${index}.txt`,
-        path: `/appdata/.vlaina/chat/providers/provider-${index}.json`,
-        isFile: true,
-        isDirectory: false,
-      }));
-    });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
       if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
@@ -610,39 +545,8 @@ describe('unifiedStorage load bounds', () => {
       if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
           sessions: [],
-          providerIds: [recoverableProviderId],
+          providerIds: ['provider-valid'],
         });
-      }
-
-      if (path.endsWith(`/chat/providers/${recoverableProviderId}.json`)) {
-        return JSON.stringify({
-          version: 1,
-          providerId: recoverableProviderId,
-          updatedAt: 1,
-          data: {
-            provider: {
-              id: recoverableProviderId,
-              name: 'Recovered Provider',
-              type: 'newapi',
-              apiHost: 'https://provider.example.com',
-              apiKey: '',
-              enabled: true,
-              createdAt: 1,
-              updatedAt: 1,
-            },
-            models: [{
-              apiModelId: 'model-a',
-              providerId: recoverableProviderId,
-              enabled: true,
-              createdAt: 1,
-            }],
-            fetchedModels: ['model-a'],
-          },
-        });
-      }
-
-      if (path.endsWith(`/chat/providers/${skippedProviderId}.json`)) {
-        throw new Error('Out-of-budget provider files must not be loaded');
       }
 
       throw new Error(`Unexpected read: ${path}`);
@@ -651,15 +555,10 @@ describe('unifiedStorage load bounds', () => {
     try {
       const data = await loadUnifiedData();
 
-      expect(data.ai?.providers.map((provider) => provider.id)).toEqual([recoverableProviderId]);
-      expect(data.ai?.models.map((model) => model.providerId)).toEqual([recoverableProviderId]);
-      expect(data.ai?.fetchedModels).toEqual({ [recoverableProviderId]: ['model-a'] });
-      expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
-        `/appdata/.vlaina/chat/providers/${skippedProviderId}.json`,
-      );
-      expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
-        '/appdata/.vlaina/chat/providers/../outside.json',
-      );
+      expect(data.ai?.providers).toEqual([]);
+      expect(data.ai?.models).toEqual([]);
+      expect(mocks.storage.listDir).not.toHaveBeenCalled();
+      expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/providers/provider-valid.json');
       expect(warnSpy).toHaveBeenCalledWith(
         '[Storage] Ignoring invalid AI sessions file:',
         '/appdata/.vlaina/chat/sessions/index.json',
@@ -667,63 +566,5 @@ describe('unifiedStorage load bounds', () => {
     } finally {
       warnSpy.mockRestore();
     }
-  });
-
-  it('recovers provider files when AI session metadata is missing', async () => {
-    const providerId = 'recovered-provider';
-    mocks.storage.exists.mockImplementation(async (path: string) => (
-      path.endsWith('/.vlaina/app/settings.json') ||
-      path.endsWith(`/chat/providers/${providerId}.json`)
-    ));
-    mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (!path.endsWith('/chat/providers')) return [];
-      return [
-        { name: `${providerId}.json`, path: `/appdata/.vlaina/chat/providers/${providerId}.json`, isFile: true, isDirectory: false },
-      ];
-    });
-    mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/app/settings.json')) {
-        return JSON.stringify({
-          version: 2,
-          lastModified: 1,
-          data: {
-            settings: {
-              timezone: { offset: 480, city: 'Beijing' },
-              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
-            },
-            customIcons: [],
-          },
-        });
-      }
-
-      if (path.endsWith(`/chat/providers/${providerId}.json`)) {
-        return JSON.stringify({
-          version: 1,
-          providerId,
-          updatedAt: 1,
-          data: {
-            provider: {
-              id: providerId,
-              name: 'Recovered Provider',
-              type: 'newapi',
-              apiHost: 'https://provider.example.com',
-              apiKey: '',
-              enabled: true,
-              createdAt: 1,
-              updatedAt: 1,
-            },
-            models: [],
-            fetchedModels: [],
-          },
-        });
-      }
-
-      throw new Error(`Unexpected read: ${path}`);
-    });
-
-    const data = await loadUnifiedData();
-
-    expect(data.ai?.providers.map((provider) => provider.id)).toEqual([providerId]);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/index.json');
   });
 });

@@ -80,7 +80,9 @@ describe('UniversalIcon', () => {
 
     fireEvent.error(image);
 
-    expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+    });
   });
 
   it('tries rendering again when an image icon changes after a load failure', async () => {
@@ -92,7 +94,9 @@ describe('UniversalIcon', () => {
     const { rerender } = render(<UniversalIcon icon="assets/icons/missing.png" imageLoader={imageLoader} />);
 
     fireEvent.error(await screen.findByRole('img', { name: 'icon' }));
-    expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+    });
 
     rerender(<UniversalIcon icon="assets/icons/next.png" imageLoader={imageLoader} />);
 

@@ -151,6 +151,22 @@ describe('useNotesOpenMarkdownTarget', () => {
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
   });
 
+  it('falls back to opening the selected file when its parent folder cannot be opened as a vault', async () => {
+    const { props, result } = renderTargetHook({
+      openVault: vi.fn(async () => false),
+    });
+
+    await act(async () => {
+      await result.current.openMarkdownTarget('/external/docs/setup.md');
+    });
+
+    expect(props.openVault).toHaveBeenCalledWith('/external/docs', undefined, {
+      preserveSidebarTree: false,
+    });
+    expect(props.openNoteByAbsolutePath).toHaveBeenCalledWith('/external/docs/setup.md');
+    expect(messageDialog).not.toHaveBeenCalledWith('vault.openFailed', expect.anything());
+  });
+
   it('waits when the vault store is already on the normalized target vault', async () => {
     const { props, result } = renderTargetHook({
       currentVaultPath: '/external/docs/',

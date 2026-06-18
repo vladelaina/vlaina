@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { retainLoadedSessionMessages } from './useUnifiedStore';
+import { createSettingsActions } from './actions/settingsActions';
 import {
   resolveMarkdownSettings,
   updateMarkdownBodyLineNumbers,
@@ -27,6 +28,48 @@ function createData(overrides?: Partial<NonNullable<UnifiedData['ai']>>): Unifie
       includeTimeContext: true,
       ...overrides,
     },
+  };
+}
+
+function createSettingsData(overrides?: Partial<UnifiedData['settings']>): UnifiedData {
+  return {
+    settings: {
+      timezone: { offset: 8, city: 'Beijing' },
+      markdown: {
+        typewriterMode: false,
+        theme: {
+          importedThemeId: null,
+        },
+        body: { showLineNumbers: false },
+        codeBlock: { showLineNumbers: true },
+      },
+      ui: {
+        lastAppViewMode: 'notes',
+        colorMode: 'system',
+        themeId: 'default',
+        notesChatFloatingSize: { width: 420, height: 640 },
+      },
+      ...overrides,
+    },
+    customIcons: [],
+    ai: undefined,
+  };
+}
+
+function createSettingsActionHarness(data = createSettingsData()) {
+  let state = { data };
+  const persist = vi.fn();
+  const set = (fn: (state: { data: UnifiedData }) => Partial<{ data: UnifiedData }>) => {
+    state = {
+      ...state,
+      ...fn(state),
+    };
+  };
+
+  return {
+    actions: createSettingsActions(set, persist),
+    getData: () => state.data,
+    persist,
   };
 }
 
@@ -237,5 +280,68 @@ describe('markdownSettings', () => {
     expect(nativeWithImportedTheme.settings.markdown.theme).toEqual({
       importedThemeId: 'clean-light',
     });
+  });
+});
+
+describe('settingsActions', () => {
+  it('does not persist unchanged app settings', () => {
+    const { actions, persist } = createSettingsActionHarness();
+
+    actions.setTimezone(8, 'Beijing');
+    actions.setLastAppViewMode('notes');
+    actions.setMarkdownCodeBlockLineNumbers(true);
+    actions.setMarkdownBodyLineNumbers(false);
+    actions.setMarkdownTypewriterMode(false);
+    actions.setMarkdownImportedThemeId(null);
+
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('does not persist normalized markdown theme no-ops', () => {
+    const { actions, persist } = createSettingsActionHarness(createSettingsData({
+      markdown: {
+        typewriterMode: false,
+        theme: {
+          importedThemeId: 'clean-light',
+        },
+        body: { showLineNumbers: false },
+        codeBlock: { showLineNumbers: true },
+      },
+    }));
+
+    actions.setMarkdownImportedThemeId(' clean-light ');
+
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('persists changed app settings with narrow patches', () => {
+    const { actions, getData, persist } = createSettingsActionHarness();
+
+    actions.setLastAppViewMode('chat');
+
+    expect(getData().settings.ui?.lastAppViewMode).toBe('chat');
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(persist).toHaveBeenCalledWith(expect.objectContaining({
+      settings: expect.objectContaining({
+        ui: expect.objectContaining({
+          lastAppViewMode: 'chat',
+        }),
+      }),
+    }), {
+      settings: {
+        ui: {
+          lastAppViewMode: 'chat',
+        },
+      },
+    });
+  });
+
+  it('can update last app view mode without scheduling unified persistence', () => {
+    const { actions, getData, persist } = createSettingsActionHarness();
+
+    actions.setLastAppViewMode('chat', true);
+
+    expect(getData().settings.ui?.lastAppViewMode).toBe('chat');
+    expect(persist).not.toHaveBeenCalled();
   });
 });

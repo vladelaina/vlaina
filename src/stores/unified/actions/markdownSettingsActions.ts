@@ -1,6 +1,7 @@
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
 import type { UnifiedSavePatch } from '@/lib/storage/unifiedStorage';
 import {
+  resolveMarkdownSettings,
   updateMarkdownBodyLineNumbers,
   updateMarkdownCodeBlockLineNumbers,
   updateMarkdownImportedThemeId,
@@ -19,6 +20,11 @@ export function createMarkdownSettingsActions(set: SetState, persist: Persist) {
   return {
     setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => {
       set((state) => {
+        const markdown = resolveMarkdownSettings(state.data.settings.markdown);
+        if (markdown.codeBlock.showLineNumbers === showLineNumbers) {
+          return {};
+        }
+
         const newData = updateMarkdownCodeBlockLineNumbers(state.data, showLineNumbers);
         persist(newData, {
           settings: {
@@ -34,6 +40,11 @@ export function createMarkdownSettingsActions(set: SetState, persist: Persist) {
     },
     setMarkdownBodyLineNumbers: (showLineNumbers: boolean) => {
       set((state) => {
+        const markdown = resolveMarkdownSettings(state.data.settings.markdown);
+        if (markdown.body.showLineNumbers === showLineNumbers) {
+          return {};
+        }
+
         const newData = updateMarkdownBodyLineNumbers(state.data, showLineNumbers);
         persist(newData, {
           settings: {
@@ -49,6 +60,11 @@ export function createMarkdownSettingsActions(set: SetState, persist: Persist) {
     },
     setMarkdownTypewriterMode: (typewriterMode: boolean) => {
       set((state) => {
+        const markdown = resolveMarkdownSettings(state.data.settings.markdown);
+        if (markdown.typewriterMode === typewriterMode) {
+          return {};
+        }
+
         const newData = updateMarkdownTypewriterMode(state.data, typewriterMode);
         persist(newData, {
           settings: {
@@ -62,11 +78,13 @@ export function createMarkdownSettingsActions(set: SetState, persist: Persist) {
     },
     setMarkdownImportedThemeId: (importedThemeId: string | null) => {
       set((state) => {
-        const normalizedThemeId = typeof importedThemeId === 'string' && importedThemeId.trim()
-          ? importedThemeId.trim()
-          : null;
-        const newData = updateMarkdownImportedThemeId(state.data, normalizedThemeId);
+        const newData = updateMarkdownImportedThemeId(state.data, importedThemeId);
+        const markdown = resolveMarkdownSettings(state.data.settings.markdown);
         const nextTheme = newData.settings.markdown.theme;
+        if ((markdown.theme.importedThemeId ?? null) === (nextTheme?.importedThemeId ?? null)) {
+          return {};
+        }
+
         persist(newData, {
           settings: {
             markdown: {
