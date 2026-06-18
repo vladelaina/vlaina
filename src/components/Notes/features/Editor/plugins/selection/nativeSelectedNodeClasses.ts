@@ -35,7 +35,7 @@ const TEXTLIKE_SELECTED_NODE_SELECTOR = [
   '.footnote-def',
   '.toc-block',
   '.callout',
-  "[data-type='html-block']",
+  "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']",
 ].join(',');
 
 const RICH_DIRECT_CHILD_SELECTOR = [

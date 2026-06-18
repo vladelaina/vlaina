@@ -18,6 +18,7 @@ import { linkTooltipPlugin } from '../plugins/links/tooltip/linkTooltipPlugin';
 import { tocPlugin } from '../plugins/toc/tocPlugin';
 import { mermaidPlugin } from '../plugins/mermaid/mermaidPlugin';
 import { mermaidEditorPlugin } from '../plugins/mermaid/mermaidEditorPlugin';
+import { htmlBlockEditorPlugin } from '../plugins/html-block/htmlBlockEditorPlugin';
 import { codePlugin } from '../plugins/code/codePlugin';
 import { codeBlockPlugins } from '../plugins/code/codeKeymap';
 import { frontmatterPlugin } from '../plugins/frontmatter/frontmatterPlugin';
@@ -102,6 +103,7 @@ export const customPluginGroups = [
       ...tocPlugin,
       ...mermaidPlugin,
       mermaidEditorPlugin,
+      htmlBlockEditorPlugin,
       ...frontmatterPlugin,
       ...codePlugin,
       ...codeBlockPlugins,

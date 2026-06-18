@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   Editor,
   defaultValueCtx,
@@ -9,7 +9,9 @@ import {
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { icons } from '@/components/ui/icons/registry';
 import { normalizeSerializedMarkdownDocument, stripTrailingNewlines } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { htmlBlockEditorPluginKey } from '../html-block/htmlBlockEditorPlugin';
 import { applySlashCommand } from './slashCommands';
 import {
   collectFootnoteIds,
@@ -126,6 +128,7 @@ describe('slashCommandDefinitions', () => {
       'inline-math',
       'toc',
       'mermaid',
+      'html-block',
       'footnote',
       'footnote-definition',
       'abbreviation',
@@ -133,6 +136,60 @@ describe('slashCommandDefinitions', () => {
     ]);
 
     expect(ids.includes('text')).toBe(false);
+  });
+
+  it('inserts an empty HTML block and opens the shared HTML editor from slash', () => {
+    const htmlNode = { type: { name: 'html_block' }, attrs: { value: '' } };
+    const domDispatchEvent = vi.fn();
+    const dispatch = vi.fn();
+    const htmlBlockCreate = vi.fn(() => htmlNode);
+    const tr = {
+      doc: {
+        content: { size: 20 },
+        nodeAt: vi.fn(() => htmlNode),
+        nodesBetween: vi.fn(),
+      },
+      mapping: {
+        map: vi.fn(() => 7),
+      },
+      replaceSelectionWith: vi.fn(() => tr),
+      setMeta: vi.fn(() => tr),
+      scrollIntoView: vi.fn(() => tr),
+    };
+    const view = {
+      coordsAtPos: vi.fn(() => ({ left: 12, bottom: 34 })),
+      dispatch,
+      dom: { dispatchEvent: domDispatchEvent },
+      state: {
+        selection: { from: 5 },
+        schema: {
+          nodes: {
+            html_block: {
+              create: htmlBlockCreate,
+            },
+          },
+        },
+        tr,
+      },
+    };
+    const ctx = { get: vi.fn(() => view) };
+
+    applySlashCommand(ctx as never, 'html-block');
+
+    expect(htmlBlockCreate).toHaveBeenCalledWith({ value: '' });
+    expect(tr.replaceSelectionWith).toHaveBeenCalledWith(htmlNode);
+    expect(tr.setMeta).toHaveBeenCalledWith(htmlBlockEditorPluginKey, {
+      isOpen: true,
+      value: '',
+      nodePos: 7,
+      position: {
+        x: 12,
+        y: 34 + themeDomStyleTokens.editorPopupAnchorOffsetPx,
+      },
+    });
+    expect(tr.scrollIntoView).toHaveBeenCalled();
+    expect(domDispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'editor:block-user-input' }));
+    expect(dispatch).toHaveBeenCalledWith(tr);
   });
 });
 

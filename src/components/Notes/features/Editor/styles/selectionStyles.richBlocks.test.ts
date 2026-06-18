@@ -188,6 +188,7 @@ describe("editor rich block selection styles", () => {
     const expectedRichChildList = [
       '.image-block-container',
       '.video-block',
+      "[data-type='html-block']",
       "[data-type='math-block']",
       "[data-type='math-inline']",
       '.mermaid-block',
@@ -203,6 +204,7 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).not.toContain('.milkdown .ProseMirror li :is(\n  .image-block-container,\n  .video-block,\n  [data-type=\'math-block\'],\n  [data-type=\'math-inline\'],\n  .mermaid-block,\n  .milkdown-table-block,\n  table\n).editor-block-selected {');
     expect(blockSelectionCss).toContain('.image-block-container,');
     expect(blockSelectionCss).toContain('.video-block,');
+    expect(blockSelectionCss).toContain("[data-type='html-block'],");
     expect(blockSelectionCss).toContain("[data-type='math-block'],");
     expect(blockSelectionCss).toContain("[data-type='math-inline'],");
     expect(blockSelectionCss).toContain('.mermaid-block,');
@@ -231,6 +233,7 @@ describe("editor rich block selection styles", () => {
       '.frontmatter-block-container',
       '.image-block-container',
       '.video-block',
+      "[data-type='html-block']",
       "[data-type='math-block']",
       '.mermaid-block',
       '.milkdown-table-block',

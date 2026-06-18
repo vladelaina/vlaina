@@ -18,6 +18,7 @@ interface TestRefs extends TextEditorSessionRefs {
 function createSessionHarness(args?: {
   preferStatePositionOnInitialRender?: (state: TestState) => boolean;
   previewInputDebounceMs?: number;
+  scrollPopupIntoViewOnInitialRender?: boolean;
 }) {
   const editorDom = document.createElement('div');
   document.body.appendChild(editorDom);
@@ -66,6 +67,7 @@ function createSessionHarness(args?: {
     resolveAnchorElement: () => anchor,
     getAnchorViewportPosition,
     preferStatePositionOnInitialRender: args?.preferStatePositionOnInitialRender,
+    scrollPopupIntoViewOnInitialRender: args?.scrollPopupIntoViewOnInitialRender,
     previewInput,
     previewInputDebounceMs: args?.previewInputDebounceMs ?? 25,
     previewCancel,
@@ -238,6 +240,39 @@ describe('createTextEditorViewSession', () => {
     expect(getAnchorViewportPosition).toHaveBeenCalledTimes(1);
 
     session.destroy();
+  });
+
+  it('scrolls the newly rendered popup into view when requested', () => {
+    const frameCallbacks: FrameRequestCallback[] = [];
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      frameCallbacks.push(callback);
+      return frameCallbacks.length;
+    });
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const scrollIntoView = vi.fn();
+    const previousScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    const { session } = createSessionHarness({
+      scrollPopupIntoViewOnInitialRender: true,
+    });
+
+    try {
+      session.update();
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(requestAnimationFrame).toHaveBeenCalled();
+
+      for (const callback of [...frameCallbacks]) {
+        callback(0);
+      }
+
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+    } finally {
+      session.destroy();
+      HTMLElement.prototype.scrollIntoView = previousScrollIntoView;
+    }
   });
 
   it('coalesces textarea autosize work to one animation frame while typing', () => {

@@ -1,5 +1,6 @@
 .milkdown [data-type='math-inline'],
 .milkdown [data-type='math-block'],
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
 .milkdown .mermaid-block {
   transition:
     background-color var(--vlaina-duration-160) var(--vlaina-ease-css-default),
@@ -8,9 +9,87 @@
   -webkit-box-decoration-break: clone;
 }
 
+.milkdown [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: var(--vlaina-space-1rem) var(--vlaina-space-0);
+  padding: var(--vlaina-space-1rem);
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
 .milkdown .ProseMirror.editor-atomic-block-keyboard-selected,
 .milkdown .ProseMirror.editor-atomic-block-keyboard-selected * {
   caret-color: transparent;
+}
+
+.milkdown .ProseMirror.editor-atomic-block-keyboard-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode {
+  background: var(--vlaina-math-hover-color) !important;
+  box-shadow:
+    inset 0 0 0 1px var(--vlaina-math-hover-color),
+    0 var(--vlaina-math-hover-bleed-y) 0 0 var(--vlaina-math-hover-color),
+    0 calc(-1 * var(--vlaina-math-hover-bleed-y)) 0 0 var(--vlaina-math-hover-color),
+    calc(-1 * var(--vlaina-math-hover-bleed-x-start)) 0 0 0 var(--vlaina-math-hover-color) !important;
+  border-radius: var(--vlaina-radius-0);
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+.milkdown .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode,
+.milkdown .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.milkdown .ProseMirror.editor-atomic-block-keyboard-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode::selection,
+.milkdown .ProseMirror.editor-atomic-block-keyboard-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode *::selection {
+  background: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+.milkdown .ProseMirror.editor-atomic-block-keyboard-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode::-moz-selection,
+.milkdown .ProseMirror.editor-atomic-block-keyboard-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode *::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
 }
 
 .milkdown [data-type='math-inline']:hover,
@@ -21,6 +100,10 @@
 .milkdown [data-type='math-block']:focus-visible,
 .milkdown [data-type='math-block'].ProseMirror-selectednode,
 .milkdown [data-type='math-block'].editor-preview-context-menu-active,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):hover,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):focus-visible,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).ProseMirror-selectednode,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).editor-preview-context-menu-active,
 .milkdown .mermaid-block:hover,
 .milkdown .mermaid-block:focus-visible,
 .milkdown .mermaid-block.ProseMirror-selectednode,
@@ -58,6 +141,14 @@
 .milkdown [data-type='math-block'].ProseMirror-selectednode *,
 .milkdown [data-type='math-block'].editor-preview-context-menu-active,
 .milkdown [data-type='math-block'].editor-preview-context-menu-active *,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):hover,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):hover *,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):focus-visible,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):focus-visible *,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).ProseMirror-selectednode,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).ProseMirror-selectednode *,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).editor-preview-context-menu-active,
+.milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).editor-preview-context-menu-active *,
 .milkdown .mermaid-block:hover,
 .milkdown .mermaid-block:hover *,
 .milkdown .mermaid-block:focus-visible,
@@ -72,11 +163,13 @@
 .milkdown .ProseMirror.editor-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ):is(:hover, :focus-visible),
 .milkdown .ProseMirror.editor-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ):is(:hover, :focus-visible) * {
   cursor: crosshair !important;
@@ -85,26 +178,39 @@
 .milkdown .ProseMirror.editor-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ):not(.editor-block-selected):is(:hover, :focus-visible) {
   background: transparent !important;
   box-shadow: none !important;
 }
 
+.milkdown .ProseMirror.editor-block-selection-pending [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is(:hover, :focus-visible) {
+  background: var(--vlaina-math-hover-color) !important;
+  box-shadow:
+    inset 0 0 0 1px var(--vlaina-math-hover-color),
+    0 var(--vlaina-math-hover-bleed-y) 0 0 var(--vlaina-math-hover-color),
+    0 calc(-1 * var(--vlaina-math-hover-bleed-y)) 0 0 var(--vlaina-math-hover-color),
+    calc(-1 * var(--vlaina-math-hover-bleed-x-start)) 0 0 0 var(--vlaina-math-hover-color) !important;
+}
+
 .milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
-  [data-type='math-block']
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ).editor-block-selected:is(:hover, :focus-visible),
 .milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
-  [data-type='math-block']
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ).editor-block-selected:is(:hover, :focus-visible) * {
   cursor: default !important;
 }
 
 .milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
-  [data-type='math-block']
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ).editor-block-selected:is(:hover, :focus-visible) {
   background: transparent !important;
   box-shadow: none !important;
@@ -123,21 +229,25 @@
 .milkdown .ProseMirror .editor-block-selected :is(
   [data-type='math-inline'],
   [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),
 .milkdown .ProseMirror .editor-block-selected :is(
   [data-type='math-inline'],
   [data-type='math-block'],
+  [data-type='html-block'],
   .mermaid-block
 ):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) *,
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
+  [data-type='html-block'],
   .mermaid-block
 ).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
+  [data-type='html-block'],
   .mermaid-block
 ).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) * {
   color: var(--vlaina-text-primary) !important;

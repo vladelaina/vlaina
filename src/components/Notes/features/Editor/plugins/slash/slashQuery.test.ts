@@ -75,6 +75,10 @@ describe('filterSlashItems', () => {
     expect(filterSlashItems('vedio')[0]?.name).toBe('Video');
   });
 
+  it('keeps HTML block as the direct /html match', () => {
+    expect(filterSlashItems('html')[0]?.commandId).toBe('html-block');
+  });
+
   it('matches short typo queries against compact search terms', () => {
     expect(filterSlashItems('j3')[0]?.name).toBe('Heading 3');
   });

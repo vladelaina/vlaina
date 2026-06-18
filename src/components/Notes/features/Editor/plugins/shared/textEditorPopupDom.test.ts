@@ -94,6 +94,28 @@ describe('textEditorPopupDom', () => {
     expect(textarea.style.overflowY).toBe('auto');
   });
 
+  it('can leave long textareas unconstrained for HTML block editing', () => {
+    vi.stubGlobal('innerHeight', 500);
+    const { card, textarea } = createTextEditorPopupElements();
+    stubPopupGeometry({
+      card,
+      textarea,
+      cardTop: 100,
+      cardHeight: 190,
+      textareaHeight: 100,
+      scrollHeight: 400,
+    });
+
+    resizeTextEditorPopupTextareaToContent({
+      card,
+      textarea,
+      constrainToViewport: false,
+    });
+
+    expect(textarea.style.height).toBe('400px');
+    expect(textarea.style.overflowY).toBe('hidden');
+  });
+
   it('keeps handled popup keyboard shortcuts from bubbling to the editor', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

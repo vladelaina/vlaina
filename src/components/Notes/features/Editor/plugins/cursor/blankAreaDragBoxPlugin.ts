@@ -66,8 +66,10 @@ import {
 } from './blankAreaInteractionUtils';
 import { handleListGapPlaceholderPointerDown } from './listGapPlaceholder';
 import {
+  appendFreshEmptyParagraphInputBoundaryTransaction,
   createEditableMarkdownBlankLineDecorations,
   EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+  handleFreshEmptyParagraphTextInput,
   handleMarkdownBlankLineKeyboardNavigation,
   handleMarkdownBlankLinePointerDown,
   handleMarkdownBlankLineTextInput,
@@ -618,6 +620,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
 
   return new Plugin({
     key: blankAreaDragBoxPluginKey,
+    appendTransaction(transactions, oldState, newState) {
+      if (!transactions.some((tr) => tr.docChanged)) return null;
+      return appendFreshEmptyParagraphInputBoundaryTransaction(oldState, newState);
+    },
     state: {
       init(_config, state) {
         return createBlankAreaDragBoxState(
@@ -709,7 +715,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         return handleMarkdownBlankLineKeyboardNavigation(view, event);
       },
       handleTextInput(view, from, to, text) {
-        return handleMarkdownBlankLineTextInput(view, from, to, text);
+        return (
+          handleMarkdownBlankLineTextInput(view, from, to, text)
+          || handleFreshEmptyParagraphTextInput(view, from, to, text)
+        );
       },
       handleDOMEvents: {
         copy(view, event) {

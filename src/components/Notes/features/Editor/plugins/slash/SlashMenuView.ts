@@ -139,7 +139,6 @@ export class SlashMenuView {
     );
 
     applySlashCommand(this.ctx, this.filtered[index].commandId);
-    this.editorView.focus();
   }
 
   private ensureMenu() {

@@ -8,6 +8,7 @@ import type { MessageKey } from '@/lib/i18n';
 import { convertBlockType } from '../floating-toolbar/blockCommands';
 import { insertImageFromFilePicker, insertFrontmatter } from './slashFileCommands';
 import { insertFootnoteDef, insertFootnoteRef } from './slashFootnoteCommands';
+import { insertHtmlBlockNodeAndOpenEditor } from './slashHtmlCommands';
 import { insertMathNodeAndOpenEditor } from './slashMathCommands';
 import { insertMermaidNodeAndOpenEditor } from './slashMermaidCommands';
 import { openVideoPrompt } from './slashVideoCommand';
@@ -85,6 +86,7 @@ const localizedSearchTerms = {
   inlineMath: ['inline equation', 'equation inline', 'ecuacion en linea', 'formule en ligne', 'inline gleichung', 'formula em linha', '行内', 'インライン', '인라인'],
   toc: ['sommaire', 'table des matieres', 'indice', 'inhaltsverzeichnis', 'sumario', 'оглавление', 'icindekiler', 'muc luc', 'daftar isi', '目次', '목차'],
   mermaid: ['diagramme', 'diagrama', 'диаграмма', 'diyagram', 'so do', 'bagan', 'แผนภาพ', '図', '다이어그램'],
+  html: ['html block', 'bloc html', 'bloque html', 'bloco html', 'html-block', 'html块', 'html區塊', 'htmlブロック', 'html 블록'],
   footnote: ['note de bas de page', 'nota al pie', 'fussnote', 'nota de rodape', 'nota a pie', 'сноска', 'dipnot', 'catatan kaki', 'chu thich', '脚注', '각주'],
   abbreviation: ['abreviation', 'abreviatura', 'abkurzung', 'abbreviazione', 'сокращение', 'kisaltma', 'singkatan', 'tu viet tat', '略語', '약어'],
   video: ['video', 'film', 'filme', 'vídeo', 'видео', 'vidyo', 'phim', 'วิดีโอ', '動画', '동영상'],
@@ -260,6 +262,14 @@ export const slashCommandDefinitions = [
     searchTerms: ['diagram', 'flowchart', 'chart', 'graph', 'mindmap', 'sequence', '流程图', '图表', '图示', 'liuchengtu', 'tubiao', ...localizedSearchTerms.mermaid],
     commandId: 'mermaid',
     run: insertMermaidNodeAndOpenEditor,
+  },
+  {
+    id: 'html-block',
+    nameKey: 'editor.slash.htmlBlock',
+    icon: 'editor.code',
+    searchTerms: ['html', 'raw html', 'html block', 'embed', 'markup', 'html块', 'html区块', '原始html', 'yuanshihtml', ...localizedSearchTerms.html],
+    commandId: 'html-block',
+    run: insertHtmlBlockNodeAndOpenEditor,
   },
   {
     id: 'footnote',

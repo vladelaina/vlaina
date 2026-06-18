@@ -103,7 +103,7 @@ describe('math hover styles', () => {
 
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending :is(');
     expect(css).toMatch(
-      /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\.mermaid-block\s*\):not\(\.editor-block-selected\):is\(:hover, :focus-visible\)/
+      /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\[data-type='html-block'\]:not\(\[data-value='<!--vlaina-markdown-blank-line-->'\]\):not\(\[data-value='<!--vlaina-markdown-tight-heading-->'\]\),\s*\.mermaid-block\s*\):not\(\.editor-block-selected\):is\(:hover, :focus-visible\)/
     );
     expect(css).toContain('cursor: crosshair !important;');
     expect(css).toContain('background: transparent !important;');

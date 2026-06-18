@@ -79,6 +79,406 @@ test.describe('notes blank line caret interaction', () => {
     }
   });
 
+  test('keeps slash text typed into a middle blank markdown line as its own paragraph', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-slash-text');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'blank-line-slash-text-e2e.md',
+        content: ['hi', '', '1'].join('\n'),
+      });
+
+      const blankLine = page.locator(BLANK_LINE_SELECTOR).first();
+      await expect(blankLine).toBeVisible({ timeout: 30_000 });
+      const box = await blankLine.boundingBox();
+      expect(box).not.toBeNull();
+      await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.keyboard.type('/h');
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        text: editor.textContent ?? '',
+        paragraphs: Array.from(editor.querySelectorAll('p')).map((paragraph) => ({
+          text: paragraph.textContent ?? '',
+          className: paragraph.getAttribute('class') ?? '',
+        })),
+      }));
+
+      expect(after.paragraphs.map((paragraph) => paragraph.text)).toEqual(['hi', '/h', '1']);
+      expect(after.text, { after }).toContain('hi');
+      expect(after.text, { after }).toContain('/h');
+      expect(after.text, { after }).toContain('1');
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved }).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/h\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps slash html text typed into a middle blank markdown line without hard-break backslashes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-slash-html-text');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'blank-line-slash-html-text-e2e.md',
+        content: ['hi', '', '1'].join('\n'),
+      });
+
+      const blankLine = page.locator(BLANK_LINE_SELECTOR).first();
+      await expect(blankLine).toBeVisible({ timeout: 30_000 });
+      const box = await blankLine.boundingBox();
+      expect(box).not.toBeNull();
+      await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.keyboard.type('/html');
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        text: editor.textContent ?? '',
+        paragraphs: Array.from(editor.querySelectorAll('p')).map((paragraph) => paragraph.textContent ?? ''),
+      }));
+      expect(after.paragraphs).toEqual(['hi', '/html', '1']);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved, after }).toBe(['hi', '', '/html', '', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/html\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps slash text typed after clicking between paragraphs as its own paragraph', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-slash-gap-click');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'blank-line-slash-gap-click-e2e.md',
+        content: ['hi', '', '1'].join('\n'),
+      });
+
+      const hiParagraph = page.locator(`${EDITOR_SELECTOR} p`, { hasText: /^hi$/ }).first();
+      const oneParagraph = page.locator(`${EDITOR_SELECTOR} p`, { hasText: /^1$/ }).first();
+      await expect(hiParagraph).toBeVisible({ timeout: 30_000 });
+      await expect(oneParagraph).toBeVisible({ timeout: 30_000 });
+      const hiBox = await hiParagraph.boundingBox();
+      const oneBox = await oneParagraph.boundingBox();
+      expect(hiBox).not.toBeNull();
+      expect(oneBox).not.toBeNull();
+
+      await page.mouse.click(
+        hiBox!.x + 4,
+        Math.round((hiBox!.y + hiBox!.height + oneBox!.y) / 2),
+      );
+      await page.keyboard.type('/h');
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        text: editor.textContent ?? '',
+        paragraphs: Array.from(editor.querySelectorAll('p')).map((paragraph) => ({
+          text: paragraph.textContent ?? '',
+          className: paragraph.getAttribute('class') ?? '',
+        })),
+      }));
+
+      expect(after.paragraphs.map((paragraph) => paragraph.text)).toEqual(['hi', '/h', '1']);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved, after }).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/h\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('runs a slash heading command from a middle blank markdown line without hard-break joining neighbors', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-slash-heading');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'blank-line-slash-heading-e2e.md',
+        content: ['hi', '', '1'].join('\n'),
+      });
+
+      const hiParagraph = page.locator(`${EDITOR_SELECTOR} p`, { hasText: /^hi$/ }).first();
+      const oneParagraph = page.locator(`${EDITOR_SELECTOR} p`, { hasText: /^1$/ }).first();
+      await expect(hiParagraph).toBeVisible({ timeout: 30_000 });
+      await expect(oneParagraph).toBeVisible({ timeout: 30_000 });
+      const hiBox = await hiParagraph.boundingBox();
+      const oneBox = await oneParagraph.boundingBox();
+      expect(hiBox).not.toBeNull();
+      expect(oneBox).not.toBeNull();
+
+      await page.mouse.click(
+        hiBox!.x + 4,
+        Math.round((hiBox!.y + hiBox!.height + oneBox!.y) / 2),
+      );
+      await page.keyboard.type('/h');
+      await expect(page.locator('.slash-menu-item.selected')).toContainText('Heading 1');
+      await page.keyboard.press('Enter');
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        text: editor.textContent ?? '',
+        blocks: Array.from(editor.children).map((child) => ({
+          tagName: child.tagName,
+          text: child.textContent ?? '',
+          className: child.getAttribute('class') ?? '',
+        })),
+      }));
+
+      expect(after.blocks.map((block) => ({ tagName: block.tagName, text: block.text }))).toEqual([
+        { tagName: 'P', text: 'hi' },
+        { tagName: 'H1', text: '' },
+        { tagName: 'P', text: '1' },
+      ]);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved, after }).toBe(['hi', '', '# #', '', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/h\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps slash text in a freshly typed middle blank line as a paragraph', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-fresh-blank-line-slash');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'fresh-blank-line-slash-e2e.md',
+        content: '',
+      });
+
+      await page.locator(EDITOR_SELECTOR).click();
+      await page.keyboard.type('hi');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('1');
+      await waitForEditorAnimationFrame(page);
+
+      const hiParagraph = page.locator(`${EDITOR_SELECTOR} p`, { hasText: /^hi$/ }).first();
+      const oneParagraph = page.locator(`${EDITOR_SELECTOR} p`, { hasText: /^1$/ }).first();
+      await expect(hiParagraph).toBeVisible({ timeout: 30_000 });
+      await expect(oneParagraph).toBeVisible({ timeout: 30_000 });
+      const hiBox = await hiParagraph.boundingBox();
+      const oneBox = await oneParagraph.boundingBox();
+      expect(hiBox).not.toBeNull();
+      expect(oneBox).not.toBeNull();
+
+      await page.mouse.click(
+        hiBox!.x + 4,
+        Math.round((hiBox!.y + hiBox!.height + oneBox!.y) / 2),
+      );
+      await page.keyboard.type('/h');
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        text: editor.textContent ?? '',
+        paragraphs: Array.from(editor.querySelectorAll('p')).map((paragraph) => ({
+          text: paragraph.textContent ?? '',
+          className: paragraph.getAttribute('class') ?? '',
+        })),
+      }));
+
+      expect(after.paragraphs.map((paragraph) => paragraph.text)).toEqual(['hi', '/h', '1']);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved, after }).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/h\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps slash html text entered by keyboard into a freshly typed middle blank line without hard-break backslashes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-fresh-blank-line-keyboard-slash-html');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'fresh-blank-line-keyboard-slash-html-e2e.md',
+        content: '',
+      });
+
+      await page.locator(EDITOR_SELECTOR).click();
+      await page.keyboard.type('hi');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('1');
+      await page.keyboard.press('ArrowUp');
+      await page.keyboard.type('/html');
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        text: editor.textContent ?? '',
+        paragraphs: Array.from(editor.querySelectorAll('p')).map((paragraph) => paragraph.textContent ?? ''),
+      }));
+      expect(after.paragraphs, { after }).toEqual(['hi', '/html', '1']);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved, after }).toBe(['hi', '', '/html', '', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/html\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps slash heading text entered by keyboard into a freshly typed middle blank line without hard-break backslashes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-fresh-blank-line-keyboard-slash-heading-text');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'fresh-blank-line-keyboard-slash-heading-text-e2e.md',
+        content: '',
+      });
+
+      await page.locator(EDITOR_SELECTOR).click();
+      await page.keyboard.type('hi');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('1');
+      await page.keyboard.press('ArrowUp');
+      await page.keyboard.type('/h');
+      await waitForEditorAnimationFrame(page);
+
+      const after = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        text: editor.textContent ?? '',
+        paragraphs: Array.from(editor.querySelectorAll('p')).map((paragraph) => paragraph.textContent ?? ''),
+      }));
+      expect(after.paragraphs, { after }).toEqual(['hi', '/h', '1']);
+
+      await expect.poll(
+        async () => page.evaluate(() => (
+          (window as any).__vlainaE2E.getNotesState().currentNote?.content ?? ''
+        )),
+        { timeout: 3_000 },
+      ).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      const liveContent = await page.evaluate(() => (
+        (window as any).__vlainaE2E.getNotesState().currentNote?.content ?? ''
+      ));
+      expect(liveContent, { liveContent, after }).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      expect(liveContent, { liveContent }).not.toContain('hi\\');
+      expect(liveContent, { liveContent }).not.toContain('/h\\');
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved, after }).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/h\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps slash heading text typed after a fresh blank line without hard-break backslashes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-fresh-blank-line-forward-slash-heading-text');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'fresh-blank-line-forward-slash-heading-text-e2e.md',
+        content: '',
+      });
+
+      await page.locator(EDITOR_SELECTOR).click();
+      await page.keyboard.type('hi');
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('/h');
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('1');
+      await waitForEditorAnimationFrame(page);
+
+      await expect.poll(
+        async () => page.evaluate(() => (
+          (window as any).__vlainaE2E.getNotesState().currentNote?.content ?? ''
+        )),
+        { timeout: 3_000 },
+      ).toBe(['hi', '', '/h', '1'].join('\n'));
+      const liveContent = await page.evaluate(() => (
+        (window as any).__vlainaE2E.getNotesState().currentNote?.content ?? ''
+      ));
+      expect(liveContent, { liveContent }).not.toContain('hi\\');
+      expect(liveContent, { liveContent }).not.toContain('/h\\');
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      expect(saved, { saved }).toBe(['hi', '', '/h', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\\');
+      expect(saved, { saved }).not.toContain('/h\\');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('does not block-select markdown blank lines when moving through them with keyboard', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-keyboard-navigation');
 
