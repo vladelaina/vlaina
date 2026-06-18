@@ -337,7 +337,7 @@ function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat'> {
 function saveLastAppViewMode(mode: AppViewMode): void {
   if (mode !== 'notes' && mode !== 'chat') return;
   saveString(STORAGE_KEY_LAST_APP_VIEW_MODE, mode);
-  useUnifiedStore.getState().setLastAppViewMode(mode);
+  useUnifiedStore.getState().setLastAppViewMode(mode, true);
 }
 
 function loadLanguagePreference(): AppLanguagePreference {

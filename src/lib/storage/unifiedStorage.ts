@@ -1,11 +1,10 @@
-import { getStorageAdapter, joinPath, type FileInfo } from '@/lib/storage/adapter';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { createPersistenceQueue } from './persistenceEngine';
-import type { AIModel, ChatMessage, PersistedBenchmarkItem, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
+import type { AIModel, PersistedBenchmarkItem, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession, isTemporarySessionId } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
-import { loadSessionJson } from './chatStorage';
 import {
   isSafeChatSessionId,
   isSafeProviderId,
@@ -15,7 +14,6 @@ import {
 import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
 import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
-import { replaceRenderableMessageImageTokens } from '@/lib/markdown/renderableImageTokens';
 import {
   createDefaultUnifiedData,
   type CustomIcon,
@@ -31,6 +29,11 @@ export type {
 } from './unifiedStorageTypes';
 
 export interface UnifiedSavePatch {
+  customIcons?: true;
+  ai?: {
+    sessions?: true;
+    providers?: true;
+  };
   settings?: {
     timezone?: UnifiedData['settings']['timezone'];
     markdown?: Omit<Partial<UnifiedData['settings']['markdown']>, 'body' | 'codeBlock'> & {
@@ -45,6 +48,8 @@ export interface UnifiedSavePatch {
 interface UnifiedSaveRequest {
   data: UnifiedData;
   patch?: UnifiedSavePatch;
+  persistAI: boolean;
+  persistProviders: boolean;
 }
 
 const MAIN_DATA_FILE = 'settings.json';
@@ -61,7 +66,6 @@ export const MAX_AI_PROVIDER_MODELS = 2000;
 export const MAX_AI_PROVIDER_FETCHED_MODELS = 2000;
 export const MAX_AI_PROVIDER_BENCHMARK_ITEMS = 2000;
 export const MAX_AI_PROVIDER_BENCHMARK_SCAN_ITEMS = 10_000;
-export const MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES = 10_000;
 const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
 export const MAX_SETTINGS_TIMEZONE_CITY_CHARS = 512;
@@ -710,167 +714,6 @@ async function readBoundedTextFile(
   return isSerializedWithinLimit(content, maxBytes) ? content : null;
 }
 
-function buildRecoveredSessionTitle(messages: ChatMessage[]): string {
-  const firstUserMessage = messages.find((message) => message.role === 'user');
-  const source = firstUserMessage?.content || messages[0]?.content || '';
-  const normalized = replaceRenderableMessageImageTokens(source, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!normalized) {
-    return 'Recovered Chat';
-  }
-
-  return normalized.length > 60 ? `${normalized.slice(0, 60)}...` : normalized;
-}
-
-function buildRecoveredSession(sessionId: string, messages: ChatMessage[]): ChatSession {
-  const timestamps = messages
-    .map((message) => message.timestamp)
-    .filter((timestamp) => Number.isFinite(timestamp));
-  const now = Date.now();
-  const createdAt = timestamps.length > 0 ? Math.min(...timestamps) : now;
-  const updatedAt = timestamps.length > 0 ? Math.max(...timestamps) : now;
-  const modelId = [...messages]
-    .reverse()
-    .find((message) => typeof message.modelId === 'string' && message.modelId.trim())?.modelId || '';
-
-  return {
-    id: sessionId,
-    title: buildRecoveredSessionTitle(messages),
-    modelId,
-    createdAt,
-    updatedAt,
-  };
-}
-
-function collectSafeJsonEntryIds(
-  entries: FileInfo[],
-  maxCandidates: number,
-  isSafeId: (value: unknown) => value is string,
-  shouldInclude: (id: string) => boolean,
-): string[] {
-  const ids: string[] = [];
-  const seen = new Set<string>();
-
-  for (const entry of entries) {
-    if (ids.length >= maxCandidates) {
-      break;
-    }
-    if (!entry.isFile || !entry.name.endsWith('.json')) {
-      continue;
-    }
-
-    const id = entry.name.slice(0, -5);
-    if (!isSafeId(id) || seen.has(id) || !shouldInclude(id)) {
-      continue;
-    }
-
-    seen.add(id);
-    ids.push(id);
-  }
-
-  return ids;
-}
-
-function collectSafeDirectoryEntryIds(
-  entries: FileInfo[],
-  maxCandidates: number,
-  isSafeId: (value: unknown) => value is string,
-  shouldInclude: (id: string) => boolean,
-): string[] {
-  const ids: string[] = [];
-  const seen = new Set<string>();
-
-  for (const entry of entries) {
-    if (ids.length >= maxCandidates) {
-      break;
-    }
-    if (!entry.isDirectory) {
-      continue;
-    }
-
-    const id = entry.name;
-    if (!isSafeId(id) || seen.has(id) || !shouldInclude(id)) {
-      continue;
-    }
-
-    seen.add(id);
-    ids.push(id);
-  }
-
-  return ids;
-}
-
-async function recoverOrphanChatSessions(
-  sessionsDir: string,
-  existingSessions: ChatSession[],
-  deletedSessionIds: ReadonlySet<string> = new Set(),
-): Promise<ChatSession[]> {
-  const storage = getStorageAdapter();
-  const existingSessionIds = new Set(existingSessions.map((session) => session.id));
-  const entries = await storage.listDir(sessionsDir).catch(() => []);
-  const recoveredSessions: ChatSession[] = [];
-  const maxRecoveredSessions = Math.max(0, MAX_AI_SESSION_RECORDS - existingSessions.length);
-  const sessionIds = collectSafeDirectoryEntryIds(
-    entries,
-    MAX_ORPHAN_CHAT_SESSION_DIR_SCAN_ENTRIES,
-    isSafeChatSessionId,
-    (sessionId) => (
-      !existingSessionIds.has(sessionId) &&
-      !deletedSessionIds.has(sessionId) &&
-      !isTemporarySessionId(sessionId)
-    ),
-  );
-
-  for (const sessionId of sessionIds) {
-    if (recoveredSessions.length >= maxRecoveredSessions) {
-      break;
-    }
-
-    const messages = await loadSessionJson(sessionId).catch(() => null);
-    if (!messages) {
-      continue;
-    }
-
-    recoveredSessions.push(buildRecoveredSession(sessionId, messages));
-    existingSessionIds.add(sessionId);
-  }
-
-  return recoveredSessions;
-}
-
-async function recoverOrphanProviderIds(
-  providersDir: string,
-  existingProviderIds: string[],
-  deletedProviderIds: ReadonlySet<string> = new Set(),
-): Promise<string[]> {
-  const providerIds = new Set(existingProviderIds);
-  const recoveredProviderIds: string[] = [];
-  if (providerIds.size >= MAX_AI_PROVIDERS) {
-    return recoveredProviderIds;
-  }
-
-  const entries = await getStorageAdapter().listDir(providersDir).catch(() => []);
-  const recoveredCandidates = collectSafeJsonEntryIds(
-    entries,
-    MAX_AI_PROVIDER_FILE_SCAN_ENTRIES,
-    isSafeProviderId,
-    (providerId) => !providerIds.has(providerId) && !deletedProviderIds.has(providerId),
-  );
-
-  for (const providerId of recoveredCandidates) {
-    if (providerIds.size >= MAX_AI_PROVIDERS) {
-      break;
-    }
-
-    providerIds.add(providerId);
-    recoveredProviderIds.push(providerId);
-  }
-
-  return recoveredProviderIds;
-}
-
 async function readExistingAISessionsFile(
   storage: ReturnType<typeof getStorageAdapter>,
   sessionsPath: string,
@@ -1123,6 +966,11 @@ function mergeUnifiedSavePatches(
   if (!right) return left;
 
   return {
+    customIcons: left.customIcons || right.customIcons || undefined,
+    ai: {
+      sessions: left.ai?.sessions || right.ai?.sessions || undefined,
+      providers: left.ai?.providers || right.ai?.providers || undefined,
+    },
     settings: {
       ...left.settings,
       ...right.settings,
@@ -1427,7 +1275,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     };
 
     let providerIds: string[] = [];
-    let shouldRecoverProviderFiles = false;
     if (await storage.exists(sessionsPath)) {
         try {
             const content = await readBoundedTextFile(storage, sessionsPath, MAX_AI_SESSIONS_BYTES);
@@ -1438,7 +1285,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             const sessionsData = parseAISessionsFile(parsedSessionsData);
             if (!sessionsData) {
               console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
-              shouldRecoverProviderFiles = true;
             } else {
               const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
               const aiData = combinedData.ai;
@@ -1463,35 +1309,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             }
         } catch {
             console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
-            shouldRecoverProviderFiles = true;
         }
-    } else {
-      shouldRecoverProviderFiles = true;
-    }
-
-    const recoveredSessions = await recoverOrphanChatSessions(
-      sessionFilesDir,
-      combinedData.ai.sessions,
-      new Set(
-        (combinedData.ai.deletedSessionIds || []).filter(isSafeChatSessionId)
-      ),
-    );
-    if (recoveredSessions.length > 0) {
-      combinedData.ai.sessions = [
-        ...recoveredSessions,
-        ...combinedData.ai.sessions,
-      ].sort((a, b) => b.updatedAt - a.updatedAt);
-    }
-
-    if (shouldRecoverProviderFiles) {
-      providerIds = [
-        ...providerIds,
-        ...await recoverOrphanProviderIds(
-          providersDir,
-          providerIds,
-          new Set((combinedData.ai.deletedProviderIds || []).filter(isSafeProviderId)),
-        ),
-      ].slice(0, MAX_AI_PROVIDERS);
     }
 
     if (providerIds.length > 0) {
@@ -1566,7 +1384,13 @@ async function performSplitSave(request: UnifiedSaveRequest) {
     const mainBackupPath = await joinPath(appDir, MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(sessionFilesDir, 'index.json');
 
-    for (const directory of [appDir, chatDir, providersDir, sessionFilesDir]) {
+    const requiredDirectories = request.persistAI
+        ? request.persistProviders
+            ? [appDir, chatDir, providersDir, sessionFilesDir]
+            : [appDir, chatDir, sessionFilesDir]
+        : [appDir];
+
+    for (const directory of requiredDirectories) {
         if (!(await storage.exists(directory))) {
             await storage.mkdir(directory, true);
         }
@@ -1595,7 +1419,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
     await storage.writeFile(mainPath, mainPayload);
     await storage.writeFile(mainBackupPath, mainPayload);
 
-    if (ai) {
+    if (request.persistAI && ai) {
         const requestedPersistedProviders = normalizeProvidersForSave(ai.providers);
         const incomingDeletedProviderIds = new Set(
           normalizeBoundedIdList(ai.deletedProviderIds, isSafeProviderId, MAX_AI_ID_LIST_ENTRIES)
@@ -1611,8 +1435,10 @@ async function performSplitSave(request: UnifiedSaveRequest) {
         );
         const persistedProviderIds = new Set(persistedProviders.map((provider) => provider.id));
         const deletedProviderSecrets = new Set<string>();
-        await syncProviderSecrets(persistedProviders);
-        await deleteProviderSecretsBestEffort(incomingDeletedProviderIds, deletedProviderSecrets);
+        if (request.persistProviders) {
+            await syncProviderSecrets(persistedProviders);
+            await deleteProviderSecretsBestEffort(incomingDeletedProviderIds, deletedProviderSecrets);
+        }
 
         const incomingPersistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
         const mergedSessions = await mergeSessionsForSafeSave(
@@ -1622,12 +1448,16 @@ async function performSplitSave(request: UnifiedSaveRequest) {
         );
         const persistedSessions = mergedSessions.sessions;
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
-        const mergedProviderIds = Array.from(new Set([
-          ...persistedProviders.map((provider) => provider.id),
-          ...(existingSessionsData?.providerIds || []),
-        ]))
+        const mergedProviderIds = request.persistProviders
+          ? Array.from(new Set([
+            ...persistedProviders.map((provider) => provider.id),
+            ...(existingSessionsData?.providerIds || []),
+          ]))
           .filter((providerId) => isSafeProviderId(providerId) && !tombstonedProviderIds.has(providerId))
-          .slice(0, MAX_AI_PROVIDERS);
+          .slice(0, MAX_AI_PROVIDERS)
+          : (existingSessionsData?.providerIds || [])
+            .filter((providerId) => isSafeProviderId(providerId) && !tombstonedProviderIds.has(providerId))
+            .slice(0, MAX_AI_PROVIDERS);
         const activeProviderIds = new Set(mergedProviderIds);
         const deletedProviderIds = Array.from(tombstonedProviderIds).filter(
           (providerId) => !activeProviderIds.has(providerId)
@@ -1639,9 +1469,9 @@ async function performSplitSave(request: UnifiedSaveRequest) {
 
         const sessionsData = {
             sessions: persistedSessions,
-            selectedModelId: ai.selectedModelId && activeModelIds.has(ai.selectedModelId)
+            selectedModelId: request.persistProviders && ai.selectedModelId && activeModelIds.has(ai.selectedModelId)
               ? ai.selectedModelId
-              : null,
+              : request.persistProviders ? null : ai.selectedModelId,
             unreadSessionIds: normalizeBoundedIdList(ai.unreadSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES)
               .filter((sessionId) => persistedSessionIds.has(sessionId)),
             currentSessionId: ai.currentSessionId && persistedSessionIds.has(ai.currentSessionId)
@@ -1656,6 +1486,10 @@ async function performSplitSave(request: UnifiedSaveRequest) {
             deletedProviderIds,
         };
         await storage.writeFile(sessionsPath, serializeBoundedAISessionsFile(sessionsData));
+
+        if (!request.persistProviders) {
+            return;
+        }
 
         for (const provider of persistedProviders) {
             const pModels = modelsByProvider.get(provider.id) || [];
@@ -1694,12 +1528,14 @@ async function performSplitSave(request: UnifiedSaveRequest) {
 }
 
 let pendingUnifiedSavePatch: UnifiedSavePatch | undefined;
+let pendingUnifiedSaveRequiresFullWrite = false;
 
 const unifiedSaveQueue = createPersistenceQueue<UnifiedSaveRequest>({
   debounceMs: 120,
   write: async (request) => {
     await performSplitSave(request);
     pendingUnifiedSavePatch = undefined;
+    pendingUnifiedSaveRequiresFullWrite = false;
     hasShownPersistenceFailureToast = false;
     triggerAutoSyncIfEligible();
   },
@@ -1713,9 +1549,28 @@ const unifiedSaveQueue = createPersistenceQueue<UnifiedSaveRequest>({
   },
 });
 
+function shouldPersistAIForPatch(patch: UnifiedSavePatch | undefined): boolean {
+  return !!patch?.ai?.sessions || !!patch?.ai?.providers;
+}
+
+function shouldPersistProvidersForPatch(patch: UnifiedSavePatch | undefined): boolean {
+  return !!patch?.ai?.providers;
+}
+
 export async function saveUnifiedData(data: UnifiedData, patch?: UnifiedSavePatch): Promise<void> {
-  pendingUnifiedSavePatch = mergeUnifiedSavePatches(pendingUnifiedSavePatch, patch);
-  unifiedSaveQueue.schedule({ data, patch: pendingUnifiedSavePatch });
+  if (patch) {
+    pendingUnifiedSavePatch = mergeUnifiedSavePatches(pendingUnifiedSavePatch, patch);
+  } else {
+    pendingUnifiedSavePatch = undefined;
+    pendingUnifiedSaveRequiresFullWrite = true;
+  }
+
+  unifiedSaveQueue.schedule({
+    data,
+    patch: pendingUnifiedSaveRequiresFullWrite ? undefined : pendingUnifiedSavePatch,
+    persistAI: pendingUnifiedSaveRequiresFullWrite || shouldPersistAIForPatch(pendingUnifiedSavePatch),
+    persistProviders: pendingUnifiedSaveRequiresFullWrite || shouldPersistProvidersForPatch(pendingUnifiedSavePatch),
+  });
 }
 
 export async function flushPendingSave(): Promise<void> {
@@ -1724,12 +1579,24 @@ export async function flushPendingSave(): Promise<void> {
 
 export function cancelPendingSave(): void {
   pendingUnifiedSavePatch = undefined;
+  pendingUnifiedSaveRequiresFullWrite = false;
   unifiedSaveQueue.cancel();
 }
 
 export async function saveUnifiedDataImmediate(data: UnifiedData, patch?: UnifiedSavePatch): Promise<void> {
-  pendingUnifiedSavePatch = mergeUnifiedSavePatches(pendingUnifiedSavePatch, patch);
-  await unifiedSaveQueue.saveNow({ data, patch: pendingUnifiedSavePatch });
+  if (patch) {
+    pendingUnifiedSavePatch = mergeUnifiedSavePatches(pendingUnifiedSavePatch, patch);
+  } else {
+    pendingUnifiedSavePatch = undefined;
+    pendingUnifiedSaveRequiresFullWrite = true;
+  }
+
+  await unifiedSaveQueue.saveNow({
+    data,
+    patch: pendingUnifiedSaveRequiresFullWrite ? undefined : pendingUnifiedSavePatch,
+    persistAI: pendingUnifiedSaveRequiresFullWrite || shouldPersistAIForPatch(pendingUnifiedSavePatch),
+    persistProviders: pendingUnifiedSaveRequiresFullWrite || shouldPersistProvidersForPatch(pendingUnifiedSavePatch),
+  });
 }
 
 function triggerAutoSyncIfEligible(): void {

@@ -94,10 +94,13 @@ describe('uiSlice', () => {
   });
 
   it('sets app view mode within the supported module set', () => {
+    const setLastAppViewMode = vi.spyOn(useUnifiedStore.getState(), 'setLastAppViewMode');
+
     useUIStore.getState().setAppViewMode('chat');
     expect(useUIStore.getState().appViewMode).toBe('chat');
     expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
     expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
+    expect(setLastAppViewMode).toHaveBeenLastCalledWith('chat', true);
 
     useUIStore.getState().setAppViewMode('lab');
     expect(useUIStore.getState().appViewMode).toBe('lab');

@@ -158,6 +158,34 @@ function shouldDeleteIncompleteCustomProvider(provider: Provider): boolean {
   );
 }
 
+function areStringArraysEqual(left: readonly string[] = [], right: readonly string[] = []): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function areBenchmarkRecordsEqual(
+  left: ProviderBenchmarkRecord | undefined,
+  right: ProviderBenchmarkRecord
+): boolean {
+  if (!left) return false;
+  if (left.overall !== right.overall || left.updatedAt !== right.updatedAt) return false;
+
+  const leftItems = left.items || {};
+  const rightItems = right.items || {};
+  const leftKeys = Object.keys(leftItems);
+  const rightKeys = Object.keys(rightItems);
+  if (leftKeys.length !== rightKeys.length) return false;
+
+  return leftKeys.every((key) => {
+    const leftItem = leftItems[key];
+    const rightItem = rightItems[key];
+    return !!leftItem && !!rightItem &&
+      leftItem.status === rightItem.status &&
+      leftItem.latency === rightItem.latency &&
+      leftItem.error === rightItem.error &&
+      leftItem.checkedAt === rightItem.checkedAt;
+  });
+}
+
 export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = generateId('provider-')
@@ -176,6 +204,13 @@ export const actions = {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     const providers = state.data.ai?.providers || [];
+    const provider = providers.find((item) => item.id === id);
+    if (!provider) return;
+
+    const hasProviderChanges = (Object.entries(updates) as Array<[keyof Provider, Provider[keyof Provider]]>)
+      .some(([key, value]) => !Object.is(provider[key], value));
+    if (!hasProviderChanges) return;
+
     const nextProviders = providers.map((p) =>
       p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
     );
@@ -227,6 +262,8 @@ export const actions = {
 
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    if (!ai.providers.some((provider) => provider.id === id)) return;
+
     const remainingModels = ai.models.filter((m) => m.providerId !== id)
     const nextBenchmarkResults = { ...(ai.benchmarkResults || {}) }
     const nextFetchedModels = { ...(ai.fetchedModels || {}) }
@@ -302,6 +339,9 @@ export const actions = {
       group: model.group || generateModelGroup(model.apiModelId),
       createdAt: Date.now()
     }
+    if (ai.models.some((item) => item.id.toLowerCase() === newModel.id.toLowerCase())) {
+      return;
+    }
 
     const updates: { models: AIModel[]; selectedModelId?: string } = { models: [...ai.models, newModel] };
     if (!ai.selectedModelId) {
@@ -348,6 +388,13 @@ export const actions = {
   updateModel: (id: string, updates: Partial<AIModel>) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    const model = ai.models.find((item) => item.id === id);
+    if (!model) return;
+
+    const hasModelChanges = (Object.entries(updates) as Array<[keyof AIModel, AIModel[keyof AIModel]]>)
+      .some(([key, value]) => !Object.is(model[key], value));
+    if (!hasModelChanges) return;
+
     state.updateAIData({
       models: ai.models.map((m) => m.id === id ? { ...m, ...updates } : m)
     })
@@ -357,17 +404,17 @@ export const actions = {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     const model = ai.models.find((item) => item.id === id)
+    if (!model) return;
+
     const nextBenchmarkResults = { ...(ai.benchmarkResults || {}) }
-    if (model) {
-      const currentProviderResults = nextBenchmarkResults[model.providerId]
-      if (currentProviderResults?.items[id]) {
-        const nextItems = { ...currentProviderResults.items }
-        delete nextItems[id]
-        nextBenchmarkResults[model.providerId] = {
-          ...currentProviderResults,
-          items: nextItems,
-          updatedAt: Date.now(),
-        }
+    const currentProviderResults = nextBenchmarkResults[model.providerId]
+    if (currentProviderResults?.items[id]) {
+      const nextItems = { ...currentProviderResults.items }
+      delete nextItems[id]
+      nextBenchmarkResults[model.providerId] = {
+        ...currentProviderResults,
+        items: nextItems,
+        updatedAt: Date.now(),
       }
     }
     state.updateAIData({
@@ -380,6 +427,8 @@ export const actions = {
   setProviderBenchmarkResults: (providerId: string, record: ProviderBenchmarkRecord) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    if (areBenchmarkRecordsEqual(ai.benchmarkResults?.[providerId], record)) return;
+
     state.updateAIData({
       benchmarkResults: {
         ...(ai.benchmarkResults || {}),
@@ -401,10 +450,15 @@ export const actions = {
   setProviderFetchedModels: (providerId: string, modelIds: string[]) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    const nextModelIds = [...new Set(modelIds)];
+    if (areStringArraysEqual(ai.fetchedModels?.[providerId] || [], nextModelIds)) {
+      return;
+    }
+
     state.updateAIData({
       fetchedModels: {
         ...(ai.fetchedModels || {}),
-        [providerId]: [...new Set(modelIds)],
+        [providerId]: nextModelIds,
       }
     });
   },

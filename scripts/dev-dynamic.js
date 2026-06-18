@@ -60,74 +60,6 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function resolveGitCommonRepoRoot(root) {
-  const dotGitPath = path.join(root, '.git');
-
-  try {
-    const stat = fs.statSync(dotGitPath);
-    if (stat.isDirectory()) {
-      return root;
-    }
-
-    if (!stat.isFile()) {
-      return root;
-    }
-
-    const content = fs.readFileSync(dotGitPath, 'utf8').trim();
-    const match = /^gitdir:\s*(.+)$/i.exec(content);
-    if (!match) {
-      return root;
-    }
-
-    const gitDir = path.resolve(root, match[1]);
-    const worktreesDir = path.dirname(gitDir);
-    const commonGitDir = path.dirname(worktreesDir);
-
-    if (
-      path.basename(worktreesDir) !== 'worktrees' ||
-      path.basename(commonGitDir) !== '.git'
-    ) {
-      return root;
-    }
-
-    return path.dirname(commonGitDir);
-  } catch {
-    return root;
-  }
-}
-
-function isLinkedToPath(linkPath, targetPath) {
-  try {
-    return fs.lstatSync(linkPath).isSymbolicLink() &&
-      path.resolve(fs.realpathSync(linkPath)) === path.resolve(fs.realpathSync(targetPath));
-  } catch {
-    return false;
-  }
-}
-
-function canUseElectronUserDataDir(userDataDir, sharedAppDataDir) {
-  const appDataPath = path.join(userDataDir, '.vlaina');
-  if (!fs.existsSync(appDataPath)) {
-    return true;
-  }
-
-  return isLinkedToPath(appDataPath, sharedAppDataDir);
-}
-
-function findElectronUserDataDir(port, sharedAppDataDir) {
-  const baseName = `electron-user-data-${port}`;
-
-  for (let index = 0; index < 100; index += 1) {
-    const suffix = index === 0 ? '' : `-${index}`;
-    const userDataDir = path.join(repoRoot, 'temp', `${baseName}${suffix}`);
-    if (canUseElectronUserDataDir(userDataDir, sharedAppDataDir)) {
-      return userDataDir;
-    }
-  }
-
-  throw new Error(`No usable Electron userData directory found for renderer port ${port}`);
-}
-
 function checkPortAvailable(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -730,23 +662,20 @@ function updateLinuxDesktopActivationEnvironment(env) {
 async function startDev() {
   const port = await findAvailablePort(DEFAULT_PORT);
   const devUrl = `http://127.0.0.1:${port}`;
-  const sharedRepoRoot = resolveGitCommonRepoRoot(repoRoot);
-  const sharedUserDataDir = path.join(sharedRepoRoot, 'temp', 'electron-user-data');
-  const sharedAppDataDir = path.join(sharedUserDataDir, '.vlaina');
-  const userDataDir = findElectronUserDataDir(port, sharedAppDataDir);
   const env = {
     ...process.env,
     VITE_PORT: String(port),
     VITE_DEV_SERVER_URL: devUrl,
-    VLAINA_USER_DATA_DIR: process.env.VLAINA_USER_DATA_DIR || userDataDir,
-    VLAINA_SHARED_USER_DATA_DIR: process.env.VLAINA_SHARED_USER_DATA_DIR || sharedUserDataDir,
-    VLAINA_SHARED_APP_DATA_DIR: process.env.VLAINA_SHARED_APP_DATA_DIR || sharedAppDataDir,
   };
 
   log('32', `Using renderer port ${port}`);
   log('36', `Renderer URL ${devUrl}`);
-  log('36', `Electron userData ${env.VLAINA_USER_DATA_DIR}`);
-  log('36', `Shared app data ${env.VLAINA_SHARED_APP_DATA_DIR}`);
+  log(
+    '36',
+    env.VLAINA_USER_DATA_DIR
+      ? `Electron userData override ${env.VLAINA_USER_DATA_DIR}`
+      : 'Electron userData default app path'
+  );
 
   const rendererScript = process.env.VLAINA_FORCE_VITE_OPTIMIZE === '1'
     ? 'dev:renderer:force'

@@ -195,10 +195,17 @@ export function useNotesOpenMarkdownTarget({
       });
       if (!openedVault) {
         setPendingShortcutNoteTarget(null);
-        await messageDialog(t('vault.openFailed'), {
-          title: t('notes.openFailed'),
-          kind: 'error',
+        const opened = await openShortcutNoteTarget({
+          vaultPath: normalizedTargetVaultPath,
+          notePath: targetNotePath,
+          absolutePath: selected,
         });
+        if (!opened) {
+          await messageDialog(t('notes.openMarkdownFileFailed'), {
+            title: t('notes.openFailed'),
+            kind: 'error',
+          });
+        }
       }
     } catch (error) {
       setPendingShortcutNoteTarget(null);

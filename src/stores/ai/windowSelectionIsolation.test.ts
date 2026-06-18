@@ -484,6 +484,56 @@ describe('chat window selection isolation', () => {
     expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
   });
 
+  it('does not persist unified AI data when switching only hydrates messages from disk', async () => {
+    mocked.loadSessionJson.mockResolvedValueOnce([
+      {
+        id: 'm2',
+        role: 'user',
+        content: 'loaded from disk',
+        modelId: managedModel.id,
+        timestamp: 2,
+        versions: [{ content: 'loaded from disk', createdAt: 2, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      },
+    ]);
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: { 'session-1': state.data.ai.messages['session-1'] },
+            }
+          : state.data.ai,
+      },
+    }));
+
+    await act(async () => {
+      await actions.switchSession('session-2');
+    });
+
+    expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2');
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe('loaded from disk');
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
+  it('does not persist unchanged or missing session metadata updates', async () => {
+    actions.updateSession('session-1', { title: 'First' });
+    actions.updateSession('missing-session', { title: 'Missing' });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.sessions.find((session) => session.id === 'session-1')?.updatedAt).toBe(10);
+  });
+
   it('prefetches a missing session without switching the active session', async () => {
     mocked.loadSessionJson.mockResolvedValueOnce([
       {
@@ -870,6 +920,68 @@ describe('chat window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.sessions).toEqual([]);
   });
 
+  it('does not persist when clearing an already empty regular chat list', async () => {
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [],
+              messages: {},
+              unreadSessionIds: [],
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: null,
+      temporaryChatEnabled: false,
+    });
+
+    await actions.clearSessions();
+
+    expect(mocked.deleteSessionJson).not.toHaveBeenCalled();
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
+  it('does not persist when clearing only temporary chats', async () => {
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [{
+                id: 'temp-session-1',
+                title: 'Temporary Chat',
+                modelId: managedModel.id,
+                createdAt: 1,
+                updatedAt: 1,
+              }],
+              messages: {
+                'temp-session-1': [],
+              },
+              unreadSessionIds: [],
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'temp-session-1',
+      temporaryChatEnabled: true,
+    });
+
+    await actions.clearSessions();
+
+    expect(mocked.deleteSessionJson).not.toHaveBeenCalled();
+    expect(useAIUIStore.getState().temporaryChatEnabled).toBe(true);
+    expect(useAIUIStore.getState().currentSessionId).toMatch(/^temp-session-/);
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
   it('opens a blank new chat locally without mutating shared selection', () => {
     useAIUIStore.getState().setChatSelection({
       currentSessionId: 'session-1',
@@ -940,6 +1052,7 @@ describe('chat window selection isolation', () => {
     expect(useAIUIStore.getState().generatingSessions).toEqual({});
     expect(useAIUIStore.getState().currentSessionId).toBe(null);
     expect(useAIUIStore.getState().temporaryChatEnabled).toBe(false);
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
   });
 
   it('enables temporary chat locally while keeping shared selection unchanged', () => {
@@ -956,6 +1069,21 @@ describe('chat window selection isolation', () => {
     expect(useAIUIStore.getState().currentSessionId).toMatch(/^temp-session-/);
     expect(useUnifiedStore.getState().data.ai?.temporaryChatEnabled).toBe(false);
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
+  it('creates a fresh temporary session without persisting unified AI data', () => {
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: true,
+    });
+
+    const sessionId = actions.createSession();
+
+    expect(sessionId).toMatch(/^temp-session-/);
+    expect(useAIUIStore.getState().temporaryChatEnabled).toBe(true);
+    expect(useAIUIStore.getState().currentSessionId).toBe(sessionId);
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
   });
 
   it('preserves hidden API transcript when promoting a temporary session', async () => {

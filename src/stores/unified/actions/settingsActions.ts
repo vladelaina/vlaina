@@ -14,14 +14,22 @@ export function createSettingsActions(set: SetState, persist: Persist) {
   return {
     setTimezone: (offset: number, city: string) => {
       set((state) => {
+        const timezone = {
+          offset: Math.max(-12, Math.min(14, offset)),
+          city,
+        };
+        if (
+          state.data.settings.timezone?.offset === timezone.offset &&
+          state.data.settings.timezone?.city === timezone.city
+        ) {
+          return {};
+        }
+
         const newData = {
           ...state.data,
-          settings: { 
-            ...state.data.settings, 
-            timezone: { 
-              offset: Math.max(-12, Math.min(14, offset)),
-              city,
-            } 
+          settings: {
+            ...state.data.settings,
+            timezone,
           },
         };
         persist(newData, {
@@ -33,8 +41,12 @@ export function createSettingsActions(set: SetState, persist: Persist) {
       });
     },
 
-    setLastAppViewMode: (mode: 'notes' | 'chat') => {
+    setLastAppViewMode: (mode: 'notes' | 'chat', skipPersist = false) => {
       set((state) => {
+        if (state.data.settings.ui?.lastAppViewMode === mode) {
+          return {};
+        }
+
         const newData = {
           ...state.data,
           settings: {
@@ -45,13 +57,15 @@ export function createSettingsActions(set: SetState, persist: Persist) {
             },
           },
         };
-        persist(newData, {
-          settings: {
-            ui: {
-              lastAppViewMode: mode,
+        if (!skipPersist) {
+          persist(newData, {
+            settings: {
+              ui: {
+                lastAppViewMode: mode,
+              },
             },
-          },
-        });
+          });
+        }
         return { data: newData };
       });
     },

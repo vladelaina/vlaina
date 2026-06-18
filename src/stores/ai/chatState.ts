@@ -222,7 +222,7 @@ export function createAIChatSession(title = 'New'): string {
       sessions: temporaryState.sessions,
       messages: temporaryState.messages,
       unreadSessionIds: filterUnreadSessionIds(ai.unreadSessionIds, temporaryState.sessions.map((session) => session.id))
-    })
+    }, true)
     uiState.setChatSelection({
       currentSessionId: temporaryState.currentSessionId,
       temporaryChatEnabled: true,

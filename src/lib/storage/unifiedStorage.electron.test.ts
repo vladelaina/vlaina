@@ -222,6 +222,187 @@ describe('unifiedStorage electron save', () => {
     });
   });
 
+  it('does not touch AI metadata or secrets during settings-only saves', async () => {
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+        ui: { lastAppViewMode: 'chat' },
+      },
+      customIcons: [],
+      ai: {
+        providers: [{
+          id: 'active-provider',
+          name: 'Active',
+          type: 'newapi',
+          apiHost: 'https://example.com',
+          apiKey: 'sk-live',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+        }],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+        temporaryChatEnabled: false,
+        customSystemPrompt: '',
+        includeTimeContext: true,
+      },
+    };
+
+    await expect(saveUnifiedDataImmediate(data, {
+      settings: {
+        ui: { lastAppViewMode: 'chat' },
+      },
+    })).resolves.toBeUndefined();
+
+    expect(mocks.setProviderSecret).not.toHaveBeenCalled();
+    expect(mocks.deleteProviderSecret).not.toHaveBeenCalled();
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat/sessions/index.json'),
+      expect.anything(),
+    );
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat/providers/'),
+      expect.anything(),
+    );
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/app/settings.json',
+      expect.any(String),
+    );
+  });
+
+  it('does not touch AI metadata or secrets during custom icon saves', async () => {
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [{
+        id: 'icon-1',
+        name: 'Icon',
+        url: 'vlaina://asset/global-icons/icon-1.png',
+        createdAt: 1,
+      }],
+      ai: {
+        providers: [{
+          id: 'active-provider',
+          name: 'Active',
+          type: 'newapi',
+          apiHost: 'https://example.com',
+          apiKey: 'sk-live',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+        }],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+        temporaryChatEnabled: false,
+        customSystemPrompt: '',
+        includeTimeContext: true,
+      },
+    };
+
+    await expect(saveUnifiedDataImmediate(data, { customIcons: true })).resolves.toBeUndefined();
+
+    expect(mocks.setProviderSecret).not.toHaveBeenCalled();
+    expect(mocks.deleteProviderSecret).not.toHaveBeenCalled();
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat/sessions/index.json'),
+      expect.anything(),
+    );
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat/providers/'),
+      expect.anything(),
+    );
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/app/settings.json',
+      expect.stringContaining('icon-1'),
+    );
+  });
+
+  it('writes session metadata without touching provider files or secrets during session-only AI saves', async () => {
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [{
+          id: 'active-provider',
+          name: 'Active',
+          type: 'newapi',
+          apiHost: 'https://example.com',
+          apiKey: 'sk-live',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+        }],
+        models: [{
+          id: 'active-provider:model-a',
+          apiModelId: 'model-a',
+          name: 'Model A',
+          providerId: 'active-provider',
+          enabled: true,
+          createdAt: 1,
+        }],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [{
+          id: 'session-1',
+          title: 'Session',
+          modelId: 'active-provider:model-a',
+          createdAt: 1,
+          updatedAt: 2,
+        }],
+        messages: {},
+        unreadSessionIds: ['session-1'],
+        selectedModelId: 'active-provider:model-a',
+        currentSessionId: 'session-1',
+        temporaryChatEnabled: false,
+        customSystemPrompt: '',
+        includeTimeContext: true,
+      },
+    };
+
+    await expect(saveUnifiedDataImmediate(data, {
+      ai: { sessions: true },
+    })).resolves.toBeUndefined();
+
+    expect(mocks.setProviderSecret).not.toHaveBeenCalled();
+    expect(mocks.deleteProviderSecret).not.toHaveBeenCalled();
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat/providers/'),
+      expect.anything(),
+    );
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions/index.json'),
+    );
+    expect(sessionsWrite).toBeTruthy();
+    expect(JSON.parse(String(sessionsWrite?.[1]))).toMatchObject({
+      version: 1,
+      data: {
+        sessions: [{ id: 'session-1' }],
+        unreadSessionIds: ['session-1'],
+        currentSessionId: 'session-1',
+        selectedModelId: 'active-provider:model-a',
+      },
+    });
+  });
+
   it('bounds AI metadata written during split saves', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.listDir.mockResolvedValue([]);
@@ -493,7 +674,7 @@ describe('unifiedStorage electron save', () => {
     expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/providers/deleted-provider.json');
   });
 
-  it('preserves independent provider, settings, and icon edits from two stale windows', async () => {
+  it('preserves provider data when a stale window saves only settings and icons', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     const disk = new Map<string, string>();
     const directoryPaths = new Set([
@@ -610,11 +791,7 @@ describe('unifiedStorage electron save', () => {
       },
     };
 
-    await saveUnifiedDataImmediate(windowAData, {
-      settings: {
-        timezone: windowAData.settings.timezone,
-      },
-    });
+    await saveUnifiedDataImmediate(windowAData);
     await saveUnifiedDataImmediate(windowBStaleData, {
       settings: {
         markdown: {
@@ -648,10 +825,10 @@ describe('unifiedStorage electron save', () => {
     ]);
 
     const sessionsPayload = JSON.parse(disk.get('/appdata/.vlaina/chat/sessions/index.json') || '{}');
-    expect(new Set(sessionsPayload.data.providerIds)).toEqual(new Set(['provider-a', 'provider-b']));
-    expect(sessionsPayload.data.selectedModelId).toBe('provider-b:model-b');
+    expect(sessionsPayload.data.providerIds).toEqual(['provider-a']);
+    expect(sessionsPayload.data.selectedModelId).toBe('provider-a:model-a');
     expect(disk.has('/appdata/.vlaina/chat/providers/provider-a.json')).toBe(true);
-    expect(disk.has('/appdata/.vlaina/chat/providers/provider-b.json')).toBe(true);
+    expect(disk.has('/appdata/.vlaina/chat/providers/provider-b.json')).toBe(false);
   });
 
   it('preserves custom icons added by another window during a stale main-data save', async () => {
@@ -1520,18 +1697,9 @@ describe('unifiedStorage electron save', () => {
     );
   });
 
-  it('recovers visible sessions from message files when AI session metadata is invalid', async () => {
+  it('does not recover sessions from message files when AI session metadata is invalid', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const messageContent = '![outer [nested]](<attachment://safe.png> "Title") ![video](https://example.com/movie.mp4) Please keep this important chat';
-    mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions')) {
-        return [
-          { name: 'session-1', path: '/appdata/.vlaina/chat/sessions/session-1', isFile: false, isDirectory: true },
-        ];
-      }
-      return [];
-    });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
       if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
@@ -1554,46 +1722,15 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions/session-1/messages.json')) {
-        return JSON.stringify({
-          version: 1,
-          sessionId: 'session-1',
-          updatedAt: 2,
-          messages: [
-            {
-              id: 'm1',
-              role: 'user',
-              content: messageContent,
-              modelId: 'provider::model-a',
-              timestamp: 10,
-              versions: [{
-                content: messageContent,
-                createdAt: 10,
-                subsequentMessages: [],
-              }],
-              currentVersionIndex: 0,
-            },
-          ],
-        });
-      }
-
       throw new Error(`Unexpected read: ${path}`);
     });
 
     const data = await loadUnifiedData();
 
-    expect(data.ai?.sessions).toEqual([
-      {
-        id: 'session-1',
-        title: '![video](https://example.com/movie.mp4) Please keep this imp...',
-        modelId: 'provider::model-a',
-        isPinned: false,
-        createdAt: 10,
-        updatedAt: 10,
-      },
-    ]);
+    expect(data.ai?.sessions).toEqual([]);
     expect(data.ai?.messages).toEqual({});
     expect(data.ai?.providers).toEqual([]);
+    expect(mocks.storage.listDir).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(
       '[Storage] Ignoring invalid AI sessions file:',
       '/appdata/.vlaina/chat/sessions/index.json',
@@ -1601,18 +1738,8 @@ describe('unifiedStorage electron save', () => {
     warnSpy.mockRestore();
   });
 
-  it('does not recover temporary session message files', async () => {
+  it('does not scan session directories when the new session index is valid', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions')) {
-        return [
-          { name: 'temp-session-legacy', path: '/appdata/.vlaina/chat/sessions/temp-session-legacy', isFile: false, isDirectory: true },
-          { name: 'session-1', path: '/appdata/.vlaina/chat/sessions/session-1', isFile: false, isDirectory: true },
-        ];
-      }
-      return [];
-    });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
       if (path.endsWith('/.vlaina/app/settings.json')) {
         return JSON.stringify({
@@ -1630,83 +1757,19 @@ describe('unifiedStorage electron save', () => {
 
       if (path.endsWith('/chat/sessions/index.json')) {
         return JSON.stringify({
-          sessions: [],
-          providerIds: [],
-        });
-      }
-
-      if (path.endsWith('/chat/sessions/temp-session-legacy/messages.json')) {
-        throw new Error('Temporary sessions must not be loaded');
-      }
-
-      if (path.endsWith('/chat/sessions/session-1/messages.json')) {
-        return JSON.stringify({
           version: 1,
-          sessionId: 'session-1',
-          updatedAt: 2,
-          messages: [
-            {
-              id: 'm1',
-              role: 'user',
-              content: 'Recover only this chat',
+          lastModified: 1,
+          data: {
+            sessions: [{
+              id: 'session-1',
+              title: 'Indexed session',
               modelId: 'provider::model-a',
-              timestamp: 10,
-              versions: [{
-                content: 'Recover only this chat',
-                createdAt: 10,
-                kind: 'original',
-                subsequentMessages: [],
-              }],
-              currentVersionIndex: 0,
-            },
-          ],
-        });
-      }
-
-      throw new Error(`Unexpected read: ${path}`);
-    });
-
-    const data = await loadUnifiedData();
-
-    expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-1']);
-    warnSpy.mockRestore();
-  });
-
-  it('does not recover deleted session message files from tombstoned metadata', async () => {
-    mocks.hasElectronDesktopBridge.mockReturnValue(false);
-    mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path.endsWith('/chat/sessions')) {
-        return [
-          { name: 'session-1', path: '/appdata/.vlaina/chat/sessions/session-1', isFile: false, isDirectory: true },
-          { name: 'session-2', path: '/appdata/.vlaina/chat/sessions/session-2', isFile: false, isDirectory: true },
-        ];
-      }
-      return [];
-    });
-    mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('/.vlaina/app/settings.json')) {
-        return JSON.stringify({
-          version: 2,
-          lastModified: 1,
-          data: {
-            settings: {
-              timezone: { offset: 480, city: 'Beijing' },
-              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
-            },
-            customIcons: [],
-          },
-        });
-      }
-
-      if (path.endsWith('/chat/sessions/index.json')) {
-        return JSON.stringify({
-          version: 1,
-          updatedAt: 1,
-          data: {
-            sessions: [],
+              createdAt: 10,
+              updatedAt: 20,
+            }],
             selectedModelId: null,
             unreadSessionIds: [],
-            currentSessionId: null,
+            currentSessionId: 'session-1',
             temporaryChatEnabled: false,
             customSystemPrompt: '',
             includeTimeContext: true,
@@ -1718,60 +1781,14 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions/session-1/messages.json')) {
-        return JSON.stringify({
-          version: 1,
-          sessionId: 'session-1',
-          updatedAt: 2,
-          messages: [
-            {
-              id: 'm1',
-              role: 'user',
-              content: 'Recover this chat',
-              modelId: 'provider::model-a',
-              timestamp: 10,
-              versions: [{
-                content: 'Recover this chat',
-                createdAt: 10,
-                kind: 'original',
-                subsequentMessages: [],
-              }],
-              currentVersionIndex: 0,
-            },
-          ],
-        });
-      }
-
-      if (path.endsWith('/chat/sessions/session-2/messages.json')) {
-        return JSON.stringify({
-          version: 1,
-          sessionId: 'session-2',
-          updatedAt: 3,
-          messages: [
-            {
-              id: 'm2',
-              role: 'user',
-              content: 'Deleted chat must stay deleted',
-              modelId: 'provider::model-a',
-              timestamp: 20,
-              versions: [{
-                content: 'Deleted chat must stay deleted',
-                createdAt: 20,
-                kind: 'original',
-                subsequentMessages: [],
-              }],
-              currentVersionIndex: 0,
-            },
-          ],
-        });
-      }
-
       throw new Error(`Unexpected read: ${path}`);
     });
 
     const data = await loadUnifiedData();
 
     expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-1']);
+    expect(data.ai?.currentSessionId).toBe('session-1');
     expect(data.ai?.deletedSessionIds).toEqual(['session-2']);
+    expect(mocks.storage.listDir).not.toHaveBeenCalled();
   });
 });

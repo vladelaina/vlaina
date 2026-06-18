@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useEffect } from 'react';
+import { memo, useMemo, useState, useEffect, useRef } from 'react';
 import { icons } from '@/components/ui/icons/registry';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
@@ -87,8 +87,13 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   maskColor?: string | null;
 }) {
   const [hasLoadError, setHasLoadError] = useState(false);
+  const previousSrcRef = useRef(src);
 
   useEffect(() => {
+    if (previousSrcRef.current === src) {
+      return;
+    }
+    previousSrcRef.current = src;
     setHasLoadError(false);
   }, [src]);
 
