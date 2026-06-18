@@ -2,6 +2,8 @@ import { ImageToolbar } from './ImageToolbar';
 import { ImageCaption } from './ImageCaption';
 import type { Alignment } from '../types';
 
+const IMAGE_CHROME_VERTICAL_STACK_MIN_HEIGHT = 80;
+
 interface ImageBlockChromeProps {
     nodeAlt: string;
     captionInput: string;
@@ -10,6 +12,7 @@ interface ImageBlockChromeProps {
     isActive: boolean;
     isDragging: boolean;
     loadError: boolean;
+    containerSize: { width: number; height: number };
     alignment: Alignment;
     onCaptionChange: (value: string) => void;
     onCaptionSubmit: () => void;
@@ -30,6 +33,7 @@ export function ImageBlockChrome({
     isActive,
     isDragging,
     loadError,
+    containerSize,
     alignment,
     onCaptionChange,
     onCaptionSubmit,
@@ -42,6 +46,8 @@ export function ImageBlockChrome({
     onDelete,
 }: ImageBlockChromeProps) {
     const isChromeVisible = (isHovered || isEditingCaption) && !isActive && !isDragging;
+    const shouldPlaceCaptionLeft = containerSize.height > 0
+        && containerSize.height < IMAGE_CHROME_VERTICAL_STACK_MIN_HEIGHT;
 
     return (
         <>
@@ -51,6 +57,7 @@ export function ImageBlockChrome({
                     value={captionInput}
                     isEditing={isEditingCaption}
                     isVisible={true}
+                    align={shouldPlaceCaptionLeft ? 'left' : 'right'}
                     onChange={onCaptionChange}
                     onSubmit={onCaptionSubmit}
                     onCancel={onCaptionCancel}
@@ -71,3 +78,7 @@ export function ImageBlockChrome({
         </>
     );
 }
+
+export const __testing__ = {
+    IMAGE_CHROME_VERTICAL_STACK_MIN_HEIGHT,
+};

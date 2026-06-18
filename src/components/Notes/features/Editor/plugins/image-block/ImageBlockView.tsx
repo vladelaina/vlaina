@@ -335,6 +335,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         isActive={isActive}
                         isDragging={isDragging || isBlockDragging}
                         loadError={hasLoadError}
+                        containerSize={activeContainerSize}
                         alignment={alignment}
                         onCaptionChange={setCaptionInput}
                         onCaptionSubmit={handleCaptionSubmit}
