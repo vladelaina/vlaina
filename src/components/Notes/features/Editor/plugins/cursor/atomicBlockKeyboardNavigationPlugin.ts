@@ -19,6 +19,10 @@ import {
   NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES,
   STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES,
 } from '../shared/blockNodeTypes';
+import {
+  isMarkdownBlankLinePlaceholderNode,
+  replaceMarkdownBlankLineWithEditableParagraph,
+} from './markdownBlankLineInteraction';
 
 type Direction = 'up' | 'down';
 
@@ -41,6 +45,9 @@ export const atomicBlockKeyboardNavigationPluginKey =
 
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
 export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'editor-atomic-block-keyboard-selected';
+const NON_NAVIGABLE_HTML_BLOCK_VALUES = new Set<unknown>([
+  '<!--vlaina-markdown-tight-heading-->',
+]);
 
 function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
   if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
@@ -53,7 +60,19 @@ function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
 }
 
 function isNavigableAtomicBlock(node: ProseNode | null | undefined): boolean {
-  return Boolean(node && NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES.has(node.type.name));
+  if (!node || !NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES.has(node.type.name)) {
+    return false;
+  }
+
+  if (isMarkdownBlankLinePlaceholderNode(node)) {
+    return false;
+  }
+
+  if (node.type.name === 'html_block' && NON_NAVIGABLE_HTML_BLOCK_VALUES.has(node.attrs?.value)) {
+    return false;
+  }
+
+  return true;
 }
 
 function isListContainerNode(node: ProseNode | null | undefined): node is ProseNode {
@@ -447,12 +466,27 @@ function setSelectionPastAtomicBlock(
 }
 
 function moveSelectionPastAtomicBlock(view: EditorView, block: TopLevelBlock, direction: Direction): boolean {
+  const adjacent = getAdjacentTopLevelBlock(view.state.doc, block, direction);
+  if (adjacent && isMarkdownBlankLinePlaceholderNode(adjacent.node)) {
+    return replaceMarkdownBlankLineWithEditableParagraph(view, adjacent);
+  }
+
   const tr = setSelectionPastAtomicBlock(view.state, view.state.tr, block, direction);
   if (!tr) {
     return false;
   }
 
   view.dispatch(tr.scrollIntoView());
+  view.focus();
+  return true;
+}
+
+function selectAtomicBlockFromTextBoundary(view: EditorView, block: TopLevelBlock): boolean {
+  view.dispatch(
+    view.state.tr
+      .setSelection(NodeSelection.create(view.state.doc, block.from))
+      .scrollIntoView()
+  );
   view.focus();
   return true;
 }
@@ -512,11 +546,19 @@ function handleTextblockBoundaryArrow(view: EditorView, direction: Direction): b
   const adjacent = direction === 'up'
     ? findTopLevelBlockBefore(view.state.doc, blockFrom)
     : findTopLevelBlockAfter(view.state.doc, blockTo);
-  if (!adjacent || !isNavigableAtomicBlock(adjacent.node)) {
+  if (!adjacent) {
     return false;
   }
 
-  return moveSelectionPastAtomicBlock(view, adjacent, direction);
+  if (isMarkdownBlankLinePlaceholderNode(adjacent.node)) {
+    return replaceMarkdownBlankLineWithEditableParagraph(view, adjacent);
+  }
+
+  if (!isNavigableAtomicBlock(adjacent.node)) {
+    return false;
+  }
+
+  return selectAtomicBlockFromTextBoundary(view, adjacent);
 }
 
 function handleAtomicBlockSelectionArrow(view: EditorView, direction: Direction): boolean {

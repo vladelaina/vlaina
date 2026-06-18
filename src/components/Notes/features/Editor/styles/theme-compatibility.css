@@ -20,3 +20,37 @@
   background-color: transparent !important;
   box-shadow: none !important;
 }
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode {
+  background: var(--vlaina-math-hover-color) !important;
+  background-color: var(--vlaina-math-hover-color) !important;
+  box-shadow:
+    inset 0 0 0 1px var(--vlaina-math-hover-color),
+    0 var(--vlaina-math-hover-bleed-y) 0 0 var(--vlaina-math-hover-color),
+    0 calc(-1 * var(--vlaina-math-hover-bleed-y)) 0 0 var(--vlaina-math-hover-color),
+    calc(-1 * var(--vlaina-math-hover-bleed-x-start)) 0 0 0 var(--vlaina-math-hover-color) !important;
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode::selection,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode *::selection {
+  background: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}

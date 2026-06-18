@@ -45,7 +45,7 @@ describe('nativeSelectedNodeClasses', () => {
       '<div class="footnote-def"></div>',
       '<div class="toc-block"></div>',
       '<div class="callout"></div>',
-      '<div data-type="html-block"></div>',
+      '<div data-type="html-block" data-value="<!--vlaina-markdown-blank-line-->"></div>',
     ];
 
     for (const sample of samples) {
@@ -56,6 +56,18 @@ describe('nativeSelectedNodeClasses', () => {
       expect(element, sample).not.toBeNull();
       expect(isNativeSelectedTextLikeElement(element!), sample).toBe(true);
     }
+  });
+
+  it('does not mark real html preview blocks as native selected text-like nodes', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<div data-type="html-block" data-value="<p>HTML</p>" class="ProseMirror-selectednode"></div>';
+    const element = root.firstElementChild as HTMLElement;
+
+    expect(isNativeSelectedTextLikeElement(element)).toBe(false);
+
+    syncNativeSelectedNodeClasses(root);
+
+    expect(element.classList.contains(NATIVE_SELECTED_TEXTLIKE_CLASS)).toBe(false);
   });
 
   it('marks adjacent native selected text-like nodes explicitly', () => {

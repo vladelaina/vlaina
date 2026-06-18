@@ -69,8 +69,9 @@ export function createTextEditorPopupElements(
 export function resizeTextEditorPopupTextareaToContent(args: {
   card: HTMLElement;
   textarea: HTMLTextAreaElement;
+  constrainToViewport?: boolean;
 }) {
-  const { card, textarea } = args;
+  const { card, textarea, constrainToViewport = true } = args;
   const viewportHeight =
     typeof window === 'undefined'
       ? Number.POSITIVE_INFINITY
@@ -82,6 +83,12 @@ export function resizeTextEditorPopupTextareaToContent(args: {
   const cardRect = card.getBoundingClientRect();
   const textareaRect = textarea.getBoundingClientRect();
   const contentHeight = Math.ceil(textarea.scrollHeight);
+  if (!constrainToViewport) {
+    textarea.style.height = `${Math.max(0, contentHeight)}px`;
+    textarea.style.overflowY = themeTextAreaTokens.overflowHidden;
+    return;
+  }
+
   const chromeHeight = Math.max(0, cardRect.height - textareaRect.height);
   const availableCardHeight = viewportHeight - cardRect.top - POPUP_VIEWPORT_MARGIN;
   const availableTextareaHeight = availableCardHeight - chromeHeight;

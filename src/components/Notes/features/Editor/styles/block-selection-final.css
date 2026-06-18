@@ -5,6 +5,7 @@
 .milkdown .ProseMirror li.editor-block-selected :is(
   .image-block-container,
   .video-block,
+  [data-type='html-block'],
   [data-type='math-block'],
   [data-type='math-inline'],
   .mermaid-block,
@@ -14,6 +15,7 @@
 .milkdown .ProseMirror li :is(
   .image-block-container,
   .video-block,
+  [data-type='html-block'],
   [data-type='math-block'],
   [data-type='math-inline'],
   .mermaid-block,
@@ -27,10 +29,12 @@
 
 .milkdown .ProseMirror li.editor-block-selected :is(
   [data-type='math-block'],
+  [data-type='html-block'],
   .mermaid-block
 ).editor-block-selected,
 .milkdown .ProseMirror li.editor-block-selected :is(
   [data-type='math-block'],
+  [data-type='html-block'],
   .mermaid-block
 ).editor-block-selected-contained {
   box-shadow: var(--vlaina-block-selection-shadow-y) !important;

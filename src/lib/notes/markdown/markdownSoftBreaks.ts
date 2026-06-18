@@ -7,6 +7,7 @@ const FRONTMATTER_CLOSE_DELIMITER_PATTERN = /^(?:---|\.\.\.)[ \t]*$/;
 const MARKDOWN_STRUCTURAL_LINE_PATTERN =
   /^(?:\s*(?:#{1,6}\s+|(?:[-+*]|\d+[.)])\s+|(?:[-*_][ \t]*){3,}|={2,}\s*$|-{2,}\s*$|\|.*\|\s*$|:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$))/;
 const HTML_LINE_PATTERN = /^(?:\s*<\/?[A-Za-z][^>]*>|\s*<!--|\s*<![A-Za-z]|\s*<\?)/;
+const SLASH_COMMAND_TEXT_LINE_PATTERN = /^\s*\/(?:h(?:[1-6]|tml)?)\s*$/i;
 const BLOCKQUOTE_LINE_PATTERN = /^(?:\s*>)/;
 const LIST_ITEM_CONTENT_LINE_PATTERN =
   /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?\S/;
@@ -190,9 +191,14 @@ function shouldPreserveSoftBreakAfterLine(
   if (protectedLines.has(index) || protectedLines.has(index + 1)) return false;
   if (line.trim() === '' || nextLine.trim() === '') return false;
   if (HARD_BREAK_LINE_PATTERN.test(line)) return false;
+  if (isSlashCommandTextBoundary(line, nextLine)) return false;
   if (isListItemSoftBreakLine(line, nextLine)) return true;
   if (!isPlainParagraphLine(line) || !isPlainParagraphLine(nextLine)) return false;
   return true;
+}
+
+function isSlashCommandTextBoundary(line: string, nextLine: string): boolean {
+  return SLASH_COMMAND_TEXT_LINE_PATTERN.test(line) || SLASH_COMMAND_TEXT_LINE_PATTERN.test(nextLine);
 }
 
 function isListItemSoftBreakLine(line: string, nextLine: string): boolean {

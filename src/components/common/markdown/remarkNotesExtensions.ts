@@ -56,8 +56,6 @@ const INLINE_HTML_CONTAINER_SEARCH_EXCEEDED = -2;
 const INLINE_HTML_CLOSE_TAG_PATTERN = /^<\/([A-Za-z][A-Za-z0-9-]*)>$/i;
 const PLAIN_UNCLOSED_HTML_BLOCK_TEXT_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s[^<>]*)?>(?:[^<]*)$/;
-const PLAIN_CLOSING_HTML_BLOCK_TEXT_PATTERN =
-  /^(?: {0,3})<\/([A-Za-z][A-Za-z0-9-]*)\s*>(?:[^<]*)$/;
 const PLAIN_EMPTY_PAIRED_HTML_TEXT_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)\s*>\s*<\/\1\s*>$/i;
 const PLAIN_EMPTY_HTML_OPEN_TEXT_PATTERN =

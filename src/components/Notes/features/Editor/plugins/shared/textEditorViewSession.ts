@@ -60,6 +60,8 @@ export interface CreateTextEditorViewSessionArgs<
   resolveAnchorElement: (state: TState | undefined, nodeDom: Node | null) => HTMLElement | null;
   getAnchorViewportPosition: (anchorElement: HTMLElement | null) => { x: number; y: number };
   preferStatePositionOnInitialRender?: (state: TState) => boolean;
+  scrollPopupIntoViewOnInitialRender?: boolean;
+  constrainTextareaHeightToViewport?: boolean;
   previewInput: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
   previewInputDebounceMs?: number;
   previewCancel: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
@@ -87,6 +89,8 @@ export function createTextEditorViewSession<
     resolveAnchorElement,
     getAnchorViewportPosition,
     preferStatePositionOnInitialRender,
+    scrollPopupIntoViewOnInitialRender,
+    constrainTextareaHeightToViewport = true,
     previewInput,
     previewInputDebounceMs = themeUiFeedbackTokens.editorTextEditorLivePreviewDebounceMs,
     previewCancel,
@@ -101,6 +105,7 @@ export function createTextEditorViewSession<
   let previewInputTimer: number | null = null;
   let textareaResizeFrame: number | null = null;
   let anchorPositionFrame: number | null = null;
+  let popupVisibilityFrame: number | null = null;
   let pendingPreviewInputArgs: TextEditorPreviewArgs<TState, TRefs> | null = null;
   const scrollRoot = getScrollRoot(editorView);
   const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
@@ -138,6 +143,13 @@ export function createTextEditorViewSession<
     textareaResizeFrame = null;
   };
 
+  const clearPendingPopupVisibilityScroll = () => {
+    if (popupVisibilityFrame !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(popupVisibilityFrame);
+    }
+    popupVisibilityFrame = null;
+  };
+
   const resizeTextareaToContent = () => {
     if (!editorElement || !refs.textareaElement) {
       return;
@@ -148,6 +160,7 @@ export function createTextEditorViewSession<
       resizeTextEditorPopupTextareaToContent({
         card,
         textarea: refs.textareaElement,
+        constrainToViewport: constrainTextareaHeightToViewport,
       });
     }
   };
@@ -196,6 +209,7 @@ export function createTextEditorViewSession<
   const resetSessionDom = () => {
     clearPendingPreviewInput();
     clearPendingTextareaResize();
+    clearPendingPopupVisibilityScroll();
     clearEditorElements();
     resetRefs(refs);
     renderedKey = null;
@@ -304,6 +318,30 @@ export function createTextEditorViewSession<
       if (state?.isOpen) {
         updateEditorPosition(state, { deferResize: true });
       }
+    });
+  };
+
+  const scrollPopupIntoView = () => {
+    editorElement?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
+
+  const scheduleInitialPopupVisibilityScroll = () => {
+    if (!scrollPopupIntoViewOnInitialRender) {
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      scrollPopupIntoView();
+      return;
+    }
+
+    if (popupVisibilityFrame !== null) {
+      return;
+    }
+
+    popupVisibilityFrame = window.requestAnimationFrame(() => {
+      popupVisibilityFrame = null;
+      scrollPopupIntoView();
     });
   };
 
@@ -425,6 +463,9 @@ export function createTextEditorViewSession<
       if (useInitialStatePosition) {
         scheduleAnchorPositionRefresh();
       }
+      if (didRenderEditor) {
+        scheduleInitialPopupVisibilityScroll();
+      }
     },
     destroy() {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -437,6 +478,7 @@ export function createTextEditorViewSession<
       if (anchorPositionFrame !== null && typeof window !== 'undefined') {
         window.cancelAnimationFrame(anchorPositionFrame);
       }
+      clearPendingPopupVisibilityScroll();
       clearPendingTextareaResize();
       clearPendingPreviewInput();
       anchorResizeTracker.destroy();
@@ -445,6 +487,7 @@ export function createTextEditorViewSession<
       suppressOutsideMouseDownTimer = null;
       focusTextareaTimer = null;
       anchorPositionFrame = null;
+      popupVisibilityFrame = null;
     },
   };
 }

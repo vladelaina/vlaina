@@ -396,6 +396,34 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
+  it('uses an editor-only blank line block after rendered one-line html blocks', () => {
+    const markdown = ['<p align="center">HTML</p>', '', 'after'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toBe([
+      '<p align="center">HTML</p>',
+      '',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      'after',
+    ].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
+  });
+
+  it('strips editor-only blank line comments next to one-line html blocks on save', () => {
+    const markdown = [
+      '<p align="center">HTML</p>',
+      '',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      'after',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe([
+      '<p align="center">HTML</p>',
+      '',
+      'after',
+    ].join('\n'));
+  });
+
   it('round trips representative markdown through preserve and normalize', () => {
     const markdown = [
       '# Heading',

@@ -674,6 +674,21 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['1\\', '2', '', '3\\', '4'].join('\n'));
   });
 
+  it('does not turn slash command text lines into markdown hard breaks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['hi', '/h', '1'].join('\n'))
+    ).toBe(['hi', '/h', '1'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['hi', '/html', '1'].join('\n'))
+    ).toBe(['hi', '/html', '1'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['hi', '/h1', '1'].join('\n'))
+    ).toBe(['hi', '/h1', '1'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['hi', '/usr/bin', '1'].join('\n'))
+    ).toBe(['hi\\', '/usr/bin\\', '1'].join('\n'));
+  });
+
   it('preserves user-authored line breaks inside list items as markdown hard breaks', () => {
     expect(
       normalizeSerializedMarkdownDocument(['- one', '  two', '- three'].join('\n'))
