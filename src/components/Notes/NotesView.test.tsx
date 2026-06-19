@@ -123,6 +123,7 @@ const mocks = vi.hoisted(() => {
     resetNotesChatFloatingSize: vi.fn(),
     setLayoutPanelDragging: vi.fn(),
     setAppViewMode: vi.fn(),
+    setNotesSidebarView: vi.fn(),
   };
 
   const storageState = {
@@ -491,6 +492,7 @@ describe('NotesView', () => {
     uiState.resetNotesChatFloatingSize.mockClear();
     uiState.setLayoutPanelDragging.mockClear();
     uiState.setAppViewMode.mockClear();
+    uiState.setNotesSidebarView.mockClear();
   });
 
   it('shows notes store errors as toast messages', async () => {

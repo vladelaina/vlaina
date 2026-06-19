@@ -14,6 +14,9 @@ const hoisted = vi.hoisted(() => ({
     starredEntries: [] as unknown[],
     starredLoaded: true,
   },
+  uiState: {
+    sidebarCollapsed: false,
+  },
   jumpToHeading: vi.fn(),
   renameHeading: vi.fn(() => true),
   setNotesSidebarView: vi.fn(),
@@ -30,8 +33,14 @@ vi.mock('@/stores/useNotesStore', () => ({
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: (selector: (state: { setNotesSidebarView: typeof hoisted.setNotesSidebarView }) => unknown) =>
-    selector({ setNotesSidebarView: hoisted.setNotesSidebarView }),
+  useUIStore: (selector: (state: {
+    sidebarCollapsed: boolean;
+    setNotesSidebarView: typeof hoisted.setNotesSidebarView;
+  }) => unknown) =>
+    selector({
+      sidebarCollapsed: hoisted.uiState.sidebarCollapsed,
+      setNotesSidebarView: hoisted.setNotesSidebarView,
+    }),
 }));
 
 vi.mock('@/hooks/useHeldPageScroll', () => ({
@@ -60,6 +69,7 @@ describe('NotesOutline', () => {
     hoisted.outlineState.activeId = null;
     hoisted.notesState.starredEntries = [];
     hoisted.notesState.starredLoaded = true;
+    hoisted.uiState.sidebarCollapsed = false;
     hoisted.jumpToHeading.mockClear();
     hoisted.renameHeading.mockClear();
     hoisted.setNotesSidebarView.mockClear();
@@ -90,6 +100,7 @@ describe('NotesOutline', () => {
     try {
       render(<NotesOutline enabled={false} currentNotePath={null} />);
 
+      expect(screen.getByText('notes.outlineEmpty')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'notes.file' }));
 
       expect(hoisted.setNotesSidebarView).toHaveBeenCalledWith('workspace');
@@ -102,6 +113,16 @@ describe('NotesOutline', () => {
   it('keeps the plain outline empty state when starred entries exist', () => {
     hoisted.outlineState.headings = [];
     hoisted.notesState.starredEntries = [{ id: 'starred-note' }];
+
+    render(<NotesOutline enabled={false} currentNotePath={null} />);
+
+    expect(screen.getByText('notes.outlineEmpty')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'notes.file' })).toBeNull();
+  });
+
+  it('hides the open target actions when the sidebar is collapsed', () => {
+    hoisted.outlineState.headings = [];
+    hoisted.uiState.sidebarCollapsed = true;
 
     render(<NotesOutline enabled={false} currentNotePath={null} />);
 

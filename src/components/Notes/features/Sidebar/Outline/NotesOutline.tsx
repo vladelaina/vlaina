@@ -15,6 +15,7 @@ import {
   getSidebarCollapseTriangleColorClassName,
 } from '../../common/collapseTrianglePrimitive';
 import {
+  NotesSidebarHoverEmptyHint,
   NotesSidebarPillEmptyHint,
   NotesSidebarScrollArea,
 } from '../NotesSidebarPrimitives';
@@ -52,6 +53,7 @@ export function NotesOutline({
   const { headings, activeId, jumpToHeading, renameHeading } = useNotesOutline(enabled);
   const hasStarredEntries = useNotesStore((s) => s.starredEntries.length > 0);
   const starredLoaded = useNotesStore((s) => s.starredLoaded);
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setNotesSidebarView = useUIStore((s) => s.setNotesSidebarView);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
   const [renamingHeadingId, setRenamingHeadingId] = useState<string | null>(null);
@@ -253,17 +255,25 @@ export function NotesOutline({
             >
               {headings.length === 0 ? (
                 <NotesSidebarPillEmptyHint
-                  title={shouldShowOpenTargetActions ? undefined : t('notes.outlineEmpty')}
-                  actions={shouldShowOpenTargetActions ? [
-                    { label: t('notes.file'), onAction: handleOpenMarkdownFile },
-                    { label: t('notes.folder'), onAction: handleOpenFolder },
-                  ] : undefined}
+                  title={t('notes.outlineEmpty')}
                 />
               ) : null}
             </div>
           </div>
         </NotesSidebarScrollArea>
       </SidebarCapsulePanel>
+      {headings.length === 0 && shouldShowOpenTargetActions && !sidebarCollapsed ? (
+        <div className="pointer-events-none fixed bottom-5 left-4 z-[var(--vlaina-z-50)] flex w-[var(--vlaina-width-sidebar-content-inner)] justify-center">
+          <NotesSidebarHoverEmptyHint
+            actions={[
+              { label: t('notes.file'), onAction: handleOpenMarkdownFile },
+              { label: t('notes.folder'), onAction: handleOpenFolder },
+            ]}
+            placement="inline"
+            visible
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

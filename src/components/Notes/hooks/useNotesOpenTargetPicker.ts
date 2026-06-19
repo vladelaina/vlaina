@@ -28,9 +28,11 @@ export function useNotesOpenTargetPicker({
 }) {
   const { t } = useI18n();
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
+  const setNotesSidebarView = useUIStore((state) => state.setNotesSidebarView);
   const handleOpenSelectedTarget = useCallback(async (targetKind: 'file' | 'folder') => {
     if (isOpenTargetBusy) return;
 
+    setNotesSidebarView('workspace');
     const targetLabel = targetKind === 'folder' ? t('notes.folder') : t('notes.file');
     let selected: string | null;
     try {
@@ -68,7 +70,7 @@ export function useNotesOpenTargetPicker({
     }
 
     await openMarkdownTarget(selected);
-  }, [currentVaultPath, isOpenTargetBusy, openFolderTarget, openMarkdownTarget, t]);
+  }, [currentVaultPath, isOpenTargetBusy, openFolderTarget, openMarkdownTarget, setNotesSidebarView, t]);
 
   useEffect(() => {
     const handleOpenMarkdownFile = () => {
@@ -86,6 +88,7 @@ export function useNotesOpenTargetPicker({
     const handleDesktopOpenMarkdownFile = async (filePath: string) => {
       if (isOpenTargetBusy) return;
       setAppViewMode('notes');
+      setNotesSidebarView('workspace');
       if (!isSupportedMarkdownSelection(filePath)) {
         await messageDialog(t('notes.selectMarkdownFile'), {
           title: t('notes.unsupportedFile'),
@@ -126,5 +129,5 @@ export function useNotesOpenTargetPicker({
       unsubscribeDesktopShortcut();
       unsubscribeDesktopOpenFile();
     };
-  }, [active, handleOpenSelectedTarget, isOpenTargetBusy, openMarkdownTarget, setAppViewMode, t]);
+  }, [active, handleOpenSelectedTarget, isOpenTargetBusy, openMarkdownTarget, setAppViewMode, setNotesSidebarView, t]);
 }

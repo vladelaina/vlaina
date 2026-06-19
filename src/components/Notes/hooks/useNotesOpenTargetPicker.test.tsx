@@ -1,12 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { messageDialog } from '@/lib/storage/dialog';
+import { messageDialog, openDialog } from '@/lib/storage/dialog';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { onDesktopOpenMarkdownFile } from '@/lib/desktop/shortcuts';
 import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
 
 const mocks = vi.hoisted(() => ({
   setAppViewMode: vi.fn(),
+  setNotesSidebarView: vi.fn(),
   authorizePath: vi.fn(async () => ({
     name: 'guide.markdown',
     path: '/vault/guide.markdown',
@@ -27,8 +28,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: (selector: (state: { setAppViewMode: typeof mocks.setAppViewMode }) => unknown) =>
-    selector({ setAppViewMode: mocks.setAppViewMode }),
+  useUIStore: (selector: (state: {
+    setAppViewMode: typeof mocks.setAppViewMode;
+    setNotesSidebarView: typeof mocks.setNotesSidebarView;
+  }) => unknown) =>
+    selector({
+      setAppViewMode: mocks.setAppViewMode,
+      setNotesSidebarView: mocks.setNotesSidebarView,
+    }),
 }));
 
 vi.mock('@/lib/desktop/shortcuts', () => ({
@@ -91,6 +98,7 @@ describe('useNotesOpenTargetPicker', () => {
         authorizePath: mocks.authorizePath,
       },
     };
+    vi.mocked(openDialog).mockReset();
   });
 
   it('rejects unsupported desktop file-open paths before authorizing them', async () => {
@@ -176,5 +184,17 @@ describe('useNotesOpenTargetPicker', () => {
       title: 'notes.openFailed',
       kind: 'error',
     });
+  });
+
+  it('switches to the files sidebar when opening a folder target', async () => {
+    vi.mocked(openDialog).mockResolvedValueOnce('/vault/projects');
+    const { props } = renderPicker();
+
+    await act(async () => {
+      window.dispatchEvent(new Event('app-open-markdown-target-folder'));
+    });
+
+    expect(mocks.setNotesSidebarView).toHaveBeenCalledWith('workspace');
+    expect(props.openFolderTarget).toHaveBeenCalledWith('/vault/projects');
   });
 });

@@ -181,4 +181,48 @@ describe('useNotesOpenMarkdownTarget', () => {
     expect(props.openNote).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
   });
+
+  it('waits for the target notes path before opening the pending file as a relative note', async () => {
+    const props = {
+      active: true,
+      currentVaultPath: '/external/docs',
+      notesPath: '/vault',
+      currentNotePath: 'daily/today.md',
+      isDirty: false,
+      saveNote: vi.fn(async () => undefined),
+      openNote: vi.fn(async (path: string) => {
+        mocks.notesState.currentNote = { path, content: '' };
+        mocks.notesState.notesPath = '/external/docs';
+      }),
+      openNoteByAbsolutePath: vi.fn(async (path: string) => {
+        mocks.notesState.currentNote = { path, content: '' };
+      }),
+      adoptAbsoluteNoteIntoVault: vi.fn(() => false),
+      openVault: vi.fn(async () => true),
+    };
+    mocks.notesState.notesPath = '/vault';
+
+    const { result, rerender } = renderHook(
+      (hookProps: typeof props) => useNotesOpenMarkdownTarget(hookProps),
+      { initialProps: props },
+    );
+
+    await act(async () => {
+      await result.current.openMarkdownTarget('/external/docs/setup.md');
+    });
+
+    expect(props.openNote).not.toHaveBeenCalled();
+    expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
+
+    mocks.notesState.notesPath = '/external/docs';
+    rerender({
+      ...props,
+      notesPath: '/external/docs',
+    });
+
+    await act(async () => undefined);
+
+    expect(props.openNote).toHaveBeenCalledWith('setup.md');
+    expect(props.openNoteByAbsolutePath).not.toHaveBeenCalledWith('/external/docs/setup.md');
+  });
 });

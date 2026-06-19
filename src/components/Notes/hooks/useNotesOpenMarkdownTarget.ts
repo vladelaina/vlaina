@@ -74,6 +74,7 @@ export function useNotesOpenMarkdownTarget({
   useEffect(() => {
     if (!pendingShortcutNoteTarget || !currentVaultPath) return;
     if (currentVaultPath !== pendingShortcutNoteTarget.vaultPath) return;
+    if (normalizeVaultPath(notesPath) !== pendingShortcutNoteTarget.vaultPath) return;
 
     let cancelled = false;
 
@@ -101,7 +102,7 @@ export function useNotesOpenMarkdownTarget({
     return () => {
       cancelled = true;
     };
-  }, [currentVaultPath, openShortcutNoteTarget, pendingShortcutNoteTarget, t]);
+  }, [currentVaultPath, notesPath, openShortcutNoteTarget, pendingShortcutNoteTarget, t]);
 
   const saveCurrentNoteIfNeeded = useCallback(async () => {
     if (!isDirty) return true;
