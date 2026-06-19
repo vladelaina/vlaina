@@ -118,6 +118,41 @@ function getAuthorizedFsPathsPath() {
   return path.join(app.getPath('userData'), '.vlaina', 'app', 'permissions', 'filesystem.json');
 }
 
+function getDevelopmentUserDataOverridePath() {
+  if (app.isPackaged) {
+    return null;
+  }
+
+  const overridePath = process.env.VLAINA_USER_DATA_DIR?.trim();
+  return overridePath ? path.resolve(overridePath) : null;
+}
+
+function getUserDataAccessRootPaths() {
+  const paths = [];
+
+  try {
+    paths.push(normalizeFsPathForAccess(app.getPath('userData')));
+  } catch {}
+
+  const overridePath = getDevelopmentUserDataOverridePath();
+  if (overridePath) {
+    paths.push(overridePath);
+  }
+
+  const seen = new Set();
+  const uniquePaths = [];
+  for (const entry of paths) {
+    const key = normalizeFsPathKey(entry);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    uniquePaths.push(entry);
+  }
+
+  return uniquePaths;
+}
+
 function normalizeAuthorizedFsPathEntries(value, maxEntries) {
   if (!Array.isArray(value)) {
     return [];
@@ -166,12 +201,18 @@ export function isProtectedAppDataPath(candidatePath, userDataPath = app.getPath
 }
 
 async function isProtectedFsAccessPath(candidatePath) {
-  if (isProtectedAppDataPath(candidatePath)) {
-    return true;
+  for (const userDataPath of getUserDataAccessRootPaths()) {
+    if (isProtectedAppDataPath(candidatePath, userDataPath)) {
+      return true;
+    }
+
+    const realUserDataPath = await resolveRealFsAccessPath(userDataPath).catch(() => null);
+    if (realUserDataPath && isProtectedAppDataPath(candidatePath, realUserDataPath)) {
+      return true;
+    }
   }
 
-  const realUserDataPath = await resolveRealFsAccessPath(normalizeFsPathForAccess(app.getPath('userData'))).catch(() => null);
-  return realUserDataPath ? isProtectedAppDataPath(candidatePath, realUserDataPath) : false;
+  return false;
 }
 
 async function readAuthorizedFsPaths() {
@@ -243,6 +284,10 @@ async function ensureAuthorizedFsPathsLoaded() {
   if (!authorizedFsPathsLoadPromise) {
     authorizedFsPathsLoadPromise = (async () => {
       await addAuthorizedFsPathWithRealKey(app.getPath('userData'), 'root');
+      const developmentUserDataOverridePath = getDevelopmentUserDataOverridePath();
+      if (developmentUserDataOverridePath) {
+        await addAuthorizedFsPathWithRealKey(developmentUserDataOverridePath, 'root');
+      }
 
       const saved = await readAuthorizedFsPaths();
       for (const rootPath of saved.roots) {

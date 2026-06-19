@@ -24,8 +24,11 @@ import {
 
 describe('desktop filesystem symlink boundary', () => {
   let tempDir = '';
+  let previousUserDataOverride: string | undefined;
 
   beforeEach(async () => {
+    previousUserDataOverride = process.env.VLAINA_USER_DATA_DIR;
+    delete process.env.VLAINA_USER_DATA_DIR;
     tempDir = await mkdtemp(path.join(os.tmpdir(), 'vlaina-fs-access-'));
     hoisted.userDataPath = path.join(tempDir, 'user-data');
     await mkdir(hoisted.userDataPath, { recursive: true });
@@ -33,6 +36,11 @@ describe('desktop filesystem symlink boundary', () => {
   });
 
   afterEach(async () => {
+    if (previousUserDataOverride === undefined) {
+      delete process.env.VLAINA_USER_DATA_DIR;
+    } else {
+      process.env.VLAINA_USER_DATA_DIR = previousUserDataOverride;
+    }
     await rm(tempDir, { recursive: true, force: true });
   });
 
@@ -108,5 +116,25 @@ describe('desktop filesystem symlink boundary', () => {
     await expect(assertAuthorizedFsPath(path.join(linkedRoot, 'note.md'))).resolves.toBe(
       path.join(linkedRoot, 'note.md'),
     );
+  });
+
+  it('authorizes an explicit development userData override root', async () => {
+    const isolatedUserDataPath = path.join(tempDir, 'isolated-user-data');
+    process.env.VLAINA_USER_DATA_DIR = isolatedUserDataPath;
+    await mkdir(isolatedUserDataPath, { recursive: true });
+
+    await expect(
+      assertAuthorizedFsPath(path.join(isolatedUserDataPath, '.vlaina', 'notes', 'state.json')),
+    ).resolves.toBe(path.join(isolatedUserDataPath, '.vlaina', 'notes', 'state.json'));
+  });
+
+  it('keeps sensitive files protected inside an explicit development userData override', async () => {
+    const isolatedUserDataPath = path.join(tempDir, 'isolated-user-data');
+    process.env.VLAINA_USER_DATA_DIR = isolatedUserDataPath;
+    await mkdir(isolatedUserDataPath, { recursive: true });
+
+    await expect(
+      assertAuthorizedFsPath(path.join(isolatedUserDataPath, '.vlaina', 'app', 'secrets', 'account.json')),
+    ).rejects.toThrow('File path is reserved for internal desktop storage');
   });
 });

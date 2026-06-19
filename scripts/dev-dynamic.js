@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assertNotWsl } from './ensure-not-wsl.mjs';
 
 assertNotWsl('dev');
@@ -13,6 +13,8 @@ const repoRoot = path.resolve(__dirname, '..');
 
 const DEFAULT_PORT = 3000;
 const MAX_PORT = 3100;
+const DEFAULT_PORT_REUSE_GRACE_MS = 2_500;
+const DEFAULT_PORT_REUSE_RETRY_INTERVAL_MS = 100;
 const DEPENDENCY_UPDATE_CHECK_TIMEOUT_MS = 45_000;
 const DEPENDENCY_UPDATE_CHECK_MAX_ITEMS = 12;
 const RENDERER_WARMUP_TIMEOUT_MS = 60_000;
@@ -59,10 +61,12 @@ const pnpmCommand = isWindows ? 'pnpm.cmd' : 'pnpm';
 let rendererProcess = null;
 let electronProcess = null;
 let shutdownRequested = false;
+let shutdownPromise = null;
 let restartingElectron = false;
 let restartTimer = null;
 let electronRestartQueued = false;
 const watchers = [];
+const spawnedChildren = new Set();
 
 function log(colorCode, message) {
   console.log(`\x1b[${colorCode}m[vlaina] ${message}\x1b[0m`);
@@ -88,21 +92,61 @@ function checkPortAvailable(port) {
   });
 }
 
-async function findAvailablePort(startPort) {
-  if (!(await checkPortAvailable(startPort))) {
-    log(
-      '33',
-      `Renderer port ${startPort} is already in use; reusing another port will split dev localStorage. Stop the old dev server if startup view looks stale.`
-    );
+export async function chooseAvailablePort(startPort, options = {}) {
+  const {
+    checkPortAvailable: checkPortAvailableFn = checkPortAvailable,
+    delay: delayFn = delay,
+    isShutdownRequested = () => false,
+    log: logFn = () => {},
+    maxPort = MAX_PORT,
+    reuseGraceMs = DEFAULT_PORT_REUSE_GRACE_MS,
+    retryIntervalMs = DEFAULT_PORT_REUSE_RETRY_INTERVAL_MS,
+  } = options;
+
+  if (await checkPortAvailableFn(startPort)) {
+    return startPort;
   }
 
-  for (let port = startPort; port < MAX_PORT; port += 1) {
-    if (await checkPortAvailable(port)) {
+  logFn(
+    '33',
+    `Renderer port ${startPort} is already in use; waiting up to ${reuseGraceMs}ms for it to be released.`
+  );
+
+  let waitedMs = 0;
+  while (waitedMs < reuseGraceMs) {
+    if (isShutdownRequested()) {
+      throw new Error('Dev startup interrupted');
+    }
+
+    const waitMs = Math.min(retryIntervalMs, reuseGraceMs - waitedMs);
+    await delayFn(waitMs);
+    waitedMs += waitMs;
+
+    if (await checkPortAvailableFn(startPort)) {
+      logFn('32', `Renderer port ${startPort} was released; reusing it`);
+      return startPort;
+    }
+  }
+
+  logFn(
+    '33',
+    `Renderer port ${startPort} stayed in use; opening a parallel dev server will split dev localStorage. Stop the old dev server if startup view looks stale.`
+  );
+
+  for (let port = startPort + 1; port < maxPort; port += 1) {
+    if (await checkPortAvailableFn(port)) {
       return port;
     }
   }
 
-  throw new Error(`No available ports found between ${startPort} and ${MAX_PORT - 1}`);
+  throw new Error(`No available ports found between ${startPort} and ${maxPort - 1}`);
+}
+
+async function findAvailablePort(startPort) {
+  return chooseAvailablePort(startPort, {
+    isShutdownRequested: () => shutdownRequested,
+    log,
+  });
 }
 
 function waitForPortOpen(port, timeoutMs) {
@@ -307,9 +351,14 @@ function spawnPnpm(args, env, label) {
     shell: isWindows,
     detached: !isWindows,
   });
+  spawnedChildren.add(child);
 
   child.once('error', (error) => {
     console.error(`[vlaina] Failed to start ${label}:`, error);
+  });
+
+  child.once('exit', () => {
+    spawnedChildren.delete(child);
   });
 
   return child;
@@ -475,6 +524,26 @@ function checkDependencyUpdates(env) {
   });
 }
 
+function signalChildProcess(child, signal) {
+  if (!child || child.killed || child.exitCode !== null) {
+    return false;
+  }
+
+  if (process.platform !== 'win32') {
+    try {
+      process.kill(-child.pid, signal);
+      return true;
+    } catch {}
+  }
+
+  try {
+    child.kill(signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function killChildProcess(child) {
   if (!child || child.killed || child.exitCode !== null) {
     return Promise.resolve();
@@ -498,25 +567,23 @@ function killChildProcess(child) {
       return;
     }
 
-    try {
-      process.kill(-child.pid, 'SIGTERM');
-    } catch {
-      try {
-        child.kill('SIGTERM');
-      } catch {
-        resolve();
-        return;
-      }
+    if (!signalChildProcess(child, 'SIGTERM')) {
+      resolve();
+      return;
     }
 
     setTimeout(() => {
       if (child.exitCode === null) {
-        try {
-          process.kill(-child.pid, 'SIGKILL');
-        } catch {}
+        signalChildProcess(child, 'SIGKILL');
       }
     }, 1500);
   });
+}
+
+function signalSpawnedChildren(signal) {
+  for (const child of spawnedChildren) {
+    signalChildProcess(child, signal);
+  }
 }
 
 async function startElectron(env) {
@@ -625,31 +692,34 @@ function watchElectronSources(env) {
 }
 
 async function shutdown(exitCode = 0) {
-  if (shutdownRequested) {
-    process.exit(exitCode);
-    return;
+  if (shutdownPromise) {
+    return shutdownPromise;
   }
 
   shutdownRequested = true;
 
-  if (restartTimer) {
-    clearTimeout(restartTimer);
-    restartTimer = null;
-  }
+  shutdownPromise = (async () => {
+    if (restartTimer) {
+      clearTimeout(restartTimer);
+      restartTimer = null;
+    }
 
-  while (watchers.length > 0) {
-    try {
-      watchers.pop()?.close();
-    } catch {}
-  }
+    while (watchers.length > 0) {
+      try {
+        watchers.pop()?.close();
+      } catch {}
+    }
 
-  await killChildProcess(electronProcess);
-  electronProcess = null;
+    await killChildProcess(electronProcess);
+    electronProcess = null;
 
-  await killChildProcess(rendererProcess);
-  rendererProcess = null;
+    await killChildProcess(rendererProcess);
+    rendererProcess = null;
 
-  process.exit(exitCode);
+    process.exit(exitCode);
+  })();
+
+  return shutdownPromise;
 }
 
 function normalizeElectronDesktopEnv(env) {
@@ -781,25 +851,43 @@ async function startDev() {
   checkDependencyUpdates(env);
 }
 
-process.on('SIGINT', () => {
-  void shutdown(0);
-});
+function isDirectRun() {
+  return Boolean(process.argv[1]) && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+}
 
-process.on('SIGTERM', () => {
-  void shutdown(0);
-});
+if (isDirectRun()) {
+  process.on('SIGINT', () => {
+    void shutdown(0);
+  });
 
-process.on('uncaughtException', async (error) => {
-  console.error('[vlaina] Uncaught exception in dev runner:', error);
-  await shutdown(1);
-});
+  process.on('SIGTERM', () => {
+    void shutdown(0);
+  });
 
-process.on('unhandledRejection', async (error) => {
-  console.error('[vlaina] Unhandled rejection in dev runner:', error);
-  await shutdown(1);
-});
+  process.on('SIGHUP', () => {
+    void shutdown(0);
+  });
 
-startDev().catch(async (error) => {
-  console.error(`[vlaina] ${error instanceof Error ? error.message : String(error)}`);
-  await shutdown(1);
-});
+  process.on('SIGQUIT', () => {
+    void shutdown(0);
+  });
+
+  process.once('exit', () => {
+    signalSpawnedChildren('SIGTERM');
+  });
+
+  process.on('uncaughtException', async (error) => {
+    console.error('[vlaina] Uncaught exception in dev runner:', error);
+    await shutdown(1);
+  });
+
+  process.on('unhandledRejection', async (error) => {
+    console.error('[vlaina] Unhandled rejection in dev runner:', error);
+    await shutdown(1);
+  });
+
+  startDev().catch(async (error) => {
+    console.error(`[vlaina] ${error instanceof Error ? error.message : String(error)}`);
+    await shutdown(1);
+  });
+}
