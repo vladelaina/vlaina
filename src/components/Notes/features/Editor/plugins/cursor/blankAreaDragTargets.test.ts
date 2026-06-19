@@ -683,21 +683,21 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('allows the normal notes sidebar blank scroll root to start block selection', () => {
+  it('does not start block selection from the notes sidebar scroll root', () => {
     const { view, cleanup } = createView();
     const sidebarScrollRoot = document.createElement('div');
     sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
     document.body.append(sidebarScrollRoot);
 
     try {
-      expect(resolveBlankAreaDragStartZone(view, createMouseDown(sidebarScrollRoot))).toBe('outside-editor');
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(sidebarScrollRoot))).toBeNull();
     } finally {
       sidebarScrollRoot.remove();
       cleanup();
     }
   });
 
-  it('allows the empty-workspace notes sidebar blank area to start block selection', () => {
+  it('does not start block selection from the empty-workspace notes sidebar blank area', () => {
     const { view, cleanup } = createView();
     const sidebarScrollRoot = document.createElement('div');
     sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
@@ -707,7 +707,7 @@ describe('blankAreaDragTargets', () => {
     document.body.append(sidebarScrollRoot);
 
     try {
-      expect(resolveBlankAreaDragStartZone(view, createMouseDown(blankArea))).toBe('outside-editor');
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(blankArea))).toBeNull();
     } finally {
       sidebarScrollRoot.remove();
       cleanup();

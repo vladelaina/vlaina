@@ -5,11 +5,12 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { describe, expect, it, vi } from 'vitest';
 import {
   blankAreaDragBoxPlugin,
+  blankAreaDragBoxPluginKey,
   MAX_DOCUMENT_BLOCK_SELECTION_PASTE_CHARS,
   shouldClearBlockSelectionForTransaction,
 } from './blankAreaDragBoxPlugin';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
-import { dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
+import { CLEAR_BLOCKS_ACTION, dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { dispatchBlankAreaPlainClick } from './forcedLineEdgeCaret';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { listTabIndentPlugin } from '../task-list';
@@ -645,6 +646,147 @@ describe('blankAreaDragBoxPlugin document routing', () => {
     } finally {
       view.dom.removeEventListener('mousedown', viewCaptureListener, true);
       vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('ignores right-clicks outside the editor so sidebar context menus do not change block selection', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+    const sidebarRow = document.createElement('div');
+
+    try {
+      document.body.appendChild(sidebarRow);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        button: 2,
+        buttons: 2,
+        clientX: 24,
+        clientY: 24,
+      });
+      sidebarRow.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(false);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+    } finally {
+      sidebarRow.remove();
+      await editor.destroy();
+    }
+  });
+
+  it('does not create block selection when left-clicking the notes sidebar', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+    const sidebarScrollRoot = document.createElement('div');
+    sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
+    const sidebarRow = document.createElement('div');
+    sidebarScrollRoot.appendChild(sidebarRow);
+
+    try {
+      document.body.appendChild(sidebarScrollRoot);
+      dispatchBlockSelectionAction(view, CLEAR_BLOCKS_ACTION);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        button: 0,
+        buttons: 1,
+        clientX: 24,
+        clientY: 24,
+      });
+      sidebarRow.dispatchEvent(mouseDown);
+      document.dispatchEvent(createMouseEvent('mouseup', {
+        clientX: 24,
+        clientY: 24,
+      }));
+      await waitForPointerClickSettled();
+
+      expect(mouseDown.defaultPrevented).toBe(false);
+      expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      sidebarScrollRoot.remove();
+      await editor.destroy();
+    }
+  });
+
+  it('collapses a native markdown blank-line node selection when left-clicking the notes sidebar', async () => {
+    const { editor, view } = await createBlockSelectionEditor([
+      'Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+    ].join('\n'));
+    const sidebarScrollRoot = document.createElement('div');
+    sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
+    const sidebarRow = document.createElement('div');
+    sidebarScrollRoot.appendChild(sidebarRow);
+
+    try {
+      document.body.appendChild(sidebarScrollRoot);
+      const blankLinePos = findNodePosition(
+        view,
+        'html_block',
+        (node) => node.attrs?.value === '<!--vlaina-markdown-blank-line-->',
+      );
+      view.dispatch(
+        view.state.tr
+          .setSelection(NodeSelection.create(view.state.doc, blankLinePos))
+          .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+      );
+      expect(view.state.selection).toBeInstanceOf(NodeSelection);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        button: 0,
+        buttons: 1,
+        clientX: 24,
+        clientY: 24,
+      });
+      sidebarRow.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(false);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      sidebarScrollRoot.remove();
+      await editor.destroy();
+    }
+  });
+
+  it('collapses a native markdown blank-line node selection when right-clicking the notes sidebar', async () => {
+    const { editor, view } = await createBlockSelectionEditor([
+      'Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+    ].join('\n'));
+    const sidebarScrollRoot = document.createElement('div');
+    sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
+    const sidebarRow = document.createElement('div');
+    sidebarScrollRoot.appendChild(sidebarRow);
+
+    try {
+      document.body.appendChild(sidebarScrollRoot);
+      const blankLinePos = findNodePosition(
+        view,
+        'html_block',
+        (node) => node.attrs?.value === '<!--vlaina-markdown-blank-line-->',
+      );
+      view.dispatch(
+        view.state.tr
+          .setSelection(NodeSelection.create(view.state.doc, blankLinePos))
+          .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+      );
+      expect(view.state.selection).toBeInstanceOf(NodeSelection);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        button: 2,
+        buttons: 2,
+        clientX: 24,
+        clientY: 24,
+      });
+      sidebarRow.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(false);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      sidebarScrollRoot.remove();
       await editor.destroy();
     }
   });

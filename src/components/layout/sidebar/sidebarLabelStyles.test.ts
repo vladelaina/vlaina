@@ -30,4 +30,9 @@ describe('sidebarLabelStyles', () => {
     expect(getSidebarIdleRowSurfaceClass('notes')).toContain('hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)]');
     expect(getSidebarIdleRowSurfaceClass('chat')).toContain('hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)]');
   });
+
+  it('keeps context-menu highlighted rows visually consistent with hover rows', () => {
+    expect(getSidebarToneStyles('notes').highlightRow).toContain('shadow-[var(--vlaina-shadow-sidebar-row-hover)]');
+    expect(getSidebarToneStyles('chat').highlightRow).toContain('shadow-[var(--vlaina-shadow-sidebar-row-hover)]');
+  });
 });
