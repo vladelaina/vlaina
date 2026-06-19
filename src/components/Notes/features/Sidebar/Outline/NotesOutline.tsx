@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { useUIStore } from '@/stores/uiSlice';
 import {
   getSidebarLabelClass,
   SIDEBAR_LABEL_TEXT_METRICS_CLASS,
@@ -32,21 +35,32 @@ import { themeIconTokens } from '@/styles/themeTokens';
 
 interface NotesOutlineProps {
   enabled: boolean;
+  currentNotePath?: string | null;
   className?: string;
   isPeeking?: boolean;
 }
 
 const OUTLINE_CLICK_DELAY_MS = 180;
 
-export function NotesOutline({ enabled, className, isPeeking = false }: NotesOutlineProps) {
+export function NotesOutline({
+  enabled,
+  currentNotePath,
+  className,
+  isPeeking = false,
+}: NotesOutlineProps) {
   const { t } = useI18n();
   const { headings, activeId, jumpToHeading, renameHeading } = useNotesOutline(enabled);
+  const hasStarredEntries = useNotesStore((s) => s.starredEntries.length > 0);
+  const starredLoaded = useNotesStore((s) => s.starredLoaded);
+  const setNotesSidebarView = useUIStore((s) => s.setNotesSidebarView);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
   const [renamingHeadingId, setRenamingHeadingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const clickTimerRef = useRef<number | null>(null);
+  const hasCurrentFile = Boolean(currentNotePath && !isDraftNotePath(currentNotePath));
+  const shouldShowOpenTargetActions = starredLoaded && !hasStarredEntries && !hasCurrentFile;
 
   useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
@@ -101,6 +115,16 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
     setRenameValue(fallbackHeading?.text ?? '');
     setRenamingHeadingId(null);
   }, [headings, renameHeading, renameValue]);
+
+  const handleOpenMarkdownFile = useCallback(() => {
+    setNotesSidebarView('workspace');
+    window.dispatchEvent(new Event('app-open-markdown-target-file'));
+  }, [setNotesSidebarView]);
+
+  const handleOpenFolder = useCallback(() => {
+    setNotesSidebarView('workspace');
+    window.dispatchEvent(new Event('app-open-markdown-target-folder'));
+  }, [setNotesSidebarView]);
 
   const renderTreeNodes = useCallback((nodes: readonly OutlineTreeNode[]) => {
     return nodes.map((node) => {
@@ -229,7 +253,11 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
             >
               {headings.length === 0 ? (
                 <NotesSidebarPillEmptyHint
-                  title={t('notes.outlineEmpty')}
+                  title={shouldShowOpenTargetActions ? undefined : t('notes.outlineEmpty')}
+                  actions={shouldShowOpenTargetActions ? [
+                    { label: t('notes.file'), onAction: handleOpenMarkdownFile },
+                    { label: t('notes.folder'), onAction: handleOpenFolder },
+                  ] : undefined}
                 />
               ) : null}
             </div>
