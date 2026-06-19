@@ -65,6 +65,7 @@ export function NotesSidebarPanel({
         <Suspense fallback={null}>
           <NotesOutline
             enabled={isActive && Boolean(currentNotePath) && effectiveSidebarView === 'outline'}
+            currentNotePath={currentNotePath}
             isPeeking={isPeeking}
             className="min-h-0 flex-1"
           />
