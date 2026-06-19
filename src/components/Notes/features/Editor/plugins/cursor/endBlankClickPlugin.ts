@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Selection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { isClickBelowLastBlock, resolveTailBlankClickAction } from './endBlankClickUtils';
 
@@ -71,6 +71,55 @@ function createMeta(type: EndBlankClickMetaAction['type'], pos?: number): EndBla
     return { type };
 }
 
+function createTextSelectionNearDocumentPosition(
+    doc: {
+        content: { size: number };
+        descendants: (
+            callback: (
+                node: {
+                    isTextblock?: boolean;
+                    inlineContent?: boolean;
+                    content?: { size: number };
+                },
+                pos: number,
+            ) => boolean | void,
+        ) => void;
+        resolve: (pos: number) => unknown;
+    },
+    pos: number,
+): Selection {
+    let before: TextSelection | null = null;
+    let after: TextSelection | null = null;
+
+    doc.descendants((node, nodePos) => {
+        if (!node.isTextblock || !node.inlineContent) return true;
+
+        const start = nodePos + 1;
+        const end = start + (node.content?.size ?? 0);
+        if (nodePos <= pos) {
+            try {
+                before = TextSelection.create(doc as never, end);
+            } catch {
+                before = null;
+            }
+        }
+        if (after === null && nodePos >= pos) {
+            try {
+                after = TextSelection.create(doc as never, start);
+            } catch {
+                after = null;
+            }
+        }
+        return true;
+    });
+
+    const textSelection = before ?? after;
+    if (textSelection) return textSelection;
+
+    const resolvedPos = Math.max(0, Math.min(pos, doc.content.size));
+    return Selection.near(doc.resolve(resolvedPos) as never, -1);
+}
+
 export function hasTemporaryTailParagraph(state: any): boolean {
     const pluginState = endBlankClickPluginKey.getState(state) as EndBlankClickPluginState | undefined;
     return getTemporaryTailParagraphPos(state.doc, pluginState?.temporaryTailParagraphPos ?? null) !== null;
@@ -83,10 +132,11 @@ function removeTemporaryTailParagraph(view: EditorView): boolean {
     const node = view.state.doc.nodeAt(pos);
     if (!node?.nodeSize) return false;
 
-    const tr = view.state.tr
+    let tr = view.state.tr
         .delete(pos, pos + node.nodeSize)
         .setMeta(TEMPORARY_TAIL_PARAGRAPH_HISTORY_META, false)
         .setMeta(endBlankClickPluginKey, createMeta('clear-temporary-tail-paragraph'));
+    tr = tr.setSelection(createTextSelectionNearDocumentPosition(tr.doc, pos));
     view.dispatch(tr);
     return true;
 }
@@ -147,10 +197,12 @@ export const endBlankClickPlugin = $prose(() => {
             const node = newState.doc.nodeAt(pos);
             if (!node?.nodeSize) return null;
 
-            return newState.tr
+            let tr = newState.tr
                 .delete(pos, pos + node.nodeSize)
                 .setMeta(TEMPORARY_TAIL_PARAGRAPH_HISTORY_META, false)
                 .setMeta(endBlankClickPluginKey, createMeta('clear-temporary-tail-paragraph'));
+            tr = tr.setSelection(createTextSelectionNearDocumentPosition(tr.doc, pos));
+            return tr;
         },
         props: {
             handleDOMEvents: {

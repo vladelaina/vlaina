@@ -455,6 +455,59 @@ function shouldHandleDocumentBlockSelectionEvent(view: EditorView, event: Event)
   return true;
 }
 
+function createTextSelectionNearDocumentPosition(
+  doc: EditorState['doc'],
+  pos: number,
+  bias: -1 | 1 = -1,
+): TextSelection | null {
+  let before: TextSelection | null = null;
+  let after: TextSelection | null = null;
+
+  doc.descendants((node, nodePos) => {
+    if (!node.isTextblock || !node.inlineContent) return true;
+
+    const start = nodePos + 1;
+    const end = start + node.content.size;
+    if (nodePos <= pos) {
+      try {
+        before = TextSelection.create(doc, end);
+      } catch {
+        before = null;
+      }
+    }
+    if (after === null && nodePos >= pos) {
+      try {
+        after = TextSelection.create(doc, start);
+      } catch {
+        after = null;
+      }
+    }
+    return true;
+  });
+
+  return bias < 0 ? before ?? after : after ?? before;
+}
+
+function collapseNativeNodeSelectionForExternalMouseDown(view: EditorView, event: MouseEvent): boolean {
+  if (!(view.state.selection instanceof NodeSelection)) return false;
+  const target = event.target;
+  if (target instanceof Node && view.dom.contains(target)) return false;
+  if (isIgnoredBlankAreaDragBoxTarget(target)) return false;
+
+  const currentSelection = view.state.selection;
+  const nextSelection =
+    createTextSelectionNearDocumentPosition(view.state.doc, currentSelection.from, -1) ??
+    Selection.near(view.state.doc.resolve(Math.max(0, Math.min(currentSelection.from, view.state.doc.content.size))), -1);
+  if (nextSelection.eq(currentSelection)) return false;
+
+  view.dispatch(
+    view.state.tr
+      .setSelection(nextSelection)
+      .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+  );
+  return true;
+}
+
 function handleDocumentBlockSelectionPaste(view: EditorView, event: ClipboardEvent): boolean {
   const capturedSelectedBlocks = getBlockSelectionPluginState(view.state).selectedBlocks;
   let handled = false;
@@ -733,6 +786,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
+          if (event.button !== 0) return false;
           if (shouldIgnoreBlankAreaDragBoxMouseDown(view, event)) {
             return false;
           }
@@ -824,6 +878,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         event.stopImmediatePropagation();
       };
       const handleDocumentMouseDown = (event: MouseEvent) => {
+        collapseNativeNodeSelectionForExternalMouseDown(view, event);
+        if (event.button !== 0) return;
         if (shouldIgnoreBlankAreaDragBoxMouseDown(view, event)) {
           return;
         }

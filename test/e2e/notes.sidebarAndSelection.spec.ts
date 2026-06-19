@@ -1,8 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   BLOCK_CONTROLS_SELECTOR,
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
+  NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR,
   NOTES_VIEW_SELECTOR,
   NOTE_SOURCE_FALLBACK_SELECTOR,
   SELECTED_BLOCK_SELECTOR,
@@ -18,6 +19,19 @@ import {
   selectNoteBlocksByText,
   setAppViewMode,
 } from './notesE2E';
+
+const SELECTED_NODE_SELECTOR = `${EDITOR_SELECTOR} .ProseMirror-selectednode`;
+const SELECTED_MARKDOWN_BLANK_LINE_SELECTOR = [
+  `${EDITOR_SELECTOR} [data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"].editor-block-selected`,
+  `${EDITOR_SELECTOR} [data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"].ProseMirror-selectednode`,
+  `${EDITOR_SELECTOR} p.editor-editable-markdown-blank-line.editor-block-selected`,
+  `${EDITOR_SELECTOR} p.editor-editable-markdown-blank-line.ProseMirror-selectednode`,
+].join(', ');
+const SIDEBAR_CONTEXT_MENU_LAYER_SELECTOR = [
+  '[data-notes-sidebar-context-menu-layer="true"]',
+  '[data-sidebar-context-menu-layer="true"]',
+].join(', ');
+const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-root="true"]';
 
 function createSidebarMarkdown(label: string): string {
   return [
@@ -41,8 +55,157 @@ function createSidebarMarkdown(label: string): string {
   ].join('\n');
 }
 
+function createTrailingBlankLineMarkdown(label: string): string {
+  return [
+    `# ${label} trailing blank line note`,
+    '',
+    `${label} body sentinel before the final markdown blank line.`,
+    '',
+    '<!--vlaina-markdown-blank-line-->',
+  ].join('\n');
+}
+
+async function getSidebarRowSurfaceVisual(row: Locator) {
+  return row.evaluate((element) => {
+    const surface = element.querySelector<HTMLElement>(':scope > div > div');
+    if (!surface) {
+      throw new Error('Could not resolve sidebar row surface');
+    }
+    const style = window.getComputedStyle(surface);
+    return {
+      backgroundColor: style.backgroundColor,
+      boxShadow: style.boxShadow,
+    };
+  });
+}
+
+async function expectNoEditorBlockOrNodeSelection(page: Page) {
+  await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+  await expect(page.locator(SELECTED_NODE_SELECTOR)).toHaveCount(0);
+  await expect(page.locator(SELECTED_MARKDOWN_BLANK_LINE_SELECTOR)).toHaveCount(0);
+}
+
 test.describe('notes sidebar and block selection interaction', () => {
   test.setTimeout(120_000);
+
+  test('keeps dark sidebar right-click highlighted without selecting the trailing blank line', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-sidebar-dark-right-click-blank-line');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'sidebar-dark-right-click-blank-line',
+        files: [
+          { filename: 'alpha-trailing-blank.md', content: createTrailingBlankLineMarkdown('Alpha') },
+          { filename: 'beta-context-target.md', content: createSidebarMarkdown('Beta') },
+        ],
+      });
+
+      await openVaultInNotes(page, {
+        vaultPath: fixture.vaultPath,
+        name: 'Sidebar Dark Right Click Vault',
+        minFileCount: 2,
+      });
+
+      await page.evaluate(() => {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      });
+
+      const alphaRow = page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'alpha-trailing-blank' }).first();
+      await expect(alphaRow).toBeVisible();
+      await alphaRow.click();
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Alpha body sentinel before the final markdown blank line', {
+        timeout: 30_000,
+      });
+      await expectNoEditorBlockOrNodeSelection(page);
+
+      const bodyText = page.locator(EDITOR_SELECTOR).getByText('Alpha body sentinel before the final markdown blank line').first();
+      await expect(bodyText).toBeVisible();
+      await bodyText.click();
+      await expect.poll(
+        async () => page.evaluate(() => {
+          const editor = document.querySelector('.milkdown .ProseMirror');
+          return document.activeElement === editor || Boolean(document.activeElement?.closest('.ProseMirror'));
+        }),
+        { timeout: 5_000 },
+      ).toBe(true);
+
+      const trailingBlankPoint = await page.evaluate((editorSelector) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        if (!editor) return null;
+        const children = Array.from(editor.children).filter((child): child is HTMLElement => child instanceof HTMLElement);
+        const lastChild = children.at(-1);
+        if (!lastChild) return null;
+        lastChild.scrollIntoView({ block: 'center', inline: 'nearest' });
+        const editorRect = editor.getBoundingClientRect();
+        const lastRect = lastChild.getBoundingClientRect();
+        const x = Math.max(editorRect.left + 48, Math.min(lastRect.left + 48, editorRect.right - 24));
+        const y = Math.min(lastRect.bottom + 8, editorRect.bottom - 20);
+        const hit = document.elementFromPoint(x, y);
+        return {
+          x,
+          y,
+          hitInsideEditor: hit instanceof Node && editor.contains(hit),
+          hitIsEditor: hit === editor,
+          hitTagName: hit instanceof HTMLElement ? hit.tagName : null,
+          lastTagName: lastChild.tagName,
+          lastClassName: lastChild.className,
+        };
+      }, EDITOR_SELECTOR);
+      expect(trailingBlankPoint).not.toBeNull();
+      expect(trailingBlankPoint!.hitInsideEditor).toBe(true);
+      await page.mouse.click(trailingBlankPoint!.x, trailingBlankPoint!.y);
+      await expectNoEditorBlockOrNodeSelection(page);
+
+      await alphaRow.click({ button: 'right' });
+      await expect(page.locator(SIDEBAR_CONTEXT_MENU_LAYER_SELECTOR)).toBeVisible({ timeout: 10_000 });
+      await expectNoEditorBlockOrNodeSelection(page);
+      await page.keyboard.press('Escape');
+      await expect(page.locator(SIDEBAR_CONTEXT_MENU_LAYER_SELECTOR)).toHaveCount(0);
+
+      const betaRow = page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'beta-context-target' }).first();
+      await expect(betaRow).toBeVisible();
+      await betaRow.hover();
+      await page.waitForTimeout(120);
+      const hoverVisual = await getSidebarRowSurfaceVisual(betaRow);
+      expect(hoverVisual.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+      expect(hoverVisual.boxShadow).not.toBe('none');
+
+      await betaRow.click({ button: 'right' });
+      await expect(page.locator(SIDEBAR_CONTEXT_MENU_LAYER_SELECTOR)).toBeVisible({ timeout: 10_000 });
+
+      const editorBox = await page.locator(EDITOR_SELECTOR).boundingBox();
+      expect(editorBox).not.toBeNull();
+      await page.mouse.move(editorBox!.x + editorBox!.width / 2, editorBox!.y + 24);
+      await page.waitForTimeout(120);
+
+      const rightClickVisual = await getSidebarRowSurfaceVisual(betaRow);
+      expect(rightClickVisual.backgroundColor).toBe(hoverVisual.backgroundColor);
+      expect(rightClickVisual.boxShadow).toBe(hoverVisual.boxShadow);
+      await expectNoEditorBlockOrNodeSelection(page);
+
+      await page.keyboard.press('Escape');
+      await expect(page.locator(SIDEBAR_CONTEXT_MENU_LAYER_SELECTOR)).toHaveCount(0);
+
+      const blankSidebarArea = page.locator(NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR).first();
+      await expect(blankSidebarArea).toBeVisible();
+      const blankBox = await blankSidebarArea.boundingBox();
+      if (blankBox && blankBox.width > 2 && blankBox.height > 2) {
+        await page.mouse.click(blankBox.x + blankBox.width / 2, blankBox.y + blankBox.height / 2);
+      } else {
+        const scrollBox = await page.locator(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR).first().boundingBox();
+        expect(scrollBox).not.toBeNull();
+        await page.mouse.click(scrollBox!.x + scrollBox!.width / 2, scrollBox!.y + scrollBox!.height - 8);
+      }
+      await expectNoEditorBlockOrNodeSelection(page);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('opens notes from the left sidebar and keeps block selection responsive', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-sidebar-selection');

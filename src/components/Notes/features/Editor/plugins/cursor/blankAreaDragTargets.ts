@@ -8,7 +8,6 @@ import {
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
-const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 const NOTE_CONTENT_ROOT_SELECTOR = '[data-note-content-root="true"]';
 const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
@@ -103,12 +102,6 @@ function isPointInsideElementClientRects(element: Element, clientX: number, clie
     }
   }
   return false;
-}
-
-function isSidebarBlankStartTarget(target: HTMLElement): boolean {
-  const sidebarScrollRoot = target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR) as HTMLElement | null;
-  if (!sidebarScrollRoot) return false;
-  return target === sidebarScrollRoot || !!target.closest(NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR);
 }
 
 function isSameEditorExternalBlankAreaTarget(
@@ -391,13 +384,14 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
   const editorScrollRoot = getScrollRoot(view.dom);
   const targetScrollRoot = getScrollRoot(target);
   const isSameEditorScrollRoot = !!editorScrollRoot && !!targetScrollRoot && editorScrollRoot === targetScrollRoot;
-  const isSidebarBlankStart = isSidebarBlankStartTarget(target);
+  const isSidebarTarget = Boolean(target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR));
+  if (isSidebarTarget) return null;
   const isSameEditorBlankAreaStart = isSameEditorScrollRoot
     && (
       view.dom.contains(target) ||
       isSameEditorExternalBlankAreaTarget(view, target, editorScrollRoot)
     );
-  if (!isSameEditorBlankAreaStart && !isSidebarBlankStart) return null;
+  if (!isSameEditorBlankAreaStart) return null;
 
   if (target.closest(COVER_REGION_SELECTOR)) return null;
   if (target.closest(INTERACTIVE_SELECTOR)) return null;
@@ -455,10 +449,6 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     : null;
   if (externalTextLineHit?.type === 'gutter' || externalTextLineHit?.type === 'measurement-limit') {
     return null;
-  }
-
-  if (isSidebarBlankStart) {
-    return 'outside-editor';
   }
 
   return isSameEditorBlankAreaStart ? 'outside-editor' : null;
