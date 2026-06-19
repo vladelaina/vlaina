@@ -287,9 +287,9 @@ describe('blockSelectionLineFillOverlay', () => {
 
     expect(fill).not.toBeNull();
     expect(fill?.style.left).toBe('-72px');
-    expect(fill?.style.top).toBe('76px');
+    expect(fill?.style.top).toBe('74px');
     expect(fill?.style.width).toBe('644px');
-    expect(fill?.style.height).toBe('60px');
+    expect(fill?.style.height).toBe('64px');
 
     overlay.destroy();
   });
@@ -354,8 +354,8 @@ describe('blockSelectionLineFillOverlay', () => {
     try {
       const overlay = createBlockSelectionLineFillOverlay(view);
       const initialFill = host.querySelector<HTMLElement>('.editor-block-selection-line-fill');
-      expect(initialFill?.style.top).toBe('76px');
-      expect(initialFill?.style.height).toBe('60px');
+      expect(initialFill?.style.top).toBe('74px');
+      expect(initialFill?.style.height).toBe('64px');
 
       imageTop = 126;
       imageBottom = 206;
@@ -363,8 +363,8 @@ describe('blockSelectionLineFillOverlay', () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
       const refreshedFill = host.querySelector<HTMLElement>('.editor-block-selection-line-fill');
-      expect(refreshedFill?.style.top).toBe('106px');
-      expect(refreshedFill?.style.height).toBe('80px');
+      expect(refreshedFill?.style.top).toBe('104px');
+      expect(refreshedFill?.style.height).toBe('84px');
 
       overlay.destroy();
     } finally {

@@ -24,6 +24,7 @@ import {
   resolveIntersectedBlockRangesFromYIndex,
   type BlockRect,
 } from './blockSelectionUtils';
+import { collectSelectableBlockRanges } from './blockUnitResolver';
 
 async function createEditor(markdown: string) {
   const editor = Editor.make()
@@ -458,6 +459,33 @@ describe('blockSelectionUtils', () => {
     expect(classes[1]).toContain('editor-block-selected-textlike');
     expect(classes[1]).toContain('editor-block-selected-has-previous');
     expect(classes[1]).not.toContain('editor-block-selected-has-next');
+
+    await editor.destroy();
+  });
+
+  it('marks hard-break paragraph edges adjacent across paragraph boundary tokens', async () => {
+    const editor = await createEditor(['alpha\\', 'bravo', '', 'charlie'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const ranges = collectSelectableBlockRanges(view.state.doc);
+
+    expect(ranges).toHaveLength(3);
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    const decorationRows = decorations.find().map((decoration: Decoration) => ({
+      from: decoration.from,
+      to: decoration.to,
+      className: String((decoration.type as any).attrs?.class ?? ''),
+    }));
+    const classByFrom = new Map(decorationRows.map((row) => [row.from, row.className]));
+
+    expect(classByFrom.get(ranges[0].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-next');
+    expect(classByFrom.get(ranges[1].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-previous');
+    expect(classByFrom.get(ranges[1].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-next');
+    expect(classByFrom.get(ranges[2].from), JSON.stringify(decorationRows, null, 2))
+      .toContain('editor-block-selected-has-previous');
 
     await editor.destroy();
   });
