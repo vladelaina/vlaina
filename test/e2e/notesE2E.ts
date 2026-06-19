@@ -75,7 +75,9 @@ export async function getOpenBridgePages(app: ElectronApplication, count: number
   return pages;
 }
 
-export async function launchIsolatedElectron(label: string): Promise<{
+export async function launchIsolatedElectron(label: string, options: {
+  args?: string[];
+} = {}): Promise<{
   app: ElectronApplication;
   userDataRoot: string;
 }> {
@@ -84,7 +86,7 @@ export async function launchIsolatedElectron(label: string): Promise<{
   const userDataDir = path.join(userDataRoot, 'user-data');
 
   const app = await electron.launch({
-    args: ['.'],
+    args: ['.', ...(options.args ?? [])],
     env: {
       ...process.env,
       VITE_DEV_SERVER_URL: `${E2E_DEV_SERVER_URL}?e2e=1`,

@@ -34,6 +34,16 @@ vi.mock('@/stores/notes/autoSaveableDrafts', () => ({
 import { useNotesStore } from './useNotesStore';
 import { useVaultStore } from './useVaultStore';
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('useVaultStore dirty note protection', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -90,6 +100,67 @@ describe('useVaultStore dirty note protection', () => {
       path: '/vault/next',
     });
     expect(useNotesStore.getState().notesPath).toBe('/vault/next');
+  });
+
+  it('does not let startup initialization clear a vault opened while initialization is in flight', async () => {
+    localStorage.setItem('vlaina-vaults', JSON.stringify([
+      {
+        id: 'vault-stale',
+        name: 'stale',
+        path: '/vault/stale',
+        lastOpened: 1,
+      },
+    ]));
+    localStorage.setItem('vlaina-current-vault', JSON.stringify('vault-stale'));
+
+    useVaultStore.setState({
+      currentVault: null,
+      recentVaults: [],
+      isLoading: false,
+      hasInitialized: false,
+      error: null,
+    });
+    useNotesStore.setState({
+      notesPath: '',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+      rootFolder: null,
+      rootFolderPath: null,
+      noteContentsCache: new Map(),
+      draftNotes: {},
+      starredEntries: [],
+      starredNotes: [],
+      starredFolders: [],
+      noteMetadata: { version: 1, notes: {} },
+    });
+
+    const staleVaultExists = createDeferred<boolean>();
+    mocks.storage.exists.mockImplementation(async (path: string) => {
+      if (path === '/vault/stale') {
+        return staleVaultExists.promise;
+      }
+      return true;
+    });
+
+    const initializePromise = useVaultStore.getState().initialize();
+    await vi.waitFor(() => {
+      expect(mocks.storage.exists).toHaveBeenCalledWith('/vault/stale');
+    });
+
+    await expect(useVaultStore.getState().openVault('/vault/from-open-file')).resolves.toBe(true);
+    staleVaultExists.resolve(false);
+    await initializePromise;
+
+    expect(useVaultStore.getState().currentVault).toMatchObject({
+      name: 'from-open-file',
+      path: '/vault/from-open-file',
+    });
+    expect(useVaultStore.getState().recentVaults[0]).toMatchObject({
+      path: '/vault/from-open-file',
+    });
+    expect(useNotesStore.getState().notesPath).toBe('/vault/from-open-file');
+    expect(useVaultStore.getState().hasInitialized).toBe(true);
   });
 
   it('clears note workspace state before switching to another vault', async () => {

@@ -429,6 +429,22 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
       setupBroadcastChannel();
 
+      const runtimeVault = get().currentVault;
+      if (runtimeVault) {
+        const normalizedRuntimeVault = normalizeVaultInfo(runtimeVault);
+        set({
+          recentVaults: normalizeRecentVaults([
+            ...(normalizedRuntimeVault ? [normalizedRuntimeVault] : []),
+            ...get().recentVaults,
+            ...recentVaults,
+          ]),
+          currentVault: normalizedRuntimeVault,
+          isLoading: false,
+          hasInitialized: true,
+        });
+        return;
+      }
+
       set({ recentVaults, currentVault, isLoading: false, hasInitialized: true });
     } catch (error) {
       set({
