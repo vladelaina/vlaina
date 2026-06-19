@@ -54,7 +54,6 @@ export function NotesOutline({
   const hasStarredEntries = useNotesStore((s) => s.starredEntries.length > 0);
   const starredLoaded = useNotesStore((s) => s.starredLoaded);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
-  const setNotesSidebarView = useUIStore((s) => s.setNotesSidebarView);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
   const [renamingHeadingId, setRenamingHeadingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -119,14 +118,12 @@ export function NotesOutline({
   }, [headings, renameHeading, renameValue]);
 
   const handleOpenMarkdownFile = useCallback(() => {
-    setNotesSidebarView('workspace');
     window.dispatchEvent(new Event('app-open-markdown-target-file'));
-  }, [setNotesSidebarView]);
+  }, []);
 
   const handleOpenFolder = useCallback(() => {
-    setNotesSidebarView('workspace');
     window.dispatchEvent(new Event('app-open-markdown-target-folder'));
-  }, [setNotesSidebarView]);
+  }, []);
 
   const renderTreeNodes = useCallback((nodes: readonly OutlineTreeNode[]) => {
     return nodes.map((node) => {

@@ -15,7 +15,7 @@ import {
 
 interface UseBlankWorkspaceDropOpenOptions {
   enabled: boolean;
-  openMarkdownTarget: (absolutePath: string) => Promise<void>;
+  openMarkdownTarget: (absolutePath: string) => Promise<unknown>;
   openVault: (path: string) => Promise<boolean>;
 }
 

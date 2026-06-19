@@ -24,8 +24,8 @@ export function useNotesOpenTargetPicker({
   active: boolean;
   currentVaultPath: string | null;
   isOpenTargetBusy: boolean;
-  openMarkdownTarget: (selected: string) => Promise<void>;
-  openFolderTarget: (selected: string) => Promise<void>;
+  openMarkdownTarget: (selected: string) => Promise<boolean>;
+  openFolderTarget: (selected: string) => Promise<boolean>;
 }) {
   const { t } = useI18n();
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
@@ -33,7 +33,6 @@ export function useNotesOpenTargetPicker({
   const handleOpenSelectedTarget = useCallback(async (targetKind: 'file' | 'folder') => {
     if (isOpenTargetBusy) return;
 
-    setNotesSidebarView('workspace');
     const targetLabel = targetKind === 'folder' ? t('notes.folder') : t('notes.file');
     let selected: string | null;
     try {
@@ -58,7 +57,10 @@ export function useNotesOpenTargetPicker({
     if (!selected) return;
 
     if (targetKind === 'folder') {
-      await openFolderTarget(selected);
+      const opened = await openFolderTarget(selected);
+      if (opened) {
+        setNotesSidebarView('workspace');
+      }
       return;
     }
 
@@ -70,7 +72,10 @@ export function useNotesOpenTargetPicker({
       return;
     }
 
-    await openMarkdownTarget(selected);
+    const opened = await openMarkdownTarget(selected);
+    if (opened) {
+      setNotesSidebarView('workspace');
+    }
   }, [currentVaultPath, isOpenTargetBusy, openFolderTarget, openMarkdownTarget, setNotesSidebarView, t]);
 
   useEffect(() => {

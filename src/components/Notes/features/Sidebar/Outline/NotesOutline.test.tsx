@@ -92,7 +92,7 @@ describe('NotesOutline', () => {
     expect(affordance?.className).not.toContain('hover:text-[var(--vlaina-sidebar-notes-text)]');
   });
 
-  it('shows open target actions when no file or starred entry is available', () => {
+  it('shows open target actions without switching sidebar views when no file or starred entry is available', () => {
     hoisted.outlineState.headings = [];
     const openFileListener = vi.fn();
     window.addEventListener('app-open-markdown-target-file', openFileListener);
@@ -103,7 +103,7 @@ describe('NotesOutline', () => {
       expect(screen.getByText('notes.outlineEmpty')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'notes.file' }));
 
-      expect(hoisted.setNotesSidebarView).toHaveBeenCalledWith('workspace');
+      expect(hoisted.setNotesSidebarView).not.toHaveBeenCalled();
       expect(openFileListener).toHaveBeenCalledTimes(1);
     } finally {
       window.removeEventListener('app-open-markdown-target-file', openFileListener);

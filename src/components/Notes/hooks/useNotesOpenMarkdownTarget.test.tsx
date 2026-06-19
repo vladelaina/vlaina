@@ -69,11 +69,13 @@ describe('useNotesOpenMarkdownTarget', () => {
 
   it('opens absolute markdown targets inside the current vault as vault-relative notes', async () => {
     const { props, result } = renderTargetHook();
+    let opened = false;
 
     await act(async () => {
-      await result.current.openMarkdownTarget('/vault/daily/guide/setup.md');
+      opened = await result.current.openMarkdownTarget('/vault/daily/guide/setup.md');
     });
 
+    expect(opened).toBe(true);
     expect(props.openNote).toHaveBeenCalledWith('daily/guide/setup.md');
     expect(props.openVault).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
@@ -84,11 +86,13 @@ describe('useNotesOpenMarkdownTarget', () => {
     const { props, result } = renderTargetHook({
       isDirty: true,
     });
+    let opened = true;
 
     await act(async () => {
-      await result.current.openMarkdownTarget('/vault/daily/image.png');
+      opened = await result.current.openMarkdownTarget('/vault/daily/image.png');
     });
 
+    expect(opened).toBe(false);
     expect(props.saveNote).not.toHaveBeenCalled();
     expect(props.openNote).not.toHaveBeenCalled();
     expect(props.openVault).not.toHaveBeenCalled();

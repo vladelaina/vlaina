@@ -148,7 +148,7 @@ export function useNotesOpenMarkdownTarget({
         title: t('notes.unsupportedFile'),
         kind: 'warning',
       });
-      return;
+      return false;
     }
 
     let target: ReturnType<typeof resolveOpenNoteTarget>;
@@ -168,7 +168,7 @@ export function useNotesOpenMarkdownTarget({
         title: t('notes.openFailed'),
         kind: 'error',
       });
-      return;
+      return false;
     }
 
     setIsOpenTargetBusy(true);
@@ -177,7 +177,7 @@ export function useNotesOpenMarkdownTarget({
 
       const canContinue = await saveCurrentNoteIfNeeded();
       if (!canContinue) {
-        return;
+        return false;
       }
 
       const targetNotePath = target.notePath;
@@ -202,7 +202,7 @@ export function useNotesOpenMarkdownTarget({
           currentVaultPathForTarget: normalizedCurrentVaultPath,
         });
         const currentVaultPathForTarget = normalizedCurrentVaultPath;
-        if (!currentVaultPathForTarget) return;
+        if (!currentVaultPathForTarget) return false;
         const opened = await openShortcutNoteTarget({
           vaultPath: currentVaultPathForTarget,
           notePath: currentVaultRelativePath,
@@ -214,7 +214,7 @@ export function useNotesOpenMarkdownTarget({
             kind: 'error',
           });
         }
-        return;
+        return opened;
       }
 
       if (normalizedCurrentVaultPath === normalizedTargetVaultPath && normalizedNotesPath === normalizedTargetVaultPath) {
@@ -233,7 +233,7 @@ export function useNotesOpenMarkdownTarget({
             kind: 'error',
           });
         }
-        return;
+        return opened;
       }
 
       setPendingShortcutNoteTarget({
@@ -274,7 +274,9 @@ export function useNotesOpenMarkdownTarget({
             kind: 'error',
           });
         }
+        return opened;
       }
+      return true;
     } catch (error) {
       setPendingShortcutNoteTarget(null);
       recordDiagnostic('notes.openMarkdownTarget', 'request_failed', {
@@ -285,6 +287,7 @@ export function useNotesOpenMarkdownTarget({
         title: t('notes.openFailed'),
         kind: 'error',
       });
+      return false;
     } finally {
       setIsOpenTargetBusy(false);
     }
@@ -297,7 +300,7 @@ export function useNotesOpenMarkdownTarget({
 
       const canContinue = await saveCurrentNoteIfNeeded();
       if (!canContinue) {
-        return;
+        return false;
       }
 
       const openedVault = await openVault(selected);
@@ -307,11 +310,13 @@ export function useNotesOpenMarkdownTarget({
           kind: 'error',
         });
       }
+      return openedVault;
     } catch (error) {
       await messageDialog(error instanceof Error ? error.message : t('vault.openFolderFailed'), {
         title: t('notes.openFailed'),
         kind: 'error',
       });
+      return false;
     } finally {
       setIsOpenTargetBusy(false);
     }

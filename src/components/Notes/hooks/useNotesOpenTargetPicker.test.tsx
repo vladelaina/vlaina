@@ -72,8 +72,8 @@ function renderPicker(overrides: Partial<Parameters<typeof useNotesOpenTargetPic
     active: true,
     currentVaultPath: '/vault',
     isOpenTargetBusy: false,
-    openMarkdownTarget: vi.fn(async () => undefined),
-    openFolderTarget: vi.fn(async () => undefined),
+    openMarkdownTarget: vi.fn(async () => true),
+    openFolderTarget: vi.fn(async () => true),
     ...overrides,
   };
 
@@ -186,6 +186,21 @@ describe('useNotesOpenTargetPicker', () => {
     });
   });
 
+  it('switches to the files sidebar after opening a selected file target', async () => {
+    vi.mocked(openDialog).mockResolvedValueOnce('/vault/guide.md');
+    const { props } = renderPicker();
+
+    await act(async () => {
+      window.dispatchEvent(new Event('app-open-markdown-target-file'));
+    });
+
+    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/vault/guide.md');
+    expect(mocks.setNotesSidebarView).toHaveBeenCalledWith('workspace');
+    expect(vi.mocked(props.openMarkdownTarget).mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.setNotesSidebarView.mock.invocationCallOrder[0],
+    );
+  });
+
   it('switches to the files sidebar when opening a folder target', async () => {
     vi.mocked(openDialog).mockResolvedValueOnce('/vault/projects');
     const { props } = renderPicker();
@@ -196,5 +211,34 @@ describe('useNotesOpenTargetPicker', () => {
 
     expect(mocks.setNotesSidebarView).toHaveBeenCalledWith('workspace');
     expect(props.openFolderTarget).toHaveBeenCalledWith('/vault/projects');
+    expect(vi.mocked(props.openFolderTarget).mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.setNotesSidebarView.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('keeps the current sidebar view when the target picker is cancelled', async () => {
+    vi.mocked(openDialog).mockResolvedValueOnce(null);
+    const { props } = renderPicker();
+
+    await act(async () => {
+      window.dispatchEvent(new Event('app-open-markdown-target-file'));
+    });
+
+    expect(props.openMarkdownTarget).not.toHaveBeenCalled();
+    expect(mocks.setNotesSidebarView).not.toHaveBeenCalled();
+  });
+
+  it('keeps the current sidebar view when a selected file fails to open', async () => {
+    vi.mocked(openDialog).mockResolvedValueOnce('/vault/guide.md');
+    const { props } = renderPicker({
+      openMarkdownTarget: vi.fn(async () => false),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event('app-open-markdown-target-file'));
+    });
+
+    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/vault/guide.md');
+    expect(mocks.setNotesSidebarView).not.toHaveBeenCalled();
   });
 });
