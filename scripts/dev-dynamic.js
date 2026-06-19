@@ -40,6 +40,18 @@ const ELECTRON_WATCH_PATHS = [
   path.join(repoRoot, 'vite.config.ts'),
   path.join(repoRoot, 'tsconfig.node.json'),
 ];
+const DEV_PROFILE_COPY_SKIP_NAMES = new Set([
+  'Cache',
+  'Code Cache',
+  'Crashpad',
+  'DawnCache',
+  'GPUCache',
+  'GrShaderCache',
+  'ShaderCache',
+  'SingletonCookie',
+  'SingletonLock',
+  'SingletonSocket',
+]);
 
 const isWindows = process.platform === 'win32';
 const pnpmCommand = isWindows ? 'pnpm.cmd' : 'pnpm';
@@ -301,6 +313,70 @@ function spawnPnpm(args, env, label) {
   });
 
   return child;
+}
+
+function getDefaultElectronUserDataPath(env) {
+  const appName = 'vlaina';
+  const home = env.HOME || env.USERPROFILE || '';
+
+  if (process.platform === 'darwin') {
+    return path.join(home, 'Library', 'Application Support', appName);
+  }
+
+  if (process.platform === 'win32') {
+    return path.join(env.APPDATA || path.join(home, 'AppData', 'Roaming'), appName);
+  }
+
+  return path.join(env.XDG_CONFIG_HOME || path.join(home, '.config'), appName);
+}
+
+function shouldCopyDevelopmentProfileEntry(sourcePath) {
+  return !DEV_PROFILE_COPY_SKIP_NAMES.has(path.basename(sourcePath));
+}
+
+function copyDevelopmentProfileSnapshot(sourcePath, targetPath) {
+  if (!fs.existsSync(sourcePath)) {
+    fs.mkdirSync(targetPath, { recursive: true });
+    return false;
+  }
+
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.cpSync(sourcePath, targetPath, {
+    recursive: true,
+    errorOnExist: false,
+    force: false,
+    filter: shouldCopyDevelopmentProfileEntry,
+  });
+  return true;
+}
+
+function configureDevelopmentProfileEnv(env, port) {
+  if (env.VLAINA_USER_DATA_DIR?.trim()) {
+    return env;
+  }
+
+  if (port === DEFAULT_PORT) {
+    return env;
+  }
+
+  const sourceUserDataPath = getDefaultElectronUserDataPath(env);
+  const targetUserDataPath = path.join(repoRoot, 'temp', `electron-user-data-${port}`);
+  const copiedProfile = copyDevelopmentProfileSnapshot(sourceUserDataPath, targetUserDataPath);
+
+  log(
+    '33',
+    copiedProfile
+      ? `Using cloned Electron userData for parallel dev: ${targetUserDataPath}`
+      : `Using empty Electron userData for parallel dev: ${targetUserDataPath}`
+  );
+  if (copiedProfile) {
+    log('90', `  cloned from ${sourceUserDataPath}`);
+  }
+
+  return {
+    ...env,
+    VLAINA_USER_DATA_DIR: targetUserDataPath,
+  };
 }
 
 function parseDependencyUpdateCheckOutput(output) {
@@ -662,11 +738,11 @@ function updateLinuxDesktopActivationEnvironment(env) {
 async function startDev() {
   const port = await findAvailablePort(DEFAULT_PORT);
   const devUrl = `http://127.0.0.1:${port}`;
-  const env = {
+  const env = configureDevelopmentProfileEnv({
     ...process.env,
     VITE_PORT: String(port),
     VITE_DEV_SERVER_URL: devUrl,
-  };
+  }, port);
 
   log('32', `Using renderer port ${port}`);
   log('36', `Renderer URL ${devUrl}`);
