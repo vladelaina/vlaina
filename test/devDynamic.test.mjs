@@ -57,4 +57,22 @@ describe('chooseAvailablePort', () => {
 
     expect(delay).toHaveBeenCalledTimes(2);
   });
+
+  it('reuses the lowest available port instead of appending after higher occupied ports', async () => {
+    const delay = vi.fn(async () => {});
+    const occupiedPorts = new Set([3000, 3003, 3004]);
+    const checkPortAvailable = vi.fn(async (port) => !occupiedPorts.has(port));
+
+    await expect(
+      chooseAvailablePort(3000, {
+        checkPortAvailable,
+        delay,
+        maxPort: 3006,
+        reuseGraceMs: 200,
+        retryIntervalMs: 100,
+      })
+    ).resolves.toBe(3001);
+
+    expect(checkPortAvailable).toHaveBeenLastCalledWith(3001);
+  });
 });
