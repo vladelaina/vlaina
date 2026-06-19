@@ -1,8 +1,12 @@
 import electron from 'electron';
 import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const { app } = electron;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = path.dirname(__dirname);
 
 const authorizedFsRootPaths = new Set();
 const authorizedFsFilePaths = new Set();
@@ -127,6 +131,26 @@ function getDevelopmentUserDataOverridePath() {
   return overridePath ? path.resolve(overridePath) : null;
 }
 
+function getDevelopmentRepoUserDataRootPath(candidatePath) {
+  if (app.isPackaged) {
+    return null;
+  }
+
+  const resolvedCandidatePath = normalizeFsPathForAccess(candidatePath);
+  const tempRootPath = path.join(repoRoot, 'temp');
+  const relativePath = path.relative(tempRootPath, resolvedCandidatePath);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    return null;
+  }
+
+  const [firstSegment] = relativePath.split(path.sep);
+  if (!/^electron-user-data-\d+$/.test(firstSegment ?? '')) {
+    return null;
+  }
+
+  return path.join(tempRootPath, firstSegment);
+}
+
 function getUserDataAccessRootPaths() {
   const paths = [];
 
@@ -201,13 +225,50 @@ export function isProtectedAppDataPath(candidatePath, userDataPath = app.getPath
 }
 
 async function isProtectedFsAccessPath(candidatePath) {
-  for (const userDataPath of getUserDataAccessRootPaths()) {
+  const userDataPaths = getUserDataAccessRootPaths();
+  const developmentRepoUserDataRootPath = getDevelopmentRepoUserDataRootPath(candidatePath);
+  if (developmentRepoUserDataRootPath) {
+    userDataPaths.push(developmentRepoUserDataRootPath);
+  }
+
+  for (const userDataPath of userDataPaths) {
     if (isProtectedAppDataPath(candidatePath, userDataPath)) {
       return true;
     }
 
     const realUserDataPath = await resolveRealFsAccessPath(userDataPath).catch(() => null);
     if (realUserDataPath && isProtectedAppDataPath(candidatePath, realUserDataPath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function isUserDataFsAccessPath(resolvedPath, realAccessPath) {
+  const resolvedPathKey = normalizeFsPathKey(resolvedPath);
+  const realAccessPathKey = normalizeFsPathKey(realAccessPath);
+  const paths = getUserDataAccessRootPaths();
+  const developmentRepoUserDataRootPath = getDevelopmentRepoUserDataRootPath(resolvedPath);
+  if (developmentRepoUserDataRootPath) {
+    paths.push(developmentRepoUserDataRootPath);
+  }
+
+  const seen = new Set();
+  for (const userDataPath of paths) {
+    const userDataPathKey = normalizeFsPathKey(userDataPath);
+    if (seen.has(userDataPathKey)) {
+      continue;
+    }
+    seen.add(userDataPathKey);
+
+    const realUserDataPath = await resolveRealFsAccessPath(userDataPath).catch(() => null);
+    const realUserDataPathKey = realUserDataPath ? normalizeFsPathKey(realUserDataPath) : userDataPathKey;
+
+    if (
+      isSameOrChildPath(userDataPathKey, resolvedPathKey) &&
+      isSameOrChildPath(realUserDataPathKey, realAccessPathKey)
+    ) {
       return true;
     }
   }
@@ -356,6 +417,10 @@ export async function assertSafeFsAccessPath(filePath) {
 
 export async function assertAuthorizedFsPath(filePath) {
   const { resolvedPath, realAccessPath } = await resolveSafeFsAccessPath(filePath);
+  if (await isUserDataFsAccessPath(resolvedPath, realAccessPath)) {
+    return resolvedPath;
+  }
+
   const pathKey = normalizeFsPathKey(realAccessPath);
   if (!isAuthorizedFsPathKey(pathKey)) {
     throw new Error(`File path is not authorized for desktop access: ${resolvedPath}`);
@@ -366,6 +431,10 @@ export async function assertAuthorizedFsPath(filePath) {
 
 export async function assertAuthorizedFsWatchPath(filePath) {
   const { resolvedPath, realAccessPath } = await resolveSafeFsAccessPath(filePath);
+  if (await isUserDataFsAccessPath(resolvedPath, realAccessPath)) {
+    return resolvedPath;
+  }
+
   const pathKey = normalizeFsPathKey(realAccessPath);
   if (!isAuthorizedFsWatchPathKey(pathKey)) {
     throw new Error(`File path is not authorized for desktop watch access: ${resolvedPath}`);

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
+import { ProductionDiagnosticsButton } from '@/components/Diagnostics/ProductionDiagnosticsButton';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -664,11 +665,24 @@ export function AppContent() {
     </>
   );
 
+  const showDiagnosticsOverlayForE2E =
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    new URL(window.location.href).searchParams.get('diagnosticsOverlay') === '1';
+  const diagnosticsOverlayButton = (
+    <ProductionDiagnosticsButton forceVisible={import.meta.env.DEV || showDiagnosticsOverlayForE2E} />
+  );
   const mainOverlay = import.meta.env.DEV && DevMainOverlay ? (
     <Suspense fallback={null}>
-      <DevMainOverlay effectiveAppViewMode={effectiveAppViewMode} />
+      <DevMainOverlay effectiveAppViewMode={effectiveAppViewMode}>
+        {diagnosticsOverlayButton}
+      </DevMainOverlay>
     </Suspense>
-  ) : null;
+  ) : (
+    <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
+      <ProductionDiagnosticsButton />
+    </div>
+  );
 
   return (
     <>

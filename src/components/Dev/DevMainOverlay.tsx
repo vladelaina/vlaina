@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -59,7 +59,13 @@ function DevOverlayButton({
   );
 }
 
-export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode: AppViewMode }) {
+export function DevMainOverlay({
+  children,
+  effectiveAppViewMode,
+}: {
+  children?: ReactNode;
+  effectiveAppViewMode: AppViewMode;
+}) {
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
   const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
   const toggleDevPlatformPreview = useUIStore((state) => state.toggleDevPlatformPreview);
@@ -147,6 +153,7 @@ export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode:
           onClick={() => setAppViewMode('lab')}
         />
       ) : null}
+      {children}
     </div>
   );
 }

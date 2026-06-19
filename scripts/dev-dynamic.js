@@ -42,18 +42,6 @@ const ELECTRON_WATCH_PATHS = [
   path.join(repoRoot, 'vite.config.ts'),
   path.join(repoRoot, 'tsconfig.node.json'),
 ];
-const DEV_PROFILE_COPY_SKIP_NAMES = new Set([
-  'Cache',
-  'Code Cache',
-  'Crashpad',
-  'DawnCache',
-  'GPUCache',
-  'GrShaderCache',
-  'ShaderCache',
-  'SingletonCookie',
-  'SingletonLock',
-  'SingletonSocket',
-]);
 
 const isWindows = process.platform === 'win32';
 const pnpmCommand = isWindows ? 'pnpm.cmd' : 'pnpm';
@@ -364,43 +352,34 @@ function spawnPnpm(args, env, label) {
   return child;
 }
 
-function getDefaultElectronUserDataPath(env) {
-  const appName = 'vlaina';
-  const home = env.HOME || env.USERPROFILE || '';
-
-  if (process.platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', appName);
-  }
-
-  if (process.platform === 'win32') {
-    return path.join(env.APPDATA || path.join(home, 'AppData', 'Roaming'), appName);
-  }
-
-  return path.join(env.XDG_CONFIG_HOME || path.join(home, '.config'), appName);
-}
-
 export function getDevelopmentUserDataPath(port) {
   return path.join(repoRoot, 'temp', `electron-user-data-${port}`);
 }
 
-function shouldCopyDevelopmentProfileEntry(sourcePath) {
-  return !DEV_PROFILE_COPY_SKIP_NAMES.has(path.basename(sourcePath));
-}
+export function ensureIsolatedDevelopmentUserDataPath(targetUserDataPath, options = {}) {
+  const {
+    fsModule = fs,
+    log: logFn = log,
+  } = options;
 
-function copyDevelopmentProfileSnapshot(sourcePath, targetPath) {
-  if (!fs.existsSync(sourcePath)) {
-    fs.mkdirSync(targetPath, { recursive: true });
-    return false;
+  fsModule.mkdirSync(targetUserDataPath, { recursive: true });
+
+  const vlainaDataPath = path.join(targetUserDataPath, '.vlaina');
+  try {
+    const info = fsModule.lstatSync(vlainaDataPath);
+    if (!info.isSymbolicLink()) {
+      return;
+    }
+
+    fsModule.unlinkSync(vlainaDataPath);
+    logFn('33', `Removed shared .vlaina symlink from isolated Electron userData: ${vlainaDataPath}`);
+  } catch (error) {
+    if (!error || error.code !== 'ENOENT') {
+      throw error;
+    }
   }
 
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.cpSync(sourcePath, targetPath, {
-    recursive: true,
-    errorOnExist: false,
-    force: false,
-    filter: shouldCopyDevelopmentProfileEntry,
-  });
-  return true;
+  fsModule.mkdirSync(vlainaDataPath, { recursive: true });
 }
 
 export function configureDevelopmentProfileEnv(env, port, options = {}) {
@@ -409,22 +388,15 @@ export function configureDevelopmentProfileEnv(env, port, options = {}) {
   }
 
   const {
-    copyProfileSnapshot = copyDevelopmentProfileSnapshot,
     log: logFn = log,
-    sourceUserDataPath = getDefaultElectronUserDataPath(env),
     targetUserDataPath = getDevelopmentUserDataPath(port),
   } = options;
-  const copiedProfile = copyProfileSnapshot(sourceUserDataPath, targetUserDataPath);
+  ensureIsolatedDevelopmentUserDataPath(targetUserDataPath, { log: logFn });
 
   logFn(
     '33',
-    copiedProfile
-      ? `Using cloned Electron userData for dev port ${port}: ${targetUserDataPath}`
-      : `Using empty Electron userData for dev port ${port}: ${targetUserDataPath}`
+    `Using isolated Electron userData for dev port ${port}: ${targetUserDataPath}`
   );
-  if (copiedProfile) {
-    logFn('90', `  cloned from ${sourceUserDataPath}`);
-  }
 
   return {
     ...env,
@@ -817,15 +789,13 @@ async function startDev() {
     VITE_PORT: String(port),
     VITE_DEV_SERVER_URL: devUrl,
   }, port);
+  if (!env.VLAINA_USER_DATA_DIR?.trim()) {
+    throw new Error('Dev startup requires isolated Electron userData');
+  }
 
   log('32', `Using renderer port ${port}`);
   log('36', `Renderer URL ${devUrl}`);
-  log(
-    '36',
-    env.VLAINA_USER_DATA_DIR
-      ? `Electron userData override ${env.VLAINA_USER_DATA_DIR}`
-      : 'Electron userData default app path'
-  );
+  log('36', `Electron userData ${env.VLAINA_USER_DATA_DIR}`);
 
   const rendererScript = process.env.VLAINA_FORCE_VITE_OPTIMIZE === '1'
     ? 'dev:renderer:force'

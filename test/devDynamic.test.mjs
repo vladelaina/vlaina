@@ -1,7 +1,9 @@
+import fs from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import {
   chooseAvailablePort,
   configureDevelopmentProfileEnv,
+  ensureIsolatedDevelopmentUserDataPath,
 } from '../scripts/dev-dynamic.js';
 
 describe('chooseAvailablePort', () => {
@@ -82,35 +84,88 @@ describe('chooseAvailablePort', () => {
 
 describe('configureDevelopmentProfileEnv', () => {
   it('uses isolated Electron userData for the preferred dev port too', () => {
-    const copyProfileSnapshot = vi.fn(() => false);
+    const mkdirSync = vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
     const log = vi.fn();
     const env = configureDevelopmentProfileEnv({ HOME: '/home/dev' }, 3000, {
-      copyProfileSnapshot,
       log,
-      sourceUserDataPath: '/home/dev/.config/vlaina',
       targetUserDataPath: '/repo/temp/electron-user-data-3000',
     });
 
     expect(env.VLAINA_USER_DATA_DIR).toBe('/repo/temp/electron-user-data-3000');
-    expect(copyProfileSnapshot).toHaveBeenCalledWith(
-      '/home/dev/.config/vlaina',
-      '/repo/temp/electron-user-data-3000',
+    expect(mkdirSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000', {
+      recursive: true,
+    });
+    expect(log).toHaveBeenCalledWith(
+      '33',
+      'Using isolated Electron userData for dev port 3000: /repo/temp/electron-user-data-3000',
     );
+
+    mkdirSync.mockRestore();
   });
 
   it('preserves an explicit Electron userData override', () => {
-    const copyProfileSnapshot = vi.fn(() => false);
+    const mkdirSync = vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
     const sourceEnv = {
       HOME: '/home/dev',
       VLAINA_USER_DATA_DIR: '/custom/user-data',
     };
 
     const env = configureDevelopmentProfileEnv(sourceEnv, 3000, {
-      copyProfileSnapshot,
       targetUserDataPath: '/repo/temp/electron-user-data-3000',
     });
 
     expect(env).toBe(sourceEnv);
-    expect(copyProfileSnapshot).not.toHaveBeenCalled();
+    expect(mkdirSync).not.toHaveBeenCalled();
+
+    mkdirSync.mockRestore();
+  });
+});
+
+describe('ensureIsolatedDevelopmentUserDataPath', () => {
+  it('removes a shared .vlaina symlink before using isolated Electron userData', () => {
+    const fsModule = {
+      mkdirSync: vi.fn(),
+      lstatSync: vi.fn(() => ({
+        isSymbolicLink: () => true,
+      })),
+      unlinkSync: vi.fn(),
+    };
+    const log = vi.fn();
+
+    ensureIsolatedDevelopmentUserDataPath('/repo/temp/electron-user-data-3000', {
+      fsModule,
+      log,
+    });
+
+    expect(fsModule.mkdirSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000', {
+      recursive: true,
+    });
+    expect(fsModule.lstatSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000/.vlaina');
+    expect(fsModule.unlinkSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000/.vlaina');
+    expect(fsModule.mkdirSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000/.vlaina', {
+      recursive: true,
+    });
+    expect(log).toHaveBeenCalledWith(
+      '33',
+      'Removed shared .vlaina symlink from isolated Electron userData: /repo/temp/electron-user-data-3000/.vlaina',
+    );
+  });
+
+  it('keeps an existing real .vlaina directory', () => {
+    const fsModule = {
+      mkdirSync: vi.fn(),
+      lstatSync: vi.fn(() => ({
+        isSymbolicLink: () => false,
+      })),
+      unlinkSync: vi.fn(),
+    };
+
+    ensureIsolatedDevelopmentUserDataPath('/repo/temp/electron-user-data-3000', {
+      fsModule,
+      log: vi.fn(),
+    });
+
+    expect(fsModule.unlinkSync).not.toHaveBeenCalled();
+    expect(fsModule.mkdirSync).toHaveBeenCalledTimes(1);
   });
 });

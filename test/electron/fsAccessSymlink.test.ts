@@ -128,6 +128,55 @@ describe('desktop filesystem symlink boundary', () => {
     ).resolves.toBe(path.join(isolatedUserDataPath, '.vlaina', 'notes', 'state.json'));
   });
 
+  it('keeps isolated dev userData vault metadata writable through generic fs access', async () => {
+    const isolatedUserDataPath = path.join(tempDir, 'electron-user-data-3000');
+    process.env.VLAINA_USER_DATA_DIR = isolatedUserDataPath;
+    hoisted.userDataPath = isolatedUserDataPath;
+    await mkdir(path.join(isolatedUserDataPath, '.vlaina', 'notes', 'vaults'), { recursive: true });
+
+    const configPath = path.join(
+      isolatedUserDataPath,
+      '.vlaina',
+      'notes',
+      'vaults',
+      'vault-test',
+      'config.json',
+    );
+
+    await expect(assertAuthorizedFsPath(configPath)).resolves.toBe(configPath);
+  });
+
+  it('authorizes repository dev electron userData paths even without an env override', async () => {
+    const devUserDataPath = path.join(
+      process.cwd(),
+      'temp',
+      'electron-user-data-3999',
+      '.vlaina',
+      'notes',
+      'vaults',
+      'vault-test',
+      'config.json',
+    );
+
+    await expect(assertAuthorizedFsPath(devUserDataPath)).resolves.toBe(devUserDataPath);
+  });
+
+  it('keeps sensitive files protected inside repository dev electron userData paths', async () => {
+    const protectedPath = path.join(
+      process.cwd(),
+      'temp',
+      'electron-user-data-3999',
+      '.vlaina',
+      'app',
+      'secrets',
+      'account.json',
+    );
+
+    await expect(assertAuthorizedFsPath(protectedPath)).rejects.toThrow(
+      'File path is reserved for internal desktop storage',
+    );
+  });
+
   it('keeps sensitive files protected inside an explicit development userData override', async () => {
     const isolatedUserDataPath = path.join(tempDir, 'isolated-user-data');
     process.env.VLAINA_USER_DATA_DIR = isolatedUserDataPath;
