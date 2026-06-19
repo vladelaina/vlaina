@@ -167,7 +167,7 @@ describe('useNotesOpenMarkdownTarget', () => {
     expect(messageDialog).not.toHaveBeenCalledWith('vault.openFailed', expect.anything());
   });
 
-  it('waits when the vault store is already on the normalized target vault', async () => {
+  it('reopens the target vault when the vault store is ahead of the notes path', async () => {
     const { props, result } = renderTargetHook({
       currentVaultPath: '/external/docs/',
       notesPath: '/vault',
@@ -177,7 +177,9 @@ describe('useNotesOpenMarkdownTarget', () => {
       await result.current.openMarkdownTarget('/external/docs/setup.md');
     });
 
-    expect(props.openVault).not.toHaveBeenCalled();
+    expect(props.openVault).toHaveBeenCalledWith('/external/docs', undefined, {
+      preserveSidebarTree: false,
+    });
     expect(props.openNote).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
   });

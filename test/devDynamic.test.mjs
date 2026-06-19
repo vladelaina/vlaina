@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { chooseAvailablePort } from '../scripts/dev-dynamic.js';
+import {
+  chooseAvailablePort,
+  configureDevelopmentProfileEnv,
+} from '../scripts/dev-dynamic.js';
 
 describe('chooseAvailablePort', () => {
   it('uses the preferred port immediately when it is available', async () => {
@@ -74,5 +77,40 @@ describe('chooseAvailablePort', () => {
     ).resolves.toBe(3001);
 
     expect(checkPortAvailable).toHaveBeenLastCalledWith(3001);
+  });
+});
+
+describe('configureDevelopmentProfileEnv', () => {
+  it('uses isolated Electron userData for the preferred dev port too', () => {
+    const copyProfileSnapshot = vi.fn(() => false);
+    const log = vi.fn();
+    const env = configureDevelopmentProfileEnv({ HOME: '/home/dev' }, 3000, {
+      copyProfileSnapshot,
+      log,
+      sourceUserDataPath: '/home/dev/.config/vlaina',
+      targetUserDataPath: '/repo/temp/electron-user-data-3000',
+    });
+
+    expect(env.VLAINA_USER_DATA_DIR).toBe('/repo/temp/electron-user-data-3000');
+    expect(copyProfileSnapshot).toHaveBeenCalledWith(
+      '/home/dev/.config/vlaina',
+      '/repo/temp/electron-user-data-3000',
+    );
+  });
+
+  it('preserves an explicit Electron userData override', () => {
+    const copyProfileSnapshot = vi.fn(() => false);
+    const sourceEnv = {
+      HOME: '/home/dev',
+      VLAINA_USER_DATA_DIR: '/custom/user-data',
+    };
+
+    const env = configureDevelopmentProfileEnv(sourceEnv, 3000, {
+      copyProfileSnapshot,
+      targetUserDataPath: '/repo/temp/electron-user-data-3000',
+    });
+
+    expect(env).toBe(sourceEnv);
+    expect(copyProfileSnapshot).not.toHaveBeenCalled();
   });
 });

@@ -379,6 +379,10 @@ function getDefaultElectronUserDataPath(env) {
   return path.join(env.XDG_CONFIG_HOME || path.join(home, '.config'), appName);
 }
 
+export function getDevelopmentUserDataPath(port) {
+  return path.join(repoRoot, 'temp', `electron-user-data-${port}`);
+}
+
 function shouldCopyDevelopmentProfileEntry(sourcePath) {
   return !DEV_PROFILE_COPY_SKIP_NAMES.has(path.basename(sourcePath));
 }
@@ -399,27 +403,27 @@ function copyDevelopmentProfileSnapshot(sourcePath, targetPath) {
   return true;
 }
 
-function configureDevelopmentProfileEnv(env, port) {
+export function configureDevelopmentProfileEnv(env, port, options = {}) {
   if (env.VLAINA_USER_DATA_DIR?.trim()) {
     return env;
   }
 
-  if (port === DEFAULT_PORT) {
-    return env;
-  }
+  const {
+    copyProfileSnapshot = copyDevelopmentProfileSnapshot,
+    log: logFn = log,
+    sourceUserDataPath = getDefaultElectronUserDataPath(env),
+    targetUserDataPath = getDevelopmentUserDataPath(port),
+  } = options;
+  const copiedProfile = copyProfileSnapshot(sourceUserDataPath, targetUserDataPath);
 
-  const sourceUserDataPath = getDefaultElectronUserDataPath(env);
-  const targetUserDataPath = path.join(repoRoot, 'temp', `electron-user-data-${port}`);
-  const copiedProfile = copyDevelopmentProfileSnapshot(sourceUserDataPath, targetUserDataPath);
-
-  log(
+  logFn(
     '33',
     copiedProfile
-      ? `Using cloned Electron userData for parallel dev: ${targetUserDataPath}`
-      : `Using empty Electron userData for parallel dev: ${targetUserDataPath}`
+      ? `Using cloned Electron userData for dev port ${port}: ${targetUserDataPath}`
+      : `Using empty Electron userData for dev port ${port}: ${targetUserDataPath}`
   );
   if (copiedProfile) {
-    log('90', `  cloned from ${sourceUserDataPath}`);
+    logFn('90', `  cloned from ${sourceUserDataPath}`);
   }
 
   return {

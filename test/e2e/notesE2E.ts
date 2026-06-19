@@ -80,6 +80,7 @@ export async function launchIsolatedElectron(label: string, options: {
 } = {}): Promise<{
   app: ElectronApplication;
   userDataRoot: string;
+  userDataDir: string;
 }> {
   const safeLabel = label.replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
   const userDataRoot = await fs.mkdtemp(path.join(os.tmpdir(), `vlaina-${safeLabel}-e2e-`));
@@ -104,7 +105,7 @@ export async function launchIsolatedElectron(label: string, options: {
     },
   });
 
-  return { app, userDataRoot };
+  return { app, userDataRoot, userDataDir };
 }
 
 export async function closeElectron(app: ElectronApplication): Promise<void> {

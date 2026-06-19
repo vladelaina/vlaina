@@ -187,10 +187,6 @@ export function useNotesOpenMarkdownTarget({
         startedAt: performance.now(),
       });
 
-      if (normalizedCurrentVaultPath === normalizedTargetVaultPath) {
-        return;
-      }
-
       const openedVault = await openVault(normalizedTargetVaultPath, undefined, {
         preserveSidebarTree: false,
       });
