@@ -117,6 +117,186 @@ test.describe("notes block selection", () => {
     }
   });
 
+  test('keeps a visible gap between a hard-break paragraph line and the following blank-line block', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-hard-break-blank-gap');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-hard-break-blank-gap.md',
+        content: [
+          '18\\. 在两个公式或图标中怎么插入空行\\',
+          '1\\. 然后箭头的移动应该选中',
+          '',
+          'after gap sentinel',
+        ].join('\n'),
+      });
+
+      const selectableBlocks = await page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks());
+      expect(selectableBlocks.length, JSON.stringify(selectableBlocks, null, 2)).toBeGreaterThanOrEqual(4);
+
+      const selectedCount = await page.evaluate(async () => {
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([0, 1, 2]);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      });
+      expect(selectedCount).toBe(3);
+
+      const geometry = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const resolvePaintRect = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const after = getComputedStyle(element, '::after');
+          if (after.content !== 'none' && after.display !== 'none' && after.position === 'absolute') {
+            return {
+              top: rect.top + parsePx(after.top),
+              bottom: rect.bottom - parsePx(after.bottom),
+            };
+          }
+
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+          };
+        };
+
+        const lineFills = Array.from(document.querySelectorAll<HTMLElement>('.editor-block-selection-line-fill'))
+          .map((fill) => {
+            const rect = fill.getBoundingClientRect();
+            return {
+              top: rect.top,
+              bottom: rect.bottom,
+              centerY: rect.top + rect.height / 2,
+            };
+          })
+          .filter((rect) => rect.bottom > rect.top);
+
+        const rows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+          .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const paint = resolvePaintRect(element);
+            const matchingFills = lineFills.filter((fill) => (
+              fill.centerY >= rect.top - 2 &&
+              fill.centerY <= rect.bottom + 2
+            ));
+            return {
+              tagName: element.tagName,
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              visualTop: Math.round(Math.min(paint.top, ...matchingFills.map((fill) => fill.top)) * 100) / 100,
+              visualBottom: Math.round(Math.max(paint.bottom, ...matchingFills.map((fill) => fill.bottom)) * 100) / 100,
+              matchingFillCount: matchingFills.length,
+            };
+          })
+          .sort((left, right) => left.rectTop - right.rectTop);
+
+        const visualGaps = rows.slice(1).map((row, index) => (
+          Math.round((row.visualTop - rows[index].visualBottom) * 100) / 100
+        ));
+        const penultimateToLastGap = visualGaps.length >= 2 ? visualGaps[1] : null;
+
+        return { rows, lineFills, penultimateToLastGap, visualGaps };
+      });
+
+      expect(geometry).not.toBeNull();
+      expect(geometry!.rows, JSON.stringify(geometry, null, 2)).toHaveLength(3);
+      expect(geometry!.rows[1].text, JSON.stringify(geometry, null, 2)).toContain('箭头的移动应该选中');
+      expect(geometry!.visualGaps, JSON.stringify(geometry, null, 2)).toHaveLength(2);
+      for (const gap of geometry!.visualGaps) {
+        expect(gap, JSON.stringify(geometry, null, 2)).toBeGreaterThan(0.5);
+      }
+      expect(geometry!.penultimateToLastGap, JSON.stringify(geometry, null, 2)).toBeGreaterThan(0.5);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps bold labels visible inside selected hard-break credential lines', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-bold-label-visibility');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-bold-label-visibility.md',
+        content: [
+          '**网址：** [https ://nerdvm.racknerd.com/](https://nerdvm.racknerd.com/)\\',
+          '**用户名：** vmuser262577\\',
+          '',
+          'after credential sentinel',
+        ].join('\n'),
+      });
+      await page.addStyleTag({
+        content: `
+          .milkdown .ProseMirror strong * {
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+          }
+        `,
+      });
+
+      const selectedCount = await page.evaluate(async () => {
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([0, 1]);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      });
+      expect(selectedCount).toBe(2);
+
+      const report = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const selected = editor ? Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected')) : [];
+        const labels = selected
+          .filter((element) => /网址|用户名/.test(element.textContent ?? ''))
+          .map((element) => {
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return {
+              text: element.textContent ?? '',
+              className: element.className,
+              color: style.color,
+              display: style.display,
+              fontSize: style.fontSize,
+              opacity: style.opacity,
+              textFillColor: style.getPropertyValue('-webkit-text-fill-color'),
+              visibility: style.visibility,
+              width: Math.round(rect.width * 100) / 100,
+              height: Math.round(rect.height * 100) / 100,
+            };
+          });
+        return {
+          labels,
+          selectedCount: selected.length,
+          selectedText: selected.map((element) => element.textContent ?? ''),
+        };
+      });
+
+      expect(report.labels, JSON.stringify(report, null, 2)).toHaveLength(2);
+      for (const label of report.labels) {
+        expect(label.width, JSON.stringify(report, null, 2)).toBeGreaterThan(1);
+        expect(label.height, JSON.stringify(report, null, 2)).toBeGreaterThan(1);
+        expect(label.display, JSON.stringify(report, null, 2)).not.toBe('none');
+        expect(label.visibility, JSON.stringify(report, null, 2)).not.toBe('hidden');
+        expect(label.opacity, JSON.stringify(report, null, 2)).not.toBe('0');
+        expect(label.textFillColor || label.color, JSON.stringify(report, null, 2)).not.toBe('rgba(0, 0, 0, 0)');
+        expect(label.textFillColor || label.color, JSON.stringify(report, null, 2)).toBe('rgb(254, 251, 249)');
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('does not stack top margins onto generated top-level blocks after markdown blank-line placeholders', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-blank-line-margin-audit');
 

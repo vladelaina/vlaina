@@ -114,7 +114,8 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected-inline-line {');
     expect(css).toContain('background-color: transparent;');
     expect(css).toContain('box-shadow: none;');
-    expect(css).toContain('color: var(--vlaina-editor-block-selection-fg);');
+    expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(source).toContain("const DRAG_BOX_COLOR = 'var(--vlaina-color-editor-block-selection-drag-box)';");
     expect(lineFillSource).toContain('function resolveLineFillLeft(paragraph: HTMLElement, paragraphRect = paragraph.getBoundingClientRect()): number {');
     expect(lineFillSource).toContain('return paragraphRect.left - resolveBlockSelectionBleedXStart(paragraph);');

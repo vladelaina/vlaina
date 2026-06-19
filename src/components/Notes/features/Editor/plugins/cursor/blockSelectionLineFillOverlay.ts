@@ -1,11 +1,21 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState, isLargeBlockSelection } from './blockSelectionPluginState';
-import { getBlockRangesKey, normalizeBlockRanges, type BlockRange, type RectBounds } from './blockSelectionUtils';
+import {
+  areBlockSelectionDisplayRangesVisuallyAdjacent,
+  getBlockRangeKey,
+  getBlockRangesKey,
+  getDisplayBlockRangesForDecorations,
+  normalizeBlockRanges,
+  type BlockRange,
+  type RectBounds,
+} from './blockSelectionUtils';
 
 const LINE_FILL_LAYER_CLASS = 'editor-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'editor-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
 const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 72;
+const FALLBACK_BLOCK_SELECTION_BLEED_Y_PX = 2;
+const FALLBACK_BLOCK_SELECTION_GAP_Y_PX = 1;
 const LINE_FILL_VIEWPORT_OVERSCAN_PX = 600;
 export const MAX_BLOCK_SELECTION_LINE_FILL_RANGES = 512;
 const MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE = 128;
@@ -23,6 +33,16 @@ interface RowRect {
   top: number;
   right: number;
   bottom: number;
+}
+
+interface LineFillEdges {
+  top: number;
+  bottom: number;
+}
+
+interface LineFillAdjacency {
+  hasNextRangeKeys: ReadonlySet<string>;
+  hasPreviousRangeKeys: ReadonlySet<string>;
 }
 
 interface ProseNodeLike {
@@ -66,6 +86,36 @@ function resolveBlockSelectionBleedXStart(element: HTMLElement): number {
     '--vlaina-block-selection-bleed-x-start',
     FALLBACK_BLOCK_SELECTION_BLEED_X_PX
   );
+}
+
+function resolveSelectedElementForBlockSelectionMetrics(element: HTMLElement): HTMLElement {
+  return element.classList.contains('editor-block-selected')
+    ? element
+    : element.querySelector<HTMLElement>('.editor-block-selected') ?? element;
+}
+
+function resolveLineFillEdges(
+  element: HTMLElement,
+  hasPrevious: boolean,
+  hasNext: boolean,
+): LineFillEdges {
+  const selectedElement = resolveSelectedElementForBlockSelectionMetrics(element);
+  const style = window.getComputedStyle(selectedElement);
+  const bleedY = readCssPx(
+    style,
+    '--vlaina-block-selection-bleed-y',
+    FALLBACK_BLOCK_SELECTION_BLEED_Y_PX,
+  );
+  const gapY = readCssPx(
+    style,
+    '--vlaina-block-selection-gap-y',
+    FALLBACK_BLOCK_SELECTION_GAP_Y_PX,
+  );
+
+  return {
+    top: hasPrevious ? gapY : -bleedY,
+    bottom: hasNext ? gapY : -bleedY,
+  };
 }
 
 function resolveLineFillLeft(paragraph: HTMLElement, paragraphRect = paragraph.getBoundingClientRect()): number {
@@ -314,17 +364,45 @@ function appendLineFillElement(
   fillRight: number,
   top: number,
   bottom: number,
+  edges: LineFillEdges,
 ): boolean {
-  if (fillRight - fillStart <= 0.5 || bottom - top <= 0.5) return false;
+  const paintTop = top + edges.top;
+  const paintBottom = bottom - edges.bottom;
+  if (fillRight - fillStart <= 0.5 || paintBottom - paintTop <= 0.5) return false;
 
   const fill = doc.createElement('div');
   fill.className = LINE_FILL_CLASS;
   fill.style.left = `${fillStart - hostRect.left}px`;
-  fill.style.top = `${top - hostRect.top}px`;
+  fill.style.top = `${paintTop - hostRect.top}px`;
   fill.style.width = `${fillRight - fillStart}px`;
-  fill.style.height = `${bottom - top}px`;
+  fill.style.height = `${paintBottom - paintTop}px`;
   layer.appendChild(fill);
   return true;
+}
+
+function collectLineFillAdjacency(
+  view: EditorView,
+  selectedBlocks: readonly BlockRange[],
+): LineFillAdjacency {
+  const displayRanges = getDisplayBlockRangesForDecorations(view.state.doc, selectedBlocks);
+  const hasNextRangeKeys = new Set<string>();
+  const hasPreviousRangeKeys = new Set<string>();
+
+  for (let index = 0; index < displayRanges.length - 1; index += 1) {
+    const current = displayRanges[index];
+    const next = displayRanges[index + 1];
+    if (!current || !next || !areBlockSelectionDisplayRangesVisuallyAdjacent(view.state.doc, current, next)) {
+      continue;
+    }
+
+    hasNextRangeKeys.add(getBlockRangeKey(current.from, current.to));
+    hasPreviousRangeKeys.add(getBlockRangeKey(next.from, next.to));
+  }
+
+  return {
+    hasNextRangeKeys,
+    hasPreviousRangeKeys,
+  };
 }
 
 function resolveImageFillAnchor(view: EditorView, image: HTMLElement): HTMLElement {
@@ -357,8 +435,9 @@ function appendSelectedImageBlockLineFills(
     const rowBottom = imageRect.height > 0 ? imageRect.bottom : anchorRect.bottom;
     const fillStart = anchorRect.left - resolveBlockSelectionBleedXStart(anchor);
     const fillRight = resolveLineFillRight(view, anchor, anchorRect);
+    const edges = resolveLineFillEdges(anchor, false, false);
 
-    if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, rowTop, rowBottom)) {
+    if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, rowTop, rowBottom, edges)) {
       createdFills += 1;
     }
   }
@@ -416,6 +495,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     const currentHost = layer.parentElement ?? updatedView.dom;
     const hostRect = currentHost.getBoundingClientRect();
     const viewportRect = resolveLineFillViewportRect(updatedView);
+    const adjacency = collectLineFillAdjacency(updatedView, selectedBlocks);
     const ranges = collectSelectedHardBreakLineRanges(updatedView);
     let createdFills = 0;
 
@@ -429,10 +509,16 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
 
       const fillStart = resolveLineFillLeft(paragraph, paragraphRect);
       const fillRight = resolveLineFillRight(updatedView, paragraph, paragraphRect);
+      const rangeKey = getBlockRangeKey(range.from, range.to);
+      const edges = resolveLineFillEdges(
+        paragraph,
+        adjacency.hasPreviousRangeKeys.has(rangeKey),
+        adjacency.hasNextRangeKeys.has(rangeKey),
+      );
       const rows = collectRangeRows(updatedView, range);
       for (const row of rows) {
         if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
-        if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, row.top, row.bottom)) {
+        if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, row.top, row.bottom, edges)) {
           createdFills += 1;
         }
       }

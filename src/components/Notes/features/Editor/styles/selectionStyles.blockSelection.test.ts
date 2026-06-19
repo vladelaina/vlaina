@@ -133,6 +133,8 @@ describe("editor block selection styles", () => {
     expect(textBlockRule).toContain('background-color: transparent;');
     expect(textBlockRule).toContain('box-shadow: none;');
     expect(textBlockRule).toContain('color: var(--vlaina-editor-block-selection-fg);');
+    expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(textBlockFillRule).toContain('::after');
     expect(textBlockFillRule).toContain('top: var(--vlaina-block-selection-fill-top);');
     expect(textBlockFillRule).toContain('bottom: var(--vlaina-block-selection-fill-bottom);');
