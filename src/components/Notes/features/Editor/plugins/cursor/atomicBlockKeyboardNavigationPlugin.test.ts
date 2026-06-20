@@ -282,6 +282,37 @@ function expectCursorAtHeadingEdge(view: EditorView, headingPos: number, edge: '
   );
 }
 
+function expectCursorAtBlockquoteEdge(view: EditorView, blockquotePos: number, edge: 'start' | 'end'): void {
+  const blockquote = view.state.doc.nodeAt(blockquotePos);
+  const firstParagraph = blockquote?.firstChild;
+  expect(blockquote?.type.name).toBe('blockquote');
+  expect(firstParagraph?.type.name).toBe('paragraph');
+  expect(view.state.selection).toBeInstanceOf(TextSelection);
+  expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+  expect(view.state.selection.empty).toBe(true);
+  expect(view.state.selection.from).toBe(
+    edge === 'start'
+      ? blockquotePos + 2
+      : blockquotePos + 2 + (firstParagraph?.content.size ?? 0)
+  );
+}
+
+function expectCursorInsideFirstTextblockOfContainer(view: EditorView, containerPos: number, edge: 'start' | 'end'): void {
+  const container = view.state.doc.nodeAt(containerPos);
+  const firstTextblock = container?.firstChild;
+  expect(container).toBeTruthy();
+  expect(firstTextblock?.isTextblock).toBe(true);
+  expect(view.state.selection).toBeInstanceOf(TextSelection);
+  expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+  expect(view.state.selection.empty).toBe(true);
+  expect(view.state.selection.$from.parent).toBe(firstTextblock);
+  expect(view.state.selection.from).toBe(
+    edge === 'start'
+      ? containerPos + 2
+      : containerPos + 2 + (firstTextblock?.content.size ?? 0)
+  );
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
   vi.restoreAllMocks();
@@ -969,6 +1000,74 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it.each(['Backspace', 'Delete'] as const)(
+    'deletes an empty paragraph immediately below a blockquote on %s and places the cursor at the quote end',
+    async (key) => {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      replaceDocument(view, [
+        schema.nodes.blockquote.create(null, [
+          schema.nodes.paragraph.create(null, schema.text('Quote')),
+        ]),
+        schema.nodes.paragraph.create(),
+        schema.nodes.paragraph.create(null, schema.text('after')),
+      ]);
+
+      const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+      const event = pressKey(view, key);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.doc.childCount).toBe(2);
+      expect(view.state.doc.child(0).type.name).toBe('blockquote');
+      expect(view.state.doc.child(1).textContent).toBe('after');
+      expectCursorAtBlockquoteEdge(view, 0, 'end');
+
+      await editor.destroy();
+    }
+  );
+
+  it.each([
+    {
+      name: 'callout',
+      typeName: 'callout',
+      node: (view: EditorView) => view.state.schema.nodes.callout.create(null, [
+        view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Callout')),
+      ]),
+    },
+    {
+      name: 'footnote definition',
+      typeName: 'footnote_def',
+      node: (view: EditorView) => view.state.schema.nodes.footnote_def.create({ id: '1' }, [
+        view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Footnote')),
+      ]),
+    },
+  ])('deletes an empty paragraph below a $name and places the cursor inside its content', async (testCase) => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      testCase.node(view),
+      schema.nodes.paragraph.create(),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe(testCase.typeName);
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expectCursorInsideFirstTextblockOfContainer(view, 0, 'end');
+
+    await editor.destroy();
+  });
+
   it('does not join the following paragraph into a code block on Backspace at its start', async () => {
     const editor = createEditor();
     await editor.create();
@@ -1375,14 +1474,12 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
         node: (view) => view.state.schema.nodes.blockquote.create(null, [
           view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Quote')),
         ]),
-        expectedNodeSelection: true,
       },
       {
         name: 'callout',
         node: (view) => view.state.schema.nodes.callout.create(null, [
           view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Callout')),
         ]),
-        expectedNodeSelection: true,
       },
       {
         name: 'frontmatter',
@@ -1394,7 +1491,6 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
         node: (view) => view.state.schema.nodes.footnote_def.create({ id: '1' }, [
           view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Footnote')),
         ]),
-        expectedNodeSelection: true,
       },
       {
         name: 'html_block',
@@ -1517,6 +1613,22 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
             expectCursorAtHeadingEdge(
               view,
               headingPos,
+              layout.markdownBlockPosition === 'above' ? 'end' : 'start'
+            );
+          }
+          if (testCase.name === 'blockquote') {
+            const blockquotePos = topLevelNodePos(view, 'blockquote');
+            expectCursorAtBlockquoteEdge(
+              view,
+              blockquotePos,
+              layout.markdownBlockPosition === 'above' ? 'end' : 'start'
+            );
+          }
+          if (testCase.name === 'callout' || testCase.name === 'footnote_def') {
+            const containerPos = topLevelNodePos(view, testCase.name);
+            expectCursorInsideFirstTextblockOfContainer(
+              view,
+              containerPos,
               layout.markdownBlockPosition === 'above' ? 'end' : 'start'
             );
           }

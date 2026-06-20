@@ -49,6 +49,11 @@ export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'editor-atomic-block-keyboa
 const NON_NAVIGABLE_HTML_BLOCK_VALUES = new Set<unknown>([
   '<!--vlaina-markdown-tight-heading-->',
 ]);
+const TEXT_CONTAINER_STRUCTURAL_BLOCK_NODE_NAMES = new Set([
+  'blockquote',
+  'callout',
+  'footnote_def',
+]);
 
 function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
   if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
@@ -313,6 +318,17 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
         ?? Selection.findFrom(tr.doc.resolve(blockTo), preferNextTextTarget ? -1 : 1, true)
       : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), preferPreviousTextTarget ? -1 : 1, true)
         ?? Selection.findFrom(tr.doc.resolve(mappedBlockFrom), preferPreviousTextTarget ? 1 : -1, true);
+
+    view.dispatch((adjacentSelection ? tr.setSelection(adjacentSelection) : tr).scrollIntoView());
+    view.focus();
+    return;
+  }
+
+  if (nextNode && TEXT_CONTAINER_STRUCTURAL_BLOCK_NODE_NAMES.has(nextNode.type.name)) {
+    const blockTo = mappedBlockFrom + nextNode.nodeSize;
+    const adjacentSelection = range.searchDir < 0
+      ? Selection.findFrom(tr.doc.resolve(blockTo), -1, true)
+      : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), 1, true);
 
     view.dispatch((adjacentSelection ? tr.setSelection(adjacentSelection) : tr).scrollIntoView());
     view.focus();

@@ -109,6 +109,40 @@ function replaceWithPersistedAndEditableBlankLineDocument(view: EditorView): voi
   ]);
 }
 
+function createBlockquote(view: EditorView, text: string): ProseNode {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  const blockquoteType = schema.nodes.blockquote;
+  if (!paragraphType || !blockquoteType) {
+    throw new Error('Expected paragraph and blockquote schema nodes');
+  }
+
+  return blockquoteType.create(null, paragraphType.create(null, schema.text(text)));
+}
+
+function createMarkdownBlankLine(view: EditorView): ProseNode {
+  const htmlBlockType = view.state.schema.nodes.html_block;
+  if (!htmlBlockType) {
+    throw new Error('Expected html_block schema node');
+  }
+
+  return htmlBlockType.create({ value: MARKDOWN_BLANK_LINE_VALUE });
+}
+
+function replaceWithBlankLineBeforeBlockquoteDocument(view: EditorView): void {
+  replaceDocument(view, [
+    createMarkdownBlankLine(view),
+    createBlockquote(view, 'Quote'),
+  ]);
+}
+
+function replaceWithBlankLineAfterBlockquoteDocument(view: EditorView): void {
+  replaceDocument(view, [
+    createBlockquote(view, 'Quote'),
+    createMarkdownBlankLine(view),
+  ]);
+}
+
 function topLevelNodePos(view: EditorView, matcher: (node: ProseNode) => boolean): number {
   let found: number | null = null;
   view.state.doc.forEach((node, offset) => {
@@ -121,12 +155,17 @@ function topLevelNodePos(view: EditorView, matcher: (node: ProseNode) => boolean
   return found;
 }
 
-function createArrowEvent(key: 'ArrowUp' | 'ArrowDown'): KeyboardEvent {
+function createArrowEvent(key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): KeyboardEvent {
   return new KeyboardEvent('keydown', {
     key,
     bubbles: true,
     cancelable: true,
   });
+}
+
+function blockquoteTextStartPos(view: EditorView): number {
+  const blockquotePos = topLevelNodePos(view, (node) => node.type.name === 'blockquote');
+  return blockquotePos + 2;
 }
 
 describe('markdownBlankLineInteraction', () => {
@@ -348,6 +387,57 @@ describe('markdownBlankLineInteraction', () => {
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaParagraphPos + 1)));
 
       const event = createArrowEvent('ArrowUp');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('converts a markdown blank line before a blockquote on ArrowLeft from the quote start', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithBlankLineBeforeBlockquoteDocument(view);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, blockquoteTextStartPos(view))));
+
+      const event = createArrowEvent('ArrowLeft');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.doc.child(0).type.name).toBe('paragraph');
+      expect(view.state.doc.child(0).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('converts a markdown blank line after a blockquote on ArrowRight from the quote end', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithBlankLineAfterBlockquoteDocument(view);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(
+        view.state.doc,
+        blockquoteTextStartPos(view) + 'Quote'.length,
+      )));
+
+      const event = createArrowEvent('ArrowRight');
       const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
 
       expect(handled).toBe(true);
