@@ -4,7 +4,7 @@ import { Selection } from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { flushPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdown';
+import { savePendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdown';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
@@ -861,7 +861,8 @@ export class BlockControlsViewSession {
   private applyCrossNoteDrop(insertPos: number): boolean {
     if (!this.dragSourceNotePath || !this.dragSourceMarkdownAfterDelete) return false;
     if (!insertCrossNoteDraggedMarkdown(this.view, this.draggedMarkdown, insertPos)) return false;
-    flushPendingEditorMarkdown(this.dragSourceNotePath, this.dragSourceMarkdownAfterDelete);
+    void savePendingEditorMarkdown(this.dragSourceNotePath, this.dragSourceMarkdownAfterDelete)
+      .catch(() => undefined);
     return true;
   }
 
