@@ -131,7 +131,7 @@
   "settings.general": "Chung",
   "settings.images.currentFolder": "Thư mục hiện tại",
   "settings.images.currentFolderDescription": "Lưu vào cùng thư mục với ghi chú hiện tại",
-  "settings.images.filenameFormat": "Định dạng tên tệp",
+  "settings.images.filenameFormat": "Định dạng tên tệp hình ảnh",
   "settings.images.folderName": "Tên thư mục",
   "settings.images.folderNameDescription": "Hình ảnh sẽ được lưu vào {folder}/ trong thư mục gốc của vault.",
   "settings.images.images": "Hình ảnh",

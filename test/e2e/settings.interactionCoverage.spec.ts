@@ -169,6 +169,7 @@ test.describe('settings modal interaction coverage', () => {
         timeout: 10_000,
       });
       await page.locator('[data-settings-control="image-vault-subfolder-name"]').fill('e2e-vault-assets');
+      await page.locator('[data-settings-control="image-filename-format"]').click();
       await page.locator('[data-settings-image-filename-format="sequence"]').click();
       await expect.poll(() => getUIState(page), { timeout: 10_000 }).toMatchObject({
         imageStorageMode: 'vaultSubfolder',

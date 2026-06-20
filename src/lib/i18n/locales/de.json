@@ -131,7 +131,7 @@
   "settings.general": "Allgemein",
   "settings.images.currentFolder": "Aktueller Ordner",
   "settings.images.currentFolderDescription": "Im selben Ordner wie die aktuelle Notiz speichern",
-  "settings.images.filenameFormat": "Dateiname-Format",
+  "settings.images.filenameFormat": "Bilddateiname-Format",
   "settings.images.folderName": "Ordnername",
   "settings.images.folderNameDescription": "Bilder werden unter {folder}/ im Stammverzeichnis des Vaults gespeichert.",
   "settings.images.images": "Bilder",

@@ -131,7 +131,7 @@
   "settings.general": "Umum",
   "settings.images.currentFolder": "Folder Saat Ini",
   "settings.images.currentFolderDescription": "Simpan ke folder yang sama dengan catatan saat ini",
-  "settings.images.filenameFormat": "Format Nama File",
+  "settings.images.filenameFormat": "Format Nama File Gambar",
   "settings.images.folderName": "Nama Folder",
   "settings.images.folderNameDescription": "Gambar akan disimpan ke {folder}/ di root vault.",
   "settings.images.images": "Gambar",

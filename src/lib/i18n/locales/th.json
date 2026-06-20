@@ -131,7 +131,7 @@
   "settings.general": "ทั่วไป",
   "settings.images.currentFolder": "โฟลเดอร์ปัจจุบัน",
   "settings.images.currentFolderDescription": "บันทึกลงในโฟลเดอร์เดียวกับบันทึกปัจจุบัน",
-  "settings.images.filenameFormat": "รูปแบบชื่อไฟล์",
+  "settings.images.filenameFormat": "รูปแบบชื่อไฟล์รูปภาพ",
   "settings.images.folderName": "ชื่อโฟลเดอร์",
   "settings.images.folderNameDescription": "รูปภาพจะถูกบันทึกลงใน {folder}/ ที่รากของคลังเก็บ",
   "settings.images.images": "รูปภาพ",

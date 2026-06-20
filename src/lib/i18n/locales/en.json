@@ -131,7 +131,7 @@
   "settings.general": "General",
   "settings.images.currentFolder": "Next to the current note",
   "settings.images.currentFolderDescription": "Save images in the same folder as the current note.",
-  "settings.images.filenameFormat": "Filename Format",
+  "settings.images.filenameFormat": "Image Filename Format",
   "settings.images.folderName": "Folder name at vault root",
   "settings.images.folderNameDescription": "Images will be saved to {folder}/ at the top level of the vault.",
   "settings.images.images": "Images",
