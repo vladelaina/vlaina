@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import { authorizeExternalNoteMentionPath } from '@/lib/ai/authorizedExternalNoteMentions';
 import {
   chatComposerFrameClass,
   chatComposerSurfaceClass,
@@ -28,10 +29,15 @@ import {
   useFileTreePointerDragState,
   type FileTreeChatDropDetail,
 } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
-import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { getCurrentVaultPath, useNotesStore } from '@/stores/notes/useNotesStore';
 import { shouldMarkPastedTextMultiline } from './chatPasteText';
 import { markBillingReturnRefreshPending } from '@/lib/billing/returnRefresh';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
+import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { useVaultStore } from '@/stores/useVaultStore';
 
 interface ChatInputProps {
   active?: boolean;
@@ -57,6 +63,85 @@ const managedQuotaNoticeFrameClass =
   'overflow-hidden rounded-[var(--vlaina-radius-26px)] bg-[var(--vlaina-color-accent-soft)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]';
 const managedQuotaNoticeSurfaceClass =
   'flex min-h-[var(--vlaina-size-32px)] flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-6 pb-2.5 pt-1.5 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)]';
+const CHAT_DROP_REGION_SELECTOR = '[data-chat-view-mode],[data-notes-chat-panel="true"],[data-chat-input="true"]';
+
+function normalizeDroppedPathForCompare(path: string): string {
+  const normalized = path.replace(/\\/g, '/');
+  return normalized === '/' ? normalized : normalized.replace(/\/+$/, '');
+}
+
+function compareDroppedPath(path: string): string {
+  return /^[A-Za-z]:/.test(path) || path.startsWith('//') ? path.toLowerCase() : path;
+}
+
+function getDroppedVaultRelativePath(absolutePath: string, vaultPath: string): string | null {
+  const containedPath = normalizeContainedAssetPath(absolutePath, vaultPath);
+  if (!containedPath) {
+    return null;
+  }
+
+  const rootPath = normalizeDroppedPathForCompare(vaultPath);
+  const candidatePath = normalizeDroppedPathForCompare(containedPath);
+  const rootComparePath = compareDroppedPath(rootPath);
+  const candidateComparePath = compareDroppedPath(candidatePath);
+  if (candidateComparePath === rootComparePath) {
+    return null;
+  }
+  if (!candidateComparePath.startsWith(`${rootComparePath === '/' ? '' : rootComparePath}/`)) {
+    return null;
+  }
+
+  const relativePath = rootPath === '/'
+    ? candidatePath.slice(1)
+    : candidatePath.slice(rootPath.length + 1);
+  return normalizeVaultRelativePath(relativePath);
+}
+
+function buildDroppedNoteMentions(
+  dataTransfer: DataTransfer | null | undefined,
+  vaultPath: string,
+  getDisplayName: (path: string) => string,
+): NoteMentionReference[] {
+  const seenPaths = new Set<string>();
+  const mentions: NoteMentionReference[] = [];
+  for (const absolutePath of getDroppedExternalPaths(dataTransfer)) {
+    const relativePath = vaultPath ? getDroppedVaultRelativePath(absolutePath, vaultPath) : null;
+    const mentionPath = relativePath ?? absolutePath;
+    if (!isSupportedMarkdownPath(mentionPath) || seenPaths.has(mentionPath)) {
+      continue;
+    }
+    seenPaths.add(mentionPath);
+    if (!relativePath) {
+      authorizeExternalNoteMentionPath(absolutePath);
+    }
+    mentions.push({
+      path: mentionPath,
+      title: relativePath ? getDisplayName(relativePath) : getDroppedExternalMarkdownTitle(absolutePath),
+      kind: 'note',
+    });
+  }
+  return mentions;
+}
+
+function getDroppedExternalMarkdownTitle(path: string): string {
+  const name = path.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? path;
+  return stripSupportedMarkdownExtension(name);
+}
+
+function isInsideChatDropRegion(event: DragEvent): boolean {
+  if (
+    event.target instanceof Element &&
+    event.target.closest(CHAT_DROP_REGION_SELECTOR)
+  ) {
+    return true;
+  }
+
+  const elements = document.elementsFromPoint?.(event.clientX, event.clientY) ?? [];
+  return elements.some((element) => (
+    element instanceof Element &&
+    element.closest(CHAT_DROP_REGION_SELECTOR)
+  ));
+}
 
 export const ChatInput = memo(function ChatInput({
   active = true,
@@ -79,6 +164,8 @@ export const ChatInput = memo(function ChatInput({
   const [isFileTreeDropActive, setIsFileTreeDropActive] = useState(false);
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
+  const notesPath = useNotesStore((state) => state.notesPath);
+  const activeVaultPath = useVaultStore((state) => state.currentVault?.path ?? null);
   const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
   const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
@@ -86,7 +173,7 @@ export const ChatInput = memo(function ChatInput({
     isDragging,
     fileInputRef,
     handlePaste,
-    handleDrop,
+    handleDrop: handleAttachmentDrop,
     handleDragEnter,
     handleDragOver,
     handleDragLeave,
@@ -94,6 +181,7 @@ export const ChatInput = memo(function ChatInput({
     triggerFileSelect,
     removeAttachment,
     clearAttachments,
+    clearDragState,
     restoreAttachments,
   } = useChatAttachments();
 
@@ -372,6 +460,75 @@ export const ChatInput = memo(function ChatInput({
     [handleFileChange, scheduleComposerFocus]
   );
 
+  const applyDroppedNoteMentions = useCallback((dataTransfer: DataTransfer | null | undefined) => {
+    const effectiveVaultPath = notesPath || activeVaultPath || getCurrentVaultPath() || '';
+    const droppedNoteMentions = buildDroppedNoteMentions(
+      dataTransfer,
+      effectiveVaultPath,
+      getDisplayName,
+    );
+    if (droppedNoteMentions.length === 0) {
+      return false;
+    }
+
+    clearDragState();
+    appendNoteMentions(droppedNoteMentions);
+    resetHistoryNavigation();
+    clearHistoryNavigationOnInput();
+    return true;
+  }, [
+    activeVaultPath,
+    appendNoteMentions,
+    clearDragState,
+    clearHistoryNavigationOnInput,
+    getDisplayName,
+    notesPath,
+    resetHistoryNavigation,
+  ]);
+
+  const handleComposerDrop = useCallback(
+    async (event: React.DragEvent<HTMLDivElement>) => {
+      if (applyDroppedNoteMentions(event.dataTransfer)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      await handleAttachmentDrop(event);
+    },
+    [
+      applyDroppedNoteMentions,
+      handleAttachmentDrop,
+    ]
+  );
+
+  const handleComposerDropCapture = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!applyDroppedNoteMentions(event.dataTransfer)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [applyDroppedNoteMentions]
+  );
+
+  useEffect(() => {
+    const handleWindowDropCapture = (event: DragEvent) => {
+      if (event.defaultPrevented || !isInsideChatDropRegion(event)) {
+        return;
+      }
+      if (!applyDroppedNoteMentions(event.dataTransfer)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    window.addEventListener('drop', handleWindowDropCapture, true);
+    return () => window.removeEventListener('drop', handleWindowDropCapture, true);
+  }, [applyDroppedNoteMentions]);
+
   const handleTriggerFileSelect = useCallback(() => {
     triggerFileSelect();
     if (typeof window === 'undefined') {
@@ -538,7 +695,8 @@ export const ChatInput = memo(function ChatInput({
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          onDropCapture={handleComposerDropCapture}
+          onDrop={handleComposerDrop}
         >
           {(isDragging || isBlockDropActive || isFileTreeDropActive) && (
             <div

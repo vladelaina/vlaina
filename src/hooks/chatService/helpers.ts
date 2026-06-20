@@ -11,6 +11,7 @@ import {
   isPotentiallyLoadableNoteMentionReference,
   MAX_NOTE_MENTION_SCAN_ITEMS,
 } from '@/lib/ai/noteMentions';
+import { isAuthorizedExternalNoteMentionPath } from '@/lib/ai/authorizedExternalNoteMentions';
 import { isRenderedImageSource } from '@/components/Chat/common/messageClipboard';
 import {
   parseMarkdownAndHtmlImageTokens,
@@ -535,7 +536,14 @@ async function resolveMentionedPath(
 
   if (isStorageAbsolutePath(mentionPath)) {
     const fullPath = await resolveStarredAbsoluteMentionPath(mentionPath, kind);
-    return fullPath ? { cachePath: fullPath, fullPath } : null;
+    if (fullPath) {
+      return { cachePath: fullPath, fullPath };
+    }
+    if (kind === 'note' && isAuthorizedExternalNoteMentionPath(mentionPath)) {
+      const normalizedPath = normalizeAbsolutePath(mentionPath.trim());
+      return { cachePath: normalizedPath, fullPath: normalizedPath };
+    }
+    return null;
   }
 
   const notesPath = useNotesStore.getState().notesPath;

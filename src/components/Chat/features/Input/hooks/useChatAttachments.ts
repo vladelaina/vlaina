@@ -42,6 +42,23 @@ export function hasChatAttachmentTransferItem(items: DataTransferItemList | null
   return false;
 }
 
+function isChatAttachmentFileCandidate(value: unknown): value is File {
+  if (value instanceof File) {
+    return true;
+  }
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<File>;
+  return (
+    typeof candidate.name === 'string' &&
+    typeof candidate.type === 'string' &&
+    typeof candidate.size === 'number' &&
+    typeof candidate.arrayBuffer === 'function'
+  );
+}
+
 export function collectChatAttachmentFiles(
   files: FileList | readonly File[] | null | undefined,
   maxFiles = MAX_CHAT_ATTACHMENT_INPUT_FILES
@@ -54,7 +71,7 @@ export function collectChatAttachmentFiles(
   const length = Math.min(files.length, maxFiles);
   for (let index = 0; index < length; index += 1) {
     const file = files[index];
-    if (file instanceof File) {
+    if (isChatAttachmentFileCandidate(file)) {
       collected.push(file);
     }
   }
@@ -85,6 +102,21 @@ export function collectChatAttachmentClipboardFiles(items: DataTransferItemList 
     }
   }
   return files;
+}
+
+export function collectChatAttachmentTransferFiles(
+  transfer: DataTransfer | null | undefined
+): File[] {
+  if (!transfer) {
+    return [];
+  }
+
+  const files = collectChatAttachmentFiles(transfer.files);
+  if (files.length > 0) {
+    return files;
+  }
+
+  return collectChatAttachmentClipboardFiles(transfer.items);
 }
 
 async function settleWithConcurrencyLimit<T, R>(
@@ -257,7 +289,7 @@ export function useChatAttachments() {
       event.preventDefault();
       dragDepthRef.current = 0;
       setIsDragging(false);
-      const files = collectChatAttachmentFiles(event.dataTransfer?.files);
+      const files = collectChatAttachmentTransferFiles(event.dataTransfer);
       if (files.length > 0) {
         void processFiles(files).catch(() => undefined);
       }
@@ -305,7 +337,7 @@ export function useChatAttachments() {
       e.stopPropagation();
       dragDepthRef.current = 0;
       setIsDragging(false);
-      await processFiles(collectChatAttachmentFiles(e.dataTransfer.files));
+      await processFiles(collectChatAttachmentTransferFiles(e.dataTransfer));
     },
     [hasFileDrag, processFiles]
   );
@@ -341,6 +373,11 @@ export function useChatAttachments() {
       setIsDragging(false);
     }
   }, [hasFileDrag]);
+
+  const clearDragState = useCallback(() => {
+    dragDepthRef.current = 0;
+    setIsDragging(false);
+  }, []);
 
   const removeAttachment = useCallback((id: string) => {
     const removedAttachment = attachmentsRef.current.find((item) => item.id === id);
@@ -402,6 +439,7 @@ export function useChatAttachments() {
     triggerFileSelect,
     removeAttachment,
     clearAttachments,
+    clearDragState,
     restoreAttachments,
   };
 }
