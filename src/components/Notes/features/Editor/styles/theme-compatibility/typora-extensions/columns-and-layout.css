@@ -108,7 +108,7 @@
   page-break-inside: avoid;
 }
 
-:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock) {
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {
   margin-block: 0;
   max-width: 100%;
   overflow-x: auto;

@@ -76,10 +76,10 @@ body.editor-block-drag-active .milkdown .ProseMirror .ProseMirror-selectednode,
   transition: opacity var(--vlaina-duration-120) var(--vlaina-ease-css-default);
 }
 
-body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),
-body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *),
+body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.milkdown-table-block),
+body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *),
 .milkdown .ProseMirror .editor-block-drag-source-textlike,
-.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {
+.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *) {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
@@ -195,12 +195,14 @@ body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-tex
 
 /* Only the shared edges between adjacent selected blocks are pulled inward. */
 .milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-next,
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike.editor-block-selected-has-next,
 .milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-next,
 .milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-next {
   --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
 }
 
 .milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-previous,
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike.editor-block-selected-has-previous,
 .milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-previous,
 .milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-previous {
   --vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
@@ -240,7 +242,7 @@ body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-tex
 
 /* Selection foreground for text-like blocks and their inline descendants. */
 .milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike,
-.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {
+.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *) {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
@@ -250,7 +252,7 @@ body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-tex
   z-index: var(--vlaina-z-1);
 }
 
-.milkdown .ProseMirror .editor-native-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {
+.milkdown .ProseMirror .editor-native-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.milkdown-table-block):not(.milkdown-table-block *):not(.editor-tag-token):not(.editor-tag-token *) {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }

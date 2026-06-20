@@ -61,8 +61,8 @@
   box-shadow: none !important;
 }
 
-/* HTML blocks are scroll containers; keep their fill out of scrollable overflow. */
-.milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:is(
+/* Real HTML blocks are scroll containers; keep their fill out of scrollable overflow. */
+.milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is(
   .editor-block-selected-textlike,
   .editor-block-drag-source-textlike,
   .editor-native-selected-textlike,
