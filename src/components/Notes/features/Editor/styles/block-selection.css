@@ -168,16 +168,26 @@ body.editor-block-drag-active .milkdown .ProseMirror li.editor-block-selected-pa
 }
 
 .milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-rich {
+  --vlaina-block-selection-rich-fill-top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  --vlaina-block-selection-rich-fill-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
   isolation: isolate;
   contain: none;
+}
+
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-rich.editor-block-selected-has-previous {
+  --vlaina-block-selection-rich-fill-top: var(--vlaina-block-selection-gap-y);
+}
+
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-rich.editor-block-selected-has-next {
+  --vlaina-block-selection-rich-fill-bottom: var(--vlaina-block-selection-gap-y);
 }
 
 .milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-rich::after {
   content: '';
   position: absolute;
-  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  top: var(--vlaina-block-selection-rich-fill-top);
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  bottom: var(--vlaina-block-selection-rich-fill-bottom);
   left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
   z-index: var(--vlaina-z-behind);
   display: block !important;

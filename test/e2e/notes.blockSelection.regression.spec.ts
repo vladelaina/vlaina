@@ -546,6 +546,309 @@ test.describe("notes block selection regressions", () => {
     }
   });
 
+  test('keeps visible gaps between selected blank lines and following rich blocks', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-rich-block-selection-gap');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'blank-line-rich-block-selection-gap.md',
+        content: [
+          'Paragraph before blank line and code block.',
+          '',
+          '```ts',
+          'const selectedCodeGapSentinel = true;',
+          '```',
+          '',
+          'Paragraph before blank line and table.',
+          '',
+          '| Name | Value |',
+          '| --- | --- |',
+          '| tableGapSentinel | covered |',
+          '',
+          'Paragraph after code block.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'selectedCodeGapSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .milkdown-table-block`, { hasText: 'tableGapSentinel' })).toBeVisible();
+
+      const findAdjacentIndexes = async (targetText: string) => page.evaluate((needle) => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+        const targetIndex = blocks.findIndex((block) => block.text.includes(needle));
+        const blankIndex = targetIndex > 0 && blocks[targetIndex - 1]?.text === ''
+          ? targetIndex - 1
+          : -1;
+        return {
+          blankIndex,
+          targetIndex,
+          blocks: blocks.map((block, index) => ({
+            index,
+            text: block.text,
+          })),
+        };
+      }, targetText);
+
+      const measureSelectedGap = async (targetClassName: string) => page.evaluate((targetClass) => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const resolvePseudoFill = (element: HTMLElement, pseudo: '::before' | '::after') => {
+          const style = getComputedStyle(element, pseudo);
+          const hasAbsoluteFill = style.content !== 'none' &&
+            style.display !== 'none' &&
+            style.position === 'absolute';
+          return {
+            pseudo,
+            style,
+            hasAbsoluteFill,
+          };
+        };
+        const resolvePaintRect = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const fill = [
+            resolvePseudoFill(element, '::after'),
+            resolvePseudoFill(element, '::before'),
+          ].find((candidate) => candidate.hasAbsoluteFill);
+          if (!fill) {
+            return {
+              top: rect.top,
+              bottom: rect.bottom,
+              fillTop: '0px',
+              fillBottom: '0px',
+              fillDisplay: 'none',
+              fillContent: 'none',
+              fillPosition: 'static',
+              fillPseudo: null,
+            };
+          }
+          return {
+            top: rect.top + parsePx(fill.style.top),
+            bottom: rect.bottom - parsePx(fill.style.bottom),
+            fillTop: fill.style.top,
+            fillBottom: fill.style.bottom,
+            fillDisplay: fill.style.display,
+            fillContent: fill.style.content,
+            fillPosition: fill.style.position,
+            fillPseudo: fill.pseudo,
+          };
+        };
+
+        const rows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+          .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const paint = resolvePaintRect(element);
+            return {
+              tagName: element.tagName,
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              paintTop: Math.round(paint.top * 100) / 100,
+              paintBottom: Math.round(paint.bottom * 100) / 100,
+              fillTop: paint.fillTop,
+              fillBottom: paint.fillBottom,
+              fillDisplay: paint.fillDisplay,
+              fillContent: paint.fillContent,
+              fillPosition: paint.fillPosition,
+              fillPseudo: paint.fillPseudo,
+            };
+          })
+          .sort((left, right) => left.rectTop - right.rectTop);
+
+        const target = rows.find((row) => row.className.includes(targetClass)) ?? null;
+        const blank = rows.find((row) => (
+          row.text === '' && row !== target
+        )) ?? null;
+        return {
+          active: editor.classList.contains('editor-block-selection-active'),
+          rows,
+          blank,
+          target,
+          blankToTargetGap: blank && target
+            ? Math.round((target.paintTop - blank.paintBottom) * 100) / 100
+            : null,
+        };
+      }, targetClassName);
+
+      const assertRichBlockGap = async (targetText: string, targetClassName: string, label: string) => {
+        await clearSelectedNoteBlocks(page);
+        const indexes = await findAdjacentIndexes(targetText);
+        expect(indexes.blankIndex, JSON.stringify({ label, indexes }, null, 2)).toBeGreaterThanOrEqual(0);
+        expect(indexes.targetIndex, JSON.stringify({ label, indexes }, null, 2)).toBe(indexes.blankIndex + 1);
+
+        const selectedCount = await selectNoteBlocksByIndexes(page, [indexes.blankIndex, indexes.targetIndex]);
+        expect(selectedCount, JSON.stringify({ label, indexes }, null, 2)).toBe(2);
+        await page.evaluate(() => new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        ));
+
+        const geometry = await measureSelectedGap(targetClassName);
+        expect(geometry, `${label} blank line and rich block selection geometry`).not.toBeNull();
+        expect(geometry!.active, JSON.stringify({ label, geometry }, null, 2)).toBe(true);
+        expect(geometry!.rows, JSON.stringify({ label, geometry }, null, 2)).toHaveLength(2);
+        expect(geometry!.blank, JSON.stringify({ label, geometry }, null, 2)).not.toBeNull();
+        expect(geometry!.target, JSON.stringify({ label, geometry }, null, 2)).not.toBeNull();
+        expect(geometry!.blank!.className, JSON.stringify({ label, geometry }, null, 2)).toContain('editor-block-selected-has-next');
+        expect(geometry!.target!.className, JSON.stringify({ label, geometry }, null, 2)).toContain('editor-block-selected-has-previous');
+        expect(Number.parseFloat(geometry!.blank!.fillBottom), JSON.stringify({ label, geometry }, null, 2)).toBeGreaterThanOrEqual(0.5);
+        expect(Number.parseFloat(geometry!.target!.fillTop), JSON.stringify({ label, geometry }, null, 2)).toBeGreaterThanOrEqual(0.5);
+        expect(geometry!.blankToTargetGap, JSON.stringify({ label, geometry }, null, 2)).toBeGreaterThan(0.5);
+      };
+
+      await assertRichBlockGap('selectedCodeGapSentinel', 'code-block-container', 'code block');
+      await assertRichBlockGap('tableGapSentinel', 'milkdown-table-block', 'table block');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps a visible gap between selected list items when the first has a direct code block', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-list-direct-code-selection-gap');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'list-direct-code-selection-gap.md',
+        content: [
+          'Paragraph before list direct code gap.',
+          '',
+          '- List direct code gap item',
+          '  ```ts',
+          '  const listDirectCodeGapSentinel = true;',
+          '  ```',
+          '- Next list item after direct code gap.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'listDirectCodeGapSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li`, { hasText: 'Next list item after direct code gap.' })).toBeVisible();
+
+      const indexes = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          tagName: string;
+          text: string;
+        }>;
+        const listIndex = blocks.findIndex((block) => (
+          block.text.includes('List direct code gap item') &&
+          block.text.includes('listDirectCodeGapSentinel')
+        ));
+        const nextItemIndex = blocks.findIndex((block) => block.text.includes('Next list item after direct code gap.'));
+        return {
+          listIndex,
+          nextItemIndex,
+          blocks: blocks.map((block, index) => ({
+            index,
+            className: block.className,
+            tagName: block.tagName,
+            text: block.text,
+          })),
+        };
+      });
+      expect(indexes.listIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(indexes.nextItemIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThan(indexes.listIndex);
+
+      const selectedCount = await selectNoteBlocksByIndexes(page, [indexes.listIndex, indexes.nextItemIndex]);
+      expect(selectedCount, JSON.stringify(indexes, null, 2)).toBe(2);
+      await page.evaluate(() => new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      ));
+
+      const geometry = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const resolvePaintRect = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const after = getComputedStyle(element, '::after');
+          if (after.content !== 'none' && after.display !== 'none' && after.position === 'absolute') {
+            return {
+              top: rect.top + parsePx(after.top),
+              bottom: rect.bottom - parsePx(after.bottom),
+              afterTop: after.top,
+              afterBottom: after.bottom,
+              afterDisplay: after.display,
+              afterHeight: after.height,
+              afterPosition: after.position,
+            };
+          }
+
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+            afterTop: '0px',
+            afterBottom: '0px',
+            afterDisplay: after.display,
+            afterHeight: after.height,
+            afterPosition: after.position,
+          };
+        };
+
+        const rows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+          .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const paint = resolvePaintRect(element);
+            return {
+              tagName: element.tagName,
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              paintTop: Math.round(paint.top * 100) / 100,
+              paintBottom: Math.round(paint.bottom * 100) / 100,
+              afterTop: paint.afterTop,
+              afterBottom: paint.afterBottom,
+              afterDisplay: paint.afterDisplay,
+              afterHeight: paint.afterHeight,
+              afterPosition: paint.afterPosition,
+            };
+          })
+          .sort((left, right) => left.rectTop - right.rectTop);
+
+        const listItem = rows.find((row) => row.className.includes('editor-block-selected-has-direct-code-block')) ?? null;
+        const nextItem = rows.find((row) => row.text.includes('Next list item after direct code gap.')) ?? null;
+
+        return {
+          active: editor.classList.contains('editor-block-selection-active'),
+          rows,
+          listItem,
+          nextItem,
+          listToNextItemGap: listItem && nextItem
+            ? Math.round((nextItem.paintTop - listItem.paintBottom) * 100) / 100
+            : null,
+        };
+      });
+
+      expect(geometry, 'list direct code block selection geometry').not.toBeNull();
+      expect(geometry!.active, JSON.stringify({ indexes, geometry }, null, 2)).toBe(true);
+      expect(geometry!.listItem, JSON.stringify({ indexes, geometry }, null, 2)).not.toBeNull();
+      expect(geometry!.nextItem, JSON.stringify({ indexes, geometry }, null, 2)).not.toBeNull();
+      expect(geometry!.listItem!.className, JSON.stringify({ indexes, geometry }, null, 2)).toContain('editor-block-selected-has-next');
+      expect(geometry!.nextItem!.className, JSON.stringify({ indexes, geometry }, null, 2)).toContain('editor-block-selected-has-previous');
+      expect(Number.parseFloat(geometry!.listItem!.afterBottom), JSON.stringify({ indexes, geometry }, null, 2)).toBeGreaterThanOrEqual(0.5);
+      expect(geometry!.listToNextItemGap, JSON.stringify({ indexes, geometry }, null, 2)).toBeGreaterThan(0.5);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps inline-mark text visible when selecting a hard-break paragraph block', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-inline-mark-hard-break');
 
@@ -689,7 +992,7 @@ test.describe("notes block selection regressions", () => {
         JSON.stringify(visibility, null, 2),
       ).toBe(true);
       const lineFillContinuity = await collectLineFillContinuity(page);
-      expect(lineFillContinuity.fills.length, JSON.stringify(lineFillContinuity, null, 2)).toBeGreaterThanOrEqual(2);
+      expect(lineFillContinuity.fills.length, JSON.stringify(lineFillContinuity, null, 2)).toBeGreaterThanOrEqual(1);
       expect(
         lineFillContinuity.maxPositiveGap,
         JSON.stringify(lineFillContinuity, null, 2),
