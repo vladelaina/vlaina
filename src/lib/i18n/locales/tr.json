@@ -131,7 +131,7 @@
   "settings.general": "Genel",
   "settings.images.currentFolder": "Mevcut Klasör",
   "settings.images.currentFolderDescription": "Mevcut notla aynı klasöre kaydet",
-  "settings.images.filenameFormat": "Dosya Adı Biçimi",
+  "settings.images.filenameFormat": "Görsel Dosya Adı Biçimi",
   "settings.images.folderName": "Klasör Adı",
   "settings.images.folderNameDescription": "Görseller {folder}/ konumuna, kasa kök dizinine kaydedilecektir.",
   "settings.images.images": "Görseller",

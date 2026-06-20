@@ -131,7 +131,7 @@
   "settings.general": "General",
   "settings.images.currentFolder": "Carpeta actual",
   "settings.images.currentFolderDescription": "Guardar en la misma carpeta que la nota actual",
-  "settings.images.filenameFormat": "Formato de nombre de archivo",
+  "settings.images.filenameFormat": "Formato de nombre de archivo de imagen",
   "settings.images.folderName": "Nombre de carpeta",
   "settings.images.folderNameDescription": "Las imágenes se guardarán en {folder}/ en la raíz de la bóveda.",
   "settings.images.images": "Imágenes",

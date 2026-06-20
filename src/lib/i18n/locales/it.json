@@ -131,7 +131,7 @@
   "settings.general": "Generale",
   "settings.images.currentFolder": "Cartella corrente",
   "settings.images.currentFolderDescription": "Salva nella stessa cartella della nota corrente",
-  "settings.images.filenameFormat": "Formato nome file",
+  "settings.images.filenameFormat": "Formato nome file immagine",
   "settings.images.folderName": "Nome cartella",
   "settings.images.folderNameDescription": "Le immagini verranno salvate in {folder}/ alla radice del vault.",
   "settings.images.images": "Immagini",

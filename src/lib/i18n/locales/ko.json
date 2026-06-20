@@ -131,7 +131,7 @@
   "settings.general": "일반",
   "settings.images.currentFolder": "현재 폴더",
   "settings.images.currentFolderDescription": "현재 노트와 동일한 폴더에 저장",
-  "settings.images.filenameFormat": "파일 이름 형식",
+  "settings.images.filenameFormat": "이미지 파일 이름 형식",
   "settings.images.folderName": "폴더 이름",
   "settings.images.folderNameDescription": "이미지는 볼트 루트의 {folder}/에 저장됩니다.",
   "settings.images.images": "이미지",

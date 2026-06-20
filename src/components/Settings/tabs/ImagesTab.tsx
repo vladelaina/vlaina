@@ -1,10 +1,16 @@
-import { useUIStore, type ImageStorageMode } from '@/stores/uiSlice';
+import { useUIStore, type ImageFilenameFormat, type ImageStorageMode } from '@/stores/uiSlice';
 import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { SettingsSectionHeader, SettingsItem } from '../components/SettingsControls';
 import { SettingsTextInput } from '../components/SettingsFields';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n, type MessageKey } from '@/lib/i18n';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface StorageOption {
     id: ImageStorageMode;
@@ -32,6 +38,34 @@ const storageOptions: StorageOption[] = [
         id: 'vault',
         labelKey: 'settings.images.vaultRoot',
         descriptionKey: 'settings.images.vaultRootDescription',
+    },
+];
+
+interface FilenameFormatOption {
+    id: ImageFilenameFormat;
+    labelKey: MessageKey;
+    descriptionKey: MessageKey;
+    icon: IconName;
+}
+
+const filenameFormatOptions: FilenameFormatOption[] = [
+    {
+        id: 'original',
+        labelKey: 'settings.images.originalName',
+        descriptionKey: 'settings.images.originalNameDescription',
+        icon: 'file.image',
+    },
+    {
+        id: 'sequence',
+        labelKey: 'settings.images.numericSequence',
+        descriptionKey: 'settings.images.numericSequenceDescription',
+        icon: 'editor.listOrdered',
+    },
+    {
+        id: 'timestamp',
+        labelKey: 'settings.images.timestamp',
+        descriptionKey: 'settings.images.timestampDescription',
+        icon: 'misc.clock',
     },
 ];
 
@@ -196,77 +230,86 @@ export function ImagesTab() {
                 </div>
             )}
 
-            <div className="mt-8 mb-4 px-2">
-                <h3 className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">
-                    {t('settings.images.filenameFormat')}
-                </h3>
-            </div>
-            
-            <div className="space-y-2">
-                <FilenameFormatOption
-                    id="original"
-                    label={t('settings.images.originalName')}
-                    description={t('settings.images.originalNameDescription')}
-                />
-                <FilenameFormatOption
-                    id="sequence"
-                    label={t('settings.images.numericSequence')}
-                    description={t('settings.images.numericSequenceDescription')}
-                    icon="editor.listOrdered"
-                />
-                <FilenameFormatOption
-                    id="timestamp"
-                    label={t('settings.images.timestamp')}
-                    description={t('settings.images.timestampDescription')}
-                    icon="misc.clock"
-                />
-            </div>
+            <SettingsItem
+                title={t('settings.images.filenameFormat')}
+                className="mt-8"
+            >
+                <FilenameFormatDropdown />
+            </SettingsItem>
         </div>
     );
 }
 
-function FilenameFormatOption({ id, label, description, icon }: { id: 'original' | 'timestamp' | 'sequence'; label: string; description: string; icon?: IconName }) {
+function FilenameFormatDropdown() {
+    const { t } = useI18n();
     const imageFilenameFormat = useUIStore((s) => s.imageFilenameFormat);
     const setImageFilenameFormat = useUIStore((s) => s.setImageFilenameFormat);
-    const isSelected = imageFilenameFormat === id;
-    const hasDescription = description.trim().length > 0;
+    const selectedOption = filenameFormatOptions.find((option) => option.id === imageFilenameFormat)
+        ?? filenameFormatOptions[0];
 
     return (
-        <button
-            type="button"
-            data-settings-image-filename-format={id}
-            data-selected={isSelected ? 'true' : undefined}
-            onClick={() => setImageFilenameFormat(id)}
-            className={cn(
-                "group relative flex w-full items-center gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent",
-                isSelected
-                    ? "bg-[var(--vlaina-sidebar-row-selected-bg)]"
-                    : chatComposerPillSurfaceClass
-            )}
-        >
-            <div className="flex-1 min-w-0">
-                <div className={cn(
-                    "text-[var(--vlaina-font-sm)] font-semibold",
-                    isSelected ? "text-[var(--vlaina-sidebar-row-selected-text)]" : "text-[var(--vlaina-sidebar-notes-text)]"
-                )}>
-                    {label}
-                </div>
-                {hasDescription && (
-                    <div className={cn(
-                        "text-[var(--vlaina-font-xs)] mt-0.5",
-                        isSelected ? "text-[var(--vlaina-sidebar-row-selected-text-soft)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
-                    )}>
-                        {description}
-                    </div>
-                )}
-            </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button
+                    type="button"
+                    data-settings-control="image-filename-format"
+                    className={cn(
+                        "group/sidebar-row flex min-h-[var(--vlaina-size-36px)] w-56 max-w-full min-w-0 items-center justify-between gap-2 rounded-xl bg-transparent px-3 py-1 text-[var(--vlaina-font-base)] font-medium leading-5 text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)] transition-[background-color,box-shadow,color] duration-[var(--vlaina-duration-150)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)] max-[420px]:w-full"
+                    )}
+                >
+                    <span className="flex min-w-0 items-center gap-2">
+                        <Icon name={selectedOption.icon} size="sm" className="shrink-0 text-[var(--vlaina-sidebar-notes-file-icon)]" />
+                        <span className="truncate leading-5">{t(selectedOption.labelKey)}</span>
+                    </span>
+                    <Icon
+                        name="nav.chevronDown"
+                        size="sm"
+                        className="shrink-0 text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors group-hover/sidebar-row:text-[var(--vlaina-sidebar-notes-text)]"
+                    />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="z-[var(--vlaina-z-120)] w-[var(--radix-dropdown-menu-trigger-width)] min-w-64 rounded-[var(--vlaina-radius-22px)] border border-[var(--vlaina-sidebar-notes-menu-border)] bg-[var(--vlaina-sidebar-notes-menu-bg)] p-1.5 shadow-[var(--vlaina-sidebar-notes-menu-shadow)]"
+            >
+                {filenameFormatOptions.map((option) => {
+                    const isSelected = imageFilenameFormat === option.id;
 
-            {icon && (
-                <Icon name={icon} className={cn(
-                    "size-5 flex-shrink-0 transition-colors",
-                    isSelected ? "text-[var(--vlaina-sidebar-row-selected-text)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
-                )} />
-            )}
-        </button>
+                    return (
+                        <DropdownMenuItem
+                            key={option.id}
+                            data-settings-image-filename-format={option.id}
+                            data-selected={isSelected ? 'true' : undefined}
+                            onSelect={() => setImageFilenameFormat(option.id)}
+                            className={cn(
+                                "flex min-h-[var(--vlaina-size-36px)] min-w-0 cursor-pointer items-center gap-2 rounded-xl px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium leading-none text-[var(--vlaina-sidebar-notes-text)] outline-none transition-[background-color,box-shadow,color] duration-[var(--vlaina-duration-150)] hover:!bg-[var(--vlaina-sidebar-notes-row-hover)] hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)] focus:!bg-[var(--vlaina-sidebar-notes-row-hover)] focus:text-[var(--vlaina-sidebar-notes-text)] data-[highlighted]:!bg-[var(--vlaina-sidebar-notes-row-hover)] data-[highlighted]:text-[var(--vlaina-sidebar-notes-text)] data-[highlighted]:shadow-[var(--vlaina-shadow-sidebar-row-hover)]",
+                                isSelected
+                                    ? "!bg-[var(--vlaina-sidebar-notes-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-none)] data-[highlighted]:!bg-[var(--vlaina-sidebar-notes-row-active)] data-[highlighted]:text-[var(--vlaina-sidebar-row-selected-text)]"
+                                    : undefined
+                            )}
+                        >
+                            <Icon
+                                name={option.icon}
+                                size="sm"
+                                className={cn(
+                                    "shrink-0 text-[var(--vlaina-sidebar-notes-file-icon)]",
+                                    isSelected && "text-[var(--vlaina-sidebar-row-selected-text)]"
+                                )}
+                            />
+                            <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
+                                <span className="block w-full truncate leading-5">{t(option.labelKey)}</span>
+                                <span className="block w-full truncate text-[var(--vlaina-font-11)] font-normal leading-4 text-[var(--vlaina-sidebar-notes-text-soft)]">
+                                    {t(option.descriptionKey)}
+                                </span>
+                            </span>
+                            {isSelected && (
+                                <Icon name="common.check" size="sm" className="shrink-0 text-[var(--vlaina-sidebar-row-selected-text)]" />
+                            )}
+                        </DropdownMenuItem>
+                    );
+                })}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

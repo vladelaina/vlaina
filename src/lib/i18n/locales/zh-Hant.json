@@ -131,7 +131,7 @@
   "settings.general": "一般",
   "settings.images.currentFolder": "目前筆記旁邊",
   "settings.images.currentFolderDescription": "圖片會儲存在目前筆記所在的資料夾。",
-  "settings.images.filenameFormat": "檔案名稱格式",
+  "settings.images.filenameFormat": "圖片檔案名稱格式",
   "settings.images.folderName": "保管庫根目錄下的資料夾名稱",
   "settings.images.folderNameDescription": "圖片將儲存到保管庫最外層的 {folder}/。",
   "settings.images.images": "圖片",

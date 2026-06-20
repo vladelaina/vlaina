@@ -131,7 +131,7 @@
   "settings.general": "Общие",
   "settings.images.currentFolder": "Текущая папка",
   "settings.images.currentFolderDescription": "Сохранять в ту же папку, что и текущая заметка",
-  "settings.images.filenameFormat": "Формат имени файла",
+  "settings.images.filenameFormat": "Формат имени файла изображения",
   "settings.images.folderName": "Имя папки",
   "settings.images.folderNameDescription": "Изображения будут сохранены в {folder}/ в корне хранилища.",
   "settings.images.images": "Изображения",

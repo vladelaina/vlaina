@@ -131,7 +131,7 @@
   "settings.general": "通用",
   "settings.images.currentFolder": "当前笔记旁边",
   "settings.images.currentFolderDescription": "图片保存到当前笔记所在的文件夹。",
-  "settings.images.filenameFormat": "文件名格式",
+  "settings.images.filenameFormat": "图片文件名格式",
   "settings.images.folderName": "库根目录下的文件夹名",
   "settings.images.folderNameDescription": "图片将保存到笔记库最外层的 {folder}/。",
   "settings.images.images": "图片",

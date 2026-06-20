@@ -131,7 +131,7 @@
   "settings.general": "Général",
   "settings.images.currentFolder": "Dossier actuel",
   "settings.images.currentFolderDescription": "Enregistrer dans le même dossier que la note actuelle",
-  "settings.images.filenameFormat": "Format du nom de fichier",
+  "settings.images.filenameFormat": "Format du nom de fichier image",
   "settings.images.folderName": "Nom du dossier",
   "settings.images.folderNameDescription": "Les images seront enregistrées dans {folder}/ à la racine de la voûte.",
   "settings.images.images": "Images",
