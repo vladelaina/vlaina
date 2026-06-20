@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from '@/components/ui/icons';
-import { formatDiagnosticLog, recordDiagnostic } from '@/lib/diagnostics/appDiagnostics';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { cn, iconButtonStyles } from '@/lib/utils';
 
@@ -9,18 +8,24 @@ const DIAGNOSTICS_BUTTON_CLASS =
   'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)]';
 const COPY_FEEDBACK_MS = 1200;
 
-export function ProductionDiagnosticsButton({ forceVisible = false }: { forceVisible?: boolean }) {
+type ProductionDiagnosticsButtonProps = {
+  forceVisible?: boolean;
+  // Keep this as a copy-only entry point; callers choose which log text to provide.
+  getLogText: () => string | Promise<string>;
+};
+
+export function ProductionDiagnosticsButton({
+  forceVisible = false,
+  getLogText,
+}: ProductionDiagnosticsButtonProps) {
   const [copied, setCopied] = useState(false);
   const handleCopyLogs = useCallback(async () => {
-    const logText = formatDiagnosticLog();
+    const logText = await getLogText();
     const copied = await writeTextToClipboard(logText);
-    recordDiagnostic('diagnostics', copied ? 'copy_logs_success' : 'copy_logs_failed', {
-      length: logText.length,
-    });
     if (copied) {
       setCopied(true);
     }
-  }, []);
+  }, [getLogText]);
 
   useEffect(() => {
     if (!copied) return;
