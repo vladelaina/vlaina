@@ -20,6 +20,7 @@ import {
   STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES,
 } from '../shared/blockNodeTypes';
 import {
+  EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
   isMarkdownBlankLinePlaceholderNode,
   replaceMarkdownBlankLineWithEditableParagraph,
 } from './markdownBlankLineInteraction';
@@ -231,6 +232,27 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
 
   const mappedBlockFrom = tr.mapping.map(range.blockFrom, -1);
   const nextNode = tr.doc.nodeAt(mappedBlockFrom);
+
+  if (isMarkdownBlankLinePlaceholderNode(nextNode)) {
+    const paragraphType = view.state.schema.nodes.paragraph;
+    if (paragraphType) {
+      const paragraph = paragraphType.create(
+        null,
+        view.state.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)
+      );
+      tr = tr.replaceWith(mappedBlockFrom, mappedBlockFrom + nextNode.nodeSize, paragraph);
+      view.dispatch(
+        tr
+          .setSelection(TextSelection.create(
+            tr.doc,
+            mappedBlockFrom + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length
+          ))
+          .scrollIntoView()
+      );
+      view.focus();
+      return;
+    }
+  }
 
   if (nextNode?.type.name === 'heading') {
     const cursorPos = range.searchDir < 0
