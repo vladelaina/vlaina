@@ -117,6 +117,196 @@ test.describe("notes block selection", () => {
     }
   });
 
+  test('keeps visible gaps between text rows after switching to large block selection rendering', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-large-text-row-gaps');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-large-text-row-gaps.md',
+        content: Array.from(
+          { length: 132 },
+          (_, index) => `Large text selection row ${index}`,
+        ).join('\n\n'),
+      });
+
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks().length),
+        { timeout: 30_000 },
+      ).toBeGreaterThanOrEqual(132);
+
+      const selectedCount = await page.evaluate(async () => {
+        const indexes = Array.from({ length: 128 }, (_, index) => index);
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(indexes);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      });
+      expect(selectedCount).toBe(128);
+
+      const geometry = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const rows = Array.from(editor.children)
+          .filter((element): element is HTMLElement =>
+            element instanceof HTMLElement && element.classList.contains('editor-block-selected')
+          )
+          .slice(0, 6)
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const after = getComputedStyle(element, '::after');
+            const afterTop = parsePx(after.top);
+            const afterBottom = parsePx(after.bottom);
+            return {
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              afterDisplay: after.display,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              paintTop: Math.round((rect.top + afterTop) * 100) / 100,
+              paintBottom: Math.round((rect.bottom - afterBottom) * 100) / 100,
+              afterTop: after.top,
+              afterBottom: after.bottom,
+            };
+          });
+
+        const paintGaps = rows.slice(1).map((row, index) => (
+          Math.round((row.paintTop - rows[index].paintBottom) * 100) / 100
+        ));
+
+        return {
+          largeActive: editor.classList.contains('editor-block-selection-large'),
+          selectedCount: editor.querySelectorAll('.editor-block-selected').length,
+          rows,
+          paintGaps,
+        };
+      });
+
+      expect(geometry).not.toBeNull();
+      expect(geometry!.largeActive, JSON.stringify(geometry, null, 2)).toBe(true);
+      expect(geometry!.selectedCount, JSON.stringify(geometry, null, 2)).toBeGreaterThanOrEqual(128);
+      expect(geometry!.rows, JSON.stringify(geometry, null, 2)).toHaveLength(6);
+      expect(geometry!.rows.every((row) => row.className.includes('editor-block-selected-large-textlike')), JSON.stringify(geometry, null, 2)).toBe(true);
+      expect(geometry!.rows.every((row) => row.afterDisplay !== 'none'), JSON.stringify(geometry, null, 2)).toBe(true);
+      for (const gap of geometry!.paintGaps) {
+        expect(gap, JSON.stringify(geometry, null, 2)).toBeGreaterThan(0.5);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('uses the block selection foreground for selected table text in single and large selections', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-table-text-color');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      const beforeTable = Array.from(
+        { length: 72 },
+        (_, index) => `Before table selection row ${index}`,
+      ).join('\n\n');
+      const afterTable = Array.from(
+        { length: 72 },
+        (_, index) => `After table selection row ${index}`,
+      ).join('\n\n');
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-table-text-color.md',
+        content: [
+          beforeTable,
+          [
+            '| 功能 | Windows |',
+            '| --- | --- |',
+            '| Table alpha | Ctrl+T |',
+          ].join('\n'),
+          afterTable,
+        ].join('\n\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} .milkdown-table-block`, { hasText: 'Table alpha' })).toBeVisible();
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks().length),
+        { timeout: 30_000 },
+      ).toBeGreaterThanOrEqual(128);
+
+      const readTableTextColor = () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const table = document.querySelector<HTMLElement>('.milkdown-table-block');
+        const cell = Array.from(document.querySelectorAll<HTMLElement>('.milkdown-table-block :is(th, td)'))
+          .find((element) => element.textContent?.includes('Table alpha')) ?? null;
+        if (!editor || !table || !cell) return null;
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--vlaina-editor-block-selection-fg)';
+        probe.style.setProperty('-webkit-text-fill-color', 'var(--vlaina-editor-block-selection-fg)');
+        document.body.append(probe);
+        const probeStyle = getComputedStyle(probe);
+        const style = getComputedStyle(cell);
+        const result = {
+          color: style.color,
+          largeActive: editor.classList.contains('editor-block-selection-large'),
+          selectionColor: probeStyle.color,
+          selectionTextFillColor: probeStyle.getPropertyValue('-webkit-text-fill-color'),
+          selectedCount: editor.querySelectorAll('.editor-block-selected').length,
+          tableClassName: table.className,
+          tableSelected: table.classList.contains('editor-block-selected'),
+          textFillColor: style.getPropertyValue('-webkit-text-fill-color'),
+        };
+        probe.remove();
+        return result;
+      });
+
+      const baseline = await readTableTextColor();
+      expect(baseline).not.toBeNull();
+
+      const tableIndex = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+        return blocks.findIndex((block) => block.text.includes('Table alpha'));
+      });
+      expect(tableIndex).toBeGreaterThanOrEqual(0);
+
+      const singleSelectedCount = await page.evaluate(async (index) => {
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([index]);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      }, tableIndex);
+      expect(singleSelectedCount).toBe(1);
+
+      const singleSelection = await readTableTextColor();
+      expect(singleSelection).not.toBeNull();
+      expect(singleSelection!.tableSelected, JSON.stringify(singleSelection, null, 2)).toBe(true);
+      expect(singleSelection!.largeActive, JSON.stringify(singleSelection, null, 2)).toBe(false);
+      expect(singleSelection!.color, JSON.stringify({ baseline, singleSelection }, null, 2)).toBe(singleSelection!.selectionColor);
+      expect(singleSelection!.textFillColor, JSON.stringify({ baseline, singleSelection }, null, 2)).toBe(singleSelection!.selectionTextFillColor);
+
+      const largeSelectedCount = await page.evaluate(async (index) => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+        const startIndex = Math.min(Math.max(index - 64, 0), Math.max(blocks.length - 128, 0));
+        const indexes = Array.from({ length: 128 }, (_, offset) => startIndex + offset)
+          .filter((blockIndex) => blockIndex < blocks.length);
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(indexes);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      }, tableIndex);
+      expect(largeSelectedCount).toBeGreaterThanOrEqual(128);
+
+      const largeSelection = await readTableTextColor();
+      expect(largeSelection).not.toBeNull();
+      expect(largeSelection!.tableSelected, JSON.stringify(largeSelection, null, 2)).toBe(true);
+      expect(largeSelection!.largeActive, JSON.stringify(largeSelection, null, 2)).toBe(true);
+      expect(largeSelection!.color, JSON.stringify({ baseline, largeSelection }, null, 2)).toBe(largeSelection!.selectionColor);
+      expect(largeSelection!.textFillColor, JSON.stringify({ baseline, largeSelection }, null, 2)).toBe(largeSelection!.selectionTextFillColor);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps a visible gap between a hard-break paragraph line and the following blank-line block', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-hard-break-blank-gap');
 

@@ -508,11 +508,13 @@ describe('blockSelectionUtils', () => {
     );
 
     expect(classes).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
-    expect(classes[0]).toBe('editor-block-selected md-focus editor-block-selected-large-item editor-block-selected-large-textlike');
+    expect(classes[0]).toBe('editor-block-selected md-focus editor-block-selected-large-item editor-block-selected-large-textlike editor-block-selected-has-next');
     expect(classes.some((className) => className.includes('editor-block-selected-textlike'))).toBe(false);
     expect(classes.every((className) => className.includes('editor-block-selected-large-textlike'))).toBe(true);
-    expect(classes.some((className) => className.includes('editor-block-selected-has-next'))).toBe(false);
-    expect(classes.some((className) => className.includes('editor-block-selected-has-previous'))).toBe(false);
+    expect(classes[1]).toContain('editor-block-selected-has-next');
+    expect(classes[1]).toContain('editor-block-selected-has-previous');
+    expect(classes.at(-1)).not.toContain('editor-block-selected-has-next');
+    expect(classes.at(-1)).toContain('editor-block-selected-has-previous');
     expect(classes.some((className) => className.includes('editor-block-selected-parent-marker'))).toBe(false);
 
     await editor.destroy();
@@ -540,10 +542,12 @@ describe('blockSelectionUtils', () => {
 
     expect(classes).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
     expect(classes.filter((className) => className.includes('editor-block-selected-large-rich'))).toHaveLength(1);
-    expect(classes.at(-1)).toBe('editor-block-selected md-focus editor-block-selected-large-item editor-block-selected-large-rich');
+    expect(classes.at(-1)).toBe('editor-block-selected md-focus editor-block-selected-large-item editor-block-selected-large-rich editor-block-selected-has-previous');
     expect(classes.slice(0, -1).every((className) => className.includes('editor-block-selected-large-textlike'))).toBe(true);
-    expect(classes.some((className) => className.includes('editor-block-selected-has-next'))).toBe(false);
-    expect(classes.some((className) => className.includes('editor-block-selected-has-previous'))).toBe(false);
+    expect(classes[0]).toContain('editor-block-selected-has-next');
+    expect(classes[0]).not.toContain('editor-block-selected-has-previous');
+    expect(classes.at(-2)).toContain('editor-block-selected-has-next');
+    expect(classes.at(-2)).toContain('editor-block-selected-has-previous');
 
     await editor.destroy();
   });

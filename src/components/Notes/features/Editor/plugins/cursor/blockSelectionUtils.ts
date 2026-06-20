@@ -579,14 +579,12 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
   const displayRangeKeys = new Set(displayRanges.map((range) => getBlockRangeKey(range.from, range.to)));
   const hasNextDisplayRangeKeys = new Set<string>();
   const hasPreviousDisplayRangeKeys = new Set<string>();
-  if (!useLargeSelectionRendering) {
-    for (let index = 0; index < displayRanges.length - 1; index += 1) {
-      const current = displayRanges[index];
-      const next = displayRanges[index + 1];
-      if (!current || !next || !areBlockSelectionDisplayRangesVisuallyAdjacent(doc, current, next)) continue;
-      hasNextDisplayRangeKeys.add(getBlockRangeKey(current.from, current.to));
-      hasPreviousDisplayRangeKeys.add(getBlockRangeKey(next.from, next.to));
-    }
+  for (let index = 0; index < displayRanges.length - 1; index += 1) {
+    const current = displayRanges[index];
+    const next = displayRanges[index + 1];
+    if (!current || !next || !areBlockSelectionDisplayRangesVisuallyAdjacent(doc, current, next)) continue;
+    hasNextDisplayRangeKeys.add(getBlockRangeKey(current.from, current.to));
+    hasPreviousDisplayRangeKeys.add(getBlockRangeKey(next.from, next.to));
   }
   const context: BlockSelectionDecorationContext = {
     displayRangeKeys,
@@ -608,9 +606,14 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
   const decorations = displayRanges.flatMap((range) => {
     const isNodeRange = isNodeDecorationRange(doc, range);
     if (useLargeSelectionRendering) {
-      const className = isTextLikeDecorationRange(doc, range, isNodeRange)
-        ? LARGE_TEXTLIKE_BLOCK_SELECTION_DECORATION_CLASS
-        : LARGE_RICH_BLOCK_SELECTION_DECORATION_CLASS;
+      const rangeKey = getBlockRangeKey(range.from, range.to);
+      const className = [
+        isTextLikeDecorationRange(doc, range, isNodeRange)
+          ? LARGE_TEXTLIKE_BLOCK_SELECTION_DECORATION_CLASS
+          : LARGE_RICH_BLOCK_SELECTION_DECORATION_CLASS,
+        context.hasNextDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-next' : '',
+        context.hasPreviousDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-previous' : '',
+      ].filter(Boolean).join(' ');
       if (isNodeRange) {
         return [Decoration.node(range.from, range.to, { class: className })];
       }

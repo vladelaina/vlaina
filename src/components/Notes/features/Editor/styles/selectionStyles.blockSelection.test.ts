@@ -203,6 +203,8 @@ describe("editor block selection styles", () => {
     expect(largeTextlikeSelectionRule).toContain('background-color: transparent;');
     expect(largeTextlikeSelectionRule).toContain('box-decoration-break: clone;');
     expect(largeTextlikeSelectionRule).toContain('contain: none;');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike.editor-block-selected-has-next,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike.editor-block-selected-has-previous,');
     expect(largeTextlikeSelectionFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
     expect(largeTextlikeSelectionFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
     expect(largeTextlikeSelectionFillRule).toContain('display: block !important;');

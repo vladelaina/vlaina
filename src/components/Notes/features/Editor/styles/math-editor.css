@@ -252,19 +252,19 @@
 .milkdown .ProseMirror .editor-block-selected :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) *,
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) * {
   color: var(--vlaina-text-primary) !important;

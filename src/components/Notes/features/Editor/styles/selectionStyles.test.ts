@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readEditorStyleSourceFiles, readStyleFile, readThemeCompatibilityStyle } from "./selectionStylesTestUtils";
+import { extractCssRule, readEditorStyleSourceFiles, readStyleFile, readThemeCompatibilityStyle } from "./selectionStylesTestUtils";
 
 describe("editor style theme compatibility", () => {
   it('keeps the Typora compatibility bridge scoped to imported external themes', () => {
@@ -28,6 +28,14 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain('background: transparent !important;');
     expect(css).toContain(`${scope} #write.done::before,`);
     expect(css).toContain(`${scope} #write :is(.md-htmlblock, .video-block, .v-caption.iframe) :is(iframe, video, object, embed),`);
+    const typoraHtmlBlockOverflowRule = extractCssRule(
+      css,
+      `${scope} #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock):not(`
+    );
+    expect(typoraHtmlBlockOverflowRule).toContain(":not([data-value='<!--vlaina-markdown-blank-line-->'])");
+    expect(typoraHtmlBlockOverflowRule).toContain(":not([data-value='<!--vlaina-markdown-tight-heading-->'])");
+    expect(typoraHtmlBlockOverflowRule).toContain('overflow-x: auto;');
+    expect(css).not.toContain(`${scope} #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock) {\n`);
     expect(css).toContain(`${scope} #write .milkdown-table-block.table-figure {`);
     expect(css).toContain(`${scope} #write .v-caption.full {`);
     expect(css).toContain(`${scope} #write .v-btn {`);
