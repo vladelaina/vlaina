@@ -1,45 +1,9 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { isTaskCheckboxClick } from './taskCheckboxHitArea';
+import { resolveTaskCheckboxTarget } from './taskCheckboxHitArea';
 import { markEditorUserInput } from '../shared/userInputEvents';
 
 export const taskListClickPluginKey = new PluginKey('taskListClick');
-
-function isPointVerticallyInsideTaskPrimaryLine(taskItem: HTMLElement, clientY: number): boolean {
-    const textBlock = taskItem.querySelector(':scope > [data-text-align], :scope > p') as HTMLElement | null;
-    const rect = (textBlock ?? taskItem).getBoundingClientRect();
-    const slack = Math.max(4, Math.min(8, rect.height * 0.35));
-    return clientY >= rect.top - slack && clientY <= rect.bottom + slack;
-}
-
-function compareDeepestFirst(a: HTMLElement, b: HTMLElement): number {
-    if (a === b) return 0;
-    if (a.contains(b)) return 1;
-    if (b.contains(a)) return -1;
-    return 0;
-}
-
-function resolveTaskCheckboxClickTarget(root: HTMLElement, target: HTMLElement, clientX: number, clientY: number): HTMLElement | null {
-    const directTaskLi = target.closest('li[data-item-type="task"]') as HTMLElement | null;
-    if (
-        directTaskLi &&
-        root.contains(directTaskLi) &&
-        isPointVerticallyInsideTaskPrimaryLine(directTaskLi, clientY) &&
-        isTaskCheckboxClick(directTaskLi, clientX)
-    ) {
-        return directTaskLi;
-    }
-
-    const scanRoot = target.closest('li') ?? root;
-    const candidates = Array.from(scanRoot.querySelectorAll<HTMLElement>('li[data-item-type="task"]'))
-        .filter((taskItem) => (
-            isPointVerticallyInsideTaskPrimaryLine(taskItem, clientY) &&
-            isTaskCheckboxClick(taskItem, clientX)
-        ))
-        .sort(compareDeepestFirst);
-
-    return candidates[0] ?? null;
-}
 
 export const taskListClickPlugin = $prose(() => {
     return new Plugin({
@@ -51,7 +15,7 @@ export const taskListClickPlugin = $prose(() => {
                     if (!target) return false;
                     if (target.closest('a, button, input, textarea, select, [contenteditable="false"]')) return false;
 
-                    const taskLi = resolveTaskCheckboxClickTarget(view.dom, target, event.clientX, event.clientY);
+                    const taskLi = resolveTaskCheckboxTarget(view.dom, target, event.clientX, event.clientY);
                     if (!taskLi) return false;
 
                     event.preventDefault();

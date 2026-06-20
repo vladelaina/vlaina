@@ -49,6 +49,24 @@ describe("editor markdown presentation styles", () => {
     expect(css).toContain('bottom: var(--vlaina-space--025em);');
   });
 
+  it('shows a pointer cursor over coordinate-resolved task checkboxes', () => {
+    const css = readStyleFile('markdown.css');
+
+    expect(css).toContain('.milkdown .ProseMirror.editor-task-checkbox-hover,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-task-checkbox-hover * {');
+    expect(css).toContain('cursor: pointer !important;');
+  });
+
+  it('centers task checkboxes against the actual markdown body line height', () => {
+    const css = readStyleFile('markdown.css');
+    const commonCss = readCommonMarkdownSurfaceStyle();
+
+    expect(css).toContain('margin-top: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2);');
+    expect(css).not.toContain('margin-top: var(--vlaina-space-35px);');
+    expect(commonCss).toContain('margin: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2) var(--vlaina-space-05rem) 0 calc(var(--vlaina-space-15rem) * -1);');
+    expect(commonCss).not.toContain('margin: var(--vlaina-space-35px) var(--vlaina-space-05rem)');
+  });
+
   it('keeps markdown blank-line placeholders from adding extra top-level block gap', () => {
     const css = readStyleFile('markdown.css');
 

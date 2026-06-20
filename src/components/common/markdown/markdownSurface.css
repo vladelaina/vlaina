@@ -227,7 +227,7 @@
 .markdown-surface .task-list-item > input[type='checkbox'] {
   width: var(--vlaina-size-16px);
   height: var(--vlaina-size-16px);
-  margin: var(--vlaina-space-35px) var(--vlaina-space-05rem) 0 calc(var(--vlaina-space-15rem) * -1);
+  margin: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2) var(--vlaina-space-05rem) 0 calc(var(--vlaina-space-15rem) * -1);
   vertical-align: top;
   accent-color: var(--vlaina-accent);
 }

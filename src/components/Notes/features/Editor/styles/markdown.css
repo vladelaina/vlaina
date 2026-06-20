@@ -247,8 +247,8 @@
   flex-shrink: 0;
   width: var(--vlaina-size-16px);
   height: var(--vlaina-size-16px);
-  /* (Line height 23px - Checkbox 16px) / 2 = 3.5px */
-  margin-top: var(--vlaina-space-35px);
+  /* Center the checkbox against the first task text line, including user font-size changes. */
+  margin-top: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-16px)) / 2);
   /* Pull checkbox left to align with list markers (bullets/numbers)
      while keeping the LI content box aligned for collapse buttons */
   margin-left: var(--vlaina-space--15rem);
@@ -258,6 +258,11 @@
   background-color: transparent;
   cursor: pointer;
   transition: all var(--vlaina-duration-150) var(--vlaina-ease-css-default);
+}
+
+.milkdown .ProseMirror.editor-task-checkbox-hover,
+.milkdown .ProseMirror.editor-task-checkbox-hover * {
+  cursor: pointer !important;
 }
 
 /* Checked state */
