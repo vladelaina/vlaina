@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
     sessionStorage.removeItem('vlaina_auth_state');
     sessionStorage.removeItem('vlaina_auth_provider');
   }),
+  isEmailCodeRequestCooldownError: vi.fn((value: string) => /please wait.*before request/i.test(value)),
   normalizeAuthError: vi.fn((value: string) => `normalized:${value}`),
   normalizePersistedUser: vi.fn((value: Record<string, unknown>) => ({
     isConnected: value?.isConnected === true,
@@ -95,6 +96,7 @@ vi.mock('./authSupport', () => ({
   refreshAvatar: mocks.refreshAvatar,
   clearPersistedUser: mocks.clearPersistedUser,
   clearAuthIntent: mocks.clearAuthIntent,
+  isEmailCodeRequestCooldownError: mocks.isEmailCodeRequestCooldownError,
   normalizeAuthError: mocks.normalizeAuthError,
   normalizePersistedUser: mocks.normalizePersistedUser,
 }));
@@ -146,6 +148,8 @@ describe('accountSession auth actions', () => {
     mocks.broadcastAccountStatusRefresh.mockClear();
     mocks.clearPersistedUser.mockClear();
     mocks.clearAuthIntent.mockClear();
+    mocks.isEmailCodeRequestCooldownError.mockClear();
+    mocks.isEmailCodeRequestCooldownError.mockImplementation((value: string) => /please wait.*before request/i.test(value));
     mocks.normalizeAuthError.mockClear();
     mocks.applyDisconnectedAccount.mockClear();
     mocks.normalizeManagedBudgetPayload.mockClear();
@@ -827,6 +831,23 @@ describe('accountSession auth actions', () => {
     await expect(createRequestEmailCode(set as never, get as never)(' VLA@example.com ')).resolves.toBe(true);
 
     expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledWith('vla@example.com');
+  });
+
+  it('treats email code request cooldown responses as an already-sent code', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.webAccountCommands.requestEmailCode.mockRejectedValue(
+      new Error('error: please wait before requesting another code'),
+    );
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: false,
+      primaryEmail: null,
+    }));
+
+    await expect(createRequestEmailCode(set as never, get as never)('vla@example.com')).resolves.toBe(true);
+
+    expect(mocks.normalizeAuthError).not.toHaveBeenCalled();
+    expect(set).toHaveBeenLastCalledWith({ error: null });
   });
 
   it('requesting a new email code invalidates an older pending verification result', async () => {

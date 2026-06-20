@@ -1,9 +1,11 @@
+import { useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 import { AccountOauthButtons } from './AccountOauthButtons';
 import { AccountEmailCodeCard } from './AccountEmailCodeCard';
 import { useI18n } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 
 interface AccountSignInOptionsProps {
   isConnecting: boolean;
@@ -29,6 +31,10 @@ export function AccountSignInOptions({
   const { t } = useI18n();
   const isCompact = variant === 'compact';
   const disabled = isConnecting;
+
+  useLayoutEffect(() => {
+    requestNativeCaretOverlayRefresh();
+  }, [error]);
 
   return (
     <div className={cn('flex flex-col gap-6 px-4', className)}>

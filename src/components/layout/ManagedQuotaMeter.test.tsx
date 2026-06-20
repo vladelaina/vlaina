@@ -131,6 +131,7 @@ describe('ManagedQuotaMeter', () => {
     const meter = screen.getByLabelText('Managed AI quota remaining 42%');
     expect(meter).not.toHaveAttribute('title');
     expect(screen.getByText('42%')).toHaveAttribute('aria-hidden', 'true');
+    expect(meter.querySelector('.bg-\\[\\#60fe73\\]')).toBeInTheDocument();
   });
 
   it('keeps the previous budget visible while a refresh is in flight', () => {
@@ -192,7 +193,9 @@ describe('ManagedQuotaMeter', () => {
 
     const meter = screen.getByLabelText('Managed AI quota remaining 120%');
     expect(meter).not.toHaveAttribute('title');
-    expect(screen.getByText('120%')).toHaveAttribute('aria-hidden', 'true');
+    const quotaLabel = screen.getByText('120%');
+    expect(quotaLabel).toHaveAttribute('aria-hidden', 'true');
+    expect(quotaLabel).toHaveClass('group-hover/quota:w-12', 'group-focus-within/quota:w-12');
     expect(meter.querySelector('[style="width: 100%;"]')).toBeInTheDocument();
   });
 
