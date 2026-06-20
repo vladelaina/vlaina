@@ -101,6 +101,36 @@ function looksLikePlainHtmlLikeTextPaste(text: string): boolean {
         });
 }
 
+const PLAIN_TEXT_HTML_BREAK_TAG_PATTERN = /<br\b[^>]*\/?>[ \t]*(?:<\/br>)?/gi;
+const STANDALONE_PLAIN_TEXT_HTML_BREAK_LINE_PATTERN = /^\s*<br\b[^>]*\/?>\s*(?:<\/br>)?\s*$/i;
+
+function normalizePlainTextHtmlBreaksForPaste(text: string): string {
+    if (!/<br\b/i.test(text)) return text;
+
+    const normalized = text.replace(/\r\n?/g, '\n');
+    if (STANDALONE_PLAIN_TEXT_HTML_BREAK_LINE_PATTERN.test(normalized.trim())) {
+        return '\n';
+    }
+
+    const breakMatches = Array.from(normalized.matchAll(PLAIN_TEXT_HTML_BREAK_TAG_PATTERN));
+    if (breakMatches.length === 0) return text;
+
+    const shouldTreatAsLineBreakMarkup = breakMatches.length >= 2 || breakMatches.some((match) => {
+        const index = match.index ?? -1;
+        if (index < 0) return false;
+        const before = normalized[index - 1] ?? '';
+        const after = normalized[index + match[0].length] ?? '';
+        return before === '\n'
+            || after === '\n'
+            || (before.length > 0 && !/\s/.test(before))
+            || (after.length > 0 && !/\s/.test(after));
+    });
+
+    return shouldTreatAsLineBreakMarkup
+        ? normalized.replace(PLAIN_TEXT_HTML_BREAK_TAG_PATTERN, '\n')
+        : text;
+}
+
 function isNonEmptyTextSelection(selection: Selection): boolean {
     return (
         (selection instanceof TextSelection || selection.constructor?.name === 'TextSelection') &&
@@ -975,6 +1005,21 @@ export const clipboardPlugin = $prose((ctx) => {
             const slice = new Slice(Fragment.from(codeBlockNode), 0, 0);
             dispatchSliceAndKeepCursorAtTail(view, slice);
             return true;
+        }
+
+        const plainTextWithHtmlBreaks = normalizePlainTextHtmlBreaksForPaste(text);
+        if (plainTextWithHtmlBreaks !== text) {
+            const blankLineSlice = createPlainTextBlankLineSlice(state, plainTextWithHtmlBreaks);
+            if (blankLineSlice) {
+                dispatchSliceAndKeepCursorAtTail(view, blankLineSlice);
+                return true;
+            }
+
+            const lineBreakSlice = createPlainTextLineBreakSlice(state, plainTextWithHtmlBreaks);
+            if (lineBreakSlice) {
+                dispatchSliceAndKeepCursorAtTail(view, lineBreakSlice);
+                return true;
+            }
         }
 
         const headingPayload = parseStandaloneAtxHeading(text);

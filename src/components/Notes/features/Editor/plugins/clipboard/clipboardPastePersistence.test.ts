@@ -253,6 +253,14 @@ describe('clipboard paste markdown persistence', () => {
     await editor.destroy();
   });
 
+  it('converts copied html break tags in plain text paste to markdown line breaks', async () => {
+    await expect(pasteAndPersist('第一行<br>第二行')).resolves.toBe('第一行\\\n第二行');
+  });
+
+  it('converts repeated copied html break tags in plain text paste to paragraph gaps', async () => {
+    await expect(pasteAndPersist('Before<br><br>After')).resolves.toBe('Before\n\nAfter');
+  });
+
   it.each([
     ['image', '<img src="cover.png" />', 'img'],
     ['iframe', '<iframe src="https://example.com/embed"></iframe>', 'iframe'],
