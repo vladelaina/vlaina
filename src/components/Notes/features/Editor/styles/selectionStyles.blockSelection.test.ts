@@ -51,6 +51,22 @@ describe("editor block selection styles", () => {
     expect(markdownCss).not.toContain('.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .editor-block-selected {');
   });
 
+  it('keeps hashtag tokens at their tag color inside block selections', () => {
+    const css = readBlockSelectionStyle();
+    const tagRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror .editor-block-selected .editor-tag-token,'
+    );
+
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected.editor-tag-token,');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-textlike.editor-tag-token,');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-tag-token,');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-native-selected-textlike.editor-tag-token,');
+    expect(tagRule).toContain('.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token {');
+    expect(tagRule).toContain('color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
+    expect(tagRule).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;');
+  });
+
   it('hides editable list gap placeholder text while keeping the caret visible', () => {
     const css = readStyleFile('markdown.css');
     const itemRule = extractCssRule(css, '.milkdown .ProseMirror li.editor-list-gap-placeholder-item');

@@ -77,9 +77,9 @@ body.editor-block-drag-active .milkdown .ProseMirror .ProseMirror-selectednode,
 }
 
 body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),
-body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),
+body.editor-block-drag-active .milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *),
 .milkdown .ProseMirror .editor-block-drag-source-textlike,
-.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+.milkdown .ProseMirror .editor-block-drag-source-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
@@ -240,12 +240,12 @@ body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-tex
 
 /* Selection foreground for text-like blocks and their inline descendants. */
 .milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike,
-.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
 
-.milkdown .ProseMirror .editor-native-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+.milkdown .ProseMirror .editor-native-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }

@@ -63,7 +63,11 @@
 }
 
 .milkdown .ProseMirror .editor-block-selected .editor-tag-token,
-.milkdown .ProseMirror .editor-block-selected.editor-tag-token {
+.milkdown .ProseMirror .editor-block-selected.editor-tag-token,
+.milkdown .ProseMirror .editor-block-selected-textlike.editor-tag-token,
+.milkdown .ProseMirror .editor-block-drag-source-textlike.editor-tag-token,
+.milkdown .ProseMirror .editor-native-selected-textlike.editor-tag-token,
+.milkdown .ProseMirror .editor-block-selected-large-textlike.editor-tag-token {
   color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;
   -webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;
 }

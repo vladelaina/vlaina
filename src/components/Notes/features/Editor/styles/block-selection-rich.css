@@ -61,6 +61,17 @@
   box-shadow: none !important;
 }
 
+/* HTML blocks are scroll containers; keep their fill out of scrollable overflow. */
+.milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:is(
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike,
+  .editor-block-selected-large-textlike
+)::after {
+  right: var(--vlaina-space-0);
+  left: var(--vlaina-space-0);
+}
+
 .milkdown .ProseMirror .video-block.ProseMirror-selectednode::after,
 .milkdown .ProseMirror .video-block.editor-block-selected::after {
   display: none;
