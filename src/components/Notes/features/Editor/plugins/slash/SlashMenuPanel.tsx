@@ -6,7 +6,7 @@ import { themeIconTokens } from '@/styles/themeTokens';
 type SlashMenuPanelProps = {
   items: readonly SlashMenuItem[];
   selectedIndex: number;
-  onHoverItem: (index: number) => void;
+  onHoverItem: (index: number, pointer: { clientX: number; clientY: number }) => void;
   onSelectItem: (index: number) => void;
 };
 
@@ -31,7 +31,10 @@ export function SlashMenuPanel({
             data-index={index}
             aria-selected={isSelected}
             role="option"
-            onMouseMove={() => onHoverItem(index)}
+            onMouseMove={(event) => onHoverItem(index, {
+              clientX: event.clientX,
+              clientY: event.clientY,
+            })}
             onMouseDown={(event) => {
               event.preventDefault();
               onSelectItem(index);
