@@ -180,14 +180,43 @@ export function createFileSystemTreeActions(
           return;
         }
 
-        const currentNote = get().currentNote;
+        const stateBeforeCurrentNotePreservation = get();
+        const currentNote = stateBeforeCurrentNotePreservation.currentNote;
         if (currentNote && !isAbsolutePath(currentNote.path) && !isDraftNotePath(currentNote.path)) {
-          stepStartedAt = getFileTreeLoadPerfNow();
-          children = sortNestedFileTree(ensureFileNodeInTree(children, currentNote.path), {
-            mode: fileTreeSortMode,
-            metadata,
-          });
-          markStep('ensure-current-note', stepStartedAt);
+          const currentTab = stateBeforeCurrentNotePreservation.openTabs.find(
+            (tab) => tab.path === currentNote.path
+          );
+          let shouldPreserveCurrentNoteInTree =
+            stateBeforeCurrentNotePreservation.isDirty || currentTab?.isDirty === true;
+
+          if (!shouldPreserveCurrentNoteInTree) {
+            try {
+              const { fullPath } = await resolveVaultRelativeFullPath(basePath, currentNote.path);
+              shouldPreserveCurrentNoteInTree = await storage.exists(fullPath);
+            } catch {
+              shouldPreserveCurrentNoteInTree = false;
+            }
+          }
+
+          if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+            recordDiagnostic('notes.fileTree', 'stale_return_after_current_note_check', {
+              requestId,
+              latestLoadFileTreeRequestId,
+              basePath,
+              currentVaultPath: getCurrentVaultPath(),
+              timings,
+            });
+            return;
+          }
+
+          if (shouldPreserveCurrentNoteInTree) {
+            stepStartedAt = getFileTreeLoadPerfNow();
+            children = sortNestedFileTree(ensureFileNodeInTree(children, currentNote.path), {
+              mode: fileTreeSortMode,
+              metadata,
+            });
+            markStep('ensure-current-note', stepStartedAt);
+          }
         }
 
         stepStartedAt = getFileTreeLoadPerfNow();

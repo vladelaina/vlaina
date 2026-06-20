@@ -19,6 +19,7 @@ import { createNotesExternalSyncActions, type PendingCreateEntry } from './notes
 
 const NOTES_RECONCILE_POLL_MS = 1500;
 const BROAD_PATH_RECONCILE_POLL_MS = 5000;
+const WATCH_RECONCILE_POLL_MS = 5000;
 
 function shouldAvoidRecursiveNativeWatch(path: string) {
   const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -137,24 +138,33 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
     };
 
-    const startReconcilePolling = () => {
+    const startReconcilePolling = (options?: {
+      intervalMs?: number;
+      skipTreeSnapshot?: boolean;
+      immediate?: boolean;
+    }) => {
       if (reconcilePollTimer !== null) {
         return;
       }
 
       const broadNotesPath = shouldAvoidRecursiveNativeWatch(notesPath);
-      const reconcilePollMs = broadNotesPath
-        ? BROAD_PATH_RECONCILE_POLL_MS
-        : NOTES_RECONCILE_POLL_MS;
+      const skipTreeSnapshot = options?.skipTreeSnapshot ?? broadNotesPath;
+      const reconcilePollMs = options?.intervalMs ?? (
+        broadNotesPath
+          ? BROAD_PATH_RECONCILE_POLL_MS
+          : NOTES_RECONCILE_POLL_MS
+      );
       reconcilePollTimer = window.setInterval(() => {
         if (document.visibilityState !== 'visible') {
           return;
         }
         void reconcileExternalPathEventFile();
-        void syncActions.runPollingReconcile({ skipTreeSnapshot: broadNotesPath });
+        void syncActions.runPollingReconcile({ skipTreeSnapshot });
       }, reconcilePollMs);
-      void reconcileExternalPathEventFile();
-      void syncActions.runPollingReconcile({ skipTreeSnapshot: broadNotesPath });
+      if (options?.immediate !== false) {
+        void reconcileExternalPathEventFile();
+        void syncActions.runPollingReconcile({ skipTreeSnapshot });
+      }
     };
 
     const reconcileOnFocus = () => {
@@ -202,6 +212,11 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
         unwatch = stopWatching;
         releaseWatcher = registerExternalSyncWatcher();
+        startReconcilePolling({
+          intervalMs: WATCH_RECONCILE_POLL_MS,
+          skipTreeSnapshot: false,
+          immediate: false,
+        });
       } catch {
         if (disposed) {
           return;
