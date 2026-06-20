@@ -217,6 +217,8 @@ describe("editor block drag interaction styles", () => {
     expect(themeCss).not.toContain('--vlaina-editor-collapse-pos-list: calc(-1 *');
     expect(markdownCss).toContain('left: var(--vlaina-editor-collapse-pos-heading, -22px);');
     expect(css).toContain('left: calc(var(--vlaina-editor-collapse-pos-list, -46px) - var(--vlaina-list-marker-extra, 0px));');
+    expect(css).toContain('margin-top: calc((var(--vlaina-line-height-markdown-body) - var(--vlaina-size-18px)) / 2);');
     expect(css).not.toContain('left: var(--vlaina-editor-collapse-pos-list);');
+    expect(css).not.toContain('margin-top: var(--vlaina-space-4px);');
   });
 });

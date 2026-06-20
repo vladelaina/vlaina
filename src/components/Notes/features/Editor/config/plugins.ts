@@ -25,6 +25,7 @@ import { frontmatterPlugin } from '../plugins/frontmatter/frontmatterPlugin';
 import { videoPlugin } from '../plugins/video/videoPlugin';
 import { abbrPlugin } from '../plugins/abbr/abbrPlugin';
 import { taskListClickPlugin } from '../plugins/task-list/taskListClickPlugin';
+import { taskListCursorPlugin } from '../plugins/task-list/taskListCursorPlugin';
 import { listTabIndentPlugin } from '../plugins/task-list/listTabIndentPlugin';
 import { listCollapsePlugin } from '../plugins/collapse/listCollapse';
 import { markdownLinkPlugin } from '../plugins/links/markdown-link/markdownLinkPlugin';
@@ -115,6 +116,7 @@ export const customPluginGroups = [
     name: 'lists-clipboard-images',
     plugins: [
       taskListClickPlugin,
+      taskListCursorPlugin,
       listTabIndentPlugin,
       listCollapsePlugin,
       structuralStyleDecorationsPlugin,
