@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
-import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -233,7 +233,7 @@ describe('deleteSelectedBlocks', () => {
     await editor.destroy();
   });
 
-  it('selects the next horizontal rule after deleting the block above it', async () => {
+  it('places the cursor at the next paragraph tail after deleting the block above a horizontal rule', async () => {
     const editor = await createEditor(['Delete me', '', '---', '', 'After'].join('\n'));
     const view = editor.ctx.get(editorViewCtx);
     const targetBlock = findBlockByText(view, 'Delete me');
@@ -241,8 +241,26 @@ describe('deleteSelectedBlocks', () => {
     expect(targetBlock).toBeDefined();
     expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
 
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect((view.state.selection as NodeSelection).node.type.name).toBe('hr');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('After');
+    expect(view.state.selection.$from.parentOffset).toBe(5);
+    expect(view.state.doc.textContent).toContain('After');
+    expect(view.state.doc.textContent).not.toContain('Delete me');
+
+    await editor.destroy();
+  });
+
+  it('skips consecutive horizontal rules when placing the cursor after deleting a block above them', async () => {
+    const editor = await createEditor(['Delete me', '', '---', '', '---', '', 'After'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const targetBlock = findBlockByText(view, 'Delete me');
+
+    expect(targetBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('After');
+    expect(view.state.selection.$from.parentOffset).toBe(5);
     expect(view.state.doc.textContent).toContain('After');
     expect(view.state.doc.textContent).not.toContain('Delete me');
 

@@ -1,5 +1,5 @@
-import { NodeSelection, Selection, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
-import type { Node as ProseNode, ResolvedPos } from '@milkdown/kit/prose/model';
+import { Selection, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
+import type { ResolvedPos } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
@@ -7,10 +7,6 @@ import { markEditorUserInput } from '../shared/userInputEvents';
 
 function isCursorTextblock(node: { isTextblock: boolean; type: { name: string } } | null | undefined): boolean {
   return Boolean(node?.isTextblock && node.type.name !== 'code_block');
-}
-
-function isHorizontalRule(node: ProseNode | null | undefined): node is ProseNode {
-  return node?.type.name === 'hr';
 }
 
 function isInsideTable($pos: ResolvedPos): boolean {
@@ -53,14 +49,6 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
 
   if (nodeAfter && isCursorTextblock(nodeAfter)) {
     return tr.setSelection(TextSelection.create(tr.doc, safePos + 1 + nodeAfter.content.size));
-  }
-
-  if (isHorizontalRule(nodeAfter)) {
-    return tr.setSelection(NodeSelection.create(tr.doc, safePos));
-  }
-
-  if (isHorizontalRule(nodeBefore)) {
-    return tr.setSelection(NodeSelection.create(tr.doc, safePos - nodeBefore.nodeSize));
   }
 
   const nextSelection = findCursorTextSelectionFrom($pos, 1);
