@@ -8,7 +8,6 @@ import { isManagedModelId } from '@/lib/ai/managedService';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
-import { useAccountSessionStore } from '@/stores/accountSession';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface ChatImageGalleryItem {
@@ -57,13 +56,11 @@ export function AIMessage({
   imageGallery,
   getImageGallery,
   isLoading,
-  isLastMessage = true,
   suspendStreamAnimation = false,
   onCopy,
   onRegenerate,
   onSwitchVersion
 }: AIMessageProps) {
-  const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
   const [copiedCodeBlockId, setCopiedCodeBlockId] = useState<string | null>(null);
   const copiedCodeBlockTimerRef = useRef<number | null>(null);
   const {
@@ -93,11 +90,7 @@ export function AIMessage({
   const visibleContent = contentWithoutError || ' ';
   const isManagedAuthErrorMessage = errorType === 'AUTH_ERROR'
     && isManagedModelId(msg.modelId);
-  const shouldShowManagedAuthPrompt = !isAccountConnected
-    && isManagedAuthErrorMessage
-    && isLastMessage;
-  const shouldHideManagedAuthError = isManagedAuthErrorMessage
-    && (isAccountConnected || !shouldShowManagedAuthPrompt);
+  const shouldHideManagedAuthError = isManagedAuthErrorMessage;
   const shouldForceToolbarVisible = isEmptyCompletedResponse && !isManagedAuthErrorMessage;
   const startTime = useMemo(() => {
     if (isStreamingContentVisible) {
@@ -164,8 +157,7 @@ export function AIMessage({
                 <ErrorBlock 
                     type={errorType} 
                     code={errorCode} 
-                    content={errorContent} 
-                    showLoginPrompt={shouldShowManagedAuthPrompt}
+                    content={errorContent}
                 />
             </div>
         )}

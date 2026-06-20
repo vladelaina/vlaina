@@ -58,17 +58,8 @@ vi.mock("./MessageToolbar", () => ({
 }));
 
 vi.mock("./ErrorBlock", () => ({
-  ErrorBlock: ({
-    content,
-    showLoginPrompt,
-  }: {
-    content: string;
-    showLoginPrompt?: boolean;
-  }) => (
-    <div
-      data-testid="error"
-      data-login-prompt={String(Boolean(showLoginPrompt))}
-    >
+  ErrorBlock: ({ content }: { content: string }) => (
+    <div data-testid="error">
       {content}
     </div>
   ),
@@ -279,7 +270,7 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("Request failed");
   });
 
-  it("shows the managed model auth prompt with only the regenerate toolbar action", () => {
+  it("hides pure managed model auth errors", () => {
     render(
       <AIMessage
         msg={{
@@ -294,13 +285,12 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "true");
-    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-force-visible", "false");
-    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-show-copy-action", "false");
-    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-show-version-navigation", "false");
+    expect(screen.queryByTestId("error")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
   });
 
-  it("keeps the managed model auth prompt while it is still the last message", () => {
+  it("hides the latest managed model auth error while signed out", () => {
     render(
       <AIMessage
         msg={{
@@ -315,9 +305,9 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "true");
-    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-force-visible", "false");
-    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-show-copy-action", "false");
+    expect(screen.queryByTestId("error")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
   });
 
   it("hides the managed model auth prompt after any follow-up message is sent", () => {
@@ -405,7 +395,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "false");
+    expect(screen.getByTestId("error")).toHaveTextContent("Invalid API key");
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 
