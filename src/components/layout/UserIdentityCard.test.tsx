@@ -105,6 +105,49 @@ describe('UserIdentityCard', () => {
     expect(identity.parentElement).toHaveAttribute('title', longEmail);
   });
 
+  it('does not put the fallback logo on an avatar surface for email accounts', () => {
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        isLoading: false,
+        provider: 'email',
+        username: 'alice',
+        primaryEmail: 'alice@example.com',
+        membershipTier: null,
+        membershipName: null,
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    const avatarShell = screen.getByRole('img', { name: 'alice' }).parentElement;
+    expect(avatarShell).not.toHaveClass('bg-[var(--vlaina-color-input-surface)]');
+    expect(avatarShell).not.toHaveClass('border');
+  });
+
+  it('keeps the avatar surface for Google accounts', () => {
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        isLoading: false,
+        provider: 'google',
+        username: 'alice',
+        primaryEmail: 'alice@example.com',
+        avatarUrl: 'https://lh3.googleusercontent.com/avatar',
+        membershipTier: null,
+        membershipName: null,
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    const avatarShell = screen.getByRole('img', { name: 'alice' }).parentElement;
+    expect(avatarShell).toHaveClass('bg-[var(--vlaina-color-input-surface)]');
+    expect(avatarShell).toHaveClass('border');
+  });
+
   it('does not render free membership as a user-card badge', () => {
     act(() => {
       useAccountSessionStore.setState({

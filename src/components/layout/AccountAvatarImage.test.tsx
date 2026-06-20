@@ -6,7 +6,10 @@ describe('AccountAvatarImage', () => {
   it('uses the fallback logo when no avatar source is available', () => {
     render(<AccountAvatarImage src={null} fallbackSrc="/logo.png?v=20260327" alt="vlaina" />);
 
-    expect(screen.getByRole('img', { name: 'vlaina' })).toHaveAttribute('src', '/logo.png?v=20260327');
+    const image = screen.getByRole('img', { name: 'vlaina' });
+    expect(image).toHaveAttribute('src', '/logo.png?v=20260327');
+    expect(image).toHaveAttribute('loading', 'eager');
+    expect(image).toHaveAttribute('decoding', 'sync');
   });
 
   it('falls back to the logo when the avatar image fails to load', () => {

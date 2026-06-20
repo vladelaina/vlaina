@@ -46,7 +46,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
           <div
             className={cn(
               'h-full rounded-full transition-all',
-              budgetError && !isRefreshingBudget ? 'bg-[var(--vlaina-border)]' : 'bg-[var(--vlaina-color-success)]'
+              budgetError && !isRefreshingBudget ? 'bg-[var(--vlaina-border)]' : 'bg-[#60fe73]'
             )}
             style={{ width: progressWidth }}
           />
@@ -54,7 +54,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
       </div>
       {quotaLabel ? (
         <span
-          className="w-0 shrink-0 overflow-hidden whitespace-nowrap text-[var(--vlaina-font-11)] text-[var(--vlaina-text-tertiary)] opacity-[var(--vlaina-opacity-0)] transition-[width,opacity] group-hover/quota:w-9 group-hover/quota:opacity-[var(--vlaina-opacity-100)] group-focus-within/quota:w-9 group-focus-within/quota:opacity-[var(--vlaina-opacity-100)]"
+          className="w-0 shrink-0 overflow-hidden whitespace-nowrap text-[var(--vlaina-font-11)] text-[var(--vlaina-text-tertiary)] opacity-[var(--vlaina-opacity-0)] transition-[width,opacity] group-hover/quota:w-12 group-hover/quota:opacity-[var(--vlaina-opacity-100)] group-focus-within/quota:w-12 group-focus-within/quota:opacity-[var(--vlaina-opacity-100)]"
           aria-hidden="true"
         >
           {quotaLabel}

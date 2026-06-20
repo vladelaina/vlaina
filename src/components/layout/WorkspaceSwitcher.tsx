@@ -110,6 +110,14 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
                 className="h-full w-full object-cover shadow-[var(--vlaina-shadow-sm)]"
               />
             </span>
+            <img
+              src={displayAvatar || fallbackAvatarUrl}
+              alt=""
+              aria-hidden="true"
+              loading="eager"
+              decoding="sync"
+              className="pointer-events-none absolute left-0 top-0 h-12 w-12 opacity-0"
+            />
           </button>
         </Popover.Trigger>
 

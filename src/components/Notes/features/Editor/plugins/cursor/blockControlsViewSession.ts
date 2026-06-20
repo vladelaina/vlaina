@@ -142,6 +142,20 @@ function serializeSourceMarkdownAfterDelete(
   }
 }
 
+function serializeCurrentMarkdownForNotePath(view: EditorView, notePath: string | null): string | null {
+  const serializer = getCurrentMarkdownSerializer();
+  if (!serializer || !notePath) return null;
+
+  try {
+    return serializeEditorMarkdownSnapshot(
+      serializer(view.state.doc),
+      getReferenceMarkdownForNotePath(notePath),
+    );
+  } catch {
+    return null;
+  }
+}
+
 function parseDraggedMarkdown(markdown: string | null): Fragment | null {
   if (!markdown?.trim()) return null;
   const parser = getCurrentMarkdownParser();
@@ -191,12 +205,21 @@ function resolveCrossNoteInsertContent(view: EditorView, markdown: string | null
 }
 
 function canInsertCrossNoteDraggedMarkdown(view: EditorView, markdown: string | null, insertPos: number): boolean {
-  return resolveCrossNoteInsertContent(view, markdown, insertPos) !== null;
+  return (
+    getCurrentMarkdownSerializer() !== null &&
+    resolveCrossNoteInsertContent(view, markdown, insertPos) !== null
+  );
 }
 
-function insertCrossNoteDraggedMarkdown(view: EditorView, markdown: string | null, insertPos: number): boolean {
+function insertCrossNoteDraggedMarkdown(
+  view: EditorView,
+  markdown: string | null,
+  insertPos: number,
+  targetNotePath: string | null,
+): string | null {
+  if (!getCurrentMarkdownSerializer() || !targetNotePath) return null;
   const target = resolveCrossNoteInsertContent(view, markdown, insertPos);
-  if (!target) return false;
+  if (!target) return null;
 
   try {
     let tr = view.state.tr.insert(target.insertPos, target.content);
@@ -205,9 +228,9 @@ function insertCrossNoteDraggedMarkdown(view: EditorView, markdown: string | nul
     markEditorUserInput(view);
     view.dispatch(tr);
     view.focus();
-    return true;
+    return serializeCurrentMarkdownForNotePath(view, targetNotePath);
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -242,6 +265,27 @@ type PendingCrossNoteBlockDrag = {
 };
 
 let pendingCrossNoteBlockDrag: PendingCrossNoteBlockDrag | null = null;
+
+type SavePendingMarkdown = typeof savePendingEditorMarkdown;
+
+async function saveCrossNoteBlockDropAfterTargetSave({
+  sourceNotePath,
+  sourceMarkdownAfterDelete,
+  targetNotePath,
+  targetMarkdownAfterInsert,
+  saveMarkdown = savePendingEditorMarkdown,
+}: {
+  sourceNotePath: string;
+  sourceMarkdownAfterDelete: string;
+  targetNotePath: string;
+  targetMarkdownAfterInsert: string;
+  saveMarkdown?: SavePendingMarkdown;
+}): Promise<boolean> {
+  const targetSaved = await saveMarkdown(targetNotePath, targetMarkdownAfterInsert);
+  if (!targetSaved) return false;
+
+  return saveMarkdown(sourceNotePath, sourceMarkdownAfterDelete);
+}
 
 function setPendingCrossNoteBlockDrag(pending: PendingCrossNoteBlockDrag): void {
   pendingCrossNoteBlockDrag = pending;
@@ -510,7 +554,7 @@ export class BlockControlsViewSession {
     }
     if (this.isCrossNoteDrag()) {
       if (
-        !this.dragSourceMarkdownAfterDelete
+        this.dragSourceMarkdownAfterDelete === null
         || !canInsertCrossNoteDraggedMarkdown(this.view, this.draggedMarkdown, target.insertPos)
       ) {
         this.hideDropIndicator();
@@ -859,10 +903,32 @@ export class BlockControlsViewSession {
   }
 
   private applyCrossNoteDrop(insertPos: number): boolean {
-    if (!this.dragSourceNotePath || !this.dragSourceMarkdownAfterDelete) return false;
-    if (!insertCrossNoteDraggedMarkdown(this.view, this.draggedMarkdown, insertPos)) return false;
-    void savePendingEditorMarkdown(this.dragSourceNotePath, this.dragSourceMarkdownAfterDelete)
-      .catch(() => undefined);
+    const sourceNotePath = this.dragSourceNotePath;
+    const sourceMarkdownAfterDelete = this.dragSourceMarkdownAfterDelete;
+    const targetNotePath = getCurrentNotePath();
+    if (
+      !sourceNotePath ||
+      sourceMarkdownAfterDelete === null ||
+      !targetNotePath ||
+      targetNotePath === sourceNotePath
+    ) {
+      return false;
+    }
+
+    const targetMarkdownAfterInsert = insertCrossNoteDraggedMarkdown(
+      this.view,
+      this.draggedMarkdown,
+      insertPos,
+      targetNotePath,
+    );
+    if (targetMarkdownAfterInsert === null) return false;
+
+    void saveCrossNoteBlockDropAfterTargetSave({
+      sourceNotePath,
+      sourceMarkdownAfterDelete,
+      targetNotePath,
+      targetMarkdownAfterInsert,
+    }).catch(() => undefined);
     return true;
   }
 
@@ -1064,3 +1130,7 @@ export class BlockControlsViewSession {
     this.scheduleHandleRefresh();
   };
 }
+
+export const __testing__ = {
+  saveCrossNoteBlockDropAfterTargetSave,
+};

@@ -133,13 +133,14 @@ function AutoFitIdentityText({ value }: { value: string }) {
 }
 
 export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, onSwitchAccount }) => {
-  const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
+  const { username, primaryEmail, isConnected, provider, membershipTier, membershipName } = useAccountSessionStore();
   const { t } = useI18n();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const displayName = username || primaryEmail || 'vlaina';
   const displayIdentity = primaryEmail || username || 'vlaina';
   const userAvatar = useUserAvatar();
+  const shouldUseAvatarSurface = provider === 'google';
   const isMembershipPending = isConnected && !membershipTier && !membershipName;
   const shouldShowMembershipBadge = isConnected && !isMembershipPending && membershipTier !== 'free';
   const membershipBadgeLabel = membershipName || '';
@@ -159,7 +160,9 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
       <div className="relative shrink-0 group/avatar">
         <div
           className={cn(
-            'relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-all duration-[var(--vlaina-duration-300)] hover:scale-[var(--vlaina-scale-105)]'
+            'relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-lg transition-all duration-[var(--vlaina-duration-300)] hover:scale-[var(--vlaina-scale-105)]',
+            shouldUseAvatarSurface &&
+              'border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]'
           )}
         >
           <AccountAvatarImage

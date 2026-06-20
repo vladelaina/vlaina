@@ -13,6 +13,7 @@ import {
   broadcastAccountStatusRefresh,
   clearPersistedUser,
   clearAuthIntent,
+  isEmailCodeRequestCooldownError,
   normalizeAuthError,
   normalizePersistedUser,
   persistUser,
@@ -460,6 +461,10 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
         return false;
       }
       const message = error instanceof Error ? error.message : String(error);
+      if (isEmailCodeRequestCooldownError(message)) {
+        set({ error: null });
+        return true;
+      }
       set({ error: normalizeAuthError(message) });
       return false;
     }

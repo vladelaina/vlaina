@@ -95,6 +95,21 @@ export function normalizeAuthError(raw: string): string {
   return message;
 }
 
+export function isEmailCodeRequestCooldownError(raw: string): boolean {
+  let message = raw.trim();
+  const ipcInvokeMatch = message.match(/^Error invoking remote method '[^']+':\s*(.+)$/i);
+  if (ipcInvokeMatch?.[1]) {
+    message = ipcInvokeMatch[1].trim();
+  }
+
+  return (
+    /please wait.*before request/i.test(message) ||
+    /wait before requesting/i.test(message) ||
+    /too many.*(email|verification)?.*code.*request/i.test(message) ||
+    /rate limit/i.test(message)
+  );
+}
+
 function broadcastPersistedUser(data: PersistedAccountIdentity): void {
   if (typeof BroadcastChannel === 'undefined') {
     return;

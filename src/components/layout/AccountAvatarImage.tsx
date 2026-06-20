@@ -21,6 +21,8 @@ export function AccountAvatarImage({ src, fallbackSrc, alt, className }: Account
       src={displaySrc}
       alt={alt}
       className={className}
+      loading="eager"
+      decoding="sync"
       onError={() => {
         if (!hasLoadError) {
           setHasLoadError(true);

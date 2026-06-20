@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { BlockControlsViewSession } from './blockControlsViewSession';
+import { BlockControlsViewSession, __testing__ } from './blockControlsViewSession';
 import {
   applyBlockMove,
   getDraggableBlockRanges,
@@ -179,6 +179,37 @@ describe('BlockControlsViewSession', () => {
     mocks.targetTop = 40;
     mocks.selectedBlocks = [{ from: 1, to: 5 }];
     mocks.setControlsPosition.mockClear();
+  });
+
+  it('saves the source deletion after the target note save succeeds', async () => {
+    const saveMarkdown = vi.fn(async () => true);
+
+    await expect(__testing__.saveCrossNoteBlockDropAfterTargetSave({
+      sourceNotePath: 'source.md',
+      sourceMarkdownAfterDelete: 'Source after delete',
+      targetNotePath: 'target.md',
+      targetMarkdownAfterInsert: 'Target after insert',
+      saveMarkdown,
+    })).resolves.toBe(true);
+
+    expect(saveMarkdown).toHaveBeenCalledTimes(2);
+    expect(saveMarkdown).toHaveBeenNthCalledWith(1, 'target.md', 'Target after insert');
+    expect(saveMarkdown).toHaveBeenNthCalledWith(2, 'source.md', 'Source after delete');
+  });
+
+  it('does not save the source deletion when the target note save fails', async () => {
+    const saveMarkdown = vi.fn(async (notePath: string | null | undefined) => notePath !== 'target.md');
+
+    await expect(__testing__.saveCrossNoteBlockDropAfterTargetSave({
+      sourceNotePath: 'source.md',
+      sourceMarkdownAfterDelete: 'Source after delete',
+      targetNotePath: 'target.md',
+      targetMarkdownAfterInsert: 'Target after insert',
+      saveMarkdown,
+    })).resolves.toBe(false);
+
+    expect(saveMarkdown).toHaveBeenCalledTimes(1);
+    expect(saveMarkdown).toHaveBeenCalledWith('target.md', 'Target after insert');
   });
 
   it('refreshes the visible handle when the block position snapshot changes without pointer movement', async () => {

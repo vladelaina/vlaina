@@ -12,6 +12,7 @@ import {
   clearPersistedUser,
   loadPersistedUser,
   normalizeAuthError,
+  isEmailCodeRequestCooldownError,
   normalizePersistedUser,
   persistUser,
 } from './authSupport';
@@ -48,6 +49,16 @@ describe('normalizeAuthError', () => {
     useUIStore.setState({ languagePreference: 'zh-CN' });
 
     expect(normalizeAuthError('Incorrect verification code')).toBe('๑ᵒᯅᵒ๑ 验证码错误');
+  });
+
+  it('detects email code request cooldown errors', () => {
+    expect(isEmailCodeRequestCooldownError('Please wait before requesting another verification code.')).toBe(true);
+    expect(
+      isEmailCodeRequestCooldownError(
+        "Error invoking remote method 'desktop:account:request-email-code': error: please wait before requesting another code"
+      )
+    ).toBe(true);
+    expect(isEmailCodeRequestCooldownError('Incorrect verification code')).toBe(false);
   });
 });
 
