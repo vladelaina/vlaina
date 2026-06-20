@@ -49,6 +49,66 @@ function replaceWithBlankLineDocument(view: EditorView): void {
   ]);
 }
 
+function createEditableBlankLineParagraph(view: EditorView): ProseNode {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  if (!paragraphType) {
+    throw new Error('Expected paragraph schema node');
+  }
+
+  return paragraphType.create(null, schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER));
+}
+
+function replaceWithEditableBlankLineDocument(view: EditorView): void {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  if (!paragraphType) {
+    throw new Error('Expected paragraph schema node');
+  }
+
+  replaceDocument(view, [
+    paragraphType.create(null, schema.text('Alpha')),
+    createEditableBlankLineParagraph(view),
+    paragraphType.create(null, schema.text('Beta')),
+  ]);
+}
+
+function replaceWithListAndEditableBlankLineDocument(view: EditorView): void {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  const listItemType = schema.nodes.list_item;
+  const bulletListType = schema.nodes.bullet_list;
+  if (!paragraphType || !listItemType || !bulletListType) {
+    throw new Error('Expected list schema nodes');
+  }
+
+  replaceDocument(view, [
+    bulletListType.create(null, [
+      listItemType.create(null, [
+        paragraphType.create(null, schema.text('List item')),
+      ]),
+    ]),
+    createEditableBlankLineParagraph(view),
+    paragraphType.create(null, schema.text('Beta')),
+  ]);
+}
+
+function replaceWithPersistedAndEditableBlankLineDocument(view: EditorView): void {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  const htmlBlockType = schema.nodes.html_block;
+  if (!paragraphType || !htmlBlockType) {
+    throw new Error('Expected paragraph and html_block schema nodes');
+  }
+
+  replaceDocument(view, [
+    paragraphType.create(null, schema.text('Alpha')),
+    htmlBlockType.create({ value: MARKDOWN_BLANK_LINE_VALUE }),
+    createEditableBlankLineParagraph(view),
+    paragraphType.create(null, schema.text('Beta')),
+  ]);
+}
+
 function topLevelNodePos(view: EditorView, matcher: (node: ProseNode) => boolean): number {
   let found: number | null = null;
   view.state.doc.forEach((node, offset) => {
@@ -286,6 +346,127 @@ describe('markdownBlankLineInteraction', () => {
       replaceWithBlankLineDocument(view);
       const betaParagraphPos = topLevelNodePos(view, (node) => node.type.name === 'paragraph' && node.textContent === 'Beta');
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaParagraphPos + 1)));
+
+      const event = createArrowEvent('ArrowUp');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('moves from an editable markdown blank line to the previous paragraph end on ArrowUp', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithEditableBlankLineDocument(view);
+      const blankLinePos = topLevelNodePos(
+        view,
+        (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      );
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          blankLinePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+        )),
+      );
+
+      const event = createArrowEvent('ArrowUp');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.$from.parent.textContent).toBe('Alpha');
+      expect(view.state.selection.$from.parentOffset).toBe('Alpha'.length);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('moves from an editable markdown blank line to the next paragraph start on ArrowDown', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithEditableBlankLineDocument(view);
+      const blankLinePos = topLevelNodePos(
+        view,
+        (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      );
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, blankLinePos + 1)));
+
+      const event = createArrowEvent('ArrowDown');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.$from.parent.textContent).toBe('Beta');
+      expect(view.state.selection.$from.parentOffset).toBe(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('moves from an editable markdown blank line to the previous list item end on ArrowUp', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithListAndEditableBlankLineDocument(view);
+      const blankLinePos = topLevelNodePos(
+        view,
+        (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      );
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          blankLinePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+        )),
+      );
+
+      const event = createArrowEvent('ArrowUp');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.$from.parent.textContent).toBe('List item');
+      expect(view.state.selection.$from.parentOffset).toBe('List item'.length);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('moves from an editable markdown blank line into an adjacent persisted blank line on ArrowUp', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithPersistedAndEditableBlankLineDocument(view);
+      const blankLinePos = topLevelNodePos(
+        view,
+        (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      );
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          blankLinePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+        )),
+      );
 
       const event = createArrowEvent('ArrowUp');
       const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
