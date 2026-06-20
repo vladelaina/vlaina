@@ -3,7 +3,9 @@ import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { buildTitleSourceFromMessages, needsAutoTitle } from '@/lib/ai/temporaryChat';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities';
 import { APP_LANGUAGES, type AppLanguage, useI18n } from '@/lib/i18n';
+import { parseMarkdownAndHtmlImageTokens } from '@/lib/markdown/markdownImageTokens';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 
 const AUTO_TITLE_TIMEOUT_MS = 12_000;
@@ -23,8 +25,49 @@ USER_MESSAGES
 ${titleSource}`;
 }
 
+function cleanFallbackAutoTitle(title: string): string {
+  return title.trim().slice(0, MAX_AUTO_TITLE_CHARS).trim() || 'Image';
+}
+
+function hasImageToken(value: string): boolean {
+  return parseMarkdownAndHtmlImageTokens(value, { maxTokens: 1 }).length > 0;
+}
+
+function normalizeAutoTitleResponse(title: string, imageTitle: string): string {
+  const withoutThinking = stripThinkingContent(title)
+    .replace(/^["']|["']$/g, '')
+    .trim();
+
+  if (hasImageToken(withoutThinking)) {
+    return cleanFallbackAutoTitle(imageTitle);
+  }
+
+  return withoutThinking
+    .slice(0, MAX_AUTO_TITLE_CHARS)
+    .trim();
+}
+
+function updateSessionAutoTitleIfCurrent(sessionId: string, title: string, titleSource: string): void {
+  const cleanTitle = title.trim().slice(0, MAX_AUTO_TITLE_CHARS).trim();
+  const latestSession = useUnifiedStore
+    .getState()
+    .data.ai?.sessions.find((item) => item.id === sessionId);
+  const latestMessages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
+  const latestTitleSource = buildTitleSourceFromMessages(latestMessages);
+
+  if (
+    cleanTitle
+    && !needsAutoTitle(cleanTitle)
+    && latestSession
+    && needsAutoTitle(latestSession.title)
+    && latestTitleSource === titleSource
+  ) {
+    aiActions.updateSession(sessionId, { title: cleanTitle });
+  }
+}
+
 export function useAutoTitle() {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
   const models = useUnifiedStore((state) => state.data.ai?.models || []);
 
@@ -45,6 +88,12 @@ export function useAutoTitle() {
           if (!model) return;
           const messages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
           const titleSource = buildTitleSourceFromMessages(messages);
+          const imageTitle = cleanFallbackAutoTitle(t('editor.slash.image'));
+
+          if (isStandaloneImageGenerationModel(model)) {
+            updateSessionAutoTitleIfCurrent(sessionId, imageTitle, titleSource);
+            return;
+          }
 
           const prompt = buildAutoTitlePrompt(titleSource, language);
           
@@ -66,34 +115,15 @@ export function useAutoTitle() {
 
           if (controller.signal.aborted) return;
           
-          const cleanTitle = stripThinkingContent(title)
-              .replace(/^["']|["']$/g, '') 
-              .trim()
-              .slice(0, MAX_AUTO_TITLE_CHARS)
-              .trim();
-
-          const latestSession = useUnifiedStore
-              .getState()
-              .data.ai?.sessions.find((item) => item.id === sessionId);
-          const latestMessages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
-          const latestTitleSource = buildTitleSourceFromMessages(latestMessages);
-
-          if (
-            cleanTitle
-            && !needsAutoTitle(cleanTitle)
-            && latestSession
-            && needsAutoTitle(latestSession.title)
-            && latestTitleSource === titleSource
-          ) {
-              aiActions.updateSession(sessionId, { title: cleanTitle });
-          }
+          const cleanTitle = normalizeAutoTitleResponse(title, imageTitle);
+          updateSessionAutoTitleIfCurrent(sessionId, cleanTitle, titleSource);
       } catch (error) {
         if (import.meta.env.DEV) {
         }
       } finally {
           autoTitleInFlightSessionIds.delete(sessionId);
       }
-  }, [language, models, providers]);
+  }, [language, models, providers, t]);
 
   return { generateAutoTitle };
 }

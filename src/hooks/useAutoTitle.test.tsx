@@ -5,6 +5,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import type { AIModel, Provider } from '@/lib/ai/types';
+import { APP_LANGUAGES, getMessages } from '@/lib/i18n';
 
 const mocked = vi.hoisted(() => ({
   saveUnifiedData: vi.fn(),
@@ -51,6 +52,11 @@ const model: AIModel = {
   enabled: true,
   createdAt: 1,
 };
+
+const imageTitleCases = APP_LANGUAGES.map(({ code }) => [
+  code,
+  getMessages(code)['editor.slash.image'],
+] as const);
 
 function seedStore() {
   useUnifiedStore.setState({
@@ -228,6 +234,47 @@ describe('useAutoTitle', () => {
     });
 
     expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe('A'.repeat(MAX_AUTO_TITLE_CHARS));
+  });
+
+  it.each(imageTitleCases)('uses the %s image title for standalone image generation models', async (languagePreference, expectedTitle) => {
+    useUIStore.setState({ languagePreference });
+    const imageModel: AIModel = {
+      ...model,
+      id: 'image-model-1',
+      apiModelId: 'gpt-image-1',
+      name: 'GPT Image 1',
+    };
+    act(() => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      state.updateAIData({
+        models: [imageModel],
+        sessions: ai.sessions.map((session) => (
+          session.id === 'session-1' ? { ...session, modelId: imageModel.id } : session
+        )),
+        selectedModelId: imageModel.id,
+      });
+    });
+    const { result } = renderHook(() => useAutoTitle());
+
+    await act(async () => {
+      await result.current.generateAutoTitle('session-1', provider.id, imageModel.id);
+    });
+
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe(expectedTitle);
+  });
+
+  it.each(imageTitleCases)('falls back to the %s image title when title generation returns image markdown', async (languagePreference, expectedTitle) => {
+    useUIStore.setState({ languagePreference });
+    mocked.sendMessageWithEndpointFallback.mockResolvedValueOnce('![]()');
+    const { result } = renderHook(() => useAutoTitle());
+
+    await act(async () => {
+      await result.current.generateAutoTitle('session-1', provider.id, model.id);
+    });
+
+    expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe(expectedTitle);
   });
 
   it('keeps the title prompt concise while naming in the app language', () => {
