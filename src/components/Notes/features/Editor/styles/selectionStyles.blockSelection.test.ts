@@ -158,7 +158,7 @@ describe("editor block selection styles", () => {
     ].join('\n'));
     expect(extractCssRule(
       css,
-      '.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {'
+      '.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.heading-toggle-btn):not(.editor-collapse-btn):not(.ProseMirror-widget) {'
     )).toContain('z-index: var(--vlaina-z-1);');
     expect(textBlockFillRule).toContain('::after');
     expect(textBlockFillRule).toContain('top: var(--vlaina-block-selection-fill-top);');

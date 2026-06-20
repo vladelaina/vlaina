@@ -4,10 +4,12 @@ import path from 'node:path';
 import {
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
+  clearSelectedNoteBlocks,
   getBlankAreaDragTarget,
   getOpenBridgePages,
   launchIsolatedElectron,
   openMarkdownFixture,
+  selectNoteBlocksByIndexes,
 } from "./notesE2E";
 
 type TextClip = {
@@ -16,6 +18,25 @@ type TextClip = {
   left: number;
   top: number;
   width: number;
+};
+
+type BlockSelectionLayoutAuditBlock = {
+  className: string;
+  height: number;
+  index: number;
+  tagName: string;
+  text: string;
+  top: number;
+};
+
+type BlockSelectionLayoutAuditSnapshot = {
+  blocks: BlockSelectionLayoutAuditBlock[];
+  selectedControlPositions: Array<{
+    className: string;
+    position: string;
+    selectedText: string;
+    tagName: string;
+  }>;
 };
 
 async function measureBrightTextPixels(page: Page, clip: TextClip) {
@@ -138,6 +159,101 @@ async function collectLineFillContinuity(page: Page) {
   });
 }
 
+async function collectBlockSelectionLayoutAuditSnapshot(
+  page: Page,
+): Promise<BlockSelectionLayoutAuditSnapshot> {
+  return page.evaluate(() => {
+    const blocks = ((window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+      className: string;
+      rect: { height: number; top: number };
+      tagName: string;
+      text: string;
+    }>).map((block, index) => ({
+      className: String(block.className),
+      height: Math.round(block.rect.height * 100) / 100,
+      index,
+      tagName: block.tagName,
+      text: block.text.replace(/\s+/g, ' ').trim(),
+      top: Math.round(block.rect.top * 100) / 100,
+    }));
+
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const selectedControlPositions = editor
+      ? Array.from(editor.querySelectorAll<HTMLElement>(
+        '.editor-block-selected :is(.heading-toggle-btn, .editor-collapse-btn, .ProseMirror-widget)'
+      )).map((control) => {
+        const selected = control.closest<HTMLElement>('.editor-block-selected');
+        return {
+          className: control.className,
+          position: getComputedStyle(control).position,
+          selectedText: selected?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          tagName: control.tagName,
+        };
+      })
+      : [];
+
+    return {
+      blocks,
+      selectedControlPositions,
+    };
+  });
+}
+
+function findLayoutAuditBlockIndex(
+  snapshot: BlockSelectionLayoutAuditSnapshot,
+  text: string,
+): number {
+  const index = snapshot.blocks.findIndex((block) => block.text.includes(text));
+  expect(index, `Could not find selectable block containing "${text}". Blocks: ${JSON.stringify(snapshot.blocks, null, 2)}`)
+    .toBeGreaterThanOrEqual(0);
+  return index;
+}
+
+function expectLayoutStableAfterBlockSelection(
+  before: BlockSelectionLayoutAuditSnapshot,
+  after: BlockSelectionLayoutAuditSnapshot,
+  label: string,
+) {
+  expect(after.blocks.length, JSON.stringify({ label, before, after }, null, 2)).toBe(before.blocks.length);
+
+  const deltas = before.blocks.flatMap((beforeBlock, index) => {
+    const afterBlock = after.blocks[index];
+    if (!afterBlock) {
+      return [{
+        index,
+        text: beforeBlock.text,
+        reason: 'missing-after-block',
+      }];
+    }
+
+    const topDelta = Math.round((afterBlock.top - beforeBlock.top) * 100) / 100;
+    const heightDelta = Math.round((afterBlock.height - beforeBlock.height) * 100) / 100;
+    if (Math.abs(topDelta) <= 1 && Math.abs(heightDelta) <= 1) return [];
+    return [{
+      index,
+      text: beforeBlock.text,
+      before: {
+        height: beforeBlock.height,
+        top: beforeBlock.top,
+      },
+      after: {
+        height: afterBlock.height,
+        top: afterBlock.top,
+      },
+      heightDelta,
+      topDelta,
+    }];
+  });
+
+  expect(deltas, JSON.stringify({ label, before, after }, null, 2)).toEqual([]);
+
+  const displacedControls = after.selectedControlPositions.filter((control) => (
+    (control.className.includes('heading-toggle-btn') || control.className.includes('editor-collapse-btn'))
+    && control.position !== 'absolute'
+  ));
+  expect(displacedControls, JSON.stringify({ label, before, after }, null, 2)).toEqual([]);
+}
+
 async function installBlockSelectionConflictTheme(page: Page) {
   const themeDirectoryPath = await page.evaluate(() =>
     (window as any).__vlainaE2E.getImportedMarkdownThemesDirectoryPath()
@@ -221,6 +337,55 @@ async function expectImportedThemeRoot(page: Page, themeId: string) {
   });
 }
 
+async function measureHeadingBlockSelectionLayout(page: Page, headingText: string) {
+  return page.evaluate((targetText) => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const scrollRoot = document.querySelector<HTMLElement>('[data-note-scroll-root="true"]');
+    const heading = editor
+      ? Array.from(editor.querySelectorAll<HTMLElement>('h1,h2,h3,h4,h5,h6'))
+        .find((element) => element.textContent?.includes(targetText)) ?? null
+      : null;
+    const nextBlock = heading?.nextElementSibling instanceof HTMLElement
+      ? heading.nextElementSibling
+      : null;
+    if (!editor || !heading) return null;
+
+    const editorRect = editor.getBoundingClientRect();
+    const headingRect = heading.getBoundingClientRect();
+    const nextRect = nextBlock?.getBoundingClientRect() ?? null;
+    const headingStyle = getComputedStyle(heading);
+    const headingToggle = heading.querySelector<HTMLElement>('.heading-toggle-btn');
+    const headingToggleStyle = headingToggle ? getComputedStyle(headingToggle) : null;
+    return {
+      active: editor.classList.contains('editor-block-selection-active'),
+      editorTop: Math.round(editorRect.top * 100) / 100,
+      headingTop: Math.round(headingRect.top * 100) / 100,
+      headingHeight: Math.round(headingRect.height * 100) / 100,
+      nextTop: nextRect ? Math.round(nextRect.top * 100) / 100 : null,
+      scrollTop: scrollRoot ? Math.round(scrollRoot.scrollTop * 100) / 100 : Math.round(window.scrollY * 100) / 100,
+      contentVisibility: headingStyle.contentVisibility,
+      containIntrinsicSize: headingStyle.containIntrinsicSize,
+      borderBlockStartWidth: headingStyle.borderBlockStartWidth,
+      borderBlockEndWidth: headingStyle.borderBlockEndWidth,
+      boxSizing: headingStyle.boxSizing,
+      display: headingStyle.display,
+      fontSize: headingStyle.fontSize,
+      lineHeight: headingStyle.lineHeight,
+      minHeight: headingStyle.minHeight,
+      paddingBlockStart: headingStyle.paddingBlockStart,
+      paddingBlockEnd: headingStyle.paddingBlockEnd,
+      isolation: headingStyle.isolation,
+      marginBlockStart: headingStyle.marginBlockStart,
+      marginBlockEnd: headingStyle.marginBlockEnd,
+      outlineStyle: headingStyle.outlineStyle,
+      outlineWidth: headingStyle.outlineWidth,
+      headingTogglePosition: headingToggleStyle?.position ?? null,
+      headingToggleDisplay: headingToggleStyle?.display ?? null,
+      className: heading.className,
+    };
+  }, headingText);
+}
+
 async function dragBlankAreaSelectionUntilPending(
   page: Page,
   start: { startX: number; startY: number },
@@ -247,6 +412,139 @@ async function dragBlankAreaSelectionUntilPending(
 
 test.describe("notes block selection regressions", () => {
   test.setTimeout(90_000);
+
+  test('keeps heading block selection from shifting the editor vertically', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-heading-block-selection-layout');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'heading-block-selection-layout.md',
+        content: [
+          'Intro paragraph before heading.',
+          '',
+          '# Heading Layout Sentinel',
+          '',
+          'Paragraph immediately after heading.',
+          '',
+          '## Second Heading Layout Sentinel',
+          '',
+          'Paragraph after second heading.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Heading Layout Sentinel' })).toBeVisible();
+
+      const before = await measureHeadingBlockSelectionLayout(page, 'Heading Layout Sentinel');
+      expect(before, 'heading layout before selection').not.toBeNull();
+
+      const selectedCount = await page.evaluate(async () => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+        const index = blocks.findIndex((block) => block.text.includes('Heading Layout Sentinel'));
+        if (index < 0) return 0;
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes([index]);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return count;
+      });
+      expect(selectedCount).toBe(1);
+
+      const after = await measureHeadingBlockSelectionLayout(page, 'Heading Layout Sentinel');
+      expect(after, 'heading layout after selection').not.toBeNull();
+
+      expect(after!.active, JSON.stringify({ before, after }, null, 2)).toBe(true);
+      expect(after!.scrollTop, JSON.stringify({ before, after }, null, 2)).toBeCloseTo(before!.scrollTop, 0);
+      expect(after!.editorTop, JSON.stringify({ before, after }, null, 2)).toBeCloseTo(before!.editorTop, 0);
+      expect(after!.headingTop, JSON.stringify({ before, after }, null, 2)).toBeCloseTo(before!.headingTop, 0);
+      expect(after!.headingHeight, JSON.stringify({ before, after }, null, 2)).toBeCloseTo(before!.headingHeight, 0);
+      expect(after!.nextTop, JSON.stringify({ before, after }, null, 2)).toBeCloseTo(before!.nextTop!, 0);
+      expect(after!.headingTogglePosition, JSON.stringify({ before, after }, null, 2)).toBe('absolute');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps representative text-like block selections layout-stable', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-layout-audit');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 980 });
+
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-layout-audit.md',
+        content: [
+          '# Audit Heading One Stable',
+          '',
+          'Audit Paragraph After H1 Stable',
+          '',
+          '## Audit Heading Two Stable',
+          '',
+          'Audit Paragraph Short Stable',
+          '',
+          'Audit Paragraph Long Stable has enough words to wrap on narrower editor widths and checks that selecting a paragraph never changes the line box, width decision, or following block position while the blue block selection surface is painted behind it.',
+          '',
+          '> Audit Quote Body Stable',
+          '',
+          '- Audit Bullet Parent Stable',
+          '  - Audit Bullet Child Stable',
+          '',
+          '1. Audit Ordered Parent Stable',
+          '   1. Audit Ordered Child Stable',
+          '',
+          '- [ ] Audit Task Parent Stable',
+          '  - Audit Task Child Stable',
+          '',
+          '- Audit Bullet Parent With Code Stable',
+          '  ```ts',
+          '  const auditCodeValue = 1;',
+          '  ```',
+          '  - Audit Nested After Code Stable',
+          '',
+          'Audit Closing Paragraph Stable',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Audit Heading One Stable' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .editor-collapse-btn[data-has-content="true"]`).first()).toBeAttached();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'auditCodeValue' })).toBeVisible();
+
+      const targetTexts = [
+        'Audit Heading One Stable',
+        'Audit Heading Two Stable',
+        'Audit Paragraph Short Stable',
+        'Audit Paragraph Long Stable',
+        'Audit Quote Body Stable',
+        'Audit Bullet Parent Stable',
+        'Audit Ordered Parent Stable',
+        'Audit Task Parent Stable',
+        'Audit Bullet Parent With Code Stable',
+      ];
+
+      for (const targetText of targetTexts) {
+        await clearSelectedNoteBlocks(page);
+        await page.evaluate(() => new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        ));
+
+        const before = await collectBlockSelectionLayoutAuditSnapshot(page);
+        const index = findLayoutAuditBlockIndex(before, targetText);
+        const selectedCount = await selectNoteBlocksByIndexes(page, [index]);
+        expect(selectedCount, `Could not select block "${targetText}"`).toBe(1);
+        await page.evaluate(() => new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        ));
+
+        const after = await collectBlockSelectionLayoutAuditSnapshot(page);
+        expectLayoutStableAfterBlockSelection(before, after, targetText);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('keeps inline-mark text visible when selecting a hard-break paragraph block', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-inline-mark-hard-break');

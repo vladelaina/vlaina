@@ -193,7 +193,7 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).toContain('height: calc(var(--vlaina-list-contained-block-selection-bleed-y) + var(--vlaina-space-8px));');
     expect(blockSelectionCss).toContain('border-bottom-right-radius: var(--vlaina-radius-8px);');
     expect(blockSelectionCss).toContain('border-bottom-left-radius: var(--vlaina-radius-8px);');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block > * {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block > *:not(.editor-collapse-btn):not(.ProseMirror-widget) {');
     expect(blockSelectionCss).not.toContain('li.editor-block-selected:has(> .code-block-container)');
     expect(codeCss).not.toContain('display: flow-root;');
     expect(codeCss).not.toContain('overflow: visible;');
