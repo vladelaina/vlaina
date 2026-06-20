@@ -16,6 +16,7 @@ import { translate } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
 import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
+import { formatDiagnosticLog } from '@/lib/diagnostics/appDiagnostics';
 import {
   type CommunitySettings,
   getCachedCommunitySettings,
@@ -670,7 +671,10 @@ export function AppContent() {
     typeof window !== 'undefined' &&
     new URL(window.location.href).searchParams.get('diagnosticsOverlay') === '1';
   const diagnosticsOverlayButton = (
-    <ProductionDiagnosticsButton forceVisible={import.meta.env.DEV || showDiagnosticsOverlayForE2E} />
+    <ProductionDiagnosticsButton
+      forceVisible={import.meta.env.DEV || showDiagnosticsOverlayForE2E}
+      getLogText={formatDiagnosticLog}
+    />
   );
   const mainOverlay = import.meta.env.DEV && DevMainOverlay ? (
     <Suspense fallback={null}>
@@ -680,7 +684,7 @@ export function AppContent() {
     </Suspense>
   ) : (
     <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
-      <ProductionDiagnosticsButton />
+      <ProductionDiagnosticsButton getLogText={formatDiagnosticLog} />
     </div>
   );
 
