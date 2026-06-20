@@ -165,6 +165,14 @@ test.describe('notes block drag across tabs', () => {
         'Move this block across tabs',
         'Target drop anchor',
       ]);
+      await expect.poll(async () => page.evaluate((pathToRead) =>
+        (window as any).__vlainaE2E.readTextFile(pathToRead), targetPath
+      ), { timeout: 10_000, message: 'Expected target note to be saved after cross-tab block drop' })
+        .toContain('Move this block across tabs');
+      await expect.poll(async () => page.evaluate((pathToRead) =>
+        (window as any).__vlainaE2E.readTextFile(pathToRead), sourcePath
+      ), { timeout: 10_000, message: 'Expected source note deletion to be saved after cross-tab block drop' })
+        .not.toContain('Move this block across tabs');
 
       await openAbsoluteNote(page, sourcePath);
       await expect.poll(async () => page.evaluate(() =>

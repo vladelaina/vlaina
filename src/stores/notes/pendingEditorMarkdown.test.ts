@@ -1,9 +1,24 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const saveNoteDocument = vi.hoisted(() => vi.fn());
+
+vi.mock('./document/noteDocumentPersistence', () => ({
+  saveNoteDocument,
+}));
+
 import { useNotesStore } from '@/stores/useNotesStore';
-import { flushPendingEditorMarkdown } from './pendingEditorMarkdown';
+import { flushPendingEditorMarkdown, savePendingEditorMarkdown } from './pendingEditorMarkdown';
 
 describe('flushPendingEditorMarkdown', () => {
   beforeEach(() => {
+    saveNoteDocument.mockReset();
+    saveNoteDocument.mockImplementation(async ({ currentNote, cache }) => ({
+      content: currentNote.content,
+      metadata: {},
+      modifiedAt: 11,
+      size: currentNote.content.length,
+      nextCache: cache,
+    }));
     useNotesStore.setState({
       currentNote: null,
       currentNoteRevision: 0,
@@ -272,6 +287,67 @@ describe('flushPendingEditorMarkdown', () => {
     expect(state.noteContentsCache.get('alpha.md')).toEqual({
       content: 'Unsaved alpha',
       modifiedAt: 2,
+    });
+  });
+
+  it('saves pending markdown for a background tab without activating that tab', async () => {
+    let resolveSave: () => void = () => {};
+    saveNoteDocument.mockImplementationOnce(async ({ currentNote, cache }) => new Promise((resolve) => {
+      resolveSave = () => resolve({
+        content: currentNote.content,
+        metadata: {},
+        modifiedAt: 11,
+        size: currentNote.content.length,
+        nextCache: cache,
+      });
+    }));
+    useNotesStore.setState({
+      notesPath: '/vault',
+      currentNote: { path: 'beta.md', content: 'Beta content' },
+      currentNoteRevision: 4,
+      isDirty: false,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Old alpha', modifiedAt: 2 }],
+        ['beta.md', { content: 'Beta content', modifiedAt: 3 }],
+      ]),
+    });
+
+    const savePromise = savePendingEditorMarkdown('alpha.md', 'Unsaved alpha');
+    await Promise.resolve();
+
+    expect(useNotesStore.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: false },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(useNotesStore.getState().noteContentsCache.get('alpha.md')).toEqual({
+      content: 'Unsaved alpha',
+      modifiedAt: 2,
+    });
+
+    resolveSave();
+    const didSave = await savePromise;
+
+    const state = useNotesStore.getState();
+    expect(didSave).toBe(true);
+    expect(saveNoteDocument).toHaveBeenCalledWith({
+      notesPath: '/vault',
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      cache: expect.any(Map),
+    });
+    expect(state.currentNote).toEqual({ path: 'beta.md', content: 'Beta content' });
+    expect(state.currentNoteRevision).toBe(4);
+    expect(state.isDirty).toBe(false);
+    expect(state.openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: false },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: 'Unsaved alpha',
+      modifiedAt: 11,
     });
   });
 

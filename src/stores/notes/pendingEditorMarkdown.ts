@@ -3,13 +3,21 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { getCachedNoteModifiedAt, setCachedNoteContent } from './document/noteContentCache';
 import { setNoteTabDirtyState } from './document/noteTabState';
+import { saveNoteDocument } from './document/noteDocumentPersistence';
+import { createEmptyMetadataFile, setNoteEntry } from './storage';
+import { buildSortedRootFolder } from './utils/fs/rootFolderState';
+import { isDraftNotePath } from './draftNote';
 
 export {
   flushCurrentPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from './pendingEditorMarkdownFlusher';
 
-export function flushPendingEditorMarkdown(notePath: string | null | undefined, markdown: string | null): boolean {
+function applyPendingEditorMarkdown(
+  notePath: string | null | undefined,
+  markdown: string | null,
+  options: { markDirty: boolean },
+): boolean {
   if (!notePath || markdown === null) {
     return false;
   }
@@ -45,13 +53,17 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
       currentNoteRevision: isCurrentNote
         ? latest.currentNoteRevision + 1
         : latest.currentNoteRevision,
-      isDirty: isCurrentNote ? true : latest.isDirty,
-      openTabs: latest.openTabs.some((tab) => tab.path === notePath)
-        ? setNoteTabDirtyState(latest.openTabs, notePath, true)
-        : [
-            ...latest.openTabs,
-            { path: notePath, name: getNoteTitleFromPath(notePath), isDirty: true },
-          ],
+      isDirty: isCurrentNote ? options.markDirty : latest.isDirty,
+      openTabs: options.markDirty
+        ? (
+            latest.openTabs.some((tab) => tab.path === notePath)
+              ? setNoteTabDirtyState(latest.openTabs, notePath, true)
+              : [
+                  ...latest.openTabs,
+                  { path: notePath, name: getNoteTitleFromPath(notePath), isDirty: true },
+                ]
+          )
+        : latest.openTabs,
       noteContentsCache: setCachedNoteContent(
         latest.noteContentsCache,
         notePath,
@@ -62,4 +74,107 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
   });
 
   return true;
+}
+
+export function flushPendingEditorMarkdown(notePath: string | null | undefined, markdown: string | null): boolean {
+  return applyPendingEditorMarkdown(notePath, markdown, { markDirty: true });
+}
+
+export async function savePendingEditorMarkdown(
+  notePath: string | null | undefined,
+  markdown: string | null,
+): Promise<boolean> {
+  if (!notePath || isDraftNotePath(notePath)) {
+    return false;
+  }
+  if (!applyPendingEditorMarkdown(notePath, markdown, { markDirty: false })) {
+    return false;
+  }
+
+  const state = useNotesStore.getState();
+  const content =
+    state.currentNote?.path === notePath
+      ? state.currentNote.content
+      : state.noteContentsCache.get(notePath)?.content;
+  if (content === undefined) {
+    return false;
+  }
+
+  const {
+    notesPath,
+    noteContentsCache,
+    noteMetadata,
+    rootFolder,
+    fileTreeSortMode,
+  } = state;
+
+  try {
+    const saved = await saveNoteDocument({
+      notesPath,
+      currentNote: { path: notePath, content },
+      cache: noteContentsCache,
+    });
+
+    const latest = useNotesStore.getState();
+    if (latest.notesPath !== notesPath) {
+      return false;
+    }
+
+    const isCurrentNote = latest.currentNote?.path === notePath;
+    const tabExists = latest.openTabs.some((tab) => tab.path === notePath);
+    if (!isCurrentNote && !tabExists) {
+      return false;
+    }
+
+    const latestContent =
+      isCurrentNote
+        ? latest.currentNote?.content
+        : latest.noteContentsCache.get(notePath)?.content;
+    const hasNewerEdit = latestContent !== undefined && latestContent !== content;
+    const nextContent = hasNewerEdit ? latestContent : saved.content;
+    const nextMetadata = setNoteEntry(
+      latest.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
+      notePath,
+      saved.metadata,
+    );
+    const nextRootFolder = buildSortedRootFolder(
+      latest.rootFolder ?? rootFolder,
+      latest.rootFolder?.children ?? rootFolder?.children ?? [],
+      latest.fileTreeSortMode ?? fileTreeSortMode,
+      nextMetadata,
+    );
+
+    useNotesStore.setState({
+      currentNote: isCurrentNote && latest.currentNote
+        ? { path: latest.currentNote.path, content: nextContent }
+        : latest.currentNote,
+      currentNoteRevision: isCurrentNote && nextContent !== latest.currentNote?.content
+        ? latest.currentNoteRevision + 1
+        : latest.currentNoteRevision,
+      isDirty: isCurrentNote ? hasNewerEdit : latest.isDirty,
+      noteMetadata: nextMetadata,
+      rootFolder: nextRootFolder,
+      noteContentsCache: setCachedNoteContent(
+        latest.noteContentsCache,
+        notePath,
+        nextContent,
+        saved.modifiedAt,
+        hasNewerEdit
+          ? { baselineContent: saved.content, size: saved.size }
+          : { updateBaseline: true, size: saved.size },
+      ),
+      openTabs: setNoteTabDirtyState(latest.openTabs, notePath, hasNewerEdit),
+      error: null,
+    });
+
+    return !hasNewerEdit;
+  } catch (error) {
+    const latest = useNotesStore.getState();
+    useNotesStore.setState({
+      error: error instanceof Error ? error.message : 'Failed to save note',
+      openTabs: setNoteTabDirtyState(latest.openTabs, notePath, true),
+      isDirty: latest.currentNote?.path === notePath ? true : latest.isDirty,
+    });
+    return false;
+  }
 }
