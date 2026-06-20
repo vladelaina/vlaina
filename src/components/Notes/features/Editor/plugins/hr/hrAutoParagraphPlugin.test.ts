@@ -462,6 +462,42 @@ describe('hrAutoParagraphPlugin', () => {
     await editor.destroy();
   });
 
+  it('skips a preceding horizontal rule to the previous paragraph end on ArrowUp', async () => {
+    const editor = createEditor('before\n\n---\n\nafter');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const afterTextPos = findTextStartPos(view, 'after');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, afterTextPos)));
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    expect(pressKey(view, 'ArrowUp')).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('before');
+    expect(view.state.selection.$from.parentOffset).toBe('before'.length);
+
+    await editor.destroy();
+  });
+
+  it('skips a following horizontal rule to the next paragraph start on ArrowDown', async () => {
+    const editor = createEditor('before\n\n---\n\nafter');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const beforeTextPos = findTextStartPos(view, 'before');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, beforeTextPos + 'before'.length)));
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    expect(pressKey(view, 'ArrowDown')).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('after');
+    expect(view.state.selection.$from.parentOffset).toBe(0);
+
+    await editor.destroy();
+  });
+
   it('does not delete a preceding horizontal rule when Backspace starts inside a list item', async () => {
     const editor = createEditor('before\n\n---\n\n1. 1\n2. 2');
 
