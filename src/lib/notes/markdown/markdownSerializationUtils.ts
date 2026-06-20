@@ -36,31 +36,6 @@ const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
 const HTML_BLOCK_LINE_PATTERN =
   /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|img|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
-const HTML_ONE_LINE_RENDERED_BLOCK_PATTERN =
-  /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)[\s\S]*?(?:<\/\1>|\/>)[ \t]*$/;
-const HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN =
-  /^(?: {0,3})<(?:img|hr|br)(?:\s|\/?>|$)[\s\S]*$/i;
-const NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES = new Set([
-  'base',
-  'basefont',
-  'link',
-  'meta',
-  'param',
-  'source',
-  'track',
-  'script',
-  'style',
-  'pre',
-  'textarea',
-  'title',
-  'xmp',
-  'noembed',
-  'noframes',
-  'plaintext',
-  'math',
-  'noscript',
-  'svg',
-]);
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const ESCAPED_LESS_THAN_PATTERN = /(^|[^\\])\\</g;
 const REDUNDANT_PAIRED_MARKER_ESCAPES = new Set(['*', '~']);
@@ -1728,29 +1703,15 @@ function normalizeInternalMarkdownBlankLineComments(text: string): string {
 
   const shouldCollapseSingleHtmlBoundaryPlaceholder =
     hasSingleInternalBlankLineCommentAfterHtmlBoundary(text);
-  const afterRenderedHtmlBoundaryComments = normalizeRenderedHtmlBoundaryInternalBlankLineComments(text);
   const normalized = mapMarkdownOutsideProtectedSegments(
-    afterRenderedHtmlBoundaryComments,
-    (segment) => normalizeInternalMarkdownBlankLineCommentSegment(segment),
+    text,
+    (segment, startIndex, lines) =>
+      normalizeInternalMarkdownBlankLineCommentSegment(segment, startIndex, lines),
     { protectHtmlComments: false },
   );
   return shouldCollapseSingleHtmlBoundaryPlaceholder
     ? collapseHtmlBoundaryBlankLinesCreatedByInternalComments(normalized)
     : normalized;
-}
-
-function normalizeRenderedHtmlBoundaryInternalBlankLineComments(text: string): string {
-  const lines = text.split('\n');
-  let changed = false;
-  const output = lines.map((line, index) => {
-    if (!INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)) return line;
-    if (!isRenderedOneLineHtmlBlockBoundaryLine(findNearestPreviousNonBlankInputLine(lines, index - 1))) {
-      return line;
-    }
-    changed = true;
-    return '';
-  });
-  return changed ? output.join('\n') : text;
 }
 
 function hasSingleInternalBlankLineCommentAfterHtmlBoundary(text: string): boolean {
@@ -1761,6 +1722,10 @@ function hasSingleInternalBlankLineCommentAfterHtmlBoundary(text: string): boole
     }
 
     if (INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(lines[index + 1] ?? '')) {
+      continue;
+    }
+
+    if ((lines[index + 1] ?? '').trim() === '') {
       continue;
     }
 
@@ -1821,21 +1786,11 @@ function isHtmlBlockBoundaryLine(line: string | null): boolean {
     );
 }
 
-function isRenderedOneLineHtmlBlockBoundaryLine(line: string | null): boolean {
-  if (line === null) return false;
-
-  const match = HTML_ONE_LINE_RENDERED_BLOCK_PATTERN.exec(line)
-    ?? HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN.exec(line);
-  const tagName = match?.[1]?.toLowerCase() ?? getHtmlStartTagName(line);
-  return Boolean(tagName && !NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES.has(tagName));
-}
-
-function getHtmlStartTagName(line: string): string | null {
-  const match = /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)/.exec(line);
-  return match?.[1]?.toLowerCase() ?? null;
-}
-
-function normalizeInternalMarkdownBlankLineCommentSegment(segment: string): string {
+function normalizeInternalMarkdownBlankLineCommentSegment(
+  segment: string,
+  startIndex = 0,
+  allLines: readonly string[] = segment.split('\n'),
+): string {
   const lines = segment.split('\n');
   const output: string[] = [];
   let previousWasInternalBlankLine = false;
@@ -1857,6 +1812,16 @@ function normalizeInternalMarkdownBlankLineCommentSegment(segment: string): stri
       continue;
     }
 
+    if (
+      output.length === 0
+      && isDiscardableHtmlBoundaryInternalBlankLineComment(allLines, startIndex + index)
+    ) {
+      while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
+        index += 1;
+      }
+      continue;
+    }
+
     if (!previousWasInternalBlankLine && !hasStructuralBlankAfterImage(output)) {
       while (output.length > 0 && output[output.length - 1]?.trim() === '') {
         output.pop();
@@ -1872,6 +1837,18 @@ function normalizeInternalMarkdownBlankLineCommentSegment(segment: string): stri
   }
 
   return output.join('\n');
+}
+
+function isDiscardableHtmlBoundaryInternalBlankLineComment(
+  lines: readonly string[],
+  index: number,
+): boolean {
+  if ((lines[index - 1] ?? '').trim() !== '') return false;
+
+  const previous = findNearestPreviousNonBlankInputLine(lines, index - 1);
+  return isHtmlBlockBoundaryLine(previous)
+    && !HTML_IMAGE_LINE_PATTERN.test(previous ?? '')
+    && !isMarkdownImageOnlyLine(previous);
 }
 
 function hasStructuralBlankAfterImage(lines: readonly string[]): boolean {

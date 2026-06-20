@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   chooseAvailablePort,
@@ -123,6 +124,8 @@ describe('configureDevelopmentProfileEnv', () => {
 
 describe('ensureIsolatedDevelopmentUserDataPath', () => {
   it('removes a shared .vlaina symlink before using isolated Electron userData', () => {
+    const targetUserDataPath = '/repo/temp/electron-user-data-3000';
+    const vlainaDataPath = path.join(targetUserDataPath, '.vlaina');
     const fsModule = {
       mkdirSync: vi.fn(),
       lstatSync: vi.fn(() => ({
@@ -132,22 +135,22 @@ describe('ensureIsolatedDevelopmentUserDataPath', () => {
     };
     const log = vi.fn();
 
-    ensureIsolatedDevelopmentUserDataPath('/repo/temp/electron-user-data-3000', {
+    ensureIsolatedDevelopmentUserDataPath(targetUserDataPath, {
       fsModule,
       log,
     });
 
-    expect(fsModule.mkdirSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000', {
+    expect(fsModule.mkdirSync).toHaveBeenCalledWith(targetUserDataPath, {
       recursive: true,
     });
-    expect(fsModule.lstatSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000/.vlaina');
-    expect(fsModule.unlinkSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000/.vlaina');
-    expect(fsModule.mkdirSync).toHaveBeenCalledWith('/repo/temp/electron-user-data-3000/.vlaina', {
+    expect(fsModule.lstatSync).toHaveBeenCalledWith(vlainaDataPath);
+    expect(fsModule.unlinkSync).toHaveBeenCalledWith(vlainaDataPath);
+    expect(fsModule.mkdirSync).toHaveBeenCalledWith(vlainaDataPath, {
       recursive: true,
     });
     expect(log).toHaveBeenCalledWith(
       '33',
-      'Removed shared .vlaina symlink from isolated Electron userData: /repo/temp/electron-user-data-3000/.vlaina',
+      `Removed shared .vlaina symlink from isolated Electron userData: ${vlainaDataPath}`,
     );
   });
 

@@ -233,7 +233,7 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
   const mappedBlockFrom = tr.mapping.map(range.blockFrom, -1);
   const nextNode = tr.doc.nodeAt(mappedBlockFrom);
 
-  if (isMarkdownBlankLinePlaceholderNode(nextNode)) {
+  if (nextNode && isMarkdownBlankLinePlaceholderNode(nextNode)) {
     const paragraphType = view.state.schema.nodes.paragraph;
     if (paragraphType) {
       const paragraph = paragraphType.create(
