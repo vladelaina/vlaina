@@ -18,6 +18,7 @@ const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
 const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
 const EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER = '<br />';
 const EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
+const EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const EDITOR_TIGHT_HEADING_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
 const LIST_GAP_PLACEHOLDER = '\u2800';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
@@ -204,7 +205,7 @@ function exposeRenderedHtmlBoundaryBlankLinesForEditor(text: string): string {
     if ((lines[index + 1] ?? '').trim() === EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER) continue;
 
     changed = true;
-    output.push(EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+    output.push(EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER);
   }
 
   return changed ? output.join('\n') : text;

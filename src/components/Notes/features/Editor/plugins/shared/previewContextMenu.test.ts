@@ -217,6 +217,30 @@ describe('previewContextMenu', () => {
     session.destroy();
   });
 
+  it('closes from capture when an outside target stops propagation', () => {
+    const element = document.createElement('div');
+    document.body.appendChild(element);
+    const outside = document.createElement('button');
+    outside.addEventListener('mousedown', (event) => event.stopPropagation());
+    document.body.appendChild(outside);
+    const session = attachPreviewContextMenu({
+      element,
+      fileBaseName: 'preview',
+      getPos: () => 0,
+      node: { isInline: false } as never,
+      view: createViewStub(),
+    });
+
+    openMenu(element);
+    expect(document.querySelector('.editor-preview-context-menu')).toBeInstanceOf(HTMLElement);
+
+    outside.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    expect(document.querySelector('.editor-preview-context-menu')).toBeNull();
+
+    session.destroy();
+  });
+
   it('opens submenus to the left when the right side is constrained', () => {
     const element = document.createElement('div');
     Object.defineProperty(element, 'getBoundingClientRect', {
@@ -335,14 +359,14 @@ describe('previewContextMenu', () => {
 
     expect(windowAdd).toHaveBeenCalledWith('scroll', expect.any(Function), true);
     expect(windowAdd).toHaveBeenCalledWith('resize', expect.any(Function));
-    expect(documentAdd).toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(documentAdd).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
     expect(documentAdd).toHaveBeenCalledWith('keydown', expect.any(Function));
 
     document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
 
     expect(windowRemove).toHaveBeenCalledWith('scroll', expect.any(Function), true);
     expect(windowRemove).toHaveBeenCalledWith('resize', expect.any(Function));
-    expect(documentRemove).toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(documentRemove).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
     expect(documentRemove).toHaveBeenCalledWith('keydown', expect.any(Function));
 
     session.destroy();

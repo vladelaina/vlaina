@@ -11,6 +11,8 @@ import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import { useI18n } from '@/lib/i18n';
 import { themeDomStyleTokens, themeStyleResetTokens } from '@/styles/themeTokens';
+import { addToRecentIcons, loadRecentIcons } from '@/components/common/UniversalIconPicker/constants';
+import { logIconPickerDebug } from '@/components/common/UniversalIconPicker/debugLog';
 
 const IconPicker = lazy(async () => {
   const mod = await import('@/components/common/UniversalIconPicker/index');
@@ -127,6 +129,13 @@ export function HeroIconHeader({
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [isHoveringHeader, setIsHoveringHeader] = useState(false);
   const [committedIcon, setCommittedIcon] = useState<string | null>(icon ?? null);
+  const lastIconPropRef = useRef<{ id: string; icon: string | null }>({ id, icon: icon ?? null });
+  const pendingIconCommitRef = useRef<{
+    id: string;
+    icon: string | null;
+    ignoredIcons: Array<string | null>;
+  } | null>(null);
+  const pendingRandomRecentIconRef = useRef<{ id: string; icon: string } | null>(null);
 
   const resolvedIconSize = resolvePixelSize(iconSize);
 
@@ -149,8 +158,54 @@ export function HeroIconHeader({
     void preloadRandomEmojiData();
   }, []);
 
+  const commitPendingRandomRecentIcon = useCallback((reason: string) => {
+    const pendingIcon = pendingRandomRecentIconRef.current;
+    if (!pendingIcon || pendingIcon.id !== id) {
+      pendingRandomRecentIconRef.current = null;
+      return;
+    }
+
+    logIconPickerDebug('header-commit-random-recent-icon', {
+      id,
+      icon: pendingIcon.icon,
+      reason,
+    });
+    addToRecentIcons(pendingIcon.icon, loadRecentIcons());
+    pendingRandomRecentIconRef.current = null;
+  }, [id]);
+
   useEffect(() => {
-    setCommittedIcon(icon ?? null);
+    const nextIcon = icon ?? null;
+    const pendingCommit = pendingIconCommitRef.current;
+
+    if (pendingCommit?.id === id) {
+      if (nextIcon === pendingCommit.icon) {
+        logIconPickerDebug('header-prop-sync-accepted', { id, icon: nextIcon });
+        pendingIconCommitRef.current = null;
+      } else if (pendingCommit.ignoredIcons.includes(nextIcon)) {
+        logIconPickerDebug('header-prop-sync-ignored-stale', {
+          id,
+          icon: nextIcon,
+          pendingIcon: pendingCommit.icon,
+          ignoredIcons: pendingCommit.ignoredIcons,
+        });
+        lastIconPropRef.current = { id, icon: nextIcon };
+        return;
+      } else {
+        logIconPickerDebug('header-prop-sync-overridden', {
+          id,
+          icon: nextIcon,
+          pendingIcon: pendingCommit.icon,
+        });
+        pendingIconCommitRef.current = null;
+      }
+    } else if (pendingCommit && pendingCommit.id !== id) {
+      pendingIconCommitRef.current = null;
+    }
+
+    lastIconPropRef.current = { id, icon: nextIcon };
+    logIconPickerDebug('header-prop-sync-applied', { id, icon: nextIcon });
+    setCommittedIcon(nextIcon);
   }, [id, icon]);
 
   useEffect(() => {
@@ -162,28 +217,58 @@ export function HeroIconHeader({
     });
   }, [clearPreview]);
 
-  const handleIconSelect = useCallback((newIcon: string) => {
+  const commitIconChange = useCallback((newIcon: string | null) => {
+    const previousPendingCommit = pendingIconCommitRef.current?.id === id
+      ? pendingIconCommitRef.current
+      : null;
+    const ignoredIcons = Array.from(new Set<string | null>([
+      ...(previousPendingCommit ? [previousPendingCommit.icon, ...previousPendingCommit.ignoredIcons] : []),
+      lastIconPropRef.current.id === id ? lastIconPropRef.current.icon : icon ?? null,
+      committedIcon,
+    ])).filter((ignoredIcon) => ignoredIcon !== newIcon);
+
+    pendingIconCommitRef.current = {
+      id,
+      icon: newIcon,
+      ignoredIcons,
+    };
+    logIconPickerDebug('header-commit-icon', {
+      id,
+      newIcon,
+      propIcon: icon ?? null,
+      committedIcon,
+      ignoredIcons,
+    });
     setCommittedIcon(newIcon);
     onIconChange(newIcon);
-  }, [onIconChange]);
+  }, [committedIcon, icon, id, onIconChange]);
+
+  const handleIconSelect = useCallback((newIcon: string) => {
+    pendingRandomRecentIconRef.current = null;
+    commitIconChange(newIcon);
+  }, [commitIconChange]);
 
   const handleOpenIconPicker = useCallback(() => {
+    logIconPickerDebug('header-open-picker', { id, committedIcon });
     notifyNotesOverlayOpen('header-icon-picker');
     setShowIconPicker(true);
     void Promise.resolve(onIconPickerOpen?.()).catch(() => undefined);
-  }, [onIconPickerOpen]);
+  }, [committedIcon, id, onIconPickerOpen]);
 
   const handleRemoveIcon = useCallback(() => {
-    setCommittedIcon(null);
+    pendingRandomRecentIconRef.current = null;
+    logIconPickerDebug('header-remove-icon', { id, committedIcon });
     clearPreview();
-    onIconChange(null);
-  }, [clearPreview, onIconChange]);
+    commitIconChange(null);
+  }, [clearPreview, commitIconChange, committedIcon, id]);
 
   const handlePickerClose = useCallback(() => {
+    logIconPickerDebug('header-close-picker', { id, committedIcon });
+    commitPendingRandomRecentIcon('picker-close');
     setShowIconPicker(false);
     setIsHoveringHeader(false);
     clearPreview();
-  }, [clearPreview]);
+  }, [clearPreview, commitPendingRandomRecentIcon, committedIcon, id]);
 
   const handleLocalSizeChange = useCallback((newSize: number) => {
     if (sliderValue === undefined && headerRef.current) {
@@ -270,8 +355,9 @@ export function HeroIconHeader({
                           if (!randomIcon) {
                             return;
                           }
-                          setCommittedIcon(randomIcon);
-                          onIconChange(randomIcon);
+                          logIconPickerDebug('header-add-random-icon', { id, randomIcon });
+                          commitIconChange(randomIcon);
+                          pendingRandomRecentIconRef.current = { id, icon: randomIcon };
                           handleOpenIconPicker();
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-soft-placeholder)] hover:text-[var(--vlaina-sidebar-row-selected-text)] transition-colors")}

@@ -1185,6 +1185,35 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['<div>', 'Alpha', '', 'Beta', '</div>'].join('\n'));
   });
 
+  it('does not remove generic html closing spacing inside leading frontmatter', () => {
+    const markdown = [
+      '---',
+      'snippet: |',
+      '  <div>',
+      '  Alpha',
+      '',
+      '  </div>',
+      '---',
+      '',
+      'Body',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not remove generic html closing spacing inside fenced code', () => {
+    const markdown = [
+      '```html',
+      '<div>',
+      'Alpha',
+      '',
+      '</div>',
+      '```',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('does not rewrite placeholder-like text inside blockquote fenced code', () => {
     const markdown = [
       '> ```md',

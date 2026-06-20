@@ -71,6 +71,27 @@ describe('NoteEditorFindBar', () => {
     expect(controller.close).toHaveBeenCalledWith(false);
   });
 
+  it('closes from capture when the outside target stops propagation', () => {
+    const controller = createController();
+
+    render(
+      <div>
+        <NoteEditorFindBar controller={controller} />
+        <button
+          type="button"
+          data-testid="outside"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          Outside
+        </button>
+      </div>,
+    );
+
+    fireEvent.mouseDown(screen.getByTestId('outside'));
+
+    expect(controller.close).toHaveBeenCalledWith(false);
+  });
+
   it('stays open when clicking inside the find bar', () => {
     const controller = createController();
 

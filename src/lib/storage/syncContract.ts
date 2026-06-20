@@ -193,9 +193,15 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     scope: 'window-preference',
     persistence: ['localStorage'],
     mergePolicy: 'reload-from-source',
-    storageKeys: ['vlaina-recent-icons', 'vlaina-emoji-skin-tone', 'vlaina-icon-color', 'vlaina-icon-picker-tab'],
+    storageKeys: [
+      'vlaina-recent-icons',
+      'vlaina-emoji-skin-tone',
+      'vlaina-icon-color',
+      'vlaina-icon-picker-tab',
+      'vlaina-icon-picker-debug',
+    ],
     crossWindow: true,
-    notes: 'Icon picker listens for storage updates and sanitizes recent icons and skin tone.',
+    notes: 'Icon picker listens for storage updates, sanitizes recent icons and skin tone, and shares the debug logging toggle.',
   },
   {
     id: 'vault.recent',

@@ -30,12 +30,12 @@ const DEPTH_ATTR_VALUE_PATTERN = '(?:"(\\d+)"|\'(\\d+)\'|(\\d+)\\b)';
 const MARKED_BR_ONLY_PATTERN =
   new RegExp(`^<br\\b(?=[^>]*${LEGACY_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
+const RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN =
+  /^\s*<!--\s*vlaina-rendered-html-boundary-blank-line\s*-->\s*$/i;
 const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
 const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
-const HTML_BLOCK_LINE_PATTERN =
-  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|img|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
 const HTML_ONE_LINE_RENDERED_BLOCK_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)[\s\S]*?(?:<\/\1>|\/>)[ \t]*$/;
 const HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN =
@@ -710,6 +710,14 @@ export function normalizeFullwidthTablePipes(text: string): string {
 export function normalizeGenericHtmlBlockClosingSpacing(text: string): string {
   if (!text.includes('</')) return text;
 
+  return mapMarkdownOutsideProtectedSegments(
+    text,
+    (segment) => normalizeGenericHtmlBlockClosingSpacingSegment(segment),
+    { protectHtmlBlocks: false },
+  );
+}
+
+function normalizeGenericHtmlBlockClosingSpacingSegment(text: string): string {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   const output: string[] = [];
   let activeFence: GenericHtmlSpacingFenceState | null = null;
@@ -1724,56 +1732,69 @@ function toAsciiLowerCode(code: number): number {
 }
 
 function normalizeInternalMarkdownBlankLineComments(text: string): string {
-  if (!text.includes('vlaina-markdown-blank-line')) return text;
+  if (
+    !text.includes('vlaina-markdown-blank-line')
+    && !text.includes('vlaina-rendered-html-boundary-blank-line')
+  ) return text;
 
-  const shouldCollapseSingleHtmlBoundaryPlaceholder =
-    hasSingleInternalBlankLineCommentAfterHtmlBoundary(text);
-  const afterRenderedHtmlBoundaryComments = normalizeRenderedHtmlBoundaryInternalBlankLineComments(text);
-  const normalized = mapMarkdownOutsideProtectedSegments(
-    afterRenderedHtmlBoundaryComments,
+  const afterRenderedHtmlBoundaryHelpers = normalizeRenderedHtmlBoundaryHelperComments(text);
+  return mapMarkdownOutsideProtectedSegments(
+    afterRenderedHtmlBoundaryHelpers,
     (segment) => normalizeInternalMarkdownBlankLineCommentSegment(segment),
     { protectHtmlComments: false },
   );
-  return shouldCollapseSingleHtmlBoundaryPlaceholder
-    ? collapseHtmlBoundaryBlankLinesCreatedByInternalComments(normalized)
-    : normalized;
 }
 
-function normalizeRenderedHtmlBoundaryInternalBlankLineComments(text: string): string {
+function normalizeRenderedHtmlBoundaryHelperComments(text: string): string {
+  if (!text.includes('vlaina-rendered-html-boundary-blank-line')) return text;
+
+  return mapMarkdownOutsideProtectedSegments(
+    text,
+    (segment, startIndex, lines) =>
+      normalizeRenderedHtmlBoundaryHelperCommentSegment(segment, startIndex, lines),
+    { protectHtmlComments: false },
+  );
+}
+
+function normalizeRenderedHtmlBoundaryHelperCommentSegment(
+  text: string,
+  startIndex: number,
+  allLines: readonly string[],
+): string {
   const lines = text.split('\n');
   let changed = false;
-  const output = lines.map((line, index) => {
-    if (!INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)) return line;
-    if (!isRenderedOneLineHtmlBlockBoundaryLine(findNearestPreviousNonBlankInputLine(lines, index - 1))) {
-      return line;
-    }
-    changed = true;
-    return '';
-  });
-  return changed ? output.join('\n') : text;
-}
+  const output: string[] = [];
 
-function hasSingleInternalBlankLineCommentAfterHtmlBoundary(text: string): boolean {
-  const lines = text.split('\n');
   for (let index = 0; index < lines.length; index += 1) {
-    if (!INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(lines[index] ?? '')) {
+    const line = lines[index] ?? '';
+    if (!RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN.test(line)) {
+      output.push(line);
       continue;
     }
 
-    if (INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(lines[index + 1] ?? '')) {
-      continue;
+    changed = true;
+    const previousBoundaryLine =
+      findNearestPreviousNonBlankOutputLine(output)
+      ?? findNearestPreviousNonBlankInputLine(allLines, startIndex + index - 1);
+    if (isRenderedOneLineHtmlBlockBoundaryLine(previousBoundaryLine)) {
+      const hadLocalBlankBeforeHelper = output.length > 0 && output[output.length - 1]?.trim() === '';
+      const hadInputBlankBeforeHelper = (allLines[startIndex + index - 1] ?? '').trim() === '';
+      while (output.length > 0 && output[output.length - 1]?.trim() === '') {
+        output.pop();
+      }
+      if (hadLocalBlankBeforeHelper || !hadInputBlankBeforeHelper) {
+        output.push('');
+      }
+    } else {
+      output.push('');
     }
 
-    const previousLine = lines[index - 1] ?? '';
-    if (previousLine.trim() !== '') {
-      continue;
-    }
-
-    if (isHtmlBlockBoundaryLine(findNearestPreviousNonBlankInputLine(lines, index - 1))) {
-      return true;
+    while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
+      index += 1;
     }
   }
-  return false;
+
+  return changed ? output.join('\n') : text;
 }
 
 function findNearestPreviousNonBlankInputLine(lines: readonly string[], startIndex: number): string | null {
@@ -1784,41 +1805,12 @@ function findNearestPreviousNonBlankInputLine(lines: readonly string[], startInd
   return null;
 }
 
-function collapseHtmlBoundaryBlankLinesCreatedByInternalComments(text: string): string {
-  if (!text.includes('\n\n\n')) return text;
-
-  const lines = text.split('\n');
-  const output: string[] = [];
-  for (const line of lines) {
-    if (
-      line.trim() === ''
-      && output.length >= 2
-      && output[output.length - 1]?.trim() === ''
-      && isHtmlBlockBoundaryLine(findNearestPreviousNonBlankOutputLine(output))
-    ) {
-      continue;
-    }
-    output.push(line);
-  }
-  return output.join('\n');
-}
-
 function findNearestPreviousNonBlankOutputLine(lines: readonly string[]): string | null {
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     const line = lines[index] ?? '';
     if (line.trim() !== '') return line;
   }
   return null;
-}
-
-function isHtmlBlockBoundaryLine(line: string | null): boolean {
-  return line !== null
-    && (
-      HTML_BLOCK_LINE_PATTERN.test(line)
-      || /^<![A-Za-z][^>]*>\s*$/.test(line)
-      || /^<\?.*\?>\s*$/.test(line)
-      || /^<!\[CDATA\[[\s\S]*\]\]>\s*$/.test(line)
-    );
 }
 
 function isRenderedOneLineHtmlBlockBoundaryLine(line: string | null): boolean {
