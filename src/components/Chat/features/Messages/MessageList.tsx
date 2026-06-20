@@ -111,10 +111,18 @@ export const MessageList = memo(function MessageList({
     const renderedMessages: ChatMessage[] = [];
     const ids = new Set<string>();
     const messageById = new Map<string, ChatMessage>();
+    let latestManagedAuthErrorIndex = -1;
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (isPureManagedAuthErrorMessage(messages[index]!)) {
+        latestManagedAuthErrorIndex = index;
+        break;
+      }
+    }
 
     for (let index = 0; index < messages.length; index += 1) {
       const message = messages[index]!;
-      if (isPureManagedAuthErrorMessage(message)) {
+      if (index !== latestManagedAuthErrorIndex && isPureManagedAuthErrorMessage(message)) {
         continue;
       }
 
