@@ -195,6 +195,7 @@ export interface E2EBridge {
   }>;
   getNoteSelectableBlocks(): Array<{
     text: string;
+    rangeText: string;
     tagName: string;
     className: string;
     dataset: Record<string, string>;
@@ -486,6 +487,17 @@ function editorTextHasMark(text: string, markName: string, anchorText?: string):
 
 function getSelectableBlockTargetsForE2E(view: NonNullable<ReturnType<typeof getCurrentEditorView>>) {
   return collectSelectableBlockTargets(view);
+}
+
+function getSelectableBlockRangeTextForE2E(
+  view: NonNullable<ReturnType<typeof getCurrentEditorView>>,
+  range: { from: number; to: number },
+): string {
+  try {
+    return view.state.doc.textBetween(range.from, range.to, '\n', '\n').trim();
+  } catch {
+    return '';
+  }
 }
 
 function normalizeE2EMessageVersions(
@@ -1266,6 +1278,7 @@ export function installSyncE2EBridge(): void {
       if (!view) return [];
       return getSelectableBlockTargetsForE2E(view).map((target) => ({
         text: target.element.textContent?.trim() ?? '',
+        rangeText: getSelectableBlockRangeTextForE2E(view, target.range),
         tagName: target.element.tagName,
         className: target.element.className,
         dataset: Object.fromEntries(
@@ -1273,7 +1286,7 @@ export function installSyncE2EBridge(): void {
             .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
         ),
         rect: (() => {
-          const rect = target.element.getBoundingClientRect();
+          const rect = target.rect;
           return {
             left: rect.left,
             top: rect.top,

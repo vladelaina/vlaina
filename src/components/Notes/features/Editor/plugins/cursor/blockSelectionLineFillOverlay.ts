@@ -1,5 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { getBlockSelectionPluginState, isLargeBlockSelection } from './blockSelectionPluginState';
+import { getBlockSelectionPluginState } from './blockSelectionPluginState';
 import {
   areBlockSelectionDisplayRangesVisuallyAdjacent,
   getBlockRangeKey,
@@ -277,7 +277,6 @@ function collectSelectedHardBreakLineRangesFromNode(
 export function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
   const { selectedBlocks } = getBlockSelectionPluginState(view.state);
   if (selectedBlocks.length === 0) return [];
-  if (isLargeBlockSelection(selectedBlocks)) return [];
 
   const ranges: BlockRange[] = [];
   const selectedRanges = normalizeBlockRanges(selectedBlocks);
@@ -468,7 +467,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   const update = (updatedView: EditorView) => {
     currentView = updatedView;
     const { selectedBlocks } = getBlockSelectionPluginState(updatedView.state);
-    if (selectedBlocks.length === 0 || isLargeBlockSelection(selectedBlocks)) {
+    if (selectedBlocks.length === 0) {
       lastDoc = updatedView.state.doc;
       lastSelectedBlocks = selectedBlocks;
       lastSelectionKey = '';
@@ -516,11 +515,15 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
         adjacency.hasNextRangeKeys.has(rangeKey),
       );
       const rows = collectRangeRows(updatedView, range);
-      for (const row of rows) {
-        if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
-        if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, row.top, row.bottom, edges)) {
-          createdFills += 1;
-        }
+      if (rows.length === 0) continue;
+      const firstRow = rows[0];
+      const lastRow = rows[rows.length - 1];
+      if (
+        firstRow &&
+        lastRow &&
+        appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, firstRow.top, lastRow.bottom, edges)
+      ) {
+        createdFills += 1;
       }
     }
 

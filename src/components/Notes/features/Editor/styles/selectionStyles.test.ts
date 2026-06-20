@@ -73,7 +73,9 @@ describe("editor style theme compatibility", () => {
     const css = readThemeCompatibilityStyle();
 
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected,");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected {");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-drag-source,");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected,");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-drag-source {");
     expect(css).toContain("background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .editor-block-selected .code-block-container:not(.editor-block-selected),");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected-contained {");
@@ -82,16 +84,50 @@ describe("editor style theme compatibility", () => {
 
   it('keeps external theme foreground and code chrome rules from overriding block selection', () => {
     const css = readThemeCompatibilityStyle();
+    const selectedCodeBorderRule = extractCssRule(
+      css,
+      ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is("
+    );
+    const selectedCodeForegroundRule = extractCssRule(
+      css,
+      [
+        ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(",
+        "  .code-block-container.editor-block-selected,",
+        "  .code-block-container.editor-block-drag-source,",
+        "  .editor-block-selected .code-block-container,",
+        "  .code-block-container.editor-block-selected-contained",
+        ") :is(",
+      ].join('\n')
+    );
 
     expect(css).not.toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike {\n  background-color:");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {");
-    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token),");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {");
     expect(css).toContain("-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {");
     expect(css).toContain("display: inline !important;");
     expect(css).toContain("visibility: visible !important;");
     expect(css).toContain("opacity: var(--vlaina-opacity-0) !important;");
     expect(css).toContain("pointer-events: none !important;");
+    expect(selectedCodeBorderRule).toContain(".code-block-container.editor-block-selected,");
+    expect(selectedCodeBorderRule).toContain(".code-block-container.editor-block-drag-source,");
+    expect(selectedCodeBorderRule).toContain(".editor-block-selected .code-block-container,");
+    expect(selectedCodeBorderRule).toContain(".code-block-container.editor-block-selected-contained");
+    expect(selectedCodeBorderRule).toContain("border-color: var(--vlaina-color-white) !important;");
+    expect(selectedCodeBorderRule).toContain("outline: var(--vlaina-code-block-selected-border-outline) !important;");
+    expect(selectedCodeBorderRule).toContain("outline-offset: var(--vlaina-code-block-selected-border-outline-offset) !important;");
+    expect(selectedCodeForegroundRule).toContain(".code-block-container.editor-block-selected,");
+    expect(selectedCodeForegroundRule).toContain(".code-block-container.editor-block-drag-source,");
+    expect(selectedCodeForegroundRule).toContain(".editor-block-selected .code-block-container,");
+    expect(selectedCodeForegroundRule).toContain(".code-block-container.editor-block-selected-contained");
+    expect(selectedCodeForegroundRule).toContain(".code-block-chrome-language-label,");
+    expect(selectedCodeForegroundRule).toContain(".cm-line *,");
+    expect(selectedCodeForegroundRule).toContain(".cm-s-inner *,");
+    expect(selectedCodeForegroundRule).toContain("color: var(--vlaina-editor-block-selection-fg) !important;");
+    expect(selectedCodeForegroundRule).toContain("-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;");
   });
 
   it('does not use CSS :has selectors in editor styles', () => {

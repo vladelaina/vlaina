@@ -40,6 +40,7 @@ export type ImportedMarkdownThemeInstallResult = {
 
 export type NoteSelectableBlock = {
   text: string;
+  rangeText: string;
   tagName: string;
   from: number;
   to: number;
@@ -609,15 +610,34 @@ export async function getBlankAreaDragTarget(page: Page, text: string) {
     const rect = block.getBoundingClientRect();
     const editorRect = editor.getBoundingClientRect();
     const scrollRootRect = scrollRoot.getBoundingClientRect();
+    const contentRoot = editor.closest('[data-note-content-root="true"]');
     const visibleTop = Math.max(rect.top, scrollRootRect.top + 24);
     const visibleBottom = Math.min(rect.bottom, scrollRootRect.bottom - 24);
     const startY = visibleTop + Math.max(12, (visibleBottom - visibleTop) * 0.35);
-    const startX = Math.min(scrollRootRect.right - 24, editorRect.right + 72);
+    const startCandidates = [
+      editorRect.right + 72,
+      editorRect.right + 48,
+      editorRect.right + 24,
+      editorRect.right + 8,
+      scrollRootRect.right - 24,
+    ]
+      .map((x) => Math.min(scrollRootRect.right - 24, Math.max(scrollRootRect.left + 24, x)))
+      .filter((x, index, values) => values.findIndex((value) => Math.abs(value - x) < 0.5) === index);
+    const startX = startCandidates.find((x) => {
+      const candidateHit = document.elementFromPoint(x, startY);
+      return candidateHit instanceof Node &&
+        !editor.contains(candidateHit) &&
+        (candidateHit === scrollRoot || Boolean(contentRoot?.contains(candidateHit)));
+    }) ?? startCandidates[0] ?? Math.min(scrollRootRect.right - 24, editorRect.right + 72);
+    const blockBodyX = rect.left + Math.min(
+      Math.max(96, rect.width * 0.45),
+      Math.max(24, rect.width - 24),
+    );
     const hit = document.elementFromPoint(startX, startY);
     return {
       startX,
       startY,
-      endX: Math.max(editorRect.left + 24, rect.left + 24),
+      endX: Math.max(editorRect.left + 24, Math.min(editorRect.right - 24, blockBodyX)),
       endY: Math.min(scrollRootRect.bottom - 24, startY + 180),
       hitInsideEditor: hit instanceof Node && editor.contains(hit),
       hitTagName: hit instanceof HTMLElement ? hit.tagName : null,

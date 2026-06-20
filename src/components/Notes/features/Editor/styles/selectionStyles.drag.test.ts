@@ -113,6 +113,9 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('.milkdown .editor-block-selection-line-fill-layer {');
     expect(css).toContain('.milkdown .editor-block-selection-line-fill {');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected-inline-line {');
+    expect(css).toContain('.milkdown .ProseMirror .editor-block-selected-inline-line::after,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-inline-line::after {');
+    expect(css).toContain('display: none !important;');
     expect(css).toContain('background-color: transparent;');
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
