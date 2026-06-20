@@ -1,4 +1,10 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { Fragment } from '@milkdown/kit/prose/model';
+import { Selection } from '@milkdown/kit/prose/state';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import { isAbsolutePath } from '@/lib/storage/adapter';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { flushPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdown';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
@@ -11,13 +17,16 @@ import {
 import { createBlockControlsDom } from './blockControlsDom';
 import { setBlockDraggingVisualState } from './blockDragVisualState';
 import { getListItemRangeEnd } from './blockUnitResolver';
+import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
 import {
   MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS,
   canInsertTextIntoComposerValue,
 } from '@/lib/ui/composerFocusRegistry';
 import { serializeSelectedBlocksToText } from './blockSelectionSerializer';
-import { getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
+import { getCurrentMarkdownParser, getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
+import { serializeEditorMarkdownSnapshot } from '../../utils/pendingMarkdownUpdate';
+import { markEditorUserInput } from '../shared/userInputEvents';
 import {
   getCurrentEditorBlockPositionSnapshot,
   subscribeCurrentEditorBlockPositionSnapshot,
@@ -44,7 +53,10 @@ const WHEEL_DELTA_MODE_LINE = 1;
 const WHEEL_DELTA_MODE_PAGE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const NOTES_BLOCK_DROP_TARGET_SELECTOR = '[data-notes-block-drop-target="true"]';
+const NOTES_TAB_PATH_SELECTOR = '[data-notes-tab-path]';
+const BLOCK_DRAG_TAB_OPEN_DELAY_MS = 280;
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
+const LIST_CONTAINER_NODE_NAMES = new Set(['bullet_list', 'ordered_list']);
 
 function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number): number {
   if (deltaMode === WHEEL_DELTA_MODE_LINE) return delta * WHEEL_LINE_HEIGHT_PX;
@@ -65,11 +77,189 @@ function serializeDraggedRangesForComposer(view: EditorView, ranges: BlockRange[
   return canInsertTextIntoComposerValue('', text) ? text : '';
 }
 
+function serializeDraggedRangesForMarkdown(view: EditorView, ranges: BlockRange[]): string {
+  if (ranges.some((range) => range.to - range.from > MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS)) {
+    return '';
+  }
+
+  return serializeSelectedBlocksToText(view.state, ranges, {
+    markdownSerializer: getCurrentMarkdownSerializer(),
+  }).trim();
+}
+
+function getCurrentNotePath(): string | null {
+  return useNotesStore.getState().currentNote?.path ?? null;
+}
+
+function getReferenceMarkdownForNotePath(notePath: string | null): string {
+  if (!notePath) return '';
+  const state = useNotesStore.getState();
+  if (state.currentNote?.path === notePath) {
+    return state.currentNote.content;
+  }
+  return state.noteContentsCache.get(notePath)?.content ?? '';
+}
+
+function openNotePath(path: string): Promise<void> {
+  const state = useNotesStore.getState();
+  return isAbsolutePath(path)
+    ? state.openNoteByAbsolutePath(path)
+    : state.openNote(path);
+}
+
+function serializeSourceMarkdownAfterDelete(
+  view: EditorView,
+  ranges: readonly BlockRange[],
+  sourceNotePath: string | null,
+): string | null {
+  const serializer = getCurrentMarkdownSerializer();
+  if (!serializer || !sourceNotePath) return null;
+
+  const normalized = normalizeBlockRanges(ranges);
+  const deleteRanges = buildDeleteRangesForBlockSelection(view.state, normalized);
+  if (deleteRanges.length === 0) return null;
+
+  try {
+    let tr = view.state.tr;
+    for (let index = deleteRanges.length - 1; index >= 0; index -= 1) {
+      const range = deleteRanges[index];
+      tr = tr.delete(range.from, range.to);
+    }
+
+    if (tr.doc.content.size === 0) {
+      const paragraphType = tr.doc.type.schema.nodes.paragraph;
+      if (paragraphType) {
+        tr = tr.insert(0, paragraphType.create());
+      }
+    }
+
+    return serializeEditorMarkdownSnapshot(
+      serializer(tr.doc),
+      getReferenceMarkdownForNotePath(sourceNotePath),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function parseDraggedMarkdown(markdown: string | null): Fragment | null {
+  if (!markdown?.trim()) return null;
+  const parser = getCurrentMarkdownParser();
+  if (!parser) return null;
+
+  try {
+    const doc = parser(markdown) as ProseNode | null;
+    return doc?.content ? (doc.content as Fragment) : null;
+  } catch {
+    return null;
+  }
+}
+
+function unwrapListFragmentForTarget(fragment: Fragment, parentTypeName: string): Fragment | null {
+  if (!LIST_CONTAINER_NODE_NAMES.has(parentTypeName) || fragment.childCount !== 1) {
+    return null;
+  }
+
+  const child = fragment.child(0);
+  return child.type.name === parentTypeName ? (child.content as Fragment) : null;
+}
+
+function resolveCrossNoteInsertContent(view: EditorView, markdown: string | null, insertPos: number): {
+  content: Fragment;
+  insertPos: number;
+} | null {
+  const fragment = parseDraggedMarkdown(markdown);
+  if (!fragment || fragment.size === 0) return null;
+
+  try {
+    const safePos = Math.max(0, Math.min(insertPos, view.state.doc.content.size));
+    const $target = view.state.doc.resolve(safePos);
+    const targetIndex = $target.index();
+    const unwrappedListContent = unwrapListFragmentForTarget(fragment, $target.parent.type.name);
+    const candidates = unwrappedListContent ? [unwrappedListContent, fragment] : [fragment];
+
+    for (const content of candidates) {
+      if (content.size === 0) continue;
+      if ($target.parent.canReplace(targetIndex, targetIndex, content)) {
+        return { content, insertPos: safePos };
+      }
+    }
+  } catch {
+  }
+
+  return null;
+}
+
+function canInsertCrossNoteDraggedMarkdown(view: EditorView, markdown: string | null, insertPos: number): boolean {
+  return resolveCrossNoteInsertContent(view, markdown, insertPos) !== null;
+}
+
+function insertCrossNoteDraggedMarkdown(view: EditorView, markdown: string | null, insertPos: number): boolean {
+  const target = resolveCrossNoteInsertContent(view, markdown, insertPos);
+  if (!target) return false;
+
+  try {
+    let tr = view.state.tr.insert(target.insertPos, target.content);
+    const selectionAnchor = Math.max(0, Math.min(target.insertPos + target.content.size, tr.doc.content.size));
+    tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), -1)).scrollIntoView();
+    markEditorUserInput(view);
+    view.dispatch(tr);
+    view.focus();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function isOverNotesBlockDropTarget(doc: Document, clientX: number, clientY: number): boolean {
   const elements = typeof doc.elementsFromPoint === 'function'
     ? doc.elementsFromPoint(clientX, clientY)
     : [];
   return elements.some((element) => element.closest(NOTES_BLOCK_DROP_TARGET_SELECTOR));
+}
+
+function getNotesTabPathFromPoint(doc: Document, clientX: number, clientY: number): string | null {
+  if (typeof doc.elementsFromPoint !== 'function') return null;
+
+  for (const element of doc.elementsFromPoint(clientX, clientY)) {
+    const tab = element.closest(NOTES_TAB_PATH_SELECTOR) as HTMLElement | null;
+    const path = tab?.dataset.notesTabPath;
+    if (path) return path;
+  }
+
+  return null;
+}
+
+type PendingCrossNoteBlockDrag = {
+  sourceNotePath: string | null;
+  draggedMarkdown: string | null;
+  sourceMarkdownAfterDelete: string | null;
+  dragStartClientX: number;
+  dragStartClientY: number;
+  lastClientX: number;
+  lastClientY: number;
+  preview: BlockDragPreviewHandle | null;
+};
+
+let pendingCrossNoteBlockDrag: PendingCrossNoteBlockDrag | null = null;
+
+function setPendingCrossNoteBlockDrag(pending: PendingCrossNoteBlockDrag): void {
+  pendingCrossNoteBlockDrag = pending;
+}
+
+function clearPendingCrossNoteBlockDrag(): void {
+  pendingCrossNoteBlockDrag = null;
+}
+
+function updatePendingCrossNoteBlockDragPointer(clientX: number, clientY: number): void {
+  if (!pendingCrossNoteBlockDrag) return;
+  pendingCrossNoteBlockDrag.lastClientX = clientX;
+  pendingCrossNoteBlockDrag.lastClientY = clientY;
+}
+
+function setPendingCrossNoteBlockDragPreview(preview: BlockDragPreviewHandle | null): void {
+  if (!pendingCrossNoteBlockDrag) return;
+  pendingCrossNoteBlockDrag.preview = preview;
 }
 
 export class BlockControlsViewSession {
@@ -93,6 +283,12 @@ export class BlockControlsViewSession {
   private pendingDragClientY: number | null = null;
   private pointerX: number | null = null;
   private pointerY: number | null = null;
+  private dragSourceDoc: EditorView['state']['doc'] | null = null;
+  private dragSourceNotePath: string | null = null;
+  private draggedMarkdown: string | null = null;
+  private dragSourceMarkdownAfterDelete: string | null = null;
+  private blockDragTabOpenPath: string | null = null;
+  private blockDragTabOpenTimerId: number | null = null;
   private refreshRafId = 0;
   private dragPointerRafId = 0;
 
@@ -136,6 +332,7 @@ export class BlockControlsViewSession {
     this.unsubscribeBlockPositionSnapshot = subscribeCurrentEditorBlockPositionSnapshot(
       this.handleBlockPositionSnapshot,
     );
+    this.adoptPendingCrossNoteBlockDrag();
   }
 
   update(): void {
@@ -153,7 +350,44 @@ export class BlockControlsViewSession {
     this.scheduleHandleRefresh();
   }
 
+  private adoptPendingCrossNoteBlockDrag(): void {
+    const pending = pendingCrossNoteBlockDrag;
+    const currentNotePath = getCurrentNotePath();
+    if (!pending || !currentNotePath || currentNotePath === pending.sourceNotePath) {
+      return;
+    }
+
+    this.draggedRanges = [];
+    this.dragStartClientX = pending.dragStartClientX;
+    this.dragStartClientY = pending.dragStartClientY;
+    this.lastDragClientX = pending.lastClientX;
+    this.lastDragClientY = pending.lastClientY;
+    this.dragSourceDoc = null;
+    this.dragSourceNotePath = pending.sourceNotePath;
+    this.draggedMarkdown = pending.draggedMarkdown;
+    this.dragSourceMarkdownAfterDelete = pending.sourceMarkdownAfterDelete;
+    this.dragPreview = pending.preview;
+    this.setPointer(pending.lastClientX, pending.lastClientY);
+    this.attachDragWheelListener();
+    this.dragAutoScroll.start();
+    this.controls.classList.add('dragging');
+    setBlockDraggingVisualState(true);
+    this.scheduleDragPointerUpdate(pending.lastClientX, pending.lastClientY);
+  }
+
+  private shouldPreserveCrossNoteDragOnDestroy(): boolean {
+    const pending = pendingCrossNoteBlockDrag;
+    const currentNotePath = getCurrentNotePath();
+    return Boolean(
+      this.draggedRanges
+      && pending
+      && currentNotePath
+      && currentNotePath !== pending.sourceNotePath,
+    );
+  }
+
   destroy(): void {
+    const preserveCrossNoteDrag = this.shouldPreserveCrossNoteDragOnDestroy();
     if (this.refreshRafId !== 0) {
       window.cancelAnimationFrame(this.refreshRafId);
       this.refreshRafId = 0;
@@ -162,7 +396,13 @@ export class BlockControlsViewSession {
       window.cancelAnimationFrame(this.dragPointerRafId);
       this.dragPointerRafId = 0;
     }
-    setBlockDraggingVisualState(false);
+    if (!preserveCrossNoteDrag) {
+      if (this.draggedRanges) {
+        clearPendingCrossNoteBlockDrag();
+      }
+      setBlockDraggingVisualState(false);
+    }
+    this.clearBlockDragTabOpen();
     this.handleButton.removeEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.removeEventListener('mousemove', this.handleDocumentMouseMove, true);
     this.doc.removeEventListener('pointermove', this.handleDocumentPointerMove, true);
@@ -175,7 +415,9 @@ export class BlockControlsViewSession {
     window.removeEventListener('resize', this.handleScrollOrResize);
     this.unsubscribeBlockPositionSnapshot();
     if (this.dragPreview) {
-      this.dragPreview.destroy();
+      if (!preserveCrossNoteDrag || pendingCrossNoteBlockDrag?.preview !== this.dragPreview) {
+        this.dragPreview.destroy();
+      }
       this.dragPreview = null;
     }
     if (this.dragSourceMarker) {
@@ -262,7 +504,19 @@ export class BlockControlsViewSession {
       this.hideDropIndicator();
       return false;
     }
-    if (!this.draggedRanges || !canApplyBlockMove(this.view, this.draggedRanges, target.insertPos)) {
+    if (!this.draggedRanges) {
+      this.hideDropIndicator();
+      return false;
+    }
+    if (this.isCrossNoteDrag()) {
+      if (
+        !this.dragSourceMarkdownAfterDelete
+        || !canInsertCrossNoteDraggedMarkdown(this.view, this.draggedMarkdown, target.insertPos)
+      ) {
+        this.hideDropIndicator();
+        return false;
+      }
+    } else if (!canApplyBlockMove(this.view, this.draggedRanges, target.insertPos)) {
       this.hideDropIndicator();
       return false;
     }
@@ -275,6 +529,7 @@ export class BlockControlsViewSession {
   }
 
   private applyDragPointerUpdate(clientX: number, clientY: number): void {
+    this.updateBlockDragTabHover(clientX, clientY);
     if (isOverNotesBlockDropTarget(this.doc, clientX, clientY)) {
       this.hideDropIndicator();
     } else {
@@ -511,6 +766,56 @@ export class BlockControlsViewSession {
     }
   };
 
+  private scheduleBlockDragTabOpen(path: string): void {
+    if (!this.draggedRanges || path === getCurrentNotePath()) {
+      this.clearBlockDragTabOpen();
+      return;
+    }
+    if (this.blockDragTabOpenPath === path) {
+      return;
+    }
+
+    this.clearBlockDragTabOpen();
+    this.blockDragTabOpenPath = path;
+    this.blockDragTabOpenTimerId = window.setTimeout(() => {
+      this.blockDragTabOpenTimerId = null;
+      if (!this.draggedRanges || this.blockDragTabOpenPath !== path) {
+        return;
+      }
+
+      if (getCurrentNotePath() === path) {
+        this.blockDragTabOpenPath = null;
+        return;
+      }
+
+      void openNotePath(path)
+        .catch(() => undefined)
+        .finally(() => {
+          if (this.blockDragTabOpenPath === path) {
+            this.blockDragTabOpenPath = null;
+          }
+        });
+    }, BLOCK_DRAG_TAB_OPEN_DELAY_MS);
+  }
+
+  private clearBlockDragTabOpen(): void {
+    if (this.blockDragTabOpenTimerId !== null) {
+      window.clearTimeout(this.blockDragTabOpenTimerId);
+      this.blockDragTabOpenTimerId = null;
+    }
+    this.blockDragTabOpenPath = null;
+  }
+
+  private updateBlockDragTabHover(clientX: number, clientY: number): void {
+    const tabPath = getNotesTabPathFromPoint(this.doc, clientX, clientY);
+    if (!tabPath || tabPath === getCurrentNotePath()) {
+      this.clearBlockDragTabOpen();
+      return;
+    }
+
+    this.scheduleBlockDragTabOpen(tabPath);
+  }
+
   private finishDrag(): void {
     this.draggedRanges = null;
     this.dragStartClientX = null;
@@ -519,6 +824,12 @@ export class BlockControlsViewSession {
     this.lastDragClientY = null;
     this.pendingDragClientX = null;
     this.pendingDragClientY = null;
+    this.dragSourceDoc = null;
+    this.dragSourceNotePath = null;
+    this.draggedMarkdown = null;
+    this.dragSourceMarkdownAfterDelete = null;
+    clearPendingCrossNoteBlockDrag();
+    this.clearBlockDragTabOpen();
     if (this.dragPointerRafId !== 0) {
       window.cancelAnimationFrame(this.dragPointerRafId);
       this.dragPointerRafId = 0;
@@ -538,6 +849,22 @@ export class BlockControlsViewSession {
     this.detachDragWheelListener();
   }
 
+  private isCrossNoteDrag(): boolean {
+    if (!this.draggedRanges) return false;
+    const currentNotePath = getCurrentNotePath();
+    if (this.dragSourceNotePath && currentNotePath && currentNotePath !== this.dragSourceNotePath) {
+      return true;
+    }
+    return Boolean(this.dragSourceDoc && this.view.state.doc !== this.dragSourceDoc);
+  }
+
+  private applyCrossNoteDrop(insertPos: number): boolean {
+    if (!this.dragSourceNotePath || !this.dragSourceMarkdownAfterDelete) return false;
+    if (!insertCrossNoteDraggedMarkdown(this.view, this.draggedMarkdown, insertPos)) return false;
+    flushPendingEditorMarkdown(this.dragSourceNotePath, this.dragSourceMarkdownAfterDelete);
+    return true;
+  }
+
   private readonly handleHandleMouseDown = (event: MouseEvent): void => {
     if (event.button !== 0) return;
     const { ranges: draggableRanges } = this.getDraggableSelection();
@@ -548,11 +875,31 @@ export class BlockControlsViewSession {
     event.stopPropagation();
 
     this.draggedRanges = draggableRanges;
+    this.dragSourceDoc = this.view.state.doc;
+    this.dragSourceNotePath = getCurrentNotePath();
+    this.draggedMarkdown = serializeDraggedRangesForMarkdown(this.view, draggableRanges);
+    this.dragSourceMarkdownAfterDelete = this.draggedMarkdown
+      ? serializeSourceMarkdownAfterDelete(
+          this.view,
+          draggableRanges,
+          this.dragSourceNotePath,
+        )
+      : null;
     this.attachDragWheelListener();
     this.dragAutoScroll.start();
     this.dragStartClientX = event.clientX;
     this.dragStartClientY = event.clientY;
     this.setPointer(event.clientX, event.clientY);
+    setPendingCrossNoteBlockDrag({
+      sourceNotePath: this.dragSourceNotePath,
+      draggedMarkdown: this.draggedMarkdown,
+      sourceMarkdownAfterDelete: this.dragSourceMarkdownAfterDelete,
+      dragStartClientX: event.clientX,
+      dragStartClientY: event.clientY,
+      lastClientX: event.clientX,
+      lastClientY: event.clientY,
+      preview: null,
+    });
     const composerText = serializeDraggedRangesForComposer(this.view, draggableRanges);
     setBlockDraggingVisualState(true, composerText ? { text: composerText } : null);
     this.controls.classList.add('dragging');
@@ -569,6 +916,7 @@ export class BlockControlsViewSession {
     });
     if (preview) {
       this.dragPreview = preview;
+      setPendingCrossNoteBlockDragPreview(preview);
       preview.element.style.left = `${Math.round(event.clientX - preview.offsetX)}px`;
       preview.element.style.top = `${Math.round(event.clientY - preview.offsetY)}px`;
     }
@@ -582,6 +930,7 @@ export class BlockControlsViewSession {
       this.setPointer(event.clientX, event.clientY);
       this.lastDragClientX = event.clientX;
       this.lastDragClientY = event.clientY;
+      updatePendingCrossNoteBlockDragPointer(event.clientX, event.clientY);
       this.scheduleDragPointerUpdate(event.clientX, event.clientY);
       event.preventDefault();
       return;
@@ -679,9 +1028,13 @@ export class BlockControlsViewSession {
     } else {
       const ranges = this.draggedRanges;
       const insertPos = this.pendingDrop.insertPos;
-      const canMove = canApplyBlockMove(this.view, ranges, insertPos);
-      if (canMove) {
-        applyBlockMove(this.view, ranges, insertPos);
+      if (this.isCrossNoteDrag()) {
+        this.applyCrossNoteDrop(insertPos);
+      } else {
+        const canMove = canApplyBlockMove(this.view, ranges, insertPos);
+        if (canMove) {
+          applyBlockMove(this.view, ranges, insertPos);
+        }
       }
       this.finishDrag();
     }
