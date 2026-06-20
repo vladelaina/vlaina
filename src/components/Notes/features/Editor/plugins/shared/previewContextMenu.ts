@@ -127,7 +127,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     }
 
     transientListenersAttached = true;
-    document.addEventListener('mousedown', handleDocumentPointer);
+    document.addEventListener('mousedown', handleDocumentPointer, true);
     document.addEventListener('keydown', handleDocumentKey);
     window.addEventListener('resize', handleWindowResize);
     window.addEventListener('scroll', handleScroll, true);
@@ -139,7 +139,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     }
 
     transientListenersAttached = false;
-    document.removeEventListener('mousedown', handleDocumentPointer);
+    document.removeEventListener('mousedown', handleDocumentPointer, true);
     document.removeEventListener('keydown', handleDocumentKey);
     window.removeEventListener('resize', handleWindowResize);
     window.removeEventListener('scroll', handleScroll, true);

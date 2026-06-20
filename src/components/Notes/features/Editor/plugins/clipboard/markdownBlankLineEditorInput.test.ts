@@ -11,6 +11,7 @@ import {
 
 const LEGACY_EMPTY_LINE_PLACEHOLDER = '\u200B';
 const MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
+const RENDERED_HTML_BOUNDARY_PLACEHOLDER = '<!--vlaina-rendered-html-boundary-blank-line-->';
 
 describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   it('uses editor-only blocks for ordinary markdown blank lines', () => {
@@ -403,7 +404,7 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     expect(editorInput).toBe([
       '<p align="center">HTML</p>',
       '',
-      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      RENDERED_HTML_BOUNDARY_PLACEHOLDER,
       'after',
     ].join('\n'));
     expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
@@ -413,7 +414,7 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     const markdown = [
       '<p align="center">HTML</p>',
       '',
-      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      RENDERED_HTML_BOUNDARY_PLACEHOLDER,
       'after',
     ].join('\n');
 

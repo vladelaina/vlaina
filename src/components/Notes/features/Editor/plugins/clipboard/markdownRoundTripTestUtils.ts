@@ -92,12 +92,13 @@ async function openMarkdownThroughSyntaxEditor(markdown: string): Promise<Editor
   const serialized = serializer(view.state.doc);
   const docJson = view.state.doc.toJSON();
   await editor.destroy();
+  const normalized = normalizeSerializedMarkdownDocument(serialized);
 
   return {
     docJson,
     persisted: serializeLeadingFrontmatterMarkdown(
       restoreMathBlockFenceStylesFromReference(
-        normalizeSerializedMarkdownDocument(serialized),
+        normalized,
         markdown
       ),
       markdown

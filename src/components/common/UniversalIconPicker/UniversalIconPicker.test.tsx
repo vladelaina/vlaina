@@ -99,7 +99,6 @@ describe('UniversalIconPicker', () => {
   });
 
   it('does not close when interacting with a sidebar context menu portal', async () => {
-    vi.useFakeTimers();
     const onClose = vi.fn();
 
     render(
@@ -109,8 +108,6 @@ describe('UniversalIconPicker', () => {
       />,
     );
 
-    vi.advanceTimersByTime(100);
-
     const menuLayer = document.createElement('div');
     menuLayer.setAttribute('data-sidebar-context-menu-layer', 'true');
     const menuButton = document.createElement('button');
@@ -118,12 +115,49 @@ describe('UniversalIconPicker', () => {
     menuLayer.appendChild(menuButton);
     document.body.appendChild(menuLayer);
 
-    fireEvent.mouseDown(menuButton);
+    fireEvent.pointerDown(menuButton);
 
     expect(onClose).not.toHaveBeenCalled();
 
     menuLayer.remove();
-    vi.useRealTimers();
+  });
+
+  it('closes on the first outside pointer down after opening', () => {
+    const onClose = vi.fn();
+
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    fireEvent.pointerDown(document.body);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes from capture when an outside target stops propagation', () => {
+    const onClose = vi.fn();
+
+    render(
+      <div>
+        <UniversalIconPicker
+          onSelect={vi.fn()}
+          onClose={onClose}
+        />
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          Outside editor target
+        </button>
+      </div>,
+    );
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Outside editor target' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('reloads picker preferences after cross-window storage updates', async () => {

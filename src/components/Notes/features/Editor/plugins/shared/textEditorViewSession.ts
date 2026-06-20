@@ -435,7 +435,7 @@ export function createTextEditorViewSession<
     focusTextareaAtEnd();
   };
 
-  document.addEventListener('mousedown', handleClickOutside);
+  document.addEventListener('mousedown', handleClickOutside, true);
 
   return {
     update() {
@@ -468,7 +468,7 @@ export function createTextEditorViewSession<
       }
     },
     destroy() {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
       if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
         window.clearTimeout(suppressOutsideMouseDownTimer);
       }

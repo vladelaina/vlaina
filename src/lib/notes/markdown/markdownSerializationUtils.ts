@@ -30,12 +30,39 @@ const DEPTH_ATTR_VALUE_PATTERN = '(?:"(\\d+)"|\'(\\d+)\'|(\\d+)\\b)';
 const MARKED_BR_ONLY_PATTERN =
   new RegExp(`^<br\\b(?=[^>]*${LEGACY_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
+const RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN =
+  /^\s*<!--\s*vlaina-rendered-html-boundary-blank-line\s*-->\s*$/i;
 const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
 const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
 const HTML_BLOCK_LINE_PATTERN =
   /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|img|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
+const HTML_ONE_LINE_RENDERED_BLOCK_PATTERN =
+  /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)[\s\S]*?(?:<\/\1>|\/>)[ \t]*$/;
+const HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN =
+  /^(?: {0,3})<(?:img|hr|br)(?:\s|\/?>|$)[\s\S]*$/i;
+const NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES = new Set([
+  'base',
+  'basefont',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'script',
+  'style',
+  'pre',
+  'textarea',
+  'title',
+  'xmp',
+  'noembed',
+  'noframes',
+  'plaintext',
+  'math',
+  'noscript',
+  'svg',
+]);
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const ESCAPED_LESS_THAN_PATTERN = /(^|[^\\])\\</g;
 const REDUNDANT_PAIRED_MARKER_ESCAPES = new Set(['*', '~']);
@@ -685,6 +712,14 @@ export function normalizeFullwidthTablePipes(text: string): string {
 export function normalizeGenericHtmlBlockClosingSpacing(text: string): string {
   if (!text.includes('</')) return text;
 
+  return mapMarkdownOutsideProtectedSegments(
+    text,
+    (segment) => normalizeGenericHtmlBlockClosingSpacingSegment(segment),
+    { protectHtmlBlocks: false },
+  );
+}
+
+function normalizeGenericHtmlBlockClosingSpacingSegment(text: string): string {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   const output: string[] = [];
   let activeFence: GenericHtmlSpacingFenceState | null = null;
@@ -1699,12 +1734,16 @@ function toAsciiLowerCode(code: number): number {
 }
 
 function normalizeInternalMarkdownBlankLineComments(text: string): string {
-  if (!text.includes('vlaina-markdown-blank-line')) return text;
+  if (
+    !text.includes('vlaina-markdown-blank-line')
+    && !text.includes('vlaina-rendered-html-boundary-blank-line')
+  ) return text;
 
+  const afterRenderedHtmlBoundaryHelpers = normalizeRenderedHtmlBoundaryHelperComments(text);
   const shouldCollapseSingleHtmlBoundaryPlaceholder =
-    hasSingleInternalBlankLineCommentAfterHtmlBoundary(text);
+    hasSingleInternalBlankLineCommentAfterHtmlBoundary(afterRenderedHtmlBoundaryHelpers);
   const normalized = mapMarkdownOutsideProtectedSegments(
-    text,
+    afterRenderedHtmlBoundaryHelpers,
     (segment, startIndex, lines) =>
       normalizeInternalMarkdownBlankLineCommentSegment(segment, startIndex, lines),
     { protectHtmlComments: false },
@@ -1712,6 +1751,58 @@ function normalizeInternalMarkdownBlankLineComments(text: string): string {
   return shouldCollapseSingleHtmlBoundaryPlaceholder
     ? collapseHtmlBoundaryBlankLinesCreatedByInternalComments(normalized)
     : normalized;
+}
+
+function normalizeRenderedHtmlBoundaryHelperComments(text: string): string {
+  if (!text.includes('vlaina-rendered-html-boundary-blank-line')) return text;
+
+  return mapMarkdownOutsideProtectedSegments(
+    text,
+    (segment, startIndex, lines) =>
+      normalizeRenderedHtmlBoundaryHelperCommentSegment(segment, startIndex, lines),
+    { protectHtmlComments: false },
+  );
+}
+
+function normalizeRenderedHtmlBoundaryHelperCommentSegment(
+  text: string,
+  startIndex: number,
+  allLines: readonly string[],
+): string {
+  const lines = text.split('\n');
+  let changed = false;
+  const output: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    if (!RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN.test(line)) {
+      output.push(line);
+      continue;
+    }
+
+    changed = true;
+    const previousBoundaryLine =
+      findNearestPreviousNonBlankOutputLine(output)
+      ?? findNearestPreviousNonBlankInputLine(allLines, startIndex + index - 1);
+    if (isRenderedOneLineHtmlBlockBoundaryLine(previousBoundaryLine)) {
+      const hadLocalBlankBeforeHelper = output.length > 0 && output[output.length - 1]?.trim() === '';
+      const hadInputBlankBeforeHelper = (allLines[startIndex + index - 1] ?? '').trim() === '';
+      while (output.length > 0 && output[output.length - 1]?.trim() === '') {
+        output.pop();
+      }
+      if (hadLocalBlankBeforeHelper || !hadInputBlankBeforeHelper) {
+        output.push('');
+      }
+    } else {
+      output.push('');
+    }
+
+    while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
+      index += 1;
+    }
+  }
+
+  return changed ? output.join('\n') : text;
 }
 
 function hasSingleInternalBlankLineCommentAfterHtmlBoundary(text: string): boolean {
@@ -1784,6 +1875,20 @@ function isHtmlBlockBoundaryLine(line: string | null): boolean {
       || /^<\?.*\?>\s*$/.test(line)
       || /^<!\[CDATA\[[\s\S]*\]\]>\s*$/.test(line)
     );
+}
+
+function isRenderedOneLineHtmlBlockBoundaryLine(line: string | null): boolean {
+  if (line === null) return false;
+
+  const match = HTML_ONE_LINE_RENDERED_BLOCK_PATTERN.exec(line)
+    ?? HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN.exec(line);
+  const tagName = match?.[1]?.toLowerCase() ?? getHtmlStartTagName(line);
+  return Boolean(tagName && !NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES.has(tagName));
+}
+
+function getHtmlStartTagName(line: string): string | null {
+  const match = /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)/.exec(line);
+  return match?.[1]?.toLowerCase() ?? null;
 }
 
 function normalizeInternalMarkdownBlankLineCommentSegment(

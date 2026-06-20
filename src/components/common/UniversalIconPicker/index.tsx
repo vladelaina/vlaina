@@ -21,6 +21,12 @@ import {
 } from './constants';
 import { useI18n } from '@/lib/i18n';
 import { hasIconImageScheme, hasIconSymbolScheme, isIconImageValue } from './iconImageValue';
+import {
+  describeIconPickerDebugTarget,
+  getIconPickerDebugLogText,
+  isIconPickerDebugEnabled,
+  logIconPickerDebug,
+} from './debugLog';
 
 export interface UniversalIconPickerProps {
   onSelect: (emoji: string) => void;
@@ -83,6 +89,7 @@ export function UniversalIconPicker({
   const [activeTab, setActiveTab] = useState<TabType>(() => emojiOnly ? 'emoji' : loadActiveTab());
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
+  const [debugCopied, setDebugCopied] = useState(false);
 
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
   const lastRandomIconRef = useRef<string | null>(null);
@@ -115,6 +122,7 @@ export function UniversalIconPicker({
     lastRandomIconRef.current = null;
     const updated = addToRecentIcons(emoji, recentIconsRef.current);
     setRecentIcons(updated);
+    logIconPickerDebug('select-emoji', { emoji });
     onSelect(emoji);
     onCloseRef.current();
   }, [onSelect]);
@@ -156,6 +164,7 @@ export function UniversalIconPicker({
     lastRandomIconRef.current = null;
     const updated = addToRecentIcons(assetUrl, recentIconsRef.current);
     setRecentIcons(updated);
+    logIconPickerDebug('select-upload', { assetUrl });
     onSelect(assetUrl);
     onCloseRef.current();
   }, [onSelect]);
@@ -168,11 +177,16 @@ export function UniversalIconPicker({
     lastRandomIconRef.current = null;
     onPreviewRef.current?.(null);
     onPreviewSkinTone?.(null);
+    logIconPickerDebug('remove');
     onRemove?.();
     onCloseRef.current();
   }, [onPreviewSkinTone, onRemove]);
 
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback((reason = 'close') => {
+    logIconPickerDebug('close', {
+      reason,
+      lastRandomIcon: lastRandomIconRef.current,
+    });
     if (lastRandomIconRef.current) {
       const updated = addToRecentIcons(lastRandomIconRef.current, recentIconsRef.current);
       setRecentIcons(updated);
@@ -194,35 +208,73 @@ export function UniversalIconPicker({
       if (emojis.length > 0) {
         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
         lastRandomIconRef.current = randomEmoji.native;
+        logIconPickerDebug('random-emoji', {
+          icon: randomEmoji.native,
+          category: activeEmojiCategory,
+        });
         onSelect(randomEmoji.native);
       }
     } else if (activeTab === 'upload') {
       if (customIcons.length > 0) {
         const randomEmoji = customIcons[Math.floor(Math.random() * customIcons.length)];
         lastRandomIconRef.current = randomEmoji.url;
+        logIconPickerDebug('random-upload', { icon: randomEmoji.url });
         onSelect(randomEmoji.url);
       }
     }
   }, [activeTab, activeEmojiCategory, onSelect, customIcons]);
 
+  const handleCopyDebugLog = useCallback(async () => {
+    const text = getIconPickerDebugLogText();
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      setDebugCopied(true);
+      window.setTimeout(() => setDebugCopied(false), 1200);
+    } catch (error) {
+      logIconPickerDebug('copy-debug-log-failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (embedded) return;
 
-    const onClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-prevent-picker-close]')) return;
-      if (isInsideMenuLayer(target)) return;
-      if (containerRef.current && !containerRef.current.contains(target as Node)) {
+    const onPointerDownCapture = (e: PointerEvent) => {
+      const target = e.target;
+      const targetElement = target instanceof Element ? target : null;
+      const insidePicker = Boolean(containerRef.current && target instanceof Node && containerRef.current.contains(target));
+      const preventClose = Boolean(targetElement?.closest('[data-prevent-picker-close]'));
+      const insideMenuLayer = isInsideMenuLayer(target);
+      logIconPickerDebug('document-pointerdown-capture', {
+        target: describeIconPickerDebugTarget(target),
+        insidePicker,
+        preventClose,
+        insideMenuLayer,
+      });
+
+      if (preventClose) return;
+      if (insideMenuLayer) return;
+      if (!insidePicker) {
         onPreviewRef.current?.(null);
-        handleClose();
+        handleClose('outside-pointerdown');
       }
     };
-    const timer = setTimeout(() => {
-      document.addEventListener('mousedown', onClickOutside);
-    }, 100);
+    document.addEventListener('pointerdown', onPointerDownCapture, true);
     return () => {
-      clearTimeout(timer);
-      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('pointerdown', onPointerDownCapture, true);
     };
   }, [handleClose, embedded]);
 
@@ -230,7 +282,7 @@ export function UniversalIconPicker({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onPreviewRef.current?.(null);
-        handleClose();
+        handleClose('escape');
       }
       if (e.key === 'Tab' && e.ctrlKey) {
         if (emojiOnly) return;
@@ -255,6 +307,36 @@ export function UniversalIconPicker({
         !embedded && "absolute z-[var(--vlaina-z-50)]",
       )}
     >
+      {isIconPickerDebugEnabled() && !embedded && (
+        <button
+          type="button"
+          aria-label="Copy icon picker logs"
+          title="Copy icon picker logs"
+          data-prevent-picker-close="true"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void handleCopyDebugLog();
+          }}
+          className={cn(
+            "fixed bottom-20 right-4 z-[var(--vlaina-z-max)] flex h-9 w-9 items-center justify-center rounded-[var(--vlaina-radius-10px)]",
+            "text-[var(--vlaina-text-secondary)] transition-colors",
+            chatComposerPillSurfaceClass,
+            iconButtonStyles
+          )}
+        >
+          <Icon name={debugCopied ? "common.check" : "common.copy"} size="md" />
+        </button>
+      )}
+
       {onSizeChange && currentSize !== undefined && (
         <div className="flex items-center px-4 py-1">
           <PremiumSlider

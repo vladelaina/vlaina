@@ -245,6 +245,26 @@ describe('markdown protected blocks', () => {
     ].join('\n'));
   });
 
+  it('protects GFM type-7 HTML block contents until a blank line', () => {
+    const markdown = [
+      'Before - item',
+      '<custom-element>',
+      '- hidden',
+      '</custom-element>',
+      'After - hidden',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      'Before * item',
+      '<custom-element>',
+      '- hidden',
+      '</custom-element>',
+      'After - hidden',
+    ].join('\n'));
+  });
+
   it('treats oversized leading frontmatter candidates as normal markdown', () => {
     const markdown = [
       '---',

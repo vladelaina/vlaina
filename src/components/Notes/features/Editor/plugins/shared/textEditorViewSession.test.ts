@@ -216,6 +216,23 @@ describe('createTextEditorViewSession', () => {
     session.destroy();
   });
 
+  it('saves from capture when an outside target stops propagation', () => {
+    vi.useFakeTimers();
+    const outside = document.createElement('button');
+    outside.addEventListener('mousedown', (event) => event.stopPropagation());
+    document.body.appendChild(outside);
+    const { saveSession, session } = createSessionHarness();
+
+    session.update();
+    vi.advanceTimersByTime(0);
+
+    outside.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    expect(saveSession).toHaveBeenCalledTimes(1);
+
+    session.destroy();
+  });
+
   it('can defer initial anchor measurement and use the state position first', () => {
     const frameCallbacks: FrameRequestCallback[] = [];
     const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
