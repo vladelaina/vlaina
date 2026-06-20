@@ -1,6 +1,13 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountLoginDialog } from './AccountLoginDialog';
+
+const focusComposerInput = vi.fn();
+
+vi.mock('@/lib/ui/composerFocusRegistry', () => ({
+  focusComposerInput: () => focusComposerInput(),
+}));
 
 vi.mock('@/stores/accountSession', () => ({
   useAccountSessionStore: () => ({
@@ -15,6 +22,10 @@ vi.mock('@/stores/accountSession', () => ({
 }));
 
 describe('AccountLoginDialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('keeps the dialog open when clicking outside the sign-in panel', () => {
     const onOpenChange = vi.fn();
 
@@ -24,5 +35,31 @@ describe('AccountLoginDialog', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  it('focuses the chat composer after closing', async () => {
+    const onOpenChange = vi.fn();
+
+    function LoginDialogHarness() {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <AccountLoginDialog
+          open={open}
+          onOpenChange={(nextOpen) => {
+            onOpenChange(nextOpen);
+            setOpen(nextOpen);
+          }}
+        />
+      );
+    }
+
+    render(<LoginDialogHarness />);
+
+    fireEvent.click(screen.getByLabelText('Close'));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    await waitFor(() => {
+      expect(focusComposerInput).toHaveBeenCalled();
+    });
   });
 });

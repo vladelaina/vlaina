@@ -477,7 +477,6 @@
   "vault.selectParentFolderTitle": "新しいボルトの親フォルダを選択",
   "vault.name": "ボルト名",
   "notes.rightChat": "右側のチャット",
-  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ クリックしてログインしてね~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ 頭がちょっと追いつかないみたい。少し待つか、先に別のモデルで試してみてね~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ 頭がちょっと追いつかないみたい。少し待つか、先に別のモデルで試してみてね~",
   "notes.fileNameError.empty": "ファイル名を空にすることはできません。",

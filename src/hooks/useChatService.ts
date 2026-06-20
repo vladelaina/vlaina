@@ -47,7 +47,10 @@ import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantM
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { translate, useI18n } from '@/lib/i18n';
-import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
+import {
+  ACCOUNT_AUTH_INVALIDATED_EVENT,
+  ACCOUNT_LOGIN_REQUESTED_EVENT,
+} from '@/lib/account/sessionEvent';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 
@@ -91,6 +94,17 @@ function dispatchAccountAuthInvalidated() {
   }
 
   window.dispatchEvent(new Event(ACCOUNT_AUTH_INVALIDATED_EVENT));
+}
+
+function requestManagedAccountSignIn(sessionId?: string | null) {
+  if (sessionId) {
+    useAIUIStore.getState().setAuthPromptSessionId(sessionId);
+  }
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new Event(ACCOUNT_LOGIN_REQUESTED_EVENT));
 }
 
 function buildChatErrorPayload(error: unknown, managed = true) {
@@ -175,14 +189,6 @@ function createManagedQuotaError(message: string) {
   };
 }
 
-function createManagedAuthRequiredError() {
-  return {
-    type: AIErrorType.AUTH_ERROR,
-    message: 'vlaina sign-in required',
-    statusCode: 401,
-  };
-}
-
 function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
   if (!isManagedProviderId(providerId)) {
     return false;
@@ -204,19 +210,6 @@ function writeManagedQuotaErrorMessage(
   aiActions.completeMessage(sessionId, assistantMessageId);
 }
 
-function writeManagedAuthRequiredMessage(
-  sessionId: string,
-  assistantMessageId: string,
-  setError: (error: string | null) => void,
-) {
-  const error = createManagedAuthRequiredError();
-  markManagedAuthPromptForError(sessionId, error, true);
-  const { message, xml } = buildChatErrorPayload(error, true);
-  setError(message);
-  aiActions.updateMessage(sessionId, assistantMessageId, xml);
-  aiActions.completeMessage(sessionId, assistantMessageId);
-}
-
 function markManagedAuthPromptForError(sessionId: string, error: unknown, managed: boolean) {
   if (!managed) {
     return;
@@ -224,7 +217,7 @@ function markManagedAuthPromptForError(sessionId: string, error: unknown, manage
 
   const normalized = getUserFacingAIError(error);
   if (normalized.type === AIErrorType.AUTH_ERROR) {
-    useAIUIStore.getState().setAuthPromptSessionId(sessionId);
+    requestManagedAccountSignIn(sessionId);
   }
 }
 
@@ -470,18 +463,15 @@ export function useChatService() {
         setError(message);
         return false;
       }
+      if (isManagedProviderId(provider.id) && !isAccountConnected) {
+        setError(null);
+        requestManagedAccountSignIn(currentSessionId);
+        return false;
+      }
 
       let activeSessionId = currentSessionId;
       if (!activeSessionId) {
-        if (isManagedProviderId(provider.id) && !isAccountConnected) {
-          aiActions.toggleTemporaryChat(true);
-          activeSessionId = useAIUIStore.getState().currentSessionId;
-          if (activeSessionId) {
-            useAIUIStore.getState().setAuthPromptSessionId(activeSessionId);
-          }
-        } else {
-          activeSessionId = aiActions.createSession('');
-        }
+        activeSessionId = aiActions.createSession('');
       }
       if (!activeSessionId) {
         return false;
@@ -592,12 +582,6 @@ export function useChatService() {
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
-          clearActiveComposerRequest(composerRequest);
-          finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
-          return;
-        }
-        if (isManagedProviderId(provider.id) && !isAccountConnected) {
-          writeManagedAuthRequiredMessage(targetSessionId, assistantMessageId, setError);
           clearActiveComposerRequest(composerRequest);
           finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
           return;
@@ -810,6 +794,11 @@ export function useChatService() {
         setError(t('chat.error.channelOff'));
         return;
       }
+      if (isManagedProviderId(provider.id) && !isAccountConnected) {
+        setError(null);
+        requestManagedAccountSignIn(sessionId);
+        return;
+      }
 
       const requestStartedAt = Date.now();
       const requestController = requestManager.start(sessionId);
@@ -847,11 +836,6 @@ export function useChatService() {
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
-          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
-          return;
-        }
-        if (isManagedProviderId(provider.id) && !isAccountConnected) {
-          writeManagedAuthRequiredMessage(sessionId, assistantMessageId, setError);
           finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
@@ -1021,6 +1005,11 @@ export function useChatService() {
         setError(t('chat.error.channelOff'));
         return;
       }
+      if (isManagedProviderId(provider.id) && !isAccountConnected) {
+        setError(null);
+        requestManagedAccountSignIn(sessionId);
+        return;
+      }
 
       const requestStartedAt = Date.now();
       const requestController = requestManager.start(sessionId);
@@ -1054,11 +1043,6 @@ export function useChatService() {
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(sessionId, messageId, setError, t('chat.error.pointsExhausted'));
-          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
-          return;
-        }
-        if (isManagedProviderId(provider.id) && !isAccountConnected) {
-          writeManagedAuthRequiredMessage(sessionId, messageId, setError);
           finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }

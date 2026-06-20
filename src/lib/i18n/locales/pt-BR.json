@@ -477,7 +477,6 @@
   "vault.selectParentFolderTitle": "Selecionar Pasta Pai para Novo Cofre",
   "vault.name": "Nome do Cofre",
   "notes.rightChat": "Conversa à direita",
-  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Clique para entrar~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ Minha cabeça precisa de um respiro. Tente de novo em instantes ou experimente outro modelo primeiro~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Minha cabeça precisa de um respiro. Tente de novo em instantes ou experimente outro modelo primeiro~",
   "notes.fileNameError.empty": "O nome do arquivo não pode ficar vazio.",

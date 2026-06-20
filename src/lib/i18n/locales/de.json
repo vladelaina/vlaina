@@ -477,7 +477,6 @@
   "vault.selectParentFolderTitle": "Übergeordneten Ordner für neuen Vault auswählen",
   "vault.name": "Vault-Name",
   "notes.rightChat": "Chat rechts",
-  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Klick hier zum Anmelden~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ Mein Kopf braucht kurz eine Pause. Versuch es gleich noch einmal oder probiere erst ein anderes Modell~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Mein Kopf braucht kurz eine Pause. Versuch es gleich noch einmal oder probiere erst ein anderes Modell~",
   "notes.fileNameError.empty": "Der Dateiname darf nicht leer sein.",

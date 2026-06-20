@@ -13,34 +13,39 @@ import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEn
 import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
 import { convertToBase64, deleteAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
+import { ACCOUNT_LOGIN_REQUESTED_EVENT } from '@/lib/account/sessionEvent';
 
 const TEMPORARY_IMAGE_DATA_URL = 'data:image/png;base64,VEVNUE9SQVJZ';
 
-const mocked = vi.hoisted(() => ({
-  saveSessionJson: vi.fn(async () => {}),
-  scheduleSessionJsonSave: vi.fn(),
-  cancelSessionJsonSave: vi.fn(),
-  deleteSessionJson: vi.fn(async () => {}),
-  flushPendingSessionJsonSave: vi.fn(async () => {}),
-  loadSessionJson: vi.fn(async () => null as ChatMessage[] | null),
-  hasSessionJson: vi.fn(async () => false),
-  useAccountSessionStore: (selector: (state: { isConnected: boolean }) => unknown) =>
-    selector({ isConnected: true }),
-  useManagedAIStore: {
-    getState: () => ({
-      budget: null,
-      lastBudgetSyncAt: null,
-      refreshBudget: vi.fn(async () => {}),
+const mocked = vi.hoisted(() => {
+  const accountSession = { isConnected: true };
+  return {
+    saveSessionJson: vi.fn(async () => {}),
+    scheduleSessionJsonSave: vi.fn(),
+    cancelSessionJsonSave: vi.fn(),
+    deleteSessionJson: vi.fn(async () => {}),
+    flushPendingSessionJsonSave: vi.fn(async () => {}),
+    loadSessionJson: vi.fn(async () => null as ChatMessage[] | null),
+    hasSessionJson: vi.fn(async () => false),
+    accountSession,
+    useAccountSessionStore: (selector: (state: { isConnected: boolean }) => unknown) =>
+      selector(accountSession),
+    useManagedAIStore: {
+      getState: () => ({
+        budget: null,
+        lastBudgetSyncAt: null,
+        refreshBudget: vi.fn(async () => {}),
+      }),
+    },
+    generateAutoTitle: vi.fn(async () => {}),
+    convertToBase64: vi.fn(async () => TEMPORARY_IMAGE_DATA_URL),
+    deleteAttachment: vi.fn(async () => {}),
+    sendMessageWithEndpointFallback: vi.fn(async ({ onChunk }: { onChunk: (chunk: string) => void }) => {
+      onChunk('assistant answer');
+      return 'assistant answer';
     }),
-  },
-  generateAutoTitle: vi.fn(async () => {}),
-  convertToBase64: vi.fn(async () => TEMPORARY_IMAGE_DATA_URL),
-  deleteAttachment: vi.fn(async () => {}),
-  sendMessageWithEndpointFallback: vi.fn(async ({ onChunk }: { onChunk: (chunk: string) => void }) => {
-    onChunk('assistant answer');
-    return 'assistant answer';
-  }),
-}));
+  };
+});
 
 vi.mock('@/lib/storage/chatStorage', () => ({
   saveSessionJson: mocked.saveSessionJson,
@@ -201,9 +206,38 @@ function seedChatState() {
   });
 }
 
+function seedManagedSignedOutState() {
+  mocked.accountSession.isConnected = false;
+  const managedProvider: Provider = {
+    ...provider,
+    id: 'vlaina-managed',
+    name: 'vlaina',
+    apiHost: 'https://api.vlaina.com/v1',
+    apiKey: '',
+  };
+  const managedModel: AIModel = {
+    ...model,
+    id: 'vlaina-managed::model-1',
+    apiModelId: 'model-1',
+    providerId: managedProvider.id,
+  };
+  useUnifiedStore.setState((state) => ({
+    data: {
+      ...state.data,
+      ai: {
+        ...state.data.ai!,
+        providers: [managedProvider],
+        models: [managedModel],
+        selectedModelId: managedModel.id,
+      },
+    },
+  }));
+}
+
 describe('useChatService session context isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocked.accountSession.isConnected = true;
     mocked.convertToBase64.mockResolvedValue(TEMPORARY_IMAGE_DATA_URL);
     mocked.deleteAttachment.mockResolvedValue(undefined);
     useNotesStore.setState({ notesPath: '/vault', starredEntries: [] });
@@ -249,6 +283,51 @@ describe('useChatService session context isolation', () => {
     const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
     expect(request?.content).toBe(limitedPrompt);
     expect(messages.at(-2)?.content).toBe(limitedPrompt);
+  });
+
+  it('opens login instead of sending a managed request while signed out', async () => {
+    seedManagedSignedOutState();
+    const previousMessages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    const onLoginRequested = vi.fn();
+    window.addEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, onLoginRequested);
+    const { result } = renderHook(() => useChatService());
+
+    try {
+      await act(async () => {
+        expect(await result.current.sendMessage('please help', [], [])).toBe(false);
+      });
+    } finally {
+      window.removeEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, onLoginRequested);
+    }
+
+    expect(onLoginRequested).toHaveBeenCalledTimes(1);
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(useAIUIStore.getState().authPromptSessionId).toBe('session-2');
+    expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']).toEqual(previousMessages);
+  });
+
+  it('opens login instead of mutating managed retry actions while signed out', async () => {
+    seedManagedSignedOutState();
+    const previousMessages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    const onLoginRequested = vi.fn();
+    window.addEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, onLoginRequested);
+    const { result } = renderHook(() => useChatService());
+
+    try {
+      await act(async () => {
+        await result.current.editMessage('s2-user', 'edited prompt');
+        await result.current.regenerate('s2-assistant');
+      });
+    } finally {
+      window.removeEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, onLoginRequested);
+    }
+
+    expect(onLoginRequested).toHaveBeenCalledTimes(2);
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(useAIUIStore.getState().authPromptSessionId).toBe('session-2');
+    expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']).toEqual(previousMessages);
   });
 
   it('handles object provider errors without coercion', async () => {

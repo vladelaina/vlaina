@@ -7,6 +7,7 @@ import { useAccountSessionStore } from '@/stores/accountSession';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { themeBackdropTokens } from '@/styles/themeTokens';
+import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 
 interface AccountLoginDialogProps {
   open: boolean;
@@ -18,15 +19,59 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
     useAccountSessionStore();
   const { t } = useI18n();
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const closeFocusTimeoutRef = React.useRef<number | null>(null);
+  const closeFocusRequestedRef = React.useRef(false);
+  const wasOpenRef = React.useRef(open);
+
+  const focusComposerAfterClose = React.useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (closeFocusRequestedRef.current) {
+      return;
+    }
+    closeFocusRequestedRef.current = true;
+    closeFocusTimeoutRef.current = window.setTimeout(() => {
+      closeFocusTimeoutRef.current = null;
+      focusComposerInput();
+    }, 0);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (closeFocusTimeoutRef.current !== null) {
+        window.clearTimeout(closeFocusTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+    closeFocusRequestedRef.current = false;
+    if (closeFocusTimeoutRef.current !== null) {
+      window.clearTimeout(closeFocusTimeoutRef.current);
+      closeFocusTimeoutRef.current = null;
+    }
+  }, [open]);
+
+  React.useEffect(() => {
+    if (wasOpenRef.current && !open) {
+      focusComposerAfterClose();
+    }
+    wasOpenRef.current = open;
+  }, [focusComposerAfterClose, open]);
 
   const handleOpenChange = React.useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen) {
         clearError();
+        focusComposerAfterClose();
       }
       onOpenChange(nextOpen);
     },
-    [clearError, onOpenChange]
+    [clearError, focusComposerAfterClose, onOpenChange]
   );
 
   return (
@@ -44,6 +89,10 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           closeButtonRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          focusComposerAfterClose();
         }}
         onPointerDownOutside={(event) => {
           event.preventDefault();
@@ -66,6 +115,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         )}>
           <DialogClose
             ref={closeButtonRef}
+            aria-label={t('common.close')}
             className={cn(
               "absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-all hover:text-[var(--vlaina-color-text-strong)] sm:right-5 sm:top-5",
               "hover:bg-[var(--vlaina-hover-filled)]"

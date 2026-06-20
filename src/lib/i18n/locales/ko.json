@@ -477,7 +477,6 @@
   "vault.selectParentFolderTitle": "새 볼트의 상위 폴더 선택",
   "vault.name": "볼트 이름",
   "notes.rightChat": "오른쪽 채팅",
-  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ 눌러서 로그인해 주세요~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ 머리가 잠깐 따라오지 못하고 있어요. 조금 기다리거나 먼저 다른 모델로 시도해 보세요~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ 머리가 잠깐 따라오지 못하고 있어요. 조금 기다리거나 먼저 다른 모델로 시도해 보세요~",
   "notes.fileNameError.empty": "파일 이름은 비워 둘 수 없습니다.",

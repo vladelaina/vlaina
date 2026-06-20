@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/components/Chat/features/Messages/components/ErrorBlock', () => ({
   ErrorBlock: (props: {
     content: string;
-    showLoginPrompt?: boolean;
   }) => {
     mocks.errorBlock(props);
     return <div data-testid="chat-error-block">{props.content}</div>;
@@ -108,7 +107,6 @@ describe('AiReviewPanel', () => {
     expect(screen.getByTestId('chat-error-block')).toHaveTextContent('Model request failed.');
     expect(mocks.errorBlock).toHaveBeenCalledWith(expect.objectContaining({
       content: 'Model request failed.',
-      showLoginPrompt: false,
     }));
 
     await act(async () => {
@@ -116,7 +114,7 @@ describe('AiReviewPanel', () => {
     });
   });
 
-  it('passes auth and quota review errors through the shared chat ErrorBlock prompts', async () => {
+  it('passes auth and quota review errors through the shared chat ErrorBlock', async () => {
     const controller = createAiReviewPanelController();
     const container = createContainer();
 
@@ -129,7 +127,6 @@ describe('AiReviewPanel', () => {
 
     expect(mocks.errorBlock).toHaveBeenLastCalledWith(expect.objectContaining({
       content: 'Sign in required.',
-      showLoginPrompt: true,
     }));
 
     await act(async () => {
@@ -141,7 +138,6 @@ describe('AiReviewPanel', () => {
 
     expect(mocks.errorBlock).toHaveBeenLastCalledWith(expect.objectContaining({
       content: 'Quota exhausted.',
-      showLoginPrompt: false,
     }));
 
     await act(async () => {

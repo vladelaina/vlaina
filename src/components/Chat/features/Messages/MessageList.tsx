@@ -15,7 +15,6 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag, stripFirstErrorTag } from '@/lib/ai/errorTag';
 import { isManagedModelId } from '@/lib/ai/managedService';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
-import { useAccountSessionStore } from '@/stores/accountSession';
 import {
   buildChatMessageFrameLayout,
   buildTrailingChatLayout,
@@ -55,14 +54,6 @@ function isPureManagedAuthErrorMessage(message: ChatMessage): boolean {
 
   const contentWithoutError = stripFirstErrorTag(message.content);
   return stripThinkingContent(contentWithoutError).trim().length === 0;
-}
-
-function shouldHideManagedAuthMessage(message: ChatMessage, isLastMessage: boolean, isAccountConnected: boolean): boolean {
-  if (!isPureManagedAuthErrorMessage(message)) {
-    return false;
-  }
-
-  return isAccountConnected || !isLastMessage;
 }
 
 interface MessageListProps {
@@ -115,7 +106,6 @@ export const MessageList = memo(function MessageList({
   onEdit,
   onSwitchVersion
 }: MessageListProps) {
-  const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
   const renderedState = useMemo<RenderedMessageState>(() => {
     const rows: RenderedMessageRow[] = [];
     const renderedMessages: ChatMessage[] = [];
@@ -124,7 +114,7 @@ export const MessageList = memo(function MessageList({
 
     for (let index = 0; index < messages.length; index += 1) {
       const message = messages[index]!;
-      if (shouldHideManagedAuthMessage(message, index === messages.length - 1, isAccountConnected)) {
+      if (isPureManagedAuthErrorMessage(message)) {
         continue;
       }
 
@@ -140,7 +130,7 @@ export const MessageList = memo(function MessageList({
       messages: renderedMessages,
       rows,
     };
-  }, [isAccountConnected, messages]);
+  }, [messages]);
   const renderedRows = renderedState.rows;
   const renderedMessages = renderedState.messages;
   const isEmpty = renderedMessages.length === 0;

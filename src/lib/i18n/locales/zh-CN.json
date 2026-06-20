@@ -477,7 +477,6 @@
   "vault.selectParentFolderTitle": "选择新库的父文件夹",
   "vault.name": "库名称",
   "notes.rightChat": "右侧聊天",
-  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ 戳我登录一下哦~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ 脑袋转不过来啦，等我缓一缓或者先换个模型试试~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ 脑袋转不过来啦，等我缓一缓或者先换个模型试试~",
   "notes.fileNameError.empty": "文件名不能为空。",

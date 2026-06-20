@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import { getExternalLinkProps, normalizeExternalHref } from "@/lib/navigation/externalLinks";
-import { SignInPromptPill } from './SignInPromptPill';
 
 interface ErrorBlockProps {
   type?: string;
   code?: string;
   content: string;
-  showLoginPrompt?: boolean;
 }
 
 const MAX_ERROR_LINKS = 50;
@@ -53,15 +51,7 @@ const renderWithLinks = (text: string) => {
   return parts.length > 0 ? parts : text;
 };
 
-export function ErrorBlock({ content, showLoginPrompt = false }: ErrorBlockProps) {
-  if (showLoginPrompt) {
-    return (
-      <div className="w-full mb-2" data-no-focus-input="true">
-        <SignInPromptPill />
-      </div>
-    );
-  }
-
+export function ErrorBlock({ content }: ErrorBlockProps) {
   return (
     <div className="w-full mb-2" data-no-focus-input="true">
       <div
