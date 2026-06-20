@@ -520,6 +520,27 @@ describe('blockSelectionUtils', () => {
     await editor.destroy();
   });
 
+  it('marks hard-break inline ranges on the large selection path for line-fill ownership', async () => {
+    const markdown = Array.from(
+      { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD },
+      (_, index) => `paragraph ${index} first line\\\nparagraph ${index} second line`,
+    ).join('\n\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const ranges = collectSelectableBlockRanges(view.state.doc).slice(0, LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    const classes = decorations.find().map((decoration: Decoration) =>
+      String((decoration.type as any).attrs?.class ?? '')
+    );
+
+    expect(classes).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
+    expect(classes.every((className) => className.includes('editor-block-selected-large-textlike'))).toBe(true);
+    expect(classes.every((className) => className.includes('editor-block-selected-inline-line'))).toBe(true);
+
+    await editor.destroy();
+  });
+
   it('marks rich blocks on the large selection path so they keep a visible selection surface', async () => {
     const markdown = [
       ...Array.from(

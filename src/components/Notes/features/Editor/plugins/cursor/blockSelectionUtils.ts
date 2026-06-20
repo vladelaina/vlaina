@@ -605,6 +605,7 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
 
   const decorations = displayRanges.flatMap((range) => {
     const isNodeRange = isNodeDecorationRange(doc, range);
+    const isInlineLineSelection = !isNodeRange && isPartialParagraphRange(doc, range);
     if (useLargeSelectionRendering) {
       const rangeKey = getBlockRangeKey(range.from, range.to);
       const className = [
@@ -613,6 +614,7 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
           : LARGE_RICH_BLOCK_SELECTION_DECORATION_CLASS,
         context.hasNextDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-next' : '',
         context.hasPreviousDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-previous' : '',
+        isInlineLineSelection ? 'editor-block-selected-inline-line' : '',
       ].filter(Boolean).join(' ');
       if (isNodeRange) {
         return [Decoration.node(range.from, range.to, { class: className })];
@@ -624,7 +626,6 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
     }
 
     const rangeKey = getBlockRangeKey(range.from, range.to);
-    const isInlineLineSelection = !isNodeRange && isPartialParagraphRange(doc, range);
     const isTextLikeSelection = isTextLikeDecorationRange(doc, range, isNodeRange);
     const structuralClass = getBlockSelectionStructuralClass(doc, range, isNodeRange);
     const attrs = {

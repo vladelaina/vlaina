@@ -7,7 +7,9 @@
 @import './theme-compatibility/typora-extensions.css';
 
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected,
-.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected {
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-drag-source,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-drag-source {
   background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
   background-color: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
 }
@@ -26,10 +28,10 @@
   z-index: var(--vlaina-z-1) !important;
 }
 
-.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected:not(.code-block-container):not(.mermaid-block),
-.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),
-.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block),
-.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block):not(.editor-tag-token),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
@@ -61,6 +63,55 @@
   opacity: var(--vlaina-opacity-0) !important;
   pointer-events: none !important;
   transform: none !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+  .code-block-container.editor-block-selected,
+  .code-block-container.editor-block-drag-source,
+  .editor-block-selected .code-block-container,
+  .code-block-container.editor-block-selected-contained
+) {
+  border-color: var(--vlaina-color-white) !important;
+  outline: var(--vlaina-code-block-selected-border-outline) !important;
+  outline-offset: var(--vlaina-code-block-selected-border-outline-offset) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+  .code-block-container.editor-block-selected,
+  .code-block-container.editor-block-drag-source,
+  .editor-block-selected .code-block-container,
+  .code-block-container.editor-block-selected-contained
+),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+  .code-block-container.editor-block-selected,
+  .code-block-container.editor-block-drag-source,
+  .editor-block-selected .code-block-container,
+  .code-block-container.editor-block-selected-contained
+) :is(
+  .code-block-chrome-header,
+  .code-block-chrome-language,
+  .code-block-chrome-language-label,
+  .code-block-chrome-copy-button,
+  .code-block-editable,
+  .code-block-lazy-preview,
+  .code-block-lazy-preview *,
+  .code-block-lazy-line-numbers,
+  .code-block-lazy-line-numbers *,
+  .cm-editor,
+  .cm-scroller,
+  .cm-content,
+  .cm-line,
+  .cm-line *,
+  .cm-s-inner,
+  .cm-s-inner *,
+  .cm-gutters,
+  .cm-gutter,
+  .cm-gutterElement,
+  .cm-lineNumbers,
+  .cm-gutter-filler
+) {
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(

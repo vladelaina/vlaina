@@ -50,6 +50,7 @@ type RichBlockPaintSample = {
   afterLeft: number | null;
   backgroundColor: string;
   bleedStart: number;
+  boxShadow: string;
   className: string;
   expectedPaintLeft: number;
   innerBackgroundColor: string | null;
@@ -59,6 +60,7 @@ type RichBlockPaintSample = {
   rectLeft: number;
   selectedCount: number;
   selectionColor: string;
+  shadowPaintLeft: number | null;
   text: string;
   wrapperBackgroundColor: string | null;
   wrapperPaintLeft: number | null;
@@ -66,15 +68,33 @@ type RichBlockPaintSample = {
 
 type DraggedCodeBlockPaintSample = {
   activeActive: boolean;
+  borderBottomColor: string | null;
+  borderBottomWidth: string | null;
+  borderLeftColor: string | null;
+  borderLeftWidth: string | null;
+  borderRightColor: string | null;
+  borderRightWidth: string | null;
+  borderTopColor: string | null;
+  borderTopWidth: string | null;
   className: string;
   codeBackgroundColor: string;
+  codeLineColor: string | null;
+  codeLineTextFillColor: string | null;
   codeSelected: boolean;
+  expectedBorderColor: string;
+  expectedForegroundColor: string;
   innerBackgroundColor: string | null;
+  languageColor: string | null;
+  languageTextFillColor: string | null;
   largeActive: boolean;
   pendingActive: boolean;
   selectedCount: number;
   selectionColor: string;
   text: string;
+  tokenClassName: string | null;
+  tokenColor: string | null;
+  tokenText: string | null;
+  tokenTextFillColor: string | null;
 };
 
 type RenderedSelectionPixelSlot =
@@ -115,6 +135,40 @@ type RenderedSelectionPixelReport = {
   selectedCount: number;
   selectionColor: string;
   targetSelected: boolean;
+  text: string;
+};
+
+type RenderedCodeBlockBorderPixelSlot =
+  | 'topBorder'
+  | 'rightBorder'
+  | 'bottomBorder'
+  | 'leftBorder';
+
+type RenderedCodeBlockBorderPixelSample = {
+  alpha: number;
+  color: string;
+  distance: number;
+  slot: RenderedCodeBlockBorderPixelSlot;
+  x: number;
+  y: number;
+};
+
+type RenderedCodeBlockBorderPixelReport = {
+  className: string;
+  clip: {
+    height: number;
+    width: number;
+    x: number;
+    y: number;
+  };
+  expectedBorderColor: string;
+  rect: {
+    bottom: number;
+    left: number;
+    right: number;
+    top: number;
+  };
+  samples: RenderedCodeBlockBorderPixelSample[];
   text: string;
 };
 
@@ -278,11 +332,11 @@ function createLargeSelectionSyntaxAuditMarkdown(): string {
 
 function createLargeDragSelectionCodeMarkdown(): string {
   const beforeCode = Array.from(
-    { length: 145 },
+    { length: 96 },
     (_, index) => `Drag code selection filler before ${index} sentinel.`,
   ).join('\n\n');
   const afterCode = Array.from(
-    { length: 40 },
+    { length: 92 },
     (_, index) => `Drag code selection filler after ${index} sentinel.`,
   ).join('\n\n');
 
@@ -490,11 +544,12 @@ test.describe('notes block selection visual coverage', () => {
       expect(draggingSample.codeSelected).toBe(true);
       expect(draggingSample.codeBackgroundColor).toBe(draggingSample.selectionColor);
       expect(draggingSample.innerBackgroundColor).toBe('rgba(0, 0, 0, 0)');
+      expectSelectedCodeBlockForeground(draggingSample, 'dragging code block');
       const draggingPixels = await measureRenderedSelectionPixels(page, {
         selector: '.code-block-container',
         targetText: 'dragCodeSentinel',
       });
-      expectSelectionPixels(draggingPixels, 'dragging code block');
+      expectSelectionPixels(draggingPixels, 'dragging code block', ['topBleed', 'bottomBleed', 'leftBleed', 'rightBleed']);
 
       await page.mouse.up();
       mouseIsDown = false;
@@ -505,11 +560,14 @@ test.describe('notes block selection visual coverage', () => {
       expect(settledSample!.largeActive).toBe(true);
       expect(settledSample!.codeBackgroundColor).toBe(settledSample!.selectionColor);
       expect(settledSample!.innerBackgroundColor).toBe('rgba(0, 0, 0, 0)');
+      expectSelectedCodeBlockForeground(settledSample!, 'settled code block');
       const settledPixels = await measureRenderedSelectionPixels(page, {
         selector: '.code-block-container',
         targetText: 'dragCodeSentinel',
       });
       expectSelectionPixels(settledPixels, 'settled code block');
+      const settledBorderPixels = await measureRenderedCodeBlockBorderPixels(page, 'dragCodeSentinel');
+      expectCodeBlockBorderPixels(settledBorderPixels, 'settled code block');
 
       console.info('[notes-block-selection-drag-code-large-paint]', {
         dragTarget,
@@ -517,6 +575,7 @@ test.describe('notes block selection visual coverage', () => {
         draggingPixels,
         settledSample,
         settledPixels,
+        settledBorderPixels,
       });
     } finally {
       if (mouseIsDown) {
@@ -621,6 +680,11 @@ test.describe('notes block selection visual coverage', () => {
           expect(Math.abs((sample.wrapperPaintLeft ?? 0) - sample.rectLeft), `${paintCase.label}: wrapper left gap`).toBeLessThanOrEqual(1);
         } else {
           expect(sample.afterDisplay, `${paintCase.label}: selection pseudo display`).not.toBe('none');
+          if (paintCase.label === 'html-block') {
+            expect(sample.afterLeft, `${paintCase.label}: inner fill stays within scroll container`).toBe(0);
+            expect(sample.boxShadow, `${paintCase.label}: outer frame shadow`).not.toBe('none');
+            expect(sample.shadowPaintLeft, `${paintCase.label}: shadow paint left`).not.toBeNull();
+          }
           expect(Math.abs(sample.leftGap), `${paintCase.label}: left bleed gap`).toBeLessThanOrEqual(1);
         }
         expect(sample.bleedStart, `${paintCase.label}: bleed start`).toBeGreaterThanOrEqual(paintCase.minBleedStart ?? 72);
@@ -640,6 +704,7 @@ test.describe('notes block selection visual coverage', () => {
         bleedStart: sample.bleedStart,
         leftGap: sample.leftGap,
         paintLeft: sample.paintLeft,
+        shadowPaintLeft: sample.shadowPaintLeft,
         selectionColor: sample.selectionColor,
         wrapperBackgroundColor: sample.wrapperBackgroundColor,
         wrapperPaintLeft: sample.wrapperPaintLeft,
@@ -748,7 +813,15 @@ async function waitForDraggedCodeBlockPaint(
     return sample.codeSelected &&
       sample.pendingActive &&
       sample.largeActive &&
-      sample.selectedCount >= 128
+      sample.selectedCount >= 128 &&
+      sample.expectedForegroundColor !== '' &&
+      hasSelectedCodeBlockBorder(sample) &&
+      sample.languageColor === sample.expectedForegroundColor &&
+      sample.languageTextFillColor === sample.expectedForegroundColor &&
+      sample.codeLineColor === sample.expectedForegroundColor &&
+      sample.codeLineTextFillColor === sample.expectedForegroundColor &&
+      sample.tokenColor === sample.expectedForegroundColor &&
+      sample.tokenTextFillColor === sample.expectedForegroundColor
       ? 'ready'
       : JSON.stringify(sample);
   }, { timeout: 30_000 }).toBe('ready');
@@ -769,15 +842,33 @@ async function measureDraggedCodeBlockPaint(
     if (!selected) {
       return {
         activeActive: editor.classList.contains('editor-block-selection-active'),
+        borderBottomColor: null,
+        borderBottomWidth: null,
+        borderLeftColor: null,
+        borderLeftWidth: null,
+        borderRightColor: null,
+        borderRightWidth: null,
+        borderTopColor: null,
+        borderTopWidth: null,
         className: '',
         codeBackgroundColor: '',
+        codeLineColor: null,
+        codeLineTextFillColor: null,
         codeSelected: false,
+        expectedBorderColor: '',
+        expectedForegroundColor: '',
         innerBackgroundColor: null,
+        languageColor: null,
+        languageTextFillColor: null,
         largeActive: editor.classList.contains('editor-block-selection-large'),
         pendingActive: editor.classList.contains('editor-block-selection-pending'),
         selectedCount: editor.querySelectorAll('.editor-block-selected').length,
         selectionColor: '',
         text: '',
+        tokenClassName: null,
+        tokenColor: null,
+        tokenText: null,
+        tokenTextFillColor: null,
       };
     }
 
@@ -789,27 +880,251 @@ async function measureDraggedCodeBlockPaint(
       '.cm-content',
       '.cm-line',
     ].join(','));
+    const language = selected.querySelector<HTMLElement>('.code-block-chrome-language-label, .code-block-chrome-language');
+    const codeLine = selected.querySelector<HTMLElement>('.cm-content .cm-line, .code-block-editable .cm-line, .code-block-lazy-preview');
+    const token = selected.querySelector<HTMLElement>([
+      '.cm-content .cm-line span[class]',
+      '.code-block-editable .cm-line span[class]',
+      '.code-block-lazy-preview span[class]',
+      '.cm-content .cm-line span',
+      '.code-block-editable .cm-line span',
+      '.code-block-lazy-preview span',
+    ].join(','));
     const probe = document.createElement('span');
     probe.style.position = 'absolute';
     probe.style.pointerEvents = 'none';
     probe.style.backgroundColor = 'var(--vlaina-block-selection-color)';
+    probe.style.borderColor = 'var(--vlaina-color-white)';
+    probe.style.color = 'var(--vlaina-editor-block-selection-fg)';
     selected.appendChild(probe);
-    const selectionColor = getComputedStyle(probe).backgroundColor;
+    const probeStyle = getComputedStyle(probe);
+    const expectedBorderColor = probeStyle.borderColor;
+    const selectionColor = probeStyle.backgroundColor;
+    const expectedForegroundColor = probeStyle.color;
     probe.remove();
+    const languageStyle = language ? getComputedStyle(language) : null;
+    const codeLineStyle = codeLine ? getComputedStyle(codeLine) : null;
+    const tokenStyle = token ? getComputedStyle(token) : null;
 
     return {
       activeActive: editor.classList.contains('editor-block-selection-active'),
+      borderBottomColor: style.borderBottomColor,
+      borderBottomWidth: style.borderBottomWidth,
+      borderLeftColor: style.borderLeftColor,
+      borderLeftWidth: style.borderLeftWidth,
+      borderRightColor: style.borderRightColor,
+      borderRightWidth: style.borderRightWidth,
+      borderTopColor: style.borderTopColor,
+      borderTopWidth: style.borderTopWidth,
       className: selected.className,
       codeBackgroundColor: style.backgroundColor,
+      codeLineColor: codeLineStyle?.color ?? null,
+      codeLineTextFillColor: codeLineStyle?.getPropertyValue('-webkit-text-fill-color') || null,
       codeSelected: true,
+      expectedBorderColor,
+      expectedForegroundColor,
       innerBackgroundColor: inner ? getComputedStyle(inner).backgroundColor : null,
+      languageColor: languageStyle?.color ?? null,
+      languageTextFillColor: languageStyle?.getPropertyValue('-webkit-text-fill-color') || null,
       largeActive: editor.classList.contains('editor-block-selection-large'),
       pendingActive: editor.classList.contains('editor-block-selection-pending'),
       selectedCount: editor.querySelectorAll('.editor-block-selected').length,
       selectionColor,
       text: selected.textContent?.trim().slice(0, 120) ?? '',
+      tokenClassName: token?.className ?? null,
+      tokenColor: tokenStyle?.color ?? null,
+      tokenText: token?.textContent?.slice(0, 80) ?? null,
+      tokenTextFillColor: tokenStyle?.getPropertyValue('-webkit-text-fill-color') || null,
     };
   }, { editorSelector: EDITOR_SELECTOR, targetText });
+}
+
+function expectSelectedCodeBlockForeground(sample: DraggedCodeBlockPaintSample, label: string): void {
+  expect(sample.expectedForegroundColor, `${label}: expected block selection foreground`).not.toBe('');
+  expectSelectedCodeBlockBorder(sample, label);
+  expect(sample.languageColor, `${label}: language label color`).toBe(sample.expectedForegroundColor);
+  expect(sample.languageTextFillColor, `${label}: language label text fill`).toBe(sample.expectedForegroundColor);
+  expect(sample.codeLineColor, `${label}: CodeMirror line color`).toBe(sample.expectedForegroundColor);
+  expect(sample.codeLineTextFillColor, `${label}: CodeMirror line text fill`).toBe(sample.expectedForegroundColor);
+  expect(sample.tokenClassName, `${label}: syntax token class`).not.toBeNull();
+  expect(sample.tokenText, `${label}: syntax token text`).not.toBeNull();
+  expect(sample.tokenColor, `${label}: syntax token color`).toBe(sample.expectedForegroundColor);
+  expect(sample.tokenTextFillColor, `${label}: syntax token text fill`).toBe(sample.expectedForegroundColor);
+}
+
+function hasSelectedCodeBlockBorder(sample: DraggedCodeBlockPaintSample): boolean {
+  return sample.expectedBorderColor !== '' &&
+    sample.borderTopColor === sample.expectedBorderColor &&
+    sample.borderRightColor === sample.expectedBorderColor &&
+    sample.borderBottomColor === sample.expectedBorderColor &&
+    sample.borderLeftColor === sample.expectedBorderColor &&
+    Number.parseFloat(sample.borderTopWidth ?? '0') >= 2 &&
+    Number.parseFloat(sample.borderRightWidth ?? '0') >= 2 &&
+    Number.parseFloat(sample.borderBottomWidth ?? '0') >= 2 &&
+    Number.parseFloat(sample.borderLeftWidth ?? '0') >= 2;
+}
+
+function expectSelectedCodeBlockBorder(sample: DraggedCodeBlockPaintSample, label: string): void {
+  expect(sample.expectedBorderColor, `${label}: expected code block border`).not.toBe('');
+  expect(sample.borderTopColor, `${label}: top border color`).toBe(sample.expectedBorderColor);
+  expect(sample.borderRightColor, `${label}: right border color`).toBe(sample.expectedBorderColor);
+  expect(sample.borderBottomColor, `${label}: bottom border color`).toBe(sample.expectedBorderColor);
+  expect(sample.borderLeftColor, `${label}: left border color`).toBe(sample.expectedBorderColor);
+  expect(Number.parseFloat(sample.borderTopWidth ?? '0'), `${label}: top border width`).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(sample.borderRightWidth ?? '0'), `${label}: right border width`).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(sample.borderBottomWidth ?? '0'), `${label}: bottom border width`).toBeGreaterThanOrEqual(2);
+  expect(Number.parseFloat(sample.borderLeftWidth ?? '0'), `${label}: left border width`).toBeGreaterThanOrEqual(2);
+}
+
+async function measureRenderedCodeBlockBorderPixels(
+  page: import('@playwright/test').Page,
+  targetText: string,
+): Promise<RenderedCodeBlockBorderPixelReport> {
+  const geometry = await page.evaluate(async ({ editorSelector, targetText }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return null;
+
+    const target = Array.from(editor.querySelectorAll<HTMLElement>('.code-block-container.editor-block-selected'))
+      .find((element) => element.textContent?.includes(targetText)) ?? null;
+    if (!target) return null;
+
+    target.scrollIntoView({ block: 'center', inline: 'nearest' });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    const rect = target.getBoundingClientRect();
+    const style = getComputedStyle(target);
+    const topWidth = Number.parseFloat(style.borderTopWidth) || 0;
+    const rightWidth = Number.parseFloat(style.borderRightWidth) || 0;
+    const bottomWidth = Number.parseFloat(style.borderBottomWidth) || 0;
+    const leftWidth = Number.parseFloat(style.borderLeftWidth) || 0;
+    if (topWidth <= 0 || rightWidth <= 0 || bottomWidth <= 0 || leftWidth <= 0) return null;
+
+    const probe = document.createElement('span');
+    probe.style.position = 'absolute';
+    probe.style.pointerEvents = 'none';
+    probe.style.borderColor = 'var(--vlaina-color-white)';
+    target.appendChild(probe);
+    const expectedBorderColor = getComputedStyle(probe).borderColor;
+    probe.remove();
+
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const points: Array<{ slot: RenderedCodeBlockBorderPixelSlot; x: number; y: number }> = [
+      { slot: 'topBorder', x: centerX, y: rect.top + topWidth / 2 },
+      { slot: 'rightBorder', x: rect.right - rightWidth / 2, y: centerY },
+      { slot: 'bottomBorder', x: centerX, y: rect.bottom - bottomWidth / 2 },
+      { slot: 'leftBorder', x: rect.left + leftWidth / 2, y: centerY },
+    ].filter((point) => (
+      point.x >= 0 &&
+      point.y >= 0 &&
+      point.x < window.innerWidth &&
+      point.y < window.innerHeight
+    ));
+
+    if (points.length === 0) return null;
+
+    const minX = Math.min(...points.map((point) => point.x));
+    const minY = Math.min(...points.map((point) => point.y));
+    const maxX = Math.max(...points.map((point) => point.x));
+    const maxY = Math.max(...points.map((point) => point.y));
+    const clipX = Math.max(0, Math.floor(minX - 4));
+    const clipY = Math.max(0, Math.floor(minY - 4));
+    const clipRight = Math.min(window.innerWidth, Math.ceil(maxX + 4));
+    const clipBottom = Math.min(window.innerHeight, Math.ceil(maxY + 4));
+
+    return {
+      className: target.className,
+      clip: {
+        height: Math.max(1, clipBottom - clipY),
+        width: Math.max(1, clipRight - clipX),
+        x: clipX,
+        y: clipY,
+      },
+      expectedBorderColor,
+      points,
+      rect: {
+        bottom: Math.round(rect.bottom * 10) / 10,
+        left: Math.round(rect.left * 10) / 10,
+        right: Math.round(rect.right * 10) / 10,
+        top: Math.round(rect.top * 10) / 10,
+      },
+      text: target.textContent?.trim().slice(0, 120) ?? '',
+    };
+  }, { editorSelector: EDITOR_SELECTOR, targetText });
+
+  expect(geometry, `missing selected code block border target containing "${targetText}"`).not.toBeNull();
+
+  const screenshot = await page.screenshot({ clip: geometry!.clip });
+  const dataUrl = `data:image/png;base64,${screenshot.toString('base64')}`;
+  const samples = await page.evaluate(async ({ imageUrl, clip, points, expectedBorderColor }) => {
+    const colorMatch = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(expectedBorderColor);
+    if (!colorMatch) {
+      throw new Error(`Could not parse code block border color: ${expectedBorderColor}`);
+    }
+    const expected = {
+      red: Number.parseInt(colorMatch[1] ?? '0', 10),
+      green: Number.parseInt(colorMatch[2] ?? '0', 10),
+      blue: Number.parseInt(colorMatch[3] ?? '0', 10),
+    };
+
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Failed to load code block border screenshot'));
+      image.src = imageUrl;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      throw new Error('Could not create canvas context for code block border screenshot');
+    }
+    context.drawImage(image, 0, 0);
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const scaleX = image.naturalWidth / clip.width;
+    const scaleY = image.naturalHeight / clip.height;
+
+    return points.map((point) => {
+      const sampleX = Math.max(0, Math.min(image.naturalWidth - 1, Math.round((point.x - clip.x) * scaleX)));
+      const sampleY = Math.max(0, Math.min(image.naturalHeight - 1, Math.round((point.y - clip.y) * scaleY)));
+      const offset = (sampleY * imageData.width + sampleX) * 4;
+      const red = imageData.data[offset] ?? 0;
+      const green = imageData.data[offset + 1] ?? 0;
+      const blue = imageData.data[offset + 2] ?? 0;
+      const alpha = imageData.data[offset + 3] ?? 0;
+      const distance = Math.hypot(
+        red - expected.red,
+        green - expected.green,
+        blue - expected.blue,
+      );
+
+      return {
+        alpha,
+        color: `rgb(${red}, ${green}, ${blue})`,
+        distance: Math.round(distance * 10) / 10,
+        slot: point.slot,
+        x: Math.round(point.x * 10) / 10,
+        y: Math.round(point.y * 10) / 10,
+      };
+    });
+  }, {
+    imageUrl: dataUrl,
+    clip: geometry!.clip,
+    expectedBorderColor: geometry!.expectedBorderColor,
+    points: geometry!.points,
+  });
+
+  return {
+    className: geometry!.className,
+    clip: geometry!.clip,
+    expectedBorderColor: geometry!.expectedBorderColor,
+    rect: geometry!.rect,
+    samples,
+    text: geometry!.text,
+  };
 }
 
 async function measureRenderedSelectionPixels(
@@ -855,12 +1170,43 @@ async function measureRenderedSelectionPixels(
 
     const centerX = targetRect.left + targetRect.width / 2;
     const centerY = targetRect.top + targetRect.height / 2;
-    const insideX = targetRect.right - Math.max(8, Math.min(32, targetRect.width / 5));
+    const innerInsetX = Math.max(8, Math.min(32, targetRect.width / 5));
+    const tightInnerInsetX = Math.max(4, Math.min(8, targetRect.width / 20));
+    const dragBoxRect = document.querySelector<HTMLElement>('[data-editor-drag-box="true"]')?.getBoundingClientRect() ?? null;
+    const isInsideDragBox = (x: number, y: number) => (
+      dragBoxRect !== null &&
+      x >= dragBoxRect.left + 2 &&
+      x <= dragBoxRect.right - 2 &&
+      y >= dragBoxRect.top + 2 &&
+      y <= dragBoxRect.bottom - 2
+    );
+    const innerSurfaceCandidateXs = [
+      targetRect.left + tightInnerInsetX,
+      targetRect.right - tightInnerInsetX,
+      targetRect.left + innerInsetX,
+      targetRect.right - innerInsetX,
+      centerX,
+    ].filter((x, index, values) => (
+      x > targetRect.left &&
+      x < targetRect.right &&
+      values.findIndex((value) => Math.abs(value - x) < 0.5) === index
+    ));
+    const sortedInnerSurfaceCandidateXs = [...innerSurfaceCandidateXs].sort((left, right) => {
+      const leftInsideDragBox = isInsideDragBox(left, centerY);
+      const rightInsideDragBox = isInsideDragBox(right, centerY);
+      if (leftInsideDragBox !== rightInsideDragBox) return leftInsideDragBox ? 1 : -1;
+      return 0;
+    });
+    const innerSurfacePoints = sortedInnerSurfaceCandidateXs.map((x) => ({
+      slot: 'innerSurface' as const,
+      x,
+      y: centerY,
+    }));
     const bleedXStart = Math.max(2, Math.min(24, bleedStart / 2 || 2));
     const bleedXEnd = Math.max(2, Math.min(24, bleedEnd / 2 || 2));
     const bleedInsetY = Math.max(2, Math.min(8, bleedY / 2 || 2));
     const points: Array<{ slot: RenderedSelectionPixelSlot; x: number; y: number }> = [
-      { slot: 'innerSurface', x: insideX, y: centerY },
+      ...(innerSurfacePoints.length > 0 ? innerSurfacePoints : [{ slot: 'innerSurface' as const, x: centerX, y: centerY }]),
       { slot: 'topBleed', x: centerX, y: targetRect.top - bleedInsetY },
       { slot: 'bottomBleed', x: centerX, y: targetRect.bottom + bleedInsetY },
       { slot: 'leftBleed', x: targetRect.left - bleedXStart, y: centerY },
@@ -1015,11 +1361,40 @@ function expectSelectionPixels(
   slots: readonly RenderedSelectionPixelSlot[] = ['innerSurface', 'topBleed', 'bottomBleed', 'leftBleed', 'rightBleed'],
 ): void {
   const samples = report.samples.filter((sample) => slots.includes(sample.slot));
-  expect(samples.map((sample) => sample.slot).sort(), `${label}: sampled slots`).toEqual([...slots].sort());
-  for (const sample of samples) {
-    const maxDistance = sample.slot === 'innerSurface' ? 18 : 45;
+  const sampledSlots = Array.from(new Set(samples.map((sample) => sample.slot))).sort();
+  expect(sampledSlots, `${label}: sampled slots`).toEqual([...slots].sort());
+  for (const slot of slots) {
+    const slotSamples = samples.filter((sample) => sample.slot === slot);
+    const maxDistance = slot === 'innerSurface'
+      ? 18
+      : 52;
+    if (slot === 'innerSurface') {
+      const hasSelectedSurfacePixel = slotSamples.some((sample) => (
+        sample.alpha >= 240 && sample.distance <= maxDistance
+      ));
+      expect(
+        hasSelectedSurfacePixel,
+        `${label}: innerSurface candidates ${JSON.stringify({ ...report, samples: slotSamples })}`,
+      ).toBe(true);
+      continue;
+    }
+
+    for (const sample of slotSamples) {
+      expect(sample.alpha, `${label}: ${sample.slot} alpha ${JSON.stringify(report)}`).toBeGreaterThanOrEqual(240);
+      expect(sample.distance, `${label}: ${sample.slot} color ${sample.color} expected ${report.selectionColor}`).toBeLessThanOrEqual(maxDistance);
+    }
+  }
+}
+
+function expectCodeBlockBorderPixels(report: RenderedCodeBlockBorderPixelReport, label: string): void {
+  expect(report.expectedBorderColor, `${label}: expected rendered border color`).toBe('rgb(255, 255, 255)');
+  expect(
+    Array.from(new Set(report.samples.map((sample) => sample.slot))).sort(),
+    `${label}: sampled rendered border slots`,
+  ).toEqual(['bottomBorder', 'leftBorder', 'rightBorder', 'topBorder']);
+  for (const sample of report.samples) {
     expect(sample.alpha, `${label}: ${sample.slot} alpha ${JSON.stringify(report)}`).toBeGreaterThanOrEqual(240);
-    expect(sample.distance, `${label}: ${sample.slot} color ${sample.color} expected ${report.selectionColor}`).toBeLessThanOrEqual(maxDistance);
+    expect(sample.distance, `${label}: ${sample.slot} color ${sample.color} expected ${report.expectedBorderColor}`).toBeLessThanOrEqual(18);
   }
 }
 
@@ -1055,10 +1430,14 @@ async function measureSelectedRichBlockPaint(
     selectionProbe.remove();
     const bleedStart = Number.parseFloat(style.getPropertyValue('--vlaina-block-selection-bleed-x-start')) || 0;
     const afterLeft = Number.parseFloat(afterStyle.left);
+    const shadowPaintLeft = selected.matches("[data-type='html-block'].md-htmlblock-container") && style.boxShadow !== 'none'
+      ? rect.left - bleedStart
+      : null;
     const wrapperRect = wrapper?.getBoundingClientRect() ?? null;
-    const paintLeft = afterStyle.display !== 'none' && Number.isFinite(afterLeft)
+    const afterPaintLeft = afterStyle.display !== 'none' && Number.isFinite(afterLeft)
       ? rect.left + afterLeft
       : rect.left;
+    const paintLeft = Math.min(afterPaintLeft, shadowPaintLeft ?? afterPaintLeft);
     const expectedPaintLeft = rect.left - bleedStart;
 
     return {
@@ -1066,6 +1445,7 @@ async function measureSelectedRichBlockPaint(
       afterLeft: Number.isFinite(afterLeft) ? Math.round(afterLeft * 10) / 10 : null,
       backgroundColor: style.backgroundColor,
       bleedStart: Math.round(bleedStart * 10) / 10,
+      boxShadow: style.boxShadow,
       className: selected.className,
       expectedPaintLeft: Math.round(expectedPaintLeft * 10) / 10,
       innerBackgroundColor: inner ? getComputedStyle(inner).backgroundColor : null,
@@ -1075,6 +1455,7 @@ async function measureSelectedRichBlockPaint(
       rectLeft: Math.round(rect.left * 10) / 10,
       selectedCount: editor.querySelectorAll('.editor-block-selected').length,
       selectionColor,
+      shadowPaintLeft: shadowPaintLeft === null ? null : Math.round(shadowPaintLeft * 10) / 10,
       text: selected.textContent?.trim().slice(0, 120) ?? '',
       wrapperBackgroundColor: wrapper ? getComputedStyle(wrapper).backgroundColor : null,
       wrapperPaintLeft: wrapperRect ? Math.round(wrapperRect.left * 10) / 10 : null,

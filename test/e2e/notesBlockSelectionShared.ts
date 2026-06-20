@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { BLOCK_CONTROLS_SELECTOR, EDITOR_SELECTOR } from "./notesE2E";
+import { EDITOR_SELECTOR } from "./notesE2E";
 import type { BlockTextMatcher } from "./notesBlockSelectionDragHelpers";
 
 export async function openBlockSelectionFixture(page: Page): Promise<void> {
@@ -82,11 +82,29 @@ export async function selectNoteBlocksByMatchers(page: Page, matchers: BlockText
 
 export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator): Promise<void> {
   const rect = await locator.evaluateAll((elements) => {
+    const resolveHandleTargetRect = (element: HTMLElement) => {
+      const box = element.getBoundingClientRect();
+      if (element.tagName !== 'LI') return box;
+
+      const headElement = element.firstElementChild;
+      if (!(headElement instanceof HTMLElement)) return box;
+
+      const headBox = headElement.getBoundingClientRect();
+      if (headBox.width <= 0 || headBox.height <= 0 || box.width <= 0) return box;
+
+      return {
+        x: box.x,
+        y: headBox.y,
+        width: box.width,
+        height: headBox.height,
+      };
+    };
+
     for (const element of elements) {
       if (!(element instanceof HTMLElement)) continue;
       const style = getComputedStyle(element);
       if (style.display === 'none' || style.visibility === 'hidden') continue;
-      const box = element.getBoundingClientRect();
+      const box = resolveHandleTargetRect(element);
       if (box.width <= 0 || box.height <= 0) continue;
       return {
         x: box.x,
@@ -104,22 +122,34 @@ export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator)
   const targetX = Math.max(8, rect.x - 18);
   const primingX = targetX > 8 ? targetX - 1 : targetX + 1;
   await page.mouse.move(primingX, targetCenterY);
-  await page.mouse.move(targetX, targetCenterY);
-  // Electron can skip dispatching a real mousemove when Playwright's cursor is already at the same screen point.
-  await page.evaluate(({ x, y }) => {
-    document.dispatchEvent(new MouseEvent('mousemove', {
+  await page.mouse.move(targetX, targetCenterY, { steps: 3 });
+
+  await expect.poll(async () => page.evaluate(({ x, y, expectedCenterY }) => {
+    // Electron can coalesce Playwright mouse moves when the cursor is already at the same screen point.
+    const target = document.elementFromPoint(x, y) ?? document;
+    target.dispatchEvent(new MouseEvent('mousemove', {
       clientX: x,
       clientY: y,
       bubbles: true,
+      composed: true,
+      view: window,
     }));
-  }, { x: targetX, y: targetCenterY });
-  await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
-  await expect.poll(async () => page.evaluate(({ controlsSelector, expectedCenterY }) => {
-    const controls = document.querySelector<HTMLElement>(controlsSelector);
-    if (!controls) return Number.POSITIVE_INFINITY;
+    if (typeof PointerEvent !== 'undefined') {
+      target.dispatchEvent(new PointerEvent('pointermove', {
+        clientX: x,
+        clientY: y,
+        pointerType: 'mouse',
+        bubbles: true,
+        composed: true,
+        view: window,
+      }));
+    }
+
+    const controls = document.querySelector<HTMLElement>('.editor-block-controls');
+    if (!controls?.classList.contains('visible')) return Number.POSITIVE_INFINITY;
     const controlsRect = controls.getBoundingClientRect();
     return Math.abs((controlsRect.top + controlsRect.height / 2) - expectedCenterY);
-  }, { controlsSelector: BLOCK_CONTROLS_SELECTOR, expectedCenterY: targetCenterY }), {
+  }, { x: targetX, y: targetCenterY, expectedCenterY: targetCenterY }), {
     message: 'Expected block controls to align with the hovered block',
   }).toBeLessThanOrEqual(2);
 }

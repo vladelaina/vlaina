@@ -412,6 +412,395 @@ test.describe("notes block selection", () => {
     }
   });
 
+  test('keeps long hard-break paragraph row geometry stable while blank-area dragging over and away from it', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-hard-break-drag-stability');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 960, height: 760 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-hard-break-drag-stability.md',
+        content: [
+          ...Array.from({ length: 70 }, (_, index) => `Intro paragraph before long hard-break audit ${index}.`),
+          [
+            '据 GitHub Flavored Markdown（GFM）官方文档介绍，Markdown是由约翰·格鲁伯（John Gruber）在亚伦·斯沃茨（Aaron Swartz）的帮助下开发，并在2004年发布的标记语言。\\',
+            '其`设计灵感主要来源于纯文本电子邮件的格式，目标是让人们能够使用易读、易写的纯文本格式编写文档，而且这些文档可以转换为HTML（Hyper Text Markup Language，超文本标记语言）文档。\\',
+            '简单点说，Markdown就是由一些简单的符号（如*/-> [] （）#）组成的用于排版的标记语言，其最重要的特点就是可读性强。',
+          ].join('\n'),
+          ...Array.from({ length: 70 }, (_, index) => `After long hard-break audit sentinel ${index}.`),
+        ].join('\n\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'GitHub Flavored Markdown' })).toBeVisible();
+
+      const readHardBreakReport = () => page.evaluate(() => {
+        const round = (value: number) => Math.round(value * 100) / 100;
+        const rectPayload = (rect: DOMRect) => ({
+          bottom: round(rect.bottom),
+          height: round(rect.height),
+          left: round(rect.left),
+          right: round(rect.right),
+          top: round(rect.top),
+          width: round(rect.width),
+        });
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const paragraph = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror p'))
+          .find((element) => element.textContent?.includes('GitHub Flavored Markdown')) ?? null;
+        if (!editor || !paragraph) return null;
+
+        const paragraphRect = paragraph.getBoundingClientRect();
+        const textRange = document.createRange();
+        textRange.selectNodeContents(paragraph);
+        const lineRows = Array.from(textRange.getClientRects())
+          .filter((rect) => rect.width > 0 && rect.height > 0)
+          .reduce<Array<{ bottom: number; height: number; left: number; right: number; top: number; width: number }>>((rows, rect) => {
+            const centerY = rect.top + rect.height / 2;
+            const existing = rows.find((row) => centerY >= row.top - 2 && centerY <= row.bottom + 2);
+            if (existing) {
+              existing.bottom = round(Math.max(existing.bottom, rect.bottom));
+              existing.height = round(existing.bottom - existing.top);
+              existing.left = round(Math.min(existing.left, rect.left));
+              existing.right = round(Math.max(existing.right, rect.right));
+              existing.width = round(existing.right - existing.left);
+              return rows;
+            }
+            rows.push(rectPayload(rect));
+            return rows;
+          }, []);
+        textRange.detach();
+
+        const selectableTargets = ((window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          from: number;
+          rangeText: string;
+          rect: { height: number; left: number; top: number; width: number };
+          tagName: string;
+          text: string;
+          to: number;
+        }>)
+          .filter((block) => block.text.includes('GitHub Flavored Markdown'))
+          .map((block) => ({
+            className: block.className,
+            from: block.from,
+            key: `${block.from}:${block.to}`,
+            rect: {
+              height: round(block.rect.height),
+              left: round(block.rect.left),
+              top: round(block.rect.top),
+              width: round(block.rect.width),
+            },
+            rangeText: block.rangeText.replace(/\s+/g, ' ').trim(),
+            tagName: block.tagName,
+            text: block.text.replace(/\s+/g, ' ').trim(),
+            to: block.to,
+          }));
+
+        const selected = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+          .filter((element) => element.textContent?.includes('GitHub Flavored Markdown'))
+          .map((element) => ({
+            className: element.className,
+            rect: rectPayload(element.getBoundingClientRect()),
+            tagName: element.tagName,
+            text: element.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          }));
+
+        const fills = Array.from(document.querySelectorAll<HTMLElement>('.editor-block-selection-line-fill'))
+          .map((element) => rectPayload(element.getBoundingClientRect()))
+          .filter((rect) => rect.bottom >= paragraphRect.top - 2 && rect.top <= paragraphRect.bottom + 2);
+
+        return {
+          active: editor.classList.contains('editor-block-selection-active'),
+          lineRows,
+          paragraphClassName: paragraph.className,
+          paragraphRect: rectPayload(paragraphRect),
+          pending: editor.classList.contains('editor-block-selection-pending'),
+          selectableTargets,
+          selected,
+          selectedCount: editor.querySelectorAll('.editor-block-selected').length,
+          selectedInlineLineCount: editor.querySelectorAll('.editor-block-selected-inline-line').length,
+          fills,
+        };
+      });
+
+      const initial = await readHardBreakReport();
+      expect(initial, 'initial hard-break paragraph report').not.toBeNull();
+      expect(initial!.selectableTargets, JSON.stringify(initial, null, 2)).toHaveLength(3);
+      expect(new Set(initial!.selectableTargets.map((target) => target.key)).size, JSON.stringify(initial, null, 2)).toBe(3);
+      expect(initial!.selectableTargets.map((target) => target.rangeText), JSON.stringify(initial, null, 2)).toEqual([
+        expect.stringContaining('GitHub Flavored Markdown'),
+        expect.stringContaining('设计灵感主要来源于纯文本电子邮件'),
+        expect.stringContaining('简单点说'),
+      ]);
+      expect(initial!.lineRows.length, JSON.stringify(initial, null, 2)).toBeGreaterThanOrEqual(3);
+
+      const largeMiddleLineSelection = await page.evaluate(async () => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          rangeText: string;
+        }>;
+        const middleIndex = blocks.findIndex((block) => block.rangeText.includes('设计灵感主要来源于纯文本电子邮件'));
+        if (middleIndex < 0) return { count: 0, expected: 0, largeActive: false };
+        const expected = 128;
+        const startIndex = Math.min(
+          Math.max(middleIndex - Math.floor(expected / 2), 0),
+          Math.max(blocks.length - expected, 0),
+        );
+        const indexes = Array.from(
+          { length: Math.min(expected, blocks.length - startIndex) },
+          (_, offset) => startIndex + offset,
+        );
+        const count = await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(indexes);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        return {
+          count,
+          expected: indexes.length,
+          largeActive: editor?.classList.contains('editor-block-selection-large') ?? false,
+        };
+      });
+      expect(largeMiddleLineSelection.count).toBe(largeMiddleLineSelection.expected);
+      expect(largeMiddleLineSelection.largeActive, JSON.stringify(largeMiddleLineSelection, null, 2)).toBe(true);
+
+      const trailingSelectionGeometry = await page.evaluate(async () => {
+        const round = (value: number) => Math.round(value * 100) / 100;
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const selected = Array.from(document.querySelectorAll<HTMLElement>('.editor-block-selected-inline-line'))
+          .find((element) => element.textContent?.includes('设计灵感主要来源于纯文本电子邮件')) ?? null;
+        if (!editor || !selected) return null;
+        selected.scrollIntoView({ block: 'center', inline: 'nearest' });
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+        const probe = document.createElement('span');
+        probe.style.position = 'absolute';
+        probe.style.pointerEvents = 'none';
+        probe.style.backgroundColor = 'var(--vlaina-block-selection-color)';
+        document.body.append(probe);
+        const selectionColor = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+
+        const editorRect = editor.getBoundingClientRect();
+        const rowRects = Array.from(selected.getClientRects())
+          .filter((rect) => rect.width > 0 && rect.height > 0)
+          .map((rect) => ({
+            bottom: round(rect.bottom),
+            left: round(rect.left),
+            right: round(rect.right),
+            top: round(rect.top),
+          }));
+        const lineFills = Array.from(document.querySelectorAll<HTMLElement>('.editor-block-selection-line-fill'))
+          .map((fill) => fill.getBoundingClientRect())
+          .filter((rect) => rect.width > 0 && rect.height > 0);
+        const rowSamplePoints = rowRects.flatMap((row, index) => {
+          const rowCenterY = (row.top + row.bottom) / 2;
+          const matchingFill = lineFills.find((fill) => rowCenterY >= fill.top - 2 && rowCenterY <= fill.bottom + 2);
+          const sampleRight = Math.min(
+            matchingFill?.right ?? editorRect.right,
+            editorRect.right + 48,
+            window.innerWidth - 2,
+          );
+          const sampleLeft = Math.max(row.right + 10, row.left + 10);
+          if (sampleRight - sampleLeft < 12) return [];
+          return [{
+            index,
+            kind: 'row-trailing',
+            x: round((sampleLeft + sampleRight) / 2),
+            y: round(rowCenterY),
+            fillRight: matchingFill ? round(matchingFill.right) : null,
+            rowRight: row.right,
+          }];
+        });
+        const rowGapSamplePoints = rowRects.slice(1).flatMap((row, offset) => {
+          const previous = rowRects[offset];
+          if (!previous || row.top - previous.bottom < 1) return [];
+          const gapCenterY = (previous.bottom + row.top) / 2;
+          const matchingFill = lineFills.find((fill) => gapCenterY >= fill.top - 2 && gapCenterY <= fill.bottom + 2);
+          const sampleRight = Math.min(
+            matchingFill?.right ?? editorRect.right,
+            editorRect.right + 48,
+            window.innerWidth - 2,
+          );
+          const sampleLeft = Math.max(editorRect.left + 24, Math.min(previous.right, row.right) + 10);
+          if (sampleRight - sampleLeft < 12) return [];
+          return [{
+            index: offset,
+            kind: 'row-gap-trailing',
+            x: round((sampleLeft + sampleRight) / 2),
+            y: round(gapCenterY),
+            fillRight: matchingFill ? round(matchingFill.right) : null,
+            rowRight: round(Math.min(previous.right, row.right)),
+          }];
+        });
+        const samplePoints = [...rowSamplePoints, ...rowGapSamplePoints];
+        if (samplePoints.length === 0) {
+          return {
+            clip: null,
+            editorRight: round(editorRect.right),
+            lineFillCount: lineFills.length,
+            rowRects,
+            samplePoints,
+            selectedText: selected.textContent ?? '',
+            selectionColor,
+          };
+        }
+
+        const minX = Math.max(0, Math.floor(Math.min(...samplePoints.map((point) => point.x)) - 4));
+        const minY = Math.max(0, Math.floor(Math.min(...samplePoints.map((point) => point.y)) - 4));
+        const maxX = Math.min(window.innerWidth, Math.ceil(Math.max(...samplePoints.map((point) => point.x)) + 4));
+        const maxY = Math.min(window.innerHeight, Math.ceil(Math.max(...samplePoints.map((point) => point.y)) + 4));
+        return {
+          clip: {
+            x: minX,
+            y: minY,
+            width: Math.max(1, maxX - minX),
+            height: Math.max(1, maxY - minY),
+          },
+          editorRight: round(editorRect.right),
+          largeActive: editor.classList.contains('editor-block-selection-large'),
+          lineFillCount: lineFills.length,
+          rowRects,
+          samplePoints,
+          selectedText: selected.textContent ?? '',
+          selectionColor,
+        };
+      });
+      expect(trailingSelectionGeometry, 'middle hard-break line trailing selection geometry').not.toBeNull();
+      expect(trailingSelectionGeometry!.largeActive, JSON.stringify(trailingSelectionGeometry, null, 2)).toBe(true);
+      expect(trailingSelectionGeometry!.clip, JSON.stringify(trailingSelectionGeometry, null, 2)).not.toBeNull();
+      expect(trailingSelectionGeometry!.samplePoints.length, JSON.stringify(trailingSelectionGeometry, null, 2)).toBeGreaterThan(0);
+      expect(trailingSelectionGeometry!.lineFillCount, JSON.stringify(trailingSelectionGeometry, null, 2)).toBeGreaterThan(0);
+
+      const trailingScreenshot = await page.screenshot({ clip: trailingSelectionGeometry!.clip! });
+      const trailingPixelSamples = await page.evaluate(async ({ imageUrl, geometry }) => {
+        const colorMatch = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(geometry.selectionColor);
+        if (!colorMatch) throw new Error(`Could not parse selection color: ${geometry.selectionColor}`);
+        const expected = {
+          red: Number.parseInt(colorMatch[1] ?? '0', 10),
+          green: Number.parseInt(colorMatch[2] ?? '0', 10),
+          blue: Number.parseInt(colorMatch[3] ?? '0', 10),
+        };
+        const image = new Image();
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error('Failed to load hard-break trailing screenshot'));
+          image.src = imageUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) throw new Error('Could not create hard-break trailing canvas context');
+        context.drawImage(image, 0, 0);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const scaleX = image.naturalWidth / geometry.clip.width;
+        const scaleY = image.naturalHeight / geometry.clip.height;
+
+        return geometry.samplePoints.map((point: { fillRight: number | null; index: number; kind: string; rowRight: number; x: number; y: number }) => {
+          const sampleX = Math.max(0, Math.min(image.naturalWidth - 1, Math.round((point.x - geometry.clip.x) * scaleX)));
+          const sampleY = Math.max(0, Math.min(image.naturalHeight - 1, Math.round((point.y - geometry.clip.y) * scaleY)));
+          let red = 0;
+          let green = 0;
+          let blue = 0;
+          let count = 0;
+          for (let yOffset = -1; yOffset <= 1; yOffset += 1) {
+            for (let xOffset = -1; xOffset <= 1; xOffset += 1) {
+              const x = Math.max(0, Math.min(image.naturalWidth - 1, sampleX + xOffset));
+              const y = Math.max(0, Math.min(image.naturalHeight - 1, sampleY + yOffset));
+              const offset = (y * imageData.width + x) * 4;
+              red += imageData.data[offset] ?? 0;
+              green += imageData.data[offset + 1] ?? 0;
+              blue += imageData.data[offset + 2] ?? 0;
+              count += 1;
+            }
+          }
+          const average = {
+            red: Math.round(red / count),
+            green: Math.round(green / count),
+            blue: Math.round(blue / count),
+          };
+          return {
+            ...point,
+            average,
+            distance: Math.abs(average.red - expected.red) +
+              Math.abs(average.green - expected.green) +
+              Math.abs(average.blue - expected.blue),
+            expected,
+          };
+        });
+      }, {
+        imageUrl: `data:image/png;base64,${trailingScreenshot.toString('base64')}`,
+        geometry: trailingSelectionGeometry,
+      });
+      expect(
+        trailingPixelSamples.every((sample: { distance: number }) => sample.distance <= 42),
+        JSON.stringify({ trailingSelectionGeometry, trailingPixelSamples }, null, 2),
+      ).toBe(true);
+
+      const dragPoints = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+        const paragraph = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror p'))
+          .find((element) => element.textContent?.includes('GitHub Flavored Markdown')) ?? null;
+        if (!editor || !scrollRoot || !paragraph) return null;
+
+        paragraph.scrollIntoView({ block: 'center', inline: 'nearest' });
+        const editorRect = editor.getBoundingClientRect();
+        const scrollRootRect = scrollRoot.getBoundingClientRect();
+        const rect = paragraph.getBoundingClientRect();
+        const startY = rect.top + Math.min(rect.height - 4, Math.max(8, rect.height * 0.35));
+        return {
+          awayX: Math.max(editorRect.left + 24, rect.left + 24),
+          awayY: Math.min(scrollRootRect.bottom - 24, rect.bottom + 28),
+          overX: Math.max(editorRect.left + 24, rect.left + 24),
+          overY: rect.top + Math.min(rect.height - 4, Math.max(8, rect.height * 0.45)),
+          startX: Math.min(scrollRootRect.right - 24, editorRect.right + 72),
+          startY,
+        };
+      });
+      expect(dragPoints, 'hard-break paragraph drag points').not.toBeNull();
+
+      await page.mouse.move(dragPoints!.startX, dragPoints!.startY);
+      await page.mouse.down();
+      await page.mouse.move(dragPoints!.overX, dragPoints!.overY, { steps: 8 });
+      await page.waitForTimeout(80);
+      const overParagraph = await readHardBreakReport();
+      expect(overParagraph, 'dragging over hard-break paragraph report').not.toBeNull();
+      expect(overParagraph!.pending, JSON.stringify({ dragPoints, overParagraph }, null, 2)).toBe(true);
+
+      await page.mouse.move(dragPoints!.awayX, dragPoints!.awayY, { steps: 8 });
+      await page.waitForTimeout(80);
+      const awayFromParagraph = await readHardBreakReport();
+      expect(awayFromParagraph, 'dragging away from hard-break paragraph report').not.toBeNull();
+      expect(awayFromParagraph!.pending, JSON.stringify({ dragPoints, awayFromParagraph }, null, 2)).toBe(true);
+      await page.mouse.up();
+
+      const assertStableReport = (report: NonNullable<typeof initial>, label: string) => {
+        const diagnostics = JSON.stringify({ dragPoints, initial, [label]: report }, null, 2);
+        expect(report.selectableTargets, diagnostics).toHaveLength(3);
+        expect(report.lineRows.length, diagnostics).toBe(initial!.lineRows.length);
+        expect(Math.abs(report.paragraphRect.height - initial!.paragraphRect.height), diagnostics).toBeLessThanOrEqual(1);
+
+        const initialTargetsByKey = new Map(initial!.selectableTargets.map((target) => [target.key, target]));
+        for (const target of report.selectableTargets) {
+          const before = initialTargetsByKey.get(target.key);
+          expect(before, diagnostics).toBeTruthy();
+          expect(
+            Math.abs(
+              (target.rect.top - report.paragraphRect.top) -
+                (before!.rect.top - initial!.paragraphRect.top),
+            ),
+            diagnostics,
+          ).toBeLessThanOrEqual(1);
+          expect(Math.abs(target.rect.height - before!.rect.height), diagnostics).toBeLessThanOrEqual(1);
+        }
+      };
+
+      assertStableReport(overParagraph!, 'overParagraph');
+      assertStableReport(awayFromParagraph!, 'awayFromParagraph');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps bold labels visible inside selected hard-break credential lines', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-bold-label-visibility');
 

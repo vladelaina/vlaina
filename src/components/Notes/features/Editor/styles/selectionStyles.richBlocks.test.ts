@@ -3,6 +3,7 @@ import {
   readStyleFile,
   readBlockSelectionStyle,
   readThemeStyle,
+  readThemeCompatibilityStyle,
   extractCssRule,
   extractSelectorListsContaining,
 } from "./selectionStylesTestUtils";
@@ -15,6 +16,10 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('margin-top: 0 !important;');
     expect(css).toContain('margin-bottom: 0 !important;');
     expect(css).toContain('border-radius: inherit;');
+    expect(css).toContain('border: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid transparent;');
+    expect(css).toContain('box-sizing: border-box;');
+    expect(css).toContain('--vlaina-code-block-selected-border-outline: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid var(--vlaina-color-white);');
+    expect(css).toContain('--vlaina-code-block-selected-border-outline-offset: calc(-1 * var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)));');
     expect(css).toContain('.milkdown .code-block-container .code-block-editable {');
     expect(css).toContain('padding: var(--vlaina-padding-code-block-editable);');
     expect(css).toContain('.milkdown .code-block-container .cm-editor {');
@@ -37,17 +42,24 @@ describe("editor rich block selection styles", () => {
       ".milkdown .ProseMirror.editor-toolbar-copy-feedback-active .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {"
     );
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,');
-    expect(css).toContain('.milkdown .code-block-container.editor-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {');
     expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {");
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .cm-editor,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .cm-scroller,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .cm-content,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .cm-line,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .cm-activeLine,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .cm-editor,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .cm-scroller,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .cm-content,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .cm-line,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .cm-activeLine,');
     expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler");
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .code-block-chrome-header,');
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .code-block-editable,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .code-block-lazy-preview,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source .code-block-lazy-preview,');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-header,');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label,');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {');
@@ -103,8 +115,11 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('isolation: isolate;');
     expect(css).toContain('overflow: visible !important;');
     expect(css).toContain('background-color: transparent;');
+    expect(css).toContain('border-color: var(--vlaina-color-white);');
+    expect(css).toContain('position: relative;');
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode::after,');
-    expect(css).toContain('.milkdown .code-block-container.editor-block-selected::after {');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-selected::after,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source::after {');
     expect(css).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));');
     expect(css).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
     expect(css).toContain('display: block !important;');
@@ -113,12 +128,56 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('transition: none;');
     expect(css).toContain('transition: none !important;');
     expect(css).toContain('border-radius: var(--vlaina-radius-1rem);');
+    expect(css).toContain('outline: var(--vlaina-code-block-selected-border-outline);');
+    expect(css).toContain('outline-offset: var(--vlaina-code-block-selected-border-outline-offset);');
     expect(css).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
     expect(css).not.toContain('--vlaina-block-selection-bleed-y:');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected *,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source,');
+    expect(css).toContain('.milkdown .code-block-container.editor-block-drag-source * {');
     expect(css).toContain('-webkit-text-fill-color: currentColor;');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-content ::selection');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');
+  });
+
+  it('keeps code block drag previews transparent while carrying the code block frame', () => {
+    const codeCss = readStyleFile('code-block.css');
+    const themeCompatibilityCss = readThemeCompatibilityStyle();
+    const codePreviewRule = extractCssRule(
+      codeCss,
+      '.editor-block-drag-preview .code-block-container {'
+    );
+    const codePreviewPseudoRule = extractCssRule(
+      codeCss,
+      '.editor-block-drag-preview .code-block-container::before,'
+    );
+    const codePreviewInnerRule = extractCssRule(
+      codeCss,
+      '.editor-block-drag-preview .code-block-container :is('
+    );
+
+    expect(codePreviewRule).toContain('background: transparent !important;');
+    expect(codePreviewRule).toContain('background-color: transparent !important;');
+    expect(codePreviewRule).toContain('--vlaina-code-block-selected-border-outline: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid var(--vlaina-color-white);');
+    expect(codePreviewRule).toContain('--vlaina-code-block-selected-border-outline-offset: calc(-1 * var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)));');
+    expect(codePreviewRule).toContain('border: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid var(--vlaina-color-white) !important;');
+    expect(codePreviewRule).toContain('box-sizing: border-box;');
+    expect(codePreviewRule).toContain('outline: var(--vlaina-code-block-selected-border-outline) !important;');
+    expect(codePreviewRule).toContain('outline-offset: var(--vlaina-code-block-selected-border-outline-offset) !important;');
+    expect(codePreviewRule).toContain('box-shadow: none !important;');
+    expect(codePreviewPseudoRule).toContain('display: none !important;');
+    expect(codePreviewPseudoRule).toContain('background: transparent !important;');
+    expect(codePreviewPseudoRule).toContain('box-shadow: none !important;');
+    expect(codePreviewInnerRule).toContain('.code-block-chrome,');
+    expect(codePreviewInnerRule).toContain('.cm-editor,');
+    expect(codePreviewInnerRule).toContain('background: transparent !important;');
+    expect(codePreviewInnerRule).toContain('border-color: transparent !important;');
+    expect(codeCss).toContain('border-color: var(--vlaina-color-white);');
+    expect(codeCss).toContain('outline: var(--vlaina-code-block-selected-border-outline);');
+    expect(codeCss).toContain('.milkdown .code-block-container.editor-block-drag-source {');
+    expect(codeCss).toContain('.milkdown .code-block-container.editor-block-drag-source::after {');
+    expect(codeCss).not.toContain('body.editor-block-drag-active .milkdown .ProseMirror .code-block-container:is(');
+    expect(themeCompatibilityCss).not.toContain("body.editor-block-drag-active .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .code-block-container:is(");
   });
 
   it('extends selected list items below direct code blocks without changing code block layout', () => {
@@ -158,8 +217,24 @@ describe("editor rich block selection styles", () => {
       codeCss,
       '.milkdown .ProseMirror.editor-block-selection-large .code-block-container.editor-block-selected.editor-block-selected-large-rich::after {'
     );
+    const borderRule = extractCssRule(
+      codeCss,
+      '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is('
+    );
+    const foregroundRule = extractCssRule(
+      codeCss,
+      [
+        '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(',
+        '  .code-block-container.editor-block-selected,',
+        '  .code-block-container.editor-block-drag-source,',
+        '  .editor-block-selected .code-block-container,',
+        '  .code-block-container.editor-block-selected-contained',
+        ') :is(',
+      ].join('\n')
+    );
 
     expect(rule).toContain('.code-block-container.editor-block-selected,');
+    expect(rule).toContain('.code-block-container.editor-block-drag-source,');
     expect(rule).toContain('.editor-block-selected .code-block-container,');
     expect(rule).toContain('.code-block-container.editor-block-selected-contained');
     expect(rule).toContain('.code-block-chrome-header,');
@@ -177,8 +252,14 @@ describe("editor rich block selection styles", () => {
     expect(containedRule).toContain('.code-block-container.editor-block-selected-contained');
     expect(containedRule).toContain('background: transparent !important;');
     expect(containedRule).toContain('background-color: transparent !important;');
+    expect(containedRule).toContain('border-color: var(--vlaina-color-white) !important;');
+    expect(containedRule).toContain('outline: var(--vlaina-code-block-selected-border-outline) !important;');
+    expect(containedRule).toContain('outline-offset: var(--vlaina-code-block-selected-border-outline-offset) !important;');
     expect(containedRule).toContain('box-shadow: none !important;');
     expect(largeCodeRule).toContain('isolation: isolate;');
+    expect(largeCodeRule).toContain('border-color: var(--vlaina-color-white);');
+    expect(largeCodeRule).toContain('outline: var(--vlaina-code-block-selected-border-outline);');
+    expect(largeCodeRule).toContain('outline-offset: var(--vlaina-code-block-selected-border-outline-offset);');
     expect(largeCodeRule).toContain('box-shadow: none !important;');
     expect(largeCodeRule).toContain('contain: none;');
     expect(largeCodeFillRule).toContain('top: calc(-1 * var(--vlaina-block-selection-bleed-y));');
@@ -187,6 +268,23 @@ describe("editor rich block selection styles", () => {
     expect(largeCodeFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
     expect(largeCodeFillRule).toContain('display: block !important;');
     expect(largeCodeFillRule).toContain('background: var(--vlaina-block-selection-color);');
+    expect(borderRule).toContain('.code-block-container.editor-block-selected,');
+    expect(borderRule).toContain('.code-block-container.editor-block-drag-source,');
+    expect(borderRule).toContain('.editor-block-selected .code-block-container,');
+    expect(borderRule).toContain('.code-block-container.editor-block-selected-contained');
+    expect(borderRule).toContain('border-color: var(--vlaina-color-white) !important;');
+    expect(borderRule).toContain('outline: var(--vlaina-code-block-selected-border-outline) !important;');
+    expect(borderRule).toContain('outline-offset: var(--vlaina-code-block-selected-border-outline-offset) !important;');
+    expect(foregroundRule).toContain('.code-block-container.editor-block-selected,');
+    expect(foregroundRule).toContain('.code-block-container.editor-block-drag-source,');
+    expect(foregroundRule).toContain('.editor-block-selected .code-block-container,');
+    expect(foregroundRule).toContain('.code-block-container.editor-block-selected-contained');
+    expect(foregroundRule).toContain('.code-block-chrome-language-label,');
+    expect(foregroundRule).toContain('.code-block-lazy-preview *,');
+    expect(foregroundRule).toContain('.cm-line *,');
+    expect(foregroundRule).toContain('.cm-s-inner *,');
+    expect(foregroundRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(foregroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
   });
 
   it('sizes selected image parent blocks without selected-state child scans', () => {

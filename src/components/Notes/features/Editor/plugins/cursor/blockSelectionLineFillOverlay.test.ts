@@ -226,7 +226,7 @@ describe('blockSelectionLineFillOverlay', () => {
     }
   });
 
-  it('skips line-fill range collection for large block selections', async () => {
+  it('keeps hard-break line fill ranges available for large block selections', async () => {
     const markdown = Array.from(
       { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD },
       (_, index) => `line-${index}\\\nwrapped-${index}`
@@ -242,7 +242,9 @@ describe('blockSelectionLineFillOverlay', () => {
         blocks: paragraphRanges,
       });
 
-      expect(collectSelectedHardBreakLineRanges(view)).toEqual([]);
+      expect(collectSelectedHardBreakLineRanges(view)).toHaveLength(
+        LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD * 2,
+      );
     } finally {
       await editor.destroy();
     }

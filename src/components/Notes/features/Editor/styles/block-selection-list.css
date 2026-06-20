@@ -84,7 +84,8 @@
   border-radius: var(--vlaina-radius-0);
 }
 
-.milkdown .ProseMirror .editor-block-selected-inline-line::after {
+.milkdown .ProseMirror .editor-block-selected-inline-line::after,
+.milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-inline-line::after {
   display: none !important;
 }
 
