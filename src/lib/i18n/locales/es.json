@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "Seleccionar Carpeta Principal para Nueva Bóveda",
   "vault.name": "Nombre de la Bóveda",
   "notes.rightChat": "Conversación derecha",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Haz clic para iniciar sesión~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ Mi cabecita necesita un respiro. Inténtalo en un momento o prueba primero con otro modelo~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Mi cabecita necesita un respiro. Inténtalo en un momento o prueba primero con otro modelo~",
   "notes.fileNameError.empty": "El nombre del archivo no puede estar vacío.",

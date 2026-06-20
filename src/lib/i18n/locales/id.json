@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "Pilih Folder Induk untuk Vault Baru",
   "vault.name": "Nama Vault",
   "notes.rightChat": "Obrolan kanan",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Klik untuk masuk ya~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ Kepalaku perlu jeda sebentar. Coba lagi nanti atau coba model lain dulu~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Kepalaku perlu jeda sebentar. Coba lagi nanti atau coba model lain dulu~",
   "notes.fileNameError.empty": "Nama file tidak boleh kosong.",

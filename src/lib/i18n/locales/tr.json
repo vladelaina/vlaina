@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "Yeni Kasa İçin Üst Klasör Seçin",
   "vault.name": "Kasa Adı",
   "notes.rightChat": "Sağ sohbet",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Giriş yapmak için tıkla~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ Kafam biraz yetişemedi. Biraz bekleyip tekrar dene ya da önce başka bir model dene~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Kafam biraz yetişemedi. Biraz bekleyip tekrar dene ya da önce başka bir model dene~",
   "notes.fileNameError.empty": "Dosya adı boş olamaz.",

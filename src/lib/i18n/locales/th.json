@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "เลือกโฟลเดอร์หลักสำหรับคลังเก็บใหม่",
   "vault.name": "ชื่อคลังเก็บ",
   "notes.rightChat": "แชทด้านขวา",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ คลิกเพื่อเข้าสู่ระบบนะ~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ หัวน้อย ๆ หมุนไม่ทันแล้ว รอสักครู่หรือเปลี่ยนไปลองโมเดลอื่นก่อนนะ~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ หัวน้อย ๆ หมุนไม่ทันแล้ว รอสักครู่หรือเปลี่ยนไปลองโมเดลอื่นก่อนนะ~",
   "notes.fileNameError.empty": "ชื่อไฟล์ต้องไม่ว่างเปล่า",

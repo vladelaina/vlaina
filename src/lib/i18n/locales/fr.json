@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "Sélectionner le dossier parent pour la nouvelle voûte",
   "vault.name": "Nom de la voûte",
   "notes.rightChat": "Discussion à droite",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Clique ici pour te connecter~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ Mon cerveau a besoin d’une pause. Réessaie dans un instant, ou essaie d’abord un autre modèle~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Mon cerveau a besoin d’une pause. Réessaie dans un instant, ou essaie d’abord un autre modèle~",
   "notes.fileNameError.empty": "Le nom du fichier ne peut pas être vide.",
