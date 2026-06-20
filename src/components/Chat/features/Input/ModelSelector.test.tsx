@@ -156,6 +156,41 @@ function setProviderOrderFixture() {
   }));
 }
 
+function setManagedModelFixture() {
+  useUnifiedStore.setState((state) => ({
+    loaded: true,
+    data: {
+      ...state.data,
+      ai: {
+        ...state.data.ai!,
+        providers: [
+          {
+            id: MANAGED_PROVIDER_ID,
+            name: 'vlaina',
+            type: 'newapi',
+            apiHost: 'https://api.vlaina.com/v1',
+            apiKey: '',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+        models: [
+          {
+            id: `${MANAGED_PROVIDER_ID}::model-alpha`,
+            apiModelId: 'model-alpha',
+            name: 'Model Alpha',
+            providerId: MANAGED_PROVIDER_ID,
+            enabled: true,
+            createdAt: 1,
+          },
+        ],
+        selectedModelId: `${MANAGED_PROVIDER_ID}::model-alpha`,
+      },
+    },
+  }));
+}
+
 describe('ModelSelector', () => {
   let rectSpy: ReturnType<typeof vi.spyOn>;
 
@@ -208,6 +243,20 @@ describe('ModelSelector', () => {
       expect(dropdown!.className).not.toContain('z-[var(--vlaina-z-50)]');
       expect(Number.parseFloat(dropdown!.style.left)).toBe(308);
       expect(Number.parseFloat(dropdown!.style.top)).toBe(156);
+    });
+
+    expect(mocks.refreshManagedProviderInBackground).not.toHaveBeenCalled();
+  });
+
+  it('refreshes managed models when opening on the managed channel', async () => {
+    setManagedModelFixture();
+
+    render(<ModelSelector />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Model Alpha/ }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-model-selector-dropdown="true"]')).not.toBeNull();
     });
 
     expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith({ force: true });

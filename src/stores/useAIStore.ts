@@ -296,11 +296,19 @@ export function startAIStoreRuntimeEffects(): void {
   syncManagedProvider();
   syncManagedService();
 
+  let wasUnifiedLoaded = useUnifiedStore.getState().loaded;
   useUnifiedStore.subscribe(() => {
+    const store = useUnifiedStore.getState();
+    const loadedChangedToReady = !wasUnifiedLoaded && store.loaded;
+    wasUnifiedLoaded = store.loaded;
+
     ensureLoaded();
     syncSelection();
     syncIntegrity();
     syncManagedProvider();
+    if (loadedChangedToReady) {
+      syncManagedService();
+    }
   });
 
   useAccountSessionStore.subscribe(() => {
