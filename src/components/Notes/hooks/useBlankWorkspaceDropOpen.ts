@@ -13,6 +13,8 @@ import {
   hasExternalDroppedFiles,
 } from './externalDropPayload';
 
+const CHAT_INPUT_DROP_TARGET_SELECTOR = '[data-chat-input="true"]';
+
 interface UseBlankWorkspaceDropOpenOptions {
   enabled: boolean;
   openMarkdownTarget: (absolutePath: string) => Promise<unknown>;
@@ -24,6 +26,21 @@ function isOverNotesSidebar(event: DragEvent) {
   return elements.some((element) => (
     element instanceof HTMLElement &&
     element.closest(SIDEBAR_SCROLL_ROOT_SELECTOR)
+  ));
+}
+
+function isOverChatInput(event: DragEvent) {
+  if (
+    event.target instanceof HTMLElement &&
+    event.target.closest(CHAT_INPUT_DROP_TARGET_SELECTOR)
+  ) {
+    return true;
+  }
+
+  const elements = document.elementsFromPoint?.(event.clientX, event.clientY) ?? [];
+  return elements.some((element) => (
+    element instanceof HTMLElement &&
+    element.closest(CHAT_INPUT_DROP_TARGET_SELECTOR)
   ));
 }
 
@@ -79,10 +96,11 @@ export function useBlankWorkspaceDropOpen({
 
     const handleDragEnter = (event: DragEvent) => {
       const overNotesSidebar = isOverNotesSidebar(event);
+      const overChatInput = isOverChatInput(event);
       const externalFiles = hasExternalDroppedFiles(event.dataTransfer);
       const paths = getDroppedExternalPaths(event.dataTransfer);
 
-      if (overNotesSidebar || !externalFiles) {
+      if (overNotesSidebar || overChatInput || !externalFiles) {
         return;
       }
 
@@ -100,7 +118,7 @@ export function useBlankWorkspaceDropOpen({
       const externalFiles = hasExternalDroppedFiles(event.dataTransfer);
       const paths = getDroppedExternalPaths(event.dataTransfer);
 
-      if (isOverNotesSidebar(event) || !externalFiles) {
+      if (isOverNotesSidebar(event) || isOverChatInput(event) || !externalFiles) {
         return;
       }
 
@@ -122,10 +140,11 @@ export function useBlankWorkspaceDropOpen({
 
     const handleDrop = (event: DragEvent) => {
       const overNotesSidebar = isOverNotesSidebar(event);
+      const overChatInput = isOverChatInput(event);
       const externalFiles = hasExternalDroppedFiles(event.dataTransfer);
       const paths = getDroppedExternalPaths(event.dataTransfer);
 
-      if (overNotesSidebar || !externalFiles) {
+      if (overNotesSidebar || overChatInput || !externalFiles) {
         return;
       }
 

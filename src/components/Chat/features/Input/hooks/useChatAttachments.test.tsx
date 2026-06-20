@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import { deleteAttachment, saveAttachment } from '@/lib/storage/attachmentStorage';
 import {
+  collectChatAttachmentFiles,
   MAX_CHAT_ATTACHMENT_INPUT_FILES,
   MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY,
   MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN,
@@ -96,6 +97,47 @@ describe('useChatAttachments', () => {
 
     expect(saveAttachment).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: 'photo.png' }), { persist: true });
     expect(saveAttachment).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: 'note.txt' }), { persist: true });
+    expect(result.current.attachments).toEqual([accepted]);
+  });
+
+  it('collects readable File-like objects from drag payloads', () => {
+    const fileLike = {
+      name: 'electron-drop.png',
+      type: 'image/png',
+      size: 5,
+      arrayBuffer: async () => new ArrayBuffer(5),
+    } as unknown as File;
+
+    expect(collectChatAttachmentFiles([fileLike])).toEqual([fileLike]);
+  });
+
+  it('uses data transfer items when dropped files are empty', async () => {
+    const accepted = createAttachment({ id: 'dropped-item', name: 'dropped-item.png' });
+    const file = new File(['image'], 'dropped-item.png', { type: 'image/png' });
+    mocks.saveAttachment.mockResolvedValueOnce(accepted);
+    const preventDefault = vi.fn();
+    const stopPropagation = vi.fn();
+    const { result } = renderHook(() => useChatAttachments());
+
+    await act(async () => {
+      await result.current.handleDrop({
+        dataTransfer: {
+          files: createFileList([]),
+          items: createClipboardItems([file]),
+          types: ['Files'],
+          dropEffect: 'none',
+        },
+        preventDefault,
+        stopPropagation,
+      } as unknown as React.DragEvent);
+    });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(stopPropagation).toHaveBeenCalledTimes(1);
+    expect(saveAttachment).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'dropped-item.png' }),
+      { persist: true }
+    );
     expect(result.current.attachments).toEqual([accepted]);
   });
 

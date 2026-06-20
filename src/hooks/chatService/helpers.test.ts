@@ -7,6 +7,10 @@ import {
   type NoteMentionReference,
 } from '@/lib/ai/noteMentions';
 import {
+  authorizeExternalNoteMentionPath,
+  clearAuthorizedExternalNoteMentionPaths,
+} from '@/lib/ai/authorizedExternalNoteMentions';
+import {
   buildMessageImageSources,
   buildMentionedNotesContext,
   buildStoredUserMessageContent,
@@ -473,6 +477,7 @@ describe('loadMentionedNotes', () => {
     mocks.storage.stat.mockResolvedValue(null);
     mocks.storage.readFile.mockReset();
     mocks.storage.readFile.mockResolvedValue('');
+    clearAuthorizedExternalNoteMentionPaths();
   });
 
   it('flushes pending editor markdown before reading the current note mention', async () => {
@@ -503,6 +508,40 @@ describe('loadMentionedNotes', () => {
 
   it('ignores malformed non-array note mentions at runtime', async () => {
     const notes = await loadMentionedNotes({ path: 'docs/alpha.md', title: 'Alpha' });
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('loads authorized external markdown note mentions', async () => {
+    authorizeExternalNoteMentionPath('/outside/Untitled.md');
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 15,
+    });
+    mocks.storage.readFile.mockResolvedValue('# external note');
+
+    const notes = await loadMentionedNotes([
+      { path: '/outside/Untitled.md', title: 'Untitled', kind: 'note' },
+    ]);
+
+    expect(notes).toEqual([
+      {
+        path: '/outside/Untitled.md',
+        title: 'Untitled',
+        kind: 'note',
+        content: '# external note',
+      },
+    ]);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/outside/Untitled.md', MAX_NOTE_MENTION_READ_BYTES);
+  });
+
+  it('does not load unauthorized external markdown note mentions', async () => {
+    const notes = await loadMentionedNotes([
+      { path: '/outside/Untitled.md', title: 'Untitled', kind: 'note' },
+    ]);
 
     expect(notes).toEqual([]);
     expect(mocks.storage.stat).not.toHaveBeenCalled();
