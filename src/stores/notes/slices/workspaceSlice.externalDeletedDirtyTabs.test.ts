@@ -208,4 +208,53 @@ describe('workspaceSlice external deletion dirty tabs', () => {
       createFolder('docs', 'docs', [keepFile]),
     );
   });
+
+  it('prunes clean deleted folder descendants while preserving dirty tabs', async () => {
+    const outsideFile = createFile('outside.md', 'outside');
+    const dirtyFile = createFile('docs/dirty.md', 'dirty');
+    const cleanFile = createFile('docs/clean.md', 'clean');
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        outsideFile,
+        createFolder('docs', 'docs', [cleanFile, dirtyFile]),
+      ]),
+      currentNote: { path: 'outside.md', content: '# outside' },
+      openTabs: [
+        { path: 'outside.md', name: 'outside', isDirty: false },
+        { path: 'docs/clean.md', name: 'clean', isDirty: false },
+        { path: 'docs/dirty.md', name: 'dirty', isDirty: true },
+      ],
+      recentNotes: ['outside.md', 'docs/clean.md', 'docs/dirty.md'],
+      displayNames: new Map([
+        ['outside.md', 'outside'],
+        ['docs/clean.md', 'clean'],
+        ['docs/dirty.md', 'dirty'],
+      ]),
+      noteContentsCache: new Map([
+        ['outside.md', { content: '# outside', modifiedAt: 1 }],
+        ['docs/clean.md', { content: '# clean', modifiedAt: 2 }],
+        ['docs/dirty.md', { content: '# unsaved dirty', modifiedAt: 3 }],
+      ]),
+    });
+
+    await store.getState().applyExternalPathDeletion('docs');
+
+    expect(store.getState().currentNote).toEqual({ path: 'outside.md', content: '# outside' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'outside.md', name: 'outside', isDirty: false },
+      { path: 'docs/dirty.md', name: 'dirty', isDirty: true },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['outside.md', 'docs/dirty.md']);
+    expect(store.getState().displayNames.has('docs/clean.md')).toBe(false);
+    expect(store.getState().displayNames.get('docs/dirty.md')).toBe('dirty');
+    expect(store.getState().noteContentsCache.has('docs/clean.md')).toBe(false);
+    expect(store.getState().noteContentsCache.get('docs/dirty.md')).toEqual({
+      content: '# unsaved dirty',
+      modifiedAt: 3,
+    });
+    expect(store.getState().rootFolder?.children).toEqual([
+      createFolder('docs', 'docs', [dirtyFile]),
+      outsideFile,
+    ]);
+  });
 });

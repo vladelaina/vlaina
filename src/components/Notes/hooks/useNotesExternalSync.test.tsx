@@ -341,6 +341,32 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('periodically reconciles the tree while native watch is active', async () => {
+    vi.mocked(detectExternalTreePathChanges).mockReturnValueOnce({
+      hasChanges: true,
+      renames: [],
+      deletions: ['docs/missed-delete.md'],
+      hasAdditions: false,
+    });
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(4999);
+    });
+    expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+      await Promise.resolve();
+    });
+
+    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/vault');
+    expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/missed-delete.md');
+
+    hook.unmount();
+  });
+
   it('applies external deletions before reloading the tree', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 

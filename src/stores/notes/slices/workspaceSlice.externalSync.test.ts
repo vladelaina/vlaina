@@ -633,7 +633,7 @@ describe('workspaceSlice external sync', () => {
     );
   });
 
-  it('preserves the current note and tree node when external deletion touches the open file', async () => {
+  it('removes a clean current note from the tree when the file is deleted externally', async () => {
     const removeFile = createFile('docs/remove.md', 'remove');
     const store = createNotesStore({
       rootFolder: createFolder('', 'Notes', [
@@ -647,10 +647,12 @@ describe('workspaceSlice external sync', () => {
 
     await store.getState().applyExternalPathDeletion('docs/remove.md');
 
-    expect(store.getState().currentNote).toEqual({ path: 'docs/remove.md', content: '# remove' });
-    expect(store.getState().openTabs).toEqual([{ path: 'docs/remove.md', name: 'remove', isDirty: false }]);
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([]);
+    expect(store.getState().noteContentsCache.has('docs/remove.md')).toBe(false);
     expect(store.getState().rootFolder?.children[0]).toEqual(
-      createFolder('docs', 'docs', [removeFile]),
+      createFolder('docs', 'docs', []),
     );
     expect(hoisted.openStoredNotePath).not.toHaveBeenCalled();
   });

@@ -35,7 +35,6 @@ import {
 } from '../document/recentlyClosedTabState';
 import {
   pruneDisplayNamesForExternalDeletion,
-  pruneExpandedFoldersForExternalDeletion,
   pruneOpenTabsForExternalDeletion,
   pruneRecentNotesForExternalDeletion,
   remapCurrentNoteForExternalRename,
@@ -54,7 +53,7 @@ import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlush
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { hasUnsafeVaultPathSegment, normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
-import type { StarredEntry } from '../types';
+import type { FileTreeNode, StarredEntry } from '../types';
 
 function remapStarredEntriesForAbsoluteRename(
   entries: StarredEntry[],
@@ -252,6 +251,74 @@ function isAllowedExternalActionPath(path: string): boolean {
   return isAbsolutePath(normalizedPath) || normalizeVaultRelativePath(normalizedPath) != null;
 }
 
+function hasPreservedDeletedDescendant(
+  preservedDeletedPaths: ReadonlySet<string>,
+  folderPath: string,
+): boolean {
+  for (const preservedPath of preservedDeletedPaths) {
+    if (shouldRemoveForExternalDeletion(preservedPath, folderPath)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function pruneFileTreeForExternalDeletion(
+  nodes: FileTreeNode[],
+  deletedPath: string,
+  preservedDeletedPaths: ReadonlySet<string> | null,
+): FileTreeNode[] {
+  if (!preservedDeletedPaths || preservedDeletedPaths.size === 0) {
+    return removeNodeFromTree(nodes, deletedPath);
+  }
+
+  let changed = false;
+  const nextNodes: FileTreeNode[] = [];
+
+  for (const node of nodes) {
+    const nodeIsDeleted = shouldRemoveForExternalDeletion(node.path, deletedPath);
+    const deletedPathIsInFolder = node.isFolder && shouldRemoveForExternalDeletion(deletedPath, node.path);
+    if (!nodeIsDeleted && !deletedPathIsInFolder) {
+      nextNodes.push(node);
+      continue;
+    }
+
+    if (!node.isFolder) {
+      if (nodeIsDeleted && hasPreservedDeletedPath(preservedDeletedPaths, node.path)) {
+        nextNodes.push(node);
+      } else {
+        changed = true;
+      }
+      continue;
+    }
+
+    const nextChildren = pruneFileTreeForExternalDeletion(
+      node.children,
+      deletedPath,
+      preservedDeletedPaths,
+    );
+    const shouldKeepFolder =
+      !nodeIsDeleted ||
+      hasPreservedDeletedPath(preservedDeletedPaths, node.path) ||
+      hasPreservedDeletedDescendant(preservedDeletedPaths, node.path);
+
+    if (!shouldKeepFolder) {
+      changed = true;
+      continue;
+    }
+
+    if (nextChildren !== node.children) {
+      changed = true;
+      nextNodes.push({ ...node, children: nextChildren });
+      continue;
+    }
+
+    nextNodes.push(node);
+  }
+
+  return changed ? nextNodes : nodes;
+}
+
 export function createWorkspaceExternalActions(
   set: NotesSet,
   get: NotesGet
@@ -263,7 +330,7 @@ export function createWorkspaceExternalActions(
       if (!oldPathAllowed || !newPathAllowed || hasInternalNotePathSegment(get().notesPath)) {
         const normalizedNewPath = isAbsolutePath(newPath) ? normalizeAbsolutePath(newPath) : newPath;
         if (oldPathAllowed && !newPathAllowed && hasInternalNotePathSegment(normalizedNewPath)) {
-          await get().applyExternalPathDeletion(oldPath);
+          await get().applyExternalPathDeletion(oldPath, { preserveCleanCurrentNote: true });
         }
         return;
       }
@@ -395,7 +462,10 @@ export function createWorkspaceExternalActions(
       });
     },
 
-    applyExternalPathDeletion: async (path: string) => {
+    applyExternalPathDeletion: async (
+      path: string,
+      options?: { preserveCleanCurrentNote?: boolean },
+    ) => {
       if (!isAllowedExternalActionPath(path) || hasInternalNotePathSegment(get().notesPath)) {
         return;
       }
@@ -417,7 +487,13 @@ export function createWorkspaceExternalActions(
         fileTreeSortMode,
       } = get();
 
-      const preserveCurrentNote = shouldPreserveDeletedCurrentNote(currentNote, isDirty, path);
+      const preserveCurrentNote =
+        shouldPreserveDeletedCurrentNote(currentNote, isDirty, path) ||
+        Boolean(
+          options?.preserveCleanCurrentNote &&
+          currentNote &&
+          shouldRemoveForExternalDeletion(currentNote.path, path)
+        );
       const preservedDeletedPaths = new Set<string>();
       if (preserveCurrentNote && currentNote) {
         preservedDeletedPaths.add(currentNote.path);
@@ -466,7 +542,7 @@ export function createWorkspaceExternalActions(
       const nextRootFolder = rootFolder
         ? buildSortedRootFolder(
             rootFolder,
-            hasPreservedDeletedPaths ? rootFolder.children : removeNodeFromTree(rootFolder.children, path),
+            pruneFileTreeForExternalDeletion(rootFolder.children, path, preservedPaths),
             fileTreeSortMode,
             nextMetadata ?? noteMetadata
           )
@@ -495,12 +571,7 @@ export function createWorkspaceExternalActions(
         rootFolder: nextRootFolder,
         currentNotePath: nextCurrentNotePath,
         fileTreeSortMode,
-        expandedFolders: nextRootFolder
-          ? pruneExpandedFoldersForExternalDeletion(
-              Array.from(collectExpandedPaths(nextRootFolder.children)),
-              path
-            )
-          : [],
+        expandedFolders: nextRootFolder ? Array.from(collectExpandedPaths(nextRootFolder.children)) : [],
       });
 
       if (currentNote && !preserveCurrentNote && shouldRemoveForExternalDeletion(currentNote.path, path)) {

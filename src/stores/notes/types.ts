@@ -147,7 +147,7 @@ export interface NotesActions {
   syncCurrentNoteFromDisk: (options?: { force?: boolean; expectedExternalChange?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
   invalidateNoteCache: (path: string, options?: { includeDescendants?: boolean }) => void;
   applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;
-  applyExternalPathDeletion: (path: string) => Promise<void>;
+  applyExternalPathDeletion: (path: string, options?: { preserveCleanCurrentNote?: boolean }) => Promise<void>;
   createNote: (folderPath?: string, options?: { asDraft?: boolean }) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;
