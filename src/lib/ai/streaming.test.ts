@@ -29,6 +29,20 @@ function byteStreamResponse(chunks: Uint8Array[]): Response {
   );
 }
 
+function findSubarray(haystack: Uint8Array, needle: Uint8Array): number {
+  for (let index = 0; index <= haystack.length - needle.length; index += 1) {
+    let matches = true;
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (haystack[index + offset] !== needle[offset]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return index;
+  }
+  return -1;
+}
+
 describe('consumeOpenAIStream', () => {
   it('wraps OpenAI-compatible reasoning_content deltas in think tags', async () => {
     const chunks: string[] = [];
@@ -173,6 +187,30 @@ describe('consumeOpenAIStream', () => {
     ]);
 
     await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('AI stream line is too large');
+  });
+
+  it('preserves multibyte UTF-8 characters split across stream chunks', async () => {
+    const encoder = new TextEncoder();
+    const content = [
+      String.fromCodePoint(0x4f60),
+      String.fromCodePoint(0x597d),
+      String.fromCodePoint(0x1f600),
+    ].join('');
+    const bytes = encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n`);
+    const emojiBytes = encoder.encode(String.fromCodePoint(0x1f600));
+    const emojiStart = findSubarray(bytes, emojiBytes);
+    expect(emojiStart).toBeGreaterThanOrEqual(0);
+
+    const response = byteStreamResponse([
+      bytes.subarray(0, emojiStart + 1),
+      bytes.subarray(emojiStart + 1),
+    ]);
+    const chunks: string[] = [];
+
+    const result = await consumeOpenAIStream(response, (chunk) => chunks.push(chunk));
+
+    expect(result).toBe(content);
+    expect(chunks).toEqual([content]);
   });
 
   it('rejects streams whose accumulated content grows too large', async () => {

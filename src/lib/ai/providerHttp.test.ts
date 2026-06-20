@@ -30,6 +30,20 @@ import { providerFetch } from './providerHttp';
 const MAX_DESKTOP_PROVIDER_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_DESKTOP_PROVIDER_RESPONSE_BYTES = 64 * 1024 * 1024;
 
+function findSubarray(haystack: Uint8Array, needle: Uint8Array): number {
+  for (let index = 0; index <= haystack.length - needle.length; index += 1) {
+    let matches = true;
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (haystack[index + offset] !== needle[offset]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return index;
+  }
+  return -1;
+}
+
 describe('providerFetch', () => {
   beforeEach(() => {
     mocks.bridgeValue = mocks.bridge;
@@ -324,6 +338,49 @@ describe('providerFetch', () => {
       body: JSON.stringify({ prompt: 'test' }),
     })).rejects.toThrow('fetch failed');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves desktop provider UTF-8 bytes split across IPC chunks', async () => {
+    const sendChunkRef: { current: ((chunk: number[]) => void) | null } = { current: null };
+    const sendDoneRef: { current: (() => void) | null } = { current: null };
+    const cleanupChunk = vi.fn();
+    const cleanupDone = vi.fn();
+    const cleanupError = vi.fn();
+    const encoder = new TextEncoder();
+    const content = String.fromCodePoint(0x1f600);
+    const responseText = `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n`;
+    const responseBytes = encoder.encode(responseText);
+    const emojiBytes = encoder.encode(content);
+    const emojiStart = findSubarray(responseBytes, emojiBytes);
+    expect(emojiStart).toBeGreaterThanOrEqual(0);
+
+    mocks.bridge.aiProvider.startRequest.mockResolvedValueOnce({
+      status: 200,
+      statusText: 'OK',
+      headers: [['content-type', 'text/event-stream; charset=utf-8']],
+    });
+    mocks.bridge.aiProvider.onRequestChunk.mockImplementationOnce((_requestId, callback) => {
+      sendChunkRef.current = callback;
+      return cleanupChunk;
+    });
+    mocks.bridge.aiProvider.onRequestDone.mockImplementationOnce((_requestId, callback) => {
+      sendDoneRef.current = callback;
+      return cleanupDone;
+    });
+    mocks.bridge.aiProvider.onRequestError.mockImplementationOnce(() => cleanupError);
+
+    const response = await providerFetch('https://api.example.com/v1/chat/completions', {
+      method: 'POST',
+    });
+
+    sendChunkRef.current?.(Array.from(responseBytes.subarray(0, emojiStart + 1)));
+    sendChunkRef.current?.(Array.from(responseBytes.subarray(emojiStart + 1)));
+    sendDoneRef.current?.();
+
+    await expect(response.text()).resolves.toBe(responseText);
+    expect(cleanupChunk).toHaveBeenCalledTimes(1);
+    expect(cleanupDone).toHaveBeenCalledTimes(1);
+    expect(cleanupError).toHaveBeenCalledTimes(1);
   });
 
   it('rejects promptly when desktop provider stream errors before metadata returns', async () => {
