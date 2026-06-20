@@ -438,6 +438,45 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it.each(['Backspace', 'Delete'] as const)(
+    'deletes an empty paragraph next to markdown blank-line placeholders on %s without selecting a blank-line block',
+    async (key) => {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      replaceDocument(view, [
+        schema.nodes.paragraph.create(null, schema.text('before')),
+        createMarkdownBlankLinePlaceholderNode(view),
+        schema.nodes.paragraph.create(),
+        createMarkdownBlankLinePlaceholderNode(view),
+        schema.nodes.paragraph.create(null, schema.text('after')),
+      ]);
+
+      const emptyParagraphPos = topLevelNodePos(view, 'paragraph', 1);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+
+      const event = pressKey(view, key);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.doc.childCount).toBe(4);
+      expect(view.state.doc.child(0).textContent).toBe('before');
+      expect(view.state.doc.child(3).textContent).toBe('after');
+
+      const convertedBlankLineIndex = key === 'Backspace' ? 1 : 2;
+      expect(view.state.doc.child(convertedBlankLineIndex).type.name).toBe('paragraph');
+      expect(view.state.doc.child(convertedBlankLineIndex).textContent).toBe(
+        EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
+      );
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(convertedBlankLineIndex));
+
+      await editor.destroy();
+    }
+  );
+
   it('selects navigable atom-like blocks before moving past them', async () => {
     const cases: Array<{
       label: string;
