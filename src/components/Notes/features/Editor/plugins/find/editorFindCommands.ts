@@ -100,6 +100,7 @@ function resolveEditorFindMatchScrollTop(
 function scrollEditorFindMatchIntoView(
   view: EditorView,
   match: EditorFindMatch,
+  scrollBehavior: ScrollBehavior = 'auto',
 ) {
   requestAnimationFrame(() => {
     if (!view.dom.isConnected) {
@@ -133,7 +134,7 @@ function scrollEditorFindMatchIntoView(
 
         scrollRoot.scrollTo({
           top: Math.max(contextualScrollTop ?? centeredOffset, 0),
-          behavior: 'auto',
+          behavior: scrollBehavior,
         });
         return;
       }
@@ -145,7 +146,7 @@ function scrollEditorFindMatchIntoView(
 
       window.scrollBy({
         top: top - Math.max(32, (window.innerHeight - (bottom - top)) / 2),
-        behavior: 'auto',
+        behavior: scrollBehavior,
       });
     } catch {
     }
@@ -154,6 +155,7 @@ function scrollEditorFindMatchIntoView(
 
 function maybeScrollToActiveMatch(
   view: EditorView,
+  scrollBehavior: ScrollBehavior = 'auto',
 ) {
   const state = getEditorFindState(view);
   if (!state || state.activeIndex < 0) {
@@ -166,7 +168,7 @@ function maybeScrollToActiveMatch(
   }
 
   revealEditorFindMatch(view, activeMatch);
-  scrollEditorFindMatchIntoView(view, activeMatch);
+  scrollEditorFindMatchIntoView(view, activeMatch, scrollBehavior);
 }
 
 function dispatchEditorFindMeta(view: EditorView, meta: EditorFindPluginMeta) {
@@ -185,6 +187,7 @@ export function getEditorFindState(view: EditorView): EditorFindPluginState | un
 export function setEditorFindQuery(
   view: EditorView,
   query: string,
+  scrollBehavior: ScrollBehavior = 'auto',
 ) {
   const state = getEditorFindState(view);
   const preferredFrom =
@@ -197,7 +200,7 @@ export function setEditorFindQuery(
     query,
     preferredFrom,
   });
-  maybeScrollToActiveMatch(view);
+  maybeScrollToActiveMatch(view, scrollBehavior);
 }
 
 export function clearEditorFind(view: EditorView) {
@@ -226,6 +229,7 @@ export function stepEditorFindMatch(view: EditorView, delta: number) {
 export function setEditorFindActiveIndex(
   view: EditorView,
   activeIndex: number,
+  scrollBehavior: ScrollBehavior = 'auto',
 ) {
   const state = getEditorFindState(view);
   if (!state || state.matches.length === 0) {
@@ -236,7 +240,7 @@ export function setEditorFindActiveIndex(
     type: 'set-active-index',
     activeIndex,
   });
-  maybeScrollToActiveMatch(view);
+  maybeScrollToActiveMatch(view, scrollBehavior);
 }
 
 export function replaceCurrentEditorFindMatch(view: EditorView, replacement: string): boolean {

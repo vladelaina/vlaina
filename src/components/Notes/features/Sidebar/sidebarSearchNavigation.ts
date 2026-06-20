@@ -113,7 +113,7 @@ export async function applySidebarSearchNavigation(target: SidebarSearchNavigati
       return false;
     }
 
-    setEditorFindQuery(view, trimmedQuery);
+    setEditorFindQuery(view, trimmedQuery, 'instant');
     activeSidebarSearchQuery = trimmedQuery;
     const state = getEditorFindState(view);
 
@@ -129,7 +129,7 @@ export async function applySidebarSearchNavigation(target: SidebarSearchNavigati
 
     if (state && state.matches.length > 0) {
       const clampedOrdinal = Math.min(target.contentMatchOrdinal, state.matches.length - 1);
-      setEditorFindActiveIndex(view, clampedOrdinal);
+      setEditorFindActiveIndex(view, clampedOrdinal, 'instant');
       await waitForNextFrame(2);
       if (!shouldContinueNavigation(target)) {
         clearSidebarSearchNavigationPending(target.path);
