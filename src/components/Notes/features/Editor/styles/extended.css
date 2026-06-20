@@ -27,6 +27,7 @@
   padding: var(--vlaina-space-0) var(--vlaina-space-012em);
   border-radius: var(--vlaina-radius-pill-lg);
   color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));
+  -webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));
   font-weight: var(--vlaina-font-weight-medium);
   line-height: var(--vlaina-leading-145);
   white-space: nowrap;

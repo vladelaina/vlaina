@@ -68,6 +68,8 @@ describe("editor markdown presentation styles", () => {
   it('uses explicit tag token run classes instead of sibling :has selectors', () => {
     const css = readStyleFile('extended.css');
 
+    expect(css).toContain('.milkdown .editor-tag-token {');
+    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));');
     expect(css).toContain('.milkdown .ProseMirror .editor-tag-token.editor-tag-token-has-next {');
     expect(css).toContain('.milkdown .ProseMirror .editor-tag-token.editor-text-selection-overlay.editor-tag-token-has-next {');
     expect(css).not.toContain('.editor-tag-token:has(+ .editor-tag-token)');

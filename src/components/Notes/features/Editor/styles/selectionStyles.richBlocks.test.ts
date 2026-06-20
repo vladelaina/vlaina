@@ -178,6 +178,42 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });
 
+  it('keeps scrollable html block selection fills from creating horizontal overflow', () => {
+    const blockSelectionCss = readBlockSelectionStyle();
+    const mathCss = readStyleFile('math-editor.css');
+    const htmlBlockRule = extractCssRule(
+      mathCss,
+      ".milkdown [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
+    );
+    const htmlBlockFillRule = extractCssRule(
+      blockSelectionCss,
+      ".milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:is("
+    );
+    const htmlBlockFrameRule = extractCssRule(
+      mathCss,
+      ".milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is("
+    );
+    const htmlBlockHoverFrameRule = extractCssRule(
+      mathCss,
+      ".milkdown .ProseMirror.editor-block-selection-active [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).editor-block-selected.editor-block-selected-textlike:is(:hover, :focus-visible),"
+    );
+
+    expect(htmlBlockRule).toContain('overflow-x: auto;');
+    expect(htmlBlockFillRule).toContain('.editor-block-selected-textlike');
+    expect(htmlBlockFillRule).toContain('.editor-block-drag-source-textlike');
+    expect(htmlBlockFillRule).toContain('.editor-native-selected-textlike');
+    expect(htmlBlockFillRule).toContain('.editor-block-selected-large-textlike');
+    expect(htmlBlockFillRule).toContain('right: var(--vlaina-space-0);');
+    expect(htmlBlockFillRule).toContain('left: var(--vlaina-space-0);');
+    expect(htmlBlockFillRule).not.toContain('var(--vlaina-block-selection-bleed-x-end)');
+    expect(htmlBlockFillRule).not.toContain('var(--vlaina-block-selection-bleed-x-start)');
+    expect(htmlBlockFrameRule).toContain('background: transparent !important;');
+    expect(htmlBlockFrameRule).toContain('background-color: transparent !important;');
+    expect(htmlBlockFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow) !important;');
+    expect(htmlBlockHoverFrameRule).toContain('editor-block-selected-large-textlike');
+    expect(htmlBlockHoverFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow) !important;');
+  });
+
   it('keeps rich child blocks at their original colors during block selection', () => {
     const blockSelectionCss = readBlockSelectionStyle();
     const mathCss = readStyleFile('math-editor.css');
@@ -219,7 +255,7 @@ describe("editor rich block selection styles", () => {
     expect(mathCss).not.toContain('.milkdown .ProseMirror li.editor-block-selected :is(');
     expect(mathCss).toContain('.mermaid-block');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
-    expect(blockSelectionCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
+    expect(blockSelectionCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {');
     expect(blockSelectionCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected * {');
     expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected,\n.milkdown .ProseMirror.editor-block-selection-pending');
     expect(mathCss).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {');

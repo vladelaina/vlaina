@@ -92,7 +92,8 @@ describe("editor text selection and link styles", () => {
     const selectionCss = readStyleFile('selection-width.css');
 
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .editor-block-selected-textlike,');
-    expect(blockSelectionCss).toContain(".milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {");
+    expect(blockSelectionCss).toContain(".milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {");
+    expect(blockSelectionCss).toContain(".milkdown .ProseMirror .editor-native-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.editor-tag-token):not(.editor-tag-token *) {");
     expect(blockSelectionCss).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);');
     expect(selectionCss).toContain(
       '.milkdown .ProseMirror.editor-text-selection-overlay-active .editor-atomic-selected,'
