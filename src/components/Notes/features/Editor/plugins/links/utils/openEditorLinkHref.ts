@@ -59,7 +59,7 @@ function scrollToCurrentEditorFragment(view: EditorView | null | undefined, frag
     );
     if (!target) return false;
 
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.scrollIntoView({ behavior: 'auto', block: 'start' });
     target.focus?.({ preventScroll: true });
     return true;
 }

@@ -332,7 +332,7 @@ export const footnoteInteractionPlugin = $prose(() => {
 
           event.preventDefault();
           event.stopPropagation();
-          definition.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          definition.scrollIntoView({ block: 'center', behavior: 'auto' });
           return true;
         },
       },

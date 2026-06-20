@@ -92,6 +92,14 @@ describe('NotesOutline', () => {
     expect(affordance?.className).not.toContain('hover:text-[var(--vlaina-sidebar-notes-text)]');
   });
 
+  it('jumps to an outline heading immediately when clicked', () => {
+    render(<NotesOutline enabled />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Parent' }));
+
+    expect(hoisted.jumpToHeading).toHaveBeenCalledWith('parent');
+  });
+
   it('shows open target actions without switching sidebar views when no file or starred entry is available', () => {
     hoisted.outlineState.headings = [];
     const openFileListener = vi.fn();

@@ -21,7 +21,6 @@
 /* Editor container - clickable area */
 .milkdown-editor {
   background-color: var(--vlaina-bg-primary);
-  scroll-behavior: smooth;
   min-height: var(--vlaina-height-editor-min);
   cursor: text;
   position: relative;

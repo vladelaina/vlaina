@@ -298,7 +298,7 @@ describe('editorFindCommands', () => {
       headings: [],
     });
 
-    setEditorFindActiveIndex(view as never, 0, 'instant');
+    setEditorFindActiveIndex(view as never, 0);
 
     expect(tr.setMeta).toHaveBeenCalledWith(editorFindPluginKeyMock, {
       type: 'set-active-index',

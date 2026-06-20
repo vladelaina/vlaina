@@ -169,7 +169,6 @@ export function useNotesOutline(enabled: boolean) {
   const jumpToHeading = useCallback((
     headingId: string,
     options?: {
-      behavior?: ScrollBehavior;
       selectText?: boolean;
     },
   ) => {
@@ -191,7 +190,7 @@ export function useNotesOutline(enabled: boolean) {
 
     scrollRoot.scrollTo({
       top: targetScrollTop,
-      behavior: options?.behavior ?? 'smooth',
+      behavior: 'auto',
     });
 
     editorRootRef.current?.focus({ preventScroll: true });
