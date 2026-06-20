@@ -3,6 +3,10 @@ import type { ResolvedPos } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import {
+  EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+  isMarkdownBlankLinePlaceholderNode,
+} from './markdownBlankLineInteraction';
 import { markEditorUserInput } from '../shared/userInputEvents';
 
 function isCursorTextblock(node: { isTextblock: boolean; type: { name: string } } | null | undefined): boolean {
@@ -35,6 +39,42 @@ function setTextSelectionAtBlockTail(tr: Transaction, selection: TextSelection):
   return tr.setSelection(TextSelection.create(tr.doc, selection.$from.end()));
 }
 
+function findFollowingMarkdownBlankLineBlock(
+  tr: Transaction,
+  pos: number,
+): { from: number; to: number } | null {
+  let offset = 0;
+  for (let index = 0; index < tr.doc.childCount; index += 1) {
+    const node = tr.doc.child(index);
+    const from = offset;
+    const to = from + node.nodeSize;
+    offset = to;
+
+    if (to <= pos) continue;
+    if (node.type.name === 'hr') continue;
+
+    return isMarkdownBlankLinePlaceholderNode(node) ? { from, to } : null;
+  }
+  return null;
+}
+
+function setSelectionAtMarkdownBlankLine(tr: Transaction, pos: number): Transaction | null {
+  const blankLine = findFollowingMarkdownBlankLineBlock(tr, pos);
+  if (!blankLine) return null;
+
+  const paragraphType = tr.doc.type.schema.nodes.paragraph;
+  if (!paragraphType) return null;
+
+  const paragraph = paragraphType.create(
+    null,
+    tr.doc.type.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER),
+  );
+  tr = tr.replaceWith(blankLine.from, blankLine.to, paragraph);
+  return tr.setSelection(
+    TextSelection.create(tr.doc, blankLine.from + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length),
+  );
+}
+
 function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Transaction {
   const docSize = tr.doc.content.size;
   const safePos = Math.max(0, Math.min(targetPos, docSize));
@@ -49,6 +89,11 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
 
   if (nodeAfter && isCursorTextblock(nodeAfter)) {
     return tr.setSelection(TextSelection.create(tr.doc, safePos + 1 + nodeAfter.content.size));
+  }
+
+  const markdownBlankLineSelection = setSelectionAtMarkdownBlankLine(tr, safePos);
+  if (markdownBlankLineSelection) {
+    return markdownBlankLineSelection;
   }
 
   const nextSelection = findCursorTextSelectionFrom($pos, 1);

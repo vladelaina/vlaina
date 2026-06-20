@@ -7,6 +7,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { deleteSelectedBlocks } from './blockSelectionDeletion';
+import { EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER } from './markdownBlankLineInteraction';
 import { codePlugin } from '../code';
 import { createTableNodeFromPipeCells } from '../table/pipeTableShortcut';
 import { mathPlugin } from '../math';
@@ -263,6 +264,33 @@ describe('deleteSelectedBlocks', () => {
     expect(view.state.selection.$from.parentOffset).toBe(5);
     expect(view.state.doc.textContent).toContain('After');
     expect(view.state.doc.textContent).not.toContain('Delete me');
+
+    await editor.destroy();
+  });
+
+  it('places the cursor on a markdown blank line after skipped horizontal rules', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+
+    replaceDocument(view, [
+      schema.nodes.paragraph.create(null, schema.text('Delete me')),
+      schema.nodes.hr.create(),
+      schema.nodes.html_block.create({ value: '<!--vlaina-markdown-blank-line-->' }),
+      schema.nodes.paragraph.create(null, schema.text('After')),
+    ]);
+    const targetBlock = findBlockByText(view, 'Delete me');
+
+    expect(targetBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.doc.child(0).type.name).toBe('hr');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+    expect(view.state.doc.child(2).textContent).toBe('After');
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    expect(view.state.selection.$from.parentOffset).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length);
 
     await editor.destroy();
   });
