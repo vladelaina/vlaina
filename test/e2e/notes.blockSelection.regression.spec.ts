@@ -105,6 +105,39 @@ async function collectSelectedTextClips(page: Page) {
   });
 }
 
+async function collectLineFillContinuity(page: Page) {
+  return page.evaluate(() => {
+    const fills = Array.from(document.querySelectorAll<HTMLElement>(
+      '.milkdown .editor-block-selection-line-fill'
+    )).map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        left: Math.round(rect.left * 100) / 100,
+        right: Math.round(rect.right * 100) / 100,
+        top: Math.round(rect.top * 100) / 100,
+        bottom: Math.round(rect.bottom * 100) / 100,
+        height: Math.round(rect.height * 100) / 100,
+      };
+    }).sort((left, right) => left.top - right.top);
+
+    const gaps: number[] = [];
+    for (let index = 0; index < fills.length - 1; index += 1) {
+      const current = fills[index];
+      const next = fills[index + 1];
+      if (!current || !next) continue;
+      const horizontalOverlap = Math.min(current.right, next.right) - Math.max(current.left, next.left);
+      if (horizontalOverlap <= 0) continue;
+      gaps.push(Math.round((next.top - current.bottom) * 100) / 100);
+    }
+
+    return {
+      fills,
+      gaps,
+      maxPositiveGap: gaps.reduce((max, gap) => Math.max(max, gap), 0),
+    };
+  });
+}
+
 async function installBlockSelectionConflictTheme(page: Page) {
   const themeDirectoryPath = await page.evaluate(() =>
     (window as any).__vlainaE2E.getImportedMarkdownThemesDirectoryPath()
@@ -221,7 +254,7 @@ test.describe("notes block selection regressions", () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
-      await page.setViewportSize({ width: 1280, height: 860 });
+      await page.setViewportSize({ width: 945, height: 1036 });
       const conflictTheme = await installBlockSelectionConflictTheme(page);
 
       await openMarkdownFixture(page, {
@@ -357,6 +390,12 @@ test.describe("notes block selection regressions", () => {
         )),
         JSON.stringify(visibility, null, 2),
       ).toBe(true);
+      const lineFillContinuity = await collectLineFillContinuity(page);
+      expect(lineFillContinuity.fills.length, JSON.stringify(lineFillContinuity, null, 2)).toBeGreaterThanOrEqual(2);
+      expect(
+        lineFillContinuity.maxPositiveGap,
+        JSON.stringify(lineFillContinuity, null, 2),
+      ).toBeLessThanOrEqual(1);
 
       const clips = visibility!.textClips.filter((clip: TextClip) => (
         clip.label.includes('现在来安装') || clip.label.includes('zsh + oh-my-zsh')

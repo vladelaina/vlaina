@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { desktopWindow } from '@/lib/desktop/window';
-import { recordDiagnostic } from '@/lib/diagnostics/appDiagnostics';
 
 export function useCurrentVaultInitialization({
   currentVaultPath,
@@ -83,36 +82,22 @@ export function useCurrentVaultInitialization({
     const unlockWindow = async () => {
       try {
         await desktopWindow.setResizable(true);
-      } catch (error) {
+      } catch {
       }
     };
 
     const initializeVault = async () => {
-      recordDiagnostic('notes.vaultInitialization', 'start', {
-        currentVaultPath,
-        launchNotePath,
-        hasPendingStarredNavigation,
-        hasPendingOpenMarkdownTarget,
-      });
       await loadStarred(currentVaultPath);
       const shouldSkipWorkspaceRestore =
         hasPendingStarredNavigation &&
         pendingStarredNavigationForInit?.skipWorkspaceRestore === true;
       const skipWorkspaceRestore =
         Boolean(launchNotePath) || shouldSkipWorkspaceRestore || hasPendingOpenMarkdownTarget;
-      recordDiagnostic('notes.vaultInitialization', 'load_file_tree_start', {
-        currentVaultPath,
-        skipWorkspaceRestore,
-      });
       await Promise.all([
         loadAssets(currentVaultPath),
         loadFileTree(skipWorkspaceRestore),
         cleanupAssetTempFiles(),
       ]);
-      recordDiagnostic('notes.vaultInitialization', 'load_file_tree_complete', {
-        currentVaultPath,
-        skipWorkspaceRestore,
-      });
 
       if (!cancelled) {
         await unlockWindow();
@@ -123,11 +108,7 @@ export function useCurrentVaultInitialization({
       }
     };
 
-    void initializeVault().catch((error) => {
-      recordDiagnostic('notes.vaultInitialization', 'failed', {
-        currentVaultPath,
-        error,
-      });
+    void initializeVault().catch(() => {
       if (!cancelled) {
         onInitializingChange?.(false);
       }

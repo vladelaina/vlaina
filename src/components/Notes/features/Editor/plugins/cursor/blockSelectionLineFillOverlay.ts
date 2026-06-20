@@ -1,10 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState, isLargeBlockSelection } from './blockSelectionPluginState';
 import {
-  areBlockSelectionDisplayRangesVisuallyAdjacent,
-  getBlockRangeKey,
   getBlockRangesKey,
-  getDisplayBlockRangesForDecorations,
   normalizeBlockRanges,
   type BlockRange,
   type RectBounds,
@@ -38,11 +35,6 @@ interface RowRect {
 interface LineFillEdges {
   top: number;
   bottom: number;
-}
-
-interface LineFillAdjacency {
-  hasNextRangeKeys: ReadonlySet<string>;
-  hasPreviousRangeKeys: ReadonlySet<string>;
 }
 
 interface ProseNodeLike {
@@ -380,31 +372,6 @@ function appendLineFillElement(
   return true;
 }
 
-function collectLineFillAdjacency(
-  view: EditorView,
-  selectedBlocks: readonly BlockRange[],
-): LineFillAdjacency {
-  const displayRanges = getDisplayBlockRangesForDecorations(view.state.doc, selectedBlocks);
-  const hasNextRangeKeys = new Set<string>();
-  const hasPreviousRangeKeys = new Set<string>();
-
-  for (let index = 0; index < displayRanges.length - 1; index += 1) {
-    const current = displayRanges[index];
-    const next = displayRanges[index + 1];
-    if (!current || !next || !areBlockSelectionDisplayRangesVisuallyAdjacent(view.state.doc, current, next)) {
-      continue;
-    }
-
-    hasNextRangeKeys.add(getBlockRangeKey(current.from, current.to));
-    hasPreviousRangeKeys.add(getBlockRangeKey(next.from, next.to));
-  }
-
-  return {
-    hasNextRangeKeys,
-    hasPreviousRangeKeys,
-  };
-}
-
 function resolveImageFillAnchor(view: EditorView, image: HTMLElement): HTMLElement {
   const paragraph = image.closest('p');
   return paragraph instanceof HTMLElement && view.dom.contains(paragraph) ? paragraph : image;
@@ -495,7 +462,6 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     const currentHost = layer.parentElement ?? updatedView.dom;
     const hostRect = currentHost.getBoundingClientRect();
     const viewportRect = resolveLineFillViewportRect(updatedView);
-    const adjacency = collectLineFillAdjacency(updatedView, selectedBlocks);
     const ranges = collectSelectedHardBreakLineRanges(updatedView);
     let createdFills = 0;
 
@@ -509,12 +475,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
 
       const fillStart = resolveLineFillLeft(paragraph, paragraphRect);
       const fillRight = resolveLineFillRight(updatedView, paragraph, paragraphRect);
-      const rangeKey = getBlockRangeKey(range.from, range.to);
-      const edges = resolveLineFillEdges(
-        paragraph,
-        adjacency.hasPreviousRangeKeys.has(rangeKey),
-        adjacency.hasNextRangeKeys.has(rangeKey),
-      );
+      const edges = resolveLineFillEdges(paragraph, false, false);
       const rows = collectRangeRows(updatedView, range);
       for (const row of rows) {
         if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;

@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { recordDiagnostic } from '@/lib/diagnostics/appDiagnostics';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { NotesSidebarSurface } from './NotesSidebarPrimitives';
@@ -42,33 +41,6 @@ export function NotesSidebarWrapper({
     notesPath === currentVault.path &&
     (!rootFolder || rootFolderPath !== currentVault.path),
   );
-
-  useEffect(() => {
-    recordDiagnostic('notes.sidebarWrapper', 'state', {
-      active,
-      loadContent,
-      isPeeking,
-      currentVaultPath: currentVault?.path ?? null,
-      notesPath,
-      rootFolderPath,
-      hasRootFolder: Boolean(rootFolder),
-      rootFolderChildren: rootFolder?.children.length ?? null,
-      currentNotePath: currentNotePath ?? null,
-      isLoading,
-      isCurrentVaultRootPending,
-    });
-  }, [
-    active,
-    currentNotePath,
-    currentVault?.path,
-    isCurrentVaultRootPending,
-    isLoading,
-    isPeeking,
-    loadContent,
-    notesPath,
-    rootFolder,
-    rootFolderPath,
-  ]);
 
   if (!loadContent) {
     return <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0" />;

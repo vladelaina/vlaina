@@ -112,6 +112,8 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('.milkdown .editor-block-selection-line-fill-layer {');
     expect(css).toContain('.milkdown .editor-block-selection-line-fill {');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected-inline-line {');
+    expect(css).toContain('.milkdown .ProseMirror .editor-block-selected-inline-line::after {');
+    expect(css).toContain('display: none !important;');
     expect(css).toContain('background-color: transparent;');
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
@@ -123,6 +125,8 @@ describe("editor block drag interaction styles", () => {
     expect(lineFillSource).toContain('const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;');
     expect(lineFillSource).toContain('return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);');
     expect(lineFillSource).toContain('const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 72;');
+    expect(lineFillSource).toContain('const edges = resolveLineFillEdges(paragraph, false, false);');
+    expect(lineFillSource).not.toContain('collectLineFillAdjacency');
   });
 
   it('lets block selection and drag gestures pass over video embeds', () => {
