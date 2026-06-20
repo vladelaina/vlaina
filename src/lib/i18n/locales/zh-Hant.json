@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "為新保管庫選擇父資料夾",
   "vault.name": "保管庫名稱",
   "notes.rightChat": "右側聊天",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ 點我登入一下喔~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ 腦袋轉不過來啦，等我緩一緩或者先換個模型試試~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ 腦袋轉不過來啦，等我緩一緩或者先換個模型試試~",
   "notes.fileNameError.empty": "檔案名稱不能為空。",

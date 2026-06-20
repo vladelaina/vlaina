@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "Chọn Thư mục Cha cho Vault Mới",
   "vault.name": "Tên Vault",
   "notes.rightChat": "Trò chuyện bên phải",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Bấm để đăng nhập nhé~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ Đầu mình đang hơi quá tải. Đợi mình một chút hoặc thử đổi sang mô hình khác trước nhé~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ Đầu mình đang hơi quá tải. Đợi mình một chút hoặc thử đổi sang mô hình khác trước nhé~",
   "notes.fileNameError.empty": "Tên tệp không được để trống.",

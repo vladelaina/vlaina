@@ -85,6 +85,7 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       errorRoot.render(
         React.createElement(ErrorBlock, {
           content: review.errorMessage,
+          showLoginPrompt: review.errorType === 'AUTH_ERROR',
         })
       );
     }

@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "Seleziona Cartella Padre per Nuovo Vault",
   "vault.name": "Nome Vault",
   "notes.rightChat": "Conversazione a destra",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Clicca per accedere~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ La mia testa ha bisogno di una pausa. Riprova tra poco oppure prova prima un altro modello~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ La mia testa ha bisogno di una pausa. Riprova tra poco oppure prova prima un altro modello~",
   "notes.fileNameError.empty": "Il nome del file non può essere vuoto.",

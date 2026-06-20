@@ -477,6 +477,7 @@
   "vault.selectParentFolderTitle": "Select Parent Folder for New Vault",
   "vault.name": "Vault Name",
   "notes.rightChat": "Right Chat",
+  "chat.signInPrompt": "ヾ(๑╹ヮ╹๑)ﾉ Click to sign in~",
   "chat.error.upstreamUnavailable": "๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~",
   "chat.error.upstreamRateLimited": "๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~",
   "notes.fileNameError.empty": "File name cannot be empty.",

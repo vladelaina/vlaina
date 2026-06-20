@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ErrorBlock } from "./ErrorBlock";
+import { ACCOUNT_LOGIN_REQUESTED_EVENT } from "@/lib/account/sessionEvent";
 
 describe("ErrorBlock", () => {
   it("marks readable error text as a chat selection surface", () => {
@@ -41,5 +42,19 @@ describe("ErrorBlock", () => {
 
     expect(screen.getAllByRole("link")).toHaveLength(50);
     expect(screen.getByText(/https:\/\/example.com\/59/)).toBeInTheDocument();
+  });
+
+  it("renders a sign-in prompt that opens the account login flow", () => {
+    const onLoginRequested = vi.fn();
+    window.addEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, onLoginRequested);
+
+    try {
+      render(<ErrorBlock content="Sign in required." showLoginPrompt />);
+      fireEvent.click(screen.getByRole("button"));
+    } finally {
+      window.removeEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, onLoginRequested);
+    }
+
+    expect(onLoginRequested).toHaveBeenCalledTimes(1);
   });
 });
