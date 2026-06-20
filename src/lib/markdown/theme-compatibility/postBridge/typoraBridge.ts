@@ -48,7 +48,7 @@ function buildTyporaBlockSelectionBridge(write: string): string[] {
   return [
     ...cssRule(
       [
-        `${editor}:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *)`,
+        `${editor}:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.heading-toggle-btn):not(.editor-collapse-btn):not(.ProseMirror-widget)`,
       ],
       [
         important('position', 'relative'),

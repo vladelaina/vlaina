@@ -195,7 +195,7 @@
   pointer-events: none;
 }
 
-.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block > * {
+.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block > *:not(.editor-collapse-btn):not(.ProseMirror-widget) {
   position: relative;
   z-index: var(--vlaina-z-1);
 }
