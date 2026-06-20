@@ -21,6 +21,48 @@
   box-shadow: none !important;
 }
 
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+  position: relative !important;
+  z-index: var(--vlaina-z-1) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected:not(.code-block-container):not(.mermaid-block),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike:not(.code-block-container):not(.mermaid-block),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected-textlike *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-header,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-language,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {
+  transition: none !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-header,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-language {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: var(--vlaina-code-syntax-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {
+  display: flex !important;
+  opacity: var(--vlaina-opacity-0) !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],

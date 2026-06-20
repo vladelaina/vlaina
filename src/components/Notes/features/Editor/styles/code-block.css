@@ -129,6 +129,26 @@
   background-color: transparent !important;
 }
 
+.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-header,
+.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label,
+.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {
+  transition: none !important;
+}
+
+.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: var(--vlaina-code-syntax-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {
+  opacity: var(--vlaina-opacity-0) !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
 .milkdown .code-block-container .cm-scroller {
   overflow-x: auto;
   cursor: default;

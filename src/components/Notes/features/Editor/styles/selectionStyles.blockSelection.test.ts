@@ -135,6 +135,15 @@ describe("editor block selection styles", () => {
     expect(textBlockRule).toContain('color: var(--vlaina-editor-block-selection-fg);');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(css).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).not.toContain([
+      '.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike {',
+      '  background-color: var(--vlaina-block-selection-color);',
+      '}',
+    ].join('\n'));
+    expect(extractCssRule(
+      css,
+      '.milkdown .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {'
+    )).toContain('z-index: var(--vlaina-z-1);');
     expect(textBlockFillRule).toContain('::after');
     expect(textBlockFillRule).toContain('top: var(--vlaina-block-selection-fill-top);');
     expect(textBlockFillRule).toContain('bottom: var(--vlaina-block-selection-fill-bottom);');
