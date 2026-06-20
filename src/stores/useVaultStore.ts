@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { recordDiagnostic } from '@/lib/diagnostics/appDiagnostics';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import {
   findStarredEntryByPath,
@@ -480,60 +479,29 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   openVault: async (path: string, name?: string, options: { preserveSidebarTree?: boolean } = {}) => {
     set({ isLoading: true, error: null });
-    recordDiagnostic('vault.openVault', 'start', {
-      path,
-      name: name ?? null,
-      preserveSidebarTree: options.preserveSidebarTree ?? null,
-      currentVaultPath: get().currentVault?.path ?? null,
-      recentVaultCount: get().recentVaults.length,
-    });
 
     try {
       const prepared = await prepareNotesForVaultExit({ blockUnsavedDrafts: false });
       if (!prepared.ok) {
         set({ error: prepared.error, isLoading: false });
-        recordDiagnostic('vault.openVault', 'prepare_failed', {
-          path,
-          error: prepared.error,
-        });
         return false;
       }
 
       const storage = getStorageAdapter();
-      recordDiagnostic('vault.openVault', 'storage_adapter', {
-        path,
-        platform: storage.platform,
-      });
 
       if (storage.platform === 'web' && isNativeFilesystemPath(path)) {
         set({ error: 'Invalid path for web platform', isLoading: false });
-        recordDiagnostic('vault.openVault', 'reject_web_native_path', { path });
         return false;
       }
 
       const normalizedPath = normalizeVaultPath(path);
       const pathExists = await storage.exists(normalizedPath);
-      recordDiagnostic('vault.openVault', 'path_exists_result', {
-        path,
-        normalizedPath,
-        pathExists,
-      });
       if (!pathExists) {
         set({ error: 'Folder does not exist or cannot be accessed', isLoading: false });
-        recordDiagnostic('vault.openVault', 'path_missing_or_inaccessible', {
-          path,
-          normalizedPath,
-        });
         return false;
       }
 
-      recordDiagnostic('vault.openVault', 'ensure_config_start', {
-        normalizedPath,
-      });
       await ensureVaultConfig(normalizedPath);
-      recordDiagnostic('vault.openVault', 'ensure_config_complete', {
-        normalizedPath,
-      });
 
       const nextVaultState = upsertRecentVault(
         normalizeRecentVaults(get().recentVaults),
@@ -548,11 +516,6 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       const previousVault = get().currentVault;
       const previousVaultPath = previousVault?.path ? normalizeVaultPath(previousVault.path) : '';
       if (previousVaultPath !== vault.path) {
-        recordDiagnostic('vault.openVault', 'reset_notes_workspace', {
-          previousVaultPath,
-          nextVaultPath: vault.path,
-          preserveSidebarTree: options.preserveSidebarTree ?? true,
-        });
         resetNotesWorkspaceForVaultTransition(vault.path, {
           preserveDrafts: true,
           preserveSidebarTree: options.preserveSidebarTree ?? true,
@@ -571,20 +534,11 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         useNotesStore.setState({ notesPath: vault.path });
       }
 
-      recordDiagnostic('vault.openVault', 'success', {
-        vaultPath: vault.path,
-        vaultId: vault.id,
-        recentVaultCount: updatedRecent.length,
-      });
       return true;
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to open vault',
         isLoading: false,
-      });
-      recordDiagnostic('vault.openVault', 'failed', {
-        path,
-        error,
       });
       return false;
     }

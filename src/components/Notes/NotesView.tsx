@@ -32,7 +32,6 @@ import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
 import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { useI18n } from '@/lib/i18n';
-import { recordDiagnostic } from '@/lib/diagnostics/appDiagnostics';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 import { preloadMarkdownEditor } from './features/Editor/preloadMarkdownEditor';
 import {
@@ -165,7 +164,6 @@ export function NotesView({
   const setChatFloatingSize = useUIStore((s) => s.setNotesChatFloatingSize);
   const resetChatFloatingSize = useUIStore((s) => s.resetNotesChatFloatingSize);
   const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
-  const notesSidebarView = useUIStore((s) => s.notesSidebarView);
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
@@ -342,37 +340,6 @@ export function NotesView({
     adoptAbsoluteNoteIntoVault,
     openVault,
   });
-
-  useEffect(() => {
-    if (!active) return;
-
-    recordDiagnostic('notes.sidebar', 'state', {
-      currentVaultPath: currentVault?.path ?? null,
-      notesPath,
-      rootFolderPath,
-      rootFolderChildren: rootFolder?.children.length ?? null,
-      currentNotePath,
-      openTabCount: openTabs.length,
-      isLoading,
-      isVaultInitializing,
-      isOpenTargetBusy,
-      pendingOpenMarkdownTargetVaultPath,
-      notesSidebarView,
-    });
-  }, [
-    active,
-    currentVault?.path,
-    currentNotePath,
-    isLoading,
-    isOpenTargetBusy,
-    isVaultInitializing,
-    notesPath,
-    notesSidebarView,
-    openTabs.length,
-    pendingOpenMarkdownTargetVaultPath,
-    rootFolder,
-    rootFolderPath,
-  ]);
 
   useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
 

@@ -84,6 +84,10 @@
   border-radius: var(--vlaina-radius-0);
 }
 
+.milkdown .ProseMirror .editor-block-selected-inline-line::after {
+  display: none !important;
+}
+
 /* List selection geometry. */
 .milkdown .ProseMirror li.editor-block-selected,
 .milkdown .ProseMirror li .editor-block-selected {

@@ -13,7 +13,6 @@ import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitReg
 import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
 import { useI18n } from '@/lib/i18n';
 import { toVaultRelativePath } from './notesExternalSyncUtils';
-import { recordDiagnostic } from '@/lib/diagnostics/appDiagnostics';
 
 export function useNotesOpenMarkdownTarget({
   active,
@@ -55,41 +54,20 @@ export function useNotesOpenMarkdownTarget({
     const store = useNotesStore.getState();
     const activeNotesPath = store.notesPath;
     const currentPath = store.currentNote?.path;
-    recordDiagnostic('notes.openMarkdownTarget', 'open_shortcut_start', {
-      targetVaultPath: target.vaultPath,
-      targetNotePath: target.notePath,
-      targetAbsolutePath: target.absolutePath,
-      activeNotesPath,
-      currentPath,
-    });
 
     if (activeNotesPath === target.vaultPath && currentPath === target.absolutePath) {
       const adopted = adoptAbsoluteNoteIntoVault(target.absolutePath, target.notePath);
-      recordDiagnostic('notes.openMarkdownTarget', 'adopt_absolute_note', {
-        adopted,
-        targetVaultPath: target.vaultPath,
-        targetNotePath: target.notePath,
-      });
       if (adopted) return true;
     }
 
     if (activeNotesPath === target.vaultPath) {
       await openNote(target.notePath);
       const openedPath = useNotesStore.getState().currentNote?.path;
-      recordDiagnostic('notes.openMarkdownTarget', 'open_relative_note_result', {
-        targetNotePath: target.notePath,
-        openedPath,
-      });
       if (openedPath === target.notePath) return true;
     }
 
     await openNoteByAbsolutePath(target.absolutePath);
     const openedPath = useNotesStore.getState().currentNote?.path;
-    recordDiagnostic('notes.openMarkdownTarget', 'open_absolute_note_result', {
-      targetAbsolutePath: target.absolutePath,
-      targetNotePath: target.notePath,
-      openedPath,
-    });
     return openedPath === target.absolutePath || openedPath === target.notePath;
   }, [adoptAbsoluteNoteIntoVault, openNote, openNoteByAbsolutePath]);
 
@@ -134,16 +112,7 @@ export function useNotesOpenMarkdownTarget({
   }, [currentNotePath, isDirty, saveNote]);
 
   const openMarkdownTarget = useCallback(async (selected: string) => {
-    recordDiagnostic('notes.openMarkdownTarget', 'request', {
-      selected,
-      currentVaultPath,
-      notesPath,
-      currentNotePath,
-      isDirty,
-    });
-
     if (!isSupportedMarkdownSelection(selected)) {
-      recordDiagnostic('notes.openMarkdownTarget', 'reject_unsupported_selection', { selected });
       await messageDialog(t('notes.selectMarkdownFile'), {
         title: t('notes.unsupportedFile'),
         kind: 'warning',
@@ -154,16 +123,7 @@ export function useNotesOpenMarkdownTarget({
     let target: ReturnType<typeof resolveOpenNoteTarget>;
     try {
       target = resolveOpenNoteTarget(selected);
-      recordDiagnostic('notes.openMarkdownTarget', 'resolved_target', {
-        selected,
-        targetVaultPath: target.vaultPath,
-        targetNotePath: target.notePath,
-      });
     } catch (error) {
-      recordDiagnostic('notes.openMarkdownTarget', 'resolve_target_failed', {
-        selected,
-        error,
-      });
       await messageDialog(error instanceof Error ? error.message : t('notes.openMarkdownFileFailed'), {
         title: t('notes.openFailed'),
         kind: 'error',
@@ -187,20 +147,8 @@ export function useNotesOpenMarkdownTarget({
       const currentVaultRelativePath = normalizedCurrentVaultPath && normalizedNotesPath === normalizedCurrentVaultPath
         ? toVaultRelativePath(normalizedNotesPath, selected)
         : null;
-      recordDiagnostic('notes.openMarkdownTarget', 'normalized_state', {
-        selected,
-        targetNotePath,
-        normalizedTargetVaultPath,
-        normalizedCurrentVaultPath,
-        normalizedNotesPath,
-        currentVaultRelativePath,
-      });
 
       if (currentVaultRelativePath && isSupportedMarkdownSelection(currentVaultRelativePath)) {
-        recordDiagnostic('notes.openMarkdownTarget', 'branch_current_vault_relative', {
-          currentVaultRelativePath,
-          currentVaultPathForTarget: normalizedCurrentVaultPath,
-        });
         const currentVaultPathForTarget = normalizedCurrentVaultPath;
         if (!currentVaultPathForTarget) return false;
         const opened = await openShortcutNoteTarget({
@@ -218,10 +166,6 @@ export function useNotesOpenMarkdownTarget({
       }
 
       if (normalizedCurrentVaultPath === normalizedTargetVaultPath && normalizedNotesPath === normalizedTargetVaultPath) {
-        recordDiagnostic('notes.openMarkdownTarget', 'branch_current_vault_ready', {
-          normalizedTargetVaultPath,
-          targetNotePath,
-        });
         const opened = await openShortcutNoteTarget({
           vaultPath: normalizedTargetVaultPath,
           notePath: targetNotePath,
@@ -242,27 +186,12 @@ export function useNotesOpenMarkdownTarget({
         absolutePath: selected,
         startedAt: performance.now(),
       });
-      recordDiagnostic('notes.openMarkdownTarget', 'pending_target_set', {
-        normalizedTargetVaultPath,
-        targetNotePath,
-        selected,
-      });
 
       const openedVault = await openVault(normalizedTargetVaultPath, undefined, {
         preserveSidebarTree: false,
       });
-      recordDiagnostic('notes.openMarkdownTarget', 'open_vault_result', {
-        normalizedTargetVaultPath,
-        targetNotePath,
-        openedVault,
-      });
       if (!openedVault) {
         setPendingShortcutNoteTarget(null);
-        recordDiagnostic('notes.openMarkdownTarget', 'open_vault_failed_fallback_absolute', {
-          normalizedTargetVaultPath,
-          targetNotePath,
-          selected,
-        });
         const opened = await openShortcutNoteTarget({
           vaultPath: normalizedTargetVaultPath,
           notePath: targetNotePath,
@@ -279,10 +208,6 @@ export function useNotesOpenMarkdownTarget({
       return true;
     } catch (error) {
       setPendingShortcutNoteTarget(null);
-      recordDiagnostic('notes.openMarkdownTarget', 'request_failed', {
-        selected,
-        error,
-      });
       await messageDialog(error instanceof Error ? error.message : t('notes.openMarkdownFileFailed'), {
         title: t('notes.openFailed'),
         kind: 'error',

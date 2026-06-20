@@ -4,7 +4,6 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { messageDialog, openDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
 import { useUIStore } from '@/stores/uiSlice';
-import { recordDiagnostic } from '@/lib/diagnostics/appDiagnostics';
 import {
   getSingleOpenSelection,
   isSupportedMarkdownSelection,
@@ -92,16 +91,10 @@ export function useNotesOpenTargetPicker({
       void handleOpenSelectedTarget('folder').catch(() => undefined);
     };
     const handleDesktopOpenMarkdownFile = async (filePath: string) => {
-      recordDiagnostic('notes.desktopOpenFile', 'received', {
-        filePath,
-        isOpenTargetBusy,
-        active,
-      });
       if (isOpenTargetBusy) return;
       setAppViewMode('notes');
       setNotesSidebarView('workspace');
       if (!isSupportedMarkdownSelection(filePath)) {
-        recordDiagnostic('notes.desktopOpenFile', 'reject_unsupported', { filePath });
         await messageDialog(t('notes.selectMarkdownFile'), {
           title: t('notes.unsupportedFile'),
           kind: 'warning',
@@ -116,20 +109,11 @@ export function useNotesOpenTargetPicker({
         }
         const fileInfo = await dragDrop.authorizePath(filePath);
         const authorizedPath = fileInfo?.path?.trim() || filePath;
-        recordDiagnostic('notes.desktopOpenFile', 'authorized', {
-          filePath,
-          authorizedPath,
-          isFile: fileInfo?.isFile ?? null,
-        });
         if (!fileInfo?.isFile || !isSupportedMarkdownSelection(authorizedPath)) {
           throw new Error('Selected markdown target is not a file.');
         }
         await openMarkdownTarget(authorizedPath);
       } catch (error) {
-        recordDiagnostic('notes.desktopOpenFile', 'failed', {
-          filePath,
-          error,
-        });
         await messageDialog(t('notes.openMarkdownFileFailed'), {
           title: t('notes.openFailed'),
           kind: 'error',

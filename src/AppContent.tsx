@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
-import { ProductionDiagnosticsButton } from '@/components/Diagnostics/ProductionDiagnosticsButton';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -16,7 +15,6 @@ import { translate } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
 import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
-import { formatDiagnosticLog } from '@/lib/diagnostics/appDiagnostics';
 import {
   type CommunitySettings,
   getCachedCommunitySettings,
@@ -662,27 +660,11 @@ export function AppContent() {
     </>
   );
 
-  const showDiagnosticsOverlayForE2E =
-    import.meta.env.DEV &&
-    typeof window !== 'undefined' &&
-    new URL(window.location.href).searchParams.get('diagnosticsOverlay') === '1';
-  const diagnosticsOverlayButton = (
-    <ProductionDiagnosticsButton
-      forceVisible={import.meta.env.DEV || showDiagnosticsOverlayForE2E}
-      getLogText={formatDiagnosticLog}
-    />
-  );
   const mainOverlay = import.meta.env.DEV && DevMainOverlay ? (
     <Suspense fallback={null}>
-      <DevMainOverlay effectiveAppViewMode={effectiveAppViewMode}>
-        {diagnosticsOverlayButton}
-      </DevMainOverlay>
+      <DevMainOverlay effectiveAppViewMode={effectiveAppViewMode} />
     </Suspense>
-  ) : (
-    <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
-      <ProductionDiagnosticsButton getLogText={formatDiagnosticLog} />
-    </div>
-  );
+  ) : null;
 
   return (
     <>
