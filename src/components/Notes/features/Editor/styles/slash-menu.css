@@ -11,6 +11,8 @@
   border-radius: var(--vlaina-radius-1rem);
   box-shadow: var(--vlaina-sidebar-notes-menu-shadow);
   padding: var(--vlaina-space-0375rem);
+  overscroll-behavior: contain;
+  contain: layout paint style;
 }
 
 .slash-menu-item {
@@ -29,8 +31,7 @@
   user-select: none;
   transition:
     background-color var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default),
-    color var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default),
-    transform var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default);
+    color var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default);
 }
 
 .slash-menu-item:focus {

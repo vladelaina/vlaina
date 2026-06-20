@@ -33,6 +33,48 @@ describe('i18n messages', () => {
     }
   });
 
+  it('uses canonical Chinese list labels for editor block types', () => {
+    expect(getMessages('zh-CN')).toMatchObject({
+      'editor.blockType.taskList': '待办',
+      'editor.blockType.bulletList': '无序列表',
+      'editor.blockType.orderedList': '有序列表',
+    });
+    expect(getMessages('zh-Hant')).toMatchObject({
+      'editor.blockType.taskList': '待辦',
+      'editor.blockType.bulletList': '無序列表',
+      'editor.blockType.orderedList': '有序列表',
+    });
+  });
+
+  it('keeps recently added editor action labels localized outside English', () => {
+    const englishMessages = getMessages('en');
+    const editorActionKeys = [
+      'editor.mathPlaceholder',
+      'editor.mermaidPlaceholder',
+      'editor.htmlBlockPlaceholder',
+      'editor.insertImage',
+      'editor.videoUrlPlaceholder',
+      'editor.videoUrlHint',
+      'editor.align',
+    ] as const;
+
+    for (const language of APP_LANGUAGES) {
+      if (language.code === 'en') continue;
+      const messages = getMessages(language.code);
+      for (const key of editorActionKeys) {
+        expect(messages[key], `${language.code}:${key}`).not.toBe(englishMessages[key]);
+      }
+    }
+  });
+
+  it('uses Traditional Chinese for editor action labels', () => {
+    expect(getMessages('zh-Hant')).toMatchObject({
+      'editor.changeCalloutIcon': '更換標註圖示',
+      'editor.images': '圖片',
+      'editor.align': '對齊',
+    });
+  });
+
   it('keeps every localized language complete before English fallback can apply', () => {
     for (const language of APP_LANGUAGES) {
       if (language.code === 'en') continue;

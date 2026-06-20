@@ -63,7 +63,10 @@ describe('SlashMenuPanel', () => {
     fireEvent.mouseMove(option);
     fireEvent.mouseDown(option);
 
-    expect(onHoverItem).toHaveBeenCalledWith(0);
+    expect(onHoverItem).toHaveBeenCalledWith(0, expect.objectContaining({
+      clientX: expect.any(Number),
+      clientY: expect.any(Number),
+    }));
     expect(onSelectItem).toHaveBeenCalledWith(0);
   });
 });

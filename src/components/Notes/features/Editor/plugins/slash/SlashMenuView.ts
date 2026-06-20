@@ -34,6 +34,7 @@ export class SlashMenuView {
   private selectedScrollRaf = 0;
   private skipNextSelectedScroll = false;
   private wasOpen = false;
+  private lastPointerHover: { clientX: number; clientY: number } | null = null;
   private readonly unlistenOverlayOpen: () => void;
 
   constructor(
@@ -70,6 +71,7 @@ export class SlashMenuView {
     const state = slashPluginKey.getState(this.editorView.state);
     if (!state?.isOpen) {
       this.wasOpen = false;
+      this.lastPointerHover = null;
       this.destroyMenu();
       return;
     }
@@ -77,6 +79,7 @@ export class SlashMenuView {
     this.filtered = filterSlashItems(state.query, getSlashMenuItems());
     if (this.filtered.length === 0) {
       this.wasOpen = false;
+      this.lastPointerHover = null;
       this.destroyMenu();
       return;
     }
@@ -314,10 +317,19 @@ export class SlashMenuView {
     }
   };
 
-  private handleHoverItem = (index: number) => {
+  private handleHoverItem = (index: number, pointer: { clientX: number; clientY: number }) => {
     const state = slashPluginKey.getState(this.editorView.state);
     if (!state?.isOpen || state.selectedIndex === index) return;
 
+    if (
+      this.lastPointerHover &&
+      this.lastPointerHover.clientX === pointer.clientX &&
+      this.lastPointerHover.clientY === pointer.clientY
+    ) {
+      return;
+    }
+
+    this.lastPointerHover = pointer;
     this.skipNextSelectedScroll = true;
     this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, { selectedIndex: index }));
   };
