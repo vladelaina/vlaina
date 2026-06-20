@@ -53,7 +53,6 @@ const SECONDARY_VIEW_PRELOAD_DELAY_MS = import.meta.env.DEV ? 120000 : 8000;
 const SECONDARY_VIEW_PRELOAD_IDLE_TIMEOUT_MS = 3000;
 const CENTER_CHROME_RENDER_DELAY_MS = 0;
 const VISIBLE_SIDEBAR_RENDER_DELAY_MS = import.meta.env.DEV ? 750 : 120;
-const AI_STORE_PRELOAD_DELAY_MS = import.meta.env.DEV ? 120000 : 1500;
 const INITIAL_UNIFIED_VIEW_WAIT_TIMEOUT_MS = import.meta.env.DEV ? null : 3000;
 const UPDATE_AUTO_CHECK_DELAY_MS = 2500;
 const UPDATE_AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -466,24 +465,21 @@ export function AppContent() {
   useUnifiedExternalSync();
 
   useEffect(() => {
-    if (!activeViewReady || !primaryContentReady || !shouldRenderDeferredChrome) return;
+    if (!unifiedLoaded) return;
 
     let cancelled = false;
-    const timeoutId = window.setTimeout(() => {
-      void preloadAIStoreModule()
-        .then((mod) => {
-          if (cancelled) return;
-          mod.startAIStoreRuntimeEffects?.();
-        })
-        .catch((_error) => {
-        });
-    }, AI_STORE_PRELOAD_DELAY_MS);
+    void preloadAIStoreModule()
+      .then((mod) => {
+        if (cancelled) return;
+        mod.startAIStoreRuntimeEffects?.();
+      })
+      .catch((_error) => {
+      });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
     };
-  }, [activeViewReady, primaryContentReady, shouldRenderDeferredChrome]);
+  }, [unifiedLoaded]);
 
   useEffect(() => {
     void Promise.resolve(initialize())

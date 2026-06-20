@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { useModelSelectorKeyboard } from './hooks/useModelSelectorKeyboard'
 import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
 import type { AIModel, Provider } from '@/lib/ai/types';
-import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
+import { isManagedModelId, isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
 import {
   focusComposerInput as focusRegisteredComposerInput,
   focusVisibleTextareaAt,
@@ -601,7 +601,13 @@ export function ModelSelector({
   }, []);
 
   const openSelector = useCallback(() => {
-      aiActions.refreshManagedProviderInBackground({ force: true });
+      const shouldRefreshManagedModels = selectedModel
+          ? isManagedProviderId(selectedModel.providerId)
+          : isManagedModelId(selectedModelId);
+
+      if (shouldRefreshManagedModels) {
+          aiActions.refreshManagedProviderInBackground({ force: true });
+      }
       const initialCategoryId = selectedModel
           ? getModelCategoryId(selectedModel)
           : modelCategories.find((category) => category.id !== 'favorites')?.id ?? modelCategories[0]?.id ?? null;

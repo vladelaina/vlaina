@@ -388,6 +388,14 @@ describe('AppContent view switching chrome readiness', () => {
     expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('');
   });
 
+  it('starts AI runtime effects after unified data is loaded', async () => {
+    render(<AppContent />);
+
+    await waitFor(() => {
+      expect(mocks.startAIStoreRuntimeEffects).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('cycles imported markdown themes from the dev-only main overlay', async () => {
     render(<AppContent />);
 
