@@ -4,6 +4,6 @@ export function scrollCurrentNoteToTop() {
     return false;
   }
 
-  scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
+  scrollRoot.scrollTo({ top: 0, behavior: 'auto' });
   return true;
 }

@@ -148,6 +148,27 @@ describe('openEditorLinkHref', () => {
         expect(mocks.openExternalHref).not.toHaveBeenCalled();
     });
 
+    it('jumps to same-note fragments without smooth scrolling', async () => {
+        const target = document.createElement('h2');
+        const scrollIntoView = vi.fn();
+        const focus = vi.fn();
+        target.id = 'install';
+        target.scrollIntoView = scrollIntoView;
+        target.focus = focus;
+
+        const view = {
+            dom: document.createElement('div'),
+        };
+        view.dom.append(target);
+
+        await openEditorLinkHref('#install', { view: view as never });
+
+        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'start' });
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
+        expect(mocks.openExternalHref).not.toHaveBeenCalled();
+    });
+
     it('ignores non-markdown relative links instead of sending them to the external opener', async () => {
         await openEditorLinkHref('./image.png');
 

@@ -291,7 +291,7 @@ describe('footnote reference markup', () => {
 
       referenceLabel?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'auto' });
       expect(scrollIntoView.mock.contexts[0]).toBe(definition);
     } finally {
       await editor.destroy();

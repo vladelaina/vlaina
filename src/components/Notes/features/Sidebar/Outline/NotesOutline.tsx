@@ -41,8 +41,6 @@ interface NotesOutlineProps {
   isPeeking?: boolean;
 }
 
-const OUTLINE_CLICK_DELAY_MS = 180;
-
 export function NotesOutline({
   enabled,
   currentNotePath,
@@ -59,7 +57,6 @@ export function NotesOutline({
   const [renameValue, setRenameValue] = useState('');
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
-  const clickTimerRef = useRef<number | null>(null);
   const hasCurrentFile = Boolean(currentNotePath && !isDraftNotePath(currentNotePath));
   const shouldShowOpenTargetActions = starredLoaded && !hasStarredEntries && !hasCurrentFile;
 
@@ -82,28 +79,14 @@ export function NotesOutline({
     setCollapsedHeadingIds((previous) => toggleCollapsedHeadingId(previous, headingId));
   }, []);
 
-  const cancelPendingClick = useCallback(() => {
-    if (clickTimerRef.current !== null) {
-      window.clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => cancelPendingClick(), [cancelPendingClick]);
-
   const scheduleJumpToHeading = useCallback((headingId: string) => {
-    cancelPendingClick();
-    clickTimerRef.current = window.setTimeout(() => {
-      clickTimerRef.current = null;
-      jumpToHeading(headingId);
-    }, OUTLINE_CLICK_DELAY_MS);
-  }, [cancelPendingClick, jumpToHeading]);
+    jumpToHeading(headingId);
+  }, [jumpToHeading]);
 
   const startRenameHeading = useCallback((heading: OutlineTreeNode) => {
-    cancelPendingClick();
     setRenamingHeadingId(heading.id);
     setRenameValue(heading.text);
-  }, [cancelPendingClick]);
+  }, []);
 
   const submitRenameHeading = useCallback((headingId: string) => {
     const renamed = renameHeading(headingId, renameValue);
