@@ -32,11 +32,28 @@ export type AutoCreateBlankDraftBlockReason =
   | 'pending-launch-note'
   | 'vault-path-mismatch'
   | 'vault-root-not-loaded'
-  | 'vault-has-entries';
+  | 'vault-has-files';
 
 export interface AutoCreateBlankDraftPolicyResult {
   shouldCreate: boolean;
   blockedReasons: AutoCreateBlankDraftBlockReason[];
+}
+
+export function hasFileTreeNoteFiles(rootFolder: FolderNode | null): boolean {
+  if (!rootFolder) {
+    return false;
+  }
+
+  const stack = [...rootFolder.children];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (!node.isFolder) {
+      return true;
+    }
+    stack.push(...node.children);
+  }
+
+  return false;
 }
 
 export function shouldAutoCreateBlankDraft(
@@ -64,8 +81,8 @@ export function shouldAutoCreateBlankDraft(
   if (input.hasPendingLaunchNote) blockedReasons.push('pending-launch-note');
   if (currentVaultPath && input.notesPath !== currentVaultPath) blockedReasons.push('vault-path-mismatch');
   if (currentVaultPath && !rootFolderCurrent) blockedReasons.push('vault-root-not-loaded');
-  if (rootFolderCurrent && input.rootFolder && input.rootFolder.children.length > 0) {
-    blockedReasons.push('vault-has-entries');
+  if (rootFolderCurrent && hasFileTreeNoteFiles(input.rootFolder)) {
+    blockedReasons.push('vault-has-files');
   }
 
   return {

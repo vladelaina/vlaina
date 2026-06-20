@@ -39,7 +39,7 @@ import {
   LargeMarkdownFirstPaintPreview,
   createLargeMarkdownFirstPaintPreviewBlocks,
 } from './features/Editor/LargeMarkdownFirstPaintPreview';
-import { shouldAutoCreateBlankDraft } from './autoCreateBlankDraftPolicy';
+import { hasFileTreeNoteFiles, shouldAutoCreateBlankDraft } from './autoCreateBlankDraftPolicy';
 import { cn } from '@/lib/utils';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { themeBackdropTokens, themeEditorLayoutTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -579,7 +579,7 @@ export function NotesView({
         autoCreateBlankNoteRef.current = false;
         return;
       }
-      if (currentVault && timerRootFolderCurrent && state.rootFolder && state.rootFolder.children.length > 0) {
+      if (currentVault && timerRootFolderCurrent && hasFileTreeNoteFiles(state.rootFolder)) {
         autoCreateBlankNoteRef.current = false;
         return;
       }

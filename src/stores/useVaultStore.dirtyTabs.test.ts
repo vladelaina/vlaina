@@ -315,6 +315,37 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
+  it('drops an empty startup scratch draft when opening another vault', async () => {
+    useNotesStore.setState({
+      notesPath: '',
+      currentNote: { path: 'draft:blank', content: '' },
+      isDirty: false,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: false }],
+      draftNotes: {
+        'draft:blank': {
+          parentPath: null,
+          name: '',
+          originNotesPath: '',
+          kind: 'scratch',
+        },
+      },
+      noteContentsCache: new Map([['draft:blank', { content: '', modifiedAt: null }]]),
+      noteMetadata: { version: 1, notes: {} },
+    });
+
+    const opened = await useVaultStore.getState().openVault('/vault/next');
+
+    expect(opened).toBe(true);
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '/vault/next',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+      draftNotes: {},
+    });
+    expect(useNotesStore.getState().noteContentsCache.size).toBe(0);
+  });
+
   it('preserves multiple draft tabs while dropping regular tabs on vault switch', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:two', content: 'Two body' },

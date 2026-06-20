@@ -31,18 +31,10 @@ let latestLoadFileTreeRequestId = 0;
 
 export function getWorkspaceRestoreCandidatePaths({
   currentNotePath,
-  starredNotes,
-  recentNotes,
 }: {
   currentNotePath?: string | null;
-  starredNotes: string[];
-  recentNotes: string[];
 }): string[] {
-  const candidates = [
-    ...(currentNotePath ? [currentNotePath] : []),
-    ...starredNotes,
-    ...recentNotes,
-  ];
+  const candidates = currentNotePath ? [currentNotePath] : [];
   const seen = new Set<string>();
   const normalizedCandidates: string[] = [];
 
@@ -269,8 +261,6 @@ export function createFileSystemTreeActions(
 
         const restoreCandidatePaths = getWorkspaceRestoreCandidatePaths({
           currentNotePath: workspace?.currentNotePath,
-          starredNotes: starredPaths.notes,
-          recentNotes: get().recentNotes,
         });
         const hasActiveNoteOrTabs = Boolean(get().currentNote) || get().openTabs.length > 0;
         if (!skipRestore && restoreCandidatePaths.length > 0 && !hasActiveNoteOrTabs) {

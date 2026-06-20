@@ -378,41 +378,28 @@ describe('createFileSystemSlice tree flows', () => {
     expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 
-  it('prioritizes persisted current note, then starred notes, then recent notes for workspace restore', () => {
+  it('uses only the persisted current note for workspace restore', () => {
     expect(getWorkspaceRestoreCandidatePaths({
       currentNotePath: 'docs/last-opened.md',
-      starredNotes: ['docs/favorite.md', 'docs/recent.md'],
-      recentNotes: ['docs/recent.md', 'docs/older.md'],
     })).toEqual([
       'docs/last-opened.md',
-      'docs/favorite.md',
-      'docs/recent.md',
-      'docs/older.md',
     ]);
   });
 
-  it('uses starred notes before recent notes when no persisted current note is available', () => {
+  it('does not restore starred or recent notes when no persisted current note is available', () => {
     expect(getWorkspaceRestoreCandidatePaths({
       currentNotePath: null,
-      starredNotes: ['docs/favorite.md'],
-      recentNotes: ['docs/recent.md'],
-    })).toEqual([
-      'docs/favorite.md',
-      'docs/recent.md',
-    ]);
+    })).toEqual([]);
   });
 
   it('filters unsafe and non-Markdown workspace restore candidates before probing disk', () => {
     expect(getWorkspaceRestoreCandidatePaths({
       currentNotePath: '../secret.md',
-      starredNotes: ['docs/favorite.md', '/tmp/outside.md', 'docs/raw.txt', 'docs/favorite.md', '.vlaina/workspace.md'],
-      recentNotes: ['docs/./recent.markdown', 'docs\\older.mkd', 'draft:local.md', 'docs/.git/config.md', '.notes/alpha.md'],
-    })).toEqual([
-      'docs/favorite.md',
-      'docs/recent.markdown',
-      'docs/older.mkd',
-      '.notes/alpha.md',
-    ]);
+    })).toEqual([]);
+
+    expect(getWorkspaceRestoreCandidatePaths({
+      currentNotePath: 'docs/./recent.markdown',
+    })).toEqual(['docs/recent.markdown']);
   });
 });
 

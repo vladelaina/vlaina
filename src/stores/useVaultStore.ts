@@ -161,13 +161,30 @@ async function prepareNotesForVaultExit(
 
 function collectDraftWorkspaceForVaultTransition(): PreservedDraftWorkspace {
   const state = useNotesStore.getState();
-  const draftPaths = new Set(Object.keys(state.draftNotes));
+  const candidateDraftPaths = new Set(Object.keys(state.draftNotes));
   state.openTabs.forEach((tab) => {
-    if (isDraftNotePath(tab.path)) draftPaths.add(tab.path);
+    if (isDraftNotePath(tab.path)) candidateDraftPaths.add(tab.path);
   });
   if (isDraftNotePath(state.currentNote?.path)) {
-    draftPaths.add(state.currentNote.path);
+    candidateDraftPaths.add(state.currentNote.path);
   }
+
+  const draftPaths = new Set<string>();
+  candidateDraftPaths.forEach((draftPath) => {
+    const draftEntry = state.draftNotes[draftPath];
+    const draftContent = state.currentNote?.path === draftPath
+      ? state.currentNote.content
+      : state.noteContentsCache.get(draftPath)?.content ?? '';
+    const draftMetadata = state.noteMetadata?.notes[draftPath];
+
+    if (hasDraftUnsavedChanges({
+      draftName: draftEntry?.name,
+      content: draftContent,
+      metadata: draftMetadata,
+    })) {
+      draftPaths.add(draftPath);
+    }
+  });
 
   if (draftPaths.size === 0) {
     return null;

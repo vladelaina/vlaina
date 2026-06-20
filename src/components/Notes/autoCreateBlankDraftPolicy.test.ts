@@ -53,7 +53,7 @@ describe('shouldAutoCreateBlankDraft', () => {
     expect(result.blockedReasons).toContain('vault-store-initializing');
   });
 
-  it('blocks when the current vault tree has existing entries', () => {
+  it('blocks when the current vault tree has existing note files', () => {
     const result = shouldAutoCreateBlankDraft(createInput({
       rootFolder: {
         ...emptyRoot,
@@ -69,7 +69,28 @@ describe('shouldAutoCreateBlankDraft', () => {
     }));
 
     expect(result.shouldCreate).toBe(false);
-    expect(result.blockedReasons).toContain('vault-has-entries');
+    expect(result.blockedReasons).toContain('vault-has-files');
+  });
+
+  it('allows a blank draft when the current vault tree has folders but no note files', () => {
+    const result = shouldAutoCreateBlankDraft(createInput({
+      rootFolder: {
+        ...emptyRoot,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            children: [],
+            expanded: false,
+          },
+        ],
+      },
+    }));
+
+    expect(result.shouldCreate).toBe(true);
+    expect(result.blockedReasons).not.toContain('vault-has-files');
   });
 
   it('blocks while a previous current note is still being restored', () => {
