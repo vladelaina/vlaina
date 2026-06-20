@@ -48,6 +48,25 @@ describe("editor rich block selection styles", () => {
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .code-block-chrome-header,');
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .code-block-editable,');
     expect(css).toContain('.milkdown .code-block-container.editor-block-selected .code-block-lazy-preview,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-header,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {');
+    expect(css).toContain([
+      '.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {',
+      '  display: inline !important;',
+      '  visibility: visible !important;',
+      '  opacity: 1 !important;',
+      '  color: var(--vlaina-code-syntax-muted) !important;',
+      '  -webkit-text-fill-color: currentColor !important;',
+      '}',
+    ].join('\n'));
+    expect(css).toContain([
+      '.milkdown .ProseMirror.editor-block-selection-pending .code-block-chrome-copy-button {',
+      '  opacity: var(--vlaina-opacity-0) !important;',
+      '  pointer-events: none !important;',
+      '  transform: none !important;',
+      '}',
+    ].join('\n'));
     expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-line-numbers");
     expect(extractCssRule(
       css,

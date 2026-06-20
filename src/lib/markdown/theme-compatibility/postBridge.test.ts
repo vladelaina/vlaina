@@ -16,6 +16,12 @@ describe('imported markdown theme post bridge', () => {
     expect(css).toContain('.v-caption.full');
     expect(css).toContain('.v-svg-input-checkbox[data-vlook-checkbox=\'checked\']::before');
     expect(css).toContain('.vlook-column-list');
+    expect(css).toContain('#write).ProseMirror,');
+    expect(css).toContain('.ProseMirror):is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container)');
+    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('.ProseMirror).editor-block-selection-pending .code-block-chrome-language-label');
+    expect(css).toContain('display: inline !important;');
+    expect(css).toContain('opacity: var(--vlaina-opacity-0) !important;');
   });
 
   it('skips non-Typora themes', () => {

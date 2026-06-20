@@ -72,6 +72,20 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain("box-shadow: none !important;");
   });
 
+  it('keeps external theme foreground and code chrome rules from overriding block selection', () => {
+    const css = readThemeCompatibilityStyle();
+
+    expect(css).not.toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike {\n  background-color:");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *),");
+    expect(css).toContain("-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-chrome-language-label {");
+    expect(css).toContain("display: inline !important;");
+    expect(css).toContain("visibility: visible !important;");
+    expect(css).toContain("opacity: var(--vlaina-opacity-0) !important;");
+    expect(css).toContain("pointer-events: none !important;");
+  });
+
   it('does not use CSS :has selectors in editor styles', () => {
     const offenders = readEditorStyleSourceFiles()
       .filter(({ source }) => source.includes(':has('))
