@@ -177,18 +177,23 @@
 
 .milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block {
   --vlaina-list-contained-block-selection-bleed-y: var(--vlaina-block-selection-list-contained-bleed-y);
+  --vlaina-list-contained-block-selection-fill-bottom: calc(-1 * var(--vlaina-list-contained-block-selection-bleed-y));
+  --vlaina-block-selection-fill-bottom: var(--vlaina-list-contained-block-selection-fill-bottom);
   position: relative;
   z-index: var(--vlaina-z-0);
+}
+
+.milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block.editor-block-selected-has-next {
+  --vlaina-list-contained-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
 }
 
 .milkdown .ProseMirror li.editor-block-selected.editor-block-selected-has-direct-code-block::after {
   content: '';
   position: absolute;
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-list-contained-block-selection-bleed-y));
+  bottom: var(--vlaina-block-selection-fill-bottom);
   left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
   z-index: var(--vlaina-z-0);
-  height: calc(var(--vlaina-list-contained-block-selection-bleed-y) + var(--vlaina-space-8px));
   border-bottom-right-radius: var(--vlaina-radius-8px);
   border-bottom-left-radius: var(--vlaina-radius-8px);
   background: var(--vlaina-block-selection-color);

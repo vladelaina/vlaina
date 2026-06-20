@@ -17,6 +17,10 @@
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-top-reserve: var(--vlaina-block-selection-top-reserve-default);
   --vlaina-block-selection-scrollbar-reserve: var(--vlaina-block-selection-scrollbar-reserve-default);
+  --vlaina-table-block-selection-fill-top: calc(var(--vlaina-block-selection-top-reserve, var(--vlaina-block-selection-top-reserve-default)) - var(--vlaina-block-selection-bleed-y));
+  --vlaina-table-block-selection-fill-bottom: calc(var(--vlaina-block-selection-scrollbar-reserve, var(--vlaina-block-selection-scrollbar-reserve-default)) - var(--vlaina-block-selection-bleed-y));
+  --vlaina-table-block-selection-content-fill-top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  --vlaina-table-block-selection-content-fill-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
   background: transparent !important;
   background-color: transparent !important;
   border-radius: var(--vlaina-radius-8px);
@@ -37,13 +41,23 @@
   --vlaina-block-selection-scrollbar-reserve: var(--table-block-scrollbar-reserve, var(--vlaina-block-selection-table-scrollbar-reserve));
 }
 
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-block-selected-has-previous {
+  --vlaina-table-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
+  --vlaina-table-block-selection-content-fill-top: var(--vlaina-block-selection-gap-y);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected.editor-block-selected-has-next {
+  --vlaina-table-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
+  --vlaina-table-block-selection-content-fill-bottom: var(--vlaina-block-selection-gap-y);
+}
+
 .milkdown .ProseMirror .milkdown-table-block.editor-block-selected::before,
 .milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode::before {
   content: '';
   position: absolute;
-  top: calc(var(--vlaina-block-selection-top-reserve, var(--vlaina-block-selection-top-reserve-default)) - var(--vlaina-block-selection-bleed-y));
+  top: var(--vlaina-table-block-selection-fill-top);
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(var(--vlaina-block-selection-scrollbar-reserve, var(--vlaina-block-selection-scrollbar-reserve-default)) - var(--vlaina-block-selection-bleed-y));
+  bottom: var(--vlaina-table-block-selection-fill-bottom);
   left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
   z-index: var(--vlaina-z-0);
   border-radius: var(--vlaina-radius-8px);
@@ -83,9 +97,9 @@
 .milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode.editor-table-block-zero-min-width .table-content-host::before {
   content: '';
   position: absolute;
-  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  top: var(--vlaina-table-block-selection-content-fill-top);
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  bottom: var(--vlaina-table-block-selection-content-fill-bottom);
   left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
   z-index: var(--vlaina-z-0);
   border-radius: var(--vlaina-radius-8px);
