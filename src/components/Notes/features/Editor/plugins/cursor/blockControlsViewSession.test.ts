@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
+import { useNotesStore } from '@/stores/useNotesStore';
 import { BlockControlsViewSession } from './blockControlsViewSession';
 import {
   applyBlockMove,
@@ -86,6 +87,7 @@ vi.mock('./blockSelectionSerializer', () => ({
 }));
 
 vi.mock('../../utils/editorViewRegistry', () => ({
+  getCurrentMarkdownParser: vi.fn(() => null),
   getCurrentMarkdownSerializer: vi.fn(() => null),
 }));
 
@@ -131,8 +133,35 @@ function getScrollRoot(): HTMLElement {
   return scrollRoot;
 }
 
+function createNoteTabDropTarget(path: string): HTMLElement {
+  const tab = document.createElement('div');
+  tab.dataset.notesTabPath = path;
+  tab.setAttribute('data-notes-block-drop-target', 'true');
+  document.body.appendChild(tab);
+  return tab;
+}
+
+function setOpenTabNotesState(openNote = vi.fn(async () => undefined)) {
+  useNotesStore.setState({
+    currentNote: { path: 'source.md', content: 'Source' },
+    openTabs: [
+      { path: 'source.md', name: 'source.md', isDirty: false },
+      { path: 'target.md', name: 'target.md', isDirty: false },
+    ],
+    noteContentsCache: new Map([
+      ['source.md', { content: 'Source', modifiedAt: null }],
+      ['target.md', { content: 'Target', modifiedAt: null }],
+    ]),
+    openNote,
+  });
+
+  return openNote;
+}
+
 describe('BlockControlsViewSession', () => {
   afterEach(() => {
+    vi.useRealTimers();
+    useNotesStore.setState(useNotesStore.getInitialState(), true);
     clearCurrentEditorBlockPositionSnapshot();
     vi.mocked(applyBlockMove).mockClear();
     vi.mocked(getDraggableBlockRanges).mockClear();
@@ -476,6 +505,121 @@ describe('BlockControlsViewSession', () => {
       document
         .querySelector<HTMLElement>('.editor-block-control-handle')
         ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 120, buttons: 1, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 120, bubbles: true }));
+
+      expect(applyBlockMove).not.toHaveBeenCalled();
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('opens a hovered note tab while dragging selected blocks', async () => {
+    vi.useFakeTimers();
+    const openNote = setOpenTabNotesState();
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+    const targetTab = createNoteTabDropTarget('target.md');
+    document.elementsFromPoint = vi.fn(() => [targetTab]);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 20, buttons: 1, bubbles: true }));
+
+      await vi.advanceTimersByTimeAsync(16);
+      expect(openNote).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(280);
+      expect(openNote).toHaveBeenCalledWith('target.md');
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('opens a hovered absolute-path note tab with the absolute note action', async () => {
+    vi.useFakeTimers();
+    const openNote = vi.fn(async () => undefined);
+    const openNoteByAbsolutePath = vi.fn(async () => undefined);
+    useNotesStore.setState({
+      currentNote: { path: '/source.md', content: 'Source' },
+      openTabs: [
+        { path: '/source.md', name: 'source.md', isDirty: false },
+        { path: '/target.md', name: 'target.md', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['/source.md', { content: 'Source', modifiedAt: null }],
+        ['/target.md', { content: 'Target', modifiedAt: null }],
+      ]),
+      openNote,
+      openNoteByAbsolutePath,
+    });
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+    const targetTab = createNoteTabDropTarget('/target.md');
+    document.elementsFromPoint = vi.fn(() => [targetTab]);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 20, buttons: 1, bubbles: true }));
+
+      await vi.advanceTimersByTimeAsync(296);
+
+      expect(openNote).not.toHaveBeenCalled();
+      expect(openNoteByAbsolutePath).toHaveBeenCalledWith('/target.md');
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('cancels a pending hovered note tab open when block dragging finishes', async () => {
+    vi.useFakeTimers();
+    const openNote = setOpenTabNotesState();
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+    const targetTab = createNoteTabDropTarget('target.md');
+    document.elementsFromPoint = vi.fn(() => [targetTab]);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 20, buttons: 1, bubbles: true }));
+
+      await vi.advanceTimersByTimeAsync(16);
+      document.dispatchEvent(new MouseEvent('mouseup', { clientX: 120, clientY: 20, bubbles: true }));
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(openNote).not.toHaveBeenCalled();
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('does not apply stale source ranges after the editor document changes during a block drag', () => {
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+
+    vi.mocked(resolveDropTarget).mockReturnValue({
+      insertPos: 5,
+      lineLeft: 80,
+      lineY: 100,
+      lineWidth: 280,
+    });
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      (view as unknown as { state: typeof view.state }).state = {
+        ...view.state,
+        doc: {
+          content: { size: 20 },
+        },
+      } as typeof view.state;
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 120, buttons: 1, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 120, bubbles: true }));
 

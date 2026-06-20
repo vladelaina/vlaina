@@ -123,6 +123,9 @@ const SortableTab = memo(function SortableTab({
         <div
           ref={setNodeRef}
           style={style}
+          data-notes-block-drop-target="true"
+          data-notes-tab-path={tab.path}
+          data-notes-tab-active={isActive ? 'true' : undefined}
           {...attributes}
           {...listeners}
           onPointerDown={handlePointerDown}
@@ -141,7 +144,7 @@ const SortableTab = memo(function SortableTab({
           }}
           onMouseEnter={updateLabelClipped}
           onFocus={updateLabelClipped}
-            className={cn(
+          className={cn(
             'group relative flex min-w-0 flex-shrink cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors',
             isActive
               ? 'text-[var(--vlaina-color-tab-active-fg)]'
