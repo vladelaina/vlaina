@@ -699,6 +699,9 @@ describe('workspaceSlice external sync', () => {
       content: '# pending remove',
       modifiedAt: 1,
     });
+    expect(store.getState().error).toBe(
+      'Current note was deleted outside vlaina while you still have unsaved changes. Its content is preserved; save to restore it.'
+    );
     expect(hoisted.openStoredNotePath).not.toHaveBeenCalled();
   });
 

@@ -487,20 +487,26 @@ export function createWorkspaceExternalActions(
         fileTreeSortMode,
       } = get();
 
+      const preserveDirtyCurrentNote = shouldPreserveDeletedCurrentNote(currentNote, isDirty, path);
       const preserveCurrentNote =
-        shouldPreserveDeletedCurrentNote(currentNote, isDirty, path) ||
+        preserveDirtyCurrentNote ||
         Boolean(
           options?.preserveCleanCurrentNote &&
           currentNote &&
           shouldRemoveForExternalDeletion(currentNote.path, path)
         );
       const preservedDeletedPaths = new Set<string>();
+      const dirtyPreservedDeletedPaths = new Set<string>();
       if (preserveCurrentNote && currentNote) {
         preservedDeletedPaths.add(currentNote.path);
+        if (preserveDirtyCurrentNote) {
+          dirtyPreservedDeletedPaths.add(currentNote.path);
+        }
       }
       openTabs.forEach((tab) => {
         if (tab.isDirty && shouldRemoveForExternalDeletion(tab.path, path)) {
           preservedDeletedPaths.add(tab.path);
+          dirtyPreservedDeletedPaths.add(tab.path);
         }
       });
       const hasPreservedDeletedPaths = preservedDeletedPaths.size > 0;
@@ -548,6 +554,14 @@ export function createWorkspaceExternalActions(
           )
         : rootFolder;
       const starredPaths = getVaultStarredPaths(absoluteStarredResult.entries, notesPath);
+      const preservedDirtyDeletedCount = dirtyPreservedDeletedPaths.size;
+      const deletionConflictError = preservedDirtyDeletedCount > 0
+        ? preserveDirtyCurrentNote
+          ? 'Current note was deleted outside vlaina while you still have unsaved changes. Its content is preserved; save to restore it.'
+          : preservedDirtyDeletedCount === 1
+            ? 'A note with unsaved changes was deleted outside vlaina. Its content is preserved; save to restore it.'
+            : 'Notes with unsaved changes were deleted outside vlaina. Their content is preserved; save to restore them.'
+        : null;
       set({
         openTabs: nextOpenTabs,
         displayNames: nextDisplayNames,
@@ -559,7 +573,7 @@ export function createWorkspaceExternalActions(
         starredEntries: absoluteStarredResult.entries,
         starredNotes: starredPaths.notes,
         starredFolders: starredPaths.folders,
-        error: null,
+        error: deletionConflictError,
       });
 
       const nextCurrentNotePath =
