@@ -1042,6 +1042,9 @@ export class BlockControlsViewSession {
       this.hideControls();
       return;
     }
+    if (this.pointerY === null && !this.controls.classList.contains('visible')) {
+      return;
+    }
     this.invalidateTargetCache();
     this.scheduleHandleRefresh();
   };

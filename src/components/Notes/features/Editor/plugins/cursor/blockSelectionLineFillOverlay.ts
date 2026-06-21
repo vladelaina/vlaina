@@ -518,6 +518,9 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       scheduleDeferredGeometryUpdateAfterDrag();
       return;
     }
+    if (lastSelectionKey === '' && layer.childNodes.length === 0) {
+      return;
+    }
     scrollRafId = win.requestAnimationFrame(() => {
       scrollRafId = 0;
       lastSelectedBlocks = null;

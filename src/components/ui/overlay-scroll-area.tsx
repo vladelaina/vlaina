@@ -114,7 +114,10 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
   ...props
 }, forwardedRef) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const thumbRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{ pointerStartY: number; scrollTopStart: number } | null>(null);
+  const metricsFrameRef = useRef<number | null>(null);
+  const pendingMetricsForceRenderRef = useRef(false);
   const metricsRef = useRef<ScrollMetrics>({
     canScroll: false,
     viewportHeight: 0,
@@ -130,6 +133,16 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
   const [isScrollbarHovered, setIsScrollbarHovered] = useState(false);
   const scrollbarClasses = scrollbarVariantClasses[scrollbarVariant];
 
+  const updateThumbStyle = useCallback((nextMetrics: ScrollMetrics) => {
+    const thumb = thumbRef.current;
+    if (!thumb) {
+      return;
+    }
+
+    thumb.style.height = `${nextMetrics.thumbHeight}px`;
+    thumb.style.transform = `translateY(${nextMetrics.thumbOffset}px)`;
+  }, []);
+
   const setViewportRef = useCallback((node: HTMLDivElement | null) => {
     viewportRef.current = node;
     if (typeof forwardedRef === 'function') {
@@ -141,7 +154,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     }
   }, [forwardedRef]);
 
-  const updateMetrics = useCallback(() => {
+  const updateMetrics = useCallback((options: { forceRenderPosition?: boolean } = {}) => {
     const viewport = viewportRef.current;
     if (!viewport) {
       return;
@@ -149,26 +162,47 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
 
     const nextMetrics = getScrollMetrics(viewport);
     metricsRef.current = nextMetrics;
+    updateThumbStyle(nextMetrics);
     setMetrics((previous) => {
       if (
         previous.canScroll === nextMetrics.canScroll &&
         previous.viewportHeight === nextMetrics.viewportHeight &&
         previous.scrollHeight === nextMetrics.scrollHeight &&
-        previous.scrollTop === nextMetrics.scrollTop &&
         previous.thumbHeight === nextMetrics.thumbHeight &&
-        previous.thumbOffset === nextMetrics.thumbOffset
+        (
+          !options.forceRenderPosition ||
+          (
+            previous.scrollTop === nextMetrics.scrollTop &&
+            previous.thumbOffset === nextMetrics.thumbOffset
+          )
+        )
       ) {
         return previous;
       }
       return nextMetrics;
     });
-  }, []);
+  }, [updateThumbStyle]);
+
+  const scheduleMetricsUpdate = useCallback((options: { forceRenderPosition?: boolean } = {}) => {
+    pendingMetricsForceRenderRef.current ||= Boolean(options.forceRenderPosition);
+    if (metricsFrameRef.current !== null) {
+      return;
+    }
+
+    metricsFrameRef.current = window.requestAnimationFrame(() => {
+      metricsFrameRef.current = null;
+      const forceRenderPosition = pendingMetricsForceRenderRef.current;
+      pendingMetricsForceRenderRef.current = false;
+      updateMetrics({ forceRenderPosition });
+    });
+  }, [updateMetrics]);
 
   const stopDragging = useCallback(() => {
     dragStateRef.current = null;
+    updateMetrics({ forceRenderPosition: true });
     setIsDragging(false);
     setIsScrollbarHovered(false);
-  }, []);
+  }, [updateMetrics]);
 
   const handleWindowPointerMove = useCallback((event: PointerEvent) => {
     const viewport = viewportRef.current;
@@ -206,6 +240,16 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
       window.removeEventListener('pointercancel', stopDragging);
     };
   }, [handleWindowPointerMove, isDragging, stopDragging]);
+
+  useEffect(() => {
+    return () => {
+      if (metricsFrameRef.current !== null) {
+        window.cancelAnimationFrame(metricsFrameRef.current);
+        metricsFrameRef.current = null;
+      }
+      pendingMetricsForceRenderRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -272,6 +316,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
+    updateMetrics({ forceRenderPosition: true });
 
     dragStateRef.current = {
       pointerStartY: event.clientY,
@@ -279,7 +324,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     };
 
     setIsDragging(true);
-  }, []);
+  }, [updateMetrics]);
 
   const isVisible = metrics.canScroll && (isHovered || isDragging);
   const isScrollbarExpanded = isScrollbarHovered || isDragging;
@@ -288,11 +333,12 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     <div
       className={cn('relative flex-1 min-h-0 overflow-hidden', className)}
       onMouseEnter={(event) => {
-        updateMetrics();
+        updateMetrics({ forceRenderPosition: true });
         setIsHovered(true);
         onMouseEnter?.(event);
       }}
       onMouseLeave={(event) => {
+        updateMetrics({ forceRenderPosition: true });
         setIsHovered(false);
         setIsScrollbarHovered(false);
         onMouseLeave?.(event);
@@ -305,7 +351,11 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
           viewportClassName,
         )}
         onScroll={(event) => {
-          updateMetrics();
+          if (metricsRef.current.canScroll) {
+            scheduleMetricsUpdate();
+          } else {
+            updateMetrics();
+          }
           onScroll?.(event);
         }}
         {...props}
@@ -326,8 +376,14 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
             isVisible ? 'opacity-[var(--vlaina-opacity-100)]' : 'opacity-[var(--vlaina-opacity-0)]',
           )}
           style={{ right: `${scrollbarInsetRight}px` }}
-          onPointerEnter={() => setIsScrollbarHovered(true)}
-          onPointerLeave={() => setIsScrollbarHovered(false)}
+          onPointerEnter={() => {
+            updateMetrics({ forceRenderPosition: true });
+            setIsScrollbarHovered(true);
+          }}
+          onPointerLeave={() => {
+            updateMetrics({ forceRenderPosition: true });
+            setIsScrollbarHovered(false);
+          }}
         >
           <div
             className={cn(
@@ -336,6 +392,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
             )}
           >
             <div
+              ref={thumbRef}
               data-overlay-scrollbar-thumb="true"
               className={cn(
                 'pointer-events-auto absolute cursor-default rounded-full transition-[width,background-color] duration-[var(--vlaina-duration-100)]',

@@ -131,6 +131,8 @@ function logE2EMilkdownTiming(label: string, detail: Record<string, unknown>): v
 }
 
 const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
+const LAZY_BLOCK_VISIBILITY_MIN_LENGTH = 100_000;
+const LAZY_BLOCK_VISIBILITY_MIN_NON_EMPTY_LINES = 500;
 const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|&]/;
 const FAST_PARSE_GFM_AUTOLINK_TEXT_PATTERN = /(?:https?:\/\/|www\.|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i;
@@ -142,7 +144,33 @@ function needsFullMarkdownInlineParsing(text: string): boolean {
 }
 
 export function shouldUseLazyBlockVisibility(markdown: string): boolean {
-  return createLargePlainMarkdownDocJSON(markdown) !== null;
+  return createLargePlainMarkdownDocJSON(markdown) !== null || hasLargeScrollableMarkdownShape(markdown);
+}
+
+function hasLargeScrollableMarkdownShape(markdown: string): boolean {
+  if (markdown.length < LAZY_BLOCK_VISIBILITY_MIN_LENGTH) {
+    return false;
+  }
+
+  let nonEmptyLines = 0;
+  let lineStart = 0;
+  while (lineStart < markdown.length) {
+    const nextBreak = markdown.indexOf('\n', lineStart);
+    const lineEnd = nextBreak === -1 ? markdown.length : nextBreak;
+    if (markdown.slice(lineStart, lineEnd).trim().length > 0) {
+      nonEmptyLines += 1;
+      if (nonEmptyLines >= LAZY_BLOCK_VISIBILITY_MIN_NON_EMPTY_LINES) {
+        return true;
+      }
+    }
+
+    if (nextBreak === -1) {
+      break;
+    }
+    lineStart = nextBreak + 1;
+  }
+
+  return false;
 }
 
 export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJSONNode | null {

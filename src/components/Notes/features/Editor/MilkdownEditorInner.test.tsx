@@ -579,7 +579,7 @@ describe('MilkdownEditorInner lazy block visibility', () => {
     expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBe('true');
   });
 
-  it('recomputes lazy block visibility when same-revision note content becomes complex markdown', () => {
+  it('keeps lazy block visibility when same-revision large note content becomes complex markdown', () => {
     const plainMarkdown = createLargePlainMarkdown();
     mocks.notesState.currentNote = { path: 'large.md', content: plainMarkdown };
     mocks.notesState.currentNoteDiskRevision = 2;
@@ -594,7 +594,7 @@ describe('MilkdownEditorInner lazy block visibility', () => {
     };
     rerender(<MilkdownEditorInner showBodyLineNumbers />);
 
-    expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBeNull();
+    expect(getShell()?.getAttribute('data-note-lazy-block-visibility')).toBe('true');
   });
 });
 
@@ -931,7 +931,7 @@ describe('shouldUseLazyBlockVisibility', () => {
     expect(shouldUseLazyBlockVisibility(markdown)).toBe(true);
   });
 
-  it('keeps mixed syntax markdown on stable block layout for smoother scrolling', () => {
+  it('enables lazy block visibility for large mixed syntax markdown', () => {
     const markdown = [
       '# Large Complex Path',
       '',
@@ -939,6 +939,42 @@ describe('shouldUseLazyBlockVisibility', () => {
     ].join('\n\n');
 
     expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(shouldUseLazyBlockVisibility(markdown)).toBe(true);
+  });
+
+  it('keeps small mixed syntax markdown on stable block layout', () => {
+    const markdown = [
+      '# Small Complex Path',
+      '',
+      ...Array.from({ length: 20 }, (_, index) => `Paragraph ${index} with **strong** markup`),
+    ].join('\n\n');
+
     expect(shouldUseLazyBlockVisibility(markdown)).toBe(false);
+  });
+
+  it('keeps medium multi-line manuals on stable block layout', () => {
+    const markdown = [
+      '# Manual',
+      '',
+      ...Array.from({ length: 220 }, (_, index) => (
+        `Section ${index} with **mixed** syntax and enough prose to create a real rendered block.`
+      )),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(16_000);
+    expect(shouldUseLazyBlockVisibility(markdown)).toBe(false);
+  });
+
+  it('enables lazy block visibility for large multi-line mixed manuals', () => {
+    const markdown = [
+      '# Large Manual',
+      '',
+      ...Array.from({ length: 520 }, (_, index) => (
+        `Section ${index} with **mixed** syntax and enough prose to create a real rendered block. ${'more prose '.repeat(12)}`
+      )),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(100_000);
+    expect(shouldUseLazyBlockVisibility(markdown)).toBe(true);
   });
 });
