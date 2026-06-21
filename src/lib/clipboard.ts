@@ -18,10 +18,10 @@ function tryExecCommandCopy(text: string): boolean {
   textarea.style.left = themeOffscreenTokens.clipboardLeft;
   textarea.style.top = themeOffscreenTokens.clipboardTop;
   document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
 
   try {
+    textarea.focus();
+    textarea.select();
     return document.execCommand('copy');
   } catch {
     return false;

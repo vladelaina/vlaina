@@ -553,7 +553,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toBe('Find *literal emphasis markers*');
   });
 
-  it('removes sanitizer-only raw HTML without rendering the source as text', async () => {
+  it('renders authored comments literally while removing sanitizer-only raw HTML', async () => {
     const markdown = [
       '<!-- hidden comment -->',
       '<!doctype html>',
@@ -563,11 +563,12 @@ describe('GitHub README HTML compatibility', () => {
 
     const result = await openGithubHtmlMarkdown(markdown);
 
-    expect(result.dom.textContent).not.toContain('hidden comment');
+    expect(result.dom.textContent).toContain('<!-- hidden comment -->');
     expect(result.dom.textContent).not.toContain('doctype');
-    expect(result.dom.textContent).not.toContain('hidden');
+    expect(result.dom.textContent).not.toContain('hidden</text>');
     expect(result.dom.querySelector('svg')).toBeNull();
     expect(result.dom.querySelector('meta')).toBeNull();
+    expect(result.dom.querySelector('[data-type="html-block"].md-htmlblock-literal-text')?.textContent).toBe('<!-- hidden comment -->');
     expect(result.persisted).toContain('<!-- hidden comment -->');
     expect(result.persisted).toContain('<!doctype html>');
     expect(result.persisted).not.toContain('<meta');

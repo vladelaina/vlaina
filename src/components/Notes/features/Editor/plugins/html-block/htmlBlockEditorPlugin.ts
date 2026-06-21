@@ -7,7 +7,10 @@ import { themeDomStyleTokens } from '@/styles/themeTokens';
 import { attachPreviewContextMenu, type PreviewContextMenuSession } from '../shared/previewContextMenu';
 import { shouldSuppressPreviewEditorOpen } from '../shared/previewContextMenuSuppression';
 import { createTextEditorViewSession } from '../shared/textEditorViewSession';
-import { sanitizeRawMarkdownHtmlValue } from '../../themeTextSchemaOverrides';
+import {
+  renderRawMarkdownHtmlValueIntoElement,
+  sanitizeRawMarkdownHtmlValue,
+} from '../../themeTextSchemaOverrides';
 
 const HTML_BLOCK_SELECTOR = '[data-type="html-block"]';
 const MARKDOWN_HTML_BLOCK_START_PATTERN = /^\s*(?:<\/?[A-Za-z][^>]*>|<!--|<![A-Za-z]|<\?)/;
@@ -345,7 +348,7 @@ function renderHtmlBlockEditorLivePreview(args: {
     return;
   }
 
-  anchor.innerHTML = sanitizeRawMarkdownHtmlValue(value);
+  renderRawMarkdownHtmlValueIntoElement(anchor, sanitizeRawMarkdownHtmlValue(value));
 }
 
 function getHtmlBlockNodeValue(node: ProseNode) {
@@ -356,9 +359,8 @@ function createHtmlBlockElement(node: ProseNode) {
   const value = sanitizeRawMarkdownHtmlValue(getHtmlBlockNodeValue(node));
   const element = document.createElement('div');
   element.dataset.type = 'html-block';
-  element.dataset.value = value;
   element.classList.add('md-htmlblock', 'md-htmlblock-container');
-  element.innerHTML = value;
+  renderRawMarkdownHtmlValueIntoElement(element, value);
   return element;
 }
 
@@ -406,8 +408,7 @@ class HtmlBlockNodeView implements NodeView {
     this.node = node;
     const value = sanitizeRawMarkdownHtmlValue(getHtmlBlockNodeValue(node));
     if (this.dom.dataset.value !== value) {
-      this.dom.dataset.value = value;
-      this.dom.innerHTML = value;
+      renderRawMarkdownHtmlValueIntoElement(this.dom, value);
     }
 
     this.ensureContextMenu();

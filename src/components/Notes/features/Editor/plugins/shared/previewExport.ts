@@ -98,10 +98,13 @@ function downloadInBrowser(fileName: string, bytes: Uint8Array, mimeType: string
   anchor.href = url;
   anchor.download = fileName;
   anchor.rel = 'noopener';
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  try {
+    document.body.appendChild(anchor);
+    anchor.click();
+  } finally {
+    anchor.parentNode?.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
 }
 
 function ensureExtension(filePath: string, format: PreviewExportFormat) {

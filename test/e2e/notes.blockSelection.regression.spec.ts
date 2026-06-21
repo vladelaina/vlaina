@@ -294,6 +294,198 @@ async function measureBrightTextPixels(page: Page, clip: TextClip) {
   });
 }
 
+async function measureSelectedAtomicBlock(page: Page, selector: string) {
+  return page.evaluate((targetSelector) => {
+    const element = document.querySelector<HTMLElement>(targetSelector);
+    if (!element) return null;
+
+    const parsePx = (value: string, fallback = 0) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const afterStyle = getComputedStyle(element, '::after');
+    const hasAfterPaint = afterStyle.content !== 'none' &&
+      afterStyle.display !== 'none' &&
+      afterStyle.position === 'absolute';
+    const afterLeft = hasAfterPaint ? parsePx(afterStyle.left) : null;
+    const afterRight = hasAfterPaint ? parsePx(afterStyle.right) : null;
+    const afterTop = hasAfterPaint ? parsePx(afterStyle.top) : null;
+    const afterBottom = hasAfterPaint ? parsePx(afterStyle.bottom) : null;
+
+    return {
+      boxShadow: style.boxShadow,
+      className: element.className,
+      clientHeight: element.clientHeight,
+      clientWidth: element.clientWidth,
+      contain: style.getPropertyValue('contain'),
+      contentVisibility: style.getPropertyValue('content-visibility'),
+      dataValue: element.dataset.value ?? '',
+      hasAfterPaint,
+      overflowX: style.overflowX,
+      overflowY: style.overflowY,
+      position: style.position,
+      rect: {
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+      },
+      scrollHeight: element.scrollHeight,
+      scrollWidth: element.scrollWidth,
+      scrollbarHeight: element.offsetHeight - element.clientHeight,
+      text: element.textContent?.trim() ?? '',
+      zIndex: style.zIndex,
+      after: hasAfterPaint
+        ? {
+          bottom: afterBottom,
+          left: afterLeft,
+          right: afterRight,
+          top: afterTop,
+          viewportBottom: rect.bottom - (afterBottom ?? 0),
+          viewportLeft: rect.left + (afterLeft ?? 0),
+          viewportRight: rect.right - (afterRight ?? 0),
+          viewportTop: rect.top + (afterTop ?? 0),
+        }
+        : null,
+    };
+  }, selector);
+}
+
+type AtomicBlockMetrics = NonNullable<Awaited<ReturnType<typeof measureSelectedAtomicBlock>>>;
+
+async function expectSelectedAtomicBleedPixels(page: Page, metrics: AtomicBlockMetrics, label: string) {
+  expect(metrics.after, `${label} selection fill geometry`).not.toBeNull();
+  const after = metrics.after!;
+  const leftBleed = metrics.rect.left - after.viewportLeft;
+  const rightBleed = after.viewportRight - metrics.rect.right;
+  const topBleed = metrics.rect.top - after.viewportTop;
+  const bottomBleed = after.viewportBottom - metrics.rect.bottom;
+  expect(leftBleed, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(1);
+  expect(rightBleed, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(1);
+  expect(topBleed, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(1);
+  expect(bottomBleed, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(1);
+
+  const verticalInset = Math.min(8, Math.max(2, (metrics.rect.bottom - metrics.rect.top) / 4));
+  const top = Math.max(after.viewportTop + 2, metrics.rect.top + verticalInset);
+  const bottom = Math.min(after.viewportBottom - 2, metrics.rect.bottom - verticalInset);
+  const height = Math.max(4, bottom - top);
+  const width = Math.max(2, Math.min(8, leftBleed - 1, rightBleed - 1));
+  const interiorWidth = Math.max(8, Math.min(24, (metrics.rect.right - metrics.rect.left) / 8));
+  const horizontalInset = Math.min(24, Math.max(8, (metrics.rect.right - metrics.rect.left) / 4));
+  const horizontalLeft = Math.max(after.viewportLeft + 2, metrics.rect.left + horizontalInset);
+  const horizontalRight = Math.min(after.viewportRight - 2, metrics.rect.right - horizontalInset);
+  const horizontalWidth = Math.max(8, Math.min(96, horizontalRight - horizontalLeft));
+  const verticalHeight = Math.max(2, Math.min(8, topBleed - 1, bottomBleed - 1));
+
+  const leftSample = await measureBrightTextPixels(page, {
+    height,
+    label: `${label} left selection bleed`,
+    left: after.viewportLeft + 1,
+    top,
+    width,
+  });
+  const rightSample = await measureBrightTextPixels(page, {
+    height,
+    label: `${label} right selection bleed`,
+    left: metrics.rect.right + 1,
+    top,
+    width,
+  });
+  const leftInteriorSample = await measureBrightTextPixels(page, {
+    height,
+    label: `${label} left interior selection fill`,
+    left: metrics.rect.left + 4,
+    top,
+    width: interiorWidth,
+  });
+  const rightInteriorSample = await measureBrightTextPixels(page, {
+    height,
+    label: `${label} right interior selection fill`,
+    left: metrics.rect.right - interiorWidth - 4,
+    top,
+    width: interiorWidth,
+  });
+  const topSample = await measureBrightTextPixels(page, {
+    height: verticalHeight,
+    label: `${label} top selection bleed`,
+    left: horizontalLeft,
+    top: after.viewportTop + 1,
+    width: horizontalWidth,
+  });
+  const bottomSample = await measureBrightTextPixels(page, {
+    height: verticalHeight,
+    label: `${label} bottom selection bleed`,
+    left: horizontalLeft,
+    top: metrics.rect.bottom + 1,
+    width: horizontalWidth,
+  });
+
+  expect(leftSample.blueSelectionRatio, JSON.stringify({ label, metrics, leftSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(rightSample.blueSelectionRatio, JSON.stringify({ label, metrics, rightSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(leftInteriorSample.blueSelectionRatio, JSON.stringify({ label, metrics, leftInteriorSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(rightInteriorSample.blueSelectionRatio, JSON.stringify({ label, metrics, rightInteriorSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(topSample.blueSelectionRatio, JSON.stringify({ label, metrics, topSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(bottomSample.blueSelectionRatio, JSON.stringify({ label, metrics, bottomSample }, null, 2)).toBeGreaterThan(0.35);
+}
+
+async function expectSelectedAtomicSurfacePixels(page: Page, metrics: AtomicBlockMetrics, label: string) {
+  expect(metrics.after, `${label} selection fill geometry`).not.toBeNull();
+  const after = metrics.after!;
+  const leftBleed = metrics.rect.left - after.viewportLeft;
+  const rightBleed = after.viewportRight - metrics.rect.right;
+  const fillHeight = after.viewportBottom - after.viewportTop;
+  const fillWidth = after.viewportRight - after.viewportLeft;
+  expect(leftBleed, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(1);
+  expect(rightBleed, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(1);
+  expect(fillHeight, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(8);
+  expect(fillWidth, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(8);
+
+  const verticalSampleHeight = Math.max(2, Math.min(8, (fillHeight - 2) / 4));
+  const horizontalInset = Math.min(24, Math.max(8, fillWidth / 4));
+  const horizontalLeft = Math.max(after.viewportLeft + 2, metrics.rect.left + horizontalInset);
+  const horizontalRight = Math.min(after.viewportRight - 2, metrics.rect.right - horizontalInset);
+  const horizontalWidth = Math.max(8, Math.min(96, horizontalRight - horizontalLeft));
+  const middleHeight = Math.max(4, Math.min(24, fillHeight - 2));
+  const middleTop = after.viewportTop + Math.max(1, (fillHeight - middleHeight) / 2);
+  const bleedWidth = Math.max(2, Math.min(8, leftBleed - 1, rightBleed - 1));
+
+  const leftSample = await measureBrightTextPixels(page, {
+    height: middleHeight,
+    label: `${label} left selection surface`,
+    left: after.viewportLeft + 1,
+    top: middleTop,
+    width: bleedWidth,
+  });
+  const rightSample = await measureBrightTextPixels(page, {
+    height: middleHeight,
+    label: `${label} right selection surface`,
+    left: metrics.rect.right + 1,
+    top: middleTop,
+    width: bleedWidth,
+  });
+  const topSample = await measureBrightTextPixels(page, {
+    height: verticalSampleHeight,
+    label: `${label} top selection surface`,
+    left: horizontalLeft,
+    top: after.viewportTop + 1,
+    width: horizontalWidth,
+  });
+  const bottomSample = await measureBrightTextPixels(page, {
+    height: verticalSampleHeight,
+    label: `${label} bottom selection surface`,
+    left: horizontalLeft,
+    top: after.viewportBottom - verticalSampleHeight - 1,
+    width: horizontalWidth,
+  });
+
+  expect(leftSample.blueSelectionRatio, JSON.stringify({ label, metrics, leftSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(rightSample.blueSelectionRatio, JSON.stringify({ label, metrics, rightSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(topSample.blueSelectionRatio, JSON.stringify({ label, metrics, topSample }, null, 2)).toBeGreaterThan(0.35);
+  expect(bottomSample.blueSelectionRatio, JSON.stringify({ label, metrics, bottomSample }, null, 2)).toBeGreaterThan(0.35);
+}
+
 async function collectSelectedBlockVisualAudit(page: Page): Promise<SelectedBlockVisualAudit | null> {
   return page.evaluate(() => {
     const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
@@ -1020,16 +1212,46 @@ test.describe("notes block selection regressions", () => {
           '| --- | --- |',
           '| tableGapSentinel | covered |',
           '',
+          'Paragraph before blank line and html block.',
+          '',
+          '<div>htmlGapSentinel</div>',
+          '',
+          'Paragraph before blank line and math block.',
+          '',
+          '$$',
+          '\\text{mathGapSentinel}',
+          '$$',
+          '',
+          'Paragraph before blank line and mermaid block.',
+          '',
+          '```mermaid',
+          'flowchart TD',
+          '  mermaidGapStart --> mermaidGapEnd',
+          '```',
+          '',
           'Paragraph after code block.',
         ].join('\n'),
       });
 
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'selectedCodeGapSentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .milkdown-table-block`, { hasText: 'tableGapSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container`, { hasText: 'htmlGapSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="math-block"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"]`)).toBeVisible();
 
-      const findAdjacentIndexes = async (targetText: string) => page.evaluate((needle) => {
-        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
-        const targetIndex = blocks.findIndex((block) => block.text.includes(needle));
+      const findAdjacentIndexes = async (targetText: string, targetClassName = '') => page.evaluate((target) => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          rangeText: string;
+          text: string;
+        }>;
+        const targetIndex = blocks.findIndex((block) => {
+          const matchesText = target.text === '' ||
+            block.text.includes(target.text) ||
+            block.rangeText.includes(target.text);
+          const matchesClass = target.className === '' || block.className.includes(target.className);
+          return matchesText && matchesClass;
+        });
         const blankIndex = targetIndex > 0 && blocks[targetIndex - 1]?.text === ''
           ? targetIndex - 1
           : -1;
@@ -1037,13 +1259,15 @@ test.describe("notes block selection regressions", () => {
           blankIndex,
           targetIndex,
           blocks: blocks.map((block, index) => ({
+            className: block.className,
             index,
+            rangeText: block.rangeText,
             text: block.text,
           })),
         };
-      }, targetText);
+      }, { className: targetClassName, text: targetText });
 
-      const measureSelectedGap = async (targetClassName: string) => page.evaluate((targetClass) => {
+      const measureSelectedGap = async (targetClassName: string, targetText: string) => page.evaluate((target) => {
         const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
         if (!editor) return null;
 
@@ -1115,24 +1339,32 @@ test.describe("notes block selection regressions", () => {
           })
           .sort((left, right) => left.rectTop - right.rectTop);
 
-        const target = rows.find((row) => row.className.includes(targetClass)) ?? null;
+        const targetRow = rows.find((row) =>
+          row.className.includes(target.className) &&
+          (target.text === '' || row.text.includes(target.text))
+        ) ?? rows.find((row) => row.className.includes(target.className)) ?? null;
         const blank = rows.find((row) => (
-          row.text === '' && row !== target
+          row.text === '' && row !== targetRow
         )) ?? null;
         return {
           active: editor.classList.contains('editor-block-selection-active'),
           rows,
           blank,
-          target,
-          blankToTargetGap: blank && target
-            ? Math.round((target.paintTop - blank.paintBottom) * 100) / 100
+          target: targetRow,
+          blankToTargetGap: blank && targetRow
+            ? Math.round((targetRow.paintTop - blank.paintBottom) * 100) / 100
             : null,
         };
-      }, targetClassName);
+      }, { className: targetClassName, text: targetText });
 
-      const assertRichBlockGap = async (targetText: string, targetClassName: string, label: string) => {
+      const assertRichBlockGap = async (
+        targetText: string,
+        targetClassName: string,
+        label: string,
+        targetIndexClassName = '',
+      ) => {
         await clearSelectedNoteBlocks(page);
-        const indexes = await findAdjacentIndexes(targetText);
+        const indexes = await findAdjacentIndexes(targetText, targetIndexClassName);
         expect(indexes.blankIndex, JSON.stringify({ label, indexes }, null, 2)).toBeGreaterThanOrEqual(0);
         expect(indexes.targetIndex, JSON.stringify({ label, indexes }, null, 2)).toBe(indexes.blankIndex + 1);
 
@@ -1142,7 +1374,7 @@ test.describe("notes block selection regressions", () => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
         ));
 
-        const geometry = await measureSelectedGap(targetClassName);
+        const geometry = await measureSelectedGap(targetClassName, targetText);
         expect(geometry, `${label} blank line and rich block selection geometry`).not.toBeNull();
         expect(geometry!.active, JSON.stringify({ label, geometry }, null, 2)).toBe(true);
         expect(geometry!.rows, JSON.stringify({ label, geometry }, null, 2)).toHaveLength(2);
@@ -1157,6 +1389,284 @@ test.describe("notes block selection regressions", () => {
 
       await assertRichBlockGap('selectedCodeGapSentinel', 'code-block-container', 'code block');
       await assertRichBlockGap('tableGapSentinel', 'milkdown-table-block', 'table block');
+      await assertRichBlockGap('htmlGapSentinel', 'md-htmlblock-container', 'html block');
+      await assertRichBlockGap('mathGapSentinel', 'math-block-wrapper', 'math block');
+      await assertRichBlockGap('', 'mermaid-block', 'mermaid block', 'mermaid-block');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('paints selected atomic rich blocks without horizontal scrollbars', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-html-block-selection-paint');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'html-block-selection-paint.md',
+        content: [
+          'Paragraph before html block selection.',
+          '',
+          '<!--注释-->',
+          '',
+          '<div>HTML block selection sentinel</div>',
+          '',
+          '$$',
+          'E = mc^2',
+          '$$',
+          '',
+          '```mermaid',
+          'flowchart TD',
+          '  mermaidSelectionStart --> mermaidSelectionEnd',
+          '```',
+          '',
+          'Paragraph after html block selection.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-literal-text`, { hasText: '<!--注释-->' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text)`, { hasText: 'HTML block selection sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="math-block"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"]`)).toBeVisible();
+
+      const indexes = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          rangeText: string;
+          tagName: string;
+          text: string;
+        }>;
+        const includesText = (block: { rangeText: string; text: string }, text: string) =>
+          block.text.includes(text) || block.rangeText.includes(text);
+        return {
+          commentIndex: blocks.findIndex((block) => includesText(block, '<!--注释-->')),
+          htmlIndex: blocks.findIndex((block) => includesText(block, 'HTML block selection sentinel')),
+          mathIndex: blocks.findIndex((block) => includesText(block, 'E = mc^2') || includesText(block, 'E=mc')),
+          mermaidIndex: blocks.findIndex((block) => block.className.includes('mermaid-block')),
+          blocks: blocks.map((block, index) => ({
+            className: block.className,
+            index,
+            rangeText: block.rangeText,
+            tagName: block.tagName,
+            text: block.text,
+          })),
+        };
+      });
+      expect(indexes.commentIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(indexes.htmlIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(indexes.mathIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(indexes.mermaidIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+
+      let selectedCount = await selectNoteBlocksByIndexes(page, [indexes.commentIndex]);
+      expect(selectedCount, JSON.stringify(indexes, null, 2)).toBe(1);
+      const commentMetrics = await measureSelectedAtomicBlock(page, `${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-literal-text.editor-block-selected`);
+      expect(commentMetrics, 'selected literal comment metrics').not.toBeNull();
+      expect(commentMetrics!.text, JSON.stringify(commentMetrics, null, 2)).toContain('<!--注释-->');
+      expect(commentMetrics!.overflowX, JSON.stringify(commentMetrics, null, 2)).toBe('visible');
+      expect(commentMetrics!.overflowY, JSON.stringify(commentMetrics, null, 2)).toBe('visible');
+      expect(commentMetrics!.scrollbarHeight, JSON.stringify(commentMetrics, null, 2)).toBe(0);
+      expect(commentMetrics!.hasAfterPaint, JSON.stringify(commentMetrics, null, 2)).toBe(true);
+      expect(commentMetrics!.after?.left, JSON.stringify(commentMetrics, null, 2)).toBeLessThan(-1);
+      expect(commentMetrics!.after?.right, JSON.stringify(commentMetrics, null, 2)).toBeLessThan(-1);
+      await expectSelectedAtomicBleedPixels(page, commentMetrics!, 'literal comment block');
+
+      await clearSelectedNoteBlocks(page);
+      selectedCount = await selectNoteBlocksByIndexes(page, [indexes.htmlIndex]);
+      expect(selectedCount, JSON.stringify(indexes, null, 2)).toBe(1);
+      const htmlMetrics = await measureSelectedAtomicBlock(page, `${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text).editor-block-selected`);
+      expect(htmlMetrics, 'selected html block metrics').not.toBeNull();
+      expect(htmlMetrics!.text, JSON.stringify(htmlMetrics, null, 2)).toContain('HTML block selection sentinel');
+      expect(htmlMetrics!.overflowX, JSON.stringify(htmlMetrics, null, 2)).toBe('visible');
+      expect(htmlMetrics!.overflowY, JSON.stringify(htmlMetrics, null, 2)).toBe('visible');
+      expect(htmlMetrics!.scrollbarHeight, JSON.stringify(htmlMetrics, null, 2)).toBe(0);
+      expect(htmlMetrics!.hasAfterPaint, JSON.stringify(htmlMetrics, null, 2)).toBe(true);
+      expect(htmlMetrics!.after?.left, JSON.stringify(htmlMetrics, null, 2)).toBeLessThan(-1);
+      expect(htmlMetrics!.after?.right, JSON.stringify(htmlMetrics, null, 2)).toBeLessThan(-1);
+      expect(htmlMetrics!.boxShadow, JSON.stringify(htmlMetrics, null, 2)).not.toBe('none');
+      await expectSelectedAtomicBleedPixels(page, htmlMetrics!, 'html block');
+
+      await clearSelectedNoteBlocks(page);
+      selectedCount = await selectNoteBlocksByIndexes(page, [indexes.mathIndex]);
+      expect(selectedCount, JSON.stringify(indexes, null, 2)).toBe(1);
+      const mathMetrics = await measureSelectedAtomicBlock(page, `${EDITOR_SELECTOR} [data-type="math-block"].editor-block-selected`);
+      expect(mathMetrics, 'selected math block metrics').not.toBeNull();
+      expect(mathMetrics!.overflowX, JSON.stringify(mathMetrics, null, 2)).toBe('visible');
+      expect(mathMetrics!.overflowY, JSON.stringify(mathMetrics, null, 2)).toBe('visible');
+      expect(mathMetrics!.contentVisibility, JSON.stringify(mathMetrics, null, 2)).toBe('visible');
+      expect(mathMetrics!.contain, JSON.stringify(mathMetrics, null, 2)).toBe('none');
+      expect(mathMetrics!.position, JSON.stringify(mathMetrics, null, 2)).toBe('relative');
+      expect(mathMetrics!.scrollbarHeight, JSON.stringify(mathMetrics, null, 2)).toBe(0);
+      expect(mathMetrics!.hasAfterPaint, JSON.stringify(mathMetrics, null, 2)).toBe(true);
+      expect(mathMetrics!.after?.left, JSON.stringify(mathMetrics, null, 2)).toBeLessThan(-1);
+      expect(mathMetrics!.after?.right, JSON.stringify(mathMetrics, null, 2)).toBeLessThan(-1);
+      expect(mathMetrics!.boxShadow, JSON.stringify(mathMetrics, null, 2)).not.toBe('none');
+      await expectSelectedAtomicBleedPixels(page, mathMetrics!, 'math block');
+
+      await clearSelectedNoteBlocks(page);
+      selectedCount = await selectNoteBlocksByIndexes(page, [indexes.mermaidIndex]);
+      expect(selectedCount, JSON.stringify(indexes, null, 2)).toBe(1);
+      const mermaidMetrics = await measureSelectedAtomicBlock(page, `${EDITOR_SELECTOR} [data-type="mermaid"].mermaid-block.editor-block-selected`);
+      expect(mermaidMetrics, 'selected mermaid block metrics').not.toBeNull();
+      expect(mermaidMetrics!.overflowX, JSON.stringify(mermaidMetrics, null, 2)).toBe('visible');
+      expect(mermaidMetrics!.overflowY, JSON.stringify(mermaidMetrics, null, 2)).toBe('visible');
+      expect(mermaidMetrics!.contentVisibility, JSON.stringify(mermaidMetrics, null, 2)).toBe('visible');
+      expect(mermaidMetrics!.contain, JSON.stringify(mermaidMetrics, null, 2)).toBe('none');
+      expect(mermaidMetrics!.position, JSON.stringify(mermaidMetrics, null, 2)).toBe('relative');
+      expect(mermaidMetrics!.scrollbarHeight, JSON.stringify(mermaidMetrics, null, 2)).toBe(0);
+      expect(mermaidMetrics!.hasAfterPaint, JSON.stringify(mermaidMetrics, null, 2)).toBe(true);
+      expect(mermaidMetrics!.after?.left, JSON.stringify(mermaidMetrics, null, 2)).toBeLessThan(-1);
+      expect(mermaidMetrics!.after?.right, JSON.stringify(mermaidMetrics, null, 2)).toBeLessThan(-1);
+      expect(mermaidMetrics!.boxShadow, JSON.stringify(mermaidMetrics, null, 2)).not.toBe('none');
+      await expectSelectedAtomicBleedPixels(page, mermaidMetrics!, 'mermaid block');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps atomic rich block selection surfaces visible during large top-down selections', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-large-atomic-rich-selection-paint');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'large-atomic-rich-selection-paint.md',
+        content: [
+          'Long selection lead paragraph 0.',
+          '',
+          '<!--Large selection literal comment-->',
+          '',
+          'Long selection lead paragraph 1.',
+          '',
+          '<div>Large selection HTML sentinel</div>',
+          '',
+          '$$',
+          'a^2 + b^2 = c^2',
+          '$$',
+          '',
+          '```mermaid',
+          'flowchart TD',
+          '  largeSelectionMermaidStart --> largeSelectionMermaidEnd',
+          '```',
+          '',
+          ...Array.from(
+            { length: 160 },
+            (_, index) => `Long selection tail paragraph ${index}.`,
+          ).flatMap((paragraph) => [paragraph, '']),
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-literal-text`, { hasText: '<!--Large selection literal comment-->' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text)`, { hasText: 'Large selection HTML sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="math-block"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="mermaid"]`)).toBeVisible();
+
+      const selectionPlan = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          rangeText: string;
+          tagName: string;
+          text: string;
+        }>;
+        const includesText = (block: { rangeText: string; text: string }, text: string) =>
+          block.text.includes(text) || block.rangeText.includes(text);
+        const selectedIndexes = Array.from(
+          { length: Math.min(140, blocks.length) },
+          (_, index) => index,
+        );
+        return {
+          commentIndex: blocks.findIndex((block) => includesText(block, '<!--Large selection literal comment-->')),
+          htmlIndex: blocks.findIndex((block) => includesText(block, 'Large selection HTML sentinel')),
+          mathIndex: blocks.findIndex((block) => includesText(block, 'a^2 + b^2 = c^2') || includesText(block, 'a2+b2')),
+          mermaidIndex: blocks.findIndex((block) => block.className.includes('mermaid-block')),
+          selectedIndexes,
+          blocks: blocks.slice(0, 150).map((block, index) => ({
+            className: block.className,
+            index,
+            rangeText: block.rangeText,
+            tagName: block.tagName,
+            text: block.text,
+          })),
+        };
+      });
+      expect(selectionPlan.commentIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(selectionPlan.htmlIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(selectionPlan.mathIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(selectionPlan.mermaidIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(selectionPlan.selectedIndexes.length, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(128);
+      expect(selectionPlan.commentIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+      expect(selectionPlan.htmlIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+      expect(selectionPlan.mathIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+      expect(selectionPlan.mermaidIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+
+      const selectedCount = await selectNoteBlocksByIndexes(page, selectionPlan.selectedIndexes);
+      expect(selectedCount, JSON.stringify(selectionPlan, null, 2)).toBe(selectionPlan.selectedIndexes.length);
+      await expect.poll(() => page.evaluate((editorSelector) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        return {
+          active: editor?.classList.contains('editor-block-selection-active') ?? false,
+          large: editor?.classList.contains('editor-block-selection-large') ?? false,
+          selectedCount: editor?.querySelectorAll('.editor-block-selected').length ?? 0,
+        };
+      }, EDITOR_SELECTOR)).toMatchObject({
+        active: true,
+        large: true,
+      });
+
+      const targets = [
+        {
+          expectedClassName: 'editor-block-selected-large-textlike',
+          forbiddenClassName: 'editor-block-selected-large-rich',
+          label: 'large selection literal comment block',
+          selector: `${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-literal-text.editor-block-selected`,
+          text: '<!--Large selection literal comment-->',
+        },
+        {
+          expectedClassName: 'editor-block-selected-large-rich',
+          forbiddenClassName: 'editor-block-selected-large-textlike',
+          label: 'large selection html block',
+          selector: `${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value="<!--vlaina-markdown-blank-line-->"]):not([data-value="<!--vlaina-markdown-tight-heading-->"]).editor-block-selected`,
+          text: 'Large selection HTML sentinel',
+        },
+        {
+          expectedClassName: 'editor-block-selected-large-rich',
+          forbiddenClassName: 'editor-block-selected-large-textlike',
+          label: 'large selection math block',
+          selector: `${EDITOR_SELECTOR} [data-type="math-block"].editor-block-selected`,
+          text: null,
+        },
+        {
+          expectedClassName: 'editor-block-selected-large-rich',
+          forbiddenClassName: 'editor-block-selected-large-textlike',
+          label: 'large selection mermaid block',
+          selector: `${EDITOR_SELECTOR} [data-type="mermaid"].mermaid-block.editor-block-selected`,
+          text: null,
+        },
+      ] as const;
+
+      for (const target of targets) {
+        const metrics = await measureSelectedAtomicBlock(page, target.selector);
+        expect(metrics, `${target.label} metrics`).not.toBeNull();
+        if (target.text) {
+          expect(metrics!.text, JSON.stringify(metrics, null, 2)).toContain(target.text);
+        }
+        expect(metrics!.className, JSON.stringify(metrics, null, 2)).toContain(target.expectedClassName);
+        expect(metrics!.className, JSON.stringify(metrics, null, 2)).not.toContain(target.forbiddenClassName);
+        expect(metrics!.overflowX, JSON.stringify(metrics, null, 2)).toBe('visible');
+        expect(metrics!.overflowY, JSON.stringify(metrics, null, 2)).toBe('visible');
+        expect(metrics!.contentVisibility, JSON.stringify(metrics, null, 2)).toBe('visible');
+        expect(metrics!.contain, JSON.stringify(metrics, null, 2)).toBe('none');
+        expect(metrics!.position, JSON.stringify(metrics, null, 2)).toBe('relative');
+        expect(metrics!.hasAfterPaint, JSON.stringify(metrics, null, 2)).toBe(true);
+        expect(metrics!.after?.left, JSON.stringify(metrics, null, 2)).toBeLessThan(-1);
+        expect(metrics!.after?.right, JSON.stringify(metrics, null, 2)).toBeLessThan(-1);
+        await expectSelectedAtomicSurfacePixels(page, metrics!, target.label);
+      }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

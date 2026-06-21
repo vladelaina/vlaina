@@ -61,17 +61,6 @@
   box-shadow: none !important;
 }
 
-/* Real HTML blocks are scroll containers; keep their fill out of scrollable overflow. */
-.milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is(
-  .editor-block-selected-textlike,
-  .editor-block-drag-source-textlike,
-  .editor-native-selected-textlike,
-  .editor-block-selected-large-textlike
-)::after {
-  right: var(--vlaina-space-0);
-  left: var(--vlaina-space-0);
-}
-
 .milkdown .ProseMirror .video-block.ProseMirror-selectednode::after,
 .milkdown .ProseMirror .video-block.editor-block-selected::after {
   display: none;
@@ -96,7 +85,7 @@
   .image-block-container,
   .video-block,
   [data-type='math-block'],
-  [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ).editor-block-selected.editor-block-selected-has-previous,
 .milkdown .ProseMirror > :is(
@@ -109,7 +98,7 @@
   .image-block-container,
   .video-block,
   [data-type='math-block'],
-  [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ).editor-block-drag-source.editor-block-drag-source-has-previous {
   box-shadow: none !important;

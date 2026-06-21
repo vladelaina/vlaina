@@ -612,19 +612,30 @@ export function createBlockDragPreview({
   preview.style.width = `${Math.round(previewWidth)}px`;
 
   doc.body.appendChild(preview);
-  revealAfterVideoCaptures(preview, captureJobs);
+  let sourceClassElements: HTMLElement[] = [];
+  let sourceParentMarkerElements: HTMLElement[] = [];
+  let offsetX = 0;
+  let offsetY = 0;
+  try {
+    revealAfterVideoCaptures(preview, captureJobs);
 
-  const firstRect = items[0].rect;
-  const previewRect = preview.getBoundingClientRect();
-  const offsetX = resolvePreviewOffsetX(clientX, firstRect.left, previewRect.width);
-  const offsetY = clamp(clientY - firstRect.top, 8, Math.max(8, previewRect.height - 8));
+    const firstRect = items[0].rect;
+    const previewRect = preview.getBoundingClientRect();
+    offsetX = resolvePreviewOffsetX(clientX, firstRect.left, previewRect.width);
+    offsetY = clamp(clientY - firstRect.top, 8, Math.max(8, previewRect.height - 8));
 
-  const sourceClassElements = items
-    .map((item) => item.sourceClassElement)
-    .filter((element): element is HTMLElement => element !== null);
-  const sourceParentMarkerElements = collectBlockDragSourceParentMarkerElements(view, sourceClassElements);
-  sourceClassElements.forEach((element) => element.classList.add(SOURCE_CLASS));
-  sourceParentMarkerElements.forEach((element) => element.classList.add(SOURCE_PARENT_MARKER_CLASS));
+    sourceClassElements = items
+      .map((item) => item.sourceClassElement)
+      .filter((element): element is HTMLElement => element !== null);
+    sourceParentMarkerElements = collectBlockDragSourceParentMarkerElements(view, sourceClassElements);
+    sourceClassElements.forEach((element) => element.classList.add(SOURCE_CLASS));
+    sourceParentMarkerElements.forEach((element) => element.classList.add(SOURCE_PARENT_MARKER_CLASS));
+  } catch (error) {
+    sourceClassElements.forEach((element) => element.classList.remove(SOURCE_CLASS));
+    sourceParentMarkerElements.forEach((element) => element.classList.remove(SOURCE_PARENT_MARKER_CLASS));
+    preview.remove();
+    throw error;
+  }
 
   const destroy = () => {
     sourceClassElements.forEach((element) => element.classList.remove(SOURCE_CLASS));

@@ -18,6 +18,7 @@ export function readBlockSelectionStyle() {
     'block-selection-rich.css',
     'block-selection-table.css',
     'block-selection-final.css',
+    'block-selection-atomic-rich.css',
   ].map(readStyleFile).join('\n');
 }
 

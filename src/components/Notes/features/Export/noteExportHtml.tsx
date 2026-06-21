@@ -273,24 +273,29 @@ export async function renderNoteExportElement(markdown: string, title: string): 
   const mount = document.createElement('div');
   host.appendChild(mount);
 
-  const root = createRoot(mount);
-  root.render(<NoteExportDocument markdown={markdown} title={title} />);
-  await waitForExportRender(host);
+  let root: ReturnType<typeof createRoot> | null = null;
+  try {
+    root = createRoot(mount);
+    root.render(<NoteExportDocument markdown={markdown} title={title} />);
+    await waitForExportRender(host);
 
-  const element = host.querySelector('.note-export') as HTMLElement | null;
-  if (!element) {
-    root.unmount();
+    const element = host.querySelector('.note-export') as HTMLElement | null;
+    if (!element) {
+      throw new Error('Failed to render export document.');
+    }
+
+    return {
+      element,
+      cleanup: () => {
+        root?.unmount();
+        host.remove();
+      },
+    };
+  } catch (error) {
+    root?.unmount();
     host.remove();
-    throw new Error('Failed to render export document.');
+    throw error;
   }
-
-  return {
-    element,
-    cleanup: () => {
-      root.unmount();
-      host.remove();
-    },
-  };
 }
 
 export async function renderNoteExportHtml(markdown: string, title: string): Promise<string> {

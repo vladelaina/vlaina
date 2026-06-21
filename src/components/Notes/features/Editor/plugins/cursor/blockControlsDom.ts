@@ -26,12 +26,18 @@ export function createBlockControlsDom(doc: Document): BlockControlsDom {
     </svg>
   `;
   controls.appendChild(handleButton);
-  doc.body.appendChild(controls);
 
   const dropIndicator = doc.createElement('div');
   dropIndicator.className = 'editor-block-drop-indicator';
   dropIndicator.setAttribute('aria-hidden', 'true');
-  doc.body.appendChild(dropIndicator);
+  try {
+    doc.body.appendChild(controls);
+    doc.body.appendChild(dropIndicator);
+  } catch (error) {
+    controls.remove();
+    dropIndicator.remove();
+    throw error;
+  }
 
   return { controls, handleButton, dropIndicator };
 }

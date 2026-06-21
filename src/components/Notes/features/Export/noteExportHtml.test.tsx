@@ -3,6 +3,7 @@ import {
   MAX_EXPORT_IMAGE_DECODE_CONCURRENCY,
   MAX_EXPORT_IMAGE_DECODE_SCAN_ELEMENTS,
   collectExportDecodeWaitImages,
+  renderNoteExportElement,
   renderNoteExportHtml,
 } from './noteExportHtml';
 
@@ -12,6 +13,7 @@ function parseExportHtml(html: string): Document {
 
 describe('renderNoteExportHtml', () => {
   beforeEach(() => {
+    document.body.innerHTML = '';
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       window.setTimeout(() => callback(performance.now()), 0);
       return 1;
@@ -235,6 +237,18 @@ describe('renderNoteExportHtml', () => {
     expect(container.querySelector('img[src="assets/after-scan.png"]')).toBe(lateImage);
     expect(images).not.toContain(lateImage);
     expect(images).toHaveLength(0);
+  });
+
+  it('cleans the hidden export host if render waiting fails', async () => {
+    const childCountBefore = document.body.childElementCount;
+    vi.stubGlobal('requestAnimationFrame', () => {
+      throw new Error('requestAnimationFrame failed');
+    });
+
+    await expect(renderNoteExportElement('# Broken', 'Broken')).rejects.toThrow('requestAnimationFrame failed');
+
+    expect(document.body.childElementCount).toBe(childCountBefore);
+    expect(document.body.textContent).not.toContain('Broken');
   });
 
   it('keeps safe raw HTML while dropping exported raw media loaders', async () => {

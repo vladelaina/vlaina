@@ -324,6 +324,14 @@ const RICH_BLOCK_SELECTION_NODE_NAMES = new Set([
   'table',
   'video',
 ]);
+const NON_RICH_HTML_BLOCK_VALUES = new Set([
+  '<!--vlaina-markdown-blank-line-->',
+  '<!--vlaina-markdown-tight-heading-->',
+]);
+const NON_RENDERING_HTML_COMMENT_PATTERN = /^<!--(?:(?!-->)[\s\S])*-->$/;
+const NON_RENDERING_HTML_PROCESSING_INSTRUCTION_PATTERN = /^<\?(?:(?!\?>)[\s\S])*\?>$/;
+const NON_RENDERING_HTML_DECLARATION_PATTERN = /^<![A-Za-z][^>]*>$/;
+const NON_RENDERING_HTML_CDATA_PATTERN = /^<!\[CDATA\[(?:(?!\]\]>)[\s\S])*\]\]>$/;
 
 const PARENT_MARKER_SELECTION_NODE_NAMES = new Set([
   'blockquote',
@@ -473,10 +481,27 @@ function isTextLikeDecorationRange(doc: EditorState['doc'], range: BlockRange, i
   try {
     const nodeAfter = doc.resolve(safeFrom).nodeAfter;
     if (!nodeAfter) return true;
-    return !RICH_BLOCK_SELECTION_NODE_NAMES.has(nodeAfter.type.name);
+    return !isRichBlockSelectionNode(nodeAfter);
   } catch {
     return true;
   }
+}
+
+function isRichBlockSelectionNode(node: EditorState['doc']): boolean {
+  if (node.type.name !== 'html_block') {
+    return RICH_BLOCK_SELECTION_NODE_NAMES.has(node.type.name);
+  }
+
+  const value = typeof node.attrs?.value === 'string'
+    ? node.attrs.value
+    : node.textContent;
+  const trimmed = value.trim();
+  if (!trimmed || NON_RICH_HTML_BLOCK_VALUES.has(trimmed)) return false;
+  if (NON_RENDERING_HTML_COMMENT_PATTERN.test(trimmed)) return false;
+  if (NON_RENDERING_HTML_PROCESSING_INSTRUCTION_PATTERN.test(trimmed)) return false;
+  if (NON_RENDERING_HTML_DECLARATION_PATTERN.test(trimmed)) return false;
+  if (NON_RENDERING_HTML_CDATA_PATTERN.test(trimmed)) return false;
+  return true;
 }
 
 function isHardBreakNodeName(name: string): boolean {

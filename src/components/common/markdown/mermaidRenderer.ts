@@ -118,6 +118,28 @@ export function generateMermaidId(): string {
   return `mermaid-${Date.now()}-${mermaidCounter++}`;
 }
 
+function createMermaidRenderContainer(): HTMLElement | undefined {
+  if (typeof document === 'undefined' || !document.body) {
+    return undefined;
+  }
+
+  const container = document.createElement('div');
+  container.dataset.mermaidRenderHost = 'true';
+  container.setAttribute('aria-hidden', 'true');
+  Object.assign(container.style, {
+    height: '0',
+    left: '-10000px',
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    position: 'absolute',
+    top: '-10000px',
+    visibility: 'hidden',
+    width: '0',
+  });
+  document.body.appendChild(container);
+  return container;
+}
+
 export async function renderMermaid(code: string, id: string): Promise<string> {
   if (code.length > MAX_MERMAID_CODE_CHARS) {
     return '<div class="mermaid-error">Mermaid Error: Diagram is too large to render.</div>';
@@ -131,10 +153,20 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
 
   try {
     mermaid.initialize(createMermaidRenderConfig());
-    const { svg } = await withoutThirdPartyConsoleOutput<{ svg: string }>(() =>
-      runWithTimeout(() => mermaid.render(id, code), MERMAID_RENDER_TIMEOUT_MS)
-    );
-    return normalizeMermaidRenderMarkup(svg);
+    const renderContainer = createMermaidRenderContainer();
+    try {
+      const { svg } = await withoutThirdPartyConsoleOutput<{ svg: string }>(() =>
+        runWithTimeout(
+          () => renderContainer
+            ? mermaid.render(id, code, renderContainer)
+            : mermaid.render(id, code),
+          MERMAID_RENDER_TIMEOUT_MS
+        )
+      );
+      return normalizeMermaidRenderMarkup(svg);
+    } finally {
+      renderContainer?.remove();
+    }
   } catch {
     return mermaidRenderErrorMarkup();
   }

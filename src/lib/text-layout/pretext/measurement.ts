@@ -182,10 +182,13 @@ function getEmojiCorrection(font: string, fontSize: number): number {
     span.style.position = themeDomStyleTokens.positionAbsolute
     span.textContent = '\u{1F600}'
     document.body.appendChild(span)
-    const domW = span.getBoundingClientRect().width
-    document.body.removeChild(span)
-    if (canvasW - domW > 0.5) {
-      correction = canvasW - domW
+    try {
+      const domW = span.getBoundingClientRect().width
+      if (canvasW - domW > 0.5) {
+        correction = canvasW - domW
+      }
+    } finally {
+      span.remove()
     }
   }
   if (emojiCorrectionCache.size >= MAX_EMOJI_CORRECTION_CACHE_FONTS) {
