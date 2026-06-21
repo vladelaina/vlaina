@@ -2,7 +2,6 @@ import type { ChangeEvent, CSSProperties, MouseEvent, PointerEvent } from 'react
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import type { IconName } from '@/components/ui/icons';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   UI_FONT_SIZE_DEFAULT,
   UI_FONT_SIZE_MAX,
@@ -28,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { selectMarkdownImportedThemeId } from '@/stores/unified/settings/markdownSettings';
+import { dialogCloseIconButtonClassName } from '@/components/common/DialogCloseIconButton';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import {
   DropdownMenu,
@@ -524,26 +524,15 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
             onThemeWarmup={handleThemeWarmup}
             onThemePreload={handleThemePreload}
           />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={t('settings.appearance.openThemeFolder')}
-                data-settings-action="open-theme-folder"
-                onClick={() => void handleOpenThemeDirectory()}
-                className={cn(
-                  "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors",
-                  "hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--vlaina-color-setting-field)]",
-                )}
-              >
-                <Icon name="file.folderOpenArrow" size="sm" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              {t('settings.appearance.openThemeFolder')}
-            </TooltipContent>
-          </Tooltip>
+          <button
+            type="button"
+            aria-label={t('settings.appearance.openThemeFolder')}
+            data-settings-action="open-theme-folder"
+            onClick={() => void handleOpenThemeDirectory()}
+            className={dialogCloseIconButtonClassName}
+          >
+            <Icon name="file.folderOpenArrow" size="md" />
+          </button>
         </div>
       </SettingsItem>
     </div>

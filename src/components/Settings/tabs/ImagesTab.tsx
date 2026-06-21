@@ -4,6 +4,7 @@ import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n, type MessageKey } from '@/lib/i18n';
+import { dialogCloseIconButtonClassName } from '@/components/common/DialogCloseIconButton';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -115,10 +116,9 @@ export function ImagesTab() {
                             type="button"
                             onClick={resetImageStorageLocation}
                             aria-label={t('common.reset')}
-                            title={t('common.reset')}
-                            className="inline-flex size-6 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]"
+                            className={dialogCloseIconButtonClassName}
                         >
-                            <Icon name="common.refresh" className="size-3.5" />
+                            <Icon name="common.refresh" size="md" />
                         </button>
                     </div>
                 </div>
@@ -130,16 +130,18 @@ export function ImagesTab() {
                     chatComposerPillSurfaceClass
                 )}
             >
-                <div className="min-w-0 text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
-                    {t('settings.images.storageLocation')}
-                </div>
-                <div className="min-w-0">
-                    <StorageLocationDropdown
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div className="min-w-0 text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
+                        {t('settings.images.storageLocation')}
+                    </div>
+                    <StorageFolderNameEditor
+                        mode={imageStorageMode}
                         noteSubfolderName={imageSubfolderName}
                         vaultSubfolderName={imageVaultSubfolderName}
                     />
-                    <StorageFolderNameEditor
-                        mode={imageStorageMode}
+                </div>
+                <div className="min-w-0">
+                    <StorageLocationDropdown
                         noteSubfolderName={imageSubfolderName}
                         vaultSubfolderName={imageVaultSubfolderName}
                     />
@@ -200,17 +202,11 @@ function StorageFolderNameEditor({
     }
 
     const isVaultSubfolder = mode === 'vaultSubfolder';
-    const basePath = t(
-        isVaultSubfolder
-            ? 'settings.images.directoryVaultRoot'
-            : 'settings.images.directoryCurrentFolder'
-    );
     const folderName = isVaultSubfolder ? vaultSubfolderName : noteSubfolderName;
     const setFolderName = isVaultSubfolder ? setImageVaultSubfolderName : setImageSubfolderName;
 
     return (
-        <div className="mt-2 inline-flex max-w-full min-w-0 items-center rounded-xl bg-[var(--vlaina-bg-tertiary)] px-3 py-1.5 font-mono text-[var(--vlaina-font-11)] leading-5 text-[var(--vlaina-sidebar-notes-text-soft)]">
-            <span className="min-w-0 truncate">{basePath}/</span>
+        <div className="inline-flex max-w-full min-w-0 items-center rounded-xl bg-[var(--vlaina-bg-tertiary)] px-2 py-1 font-mono text-[var(--vlaina-font-11)] leading-5 text-[var(--vlaina-sidebar-notes-text-soft)]">
             <input
                 type="text"
                 data-settings-control={isVaultSubfolder ? 'image-vault-subfolder-name' : 'image-subfolder-name'}
@@ -236,7 +232,7 @@ function StorageFolderNameEditor({
                 placeholder="assets"
                 spellCheck={false}
                 aria-label={t(isVaultSubfolder ? 'settings.images.folderName' : 'settings.images.subfolderName')}
-                className="mx-0.5 h-5 min-w-12 max-w-24 cursor-text rounded-md border-0 bg-transparent px-1 py-0 font-mono text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] focus:bg-[var(--vlaina-color-setting-field)] focus:ring-1 focus:ring-[var(--vlaina-color-sidebar-focus-ring)]"
+                className="h-5 min-w-12 max-w-24 cursor-text rounded-md border-0 bg-transparent px-1 py-0 font-mono text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] focus:bg-[var(--vlaina-color-setting-field)] focus:ring-1 focus:ring-[var(--vlaina-color-sidebar-focus-ring)]"
                 style={{ width: `${Math.max((folderName || 'assets').length, 6)}ch` }}
             />
         </div>
