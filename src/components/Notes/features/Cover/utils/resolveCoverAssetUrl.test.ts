@@ -130,24 +130,77 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.webp', undefined);
   });
 
-  it('adds per-call replay tokens for animated original assets', async () => {
-    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.gif');
-    hoisted.loadImageAsBlob.mockResolvedValue('blob:animated');
+  it('reuses a completed resolve for repeated icon renders in one render window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/logo.png');
+      hoisted.loadImageAsBlob.mockResolvedValue('blob:logo');
 
-    const first = await resolveCoverAssetUrl({
-      assetPath: 'assets/a.gif',
-      vaultPath: '/vault-a',
-      replayAnimated: true,
-    });
-    const second = await resolveCoverAssetUrl({
-      assetPath: 'assets/a.gif',
-      vaultPath: '/vault-a',
-      replayAnimated: true,
-    });
+      const first = await resolveCoverAssetUrl({
+        assetPath: 'assets/logo.png',
+        vaultPath: '/vault-a',
+        currentNotePath: 'notes/today.md',
+      });
+      vi.advanceTimersByTime(250);
+      const second = await resolveCoverAssetUrl({
+        assetPath: 'assets/logo.png',
+        vaultPath: '/vault-a',
+        currentNotePath: 'notes/today.md',
+      });
 
-    expect(first).toMatch(/^blob:animated#vlaina-replay=/);
-    expect(second).toMatch(/^blob:animated#vlaina-replay=/);
-    expect(second).not.toBe(first);
+      expect(first).toBe('blob:logo');
+      expect(second).toBe('blob:logo');
+      expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(501);
+      await expect(resolveCoverAssetUrl({
+        assetPath: 'assets/logo.png',
+        vaultPath: '/vault-a',
+        currentNotePath: 'notes/today.md',
+      })).resolves.toBe('blob:logo');
+
+      expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(2);
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reuses replay tokens for the same animated resource in one render window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.gif');
+      hoisted.loadImageAsBlob.mockResolvedValue('blob:animated');
+
+      const first = await resolveCoverAssetUrl({
+        assetPath: 'assets/a.gif',
+        vaultPath: '/vault-a',
+        replayAnimated: true,
+      });
+      const second = await resolveCoverAssetUrl({
+        assetPath: './assets/a.gif',
+        vaultPath: '/vault-a',
+        replayAnimated: true,
+      });
+
+      expect(first).toMatch(/^blob:animated#vlaina-replay=/);
+      expect(second).toBe(first);
+
+      vi.advanceTimersByTime(501);
+      const later = await resolveCoverAssetUrl({
+        assetPath: 'assets/a.gif',
+        vaultPath: '/vault-a',
+        replayAnimated: true,
+      });
+
+      expect(later).toMatch(/^blob:animated#vlaina-replay=/);
+      expect(later).not.toBe(first);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not add replay tokens to non-animated image assets', async () => {

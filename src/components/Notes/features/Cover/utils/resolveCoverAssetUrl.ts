@@ -17,19 +17,74 @@ interface PendingCoverAssetUrlResolve {
   startedAt: number;
 }
 
+interface CompletedCoverAssetUrlResolve {
+  url: string;
+  resolvedAt: number;
+}
+
 const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
+const completedCoverAssetUrlResolves = new Map<string, CompletedCoverAssetUrlResolve>();
 const COVER_RESOLVE_JOIN_WINDOW_MS = 50;
+const COVER_RESOLVE_REUSE_WINDOW_MS = 500;
 export const MAX_PENDING_COVER_ASSET_URL_RESOLVES = 100;
+const MAX_COMPLETED_COVER_ASSET_URL_RESOLVES = 500;
+const ANIMATED_REPLAY_TOKEN_REUSE_WINDOW_MS = 500;
+const MAX_ANIMATED_REPLAY_TOKEN_CACHE_ENTRIES = 500;
 let animatedReplayTokenCounter = 0;
+
+interface AnimatedReplayTokenEntry {
+  token: string;
+  createdAt: number;
+}
+
+const animatedReplayTokenCache = new Map<string, AnimatedReplayTokenEntry>();
 
 export function shouldPreserveAssetAnimation(assetPath: string) {
   const pathname = assetPath.split(/[?#]/, 1)[0]?.toLowerCase() ?? '';
   return pathname.endsWith('.gif') || pathname.endsWith('.apng') || pathname.endsWith('.webp');
 }
 
-function appendAnimatedReplayToken(url: string): string {
+function getNowMs(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+function createAnimatedReplayToken(): string {
   animatedReplayTokenCounter += 1;
-  const token = `${Date.now().toString(36)}-${animatedReplayTokenCounter.toString(36)}`;
+  return `${Date.now().toString(36)}-${animatedReplayTokenCounter.toString(36)}`;
+}
+
+function getAnimatedReplayToken(url: string): string {
+  const now = getNowMs();
+  const cached = animatedReplayTokenCache.get(url);
+  if (cached && now - cached.createdAt <= ANIMATED_REPLAY_TOKEN_REUSE_WINDOW_MS) {
+    animatedReplayTokenCache.delete(url);
+    animatedReplayTokenCache.set(url, cached);
+    return cached.token;
+  }
+
+  if (cached) {
+    animatedReplayTokenCache.delete(url);
+  }
+
+  const entry = {
+    token: createAnimatedReplayToken(),
+    createdAt: now,
+  };
+  animatedReplayTokenCache.set(url, entry);
+
+  while (animatedReplayTokenCache.size > MAX_ANIMATED_REPLAY_TOKEN_CACHE_ENTRIES) {
+    const oldestKey = animatedReplayTokenCache.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    animatedReplayTokenCache.delete(oldestKey);
+  }
+
+  return entry.token;
+}
+
+function appendAnimatedReplayToken(url: string): string {
+  const token = getAnimatedReplayToken(url);
   return `${url}${url.includes('#') ? '&' : '#'}vlaina-replay=${token}`;
 }
 
@@ -54,6 +109,35 @@ function getCoverResolveKey({
   ].join('\0');
 }
 
+function getCompletedCoverAssetUrlResolve(resolveKey: string, now: number): string | null {
+  const cached = completedCoverAssetUrlResolves.get(resolveKey);
+  if (!cached) {
+    return null;
+  }
+
+  if (now - cached.resolvedAt > COVER_RESOLVE_REUSE_WINDOW_MS) {
+    completedCoverAssetUrlResolves.delete(resolveKey);
+    return null;
+  }
+
+  completedCoverAssetUrlResolves.delete(resolveKey);
+  completedCoverAssetUrlResolves.set(resolveKey, cached);
+  return cached.url;
+}
+
+function setCompletedCoverAssetUrlResolve(resolveKey: string, url: string, now: number): void {
+  completedCoverAssetUrlResolves.delete(resolveKey);
+  completedCoverAssetUrlResolves.set(resolveKey, { url, resolvedAt: now });
+
+  while (completedCoverAssetUrlResolves.size > MAX_COMPLETED_COVER_ASSET_URL_RESOLVES) {
+    const oldestKey = completedCoverAssetUrlResolves.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    completedCoverAssetUrlResolves.delete(oldestKey);
+  }
+}
+
 export async function resolveCoverAssetUrl({
   assetPath,
   vaultPath,
@@ -70,13 +154,19 @@ export async function resolveCoverAssetUrl({
     thumbnailMaxEdgePx,
   });
   const pendingResolve = pendingCoverAssetUrlResolves.get(resolveKey);
-  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const now = getNowMs();
   if (pendingResolve && now - pendingResolve.startedAt <= COVER_RESOLVE_JOIN_WINDOW_MS) {
     return applyAnimatedReplayToken(await pendingResolve.promise, assetPath, replayAnimated);
   }
   if (pendingResolve) {
     pendingCoverAssetUrlResolves.delete(resolveKey);
   }
+
+  const completedResolve = getCompletedCoverAssetUrlResolve(resolveKey, now);
+  if (completedResolve) {
+    return applyAnimatedReplayToken(completedResolve, assetPath, replayAnimated);
+  }
+
   if (pendingCoverAssetUrlResolves.size >= MAX_PENDING_COVER_ASSET_URL_RESOLVES) {
     throw new Error('cover-resolve-busy');
   }
@@ -94,6 +184,7 @@ export async function resolveCoverAssetUrl({
   });
   try {
     const resolvedUrl = await resolvePromise;
+    setCompletedCoverAssetUrlResolve(resolveKey, resolvedUrl, getNowMs());
     return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated);
   } finally {
     if (pendingCoverAssetUrlResolves.get(resolveKey)?.promise === resolvePromise) {
