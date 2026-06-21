@@ -11,6 +11,7 @@ import {
 } from '@/lib/ai/temporaryChat'
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import { requestManager } from '@/lib/ai/requestManager'
+import { readWindowLaunchContext } from '@/lib/desktop/launchContext'
 
 export interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -37,6 +38,28 @@ export interface AIUIState {
 
 function saveSessionJsonInBackground(sessionId: string, messages: ChatMessage[]) {
   void saveSessionJson(sessionId, messages).catch(() => {})
+}
+
+function shouldPersistLastChatSessionForCurrentWindow() {
+  const launchContext = readWindowLaunchContext()
+  return !launchContext.isNewWindow
+}
+
+export function persistLastChatSessionIdForCurrentWindow(sessionId: string | null) {
+  if (!shouldPersistLastChatSessionForCurrentWindow()) {
+    return
+  }
+
+  const store = useUnifiedStore.getState()
+  const resolvedSessionId = sessionId ? resolveSessionIdAlias(sessionId) : null
+  const normalizedSessionId =
+    resolvedSessionId &&
+    !isTemporarySessionId(resolvedSessionId) &&
+    store.data.ai?.sessions.some((session) => session.id === resolvedSessionId && !isTemporarySession(session))
+      ? resolvedSessionId
+      : null
+
+  store.setLastChatSessionId(normalizedSessionId)
 }
 
 interface ChatMutationState {
@@ -245,6 +268,7 @@ export function createAIChatSession(title = 'New'): string {
     unreadSessionIds: filterUnreadSessionIds(ai.unreadSessionIds, [id, ...ai.sessions.map((session) => session.id)])
   })
   uiState.setChatSelection({ currentSessionId: id, temporaryChatEnabled: false })
+  persistLastChatSessionIdForCurrentWindow(id)
 
   saveSessionJsonInBackground(id, [])
   return id

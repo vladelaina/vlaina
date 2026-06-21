@@ -1,6 +1,40 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { canPersistNoteScrollPosition } from './MarkdownEditor';
 import { createLargeMarkdownFirstPaintPreviewBlocks } from './LargeMarkdownFirstPaintPreview';
+import {
+  loadPersistedNoteScrollPosition,
+  NOTE_SCROLL_POSITION_STORAGE_KEY,
+  persistNoteScrollPosition,
+} from './utils/noteScrollPositionStorage';
+
+describe('note scroll position storage', () => {
+  beforeEach(() => {
+    window.localStorage.removeItem(NOTE_SCROLL_POSITION_STORAGE_KEY);
+  });
+
+  it('persists and loads scroll positions by vault and note path', () => {
+    persistNoteScrollPosition('/vault-a', 'docs/alpha.md', 320.4);
+    persistNoteScrollPosition('/vault-b', 'docs/alpha.md', 48);
+
+    expect(loadPersistedNoteScrollPosition('/vault-a', 'docs/alpha.md')).toBe(320);
+    expect(loadPersistedNoteScrollPosition('/vault-b', 'docs/alpha.md')).toBe(48);
+    expect(loadPersistedNoteScrollPosition('/vault-a', 'docs/missing.md')).toBeNull();
+  });
+
+  it('persists absolute markdown file scroll positions', () => {
+    persistNoteScrollPosition('/vault-a', '/external/notes/alpha.md', 128);
+
+    expect(loadPersistedNoteScrollPosition('/vault-a', '/external/notes/alpha.md')).toBe(128);
+    expect(loadPersistedNoteScrollPosition('/vault-b', '/external/notes/alpha.md')).toBe(128);
+  });
+
+  it('ignores draft note scroll positions', () => {
+    persistNoteScrollPosition('/vault-a', 'draft:local', 128);
+
+    expect(loadPersistedNoteScrollPosition('/vault-a', 'draft:local')).toBeNull();
+    expect(window.localStorage.getItem(NOTE_SCROLL_POSITION_STORAGE_KEY)).toBeNull();
+  });
+});
 
 describe('canPersistNoteScrollPosition', () => {
   it('allows visible scroll roots to persist their current scroll position', () => {

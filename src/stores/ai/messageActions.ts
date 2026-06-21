@@ -23,7 +23,7 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
 import { requestManager } from '@/lib/ai/requestManager'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
-import { useAIUIStore } from './chatState'
+import { persistLastChatSessionIdForCurrentWindow, useAIUIStore } from './chatState'
 
 function createMessageVersion(
   content: string,
@@ -544,6 +544,7 @@ export function createMessageActions() {
           currentSessionId: null,
           temporaryChatEnabled: false,
         })
+        persistLastChatSessionIdForCurrentWindow(null)
 
         state.updateAIData({
           sessions: ai.sessions.filter((item) => item.id !== targetSessionId),

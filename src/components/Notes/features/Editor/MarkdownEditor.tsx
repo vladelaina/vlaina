@@ -19,6 +19,10 @@ import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find/useNoteEditorFind';
 import type { EditorTopRightToolbarProps } from './EditorTopRightToolbar';
 import {
+  loadPersistedNoteScrollPosition,
+  persistNoteScrollPosition,
+} from './utils/noteScrollPositionStorage';
+import {
   flushPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
@@ -80,7 +84,14 @@ export function MarkdownEditor({
   const scrollPositionsRef = useRef(new Map<string, number>());
   const scrollPositionSaveFrameRef = useRef<number | null>(null);
   const pendingScrollPositionSaveRef = useRef<{ path: string; scrollTop: number } | null>(null);
+  const scrollPositionPersistTimerRef = useRef<number | null>(null);
+  const pendingPersistentScrollPositionRef = useRef<{
+    notesPath: string | null;
+    path: string;
+    scrollTop: number;
+  } | null>(null);
   const activePathRef = useRef<string | null>(null);
+  const activeNotesPathRef = useRef<string | null>(null);
   const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
   const lastRenderedCoverRef = useRef<RenderedCoverSnapshot | null>(null);
   const [editorReadyTarget, setEditorReadyTarget] = useState<{
@@ -166,6 +177,41 @@ export function MarkdownEditor({
 
     return state.noteContentsCache.get(currentNotePath)?.content ?? '';
   }, [currentNotePath]);
+
+  const flushPendingPersistedScrollPosition = useCallback(() => {
+    if (scrollPositionPersistTimerRef.current !== null) {
+      window.clearTimeout(scrollPositionPersistTimerRef.current);
+      scrollPositionPersistTimerRef.current = null;
+    }
+
+    const pending = pendingPersistentScrollPositionRef.current;
+    pendingPersistentScrollPositionRef.current = null;
+    if (!pending) {
+      return;
+    }
+
+    persistNoteScrollPosition(pending.notesPath, pending.path, pending.scrollTop);
+  }, []);
+
+  const schedulePersistedScrollPosition = useCallback((
+    notesRootPath: string | null,
+    path: string,
+    scrollTop: number,
+  ) => {
+    pendingPersistentScrollPositionRef.current = {
+      notesPath: notesRootPath,
+      path,
+      scrollTop,
+    };
+
+    if (scrollPositionPersistTimerRef.current !== null) {
+      window.clearTimeout(scrollPositionPersistTimerRef.current);
+    }
+
+    scrollPositionPersistTimerRef.current = window.setTimeout(() => {
+      flushPendingPersistedScrollPosition();
+    }, 500);
+  }, [flushPendingPersistedScrollPosition]);
 
   useEffect(() => {
     setEditorInitTimedOutPath(null);
@@ -264,6 +310,9 @@ export function MarkdownEditor({
         return;
       }
       scrollPositionsRef.current.set(pending.path, pending.scrollTop);
+      if (canPersistNoteScrollPosition(scrollRoot)) {
+        schedulePersistedScrollPosition(activeNotesPathRef.current, pending.path, pending.scrollTop);
+      }
     };
 
     const handleScroll = () => {
@@ -291,8 +340,41 @@ export function MarkdownEditor({
         cancelAnimationFrame(scrollPositionSaveFrameRef.current);
         commitPendingScrollPosition();
       }
+      flushPendingPersistedScrollPosition();
     };
-  }, [active]);
+  }, [active, flushPendingPersistedScrollPosition, schedulePersistedScrollPosition]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const flushCurrentScrollPosition = () => {
+      const path = activePathRef.current;
+      const scrollRoot = scrollRootRef.current;
+      if (!path || !canPersistNoteScrollPosition(scrollRoot)) {
+        return;
+      }
+
+      scrollPositionsRef.current.set(path, scrollRoot.scrollTop);
+      flushPendingPersistedScrollPosition();
+      persistNoteScrollPosition(activeNotesPathRef.current, path, scrollRoot.scrollTop);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushCurrentScrollPosition();
+      }
+    };
+
+    window.addEventListener('beforeunload', flushCurrentScrollPosition);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', flushCurrentScrollPosition);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      flushCurrentScrollPosition();
+    };
+  }, [active, flushPendingPersistedScrollPosition]);
 
   useEffect(() => {
     const openTabPaths = new Set(openTabPathsKey ? openTabPathsKey.split('\0') : []);
@@ -311,6 +393,8 @@ export function MarkdownEditor({
       const path = activePathRef.current;
       if (path && canPersistNoteScrollPosition(scrollRoot)) {
         scrollPositionsRef.current.set(path, scrollRoot.scrollTop);
+        flushPendingPersistedScrollPosition();
+        persistNoteScrollPosition(activeNotesPathRef.current, path, scrollRoot.scrollTop);
       }
       restoreSessionRef.current = null;
       return;
@@ -322,12 +406,18 @@ export function MarkdownEditor({
       const cachedScrollTop = scrollPositionsRef.current.get(previousPath);
       const nextSavedScrollTop = cachedScrollTop ?? scrollRoot.scrollTop;
       scrollPositionsRef.current.set(previousPath, nextSavedScrollTop);
+      if (canPersistNoteScrollPosition(scrollRoot)) {
+        flushPendingPersistedScrollPosition();
+        persistNoteScrollPosition(activeNotesPathRef.current, previousPath, nextSavedScrollTop);
+      }
     }
 
     activePathRef.current = currentNotePath ?? null;
+    activeNotesPathRef.current = currentNotePath ? notesPath : null;
 
     if (!hasActiveNote || !currentNotePath) {
       restoreSessionRef.current = null;
+      activeNotesPathRef.current = null;
       scrollRoot.scrollTop = 0;
       return;
     }
@@ -337,7 +427,10 @@ export function MarkdownEditor({
       return;
     }
 
-    const targetScrollTop = scrollPositionsRef.current.get(currentNotePath) ?? 0;
+    const targetScrollTop =
+      scrollPositionsRef.current.get(currentNotePath)
+      ?? loadPersistedNoteScrollPosition(notesPath, currentNotePath)
+      ?? 0;
     restoreSessionRef.current = {
       path: currentNotePath,
       targetScrollTop,
@@ -359,6 +452,10 @@ export function MarkdownEditor({
       onApply: () => {},
       onFinish: () => {
         scrollPositionsRef.current.set(currentNotePath, scrollRoot.scrollTop);
+        if (canPersistNoteScrollPosition(scrollRoot)) {
+          flushPendingPersistedScrollPosition();
+          persistNoteScrollPosition(notesPath, currentNotePath, scrollRoot.scrollTop);
+        }
         restoreSessionRef.current = null;
       },
       onStop: () => {
@@ -401,7 +498,7 @@ export function MarkdownEditor({
         restoreSessionRef.current = null;
       }
     };
-  }, [active, currentNotePath, hasActiveNote]);
+  }, [active, currentNotePath, flushPendingPersistedScrollPosition, hasActiveNote, notesPath]);
 
   return (
     <div

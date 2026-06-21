@@ -41,6 +41,7 @@ interface UnifiedStoreActions {
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
   setMarkdownImportedThemeId: (importedThemeId: string | null) => void;
   setLastAppViewMode: (mode: 'notes' | 'chat', skipPersist?: boolean) => void;
+  setLastChatSessionId: (sessionId: string | null, skipPersist?: boolean) => void;
   setColorMode: (mode: NonNullable<UnifiedData['settings']['ui']>['colorMode']) => void;
   setThemeId: (themeId: string) => void;
   setNotesChatFloatingSize: (size: NonNullable<UnifiedData['settings']['ui']>['notesChatFloatingSize']) => void;
@@ -146,6 +147,9 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
       ...DEFAULT_SETTINGS.ui,
       ...settings?.ui,
       lastAppViewMode: settings?.ui?.lastAppViewMode === 'chat' ? 'chat' : 'notes',
+      lastChatSessionId: typeof settings?.ui?.lastChatSessionId === 'string' && !isTemporarySessionId(settings.ui.lastChatSessionId)
+        ? settings.ui.lastChatSessionId
+        : null,
       colorMode: settings?.ui?.colorMode === 'light' || settings?.ui?.colorMode === 'dark'
         ? settings.ui.colorMode
         : 'system',
