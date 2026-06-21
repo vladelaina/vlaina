@@ -208,8 +208,11 @@ export function useImageActions({
             link.href = resourceSrc;
             link.download = nodeAlt || 'image';
             document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            try {
+                link.click();
+            } finally {
+                link.parentNode?.removeChild(link);
+            }
         }
     };
 

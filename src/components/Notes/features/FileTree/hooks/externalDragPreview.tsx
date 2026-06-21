@@ -100,21 +100,21 @@ function buildPreviewState(paths: string[], kind: ExternalDragPreviewKind): Exte
 export function createExternalDragPreview(paths: string[]): ExternalDragPreviewHandle {
   const hostElement = document.createElement('div');
   applyPreviewElementStyles(hostElement);
-  document.body.appendChild(hostElement);
-
   const previousBodyCursor = document.body.style.cursor;
-  document.body.style.cursor = themeDomStyleTokens.cursorGrabbing;
-
-  const root: Root = createRoot(hostElement);
+  let root: Root | null = null;
   const storage = getStorageAdapter();
   let destroyed = false;
   let requestToken = 0;
 
   const renderState = (state: ExternalDragPreviewState) => {
-    root.render(<ExternalDragPreviewCard {...state} />);
+    root?.render(<ExternalDragPreviewCard {...state} />);
   };
 
   const updatePaths = (nextPaths: string[]) => {
+    if (destroyed) {
+      return;
+    }
+
     const validPaths = nextPaths.filter(Boolean);
     if (validPaths.length === 0) {
       return;
@@ -139,22 +139,35 @@ export function createExternalDragPreview(paths: string[]): ExternalDragPreviewH
     });
   };
 
-  updatePaths(paths);
+  try {
+    document.body.appendChild(hostElement);
+    document.body.style.cursor = themeDomStyleTokens.cursorGrabbing;
+    root = createRoot(hostElement);
+    updatePaths(paths);
 
-  return {
-    updatePaths,
-    updatePosition: (clientX: number, clientY: number) => {
-      hostElement.style.transform = `translate3d(${Math.round(clientX - PREVIEW_OFFSET_X)}px, ${Math.round(clientY - PREVIEW_OFFSET_Y)}px, 0)`;
-    },
-    dispose: () => {
-      if (destroyed) {
-        return;
-      }
+    return {
+      updatePaths,
+      updatePosition: (clientX: number, clientY: number) => {
+        hostElement.style.transform = `translate3d(${Math.round(clientX - PREVIEW_OFFSET_X)}px, ${Math.round(clientY - PREVIEW_OFFSET_Y)}px, 0)`;
+      },
+      dispose: () => {
+        if (destroyed) {
+          return;
+        }
 
-      destroyed = true;
-      document.body.style.cursor = previousBodyCursor;
-      root.unmount();
-      hostElement.remove();
-    },
-  };
+        destroyed = true;
+        document.body.style.cursor = previousBodyCursor;
+        root?.unmount();
+        root = null;
+        hostElement.remove();
+      },
+    };
+  } catch (error) {
+    destroyed = true;
+    document.body.style.cursor = previousBodyCursor;
+    root?.unmount();
+    root = null;
+    hostElement.remove();
+    throw error;
+  }
 }

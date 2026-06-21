@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const zenumlDiagram = { id: 'zenuml' };
 const registerExternalDiagrams = vi.fn(async () => undefined);
 const initialize = vi.fn();
-const render = vi.fn(async (_id: string, code: string) => {
+const render = vi.fn(async (_id: string, code: string, container?: HTMLElement) => {
+  container?.appendChild(document.createElement('div'));
   console.log('core rendering', code);
   return { svg: '<svg data-testid="diagram"></svg>' };
 });
@@ -27,6 +28,7 @@ describe('mermaidRenderer', () => {
   });
 
   afterEach(() => {
+    document.body.innerHTML = '';
     vi.restoreAllMocks();
   });
 
@@ -47,7 +49,7 @@ describe('mermaidRenderer', () => {
       }),
     }));
     expect(registerExternalDiagrams).toHaveBeenCalledWith([zenumlDiagram]);
-    expect(render).toHaveBeenCalledWith('diagram-1', 'zenuml\nAlice->Bob: Hi');
+    expect(render).toHaveBeenCalledWith('diagram-1', 'zenuml\nAlice->Bob: Hi', expect.any(HTMLElement));
     expect(registerExternalDiagrams.mock.invocationCallOrder[0]).toBeLessThan(
       render.mock.invocationCallOrder[0]
     );
@@ -124,6 +126,24 @@ describe('mermaidRenderer', () => {
     expect(html).toContain('Mermaid Error: Unable to render diagram.');
     expect(html).not.toContain('<svg');
     expect(html).not.toContain('Syntax error in text');
+  });
+
+  it('removes third-party temporary error DOM from the document body', async () => {
+    render.mockImplementationOnce(async (_id: string, _code: string, container?: HTMLElement) => {
+      const leakedError = document.createElement('div');
+      leakedError.textContent = 'Syntax error in text';
+      container?.appendChild(leakedError);
+      return {
+        svg: '<svg viewBox="0 0 2412 512"><text class="error-text">Syntax error in text</text></svg>',
+      };
+    });
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    const html = await renderMermaid('not a diagram', 'diagram-1');
+
+    expect(html).toContain('Mermaid Error: Unable to render diagram.');
+    expect(document.body.textContent).not.toContain('Syntax error in text');
+    expect(document.body.querySelector('[data-mermaid-render-host="true"]')).toBeNull();
   });
 
   it('rejects oversized diagrams before loading mermaid', async () => {

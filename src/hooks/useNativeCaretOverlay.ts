@@ -269,8 +269,12 @@ function getControlCaretRect(control: TextControl): { left: number; top: number;
   }
   control.ownerDocument.body.appendChild(mirror);
 
-  const markerRect = marker.getBoundingClientRect();
-  mirror.remove();
+  let markerRect: DOMRect;
+  try {
+    markerRect = marker.getBoundingClientRect();
+  } finally {
+    mirror.remove();
+  }
 
   const borderLeft = parsePx(styles.borderLeftWidth);
   const borderTop = parsePx(styles.borderTopWidth);

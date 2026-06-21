@@ -31,6 +31,8 @@ import { sanitizeHtml } from './plugins/clipboard/sanitizer';
 const MAX_RAW_MARKDOWN_HTML_CHARS = 2 * 1024 * 1024;
 const PLAIN_UNCLOSED_HTML_BLOCK_START_PATTERN =
     /^(?: {0,3})<(div|blockquote|details|figure|section|article|aside|table|tbody|thead|tfoot|tr|td|th|ul|ol|li|dl|dt|dd|p|pre)>\n/i;
+const RAW_MARKDOWN_HTML_COMMENT_PATTERN = /^<!--(?:(?!-->)[\s\S])*-->$/;
+const RAW_MARKDOWN_ALIGNMENT_COMMENT_PATTERN = /^<!--\s*align\s*:\s*(?:left|center|right)\s*-->$/i;
 
 function getHeadingCompatibilityClass(level: unknown): string {
     const normalizedLevel = typeof level === 'number' && level >= 1 && level <= 6 ? level : 1;
@@ -77,6 +79,25 @@ export function sanitizeRawMarkdownHtmlValue(value: unknown): string {
     }
     if (isPlainUnclosedHtmlBlockStart(value)) return value;
     return sanitizeHtml(value);
+}
+
+export function shouldRenderRawMarkdownHtmlValueAsLiteralText(value: unknown): value is string {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    return RAW_MARKDOWN_HTML_COMMENT_PATTERN.test(trimmed)
+        && !isSafeInternalMarkdownHtmlValue(trimmed)
+        && !RAW_MARKDOWN_ALIGNMENT_COMMENT_PATTERN.test(trimmed);
+}
+
+export function renderRawMarkdownHtmlValueIntoElement(element: HTMLElement, value: string) {
+    const renderAsLiteralText = shouldRenderRawMarkdownHtmlValueAsLiteralText(value);
+    element.classList.toggle('md-htmlblock-literal-text', renderAsLiteralText);
+    element.dataset.value = value;
+    if (renderAsLiteralText) {
+        element.textContent = value;
+    } else {
+        element.innerHTML = value;
+    }
 }
 
 export function applyTextSchemaOverrides(ctx: Ctx) {
@@ -293,6 +314,7 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
             });
             if (dom instanceof HTMLElement) {
                 dom.classList.add('md-htmlblock', 'md-htmlblock-container');
+                renderRawMarkdownHtmlValueIntoElement(dom, safeValue);
             }
             return dom;
         },

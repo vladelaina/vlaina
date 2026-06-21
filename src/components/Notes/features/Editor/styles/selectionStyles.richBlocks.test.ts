@@ -164,7 +164,7 @@ describe("editor rich block selection styles", () => {
     expect(rule).toContain('.image-block-container,');
     expect(rule).toContain('.video-block,');
     expect(rule).toContain("[data-type='math-block'],");
-    expect(rule).toContain("[data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
+    expect(rule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
     expect(rule).toContain('.mermaid-block');
     expect(rule).toContain(').editor-block-selected.editor-block-selected-has-previous,');
     expect(rule).toContain(').editor-block-drag-source.editor-block-drag-source-has-next + :is(');
@@ -332,42 +332,70 @@ describe("editor rich block selection styles", () => {
     expect(blockSelectionCss).not.toContain('p.editor-block-selected:has(> .image-block-container)');
   });
 
-  it('keeps scrollable html block selection fills from creating horizontal overflow', () => {
+  it('keeps selected atomic rich block fills aligned without showing selection scrollbars', () => {
     const blockSelectionCss = readBlockSelectionStyle();
+    const indexCss = readStyleFile('index.css');
     const mathCss = readStyleFile('math-editor.css');
+    const atomicBlockSelectorMarker = ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,";
     const htmlBlockRule = extractCssRule(
       mathCss,
       ".milkdown [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
     );
-    const htmlBlockFillRule = extractCssRule(
+    const literalHtmlBlockRule = extractCssRule(
+      mathCss,
+      ".milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
+    );
+    const atomicBlockFrameRule = extractCssRule(blockSelectionCss, atomicBlockSelectorMarker);
+    const atomicBlockFillRule = extractCssRule(
+      blockSelectionCss.slice(blockSelectionCss.indexOf(atomicBlockFrameRule) + atomicBlockFrameRule.length),
+      atomicBlockSelectorMarker
+    );
+    const atomicBlockNextGapRule = extractCssRule(
       blockSelectionCss,
-      ".milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is("
-    );
-    const htmlBlockFrameRule = extractCssRule(
-      mathCss,
-      ".milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is("
-    );
-    const htmlBlockHoverFrameRule = extractCssRule(
-      mathCss,
-      ".milkdown .ProseMirror.editor-block-selection-active [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).editor-block-selected.editor-block-selected-textlike:is(:hover, :focus-visible),"
+      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
     );
 
+    expect(indexCss.indexOf("@import './math-editor.css';")).toBeGreaterThanOrEqual(0);
+    expect(indexCss.indexOf("@import './block-selection-atomic-rich.css';")).toBeGreaterThan(
+      indexCss.indexOf("@import './math-editor.css';")
+    );
     expect(htmlBlockRule).toContain('overflow-x: auto;');
-    expect(htmlBlockFillRule).toContain(":not([data-value='<!--vlaina-markdown-blank-line-->'])");
-    expect(htmlBlockFillRule).toContain(":not([data-value='<!--vlaina-markdown-tight-heading-->'])");
-    expect(htmlBlockFillRule).toContain('.editor-block-selected-textlike');
-    expect(htmlBlockFillRule).toContain('.editor-block-drag-source-textlike');
-    expect(htmlBlockFillRule).toContain('.editor-native-selected-textlike');
-    expect(htmlBlockFillRule).toContain('.editor-block-selected-large-textlike');
-    expect(htmlBlockFillRule).toContain('right: var(--vlaina-space-0);');
-    expect(htmlBlockFillRule).toContain('left: var(--vlaina-space-0);');
-    expect(htmlBlockFillRule).not.toContain('var(--vlaina-block-selection-bleed-x-end)');
-    expect(htmlBlockFillRule).not.toContain('var(--vlaina-block-selection-bleed-x-start)');
-    expect(htmlBlockFrameRule).toContain('background: transparent !important;');
-    expect(htmlBlockFrameRule).toContain('background-color: transparent !important;');
-    expect(htmlBlockFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow) !important;');
-    expect(htmlBlockHoverFrameRule).toContain('editor-block-selected-large-textlike');
-    expect(htmlBlockHoverFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow) !important;');
+    expect(literalHtmlBlockRule).toContain('overflow: visible;');
+    expect(literalHtmlBlockRule).toContain('overflow-x: visible;');
+    expect(literalHtmlBlockRule).toContain('overflow-y: visible;');
+    expect(literalHtmlBlockRule).toContain('white-space: pre-wrap;');
+    expect(literalHtmlBlockRule).toContain('overflow-wrap: anywhere;');
+    expect(atomicBlockFillRule).toContain("[data-type='math-block'].math-block-wrapper");
+    expect(atomicBlockFillRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])");
+    expect(atomicBlockFillRule).toContain('.mermaid-block');
+    expect(atomicBlockFillRule).toContain('.editor-block-selected');
+    expect(atomicBlockFillRule).toContain('.editor-block-drag-source');
+    expect(atomicBlockFillRule).toContain('.ProseMirror-selectednode');
+    expect(atomicBlockFillRule).toContain('.editor-block-selected-textlike');
+    expect(atomicBlockFillRule).toContain('.editor-block-drag-source-textlike');
+    expect(atomicBlockFillRule).toContain('.editor-native-selected-textlike');
+    expect(atomicBlockFillRule).toContain("content: '';");
+    expect(atomicBlockFillRule).toContain('top: var(--vlaina-block-selection-fill-top);');
+    expect(atomicBlockFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
+    expect(atomicBlockFillRule).toContain('bottom: var(--vlaina-block-selection-fill-bottom);');
+    expect(atomicBlockFillRule).toContain('left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));');
+    expect(atomicBlockFillRule).toContain('display: block !important;');
+    expect(atomicBlockFillRule).toContain('background: var(--vlaina-block-selection-color);');
+    expect(atomicBlockNextGapRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
+    expect(blockSelectionCss).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
+    expect(atomicBlockFrameRule).toContain("[data-type='math-block'].math-block-wrapper");
+    expect(atomicBlockFrameRule).toContain('.mermaid-block');
+    expect(atomicBlockFrameRule).toContain('content-visibility: visible;');
+    expect(atomicBlockFrameRule).toContain('contain: none;');
+    expect(atomicBlockFrameRule).toContain('isolation: isolate;');
+    expect(atomicBlockFrameRule).toContain('position: relative;');
+    expect(atomicBlockFrameRule).toContain('z-index: var(--vlaina-z-1);');
+    expect(atomicBlockFrameRule).toContain('background: transparent !important;');
+    expect(atomicBlockFrameRule).toContain('background-color: transparent !important;');
+    expect(atomicBlockFrameRule).toContain('overflow: visible;');
+    expect(atomicBlockFrameRule).toContain('overflow-x: visible;');
+    expect(atomicBlockFrameRule).toContain('overflow-y: visible;');
+    expect(atomicBlockFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
 
     const selectedAtomicForegroundRule = extractCssRule(
       mathCss,

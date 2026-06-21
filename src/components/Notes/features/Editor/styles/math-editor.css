@@ -21,6 +21,14 @@
   cursor: pointer;
 }
 
+.milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {
+  overflow: visible;
+  overflow-x: visible;
+  overflow-y: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .milkdown .ProseMirror.editor-atomic-block-keyboard-selected,
 .milkdown .ProseMirror.editor-atomic-block-keyboard-selected * {
   caret-color: transparent;
@@ -197,40 +205,22 @@
 .milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
 ).editor-block-selected:is(:hover, :focus-visible),
 .milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
 ).editor-block-selected:is(:hover, :focus-visible) * {
   cursor: default !important;
 }
 
 .milkdown .ProseMirror.editor-block-selection-active :is(
-  [data-type='math-inline'],
-  [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
+  [data-type='math-inline']
 ).editor-block-selected:is(:hover, :focus-visible) {
   background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Paint the aligned outer selection edge on the scroll container itself. */
-.milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is(
-  .editor-block-selected-textlike,
-  .editor-block-drag-source-textlike,
-  .editor-native-selected-textlike,
-  .editor-block-selected-large-textlike
-) {
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: var(--vlaina-block-selection-shadow) !important;
-}
-
-.milkdown .ProseMirror.editor-block-selection-active [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).editor-block-selected.editor-block-selected-textlike:is(:hover, :focus-visible),
-.milkdown .ProseMirror.editor-block-selection-active [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).editor-block-selected.editor-block-selected-large-textlike:is(:hover, :focus-visible) {
-  box-shadow: var(--vlaina-block-selection-shadow) !important;
 }
 
 .milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {

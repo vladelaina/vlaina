@@ -33,6 +33,13 @@ function readMathStyles() {
   );
 }
 
+function readAtomicRichBlockSelectionStyles() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles/block-selection-atomic-rich.css'),
+    'utf8'
+  );
+}
+
 function readThemeStyle() {
   return readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8');
 }
@@ -112,12 +119,36 @@ describe('math hover styles', () => {
 
   it('keeps selected atomic blocks from regaining hover affordances after block drag ends', () => {
     const css = readMathStyles();
+    const atomicBlockSelectionCss = readAtomicRichBlockSelectionStyles();
+    const selectedHoverCursorRule = extractCssRuleContaining(
+      css,
+      ').editor-block-selected:is(:hover, :focus-visible) * {'
+    );
+    const inlineSelectedHoverRule = extractCssRuleContaining(
+      css,
+      "[data-type='math-inline']\n).editor-block-selected:is(:hover, :focus-visible) {"
+    );
+    const selectedAtomicSurfaceRule = extractCssRuleContaining(
+      atomicBlockSelectionCss,
+      '[data-type=\'math-block\'].math-block-wrapper,\n  [data-type=\'html-block\'].md-htmlblock-container'
+    );
 
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-active :is(');
-    expect(css).toContain(').editor-block-selected:is(:hover, :focus-visible) * {');
-    expect(css).toContain('cursor: default !important;');
-    expect(css).toContain('background: transparent !important;');
-    expect(css).toContain('box-shadow: none !important;');
+    expect(selectedHoverCursorRule).toContain("[data-type='math-block'],");
+    expect(selectedHoverCursorRule).toContain('.mermaid-block');
+    expect(selectedHoverCursorRule).toContain('cursor: default !important;');
+    expect(inlineSelectedHoverRule).toContain('background: transparent !important;');
+    expect(inlineSelectedHoverRule).not.toContain('box-shadow: none !important;');
+    expect(selectedAtomicSurfaceRule).toContain("[data-type='math-block'].math-block-wrapper");
+    expect(selectedAtomicSurfaceRule).toContain("[data-type='html-block'].md-htmlblock-container");
+    expect(selectedAtomicSurfaceRule).toContain('.mermaid-block');
+    expect(selectedAtomicSurfaceRule).toContain('content-visibility: visible;');
+    expect(selectedAtomicSurfaceRule).toContain('contain: none;');
+    expect(selectedAtomicSurfaceRule).toContain('position: relative;');
+    expect(selectedAtomicSurfaceRule).toContain('z-index: var(--vlaina-z-1);');
+    expect(selectedAtomicSurfaceRule).toContain('overflow-x: visible;');
+    expect(selectedAtomicSurfaceRule).toContain('overflow-y: visible;');
+    expect(selectedAtomicSurfaceRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected,');
     expect(css).toContain('cursor: crosshair !important;');

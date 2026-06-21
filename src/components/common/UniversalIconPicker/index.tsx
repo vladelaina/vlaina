@@ -235,10 +235,13 @@ export function UniversalIconPicker({
         textArea.style.position = 'fixed';
         textArea.style.opacity = '0';
         document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand('copy');
-        textArea.remove();
+        try {
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+        } finally {
+          textArea.remove();
+        }
       }
       setDebugCopied(true);
       window.setTimeout(() => setDebugCopied(false), 1200);

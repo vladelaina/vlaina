@@ -69,8 +69,11 @@ async function downloadViaAnchor(src: string, filename: string): Promise<void> {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  try {
+    link.click();
+  } finally {
+    link.parentNode?.removeChild(link);
+  }
 }
 
 async function readBlobBytes(blob: Blob): Promise<Uint8Array> {

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import * as ProseModel from '@milkdown/kit/prose/model';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
   clampViewportRectTop,
@@ -36,6 +38,70 @@ async function createEditor(markdown: string) {
 
   await editor.create();
   return editor;
+}
+
+const RichSelectionSchemaCtor = (ProseModel as any).Schema;
+const richSelectionSchema = new RichSelectionSchemaCtor({
+  nodes: {
+    doc: { content: 'block+' },
+    paragraph: {
+      group: 'block',
+      content: 'text*',
+      toDOM: () => ['p', 0],
+      parseDOM: [{ tag: 'p' }],
+    },
+    html_block: {
+      group: 'block',
+      content: 'text*',
+      code: true,
+      isolating: true,
+      marks: '',
+      attrs: {
+        value: { default: null },
+      },
+      toDOM: () => ['div', { 'data-type': 'html-block' }, 0],
+      parseDOM: [{ tag: 'div[data-type="html-block"]', preserveWhitespace: 'full' }],
+    },
+    math_block: {
+      group: 'block',
+      content: 'text*',
+      code: true,
+      isolating: true,
+      marks: '',
+      toDOM: () => ['div', { 'data-type': 'math-block' }, 0],
+      parseDOM: [{ tag: 'div[data-type="math-block"]', preserveWhitespace: 'full' }],
+    },
+    mermaid: {
+      group: 'block',
+      content: 'text*',
+      code: true,
+      isolating: true,
+      marks: '',
+      toDOM: () => ['div', { 'data-type': 'mermaid' }, 0],
+      parseDOM: [{ tag: 'div[data-type="mermaid"]', preserveWhitespace: 'full' }],
+    },
+    text: { group: 'inline' },
+  },
+});
+
+function richSelectionTextNode(text: string) {
+  return text ? richSelectionSchema.text(text) : undefined;
+}
+
+function richSelectionParagraph(text: string) {
+  return richSelectionSchema.nodes.paragraph.create(null, richSelectionTextNode(text));
+}
+
+function richSelectionHtmlBlock(value: string) {
+  return richSelectionSchema.nodes.html_block.create({ value }, richSelectionTextNode(value));
+}
+
+function richSelectionRichBlock(typeName: 'math_block' | 'mermaid', text: string) {
+  return richSelectionSchema.nodes[typeName].create(null, richSelectionTextNode(text));
+}
+
+function richSelectionDocWith(nodes: ProseNode[]) {
+  return richSelectionSchema.nodes.doc.create(null, nodes);
 }
 
 afterEach(() => {
@@ -571,6 +637,100 @@ describe('blockSelectionUtils', () => {
     expect(classes.at(-2)).toContain('editor-block-selected-has-previous');
 
     await editor.destroy();
+  });
+
+  it('marks atomic rich node types on the large selection path', () => {
+    const richNodeTypes = ['html_block', 'math_block', 'mermaid'] as const;
+    const doc = richSelectionDocWith([
+      ...Array.from(
+        { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD - richNodeTypes.length },
+        (_, index) => richSelectionParagraph(`paragraph ${index}`),
+      ),
+      richSelectionHtmlBlock('<div>large html block</div>'),
+      richSelectionRichBlock('math_block', 'E = mc^2'),
+      richSelectionRichBlock('mermaid', 'flowchart TD\nA --> B'),
+    ]);
+    const rows: Array<{ from: number; nodeType: string; to: number }> = [];
+    doc.forEach((node: ProseNode, offset: number) => {
+      rows.push({
+        from: offset,
+        nodeType: node.type.name,
+        to: offset + node.nodeSize,
+      });
+    });
+
+    const decorations = createBlockSelectionDecorations(
+      doc,
+      rows.map(({ from, to }) => ({ from, to })),
+    );
+    const classByRange = new Map(decorations.find().map((decoration: Decoration) => [
+      `${decoration.from}:${decoration.to}`,
+      String((decoration.type as any).attrs?.class ?? ''),
+    ]));
+    const classByNodeType = new Map(rows.map((row) => [
+      row.nodeType,
+      classByRange.get(`${row.from}:${row.to}`) ?? '',
+    ]));
+    const classes = Array.from(classByRange.values());
+
+    expect(rows).toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD);
+    expect(classes.filter((className) => className.includes('editor-block-selected-large-rich')))
+      .toHaveLength(richNodeTypes.length);
+    expect(classes.filter((className) => className.includes('editor-block-selected-large-textlike')))
+      .toHaveLength(LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD - richNodeTypes.length);
+    for (const nodeType of richNodeTypes) {
+      const className = classByNodeType.get(nodeType);
+      expect(className, `${nodeType} selection class`).toContain('editor-block-selected-large-rich');
+      expect(className, `${nodeType} selection class`).not.toContain('editor-block-selected-large-textlike');
+    }
+  });
+
+  it('keeps non-rendering html blocks text-like on the large selection path', () => {
+    const richHtml = '<div>large html block</div>';
+    const literalComment = '<!--literal comment-->';
+    const blankLine = '<!--vlaina-markdown-blank-line-->';
+    const doc = richSelectionDocWith([
+      ...Array.from(
+        { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD - 3 },
+        (_, index) => richSelectionParagraph(`paragraph ${index}`),
+      ),
+      richSelectionHtmlBlock(richHtml),
+      richSelectionHtmlBlock(literalComment),
+      richSelectionHtmlBlock(blankLine),
+    ]);
+    const rows: Array<{ from: number; label: string; to: number }> = [];
+    doc.forEach((node: ProseNode, offset: number) => {
+      rows.push({
+        from: offset,
+        label: typeof node.attrs?.value === 'string' ? node.attrs.value : node.textContent,
+        to: offset + node.nodeSize,
+      });
+    });
+
+    const decorations = createBlockSelectionDecorations(
+      doc,
+      rows.map(({ from, to }) => ({ from, to })),
+    );
+    const classByLabel = new Map(rows.map((row) => {
+      const decoration = decorations.find(row.from, row.to).find((candidate: Decoration) =>
+        candidate.from === row.from && candidate.to === row.to
+      );
+      return [
+        row.label,
+        String((decoration?.type as any)?.attrs?.class ?? ''),
+      ];
+    }));
+
+    expect(classByLabel.get(richHtml), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .toContain('editor-block-selected-large-rich');
+    expect(classByLabel.get(literalComment), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .toContain('editor-block-selected-large-textlike');
+    expect(classByLabel.get(literalComment), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .not.toContain('editor-block-selected-large-rich');
+    expect(classByLabel.get(blankLine), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .toContain('editor-block-selected-large-textlike');
+    expect(classByLabel.get(blankLine), JSON.stringify(Object.fromEntries(classByLabel), null, 2))
+      .not.toContain('editor-block-selected-large-rich');
   });
 
   it('marks parent containers for marker styling without relying on CSS child scans', async () => {

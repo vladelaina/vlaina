@@ -173,4 +173,50 @@ describe('savePreview', () => {
     expect(mocks.saveDialog).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
   });
+
+  it('revokes the browser download URL if fallback DOM insertion fails', async () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const createObjectURL = vi.fn(() => 'blob:preview-export-test');
+    const revokeObjectURL = vi.fn();
+    const appendChild = vi.spyOn(document.body, 'appendChild').mockImplementationOnce(() => {
+      throw new Error('append failed');
+    });
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectURL,
+    });
+    mocks.getElectronBridge.mockReturnValueOnce(null);
+    mocks.saveDialog.mockResolvedValueOnce(null);
+
+    try {
+      await expect(savePreview(document.createElement('div'), 'diagram', 'png')).rejects.toThrow('append failed');
+
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-export-test');
+      expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    } finally {
+      appendChild.mockRestore();
+      if (originalCreateObjectURL) {
+        Object.defineProperty(URL, 'createObjectURL', {
+          configurable: true,
+          value: originalCreateObjectURL,
+        });
+      } else {
+        delete (URL as unknown as { createObjectURL?: unknown }).createObjectURL;
+      }
+      if (originalRevokeObjectURL) {
+        Object.defineProperty(URL, 'revokeObjectURL', {
+          configurable: true,
+          value: originalRevokeObjectURL,
+        });
+      } else {
+        delete (URL as unknown as { revokeObjectURL?: unknown }).revokeObjectURL;
+      }
+    }
+  });
 });
