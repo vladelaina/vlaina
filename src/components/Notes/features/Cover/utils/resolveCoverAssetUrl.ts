@@ -39,6 +39,12 @@ interface AnimatedReplayTokenEntry {
 
 const animatedReplayTokenCache = new Map<string, AnimatedReplayTokenEntry>();
 
+export function clearCoverAssetUrlResolveCacheForTests(): void {
+  pendingCoverAssetUrlResolves.clear();
+  completedCoverAssetUrlResolves.clear();
+  animatedReplayTokenCache.clear();
+}
+
 export function shouldPreserveAssetAnimation(assetPath: string) {
   const pathname = assetPath.split(/[?#]/, 1)[0]?.toLowerCase() ?? '';
   return pathname.endsWith('.gif') || pathname.endsWith('.apng') || pathname.endsWith('.webp');

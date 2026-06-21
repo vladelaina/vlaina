@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCoverSource } from './useCoverSource';
+import { clearCoverAssetUrlResolveCacheForTests } from '../utils/resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('../utils/coverDimensionCache', () => ({
 
 describe('useCoverSource', () => {
   beforeEach(() => {
+    clearCoverAssetUrlResolveCacheForTests();
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveVaultAssetPath.mockReset();

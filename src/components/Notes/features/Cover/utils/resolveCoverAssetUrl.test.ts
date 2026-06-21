@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearCoverAssetUrlResolveCacheForTests,
   MAX_PENDING_COVER_ASSET_URL_RESOLVES,
   resolveCoverAssetUrl,
 } from './resolveCoverAssetUrl';
@@ -21,6 +22,7 @@ vi.mock('@/lib/assets/core/paths', () => ({
 
 describe('resolveCoverAssetUrl', () => {
   beforeEach(() => {
+    clearCoverAssetUrlResolveCacheForTests();
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveExistingVaultAssetPath.mockReset();
