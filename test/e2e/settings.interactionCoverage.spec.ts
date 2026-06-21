@@ -164,6 +164,7 @@ test.describe('settings modal interaction coverage', () => {
         (data) => data.settings.markdown.codeBlock?.showLineNumbers === true,
       );
 
+      await page.locator('[data-settings-control="image-storage-location"]').click();
       await page.locator('[data-settings-image-storage-mode="vaultSubfolder"]').click();
       await expect(page.locator('[data-settings-control="image-vault-subfolder-name"]')).toBeVisible({
         timeout: 10_000,
