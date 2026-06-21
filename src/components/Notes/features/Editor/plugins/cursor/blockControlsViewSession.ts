@@ -54,6 +54,7 @@ const WHEEL_DELTA_MODE_PAGE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const NOTES_BLOCK_DROP_TARGET_SELECTOR = '[data-notes-block-drop-target="true"]';
 const NOTES_TAB_PATH_SELECTOR = '[data-notes-tab-path]';
+const NOTES_FILE_TREE_FILE_PATH_SELECTOR = '[data-file-tree-kind="file"][data-file-tree-path]';
 const BLOCK_DRAG_TAB_OPEN_DELAY_MS = 280;
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const LIST_CONTAINER_NODE_NAMES = new Set(['bullet_list', 'ordered_list']);
@@ -84,6 +85,7 @@ function serializeDraggedRangesForMarkdown(view: EditorView, ranges: BlockRange[
 
   return serializeSelectedBlocksToText(view.state, ranges, {
     markdownSerializer: getCurrentMarkdownSerializer(),
+    preserveSingleListBlockMarker: true,
   }).trim();
 }
 
@@ -234,20 +236,25 @@ function insertCrossNoteDraggedMarkdown(
   }
 }
 
-function isOverNotesBlockDropTarget(doc: Document, clientX: number, clientY: number): boolean {
-  const elements = typeof doc.elementsFromPoint === 'function'
+function getElementsFromPoint(doc: Document, clientX: number, clientY: number): Element[] {
+  return typeof doc.elementsFromPoint === 'function'
     ? doc.elementsFromPoint(clientX, clientY)
     : [];
+}
+
+function isOverNotesBlockDropTarget(elements: readonly Element[]): boolean {
   return elements.some((element) => element.closest(NOTES_BLOCK_DROP_TARGET_SELECTOR));
 }
 
-function getNotesTabPathFromPoint(doc: Document, clientX: number, clientY: number): string | null {
-  if (typeof doc.elementsFromPoint !== 'function') return null;
-
-  for (const element of doc.elementsFromPoint(clientX, clientY)) {
+function getNotesBlockOpenTargetPathFromElements(elements: readonly Element[]): string | null {
+  for (const element of elements) {
     const tab = element.closest(NOTES_TAB_PATH_SELECTOR) as HTMLElement | null;
-    const path = tab?.dataset.notesTabPath;
-    if (path) return path;
+    const tabPath = tab?.dataset.notesTabPath;
+    if (tabPath) return tabPath;
+
+    const fileTreeFile = element.closest(NOTES_FILE_TREE_FILE_PATH_SELECTOR) as HTMLElement | null;
+    const fileTreePath = fileTreeFile?.dataset.fileTreePath;
+    if (fileTreePath) return fileTreePath;
   }
 
   return null;
@@ -573,8 +580,9 @@ export class BlockControlsViewSession {
   }
 
   private applyDragPointerUpdate(clientX: number, clientY: number): void {
-    this.updateBlockDragTabHover(clientX, clientY);
-    if (isOverNotesBlockDropTarget(this.doc, clientX, clientY)) {
+    const elements = getElementsFromPoint(this.doc, clientX, clientY);
+    this.updateBlockDragTabHover(elements);
+    if (isOverNotesBlockDropTarget(elements)) {
       this.hideDropIndicator();
     } else {
       this.updateDropTargetByPointer(clientX, clientY);
@@ -850,14 +858,14 @@ export class BlockControlsViewSession {
     this.blockDragTabOpenPath = null;
   }
 
-  private updateBlockDragTabHover(clientX: number, clientY: number): void {
-    const tabPath = getNotesTabPathFromPoint(this.doc, clientX, clientY);
-    if (!tabPath || tabPath === getCurrentNotePath()) {
+  private updateBlockDragTabHover(elements: readonly Element[]): void {
+    const targetPath = getNotesBlockOpenTargetPathFromElements(elements);
+    if (!targetPath || targetPath === getCurrentNotePath()) {
       this.clearBlockDragTabOpen();
       return;
     }
 
-    this.scheduleBlockDragTabOpen(tabPath);
+    this.scheduleBlockDragTabOpen(targetPath);
   }
 
   private finishDrag(): void {
@@ -1086,8 +1094,9 @@ export class BlockControlsViewSession {
     const draggedDistance = this.dragStartClientX === null || this.dragStartClientY === null
       ? 0
       : Math.hypot(event.clientX - this.dragStartClientX, event.clientY - this.dragStartClientY);
+    const elements = getElementsFromPoint(this.doc, event.clientX, event.clientY);
     if (
-      isOverNotesBlockDropTarget(this.doc, event.clientX, event.clientY)
+      isOverNotesBlockDropTarget(elements)
       || !this.pendingDrop
       || draggedDistance < MIN_DROP_DISTANCE_PX
     ) {

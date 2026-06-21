@@ -14,6 +14,7 @@ import { LIST_CONTAINER_NODE_NAMES } from '../shared/blockNodeTypes';
 
 interface SerializeSelectedBlocksOptions {
   markdownSerializer?: Serializer | null;
+  preserveSingleListBlockMarker?: boolean;
 }
 
 const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+[.)])(?:\s+(?:\[(?: |x|X)\]\s+)?|$)/;
@@ -660,7 +661,7 @@ export function serializeSelectedBlocksToText(
   const pruned = pruneContainedBlockRanges(normalized);
   if (pruned.length === 0) return '';
 
-  if (pruned.length === 1 && normalized.length === 1) {
+  if (!options.preserveSingleListBlockMarker && pruned.length === 1 && normalized.length === 1) {
     const singleListText = serializeSingleListBlockWithoutMarker(
       state,
       pruned[0],

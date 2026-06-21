@@ -141,6 +141,14 @@ function createNoteTabDropTarget(path: string): HTMLElement {
   return tab;
 }
 
+function createFileTreeFileDropTarget(path: string): HTMLElement {
+  const file = document.createElement('div');
+  file.dataset.fileTreeKind = 'file';
+  file.dataset.fileTreePath = path;
+  document.body.appendChild(file);
+  return file;
+}
+
 function setOpenTabNotesState(openNote = vi.fn(async () => undefined)) {
   useNotesStore.setState({
     currentNote: { path: 'source.md', content: 'Source' },
@@ -564,6 +572,50 @@ describe('BlockControlsViewSession', () => {
 
       await vi.advanceTimersByTimeAsync(280);
       expect(openNote).toHaveBeenCalledWith('target.md');
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('opens a hovered sidebar file while dragging selected blocks', async () => {
+    vi.useFakeTimers();
+    const openNote = setOpenTabNotesState();
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+    const targetFile = createFileTreeFileDropTarget('target.md');
+    document.elementsFromPoint = vi.fn(() => [targetFile]);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 20, buttons: 1, bubbles: true }));
+
+      await vi.advanceTimersByTimeAsync(296);
+
+      expect(openNote).toHaveBeenCalledWith('target.md');
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('serializes dragged markdown with single list block markers for cross-note drops', () => {
+    setOpenTabNotesState();
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+
+      expect(serializeSelectedBlocksToText).toHaveBeenCalledWith(
+        view.state,
+        [{ from: 1, to: 5 }],
+        expect.objectContaining({
+          preserveSingleListBlockMarker: true,
+        }),
+      );
     } finally {
       session.destroy();
     }

@@ -809,6 +809,32 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it('can preserve a single task block marker for block drag markdown', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '- [ ] todo');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(serializeSelectedBlocksToText(view.state, blocks, {
+      markdownSerializer: serializer,
+      preserveSingleListBlockMarker: true,
+    })).toBe('- [ ] todo');
+
+    await editor.destroy();
+  });
+
   it.each([
     {
       name: 'ordered',
