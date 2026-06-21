@@ -60,7 +60,6 @@ export function MarkdownTab() {
         <SettingsItem
           data-settings-item="markdown-body-line-numbers"
           title={t('settings.markdown.bodyLineNumbers')}
-          description={t('settings.markdown.bodyLineNumbersDescription')}
         >
           <SettingsSwitch
             data-settings-control="markdown-body-line-numbers"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
+import { DialogCloseIconButton } from '@/components/common/DialogCloseIconButton';
 import { cn } from '@/lib/utils';
 import { ModuleShortcutId, ModuleShortcutSection, getModuleShortcutPreset } from '@/lib/shortcuts/moduleShortcuts';
 import { useDialogWindowDrag } from '@/hooks/useDialogWindowDrag';
@@ -143,11 +144,11 @@ export function ModuleShortcutsDialog({
       return;
     }
 
-    const timerId = window.setTimeout(() => {
+    const frameId = window.requestAnimationFrame(() => {
       searchInputRef.current?.focus({ preventScroll: true });
-    }, 90);
+    });
 
-    return () => window.clearTimeout(timerId);
+    return () => window.cancelAnimationFrame(frameId);
   }, [open]);
 
   return (
@@ -157,9 +158,11 @@ export function ModuleShortcutsDialog({
         useBlurBackdrop
         blurBackdropProps={{
           overlayClassName: 'bg-[var(--vlaina-color-drop-overlay)]',
+          zIndex: 120,
           blurPx: themeBackdropTokens.moduleShortcutsBlurPx,
           duration: themeBackdropTokens.moduleShortcutsDurationSeconds,
         }}
+        containerClassName="z-[var(--vlaina-z-121)]"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
@@ -203,7 +206,7 @@ export function ModuleShortcutsDialog({
                   placeholder={t('sidebar.search')}
                   aria-label={`${t('sidebar.search')} ${resolvedTitle}`}
                   spellCheck={false}
-                  className="relative z-[var(--vlaina-z-1)] h-6 min-w-0 flex-1 bg-transparent py-0 text-[var(--vlaina-font-13)] leading-5 text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
+                  className="relative z-[var(--vlaina-z-1)] h-full min-w-0 flex-1 bg-transparent py-0 text-[var(--vlaina-font-13)] leading-normal text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
                 />
                 {searchQuery ? (
                   <button
@@ -222,14 +225,13 @@ export function ModuleShortcutsDialog({
             </div>
           </div>
 
-          <DialogClose
-            onMouseDown={(event) => {
-              event.stopPropagation();
-            }}
-            className="app-no-drag inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]"
-          >
-            <Icon name="common.close" size="md" />
-            <span className="sr-only">{t('common.close')}</span>
+          <DialogClose asChild>
+            <DialogCloseIconButton
+              label={t('common.close')}
+              onMouseDown={(event) => {
+                event.stopPropagation();
+              }}
+            />
           </DialogClose>
         </div>
 
