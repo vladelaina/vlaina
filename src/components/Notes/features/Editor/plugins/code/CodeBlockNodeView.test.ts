@@ -77,14 +77,32 @@ function getCodeMirror(nodeView: CodeBlockNodeView) {
   return (nodeView as unknown as {
     cm: {
       dom: HTMLElement;
-      dispatch: (spec: unknown) => void;
+      dispatch: (spec: {
+        selection?: { anchor: number; head: number };
+        userEvent?: string;
+      }) => void;
       focus: () => void;
       state: {
         doc: { toString: () => string };
-        selection: { main: { anchor: number; head: number; empty: boolean } };
+        selection: { main: { anchor: number; head: number; empty: boolean; from: number; to: number } };
+        sliceDoc: (from: number, to: number) => string;
       };
     };
   }).cm;
+}
+
+function getSelectedCodeMirrorText(cm: ReturnType<typeof getCodeMirror>) {
+  const { main } = cm.state.selection;
+  return cm.state.sliceDoc(main.from, main.to);
+}
+
+function setCodeMirrorSelectionArrowKey(
+  nodeView: CodeBlockNodeView,
+  key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | null
+) {
+  (nodeView as unknown as {
+    codeMirrorSelectionArrowKey: typeof key;
+  }).codeMirrorSelectionArrowKey = key;
 }
 
 function syncProseMirrorSelection(nodeView: CodeBlockNodeView) {
@@ -515,6 +533,110 @@ describe('CodeBlockNodeView', () => {
     expect(cm.state.selection.main.anchor).toBe(node.textContent.length);
     expect(cm.state.selection.main.head).toBe(node.textContent.length);
     expect(cm.state.selection.main.empty).toBe(true);
+
+    nodeView.destroy();
+  });
+
+  it('normalizes pure newline selections down to the next non-empty code line', () => {
+    const nodeView = new CodeBlockNodeView(createMockNodeWithText('one\n\n\ntwo'), createMockView(), () => 1);
+    const cm = getCodeMirror(nodeView);
+    setCodeMirrorSelectionArrowKey(nodeView, 'ArrowDown');
+
+    cm.dispatch({
+      selection: {
+        anchor: 3,
+        head: 4,
+      },
+      userEvent: 'select',
+    });
+
+    expect(getSelectedCodeMirrorText(cm)).toBe('two');
+    expect(cm.state.selection.main.anchor).toBe(6);
+    expect(cm.state.selection.main.head).toBe(9);
+
+    nodeView.destroy();
+  });
+
+  it('normalizes pure newline selections up to the previous non-empty code line', () => {
+    const nodeView = new CodeBlockNodeView(createMockNodeWithText('one\n\n\ntwo'), createMockView(), () => 1);
+    const cm = getCodeMirror(nodeView);
+    setCodeMirrorSelectionArrowKey(nodeView, 'ArrowUp');
+
+    cm.dispatch({
+      selection: {
+        anchor: 6,
+        head: 5,
+      },
+      userEvent: 'select',
+    });
+
+    expect(getSelectedCodeMirrorText(cm)).toBe('one');
+    expect(cm.state.selection.main.anchor).toBe(3);
+    expect(cm.state.selection.main.head).toBe(0);
+
+    nodeView.destroy();
+  });
+
+  it('leaves horizontal pure newline selections to CodeMirror native behavior', () => {
+    const nodeView = new CodeBlockNodeView(createMockNodeWithText('one\n\n\ntwo'), createMockView(), () => 1);
+    const cm = getCodeMirror(nodeView);
+
+    setCodeMirrorSelectionArrowKey(nodeView, 'ArrowRight');
+
+    cm.dispatch({
+      selection: {
+        anchor: 3,
+        head: 4,
+      },
+      userEvent: 'select',
+    });
+
+    expect(getSelectedCodeMirrorText(cm)).toBe('\n');
+    expect(cm.state.selection.main.anchor).toBe(3);
+    expect(cm.state.selection.main.head).toBe(4);
+
+    setCodeMirrorSelectionArrowKey(nodeView, 'ArrowLeft');
+    cm.dispatch({
+      selection: {
+        anchor: 6,
+        head: 5,
+      },
+      userEvent: 'select',
+    });
+
+    expect(getSelectedCodeMirrorText(cm)).toBe('\n');
+    expect(cm.state.selection.main.anchor).toBe(6);
+    expect(cm.state.selection.main.head).toBe(5);
+
+    nodeView.destroy();
+  });
+
+  it('extends repeated shifted line selections across blank lines', () => {
+    const nodeView = new CodeBlockNodeView(createMockNodeWithText('one\n\n\ntwo'), createMockView(), () => 1);
+    const cm = getCodeMirror(nodeView);
+    setCodeMirrorSelectionArrowKey(nodeView, 'ArrowDown');
+
+    cm.dispatch({
+      selection: {
+        anchor: 0,
+        head: 4,
+      },
+      userEvent: 'select',
+    });
+    expect(getSelectedCodeMirrorText(cm)).toBe('one');
+
+    setCodeMirrorSelectionArrowKey(nodeView, 'ArrowDown');
+    cm.dispatch({
+      selection: {
+        anchor: 0,
+        head: 4,
+      },
+      userEvent: 'select',
+    });
+
+    expect(getSelectedCodeMirrorText(cm)).toBe('one\n\n\ntwo');
+    expect(cm.state.selection.main.anchor).toBe(0);
+    expect(cm.state.selection.main.head).toBe(9);
 
     nodeView.destroy();
   });

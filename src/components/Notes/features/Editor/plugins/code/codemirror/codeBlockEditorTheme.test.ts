@@ -66,6 +66,59 @@ describe('codeBlockEditorTheme', () => {
     host.remove();
   });
 
+  it('marks non-empty selections so the code caret can be hidden while text is selected', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'const value = 1;',
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+
+    cm.dispatch({ selection: { anchor: 0, head: 5 } });
+
+    expect(cm.dom.classList.contains('editor-code-selection-active')).toBe(true);
+
+    cm.dispatch({ selection: { anchor: 5, head: 5 } });
+
+    expect(cm.dom.classList.contains('editor-code-selection-active')).toBe(false);
+
+    cm.destroy();
+    host.remove();
+  });
+
+  it('releases the code caret blink hold while text is selected', () => {
+    vi.useFakeTimers();
+
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'const value = 1;',
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+
+    cm.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    cm.dispatch({ selection: { anchor: 0, head: 5 } });
+
+    expect(cm.dom.classList.contains('editor-code-selection-active')).toBe(true);
+    expect(cm.dom.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
+    expect(Array.from(document.styleSheets)
+      .flatMap((sheet) => Array.from(sheet.cssRules))
+      .map((rule) => rule.cssText)
+      .filter((cssText) => cssText.includes('editor-code-selection-active'))
+      .join('\n')).toContain('opacity: 0');
+
+    cm.destroy();
+    host.remove();
+  });
+
   it('holds the CodeMirror caret visible while keyboard navigation is moving it', () => {
     vi.useFakeTimers();
 

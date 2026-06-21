@@ -13,6 +13,9 @@ import {
   TEXT_SELECTION_OVERLAY_CLASS,
   textSelectionOverlayPlugin,
 } from './textSelectionOverlayPlugin';
+import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
+import { floatingToolbarPlugin } from '../floating-toolbar/floatingToolbarPlugin';
+import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 import { mathPlugin } from '../math';
 import { tocPlugin } from '../toc';
 import { videoPlugin } from '../video';
@@ -228,6 +231,30 @@ describe('textSelectionOverlayPlugin', () => {
 
     expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+  });
+
+  it('hides the floating toolbar when plain navigation clears an overlay selection', async () => {
+    const view = await createEditor('hello world', [floatingToolbarPlugin]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+    view.dispatch(view.state.tr.setMeta(floatingToolbarKey, {
+      type: TOOLBAR_ACTIONS.SHOW,
+      payload: { selectionRange: { from: 1, to: 6 } },
+    }));
+
+    expect(floatingToolbarKey.getState(view.state)?.isVisible).toBe(true);
+
+    view.dom.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    expect(floatingToolbarKey.getState(view.state)?.isVisible).toBe(false);
   });
 
   it('keeps the native browser range after pointer text selection completes', async () => {

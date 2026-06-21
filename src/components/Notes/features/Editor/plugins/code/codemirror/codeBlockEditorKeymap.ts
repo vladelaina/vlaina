@@ -56,6 +56,135 @@ function deleteActiveBlockSelection(view: EditorView): boolean {
   );
 }
 
+function deleteLeadingEmptyLine(cm: CodeMirror): boolean {
+  const ranges = cm.state.selection.ranges;
+  if (ranges.length !== 1) {
+    return false;
+  }
+
+  const selection = ranges[0];
+  if (!selection.empty || selection.anchor !== 0 || cm.state.doc.lines < 2) {
+    return false;
+  }
+
+  const firstLine = cm.state.doc.line(1);
+  if (firstLine.length > 0) {
+    return false;
+  }
+
+  const nextLine = cm.state.doc.line(2);
+  const nextLineEndAfterDelete = Math.max(0, nextLine.to - 1);
+  cm.dispatch({
+    changes: { from: 0, to: 1, insert: '' },
+    selection: { anchor: nextLineEndAfterDelete, head: nextLineEndAfterDelete },
+  });
+  cm.focus();
+  return true;
+}
+
+function getCurrentOrNearestNonEmptyLineBounds(
+  cm: CodeMirror,
+  direction: -1 | 1
+): { from: number; to: number } | null {
+  const currentLine = cm.state.doc.lineAt(cm.state.selection.main.head);
+  if (currentLine.text.trim().length > 0) {
+    return { from: currentLine.from, to: currentLine.to };
+  }
+
+  for (
+    let lineNumber = currentLine.number + direction;
+    lineNumber >= 1 && lineNumber <= cm.state.doc.lines;
+    lineNumber += direction
+  ) {
+    const line = cm.state.doc.line(lineNumber);
+    if (line.text.trim().length > 0) {
+      return { from: line.from, to: line.to };
+    }
+  }
+
+  return null;
+}
+
+function getNonEmptyLineBoundsFromLineNumber(
+  cm: CodeMirror,
+  lineNumber: number,
+  direction: -1 | 1
+): { from: number; to: number } | null {
+  for (
+    let currentLineNumber = lineNumber;
+    currentLineNumber >= 1 && currentLineNumber <= cm.state.doc.lines;
+    currentLineNumber += direction
+  ) {
+    const line = cm.state.doc.line(currentLineNumber);
+    if (line.text.trim().length > 0) {
+      return { from: line.from, to: line.to };
+    }
+  }
+
+  return null;
+}
+
+function getNextNonEmptyLineBoundsOutsideSelection(
+  cm: CodeMirror,
+  direction: -1 | 1
+): { from: number; to: number } | null {
+  const selection = cm.state.selection.main;
+  if (selection.empty) {
+    return getCurrentOrNearestNonEmptyLineBounds(cm, direction);
+  }
+
+  if (direction < 0) {
+    const topLine = cm.state.doc.lineAt(selection.from);
+    const startLineNumber =
+      topLine.text.trim().length > 0 && selection.from <= topLine.from
+        ? topLine.number - 1
+        : topLine.number;
+    return getNonEmptyLineBoundsFromLineNumber(cm, startLineNumber, direction);
+  }
+
+  const bottomLine = cm.state.doc.lineAt(selection.to);
+  const startLineNumber =
+    bottomLine.text.trim().length > 0 && selection.to >= bottomLine.to
+      ? bottomLine.number + 1
+      : bottomLine.number;
+  return getNonEmptyLineBoundsFromLineNumber(cm, startLineNumber, direction);
+}
+
+export function moveOrExtendToTrimmedCodeBoundary(
+  getCodeMirror: () => CodeMirror | undefined,
+  direction: -1 | 1,
+  extend: boolean
+): boolean {
+  const cm = getCodeMirror();
+  if (!cm) {
+    return false;
+  }
+
+  const currentSelection = cm.state.selection.main;
+  const targetLine = extend && !currentSelection.empty
+    ? getNextNonEmptyLineBoundsOutsideSelection(cm, direction)
+    : getCurrentOrNearestNonEmptyLineBounds(cm, direction);
+  if (!targetLine) {
+    return false;
+  }
+
+  const nextSelection = extend
+    ? currentSelection.empty
+      ? EditorSelection.single(
+        direction < 0 ? targetLine.to : targetLine.from,
+        direction < 0 ? targetLine.from : targetLine.to
+      )
+      : EditorSelection.single(
+        direction < 0 ? currentSelection.to : currentSelection.from,
+        direction < 0 ? targetLine.from : targetLine.to
+      )
+    : EditorSelection.cursor(direction < 0 ? targetLine.from : targetLine.to);
+
+  cm.dispatch({ selection: nextSelection });
+  cm.focus();
+  return true;
+}
+
 function getSelectedCodeMirrorText(cm: CodeMirror): string {
   return cm.state.selection.ranges
     .filter((range) => !range.empty)
@@ -248,6 +377,13 @@ export function createCodeBlockEditorKeymap({
       run: () => deleteActiveBlockSelection(view),
     },
     {
+      key: 'Backspace',
+      run: () => {
+        const cm = getCodeMirror();
+        return cm ? deleteLeadingEmptyLine(cm) : false;
+      },
+    },
+    {
       key: 'Mod-c',
       run: () => copyCodeMirrorSelection(getCodeMirror, view, getNode, getPos),
     },
@@ -283,6 +419,14 @@ export function createCodeBlockEditorKeymap({
     { key: 'ArrowLeft', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'char', -1) },
     { key: 'ArrowDown', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'line', 1) },
     { key: 'ArrowRight', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'char', 1) },
+    { key: 'Mod-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
+    { key: 'Mod-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
+    { key: 'Ctrl-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
+    { key: 'Ctrl-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
+    { key: 'Ctrl-Shift-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
+    { key: 'Ctrl-Shift-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
+    { key: 'Shift-Ctrl-ArrowUp', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, -1, true) },
+    { key: 'Shift-Ctrl-ArrowDown', run: () => moveOrExtendToTrimmedCodeBoundary(getCodeMirror, 1, true) },
     {
       key: 'Mod-Enter',
       run: () => {

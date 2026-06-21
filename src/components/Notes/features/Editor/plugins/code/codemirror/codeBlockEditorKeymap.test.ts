@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EditorState } from '@codemirror/state';
 
 const blockSelectionMocks = vi.hoisted(() => ({
   deleteSelectedBlocks: vi.fn(() => true),
@@ -66,6 +67,208 @@ describe('createCodeBlockEditorKeymap', () => {
       expect.any(Function)
     );
     expect(focus).not.toHaveBeenCalled();
+  });
+
+  it('deletes a leading empty line in a multiline code block on Backspace', () => {
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const cm = {
+      dispatch,
+      focus,
+      state: {
+        doc: {
+          lines: 2,
+          line: vi.fn((lineNumber: number) => (
+            lineNumber === 1
+              ? { from: 0, to: 0, length: 0, text: '' }
+              : { from: 1, to: 5, length: 4, text: 'code' }
+          )),
+        },
+        selection: {
+          ranges: [
+            {
+              from: 0,
+              to: 0,
+              anchor: 0,
+              head: 0,
+              empty: true,
+            },
+          ],
+        },
+      },
+    };
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => cm as never,
+      view: { state: { id: 'state' } } as never,
+      getNode: () => ({}) as never,
+      getPos: () => 0,
+    });
+
+    const backspaces = keymaps.filter((binding) => binding.key === 'Backspace');
+
+    expect(backspaces[0]?.run?.({} as never)).toBe(false);
+    expect(backspaces[1]?.run?.({} as never)).toBe(true);
+    expect(cm.state.doc.line).toHaveBeenCalledWith(1);
+    expect(cm.state.doc.line).toHaveBeenCalledWith(2);
+    expect(dispatch).toHaveBeenCalledWith({
+      changes: { from: 0, to: 1, insert: '' },
+      selection: { anchor: 4, head: 4 },
+    });
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('extends Ctrl+Arrow selections to non-empty code content without surrounding blank lines', () => {
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const state = EditorState.create({
+      doc: '\ncode\n\n',
+      selection: { anchor: 7 },
+    });
+    const cm = {
+      dispatch,
+      focus,
+      state,
+    };
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => cm as never,
+      view: { state: { id: 'state' } } as never,
+      getNode: () => ({}) as never,
+      getPos: () => 0,
+    });
+
+    const selectUp = keymaps.find((binding) => binding.key === 'Ctrl-Shift-ArrowUp');
+
+    expect(selectUp?.run?.({} as never)).toBe(true);
+    const selection = dispatch.mock.calls[0][0].selection;
+    expect(selection.main.anchor).toBe(5);
+    expect(selection.main.head).toBe(1);
+    expect(selection.main.from).toBe(1);
+    expect(selection.main.to).toBe(5);
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('extends plain Ctrl+Arrow selections to non-empty code content boundaries', () => {
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const state = EditorState.create({
+      doc: '\ncode\n\n',
+      selection: { anchor: 7 },
+    });
+    const cm = {
+      dispatch,
+      focus,
+      state,
+    };
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => cm as never,
+      view: { state: { id: 'state' } } as never,
+      getNode: () => ({}) as never,
+      getPos: () => 0,
+    });
+
+    const moveUp = keymaps.find((binding) => binding.key === 'Ctrl-ArrowUp');
+
+    expect(moveUp?.run?.({} as never)).toBe(true);
+    const selection = dispatch.mock.calls[0][0].selection;
+    expect(selection.main.anchor).toBe(5);
+    expect(selection.main.head).toBe(1);
+    expect(selection.main.from).toBe(1);
+    expect(selection.main.to).toBe(5);
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Ctrl+ArrowUp selection on the current code line without the previous line break', () => {
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const state = EditorState.create({
+      doc: 'const previous = true;\n\nconst current = true;',
+      selection: { anchor: 30 },
+    });
+    const cm = {
+      dispatch,
+      focus,
+      state,
+    };
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => cm as never,
+      view: { state: { id: 'state' } } as never,
+      getNode: () => ({}) as never,
+      getPos: () => 0,
+    });
+
+    const moveUp = keymaps.find((binding) => binding.key === 'Ctrl-ArrowUp');
+
+    expect(moveUp?.run?.({} as never)).toBe(true);
+    const selection = dispatch.mock.calls[0][0].selection;
+    expect(selection.main.anchor).toBe(45);
+    expect(selection.main.head).toBe(24);
+    expect(state.sliceDoc(selection.main.from, selection.main.to)).toBe('const current = true;');
+    expect(state.sliceDoc(selection.main.from, selection.main.to)).not.toContain('\n');
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('extends repeated Ctrl+ArrowUp selections to the previous code line and keeps separator blank lines', () => {
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const state = EditorState.create({
+      doc: '1hi\n\n2hi\n\n3hi',
+      selection: { anchor: 13, head: 10 },
+    });
+    const cm = {
+      dispatch,
+      focus,
+      state,
+    };
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => cm as never,
+      view: { state: { id: 'state' } } as never,
+      getNode: () => ({}) as never,
+      getPos: () => 0,
+    });
+
+    const moveUp = keymaps.find((binding) => binding.key === 'Ctrl-ArrowUp');
+
+    expect(moveUp?.run?.({} as never)).toBe(true);
+    const selection = dispatch.mock.calls[0][0].selection;
+    expect(selection.main.anchor).toBe(13);
+    expect(selection.main.head).toBe(5);
+    expect(state.sliceDoc(selection.main.from, selection.main.to)).toBe('2hi\n\n3hi');
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('extends repeated Ctrl+ArrowDown selections to the next code line and keeps separator blank lines', () => {
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const state = EditorState.create({
+      doc: '1hi\n\n2hi\n\n3hi',
+      selection: { anchor: 0, head: 3 },
+    });
+    const cm = {
+      dispatch,
+      focus,
+      state,
+    };
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => cm as never,
+      view: { state: { id: 'state' } } as never,
+      getNode: () => ({}) as never,
+      getPos: () => 0,
+    });
+
+    const moveDown = keymaps.find((binding) => binding.key === 'Ctrl-ArrowDown');
+
+    expect(moveDown?.run?.({} as never)).toBe(true);
+    const selection = dispatch.mock.calls[0][0].selection;
+    expect(selection.main.anchor).toBe(0);
+    expect(selection.main.head).toBe(8);
+    expect(state.sliceDoc(selection.main.from, selection.main.to)).toBe('1hi\n\n2hi');
+    expect(focus).toHaveBeenCalledTimes(1);
   });
 
   it('selects all content inside CodeMirror on Mod-a', () => {
