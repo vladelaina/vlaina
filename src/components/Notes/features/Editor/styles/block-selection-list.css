@@ -70,7 +70,7 @@
 }
 
 .milkdown .ProseMirror.editor-block-selection-large hr.editor-block-selected.editor-block-selected-large-item::before,
-.milkdown .ProseMirror.editor-block-selection-large .md-hr:not(:has(> hr)).editor-block-selected.editor-block-selected-large-item::before {
+.milkdown .ProseMirror.editor-block-selection-large .md-hr.editor-block-selected.editor-block-selected-hr-wrapper.editor-block-selected-large-item::before {
   content: '';
   display: block !important;
 }

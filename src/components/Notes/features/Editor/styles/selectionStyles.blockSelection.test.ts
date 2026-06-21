@@ -435,7 +435,7 @@ describe("editor block selection styles", () => {
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode::before,');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.editor-block-selected::before,');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .md-hr.editor-block-selected::before {');
-    expect(largeHrRule).toContain('.milkdown .ProseMirror.editor-block-selection-large .md-hr:not(:has(> hr)).editor-block-selected.editor-block-selected-large-item::before {');
+    expect(largeHrRule).toContain('.milkdown .ProseMirror.editor-block-selection-large .md-hr.editor-block-selected.editor-block-selected-hr-wrapper.editor-block-selected-large-item::before {');
     expect(largeHrRule).toContain("content: '';");
     expect(largeHrRule).toContain('display: block !important;');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode,\n.milkdown .ProseMirror hr.editor-block-selected,\n.milkdown .ProseMirror .md-hr.ProseMirror-selectednode,\n.milkdown .ProseMirror .md-hr.editor-block-selected {');

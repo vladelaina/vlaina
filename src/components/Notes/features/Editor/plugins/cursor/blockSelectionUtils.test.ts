@@ -586,6 +586,37 @@ describe('blockSelectionUtils', () => {
     await editor.destroy();
   });
 
+  it('marks selected horizontal rule wrappers without CSS child scans', async () => {
+    const markdown = [
+      ...Array.from(
+        { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD - 1 },
+        (_, index) => `paragraph ${index}`,
+      ),
+      '---',
+    ].join('\n\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const ranges: Array<{ from: number; to: number; nodeType: string }> = [];
+    view.state.doc.forEach((node, offset) => {
+      ranges.push({
+        from: offset,
+        to: offset + node.nodeSize,
+        nodeType: node.type.name,
+      });
+    });
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    const hrRange = ranges.find((range) => range.nodeType === 'hr');
+    const hrClass = decorations.find().find((decoration: Decoration) => (
+      decoration.from === hrRange?.from && decoration.to === hrRange?.to
+    ));
+
+    expect(hrRange).toBeDefined();
+    expect(String((hrClass?.type as any)?.attrs?.class ?? '')).toContain('editor-block-selected-hr-wrapper');
+
+    await editor.destroy();
+  });
+
   it('marks hard-break inline ranges on the large selection path for line-fill ownership', async () => {
     const markdown = Array.from(
       { length: LARGE_BLOCK_SELECTION_RENDERING_THRESHOLD },

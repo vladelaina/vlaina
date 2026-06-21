@@ -359,6 +359,9 @@ function getBlockSelectionStructuralClass(
   try {
     const nodeAfter = doc.resolve(safeFrom).nodeAfter;
     if (!nodeAfter) return '';
+    if (nodeAfter.type.name === 'hr') {
+      return 'editor-block-selected-hr-wrapper';
+    }
     if (nodeAfter.type.name === 'list_item' && nodeHasDirectChildType(nodeAfter, 'code_block')) {
       return 'editor-block-selected-has-direct-code-block';
     }
@@ -633,10 +636,12 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
     const isInlineLineSelection = !isNodeRange && isPartialParagraphRange(doc, range);
     if (useLargeSelectionRendering) {
       const rangeKey = getBlockRangeKey(range.from, range.to);
+      const structuralClass = getBlockSelectionStructuralClass(doc, range, isNodeRange);
       const className = [
         isTextLikeDecorationRange(doc, range, isNodeRange)
           ? LARGE_TEXTLIKE_BLOCK_SELECTION_DECORATION_CLASS
           : LARGE_RICH_BLOCK_SELECTION_DECORATION_CLASS,
+        structuralClass,
         context.hasNextDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-next' : '',
         context.hasPreviousDisplayRangeKeys.has(rangeKey) ? 'editor-block-selected-has-previous' : '',
         isInlineLineSelection ? 'editor-block-selected-inline-line' : '',
