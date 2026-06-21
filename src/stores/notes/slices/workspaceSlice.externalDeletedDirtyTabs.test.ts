@@ -167,6 +167,9 @@ describe('workspaceSlice external deletion dirty tabs', () => {
       content: '# unsaved remove',
       modifiedAt: 2,
     });
+    expect(store.getState().error).toBe(
+      'A note with unsaved changes was deleted outside vlaina. Its content is preserved; save to restore it.'
+    );
     expect(store.getState().rootFolder?.children[0]).toEqual(
       createFolder('docs', 'docs', [keepFile, removeFile]),
     );
