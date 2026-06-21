@@ -38,7 +38,6 @@ import {
   forwardCodeBlockUpdate,
 } from './codeBlockNodeViewUtils';
 import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { logCodeBlockSelectionDebug } from './codeBlockSelectionDebugLog';
 import { themeLazyLoadTokens } from '@/styles/themeTokens';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
@@ -63,7 +62,6 @@ type CodeMirrorSelectionLike = {
 type NormalizedCodeMirrorSelection = {
   anchor: number;
   head: number;
-  reason: 'edge-linebreak' | 'pure-linebreak' | 'skip-blank-lines';
 };
 
 type CodeMirrorSelectionArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
@@ -284,8 +282,7 @@ export class CodeBlockNodeView implements NodeView {
     });
     this.lineNumbersStateKey = this.getLineNumbersStateKey(this.node);
     this.wrapStateKey = this.getWrapStateKey(this.node);
-    this.cm.contentDOM.addEventListener('keydown', this.logRawCodeMirrorKeydown, true);
-    this.cm.contentDOM.addEventListener('keyup', this.logRawCodeMirrorKeyup, true);
+    this.cm.contentDOM.addEventListener('keydown', this.trackCodeMirrorSelectionKeydown, true);
     this.cm.dom.addEventListener('blur', this.clearEditorSelectionOnBlur, true);
     this.disposeFontMetricsSync = bindCodeBlockFontMetricsSync(
       this.dom.ownerDocument,
@@ -405,68 +402,6 @@ export class CodeBlockNodeView implements NodeView {
     });
   }
 
-  private getCodeMirrorSelectionDebug(cm: CodeMirror) {
-    const { main } = cm.state.selection;
-    const currentLine = cm.state.doc.lineAt(main.head);
-    const previousLine = currentLine.number > 1
-      ? cm.state.doc.line(currentLine.number - 1)
-      : null;
-    const nextLine = currentLine.number < cm.state.doc.lines
-      ? cm.state.doc.line(currentLine.number + 1)
-      : null;
-    const ownerDocument = this.getOwnerDocument();
-
-    return {
-      activeElementClass: ownerDocument?.activeElement instanceof HTMLElement
-        ? ownerDocument.activeElement.className
-        : '',
-      currentLine: {
-        from: currentLine.from,
-        number: currentLine.number,
-        text: currentLine.text,
-        to: currentLine.to,
-      },
-      docLength: cm.state.doc.length,
-      docLines: cm.state.doc.lines,
-      hasFocus: cm.hasFocus,
-      nextLine: nextLine
-        ? {
-          from: nextLine.from,
-          number: nextLine.number,
-          text: nextLine.text,
-          to: nextLine.to,
-        }
-        : null,
-      previousLine: previousLine
-        ? {
-          from: previousLine.from,
-          number: previousLine.number,
-          text: previousLine.text,
-          to: previousLine.to,
-        }
-        : null,
-      selection: {
-        anchor: main.anchor,
-        empty: main.empty,
-        from: main.from,
-        head: main.head,
-        selectedText: cm.state.sliceDoc(main.from, main.to),
-        to: main.to,
-      },
-    };
-  }
-
-  private logCodeSelectionDebug(event: string, details: Record<string, unknown>) {
-    const nodeText = this.node.textContent ?? '';
-    logCodeBlockSelectionDebug(this.getOwnerDocument(), event, {
-      ...details,
-      getPos: this.getPos(),
-      language: this.node.attrs.language ?? '',
-      nodeTextLength: nodeText.length,
-      nodeTextPreview: nodeText.slice(0, 2_000),
-    });
-  }
-
   private getArrowKey(key: string): CodeMirrorSelectionArrowKey | null {
     return key === 'ArrowUp' ||
       key === 'ArrowDown' ||
@@ -511,52 +446,8 @@ export class CodeBlockNodeView implements NodeView {
       this.codeMirrorSelectionArrowKey === 'ArrowDown';
   }
 
-  private readonly logRawCodeMirrorKeydown = (event: KeyboardEvent) => {
-    const cm = this.cm;
-    if (!cm) {
-      return;
-    }
-
+  private readonly trackCodeMirrorSelectionKeydown = (event: KeyboardEvent) => {
     this.rememberCodeMirrorSelectionArrowKey(event);
-
-    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && !event.key.startsWith('Arrow')) {
-      return;
-    }
-
-    this.logCodeSelectionDebug('raw-cm-keydown-capture', {
-      altKey: event.altKey,
-      before: this.getCodeMirrorSelectionDebug(cm),
-      ctrlKey: event.ctrlKey,
-      defaultPrevented: event.defaultPrevented,
-      key: event.key,
-      metaKey: event.metaKey,
-      shiftKey: event.shiftKey,
-      targetClass: event.target instanceof HTMLElement ? event.target.className : '',
-      trackedSelectionArrowKey: this.codeMirrorSelectionArrowKey,
-    });
-  };
-
-  private readonly logRawCodeMirrorKeyup = (event: KeyboardEvent) => {
-    const cm = this.cm;
-    if (!cm) {
-      return;
-    }
-
-    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && !event.key.startsWith('Arrow')) {
-      return;
-    }
-
-    this.logCodeSelectionDebug('raw-cm-keyup-capture', {
-      after: this.getCodeMirrorSelectionDebug(cm),
-      altKey: event.altKey,
-      ctrlKey: event.ctrlKey,
-      defaultPrevented: event.defaultPrevented,
-      key: event.key,
-      metaKey: event.metaKey,
-      shiftKey: event.shiftKey,
-      targetClass: event.target instanceof HTMLElement ? event.target.className : '',
-      trackedSelectionArrowKey: this.codeMirrorSelectionArrowKey,
-    });
   };
 
   private getNonEmptyLineBoundsAtOrAfter(doc: Text, pos: number): CodeMirrorLineBounds | null {
@@ -628,7 +519,6 @@ export class CodeBlockNodeView implements NodeView {
     return {
       anchor: direction > 0 ? lineBounds.from : lineBounds.to,
       head: direction > 0 ? lineBounds.to : lineBounds.from,
-      reason: 'pure-linebreak',
     };
   }
 
@@ -675,10 +565,7 @@ export class CodeBlockNodeView implements NodeView {
     if (nextFrom >= nextTo) {
       const targetLine = this.getPureLineBreakSelectionTarget(doc, selection, direction);
       return targetLine
-        ? {
-          ...this.orientCodeMirrorLineSelection(targetLine, direction),
-          reason: 'pure-linebreak',
-        }
+        ? this.orientCodeMirrorLineSelection(targetLine, direction)
         : null;
     }
 
@@ -705,7 +592,6 @@ export class CodeBlockNodeView implements NodeView {
         return {
           anchor: direction > 0 ? previousSelection.from : previousSelection.to,
           head: direction > 0 ? nextNonEmptyLine.to : nextNonEmptyLine.from,
-          reason: 'skip-blank-lines',
         };
       }
     }
@@ -713,7 +599,6 @@ export class CodeBlockNodeView implements NodeView {
     return {
       anchor: direction > 0 ? nextFrom : nextTo,
       head: direction > 0 ? nextTo : nextFrom,
-      reason: 'edge-linebreak',
     };
   }
 
@@ -737,25 +622,7 @@ export class CodeBlockNodeView implements NodeView {
       return transaction;
     }
 
-    const { anchor, head, reason } = normalizedSelection;
-    this.logCodeSelectionDebug('selection-edge-linebreak-filter', {
-      after: {
-        anchor,
-        from: Math.min(anchor, head),
-        head,
-        selectedText: transaction.newDoc.sliceString(Math.min(anchor, head), Math.max(anchor, head)),
-        to: Math.max(anchor, head),
-      },
-      before: {
-        anchor: selection.anchor,
-        from: selection.from,
-        head: selection.head,
-        selectedText: transaction.newDoc.sliceString(selection.from, selection.to),
-        to: selection.to,
-      },
-      reason,
-      userEvent: transaction.annotation(Transaction.userEvent) ?? null,
-    });
+    const { anchor, head } = normalizedSelection;
 
     return [
       transaction,
@@ -801,19 +668,7 @@ export class CodeBlockNodeView implements NodeView {
       return false;
     }
 
-    this.logCodeSelectionDebug('ctrl-arrow-keydown', {
-      before: this.getCodeMirrorSelectionDebug(cm),
-      ctrlKey: event.ctrlKey,
-      direction,
-      key: event.key,
-      metaKey: event.metaKey,
-    });
-
     if (cm.state.doc.toString().trim().length === 0) {
-      this.logCodeSelectionDebug('ctrl-arrow-empty-doc-skip', {
-        before: this.getCodeMirrorSelectionDebug(cm),
-        direction,
-      });
       return false;
     }
 
@@ -822,21 +677,11 @@ export class CodeBlockNodeView implements NodeView {
     event.stopImmediatePropagation();
     const handled = moveOrExtendToTrimmedCodeBoundary(() => cm, direction, true);
     if (!handled) {
-      this.logCodeSelectionDebug('ctrl-arrow-not-handled', {
-        after: this.getCodeMirrorSelectionDebug(cm),
-        direction,
-      });
       return false;
     }
 
     const scheduledAnchor = cm.state.selection.main.anchor;
     const scheduledHead = cm.state.selection.main.head;
-    this.logCodeSelectionDebug('ctrl-arrow-dispatched', {
-      after: this.getCodeMirrorSelectionDebug(cm),
-      direction,
-      scheduledAnchor,
-      scheduledHead,
-    });
     this.restoreCodeMirrorSelectionAfterNativeKeyHandling(cm, scheduledAnchor, scheduledHead);
 
     return true;
@@ -847,39 +692,29 @@ export class CodeBlockNodeView implements NodeView {
     anchor: number,
     head: number
   ) {
-    const restore = (phase: string) => {
+    const restore = () => {
       if (this.destroyed || this.cm !== cm) {
         return;
       }
 
-      const before = this.getCodeMirrorSelectionDebug(cm);
       const selection = cm.state.selection.main;
-      const didRestore = selection.anchor !== anchor || selection.head !== head;
       if (selection.anchor !== anchor || selection.head !== head) {
         cm.dispatch({ selection: { anchor, head } });
       }
       cm.focus();
       this.syncE2ECodeMirrorSelection();
-      this.logCodeSelectionDebug('ctrl-arrow-restore', {
-        after: this.getCodeMirrorSelectionDebug(cm),
-        anchor,
-        before,
-        didRestore,
-        head,
-        phase,
-      });
     };
 
     const ownerWindow = this.getOwnerWindow();
     if (!ownerWindow) {
-      restore('sync');
+      restore();
       return;
     }
 
-    ownerWindow.setTimeout(() => restore('timeout-0'), 0);
+    ownerWindow.setTimeout(restore, 0);
     ownerWindow.requestAnimationFrame(() => {
-      restore('raf-1');
-      ownerWindow.requestAnimationFrame(() => restore('raf-2'));
+      restore();
+      ownerWindow.requestAnimationFrame(restore);
     });
   }
 
@@ -928,21 +763,7 @@ export class CodeBlockNodeView implements NodeView {
       return false;
     }
 
-    const { anchor, head, reason } = normalizedSelection;
-    this.logCodeSelectionDebug('selection-edge-linebreak-trim', {
-      after: {
-        anchor,
-        from: Math.min(anchor, head),
-        head,
-        selectedText: this.cm.state.sliceDoc(Math.min(anchor, head), Math.max(anchor, head)),
-        to: Math.max(anchor, head),
-      },
-      before: this.getCodeMirrorSelectionDebug(this.cm),
-      transactions: (update.transactions ?? []).map((transaction) => ({
-        userEvent: transaction.annotation(Transaction.userEvent) ?? null,
-      })),
-      reason,
-    });
+    const { anchor, head } = normalizedSelection;
     this.cm.dispatch({ selection: { anchor, head } });
     return true;
   }
@@ -952,18 +773,6 @@ export class CodeBlockNodeView implements NodeView {
 
     if (this.trimCodeMirrorSelectionEdgeLineBreaks(update)) {
       return;
-    }
-
-    if (this.cm && (update.selectionSet || update.docChanged)) {
-      this.logCodeSelectionDebug('cm-forward-update', {
-        docChanged: update.docChanged,
-        selectionSet: update.selectionSet,
-        state: this.getCodeMirrorSelectionDebug(this.cm),
-        transactions: (update.transactions ?? []).map((transaction) => ({
-          userEvent: transaction.annotation(Transaction.userEvent) ?? null,
-        })),
-        viewHasFocus: this.cm.hasFocus,
-      });
     }
 
     if (
@@ -1133,23 +942,6 @@ export class CodeBlockNodeView implements NodeView {
     const selectionTo = Math.min(this.view.state.selection.to, contentTo);
     const hasSelection = selectionTo > selectionFrom;
     const shouldMirrorOuterSelection = hasSelection && !this.cm?.hasFocus;
-
-    if (this.cm) {
-      this.logCodeSelectionDebug('pm-selection-sync', {
-        codeBlockContent: { from: contentFrom, to: contentTo },
-        cm: this.getCodeMirrorSelectionDebug(this.cm),
-        hasSelection,
-        pmSelection: {
-          from: this.view.state.selection.from,
-          to: this.view.state.selection.to,
-        },
-        selectionInsideCodeBlock: {
-          from: selectionFrom,
-          to: selectionTo,
-        },
-        shouldMirrorOuterSelection,
-      });
-    }
 
     this.dom.dataset.pmSelected = shouldMirrorOuterSelection ? 'true' : 'false';
 
@@ -1407,8 +1199,7 @@ export class CodeBlockNodeView implements NodeView {
     this.disposeFontMetricsSync();
     this.root.unmount();
     if (this.cm) {
-      this.cm.contentDOM.removeEventListener('keydown', this.logRawCodeMirrorKeydown, true);
-      this.cm.contentDOM.removeEventListener('keyup', this.logRawCodeMirrorKeyup, true);
+      this.cm.contentDOM.removeEventListener('keydown', this.trackCodeMirrorSelectionKeydown, true);
       this.cm.dom.removeEventListener('blur', this.clearEditorSelectionOnBlur, true);
       this.cm.destroy();
     }
