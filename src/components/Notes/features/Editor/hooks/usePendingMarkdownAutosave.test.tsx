@@ -1,8 +1,52 @@
 import { act, renderHook } from '@testing-library/react';
-import { editorViewCtx, serializerCtx } from '@milkdown/kit/core';
+import {
+  defaultValueCtx,
+  Editor,
+  editorViewCtx,
+  serializerCtx,
+} from '@milkdown/kit/core';
+import { TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { usePendingMarkdownAutosave } from './usePendingMarkdownAutosave';
+import {
+  collapseCommittedCompositionSelection,
+  replaceRecentCompositionText,
+  replaceSelectedTextWithCommittedComposition,
+  usePendingMarkdownAutosave,
+} from './usePendingMarkdownAutosave';
+
+function createEditor(defaultValue = '') {
+  return Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, defaultValue);
+    })
+    .use(commonmark);
+}
+
+function findTextEndPos(view: EditorView, text: string): number {
+  let foundPos: number | null = null;
+  view.state.doc.descendants((node, pos) => {
+    if (foundPos !== null) return false;
+    if (!node.isText) return true;
+    const index = node.text?.indexOf(text) ?? -1;
+    if (index >= 0) {
+      foundPos = pos + index + text.length;
+      return false;
+    }
+    return true;
+  });
+
+  if (foundPos === null) {
+    throw new Error(`Unable to find text: ${text}`);
+  }
+  return foundPos;
+}
+
+function getDocText(view: EditorView): string {
+  return view.state.doc.textBetween(0, view.state.doc.content.size, '\n');
+}
 
 describe('usePendingMarkdownAutosave', () => {
   beforeEach(() => {
@@ -20,6 +64,477 @@ describe('usePendingMarkdownAutosave', () => {
     delete (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
       .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__;
     vi.useRealTimers();
+  });
+
+  it('repairs stale pinyin near the caret with committed composition text', async () => {
+    const editor = createEditor(['# alpha', '', 'nihao'].join('\n'));
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const pinyinEnd = findTextEndPos(view, 'nihao');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pinyinEnd)));
+
+      expect(replaceRecentCompositionText(view, 'nihao', '你好')).toBe(true);
+      expect(view.state.doc.textBetween(0, view.state.doc.content.size, '\n')).toContain('你好');
+      expect(view.state.doc.textBetween(0, view.state.doc.content.size, '\n')).not.toContain('nihao');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('collapses a selection that still covers committed composition text', async () => {
+    const editor = createEditor(['# alpha', '', '你好'].join('\n'));
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const chineseEnd = findTextEndPos(view, '你好');
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+      );
+
+      expect(collapseCommittedCompositionSelection(view, '你好')).toBe(true);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(chineseEnd);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('replaces the pre-composition selected text with committed composition text', async () => {
+    const editor = createEditor(['# alpha', '', 'Typing caret paragraph 45 sentinel text'].join('\n'));
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const targetEnd = findTextEndPos(view, 'paragraph 45 sentinel');
+      view.dispatch(
+        view.state.tr.setSelection(
+          TextSelection.create(view.state.doc, targetEnd - 'paragraph 45 sentinel'.length, targetEnd),
+        ),
+      );
+
+      expect(replaceSelectedTextWithCommittedComposition(view, '马上回车中文-45-e2e')).toBe(true);
+      expect(getDocText(view)).toContain('Typing caret 马上回车中文-45-e2e text');
+      expect(getDocText(view)).not.toContain('paragraph 45 sentinel');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('commits composition text over the start selection even if the current selection moved before compositionend', async () => {
+    const editor = createEditor(['# alpha', '', 'Typing caret paragraph 45 sentinel text'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\nTyping caret paragraph 45 sentinel text',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const targetEnd = findTextEndPos(view, 'paragraph 45 sentinel');
+      const targetFrom = targetEnd - 'paragraph 45 sentinel'.length;
+      const markUserInput = result.current.createUserInputMarker(view, null);
+
+      act(() => {
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, targetFrom, targetEnd)));
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', {
+          inputType: 'insertCompositionText',
+          data: '马上回车中文-45-e2e',
+        }));
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, targetEnd)));
+        markUserInput(new CompositionEvent('compositionend', { data: '马上回车中文-45-e2e' }));
+      });
+
+      expect(getDocText(view)).toContain('Typing caret 马上回车中文-45-e2e text');
+      expect(getDocText(view)).not.toContain('paragraph 45 sentinel');
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(findTextEndPos(view, '马上回车中文-45-e2e'));
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('uses the latest non-ascii composition data when compositionend does not expose event data', async () => {
+    const editor = createEditor(['# alpha', '', 'Typing caret paragraph 45 sentinel text'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\nTyping caret paragraph 45 sentinel text',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const targetEnd = findTextEndPos(view, 'paragraph 45 sentinel');
+      const targetFrom = targetEnd - 'paragraph 45 sentinel'.length;
+      const markUserInput = result.current.createUserInputMarker(view, null);
+
+      act(() => {
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, targetFrom, targetEnd)));
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', {
+          inputType: 'insertCompositionText',
+          data: '马上回车中文-45-e2e',
+        }));
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, targetFrom, targetEnd)));
+        markUserInput(new Event('compositionend'));
+      });
+
+      expect(getDocText(view)).toContain('Typing caret 马上回车中文-45-e2e text');
+      expect(getDocText(view)).not.toContain('paragraph 45 sentinel');
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('appends normal text after IME commit when selection still covers committed text', async () => {
+    const editor = createEditor(['# alpha', '', '你好'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\n你好',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const chineseEnd = findTextEndPos(view, '你好');
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+      );
+
+      const firstFollowUpInput = new InputEvent('beforeinput', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: 'A',
+      });
+      const secondFollowUpInput = new InputEvent('beforeinput', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: 'B',
+      });
+      act(() => {
+        const markUserInput = result.current.createUserInputMarker(view, null);
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+        markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(firstFollowUpInput);
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(secondFollowUpInput);
+      });
+
+      const appendedEnd = findTextEndPos(view, '你好AB');
+      expect(firstFollowUpInput.defaultPrevented).toBe(true);
+      expect(secondFollowUpInput.defaultPrevented).toBe(true);
+      expect(getDocText(view)).toContain('你好AB');
+      expect(getDocText(view)).not.toContain('你好BA');
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(appendedEnd);
+
+      act(() => {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        result.current.configureMarkdownListener({
+          get: vi.fn((token) => (token === editorViewCtx ? view : null)),
+        } as never, '# alpha\n\n你好')('# alpha\n\n你好AB');
+        vi.advanceTimersByTime(1_000);
+      });
+
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(appendedEnd);
+
+      act(() => {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        result.current.createUserInputMarker(view, null)(new InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertText',
+          data: 'C',
+        }));
+      });
+
+      const continuedEnd = findTextEndPos(view, '你好ABC');
+      expect(getDocText(view)).toContain('你好ABC');
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(continuedEnd);
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('does not append follow-up text after the selection moves away from the IME commit', async () => {
+    const editor = createEditor(['# alpha', '', '你好', 'target'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\n你好\ntarget',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const chineseEnd = findTextEndPos(view, '你好');
+      const targetEnd = findTextEndPos(view, 'target');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+      const movedSelectionInput = new InputEvent('beforeinput', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: 'B',
+      });
+
+      act(() => {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+        markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(new InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertText',
+          data: 'A',
+        }));
+
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, targetEnd)));
+        markUserInput(movedSelectionInput);
+      });
+
+      expect(movedSelectionInput.defaultPrevented).toBe(false);
+      expect(getDocText(view)).toContain('你好A');
+      expect(getDocText(view)).not.toContain('你好AB');
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(targetEnd);
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('splits the block after IME commit when Enter arrives while the committed text is still selected', async () => {
+    const editor = createEditor(['# alpha', '', '你好'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\n你好',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const chineseEnd = findTextEndPos(view, '你好');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+      const enter = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+      });
+
+      act(() => {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+        markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(enter);
+      });
+
+      expect(enter.defaultPrevented).toBe(true);
+      expect(getDocText(view)).toContain('你好\n');
+      expect(getDocText(view)).not.toContain('nihao');
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBeGreaterThanOrEqual(chineseEnd);
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('allows explicit pointer selection to replace committed IME text', async () => {
+    const editor = createEditor(['# alpha', '', '你好'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\n你好',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const chineseEnd = findTextEndPos(view, '你好');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+      const replacementInput = new InputEvent('beforeinput', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: 'X',
+      });
+
+      act(() => {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+        markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+        markUserInput(new Event('pointerdown'));
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(replacementInput);
+      });
+
+      expect(replacementInput.defaultPrevented).toBe(false);
+      expect(getDocText(view)).toContain('你好');
+      expect(getDocText(view)).not.toContain('你好X');
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('saves explicit replacement after pointer selection removes the committed IME text', async () => {
+    const editor = createEditor(['# alpha', '', '你好'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\n你好',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const chineseEnd = findTextEndPos(view, '你好');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+      const markdownListener = result.current.configureMarkdownListener({
+        get: vi.fn((token) => (token === editorViewCtx ? view : null)),
+      } as never, '# alpha\n\n你好');
+
+      act(() => {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+        markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+        markUserInput(new Event('pointerdown'));
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, chineseEnd - '你好'.length, chineseEnd)),
+        );
+        markUserInput(new InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertText',
+          data: 'X',
+        }));
+        markdownListener('# alpha\n\nX');
+        vi.advanceTimersByTime(240);
+        vi.advanceTimersByTime(16);
+      });
+
+      expect(updateContent).toHaveBeenCalledTimes(1);
+      expect(updateContent).toHaveBeenCalledWith('# alpha\n\nX');
+      expect(debouncedSave).toHaveBeenCalledTimes(1);
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
+  it('does not intercept ordinary selected-text replacement outside IME settle', async () => {
+    const editor = createEditor(['# alpha', '', 'replace me'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\nreplace me',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const textEnd = findTextEndPos(view, 'replace me');
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, textEnd - 'replace me'.length, textEnd)),
+      );
+
+      const replacementInput = new InputEvent('beforeinput', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: 'X',
+      });
+      act(() => {
+        result.current.createUserInputMarker(view, null)(replacementInput);
+      });
+
+      expect(replacementInput.defaultPrevented).toBe(false);
+      expect(getDocText(view)).toContain('replace me');
+      expect(getDocText(view)).not.toContain('replace meX');
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
   });
 
   it('treats editor echoes after a disk revision change as non-user updates', () => {
@@ -492,6 +1007,137 @@ describe('usePendingMarkdownAutosave', () => {
     expect(debouncedSave).not.toHaveBeenCalled();
     expect(useNotesStore.getState().currentNote?.content).toBe('# alpha');
     unmount();
+  });
+
+  it('does not save stale pinyin when committed Chinese is only reported by compositionend', () => {
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = {
+      dom: document.createElement('div'),
+      composing: false,
+      state: { doc: {} },
+    };
+    const ctx = {
+      get: vi.fn((token) => {
+        if (token === editorViewCtx) return editorView;
+        return null;
+      }),
+    };
+
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      const markUserInput = result.current.createUserInputMarker(editorView as never, null);
+      markUserInput(new Event('compositionstart'));
+      editorView.composing = true;
+      markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+      result.current.configureMarkdownListener(ctx as never, '# alpha')('# alpha nihao');
+      editorView.composing = false;
+      markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+      result.current.configureMarkdownListener(ctx as never, '# alpha')('# alpha nihao');
+      vi.advanceTimersByTime(240);
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+    expect(useNotesStore.getState().currentNote?.content).toBe('# alpha');
+    unmount();
+  });
+
+  it('does not save stale pinyin after selection repair is suppressed without a fresh input snapshot', () => {
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = {
+      dom: document.createElement('div'),
+      composing: false,
+      state: { doc: {} },
+    };
+    const ctx = {
+      get: vi.fn((token) => {
+        if (token === editorViewCtx) return editorView;
+        return null;
+      }),
+    };
+
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      const markUserInput = result.current.createUserInputMarker(editorView as never, null);
+      const markdownListener = result.current.configureMarkdownListener(ctx as never, '# alpha');
+      markUserInput(new Event('compositionstart'));
+      editorView.composing = true;
+      markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+      markdownListener('# alpha nihao');
+      editorView.composing = false;
+      markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+      markUserInput(new Event('pointerdown'));
+      markUserInput(new KeyboardEvent('keydown', { key: 'a' }));
+      vi.advanceTimersByTime(240);
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+    expect(useNotesStore.getState().currentNote?.content).toBe('# alpha');
+    unmount();
+  });
+
+  it('saves committed Chinese when the final snapshot matches compositionend data', () => {
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = {
+      dom: document.createElement('div'),
+      composing: false,
+      state: { doc: {} },
+    };
+    const ctx = {
+      get: vi.fn((token) => {
+        if (token === editorViewCtx) return editorView;
+        return null;
+      }),
+    };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      const markUserInput = result.current.createUserInputMarker(editorView as never, null);
+      markUserInput(new Event('compositionstart'));
+      editorView.composing = true;
+      markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'nihao' }));
+      result.current.configureMarkdownListener(ctx as never, '# alpha')('# alpha nihao');
+      editorView.composing = false;
+      markUserInput(new CompositionEvent('compositionend', { data: '你好' }));
+      result.current.configureMarkdownListener(ctx as never, '# alpha')('# alpha 你好');
+      vi.advanceTimersByTime(240);
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).toHaveBeenCalledTimes(1);
+    expect(updateContent).toHaveBeenCalledWith('# alpha 你好');
+    expect(debouncedSave).toHaveBeenCalledTimes(1);
   });
 
   it('does not save composition markdown just because the settle timer fires before compositionend', () => {

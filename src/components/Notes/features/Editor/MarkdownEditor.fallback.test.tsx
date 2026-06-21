@@ -268,18 +268,33 @@ describe('MarkdownEditor source fallback', () => {
     expect(mocks.notesState.saveNote).not.toHaveBeenCalled();
   });
 
-  it('flushes composing fallback edits when the source editor unmounts', async () => {
+  it('does not flush composing fallback pinyin when the source editor unmounts before compositionend', async () => {
     const { unmount } = render(<MarkdownEditor />);
 
     const sourceEditor = await screen.findByLabelText('Markdown source editor');
     fireEvent.compositionStart(sourceEditor);
-    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nComposing draft' } });
+    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nnihao' } });
 
     expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nInitial body');
 
     unmount();
 
-    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nComposing draft');
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nInitial body');
+    expect(mocks.notesState.isDirty).toBe(false);
+  });
+
+  it('commits fallback Chinese text after compositionend', async () => {
+    render(<MarkdownEditor />);
+
+    const sourceEditor = await screen.findByLabelText('Markdown source editor');
+    fireEvent.compositionStart(sourceEditor);
+    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nnihao' } });
+
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nInitial body');
+
+    fireEvent.compositionEnd(sourceEditor, { target: { value: '# Alpha\n\n你好' } });
+
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\n你好');
     expect(mocks.notesState.isDirty).toBe(true);
   });
 });

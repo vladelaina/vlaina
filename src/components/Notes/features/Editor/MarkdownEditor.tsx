@@ -542,6 +542,7 @@ function MarkdownSourceFallback({
   );
   const [draft, setDraft] = useState(currentNoteContent);
   const draftRef = useRef(currentNoteContent);
+  const committedDraftRef = useRef(currentNoteContent);
   const isComposingRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
 
@@ -555,6 +556,7 @@ function MarkdownSourceFallback({
   useEffect(() => {
     setDraft(currentNoteContent);
     draftRef.current = currentNoteContent;
+    committedDraftRef.current = currentNoteContent;
   }, [currentNoteContent, currentNotePath]);
 
   useEffect(() => {
@@ -565,7 +567,8 @@ function MarkdownSourceFallback({
     if (isComposingRef.current && !options.force) {
       return false;
     }
-    return flushPendingEditorMarkdown(currentNotePath, draftRef.current);
+    const markdown = isComposingRef.current ? committedDraftRef.current : draftRef.current;
+    return flushPendingEditorMarkdown(currentNotePath, markdown);
   }, [currentNotePath]);
 
   useEffect(() => {
@@ -615,6 +618,7 @@ function MarkdownSourceFallback({
           const nextValue = event.currentTarget.value;
           setDraft(nextValue);
           draftRef.current = nextValue;
+          committedDraftRef.current = nextValue;
           updateContent(nextValue);
           scheduleSave();
         }}
@@ -625,6 +629,7 @@ function MarkdownSourceFallback({
           if (isComposingRef.current || Boolean((event.nativeEvent as InputEvent).isComposing)) {
             return;
           }
+          committedDraftRef.current = nextValue;
           updateContent(nextValue);
           scheduleSave();
         }}

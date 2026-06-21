@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ImageBlockChrome, __testing__ } from './ImageBlockChrome';
 
@@ -69,5 +69,18 @@ describe('ImageBlockChrome', () => {
     expect(caption).not.toBeNull();
     expect(caption!).toHaveClass('right-2');
     expect(caption!).not.toHaveClass('left-2');
+  });
+
+  it('does not submit the caption when Enter is pressed during IME composition', () => {
+    const onCaptionSubmit = vi.fn();
+    renderChrome({
+      isEditingCaption: true,
+      onCaptionSubmit,
+    });
+
+    const input = screen.getByDisplayValue('example image');
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+
+    expect(onCaptionSubmit).not.toHaveBeenCalled();
   });
 });

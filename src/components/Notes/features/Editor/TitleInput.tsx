@@ -242,6 +242,10 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   }, []);
 
   const handleKeyDown = useCallback(async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       await commitTitleIfNeeded();
