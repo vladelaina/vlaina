@@ -126,7 +126,7 @@ describe('math hover styles', () => {
     );
     const inlineSelectedHoverRule = extractCssRuleContaining(
       css,
-      "[data-type='math-inline']\n).editor-block-selected:is(:hover, :focus-visible) {"
+      "  [data-type='math-inline']\n).editor-block-selected:is(:hover, :focus-visible) {"
     );
     const selectedAtomicSurfaceRule = extractCssRuleContaining(
       atomicBlockSelectionCss,
