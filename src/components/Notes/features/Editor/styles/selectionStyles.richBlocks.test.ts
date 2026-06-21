@@ -149,6 +149,30 @@ describe("editor rich block selection styles", () => {
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');
   });
 
+  it('keeps selected markdown blank lines separated from following rich block frames', () => {
+    const css = readBlockSelectionStyle();
+    const rule = extractCssRule(
+      css,
+      ".milkdown .ProseMirror > :is(\n  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],"
+    );
+
+    expect(rule).toContain('p.editor-editable-markdown-blank-line,');
+    expect(rule).toContain('p.editor-empty-paragraph:not(.is-editor-empty)');
+    expect(rule).toContain(').editor-block-selected.editor-block-selected-has-next + :is(');
+    expect(rule).toContain('.code-block-container,');
+    expect(rule).toContain('.frontmatter-block-container,');
+    expect(rule).toContain('.image-block-container,');
+    expect(rule).toContain('.video-block,');
+    expect(rule).toContain("[data-type='math-block'],");
+    expect(rule).toContain("[data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
+    expect(rule).toContain('.mermaid-block');
+    expect(rule).toContain(').editor-block-selected.editor-block-selected-has-previous,');
+    expect(rule).toContain(').editor-block-drag-source.editor-block-drag-source-has-next + :is(');
+    expect(rule).toContain(').editor-block-drag-source.editor-block-drag-source-has-previous {');
+    expect(rule).toContain('box-shadow: none !important;');
+    expect(rule).not.toContain(':has(');
+  });
+
   it('keeps code block drag previews transparent while carrying the code block frame', () => {
     const codeCss = readStyleFile('code-block.css');
     const themeCompatibilityCss = readThemeCompatibilityStyle();
@@ -361,7 +385,7 @@ describe("editor rich block selection styles", () => {
     const richChildLists = extractSelectorListsContaining(blockSelectionCss, ':is', '.image-block-container')
       .filter((list) => list.includes("[data-type='math-inline']"));
     const listContainedRichBlockLists = extractSelectorListsContaining(blockSelectionCss, ':is', '.image-block-container')
-      .filter((list) => list.includes('.code-block-container'));
+      .filter((list) => list.includes('.code-block-container') && list.includes('.milkdown-table-block'));
     const expectedRichChildList = [
       '.image-block-container',
       '.video-block',

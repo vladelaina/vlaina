@@ -86,6 +86,35 @@
   box-shadow: var(--vlaina-block-selection-shadow);
 }
 
+.milkdown .ProseMirror > :is(
+  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
+  p.editor-editable-markdown-blank-line,
+  p.editor-empty-paragraph:not(.is-editor-empty)
+).editor-block-selected.editor-block-selected-has-next + :is(
+  .code-block-container,
+  .frontmatter-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).editor-block-selected.editor-block-selected-has-previous,
+.milkdown .ProseMirror > :is(
+  [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'],
+  p.editor-editable-markdown-blank-line,
+  p.editor-empty-paragraph:not(.is-editor-empty)
+).editor-block-drag-source.editor-block-drag-source-has-next + :is(
+  .code-block-container,
+  .frontmatter-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).editor-block-drag-source.editor-block-drag-source-has-previous {
+  box-shadow: none !important;
+}
+
 .milkdown .ProseMirror .editor-block-selected :is(
   .image-block-container,
   .video-block,
