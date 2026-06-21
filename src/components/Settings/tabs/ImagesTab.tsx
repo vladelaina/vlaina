@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useUIStore, type ImageFilenameFormat, type ImageStorageMode } from '@/stores/uiSlice';
 import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
@@ -12,35 +13,20 @@ import {
 
 interface StorageOption {
     id: ImageStorageMode;
-    labelKey: MessageKey;
-    descriptionKey: MessageKey;
-    icon: IconName;
 }
 
 const storageOptions: StorageOption[] = [
     {
         id: 'subfolder',
-        labelKey: 'settings.images.noteSubfolder',
-        descriptionKey: 'settings.images.noteSubfolderDescription',
-        icon: 'file.folder',
     },
     {
         id: 'vaultSubfolder',
-        labelKey: 'settings.images.vaultSubfolder',
-        descriptionKey: 'settings.images.vaultSubfolderDescription',
-        icon: 'file.folderOutput',
     },
     {
         id: 'currentFolder',
-        labelKey: 'settings.images.currentFolder',
-        descriptionKey: 'settings.images.currentFolderDescription',
-        icon: 'file.folderOpen',
     },
     {
         id: 'vault',
-        labelKey: 'settings.images.vaultRoot',
-        descriptionKey: 'settings.images.vaultRootDescription',
-        icon: 'file.folderOutline',
     },
 ];
 
@@ -71,6 +57,9 @@ const filenameFormatOptions: FilenameFormatOption[] = [
 const sidebarDropdownTriggerClassName =
     "group/sidebar-row flex min-h-[var(--vlaina-size-36px)] w-56 max-w-full min-w-0 items-center justify-between gap-2 rounded-xl bg-transparent px-3 py-1 text-[var(--vlaina-font-base)] font-medium leading-5 text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)] transition-[background-color,box-shadow,color] duration-[var(--vlaina-duration-150)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)] max-[420px]:w-full";
 
+const storageDropdownTriggerClassName =
+    "w-full cursor-pointer";
+
 const sidebarDropdownContentClassName =
     "z-[var(--vlaina-z-120)] w-[var(--radix-dropdown-menu-trigger-width)] min-w-64 rounded-[var(--vlaina-radius-22px)] border border-[var(--vlaina-sidebar-notes-menu-border)] bg-[var(--vlaina-sidebar-notes-menu-bg)] p-1.5 shadow-[var(--vlaina-sidebar-notes-menu-shadow)] !animate-none";
 
@@ -80,9 +69,7 @@ const sidebarDropdownItemBaseClassName =
 const sidebarDropdownItemSelectedClassName =
     "!bg-[var(--vlaina-sidebar-notes-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-none)] data-[highlighted]:!bg-[var(--vlaina-sidebar-notes-row-active)] data-[highlighted]:text-[var(--vlaina-sidebar-row-selected-text)]";
 
-const previewImageSuffix = '/image.png';
-
-function getStoragePreview(
+function getStorageDirectoryPreview(
     mode: ImageStorageMode,
     noteSubfolderName: string,
     vaultSubfolderName: string,
@@ -90,66 +77,13 @@ function getStoragePreview(
 ) {
     switch (mode) {
         case 'vaultSubfolder':
-            return t('settings.images.previewVaultSubfolder', { folder: vaultSubfolderName || 'assets' });
+            return t('settings.images.directoryVaultSubfolder', { folder: vaultSubfolderName || 'assets' });
         case 'subfolder':
-            return t('settings.images.previewNoteSubfolder', { folder: noteSubfolderName || 'assets' });
+            return t('settings.images.directoryNoteSubfolder', { folder: noteSubfolderName || 'assets' });
         case 'vault':
-            return t('settings.images.previewVaultRoot');
+            return t('settings.images.directoryVaultRoot');
         case 'currentFolder':
-            return t('settings.images.previewCurrentFolder');
-    }
-}
-
-function getStorageOptionDescription(
-    option: StorageOption,
-    noteSubfolderName: string,
-    vaultSubfolderName: string,
-    t: (key: MessageKey, values?: Record<string, string | number>) => string
-) {
-    if (option.id === 'vaultSubfolder') {
-        return t(option.descriptionKey, { folder: vaultSubfolderName || 'assets' });
-    }
-
-    if (option.id === 'subfolder') {
-        return t(option.descriptionKey, { folder: noteSubfolderName || 'assets' });
-    }
-
-    return t(option.descriptionKey);
-}
-
-function stripPreviewImageSuffix(value: string) {
-    return value.endsWith(previewImageSuffix)
-        ? value.slice(0, -previewImageSuffix.length)
-        : value;
-}
-
-function padTimestampPart(value: number) {
-    return String(value).padStart(2, '0');
-}
-
-function formatTimestampFilename(date: Date) {
-    return [
-        date.getFullYear(),
-        padTimestampPart(date.getMonth() + 1),
-        padTimestampPart(date.getDate()),
-    ].join('-')
-        + '_'
-        + [
-            padTimestampPart(date.getHours()),
-            padTimestampPart(date.getMinutes()),
-            padTimestampPart(date.getSeconds()),
-        ].join('-')
-        + '.png';
-}
-
-function getFilenamePreview(format: ImageFilenameFormat) {
-    switch (format) {
-        case 'sequence':
-            return '1.png';
-        case 'timestamp':
-            return formatTimestampFilename(new Date());
-        case 'original':
-            return 'image.png';
+            return t('settings.images.directoryCurrentFolder');
     }
 }
 
@@ -158,22 +92,16 @@ export function ImagesTab() {
     const imageStorageMode = useUIStore((s) => s.imageStorageMode);
     const imageSubfolderName = useUIStore((s) => s.imageSubfolderName);
     const imageVaultSubfolderName = useUIStore((s) => s.imageVaultSubfolderName);
-    const imageFilenameFormat = useUIStore((s) => s.imageFilenameFormat);
     const setImageStorageMode = useUIStore((s) => s.setImageStorageMode);
     const setImageSubfolderName = useUIStore((s) => s.setImageSubfolderName);
     const setImageVaultSubfolderName = useUIStore((s) => s.setImageVaultSubfolderName);
+    const setImageFilenameFormat = useUIStore((s) => s.setImageFilenameFormat);
     const resetImageStorageLocation = () => {
         setImageStorageMode('subfolder');
         setImageSubfolderName('assets');
         setImageVaultSubfolderName('assets');
+        setImageFilenameFormat('original');
     };
-    const storagePreview = getStoragePreview(
-        imageStorageMode,
-        imageSubfolderName,
-        imageVaultSubfolderName,
-        t
-    );
-    const filenamePreview = getFilenamePreview(imageFilenameFormat);
 
     return (
         <div className="w-full" data-settings-section="images">
@@ -193,29 +121,25 @@ export function ImagesTab() {
                             <Icon name="common.refresh" className="size-3.5" />
                         </button>
                     </div>
-                    <div className="min-w-0 max-w-full">
-                        <StorageLocationPreview
-                            mode={imageStorageMode}
-                            noteSubfolderName={imageSubfolderName}
-                            vaultSubfolderName={imageVaultSubfolderName}
-                            storagePreview={storagePreview}
-                            filenamePreview={filenamePreview}
-                        />
-                    </div>
                 </div>
             </div>
 
             <div
                 className={cn(
-                    "mb-3 flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4",
+                    "mb-3 flex min-w-0 flex-col items-stretch gap-3 rounded-[var(--vlaina-radius-22px)] px-6 py-4 max-[640px]:px-4",
                     chatComposerPillSurfaceClass
                 )}
             >
                 <div className="min-w-0 text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
                     {t('settings.images.storageLocation')}
                 </div>
-                <div className="min-w-0 flex-shrink-0 max-[420px]:w-full">
+                <div className="min-w-0">
                     <StorageLocationDropdown
+                        noteSubfolderName={imageSubfolderName}
+                        vaultSubfolderName={imageVaultSubfolderName}
+                    />
+                    <StorageFolderNameEditor
+                        mode={imageStorageMode}
                         noteSubfolderName={imageSubfolderName}
                         vaultSubfolderName={imageVaultSubfolderName}
                     />
@@ -239,56 +163,83 @@ export function ImagesTab() {
     );
 }
 
-function StorageLocationPreview({
+function StoragePathInline({
     mode,
     noteSubfolderName,
     vaultSubfolderName,
-    storagePreview,
-    filenamePreview,
 }: {
     mode: ImageStorageMode;
     noteSubfolderName: string;
     vaultSubfolderName: string;
-    storagePreview: string;
-    filenamePreview: string;
+}) {
+    const { t } = useI18n();
+
+    return (
+        <span className="block min-w-0 truncate font-mono text-[var(--vlaina-font-11)] leading-5">
+            {getStorageDirectoryPreview(mode, noteSubfolderName, vaultSubfolderName, t)}
+        </span>
+    );
+}
+
+function StorageFolderNameEditor({
+    mode,
+    noteSubfolderName,
+    vaultSubfolderName,
+}: {
+    mode: ImageStorageMode;
+    noteSubfolderName: string;
+    vaultSubfolderName: string;
 }) {
     const { t } = useI18n();
     const setImageSubfolderName = useUIStore((s) => s.setImageSubfolderName);
     const setImageVaultSubfolderName = useUIStore((s) => s.setImageVaultSubfolderName);
+    const preserveFocusSelectionRef = useRef(false);
 
     if (mode !== 'subfolder' && mode !== 'vaultSubfolder') {
-        return (
-            <code className="max-w-full truncate rounded-full bg-[var(--vlaina-bg-tertiary)] px-2.5 py-1 text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text-soft)]">
-                {stripPreviewImageSuffix(storagePreview)}/{filenamePreview}
-            </code>
-        );
+        return null;
     }
 
     const isVaultSubfolder = mode === 'vaultSubfolder';
-    const basePath = stripPreviewImageSuffix(t(
+    const basePath = t(
         isVaultSubfolder
-            ? 'settings.images.previewVaultRoot'
-            : 'settings.images.previewCurrentFolder'
-    ));
+            ? 'settings.images.directoryVaultRoot'
+            : 'settings.images.directoryCurrentFolder'
+    );
     const folderName = isVaultSubfolder ? vaultSubfolderName : noteSubfolderName;
     const setFolderName = isVaultSubfolder ? setImageVaultSubfolderName : setImageSubfolderName;
 
     return (
-        <code className="inline-flex max-w-full min-w-0 items-center rounded-full bg-[var(--vlaina-bg-tertiary)] px-2.5 py-1 text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text-soft)]">
+        <div className="mt-2 inline-flex max-w-full min-w-0 items-center rounded-xl bg-[var(--vlaina-bg-tertiary)] px-3 py-1.5 font-mono text-[var(--vlaina-font-11)] leading-5 text-[var(--vlaina-sidebar-notes-text-soft)]">
             <span className="min-w-0 truncate">{basePath}/</span>
             <input
                 type="text"
                 data-settings-control={isVaultSubfolder ? 'image-vault-subfolder-name' : 'image-subfolder-name'}
                 value={folderName}
                 onChange={(event) => setFolderName(event.target.value)}
+                onMouseDown={(event) => {
+                    preserveFocusSelectionRef.current = document.activeElement !== event.currentTarget;
+                }}
+                onFocus={(event) => {
+                    event.currentTarget.select();
+                }}
+                onMouseUp={(event) => {
+                    if (!preserveFocusSelectionRef.current) return;
+                    preserveFocusSelectionRef.current = false;
+                    event.preventDefault();
+                }}
+                onBlur={(event) => {
+                    preserveFocusSelectionRef.current = false;
+                    if (event.currentTarget.value.trim().length === 0) {
+                        setFolderName('assets');
+                    }
+                }}
                 placeholder="assets"
                 spellCheck={false}
                 aria-label={t(isVaultSubfolder ? 'settings.images.folderName' : 'settings.images.subfolderName')}
-                className="mx-0.5 h-5 min-w-12 max-w-24 rounded-md border-0 bg-transparent px-1 py-0 font-mono text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] focus:bg-[var(--vlaina-color-setting-field)] focus:ring-1 focus:ring-[var(--vlaina-color-sidebar-focus-ring)]"
+                className="mx-0.5 h-5 min-w-12 max-w-24 cursor-text rounded-md border-0 bg-transparent px-1 py-0 font-mono text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] focus:bg-[var(--vlaina-color-setting-field)] focus:ring-1 focus:ring-[var(--vlaina-color-sidebar-focus-ring)]"
                 style={{ width: `${Math.max((folderName || 'assets').length, 6)}ch` }}
             />
-            <span className="shrink-0">/{filenamePreview}</span>
-        </code>
+        </div>
     );
 }
 
@@ -302,8 +253,6 @@ function StorageLocationDropdown({
     const { t } = useI18n();
     const imageStorageMode = useUIStore((s) => s.imageStorageMode);
     const setImageStorageMode = useUIStore((s) => s.setImageStorageMode);
-    const selectedOption = storageOptions.find((option) => option.id === imageStorageMode)
-        ?? storageOptions[0];
 
     return (
         <DropdownMenu>
@@ -311,11 +260,15 @@ function StorageLocationDropdown({
                 <button
                     type="button"
                     data-settings-control="image-storage-location"
-                    className={cn(sidebarDropdownTriggerClassName)}
+                    aria-label={t('settings.images.storageLocation')}
+                    className={cn(sidebarDropdownTriggerClassName, storageDropdownTriggerClassName)}
                 >
-                    <span className="flex min-w-0 items-center gap-2">
-                        <Icon name={selectedOption.icon} size="sm" className="shrink-0 text-[var(--vlaina-sidebar-notes-folder-icon)]" />
-                        <span className="truncate leading-5">{t(selectedOption.labelKey)}</span>
+                    <span className="flex min-w-0 items-center gap-2 text-[var(--vlaina-sidebar-notes-text-soft)]">
+                        <StoragePathInline
+                            mode={imageStorageMode}
+                            noteSubfolderName={noteSubfolderName}
+                            vaultSubfolderName={vaultSubfolderName}
+                        />
                     </span>
                     <Icon
                         name="nav.chevronDown"
@@ -343,24 +296,12 @@ function StorageLocationDropdown({
                                 isSelected && sidebarDropdownItemSelectedClassName
                             )}
                         >
-                            <Icon
-                                name={option.icon}
-                                size="sm"
-                                className={cn(
-                                    "shrink-0 text-[var(--vlaina-sidebar-notes-folder-icon)]",
-                                    isSelected && "text-[var(--vlaina-sidebar-row-selected-text)]"
-                                )}
-                            />
-                            <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                                <span className="block w-full truncate leading-5">{t(option.labelKey)}</span>
-                                <span className="block w-full truncate text-[var(--vlaina-font-11)] font-normal leading-4 text-[var(--vlaina-sidebar-notes-text-soft)]">
-                                    {getStorageOptionDescription(
-                                        option,
-                                        noteSubfolderName,
-                                        vaultSubfolderName,
-                                        t
-                                    )}
-                                </span>
+                            <span className="flex min-w-0 flex-1 items-center text-left">
+                                <StoragePathInline
+                                    mode={option.id}
+                                    noteSubfolderName={noteSubfolderName}
+                                    vaultSubfolderName={vaultSubfolderName}
+                                />
                             </span>
                             {isSelected && (
                                 <Icon name="common.check" size="sm" className="shrink-0 text-[var(--vlaina-sidebar-row-selected-text)]" />

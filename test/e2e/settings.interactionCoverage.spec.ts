@@ -166,10 +166,28 @@ test.describe('settings modal interaction coverage', () => {
 
       await page.locator('[data-settings-control="image-storage-location"]').click();
       await page.locator('[data-settings-image-storage-mode="vaultSubfolder"]').click();
-      await expect(page.locator('[data-settings-control="image-vault-subfolder-name"]')).toBeVisible({
+      const vaultSubfolderNameInput = page.locator('[data-settings-control="image-vault-subfolder-name"]');
+      await expect(vaultSubfolderNameInput).toBeVisible({
         timeout: 10_000,
       });
-      await page.locator('[data-settings-control="image-vault-subfolder-name"]').fill('e2e-vault-assets');
+      await vaultSubfolderNameInput.click();
+      await expect.poll(async () => vaultSubfolderNameInput.evaluate((element) => {
+        const input = element as HTMLInputElement;
+        return {
+          value: input.value,
+          selectionStart: input.selectionStart,
+          selectionEnd: input.selectionEnd,
+        };
+      }), { timeout: 10_000 }).toEqual({
+        value: 'assets',
+        selectionStart: 0,
+        selectionEnd: 'assets'.length,
+      });
+      await vaultSubfolderNameInput.press('Backspace');
+      await expect(vaultSubfolderNameInput).toHaveValue('');
+      await vaultSubfolderNameInput.press('Tab');
+      await expect(vaultSubfolderNameInput).toHaveValue('assets');
+      await vaultSubfolderNameInput.fill('e2e-vault-assets');
       await page.locator('[data-settings-control="image-filename-format"]').click();
       await page.locator('[data-settings-image-filename-format="sequence"]').click();
       await expect.poll(() => getUIState(page), { timeout: 10_000 }).toMatchObject({
