@@ -63,6 +63,24 @@ function topLevelNodePos(view: EditorView, typeName: string, occurrence = 0): nu
   return found;
 }
 
+function textPosition(view: EditorView, text: string, offset = 0): number {
+  let found: number | null = null;
+  view.state.doc.descendants((node, pos) => {
+    if (found !== null || !node.isTextblock || node.textContent !== text) {
+      return true;
+    }
+
+    found = pos + 1 + offset;
+    return false;
+  });
+
+  if (found === null) {
+    throw new Error(`Expected textblock "${text}"`);
+  }
+
+  return found;
+}
+
 function pressKey(view: EditorView, key: string, options?: { shiftKey?: boolean }): KeyboardEvent {
   const event = new KeyboardEvent('keydown', {
     key,
@@ -138,6 +156,45 @@ function createOrderedListNode(view: EditorView, text = '1'): ProseNode {
       schema.nodes.paragraph.create(null, schema.text(text)),
     ]),
   ]);
+}
+
+function createNestedBlockquoteNode(view: EditorView): ProseNode {
+  const { schema } = view.state;
+  return schema.nodes.blockquote.create(null, [
+    schema.nodes.paragraph.create(null, schema.text('h')),
+    schema.nodes.blockquote.create(null, [
+      schema.nodes.paragraph.create(null, schema.text('i')),
+    ]),
+  ]);
+}
+
+function createNestedBlockquoteSandwichNode(view: EditorView): ProseNode {
+  const { schema } = view.state;
+  return schema.nodes.blockquote.create(null, [
+    schema.nodes.paragraph.create(null, schema.text('11')),
+    schema.nodes.blockquote.create(null, [
+      schema.nodes.paragraph.create(null, schema.text('22')),
+    ]),
+    schema.nodes.paragraph.create(null, schema.text('33')),
+  ]);
+}
+
+function createTextContainerWithNestedBlockquoteSandwichNode(
+  view: EditorView,
+  typeName: 'callout' | 'footnote_def'
+): ProseNode {
+  const { schema } = view.state;
+  const content = [
+    schema.nodes.paragraph.create(null, schema.text('11')),
+    schema.nodes.blockquote.create(null, [
+      schema.nodes.paragraph.create(null, schema.text('22')),
+    ]),
+    schema.nodes.paragraph.create(null, schema.text('33')),
+  ];
+
+  return typeName === 'callout'
+    ? schema.nodes.callout.create(null, content)
+    : schema.nodes.footnote_def.create({ id: 'nested-boundary' }, content);
 }
 
 function createStructuralBlockCases(view: EditorView): Array<{
@@ -420,6 +477,210 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
     expect(view.state.doc.child(2).textContent).toBe('after');
     expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+
+    await editor.destroy();
+  });
+
+  it('moves to the nested blockquote line end when ArrowUp enters it from the paragraph below', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const after = schema.nodes.paragraph.create();
+    replaceDocument(view, [
+      createNestedBlockquoteNode(view),
+      after,
+    ]);
+
+    const afterPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, afterPos + 1)));
+
+    const event = pressKey(view, 'ArrowUp');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('i');
+    expect(view.state.selection.$from.parentOffset).toBe('i'.length);
+
+    await editor.destroy();
+  });
+
+  it('moves to the first blockquote line start when ArrowDown enters it from the paragraph above', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const before = schema.nodes.paragraph.create();
+    replaceDocument(view, [
+      before,
+      createNestedBlockquoteNode(view),
+    ]);
+
+    const beforePos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, beforePos + 1)));
+
+    const event = pressKey(view, 'ArrowDown');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('h');
+    expect(view.state.selection.$from.parentOffset).toBe(0);
+
+    await editor.destroy();
+  });
+
+  it.each<[string, number]>([
+    ['start', 0],
+    ['middle', 1],
+  ])('moves from the %s of a following quote paragraph to the nested quote line end on ArrowUp', async (_label, offset) => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceDocument(view, [
+      createNestedBlockquoteSandwichNode(view),
+    ]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textPosition(view, '33', offset))));
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    const event = pressKey(view, 'ArrowUp');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('22');
+    expect(view.state.selection.$from.parentOffset).toBe('22'.length);
+
+    await editor.destroy();
+  });
+
+  it('moves from the first quote paragraph to the nested quote line end on ArrowDown', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceDocument(view, [
+      createNestedBlockquoteSandwichNode(view),
+    ]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textPosition(view, '11', 1))));
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    const event = pressKey(view, 'ArrowDown');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('22');
+    expect(view.state.selection.$from.parentOffset).toBe('22'.length);
+
+    await editor.destroy();
+  });
+
+  it('moves from the nested quote line to adjacent outer quote paragraphs at vertical boundaries', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    replaceDocument(view, [
+      createNestedBlockquoteSandwichNode(view),
+    ]);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textPosition(view, '22', 0))));
+
+    let boundarySpy = vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+    let event = pressKey(view, 'ArrowUp');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('11');
+    expect(view.state.selection.$from.parentOffset).toBe('11'.length);
+
+    boundarySpy.mockRestore();
+    replaceDocument(view, [
+      createNestedBlockquoteSandwichNode(view),
+    ]);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textPosition(view, '22', '22'.length))));
+
+    boundarySpy = vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+    event = pressKey(view, 'ArrowDown');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('33');
+    expect(view.state.selection.$from.parentOffset).toBe('33'.length);
+
+    await editor.destroy();
+  });
+
+  it('does not override native vertical movement between same-depth quote paragraphs', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.blockquote.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('aa')),
+        schema.nodes.paragraph.create(null, schema.text('bb')),
+      ]),
+    ]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textPosition(view, 'bb', 1))));
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    const event = pressKey(view, 'ArrowUp');
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('bb');
+    expect(view.state.selection.$from.parentOffset).toBe(1);
+
+    await editor.destroy();
+  });
+
+  it.each<['callout' | 'footnote_def']>([
+    ['callout'],
+    ['footnote_def'],
+  ])('moves across nested blockquote boundaries inside %s at line ends', async (typeName) => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    const resetSelection = (text: string, offset: number) => {
+      replaceDocument(view, [
+        createTextContainerWithNestedBlockquoteSandwichNode(view, typeName),
+      ]);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, textPosition(view, text, offset))));
+    };
+
+    resetSelection('11', 1);
+    let event = pressKey(view, 'ArrowDown');
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('22');
+    expect(view.state.selection.$from.parentOffset).toBe('22'.length);
+
+    resetSelection('33', 0);
+    event = pressKey(view, 'ArrowUp');
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('22');
+    expect(view.state.selection.$from.parentOffset).toBe('22'.length);
+
+    resetSelection('22', 0);
+    event = pressKey(view, 'ArrowUp');
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('11');
+    expect(view.state.selection.$from.parentOffset).toBe('11'.length);
+
+    resetSelection('22', '22'.length);
+    event = pressKey(view, 'ArrowDown');
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('33');
+    expect(view.state.selection.$from.parentOffset).toBe('33'.length);
 
     await editor.destroy();
   });

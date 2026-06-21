@@ -120,6 +120,20 @@ function createBlockquote(view: EditorView, text: string): ProseNode {
   return blockquoteType.create(null, paragraphType.create(null, schema.text(text)));
 }
 
+function createNestedBlockquote(view: EditorView): ProseNode {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  const blockquoteType = schema.nodes.blockquote;
+  if (!paragraphType || !blockquoteType) {
+    throw new Error('Expected paragraph and blockquote schema nodes');
+  }
+
+  return blockquoteType.create(null, [
+    paragraphType.create(null, schema.text('h')),
+    blockquoteType.create(null, paragraphType.create(null, schema.text('i'))),
+  ]);
+}
+
 function createMarkdownBlankLine(view: EditorView): ProseNode {
   const htmlBlockType = view.state.schema.nodes.html_block;
   if (!htmlBlockType) {
@@ -140,6 +154,13 @@ function replaceWithBlankLineAfterBlockquoteDocument(view: EditorView): void {
   replaceDocument(view, [
     createBlockquote(view, 'Quote'),
     createMarkdownBlankLine(view),
+  ]);
+}
+
+function replaceWithNestedBlockquoteAndEditableBlankLineDocument(view: EditorView): void {
+  replaceDocument(view, [
+    createNestedBlockquote(view),
+    createEditableBlankLineParagraph(view),
   ]);
 }
 
@@ -536,6 +557,37 @@ describe('markdownBlankLineInteraction', () => {
       expect(view.state.selection.empty).toBe(true);
       expect(view.state.selection.$from.parent.textContent).toBe('List item');
       expect(view.state.selection.$from.parentOffset).toBe('List item'.length);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('moves from an editable markdown blank line to the nested blockquote line end on ArrowUp', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithNestedBlockquoteAndEditableBlankLineDocument(view);
+      const blankLinePos = topLevelNodePos(
+        view,
+        (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      );
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          blankLinePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+        )),
+      );
+
+      const event = createArrowEvent('ArrowUp');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.$from.parent.textContent).toBe('i');
+      expect(view.state.selection.$from.parentOffset).toBe('i'.length);
     } finally {
       await editor.destroy();
     }
