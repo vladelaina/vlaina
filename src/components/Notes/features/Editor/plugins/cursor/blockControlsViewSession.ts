@@ -243,7 +243,10 @@ function getElementsFromPoint(doc: Document, clientX: number, clientY: number): 
 }
 
 function isOverNotesBlockDropTarget(elements: readonly Element[]): boolean {
-  return elements.some((element) => element.closest(NOTES_BLOCK_DROP_TARGET_SELECTOR));
+  return elements.some((element) => (
+    element.closest(NOTES_BLOCK_DROP_TARGET_SELECTOR)
+    || element.closest(NOTES_FILE_TREE_FILE_PATH_SELECTOR)
+  ));
 }
 
 function getNotesBlockOpenTargetPathFromElements(elements: readonly Element[]): string | null {

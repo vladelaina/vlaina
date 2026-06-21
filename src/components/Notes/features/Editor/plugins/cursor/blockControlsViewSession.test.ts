@@ -599,6 +599,32 @@ describe('BlockControlsViewSession', () => {
     }
   });
 
+  it('does not move dragged blocks when the mouse is released over a sidebar file target', () => {
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+    const targetFile = createFileTreeFileDropTarget('target.md');
+
+    vi.mocked(resolveDropTarget).mockReturnValue({
+      insertPos: 5,
+      lineLeft: 80,
+      lineY: 100,
+      lineWidth: 280,
+    });
+    document.elementsFromPoint = vi.fn(() => [targetFile]);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 20, buttons: 1, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { clientX: 120, clientY: 20, bubbles: true }));
+
+      expect(applyBlockMove).not.toHaveBeenCalled();
+    } finally {
+      session.destroy();
+    }
+  });
+
   it('serializes dragged markdown with single list block markers for cross-note drops', () => {
     setOpenTabNotesState();
     const view = createView();
