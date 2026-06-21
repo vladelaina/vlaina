@@ -8,6 +8,7 @@ import {
 } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { focusNoteTitleInputAtEnd } from '../../utils/titleInputDom';
+import { dispatchBlockSelectionAction } from '../cursor/blockSelectionPluginState';
 import { shouldConvertParagraphToThematicBreak } from './hrAutoParagraphUtils';
 
 export const hrAutoParagraphPluginKey = new PluginKey('hrAutoParagraph');
@@ -208,6 +209,63 @@ function deleteSelectedHorizontalRule(view: EditorView, key: string): boolean {
   return true;
 }
 
+function resolveHorizontalRuleNodePos(view: EditorView, target: EventTarget | null): number | null {
+  if (!(target instanceof HTMLElement)) return null;
+
+  const hrType = view.state.schema.nodes.hr;
+  if (!hrType) return null;
+
+  const wrapper = target.closest('.md-hr') as HTMLElement | null;
+  const directHr = target.closest('hr') as HTMLElement | null;
+  const wrappedHr = wrapper?.querySelector('hr') ?? null;
+  const candidates = [directHr, wrappedHr, wrapper].filter(
+    (candidate, index, list): candidate is HTMLElement =>
+      candidate instanceof HTMLElement && list.indexOf(candidate) === index
+  );
+
+  for (const candidate of candidates) {
+    if (!view.dom.contains(candidate)) continue;
+
+    try {
+      const pos = view.posAtDOM(candidate, 0);
+      if (view.state.doc.nodeAt(pos)?.type === hrType) {
+        return pos;
+      }
+    } catch {
+      // Fall through to the DOM-to-node scan below.
+    }
+  }
+
+  let foundPos: number | null = null;
+  view.state.doc.descendants((node, pos) => {
+    if (foundPos !== null || node.type !== hrType) return false;
+    const nodeDOM = view.nodeDOM(pos);
+    if (!(nodeDOM instanceof HTMLElement)) return true;
+    if (
+      candidates.includes(nodeDOM)
+      || candidates.some((candidate) => nodeDOM.contains(candidate) || candidate.contains(nodeDOM))
+    ) {
+      foundPos = pos;
+      return false;
+    }
+    return true;
+  });
+
+  return foundPos;
+}
+
+function selectHorizontalRuleBlock(view: EditorView, hrPos: number): boolean {
+  const hrNode = view.state.doc.nodeAt(hrPos);
+  if (!hrNode || hrNode.type !== view.state.schema.nodes.hr) return false;
+
+  dispatchBlockSelectionAction(view, {
+    type: 'set-blocks',
+    blocks: [{ from: hrPos, to: hrPos + hrNode.nodeSize }],
+  });
+  view.focus();
+  return true;
+}
+
 export const hrAutoParagraphPlugin = $prose(() => {
   return new Plugin({
     key: hrAutoParagraphPluginKey,
@@ -251,22 +309,12 @@ export const hrAutoParagraphPlugin = $prose(() => {
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
           if (event.button !== 0) return false;
-          if (!(event.target instanceof HTMLElement)) return false;
+          const hrPos = resolveHorizontalRuleNodePos(view, event.target);
+          if (hrPos === null) return false;
 
-          const hrWrapper = event.target.closest('.md-hr') as HTMLElement | null;
-          const hrElement = hrWrapper ?? event.target.closest('hr');
-          if (!hrElement || !view.dom.contains(hrElement)) return false;
-
-          try {
-            const hrPos = view.posAtDOM(hrElement, 0);
-            const tr = view.state.tr.setSelection(NodeSelection.create(view.state.doc, hrPos));
-            view.dispatch(tr.scrollIntoView());
-            view.focus();
-            event.preventDefault();
-            return true;
-          } catch {
-            return false;
-          }
+          if (!selectHorizontalRuleBlock(view, hrPos)) return false;
+          event.preventDefault();
+          return true;
         },
       },
     },

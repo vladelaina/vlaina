@@ -4,7 +4,6 @@ import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { shouldShowDirtyTabIndicator } from './dirtyTabIndicator';
-import { truncateNoteLabel } from '../common/truncateNoteLabel';
 
 interface NoteTabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -58,7 +57,7 @@ export function NoteTabContent({
           isUntitledPlaceholder && 'text-[var(--vlaina-soft-placeholder)]',
         )}
       >
-        {truncateNoteLabel(title)}
+        {title}
         {disambiguation ? (
           <span className="text-[var(--vlaina-font-11)] text-current/65">{` · ${disambiguation}`}</span>
         ) : null}

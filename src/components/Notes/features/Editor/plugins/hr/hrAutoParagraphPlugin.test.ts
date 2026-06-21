@@ -8,6 +8,8 @@ import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 
+import { blankAreaDragBoxPlugin } from '../cursor/blankAreaDragBoxPlugin';
+import { getBlockSelectionPluginState } from '../cursor/blockSelectionPluginState';
 import { handleHorizontalRuleShortcutEnter, hrAutoParagraphPlugin } from './hrAutoParagraphPlugin';
 
 function createEditor(defaultValue = '') {
@@ -16,6 +18,16 @@ function createEditor(defaultValue = '') {
       ctx.set(defaultValueCtx, defaultValue);
     })
     .use(commonmark)
+    .use(hrAutoParagraphPlugin);
+}
+
+function createEditorWithBlockSelection(defaultValue = '') {
+  return Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, defaultValue);
+    })
+    .use(commonmark)
+    .use(blankAreaDragBoxPlugin)
     .use(hrAutoParagraphPlugin);
 }
 
@@ -73,6 +85,27 @@ function pressKey(
       return handled;
     }
     handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+
+  return handled;
+}
+
+function dispatchPluginMouseDown(view: EditorView, target: EventTarget): boolean {
+  const event = new MouseEvent('mousedown', {
+    button: 0,
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.defineProperty(event, 'target', {
+    configurable: true,
+    value: target,
+  });
+
+  let handled = false;
+  view.someProp('handleDOMEvents', (handleDOMEvents: any) => {
+    if (handled) return handled;
+    handled = handleDOMEvents.mousedown?.(view, event) || handled;
     return handled;
   });
 
@@ -426,6 +459,31 @@ describe('hrAutoParagraphPlugin', () => {
 
     view.dom.blur = originalBlur;
     view.focus = originalFocus;
+
+    await editor.destroy();
+  });
+
+  it('selects the horizontal rule through the shared block selection when the rendered rule is clicked', async () => {
+    const editor = createEditorWithBlockSelection('before\n\n---\n\nafter');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const hr = view.dom.querySelector('hr');
+    expect(hr).toBeInstanceOf(HTMLElement);
+
+    const handled = dispatchPluginMouseDown(view, hr!);
+
+    expect(handled).toBe(true);
+    const hrPos = findHorizontalRulePos(view);
+    expect(hrPos).not.toBeNull();
+    if (hrPos === null) {
+      throw new Error('Expected horizontal rule position');
+    }
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(getBlockSelectionPluginState(view.state).selectedBlocks).toEqual([
+      { from: hrPos, to: hrPos + 1 },
+    ]);
 
     await editor.destroy();
   });
