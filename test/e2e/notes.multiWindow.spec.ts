@@ -95,14 +95,25 @@ test.describe('multi-window note document sync', () => {
       const second = pages.find((page) => page !== main) ?? pages[1];
       await second.evaluate((path) => (window as any).__vlainaE2E.openAbsoluteNote(path), notePath);
 
+      await second.evaluate(() =>
+        (window as any).__vlainaE2E.updateCurrentNoteContent('# Conflict\n\nLine: changed in second\n')
+      );
+      await expect.poll(async () => {
+        const state = await getNotesState(second);
+        return {
+          dirty: state.isDirty,
+          hasSecondEdit: String(state.currentNote?.content ?? '').includes('Line: changed in second'),
+        };
+      }).toEqual({
+        dirty: true,
+        hasSecondEdit: true,
+      });
+
       await main.evaluate(() =>
         (window as any).__vlainaE2E.updateCurrentNoteContent('# Conflict\n\nLine: changed in main\n')
       );
       await main.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
 
-      await second.evaluate(() =>
-        (window as any).__vlainaE2E.updateCurrentNoteContent('# Conflict\n\nLine: changed in second\n')
-      );
       await second.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
 
       const secondState = await getNotesState(second);

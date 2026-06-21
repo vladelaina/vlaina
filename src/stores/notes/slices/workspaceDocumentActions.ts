@@ -13,6 +13,10 @@ import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { saveDraftNote } from './workspaceDraftSave';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import {
+  getExternalPathMutationRevision,
+  wasPathExternallyMutatedSince,
+} from '../document/externalPathMutationRegistry';
 
 type WorkspaceDocumentActions = Pick<
   WorkspaceSlice,
@@ -53,6 +57,7 @@ export function createWorkspaceDocumentActions(
     const notePathAtSaveStart = currentNote.path;
     const contentAtSaveStart = currentNote.content;
     const wasDirtyAtSaveStart = get().isDirty;
+    const pathMutationRevision = getExternalPathMutationRevision();
 
     try {
       const draftNote = draftNotes[currentNote.path];
@@ -105,8 +110,11 @@ export function createWorkspaceDocumentActions(
       const hasNewerSaveTargetEdit =
         latestSaveTargetContent !== undefined &&
         latestSaveTargetContent !== contentAtSaveStart;
+      const pathWasExternallyMutatedDuringSave =
+        wasPathExternallyMutatedSince(currentNote.path, pathMutationRevision);
 
-      if (hasNewerSaveTargetEdit) {
+      if (hasNewerSaveTargetEdit || pathWasExternallyMutatedDuringSave) {
+        const preservedContent = latestSaveTargetContent ?? contentAtSaveStart;
         set({
           isDirty: currentSaveTargetStillActive ? true : latestState.isDirty,
           noteMetadata: nextMetadata,
@@ -114,12 +122,14 @@ export function createWorkspaceDocumentActions(
           noteContentsCache: setCachedNoteContent(
             latestState.noteContentsCache,
             currentNote.path,
-            latestSaveTargetContent,
+            preservedContent,
             modifiedAt,
             { baselineContent: content, size },
           ),
           openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, true),
-          error: null,
+          error: pathWasExternallyMutatedDuringSave
+            ? latestState.error ?? 'Current note changed outside vlaina while saving. Its latest content is preserved; save again after reviewing it.'
+            : null,
         });
         return;
       }

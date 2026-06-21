@@ -282,6 +282,7 @@ export interface E2EBridge {
   updateCurrentNoteContent(content: string): Promise<void>;
   saveCurrentNote(): Promise<void>;
   syncCurrentNoteFromDisk(options?: { force?: boolean }): Promise<string>;
+  applyExternalPathDeletion(path: string): Promise<void>;
   setGlobalNoteIconSize(size: number): Promise<void>;
   readTextFile(path: string): Promise<string>;
   writeTextFile(path: string, content: string): Promise<void>;
@@ -1513,6 +1514,9 @@ export function installSyncE2EBridge(): void {
     },
     syncCurrentNoteFromDisk: async (options) => {
       return useNotesStore.getState().syncCurrentNoteFromDisk(options);
+    },
+    applyExternalPathDeletion: async (path) => {
+      await useNotesStore.getState().applyExternalPathDeletion(path);
     },
     setGlobalNoteIconSize: async (size) => {
       useNotesStore.getState().setGlobalIconSize(size);

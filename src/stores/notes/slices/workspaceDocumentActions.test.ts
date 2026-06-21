@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { createWorkspaceSlice } from './workspaceSlice';
+import { markExternalPathDeletion } from '../document/externalPathMutationRegistry';
 import type { NotesStore } from '../types';
 
 const mocks = vi.hoisted(() => ({
@@ -265,6 +266,46 @@ describe('workspace document actions', () => {
       },
     }));
     expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('does not clear dirty state when the note path is externally deleted while save is in flight', async () => {
+    let resolveSave: ((value: {
+      content: string;
+      metadata: { updatedAt: number };
+      modifiedAt: number;
+      size: number;
+      nextCache: Map<string, { content: string; modifiedAt: number }>;
+    }) => void) | null = null;
+    mocks.saveNoteDocument.mockImplementation(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }]]),
+    });
+
+    const save = store.getState().saveNote();
+    await vi.waitFor(() => expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(1));
+
+    markExternalPathDeletion('alpha.md');
+    resolveSave?.({
+      content: 'Unsaved alpha',
+      metadata: { updatedAt: 2 },
+      modifiedAt: 2,
+      size: 'Unsaved alpha'.length,
+      nextCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 2 }]]),
+    });
+    await save;
+
+    expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: 'Unsaved alpha' });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: true }]);
+    expect(store.getState().error).toBe(
+      'Current note changed outside vlaina while saving. Its latest content is preserved; save again after reviewing it.'
+    );
   });
 
   it('serializes overlapping saves for an edited external starred note', async () => {
