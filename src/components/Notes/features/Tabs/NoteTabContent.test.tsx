@@ -13,7 +13,7 @@ vi.mock('@/stores/useNotesStore', () => ({
 }));
 
 describe('NoteTabContent', () => {
-  it('truncates long tab titles to fifteen visible characters', () => {
+  it('renders long tab titles in full and lets layout clipping decide overflow', () => {
     render(
       <NoteTabContent
         tab={{ path: 'very-long-note-name.md', name: 'very-long-note-name', isDirty: false }}
@@ -22,8 +22,8 @@ describe('NoteTabContent', () => {
       />,
     );
 
-    expect(screen.getByText('very-long-note-....')).toBeInTheDocument();
-    expect(screen.queryByText('very-long-note-name')).not.toBeInTheDocument();
+    expect(screen.getByText('very-long-note-name')).toBeInTheDocument();
+    expect(screen.queryByText('very-long-note-....')).not.toBeInTheDocument();
   });
 
   it('attaches the label ref to the rendered tab title text', () => {

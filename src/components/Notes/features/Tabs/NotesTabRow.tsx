@@ -30,7 +30,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { NotesDragOverlay } from '../common/NotesDragOverlay';
 import { NoteTabContent } from './NoteTabContent';
-import { truncateNoteLabel } from '../common/truncateNoteLabel';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface SortableTabProps {
@@ -54,8 +53,7 @@ const SortableTab = memo(function SortableTab({
   const labelRef = React.useRef<HTMLSpanElement | null>(null);
   const labelClipFrameRef = React.useRef<number | null>(null);
   const [isLabelClipped, setIsLabelClipped] = React.useState(false);
-  const isTitleShortened = truncateNoteLabel(title) !== title;
-  const shouldShowTitleTooltip = isTitleShortened || isLabelClipped;
+  const shouldShowTitleTooltip = isLabelClipped;
 
   const style = {
     transform: CSS.Transform.toString(transform),
