@@ -1,21 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    cancelAllPendingImageDeletions,
     ensureImageFileExists,
-    MAX_PENDING_IMAGE_DELETIONS,
     MAX_RESTORED_IMAGE_BYTES,
     moveImageToTrash,
 } from './fileUtils';
-import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 
 const adapter = {
     exists: vi.fn<(path: string) => Promise<boolean>>(),
     writeBinaryFile: vi.fn<(path: string, data: Uint8Array, options?: { recursive?: boolean }) => Promise<void>>(),
 };
-
-vi.mock('@/lib/desktop/trash', () => ({
-    moveDesktopItemToTrash: vi.fn<() => Promise<void>>(),
-}));
 
 vi.mock('@/lib/storage/adapter', () => ({
     getStorageAdapter: () => adapter,
@@ -41,59 +34,24 @@ vi.mock('@/lib/storage/adapter', () => ({
 
 describe('image block file utils', () => {
     beforeEach(() => {
-        vi.useFakeTimers();
         vi.clearAllMocks();
+        vi.unstubAllGlobals();
         adapter.exists.mockResolvedValue(false);
         adapter.writeBinaryFile.mockResolvedValue();
     });
 
-    afterEach(() => {
-        cancelAllPendingImageDeletions();
-        vi.useRealTimers();
-        vi.unstubAllGlobals();
-    });
-
-    it('does not move non-image vault files to trash', async () => {
-        const moved = await moveImageToTrash('docs/secret.md', '/vault', 'note.md');
-
-        await vi.advanceTimersByTimeAsync(10000);
-
-        expect(moved).toBe(false);
-        expect(moveDesktopItemToTrash).not.toHaveBeenCalled();
-    });
-
-    it('moves image files to trash after the undo grace period', async () => {
+    it('does not move local image files to trash when markdown image refs are removed', async () => {
         const moved = await moveImageToTrash('assets/demo.png', '/vault', undefined);
 
-        await vi.advanceTimersByTimeAsync(10000);
-
-        expect(moved).toBe(true);
-        expect(moveDesktopItemToTrash).toHaveBeenCalledWith('/vault/assets/demo.png');
+        expect(moved).toBe(false);
+        expect(adapter.exists).not.toHaveBeenCalled();
     });
 
-    it('bounds pending image deletions for different files', async () => {
-        const moves = await Promise.all(
-            Array.from({ length: MAX_PENDING_IMAGE_DELETIONS }, (_value, index) =>
-                moveImageToTrash(`assets/demo-${index}.png`, '/vault', undefined)
-            )
-        );
-
-        expect(moves.every(Boolean)).toBe(true);
-        await expect(moveImageToTrash('assets/overflow.png', '/vault', undefined)).resolves.toBe(false);
-
-        await vi.advanceTimersByTimeAsync(10000);
-
-        expect(moveDesktopItemToTrash).toHaveBeenCalledTimes(MAX_PENDING_IMAGE_DELETIONS);
-        expect(moveDesktopItemToTrash).not.toHaveBeenCalledWith('/vault/assets/overflow.png');
-    });
-
-    it('does not move unsafe media sources to trash', async () => {
+    it('leaves unsafe media sources untouched when markdown image refs are removed', async () => {
         await expect(moveImageToTrash('javascript:demo.png', '/vault', 'note.md')).resolves.toBe(false);
         await expect(moveImageToTrash('http://127.0.0.1:3000/demo.png', '/vault', 'note.md')).resolves.toBe(false);
 
-        await vi.advanceTimersByTimeAsync(10000);
-
-        expect(moveDesktopItemToTrash).not.toHaveBeenCalled();
+        expect(adapter.exists).not.toHaveBeenCalled();
     });
 
     it('does not restore non-image paths from blob URLs', async () => {

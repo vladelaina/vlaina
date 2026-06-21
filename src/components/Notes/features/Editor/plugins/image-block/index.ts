@@ -6,7 +6,6 @@ import { keymap } from '@milkdown/kit/prose/keymap';
 import { NodeSelection } from '@milkdown/kit/prose/state';
 import { ImageBlockNodeView } from './ImageBlockNodeView';
 import { imageDragPlugin } from './imageDragPlugin';
-import { imageAssetLifecyclePlugin } from './imageAssetLifecyclePlugin';
 
 const imageNodeViewPluginKey = new PluginKey('imageNodeViewPlugin');
 
@@ -70,6 +69,6 @@ export const imageKeymapPlugin = $prose(() => {
     });
 });
 
-export const imageBlockPlugin = [imageNodeViewPlugin, imageAssetLifecyclePlugin, imageKeymapPlugin, imageDragPlugin];
+export const imageBlockPlugin = [imageNodeViewPlugin, imageKeymapPlugin, imageDragPlugin];
 
 export { setDragState, clearDragState, getDragState, calculateDropPosition } from './imageDragPlugin';
