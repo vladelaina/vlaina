@@ -329,6 +329,33 @@ export const textSelectionOverlayPlugin = $prose(() => {
         );
       };
 
+      const clearKeyboardSelectionState = () => {
+        const usePointerNativeSelection = Boolean(
+          textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection
+        );
+        const toolbarState = floatingToolbarKey.getState(view.state);
+        const shouldHideToolbar = Boolean(
+          toolbarState?.isVisible &&
+          !(toolbarState.subMenu === 'aiReview' && toolbarState.aiReview)
+        );
+
+        if (!usePointerNativeSelection && !shouldHideToolbar) {
+          syncActiveClass();
+          return;
+        }
+
+        let tr = view.state.tr
+          .setMeta(POINTER_NATIVE_SELECTION_META, false)
+          .setMeta('addToHistory', false);
+        if (shouldHideToolbar) {
+          tr = tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          });
+        }
+        view.dispatch(tr);
+        syncActiveClass();
+      };
+
       const getCaretTargetFromPoint = (event: MouseEvent): PointerCaretTarget | null => {
         const ownerDocument = view.dom.ownerDocument as Document & {
           caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
@@ -708,8 +735,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
 
         keyClearFrame = requestAnimationFrame(() => {
           keyClearFrame = null;
-          setPointerNativeSelection(false);
-          syncActiveClass();
+          clearKeyboardSelectionState();
         });
       };
 

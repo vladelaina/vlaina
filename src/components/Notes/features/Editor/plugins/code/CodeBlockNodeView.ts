@@ -1,7 +1,7 @@
 import { Node } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorState, Transaction } from '@codemirror/state';
+import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
 import {
   EditorView as CodeMirror,
   drawSelection,
@@ -24,6 +24,7 @@ import {
   createCodeBlockEditorTheme,
   mapCodeBlockEditorOffsetToDocumentOffset,
   mapDocumentOffsetToCodeBlockEditorOffset,
+  moveOrExtendToTrimmedCodeBoundary,
   normalizeCodeBlockEditorText,
 } from './codemirror';
 import { getEditorFindState } from '../find/editorFindCommands';
@@ -37,11 +38,35 @@ import {
   forwardCodeBlockUpdate,
 } from './codeBlockNodeViewUtils';
 import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
+import { logCodeBlockSelectionDebug } from './codeBlockSelectionDebugLog';
 import { themeLazyLoadTokens } from '@/styles/themeTokens';
+import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
+import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 
 type CodeBlockNodeViewOptions = {
   lazyCodeMirror?: boolean;
 };
+
+type CodeMirrorLineBounds = {
+  from: number;
+  to: number;
+};
+
+type CodeMirrorSelectionLike = {
+  anchor: number;
+  empty: boolean;
+  from: number;
+  head: number;
+  to: number;
+};
+
+type NormalizedCodeMirrorSelection = {
+  anchor: number;
+  head: number;
+  reason: 'edge-linebreak' | 'pure-linebreak' | 'skip-blank-lines';
+};
+
+type CodeMirrorSelectionArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
 
 const FOCUSED_CODE_BLOCK_FORWARD_DEBOUNCE_MS = 80;
 export const MAX_LAZY_CODE_BLOCK_LINE_NUMBER_PLACEHOLDER_LINES = 20_000;
@@ -82,6 +107,8 @@ export class CodeBlockNodeView implements NodeView {
   private findHighlightStateKey = '[]';
   private mirroredOuterSelection = false;
   private languageClassName: string | null = null;
+  private codeMirrorSelectionArrowKey: CodeMirrorSelectionArrowKey | null = null;
+  private codeMirrorSelectionArrowResetTimer: number | null = null;
 
   private isPasteUpdate(update: ViewUpdate) {
     return update.transactions.some((transaction) => {
@@ -244,15 +271,21 @@ export class CodeBlockNodeView implements NodeView {
           drawSelection(),
           ...codeMirrorFindHighlightExtensions,
           ...createCodeBlockEditorTheme(),
+          Prec.highest(CodeMirror.domEventHandlers({
+            ...this.createClipboardHandlers(),
+            keydown: this.handleCodeMirrorKeydown,
+          })),
           codeMirrorKeymap.of(this.createKeymap()),
-          CodeMirror.domEventHandlers(this.createClipboardHandlers()),
           EditorState.changeFilter.of(() => this.view.editable),
+          EditorState.transactionFilter.of(this.filterCodeMirrorSelectionEdgeLineBreaks),
           CodeMirror.updateListener.of(this.forwardUpdate),
         ],
       }),
     });
     this.lineNumbersStateKey = this.getLineNumbersStateKey(this.node);
     this.wrapStateKey = this.getWrapStateKey(this.node);
+    this.cm.contentDOM.addEventListener('keydown', this.logRawCodeMirrorKeydown, true);
+    this.cm.contentDOM.addEventListener('keyup', this.logRawCodeMirrorKeyup, true);
     this.cm.dom.addEventListener('blur', this.clearEditorSelectionOnBlur, true);
     this.disposeFontMetricsSync = bindCodeBlockFontMetricsSync(
       this.dom.ownerDocument,
@@ -286,6 +319,7 @@ export class CodeBlockNodeView implements NodeView {
     this.syncCollapsedState();
     this.syncFindHighlights();
     this.syncProseMirrorSelection();
+    this.syncE2ECodeMirrorSelection();
     void this.syncLanguage();
   }
 
@@ -371,7 +405,567 @@ export class CodeBlockNodeView implements NodeView {
     });
   }
 
+  private getCodeMirrorSelectionDebug(cm: CodeMirror) {
+    const { main } = cm.state.selection;
+    const currentLine = cm.state.doc.lineAt(main.head);
+    const previousLine = currentLine.number > 1
+      ? cm.state.doc.line(currentLine.number - 1)
+      : null;
+    const nextLine = currentLine.number < cm.state.doc.lines
+      ? cm.state.doc.line(currentLine.number + 1)
+      : null;
+    const ownerDocument = this.getOwnerDocument();
+
+    return {
+      activeElementClass: ownerDocument?.activeElement instanceof HTMLElement
+        ? ownerDocument.activeElement.className
+        : '',
+      currentLine: {
+        from: currentLine.from,
+        number: currentLine.number,
+        text: currentLine.text,
+        to: currentLine.to,
+      },
+      docLength: cm.state.doc.length,
+      docLines: cm.state.doc.lines,
+      hasFocus: cm.hasFocus,
+      nextLine: nextLine
+        ? {
+          from: nextLine.from,
+          number: nextLine.number,
+          text: nextLine.text,
+          to: nextLine.to,
+        }
+        : null,
+      previousLine: previousLine
+        ? {
+          from: previousLine.from,
+          number: previousLine.number,
+          text: previousLine.text,
+          to: previousLine.to,
+        }
+        : null,
+      selection: {
+        anchor: main.anchor,
+        empty: main.empty,
+        from: main.from,
+        head: main.head,
+        selectedText: cm.state.sliceDoc(main.from, main.to),
+        to: main.to,
+      },
+    };
+  }
+
+  private logCodeSelectionDebug(event: string, details: Record<string, unknown>) {
+    const nodeText = this.node.textContent ?? '';
+    logCodeBlockSelectionDebug(this.getOwnerDocument(), event, {
+      ...details,
+      getPos: this.getPos(),
+      language: this.node.attrs.language ?? '',
+      nodeTextLength: nodeText.length,
+      nodeTextPreview: nodeText.slice(0, 2_000),
+    });
+  }
+
+  private getArrowKey(key: string): CodeMirrorSelectionArrowKey | null {
+    return key === 'ArrowUp' ||
+      key === 'ArrowDown' ||
+      key === 'ArrowLeft' ||
+      key === 'ArrowRight'
+      ? key
+      : null;
+  }
+
+  private clearCodeMirrorSelectionArrowKey() {
+    const ownerWindow = this.getOwnerWindow();
+    if (ownerWindow && this.codeMirrorSelectionArrowResetTimer !== null) {
+      ownerWindow.clearTimeout(this.codeMirrorSelectionArrowResetTimer);
+    }
+    this.codeMirrorSelectionArrowResetTimer = null;
+    this.codeMirrorSelectionArrowKey = null;
+  }
+
+  private rememberCodeMirrorSelectionArrowKey(event: KeyboardEvent) {
+    const arrowKey = this.getArrowKey(event.key);
+    if (!arrowKey) {
+      return;
+    }
+
+    this.codeMirrorSelectionArrowKey = event.shiftKey ? arrowKey : null;
+    const ownerWindow = this.getOwnerWindow();
+    if (!ownerWindow || this.codeMirrorSelectionArrowKey === null) {
+      return;
+    }
+
+    if (this.codeMirrorSelectionArrowResetTimer !== null) {
+      ownerWindow.clearTimeout(this.codeMirrorSelectionArrowResetTimer);
+    }
+    this.codeMirrorSelectionArrowResetTimer = ownerWindow.setTimeout(() => {
+      this.codeMirrorSelectionArrowResetTimer = null;
+      this.codeMirrorSelectionArrowKey = null;
+    }, 750);
+  }
+
+  private shouldNormalizeCodeMirrorSelectionEdgeLineBreaks() {
+    return this.codeMirrorSelectionArrowKey === 'ArrowUp' ||
+      this.codeMirrorSelectionArrowKey === 'ArrowDown';
+  }
+
+  private readonly logRawCodeMirrorKeydown = (event: KeyboardEvent) => {
+    const cm = this.cm;
+    if (!cm) {
+      return;
+    }
+
+    this.rememberCodeMirrorSelectionArrowKey(event);
+
+    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && !event.key.startsWith('Arrow')) {
+      return;
+    }
+
+    this.logCodeSelectionDebug('raw-cm-keydown-capture', {
+      altKey: event.altKey,
+      before: this.getCodeMirrorSelectionDebug(cm),
+      ctrlKey: event.ctrlKey,
+      defaultPrevented: event.defaultPrevented,
+      key: event.key,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      targetClass: event.target instanceof HTMLElement ? event.target.className : '',
+      trackedSelectionArrowKey: this.codeMirrorSelectionArrowKey,
+    });
+  };
+
+  private readonly logRawCodeMirrorKeyup = (event: KeyboardEvent) => {
+    const cm = this.cm;
+    if (!cm) {
+      return;
+    }
+
+    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && !event.key.startsWith('Arrow')) {
+      return;
+    }
+
+    this.logCodeSelectionDebug('raw-cm-keyup-capture', {
+      after: this.getCodeMirrorSelectionDebug(cm),
+      altKey: event.altKey,
+      ctrlKey: event.ctrlKey,
+      defaultPrevented: event.defaultPrevented,
+      key: event.key,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      targetClass: event.target instanceof HTMLElement ? event.target.className : '',
+      trackedSelectionArrowKey: this.codeMirrorSelectionArrowKey,
+    });
+  };
+
+  private getNonEmptyLineBoundsAtOrAfter(doc: Text, pos: number): CodeMirrorLineBounds | null {
+    if (doc.lines === 0) {
+      return null;
+    }
+
+    const clampedPos = Math.max(0, Math.min(pos, doc.length));
+    const startLine = doc.lineAt(clampedPos).number;
+    for (let lineNumber = startLine; lineNumber <= doc.lines; lineNumber += 1) {
+      const line = doc.line(lineNumber);
+      if (line.text.trim().length > 0) {
+        return { from: line.from, to: line.to };
+      }
+    }
+
+    return null;
+  }
+
+  private getNonEmptyLineBoundsAtOrBefore(doc: Text, pos: number): CodeMirrorLineBounds | null {
+    if (doc.lines === 0) {
+      return null;
+    }
+
+    const clampedPos = Math.max(0, Math.min(pos, doc.length));
+    const startLine = doc.lineAt(clampedPos).number;
+    for (let lineNumber = startLine; lineNumber >= 1; lineNumber -= 1) {
+      const line = doc.line(lineNumber);
+      if (line.text.trim().length > 0) {
+        return { from: line.from, to: line.to };
+      }
+    }
+
+    return null;
+  }
+
+  private getAdjacentNonEmptyLineBounds(doc: Text, pos: number): CodeMirrorLineBounds | null {
+    if (doc.lines === 0) {
+      return null;
+    }
+
+    const clampedPos = Math.max(0, Math.min(pos, doc.length));
+    const currentLine = doc.lineAt(clampedPos);
+    if (currentLine.text.trim().length > 0) {
+      return { from: currentLine.from, to: currentLine.to };
+    }
+
+    if (currentLine.number > 1) {
+      const previousLine = doc.line(currentLine.number - 1);
+      if (previousLine.text.trim().length > 0 && previousLine.to + 1 >= clampedPos) {
+        return { from: previousLine.from, to: previousLine.to };
+      }
+    }
+
+    if (currentLine.number < doc.lines) {
+      const nextLine = doc.line(currentLine.number + 1);
+      if (nextLine.text.trim().length > 0 && currentLine.to + 1 >= nextLine.from - 1) {
+        return { from: nextLine.from, to: nextLine.to };
+      }
+    }
+
+    return null;
+  }
+
+  private orientCodeMirrorLineSelection(
+    lineBounds: CodeMirrorLineBounds,
+    direction: -1 | 1
+  ): NormalizedCodeMirrorSelection {
+    return {
+      anchor: direction > 0 ? lineBounds.from : lineBounds.to,
+      head: direction > 0 ? lineBounds.to : lineBounds.from,
+      reason: 'pure-linebreak',
+    };
+  }
+
+  private getPureLineBreakSelectionTarget(
+    doc: Text,
+    selection: CodeMirrorSelectionLike,
+    direction: -1 | 1
+  ): CodeMirrorLineBounds | null {
+    const directionalTarget = direction > 0
+      ? this.getNonEmptyLineBoundsAtOrAfter(doc, selection.to)
+      : this.getNonEmptyLineBoundsAtOrBefore(doc, selection.from);
+    if (directionalTarget) {
+      return directionalTarget;
+    }
+
+    return (
+      this.getAdjacentNonEmptyLineBounds(doc, selection.anchor) ??
+      this.getAdjacentNonEmptyLineBounds(doc, selection.head) ??
+      (direction > 0
+        ? this.getNonEmptyLineBoundsAtOrBefore(doc, selection.from)
+        : this.getNonEmptyLineBoundsAtOrAfter(doc, selection.to))
+    );
+  }
+
+  private normalizeCodeMirrorSelectionEdgeLineBreaks(
+    doc: Text,
+    selection: CodeMirrorSelectionLike,
+    previousSelection?: CodeMirrorSelectionLike
+  ): NormalizedCodeMirrorSelection | null {
+    if (selection.empty) {
+      return null;
+    }
+
+    let nextFrom = selection.from;
+    let nextTo = selection.to;
+    while (nextFrom < nextTo && doc.sliceString(nextFrom, nextFrom + 1) === '\n') {
+      nextFrom += 1;
+    }
+    while (nextTo > nextFrom && doc.sliceString(nextTo - 1, nextTo) === '\n') {
+      nextTo -= 1;
+    }
+
+    const direction = selection.anchor <= selection.head ? 1 : -1;
+    if (nextFrom >= nextTo) {
+      const targetLine = this.getPureLineBreakSelectionTarget(doc, selection, direction);
+      return targetLine
+        ? {
+          ...this.orientCodeMirrorLineSelection(targetLine, direction),
+          reason: 'pure-linebreak',
+        }
+        : null;
+    }
+
+    if (nextFrom === selection.from && nextTo === selection.to) {
+      return null;
+    }
+
+    const previousRangeMatchesTrimmedSelection = Boolean(
+      previousSelection &&
+      !previousSelection.empty &&
+      previousSelection.from === nextFrom &&
+      previousSelection.to === nextTo
+    );
+    if (previousRangeMatchesTrimmedSelection) {
+      const nextNonEmptyLine = direction > 0 && nextTo < selection.to
+        ? this.getNonEmptyLineBoundsAtOrAfter(doc, selection.to)
+        : direction < 0 && nextFrom > selection.from
+          ? this.getNonEmptyLineBoundsAtOrBefore(doc, selection.from)
+          : null;
+      if (
+        nextNonEmptyLine &&
+        (nextNonEmptyLine.from !== nextFrom || nextNonEmptyLine.to !== nextTo)
+      ) {
+        return {
+          anchor: direction > 0 ? previousSelection.from : previousSelection.to,
+          head: direction > 0 ? nextNonEmptyLine.to : nextNonEmptyLine.from,
+          reason: 'skip-blank-lines',
+        };
+      }
+    }
+
+    return {
+      anchor: direction > 0 ? nextFrom : nextTo,
+      head: direction > 0 ? nextTo : nextFrom,
+      reason: 'edge-linebreak',
+    };
+  }
+
+  private readonly filterCodeMirrorSelectionEdgeLineBreaks = (
+    transaction: Transaction
+  ): Transaction | readonly TransactionSpec[] => {
+    if (!transaction.selection || !transaction.isUserEvent('select')) {
+      return transaction;
+    }
+    if (!this.shouldNormalizeCodeMirrorSelectionEdgeLineBreaks()) {
+      return transaction;
+    }
+
+    const selection = transaction.newSelection.main;
+    const normalizedSelection = this.normalizeCodeMirrorSelectionEdgeLineBreaks(
+      transaction.newDoc,
+      selection,
+      transaction.startState.selection.main
+    );
+    if (!normalizedSelection) {
+      return transaction;
+    }
+
+    const { anchor, head, reason } = normalizedSelection;
+    this.logCodeSelectionDebug('selection-edge-linebreak-filter', {
+      after: {
+        anchor,
+        from: Math.min(anchor, head),
+        head,
+        selectedText: transaction.newDoc.sliceString(Math.min(anchor, head), Math.max(anchor, head)),
+        to: Math.max(anchor, head),
+      },
+      before: {
+        anchor: selection.anchor,
+        from: selection.from,
+        head: selection.head,
+        selectedText: transaction.newDoc.sliceString(selection.from, selection.to),
+        to: selection.to,
+      },
+      reason,
+      userEvent: transaction.annotation(Transaction.userEvent) ?? null,
+    });
+
+    return [
+      transaction,
+      {
+        selection: EditorSelection.single(anchor, head),
+        sequential: true,
+      },
+    ];
+  };
+
+  private readonly handleCodeMirrorKeydown = (event: KeyboardEvent, cm: CodeMirror) => {
+    if (
+      !event.defaultPrevented &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
+      cm.state.selection.main.empty
+    ) {
+      const toolbarState = floatingToolbarKey.getState(this.view.state);
+      if (toolbarState?.isVisible) {
+        this.view.dispatch(this.view.state.tr.setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE }));
+      }
+      return false;
+    }
+
+    if (
+      event.defaultPrevented ||
+      event.altKey ||
+      event.isComposing ||
+      (!event.ctrlKey && !event.metaKey)
+    ) {
+      return false;
+    }
+
+    const direction = event.key === 'ArrowUp'
+      ? -1
+      : event.key === 'ArrowDown'
+        ? 1
+        : null;
+    if (direction === null) {
+      return false;
+    }
+
+    this.logCodeSelectionDebug('ctrl-arrow-keydown', {
+      before: this.getCodeMirrorSelectionDebug(cm),
+      ctrlKey: event.ctrlKey,
+      direction,
+      key: event.key,
+      metaKey: event.metaKey,
+    });
+
+    if (cm.state.doc.toString().trim().length === 0) {
+      this.logCodeSelectionDebug('ctrl-arrow-empty-doc-skip', {
+        before: this.getCodeMirrorSelectionDebug(cm),
+        direction,
+      });
+      return false;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    const handled = moveOrExtendToTrimmedCodeBoundary(() => cm, direction, true);
+    if (!handled) {
+      this.logCodeSelectionDebug('ctrl-arrow-not-handled', {
+        after: this.getCodeMirrorSelectionDebug(cm),
+        direction,
+      });
+      return false;
+    }
+
+    const scheduledAnchor = cm.state.selection.main.anchor;
+    const scheduledHead = cm.state.selection.main.head;
+    this.logCodeSelectionDebug('ctrl-arrow-dispatched', {
+      after: this.getCodeMirrorSelectionDebug(cm),
+      direction,
+      scheduledAnchor,
+      scheduledHead,
+    });
+    this.restoreCodeMirrorSelectionAfterNativeKeyHandling(cm, scheduledAnchor, scheduledHead);
+
+    return true;
+  };
+
+  private restoreCodeMirrorSelectionAfterNativeKeyHandling(
+    cm: CodeMirror,
+    anchor: number,
+    head: number
+  ) {
+    const restore = (phase: string) => {
+      if (this.destroyed || this.cm !== cm) {
+        return;
+      }
+
+      const before = this.getCodeMirrorSelectionDebug(cm);
+      const selection = cm.state.selection.main;
+      const didRestore = selection.anchor !== anchor || selection.head !== head;
+      if (selection.anchor !== anchor || selection.head !== head) {
+        cm.dispatch({ selection: { anchor, head } });
+      }
+      cm.focus();
+      this.syncE2ECodeMirrorSelection();
+      this.logCodeSelectionDebug('ctrl-arrow-restore', {
+        after: this.getCodeMirrorSelectionDebug(cm),
+        anchor,
+        before,
+        didRestore,
+        head,
+        phase,
+      });
+    };
+
+    const ownerWindow = this.getOwnerWindow();
+    if (!ownerWindow) {
+      restore('sync');
+      return;
+    }
+
+    ownerWindow.setTimeout(() => restore('timeout-0'), 0);
+    ownerWindow.requestAnimationFrame(() => {
+      restore('raf-1');
+      ownerWindow.requestAnimationFrame(() => restore('raf-2'));
+    });
+  }
+
+  private syncE2ECodeMirrorSelection() {
+    if (!this.cm) {
+      return;
+    }
+
+    const ownerWindow = this.getOwnerWindow();
+    if (!ownerWindow?.location.search.includes('e2e=1')) {
+      return;
+    }
+
+    const { main } = this.cm.state.selection;
+    this.cm.dom.dataset.e2eSelectionAnchor = String(main.anchor);
+    this.cm.dom.dataset.e2eSelectionHead = String(main.head);
+    this.cm.dom.dataset.e2eSelectionFrom = String(main.from);
+    this.cm.dom.dataset.e2eSelectionTo = String(main.to);
+    this.cm.dom.dataset.e2eSelectionText = this.cm.state.sliceDoc(main.from, main.to);
+  }
+
+  private trimCodeMirrorSelectionEdgeLineBreaks(update: ViewUpdate) {
+    if (!this.cm || !update.selectionSet) {
+      return false;
+    }
+
+    const isKeyboardLikeSelection = (update.transactions ?? []).some((transaction) => {
+      const userEvent = transaction.annotation(Transaction.userEvent);
+      return userEvent === 'select' || userEvent?.startsWith('select.');
+    });
+    if (!isKeyboardLikeSelection || !this.shouldNormalizeCodeMirrorSelectionEdgeLineBreaks()) {
+      return false;
+    }
+
+    const { main } = this.cm.state.selection;
+    if (main.empty) {
+      return false;
+    }
+
+    const normalizedSelection = this.normalizeCodeMirrorSelectionEdgeLineBreaks(
+      this.cm.state.doc,
+      main,
+      update.startState.selection.main
+    );
+    if (!normalizedSelection) {
+      return false;
+    }
+
+    const { anchor, head, reason } = normalizedSelection;
+    this.logCodeSelectionDebug('selection-edge-linebreak-trim', {
+      after: {
+        anchor,
+        from: Math.min(anchor, head),
+        head,
+        selectedText: this.cm.state.sliceDoc(Math.min(anchor, head), Math.max(anchor, head)),
+        to: Math.max(anchor, head),
+      },
+      before: this.getCodeMirrorSelectionDebug(this.cm),
+      transactions: (update.transactions ?? []).map((transaction) => ({
+        userEvent: transaction.annotation(Transaction.userEvent) ?? null,
+      })),
+      reason,
+    });
+    this.cm.dispatch({ selection: { anchor, head } });
+    return true;
+  }
+
   private forwardUpdate = (update: ViewUpdate) => {
+    this.syncE2ECodeMirrorSelection();
+
+    if (this.trimCodeMirrorSelectionEdgeLineBreaks(update)) {
+      return;
+    }
+
+    if (this.cm && (update.selectionSet || update.docChanged)) {
+      this.logCodeSelectionDebug('cm-forward-update', {
+        docChanged: update.docChanged,
+        selectionSet: update.selectionSet,
+        state: this.getCodeMirrorSelectionDebug(this.cm),
+        transactions: (update.transactions ?? []).map((transaction) => ({
+          userEvent: transaction.annotation(Transaction.userEvent) ?? null,
+        })),
+        viewHasFocus: this.cm.hasFocus,
+      });
+    }
+
     if (
       this.updating ||
       (!this.cm?.hasFocus && !(this.mirroredOuterSelection && update.docChanged))
@@ -539,6 +1133,23 @@ export class CodeBlockNodeView implements NodeView {
     const selectionTo = Math.min(this.view.state.selection.to, contentTo);
     const hasSelection = selectionTo > selectionFrom;
     const shouldMirrorOuterSelection = hasSelection && !this.cm?.hasFocus;
+
+    if (this.cm) {
+      this.logCodeSelectionDebug('pm-selection-sync', {
+        codeBlockContent: { from: contentFrom, to: contentTo },
+        cm: this.getCodeMirrorSelectionDebug(this.cm),
+        hasSelection,
+        pmSelection: {
+          from: this.view.state.selection.from,
+          to: this.view.state.selection.to,
+        },
+        selectionInsideCodeBlock: {
+          from: selectionFrom,
+          to: selectionTo,
+        },
+        shouldMirrorOuterSelection,
+      });
+    }
 
     this.dom.dataset.pmSelected = shouldMirrorOuterSelection ? 'true' : 'false';
 
@@ -784,6 +1395,7 @@ export class CodeBlockNodeView implements NodeView {
     this.destroyed = true;
     this.intersectionObserver?.disconnect();
     this.intersectionObserver = null;
+    this.clearCodeMirrorSelectionArrowKey();
     const window = this.getOwnerWindow();
     if (window && this.pendingMeasureFrame !== null) {
       window.cancelAnimationFrame(this.pendingMeasureFrame);
@@ -794,8 +1406,12 @@ export class CodeBlockNodeView implements NodeView {
     this.unsubscribeSelectionSync();
     this.disposeFontMetricsSync();
     this.root.unmount();
-    this.cm?.dom.removeEventListener('blur', this.clearEditorSelectionOnBlur, true);
-    this.cm?.destroy();
+    if (this.cm) {
+      this.cm.contentDOM.removeEventListener('keydown', this.logRawCodeMirrorKeydown, true);
+      this.cm.contentDOM.removeEventListener('keyup', this.logRawCodeMirrorKeyup, true);
+      this.cm.dom.removeEventListener('blur', this.clearEditorSelectionOnBlur, true);
+      this.cm.destroy();
+    }
     this.dom.remove();
   }
 }

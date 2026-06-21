@@ -1,7 +1,12 @@
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorSelection, Prec, RangeSetBuilder, StateField } from '@codemirror/state';
 import { Decoration, EditorView as CodeMirror, highlightSpecialChars } from '@codemirror/view';
-import { CARET_BLINK_HELD_ATTR, holdCaretBlink, isCaretNavigationKey } from '@/lib/ui/caretOverlayStyles';
+import {
+  CARET_BLINK_HELD_ATTR,
+  holdCaretBlink,
+  isCaretNavigationKey,
+  releaseCaretBlink,
+} from '@/lib/ui/caretOverlayStyles';
 import { themeCaretOverlayTokens, themeCodeBlockEditorTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { codeBlockHighlightStyle } from './codeBlockHighlightStyle';
 import { codeBlockCompatibilityHighlightStyle } from './codeBlockCompatibilityHighlightStyle';
@@ -10,6 +15,7 @@ const selectedTextDecoration = Decoration.mark({
   class: 'editor-code-selection-text',
 });
 
+const CODE_BLOCK_SELECTION_ACTIVE_CLASS = 'editor-code-selection-active';
 const CODE_BLOCK_LINE_CLASS = 'HyperMD-codeblock HyperMD-codeblock-bg cm-hmd-codeblock';
 const CODE_BLOCK_BEGIN_LINE_CLASS = `${CODE_BLOCK_LINE_CLASS} HyperMD-codeblock-begin HyperMD-codeblock-begin-bg`;
 const CODE_BLOCK_END_LINE_CLASS = `${CODE_BLOCK_LINE_CLASS} HyperMD-codeblock-end HyperMD-codeblock-end-bg`;
@@ -17,8 +23,24 @@ const CODE_BLOCK_SINGLE_LINE_CLASS = `${CODE_BLOCK_BEGIN_LINE_CLASS} HyperMD-cod
 
 const codeBlockCaretNavigationActiveViews = new WeakSet<CodeMirror>();
 
+function hasNonEmptySelection(view: CodeMirror): boolean {
+  return view.state.selection.ranges.some((range) => !range.empty);
+}
+
 function holdCodeBlockCaretBlink(view: CodeMirror): void {
+  if (hasNonEmptySelection(view)) {
+    releaseCaretBlink(view.dom);
+    return;
+  }
+
   holdCaretBlink(view.dom, codeBlockCaretNavigationActiveViews.has(view) ? null : undefined);
+}
+
+function syncCodeBlockSelectionActiveClass(view: CodeMirror): void {
+  view.dom.classList.toggle(
+    CODE_BLOCK_SELECTION_ACTIVE_CLASS,
+    hasNonEmptySelection(view)
+  );
 }
 
 function buildSelectedTextDecorations(selection: EditorSelection) {
@@ -118,6 +140,7 @@ export function createCodeBlockEditorTheme() {
       }
       if (update.selectionSet || update.docChanged || update.focusChanged) {
         holdCodeBlockCaretBlink(update.view);
+        syncCodeBlockSelectionActiveClass(update.view);
       }
     }),
     CodeMirror.theme({
@@ -195,6 +218,10 @@ export function createCodeBlockEditorTheme() {
       },
       [`&[${CARET_BLINK_HELD_ATTR}="true"] .cm-cursor`]: {
         opacity: `${themeCaretOverlayTokens.opacityVisible} !important`,
+      },
+      [`&.${CODE_BLOCK_SELECTION_ACTIVE_CLASS} .cm-cursorLayer, &.${CODE_BLOCK_SELECTION_ACTIVE_CLASS} .cm-cursor, &.${CODE_BLOCK_SELECTION_ACTIVE_CLASS} .cm-dropCursor`]: {
+        animation: `${themeStyleResetTokens.animationNone} !important`,
+        opacity: `${themeCaretOverlayTokens.opacityHidden} !important`,
       },
     }, { dark: false }),
   ];
