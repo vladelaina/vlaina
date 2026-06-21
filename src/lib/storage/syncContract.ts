@@ -84,6 +84,16 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     notes: 'Notes store listens for storage events and reloads recent notes and global icon size.',
   },
   {
+    id: 'notes.scroll-positions',
+    owner: 'notes',
+    scope: 'window-preference',
+    persistence: ['localStorage'],
+    mergePolicy: 'last-writer-wins',
+    storageKeys: ['vlaina-note-scroll-positions'],
+    crossWindow: true,
+    notes: 'Editor scroll positions are a bounded localStorage cache keyed by note identity; other windows observe the latest saved value on restore.',
+  },
+  {
     id: 'notes.workspace',
     owner: 'notes',
     scope: 'shared-config',
