@@ -183,9 +183,9 @@ test.describe('settings modal interaction coverage', () => {
         selectionStart: 0,
         selectionEnd: 'assets'.length,
       });
-      await vaultSubfolderNameInput.press('Backspace');
+      await page.keyboard.press('Backspace');
       await expect(vaultSubfolderNameInput).toHaveValue('');
-      await vaultSubfolderNameInput.press('Tab');
+      await page.keyboard.press('Tab');
       await expect(vaultSubfolderNameInput).toHaveValue('assets');
       await vaultSubfolderNameInput.fill('e2e-vault-assets');
       await page.locator('[data-settings-control="image-filename-format"]').click();
