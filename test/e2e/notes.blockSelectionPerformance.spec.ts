@@ -349,6 +349,9 @@ test.describe('notes block selection performance', () => {
       expect(edgeTarget, 'edge auto-scroll target').not.toBeNull();
       if (!edgeTarget) return;
 
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(250);
+
       const dispatchProfileStarted = await page.evaluate(() => (
         window as any
       ).__vlainaE2E.startEditorDispatchProfile?.() ?? false);
@@ -441,6 +444,9 @@ test.describe('notes block selection performance', () => {
       expect(edgeTarget, 'edge auto-scroll target').not.toBeNull();
       if (!edgeTarget) return;
 
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(250);
+
       await page.mouse.move(dragTarget.startX, dragTarget.startY);
       await startMainThreadFrameProbe(page, '__vlainaBlockSelectionBodyLineNumbersDragProbe');
       const dragStartedAt = Date.now();
@@ -449,6 +455,22 @@ test.describe('notes block selection performance', () => {
       await page.mouse.move(edgeTarget.x, edgeTarget.y, { steps: 16 });
       await page.waitForTimeout(750);
       const frameProbe = await stopMainThreadFrameProbe(page, '__vlainaBlockSelectionBodyLineNumbersDragProbe');
+      const autoScrollReached = await page.evaluate(async ({ minScrollTop, minSelectedDomCount }) => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+        const startedAt = performance.now();
+        while (performance.now() - startedAt < 1_800) {
+          const selectedDomCount = document.querySelectorAll('.milkdown .ProseMirror .editor-block-selected').length;
+          if ((scrollRoot?.scrollTop ?? 0) > minScrollTop && selectedDomCount > minSelectedDomCount) {
+            return true;
+          }
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+        }
+        return false;
+      }, {
+        minScrollTop: 80,
+        minSelectedDomCount: 20,
+      });
       await page.mouse.up();
       await waitForEditorAnimationFrame(page);
 
@@ -465,12 +487,14 @@ test.describe('notes block selection performance', () => {
 
       console.info('[notes-block-selection-body-line-numbers-drag-performance]', {
         ...metrics,
+        autoScrollReached,
         dragMs: Date.now() - dragStartedAt,
         frameProbe,
       });
 
       expect(metrics.lineNumberCount).toBeGreaterThan(200);
       expect(metrics.selectableCount).toBeGreaterThanOrEqual(900);
+      expect(autoScrollReached).toBe(true);
       expect(metrics.scrollTop).toBeGreaterThan(80);
       expect(metrics.selectedDomCount).toBeGreaterThan(20);
       expect(frameProbe.p95FrameMs).toBeLessThan(100);

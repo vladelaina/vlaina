@@ -40,6 +40,8 @@
   --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-code-block-selection-fill-top: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));
+  --vlaina-code-block-selection-fill-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));
   isolation: isolate;
   position: relative;
   overflow: visible !important;
@@ -52,14 +54,24 @@
   transition: none;
 }
 
+.milkdown .code-block-container.editor-block-selected.editor-block-selected-has-previous,
+.milkdown .code-block-container.editor-block-drag-source.editor-block-drag-source-has-previous {
+  --vlaina-code-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
+}
+
+.milkdown .code-block-container.editor-block-selected.editor-block-selected-has-next,
+.milkdown .code-block-container.editor-block-drag-source.editor-block-drag-source-has-next {
+  --vlaina-code-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
+}
+
 .milkdown .code-block-container.ProseMirror-selectednode::after,
 .milkdown .code-block-container.editor-block-selected::after,
 .milkdown .code-block-container.editor-block-drag-source::after {
   content: '';
   position: absolute;
-  top: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));
+  top: var(--vlaina-code-block-selection-fill-top);
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y, var(--vlaina-block-selection-bleed-y-rich)));
+  bottom: var(--vlaina-code-block-selection-fill-bottom);
   left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
   z-index: var(--vlaina-z-behind);
   display: block !important;
@@ -341,9 +353,9 @@
 .milkdown .ProseMirror.editor-block-selection-large .code-block-container.editor-block-selected.editor-block-selected-large-rich::after {
   content: '';
   position: absolute;
-  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  top: var(--vlaina-code-block-selection-fill-top);
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  bottom: var(--vlaina-code-block-selection-fill-bottom);
   left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
   z-index: var(--vlaina-z-behind);
   display: block !important;

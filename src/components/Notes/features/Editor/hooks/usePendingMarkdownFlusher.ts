@@ -32,6 +32,7 @@ interface PendingMarkdownFlusherOptions {
   deferredCompositionMarkdownRef: RefObject<string | null>;
   latestCompositionDataRef: RefObject<string | null>;
   hasCompositionEndedRef: RefObject<boolean>;
+  allowDeferredCompositionMarkdownWithoutCommitRef: RefObject<boolean>;
   hasEditorUserInputRef: RefObject<boolean>;
   currentNoteContentRef: RefObject<string>;
   getEditorRef: RefObject<EditorGetter | undefined>;
@@ -47,6 +48,7 @@ export function usePendingMarkdownFlusher({
   deferredCompositionMarkdownRef,
   latestCompositionDataRef,
   hasCompositionEndedRef,
+  allowDeferredCompositionMarkdownWithoutCommitRef,
   hasEditorUserInputRef,
   currentNoteContentRef,
   getEditorRef,
@@ -71,7 +73,11 @@ export function usePendingMarkdownFlusher({
         const latestCompositionData = latestCompositionDataRef.current;
         if (
           hasCompositionEndedRef.current &&
-          hasCommittedCompositionText(deferredCompositionMarkdown, latestCompositionData)
+          deferredCompositionMarkdown !== null &&
+          (
+            allowDeferredCompositionMarkdownWithoutCommitRef.current ||
+            hasCommittedCompositionText(deferredCompositionMarkdown, latestCompositionData)
+          )
         ) {
           const state = useNotesStore.getState();
           const latestCurrentNote = state.currentNote;
@@ -83,6 +89,7 @@ export function usePendingMarkdownFlusher({
           pendingMarkdown = serializeEditorMarkdownSnapshot(deferredCompositionMarkdown, currentContent);
           deferredCompositionMarkdownRef.current = null;
           hasCompositionEndedRef.current = false;
+          allowDeferredCompositionMarkdownWithoutCommitRef.current = false;
         } else {
           return false;
         }
@@ -137,6 +144,7 @@ export function usePendingMarkdownFlusher({
     deferredCompositionMarkdownRef,
     latestCompositionDataRef,
     hasCompositionEndedRef,
+    allowDeferredCompositionMarkdownWithoutCommitRef,
     pendingMarkdownRef,
     pendingMarkdownApplyTimeoutRef,
     pendingRawMarkdownRef,

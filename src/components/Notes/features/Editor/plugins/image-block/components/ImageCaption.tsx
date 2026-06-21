@@ -48,6 +48,10 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     const handleKeyDown = (e: React.KeyboardEvent) => {
         e.stopPropagation();
 
+        if (e.nativeEvent.isComposing) {
+            return;
+        }
+
         if (e.key === 'Enter') {
             e.preventDefault();
             onSubmit();

@@ -139,6 +139,40 @@ describe('TitleInput', () => {
     ).toBe(true);
   });
 
+  it('does not commit or move focus when Enter is pressed during IME composition', () => {
+    const onEnter = vi.fn();
+    render(<TitleInput notePath="/vault/test.md" initialTitle="test" onEnter={onEnter} />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+
+    expect(
+      fireEvent.keyDown(input, {
+        key: 'Enter',
+        isComposing: true,
+      })
+    ).toBe(true);
+
+    expect(onEnter).not.toHaveBeenCalled();
+    expect(notesState.renameNote).not.toHaveBeenCalled();
+    expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
+  });
+
+  it('does not leave the title input on ArrowDown during IME composition', () => {
+    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+
+    expect(
+      fireEvent.keyDown(input, {
+        key: 'ArrowDown',
+        isComposing: true,
+      })
+    ).toBe(true);
+
+    expect(notesState.renameNote).not.toHaveBeenCalled();
+    expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
+  });
+
   it('keeps a cleared existing title empty on blur so the Untitled placeholder remains visible', async () => {
     render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
 

@@ -593,28 +593,39 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       setActivatedRevision((revision) => revision + 1);
 
       const markUserInput = createUserInputMarker(view, liveSerializer);
-      view.dom.addEventListener('beforeinput', markUserInput, { capture: true });
-      view.dom.addEventListener('keydown', markUserInput, { capture: true });
-      view.dom.addEventListener('compositionstart', markUserInput, { capture: true });
-      view.dom.addEventListener('compositionend', markUserInput, { capture: true });
+      const markScopedUserInput = (event: Event) => {
+        const target = event.target;
+        if (!(target instanceof Node) || (target !== view.dom && !view.dom.contains(target))) {
+          return;
+        }
+        markUserInput(event);
+      };
+      document.addEventListener('beforeinput', markScopedUserInput, { capture: true });
+      document.addEventListener('keydown', markScopedUserInput, { capture: true });
+      document.addEventListener('compositionstart', markScopedUserInput, { capture: true });
+      document.addEventListener('compositionend', markScopedUserInput, { capture: true });
+      document.addEventListener('pointerdown', markScopedUserInput, { capture: true });
+      document.addEventListener('mousedown', markScopedUserInput, { capture: true });
       view.dom.addEventListener('editor:image-user-input', markUserInput);
       view.dom.addEventListener('editor:block-user-input', markUserInput);
-      view.dom.addEventListener('paste', markUserInput);
-      view.dom.addEventListener('cut', markUserInput);
-      view.dom.addEventListener('drop', markUserInput);
+      document.addEventListener('paste', markScopedUserInput, { capture: true });
+      document.addEventListener('cut', markScopedUserInput, { capture: true });
+      document.addEventListener('drop', markScopedUserInput, { capture: true });
       const blockPositionController = createCurrentEditorBlockPositionController(view);
       setCurrentMarkdownRuntime({ parser, serializer: liveSerializer });
       activatedEditorRef.current = editor;
       activationCleanupRef.current = () => {
-        view.dom.removeEventListener('beforeinput', markUserInput, { capture: true });
-        view.dom.removeEventListener('keydown', markUserInput, { capture: true });
-        view.dom.removeEventListener('compositionstart', markUserInput, { capture: true });
-        view.dom.removeEventListener('compositionend', markUserInput, { capture: true });
+        document.removeEventListener('beforeinput', markScopedUserInput, { capture: true });
+        document.removeEventListener('keydown', markScopedUserInput, { capture: true });
+        document.removeEventListener('compositionstart', markScopedUserInput, { capture: true });
+        document.removeEventListener('compositionend', markScopedUserInput, { capture: true });
+        document.removeEventListener('pointerdown', markScopedUserInput, { capture: true });
+        document.removeEventListener('mousedown', markScopedUserInput, { capture: true });
         view.dom.removeEventListener('editor:image-user-input', markUserInput);
         view.dom.removeEventListener('editor:block-user-input', markUserInput);
-        view.dom.removeEventListener('paste', markUserInput);
-        view.dom.removeEventListener('cut', markUserInput);
-        view.dom.removeEventListener('drop', markUserInput);
+        document.removeEventListener('paste', markScopedUserInput, { capture: true });
+        document.removeEventListener('cut', markScopedUserInput, { capture: true });
+        document.removeEventListener('drop', markScopedUserInput, { capture: true });
         blockPositionController.destroy();
         if (getCurrentEditorView() === view) {
           setCurrentEditorView(null);

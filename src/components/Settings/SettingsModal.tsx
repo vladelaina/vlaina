@@ -11,6 +11,7 @@ import { LanguageTab } from './tabs/LanguageTab';
 import { cn } from '@/lib/utils';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
+import { DialogCloseIconButton } from '@/components/common/DialogCloseIconButton';
 import {
   OPEN_SETTINGS_EVENT,
   SETTINGS_BEFORE_CLOSE_EVENT,
@@ -22,7 +23,6 @@ import {
 } from './settingsEvents';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import type { CommunitySettings } from './tabs/aboutCommunitySettings';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeBackdropTokens, themeMotionTokens } from '@/styles/themeTokens';
 
 interface SettingsModalProps {
@@ -174,20 +174,15 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
               data-settings-active-tab={activeTab}
               tabIndex={-1}
             >
-              <button
-                type="button"
+              <DialogCloseIconButton
                 onClick={handleClose}
-                aria-label={t('common.close')}
+                label={t('common.close')}
                 data-settings-action="close"
                 className={cn(
-                  "absolute right-5 top-5 z-[var(--vlaina-z-10)] inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]",
-                  "dark:hover:bg-transparent dark:hover:text-[var(--vlaina-sidebar-row-selected-text)]",
-                  chatComposerPillSurfaceClass,
+                  "absolute right-5 top-5 z-[var(--vlaina-z-10)]",
                   isAppearanceFontPreviewing && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
                 )}
-              >
-                <Icon name="common.close" size="md" />
-              </button>
+              />
 
               {/* Sidebar Section */}
               <div className={cn(

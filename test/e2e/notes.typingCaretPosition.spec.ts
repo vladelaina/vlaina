@@ -61,6 +61,7 @@ type TypingDiagnostics = {
     index: number;
     text: string | null;
   }>;
+  paragraphTexts: string[];
   lastParagraphText: string | null;
   paragraphCount: number;
   scrollTop: number;
@@ -224,6 +225,7 @@ async function getTypingDiagnostics(page: Page, markers: string[]): Promise<Typi
           text: index >= 0 ? paragraphs[index]?.textContent ?? null : null,
         };
       }),
+      paragraphTexts: paragraphs.map((paragraph) => paragraph.textContent ?? ''),
       lastParagraphText: paragraphs.at(-1)?.textContent ?? null,
       paragraphCount: paragraphs.length,
       scrollTop: Math.round(scrollRoot?.scrollTop ?? 0),
@@ -750,7 +752,7 @@ test.describe('notes typing caret position', () => {
     }
   });
 
-  test('replaces selected middle text with IME-style Chinese input without moving input to the document tail', async () => {
+  test('keeps repeated IME-style Chinese follow-up typing appended instead of replacing committed text', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-selected-chinese');
 
     try {
@@ -759,33 +761,121 @@ test.describe('notes typing caret position', () => {
       await page.setViewportSize({ width: 1280, height: 860 });
       await setContentCommitThrottleMs(page, 120);
 
-      const targetText = 'paragraph 42 sentinel';
-      const anchorText = 'Typing caret paragraph 42 sentinel text';
-      const marker = '我输入这输入这-e2e';
       await openMarkdownFixture(page, {
         filename: 'typing-caret-selected-chinese-e2e.md',
         content: createLongTypingMarkdown(),
       });
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
 
-      const before = await scrollTextIntoView(page, anchorText);
-      const selected = await page.evaluate(
-        ({ targetText, anchorText }) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, anchorText),
-        { targetText, anchorText }
-      );
-      expect(selected.selected).toBe(true);
-      await insertImeText(page, marker);
-      await expect(page.locator(EDITOR_SELECTOR)).toContainText(marker);
-      await waitForEditorAnimationFrame(page);
-      await page.waitForTimeout(1_200);
+      const cases = [42, 43, 44].map((paragraphIndex) => ({
+        anchorText: `Typing caret paragraph ${paragraphIndex} sentinel text`,
+        targetText: `paragraph ${paragraphIndex} sentinel`,
+        marker: `我输入这输入这-${paragraphIndex}-e2e`,
+        probe: `Probe${paragraphIndex}E2E`,
+        tail: `Tail${paragraphIndex}E2E`,
+      }));
 
-      const after = await getTypingDiagnostics(page, [marker]);
-      console.info('[notes-typing-caret-selected-chinese]', { before, selected, after });
+      const before = await scrollTextIntoView(page, cases[0]!.anchorText);
+      const completedMarkers: string[] = [];
 
-      expectMarkersAwayFromLastLine(after, [marker]);
-      expect(after.lastParagraphText).toContain('Final typing caret sentinel');
-      expect(after.currentContentIncludesMarkers[0]).toBe(true);
-      expect(Math.abs(after.scrollTop - before.scrollTop)).toBeLessThan(260);
+      for (const testCase of cases) {
+        await scrollTextIntoView(page, testCase.anchorText);
+        const selected = await page.evaluate(
+          ({ targetText, anchorText }) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, anchorText),
+          { targetText: testCase.targetText, anchorText: testCase.anchorText }
+        );
+        expect(selected.selected).toBe(true);
+
+        await insertImeText(page, testCase.marker);
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(testCase.marker);
+        await waitForEditorAnimationFrame(page);
+        await page.waitForTimeout(150);
+
+        const afterIme = await getTypingDiagnostics(page, [testCase.marker]);
+        expect(afterIme.markerParagraphs[0]?.text).toContain(testCase.marker);
+
+        await page.keyboard.type(testCase.probe, { delay: 0 });
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(`${testCase.marker}${testCase.probe}`);
+        await waitForEditorAnimationFrame(page);
+        await page.waitForTimeout(2_400);
+
+        await page.keyboard.type(testCase.tail, { delay: 0 });
+        await expect(page.locator(EDITOR_SELECTOR))
+          .toContainText(`${testCase.marker}${testCase.probe}${testCase.tail}`);
+        await waitForEditorAnimationFrame(page);
+        await page.waitForTimeout(300);
+
+        completedMarkers.push(testCase.marker);
+        const afterProbe = await getTypingDiagnostics(page, completedMarkers);
+
+        expectMarkersAwayFromLastLine(afterProbe, completedMarkers);
+        const markerParagraph = afterProbe.markerParagraphs.find((paragraph) => paragraph.marker === testCase.marker);
+        expect(markerParagraph?.text).toContain(`${testCase.marker}${testCase.probe}${testCase.tail}`);
+        expect(afterProbe.currentContentIncludesMarkers).toEqual(completedMarkers.map(() => true));
+        expect(afterProbe.lastParagraphText).toContain('Final typing caret sentinel');
+        expect(Math.abs(afterProbe.scrollTop - before.scrollTop)).toBeLessThan(420);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps IME-style Chinese committed before immediate Enter line breaks', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-selected-chinese-enter');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+
+      await openMarkdownFixture(page, {
+        filename: 'typing-caret-selected-chinese-enter-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      const cases = [45, 46].map((paragraphIndex) => ({
+        anchorText: `Typing caret paragraph ${paragraphIndex} sentinel text`,
+        targetText: `paragraph ${paragraphIndex} sentinel`,
+        marker: `马上回车中文-${paragraphIndex}-e2e`,
+        enterLine: `AfterEnter${paragraphIndex}E2E`,
+      }));
+
+      const before = await scrollTextIntoView(page, cases[0]!.anchorText);
+      const completedMarkers: string[] = [];
+
+      for (const testCase of cases) {
+        await scrollTextIntoView(page, testCase.anchorText);
+        const selected = await page.evaluate(
+          ({ targetText, anchorText }) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, anchorText),
+          { targetText: testCase.targetText, anchorText: testCase.anchorText }
+        );
+        expect(selected.selected).toBe(true);
+
+        await insertImeText(page, testCase.marker);
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(testCase.marker);
+        await waitForEditorAnimationFrame(page);
+        await page.waitForTimeout(80);
+
+        await page.keyboard.press('Enter');
+        await page.keyboard.type(testCase.enterLine, { delay: 0 });
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(testCase.enterLine);
+        await waitForEditorAnimationFrame(page);
+        await page.waitForTimeout(800);
+
+        completedMarkers.push(testCase.marker);
+        const afterEnter = await getTypingDiagnostics(page, completedMarkers);
+        expectMarkersAwayFromLastLine(afterEnter, completedMarkers);
+        const markerParagraph = afterEnter.markerParagraphs.find((paragraph) => paragraph.marker === testCase.marker);
+        expect(markerParagraph?.text).toContain(testCase.marker);
+        expect(markerParagraph?.text).not.toContain(testCase.enterLine);
+        const nextParagraph = afterEnter.paragraphTexts[(markerParagraph?.index ?? -2) + 1] ?? '';
+        expect(nextParagraph).toContain(testCase.enterLine);
+        expect(afterEnter.currentContentIncludesMarkers).toEqual(completedMarkers.map(() => true));
+        expect(afterEnter.lastParagraphText).toContain('Final typing caret sentinel');
+        expect(Math.abs(afterEnter.scrollTop - before.scrollTop)).toBeLessThan(460);
+      }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

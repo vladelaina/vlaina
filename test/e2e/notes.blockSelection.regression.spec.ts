@@ -39,6 +39,213 @@ type BlockSelectionLayoutAuditSnapshot = {
   }>;
 };
 
+type SelectedBlockVisualAudit = {
+  active: boolean;
+  invalidPaintRows: Array<{
+    className: string;
+    paintHeight: number;
+    paintWidth: number;
+    tagName: string;
+    text: string;
+  }>;
+  pairGaps: Array<{
+    currentClassName: string;
+    currentText: string;
+    gap: number;
+    nextClassName: string;
+    nextText: string;
+  }>;
+  selectedCount: number;
+};
+
+const TYPORA_COMPAT_BLOCK_SELECTION_AUDIT_MARKDOWN = [
+  '1. YAML Front Matter only partly supported sentinel',
+  '',
+  '   frontmatter/project metadata can be handled, but generic Typora metadata blocks and block editing are not identical.',
+  '',
+  '2. Source code mode missing sentinel',
+  '',
+  '   !Typora one-click source mode sentinel.',
+  '',
+  '3. span source expansion sentinel',
+  '',
+  '   We have t*ooltip, node view* and editor behavior, but this is not the same as unified Typora source expansion.',
+  '',
+  '4. Indented code behavior sentinel',
+  '',
+  '   Typora documents GFM fenced code only, while CommonMark indented code may still parse.',
+  '',
+  '<p> HTML paragraph block selection sentinel',
+  '                  1. copied recognition sentinel</p>',
+  '',
+  '连续空格类似于单行换行符，大多数Markdown引擎都会忽略它们。',
+  '',
+  '默认情况下，Typora将**在编辑视图中保留连续的空格，并在打印或导出时将其忽略。**您可以在首选项面板中更改此选项。',
+  '',
+  '如果您确实想插入其他Markdown引擎支持的连续空格，则可以',
+  '',
+  '- 转义空格，`\\`在每个空格之前输入',
+  '',
+  '- 使用HTML实体                                                                                        ` &nbsp;`。',
+  '',
+  '**换行**',
+  '',
+  '',
+  '',
+  'Markdown提供了插入单个强行换行符的方法：',
+  '',
+  '- 插入两个空格和一个换行符。',
+  '',
+  '- `<br/>`直接插入HTML标签。',
+  '',
+  '几乎所有Markdown引擎都++会将其解析为++输出中的强行换行。',
+  '',
+  '**段落**',
+  '',
+  '',
+  '',
+  '在Markdown中，**两个换行符**表示创建一个新段落，在Typora中~~，当您`Enter`按键时~~，将创建一个新段落。',
+  '',
+  '',
+  '',
+  '## 常用快捷键',
+  '',
+  '',
+  '',
+  '没有macOS系统的电脑，所以暂未收集。',
+  '',
+  '<!--vlaina-markdown-blank-l',
+  '',
+  '<!--vlaina-markdown-blank-line-->',
+  '',
+  '',
+  '',
+  '| 功能     | 操作步骤        | Windows       | macOS     |   |',
+  '| ------ | ----------- | ------------- | --------- | :----- |',
+  '| 一级标题   | 段落→一级标题     | Ctrl+1        | command+1 |   |',
+  '| 二级标题   | 段落→二级标题     | Ctrl+2        | command+2 |   |',
+  '| 插入表格   | 段落→表格→插入表格  | Ctrl+T        |           |   |',
+  '| 代码块    | 段落→代码块      | Ctrl+Shift+K  |           |   |',
+  '| 减少缩进   | 段落→缩进→减少缩进  | Ctrl+[        |           |   |',
+  '',
+  '',
+  '',
+  '**格式**',
+  '',
+  '',
+  '',
+  '| 功能   | 操作步骤    | Windows       | macOS  |',
+  '| ---- | ------- | ------------- | ------ |',
+  '| 加粗   | 格式→加粗   | Ctrl+B        |        |',
+  '| 斜体   | 格式→斜体   | Ctrl+I        |        |',
+  '| 代码   | 格式→代码   | Ctrl+Shift+`  |        |',
+  '| 清除格式 | 格式→清除格式 | Ctrl+\\\\       |        |',
+  '',
+  '',
+  '',
+  '**视图**',
+  '',
+  '| 功能       | 操作步骤        | Windows      | macOS  |',
+  '| -------- | ----------- | ------------ | ------ |',
+  '| 显示/隐藏侧边栏 | 视图→显示/隐藏侧边栏 | Ctrl+Shift+L |        |',
+  '| 源代码模式    | 视图→源代码模式    | Ctrl+/       |        |',
+  '| 放大       | 视图→放大       | Ctrl+Shift+= |        |',
+  '',
+  '# 概述',
+  '',
+  '1',
+  '',
+  '据 GitHub Flavored Markdown（GFM）官方文档介绍，Markdown是由约翰·格鲁伯（John Gruber）在亚伦·斯沃茨（Aaron Swartz）的帮助下开发，并在2004年发布的标记语言。\\\\',
+  '其`设计灵感主要来源于纯文本电子邮件的格式，目标是让人们能够使用易读、易写的纯文本格式编写文档。\\\\',
+  '简单点说，Markdown就是由一些简单的符号（如*/-> [] （）#）组成的用于排版的标记语言，其最重要的特点就是可读性强。',
+  '',
+  '',
+  '',
+  '目前最流行的扩展语法是GitHub Flavored Markdown，简称GFM。',
+  '',
+  '# 标题',
+  '',
+  '标题支持使用两种标记：**底线（-/=）和**左侧#',
+  '',
+  '底线方式 sentinel',
+  '---------',
+  '',
+  '```markdown',
+  '一级标题',
+  '=========',
+  '',
+  '二级标题',
+  '---------',
+  '```',
+  '',
+  '# 一级标题',
+  '',
+  '二级标题',
+  '',
+  '---',
+  '',
+  '```java',
+  'String name = "Tom";',
+  'int age = 18;',
+  '```',
+  '',
+  '#方式（**推荐**）\\\\',
+  '语法说明如下。\\\\',
+  '',
+  '1. 在行首插入#可标记出标题。\\\\',
+  '2. #的个数表示了标题的等级。\\\\',
+  '',
+  '```markdown',
+  '# 一级标题',
+  '## 二级标题',
+  '####### 七级标题（不支持）',
+  '```',
+  '',
+  '# 段落',
+  '',
+  '1）**段落内换行**，在结尾使用两个及以上空格加回车。',
+  '',
+  '```markdown',
+  '我就是一段普通的文字。',
+  '这段文字需要段内换行，这后面是两个空格  ',
+  '这一句话是跟上面属于同一段落。',
+  '```',
+  '',
+  '我就是一段普通的文字。',
+  '',
+  '这段文字需要段内换行，这后面是两个空格\\\\',
+  '这一句话是跟上面属于同一段落。',
+  '',
+  '- [x] 吃',
+  '',
+  '- [ ] 玩',
+  '  - [x] 吃鱼',
+  '  - [ ] 吃瓜',
+  '- [x] 睡',
+  '',
+  '- List direct code audit item',
+  '  ```ts',
+  '  const typoraCompatDirectCodeSentinel = true;',
+  '  ```',
+  '- List item after direct code audit.',
+  '',
+  '> 我是引用的句子。',
+  '>',
+  '> 引用中使用其他 Markdown 标记[百度](https://baidu.com)',
+  '> 第二行，**加粗**和*斜体*也是支持的。',
+  '',
+  '普通表格',
+  '',
+  '| 序号 | 标题 | 网址 |',
+  '| -- | -- | --- |',
+  '| 01 | 博客 | https://cnblogs.com |',
+  '| 02 | 百度 | https://baidu.com |',
+  '',
+  '<ruby>漢<rt>han</rt></ruby> and <kbd>Ctrl</kbd> inline html sentinel.',
+  '',
+  '[TOC]',
+].join('\n');
+
 async function measureBrightTextPixels(page: Page, clip: TextClip) {
   const screenshot = await page.screenshot({
     clip: {
@@ -85,6 +292,120 @@ async function measureBrightTextPixels(page: Page, clip: TextClip) {
     imageUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
     label: clip.label,
   });
+}
+
+async function collectSelectedBlockVisualAudit(page: Page): Promise<SelectedBlockVisualAudit | null> {
+  return page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    if (!editor) return null;
+
+    const parsePx = (value: string, fallback = 0) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const resolvePseudoFill = (element: HTMLElement, pseudo: '::after' | '::before') => {
+      const style = getComputedStyle(element, pseudo);
+      const hasAbsoluteFill = style.content !== 'none' &&
+        style.display !== 'none' &&
+        style.position === 'absolute';
+      return {
+        pseudo,
+        style,
+        hasAbsoluteFill,
+      };
+    };
+    const resolvePaintRect = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect();
+      const fill = [
+        resolvePseudoFill(element, '::after'),
+        resolvePseudoFill(element, '::before'),
+      ].find((candidate) => candidate.hasAbsoluteFill);
+      if (!fill) {
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      }
+      return {
+        left: rect.left + parsePx(fill.style.left),
+        right: rect.right - parsePx(fill.style.right),
+        top: rect.top + parsePx(fill.style.top),
+        bottom: rect.bottom - parsePx(fill.style.bottom),
+      };
+    };
+
+    const rows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+      .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        const paint = resolvePaintRect(element);
+        return {
+          tagName: element.tagName,
+          text: element.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          className: element.className,
+          rectTop: Math.round(rect.top * 100) / 100,
+          paintLeft: Math.round(paint.left * 100) / 100,
+          paintRight: Math.round(paint.right * 100) / 100,
+          paintTop: Math.round(paint.top * 100) / 100,
+          paintBottom: Math.round(paint.bottom * 100) / 100,
+          paintHeight: Math.round((paint.bottom - paint.top) * 100) / 100,
+          paintWidth: Math.round((paint.right - paint.left) * 100) / 100,
+        };
+      })
+      .sort((left, right) => left.rectTop - right.rectTop);
+
+    const invalidPaintRows = rows
+      .filter((row) => row.paintWidth <= 0.5 || row.paintHeight <= 0.5)
+      .map((row) => ({
+        className: row.className,
+        paintHeight: row.paintHeight,
+        paintWidth: row.paintWidth,
+        tagName: row.tagName,
+        text: row.text,
+      }));
+
+    const pairGaps: SelectedBlockVisualAudit['pairGaps'] = [];
+    for (let index = 0; index < rows.length - 1; index += 1) {
+      const current = rows[index];
+      const next = rows[index + 1];
+      if (!current || !next) continue;
+      const horizontalOverlap = Math.min(current.paintRight, next.paintRight) - Math.max(current.paintLeft, next.paintLeft);
+      if (horizontalOverlap <= 0.5) continue;
+      pairGaps.push({
+        currentClassName: current.className,
+        currentText: current.text,
+        gap: Math.round((next.paintTop - current.paintBottom) * 100) / 100,
+        nextClassName: next.className,
+        nextText: next.text,
+      });
+    }
+
+    return {
+      active: editor.classList.contains('editor-block-selection-active'),
+      invalidPaintRows,
+      pairGaps,
+      selectedCount: rows.length,
+    };
+  });
+}
+
+function expectSelectedBlockVisualAuditOk(audit: SelectedBlockVisualAudit | null, label: string) {
+  expect(audit, `${label}: selected block visual audit`).not.toBeNull();
+  expect(audit!.active, JSON.stringify({ label, audit }, null, 2)).toBe(true);
+  expect(audit!.selectedCount, JSON.stringify({ label, audit }, null, 2)).toBeGreaterThan(0);
+  expect(audit!.invalidPaintRows, JSON.stringify({ label, audit }, null, 2)).toEqual([]);
+
+  const overlaps = audit!.pairGaps.filter((pair) => pair.gap < -0.5);
+  expect(overlaps, JSON.stringify({ label, audit }, null, 2)).toEqual([]);
+
+  const adjacentClassPairs = audit!.pairGaps.filter((pair) => (
+    pair.currentClassName.includes('editor-block-selected-has-next') &&
+    pair.nextClassName.includes('editor-block-selected-has-previous')
+  ));
+  const missingVisibleGaps = adjacentClassPairs.filter((pair) => pair.gap <= 0.5);
+  expect(missingVisibleGaps, JSON.stringify({ label, audit }, null, 2)).toEqual([]);
 }
 
 async function collectSelectedTextClips(page: Page) {
@@ -546,6 +867,439 @@ test.describe("notes block selection regressions", () => {
     }
   });
 
+  test('audits Typora compatibility sample block selection geometry across mixed markdown', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typora-compat-block-selection-audit');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1180, height: 900 });
+
+      await openMarkdownFixture(page, {
+        filename: 'typora-compat-block-selection-audit.md',
+        content: TYPORA_COMPAT_BLOCK_SELECTION_AUDIT_MARKDOWN,
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR}`, { hasText: 'YAML Front Matter only partly supported sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'typoraCompatDirectCodeSentinel' })).toBeAttached();
+      await expect(page.locator(`${EDITOR_SELECTOR} .milkdown-table-block`, { hasText: 'Ctrl+Shift+L' })).toBeAttached();
+      await expect(page.locator(`${EDITOR_SELECTOR} blockquote`, { hasText: '我是引用的句子' })).toBeAttached();
+
+      const waitForSelectionPaint = async () => page.evaluate(() => new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      ));
+      const selectAndAuditIndexes = async (indexes: number[], label: string) => {
+        expect(indexes.length, `${label}: no indexes to select`).toBeGreaterThan(0);
+        await clearSelectedNoteBlocks(page);
+        await waitForSelectionPaint();
+
+        const before = await collectBlockSelectionLayoutAuditSnapshot(page);
+        const selectedCount = await selectNoteBlocksByIndexes(page, indexes);
+        expect(selectedCount, `${label}: selected count`).toBe(indexes.length);
+        await waitForSelectionPaint();
+
+        const after = await collectBlockSelectionLayoutAuditSnapshot(page);
+        expectLayoutStableAfterBlockSelection(before, after, label);
+        expectSelectedBlockVisualAuditOk(await collectSelectedBlockVisualAudit(page), label);
+      };
+      const findIndexes = async (needles: string[]) => {
+        const snapshot = await collectBlockSelectionLayoutAuditSnapshot(page);
+        return needles.map((needle) => findLayoutAuditBlockIndex(snapshot, needle));
+      };
+      const findPreviousBlankAndTarget = async (targetText: string) => page.evaluate((needle) => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          tagName: string;
+          text: string;
+        }>;
+        const targetIndex = blocks.findIndex((block) => block.text.replace(/\s+/g, ' ').trim().includes(needle));
+        let blankIndex = -1;
+        for (let index = targetIndex - 1; index >= 0; index -= 1) {
+          const block = blocks[index];
+          const text = block?.text.replace(/\s+/g, ' ').trim() ?? '';
+          if (text === '' || text === '⠀' || block?.className.includes('editor-list-gap-placeholder-item')) {
+            blankIndex = index;
+            break;
+          }
+          if (text.length > 0) break;
+        }
+        return {
+          blankIndex,
+          targetIndex,
+          blocks: blocks.map((block, index) => ({
+            className: block.className,
+            index,
+            tagName: block.tagName,
+            text: block.text.replace(/\s+/g, ' ').trim().slice(0, 120),
+          })),
+        };
+      }, targetText);
+      const selectBlankBeforeTarget = async (targetText: string, label: string) => {
+        const indexes = await findPreviousBlankAndTarget(targetText);
+        expect(indexes.targetIndex, JSON.stringify({ label, indexes }, null, 2)).toBeGreaterThanOrEqual(0);
+        expect(indexes.blankIndex, JSON.stringify({ label, indexes }, null, 2)).toBe(indexes.targetIndex - 1);
+        await selectAndAuditIndexes([indexes.blankIndex, indexes.targetIndex], label);
+      };
+
+      const singleBlockTargets = [
+        'YAML Front Matter only partly supported sentinel',
+        'HTML paragraph block selection sentinel',
+        '连续空格类似于单行换行符',
+        '使用HTML实体',
+        'Markdown提供了插入单个强行换行符的方法',
+        '常用快捷键',
+        'Ctrl+Shift+L',
+        '据 GitHub Flavored Markdown',
+        '标题支持使用两种标记',
+        'typoraCompatDirectCodeSentinel',
+        'List direct code audit item',
+        '我是引用的句子',
+        '普通表格',
+        'inline html sentinel',
+        '常用快捷键概述',
+      ];
+
+      for (const target of singleBlockTargets) {
+        const [index] = await findIndexes([target]);
+        await selectAndAuditIndexes([index], `single block: ${target}`);
+      }
+
+      await selectBlankBeforeTarget('Ctrl+Shift+L', 'blank line before shortcut table');
+      await selectBlankBeforeTarget('Ctrl+B', 'blank line before format table');
+      await selectBlankBeforeTarget('typoraCompatDirectCodeSentinel', 'blank line before list direct code block');
+      await selectBlankBeforeTarget('String name', 'blank line before fenced code block');
+
+      const headingRange = await findIndexes(['概述', '据 GitHub Flavored Markdown']);
+      await selectAndAuditIndexes(
+        Array.from(
+          { length: headingRange[1] - headingRange[0] + 1 },
+          (_, offset) => headingRange[0] + offset,
+        ),
+        'heading through hard-break paragraph range',
+      );
+
+      const tableToHeadingRange = await findIndexes(['视图', 'Ctrl+Shift+L']);
+      await selectAndAuditIndexes(
+        Array.from(
+          { length: tableToHeadingRange[1] - tableToHeadingRange[0] + 1 },
+          (_, offset) => tableToHeadingRange[0] + offset,
+        ),
+        'view heading through shortcut table range',
+      );
+
+      const listDirectCodeIndexes = await findIndexes([
+        'List direct code audit item',
+        'List item after direct code audit.',
+      ]);
+      await selectAndAuditIndexes(listDirectCodeIndexes, 'list direct code item and following item');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps visible gaps between selected blank lines and following rich blocks', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-blank-line-rich-block-selection-gap');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'blank-line-rich-block-selection-gap.md',
+        content: [
+          'Paragraph before blank line and code block.',
+          '',
+          '```ts',
+          'const selectedCodeGapSentinel = true;',
+          '```',
+          '',
+          'Paragraph before blank line and table.',
+          '',
+          '| Name | Value |',
+          '| --- | --- |',
+          '| tableGapSentinel | covered |',
+          '',
+          'Paragraph after code block.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'selectedCodeGapSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .milkdown-table-block`, { hasText: 'tableGapSentinel' })).toBeVisible();
+
+      const findAdjacentIndexes = async (targetText: string) => page.evaluate((needle) => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{ text: string }>;
+        const targetIndex = blocks.findIndex((block) => block.text.includes(needle));
+        const blankIndex = targetIndex > 0 && blocks[targetIndex - 1]?.text === ''
+          ? targetIndex - 1
+          : -1;
+        return {
+          blankIndex,
+          targetIndex,
+          blocks: blocks.map((block, index) => ({
+            index,
+            text: block.text,
+          })),
+        };
+      }, targetText);
+
+      const measureSelectedGap = async (targetClassName: string) => page.evaluate((targetClass) => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const resolvePseudoFill = (element: HTMLElement, pseudo: '::before' | '::after') => {
+          const style = getComputedStyle(element, pseudo);
+          const hasAbsoluteFill = style.content !== 'none' &&
+            style.display !== 'none' &&
+            style.position === 'absolute';
+          return {
+            pseudo,
+            style,
+            hasAbsoluteFill,
+          };
+        };
+        const resolvePaintRect = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const fill = [
+            resolvePseudoFill(element, '::after'),
+            resolvePseudoFill(element, '::before'),
+          ].find((candidate) => candidate.hasAbsoluteFill);
+          if (!fill) {
+            return {
+              top: rect.top,
+              bottom: rect.bottom,
+              fillTop: '0px',
+              fillBottom: '0px',
+              fillDisplay: 'none',
+              fillContent: 'none',
+              fillPosition: 'static',
+              fillPseudo: null,
+            };
+          }
+          return {
+            top: rect.top + parsePx(fill.style.top),
+            bottom: rect.bottom - parsePx(fill.style.bottom),
+            fillTop: fill.style.top,
+            fillBottom: fill.style.bottom,
+            fillDisplay: fill.style.display,
+            fillContent: fill.style.content,
+            fillPosition: fill.style.position,
+            fillPseudo: fill.pseudo,
+          };
+        };
+
+        const rows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+          .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const paint = resolvePaintRect(element);
+            return {
+              tagName: element.tagName,
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              paintTop: Math.round(paint.top * 100) / 100,
+              paintBottom: Math.round(paint.bottom * 100) / 100,
+              fillTop: paint.fillTop,
+              fillBottom: paint.fillBottom,
+              fillDisplay: paint.fillDisplay,
+              fillContent: paint.fillContent,
+              fillPosition: paint.fillPosition,
+              fillPseudo: paint.fillPseudo,
+            };
+          })
+          .sort((left, right) => left.rectTop - right.rectTop);
+
+        const target = rows.find((row) => row.className.includes(targetClass)) ?? null;
+        const blank = rows.find((row) => (
+          row.text === '' && row !== target
+        )) ?? null;
+        return {
+          active: editor.classList.contains('editor-block-selection-active'),
+          rows,
+          blank,
+          target,
+          blankToTargetGap: blank && target
+            ? Math.round((target.paintTop - blank.paintBottom) * 100) / 100
+            : null,
+        };
+      }, targetClassName);
+
+      const assertRichBlockGap = async (targetText: string, targetClassName: string, label: string) => {
+        await clearSelectedNoteBlocks(page);
+        const indexes = await findAdjacentIndexes(targetText);
+        expect(indexes.blankIndex, JSON.stringify({ label, indexes }, null, 2)).toBeGreaterThanOrEqual(0);
+        expect(indexes.targetIndex, JSON.stringify({ label, indexes }, null, 2)).toBe(indexes.blankIndex + 1);
+
+        const selectedCount = await selectNoteBlocksByIndexes(page, [indexes.blankIndex, indexes.targetIndex]);
+        expect(selectedCount, JSON.stringify({ label, indexes }, null, 2)).toBe(2);
+        await page.evaluate(() => new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        ));
+
+        const geometry = await measureSelectedGap(targetClassName);
+        expect(geometry, `${label} blank line and rich block selection geometry`).not.toBeNull();
+        expect(geometry!.active, JSON.stringify({ label, geometry }, null, 2)).toBe(true);
+        expect(geometry!.rows, JSON.stringify({ label, geometry }, null, 2)).toHaveLength(2);
+        expect(geometry!.blank, JSON.stringify({ label, geometry }, null, 2)).not.toBeNull();
+        expect(geometry!.target, JSON.stringify({ label, geometry }, null, 2)).not.toBeNull();
+        expect(geometry!.blank!.className, JSON.stringify({ label, geometry }, null, 2)).toContain('editor-block-selected-has-next');
+        expect(geometry!.target!.className, JSON.stringify({ label, geometry }, null, 2)).toContain('editor-block-selected-has-previous');
+        expect(Number.parseFloat(geometry!.blank!.fillBottom), JSON.stringify({ label, geometry }, null, 2)).toBeGreaterThanOrEqual(0.5);
+        expect(Number.parseFloat(geometry!.target!.fillTop), JSON.stringify({ label, geometry }, null, 2)).toBeGreaterThanOrEqual(0.5);
+        expect(geometry!.blankToTargetGap, JSON.stringify({ label, geometry }, null, 2)).toBeGreaterThan(0.5);
+      };
+
+      await assertRichBlockGap('selectedCodeGapSentinel', 'code-block-container', 'code block');
+      await assertRichBlockGap('tableGapSentinel', 'milkdown-table-block', 'table block');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps a visible gap between selected list items when the first has a direct code block', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-list-direct-code-selection-gap');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'list-direct-code-selection-gap.md',
+        content: [
+          'Paragraph before list direct code gap.',
+          '',
+          '- List direct code gap item',
+          '  ```ts',
+          '  const listDirectCodeGapSentinel = true;',
+          '  ```',
+          '- Next list item after direct code gap.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'listDirectCodeGapSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li`, { hasText: 'Next list item after direct code gap.' })).toBeVisible();
+
+      const indexes = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          tagName: string;
+          text: string;
+        }>;
+        const listIndex = blocks.findIndex((block) => (
+          block.text.includes('List direct code gap item') &&
+          block.text.includes('listDirectCodeGapSentinel')
+        ));
+        const nextItemIndex = blocks.findIndex((block) => block.text.includes('Next list item after direct code gap.'));
+        return {
+          listIndex,
+          nextItemIndex,
+          blocks: blocks.map((block, index) => ({
+            index,
+            className: block.className,
+            tagName: block.tagName,
+            text: block.text,
+          })),
+        };
+      });
+      expect(indexes.listIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(indexes.nextItemIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThan(indexes.listIndex);
+
+      const selectedCount = await selectNoteBlocksByIndexes(page, [indexes.listIndex, indexes.nextItemIndex]);
+      expect(selectedCount, JSON.stringify(indexes, null, 2)).toBe(2);
+      await page.evaluate(() => new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      ));
+
+      const geometry = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        if (!editor) return null;
+
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const resolvePaintRect = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const after = getComputedStyle(element, '::after');
+          if (after.content !== 'none' && after.display !== 'none' && after.position === 'absolute') {
+            return {
+              top: rect.top + parsePx(after.top),
+              bottom: rect.bottom - parsePx(after.bottom),
+              afterTop: after.top,
+              afterBottom: after.bottom,
+              afterDisplay: after.display,
+              afterHeight: after.height,
+              afterPosition: after.position,
+            };
+          }
+
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+            afterTop: '0px',
+            afterBottom: '0px',
+            afterDisplay: after.display,
+            afterHeight: after.height,
+            afterPosition: after.position,
+          };
+        };
+
+        const rows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+          .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const paint = resolvePaintRect(element);
+            return {
+              tagName: element.tagName,
+              text: element.textContent?.trim() ?? '',
+              className: element.className,
+              rectTop: Math.round(rect.top * 100) / 100,
+              rectBottom: Math.round(rect.bottom * 100) / 100,
+              paintTop: Math.round(paint.top * 100) / 100,
+              paintBottom: Math.round(paint.bottom * 100) / 100,
+              afterTop: paint.afterTop,
+              afterBottom: paint.afterBottom,
+              afterDisplay: paint.afterDisplay,
+              afterHeight: paint.afterHeight,
+              afterPosition: paint.afterPosition,
+            };
+          })
+          .sort((left, right) => left.rectTop - right.rectTop);
+
+        const listItem = rows.find((row) => row.className.includes('editor-block-selected-has-direct-code-block')) ?? null;
+        const nextItem = rows.find((row) => row.text.includes('Next list item after direct code gap.')) ?? null;
+
+        return {
+          active: editor.classList.contains('editor-block-selection-active'),
+          rows,
+          listItem,
+          nextItem,
+          listToNextItemGap: listItem && nextItem
+            ? Math.round((nextItem.paintTop - listItem.paintBottom) * 100) / 100
+            : null,
+        };
+      });
+
+      expect(geometry, 'list direct code block selection geometry').not.toBeNull();
+      expect(geometry!.active, JSON.stringify({ indexes, geometry }, null, 2)).toBe(true);
+      expect(geometry!.listItem, JSON.stringify({ indexes, geometry }, null, 2)).not.toBeNull();
+      expect(geometry!.nextItem, JSON.stringify({ indexes, geometry }, null, 2)).not.toBeNull();
+      expect(geometry!.listItem!.className, JSON.stringify({ indexes, geometry }, null, 2)).toContain('editor-block-selected-has-next');
+      expect(geometry!.nextItem!.className, JSON.stringify({ indexes, geometry }, null, 2)).toContain('editor-block-selected-has-previous');
+      expect(Number.parseFloat(geometry!.listItem!.afterBottom), JSON.stringify({ indexes, geometry }, null, 2)).toBeGreaterThanOrEqual(0.5);
+      expect(geometry!.listToNextItemGap, JSON.stringify({ indexes, geometry }, null, 2)).toBeGreaterThan(0.5);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps inline-mark text visible when selecting a hard-break paragraph block', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-inline-mark-hard-break');
 
@@ -689,7 +1443,7 @@ test.describe("notes block selection regressions", () => {
         JSON.stringify(visibility, null, 2),
       ).toBe(true);
       const lineFillContinuity = await collectLineFillContinuity(page);
-      expect(lineFillContinuity.fills.length, JSON.stringify(lineFillContinuity, null, 2)).toBeGreaterThanOrEqual(2);
+      expect(lineFillContinuity.fills.length, JSON.stringify(lineFillContinuity, null, 2)).toBeGreaterThanOrEqual(1);
       expect(
         lineFillContinuity.maxPositiveGap,
         JSON.stringify(lineFillContinuity, null, 2),

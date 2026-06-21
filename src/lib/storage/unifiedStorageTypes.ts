@@ -37,6 +37,7 @@ export interface UnifiedData {
     };
     ui?: {
       lastAppViewMode?: 'notes' | 'chat';
+      lastChatSessionId?: string | null;
       colorMode?: 'system' | 'light' | 'dark';
       themeId?: string;
       notesChatFloatingSize?: FloatingPanelSize;
