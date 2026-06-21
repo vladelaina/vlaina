@@ -1,4 +1,3 @@
-import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import { isImageFilename } from '@/lib/assets/core/naming';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from './imageSourcePath';
@@ -6,9 +5,6 @@ import { createSafeImageFetchInit, readBoundedImageBlobResponse } from '@/lib/ma
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
-const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
-const UNDO_GRACE_PERIOD_MS = 10000;
-export const MAX_PENDING_IMAGE_DELETIONS = 100;
 export const MAX_RESTORED_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function normalizeBlobMimeType(value: string): string {
@@ -47,11 +43,6 @@ export async function ensureImageFileExists(
         if (!fullPath) return;
         if (!isImageFilename(fullPath)) return;
 
-        if (pendingDeletions.has(fullPath)) {
-            clearTimeout(pendingDeletions.get(fullPath)!);
-            pendingDeletions.delete(fullPath);
-        }
-
         const storage = getStorageAdapter();
 
         if (await storage.exists(fullPath)) {
@@ -80,69 +71,25 @@ export async function ensureImageFileExists(
 }
 
 export async function moveImageToTrash(
-    src: string,
-    notesPath: string,
-    currentNotePath?: string
+    _src: string,
+    _notesPath: string,
+    _currentNotePath?: string
 ): Promise<boolean> {
-    if (!src) return false;
-    const safeSrc = getSafeLocalImageSource(src);
-    if (!safeSrc) return false;
-
-    try {
-        const fullPath = await resolveImagePath(safeSrc, notesPath, currentNotePath);
-        if (!fullPath) return false;
-        if (!isImageFilename(fullPath)) return false;
-
-        const existingDeletion = pendingDeletions.get(fullPath);
-        if (existingDeletion) {
-            clearTimeout(existingDeletion);
-        } else if (pendingDeletions.size >= MAX_PENDING_IMAGE_DELETIONS) {
-            return false;
-        }
-
-        const timerId = setTimeout(async () => {
-            try {
-                await moveDesktopItemToTrash(fullPath);
-            } catch (err) {
-            } finally {
-                pendingDeletions.delete(fullPath);
-            }
-        }, UNDO_GRACE_PERIOD_MS);
-
-        pendingDeletions.set(fullPath, timerId);
-        return true;
-
-    } catch (err) {
-    }
-
+    // Removing an image from a note only removes the markdown reference.
+    // User image files are left untouched on disk.
     return false;
 }
 
 export async function restoreImageFromTrash(
-    src: string,
-    notesPath: string,
-    currentNotePath?: string
+    _src: string,
+    _notesPath: string,
+    _currentNotePath?: string
 ): Promise<void> {
-    if (!src) return;
-    const safeSrc = getSafeLocalImageSource(src);
-    if (!safeSrc) return;
-
-    try {
-        const fullPath = await resolveImagePath(safeSrc, notesPath, currentNotePath);
-        if (fullPath && !isImageFilename(fullPath)) return;
-        if (fullPath && pendingDeletions.has(fullPath)) {
-            clearTimeout(pendingDeletions.get(fullPath)!);
-            pendingDeletions.delete(fullPath);
-        }
-    } catch (err) {
-    }
+    // Kept as a no-op for older image lifecycle call sites.
 }
 
 export function cancelAllPendingImageDeletions(): void {
-    for (const [path, timerId] of pendingDeletions) {
-        clearTimeout(timerId);
-        pendingDeletions.delete(path);
-    }
+    // No pending image deletions are tracked.
 }
 
 async function resolveImagePath(src: string, notesPath: string, currentNotePath?: string): Promise<string> {

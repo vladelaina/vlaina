@@ -1,7 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { moveImageToTrash, restoreImageFromTrash } from './utils/fileUtils';
+import { restoreImageFromTrash } from './utils/fileUtils';
 import {
     diffImageAssetKeySets,
     scanImageAssetKeys,
@@ -80,11 +80,7 @@ export const imageAssetLifecyclePlugin = $prose(() => {
                 return null;
             }
 
-            const { deletedAssets, insertedAssets } = diffImageAssetKeySets(oldAssets, newAssets);
-
-            deletedAssets.forEach((src) => {
-                void Promise.resolve(moveImageToTrash(src, notesPath, currentNote?.path)).catch(() => undefined);
-            });
+            const { insertedAssets } = diffImageAssetKeySets(oldAssets, newAssets);
 
             insertedAssets.forEach((src) => {
                 void Promise.resolve(restoreImageFromTrash(src, notesPath, currentNote?.path)).catch(() => undefined);
