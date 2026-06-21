@@ -92,6 +92,15 @@ describe('codeBlockEditorTheme', () => {
     vi.advanceTimersByTime(1);
     expect(cm.dom.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
 
+    cm.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+      isComposing: true,
+    }));
+    cm.dispatch({ selection: { anchor: 1 } });
+    vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS * 2);
+    expect(cm.dom.hasAttribute(CARET_BLINK_HELD_ATTR)).toBe(false);
+
     cm.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
     cm.dispatch({ selection: { anchor: 1 } });
     vi.advanceTimersByTime(CARET_BLINK_HOLD_DELAY_MS * 2);

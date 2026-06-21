@@ -111,4 +111,37 @@ describe('useNativeCaretOverlay', () => {
 
     hook.unmount();
   });
+
+  it('does not refresh the caret overlay during IME composition keydown', () => {
+    const root = document.createElement('div');
+    root.dataset.chatInput = 'true';
+    const textarea = document.createElement('textarea');
+    textarea.value = 'hello';
+    textarea.selectionStart = 2;
+    textarea.selectionEnd = 2;
+    vi.spyOn(textarea, 'getBoundingClientRect').mockReturnValue(rect(120, 180, 240, 48));
+    root.appendChild(textarea);
+    document.body.appendChild(root);
+    elementFromPoint.mockReturnValue(textarea);
+
+    const hook = renderHook(() => useNativeCaretOverlay());
+
+    act(() => {
+      textarea.focus();
+      document.dispatchEvent(new Event(NATIVE_CARET_OVERLAY_REFRESH_EVENT));
+    });
+    requestAnimationFrameSpy.mockClear();
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        isComposing: true,
+      }));
+    });
+
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
 });

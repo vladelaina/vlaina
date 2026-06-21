@@ -292,7 +292,7 @@ function createView(
   return view;
 }
 
-function createShortcutEvent() {
+function createShortcutEvent(init: Partial<KeyboardEvent> = {}) {
   return {
     metaKey: false,
     ctrlKey: true,
@@ -300,6 +300,7 @@ function createShortcutEvent() {
     shiftKey: false,
     key: 'a',
     preventDefault: vi.fn(),
+    ...init,
   } as unknown as KeyboardEvent;
 }
 
@@ -350,6 +351,17 @@ describe('handleTableSelectAll', () => {
     const selection = TextSelection.create(doc as never, 2, 4);
     const view = createView(selection, doc);
     const event = createShortcutEvent();
+
+    expect(handleTableSelectAll(view as never, event)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('leaves composing select-all to the input method', () => {
+    const { doc } = createTextSelectionDoc();
+    const selection = TextSelection.create(doc as never, 15, 17);
+    const view = createView(selection, doc);
+    const event = createShortcutEvent({ isComposing: true });
 
     expect(handleTableSelectAll(view as never, event)).toBe(false);
     expect(event.preventDefault).not.toHaveBeenCalled();

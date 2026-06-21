@@ -102,7 +102,7 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     };
 
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
-        if (event.key !== 'Escape' || dom.classList.contains('hidden')) return;
+        if (event.isComposing || event.key !== 'Escape' || dom.classList.contains('hidden')) return;
         event.preventDefault();
         event.stopPropagation();
         hide(true);
@@ -193,6 +193,10 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     };
 
     const handleEditorKeyDown = (event: KeyboardEvent): void => {
+        if (event.isComposing) {
+            return;
+        }
+
         setKeyboardInteraction(true);
 
         if (event.key === 'Tab' && !dom.classList.contains('hidden')) {

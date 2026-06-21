@@ -195,7 +195,7 @@ function getPlainDeleteDirection(event: KeyboardEvent): -1 | 1 | null {
 }
 
 function shouldPreserveParagraphAfterCodeBlockOnBackspace(view: EditorView, event: KeyboardEvent): boolean {
-  if (event.key !== 'Backspace') {
+  if (event.isComposing || event.key !== 'Backspace') {
     return false;
   }
 

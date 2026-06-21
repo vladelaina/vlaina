@@ -825,6 +825,7 @@ export const useMessageAutoscroll = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         !isStreamingRef.current ||
+        event.isComposing ||
         !isUpwardKeyboardScrollIntent(event) ||
         isEditableShortcutTarget(event.target)
       ) {

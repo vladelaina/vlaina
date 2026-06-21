@@ -226,6 +226,14 @@ describe('FrontmatterNodeView', () => {
     Object.defineProperty(ctrlInsert, 'target', { value: insideTarget });
     const shiftInsert = new KeyboardEvent('keydown', { key: 'Insert', shiftKey: true, bubbles: true, cancelable: true });
     Object.defineProperty(shiftInsert, 'target', { value: insideTarget });
+    const composingCopy = new KeyboardEvent('keydown', {
+      key: 'c',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+      isComposing: true,
+    });
+    Object.defineProperty(composingCopy, 'target', { value: insideTarget });
 
     expect(nodeView.stopEvent(copy)).toBe(false);
     expect(nodeView.stopEvent(cut)).toBe(false);
@@ -233,6 +241,7 @@ describe('FrontmatterNodeView', () => {
     expect(nodeView.stopEvent(backspace)).toBe(false);
     expect(nodeView.stopEvent(ctrlInsert)).toBe(false);
     expect(nodeView.stopEvent(shiftInsert)).toBe(false);
+    expect(nodeView.stopEvent(composingCopy)).toBe(true);
 
     nodeView.destroy();
   });

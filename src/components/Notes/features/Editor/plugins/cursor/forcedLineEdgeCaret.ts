@@ -145,7 +145,10 @@ function createForcedLineEdgeCaret(
     window.removeEventListener('resize', handleResize);
   };
   const handleDocumentMouseDown = () => cleanup();
-  const handleKeyDown = () => cleanup();
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.isComposing) return;
+    cleanup();
+  };
   const handleBeforeInput = () => cleanup();
   const handleInput = () => cleanup();
   const handleEditorMouseDown = () => cleanup();

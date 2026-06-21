@@ -257,7 +257,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
   };
 
   const handleDocumentKey = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
+    if (!event.isComposing && event.key === 'Escape') {
       closeMenu();
     }
   };

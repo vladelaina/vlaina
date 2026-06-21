@@ -480,6 +480,22 @@ describe('hrAutoParagraphPlugin', () => {
     await editor.destroy();
   });
 
+  it('leaves composing ArrowUp to the input method', async () => {
+    const editor = createEditor('before\n\n---\n\nafter');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const afterTextPos = findTextStartPos(view, 'after');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, afterTextPos)));
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    expect(pressKey(view, 'ArrowUp', { isComposing: true })).toBe(false);
+    expect(view.state.selection.$from.parent.textContent).toBe('after');
+
+    await editor.destroy();
+  });
+
   it('skips a following horizontal rule to the next paragraph start on ArrowDown', async () => {
     const editor = createEditor('before\n\n---\n\nafter');
 

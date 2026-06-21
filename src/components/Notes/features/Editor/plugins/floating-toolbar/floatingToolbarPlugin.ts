@@ -19,7 +19,8 @@ export function shouldHideToolbarForArrowNavigation(selection: Selection, event:
     event.shiftKey ||
     event.altKey ||
     event.ctrlKey ||
-    event.metaKey
+    event.metaKey ||
+    event.isComposing
   ) {
     return false;
   }

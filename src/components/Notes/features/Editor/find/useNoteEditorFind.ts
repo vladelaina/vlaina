@@ -111,6 +111,10 @@ export function useNoteEditorFind(
 
   const handleQueryKeyDown = useCallback<KeyboardEventHandler<HTMLInputElement>>(
     (event) => {
+      if (event.nativeEvent?.isComposing) {
+        return;
+      }
+
       if (event.key === 'Escape') {
         event.preventDefault();
         panelState.close();
@@ -131,6 +135,10 @@ export function useNoteEditorFind(
 
   const handleReplaceKeyDown = useCallback<KeyboardEventHandler<HTMLInputElement>>(
     (event) => {
+      if (event.nativeEvent?.isComposing) {
+        return;
+      }
+
       if (event.key === 'Escape') {
         event.preventDefault();
         panelState.close();

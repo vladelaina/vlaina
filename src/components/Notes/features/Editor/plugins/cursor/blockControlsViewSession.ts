@@ -1121,7 +1121,7 @@ export class BlockControlsViewSession {
 
   private readonly handleDocumentKeyDown = (event: KeyboardEvent): void => {
     if (!this.draggedRanges) return;
-    if (event.key !== 'Escape') return;
+    if (event.isComposing || event.key !== 'Escape') return;
     event.preventDefault();
     this.finishDrag();
     this.clearPointer();

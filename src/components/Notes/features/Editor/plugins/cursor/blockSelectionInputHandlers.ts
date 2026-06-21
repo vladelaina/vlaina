@@ -48,6 +48,7 @@ function clearCapturedBlockSelection(view: EditorView, selectedBlocks: readonly 
 }
 
 function isClipboardCopyShortcut(event: KeyboardEvent): boolean {
+  if (event.isComposing) return false;
   if (event.altKey) return false;
 
   const key = event.key.toLowerCase();
@@ -59,6 +60,7 @@ function isClipboardCopyShortcut(event: KeyboardEvent): boolean {
 }
 
 function isClipboardCutShortcut(event: KeyboardEvent): boolean {
+  if (event.isComposing) return false;
   if (event.altKey) return false;
 
   const key = event.key.toLowerCase();
@@ -109,6 +111,7 @@ export function handleBlockSelectionKeyDown(
   }: BlockSelectionInputHandlerOptions,
 ): boolean {
   if (selectedBlocks.length === 0) return false;
+  if (event.isComposing) return false;
   if (isTextEditingEventTarget(event, view.dom)) return false;
 
   if (isClipboardCopyShortcut(event)) {

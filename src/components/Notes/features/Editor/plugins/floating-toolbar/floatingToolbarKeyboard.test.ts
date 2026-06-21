@@ -68,6 +68,15 @@ describe('floating toolbar keyboard handling', () => {
     )).toBe(false);
   });
 
+  it('does not hide during IME composition arrow key movement', async () => {
+    const selection = await createTextSelection(1, 6);
+
+    expect(shouldHideToolbarForArrowNavigation(
+      selection,
+      new KeyboardEvent('keydown', { key: 'ArrowRight', isComposing: true })
+    )).toBe(false);
+  });
+
   it('does not hide for an already empty selection', async () => {
     const selection = await createTextSelection(3, 3);
 

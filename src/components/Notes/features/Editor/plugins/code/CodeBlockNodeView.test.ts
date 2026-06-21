@@ -394,6 +394,24 @@ describe('CodeBlockNodeView', () => {
     expect(nodeView.stopEvent(shiftInsert)).toBe(false);
   });
 
+  it('keeps composing keydown events inside a selected code block', () => {
+    const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
+    const insideTarget = nodeView.dom.querySelector('.code-block-editable') as HTMLElement;
+    nodeView.dom.classList.add('editor-block-selected');
+
+    const composingKey = new KeyboardEvent('keydown', {
+      key: 'c',
+      bubbles: true,
+      cancelable: true,
+      isComposing: true,
+    });
+    Object.defineProperty(composingKey, 'target', {
+      value: insideTarget,
+    });
+
+    expect(nodeView.stopEvent(composingKey)).toBe(true);
+  });
+
   it('focuses and decorates the code block when selected, then removes the decoration when deselected', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
     const cm = getCodeMirror(nodeView);

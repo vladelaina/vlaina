@@ -755,6 +755,10 @@ export class CodeBlockNodeView implements NodeView {
       }
 
       if (event instanceof KeyboardEvent) {
+        if (event.isComposing) {
+          return true;
+        }
+
         const key = event.key.toLowerCase();
         if (
           key === 'delete' ||

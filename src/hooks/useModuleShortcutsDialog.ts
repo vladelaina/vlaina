@@ -13,7 +13,7 @@ export function useModuleShortcutsDialog({ enabled = true, onToggle }: UseModule
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) {
+      if (event.defaultPrevented || event.isComposing) {
         return;
       }
 

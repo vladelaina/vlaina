@@ -277,6 +277,21 @@ describe('listTabIndentPlugin', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it('leaves composing Tab to the input method', async () => {
+    const editor = createEditorWithContent('- first item');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorToDocumentEnd(view);
+
+    const { event, handled } = pressTab(view, { isComposing: true });
+
+    expect(handled).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+
+    await editor.destroy();
+  });
+
   it('treats an internal list gap placeholder item as empty when pressing enter', async () => {
     const editor = createEditorWithContent(['- first', '- \u2800'].join('\n'));
     await editor.create();

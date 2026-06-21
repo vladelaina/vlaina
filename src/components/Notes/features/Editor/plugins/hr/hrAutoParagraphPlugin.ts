@@ -214,6 +214,7 @@ export const hrAutoParagraphPlugin = $prose(() => {
     props: {
       handleKeyDown(view, event) {
         if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+        if (event.isComposing) return false;
 
         if (event.key === 'ArrowUp') {
           if (!skipHorizontalRuleOnArrowUp(view)) return false;
@@ -222,7 +223,6 @@ export const hrAutoParagraphPlugin = $prose(() => {
         }
 
         if (event.key === 'Enter') {
-          if (event.isComposing) return false;
           if (!handleHorizontalRuleShortcutEnter(view)) return false;
           event.preventDefault();
           return true;
