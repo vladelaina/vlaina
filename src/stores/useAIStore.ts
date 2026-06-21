@@ -18,8 +18,24 @@ import {
 
 export { createAIChatSession } from './ai/chatState'
 
+function resolveRestoredChatSessionId(
+  aiData: ReturnType<typeof useUnifiedStore.getState>['data']['ai'],
+  lastChatSessionId: string | null | undefined,
+): string | null {
+  const sessions = aiData?.sessions || [];
+  const hasSession = (sessionId: string | null | undefined) =>
+    Boolean(sessionId && sessions.some((session) => session.id === sessionId));
+
+  if (hasSession(lastChatSessionId)) {
+    return lastChatSessionId || null;
+  }
+
+  return hasSession(aiData?.currentSessionId) ? aiData?.currentSessionId ?? null : null;
+}
+
 export function useAIStoreRuntimeEffects(): void {
   const aiData = useUnifiedStore(s => s.data.ai);
+  const lastChatSessionId = useUnifiedStore(s => s.data.settings.ui?.lastChatSessionId);
   const loaded = useUnifiedStore(s => s.loaded);
   const load = useUnifiedStore(s => s.load);
   const uiState = useAIUIStore();
@@ -49,12 +65,14 @@ export function useAIStoreRuntimeEffects(): void {
     }
 
     uiState.initializeSelection({
-      currentSessionId: aiData?.currentSessionId ?? null,
+      currentSessionId: resolveRestoredChatSessionId(aiData, lastChatSessionId),
       temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     });
   }, [
     aiData?.currentSessionId,
+    aiData?.sessions,
     aiData?.temporaryChatEnabled,
+    lastChatSessionId,
     loaded,
     uiState,
   ]);
@@ -196,6 +214,7 @@ export function startAIStoreRuntimeEffects(): void {
   const syncSelection = () => {
     const store = useUnifiedStore.getState();
     const aiData = store.data.ai;
+    const lastChatSessionId = store.data.settings.ui?.lastChatSessionId;
     const uiState = useAIUIStore.getState();
 
     if (!store.loaded || uiState.selectionInitialized) {
@@ -215,7 +234,7 @@ export function startAIStoreRuntimeEffects(): void {
     }
 
     uiState.initializeSelection({
-      currentSessionId: aiData?.currentSessionId ?? null,
+      currentSessionId: resolveRestoredChatSessionId(aiData, lastChatSessionId),
       temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     });
   };

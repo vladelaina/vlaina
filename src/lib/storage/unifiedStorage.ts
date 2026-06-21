@@ -801,6 +801,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const showBodyLineNumbers = settings?.markdown?.body?.showLineNumbers;
   const showLineNumbers = settings?.markdown?.codeBlock?.showLineNumbers;
   const lastAppViewMode = settings?.ui?.lastAppViewMode;
+  const lastChatSessionId = settings?.ui?.lastChatSessionId;
   const colorMode = settings?.ui?.colorMode;
   const themeId = settings?.ui?.themeId;
   const notesChatFloatingSize = settings?.ui?.notesChatFloatingSize;
@@ -831,6 +832,9 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
       },
       ui: {
         lastAppViewMode: lastAppViewMode === 'chat' ? 'chat' : 'notes',
+        ...(isSafeChatSessionId(lastChatSessionId) && !isTemporarySessionId(lastChatSessionId)
+          ? { lastChatSessionId }
+          : {}),
         colorMode: colorMode === 'light' || colorMode === 'dark' ? colorMode : 'system',
         themeId: typeof themeId === 'string' && themeId.trim().length > 0
           ? themeId.slice(0, MAX_SETTINGS_UI_THEME_ID_CHARS)

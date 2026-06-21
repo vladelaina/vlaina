@@ -23,6 +23,7 @@ import {
   buildTemporarySessionState,
   createAIChatSession,
   filterUnreadSessionIds,
+  persistLastChatSessionIdForCurrentWindow,
   stripTemporaryForMutation,
   useAIUIStore,
 } from './chatState'
@@ -714,6 +715,7 @@ export function createSessionActions() {
         currentSessionId: restoreSessionId,
         temporaryChatEnabled: false,
       })
+      persistLastChatSessionIdForCurrentWindow(restoreSessionId)
     },
 
     openNewChat: () => {
@@ -723,6 +725,7 @@ export function createSessionActions() {
 
       if (!uiState.temporaryChatEnabled) {
         uiState.setChatSelection({ currentSessionId: null, temporaryChatEnabled: false })
+        persistLastChatSessionIdForCurrentWindow(null)
         return
       }
 
@@ -734,6 +737,7 @@ export function createSessionActions() {
       }, true)
       uiState.setTemporaryReturnSessionId(null)
       uiState.setChatSelection({ currentSessionId: null, temporaryChatEnabled: false })
+      persistLastChatSessionIdForCurrentWindow(null)
     },
 
     promoteTemporarySession: async () => {
@@ -818,6 +822,7 @@ export function createSessionActions() {
           currentSessionId: promotedSessionId,
           temporaryChatEnabled: false,
         })
+        persistLastChatSessionIdForCurrentWindow(promotedSessionId)
 
         saveSessionJsonInBackground(promotedSessionId, nextMessages[promotedSessionId] || [])
         persistInlineImageSourcesForSessionInBackground(promotedSessionId)
@@ -865,6 +870,7 @@ export function createSessionActions() {
         const reusedActivePrefetch = await awaitStartedOrCancelQueuedSessionPrefetch(sessionId)
         if (switchSessionGeneration !== myGeneration) return
         if (reusedActivePrefetch && sessionId in (useUnifiedStore.getState().data.ai?.messages ?? {})) {
+          persistLastChatSessionIdForCurrentWindow(sessionId)
           scheduleInlineImagePersistence(sessionId)
           return
         }
@@ -886,6 +892,7 @@ export function createSessionActions() {
           }
         }, true)
       }
+      persistLastChatSessionIdForCurrentWindow(sessionId)
       scheduleInlineImagePersistence(sessionId)
     },
 
@@ -978,9 +985,13 @@ export function createSessionActions() {
           messages: newMessages,
           unreadSessionIds: (latestAI.unreadSessionIds || []).filter((sessionId) => sessionId !== id),
         })
+        const nextCurrentSessionId = latestUIState.currentSessionId === id
+          ? null
+          : latestUIState.currentSessionId
         if (latestUIState.currentSessionId === id) {
           latestUIState.setCurrentSessionId(null)
         }
+        persistLastChatSessionIdForCurrentWindow(nextCurrentSessionId)
       })
     },
 
@@ -1046,11 +1057,13 @@ export function createSessionActions() {
           (latestAI.unreadSessionIds || []).length === 0
         ) {
           uiState.setChatSelection({ currentSessionId: null, temporaryChatEnabled: false })
+          persistLastChatSessionIdForCurrentWindow(null)
           return
         }
 
         latestState.updateAIData({ sessions: [], messages: {}, unreadSessionIds: [] })
         uiState.setChatSelection({ currentSessionId: null, temporaryChatEnabled: false })
+        persistLastChatSessionIdForCurrentWindow(null)
       })
     },
   }

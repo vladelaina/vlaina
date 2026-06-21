@@ -344,4 +344,25 @@ describe('settingsActions', () => {
     expect(getData().settings.ui?.lastAppViewMode).toBe('chat');
     expect(persist).not.toHaveBeenCalled();
   });
+
+  it('persists changed last chat session with a narrow settings patch', () => {
+    const { actions, getData, persist } = createSettingsActionHarness();
+
+    actions.setLastChatSessionId(' session-2 ');
+
+    expect(getData().settings.ui?.lastChatSessionId).toBe('session-2');
+    expect(persist).toHaveBeenCalledWith(expect.objectContaining({
+      settings: expect.objectContaining({
+        ui: expect.objectContaining({
+          lastChatSessionId: 'session-2',
+        }),
+      }),
+    }), {
+      settings: {
+        ui: {
+          lastChatSessionId: 'session-2',
+        },
+      },
+    });
+  });
 });

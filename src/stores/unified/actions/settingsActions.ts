@@ -70,6 +70,39 @@ export function createSettingsActions(set: SetState, persist: Persist) {
       });
     },
 
+    setLastChatSessionId: (sessionId: string | null, skipPersist = false) => {
+      const normalizedSessionId = typeof sessionId === 'string' && sessionId.trim()
+        ? sessionId.trim()
+        : null;
+
+      set((state) => {
+        if ((state.data.settings.ui?.lastChatSessionId ?? null) === normalizedSessionId) {
+          return {};
+        }
+
+        const newData = {
+          ...state.data,
+          settings: {
+            ...state.data.settings,
+            ui: {
+              ...state.data.settings.ui,
+              lastChatSessionId: normalizedSessionId,
+            },
+          },
+        };
+        if (!skipPersist) {
+          persist(newData, {
+            settings: {
+              ui: {
+                lastChatSessionId: normalizedSessionId,
+              },
+            },
+          });
+        }
+        return { data: newData };
+      });
+    },
+
     setColorMode: (mode: NonNullable<UnifiedData['settings']['ui']>['colorMode']) => {
       const colorMode: NonNullable<UnifiedData['settings']['ui']>['colorMode'] =
         mode === 'light' || mode === 'dark' ? mode : 'system';

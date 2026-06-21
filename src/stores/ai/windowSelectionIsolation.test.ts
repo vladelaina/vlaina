@@ -145,12 +145,19 @@ const managedModel = {
 
 function seedStores(overrides?: {
   currentSessionId?: string | null;
+  lastChatSessionId?: string | null;
   temporaryChatEnabled?: boolean;
 }) {
   useUnifiedStore.setState({
     loaded: true,
     data: {
-      settings: {} as never,
+      settings: {
+        ui: {
+          ...(overrides && 'lastChatSessionId' in overrides
+            ? { lastChatSessionId: overrides.lastChatSessionId }
+            : {}),
+        },
+      } as never,
       customIcons: [],
       ai: {
         providers: [managedProvider],
@@ -249,6 +256,32 @@ describe('chat window selection isolation', () => {
     unmount();
   });
 
+  it('initializes regular windows from the persisted last chat session first', async () => {
+    seedStores({
+      currentSessionId: 'session-1',
+      lastChatSessionId: 'session-2',
+    });
+
+    let hook:
+      | {
+          result: { current: ReturnType<typeof useAIStore> };
+          unmount: () => void;
+        }
+      | undefined;
+    await act(async () => {
+      hook = renderHook(() => {
+        useAIStoreRuntimeEffects();
+        return useAIStore();
+      });
+    });
+
+    const { result, unmount } = hook!;
+
+    expect(result.current.currentSessionId).toBe('session-2');
+    expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
+    unmount();
+  });
+
   it('initializes a new chat window with a blank local selection only', async () => {
     mocked.readWindowLaunchContext.mockReturnValue({
       isNewWindow: true,
@@ -323,6 +356,30 @@ describe('chat window selection isolation', () => {
 
     expect(useAIUIStore.getState().currentSessionId).toBe('session-2');
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
+    expect(useUnifiedStore.getState().data.settings.ui?.lastChatSessionId).toBe('session-2');
+  });
+
+  it('does not persist last chat selection from a secondary chat window', async () => {
+    mocked.readWindowLaunchContext.mockReturnValue({
+      isNewWindow: true,
+      vaultPath: null,
+      notePath: null,
+      folderPath: null,
+      chatSessionId: null,
+      viewMode: 'chat',
+    });
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+
+    await act(async () => {
+      await actions.switchSession('session-2');
+    });
+
+    expect(useAIUIStore.getState().currentSessionId).toBe('session-2');
+    expect(useUnifiedStore.getState().data.settings.ui?.lastChatSessionId).toBeUndefined();
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
   });
 
   it('persists inline images in a cached session after switching without blocking selection', async () => {
@@ -519,7 +576,14 @@ describe('chat window selection isolation', () => {
 
     expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2');
     expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe('loaded from disk');
-    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+    expect(mocked.saveUnifiedData).toHaveBeenCalledTimes(1);
+    expect(mocked.saveUnifiedData).toHaveBeenCalledWith(expect.any(Object), {
+      settings: {
+        ui: {
+          lastChatSessionId: 'session-2',
+        },
+      },
+    });
   });
 
   it('does not persist unchanged or missing session metadata updates', async () => {
