@@ -1537,7 +1537,11 @@ test.describe("notes block selection regressions", () => {
       await openMarkdownFixture(page, {
         filename: 'large-atomic-rich-selection-paint.md',
         content: [
-          'Long selection lead paragraph 0.',
+          '> Large selection quote rail sentinel.',
+          '',
+          '- [ ] Large selection task checkbox sentinel.',
+          '',
+          '---',
           '',
           '<!--Large selection literal comment-->',
           '',
@@ -1561,6 +1565,9 @@ test.describe("notes block selection regressions", () => {
         ].join('\n'),
       });
 
+      await expect(page.locator(`${EDITOR_SELECTOR} blockquote`, { hasText: 'Large selection quote rail sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"]`, { hasText: 'Large selection task checkbox sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="hr"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-literal-text`, { hasText: '<!--Large selection literal comment-->' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text)`, { hasText: 'Large selection HTML sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="math-block"]`)).toBeVisible();
@@ -1580,6 +1587,9 @@ test.describe("notes block selection regressions", () => {
           (_, index) => index,
         );
         return {
+          quoteIndex: blocks.findIndex((block) => includesText(block, 'Large selection quote rail sentinel')),
+          taskIndex: blocks.findIndex((block) => includesText(block, 'Large selection task checkbox sentinel')),
+          hrIndex: blocks.findIndex((block) => block.className.includes('md-hr')),
           commentIndex: blocks.findIndex((block) => includesText(block, '<!--Large selection literal comment-->')),
           htmlIndex: blocks.findIndex((block) => includesText(block, 'Large selection HTML sentinel')),
           mathIndex: blocks.findIndex((block) => includesText(block, 'a^2 + b^2 = c^2') || includesText(block, 'a2+b2')),
@@ -1594,11 +1604,17 @@ test.describe("notes block selection regressions", () => {
           })),
         };
       });
+      expect(selectionPlan.quoteIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(selectionPlan.taskIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(selectionPlan.hrIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
       expect(selectionPlan.commentIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
       expect(selectionPlan.htmlIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
       expect(selectionPlan.mathIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
       expect(selectionPlan.mermaidIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
       expect(selectionPlan.selectedIndexes.length, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(128);
+      expect(selectionPlan.quoteIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+      expect(selectionPlan.taskIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+      expect(selectionPlan.hrIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
       expect(selectionPlan.commentIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
       expect(selectionPlan.htmlIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
       expect(selectionPlan.mathIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
@@ -1617,6 +1633,95 @@ test.describe("notes block selection regressions", () => {
         active: true,
         large: true,
       });
+
+      const quoteRail = await page.evaluate((editorSelector) => {
+        const quote = Array.from(document.querySelectorAll<HTMLElement>(`${editorSelector} blockquote.editor-block-selected`))
+          .find((element) => element.textContent?.includes('Large selection quote rail sentinel'));
+        if (!quote) return null;
+
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--vlaina-editor-block-selection-fg)';
+        quote.appendChild(probe);
+        const expectedForeground = getComputedStyle(probe).color;
+        probe.remove();
+
+        const style = getComputedStyle(quote, '::before');
+        const parsePx = (value: string) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+        return {
+          beforeBackgroundColor: style.backgroundColor,
+          beforeContent: style.content,
+          beforeDisplay: style.display,
+          beforeHeightPx: parsePx(style.height),
+          beforeWidthPx: parsePx(style.width),
+          className: quote.className,
+          expectedForeground,
+        };
+      }, EDITOR_SELECTOR);
+      expect(quoteRail, 'large selected blockquote rail metrics').not.toBeNull();
+      expect(quoteRail!.className, JSON.stringify(quoteRail, null, 2)).toContain('editor-block-selected-large-item');
+      expect(quoteRail!.beforeContent, JSON.stringify(quoteRail, null, 2)).not.toBe('none');
+      expect(quoteRail!.beforeDisplay, JSON.stringify(quoteRail, null, 2)).not.toBe('none');
+      expect(quoteRail!.beforeWidthPx, JSON.stringify(quoteRail, null, 2)).toBeGreaterThan(0);
+      expect(quoteRail!.beforeHeightPx, JSON.stringify(quoteRail, null, 2)).toBeGreaterThan(0);
+      expect(quoteRail!.beforeBackgroundColor, JSON.stringify(quoteRail, null, 2)).toBe(quoteRail!.expectedForeground);
+
+      const taskCheckbox = await page.evaluate((editorSelector) => {
+        const task = Array.from(document.querySelectorAll<HTMLElement>(`${editorSelector} li[data-item-type="task"].editor-block-selected`))
+          .find((element) => element.textContent?.includes('Large selection task checkbox sentinel'));
+        if (!task) return null;
+
+        const style = getComputedStyle(task, '::before');
+        const parsePx = (value: string) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+        return {
+          beforeBorderColor: style.borderTopColor,
+          beforeContent: style.content,
+          beforeDisplay: style.display,
+          beforeHeightPx: parsePx(style.height),
+          beforeWidthPx: parsePx(style.width),
+          className: task.className,
+        };
+      }, EDITOR_SELECTOR);
+      expect(taskCheckbox, 'large selected task checkbox metrics').not.toBeNull();
+      expect(taskCheckbox!.className, JSON.stringify(taskCheckbox, null, 2)).toContain('editor-block-selected-large-item');
+      expect(taskCheckbox!.beforeContent, JSON.stringify(taskCheckbox, null, 2)).not.toBe('none');
+      expect(taskCheckbox!.beforeDisplay, JSON.stringify(taskCheckbox, null, 2)).not.toBe('none');
+      expect(taskCheckbox!.beforeWidthPx, JSON.stringify(taskCheckbox, null, 2)).toBeGreaterThan(0);
+      expect(taskCheckbox!.beforeHeightPx, JSON.stringify(taskCheckbox, null, 2)).toBeGreaterThan(0);
+      expect(taskCheckbox!.beforeBorderColor, JSON.stringify(taskCheckbox, null, 2)).not.toBe('rgba(0, 0, 0, 0)');
+
+      const hrLine = await page.evaluate((editorSelector) => {
+        const block = document.querySelector<HTMLElement>(
+          `${editorSelector} .md-hr.editor-block-selected, ${editorSelector} hr.editor-block-selected`
+        );
+        if (!block) return null;
+
+        const line = block.matches('hr')
+          ? block
+          : block.querySelector<HTMLElement>('hr') ?? block;
+        const style = getComputedStyle(line, '::before');
+        const parsePx = (value: string) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+        return {
+          blockClassName: block.className,
+          beforeBorderTopWidthPx: parsePx(style.borderTopWidth),
+          beforeContent: style.content,
+          beforeDisplay: style.display,
+          lineTagName: line.tagName,
+        };
+      }, EDITOR_SELECTOR);
+      expect(hrLine, 'large selected horizontal rule metrics').not.toBeNull();
+      expect(hrLine!.blockClassName, JSON.stringify(hrLine, null, 2)).toContain('editor-block-selected-large-item');
+      expect(hrLine!.beforeContent, JSON.stringify(hrLine, null, 2)).not.toBe('none');
+      expect(hrLine!.beforeDisplay, JSON.stringify(hrLine, null, 2)).not.toBe('none');
+      expect(hrLine!.beforeBorderTopWidthPx, JSON.stringify(hrLine, null, 2)).toBeGreaterThan(0);
 
       const targets = [
         {
@@ -1650,6 +1755,10 @@ test.describe("notes block selection regressions", () => {
       ] as const;
 
       for (const target of targets) {
+        await page.locator(target.selector).first().scrollIntoViewIfNeeded();
+        await page.evaluate(() => new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        ));
         const metrics = await measureSelectedAtomicBlock(page, target.selector);
         expect(metrics, `${target.label} metrics`).not.toBeNull();
         if (target.text) {

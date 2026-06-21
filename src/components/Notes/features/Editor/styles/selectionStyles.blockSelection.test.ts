@@ -44,6 +44,12 @@ describe("editor block selection styles", () => {
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected li[data-item-type="task"]::before {');
     expect(css).toContain('border-color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(css).toContain('background-color: transparent !important;');
+    const largeRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large li[data-item-type="task"].editor-block-selected.editor-block-selected-large-item::before {'
+    );
+    expect(largeRule).toContain("content: '';");
+    expect(largeRule).toContain('display: inline-block !important;');
     expect(css).not.toContain('li[data-item-type="task"]:has(> p.editor-block-selected)::before');
     expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .editor-block-selected {');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
@@ -100,6 +106,13 @@ describe("editor block selection styles", () => {
     expect(css).toContain('.milkdown .ProseMirror blockquote.editor-block-selected-parent-marker::before,');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected blockquote::before {');
     expect(css).toContain('background: var(--vlaina-editor-block-selection-fg) !important;');
+    const largeRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror.editor-block-selection-large blockquote.editor-block-selected.editor-block-selected-large-item::before {'
+    );
+    expect(largeRule).toContain("content: '';");
+    expect(largeRule).toContain('display: block !important;');
+    expect(largeRule).toContain('background: var(--vlaina-editor-block-selection-fg) !important;');
   });
 
   it('keeps selected text block backgrounds separated by the shared vertical gap token', () => {
@@ -414,10 +427,17 @@ describe("editor block selection styles", () => {
       blockSelectionCss,
       '.milkdown .ProseMirror hr.ProseMirror-selectednode::after,'
     );
+    const largeHrRule = extractCssRule(
+      blockSelectionCss,
+      '.milkdown .ProseMirror.editor-block-selection-large hr.editor-block-selected.editor-block-selected-large-item::before,'
+    );
 
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode::before,');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.editor-block-selected::before,');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .md-hr.editor-block-selected::before {');
+    expect(largeHrRule).toContain('.milkdown .ProseMirror.editor-block-selection-large .md-hr:not(:has(> hr)).editor-block-selected.editor-block-selected-large-item::before {');
+    expect(largeHrRule).toContain("content: '';");
+    expect(largeHrRule).toContain('display: block !important;');
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode,\n.milkdown .ProseMirror hr.editor-block-selected,\n.milkdown .ProseMirror .md-hr.ProseMirror-selectednode,\n.milkdown .ProseMirror .md-hr.editor-block-selected {');
     expect(hrSelectedRule).not.toContain('min-height');
     expect(hrSelectedFillRule).toContain('top: var(--vlaina-block-selection-fill-top);');

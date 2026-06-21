@@ -18,6 +18,11 @@
   background-color: transparent !important;
 }
 
+.milkdown .ProseMirror.editor-block-selection-large li[data-item-type="task"].editor-block-selected.editor-block-selected-large-item::before {
+  content: '';
+  display: inline-block !important;
+}
+
 .milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .editor-block-selected {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
@@ -26,6 +31,12 @@
 .milkdown .ProseMirror blockquote.editor-block-selected::before,
 .milkdown .ProseMirror blockquote.editor-block-selected-parent-marker::before,
 .milkdown .ProseMirror .editor-block-selected blockquote::before {
+  background: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown .ProseMirror.editor-block-selection-large blockquote.editor-block-selected.editor-block-selected-large-item::before {
+  content: '';
+  display: block !important;
   background: var(--vlaina-editor-block-selection-fg) !important;
 }
 
@@ -56,6 +67,12 @@
   z-index: var(--vlaina-z-1);
   border-top-color: var(--vlaina-accent);
   box-shadow: var(--vlaina-shadow-hr-selected);
+}
+
+.milkdown .ProseMirror.editor-block-selection-large hr.editor-block-selected.editor-block-selected-large-item::before,
+.milkdown .ProseMirror.editor-block-selection-large .md-hr:not(:has(> hr)).editor-block-selected.editor-block-selected-large-item::before {
+  content: '';
+  display: block !important;
 }
 
 .milkdown .ProseMirror p.editor-block-selected {
