@@ -81,6 +81,10 @@ export function renderUrlRailEditor(
   };
 
   input.addEventListener('keydown', (event) => {
+    if (event.isComposing) {
+      return;
+    }
+
     if (event.key === 'Enter') {
       event.preventDefault();
       applyValue();
