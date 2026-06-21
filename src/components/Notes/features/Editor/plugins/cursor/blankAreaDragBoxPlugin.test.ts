@@ -596,6 +596,14 @@ describe('blankAreaDragBoxPlugin document routing', () => {
         bias: -1,
       }, 320, 50);
       expect(document.querySelector('.editor-forced-line-end-caret')).toBeInstanceOf(HTMLElement);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      view.dom.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        isComposing: true,
+      }));
+      expect(document.querySelector('.editor-forced-line-end-caret')).toBeInstanceOf(HTMLElement);
 
       const mouseDown = createMouseEvent('mousedown', {
         clientX: 320,
@@ -1100,6 +1108,42 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(cut.event.defaultPrevented).toBe(true);
       expect(writeText).toHaveBeenLastCalledWith('Alpha');
       expect(view.state.doc.textContent).toBe('Beta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('leaves composing block-selection copy shortcuts to the input method', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const copy = simulateKeydown(view, 'c', { isComposing: true });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(copy.handled).toBe(false);
+      expect(copy.event.defaultPrevented).toBe(false);
+      expect(writeText).not.toHaveBeenCalled();
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('leaves composing document delete shortcuts to the input method', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const deleteEvent = dispatchDocumentKeydown('Delete', { isComposing: true });
+
+      expect(deleteEvent.defaultPrevented).toBe(false);
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
     } finally {
       await editor.destroy();
     }

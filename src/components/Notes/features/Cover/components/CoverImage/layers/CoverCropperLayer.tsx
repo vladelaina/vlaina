@@ -53,6 +53,14 @@ export function CoverCropperLayer({
   const imageRef = useRef<HTMLImageElement>(null);
   const lastLoadedMediaKeyRef = useRef<string | null>(null);
 
+  const handleKeyDownCapture = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
+    onNonPointerIntent();
+  }, [onNonPointerIntent]);
+
   const baseDimensions = useMemo(() => {
     if (!effectiveContainerSize || !mediaSize) {
       return null;
@@ -158,7 +166,7 @@ export function CoverCropperLayer({
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
-      onKeyDownCapture={onNonPointerIntent}
+      onKeyDownCapture={handleKeyDownCapture}
     >
       {displaySrc ? (
         <img

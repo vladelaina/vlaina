@@ -653,6 +653,10 @@ export const textSelectionOverlayPlugin = $prose(() => {
       };
 
       const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.isComposing) {
+          return;
+        }
+
         const isModifiedNavigation =
           NAVIGATION_KEYS_THAT_CLEAR_NATIVE_SELECTION.has(event.key) &&
           isModifiedNavigationKey(event);

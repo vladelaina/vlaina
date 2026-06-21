@@ -189,6 +189,8 @@ export class TextBlockCaretOverlayView {
   };
 
   private handleKeyDown = (event: KeyboardEvent): void => {
+    if (event.isComposing) return;
+
     if (isCaretNavigationKey(event)) {
       this.keyboardCaretNavigationActive = true;
       holdCaretBlink(this.caret, null);
@@ -197,6 +199,8 @@ export class TextBlockCaretOverlayView {
   };
 
   private handleKeyUp = (event: KeyboardEvent): void => {
+    if (event.isComposing) return;
+
     if (isCaretNavigationKey(event)) {
       this.keyboardCaretNavigationActive = false;
       holdCaretBlink(this.caret);

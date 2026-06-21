@@ -11,7 +11,7 @@ const firstParagraphPlugin = $prose(() => {
         key: new PluginKey('firstParagraph'),
         props: {
             handleKeyDown(view, event) {
-                if (event.key !== 'Backspace') return false;
+                if (event.isComposing || event.key !== 'Backspace') return false;
                 
                 const { selection, doc } = view.state;
                 const { from, empty } = selection;

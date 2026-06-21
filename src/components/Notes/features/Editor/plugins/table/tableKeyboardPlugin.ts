@@ -28,6 +28,10 @@ export const MAX_TABLE_KEYBOARD_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIM
 const TABLE_KEYDOWN_KEYS = new Set(['Backspace', 'Delete', 'Enter', 'Tab']);
 
 function isTableKeyboardShortcut(event: KeyboardEvent): boolean {
+  if (event.isComposing) {
+    return false;
+  }
+
   return (
     TABLE_KEYDOWN_KEYS.has(event.key) ||
     (
@@ -59,6 +63,29 @@ function resolveTableKeydownContext(selection: Selection) {
     inTable,
     cellDepth,
   };
+}
+
+function shouldSuppressComposingPipeTableShortcut(
+  state: EditorView['state'],
+  event: KeyboardEvent,
+): boolean {
+  if (!event.isComposing || event.key !== 'Enter') {
+    return false;
+  }
+
+  const { selection } = state;
+  if (
+    !(selection instanceof TextSelection) ||
+    !selection.empty ||
+    selection.$from.parent.type.name !== 'paragraph' ||
+    selection.$from.parentOffset !== selection.$from.parent.content.size ||
+    selection.$from.parent.content.size > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS
+  ) {
+    return false;
+  }
+
+  const shortcutText = selection.$from.parent.textBetween(0, selection.$from.parent.content.size, '', '');
+  return shouldCreateTableFromPipeShortcut(shortcutText);
 }
 
 function dispatchDeleteRangeWithTextSelection(
@@ -172,6 +199,10 @@ export const tableKeyboardPlugin = $prose(() => {
   return new Plugin({
     props: {
       handleKeyDown(view, event) {
+        if (shouldSuppressComposingPipeTableShortcut(view.state, event)) {
+          return true;
+        }
+
         if (!isTableKeyboardShortcut(event)) {
           return false;
         }

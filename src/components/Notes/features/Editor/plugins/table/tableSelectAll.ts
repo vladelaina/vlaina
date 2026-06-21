@@ -69,6 +69,7 @@ type TextSelectionLike = {
 
 function isSelectAllShortcut(event: KeyboardEvent): boolean {
   return (
+    !event.isComposing &&
     (event.metaKey || event.ctrlKey) &&
     !event.altKey &&
     !event.shiftKey &&

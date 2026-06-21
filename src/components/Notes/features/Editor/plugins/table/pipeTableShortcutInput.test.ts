@@ -36,12 +36,22 @@ function pressEnter(view: EditorView): void {
   expect(handled).toBe(true);
 }
 
-function dispatchEnter(view: EditorView): { event: KeyboardEvent; handled: boolean } {
+function dispatchEnter(
+  view: EditorView,
+  options: { isComposing?: boolean } = {},
+): { event: KeyboardEvent; handled: boolean } {
   const event = new KeyboardEvent('keydown', {
     key: 'Enter',
     bubbles: true,
     cancelable: true,
+    isComposing: options.isComposing,
   });
+  if (options.isComposing) {
+    Object.defineProperty(event, 'isComposing', {
+      configurable: true,
+      get: () => true,
+    });
+  }
   let handled = false;
 
   view.someProp('handleKeyDown', (handleKeyDown: any) => {
@@ -151,6 +161,27 @@ describe('pipe table shortcut input', () => {
     expect(markdown.split('\n')[0]).toContain('2');
     expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
     expect(getAncestorNodeNames(view)).toContain('table_cell');
+
+    await editor.destroy();
+  });
+
+  it('does not create a pipe table while Enter belongs to an IME composition', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(tableKeyboardPlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '|1|2|');
+    dispatchEnter(view, { isComposing: true });
+
+    expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
+    expect(view.state.doc.firstChild?.textContent).toBe('|1|2|');
 
     await editor.destroy();
   });

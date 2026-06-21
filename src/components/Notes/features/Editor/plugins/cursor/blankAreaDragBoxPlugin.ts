@@ -756,6 +756,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         return getBlockSelectionPluginState(state).interactionDecorations;
       },
       handleKeyDown(view, event) {
+        if (event.isComposing) {
+          return false;
+        }
+
         const { selectedBlocks } = getBlockSelectionPluginState(view.state);
         if (handleBlockSelectionKeyDown(event, {
           view,
@@ -844,6 +848,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       const lineFillOverlay = createBlockSelectionLineFillOverlay(view);
       syncBlockSelectionVisualState(view);
       const handleDocumentKeyDown = (event: KeyboardEvent) => {
+        if (event.isComposing) return;
         if (!shouldHandleDocumentBlockSelectionEvent(view, event)) return;
         const { selectedBlocks } = getBlockSelectionPluginState(view.state);
         if (!handleBlockSelectionKeyDown(event, {

@@ -871,5 +871,7 @@ describe('isTypewriterKeyEvent', () => {
     expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))).toBe(false);
     expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'z' }))).toBe(false);
     expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, altKey: true }))).toBe(false);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true }))).toBe(false);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'Tab', isComposing: true }))).toBe(false);
   });
 });

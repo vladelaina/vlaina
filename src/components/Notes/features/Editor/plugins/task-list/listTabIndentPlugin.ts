@@ -803,7 +803,7 @@ export const listTabIndentPlugin = $prose(() => {
                 if (handleInternalPlaceholderListEnter(view, event)) return true;
                 if (handleEmptyParentListItemBackspace(view, event)) return true;
                 if (event.key !== 'Tab') return false;
-                if (event.metaKey || event.ctrlKey || event.altKey) return false;
+                if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return false;
 
                 event.preventDefault();
 

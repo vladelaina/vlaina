@@ -52,7 +52,7 @@ export function useNotesViewShortcuts({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || shouldSkipShortcutForEditableSystemShortcut(event)) {
+      if (event.defaultPrevented || event.isComposing || shouldSkipShortcutForEditableSystemShortcut(event)) {
         return;
       }
 

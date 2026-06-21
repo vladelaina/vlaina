@@ -10,7 +10,7 @@ export const titleNavigationPlugin = $prose(() => {
         key: titleNavigationPluginKey,
         props: {
             handleKeyDown(view, event) {
-                if (event.key !== 'ArrowUp') return false;
+                if (event.isComposing || event.key !== 'ArrowUp') return false;
                 if (!shouldMoveSelectionToTitle(view)) return false;
                 if (!focusNoteTitleInputAtEnd()) return false;
 

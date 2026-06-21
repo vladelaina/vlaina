@@ -180,7 +180,7 @@ export function useHeldPageScroll(
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+      if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
         return;
       }
 

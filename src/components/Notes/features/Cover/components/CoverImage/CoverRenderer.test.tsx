@@ -248,6 +248,29 @@ describe('CoverRenderer', () => {
     expect(props.onCropperZoomChange).toHaveBeenCalledWith(expect.any(Number), expect.any(Object));
   });
 
+  it('leaves composing cropper keydown to the input method', () => {
+    const props = buildProps();
+    const { container } = render(<CoverRenderer {...props} />);
+    const cropper = container.querySelector('[data-testid="cover-cropper"]') as HTMLDivElement | null;
+
+    expect(cropper).not.toBeNull();
+    if (!cropper) return;
+
+    const composingKey = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(composingKey, 'isComposing', { value: true });
+    fireEvent(cropper, composingKey);
+
+    expect(props.onNonPointerIntent).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(cropper, { key: 'ArrowLeft' });
+
+    expect(props.onNonPointerIntent).toHaveBeenCalledTimes(1);
+  });
+
   it('applies zoom through transform', () => {
     const props = buildProps({
       zoom: 2,

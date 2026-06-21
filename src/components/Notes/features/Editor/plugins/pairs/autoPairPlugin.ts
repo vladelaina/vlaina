@@ -40,6 +40,7 @@ export const autoPairPlugin = $prose(() => new Plugin({
       return handleAutoPairTextInput(view, from, to, text);
     },
     handleKeyDown(view, event) {
+      if (event.isComposing) return false;
       if (handleAutoPairBackspace(view, event)) return true;
       return handleAutoPairDelete(view, event);
     },

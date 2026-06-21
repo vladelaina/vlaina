@@ -86,6 +86,10 @@ function simulateCopyKeydown(view: any): { handled: boolean; event: KeyboardEven
     return simulateClipboardKeydown(view, { key: 'c', ctrlKey: true });
 }
 
+function simulateComposingCopyKeydown(view: any): { handled: boolean; event: KeyboardEvent } {
+    return simulateClipboardKeydown(view, { key: 'c', ctrlKey: true, isComposing: true });
+}
+
 function simulateCutKeydown(view: any): { handled: boolean; event: KeyboardEvent } {
     return simulateClipboardKeydown(view, { key: 'x', ctrlKey: true });
 }
@@ -269,6 +273,36 @@ describe('hasClipboardPayload', () => {
 });
 
 describe('clipboardPlugin copy', () => {
+    it('leaves composing Ctrl+C to the input method', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha Beta');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const range = findTextRange(view.state.doc, 'Alpha Beta');
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, range.from, range.to)));
+
+        const { handled, event } = simulateComposingCopyKeydown(view);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(false);
+        expect(event.defaultPrevented).toBe(false);
+        expect(writeText).not.toHaveBeenCalled();
+
+        await editor.destroy();
+    });
+
     it('copies a text selection during Ctrl+C keydown', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(navigator, 'clipboard', {

@@ -50,9 +50,11 @@ export function useCropperInteraction({
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.isComposing) return;
             if (e.key === 'Control' || e.key === 'Meta') setIsCtrlPressed(true);
         };
         const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.isComposing) return;
             if (e.key === 'Control' || e.key === 'Meta') setIsCtrlPressed(false);
         };
         window.addEventListener('keydown', handleKeyDown);

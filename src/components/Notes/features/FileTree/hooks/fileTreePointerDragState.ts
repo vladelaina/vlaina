@@ -403,7 +403,7 @@ function handlePointerCancel() {
 }
 
 function handleKeyDown(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || !activeSession) {
+  if (event.isComposing || event.key !== 'Escape' || !activeSession) {
     return;
   }
 

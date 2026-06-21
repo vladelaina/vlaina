@@ -91,6 +91,9 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       if (e.defaultPrevented) {
         return;
       }
+      if (e.isComposing) {
+        return;
+      }
 
       if (e.key === 'F11') {
         e.preventDefault();

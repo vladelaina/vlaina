@@ -105,6 +105,40 @@ describe('bindAiReviewActions', () => {
     expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledTimes(1);
   });
 
+  it('does not apply on composing Enter', () => {
+    const elements = createElements();
+    const onClose = vi.fn();
+
+    bindAiReviewActions({
+      elements,
+      onClose,
+      review: {
+        requestKey: 'review-1',
+        instruction: 'Translate to English',
+        commandId: 'translate-en',
+        toneId: null,
+        from: 1,
+        to: 4,
+        originalText: '你好',
+        suggestedText: 'Hello',
+        isLoading: false,
+        errorMessage: null,
+      },
+      updateReview: vi.fn(),
+      view: createView(),
+    });
+
+    elements.panel.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      isComposing: true,
+    }));
+
+    expect(applyAiSelectionSuggestion).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(mockCollapseSelectionAfterToolbarApply).not.toHaveBeenCalled();
+  });
+
   it('keeps the panel open when applying the suggestion is rejected', async () => {
     applyAiSelectionSuggestion.mockReturnValue(false);
     const elements = createElements();

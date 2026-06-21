@@ -69,6 +69,9 @@ export const LanguageSelector = React.memo(function LanguageSelector({
     }, [activeIndex]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.nativeEvent.isComposing) {
+            return;
+        }
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             e.stopPropagation();

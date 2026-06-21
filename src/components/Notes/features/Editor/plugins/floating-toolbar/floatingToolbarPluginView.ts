@@ -1078,7 +1078,7 @@ export function createFloatingToolbarPluginView(
   };
 
   const handleEscape = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') {
+    if (event.isComposing || event.key !== 'Escape') {
       return;
     }
 

@@ -112,6 +112,34 @@ describe('useNoteEditorFind', () => {
     ]);
   });
 
+  it('does not navigate or close while an IME composition keydown is active', () => {
+    const { result } = renderHook(() => useNoteEditorFind('note-a'));
+    const preventDefault = vi.fn();
+
+    act(() => {
+      result.current.open();
+    });
+
+    act(() => {
+      result.current.handleQueryKeyDown({
+        key: 'Enter',
+        shiftKey: false,
+        nativeEvent: { isComposing: true },
+        preventDefault,
+      } as never);
+      result.current.handleQueryKeyDown({
+        key: 'Escape',
+        nativeEvent: { isComposing: true },
+        preventDefault,
+      } as never);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(mocks.stepEditorFindMatchMock).not.toHaveBeenCalled();
+    expect(mocks.clearEditorFindMock).not.toHaveBeenCalled();
+    expect(result.current.isOpen).toBe(true);
+  });
+
   it('closes the panel with Escape, clears find state, and restores editor focus', () => {
     const { result } = renderHook(() => useNoteEditorFind('note-a'));
     const preventDefault = vi.fn();
@@ -153,5 +181,25 @@ describe('useNoteEditorFind', () => {
       currentSnapshot.view,
       'updated',
     );
+  });
+
+  it('does not replace while an IME composition keydown is active', () => {
+    const { result } = renderHook(() => useNoteEditorFind('note-a'));
+    const preventDefault = vi.fn();
+
+    act(() => {
+      result.current.setReplaceValue('updated');
+    });
+
+    act(() => {
+      result.current.handleReplaceKeyDown({
+        key: 'Enter',
+        nativeEvent: { isComposing: true },
+        preventDefault,
+      } as never);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(mocks.replaceCurrentEditorFindMatchMock).not.toHaveBeenCalled();
   });
 });

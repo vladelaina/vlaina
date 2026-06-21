@@ -43,6 +43,8 @@ export function isTypewriterInputEvent(event: InputEvent): boolean {
 }
 
 export function isTypewriterKeyEvent(event: KeyboardEvent): boolean {
+    if (event.isComposing) return false;
+
     if (event.key === 'Enter' || event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab') {
         return true;
     }

@@ -90,6 +90,10 @@ export function createCodeBlockEditorTheme() {
     Prec.highest(codeBlockCompatibilityLineField),
     CodeMirror.domEventHandlers({
       keydown(event, view) {
+        if (event.isComposing) {
+          return false;
+        }
+
         if (isCaretNavigationKey(event)) {
           codeBlockCaretNavigationActiveViews.add(view);
           holdCodeBlockCaretBlink(view);
@@ -97,6 +101,10 @@ export function createCodeBlockEditorTheme() {
         return false;
       },
       keyup(event, view) {
+        if (event.isComposing) {
+          return false;
+        }
+
         if (isCaretNavigationKey(event)) {
           codeBlockCaretNavigationActiveViews.delete(view);
           holdCodeBlockCaretBlink(view);

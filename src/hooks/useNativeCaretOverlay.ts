@@ -380,6 +380,8 @@ export function useNativeCaretOverlay(): void {
     const handleFocusOut = () => hide();
     const handleUpdate = () => schedule();
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) return;
+
       if (isCaretNavigationKey(event)) {
         keyboardCaretNavigationActive = true;
         holdCaretBlink(caret, null);
@@ -387,6 +389,8 @@ export function useNativeCaretOverlay(): void {
       schedule();
     };
     const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.isComposing) return;
+
       if (isCaretNavigationKey(event)) {
         keyboardCaretNavigationActive = false;
         holdCaretBlink(caret);

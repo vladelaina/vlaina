@@ -114,4 +114,45 @@ describe('textBlockCaretOverlayPlugin', () => {
     overlay.destroy();
     expect(TestResizeObserver.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
   });
+
+  it('does not refresh the caret overlay during IME composition keydown', () => {
+    const animationFrame = vi.fn((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(animationFrame);
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+
+    const editorDom = document.createElement('div');
+    document.body.appendChild(editorDom);
+
+    const view = {
+      dom: editorDom,
+      composing: false,
+      hasFocus: () => true,
+      coordsAtPos: vi.fn(() => ({
+        left: 24,
+        top: 12,
+        bottom: 32,
+      })),
+      domAtPos: vi.fn(),
+      state: {
+        selection: createTextblockSelection(),
+      },
+    };
+
+    const overlay = new TextBlockCaretOverlayView(view as any);
+    animationFrame.mockClear();
+
+    editorDom.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+      isComposing: true,
+    }));
+
+    expect(animationFrame).not.toHaveBeenCalled();
+
+    overlay.destroy();
+  });
 });

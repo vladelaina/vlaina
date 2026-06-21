@@ -78,4 +78,35 @@ describe('handleEditorSelectAll', () => {
     expect(handleEditorSelectAll(view, event)).toBe(false);
     expect(event.preventDefault).not.toHaveBeenCalled();
   });
+
+  it('leaves composing Mod-a to the input method', () => {
+    const view = {
+      dom: document.createElement('div'),
+      state: {
+        doc: {
+          content: {
+            size: 10,
+          },
+        },
+        tr: {
+          setSelection: vi.fn(),
+        },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as any;
+    const event = {
+      key: 'a',
+      ctrlKey: true,
+      metaKey: false,
+      altKey: false,
+      shiftKey: false,
+      isComposing: true,
+      preventDefault: vi.fn(),
+    } as any;
+
+    expect(handleEditorSelectAll(view, event)).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
 });

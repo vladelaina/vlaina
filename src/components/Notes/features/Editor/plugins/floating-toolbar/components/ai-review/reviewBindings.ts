@@ -60,7 +60,14 @@ export function bindAiReviewActions({
   };
 
   const handlePanelKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Enter' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) {
+    if (
+      event.isComposing ||
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey
+    ) {
       return;
     }
 

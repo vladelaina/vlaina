@@ -67,6 +67,7 @@ function isMarkdownPasteParserInputWithinBounds(text: string): boolean {
 }
 
 function isClipboardCopyShortcut(event: KeyboardEvent): boolean {
+    if (event.isComposing) return false;
     if (event.altKey) return false;
 
     const key = event.key.toLowerCase();
@@ -78,6 +79,7 @@ function isClipboardCopyShortcut(event: KeyboardEvent): boolean {
 }
 
 function isClipboardCutShortcut(event: KeyboardEvent): boolean {
+    if (event.isComposing) return false;
     if (event.altKey) return false;
 
     const key = event.key.toLowerCase();
