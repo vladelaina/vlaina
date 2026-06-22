@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TitleInput } from './TitleInput';
 import { NATIVE_CARET_OVERLAY_REFRESH_EVENT } from '@/hooks/useNativeCaretOverlay';
 
+const focusEditorMock = vi.hoisted(() => ({
+  focusEditorToFirstLineEnd: vi.fn(),
+}));
+
 const notesState = {
   renameNote: vi.fn(async () => undefined),
   renameAbsoluteNote: vi.fn(async () => undefined),
@@ -36,6 +40,10 @@ vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
   }),
+}));
+
+vi.mock('./utils/focusEditor', () => ({
+  focusEditorToFirstLineEnd: focusEditorMock.focusEditorToFirstLineEnd,
 }));
 
 describe('TitleInput', () => {
@@ -137,6 +145,24 @@ describe('TitleInput', () => {
         ...eventInit,
       })
     ).toBe(true);
+  });
+
+  it('moves from the title to the first body line end on plain ArrowDown', async () => {
+    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+
+    await act(async () => {
+      fireEvent.keyDown(input, {
+        key: 'ArrowDown',
+      });
+      await Promise.resolve();
+    });
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(focusEditorMock.focusEditorToFirstLineEnd).toHaveBeenCalledTimes(1);
   });
 
   it('does not commit or move focus when Enter is pressed during IME composition', () => {
