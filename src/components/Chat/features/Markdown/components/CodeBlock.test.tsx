@@ -64,7 +64,7 @@ describe("CodeBlock", () => {
       language: "ts",
     });
     expect(mocks.highlightAuto).not.toHaveBeenCalled();
-    expect(screen.getByTitle("Copy to clipboard")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
   });
 
   it("shows line numbers from the shared markdown code block setting", () => {

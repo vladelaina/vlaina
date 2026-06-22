@@ -130,7 +130,7 @@ describe('math hover styles', () => {
     );
     const selectedAtomicSurfaceRule = extractCssRuleContaining(
       atomicBlockSelectionCss,
-      '[data-type=\'math-block\'].math-block-wrapper,\n  [data-type=\'html-block\'].md-htmlblock-container'
+      /\[data-type='math-block'\]\.math-block-wrapper,\s*\[data-type='html-block'\]\.md-htmlblock-container/
     );
 
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-active :is(');
