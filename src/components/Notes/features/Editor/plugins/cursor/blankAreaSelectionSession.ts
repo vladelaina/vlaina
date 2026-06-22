@@ -209,7 +209,7 @@ export function startBlankAreaSelectionSession(
   const rectResolver = createBlockRectResolver({
     view,
     scrollRootSelector,
-    usePositionCache: false,
+    usePositionCache: true,
   });
 
   let dragBox: HTMLDivElement | null = null;

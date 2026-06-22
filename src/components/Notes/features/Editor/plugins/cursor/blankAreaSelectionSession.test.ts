@@ -1,5 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createBlockRectResolver } from './blockRectResolver';
 import {
   blurActiveEditableElement,
   filterExternalBlankAreaSelectionEdgeGrazes,
@@ -64,6 +65,7 @@ function createView(): EditorView {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.mocked(createBlockRectResolver).mockClear();
   TestResizeObserver.instances = [];
   rectResolverMockState.currentRects = [];
   rectResolverMockState.invalidate.mockClear();
@@ -159,6 +161,42 @@ describe('filterExternalBlankAreaSelectionEdgeGrazes', () => {
 });
 
 describe('startBlankAreaSelectionSession', () => {
+  it('enables cached block positions for drag hit testing', () => {
+    const view = createView();
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 80,
+      clientY: 90,
+      button: 0,
+      buttons: 1,
+    });
+    Object.defineProperty(event, 'target', {
+      configurable: true,
+      value: view.dom,
+    });
+
+    const session = startBlankAreaSelectionSession({
+      view,
+      event,
+      startZone: 'outside-editor',
+      dragThreshold: 0,
+      cursor: 'crosshair',
+      dragBoxColor: 'rgba(0, 0, 0, 0.1)',
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+      initialSelectedBlocks: [],
+      onSelectionChange: vi.fn(),
+      onPlainClick: vi.fn(),
+      onActivateSelectionState: vi.fn(),
+      onSyncSelectionState: vi.fn(),
+    });
+
+    expect(vi.mocked(createBlockRectResolver).mock.calls.at(-1)?.[0]).toMatchObject({
+      usePositionCache: true,
+    });
+
+    session.stop();
+  });
+
   it('absorbs small pointer-edge geometry gaps while dragging downward', () => {
     const animationFrames: FrameRequestCallback[] = [];
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {

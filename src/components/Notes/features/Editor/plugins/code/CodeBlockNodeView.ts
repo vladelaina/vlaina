@@ -573,12 +573,11 @@ export class CodeBlockNodeView implements NodeView {
       return null;
     }
 
-    const previousRangeMatchesTrimmedSelection = Boolean(
-      previousSelection &&
+    const previousRangeMatchesTrimmedSelection =
+      previousSelection !== undefined &&
       !previousSelection.empty &&
       previousSelection.from === nextFrom &&
-      previousSelection.to === nextTo
-    );
+      previousSelection.to === nextTo;
     if (previousRangeMatchesTrimmedSelection) {
       const nextNonEmptyLine = direction > 0 && nextTo < selection.to
         ? this.getNonEmptyLineBoundsAtOrAfter(doc, selection.to)

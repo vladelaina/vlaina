@@ -269,13 +269,14 @@ describe('workspace document actions', () => {
   });
 
   it('does not clear dirty state when the note path is externally deleted while save is in flight', async () => {
-    let resolveSave: ((value: {
+    type SaveResult = {
       content: string;
       metadata: { updatedAt: number };
       modifiedAt: number;
       size: number;
       nextCache: Map<string, { content: string; modifiedAt: number }>;
-    }) => void) | null = null;
+    };
+    let resolveSave: ((value: SaveResult) => void) | undefined;
     mocks.saveNoteDocument.mockImplementation(() => new Promise((resolve) => {
       resolveSave = resolve;
     }));
@@ -291,7 +292,9 @@ describe('workspace document actions', () => {
     await vi.waitFor(() => expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(1));
 
     markExternalPathDeletion('alpha.md');
-    resolveSave?.({
+    expect(resolveSave).toBeDefined();
+    const completeSave = resolveSave as (value: SaveResult) => void;
+    completeSave({
       content: 'Unsaved alpha',
       metadata: { updatedAt: 2 },
       modifiedAt: 2,
