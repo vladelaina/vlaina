@@ -444,6 +444,7 @@
   "editor.table.deleteRow": "Delete row",
   "editor.table.deleteTable": "Delete table",
   "editor.table.columnHandle": "Column {number} handle",
+  "editor.table.rowHandle": "Row {number} handle",
   "editor.table.insertColumnLeft": "Insert column left",
   "editor.table.insertColumnRight": "Insert column right",
   "editor.table.insertRowAbove": "Insert row above",

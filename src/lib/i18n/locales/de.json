@@ -444,6 +444,7 @@
   "editor.table.deleteRow": "Zeile löschen",
   "editor.table.deleteTable": "Tabelle löschen",
   "editor.table.columnHandle": "Griff für Spalte {number}",
+  "editor.table.rowHandle": "Griff für Zeile {number}",
   "editor.table.insertColumnLeft": "Spalte links einfügen",
   "editor.table.insertColumnRight": "Spalte rechts einfügen",
   "editor.table.insertRowAbove": "Zeile darüber einfügen",

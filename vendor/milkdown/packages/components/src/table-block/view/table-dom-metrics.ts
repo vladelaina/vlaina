@@ -41,3 +41,19 @@ export function getTableDomHeaderCells(content: HTMLElement | undefined): HTMLTa
   }
   return firstRow.children.item(MAX_TABLE_DOM_METRIC_SCAN_ELEMENTS) ? [] : cells
 }
+
+export function getTableDomRows(content: HTMLElement | undefined): HTMLTableRowElement[] {
+  if (!content) return []
+
+  const TableRowElement = content.ownerDocument.defaultView?.HTMLTableRowElement
+  if (!TableRowElement) return []
+
+  const rows: HTMLTableRowElement[] = []
+  const collection = content.getElementsByTagName('tr')
+  const scanLength = Math.min(collection.length, MAX_TABLE_DOM_METRIC_SCAN_ELEMENTS)
+  for (let index = 0; index < scanLength; index += 1) {
+    const row = collection.item(index)
+    if (row instanceof TableRowElement) rows.push(row)
+  }
+  return collection.item(MAX_TABLE_DOM_METRIC_SCAN_ELEMENTS) ? [] : rows
+}

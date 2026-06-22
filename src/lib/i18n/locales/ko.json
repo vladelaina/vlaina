@@ -444,6 +444,7 @@
   "editor.table.deleteRow": "행 삭제",
   "editor.table.deleteTable": "테이블 삭제",
   "editor.table.columnHandle": "{number}열 핸들",
+  "editor.table.rowHandle": "{number}행 핸들",
   "editor.table.insertColumnLeft": "왼쪽에 열 삽입",
   "editor.table.insertColumnRight": "오른쪽에 열 삽입",
   "editor.table.insertRowAbove": "위에 행 삽입",

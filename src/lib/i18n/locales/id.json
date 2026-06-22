@@ -444,6 +444,7 @@
   "editor.table.deleteRow": "Hapus baris",
   "editor.table.deleteTable": "Hapus tabel",
   "editor.table.columnHandle": "Pegangan kolom {number}",
+  "editor.table.rowHandle": "Pegangan baris {number}",
   "editor.table.insertColumnLeft": "Sisipkan kolom kiri",
   "editor.table.insertColumnRight": "Sisipkan kolom kanan",
   "editor.table.insertRowAbove": "Sisipkan baris di atas",

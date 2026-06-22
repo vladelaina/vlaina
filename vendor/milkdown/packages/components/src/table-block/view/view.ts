@@ -93,7 +93,7 @@ export class TableNodeView implements NodeView {
       if (
         e.target instanceof Element &&
         e.target.closest(
-          '[data-role="x-line-drag-handle"], [data-role="y-line-drag-handle"], [data-role="bottom-edge-create-zone"], [data-role="right-edge-create-zone"], [data-role="corner-edge-create-zone"], [data-role="col-header-drag-control"], [data-role="col-header-drag-menu"]'
+          '[data-role="x-line-drag-handle"], [data-role="y-line-drag-handle"], [data-role="bottom-edge-create-zone"], [data-role="right-edge-create-zone"], [data-role="corner-edge-create-zone"], [data-role="col-header-drag-control"], [data-role="col-header-drag-menu"], [data-role="row-header-drag-control"], [data-role="row-header-drag-menu"]'
         )
       ) {
         return true

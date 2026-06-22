@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_TABLE_KEYBOARD_DOC_SCAN_NODES,
@@ -6,7 +8,11 @@ import {
 } from './tableKeyboardPlugin';
 import type { BoundedProseScanNode } from '../shared/boundedProseNodeScan';
 
-function node(type: string, children: BoundedProseScanNode[] = [], nodeSize = 2): BoundedProseScanNode {
+function node(
+  type: string,
+  children: BoundedProseScanNode[] = [],
+  nodeSize = 2
+): BoundedProseScanNode {
   return {
     attrs: {},
     child: (index) => children[index],
@@ -28,6 +34,24 @@ function doc(children: BoundedProseScanNode[]): BoundedProseScanNode {
 }
 
 describe('table keyboard scan helpers', () => {
+  it('does not handle table keyboard shortcuts while the editor is readonly', () => {
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        'src/components/Notes/features/Editor/plugins/table/tableKeyboardPlugin.ts'
+      ),
+      'utf8'
+    );
+    const readonlyGuardIndex = source.indexOf('if (!view.editable)');
+    const shortcutIndex = source.indexOf(
+      'if (shouldSuppressComposingPipeTableShortcut'
+    );
+
+    expect(readonlyGuardIndex).toBeGreaterThan(-1);
+    expect(shortcutIndex).toBeGreaterThan(-1);
+    expect(readonlyGuardIndex).toBeLessThan(shortcutIndex);
+  });
+
   it('stops scanning after finding the first table body cell', () => {
     const targetCell = node('table_cell');
     const unusedCell = node('table_cell');
@@ -44,7 +68,9 @@ describe('table keyboard scan helpers', () => {
 
   it('caps first table body cell scans by node count', () => {
     const children = [
-      ...Array.from({ length: MAX_TABLE_KEYBOARD_DOC_SCAN_NODES }, () => node('paragraph')),
+      ...Array.from({ length: MAX_TABLE_KEYBOARD_DOC_SCAN_NODES }, () =>
+        node('paragraph')
+      ),
       node('table_cell'),
     ];
     const document = doc(children);
@@ -62,12 +88,14 @@ describe('table keyboard scan helpers', () => {
       node('table_cell'),
     ];
     const table = doc(cells);
-    const child = vi.spyOn(table, 'child').mockImplementation((index: number) => {
-      if (index > 2) {
-        throw new Error('Next-cell lookup should stop before later cells');
-      }
-      return cells[index];
-    });
+    const child = vi
+      .spyOn(table, 'child')
+      .mockImplementation((index: number) => {
+        if (index > 2) {
+          throw new Error('Next-cell lookup should stop before later cells');
+        }
+        return cells[index];
+      });
 
     expect(findAdjacentTableCellPos(table as never, 10, 12, 1)).toBe(14);
     expect(child).toHaveBeenCalledTimes(3);
@@ -81,12 +109,16 @@ describe('table keyboard scan helpers', () => {
       node('table_cell'),
     ];
     const table = doc(cells);
-    const child = vi.spyOn(table, 'child').mockImplementation((index: number) => {
-      if (index > 2) {
-        throw new Error('Previous-cell lookup should stop once the current cell is found');
-      }
-      return cells[index];
-    });
+    const child = vi
+      .spyOn(table, 'child')
+      .mockImplementation((index: number) => {
+        if (index > 2) {
+          throw new Error(
+            'Previous-cell lookup should stop once the current cell is found'
+          );
+        }
+        return cells[index];
+      });
 
     expect(findAdjacentTableCellPos(table as never, 10, 14, -1)).toBe(12);
     expect(child).toHaveBeenCalledTimes(3);
@@ -99,9 +131,11 @@ describe('table keyboard scan helpers', () => {
     );
     const table = doc(cells);
     const child = vi.spyOn(table, 'child');
-    const currentCellPos = 10 + (MAX_TABLE_KEYBOARD_DOC_SCAN_NODES * 2);
+    const currentCellPos = 10 + MAX_TABLE_KEYBOARD_DOC_SCAN_NODES * 2;
 
-    expect(findAdjacentTableCellPos(table as never, 10, currentCellPos, 1)).toBeNull();
+    expect(
+      findAdjacentTableCellPos(table as never, 10, currentCellPos, 1)
+    ).toBeNull();
     expect(child).toHaveBeenCalledTimes(MAX_TABLE_KEYBOARD_DOC_SCAN_NODES);
   });
 });

@@ -455,6 +455,13 @@ export function useEdgeCreateHandlers(
     canShrinkCol,
   }
 
+  const destroyEdgeCreateSession = () => {
+    if (activeRuntime === runtime) {
+      clearSession(activeSession)
+      activeRuntime = null
+    }
+  }
+
   if (getCurrentInstance()) {
     onMounted(() => {
       if (!activeSession) return
@@ -462,11 +469,7 @@ export function useEdgeCreateHandlers(
       activeRuntime = runtime
     })
 
-    onUnmounted(() => {
-      if (activeRuntime === runtime && !activeSession) {
-        activeRuntime = null
-      }
-    })
+    onUnmounted(destroyEdgeCreateSession)
   }
 
   const startSession =
@@ -541,5 +544,6 @@ export function useEdgeCreateHandlers(
       runtime.isEditable() && syncBottomEdgeIndex(runtime.refs),
     prepareColEdgeCreate: () =>
       runtime.isEditable() && syncRightEdgeIndex(runtime.refs),
+    destroyEdgeCreateSession,
   }
 }

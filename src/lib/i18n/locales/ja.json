@@ -444,6 +444,7 @@
   "editor.table.deleteRow": "行を削除",
   "editor.table.deleteTable": "テーブルを削除",
   "editor.table.columnHandle": "列 {number} のハンドル",
+  "editor.table.rowHandle": "行 {number} のハンドル",
   "editor.table.insertColumnLeft": "左に列を挿入",
   "editor.table.insertColumnRight": "右に列を挿入",
   "editor.table.insertRowAbove": "上に1行挿入",

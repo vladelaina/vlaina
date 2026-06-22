@@ -14,6 +14,7 @@
   .video-external-action,
   .footnote-ref,
   .milkdown-table-block .column-header-drag-control,
+  .milkdown-table-block .row-header-drag-control,
   .milkdown-table-block .edge-create-zone
 ) {
   pointer-events: none !important;
@@ -30,6 +31,7 @@
   .callout-icon-button,
   .video-external-action,
   .milkdown-table-block .column-header-drag-control,
+  .milkdown-table-block .row-header-drag-control,
   .milkdown-table-block .edge-create-zone
 ) {
   background: transparent !important;

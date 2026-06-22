@@ -444,6 +444,7 @@
   "editor.table.deleteRow": "Eliminar fila",
   "editor.table.deleteTable": "Eliminar tabla",
   "editor.table.columnHandle": "Control de columna {number}",
+  "editor.table.rowHandle": "Control de fila {number}",
   "editor.table.insertColumnLeft": "Insertar columna a la izquierda",
   "editor.table.insertColumnRight": "Insertar columna a la derecha",
   "editor.table.insertRowAbove": "Insertar fila arriba",

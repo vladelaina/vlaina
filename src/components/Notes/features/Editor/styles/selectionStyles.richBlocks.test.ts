@@ -575,8 +575,11 @@ describe("editor rich block selection styles", () => {
     const tableBlockCss = readStyleFile('table-block.css');
 
     expect(tableBlockCss).toContain('.milkdown .milkdown-table-block .column-header-drag-control,');
+    expect(tableBlockCss).toContain('.milkdown .milkdown-table-block .row-header-drag-control,');
     expect(tableBlockCss).toContain(".milkdown .milkdown-table-block .column-header-drag-control[data-active='true'],");
+    expect(tableBlockCss).toContain(".milkdown .milkdown-table-block .row-header-drag-control[data-active='true'],");
     expect(tableBlockCss).toContain('.milkdown .milkdown-table-block .column-header-drag-control__grip {');
+    expect(tableBlockCss).toContain('.milkdown .milkdown-table-block .row-header-drag-control__grip {');
     expect(tableBlockCss).toContain('color: var(--vlaina-text-primary) !important;');
     expect(tableBlockCss).toContain('-webkit-text-fill-color: var(--vlaina-text-primary) !important;');
     expect(tableBlockCss).toContain('background: currentColor;');
@@ -587,7 +590,8 @@ describe("editor rich block selection styles", () => {
     const tableBlockCss = readStyleFile('table-block.css');
 
     expect(tableBlockCss).toContain('border-radius: var(--vlaina-radius-22px);');
-    expect(tableBlockCss).toContain('.milkdown .milkdown-table-block .column-header-drag-menu__item {');
+    expect(tableBlockCss).toContain('.milkdown .milkdown-table-block .column-header-drag-menu__item,');
+    expect(tableBlockCss).toContain('.milkdown .milkdown-table-block .row-header-drag-menu__item {');
     expect(tableBlockCss).toContain('color: var(--vlaina-sidebar-notes-text) !important;');
     expect(tableBlockCss).toContain('-webkit-text-fill-color: var(--vlaina-sidebar-notes-text) !important;');
     expect(tableBlockCss).toContain('background: var(--vlaina-sidebar-notes-row-hover);');

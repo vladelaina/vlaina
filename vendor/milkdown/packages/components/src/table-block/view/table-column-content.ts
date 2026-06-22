@@ -60,3 +60,42 @@ export function collectColumnCellRanges({
     })
     .sort((a, b) => b.start - a.start)
 }
+
+export function collectRowCellRanges({
+  table,
+  tablePos,
+  tableMap,
+  index,
+}: {
+  table: TableColumnNodeLike
+  tablePos: number
+  tableMap: TableColumnMapLike
+  index: number
+}): ColumnCellRange[] {
+  if (index < 0 || index >= tableMap.height) return []
+
+  const seen = new Set<number>()
+  return tableMap
+    .cellsInRect({
+      left: 0,
+      right: tableMap.width,
+      top: index,
+      bottom: index + 1,
+    })
+    .flatMap((nodePos) => {
+      if (seen.has(nodePos)) return []
+      seen.add(nodePos)
+
+      const node = table.nodeAt(nodePos)
+      if (!node) return []
+
+      const pos = tablePos + 1 + nodePos
+      return [
+        {
+          start: pos + 1,
+          end: pos + node.nodeSize - 1,
+        },
+      ]
+    })
+    .sort((a, b) => b.start - a.start)
+}

@@ -444,6 +444,7 @@
   "editor.table.deleteRow": "Elimina riga",
   "editor.table.deleteTable": "Elimina tabella",
   "editor.table.columnHandle": "Maniglia colonna {number}",
+  "editor.table.rowHandle": "Maniglia riga {number}",
   "editor.table.insertColumnLeft": "Inserisci colonna a sinistra",
   "editor.table.insertColumnRight": "Inserisci colonna a destra",
   "editor.table.insertRowAbove": "Inserisci riga sopra",

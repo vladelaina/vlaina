@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('vue', () => ({
-  onMounted: () => {},
-  onUnmounted: () => {},
-}))
-
 vi.mock('../../../../../../../vendor/milkdown/packages/components/src/table-block/view/drag-cursor', () => ({
   acquireTableDragCursor: vi.fn(),
   releaseTableDragCursor: vi.fn(),
@@ -370,6 +365,61 @@ describe('corner create handlers', () => {
 
     expect(onAddRow).toHaveBeenCalledTimes(1)
     expect(onAddCol).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears an active corner drag when the table component unmounts', () => {
+    const first = createHarness()
+
+    first.handlers.startCornerCreate(
+      createStartPointerEvent({
+        currentTarget: first.handle,
+        pointerId: 14,
+        clientX: 340,
+        clientY: 200,
+      })
+    )
+
+    expect(
+      document.querySelector('[data-role="table-size-drag-tooltip"]')
+    ).toBeInstanceOf(HTMLElement)
+
+    first.handlers.destroyCornerCreateSession()
+
+    expect(
+      document.querySelector('[data-role="table-size-drag-tooltip"]')
+    ).toBeNull()
+
+    const next = createHarness()
+    next.handlers.startCornerCreate(
+      createStartPointerEvent({
+        currentTarget: next.handle,
+        pointerId: 15,
+        clientX: 340,
+        clientY: 200,
+      })
+    )
+
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 15,
+      clientX: 347,
+      clientY: 207,
+    })
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 15,
+      clientX: 365,
+      clientY: 225,
+    })
+    dispatchDocumentPointerEvent({
+      type: 'pointerup',
+      pointerId: 15,
+      clientX: 365,
+      clientY: 225,
+    })
+
+    expect(next.onAddRow).toHaveBeenCalledTimes(1)
+    expect(next.onAddCol).toHaveBeenCalledTimes(1)
   })
 
   it('keeps adding rows while a corner drag continues through vertical scrolling', () => {
