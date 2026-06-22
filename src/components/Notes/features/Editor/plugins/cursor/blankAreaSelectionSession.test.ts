@@ -79,12 +79,12 @@ describe('resolveBlankAreaSelectionAutoScrollDelta', () => {
 
   it('scrolls upward near the top edge', () => {
     expect(resolveBlankAreaSelectionAutoScrollDelta(140, scrollRootRect)).toBeLessThan(0);
-    expect(resolveBlankAreaSelectionAutoScrollDelta(80, scrollRootRect)).toBe(-18);
+    expect(resolveBlankAreaSelectionAutoScrollDelta(80, scrollRootRect)).toBe(-42);
   });
 
   it('scrolls downward near the bottom edge', () => {
     expect(resolveBlankAreaSelectionAutoScrollDelta(460, scrollRootRect)).toBeGreaterThan(0);
-    expect(resolveBlankAreaSelectionAutoScrollDelta(520, scrollRootRect)).toBe(18);
+    expect(resolveBlankAreaSelectionAutoScrollDelta(520, scrollRootRect)).toBe(42);
   });
 });
 
@@ -159,6 +159,133 @@ describe('filterExternalBlankAreaSelectionEdgeGrazes', () => {
 });
 
 describe('startBlankAreaSelectionSession', () => {
+  it('absorbs small pointer-edge geometry gaps while dragging downward', () => {
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+
+    const view = createView();
+    rectResolverMockState.currentRects = [
+      blockRect(1, 6, 100, 160),
+      blockRect(7, 12, 180, 240),
+    ];
+    const selectionChanges = vi.fn();
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 80,
+      clientY: 90,
+      button: 0,
+      buttons: 1,
+    });
+    Object.defineProperty(event, 'target', {
+      configurable: true,
+      value: view.dom,
+    });
+
+    const session = startBlankAreaSelectionSession({
+      view,
+      event,
+      startZone: 'outside-editor',
+      dragThreshold: 0,
+      cursor: 'crosshair',
+      dragBoxColor: 'rgba(0, 0, 0, 0.1)',
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+      initialSelectedBlocks: [],
+      onSelectionChange: selectionChanges,
+      onPlainClick: vi.fn(),
+      onActivateSelectionState: vi.fn(),
+      onSyncSelectionState: vi.fn(),
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 220,
+      clientY: 173,
+      buttons: 1,
+    }));
+
+    expect(selectionChanges).toHaveBeenLastCalledWith([
+      { from: 1, to: 6 },
+      { from: 7, to: 12 },
+    ]);
+
+    session.stop();
+  });
+
+  it('remeasures block geometry after selection decorations change during a drag', () => {
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+
+    const view = createView();
+    rectResolverMockState.currentRects = [
+      blockRect(1, 6, 100, 160),
+      blockRect(7, 12, 180, 240),
+    ];
+    const selectionChanges = vi.fn(() => {
+      rectResolverMockState.currentRects = [
+        blockRect(1, 6, 100, 160),
+        blockRect(7, 12, 174, 240),
+      ];
+    });
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 80,
+      clientY: 90,
+      button: 0,
+      buttons: 1,
+    });
+    Object.defineProperty(event, 'target', {
+      configurable: true,
+      value: view.dom,
+    });
+
+    const session = startBlankAreaSelectionSession({
+      view,
+      event,
+      startZone: 'outside-editor',
+      dragThreshold: 0,
+      cursor: 'crosshair',
+      dragBoxColor: 'rgba(0, 0, 0, 0.1)',
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+      initialSelectedBlocks: [],
+      onSelectionChange: selectionChanges,
+      onPlainClick: vi.fn(),
+      onActivateSelectionState: vi.fn(),
+      onSyncSelectionState: vi.fn(),
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 220,
+      clientY: 170,
+      buttons: 1,
+    }));
+
+    expect(selectionChanges).toHaveBeenLastCalledWith([{ from: 1, to: 6 }]);
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 220,
+      clientY: 170,
+      buttons: 1,
+    }));
+
+    expect(rectResolverMockState.invalidate).toHaveBeenCalled();
+    expect(selectionChanges).toHaveBeenLastCalledWith([
+      { from: 1, to: 6 },
+      { from: 7, to: 12 },
+    ]);
+
+    session.stop();
+  });
+
   it('refreshes hit testing when block geometry changes during a drag', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
     const animationFrames: FrameRequestCallback[] = [];
@@ -207,16 +334,15 @@ describe('startBlankAreaSelectionSession', () => {
       clientY: 170,
       buttons: 1,
     }));
-    animationFrames.pop()?.(0);
 
     expect(selectionChanges).toHaveBeenLastCalledWith([{ from: 1, to: 6 }]);
+    expect(animationFrames.length).toBeGreaterThan(0);
 
     rectResolverMockState.currentRects = [
       blockRect(1, 6, 100, 130),
       blockRect(7, 12, 140, 200),
     ];
     TestResizeObserver.instances[0]!.callback([], TestResizeObserver.instances[0] as unknown as ResizeObserver);
-    animationFrames.pop()?.(0);
 
     expect(rectResolverMockState.invalidate).toHaveBeenCalled();
     expect(selectionChanges).toHaveBeenLastCalledWith([

@@ -10,6 +10,7 @@ import { collectSelectableBlockTargets, type SelectableBlockTarget } from './blo
 interface BlockRectResolverOptions {
   view: EditorView;
   scrollRootSelector: string;
+  usePositionCache?: boolean;
 }
 
 export interface BlockRectResolver {
@@ -197,11 +198,17 @@ function mapTargetsToSelectionBlockRects(
   }));
 }
 
-function collectSelectionBlockRects(view: EditorView, scrollRoot: HTMLElement | null): BlockRect[] {
+function collectSelectionBlockRects(
+  view: EditorView,
+  scrollRoot: HTMLElement | null,
+  usePositionCache: boolean,
+): BlockRect[] {
   const editorRect = view.dom.getBoundingClientRect();
-  const cachedTargets = getFreshCachedEditorBlockTargets(view, scrollRoot);
-  if (cachedTargets) {
-    return mapTargetsToSelectionBlockRects(cachedTargets, editorRect);
+  if (usePositionCache) {
+    const cachedTargets = getFreshCachedEditorBlockTargets(view, scrollRoot);
+    if (cachedTargets) {
+      return mapTargetsToSelectionBlockRects(cachedTargets, editorRect);
+    }
   }
 
   if (isTooLargeForBlockPositionSnapshot(view.state.doc)) {
@@ -220,7 +227,11 @@ function getScrollCoordinates(view: EditorView, scrollRootSelector: string): { l
   };
 }
 
-export function createBlockRectResolver({ view, scrollRootSelector }: BlockRectResolverOptions): BlockRectResolver {
+export function createBlockRectResolver({
+  view,
+  scrollRootSelector,
+  usePositionCache = true,
+}: BlockRectResolverOptions): BlockRectResolver {
   let cachedDoc: EditorState['doc'] | null = null;
   let cachedScrollLeft = Number.NaN;
   let cachedScrollTop = Number.NaN;
@@ -262,7 +273,7 @@ export function createBlockRectResolver({ view, scrollRootSelector }: BlockRectR
       cachedSelectionDoc = view.state.doc;
       cachedSelectionScrollLeft = left;
       cachedSelectionScrollTop = top;
-      cachedSelectionRects = collectSelectionBlockRects(view, scrollRoot);
+      cachedSelectionRects = collectSelectionBlockRects(view, scrollRoot, usePositionCache);
       return cachedSelectionRects;
     },
     invalidate() {

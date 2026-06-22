@@ -15,6 +15,7 @@ const SOURCE_PARENT_MARKER_CLASS = 'editor-block-drag-source-parent-marker';
 const PREVIEW_CLASS = 'editor-block-drag-preview';
 const PREVIEW_LAYER_CLASS = 'editor-block-drag-preview-layer';
 const MIN_PREVIEW_WIDTH = 80;
+const MAX_PREVIEW_POINTER_OFFSET_Y = 96;
 const MAX_ORDERED_LIST_VALUE_CHARS = 16;
 const ORDERED_LIST_VALUE_PATTERN = /^-?\d+$/;
 const DRAG_SOURCE_TEXTLIKE_SELECTOR = [
@@ -150,6 +151,12 @@ function resolvePreviewOffsetX(clientX: number, sourceLeft: number, previewWidth
   const rawOffsetX = clientX - sourceLeft;
   const maxOffsetX = Math.max(10, previewWidth - 10);
   return Math.min(rawOffsetX, maxOffsetX);
+}
+
+function resolvePreviewOffsetY(clientY: number, sourceTop: number, previewHeight: number): number {
+  const rawOffsetY = clientY - sourceTop;
+  const maxVisibleOffsetY = Math.max(8, Math.min(previewHeight - 8, MAX_PREVIEW_POINTER_OFFSET_Y));
+  return clamp(rawOffsetY, 8, maxVisibleOffsetY);
 }
 
 function createInlineRangePreviewContent(
@@ -622,7 +629,7 @@ export function createBlockDragPreview({
     const firstRect = items[0].rect;
     const previewRect = preview.getBoundingClientRect();
     offsetX = resolvePreviewOffsetX(clientX, firstRect.left, previewRect.width);
-    offsetY = clamp(clientY - firstRect.top, 8, Math.max(8, previewRect.height - 8));
+    offsetY = resolvePreviewOffsetY(clientY, firstRect.top, previewRect.height);
 
     sourceClassElements = items
       .map((item) => item.sourceClassElement)

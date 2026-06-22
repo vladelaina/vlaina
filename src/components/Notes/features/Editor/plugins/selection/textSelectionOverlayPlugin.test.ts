@@ -566,6 +566,68 @@ describe('textSelectionOverlayPlugin', () => {
     }
   });
 
+  it('uses the shared edge auto-scroll loop while pointer-selecting text', async () => {
+    const scrollRoot = document.createElement('div');
+    scrollRoot.scrollTop = 100;
+    Object.defineProperty(scrollRoot, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 100,
+        bottom: 500,
+      }),
+    });
+    const originalClosest = HTMLElement.prototype.closest;
+    const closestSpy = vi.spyOn(HTMLElement.prototype, 'closest').mockImplementation(function (
+      this: HTMLElement,
+      selector: string,
+    ) {
+      if (selector === '[data-note-scroll-root="true"]') {
+        return scrollRoot;
+      }
+      return originalClosest.call(this, selector);
+    });
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+    const animationFrames: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
+    const cancelAnimationFrameSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+
+    try {
+      view.dom.dispatchEvent(new MouseEvent('mousedown', {
+        bubbles: true,
+        button: 0,
+        clientX: 32,
+        clientY: 450,
+      }));
+      document.dispatchEvent(new MouseEvent('mousemove', {
+        bubbles: true,
+        buttons: 1,
+        clientX: 32,
+        clientY: 520,
+      }));
+
+      animationFrames.shift()?.(0);
+
+      expect(scrollRoot.scrollTop).toBeGreaterThan(100);
+    } finally {
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+      requestAnimationFrameSpy.mockRestore();
+      cancelAnimationFrameSpy.mockRestore();
+      closestSpy.mockRestore();
+    }
+  });
+
   it('releases native pointer routing after pointer selection collapses', async () => {
     const view = await createEditor('hello');
     const originalGetSelection = window.getSelection;

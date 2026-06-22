@@ -1781,6 +1781,323 @@ test.describe("notes block selection regressions", () => {
     }
   });
 
+  test('keeps nested task list gap selection edges aligned during large selections', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-large-task-list-gap-selection-edge');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const listGapCases = [
+        {
+          label: 'task parent nested task',
+          before: 'Task parent child before',
+          after: 'Task parent child after',
+          expectsTaskListGap: true,
+          lines: [
+            '- [ ] Task parent root',
+            '  - [x] Task parent child before',
+            '',
+            '',
+            '',
+            '  - [x] Task parent child after',
+            '- [x] Task parent following',
+          ],
+        },
+        {
+          label: 'task parent nested bullet',
+          before: 'Task parent bullet before',
+          after: 'Task parent bullet after',
+          expectsTaskListGap: false,
+          lines: [
+            '- [ ] Task parent bullet root',
+            '  - Task parent bullet before',
+            '',
+            '',
+            '',
+            '  - Task parent bullet after',
+            '- [x] Task parent bullet following',
+          ],
+        },
+        {
+          label: 'task parent nested ordered',
+          before: 'Task parent ordered before',
+          after: 'Task parent ordered after',
+          expectsTaskListGap: false,
+          lines: [
+            '- [ ] Task parent ordered root',
+            '  1. Task parent ordered before',
+            '',
+            '',
+            '',
+            '  2. Task parent ordered after',
+            '- [x] Task parent ordered following',
+          ],
+        },
+        {
+          label: 'bullet parent nested task',
+          before: 'Bullet parent task before',
+          after: 'Bullet parent task after',
+          expectsTaskListGap: true,
+          lines: [
+            '- Bullet parent root',
+            '  - [x] Bullet parent task before',
+            '',
+            '',
+            '',
+            '  - [x] Bullet parent task after',
+            '- Bullet parent following',
+          ],
+        },
+        {
+          label: 'bullet parent nested bullet',
+          before: 'Bullet parent bullet before',
+          after: 'Bullet parent bullet after',
+          expectsTaskListGap: false,
+          lines: [
+            '- Bullet parent root two',
+            '  - Bullet parent bullet before',
+            '',
+            '',
+            '',
+            '  - Bullet parent bullet after',
+            '- Bullet parent following two',
+          ],
+        },
+        {
+          label: 'bullet parent nested ordered',
+          before: 'Bullet parent ordered before',
+          after: 'Bullet parent ordered after',
+          expectsTaskListGap: false,
+          lines: [
+            '- Bullet parent ordered root',
+            '  1. Bullet parent ordered before',
+            '',
+            '',
+            '',
+            '  2. Bullet parent ordered after',
+            '- Bullet parent ordered following',
+          ],
+        },
+        {
+          label: 'ordered parent nested task',
+          before: 'Ordered parent task before',
+          after: 'Ordered parent task after',
+          expectsTaskListGap: true,
+          lines: [
+            '1. Ordered parent root',
+            '   - [x] Ordered parent task before',
+            '',
+            '',
+            '',
+            '   - [x] Ordered parent task after',
+            '2. Ordered parent following',
+          ],
+        },
+        {
+          label: 'ordered parent nested bullet',
+          before: 'Ordered parent bullet before',
+          after: 'Ordered parent bullet after',
+          expectsTaskListGap: false,
+          lines: [
+            '1. Ordered parent bullet root',
+            '   - Ordered parent bullet before',
+            '',
+            '',
+            '',
+            '   - Ordered parent bullet after',
+            '2. Ordered parent bullet following',
+          ],
+        },
+        {
+          label: 'ordered parent nested ordered',
+          before: 'Ordered parent ordered before',
+          after: 'Ordered parent ordered after',
+          expectsTaskListGap: false,
+          lines: [
+            '1. Ordered parent root two',
+            '   1. Ordered parent ordered before',
+            '',
+            '',
+            '',
+            '   2. Ordered parent ordered after',
+            '2. Ordered parent following two',
+          ],
+        },
+      ] as const;
+
+      await openMarkdownFixture(page, {
+        filename: 'large-task-list-gap-selection-edge.md',
+        content: [
+          ...listGapCases.flatMap((section) => [...section.lines, '']),
+          '',
+          ...Array.from(
+            { length: 160 },
+            (_, index) => `Large task list gap tail paragraph ${index}.`,
+          ).flatMap((paragraph) => [paragraph, '']),
+        ].join('\n'),
+      });
+
+      for (const listCase of listGapCases) {
+        await expect(page.locator(`${EDITOR_SELECTOR} li > p`, { hasText: new RegExp(`^${listCase.before}$`) })).toBeVisible();
+        await expect(page.locator(`${EDITOR_SELECTOR} li > p`, { hasText: new RegExp(`^${listCase.after}$`) })).toBeVisible();
+      }
+
+      const selectionPlan = await page.evaluate((cases) => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          rangeText: string;
+          tagName: string;
+          text: string;
+        }>;
+        const selectedIndexes = Array.from(
+          { length: Math.min(140, blocks.length) },
+          (_, index) => index,
+        );
+        return {
+          caseIndexes: cases.map((listCase) => ({
+            label: listCase.label,
+            beforeIndex: blocks.findIndex((block) => (
+              block.text.trim() === listCase.before ||
+              block.rangeText.trim() === listCase.before
+            )),
+            afterIndex: blocks.findIndex((block) => (
+              block.text.trim() === listCase.after ||
+              block.rangeText.trim() === listCase.after
+            )),
+          })),
+          gapIndexes: blocks
+            .map((block, index) => ({ block, index }))
+            .filter(({ block }) => block.className.includes('editor-list-gap-placeholder-item'))
+            .map(({ index }) => index),
+          selectedIndexes,
+          blocks: blocks.slice(0, 150).map((block, index) => ({
+            className: block.className,
+            index,
+            rangeText: block.rangeText,
+            tagName: block.tagName,
+            text: block.text,
+          })),
+        };
+      }, listGapCases);
+      for (const row of selectionPlan.caseIndexes) {
+        expect(row.beforeIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+        expect(row.afterIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+        expect(row.beforeIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+        expect(row.afterIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+      }
+      expect(selectionPlan.gapIndexes.length, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(listGapCases.length * 2);
+      expect(selectionPlan.selectedIndexes.length, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(128);
+      for (const gapIndex of selectionPlan.gapIndexes) {
+        expect(gapIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.selectedIndexes.length);
+      }
+
+      const selectedCount = await selectNoteBlocksByIndexes(page, selectionPlan.selectedIndexes);
+      expect(selectedCount, JSON.stringify(selectionPlan, null, 2)).toBe(selectionPlan.selectedIndexes.length);
+      await expect.poll(() => page.evaluate((editorSelector) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        return {
+          active: editor?.classList.contains('editor-block-selection-active') ?? false,
+          large: editor?.classList.contains('editor-block-selection-large') ?? false,
+          selectedCount: editor?.querySelectorAll('.editor-block-selected').length ?? 0,
+        };
+      }, EDITOR_SELECTOR)).toMatchObject({
+          active: true,
+          large: true,
+      });
+
+      const geometry = await page.evaluate(({ cases, editorSelector }) => {
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const readPaint = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const after = getComputedStyle(element, '::after');
+          const hasAfterPaint = after.content !== 'none' &&
+            after.display !== 'none' &&
+            after.position === 'absolute';
+          const afterLeftPx = hasAfterPaint ? parsePx(after.left) : null;
+          return {
+            afterDisplay: after.display,
+            afterLeftPx,
+            rectBottom: rect.bottom,
+            className: element.className,
+            paintLeft: hasAfterPaint && afterLeftPx !== null
+              ? rect.left + afterLeftPx
+              : rect.left,
+            rectLeft: rect.left,
+            rectTop: rect.top,
+            text: element.textContent?.trim() ?? '',
+          };
+        };
+
+        const directTaskText = (element: HTMLElement) =>
+          element.querySelector<HTMLElement>(':scope > p')?.textContent?.trim() ?? '';
+        const selectedTasks = Array.from(document.querySelectorAll<HTMLElement>(
+          `${editorSelector} li.editor-block-selected`
+        ));
+        const selectedGaps = Array.from(document.querySelectorAll<HTMLElement>(
+          `${editorSelector} li.editor-list-gap-placeholder-item.editor-block-selected`
+        ));
+        return cases.map((listCase) => {
+          const before = selectedTasks.find((element) => directTaskText(element) === listCase.before) ?? null;
+          const after = selectedTasks.find((element) => directTaskText(element) === listCase.after) ?? null;
+          const beforeRect = before?.getBoundingClientRect();
+          const afterRect = after?.getBoundingClientRect();
+          const lower = beforeRect && afterRect ? Math.min(beforeRect.bottom, afterRect.top) - 2 : null;
+          const upper = beforeRect && afterRect ? Math.max(beforeRect.bottom, afterRect.top) + 2 : null;
+          const gaps = lower !== null && upper !== null
+            ? selectedGaps
+              .filter((gap) => {
+                const rect = gap.getBoundingClientRect();
+                const center = rect.top + rect.height / 2;
+                return center >= lower && center <= upper;
+              })
+              .map(readPaint)
+            : [];
+          return {
+            label: listCase.label,
+            expectsTaskListGap: listCase.expectsTaskListGap,
+            reference: before ? readPaint(before) : null,
+            afterReference: after ? readPaint(after) : null,
+            gaps,
+          };
+        });
+      }, {
+        cases: listGapCases,
+        editorSelector: EDITOR_SELECTOR,
+      });
+
+      for (const row of geometry) {
+        expect(row.reference, JSON.stringify({ selectionPlan, geometry, row }, null, 2)).not.toBeNull();
+        expect(row.afterReference, JSON.stringify({ selectionPlan, geometry, row }, null, 2)).not.toBeNull();
+        expect(row.gaps.length, JSON.stringify({ selectionPlan, geometry, row }, null, 2)).toBeGreaterThanOrEqual(2);
+        for (const gap of row.gaps) {
+          expect(gap.className, JSON.stringify({ selectionPlan, geometry, row, gap }, null, 2))
+            .toContain('editor-block-selected-large-textlike');
+          if (row.expectsTaskListGap) {
+            expect(gap.className, JSON.stringify({ selectionPlan, geometry, row, gap }, null, 2))
+              .toContain('editor-list-gap-placeholder-task-list');
+          } else {
+            expect(gap.className, JSON.stringify({ selectionPlan, geometry, row, gap }, null, 2))
+              .not.toContain('editor-list-gap-placeholder-task-list');
+          }
+          expect(gap.afterDisplay, JSON.stringify({ selectionPlan, geometry, row, gap }, null, 2)).not.toBe('none');
+          expect(Math.abs(gap.paintLeft - row.reference!.paintLeft), JSON.stringify({
+            selectionPlan,
+            geometry,
+            row,
+            gap,
+          }, null, 2)).toBeLessThanOrEqual(1);
+        }
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps a visible gap between selected list items when the first has a direct code block', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-list-direct-code-selection-gap');
 

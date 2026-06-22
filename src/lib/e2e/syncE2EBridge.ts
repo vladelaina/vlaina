@@ -23,6 +23,7 @@ import { flushStarredRegistry } from '@/stores/notes/starred';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
+import { getCachedEditorBlockTargets } from '@/components/Notes/features/Editor/utils/editorBlockPositionCache';
 import {
   blankAreaDragBoxPluginKey,
   dispatchBlockSelectionAction,
@@ -487,7 +488,7 @@ function editorTextHasMark(text: string, markName: string, anchorText?: string):
 }
 
 function getSelectableBlockTargetsForE2E(view: NonNullable<ReturnType<typeof getCurrentEditorView>>) {
-  return collectSelectableBlockTargets(view);
+  return getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view);
 }
 
 function getSelectableBlockRangeTextForE2E(

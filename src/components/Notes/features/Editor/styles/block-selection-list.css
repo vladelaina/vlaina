@@ -2,15 +2,6 @@
  * Markdown list and text block selection details.
  */
 
-/* Markdown-specific selected block details. */
-.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-block-selected,
-.milkdown .ProseMirror li.editor-list-gap-placeholder-item > .editor-block-selected {
-  --vlaina-block-selection-bleed-x-start: calc(
-    var(--vlaina-list-row-selection-bleed-x-start) -
-    var(--vlaina-list-gap-placeholder-outdent)
-  );
-}
-
 .milkdown .ProseMirror li[data-item-type="task"].editor-block-selected::before,
 .milkdown .ProseMirror li[data-item-type="task"].editor-block-selected-parent-marker::before,
 .milkdown .ProseMirror .editor-block-selected li[data-item-type="task"]::before {
@@ -162,6 +153,22 @@
 .milkdown .ProseMirror li :is(ul, ol) li[data-item-type="task"] .editor-block-selected {
   --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-120px);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-block-selected,
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item > .editor-block-selected {
+  --vlaina-block-selection-bleed-x-start: calc(
+    var(--vlaina-list-row-selection-bleed-x-start) -
+    var(--vlaina-list-gap-placeholder-outdent)
+  );
+}
+
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list.editor-block-selected,
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list > .editor-block-selected {
+  --vlaina-block-selection-bleed-x-start: calc(
+    var(--vlaina-space-120px) -
+    var(--vlaina-list-gap-placeholder-outdent)
+  );
 }
 
 .milkdown .ProseMirror li > :not(:is(
