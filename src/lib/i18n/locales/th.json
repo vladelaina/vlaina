@@ -202,6 +202,7 @@
   "sidebar.closeChatSearch": "ปิดการค้นหาแชท",
   "sidebar.closeFolder": "ปิดโฟลเดอร์",
   "sidebar.copyPath": "คัดลอกเส้นทาง",
+  "sidebar.duplicate": "สร้างสำเนา",
   "sidebar.delete": "ลบ",
   "sidebar.deleteChat": "ลบแชท",
   "sidebar.deleteChatDescription": "คุณแน่ใจหรือไม่ว่าต้องการลบเซสชันแชทนี้? การดำเนินการนี้ไม่สามารถยกเลิกได้",

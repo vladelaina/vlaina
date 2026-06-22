@@ -202,6 +202,7 @@
   "sidebar.closeChatSearch": "チャット検索を閉じる",
   "sidebar.closeFolder": "フォルダを閉じる",
   "sidebar.copyPath": "パスをコピー",
+  "sidebar.duplicate": "コピーを作成",
   "sidebar.delete": "削除",
   "sidebar.deleteChat": "チャットを削除",
   "sidebar.deleteChatDescription": "このチャットセッションを削除してもよろしいですか？この操作は元に戻せません。",

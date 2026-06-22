@@ -202,6 +202,7 @@
   "sidebar.closeChatSearch": "Закрыть поиск чата",
   "sidebar.closeFolder": "Закрыть папку",
   "sidebar.copyPath": "Копировать путь",
+  "sidebar.duplicate": "Создать копию",
   "sidebar.delete": "Удалить",
   "sidebar.deleteChat": "Удалить чат",
   "sidebar.deleteChatDescription": "Вы уверены, что хотите удалить эту сессию чата? Это действие нельзя отменить.",

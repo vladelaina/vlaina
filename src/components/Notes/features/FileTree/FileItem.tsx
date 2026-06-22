@@ -71,6 +71,7 @@ export const FileItem = memo(function FileItem({
     handleRenameSubmit,
     dragHandlers,
     openNote,
+    duplicateNote,
     deleteNote,
     toggleStarred,
   } = useFileItemState(node, effectiveDragEnabled);
@@ -158,6 +159,15 @@ export const FileItem = memo(function FileItem({
           icon: <Icon name="common.more" size="md" />,
           label: t('sidebar.more'),
           children: [
+            {
+              key: 'duplicate',
+              icon: <Icon name="common.copy" size="md" />,
+              label: t('sidebar.duplicate'),
+              onClick: async () => {
+                setShowMenu(false);
+                await duplicateNote(node.path);
+              },
+            },
             {
               key: 'copy-path',
               icon: <Icon name="common.copy" size="md" />,

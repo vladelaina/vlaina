@@ -202,6 +202,7 @@
   "sidebar.closeChatSearch": "關閉對話搜尋",
   "sidebar.closeFolder": "關閉資料夾",
   "sidebar.copyPath": "複製路徑",
+  "sidebar.duplicate": "建立副本",
   "sidebar.delete": "刪除",
   "sidebar.deleteChat": "刪除對話",
   "sidebar.deleteChatDescription": "確定要刪除此對話串嗎？此動作無法復原。",

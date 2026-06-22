@@ -150,6 +150,7 @@ export interface NotesActions {
   applyExternalPathDeletion: (path: string, options?: { preserveCleanCurrentNote?: boolean }) => Promise<void>;
   createNote: (folderPath?: string, options?: { asDraft?: boolean }) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
+  duplicateNote: (path: string) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;
   restoreLastDeletedItem: () => Promise<string | null>;
   renameNote: (path: string, newName: string) => Promise<void>;

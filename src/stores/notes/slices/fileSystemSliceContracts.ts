@@ -18,6 +18,7 @@ export interface FileSystemSlice {
     name: string,
     content: string,
   ) => Promise<string>;
+  duplicateNote: NotesStore['duplicateNote'];
   deleteNote: (path: string) => Promise<void>;
   restoreLastDeletedItem: () => Promise<string | null>;
   renameNote: (path: string, newName: string) => Promise<void>;

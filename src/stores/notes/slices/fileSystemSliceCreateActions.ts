@@ -1,4 +1,5 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import type { NotesStore } from '../types';
 import { addNodeToTree } from '../fileTreeUtils';
@@ -8,12 +9,16 @@ import {
   getCurrentVaultPath,
   getNotesBasePath,
   addToRecentNotes,
+  mergeNoteMetadataWithFileInfo,
   setNoteEntry,
 } from '../storage';
 import { createNoteImpl } from '../utils/fs/crudOperations';
-import { resolveUniquePath } from '../utils/fs/pathOperations';
+import { getParentPath, resolveUniquePath } from '../utils/fs/pathOperations';
+import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { setCachedNoteContent } from '../document/noteContentCache';
+import { loadNoteDocument } from '../document/noteDocumentPersistence';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
@@ -130,7 +135,7 @@ export function createFileSystemCreateActions(
   get: FileSystemSliceGet,
 ): Pick<
   FileSystemSlice,
-  'createNote' | 'createNoteWithContent' | 'createFolder' | 'clearNewlyCreatedFolder'
+  'createNote' | 'createNoteWithContent' | 'duplicateNote' | 'createFolder' | 'clearNewlyCreatedFolder'
 > {
   return {
     createNote: async (folderPath?: string, options?: { asDraft?: boolean }) => {
@@ -238,6 +243,187 @@ export function createFileSystemCreateActions(
           throw error;
         }
         set({ error: error instanceof Error ? error.message : 'Failed to create note' });
+        throw error;
+      }
+    },
+
+    duplicateNote: async (path: string) => {
+      let notesPathForError = '';
+      try {
+        let {
+          notesPath,
+          rootFolder,
+          fileTreeSortMode,
+        } = await ensureCurrentNoteSaved(get, { skipDraft: true });
+        notesPathForError = notesPath;
+
+        if (!notesPath) {
+          const currentVaultPath = getCurrentVaultPath();
+          if (!currentVaultPath) {
+            throw new Error('Notes path is not available');
+          }
+
+          notesPath = currentVaultPath;
+          notesPathForError = notesPath;
+          await ensureNotesFolder(notesPath);
+          set({ notesPath });
+        }
+
+        const storage = getStorageAdapter();
+        const { relativePath: sourcePath, fullPath: sourceFullPath } =
+          await resolveVaultRelativeFullPath(notesPath, path);
+        if (!isSupportedMarkdownPath(sourcePath)) {
+          throw new Error('Only Markdown files can be duplicated as notes.');
+        }
+        if (hasInternalNotePathSegment(sourcePath)) {
+          throw new Error('Path must not be inside an internal notes folder.');
+        }
+
+        const sourceName = sourcePath.split('/').filter(Boolean).pop() || 'Untitled.md';
+        const parentPath = getParentPath(sourcePath) || undefined;
+        const {
+          relativePath: duplicatePath,
+          fullPath: duplicateFullPath,
+          fileName,
+        } = await resolveUniquePath(notesPath, parentPath, sourceName, false);
+
+        markExpectedExternalChange(duplicateFullPath);
+        await storage.copyFile(sourceFullPath, duplicateFullPath);
+        if (!isActiveNotesPath(get, notesPath)) {
+          return duplicatePath;
+        }
+
+        const duplicateFileInfo = await storage.stat(duplicateFullPath).catch(() => null);
+        const duplicateTitle = getNoteTitleFromPath(fileName);
+        const buildDuplicateTreeState = (
+          latestState: NotesStore,
+          duplicateMetadata: Parameters<typeof setNoteEntry>[2],
+        ) => {
+          const latestRootFolder = ensureRootFolderState(latestState.rootFolder ?? rootFolder);
+          const latestMetadata = setNoteEntry(
+            latestState.noteMetadata ?? createEmptyMetadataFile(),
+            duplicatePath,
+            duplicateMetadata,
+          );
+          const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
+          const nextRootFolder = buildSortedRootFolder(
+            latestRootFolder,
+            addNodeToTree(latestRootFolder.children, parentPath, {
+              id: duplicatePath,
+              name: duplicateTitle,
+              path: duplicatePath,
+              isFolder: false,
+            }),
+            latestSortMode,
+            latestMetadata,
+          );
+          const updatedRecentNotes = addToRecentNotes(duplicatePath, latestState.recentNotes);
+
+          return {
+            latestMetadata,
+            latestSortMode,
+            nextRootFolder,
+            updatedRecentNotes,
+          };
+        };
+
+        let loaded: Awaited<ReturnType<typeof loadNoteDocument>>;
+        const latestState = get();
+        try {
+          loaded = await loadNoteDocument({
+            notesPath,
+            path: duplicatePath,
+            cache: latestState.noteContentsCache,
+          });
+        } catch (openError) {
+          if (!isActiveNotesPath(get, notesPath)) {
+            return duplicatePath;
+          }
+
+          const latestStateAfterOpenError = get();
+          const fallbackMetadata = mergeNoteMetadataWithFileInfo(
+            latestStateAfterOpenError.noteMetadata?.notes[sourcePath],
+            duplicateFileInfo,
+          );
+          const {
+            latestMetadata,
+            latestSortMode,
+            nextRootFolder,
+            updatedRecentNotes,
+          } = buildDuplicateTreeState(latestStateAfterOpenError, fallbackMetadata);
+
+          set({
+            rootFolder: nextRootFolder,
+            noteMetadata: latestMetadata,
+            recentNotes: updatedRecentNotes,
+            isNewlyCreated: false,
+            error: openError instanceof Error ? openError.message : 'Failed to open duplicated note',
+          });
+
+          persistWorkspaceSnapshot(notesPath, {
+            rootFolder: nextRootFolder,
+            currentNotePath: latestStateAfterOpenError.currentNote?.path ?? null,
+            fileTreeSortMode: latestSortMode,
+          });
+
+          return duplicatePath;
+        }
+        if (!isActiveNotesPath(get, notesPath)) {
+          return duplicatePath;
+        }
+
+        const latestStateAfterLoad = get();
+        const {
+          latestMetadata,
+          latestSortMode,
+          nextRootFolder,
+          updatedRecentNotes,
+        } = buildDuplicateTreeState(latestStateAfterLoad, loaded.metadata);
+        const updatedTabs = replaceCurrentTabOrAppend(
+          latestStateAfterLoad.openTabs,
+          latestStateAfterLoad.currentNote?.path,
+          {
+            path: duplicatePath,
+            name: duplicateTitle,
+            isDirty: false,
+          },
+        );
+        const nextNoteContentsCache = setCachedNoteContent(
+          latestStateAfterLoad.noteContentsCache,
+          duplicatePath,
+          loaded.content,
+          loaded.modifiedAt,
+          {
+            updateBaseline: true,
+            size: loaded.size,
+          },
+        );
+
+        set({
+          rootFolder: nextRootFolder,
+          noteMetadata: latestMetadata,
+          currentNote: { path: duplicatePath, content: loaded.content },
+          currentNoteRevision: latestStateAfterLoad.currentNoteRevision + 1,
+          isDirty: false,
+          openTabs: updatedTabs,
+          recentNotes: updatedRecentNotes,
+          isNewlyCreated: false,
+          error: null,
+          noteContentsCache: nextNoteContentsCache,
+        });
+
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder: nextRootFolder,
+          currentNotePath: duplicatePath,
+          fileTreeSortMode: latestSortMode,
+        });
+
+        return duplicatePath;
+      } catch (error) {
+        if (notesPathForError && !isActiveNotesPath(get, notesPathForError)) {
+          throw error;
+        }
+        set({ error: error instanceof Error ? error.message : 'Failed to duplicate note' });
         throw error;
       }
     },
