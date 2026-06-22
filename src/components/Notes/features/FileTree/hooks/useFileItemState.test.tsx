@@ -4,6 +4,7 @@ import { useFileItemState } from './useFileItemState';
 
 const mocks = vi.hoisted(() => ({
   openNote: vi.fn(),
+  duplicateNote: vi.fn(),
   deleteNote: vi.fn(),
   renameNote: vi.fn(),
   toggleStarred: vi.fn(),
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 const notesState = {
   openNote: mocks.openNote,
+  duplicateNote: mocks.duplicateNote,
   deleteNote: mocks.deleteNote,
   renameNote: mocks.renameNote,
   toggleStarred: mocks.toggleStarred,

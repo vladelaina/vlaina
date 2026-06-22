@@ -202,6 +202,7 @@
   "sidebar.closeChatSearch": "Cerrar búsqueda de chat",
   "sidebar.closeFolder": "Cerrar Carpeta",
   "sidebar.copyPath": "Copiar Ruta",
+  "sidebar.duplicate": "Crear copia",
   "sidebar.delete": "Eliminar",
   "sidebar.deleteChat": "Eliminar Chat",
   "sidebar.deleteChatDescription": "¿Estás seguro de que quieres eliminar esta sesión de chat? Esta acción no se puede deshacer.",

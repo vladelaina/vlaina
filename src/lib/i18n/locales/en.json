@@ -202,6 +202,7 @@
   "sidebar.closeChatSearch": "Close chat search",
   "sidebar.closeFolder": "Close Folder",
   "sidebar.copyPath": "Copy Path",
+  "sidebar.duplicate": "Create a Copy",
   "sidebar.delete": "Delete",
   "sidebar.deleteChat": "Delete Chat",
   "sidebar.deleteChatDescription": "Are you sure you want to delete this chat session? This action cannot be undone.",

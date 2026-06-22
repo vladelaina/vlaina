@@ -202,6 +202,7 @@
   "sidebar.closeChatSearch": "关闭聊天搜索",
   "sidebar.closeFolder": "关闭文件夹",
   "sidebar.copyPath": "复制路径",
+  "sidebar.duplicate": "创建副本",
   "sidebar.delete": "删除",
   "sidebar.deleteChat": "删除聊天",
   "sidebar.deleteChatDescription": "确定要删除这个聊天会话吗？此操作无法撤销。",

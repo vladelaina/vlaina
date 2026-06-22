@@ -8,6 +8,7 @@ import { suppressNextCurrentNoteSidebarReveal } from '../../common/sidebarScroll
 
 export function useFileItemState(node: NoteFile, dragEnabled = true) {
   const openNote = useNotesStore((state) => state.openNote);
+  const duplicateNote = useNotesStore((state) => state.duplicateNote);
   const deleteNote = useNotesStore((state) => state.deleteNote);
   const renameNote = useNotesStore((state) => state.renameNote);
   const toggleStarred = useNotesStore((state) => state.toggleStarred);
@@ -76,6 +77,7 @@ export function useFileItemState(node: NoteFile, dragEnabled = true) {
     handleRenameSubmit,
     dragHandlers,
     openNote,
+    duplicateNote,
     deleteNote,
     toggleStarred,
   };
