@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
+import { cn, ghostIconButtonStyles, iconButtonStyles } from '@/lib/utils';
 import { guessLanguage } from '../../../utils/languageGuesser';
 import { codeBlockLanguages } from '../codeBlockLanguageLoader';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -110,7 +110,10 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                         e.stopPropagation();
                         onOpenChange(!isOpen);
                     }}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
                 >
                     <span className="code-block-chrome-language-label code-block-flair whitespace-nowrap">
                         {displayName}
@@ -147,13 +150,17 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                             onKeyDown={handleKeyDown}
                         />
                         <button
+                            aria-label={t('editor.autoDetectLanguage')}
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleAutoDetect();
                             }}
-                            title={t('editor.autoDetectLanguage')}
-                            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-color-status-info-bg)] hover:text-[var(--vlaina-color-status-info-fg)]"
+                            className={cn(
+                                "inline-flex h-6 w-6 items-center justify-center",
+                                iconButtonStyles,
+                                ghostIconButtonStyles,
+                            )}
                         >
                             <Icon size="md" name="common.sparkle" />
                         </button>

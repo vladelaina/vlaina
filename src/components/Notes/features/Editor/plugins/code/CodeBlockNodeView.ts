@@ -170,6 +170,7 @@ export class CodeBlockNodeView implements NodeView {
     this.dom = document.createElement('div');
     this.dom.classList.add(
       'code-block-container',
+      'code-block-chrome',
       'el-pre',
       'editor-code-block',
       'md-fences',

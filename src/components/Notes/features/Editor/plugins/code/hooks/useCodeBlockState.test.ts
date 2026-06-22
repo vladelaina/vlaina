@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { Selection } from '@milkdown/kit/prose/state';
+import { NodeSelection } from '@milkdown/kit/prose/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { writeTextToClipboard } from '../../cursor/blockSelectionCommands';
 import { useCodeBlockState } from './useCodeBlockState';
@@ -40,6 +40,8 @@ function createMockView(options: {
   const currentNode = {
     attrs: options.currentNodeAttrs,
     nodeSize: options.nodeSize,
+    isText: false,
+    type: { spec: {} },
   };
 
   const view: any = {
@@ -71,10 +73,11 @@ describe('useCodeBlockState', () => {
     vi.restoreAllMocks();
   });
 
-  it('commits collapsed attr and moves selection out when collapsing with cursor inside code block', () => {
-    const nearSpy = vi
-      .spyOn(Selection, 'near')
-      .mockImplementation((resolvedPos: any, bias?: number) => ({ resolvedPos, bias }) as any);
+  it('commits collapsed attr and selects the code block when header-collapsing with cursor inside it', () => {
+    const nodeSelection = { type: 'node-selection' };
+    const nodeSelectionSpy = vi
+      .spyOn(NodeSelection, 'create')
+      .mockImplementation(() => nodeSelection as any);
 
     const node = {
       attrs: { language: 'ts', collapsed: false },
@@ -106,7 +109,8 @@ describe('useCodeBlockState', () => {
       language: 'ts',
       collapsed: true,
     });
-    expect(nearSpy).toHaveBeenCalled();
+    expect(nodeSelectionSpy).toHaveBeenCalledWith(tr.doc, 10);
+    expect(tr.setSelection).toHaveBeenCalledWith(nodeSelection);
     expect(view.dispatch).toHaveBeenCalledWith(tr);
   });
 

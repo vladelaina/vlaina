@@ -36,16 +36,9 @@ button:hover .code-block-chrome-language-label {
 }
 
 .code-block-chrome-copy-button {
-  display: flex;
-  align-items: center;
-  gap: var(--vlaina-space-0375rem);
-  padding: var(--vlaina-space-025rem) var(--vlaina-space-05rem);
-  border-radius: var(--vlaina-radius-0375rem);
-  color: var(--vlaina-code-block-copy-color);
-  background: transparent;
   opacity: var(--vlaina-opacity-0);
   pointer-events: none;
-  transition: color var(--vlaina-duration-150) var(--vlaina-ease-css-default), background-color var(--vlaina-duration-150) var(--vlaina-ease-css-default), opacity var(--vlaina-duration-150) var(--vlaina-ease-css-default), transform var(--vlaina-duration-150) var(--vlaina-ease-css-default);
+  transition-property: background-color, color, box-shadow, opacity, transform;
 }
 
 .code-block-chrome:hover .code-block-chrome-copy-button,
@@ -54,15 +47,6 @@ button:hover .code-block-chrome-language-label {
 .code-block-chrome-copy-button[data-copied="true"] {
   opacity: var(--vlaina-opacity-100);
   pointer-events: auto;
-}
-
-.code-block-chrome-copy-button:hover {
-  color: var(--vlaina-code-syntax-foreground);
-  background: var(--vlaina-hover);
-}
-
-.dark .code-block-chrome-copy-button:hover {
-  background: var(--vlaina-hover);
 }
 
 .code-block-chrome-copy-button:active {

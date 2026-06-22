@@ -1,3 +1,5 @@
+import { ghostIconButtonStyles } from '@/lib/utils';
+
 export const chatComposerPillSurfaceClass = [
   "border !border-transparent !bg-[var(--vlaina-color-pill-surface)]",
   "!shadow-[var(--vlaina-shadow-raised-soft)]",
@@ -9,11 +11,7 @@ export const chatPopoverPillSurfaceClass = [
   "floating-popover-shadow"
 ].join(" ");
 
-export const chatComposerGhostIconButtonClass = [
-  "rounded-full bg-transparent shadow-none",
-  "transition-[background-color,color,box-shadow,transform] duration-[var(--vlaina-duration-200)]",
-  "hover:bg-[var(--vlaina-color-pill-surface-hover)] hover:shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent)]"
-].join(" ");
+export const chatComposerGhostIconButtonClass = ghostIconButtonStyles;
 
 export const chatComposerSurfaceClass = [
   chatComposerPillSurfaceClass,

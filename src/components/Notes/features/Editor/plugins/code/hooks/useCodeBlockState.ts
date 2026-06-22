@@ -57,7 +57,9 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         const pos = getPos();
         if (pos === undefined) return;
 
-        toggleCodeBlockCollapsed(view, pos, isCollapsed);
+        toggleCodeBlockCollapsed(view, pos, isCollapsed, {
+            selectionWhenCollapsingInside: 'node',
+        });
     }, [getPos, isCollapsed, view]);
 
     useEffect(() => {
