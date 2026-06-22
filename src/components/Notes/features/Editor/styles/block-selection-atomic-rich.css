@@ -29,6 +29,7 @@
   overflow-x: visible;
   overflow-y: visible;
   box-shadow: var(--vlaina-block-selection-shadow);
+  transition: none !important;
 }
 
 .milkdown .ProseMirror :is(

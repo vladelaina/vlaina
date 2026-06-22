@@ -400,6 +400,7 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockFrameRule).toContain('overflow-x: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-y: visible;');
     expect(atomicBlockFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
+    expect(atomicBlockFrameRule).toContain('transition: none !important;');
     expect(atomicHtmlForegroundRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text)");
     expect(atomicHtmlForegroundRule).toContain('.editor-block-selected');
     expect(atomicHtmlForegroundRule).toContain('.editor-block-drag-source');
@@ -419,6 +420,12 @@ describe("editor rich block selection styles", () => {
     expect(selectedAtomicForegroundRule.match(/\[data-type='html-block'\]/g)).toHaveLength(4);
     expect(selectedAtomicForegroundRule.split(narrowedHtmlBlockSelector)).toHaveLength(5);
     expect(selectedAtomicForegroundRule).not.toContain("[data-type='html-block'],");
+    expect(mathCss).toContain(".milkdown [data-type='math-inline'],");
+    expect(mathCss).toContain(".milkdown [data-type='math-block'],");
+    expect(mathCss).toContain(".milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
+    expect(mathCss).toContain('.milkdown .mermaid-block {\n  transition: none;');
+    expect(mathCss).not.toContain('background-color var(--vlaina-duration-160) var(--vlaina-ease-css-default)');
+    expect(mathCss).not.toContain('box-shadow var(--vlaina-duration-160) var(--vlaina-ease-css-default)');
   });
 
   it('keeps rich child blocks at their original colors during block selection', () => {
