@@ -17,7 +17,7 @@ describe('useNoteEditorFindPanelState', () => {
     vi.clearAllMocks();
   });
 
-  it('opens from the global event and re-focuses the query input on repeated open', () => {
+  it('opens from the global event and closes when the event is dispatched again', () => {
     vi.useFakeTimers();
     const onClose = vi.fn();
     const { result } = renderHook(() =>
@@ -47,12 +47,11 @@ describe('useNoteEditorFindPanelState', () => {
     act(() => {
       dispatchEditorFindOpenEvent();
     });
-    act(() => {
-      vi.advanceTimersByTime(90);
-    });
 
-    expect(focusSpy).toHaveBeenCalledTimes(2);
-    expect(selectSpy).toHaveBeenCalledTimes(2);
+    expect(result.current.isOpen).toBe(false);
+    expect(onClose).toHaveBeenCalledWith(true);
+    expect(focusSpy).toHaveBeenCalledTimes(1);
+    expect(selectSpy).toHaveBeenCalledTimes(1);
   });
 
   it('does not open replace controls until a query exists', () => {

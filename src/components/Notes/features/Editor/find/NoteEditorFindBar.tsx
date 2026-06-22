@@ -94,7 +94,9 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
         scale: themeMotionTokens.noteFindVisibleScale,
         opacity: themeMotionTokens.opacityVisible,
         y: themeMotionTokens.noteFindVisibleY,
-        boxShadow: hasQuery ? 'var(--vlaina-shadow-floating-panel)' : 'var(--vlaina-shadow-panel-soft)',
+        boxShadow: hasQuery
+          ? '0 8px 24px rgb(15 23 42 / 0.08), 0 1px 4px rgb(15 23 42 / 0.06)'
+          : '0 4px 14px rgb(15 23 42 / 0.06)',
       }}
       transition={{
         default: {
@@ -103,7 +105,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           damping: themeMotionTokens.noteFindSpringDamping,
         },
       }}
-      className="w-[var(--vlaina-width-note-find-bar)] max-w-full rounded-[var(--vlaina-radius-22px)] bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-color-panel-border)] backdrop-blur-[var(--vlaina-backdrop-blur-3xl)] shadow-[var(--vlaina-shadow-2xl)] p-1.5"
+      className="w-[var(--vlaina-width-note-find-bar)] max-w-full rounded-[var(--vlaina-radius-22px)] bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-color-panel-border)] backdrop-blur-[var(--vlaina-backdrop-blur-3xl)] p-1.5"
     >
       <div
         className={cn(
