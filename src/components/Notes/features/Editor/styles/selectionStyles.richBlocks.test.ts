@@ -354,6 +354,10 @@ describe("editor rich block selection styles", () => {
       blockSelectionCss,
       ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
     );
+    const atomicHtmlForegroundRule = extractCssRule(
+      blockSelectionCss,
+      ".milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is("
+    );
 
     expect(indexCss.indexOf("@import './math-editor.css';")).toBeGreaterThanOrEqual(0);
     expect(indexCss.indexOf("@import './block-selection-atomic-rich.css';")).toBeGreaterThan(
@@ -396,6 +400,16 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockFrameRule).toContain('overflow-x: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-y: visible;');
     expect(atomicBlockFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
+    expect(atomicHtmlForegroundRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text)");
+    expect(atomicHtmlForegroundRule).toContain('.editor-block-selected');
+    expect(atomicHtmlForegroundRule).toContain('.editor-block-drag-source');
+    expect(atomicHtmlForegroundRule).toContain('.ProseMirror-selectednode');
+    expect(atomicHtmlForegroundRule).toContain('.editor-block-selected-textlike');
+    expect(atomicHtmlForegroundRule).toContain('.editor-block-drag-source-textlike');
+    expect(atomicHtmlForegroundRule).toContain('.editor-native-selected-textlike');
+    expect(atomicHtmlForegroundRule).toContain(') * {');
+    expect(atomicHtmlForegroundRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(atomicHtmlForegroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
 
     const selectedAtomicForegroundRule = extractCssRule(
       mathCss,

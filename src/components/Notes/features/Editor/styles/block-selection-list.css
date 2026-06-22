@@ -166,6 +166,14 @@
 .milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list.editor-block-selected,
 .milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list > .editor-block-selected {
   --vlaina-block-selection-bleed-x-start: calc(
+    var(--vlaina-list-row-selection-bleed-x-start) -
+    var(--vlaina-list-gap-placeholder-outdent)
+  );
+}
+
+.milkdown .ProseMirror li :is(ul, ol) li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list.editor-block-selected,
+.milkdown .ProseMirror li :is(ul, ol) li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list > .editor-block-selected {
+  --vlaina-block-selection-bleed-x-start: calc(
     var(--vlaina-space-120px) -
     var(--vlaina-list-gap-placeholder-outdent)
   );

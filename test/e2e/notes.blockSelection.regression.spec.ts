@@ -1412,7 +1412,7 @@ test.describe("notes block selection regressions", () => {
           '',
           '<!--注释-->',
           '',
-          '<div>HTML block selection sentinel</div>',
+          '<div><span style="color: #d22;">HTML block selection sentinel</span></div>',
           '',
           '$$',
           'E = mc^2',
@@ -1486,6 +1486,28 @@ test.describe("notes block selection regressions", () => {
       expect(htmlMetrics!.after?.left, JSON.stringify(htmlMetrics, null, 2)).toBeLessThan(-1);
       expect(htmlMetrics!.after?.right, JSON.stringify(htmlMetrics, null, 2)).toBeLessThan(-1);
       expect(htmlMetrics!.boxShadow, JSON.stringify(htmlMetrics, null, 2)).not.toBe('none');
+      const htmlForeground = await page.evaluate((editorSelector) => {
+        const block = document.querySelector<HTMLElement>(
+          `${editorSelector} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text).editor-block-selected`
+        );
+        const child = block?.querySelector<HTMLElement>('span[style*="color"]') ?? null;
+        if (!block || !child) return null;
+
+        const blockStyle = getComputedStyle(block);
+        const childStyle = getComputedStyle(child);
+        return {
+          blockColor: blockStyle.color,
+          blockTextFillColor: blockStyle.webkitTextFillColor,
+          childColor: childStyle.color,
+          childInlineStyle: child.getAttribute('style') ?? '',
+          childTextFillColor: childStyle.webkitTextFillColor,
+        };
+      }, EDITOR_SELECTOR);
+      expect(htmlForeground, JSON.stringify({ htmlMetrics, htmlForeground }, null, 2)).not.toBeNull();
+      expect(htmlForeground!.childInlineStyle, JSON.stringify(htmlForeground, null, 2)).toContain('color');
+      expect(htmlForeground!.childColor, JSON.stringify(htmlForeground, null, 2)).toBe(htmlForeground!.blockColor);
+      expect(htmlForeground!.childTextFillColor, JSON.stringify(htmlForeground, null, 2)).toBe(htmlForeground!.blockTextFillColor);
+      expect(htmlForeground!.childColor, JSON.stringify(htmlForeground, null, 2)).not.toBe('rgb(221, 34, 34)');
       await expectSelectedAtomicBleedPixels(page, htmlMetrics!, 'html block');
 
       await clearSelectedNoteBlocks(page);
@@ -2092,6 +2114,150 @@ test.describe("notes block selection regressions", () => {
             gap,
           }, null, 2)).toBeLessThanOrEqual(1);
         }
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps top-level task list gap selection edges aligned during large selections', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-top-level-task-list-gap-selection-edge');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'top-level-task-list-gap-selection-edge.md',
+        content: [
+          '# Top-level task list gap selection edge',
+          '',
+          '- [x] 喝',
+          '',
+          '',
+          '',
+          '- [ ] 玩',
+          '',
+          ...Array.from(
+            { length: 160 },
+            (_, index) => `Top-level task list gap tail paragraph ${index}.`,
+          ).flatMap((paragraph) => [paragraph, '']),
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"]`, { hasText: '喝' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"]`, { hasText: '玩' })).toBeVisible();
+
+      const selectionPlan = await page.evaluate(() => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          className: string;
+          rangeText: string;
+          text: string;
+        }>;
+        const beforeIndex = blocks.findIndex((block) => block.text.trim() === '喝' || block.rangeText.trim() === '喝');
+        const afterIndex = blocks.findIndex((block) => block.text.trim() === '玩' || block.rangeText.trim() === '玩');
+        return {
+          beforeIndex,
+          afterIndex,
+          gapIndexes: blocks
+            .map((block, index) => ({ block, index }))
+            .filter(({ block }) => block.className.includes('editor-list-gap-placeholder-item'))
+            .map(({ index }) => index),
+          selectedIndexes: Array.from(
+            { length: Math.min(140, blocks.length) },
+            (_, index) => index,
+          ),
+          blocks: blocks.slice(0, 12).map((block, index) => ({
+            className: block.className,
+            index,
+            rangeText: block.rangeText,
+            text: block.text,
+          })),
+        };
+      });
+
+      expect(selectionPlan.beforeIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(selectionPlan.afterIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThan(selectionPlan.beforeIndex);
+      expect(selectionPlan.gapIndexes.length, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThanOrEqual(2);
+      for (const gapIndex of selectionPlan.gapIndexes) {
+        expect(gapIndex, JSON.stringify(selectionPlan, null, 2)).toBeGreaterThan(selectionPlan.beforeIndex);
+        expect(gapIndex, JSON.stringify(selectionPlan, null, 2)).toBeLessThan(selectionPlan.afterIndex);
+      }
+
+      const selectedCount = await selectNoteBlocksByIndexes(page, selectionPlan.selectedIndexes);
+      expect(selectedCount, JSON.stringify(selectionPlan, null, 2)).toBe(selectionPlan.selectedIndexes.length);
+      await expect.poll(() => page.evaluate((editorSelector) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        return {
+          active: editor?.classList.contains('editor-block-selection-active') ?? false,
+          large: editor?.classList.contains('editor-block-selection-large') ?? false,
+          selectedCount: editor?.querySelectorAll('.editor-block-selected').length ?? 0,
+        };
+      }, EDITOR_SELECTOR)).toMatchObject({
+        active: true,
+        large: true,
+      });
+
+      const geometry = await page.evaluate((editorSelector) => {
+        const parsePx = (value: string, fallback = 0) => {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const readPaint = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          const after = getComputedStyle(element, '::after');
+          const hasAfterPaint = after.content !== 'none' &&
+            after.display !== 'none' &&
+            after.position === 'absolute';
+          const afterLeftPx = hasAfterPaint ? parsePx(after.left) : null;
+          return {
+            afterDisplay: after.display,
+            afterLeftPx,
+            className: element.className,
+            paintLeft: hasAfterPaint && afterLeftPx !== null
+              ? rect.left + afterLeftPx
+              : rect.left,
+            rectLeft: rect.left,
+            text: element.textContent?.trim() ?? '',
+          };
+        };
+        const directTaskText = (element: HTMLElement) =>
+          element.querySelector<HTMLElement>(':scope > p')?.textContent?.trim() ?? '';
+        const selectedTasks = Array.from(document.querySelectorAll<HTMLElement>(
+          `${editorSelector} li[data-item-type="task"].editor-block-selected`
+        ));
+        const before = selectedTasks.find((element) => directTaskText(element) === '喝') ?? null;
+        const after = selectedTasks.find((element) => directTaskText(element) === '玩') ?? null;
+        const selectedGaps = Array.from(document.querySelectorAll<HTMLElement>(
+          `${editorSelector} li.editor-list-gap-placeholder-item.editor-block-selected`
+        ));
+        return {
+          before: before ? readPaint(before) : null,
+          after: after ? readPaint(after) : null,
+          gaps: selectedGaps.map(readPaint),
+        };
+      }, EDITOR_SELECTOR);
+
+      expect(geometry.before, JSON.stringify({ selectionPlan, geometry }, null, 2)).not.toBeNull();
+      expect(geometry.after, JSON.stringify({ selectionPlan, geometry }, null, 2)).not.toBeNull();
+      expect(geometry.gaps.length, JSON.stringify({ selectionPlan, geometry }, null, 2)).toBeGreaterThanOrEqual(2);
+      for (const gap of geometry.gaps) {
+        expect(gap.className, JSON.stringify({ selectionPlan, geometry, gap }, null, 2))
+          .toContain('editor-list-gap-placeholder-task-list');
+        expect(gap.className, JSON.stringify({ selectionPlan, geometry, gap }, null, 2))
+          .toContain('editor-block-selected-large-textlike');
+        expect(gap.afterDisplay, JSON.stringify({ selectionPlan, geometry, gap }, null, 2)).not.toBe('none');
+        expect(Math.abs(gap.paintLeft - geometry.before!.paintLeft), JSON.stringify({
+          selectionPlan,
+          geometry,
+          gap,
+        }, null, 2)).toBeLessThanOrEqual(1);
+        expect(Math.abs(gap.paintLeft - geometry.after!.paintLeft), JSON.stringify({
+          selectionPlan,
+          geometry,
+          gap,
+        }, null, 2)).toBeLessThanOrEqual(1);
       }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
