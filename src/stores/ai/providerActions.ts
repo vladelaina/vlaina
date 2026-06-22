@@ -35,10 +35,12 @@ async function refreshManagedBudgetIfConnected(): Promise<void> {
   await useManagedAIStore.getState().refreshBudget();
 }
 
-async function syncManagedProviderModels(options: { refreshBudget?: boolean; suppressPersist?: boolean } = {}): Promise<void> {
+async function syncManagedProviderModels(
+  options: { refreshBudget?: boolean; suppressPersist?: boolean; forceRefresh?: boolean } = {}
+): Promise<void> {
   const syncGeneration = managedModelsSyncGeneration + 1
   managedModelsSyncGeneration = syncGeneration
-  const catalog = await fetchManagedModelCatalog()
+  const catalog = await fetchManagedModelCatalog({ forceRefresh: options.forceRefresh === true })
   if (syncGeneration !== managedModelsSyncGeneration) {
     return
   }
@@ -107,7 +109,7 @@ function refreshManagedProviderInBackground(options: { force?: boolean } = {}): 
         return;
       }
     }
-    await syncManagedProviderModels();
+    await syncManagedProviderModels({ forceRefresh: options.force === true });
   })()
     .catch((_error) => {
       void 0
@@ -491,7 +493,7 @@ export const actions = {
 
   refreshManagedProvider: async () => {
     managedModelsLastRefreshAttemptAt = Date.now();
-    await syncManagedProviderModels({ refreshBudget: true })
+    await syncManagedProviderModels({ refreshBudget: true, forceRefresh: true })
   },
 
   refreshManagedProviderInBackground: (options: { force?: boolean } = {}) => {

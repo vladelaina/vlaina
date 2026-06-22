@@ -182,6 +182,83 @@ describe('desktop account auth flow', () => {
     expect(mocks.persistDesktopAuthResult).not.toHaveBeenCalled();
   });
 
+  it('starts a new OAuth flow when sign-in is clicked again', async () => {
+    const { handlers } = registerHarness();
+    let rejectFirstCallback!: (error: Error) => void;
+    const firstCallbackPromise = new Promise<never>((_resolve, reject) => {
+      rejectFirstCallback = reject;
+    });
+    const firstLoopback = {
+      callbackUrl: 'http://127.0.0.1:45000/oauth/callback',
+      waitForCallback: vi.fn(() => firstCallbackPromise),
+      close: vi.fn(),
+      cancel: vi.fn((reason = 'Authorization cancelled') => {
+        rejectFirstCallback(new Error(reason));
+      }),
+    };
+    const secondLoopback = {
+      callbackUrl: 'http://127.0.0.1:45001/oauth/callback',
+      waitForCallback: vi.fn(() =>
+        Promise.resolve({ state: 'state-2', resultToken: 'result-2', error: null })
+      ),
+      close: vi.fn(),
+      cancel: vi.fn(),
+    };
+    mocks.bindDesktopAuthLoopbackServer
+      .mockResolvedValueOnce(firstLoopback)
+      .mockResolvedValueOnce(secondLoopback);
+
+    let startCalls = 0;
+    mocks.fetchDesktopJson.mockImplementation(async (url: string) => {
+      if (url === 'https://api.example.com/auth/google/desktop/start') {
+        startCalls += 1;
+        return {
+          data: {
+            success: true,
+            state: `state-${startCalls}`,
+            authUrl: `https://accounts.example.com/oauth-${startCalls}`,
+            expiresInSeconds: 300,
+          },
+        };
+      }
+
+      if (url === 'https://api.example.com/auth/google/desktop/result') {
+        return {
+          data: {
+            success: true,
+            username: 'alice',
+          },
+        };
+      }
+
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    const firstAuthPromise = handlers.get('desktop:account:start-auth')?.({}, 'google') as Promise<unknown>;
+    await vi.waitFor(() => {
+      expect(mocks.openExternal).toHaveBeenCalledWith('https://accounts.example.com/oauth-1');
+    });
+
+    const secondAuthPromise = handlers.get('desktop:account:start-auth')?.({}, 'google') as Promise<unknown>;
+    await vi.waitFor(() => {
+      expect(mocks.openExternal).toHaveBeenCalledWith('https://accounts.example.com/oauth-2');
+    });
+
+    await expect(firstAuthPromise).resolves.toMatchObject({
+      success: false,
+      error: 'Authorization cancelled',
+    });
+    await expect(secondAuthPromise).resolves.toMatchObject({
+      success: true,
+      provider: 'google',
+    });
+
+    expect(firstLoopback.cancel).toHaveBeenCalledWith('Authorization cancelled');
+    expect(mocks.bindDesktopAuthLoopbackServer).toHaveBeenCalledTimes(2);
+    expect(mocks.openExternal).toHaveBeenCalledTimes(2);
+    expect(mocks.persistDesktopAuthResult).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects unsafe OAuth authorization URLs before opening them in the system browser', async () => {
     const { handlers } = registerHarness();
     const loopback = {

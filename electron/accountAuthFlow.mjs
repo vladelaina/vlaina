@@ -362,9 +362,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
     if (!isSupportedAccountProvider(provider) || provider === 'email') {
       return accountErrorResult('Unsupported desktop sign-in provider');
     }
-    if (activeOauthFlow) {
-      return accountErrorResult('Another sign-in is already in progress');
-    }
+    activeOauthFlow?.cancel('Authorization cancelled');
 
     const verifier = generateDesktopVerifier();
     const abortController = new AbortController();

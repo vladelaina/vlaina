@@ -76,13 +76,32 @@ export async function getOpenBridgePages(app: ElectronApplication, count: number
   return pages;
 }
 
-export async function launchIsolatedElectron(label: string, options: {
+type LaunchIsolatedElectronOptions = {
   args?: string[];
-} = {}): Promise<{
+  envOverrides?: Record<string, string>;
+};
+
+function isLaunchIsolatedElectronOptions(
+  value: LaunchIsolatedElectronOptions | Record<string, string>,
+): value is LaunchIsolatedElectronOptions {
+  return Array.isArray((value as LaunchIsolatedElectronOptions).args) ||
+    typeof (value as LaunchIsolatedElectronOptions).envOverrides === 'object';
+}
+
+export async function launchIsolatedElectron(
+  label: string,
+  optionsOrEnvOverrides: LaunchIsolatedElectronOptions | Record<string, string> = {},
+): Promise<{
   app: ElectronApplication;
   userDataRoot: string;
   userDataDir: string;
 }> {
+  const options = isLaunchIsolatedElectronOptions(optionsOrEnvOverrides)
+    ? optionsOrEnvOverrides
+    : {};
+  const envOverrides = isLaunchIsolatedElectronOptions(optionsOrEnvOverrides)
+    ? optionsOrEnvOverrides.envOverrides ?? {}
+    : optionsOrEnvOverrides;
   const safeLabel = label.replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
   const userDataRoot = await fs.mkdtemp(path.join(os.tmpdir(), `vlaina-${safeLabel}-e2e-`));
   const userDataDir = path.join(userDataRoot, 'user-data');
@@ -103,6 +122,7 @@ export async function launchIsolatedElectron(label: string, options: {
       http_proxy: '',
       https_proxy: '',
       all_proxy: '',
+      ...envOverrides,
     },
   });
 
