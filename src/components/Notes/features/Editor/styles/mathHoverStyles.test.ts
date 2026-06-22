@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-function extractCssRuleContaining(source: string, marker: string) {
-  const markerIndex = source.indexOf(marker);
+function extractCssRuleContaining(source: string, marker: string | RegExp) {
+  const markerIndex = typeof marker === 'string' ? source.indexOf(marker) : source.search(marker);
   expect(markerIndex).toBeGreaterThanOrEqual(0);
 
   const previousRuleEnd = source.lastIndexOf('}', markerIndex);
@@ -126,7 +126,7 @@ describe('math hover styles', () => {
     );
     const inlineSelectedHoverRule = extractCssRuleContaining(
       css,
-      "  [data-type='math-inline']\n).editor-block-selected:is(:hover, :focus-visible) {"
+      /\[data-type='math-inline'\]\s*\)\.editor-block-selected:is\(:hover, :focus-visible\)\s*\{/
     );
     const selectedAtomicSurfaceRule = extractCssRuleContaining(
       atomicBlockSelectionCss,
