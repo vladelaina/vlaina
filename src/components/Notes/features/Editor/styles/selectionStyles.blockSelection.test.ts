@@ -92,10 +92,26 @@ describe("editor block selection styles", () => {
       css,
       '.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-block-selected,'
     );
+    const taskGapRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list.editor-block-selected,'
+    );
+    const nestedTaskRuleIndex = css.indexOf(
+      '.milkdown .ProseMirror li :is(ul, ol) li[data-item-type="task"].editor-block-selected,'
+    );
+    const gapPlaceholderRuleIndex = css.indexOf(
+      '.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-block-selected,'
+    );
 
     expect(rule).toContain('.milkdown .ProseMirror li.editor-list-gap-placeholder-item > .editor-block-selected');
     expect(rule).toContain('var(--vlaina-list-row-selection-bleed-x-start)');
     expect(rule).toContain('var(--vlaina-list-gap-placeholder-outdent)');
+    expect(taskGapRule).toContain('.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list > .editor-block-selected');
+    expect(taskGapRule).toContain('var(--vlaina-space-120px)');
+    expect(taskGapRule).toContain('var(--vlaina-list-gap-placeholder-outdent)');
+    expect(taskGapRule).not.toContain('li[data-item-type="task"] li.editor-list-gap-placeholder-item');
+    expect(nestedTaskRuleIndex).toBeGreaterThanOrEqual(0);
+    expect(gapPlaceholderRuleIndex).toBeGreaterThan(nestedTaskRuleIndex);
     expect(markdownCss).not.toContain('.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-block-selected,');
   });
 

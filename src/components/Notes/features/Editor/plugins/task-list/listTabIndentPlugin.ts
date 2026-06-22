@@ -12,6 +12,7 @@ import {
 export const listTabIndentPluginKey = new PluginKey('listTabIndent');
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
 const LIST_GAP_PLACEHOLDER_CLASS = 'editor-list-gap-placeholder-item';
+const LIST_GAP_PLACEHOLDER_TASK_LIST_CLASS = 'editor-list-gap-placeholder-task-list';
 export const MAX_LIST_GAP_PLACEHOLDER_DECORATIONS = 1000;
 export const MAX_ORDERED_LIST_LABEL_UPDATES = 5000;
 export const MAX_ORDERED_LIST_LABEL_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
@@ -354,16 +355,44 @@ function isInternalListGapPlaceholderNode(node: ProseNode): boolean {
     return hasPlaceholder && !hasVisibleText && scannedChars < MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
 }
 
+function listHasDirectTaskItems(parent: ProseNode, cache: WeakMap<object, boolean>): boolean {
+    if (!parent || typeof parent !== 'object') return false;
+    const cached = cache.get(parent);
+    if (cached !== undefined) return cached;
+
+    const isList = parent.type?.name === 'bullet_list' || parent.type?.name === 'ordered_list';
+    if (!isList || typeof parent.child !== 'function' || typeof parent.childCount !== 'number') {
+        cache.set(parent, false);
+        return false;
+    }
+
+    let hasTaskItem = false;
+    for (let index = 0; index < parent.childCount; index += 1) {
+        const child = parent.child(index);
+        if (child?.type.name === 'list_item' && typeof child.attrs?.checked === 'boolean') {
+            hasTaskItem = true;
+            break;
+        }
+    }
+
+    cache.set(parent, hasTaskItem);
+    return hasTaskItem;
+}
+
 export function collectInternalListGapDecorations(doc: Parameters<typeof DecorationSet.create>[0]): Decoration[] {
     const decorations: Decoration[] = [];
+    const taskListParentCache = new WeakMap<object, boolean>();
 
-    scanProseDescendants(doc, (node, pos) => {
+    scanProseDescendants(doc, (node, pos, parent) => {
         if (decorations.length >= MAX_LIST_GAP_PLACEHOLDER_DECORATIONS) return STOP_PROSE_SCAN;
         if (node.type?.name !== 'list_item') return true;
         if (typeof node.nodeSize !== 'number') return true;
         if (isInternalListGapPlaceholderNode(node as ProseNode)) {
+            const className = listHasDirectTaskItems(parent as ProseNode, taskListParentCache)
+                ? `${LIST_GAP_PLACEHOLDER_CLASS} ${LIST_GAP_PLACEHOLDER_TASK_LIST_CLASS}`
+                : LIST_GAP_PLACEHOLDER_CLASS;
             decorations.push(Decoration.node(pos, pos + node.nodeSize, {
-                class: LIST_GAP_PLACEHOLDER_CLASS,
+                class: className,
             }));
         }
         return decorations.length < MAX_LIST_GAP_PLACEHOLDER_DECORATIONS ? true : STOP_PROSE_SCAN;

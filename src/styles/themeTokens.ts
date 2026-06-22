@@ -615,7 +615,7 @@ export const themeLazyLoadTokens = {
   coverPreviewDelayMs: 180,
   assetThumbnailRootMargin: '80px',
   assetThumbnailThreshold: 0.01,
-  codeBlockRootMargin: '2200px 0px',
+  codeBlockRootMargin: '900px 0px',
   imageBlockRootMargin: '900px 0px',
   mermaidRootMargin: '900px 0px',
 } as const;

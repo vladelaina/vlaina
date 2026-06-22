@@ -318,6 +318,108 @@ describe('createBlockDragPreview', () => {
     expect(preview).not.toBeNull();
     expect(preview?.offsetX).toBe(handleClientX - 120);
     expect(handleClientX - (preview?.offsetX ?? 0)).toBe(120);
+    expect(preview?.offsetY).toBe(16);
+
+    preview?.destroy();
+    rectSpy.mockRestore();
+  });
+
+  it('keeps very long drag previews anchored close to the pointer', () => {
+    const editorRoot = document.createElement('div');
+    const block = document.createElement('p');
+    block.textContent = 'Very long selected block';
+    editorRoot.appendChild(block);
+    document.body.appendChild(editorRoot);
+
+    const paragraphNode = createNode('paragraph', 10);
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 10 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? paragraphNode : null;
+          },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(paragraphNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 0,
+              nodeAfter: paragraphNode,
+              node() {
+                return createNode('doc', 10);
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return block;
+      },
+      domAtPos() {
+        return { node: block.firstChild as Node };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === block) {
+          return {
+            left: 120,
+            top: -520,
+            width: 420,
+            height: 1400,
+            right: 540,
+            bottom: 880,
+            x: 120,
+            y: -520,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 420,
+            height: 1400,
+            right: 420,
+            bottom: 1400,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const pointerY = 480;
+    const preview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 0, to: 10 }],
+      clientX: 140,
+      clientY: pointerY,
+    });
+
+    expect(preview).not.toBeNull();
+    expect(preview?.offsetY).toBe(96);
+    expect(pointerY - (preview?.offsetY ?? 0)).toBe(384);
 
     preview?.destroy();
     rectSpy.mockRestore();

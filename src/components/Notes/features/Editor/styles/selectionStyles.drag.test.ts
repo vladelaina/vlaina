@@ -160,6 +160,24 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('pointer-events: none;');
   });
 
+  it('applies lazy block visibility to expensive top-level markdown blocks in large notes', () => {
+    const css = readStyleFile('core.css');
+    const lazyRule = extractCssRule(
+      css,
+      ".milkdown-editor[data-note-lazy-block-visibility='true'] .ProseMirror > :is("
+    );
+
+    expect(lazyRule).toContain('.code-block-container,');
+    expect(lazyRule).toContain('.frontmatter-block-container,');
+    expect(lazyRule).toContain('.image-block-container,');
+    expect(lazyRule).toContain("[data-type='callout'],");
+    expect(lazyRule).toContain("[data-type='html-block'],");
+    expect(lazyRule).toContain("[data-type='math-block'],");
+    expect(lazyRule).toContain("[data-type='toc']");
+    expect(lazyRule).toContain('content-visibility: auto;');
+    expect(lazyRule).toContain('contain-intrinsic-size: auto var(--vlaina-height-block-intrinsic, 96px);');
+  });
+
   it('suppresses editor icon hover affordances while dragging a block selection', () => {
     const css = readBlockSelectionStyle();
 

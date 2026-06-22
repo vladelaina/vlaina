@@ -316,6 +316,39 @@ describe('listTabIndentPlugin', () => {
     const view = editor.ctx.get(editorViewCtx);
 
     expect(view.dom.querySelectorAll('li.editor-list-gap-placeholder-item')).toHaveLength(1);
+    expect(view.dom.querySelector('li.editor-list-gap-placeholder-task-list')).toBeNull();
+  });
+
+  it('marks internal list gap placeholders inside task lists for task-row selection geometry', async () => {
+    const editor = createEditorWithContent([
+      '- parent',
+      '  - [x] before',
+      '  - \u2800',
+      '  - [ ] after',
+    ].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(view.dom.querySelectorAll('li.editor-list-gap-placeholder-item')).toHaveLength(1);
+    expect(view.dom.querySelectorAll(
+      'li.editor-list-gap-placeholder-item.editor-list-gap-placeholder-task-list'
+    )).toHaveLength(1);
+  });
+
+  it('does not mark ordinary nested gaps under task parents as task-list gaps', async () => {
+    const editor = createEditorWithContent([
+      '- [ ] parent',
+      '  - before',
+      '  - \u2800',
+      '  - after',
+    ].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(view.dom.querySelectorAll('li.editor-list-gap-placeholder-item')).toHaveLength(1);
+    expect(view.dom.querySelector('li.editor-list-gap-placeholder-task-list')).toBeNull();
   });
 
   it('caps internal list gap placeholder decorations', async () => {

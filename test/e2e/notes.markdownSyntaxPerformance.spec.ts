@@ -139,7 +139,7 @@ test.describe('notes markdown syntax performance smoke', () => {
       expect(domMetrics.selectableBlockCount).toBeGreaterThan(700);
       expect(domMetrics.selectableBlockCount).toBe(stableSelectableBlockCount);
       expect(blockScanMetrics.blockCount).toBe(stableSelectableBlockCount);
-      expect(blockScanMetrics.p95Ms).toBeLessThan(250);
+      expect(blockScanMetrics.p95Ms).toBeLessThan(80);
       expect(selectedCount).toBeGreaterThanOrEqual(7);
       expect(selectedWallMs).toBeLessThan(5_000);
       expect(scrollMetrics).not.toBeNull();

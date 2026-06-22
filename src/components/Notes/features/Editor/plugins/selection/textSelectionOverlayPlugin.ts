@@ -3,6 +3,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
+import { createVerticalEdgeAutoScroll } from '../cursor/edgeAutoScroll';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 import { ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES } from '../shared/blockNodeTypes';
@@ -316,6 +317,17 @@ export const textSelectionOverlayPlugin = $prose(() => {
       let pendingPointerClickCollapseTarget: PointerCaretTarget | null = null;
       let pointerClickRestoreSelectionRange: PointerClickRestoreSelectionRange | null = null;
       let preserveNativeSelectionForKeyboard = false;
+      let lastPointerSelectionY: number | null = null;
+      const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+      const pointerSelectionAutoScroll = createVerticalEdgeAutoScroll({
+        scrollRoot,
+        getPointerY: () => (
+          isPointerSelectionActive && pointerMovedSinceDown
+            ? lastPointerSelectionY
+            : null
+        ),
+        onScroll: () => undefined,
+      });
 
       const setPointerNativeSelection = (nextValue: boolean) => {
         const currentValue = Boolean(
@@ -603,6 +615,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
         isPointerSelectionActive = true;
         pointerMovedSinceDown = false;
         pointerDownPoint = { x: event.clientX, y: event.clientY };
+        lastPointerSelectionY = event.clientY;
         pointerClickCollapseTarget = null;
         pendingPointerClickCollapseTarget = null;
         pointerClickRestoreSelectionRange = null;
@@ -640,7 +653,9 @@ export const textSelectionOverlayPlugin = $prose(() => {
       };
 
       const handleMouseMove = (event: MouseEvent) => {
-        if (!isPointerSelectionActive || !pointerDownPoint || pointerMovedSinceDown) return;
+        if (!isPointerSelectionActive || !pointerDownPoint) return;
+        lastPointerSelectionY = event.clientY;
+        if (pointerMovedSinceDown) return;
         const deltaX = event.clientX - pointerDownPoint.x;
         const deltaY = event.clientY - pointerDownPoint.y;
         pointerMovedSinceDown = Math.hypot(deltaX, deltaY) > 4;
@@ -649,6 +664,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
           restorePointerClickSelectionRange();
           pointerClickCollapseTarget = null;
           pendingPointerClickCollapseTarget = null;
+          pointerSelectionAutoScroll.start();
         }
       };
 
@@ -715,6 +731,8 @@ export const textSelectionOverlayPlugin = $prose(() => {
 
       const handleMouseUp = (event: MouseEvent) => {
         isPointerSelectionActive = false;
+        lastPointerSelectionY = null;
+        pointerSelectionAutoScroll.stop();
         const clickCollapseTarget = pointerClickCollapseTarget;
         const shouldCollapsePointerClick = clickCollapseTarget !== null && !pointerMovedSinceDown;
         pointerClickCollapseTarget = null;
@@ -776,6 +794,8 @@ export const textSelectionOverlayPlugin = $prose(() => {
 
       const handleWindowBlur = () => {
         isPointerSelectionActive = false;
+        lastPointerSelectionY = null;
+        pointerSelectionAutoScroll.stop();
         pendingPointerClickCollapseTarget = null;
         pointerClickRestoreSelectionRange = null;
         cancelPointerClickCollapseReassertion();
@@ -817,6 +837,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
           ownerDocument.removeEventListener('mouseup', handleMouseUp, true);
           view.dom.removeEventListener('click', handleClick, true);
           window.removeEventListener('blur', handleWindowBlur);
+          pointerSelectionAutoScroll.stop();
           view.dom.classList.remove(TEXT_SELECTION_OVERLAY_ACTIVE_CLASS);
           view.dom.classList.remove(POINTER_NATIVE_SELECTION_CLASS);
           view.dom.classList.remove(KEYBOARD_SELECTION_PENDING_CLASS);

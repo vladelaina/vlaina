@@ -1,5 +1,6 @@
-const AUTO_SCROLL_EDGE_PX = 56;
-const AUTO_SCROLL_MAX_STEP_PX = 18;
+export const VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX = 96;
+export const VERTICAL_EDGE_AUTO_SCROLL_MAX_STEP_PX = 42;
+const VERTICAL_EDGE_AUTO_SCROLL_CURVE_POWER = 1.15;
 
 export interface VerticalEdgeAutoScrollHandle {
   start: () => void;
@@ -16,16 +17,28 @@ export function resolveVerticalEdgeAutoScrollDelta(
   pointerY: number,
   scrollRootRect: Pick<DOMRect, 'top' | 'bottom'>,
 ): number {
-  if (pointerY < scrollRootRect.top + AUTO_SCROLL_EDGE_PX) {
-    const distanceIntoEdge = scrollRootRect.top + AUTO_SCROLL_EDGE_PX - pointerY;
-    const intensity = Math.min(distanceIntoEdge, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
-    return -Math.ceil(intensity * AUTO_SCROLL_MAX_STEP_PX);
+  const distanceFromTop = pointerY - scrollRootRect.top;
+  const distanceFromBottom = scrollRootRect.bottom - pointerY;
+  if (
+    distanceFromTop < VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX &&
+    distanceFromTop < distanceFromBottom
+  ) {
+    const distanceIntoEdge = VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX - distanceFromTop;
+    const intensity = Math.min(distanceIntoEdge, VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX) / VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX;
+    return -Math.ceil(
+      (intensity ** VERTICAL_EDGE_AUTO_SCROLL_CURVE_POWER) * VERTICAL_EDGE_AUTO_SCROLL_MAX_STEP_PX
+    );
   }
 
-  if (pointerY > scrollRootRect.bottom - AUTO_SCROLL_EDGE_PX) {
-    const distanceIntoEdge = pointerY - (scrollRootRect.bottom - AUTO_SCROLL_EDGE_PX);
-    const intensity = Math.min(distanceIntoEdge, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
-    return Math.ceil(intensity * AUTO_SCROLL_MAX_STEP_PX);
+  if (
+    distanceFromBottom < VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX &&
+    distanceFromBottom < distanceFromTop
+  ) {
+    const distanceIntoEdge = VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX - distanceFromBottom;
+    const intensity = Math.min(distanceIntoEdge, VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX) / VERTICAL_EDGE_AUTO_SCROLL_EDGE_PX;
+    return Math.ceil(
+      (intensity ** VERTICAL_EDGE_AUTO_SCROLL_CURVE_POWER) * VERTICAL_EDGE_AUTO_SCROLL_MAX_STEP_PX
+    );
   }
 
   return 0;

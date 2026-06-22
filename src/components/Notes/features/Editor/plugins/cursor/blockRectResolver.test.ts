@@ -377,6 +377,82 @@ describe('createBlockRectResolver', () => {
     }
   });
 
+  it('can bypass cached target rects for live drag-selection hit testing', () => {
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = '1';
+    dom.append(paragraph);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(paragraph, { left: 60, top: 40, width: 10, height: 24 });
+
+    const doc = createDoc([createNode('paragraph', 3)]);
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM: () => paragraph,
+      domAtPos: () => ({ node: paragraph.firstChild as Node }),
+    };
+
+    const staleRect = {
+      x: 60,
+      y: 120,
+      left: 60,
+      top: 120,
+      width: 10,
+      height: 24,
+      right: 70,
+      bottom: 144,
+      toJSON: () => ({}),
+    } as DOMRect;
+    const blocks = [{
+      from: 0,
+      to: 3,
+      element: paragraph,
+      rect: staleRect,
+      documentTop: 120,
+      documentBottom: 144,
+      tagName: 'P',
+      headingLevel: null,
+      headingId: null,
+      headingText: null,
+    }];
+
+    setCurrentEditorBlockPositionSnapshot({
+      version: 1,
+      view: view as any,
+      doc: doc as any,
+      editorRoot: dom,
+      scrollRoot: null,
+      scrollLeft: 0,
+      scrollTop: 0,
+      blocks,
+      blockIndex: new Map(blocks.map((block) => [`${block.from}:${block.to}`, block])),
+      headings: [],
+    });
+
+    try {
+      const resolver = createBlockRectResolver({
+        view: view as any,
+        scrollRootSelector: '[data-note-scroll-root="true"]',
+        usePositionCache: false,
+      });
+
+      expect(resolver.getSelectionBlockRects()).toEqual([
+        {
+          from: 0,
+          to: 3,
+          left: 20,
+          top: 40,
+          right: 620,
+          bottom: 64,
+          allowInsideTrailingClick: true,
+        },
+      ]);
+    } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+    }
+  });
+
   it('reuses cached target rects for drag-selection hit testing across scroll changes', () => {
     const scrollRoot = document.createElement('div');
     scrollRoot.setAttribute('data-note-scroll-root', 'true');

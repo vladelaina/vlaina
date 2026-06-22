@@ -9,6 +9,7 @@ import {
 
 const renderMock = vi.fn();
 const unmountMock = vi.fn();
+const intersectionObserverInstances: Array<{ rootMargin: string }> = [];
 
 vi.mock('react-dom/client', () => ({
   createRoot: vi.fn(() => ({
@@ -65,6 +66,7 @@ describe('CodeBlockNodeView lazy placeholders', () => {
   beforeEach(() => {
     renderMock.mockClear();
     unmountMock.mockClear();
+    intersectionObserverInstances.length = 0;
     document.body.innerHTML = '';
     setGlobalLineNumbers(true);
     class TestIntersectionObserver {
@@ -73,8 +75,12 @@ describe('CodeBlockNodeView lazy placeholders', () => {
       unobserve = vi.fn();
       takeRecords = vi.fn(() => []);
       root = null;
-      rootMargin = '0px';
+      rootMargin: string;
       thresholds = [];
+      constructor(_callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        this.rootMargin = options?.rootMargin ?? '0px';
+        intersectionObserverInstances.push(this);
+      }
     }
     vi.stubGlobal('IntersectionObserver', TestIntersectionObserver);
   });
@@ -99,6 +105,19 @@ describe('CodeBlockNodeView lazy placeholders', () => {
     expect(lines).toHaveLength(MAX_LAZY_CODE_BLOCK_LINE_NUMBER_PLACEHOLDER_LINES);
     expect(lines.at(-1)).toBe(String(MAX_LAZY_CODE_BLOCK_LINE_NUMBER_PLACEHOLDER_LINES));
     expect(unmountMock).not.toHaveBeenCalled();
+
+    nodeView.destroy();
+  });
+
+  it('keeps lazy CodeMirror preloading close to the viewport', () => {
+    const nodeView = new CodeBlockNodeView(
+      createMockNode('const value = 1;'),
+      createMockView(),
+      () => 1,
+      { lazyCodeMirror: true },
+    );
+
+    expect(intersectionObserverInstances.at(-1)?.rootMargin).toBe('900px 0px');
 
     nodeView.destroy();
   });

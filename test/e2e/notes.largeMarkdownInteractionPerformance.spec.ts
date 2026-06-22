@@ -2,9 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
+  collectEditorDomMetrics,
   getOpenBridgePages,
   launchIsolatedElectron,
+  measureRepeatedBlockScan,
+  measureScrollFrames,
   openMarkdownFixture,
+  selectNoteBlocksByText,
+  waitForStableSelectableBlockCount,
   waitForEditorAnimationFrame,
 } from './notesE2E';
 
@@ -38,6 +43,110 @@ function createVeryLargePlainMarkdown(paragraphCount: number): {
     content: lines.join('\n'),
     targetText,
   };
+}
+
+function createLargeMixedSyntaxSection(index: number): string {
+  const longPlainRun = [
+    `Large mixed paragraph ${index} keeps a plain-text body while carrying inline syntax markers`,
+    `**bold-${index}**`,
+    `*italic-${index}*`,
+    `==highlight-${index}==`,
+    `++underline-${index}++`,
+    `\`inline-${index}\``,
+    `[link-${index}](https://example.com/large-mixed/${index})`,
+    `www.large-mixed-${index}.example`,
+    `#large-mixed-tag-${index}`,
+    'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau',
+    '中文长段落内容用于覆盖 CJK 排版和很长 Markdown 文档中的换行布局。',
+  ].join(' ');
+  const paragraph = `${longPlainRun} `.repeat(12).trimEnd();
+  const parts = [
+    `## Large Mixed Syntax Section ${index}`,
+    '',
+    paragraph,
+    '',
+    `> Mixed quote ${index} first line with **strong** and [quote link](https://example.com/quote/${index}).`,
+    `> Mixed quote ${index} second line with inline math $x_${index}^2 + y_${index}^2$.`,
+    '',
+    `- Bullet ${index} alpha`,
+    `- Bullet ${index} beta with ==highlight==`,
+    `  - Nested bullet ${index} child`,
+    `- [ ] Task ${index} unchecked`,
+    `- [x] Task ${index} checked`,
+    '',
+  ];
+
+  if (index % 4 === 0) {
+    parts.push(
+      '| Key | Value | Note |',
+      '| --- | ---: | :--- |',
+      `| Row ${index} | ${index} | table cell with **bold** and \`code\` |`,
+      '',
+    );
+  }
+
+  if (index % 5 === 0) {
+    parts.push(
+      '```ts',
+      `const largeMixedValue${index} = ${index};`,
+      `console.log('large mixed code block ${index}', largeMixedValue${index});`,
+      '```',
+      '',
+    );
+  }
+
+  if (index % 9 === 0) {
+    parts.push(
+      '$$',
+      `f_${index}(x)=\\sum_{n=0}^{8} x^n + ${index}`,
+      '$$',
+      '',
+    );
+  }
+
+  if (index % 13 === 0) {
+    parts.push(
+      '<!-- large mixed html comment sentinel -->',
+      '<div>large mixed html block<br>with safe inline content</div>',
+      '',
+    );
+  }
+
+  if (index > 0 && index % 60 === 0) {
+    parts.push(
+      '```mermaid',
+      'flowchart TD',
+      `  A${index}[Large mixed ${index}] --> B${index}[Scroll render]`,
+      `  B${index} --> C${index}[Performance sentinel]`,
+      '```',
+      '',
+    );
+  }
+
+  return parts.join('\n');
+}
+
+function createVeryLargeMixedSyntaxMarkdown(targetLength = 1_050_000): string {
+  const sections = [
+    '---',
+    'title: E2E Very Large Mixed Syntax Performance',
+    'tags:',
+    '  - e2e',
+    '  - performance',
+    '---',
+    '',
+    '# Very Large Mixed Syntax Performance',
+    '',
+    '[TOC]',
+    '',
+  ];
+
+  for (let index = 0; sections.join('\n').length < targetLength; index += 1) {
+    sections.push(createLargeMixedSyntaxSection(index));
+  }
+
+  sections.push('Final very large mixed syntax performance sentinel.');
+  return sections.join('\n');
 }
 
 async function scrollTextIntoView(page: Page, text: string): Promise<void> {
@@ -326,7 +435,7 @@ async function measureFontSizeSliderDrag(page: Page): Promise<{
 }
 
 test.describe('large markdown interaction performance', () => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
 
   test('keeps text selection and appearance font-size preview responsive in a very large note', async () => {
     const { content, targetText } = createVeryLargePlainMarkdown(1_700);
@@ -366,6 +475,80 @@ test.describe('large markdown interaction performance', () => {
       expect(sliderMetrics.sliderGestureMs).toBeLessThan(2_500);
       expect(sliderMetrics.maxFrameMs).toBeLessThan(450);
       expect(sliderMetrics.styleMutationCount).toBeLessThanOrEqual(4);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps scanning and scrolling responsive in a one-million-character mixed-syntax note', async () => {
+    const content = createVeryLargeMixedSyntaxMarkdown();
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-large-mixed-markdown-performance');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      page.on('console', (message) => {
+        const text = message.text();
+        if (text.includes('[notes-milkdown-timing:')) {
+          console.info(text);
+        }
+      });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'large-mixed-markdown-performance.md',
+        content,
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final very large mixed syntax performance sentinel');
+
+      const stableSelectableBlockCount = await waitForStableSelectableBlockCount(page, {
+        timeoutMs: 20_000,
+      });
+      const domMetrics = await collectEditorDomMetrics(page);
+      const scrollMetrics = await measureScrollFrames(page, 60);
+      const blockScanMetrics = await measureRepeatedBlockScan(page, 20);
+
+      const selectedStartedAt = Date.now();
+      const selectedCount = await selectNoteBlocksByText(page, [
+        'Very Large Mixed Syntax Performance',
+        'Large mixed paragraph 0',
+        'Task 20 checked',
+        'Large Mixed Syntax Section 60',
+        'Large mixed paragraph 120',
+        'Final very large mixed syntax performance sentinel',
+      ]);
+      const selectedWallMs = Date.now() - selectedStartedAt;
+      const selectedScrollMetrics = await measureScrollFrames(page, 60);
+
+      console.info('[notes-large-mixed-markdown-performance]', {
+        contentLength: content.length,
+        opened,
+        stableSelectableBlockCount,
+        domMetrics,
+        scrollMetrics,
+        blockScanMetrics,
+        selectedCount,
+        selectedWallMs,
+        selectedScrollMetrics,
+      });
+
+      expect(content.length).toBeGreaterThan(1_000_000);
+      expect(opened.storeOpenMs).toBeLessThan(45_000);
+      expect(domMetrics.countsBySelector.sourceFallback).toBe(0);
+      expect(domMetrics.countsBySelector.headings).toBeGreaterThan(200);
+      expect(domMetrics.countsBySelector.taskItems).toBeGreaterThan(400);
+      expect(domMetrics.countsBySelector.tables).toBeGreaterThan(40);
+      expect(domMetrics.countsBySelector.codeBlocks).toBeGreaterThan(30);
+      expect(domMetrics.countsBySelector.mathBlocks).toBeGreaterThan(15);
+      expect(domMetrics.countsBySelector.mermaid).toBeGreaterThanOrEqual(3);
+      expect(domMetrics.selectableBlockCount).toBe(stableSelectableBlockCount);
+      expect(blockScanMetrics.blockCount).toBe(stableSelectableBlockCount);
+      expect(blockScanMetrics.p95Ms).toBeLessThan(120);
+      expect(scrollMetrics).not.toBeNull();
+      expect(scrollMetrics!.p95FrameMs).toBeLessThan(250);
+      expect(selectedCount).toBeGreaterThanOrEqual(5);
+      expect(selectedWallMs).toBeLessThan(6_000);
+      expect(selectedScrollMetrics).not.toBeNull();
+      expect(selectedScrollMetrics!.p95FrameMs).toBeLessThan(250);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

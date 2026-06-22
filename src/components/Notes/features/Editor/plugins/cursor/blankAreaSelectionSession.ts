@@ -51,6 +51,7 @@ interface StartBlankAreaSelectionSessionOptions {
 }
 
 const EXTERNAL_BLANK_AREA_SELECTION_MIN_BLOCK_OVERLAP_PX = 12;
+const DRAG_SELECTION_POINTER_EDGE_HIT_SLOP_PX = 8;
 const GEOMETRY_RESIZE_TOLERANCE_PX = 1;
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 
@@ -128,6 +129,27 @@ function resolveDragPointerY(startY: number, rect: RectBounds): number {
   return startY === rect.top ? rect.bottom : rect.top;
 }
 
+function expandDragRectPointerEdgeY(
+  rect: RectBounds,
+  startY: number,
+  slopPx = DRAG_SELECTION_POINTER_EDGE_HIT_SLOP_PX,
+): RectBounds {
+  if (slopPx <= 0) return rect;
+  if (startY === rect.top) {
+    return {
+      ...rect,
+      bottom: rect.bottom + slopPx,
+    };
+  }
+  if (startY === rect.bottom) {
+    return {
+      ...rect,
+      top: rect.top - slopPx,
+    };
+  }
+  return rect;
+}
+
 function hasMeaningfulResizeDelta(
   previous: { width: number; height: number } | undefined,
   next: { width: number; height: number },
@@ -187,11 +209,11 @@ export function startBlankAreaSelectionSession(
   const rectResolver = createBlockRectResolver({
     view,
     scrollRootSelector,
+    usePositionCache: false,
   });
 
   let dragBox: HTMLDivElement | null = null;
   let selectedBlocksKey = getBlockRangesKey(initialSelectedBlocks);
-  let pendingDragRect: RectBounds | null = null;
   let pendingDragBoxRect: RectBounds | null = null;
   let lastViewportDragRect: RectBounds | null = null;
   let lastAppliedViewportDragRect: RectBounds | null = null;
@@ -199,7 +221,6 @@ export function startBlankAreaSelectionSession(
   let lastAppliedScrollTop = Number.NaN;
   let lastPointerY = event.clientY;
   let dragBoxTopBoundary = 0;
-  let dragMoveRafId = 0;
   let dragBoxRafId = 0;
   let preserveContainingBlocksForSession = false;
   let didResolveFirstNonEmptySelection = false;
@@ -264,6 +285,7 @@ export function startBlankAreaSelectionSession(
       currentScrollLeft,
       currentScrollTop,
     );
+    const hitTestDragRect = expandDragRectPointerEdgeY(docSpaceDragRect, event.clientY + startScrollTop);
     const { blockRects: docSpaceBlockRects, index: docSpaceBlockIndex } = getDocSpaceBlockRectIndex(
       currentScrollLeft,
       currentScrollTop,
@@ -271,23 +293,23 @@ export function startBlankAreaSelectionSession(
     const selectedBlocks = shouldFilterExternalEdgeGrazes
       ? filterExternalBlankAreaSelectionEdgeGrazes(
         docSpaceBlockRects,
-        resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, docSpaceDragRect),
-        docSpaceDragRect,
+        resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, hitTestDragRect),
+        hitTestDragRect,
       )
-      : resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, docSpaceDragRect);
+      : resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, hitTestDragRect);
     const selectedIntersectionKey = getBlockRangesKey(selectedBlocks);
     if (!didResolveFirstNonEmptySelection && selectedBlocks.length > 0) {
       didResolveFirstNonEmptySelection = true;
       preserveContainingBlocksForSession = preferNestedBlockRanges(selectedBlocks).length === selectedBlocks.length;
     }
-    const selectionResolutionKey = `${selectedIntersectionKey}|${preserveContainingBlocksForSession ? 'preserve' : 'nested'}|${Math.round(docSpaceDragRect.top * 100) / 100}|${currentScrollLeft}|${currentScrollTop}`;
+    const selectionResolutionKey = `${selectedIntersectionKey}|${preserveContainingBlocksForSession ? 'preserve' : 'nested'}|${Math.round(hitTestDragRect.top * 100) / 100}|${currentScrollLeft}|${currentScrollTop}`;
     let expandedBlocks = cachedSelectionResolutionBlocks;
     let nextKey = cachedSelectionResolutionExpandedKey;
 
     if (selectionResolutionKey !== cachedSelectionResolutionKey) {
       const nestedPreferredBlocks = preserveContainingBlocksForSession
         ? selectedBlocks
-        : preferNestedBlockRangesUnlessHeaderIntersects(selectedBlocks, docSpaceBlockRects, docSpaceDragRect);
+        : preferNestedBlockRangesUnlessHeaderIntersects(selectedBlocks, docSpaceBlockRects, hitTestDragRect);
       expandedBlocks = expandKnownSelectableListItemHeaderRanges(
         view.state.doc,
         nestedPreferredBlocks,
@@ -302,6 +324,7 @@ export function startBlankAreaSelectionSession(
 
     selectedBlocksKey = nextKey;
     onSelectionChange(expandedBlocks);
+    invalidateGeometryCache();
   };
 
   const invalidateGeometryCache = () => {
@@ -340,7 +363,7 @@ export function startBlankAreaSelectionSession(
     invalidateGeometryCache();
     dragBoxTopBoundary = getDragBoxTopBoundary(scrollRoot);
     if (!lastViewportDragRect) return;
-    scheduleDragRectSelection(lastViewportDragRect);
+    applyDragRectSelectionIfNeeded(lastViewportDragRect);
   };
 
   if (typeof ResizeObserver !== 'undefined') {
@@ -353,7 +376,7 @@ export function startBlankAreaSelectionSession(
     }
   }
 
-  function scheduleDragRectSelection(viewportDragRect: RectBounds): void {
+  function applyDragRectSelectionIfNeeded(viewportDragRect: RectBounds): void {
     const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
     const currentScrollTop = scrollRoot?.scrollTop ?? 0;
     if (
@@ -361,20 +384,10 @@ export function startBlankAreaSelectionSession(
       && lastAppliedScrollLeft === currentScrollLeft
       && lastAppliedScrollTop === currentScrollTop
     ) {
-      pendingDragRect = null;
       return;
     }
 
-    pendingDragRect = viewportDragRect;
-    if (dragMoveRafId !== 0) return;
-
-    dragMoveRafId = window.requestAnimationFrame(() => {
-      dragMoveRafId = 0;
-      if (!pendingDragRect) return;
-      const nextRect = pendingDragRect;
-      pendingDragRect = null;
-      applyDragRectSelection(nextRect);
-    });
+    applyDragRectSelection(viewportDragRect);
   }
 
   const scheduleDragBoxUpdate = (viewportRect: RectBounds) => {
@@ -388,26 +401,6 @@ export function startBlankAreaSelectionSession(
       pendingDragBoxRect = null;
       updateDragBox(dragBox, nextRect);
     });
-  };
-
-  const flushPendingDragSelection = () => {
-    if (dragMoveRafId !== 0) {
-      window.cancelAnimationFrame(dragMoveRafId);
-      dragMoveRafId = 0;
-    }
-    if (!pendingDragRect) return;
-    const nextRect = pendingDragRect;
-    pendingDragRect = null;
-    const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
-    const currentScrollTop = scrollRoot?.scrollTop ?? 0;
-    if (
-      areRectBoundsEqual(lastAppliedViewportDragRect, nextRect)
-      && lastAppliedScrollLeft === currentScrollLeft
-      && lastAppliedScrollTop === currentScrollTop
-    ) {
-      return;
-    }
-    applyDragRectSelection(nextRect);
   };
 
   const handleScrollWhileDragging = () => {
@@ -428,7 +421,7 @@ export function startBlankAreaSelectionSession(
       scheduleDragBoxUpdate(clampViewportRectTop(viewportRect, dragBoxTopBoundary));
     }
 
-    scheduleDragRectSelection(lastViewportDragRect);
+    applyDragRectSelectionIfNeeded(lastViewportDragRect);
   };
 
   const autoScroll = createVerticalEdgeAutoScroll({
@@ -473,7 +466,7 @@ export function startBlankAreaSelectionSession(
       if (dragBox) {
         scheduleDragBoxUpdate(clampViewportRectTop(displayedViewportRect, dragBoxTopBoundary));
       }
-      scheduleDragRectSelection(dragRect);
+      applyDragRectSelectionIfNeeded(dragRect);
     },
     onPlainClick(zone) {
       const blockRects = rectResolver.getTopLevelBlockRects();
@@ -493,7 +486,6 @@ export function startBlankAreaSelectionSession(
       });
     },
     onTeardown() {
-      flushPendingDragSelection();
       if (dragBox) {
         dragBox.remove();
         dragBox = null;

@@ -1087,6 +1087,240 @@ test.describe("notes block selection", () => {
     }
   });
 
+  test('updates blank-area drag selection in the same pointer move on long documents', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-long-drag-sync');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 1000 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-long-drag-sync.md',
+        content: [
+          '# Long Blank Area Drag Sync',
+          '',
+          ...Array.from({ length: 80 }, (_, index) => `- Lag selection row ${index}`),
+        ].join('\n'),
+      });
+
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks().length),
+        { timeout: 30_000 },
+      ).toBeGreaterThanOrEqual(80);
+
+      const dragPoints = await page.evaluate(async () => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+        if (!editor || !scrollRoot) return null;
+
+        const items = Array.from(editor.querySelectorAll<HTMLElement>('li'))
+          .filter((element) => element.textContent?.includes('Lag selection row'));
+        const startItem = items.find((element) => element.textContent?.includes('Lag selection row 4')) ?? null;
+        if (!startItem) return null;
+
+        startItem.scrollIntoView({ block: 'center', inline: 'nearest' });
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+        const scrollRootRect = scrollRoot.getBoundingClientRect();
+        const editorRect = editor.getBoundingClientRect();
+        const visibleItems = items
+          .map((element, index) => ({ element, index, rect: element.getBoundingClientRect() }))
+          .filter(({ index, rect }) => (
+            index > 4 &&
+            rect.top >= scrollRootRect.top + 24 &&
+            rect.bottom <= scrollRootRect.bottom - 24
+          ));
+        const endCandidate = visibleItems[Math.min(visibleItems.length - 1, 18)];
+        if (!endCandidate || endCandidate.index < 12) return null;
+
+        const startRect = startItem.getBoundingClientRect();
+        const startY = startRect.top + startRect.height / 2;
+        const startCandidates = [
+          editorRect.right + 72,
+          editorRect.right + 48,
+          editorRect.right + 24,
+          editorRect.right + 8,
+          scrollRootRect.right - 24,
+        ]
+          .map((x) => Math.min(scrollRootRect.right - 24, Math.max(scrollRootRect.left + 24, x)))
+          .filter((x, index, values) => values.findIndex((value) => Math.abs(value - x) < 0.5) === index);
+        const startX = startCandidates.find((x) => {
+          const hit = document.elementFromPoint(x, startY);
+          return hit instanceof Node && !editor.contains(hit);
+        }) ?? startCandidates[0] ?? scrollRootRect.right - 24;
+        const endRect = endCandidate.rect;
+        const endX = Math.max(editorRect.left + 24, Math.min(editorRect.right - 24, endRect.left + 160));
+        const hit = document.elementFromPoint(startX, startY);
+
+        return {
+          startX,
+          startY,
+          endX,
+          endY: endRect.top + endRect.height / 2,
+          endIndex: endCandidate.index,
+          endText: endCandidate.element.textContent?.trim() ?? '',
+          hitInsideEditor: hit instanceof Node && editor.contains(hit),
+        };
+      });
+
+      expect(dragPoints, 'long blank-area drag points').not.toBeNull();
+      expect(dragPoints!.hitInsideEditor, JSON.stringify(dragPoints, null, 2)).toBe(false);
+
+      await page.evaluate(() => {
+        const win = window as typeof window & {
+          __vlainaRestoreHeldRaf?: () => void;
+          __vlainaHeldRafCount?: () => number;
+        };
+        win.__vlainaRestoreHeldRaf?.();
+
+        const originalRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+        const originalCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+        const callbacks = new Map<number, FrameRequestCallback>();
+        let nextId = 1;
+
+        window.requestAnimationFrame = (callback: FrameRequestCallback) => {
+          const id = nextId;
+          nextId += 1;
+          callbacks.set(id, callback);
+          return id;
+        };
+        window.cancelAnimationFrame = (id: number) => {
+          callbacks.delete(id);
+        };
+        win.__vlainaHeldRafCount = () => callbacks.size;
+        win.__vlainaRestoreHeldRaf = () => {
+          window.requestAnimationFrame = originalRequestAnimationFrame;
+          window.cancelAnimationFrame = originalCancelAnimationFrame;
+          callbacks.clear();
+          delete win.__vlainaHeldRafCount;
+          delete win.__vlainaRestoreHeldRaf;
+        };
+      });
+
+      let mouseDown = false;
+      try {
+        await page.mouse.move(dragPoints!.startX, dragPoints!.startY);
+        await page.mouse.down();
+        mouseDown = true;
+        await page.mouse.move(dragPoints!.endX, dragPoints!.endY, { steps: 1 });
+
+        const immediateSelection = await page.evaluate((expectedEndText) => {
+          const selected = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .editor-block-selected'))
+            .map((element) => element.textContent?.trim() ?? '');
+          return {
+            heldRafCount: (window as any).__vlainaHeldRafCount?.() ?? 0,
+            selected,
+            selectedCount: selected.length,
+            hasEndBlock: selected.some((text) => text.includes(expectedEndText)),
+          };
+        }, dragPoints!.endText);
+
+        expect(immediateSelection.heldRafCount, JSON.stringify({ dragPoints, immediateSelection }, null, 2)).toBeGreaterThan(0);
+        expect(immediateSelection.selectedCount, JSON.stringify({ dragPoints, immediateSelection }, null, 2)).toBeGreaterThanOrEqual(8);
+        expect(immediateSelection.hasEndBlock, JSON.stringify({ dragPoints, immediateSelection }, null, 2)).toBe(true);
+      } finally {
+        if (mouseDown) {
+          await page.mouse.up().catch(() => {});
+        }
+        await page.evaluate(() => {
+          (window as any).__vlainaRestoreHeldRaf?.();
+        });
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps blank-area drag selection live while auto-scrolling into large selections', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-block-selection-large-autoscroll-live-hit-testing');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await openMarkdownFixture(page, {
+        filename: 'block-selection-large-autoscroll-live-hit-testing.md',
+        content: [
+          '# Large Auto-scroll Live Hit Testing',
+          '',
+          ...Array.from({ length: 230 }, (_, index) => `- Live drag row ${index}`),
+        ].join('\n'),
+      });
+
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks().length),
+        { timeout: 30_000 },
+      ).toBeGreaterThanOrEqual(230);
+
+      const dragTarget = await getBlankAreaDragTarget(page, 'Live drag row 0');
+      expect(dragTarget, 'large auto-scroll blank-area drag target').not.toBeNull();
+      expect(dragTarget!.hitInsideEditor, JSON.stringify(dragTarget, null, 2)).toBe(false);
+
+      const edgeTarget = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+        if (!editor || !scrollRoot) return null;
+        const editorRect = editor.getBoundingClientRect();
+        const scrollRootRect = scrollRoot.getBoundingClientRect();
+        return {
+          x: Math.max(editorRect.left + 80, Math.min(editorRect.right - 80, editorRect.left + editorRect.width * 0.42)),
+          y: scrollRootRect.bottom - 6,
+        };
+      });
+      expect(edgeTarget, 'large auto-scroll edge target').not.toBeNull();
+
+      let mouseDown = false;
+      try {
+        await page.mouse.move(dragTarget!.startX, dragTarget!.startY);
+        await page.mouse.down();
+        mouseDown = true;
+        await page.mouse.move(dragTarget!.endX, dragTarget!.endY, { steps: 8 });
+        await page.mouse.move(edgeTarget!.x, edgeTarget!.y, { steps: 8 });
+
+        await expect.poll(async () => page.evaluate(() => {
+          const selectedItems = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror li.editor-block-selected'));
+          const indexes = selectedItems
+            .map((element) => /Live drag row (\d+)/.exec(element.textContent ?? '')?.[1] ?? null)
+            .filter((value): value is string => value !== null)
+            .map((value) => Number.parseInt(value, 10))
+            .filter(Number.isFinite);
+          return indexes.length > 0 ? Math.max(...indexes) : -1;
+        }), { timeout: 30_000 }).toBeGreaterThanOrEqual(150);
+
+        const metrics = await page.evaluate(() => {
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+          const selectedItems = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror li.editor-block-selected'));
+          const indexes = selectedItems
+            .map((element) => /Live drag row (\d+)/.exec(element.textContent ?? '')?.[1] ?? null)
+            .filter((value): value is string => value !== null)
+            .map((value) => Number.parseInt(value, 10))
+            .filter(Number.isFinite);
+          return {
+            largeActive: editor?.classList.contains('editor-block-selection-large') ?? false,
+            maxIndex: indexes.length > 0 ? Math.max(...indexes) : -1,
+            pending: editor?.classList.contains('editor-block-selection-pending') ?? false,
+            scrollTop: Math.round(scrollRoot?.scrollTop ?? 0),
+            selectedCount: selectedItems.length,
+          };
+        });
+
+        expect(metrics.pending, JSON.stringify(metrics, null, 2)).toBe(true);
+        expect(metrics.largeActive, JSON.stringify(metrics, null, 2)).toBe(true);
+        expect(metrics.selectedCount, JSON.stringify(metrics, null, 2)).toBeGreaterThanOrEqual(128);
+        expect(metrics.maxIndex, JSON.stringify(metrics, null, 2)).toBeGreaterThanOrEqual(150);
+        expect(metrics.scrollTop, JSON.stringify(metrics, null, 2)).toBeGreaterThan(300);
+      } finally {
+        if (mouseDown) {
+          await page.mouse.up().catch(() => {});
+        }
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('moves a dragged block when hovering the target row left gutter', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-block-drag-left-gutter-drop');
 
@@ -1191,6 +1425,81 @@ test.describe("notes block selection", () => {
       expect(geometry).not.toBeNull();
       expect(Math.abs(geometry!.controlsCenterY - geometry!.selectedCenterY)).toBeLessThanOrEqual(2);
       expect(geometry!.controlsLeft).toBeLessThan(geometry!.selectedLeft);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps long block drag previews anchored near the pointer', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-long-block-drag-preview-anchor');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'long-block-drag-preview-anchor.md',
+        content: Array.from(
+          { length: 170 },
+          (_, index) => `Long drag preview row ${index}`,
+        ).join('\n\n'),
+      });
+
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks().length),
+        { timeout: 30_000 },
+      ).toBeGreaterThanOrEqual(300);
+
+      const selectedCount = await page.evaluate(() => {
+        const indexes = Array.from({ length: 260 }, (_, index) => index);
+        return (window as any).__vlainaE2E.selectNoteBlocksByIndexes(indexes);
+      });
+      expect(selectedCount).toBe(260);
+
+      const anchor = page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Long drag preview row 120' });
+      await anchor.scrollIntoViewIfNeeded();
+      await expect(anchor).toBeVisible();
+      await moveMouseToBlockHandleGutter(page, anchor);
+      await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
+
+      const handleBox = await page.locator('.editor-block-control-handle').boundingBox();
+      if (!handleBox) {
+        throw new Error('Could not resolve block drag handle geometry');
+      }
+
+      const dragStartX = handleBox.x + handleBox.width / 2;
+      const dragStartY = handleBox.y + handleBox.height / 2;
+      const dragMoveX = dragStartX + 36;
+      const dragMoveY = dragStartY + 18;
+      await page.mouse.move(dragStartX, dragStartY);
+      await page.mouse.down();
+      await page.mouse.move(dragMoveX, dragMoveY, { steps: 6 });
+
+      await expect.poll(async () => page.evaluate(() =>
+        document.body.classList.contains('editor-block-drag-active')
+      )).toBe(true);
+
+      const geometry = await page.evaluate(({ pointerY }) => {
+        const preview = document.querySelector<HTMLElement>('.editor-block-drag-preview');
+        const layer = preview?.querySelector<HTMLElement>('.editor-block-drag-preview-layer') ?? null;
+        if (!preview || !layer) return null;
+        const rect = preview.getBoundingClientRect();
+        return {
+          previewTop: rect.top,
+          previewBottom: rect.bottom,
+          previewHeight: rect.height,
+          pointerOffsetY: pointerY - rect.top,
+          pointerInsidePreviewY: pointerY >= rect.top && pointerY <= rect.bottom,
+        };
+      }, { pointerY: dragMoveY });
+
+      expect(geometry, 'long drag preview geometry').not.toBeNull();
+      expect(geometry!.previewHeight, JSON.stringify(geometry, null, 2)).toBeGreaterThan(1000);
+      expect(geometry!.pointerInsidePreviewY, JSON.stringify(geometry, null, 2)).toBe(true);
+      expect(geometry!.pointerOffsetY, JSON.stringify(geometry, null, 2)).toBeGreaterThanOrEqual(8);
+      expect(geometry!.pointerOffsetY, JSON.stringify(geometry, null, 2)).toBeLessThanOrEqual(120);
+
+      await page.mouse.up();
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

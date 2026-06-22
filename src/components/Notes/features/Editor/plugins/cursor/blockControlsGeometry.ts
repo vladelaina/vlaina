@@ -122,7 +122,7 @@ export function getHandleBlockTargets(view: EditorView, selectedRanges: readonly
     return [...byKey.values()];
   }
 
-  const selectableTargets = collectSelectableBlockTargets(view)
+  const selectableTargets = (getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view))
     .filter((target) => !isNonDraggableBlockRange(view.state.doc, target.range));
   mappedRanges.forEach((range) => {
     const listItemTo = getListItemRangeEnd(view.state.doc, range.from);
