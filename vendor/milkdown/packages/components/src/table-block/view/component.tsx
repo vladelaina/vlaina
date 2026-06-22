@@ -11,6 +11,7 @@ import {
 import type { CellIndex, Refs } from './types'
 
 import { useColumnHeaderDrag } from './column-header-drag'
+import { useRowHeaderDrag } from './row-header-drag'
 import { renderTableBlock } from './table-block-render'
 import { useCornerCreateHandlers } from './corner-create'
 import { useEdgeCreateHandlers } from './edge-create'
@@ -97,10 +98,15 @@ export const TableBlock = defineComponent<TableBlockProps>({
       onShrinkRow,
       onShrinkCol,
       onMoveCol,
+      onMoveRow,
       onInsertColLeft,
       onInsertColRight,
       onDeleteCol,
       onClearColContent,
+      onInsertRowAbove,
+      onInsertRowBelow,
+      onDeleteRow,
+      onClearRowContent,
       canShrinkRow,
       canShrinkCol,
     } = useOperation(refs, ctx, getPos)
@@ -135,6 +141,40 @@ export const TableBlock = defineComponent<TableBlockProps>({
       clearColContent: onClearColContent,
       deleteCol: onDeleteCol,
     })
+    const {
+      controls: rowHeaderDragControls,
+      dragIndicator: rowDragIndicator,
+      dragSourceHighlight: rowDragSourceHighlight,
+      menuId: rowMenuId,
+      menuState: rowMenuState,
+      syncControls: syncRowHeaderControls,
+      syncHoveredControl: syncRowHoveredControl,
+      clearHoveredControl: clearRowHoveredControl,
+      onRootPointerDown: onRowRootPointerDown,
+      onControlPointerDown: onRowControlPointerDown,
+      onControlClick: onRowControlClick,
+      onControlKeyDown: onRowControlKeyDown,
+      onControlFocus: onRowControlFocus,
+      onControlBlur: onRowControlBlur,
+      onMenuPointerDown: onRowMenuPointerDown,
+      onMenuKeyDown: onRowMenuKeyDown,
+      onMenuAction: onRowMenuAction,
+      setMenuRef: setRowMenuRef,
+      setControlRef: setRowControlRef,
+    } = useRowHeaderDrag({
+      ctx,
+      tableWrapperRef,
+      contentWrapperRef,
+      moveRow: onMoveRow,
+      insertRowAbove: onInsertRowAbove,
+      insertRowBelow: onInsertRowBelow,
+      clearRowContent: onClearRowContent,
+      deleteRow: onDeleteRow,
+    })
+    const syncHeaderControls = () => {
+      syncColumnHeaderControls()
+      syncRowHeaderControls()
+    }
     const layout = useTableBlockLayout({
       rowEdgeZoneSize,
       colEdgeZoneSize,
@@ -149,7 +189,7 @@ export const TableBlock = defineComponent<TableBlockProps>({
       cornerEdgeZoneRef,
       ensureContentHost,
       getTableKey: safeGetPos,
-      syncColumnHeaderControls,
+      syncColumnHeaderControls: syncHeaderControls,
     })
     const { syncEdgeCreateZones } = layout
     queueLayoutSync = layout.queueLayoutSync
@@ -245,14 +285,24 @@ export const TableBlock = defineComponent<TableBlockProps>({
         dragSourceHighlight: dragSourceHighlight.value,
         menuId,
         menuState: menuState.value,
-        onRootPointerDown,
+        rowControls: rowHeaderDragControls.value,
+        rowDragIndicator: rowDragIndicator.value,
+        rowDragSourceHighlight: rowDragSourceHighlight.value,
+        rowMenuId,
+        rowMenuState: rowMenuState.value,
+        onRootPointerDown: (event: PointerEvent) => {
+          onRootPointerDown(event)
+          onRowRootPointerDown(event)
+        },
         onRootPointerMove: (event: PointerEvent) => {
           pointerMove(event)
           syncHoveredControl(event)
+          syncRowHoveredControl(event)
         },
         onRootPointerLeave: () => {
           pointerLeave()
           clearHoveredControl()
+          clearRowHoveredControl()
         },
         onControlBlur,
         onControlClick,
@@ -264,6 +314,16 @@ export const TableBlock = defineComponent<TableBlockProps>({
         onMenuPointerDown,
         setMenuRef,
         setControlRef,
+        onRowControlBlur,
+        onRowControlClick,
+        onRowControlFocus,
+        onRowControlKeyDown,
+        onRowControlPointerDown,
+        onRowMenuAction,
+        onRowMenuKeyDown,
+        onRowMenuPointerDown,
+        setRowMenuRef,
+        setRowControlRef,
         onRowZonePointerEnter: handleZonePointerEnter('row'),
         onRowZonePointerDown: handleZonePointerDown('row'),
         onRowZoneMouseDown: handleZoneMouseDown('row'),

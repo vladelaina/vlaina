@@ -445,6 +445,7 @@
   "editor.table.deleteRow": "刪除列",
   "editor.table.deleteTable": "刪除表格",
   "editor.table.columnHandle": "第 {number} 欄控制柄",
+  "editor.table.rowHandle": "第 {number} 列控制柄",
   "editor.table.insertColumnLeft": "左側插入欄",
   "editor.table.insertColumnRight": "右側插入欄",
   "editor.table.insertRowAbove": "上方插入列",

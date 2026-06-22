@@ -583,6 +583,13 @@ export function useCornerCreateHandlers(
     canShrinkCol,
   }
 
+  const destroyCornerCreateSession = () => {
+    if (activeRuntime === runtime) {
+      clearSession(activeSession)
+      activeRuntime = null
+    }
+  }
+
   if (getCurrentInstance()) {
     onMounted(() => {
       if (!activeSession) return
@@ -590,11 +597,7 @@ export function useCornerCreateHandlers(
       activeRuntime = runtime
     })
 
-    onUnmounted(() => {
-      if (activeRuntime === runtime && !activeSession) {
-        activeRuntime = null
-      }
-    })
+    onUnmounted(destroyCornerCreateSession)
   }
 
   const prepareCornerCreate = () => {
@@ -698,5 +701,6 @@ export function useCornerCreateHandlers(
     prepareCornerCreate,
     startCornerCreate: startSession('pointer'),
     startCornerCreateMouse: startSession('mouse'),
+    destroyCornerCreateSession,
   }
 }

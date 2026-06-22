@@ -445,6 +445,7 @@
   "editor.table.deleteRow": "Xóa hàng",
   "editor.table.deleteTable": "Xóa bảng",
   "editor.table.columnHandle": "Tay nắm cột {number}",
+  "editor.table.rowHandle": "Tay nắm hàng {number}",
   "editor.table.insertColumnLeft": "Chèn cột bên trái",
   "editor.table.insertColumnRight": "Chèn cột bên phải",
   "editor.table.insertRowAbove": "Chèn hàng bên trên",

@@ -141,6 +141,42 @@ describe('TableNodeView', () => {
     expect(nodeView.stopEvent(event)).toBe(true)
   })
 
+  it('blocks row drag-handle interactions so editor content selection is not hijacked', () => {
+    const nodeView = new TableNodeView(
+      {} as never,
+      createMockNode('table'),
+      createMockView(),
+      () => 1
+    )
+    const control = document.createElement('div')
+    control.setAttribute('data-role', 'row-header-drag-control')
+    const event = new Event('pointerdown')
+    Object.defineProperty(event, 'target', {
+      value: control,
+      configurable: true,
+    })
+
+    expect(nodeView.stopEvent(event)).toBe(true)
+  })
+
+  it('blocks row menu keyboard events so editor keyboard handling is not hijacked', () => {
+    const nodeView = new TableNodeView(
+      {} as never,
+      createMockNode('table'),
+      createMockView(),
+      () => 1
+    )
+    const menu = document.createElement('div')
+    menu.setAttribute('data-role', 'row-header-drag-menu')
+    const event = new KeyboardEvent('keydown', { key: 'Escape' })
+    Object.defineProperty(event, 'target', {
+      value: menu,
+      configurable: true,
+    })
+
+    expect(nodeView.stopEvent(event)).toBe(true)
+  })
+
   it('blocks drag-handle keyboard events so editor keyboard handling is not hijacked', () => {
     const nodeView = new TableNodeView(
       {} as never,

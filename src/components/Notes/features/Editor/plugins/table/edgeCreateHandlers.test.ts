@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('vue', () => ({
-  onMounted: () => {},
-  onUnmounted: () => {},
-}))
-
 vi.mock('../../../../../../../vendor/milkdown/packages/components/src/table-block/view/drag-cursor', () => ({
   acquireTableDragCursor: vi.fn(),
   releaseTableDragCursor: vi.fn(),
@@ -373,6 +368,60 @@ describe('edge create handlers', () => {
     })
 
     expect(onAddRow).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears an active bottom-edge drag when the table component unmounts', () => {
+    const first = createHarness()
+
+    first.handlers.startRowEdgeCreate(
+      createStartPointerEvent({
+        currentTarget: first.handle,
+        pointerId: 17,
+        clientX: 120,
+        clientY: 200,
+      })
+    )
+
+    expect(
+      document.querySelector('[data-role="table-size-drag-tooltip"]')
+    ).toBeInstanceOf(HTMLElement)
+
+    first.handlers.destroyEdgeCreateSession()
+
+    expect(
+      document.querySelector('[data-role="table-size-drag-tooltip"]')
+    ).toBeNull()
+
+    const next = createHarness()
+    next.handlers.startRowEdgeCreate(
+      createStartPointerEvent({
+        currentTarget: next.handle,
+        pointerId: 18,
+        clientX: 120,
+        clientY: 200,
+      })
+    )
+
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 18,
+      clientX: 120,
+      clientY: 207,
+    })
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 18,
+      clientX: 120,
+      clientY: 225,
+    })
+    dispatchDocumentPointerEvent({
+      type: 'pointerup',
+      pointerId: 18,
+      clientX: 120,
+      clientY: 225,
+    })
+
+    expect(next.onAddRow).toHaveBeenCalledTimes(1)
   })
 
   it('keeps adding rows while the same bottom-edge drag continues past each new threshold', () => {

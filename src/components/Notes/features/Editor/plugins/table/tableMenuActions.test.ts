@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const tableMocks = vi.hoisted(() => ({
   addRowBefore: vi.fn((_state, dispatch) => {
@@ -41,6 +41,10 @@ vi.mock('@milkdown/kit/prose/state', () => ({
 import { isTableMenuCellPosValid, runTableMenuAction } from './tableMenuActions';
 
 describe('table menu actions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('accepts stored positions that still point at a table cell', () => {
     const view = {
       state: {
@@ -84,6 +88,7 @@ describe('table menu actions', () => {
       setSelection: vi.fn(() => tr),
     };
     const view = {
+      editable: true,
       dom,
       state: {
         doc: {
@@ -103,7 +108,9 @@ describe('table menu actions', () => {
       dispatch: vi.fn(),
     };
 
-    expect(runTableMenuAction('insert-row-below', view as never, 12)).toBe(true);
+    expect(
+      runTableMenuAction('insert-row-below', view as never, 12)
+    ).toBe(true);
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(view.dispatch).toHaveBeenCalledWith({ type: 'add-row-after' });
@@ -118,6 +125,7 @@ describe('table menu actions', () => {
       setSelection: vi.fn(() => tr),
     };
     const view = {
+      editable: true,
       dom,
       state: {
         doc: {
@@ -139,6 +147,43 @@ describe('table menu actions', () => {
 
     expect(runTableMenuAction('delete-row', view as never, 12)).toBe(false);
 
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('does not run table menu mutations while the editor is readonly', () => {
+    const dom = new EventTarget();
+    const listener = vi.fn();
+    dom.addEventListener('editor:block-user-input', listener);
+    const tr = {
+      setSelection: vi.fn(() => tr),
+    };
+    const view = {
+      editable: false,
+      dom,
+      state: {
+        doc: {
+          content: { size: 80 },
+          nodeAt: (pos: number) =>
+            pos === 12
+              ? {
+                  type: {
+                    name: 'table_cell',
+                  },
+                }
+              : null,
+          resolve: vi.fn(() => ({ pos: 13 })),
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+    };
+
+    expect(
+      runTableMenuAction('insert-row-below', view as never, 12)
+    ).toBe(false);
+
+    expect(tableMocks.addRowAfter).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
   });
 });

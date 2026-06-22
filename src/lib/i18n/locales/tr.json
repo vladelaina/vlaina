@@ -445,6 +445,7 @@
   "editor.table.deleteRow": "Satırı sil",
   "editor.table.deleteTable": "Tabloyu sil",
   "editor.table.columnHandle": "{number}. sütun tutamacı",
+  "editor.table.rowHandle": "{number}. satır tutamacı",
   "editor.table.insertColumnLeft": "Sola sütun ekle",
   "editor.table.insertColumnRight": "Sağa sütun ekle",
   "editor.table.insertRowAbove": "Yukarıya satır ekle",

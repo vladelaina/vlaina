@@ -74,6 +74,9 @@ function shouldSuppressComposingPipeTableShortcut(
   }
 
   const { selection } = state;
+  if (resolveTableKeydownContext(selection).inTable) {
+    return false;
+  }
   if (
     !(selection instanceof TextSelection) ||
     !selection.empty ||
@@ -199,6 +202,10 @@ export const tableKeyboardPlugin = $prose(() => {
   return new Plugin({
     props: {
       handleKeyDown(view, event) {
+        if (!view.editable) {
+          return false;
+        }
+
         if (shouldSuppressComposingPipeTableShortcut(view.state, event)) {
           return true;
         }
@@ -344,6 +351,7 @@ export const tableKeyboardPlugin = $prose(() => {
 
         if (
           event.key === 'Enter' &&
+          !keydownContext.inTable &&
           selection instanceof TextSelection &&
           selection.empty &&
           $from.parent.type.name === 'paragraph' &&

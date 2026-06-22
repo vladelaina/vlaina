@@ -9,6 +9,7 @@ const {
   addRowBeforeCommand,
   deleteSelectedCellsCommand,
   moveColCommand,
+  moveRowCommand,
   selectColCommand,
   selectRowCommand,
 } = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ const {
   addRowBeforeCommand: { key: 'addRowBefore' },
   deleteSelectedCellsCommand: { key: 'deleteSelectedCells' },
   moveColCommand: { key: 'moveCol' },
+  moveRowCommand: { key: 'moveRow' },
   selectColCommand: { key: 'selectCol' },
   selectRowCommand: { key: 'selectRow' },
 }));
@@ -42,6 +44,7 @@ vi.mock('@milkdown/preset-gfm', () => ({
   addRowBeforeCommand,
   deleteSelectedCellsCommand,
   moveColCommand,
+  moveRowCommand,
   selectColCommand,
   selectRowCommand,
 }));
@@ -53,6 +56,7 @@ vi.mock('../../../../../../../vendor/milkdown/packages/plugins/preset-gfm/src/in
   addRowBeforeCommand,
   deleteSelectedCellsCommand,
   moveColCommand,
+  moveRowCommand,
   selectColCommand,
   selectRowCommand,
 }));
@@ -175,6 +179,19 @@ describe('table operation', () => {
     });
   });
 
+  it('moves a row without selecting it afterwards', () => {
+    const { commands, operation } = createHarness();
+
+    operation.onMoveRow(0, 2);
+
+    expect(commands.call).toHaveBeenCalledTimes(1);
+    expect(commands.call).toHaveBeenCalledWith(moveRowCommand.key, {
+      pos: 6,
+      from: 0,
+      to: 2,
+    });
+  });
+
   it('selects the target column before executing a column menu command', () => {
     const { commands, operation } = createHarness();
 
@@ -193,13 +210,33 @@ describe('table operation', () => {
     expect(commands.call).toHaveBeenNthCalledWith(4, deleteSelectedCellsCommand.key);
   });
 
+  it('selects the target row before executing a row menu command', () => {
+    const { commands, operation } = createHarness();
+
+    operation.onInsertRowBelow(1);
+    operation.onDeleteRow(1);
+
+    expect(commands.call).toHaveBeenNthCalledWith(1, selectRowCommand.key, {
+      pos: 6,
+      index: 1,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(2, addRowAfterCommand.key);
+    expect(commands.call).toHaveBeenNthCalledWith(3, selectRowCommand.key, {
+      pos: 6,
+      index: 1,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(4, deleteSelectedCellsCommand.key);
+  });
+
   it('does not dispatch commands when getPos throws during a column operation', () => {
     const { commands, operation } = createHarness(() => {
       throw new Error('detached');
     });
 
     operation.onMoveCol(0, 2);
+    operation.onMoveRow(0, 2);
     operation.onInsertColRight(1);
+    operation.onInsertRowBelow(1);
 
     expect(commands.call).not.toHaveBeenCalled();
   });

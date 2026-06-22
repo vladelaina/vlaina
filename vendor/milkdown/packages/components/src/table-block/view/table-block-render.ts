@@ -8,6 +8,14 @@ import type {
   DragIndicator,
 } from './column-header-drag-state'
 import { renderColumnHeaderDragOverlay } from './column-header-drag-overlay'
+import type {
+  RowDragIndicator,
+  RowHeaderControl,
+  RowHighlight,
+  RowMenuAction,
+  RowMenuState,
+} from './row-header-drag-state'
+import { renderRowHeaderDragOverlay } from './row-header-drag-overlay'
 
 type RenderTableBlockOptions = {
   rowEdgeZoneSize: number
@@ -27,6 +35,11 @@ type RenderTableBlockOptions = {
   dragSourceHighlight: ColumnHighlight | null
   menuId: string
   menuState: ColumnMenuState | null
+  rowControls: RowHeaderControl[]
+  rowDragIndicator: RowDragIndicator | null
+  rowDragSourceHighlight: RowHighlight | null
+  rowMenuId: string
+  rowMenuState: RowMenuState | null
   onRootPointerDown: (event: PointerEvent) => void
   onRootPointerMove: (event: PointerEvent) => void
   onRootPointerLeave: () => void
@@ -40,6 +53,16 @@ type RenderTableBlockOptions = {
   onMenuPointerDown: (event: PointerEvent) => void
   setMenuRef: (element: Element | null) => void
   setControlRef: (index: number, element: Element | null) => void
+  onRowControlBlur: () => void
+  onRowControlClick: (index: number, event: MouseEvent) => void
+  onRowControlFocus: (index: number) => void
+  onRowControlKeyDown: (index: number, event: KeyboardEvent) => void
+  onRowControlPointerDown: (index: number, event: PointerEvent) => void
+  onRowMenuAction: (action: RowMenuAction) => void
+  onRowMenuKeyDown: (event: KeyboardEvent) => void
+  onRowMenuPointerDown: (event: PointerEvent) => void
+  setRowMenuRef: (element: Element | null) => void
+  setRowControlRef: (index: number, element: Element | null) => void
   onRowZonePointerEnter: () => void
   onRowZonePointerDown: (event: PointerEvent) => void
   onRowZoneMouseDown: (event: MouseEvent) => void
@@ -85,6 +108,23 @@ export function renderTableBlock(options: RenderTableBlockOptions) {
             onMenuPointerDown: options.onMenuPointerDown,
             setControlRef: options.setControlRef,
             setMenuRef: options.setMenuRef,
+          }),
+          renderRowHeaderDragOverlay({
+            controls: options.rowControls,
+            dragIndicator: options.rowDragIndicator,
+            dragSourceHighlight: options.rowDragSourceHighlight,
+            menuId: options.rowMenuId,
+            menuState: options.rowMenuState,
+            onControlBlur: options.onRowControlBlur,
+            onControlClick: options.onRowControlClick,
+            onControlFocus: options.onRowControlFocus,
+            onControlKeyDown: options.onRowControlKeyDown,
+            onControlPointerDown: options.onRowControlPointerDown,
+            onMenuAction: options.onRowMenuAction,
+            onMenuKeyDown: options.onRowMenuKeyDown,
+            onMenuPointerDown: options.onRowMenuPointerDown,
+            setControlRef: options.setRowControlRef,
+            setMenuRef: options.setRowMenuRef,
           }),
           h('div', {
             contenteditable: 'false',

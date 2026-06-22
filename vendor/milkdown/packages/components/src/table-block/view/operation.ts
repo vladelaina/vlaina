@@ -9,13 +9,14 @@ import {
   addRowBeforeCommand,
   deleteSelectedCellsCommand,
   moveColCommand,
+  moveRowCommand,
   selectColCommand,
   selectRowCommand,
 } from '@milkdown/preset-gfm'
 
 import type { Refs } from './types'
 import { rememberTableScroll } from './table-scroll-memory'
-import { collectColumnCellRanges } from './table-column-content'
+import { collectColumnCellRanges, collectRowCellRanges } from './table-column-content'
 import { isTableContentNodeEmpty } from './table-node-content'
 
 export function useOperation(
@@ -270,6 +271,29 @@ export function useOperation(
     })
   }
 
+  const onMoveRow = (from: number, to: number) => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
+
+    const shape = getTableShape()
+    if (!shape) return
+    if (from < 0 || to < 0) return
+    if (from >= shape.rowCount || to >= shape.rowCount) return
+    if (from === to) return
+
+    const commands = ctx.get(commandsCtx)
+    const pos = getCommandPos()
+    if (pos == null) return
+
+    preserveTableScroll(() => {
+      commands.call(moveRowCommand.key, {
+        pos,
+        from,
+        to,
+      })
+    })
+  }
+
   const runWithSelectedCol = (
     index: number,
     effect: (commands: { call: (key: unknown, payload?: unknown) => unknown }) => void
@@ -345,6 +369,81 @@ export function useOperation(
     })
   }
 
+  const runWithSelectedRow = (
+    index: number,
+    effect: (commands: { call: (key: unknown, payload?: unknown) => unknown }) => void
+  ) => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
+
+    const shape = getTableShape()
+    if (!shape) return
+    if (index < 0 || index >= shape.rowCount) return
+
+    const commands = ctx.get(commandsCtx)
+    const pos = getCommandPos()
+    if (pos == null) return
+
+    preserveTableScroll(() => {
+      commands.call(selectRowCommand.key, { pos, index })
+      effect(commands)
+    })
+  }
+
+  const onInsertRowAbove = (index: number) => {
+    runWithSelectedRow(index, (commands) => {
+      commands.call(addRowBeforeCommand.key)
+    })
+  }
+
+  const onInsertRowBelow = (index: number) => {
+    runWithSelectedRow(index, (commands) => {
+      commands.call(addRowAfterCommand.key)
+    })
+  }
+
+  const onDeleteRow = (index: number) => {
+    runWithSelectedRow(index, (commands) => {
+      commands.call(deleteSelectedCellsCommand.key)
+    })
+  }
+
+  const onClearRowContent = (index: number) => {
+    if (!ctx) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
+
+    const table = getTableNode()
+    const tablePos = safeGetPos()
+    if (!table || tablePos == null) return
+
+    const map = TableMap.get(table)
+    if (index < 0 || index >= map.height) return
+
+    const paragraphType = view.state.schema.nodes.paragraph
+    if (!paragraphType) return
+
+    const cells = collectRowCellRanges({
+      table,
+      tablePos,
+      tableMap: map,
+      index,
+    })
+    if (cells.length === 0) return
+
+    preserveTableScroll(() => {
+      let tr = view.state.tr
+      for (const cell of cells) {
+        const emptyParagraph = paragraphType.createAndFill?.()
+        if (!emptyParagraph) continue
+        tr = tr.replaceWith(cell.start, cell.end, emptyParagraph)
+      }
+      if (tr.docChanged) {
+        view.dispatch(tr)
+      }
+    })
+  }
+
   return {
     onAddRow,
     onAddCol,
@@ -353,10 +452,15 @@ export function useOperation(
     onShrinkRow,
     onShrinkCol,
     onMoveCol,
+    onMoveRow,
     onInsertColLeft,
     onInsertColRight,
     onDeleteCol,
     onClearColContent,
+    onInsertRowAbove,
+    onInsertRowBelow,
+    onDeleteRow,
+    onClearRowContent,
     canShrinkRow,
     canShrinkCol,
   }

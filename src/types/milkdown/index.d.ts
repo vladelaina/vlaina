@@ -1175,6 +1175,7 @@ declare module '@milkdown/preset-gfm' {
   export const addRowBeforeCommand: CommandKeyLike;
   export const deleteSelectedCellsCommand: CommandKeyLike;
   export const moveColCommand: CommandKeyLike;
+  export const moveRowCommand: CommandKeyLike;
   export const selectColCommand: CommandKeyLike;
   export const selectRowCommand: CommandKeyLike;
 }

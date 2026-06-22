@@ -187,6 +187,7 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('.editor-collapse-btn,');
     expect(css).toContain('.callout-icon-button,');
     expect(css).toContain('.milkdown-table-block .column-header-drag-control,');
+    expect(css).toContain('.milkdown-table-block .row-header-drag-control,');
     expect(css).toContain('pointer-events: none !important;');
     expect(css).toContain('opacity: var(--vlaina-opacity-0) !important;');
     expect(css).toContain('background: transparent !important;');

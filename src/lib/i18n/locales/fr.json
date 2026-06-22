@@ -445,6 +445,7 @@
   "editor.table.deleteRow": "Supprimer la ligne",
   "editor.table.deleteTable": "Supprimer le tableau",
   "editor.table.columnHandle": "Poignée de la colonne {number}",
+  "editor.table.rowHandle": "Poignée de la ligne {number}",
   "editor.table.insertColumnLeft": "Insérer une colonne à gauche",
   "editor.table.insertColumnRight": "Insérer une colonne à droite",
   "editor.table.insertRowAbove": "Insérer une ligne au-dessus",

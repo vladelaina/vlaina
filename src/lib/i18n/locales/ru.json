@@ -445,6 +445,7 @@
   "editor.table.deleteRow": "Удалить строку",
   "editor.table.deleteTable": "Удалить таблицу",
   "editor.table.columnHandle": "Маркер столбца {number}",
+  "editor.table.rowHandle": "Маркер строки {number}",
   "editor.table.insertColumnLeft": "Вставить столбец слева",
   "editor.table.insertColumnRight": "Вставить столбец справа",
   "editor.table.insertRowAbove": "Вставить строку выше",

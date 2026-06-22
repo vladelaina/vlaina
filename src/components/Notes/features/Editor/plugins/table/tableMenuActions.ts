@@ -69,6 +69,7 @@ export function runTableMenuAction(
   view: EditorView,
   cellPos: number,
 ): boolean {
+  if (!view.editable) return false;
   if (!isTableMenuCellPosValid(view, cellPos)) return false;
 
   const docSize = view.state.doc.content.size;

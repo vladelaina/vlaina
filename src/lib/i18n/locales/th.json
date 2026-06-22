@@ -445,6 +445,7 @@
   "editor.table.deleteRow": "ลบแถว",
   "editor.table.deleteTable": "ลบตาราง",
   "editor.table.columnHandle": "ตัวจับคอลัมน์ {number}",
+  "editor.table.rowHandle": "ตัวจับแถว {number}",
   "editor.table.insertColumnLeft": "แทรกคอลัมน์ทางซ้าย",
   "editor.table.insertColumnRight": "แทรกคอลัมน์ทางขวา",
   "editor.table.insertRowAbove": "แทรกแถวเหนือ",

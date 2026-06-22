@@ -14,7 +14,10 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { createTableNodeFromPipeCells } from './pipeTableShortcut';
-import { tableKeyboardPlugin } from './tableKeyboardPlugin';
+import {
+  findFirstTableBodyCellPos,
+  tableKeyboardPlugin,
+} from './tableKeyboardPlugin';
 
 function typeText(view: EditorView, input: string): void {
   for (const text of input) {
@@ -114,6 +117,15 @@ function topLevelNodePos(view: EditorView, typeName: string, occurrence = 0): nu
     throw new Error(`Expected top-level ${typeName}`);
   }
   return found;
+}
+
+function countNodesByType(view: EditorView, typeName: string): number {
+  let count = 0;
+  view.state.doc.descendants((node) => {
+    if (node.type.name === typeName) count += 1;
+    return true;
+  });
+  return count;
 }
 
 function expectCursorAtHeadingEdge(view: EditorView, edge: 'start' | 'end'): void {
@@ -234,6 +246,43 @@ describe('pipe table shortcut input', () => {
     expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
     expect(view.state.doc.firstChild?.textContent).toBe('| 功能 | 操作步骤 | Windows | macOS |');
     expect(getAncestorNodeNames(view)).not.toContain('table');
+
+    await editor.destroy();
+  });
+
+  it('does not create a nested pipe table inside an existing table cell', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(tableKeyboardPlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const table = createTableNodeFromPipeCells(view.state.schema, ['A', 'B']);
+    if (!table) {
+      throw new Error('Expected table schema');
+    }
+
+    replaceDocument(view, [table]);
+    const firstBodyCellPos = findFirstTableBodyCellPos(view.state.doc, 0);
+    if (firstBodyCellPos == null) {
+      throw new Error('Expected table body cell');
+    }
+
+    view.dispatch(
+      view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, firstBodyCellPos)
+      )
+    );
+    typeText(view, '|1|2|');
+    dispatchEnter(view);
+
+    expect(countNodesByType(view, 'table')).toBe(1);
+    expect(view.state.doc.textContent).toContain('|1|2|');
 
     await editor.destroy();
   });

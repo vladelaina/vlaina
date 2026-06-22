@@ -445,6 +445,7 @@
   "editor.table.deleteRow": "Excluir linha",
   "editor.table.deleteTable": "Excluir tabela",
   "editor.table.columnHandle": "Alça da coluna {number}",
+  "editor.table.rowHandle": "Alça da linha {number}",
   "editor.table.insertColumnLeft": "Inserir coluna à esquerda",
   "editor.table.insertColumnRight": "Inserir coluna à direita",
   "editor.table.insertRowAbove": "Inserir linha acima",
