@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { focusEditorToFirstLineStart } from './utils/focusEditor';
+import { focusEditorToFirstLineEnd } from './utils/focusEditor';
 import { NOTE_TITLE_INPUT_DATA_ATTR } from './utils/titleInputDom';
 import { registerCurrentTitleCommitter } from './utils/titleCommitRegistry';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
@@ -262,7 +262,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       e.preventDefault();
       await commitTitleIfNeeded();
       runAfterTitleCommit(() => {
-        focusEditorToFirstLineStart();
+        focusEditorToFirstLineEnd();
       });
     } else if (e.key === 'Escape') {
       skipNextBlurCommitRef.current = false;
