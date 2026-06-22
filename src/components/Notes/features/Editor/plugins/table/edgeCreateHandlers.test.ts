@@ -278,6 +278,51 @@ afterEach(() => {
 })
 
 describe('edge create handlers', () => {
+  it('shows the current table size beside the pointer while dragging the right edge', () => {
+    const { handlers, handle } = createHarness()
+
+    handlers.startColEdgeCreate(
+      createStartPointerEvent({
+        currentTarget: handle,
+        pointerId: 10,
+        clientX: 340,
+        clientY: 140,
+      })
+    )
+
+    const tooltip = document.querySelector<HTMLElement>('[data-role="table-size-drag-tooltip"]')
+    expect(tooltip).toBeInstanceOf(HTMLElement)
+    expect(tooltip?.textContent).toBe('2x2')
+    expect(tooltip?.style.left).toBe('352px')
+    expect(tooltip?.style.top).toBe('154px')
+
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 10,
+      clientX: 347,
+      clientY: 141,
+    })
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 10,
+      clientX: 365,
+      clientY: 142,
+    })
+
+    expect(tooltip?.textContent).toBe('2x3')
+    expect(tooltip?.style.left).toBe('377px')
+    expect(tooltip?.style.top).toBe('156px')
+
+    dispatchDocumentPointerEvent({
+      type: 'pointerup',
+      pointerId: 10,
+      clientX: 365,
+      clientY: 142,
+    })
+
+    expect(document.querySelector('[data-role="table-size-drag-tooltip"]')).toBeNull()
+  })
+
   it('clears an active bottom-edge drag when the window blurs so a new drag can start', () => {
     const { handlers, onAddRow, handle } = createHarness()
 

@@ -276,6 +276,49 @@ afterEach(() => {
 })
 
 describe('corner create handlers', () => {
+  it('shows the current table size beside the pointer while dragging the corner', () => {
+    const { handlers, handle } = createHarness()
+
+    handlers.startCornerCreate(
+      createStartPointerEvent({
+        currentTarget: handle,
+        pointerId: 7,
+        clientX: 340,
+        clientY: 200,
+      })
+    )
+
+    const tooltip = document.querySelector<HTMLElement>('[data-role="table-size-drag-tooltip"]')
+    expect(tooltip).toBeInstanceOf(HTMLElement)
+    expect(tooltip?.textContent).toBe('2x2')
+
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 7,
+      clientX: 347,
+      clientY: 207,
+    })
+    dispatchDocumentPointerEvent({
+      type: 'pointermove',
+      pointerId: 7,
+      clientX: 365,
+      clientY: 225,
+    })
+
+    expect(tooltip?.textContent).toBe('3x3')
+    expect(tooltip?.style.left).toBe('377px')
+    expect(tooltip?.style.top).toBe('239px')
+
+    dispatchDocumentPointerEvent({
+      type: 'pointerup',
+      pointerId: 7,
+      clientX: 365,
+      clientY: 225,
+    })
+
+    expect(document.querySelector('[data-role="table-size-drag-tooltip"]')).toBeNull()
+  })
+
   it('clears an active corner drag when the window blurs so a new drag can start', () => {
     const { handlers, handle, onAddRow, onAddCol } = createHarness()
 
