@@ -232,7 +232,7 @@ describe('fileSystemSlice create state races', () => {
     }));
   });
 
-  it('duplicates a note to a unique sibling path and opens the copied markdown', async () => {
+  it('duplicates a note to a unique sibling path without opening the copied markdown', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'docs/alpha 1.md',
       fullPath: '/vault/docs/alpha 1.md',
@@ -279,26 +279,26 @@ describe('fileSystemSlice create state races', () => {
       '/vault/docs/alpha.md',
       '/vault/docs/alpha 1.md',
     );
-    expect(hoisted.storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/alpha 1.md', 10 * 1024 * 1024);
-    expect(state.currentNote).toEqual({ path: 'docs/alpha 1.md', content: '# Alpha copy' });
-    expect(state.currentNoteRevision).toBe(4);
+    expect(hoisted.storageAdapter.stat).toHaveBeenCalledWith('/vault/docs/alpha 1.md');
+    expect(hoisted.storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(state.currentNote).toEqual({ path: 'docs/alpha.md', content: '# Alpha edited' });
+    expect(state.currentNoteRevision).toBe(3);
     expect(state.isDirty).toBe(false);
-    expect(state.openTabs).toEqual([{ path: 'docs/alpha 1.md', name: 'alpha 1', isDirty: false }]);
-    expect(state.recentNotes).toEqual(['docs/alpha 1.md']);
+    expect(state.openTabs).toEqual([{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }]);
+    expect(state.recentNotes).toEqual([]);
     expect(state.rootFolder.children[0].children).toEqual([
       expect.objectContaining({ path: 'docs/alpha.md', name: 'alpha' }),
       expect.objectContaining({ path: 'docs/alpha 1.md', name: 'alpha 1' }),
     ]);
-    expect(state.noteContentsCache.get('docs/alpha 1.md')).toEqual({
-      content: '# Alpha copy',
-      modifiedAt: 2,
-    });
+    expect(state.noteContentsCache.has('docs/alpha 1.md')).toBe(false);
     expect(state.noteMetadata.notes['docs/alpha 1.md']).toMatchObject({
       createdAt: 1,
       updatedAt: 2,
     });
+    expect(state.isNewlyCreated).toBe(false);
+    expect(state.error).toBeNull();
     expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
-      currentNotePath: 'docs/alpha 1.md',
+      currentNotePath: 'docs/alpha.md',
     }));
   });
 
@@ -335,16 +335,20 @@ describe('fileSystemSlice create state races', () => {
     const state = harness.getState();
 
     expect(state.saveNote).not.toHaveBeenCalled();
-    expect(state.openTabs).toEqual([
-      { path: 'draft:current', name: '', isDirty: true },
-      { path: 'alpha 1.md', name: 'alpha 1', isDirty: false },
-    ]);
+    expect(hoisted.storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(state.currentNote).toEqual({ path: 'draft:current', content: '# Draft' });
+    expect(state.isDirty).toBe(true);
+    expect(state.openTabs).toEqual([{ path: 'draft:current', name: '', isDirty: true }]);
     expect(state.draftNotes).toEqual({
       'draft:current': { parentPath: null, name: '' },
     });
+    expect(state.rootFolder.children).toEqual([
+      expect.objectContaining({ path: 'alpha.md', name: 'alpha' }),
+      expect.objectContaining({ path: 'alpha 1.md', name: 'alpha 1' }),
+    ]);
   });
 
-  it('keeps the copied note in the tree when opening the duplicate is blocked by size limits', async () => {
+  it('adds oversized duplicates to the tree without opening them', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'huge 1.md',
       fullPath: '/vault/huge 1.md',
@@ -390,18 +394,79 @@ describe('fileSystemSlice create state races', () => {
     expect(hoisted.storageAdapter.copyFile).toHaveBeenCalledWith('/vault/huge.md', '/vault/huge 1.md');
     expect(hoisted.storageAdapter.readFile).not.toHaveBeenCalled();
     expect(state.currentNote).toEqual({ path: 'current.md', content: '# Current' });
+    expect(state.currentNoteRevision).toBe(2);
     expect(state.openTabs).toEqual([{ path: 'current.md', name: 'current', isDirty: false }]);
     expect(state.rootFolder.children).toEqual([
       expect.objectContaining({ path: 'huge.md', name: 'huge' }),
       expect.objectContaining({ path: 'huge 1.md', name: 'huge 1' }),
     ]);
-    expect(state.recentNotes).toEqual(['huge 1.md']);
+    expect(state.recentNotes).toEqual([]);
     expect(state.noteMetadata.notes['huge 1.md']).toMatchObject({
       icon: 'misc.star',
       createdAt: 8,
       updatedAt: 9,
     });
-    expect(state.error).toBe('Note file is too large to open.');
+    expect(state.error).toBeNull();
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+      currentNotePath: 'current.md',
+    }));
+  });
+
+  it('skips duplicate state updates if the active vault changes while file info is loading', async () => {
+    let resolveStat: (value: Record<string, unknown>) => void;
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'alpha 1.md',
+      fullPath: '/vault/alpha 1.md',
+      fileName: 'alpha 1.md',
+    });
+    hoisted.storageAdapter.stat.mockImplementation(() => new Promise((resolve) => {
+      resolveStat = resolve;
+    }));
+    const harness = createSliceHarness({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{
+          id: 'alpha.md',
+          name: 'alpha',
+          path: 'alpha.md',
+          isFolder: false,
+        }],
+      },
+      currentNote: { path: 'alpha.md', content: '# Alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      recentNotes: ['alpha.md'],
+    });
+
+    const duplication = harness.getState().duplicateNote('alpha.md');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    harness.getState().notesPath = '/other';
+    resolveStat!({
+      name: 'alpha 1.md',
+      path: '/vault/alpha 1.md',
+      isDirectory: false,
+      isFile: true,
+      size: 12,
+      createdAt: 1,
+      modifiedAt: 2,
+    });
+
+    await expect(duplication).resolves.toBe('alpha 1.md');
+    const state = harness.getState();
+
+    expect(hoisted.storageAdapter.copyFile).toHaveBeenCalledWith('/vault/alpha.md', '/vault/alpha 1.md');
+    expect(state.rootFolder.children).toEqual([
+      expect.objectContaining({ path: 'alpha.md', name: 'alpha' }),
+    ]);
+    expect(state.noteMetadata.notes['alpha 1.md']).toBeUndefined();
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: '# Alpha' });
+    expect(state.openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
+    expect(state.recentNotes).toEqual(['alpha.md']);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 
   it('rejects internal source paths before copying a note', async () => {

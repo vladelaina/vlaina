@@ -18,7 +18,6 @@ import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { setCachedNoteContent } from '../document/noteContentCache';
-import { loadNoteDocument } from '../document/noteDocumentPersistence';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
@@ -294,127 +293,45 @@ export function createFileSystemCreateActions(
         }
 
         const duplicateFileInfo = await storage.stat(duplicateFullPath).catch(() => null);
-        const duplicateTitle = getNoteTitleFromPath(fileName);
-        const buildDuplicateTreeState = (
-          latestState: NotesStore,
-          duplicateMetadata: Parameters<typeof setNoteEntry>[2],
-        ) => {
-          const latestRootFolder = ensureRootFolderState(latestState.rootFolder ?? rootFolder);
-          const latestMetadata = setNoteEntry(
-            latestState.noteMetadata ?? createEmptyMetadataFile(),
-            duplicatePath,
-            duplicateMetadata,
-          );
-          const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
-          const nextRootFolder = buildSortedRootFolder(
-            latestRootFolder,
-            addNodeToTree(latestRootFolder.children, parentPath, {
-              id: duplicatePath,
-              name: duplicateTitle,
-              path: duplicatePath,
-              isFolder: false,
-            }),
-            latestSortMode,
-            latestMetadata,
-          );
-          const updatedRecentNotes = addToRecentNotes(duplicatePath, latestState.recentNotes);
-
-          return {
-            latestMetadata,
-            latestSortMode,
-            nextRootFolder,
-            updatedRecentNotes,
-          };
-        };
-
-        let loaded: Awaited<ReturnType<typeof loadNoteDocument>>;
-        const latestState = get();
-        try {
-          loaded = await loadNoteDocument({
-            notesPath,
-            path: duplicatePath,
-            cache: latestState.noteContentsCache,
-          });
-        } catch (openError) {
-          if (!isActiveNotesPath(get, notesPath)) {
-            return duplicatePath;
-          }
-
-          const latestStateAfterOpenError = get();
-          const fallbackMetadata = mergeNoteMetadataWithFileInfo(
-            latestStateAfterOpenError.noteMetadata?.notes[sourcePath],
-            duplicateFileInfo,
-          );
-          const {
-            latestMetadata,
-            latestSortMode,
-            nextRootFolder,
-            updatedRecentNotes,
-          } = buildDuplicateTreeState(latestStateAfterOpenError, fallbackMetadata);
-
-          set({
-            rootFolder: nextRootFolder,
-            noteMetadata: latestMetadata,
-            recentNotes: updatedRecentNotes,
-            isNewlyCreated: false,
-            error: openError instanceof Error ? openError.message : 'Failed to open duplicated note',
-          });
-
-          persistWorkspaceSnapshot(notesPath, {
-            rootFolder: nextRootFolder,
-            currentNotePath: latestStateAfterOpenError.currentNote?.path ?? null,
-            fileTreeSortMode: latestSortMode,
-          });
-
-          return duplicatePath;
-        }
         if (!isActiveNotesPath(get, notesPath)) {
           return duplicatePath;
         }
 
-        const latestStateAfterLoad = get();
-        const {
-          latestMetadata,
-          latestSortMode,
-          nextRootFolder,
-          updatedRecentNotes,
-        } = buildDuplicateTreeState(latestStateAfterLoad, loaded.metadata);
-        const updatedTabs = replaceCurrentTabOrAppend(
-          latestStateAfterLoad.openTabs,
-          latestStateAfterLoad.currentNote?.path,
-          {
-            path: duplicatePath,
-            name: duplicateTitle,
-            isDirty: false,
-          },
+        const duplicateTitle = getNoteTitleFromPath(fileName);
+        const latestState = get();
+        const duplicateMetadata = mergeNoteMetadataWithFileInfo(
+          latestState.noteMetadata?.notes[sourcePath],
+          duplicateFileInfo,
         );
-        const nextNoteContentsCache = setCachedNoteContent(
-          latestStateAfterLoad.noteContentsCache,
+        const latestRootFolder = ensureRootFolderState(latestState.rootFolder ?? rootFolder);
+        const latestMetadata = setNoteEntry(
+          latestState.noteMetadata ?? createEmptyMetadataFile(),
           duplicatePath,
-          loaded.content,
-          loaded.modifiedAt,
-          {
-            updateBaseline: true,
-            size: loaded.size,
-          },
+          duplicateMetadata,
+        );
+        const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
+        const nextRootFolder = buildSortedRootFolder(
+          latestRootFolder,
+          addNodeToTree(latestRootFolder.children, parentPath, {
+            id: duplicatePath,
+            name: duplicateTitle,
+            path: duplicatePath,
+            isFolder: false,
+          }),
+          latestSortMode,
+          latestMetadata,
         );
 
         set({
           rootFolder: nextRootFolder,
           noteMetadata: latestMetadata,
-          currentNote: { path: duplicatePath, content: loaded.content },
-          currentNoteRevision: latestStateAfterLoad.currentNoteRevision + 1,
-          isDirty: false,
-          openTabs: updatedTabs,
-          recentNotes: updatedRecentNotes,
           isNewlyCreated: false,
           error: null,
-          noteContentsCache: nextNoteContentsCache,
         });
 
         persistWorkspaceSnapshot(notesPath, {
           rootFolder: nextRootFolder,
-          currentNotePath: duplicatePath,
+          currentNotePath: latestState.currentNote?.path ?? null,
           fileTreeSortMode: latestSortMode,
         });
 
