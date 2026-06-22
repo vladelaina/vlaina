@@ -36,12 +36,20 @@ import {
   getTableDomColCount,
   getTableDomRowCount,
 } from './table-dom-metrics'
+import {
+  createTableSizeTooltip,
+  destroyTableSizeTooltip,
+  type TableSizeTooltip,
+  updateTableSizeTooltip,
+} from './table-size-tooltip'
 
 const EDGE_CREATE_THRESHOLD = 18
 const EDGE_CREATE_ACTIVATION_THRESHOLD = 6
 
 interface EdgeCreateSession extends DragSessionState {
   axis: EdgeCreateAxis
+  pointerClientX: number
+  pointerClientY: number
   startCoord: number
   lastClientCoord: number
   lastCoord: number
@@ -53,6 +61,7 @@ interface EdgeCreateSession extends DragSessionState {
   scrollSource: EdgeCreateScrollSource | null
   autoScrollFrame: number
   manualScrollHoldUntil: number
+  sizeTooltip: TableSizeTooltip | null
 }
 
 interface EdgeCreateRuntime {
@@ -193,6 +202,15 @@ function startAutoScrollLoop(session: EdgeCreateSession) {
   session.autoScrollFrame = window.requestAnimationFrame(tick)
 }
 
+function refreshSizeTooltip(runtime: EdgeCreateRuntime, session: EdgeCreateSession) {
+  updateTableSizeTooltip(
+    session.sizeTooltip,
+    runtime.refs,
+    session.pointerClientX,
+    session.pointerClientY
+  )
+}
+
 function updateSession(
   runtime: EdgeCreateRuntime,
   session: EdgeCreateSession,
@@ -308,6 +326,8 @@ function clearSession(current: EdgeCreateSession | null = activeSession) {
   unbindSessionWheelListener()
   unbindSessionAbortListeners()
   stopAutoScrollLoop(current)
+  destroyTableSizeTooltip(current.sizeTooltip)
+  current.sizeTooltip = null
   releaseTableDragCursor()
   releaseDragSessionPointer(current)
 
@@ -323,10 +343,13 @@ function handleMove(e: DragSessionEvent) {
   if (!canHandleDragSessionEvent(session, e)) return
 
   session.manualScrollHoldUntil = 0
+  session.pointerClientX = e.clientX
+  session.pointerClientY = e.clientY
   suppressTableDragSelection()
 
   const currentClientCoord = readEdgeCreateClientCoord(e, session.axis)
   const handled = updateSession(runtime, session, currentClientCoord)
+  refreshSizeTooltip(runtime, session)
   if (!handled) return
 
   e.preventDefault()
@@ -350,6 +373,7 @@ function handleScroll() {
 
   suppressTableDragSelection()
   updateSession(runtime, session, session.lastClientCoord)
+  refreshSizeTooltip(runtime, session)
 }
 
 function handleAbort() {
@@ -396,8 +420,15 @@ function handleWheel(event: WheelEvent) {
   if (!scrolled) return
 
   session.manualScrollHoldUntil = readCurrentTime() + 140
+  if (Number.isFinite(event.clientX)) {
+    session.pointerClientX = event.clientX
+  }
+  if (Number.isFinite(event.clientY)) {
+    session.pointerClientY = event.clientY
+  }
   suppressTableDragSelection()
   updateSession(runtime, session, currentClientCoord)
+  refreshSizeTooltip(runtime, session)
   event.preventDefault()
 }
 
@@ -466,6 +497,8 @@ export function useEdgeCreateHandlers(
         axis,
         source,
         pointerId: 'pointerId' in e ? e.pointerId : null,
+        pointerClientX: e.clientX,
+        pointerClientY: e.clientY,
         startCoord,
         lastClientCoord: startClientCoord,
         lastCoord: startCoord,
@@ -481,6 +514,7 @@ export function useEdgeCreateHandlers(
         scrollSource,
         autoScrollFrame: 0,
         manualScrollHoldUntil: 0,
+        sizeTooltip: createTableSizeTooltip(runtime.refs, e.clientX, e.clientY),
         target: e.currentTarget,
         key: getDragRuntimeKey(runtime.getKey),
       }

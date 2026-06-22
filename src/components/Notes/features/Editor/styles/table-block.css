@@ -320,3 +320,26 @@
 .milkdown .milkdown-table-block .edge-create-zone[data-axis='both']::before {
   display: none;
 }
+
+.table-size-drag-tooltip {
+  position: fixed;
+  z-index: var(--vlaina-z-50);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--vlaina-size-44px);
+  height: var(--vlaina-size-28px);
+  padding: var(--vlaina-space-0) var(--vlaina-space-10px);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-color-panel-border);
+  border-radius: var(--vlaina-radius-pill);
+  background: var(--vlaina-color-floating-surface);
+  box-shadow: var(--vlaina-shadow-raised-soft);
+  color: var(--vlaina-text-primary);
+  font-family: var(--font-mono), monospace;
+  font-size: var(--vlaina-font-12);
+  font-weight: var(--vlaina-font-weight-semibold);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}

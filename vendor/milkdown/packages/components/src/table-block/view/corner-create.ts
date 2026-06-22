@@ -36,6 +36,12 @@ import {
   getTableDomColCount,
   getTableDomRowCount,
 } from './table-dom-metrics'
+import {
+  createTableSizeTooltip,
+  destroyTableSizeTooltip,
+  type TableSizeTooltip,
+  updateTableSizeTooltip,
+} from './table-size-tooltip'
 
 const EDGE_CREATE_THRESHOLD = 18
 const CORNER_CREATE_ACTIVATION_THRESHOLD = 6
@@ -57,6 +63,7 @@ interface CornerCreateSession extends DragSessionState {
   isActive: boolean
   autoScrollFrame: number
   manualScrollHoldUntil: number
+  sizeTooltip: TableSizeTooltip | null
 }
 
 interface CornerCreateRuntime {
@@ -211,6 +218,7 @@ function startAutoScrollLoop(session: CornerCreateSession) {
         updateAxis(runtime, session, 'row', session.row.lastClientCoord)
         updateAxis(runtime, session, 'col', session.col.lastClientCoord)
       }
+      refreshSizeTooltip(runtime, session)
     }
 
     session.autoScrollFrame = window.requestAnimationFrame(tick)
@@ -226,6 +234,15 @@ function getChannel(
   return axis === 'row' ? session.row : session.col
 }
 
+function refreshSizeTooltip(runtime: CornerCreateRuntime, session: CornerCreateSession) {
+  updateTableSizeTooltip(
+    session.sizeTooltip,
+    runtime.refs,
+    session.col.lastClientCoord,
+    session.row.lastClientCoord
+  )
+}
+
 function clearSession(current: CornerCreateSession | null = activeSession) {
   if (!current) return
 
@@ -234,6 +251,8 @@ function clearSession(current: CornerCreateSession | null = activeSession) {
   unbindSessionWheelListener()
   unbindSessionAbortListeners()
   stopAutoScrollLoop(current)
+  destroyTableSizeTooltip(current.sizeTooltip)
+  current.sizeTooltip = null
   releaseTableDragCursor()
   releaseDragSessionPointer(current)
 
@@ -410,8 +429,10 @@ function handleMove(event: DragSessionEvent) {
       colClientCoord
     )
     if (!activated) {
+      refreshSizeTooltip(runtime, session)
       return
     }
+    refreshSizeTooltip(runtime, session)
     event.preventDefault()
     event.stopPropagation()
     return
@@ -423,6 +444,7 @@ function handleMove(event: DragSessionEvent) {
   const colTriggered = updateAxis(runtime, session, 'col', colClientCoord)
   void rowTriggered
   void colTriggered
+  refreshSizeTooltip(runtime, session)
 
   event.preventDefault()
   event.stopPropagation()
@@ -452,11 +474,13 @@ function handleScroll() {
       session.row.lastClientCoord,
       session.col.lastClientCoord
     )
+    refreshSizeTooltip(runtime, session)
     return
   }
 
   updateAxis(runtime, session, 'row', session.row.lastClientCoord)
   updateAxis(runtime, session, 'col', session.col.lastClientCoord)
+  refreshSizeTooltip(runtime, session)
 }
 
 function handleAbort() {
@@ -532,6 +556,7 @@ function handleWheel(event: WheelEvent) {
     updateAxis(runtime, session, 'row', rowClientCoord)
     updateAxis(runtime, session, 'col', colClientCoord)
   }
+  refreshSizeTooltip(runtime, session)
   event.preventDefault()
 }
 
@@ -625,6 +650,7 @@ export function useCornerCreateHandlers(
         isActive: false,
         autoScrollFrame: 0,
         manualScrollHoldUntil: 0,
+        sizeTooltip: createTableSizeTooltip(runtime.refs, colClientCoord, rowClientCoord),
         row: {
           startCoord: rowCoord,
           lastClientCoord: rowClientCoord,
