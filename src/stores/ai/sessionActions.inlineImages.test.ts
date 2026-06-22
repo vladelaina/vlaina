@@ -134,16 +134,23 @@ describe('session inline image persistence', () => {
 
   it('coalesces queued inline image persistence for repeated switches before timers run', async () => {
     const { createSessionActions } = await import('./sessionActions')
-    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     const actions = createSessionActions()
-    seedSession([createMessage('m1', 'plain text')])
+    const source = 'data:image/png;base64,INLINE'
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {
+      const targetStart = content.indexOf(source)
+      return targetStart >= 0
+        ? [{ start: 0, end: content.length, src: source, targetStart, targetEnd: targetStart + source.length }]
+        : []
+    })
+    seedSession([createMessage('m1', `![image](<${source}>)`)])
 
     await actions.switchSession('session-2')
     await actions.switchSession('session-2')
     await actions.switchSession('session-2')
 
-    expect(timeoutSpy).toHaveBeenCalledTimes(1)
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
     await vi.runOnlyPendingTimersAsync()
+    expect(mocked.persistDataUrlAttachment).toHaveBeenCalledTimes(1)
   })
 
   it('isolates parser failures from scheduled inline image persistence', async () => {
@@ -164,11 +171,23 @@ describe('session inline image persistence', () => {
       MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS,
       createSessionActions,
     } = await import('./sessionActions')
-    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     const targetSessionIds = Array.from(
       { length: MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS + 5 },
       (_value, index) => `session-${index + 2}`,
     )
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {
+      const sourceMatch = content.match(/data:image\/png;base64,[A-Z0-9]+/)
+      if (!sourceMatch || sourceMatch.index === undefined) {
+        return []
+      }
+      return [{
+        start: 0,
+        end: content.length,
+        src: sourceMatch[0],
+        targetStart: sourceMatch.index,
+        targetEnd: sourceMatch.index + sourceMatch[0].length,
+      }]
+    })
     seedSession([])
     useUnifiedStore.setState((state) => ({
       ...state,
@@ -189,7 +208,10 @@ describe('session inline image persistence', () => {
               ],
               messages: {
                 'session-1': [],
-                ...Object.fromEntries(targetSessionIds.map((id) => [id, []])),
+                ...Object.fromEntries(targetSessionIds.map((id, index) => [
+                  id,
+                  [createMessage(`m-${index}`, `![image](<data:image/png;base64,${String(index).padStart(8, 'A')}>)`)],
+                ])),
               },
             }
           : state.data.ai,
@@ -201,8 +223,9 @@ describe('session inline image persistence', () => {
       await actions.switchSession(sessionId)
     }
 
-    expect(timeoutSpy).toHaveBeenCalledTimes(MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS)
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
     await vi.runOnlyPendingTimersAsync()
+    expect(mocked.persistDataUrlAttachment).toHaveBeenCalledTimes(MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS)
   })
 
   it('does not recreate a deleted session when switch loading finishes late', async () => {
@@ -637,19 +660,14 @@ describe('session inline image persistence', () => {
     }
     const { createSessionActions } = await import('./sessionActions')
     seedSession([message])
-    const splitSpy = vi.spyOn(String.prototype, 'split')
 
-    try {
-      await createSessionActions().switchSession('session-2')
-      await vi.runOnlyPendingTimersAsync()
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
 
-      expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
-      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe(message.content)
-      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.imageSources).toBeUndefined()
-      expect(splitSpy).not.toHaveBeenCalled()
-    } finally {
-      splitSpy.mockRestore()
-    }
+    expect(mocked.parseMarkdownAndHtmlImageTokens).not.toHaveBeenCalled()
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe(message.content)
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.imageSources).toBeUndefined()
   })
 
   it('scrubs oversized markdown data images when token parsing skips the target', async () => {
