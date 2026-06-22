@@ -138,6 +138,7 @@ describe('CodeBlockNodeView', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
 
     expect(nodeView.dom.classList.contains('code-block-container')).toBe(true);
+    expect(nodeView.dom.classList.contains('code-block-chrome')).toBe(true);
     expect(nodeView.dom.classList.contains('md-fences')).toBe(true);
     expect(nodeView.dom.classList.contains('HyperMD-codeblock')).toBe(true);
     expect(nodeView.dom.classList.contains('HyperMD-codeblock-bg')).toBe(true);

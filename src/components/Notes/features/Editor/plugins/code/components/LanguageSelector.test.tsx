@@ -82,9 +82,11 @@ describe('LanguageSelector', () => {
     expect(searchInput.parentElement?.className).toContain('rounded-full');
     expect(searchInput.parentElement?.className).toContain(chatComposerPillSurfaceClass);
 
-    const autoDetectButton = screen.getByTitle('Auto Detect Language');
+    const autoDetectButton = screen.getByRole('button', { name: 'Auto Detect Language' });
+    expect(autoDetectButton.getAttribute('title')).toBeNull();
     expect(autoDetectButton.className).toContain('rounded-full');
-    expect(autoDetectButton.className).toContain('hover:bg-[var(--vlaina-color-status-info-bg)]');
-    expect(autoDetectButton.className).toContain('hover:text-[var(--vlaina-color-status-info-fg)]');
+    expect(autoDetectButton.className).toContain('hover:bg-[var(--vlaina-color-pill-surface-hover)]');
+    expect(autoDetectButton.className).toContain('hover:shadow-[var(--vlaina-shadow-menu-hover)]');
+    expect(autoDetectButton.className).toContain('hover:text-[var(--vlaina-accent)]');
   });
 });

@@ -4,7 +4,10 @@ import { forceParsing } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CARET_BLINK_HELD_ATTR, CARET_BLINK_HOLD_DELAY_MS } from '@/lib/ui/caretOverlayStyles';
-import { createCodeBlockEditorTheme } from './codeBlockEditorTheme';
+import {
+  createCodeBlockEditorTheme,
+  resolveCodeBlockBlankContentClickPosition,
+} from './codeBlockEditorTheme';
 import { codeBlockCompatibilityHighlightStyle } from './codeBlockCompatibilityHighlightStyle';
 import { codeBlockLanguageLoader } from '../codeBlockLanguageLoader';
 
@@ -64,6 +67,306 @@ describe('codeBlockEditorTheme', () => {
 
     cm.destroy();
     host.remove();
+  });
+
+  it('places the cursor at the clicked line end when selected code is cleared by a content blank click', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'first\nsecond',
+        selection: { anchor: 0, head: 5 },
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+    const secondLine = cm.state.doc.line(2);
+    const lineBlockSpy = vi
+      .spyOn(cm, 'lineBlockAtHeight')
+      .mockReturnValue({ from: secondLine.from } as ReturnType<CodeMirror['lineBlockAtHeight']>);
+    vi.spyOn(cm, 'documentTop', 'get').mockReturnValue(10);
+
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientY: 34,
+    });
+    cm.contentDOM.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(lineBlockSpy).toHaveBeenCalledWith(24);
+    expect(cm.state.selection.main.from).toBe(secondLine.to);
+    expect(cm.state.selection.main.to).toBe(secondLine.to);
+
+    cm.destroy();
+    host.remove();
+  });
+
+  it('leaves ordinary code line clicks to CodeMirror native selection handling', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'first\nsecond',
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+    const line = cm.contentDOM.querySelector('.cm-line');
+    expect(line).toBeInstanceOf(HTMLElement);
+    const posAtCoordsSpy = vi.spyOn(cm, 'posAtCoords');
+    vi.spyOn(cm, 'coordsAtPos').mockReturnValue({
+      left: 80,
+      right: 80,
+      top: 10,
+      bottom: 24,
+    } as DOMRect);
+
+    const event = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 40,
+    });
+    Object.defineProperty(event, 'target', {
+      value: line,
+    });
+
+    expect(resolveCodeBlockBlankContentClickPosition(cm, event)).toBeNull();
+    expect(posAtCoordsSpy).not.toHaveBeenCalled();
+
+    cm.destroy();
+    host.remove();
+  });
+
+  it('uses line end for clicks in the empty area to the right of rendered code text', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'first\nsecond',
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+    const firstLine = cm.state.doc.line(1);
+    vi.spyOn(cm, 'lineBlockAtHeight')
+      .mockReturnValue({ from: firstLine.from } as ReturnType<CodeMirror['lineBlockAtHeight']>);
+    vi.spyOn(cm, 'coordsAtPos').mockReturnValue({
+      left: 40,
+      right: 40,
+      top: 10,
+      bottom: 24,
+    } as DOMRect);
+    vi.spyOn(cm, 'documentTop', 'get').mockReturnValue(0);
+
+    const line = cm.contentDOM.querySelector('.cm-line');
+    expect(line).toBeInstanceOf(HTMLElement);
+
+    const blankEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 96,
+      clientY: 18,
+    });
+    line!.dispatchEvent(blankEvent);
+
+    expect(blankEvent.defaultPrevented).toBe(true);
+    expect(cm.state.selection.main.from).toBe(firstLine.to);
+
+    const textEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 24,
+      clientY: 18,
+    });
+    Object.defineProperty(textEvent, 'target', {
+      value: line,
+    });
+
+    expect(resolveCodeBlockBlankContentClickPosition(cm, textEvent)).toBeNull();
+
+    cm.destroy();
+    host.remove();
+  });
+
+  it('collapses selected code at the clicked selected text position', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'first\nsecond',
+        selection: { anchor: 0, head: 11 },
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+    const posAtCoordsSpy = vi.spyOn(cm, 'posAtCoords').mockReturnValue(9);
+    const posAtDomSpy = vi.spyOn(cm, 'posAtDOM');
+    const originalCaretPositionFromPoint = (
+      document as Document & {
+        caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+      }
+    ).caretPositionFromPoint;
+    Object.defineProperty(document, 'caretPositionFromPoint', {
+      configurable: true,
+      value: vi.fn(() => ({
+        offsetNode: cm.contentDOM,
+        offset: 0,
+      })),
+    });
+
+    try {
+      const event = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 64,
+        clientY: 24,
+      });
+      cm.contentDOM.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(posAtCoordsSpy).toHaveBeenCalledWith({ x: 64, y: 24 });
+      expect(posAtDomSpy).not.toHaveBeenCalledWith(cm.contentDOM, 0);
+      expect(cm.state.selection.main.from).toBe(9);
+      expect(cm.state.selection.main.to).toBe(9);
+    } finally {
+      Object.defineProperty(document, 'caretPositionFromPoint', {
+        configurable: true,
+        value: originalCaretPositionFromPoint,
+      });
+      cm.destroy();
+      host.remove();
+    }
+  });
+
+  it('collapses selected code from the selection overlay layer at the clicked position', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'first\nsecond',
+        selection: { anchor: 0, head: 11 },
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+    const overlay = document.createElement('div');
+    overlay.className = 'cm-selectionBackground';
+    cm.dom.appendChild(overlay);
+    const posAtCoordsSpy = vi.spyOn(cm, 'posAtCoords').mockReturnValue(9);
+    const posAtDomSpy = vi.spyOn(cm, 'posAtDOM');
+    const originalCaretPositionFromPoint = (
+      document as Document & {
+        caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+      }
+    ).caretPositionFromPoint;
+    Object.defineProperty(document, 'caretPositionFromPoint', {
+      configurable: true,
+      value: vi.fn(() => ({
+        offsetNode: cm.contentDOM,
+        offset: 0,
+      })),
+    });
+
+    try {
+      const event = new MouseEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 64,
+        clientY: 24,
+      });
+      overlay.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(posAtCoordsSpy).toHaveBeenCalledWith({ x: 64, y: 24 });
+      expect(posAtDomSpy).not.toHaveBeenCalledWith(cm.contentDOM, 0);
+      expect(cm.state.selection.main.from).toBe(9);
+      expect(cm.state.selection.main.to).toBe(9);
+    } finally {
+      Object.defineProperty(document, 'caretPositionFromPoint', {
+        configurable: true,
+        value: originalCaretPositionFromPoint,
+      });
+      cm.destroy();
+      host.remove();
+    }
+  });
+
+  it('resolves selection overlay clicks from CodeMirror coordinates before browser caret fallback', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'first\nsecond',
+        selection: { anchor: 0, head: 11 },
+        extensions: [...createCodeBlockEditorTheme()],
+      }),
+    });
+    const overlay = document.createElement('div');
+    overlay.className = 'cm-selectionBackground';
+    cm.dom.appendChild(overlay);
+    const secondLine = cm.state.doc.line(2);
+    const posAtCoordsSpy = vi.spyOn(cm, 'posAtCoords').mockReturnValue(secondLine.from + 3);
+    const posAtDomSpy = vi.spyOn(cm, 'posAtDOM');
+    const originalElementFromPoint = document.elementFromPoint;
+    const originalCaretPositionFromPoint = (
+      document as Document & {
+        caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+      }
+    ).caretPositionFromPoint;
+
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: vi.fn(() => overlay),
+    });
+    Object.defineProperty(document, 'caretPositionFromPoint', {
+      configurable: true,
+      value: vi.fn(() => ({
+        offsetNode: cm.contentDOM,
+        offset: 0,
+      })),
+    });
+
+    try {
+      const event = new MouseEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 34,
+        clientY: 28,
+      });
+      overlay.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(posAtCoordsSpy).toHaveBeenCalledWith({ x: 34, y: 28 });
+      expect(posAtDomSpy).not.toHaveBeenCalledWith(cm.contentDOM, 0);
+      expect(cm.state.selection.main.from).toBe(secondLine.from + 3);
+      expect(cm.state.selection.main.to).toBe(secondLine.from + 3);
+    } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+      Object.defineProperty(document, 'caretPositionFromPoint', {
+        configurable: true,
+        value: originalCaretPositionFromPoint,
+      });
+      cm.destroy();
+      host.remove();
+    }
   });
 
   it('holds the CodeMirror caret visible while keyboard navigation is moving it', () => {

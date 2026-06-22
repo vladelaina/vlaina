@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NodeSelection } from '@milkdown/kit/prose/state';
 import * as selectionUtils from './codeBlockSelectionUtils';
 import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from './codeBlockTransactions';
 
@@ -7,14 +8,20 @@ function createMockView(options: {
   selection?: { from: number; to: number };
 }) {
   const tr: any = {
+    doc: {},
     setNodeMarkup: vi.fn(() => tr),
+    setSelection: vi.fn(() => tr),
   };
 
   const view: any = {
     dom: new EventTarget(),
     state: {
       doc: {
-        nodeAt: vi.fn(() => options.nodeAt),
+        nodeAt: vi.fn(() => options.nodeAt ? {
+          isText: false,
+          type: { spec: {} },
+          ...options.nodeAt,
+        } : null),
       },
       selection: options.selection ?? { from: 0, to: 0 },
       tr,
@@ -87,6 +94,38 @@ describe('codeBlockTransactions', () => {
       lineNumbers: true,
     });
     expect(moveSelectionAfterNodeSpy).toHaveBeenCalledWith(tr, 10, 8);
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('can select the code block itself when collapsing with the cursor inside it', () => {
+    const moveSelectionAfterNodeSpy = vi
+      .spyOn(selectionUtils, 'moveSelectionAfterNode')
+      .mockImplementation((transaction) => transaction);
+    const nodeSelection = { type: 'node-selection' };
+    const nodeSelectionSpy = vi
+      .spyOn(NodeSelection, 'create')
+      .mockImplementation(() => nodeSelection as any);
+    const { view, tr } = createMockView({
+      nodeAt: {
+        attrs: { language: 'ts', collapsed: false, wrap: false, lineNumbers: true },
+        nodeSize: 8,
+      },
+      selection: { from: 11, to: 11 },
+    });
+
+    toggleCodeBlockCollapsed(view, 10, false, {
+      selectionWhenCollapsingInside: 'node',
+    });
+
+    expect(tr.setNodeMarkup).toHaveBeenCalledWith(10, undefined, {
+      language: 'ts',
+      collapsed: true,
+      wrap: false,
+      lineNumbers: true,
+    });
+    expect(nodeSelectionSpy).toHaveBeenCalledWith(tr.doc, 10);
+    expect(tr.setSelection).toHaveBeenCalledWith(nodeSelection);
+    expect(moveSelectionAfterNodeSpy).not.toHaveBeenCalled();
     expect(view.dispatch).toHaveBeenCalledWith(tr);
   });
 

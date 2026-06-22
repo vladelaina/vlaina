@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { CodeBlockCopyButton } from './CodeBlockCopyButton';
 import './codeBlockChrome.css';
 
@@ -17,9 +17,44 @@ export const CodeBlockHeader = React.memo(function CodeBlockHeader({
   onCopy,
   onHeaderClick,
 }: CodeBlockHeaderProps) {
+  const suppressNextClickRef = useRef(false);
+
+  const stopEditorEvent = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!onHeaderClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleHeaderPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    stopEditorEvent(event);
+    if (!onHeaderClick || event.button !== 0) return;
+    suppressNextClickRef.current = true;
+    onHeaderClick(event);
+  };
+
+  const handleHeaderMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    stopEditorEvent(event);
+    if (typeof window !== 'undefined' && 'PointerEvent' in window) return;
+    if (!onHeaderClick || event.button !== 0) return;
+    suppressNextClickRef.current = true;
+    onHeaderClick(event);
+  };
+
+  const handleHeaderClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    stopEditorEvent(event);
+    if (!onHeaderClick) return;
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+    onHeaderClick(event);
+  };
+
   return (
     <div
-      onClick={onHeaderClick}
+      onPointerDown={handleHeaderPointerDown}
+      onMouseDown={handleHeaderMouseDown}
+      onClick={handleHeaderClick}
       className={onHeaderClick ? 'code-block-chrome-header cursor-pointer' : 'code-block-chrome-header'}
       data-chat-selection-excluded="true"
     >

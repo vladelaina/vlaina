@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { writeTextToClipboard } from '@/lib/clipboard';
-import { cn } from '@/lib/utils';
+import { cn, ghostIconButtonStyles, iconButtonStyles } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
@@ -91,10 +91,16 @@ export function CodeBlockCopyButton({
         }
         void handleCopy();
       }}
-      className={cn('code-block-chrome-copy-button copy-code-button', className)}
+      className={cn(
+        'code-block-chrome-copy-button copy-code-button flex items-center justify-center',
+        showLabels ? 'gap-[var(--vlaina-space-0375rem)] px-2 py-1' : 'h-7 w-7',
+        iconButtonStyles,
+        ghostIconButtonStyles,
+        className,
+      )}
       data-copied={isCopied ? 'true' : undefined}
       aria-label={isCopied ? t('common.copied') : t('common.copyCode')}
-      title={isCopied ? t('common.copied') : t('common.copyToClipboard')}
+      title={showLabels ? (isCopied ? t('common.copied') : t('common.copyToClipboard')) : undefined}
     >
       <Icon
         name={isCopied ? 'common.check' : 'common.copy'}
