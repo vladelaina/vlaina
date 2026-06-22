@@ -2,9 +2,7 @@
 .milkdown [data-type='math-block'],
 .milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
 .milkdown .mermaid-block {
-  transition:
-    background-color var(--vlaina-duration-160) var(--vlaina-ease-css-default),
-    box-shadow var(--vlaina-duration-160) var(--vlaina-ease-css-default);
+  transition: none;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
