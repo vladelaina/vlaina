@@ -56,14 +56,23 @@ export function useNoteEditorFindPanelState({
     setIsReplaceOpen((value) => !value);
   }, [hasQuery]);
 
+  const toggleOpen = useCallback(() => {
+    if (isOpen) {
+      close();
+      return;
+    }
+
+    open();
+  }, [close, isOpen, open]);
+
   useEffect(() => {
     const handleOpen = () => {
-      open();
+      toggleOpen();
     };
 
     window.addEventListener(EDITOR_FIND_OPEN_EVENT, handleOpen);
     return () => window.removeEventListener(EDITOR_FIND_OPEN_EVENT, handleOpen);
-  }, [open]);
+  }, [toggleOpen]);
 
   useEffect(() => {
     if (!isOpen) {
