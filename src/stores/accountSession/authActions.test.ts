@@ -679,6 +679,55 @@ describe('accountSession auth actions', () => {
     });
   });
 
+  it('signIn applies successful desktop auth before the status refresh finishes', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.accountAuth.mockResolvedValue({
+      success: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'https://example.com/avatar.png',
+      error: null,
+    });
+    let resolveStatus!: () => void;
+    const statusPromise = new Promise<void>((resolve) => {
+      resolveStatus = resolve;
+    });
+    const checkStatus = vi.fn(() => statusPromise);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true, checkStatus }));
+
+    const result = await createSignIn(set as never, get as never)('google');
+
+    expect(result).toBe(true);
+    expect(checkStatus).toHaveBeenCalledWith({ force: true });
+    expect(set).toHaveBeenLastCalledWith({
+      isConnected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'https://example.com/avatar.png',
+      membershipTier: null,
+      membershipName: null,
+      isConnecting: false,
+      isLoading: false,
+      hasCheckedStatus: true,
+      error: null,
+    });
+    expect(mocks.persistUser).toHaveBeenCalledWith({
+      isConnected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'https://example.com/avatar.png',
+      membershipTier: null,
+      membershipName: null,
+    });
+
+    resolveStatus();
+    await statusPromise;
+  });
+
   it('signIn clears desktop auth cancellation without showing an error', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.accountCommands.accountAuth.mockResolvedValue({

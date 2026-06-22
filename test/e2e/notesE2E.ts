@@ -75,7 +75,10 @@ export async function getOpenBridgePages(app: ElectronApplication, count: number
   return pages;
 }
 
-export async function launchIsolatedElectron(label: string): Promise<{
+export async function launchIsolatedElectron(
+  label: string,
+  envOverrides: Record<string, string> = {},
+): Promise<{
   app: ElectronApplication;
   userDataRoot: string;
 }> {
@@ -99,6 +102,7 @@ export async function launchIsolatedElectron(label: string): Promise<{
       http_proxy: '',
       https_proxy: '',
       all_proxy: '',
+      ...envOverrides,
     },
   });
 

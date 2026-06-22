@@ -95,6 +95,75 @@ describe('managedService', () => {
     });
   });
 
+  it('reuses the managed model catalog inside the short local cache window', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({
+        model_catalog_version: 'v1',
+        data: [{ id: 'gpt-4o-mini', display_name: 'GPT-4o Mini' }],
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchManagedModelCatalog, fetchManagedModels } = await import('./managedService');
+    const first = await fetchManagedModelCatalog();
+    const second = await fetchManagedModels();
+
+    expect(first.version).toBe('v1');
+    expect(second.map((model) => model.apiModelId)).toEqual(['gpt-4o-mini']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces concurrent managed model catalog requests', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    let resolveFetch!: (value: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchManagedModelCatalog } = await import('./managedService');
+    const first = fetchManagedModelCatalog();
+    const second = fetchManagedModelCatalog();
+    resolveFetch(managedJsonResponse({
+      model_catalog_version: 'v1',
+      data: [{ id: 'gpt-4o-mini', display_name: 'GPT-4o Mini' }],
+    }));
+
+    await expect(first).resolves.toMatchObject({ version: 'v1' });
+    await expect(second).resolves.toMatchObject({ version: 'v1' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates the cached managed catalog when the lightweight version changes', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(managedJsonResponse({
+        model_catalog_version: 'v1',
+        data: [{ id: 'old-model', display_name: 'Old Model' }],
+      }))
+      .mockResolvedValueOnce(managedJsonResponse({
+        success: true,
+        model_catalog_version: 'v2',
+      }))
+      .mockResolvedValueOnce(managedJsonResponse({
+        model_catalog_version: 'v2',
+        data: [{ id: 'new-model', display_name: 'New Model' }],
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchManagedModelCatalog, fetchManagedModelsVersion } = await import('./managedService');
+    const first = await fetchManagedModelCatalog();
+    const version = await fetchManagedModelsVersion();
+    const second = await fetchManagedModelCatalog();
+
+    expect(first.models.map((model) => model.apiModelId)).toEqual(['old-model']);
+    expect(version).toBe('v2');
+    expect(second.models.map((model) => model.apiModelId)).toEqual(['new-model']);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it('uses lightweight web requests for managed model versions', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockResolvedValue(

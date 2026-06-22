@@ -35,6 +35,14 @@ import {
 } from './providerRequestBody';
 
 const MAX_MANAGED_CHAT_MESSAGES = 64
+const MANAGED_MODEL_CATALOG_CACHE_TTL_MS = 60_000
+
+let managedModelCatalogCache: {
+  catalog: ManagedModelCatalog
+  expiresAt: number
+} | null = null
+let managedModelCatalogInFlight: Promise<ManagedModelCatalog> | null = null
+let managedModelCatalogCacheGeneration = 0
 
 export {
   MANAGED_API_BASE,
@@ -59,7 +67,13 @@ export async function fetchManagedModels() {
   return (await fetchManagedModelCatalog()).models;
 }
 
-export async function fetchManagedModelCatalog(): Promise<ManagedModelCatalog> {
+export function clearManagedModelCatalogCache(): void {
+  managedModelCatalogCache = null
+  managedModelCatalogInFlight = null
+  managedModelCatalogCacheGeneration += 1
+}
+
+async function loadManagedModelCatalog(): Promise<ManagedModelCatalog> {
   if (hasElectronDesktopBridge()) {
     const payload = (await accountCommands.getManagedModels()) as ManagedModelsPayload | undefined;
     return normalizeManagedModelCatalogPayload(payload ?? {});
@@ -71,16 +85,61 @@ export async function fetchManagedModelCatalog(): Promise<ManagedModelCatalog> {
   return normalizeManagedModelCatalogPayload(payload ?? {});
 }
 
-export async function fetchManagedModelsVersion(): Promise<string | null> {
-  if (hasElectronDesktopBridge()) {
-    const payload = (await accountCommands.getManagedModelsVersion()) as ManagedModelsVersionPayload | undefined;
-    return normalizeManagedModelsVersionPayload(payload ?? {});
+export async function fetchManagedModelCatalog(options: { forceRefresh?: boolean } = {}): Promise<ManagedModelCatalog> {
+  const now = Date.now()
+  if (options.forceRefresh) {
+    clearManagedModelCatalogCache()
+  }
+  if (!options.forceRefresh && managedModelCatalogCache && managedModelCatalogCache.expiresAt > now) {
+    return managedModelCatalogCache.catalog
+  }
+  if (!options.forceRefresh && managedModelCatalogInFlight) {
+    return managedModelCatalogInFlight
   }
 
-  const payload = await requestManagedWebJson<ManagedModelsVersionPayload>('/models/version', {
-    method: 'GET',
-  });
-  return normalizeManagedModelsVersionPayload(payload ?? {});
+  const cacheGeneration = managedModelCatalogCacheGeneration
+  let request: Promise<ManagedModelCatalog>
+  request = loadManagedModelCatalog()
+    .then((catalog) => {
+      if (cacheGeneration === managedModelCatalogCacheGeneration) {
+        managedModelCatalogCache = {
+          catalog,
+          expiresAt: Date.now() + MANAGED_MODEL_CATALOG_CACHE_TTL_MS,
+        }
+      }
+      return catalog
+    })
+    .finally(() => {
+      if (managedModelCatalogInFlight === request) {
+        managedModelCatalogInFlight = null
+      }
+    })
+
+  managedModelCatalogInFlight = request
+  return request
+}
+
+export async function fetchManagedModelsVersion(): Promise<string | null> {
+  let version: string | null
+  if (hasElectronDesktopBridge()) {
+    const payload = (await accountCommands.getManagedModelsVersion()) as ManagedModelsVersionPayload | undefined;
+    version = normalizeManagedModelsVersionPayload(payload ?? {});
+  } else {
+    const payload = await requestManagedWebJson<ManagedModelsVersionPayload>('/models/version', {
+      method: 'GET',
+    });
+    version = normalizeManagedModelsVersionPayload(payload ?? {});
+  }
+
+  const cachedVersion = managedModelCatalogCache?.catalog.version || null
+  if (version && cachedVersion) {
+    if (version === cachedVersion) {
+      managedModelCatalogCache!.expiresAt = Date.now() + MANAGED_MODEL_CATALOG_CACHE_TTL_MS
+    } else {
+      clearManagedModelCatalogCache()
+    }
+  }
+  return version;
 }
 
 export async function fetchManagedBudget(): Promise<ManagedBudgetStatus> {

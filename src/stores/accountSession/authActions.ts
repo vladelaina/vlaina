@@ -363,12 +363,47 @@ export function createSignIn(
         }
 
         if (result?.success) {
+          const normalizedIdentity = normalizePersistedUser({
+            isConnected: true,
+            provider: normalizeAccountProvider(result.provider) ?? provider,
+            username: result.username ?? null,
+            primaryEmail: result.primaryEmail ?? null,
+            avatarUrl: result.avatarUrl ?? null,
+            membershipTier: null,
+            membershipName: null,
+          });
+          const providerFromResult = normalizeAccountProvider(normalizedIdentity.provider);
+          const username = normalizedIdentity.username ?? null;
+          const primaryEmail = normalizedIdentity.primaryEmail ?? null;
+          const avatarUrl = normalizedIdentity.avatarUrl ?? null;
+          const membershipTier = normalizedIdentity.membershipTier ?? null;
+          const membershipName = normalizedIdentity.membershipName ?? null;
+
           invalidateAccountSessionChecks();
-          await get().checkStatus({ force: true });
-          if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
-            return false;
-          }
-          set({ isConnecting: false, error: null });
+          set({
+            isConnected: true,
+            provider: providerFromResult,
+            username,
+            primaryEmail,
+            avatarUrl,
+            membershipTier,
+            membershipName,
+            isConnecting: false,
+            isLoading: false,
+            hasCheckedStatus: true,
+            error: null,
+          });
+          persistUser({
+            isConnected: true,
+            provider: providerFromResult,
+            username,
+            primaryEmail,
+            avatarUrl,
+            membershipTier,
+            membershipName,
+          });
+          void get().checkStatus({ force: true }).catch(() => undefined);
+          void refreshAvatar(set, get, username, avatarUrl);
           return true;
         }
 
