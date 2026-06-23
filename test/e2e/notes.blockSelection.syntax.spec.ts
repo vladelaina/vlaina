@@ -83,6 +83,14 @@ type SampledPixel = {
   targetClassName?: string;
 };
 
+type FootnoteSelectionVisualSample = {
+  accentPixels: number;
+  foregroundPixels: number;
+  sampleHeight: number;
+  sampleWidth: number;
+  totalPixels: number;
+};
+
 async function sampleSelectedBlockBackgroundPixel(
   page: Page,
   input: { label: string; targetSelector: string; targetText?: string },
@@ -637,6 +645,165 @@ test.describe("notes block selection syntax drag", () => {
 
       const visual = await dragVisibleHandleAndMeasure(page, footnoteCase.label);
       expectTransparentDragVisual(footnoteCase.label, visual);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('tints selected footnote definition rails with the block selection foreground', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-footnote-definition-selection-rail');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'footnote-definition-selection-rail.md',
+        content: [
+          'Paragraph with footnote[^1].',
+          '',
+          '',
+          '[^1]: Footnote body sentinel for selection rail.',
+          '',
+        ].join('\n'),
+      });
+
+      const selectionResult = await page.evaluate(async () => {
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks() as Array<{
+          text: string;
+          tagName: string;
+          from: number;
+          to: number;
+        }>;
+        const index = blocks.findIndex((block) => block.text.includes('Footnote body sentinel'));
+        const selectedIndexes = index >= 0
+          ? [index - 2, index - 1, index, index + 1].filter((candidate) => (
+            candidate >= 0 && candidate < blocks.length
+          ))
+          : [];
+        const count = index >= 0
+          ? await (window as any).__vlainaE2E.selectNoteBlocksByIndexes(selectedIndexes)
+          : 0;
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        return { blocks, count, index, selectedIndexes };
+      });
+
+      expect(selectionResult.index, JSON.stringify(selectionResult.blocks)).toBeGreaterThanOrEqual(0);
+      expect(selectionResult.count).toBe(selectionResult.selectedIndexes.length);
+
+      const styles = await page.evaluate((editorSelector) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        const footnote = editor?.querySelector<HTMLElement>('.footnote-def') ?? null;
+        const label = footnote?.querySelector<HTMLElement>('.footnote-def-label') ?? null;
+        if (!footnote || !label) return null;
+
+        const footnoteStyle = getComputedStyle(footnote);
+        const labelStyle = getComputedStyle(label);
+        const beforeStyle = getComputedStyle(footnote, '::before');
+        const afterStyle = getComputedStyle(footnote, '::after');
+        return {
+          footnoteClassName: footnote.className,
+          afterBottom: afterStyle.bottom,
+          beforeBorderLeftColor: beforeStyle.borderLeftColor,
+          beforeBorderLeftWidth: beforeStyle.borderLeftWidth,
+          beforeBackground: beforeStyle.backgroundColor,
+          beforeContent: beforeStyle.content,
+          beforeDisplay: beforeStyle.display,
+          beforeRadius: beforeStyle.borderTopLeftRadius,
+          borderLeftColor: footnoteStyle.borderLeftColor,
+          borderLeftWidth: footnoteStyle.borderLeftWidth,
+          borderRadius: footnoteStyle.borderTopLeftRadius,
+          color: footnoteStyle.color,
+          fillBottom: footnoteStyle.getPropertyValue('--vlaina-block-selection-fill-bottom').trim(),
+          fillTop: footnoteStyle.getPropertyValue('--vlaina-block-selection-fill-top').trim(),
+          labelColor: labelStyle.color,
+          labelTextFillColor: labelStyle.webkitTextFillColor,
+          selectionSurfaceLeft: afterStyle.left,
+          selectionSurfaceBackground: afterStyle.backgroundColor,
+          selectionSurfaceTop: afterStyle.top,
+        };
+      }, EDITOR_SELECTOR);
+
+      const visualClip = await page.evaluate((editorSelector) => {
+        const editor = document.querySelector<HTMLElement>(editorSelector);
+        const footnote = editor?.querySelector<HTMLElement>('.footnote-def') ?? null;
+        const label = footnote?.querySelector<HTMLElement>('.footnote-def-label') ?? null;
+        if (!footnote || !label) return null;
+        const footnoteRect = footnote.getBoundingClientRect();
+        const labelRect = label.getBoundingClientRect();
+        return {
+          x: Math.max(0, footnoteRect.left - 80),
+          y: Math.max(0, footnoteRect.top),
+          width: Math.max(1, labelRect.right - footnoteRect.left + 82),
+          height: Math.max(1, footnoteRect.height),
+        };
+      }, EDITOR_SELECTOR);
+
+      expect(visualClip).not.toBeNull();
+      const screenshot = await page.screenshot({ clip: visualClip! });
+      const visualSample = await page.evaluate(async ({ imageUrl }) => {
+        const image = new Image();
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error('Failed to load footnote selection screenshot'));
+          image.src = imageUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) throw new Error('Could not create canvas context for footnote selection screenshot');
+        context.drawImage(image, 0, 0);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const distance = (
+          red: number,
+          green: number,
+          blue: number,
+          target: { red: number; green: number; blue: number },
+        ) => Math.hypot(red - target.red, green - target.green, blue - target.blue);
+        let accentPixels = 0;
+        let foregroundPixels = 0;
+        for (let offset = 0; offset < imageData.data.length; offset += 4) {
+          const red = imageData.data[offset] ?? 0;
+          const green = imageData.data[offset + 1] ?? 0;
+          const blue = imageData.data[offset + 2] ?? 0;
+          if (distance(red, green, blue, { red: 30, green: 150, blue: 235 }) <= 48) {
+            accentPixels += 1;
+          }
+          if (distance(red, green, blue, { red: 254, green: 251, blue: 249 }) <= 36) {
+            foregroundPixels += 1;
+          }
+        }
+        return {
+          accentPixels,
+          foregroundPixels,
+          sampleHeight: canvas.height,
+          sampleWidth: canvas.width,
+          totalPixels: canvas.width * canvas.height,
+        } satisfies FootnoteSelectionVisualSample;
+      }, { imageUrl: `data:image/png;base64,${screenshot.toString('base64')}` });
+
+      expect(styles).not.toBeNull();
+      expect(styles!.footnoteClassName).toContain('editor-block-selected');
+      expect(styles!.fillBottom).toBe('0px');
+      expect(styles!.fillTop).toBe('0px');
+      expect(styles!.beforeBackground).toBe('rgba(0, 0, 0, 0)');
+      expect(styles!.beforeBorderLeftColor).toBe(styles!.color);
+      expect(styles!.beforeBorderLeftWidth).toBe('3px');
+      expect(styles!.beforeContent).not.toBe('none');
+      expect(styles!.beforeDisplay).toBe('block');
+      expect(styles!.beforeRadius).toBe(styles!.borderRadius);
+      expect(styles!.borderLeftWidth).toBe('3px');
+      expect(styles!.borderLeftColor).toBe(styles!.color);
+      expect(Number.parseFloat(styles!.selectionSurfaceLeft)).toBeLessThanOrEqual(0);
+      expect(styles!.selectionSurfaceTop).toBe('0px');
+      expect(styles!.afterBottom).toBe('0px');
+      expect(styles!.labelColor).toBe(styles!.color);
+      expect(styles!.labelTextFillColor).toBe(styles!.color);
+      expect(styles!.selectionSurfaceBackground).not.toBe(styles!.borderLeftColor);
+      expect(visualSample.foregroundPixels, JSON.stringify(visualSample)).toBeGreaterThan(0);
+      expect(visualSample.accentPixels / visualSample.totalPixels, JSON.stringify(visualSample)).toBeLessThan(0.01);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
