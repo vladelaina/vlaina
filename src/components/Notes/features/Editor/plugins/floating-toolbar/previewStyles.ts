@@ -423,9 +423,9 @@ function renderAppliedPreview(
   return true;
 }
 
-function clearSelectionColorPreview(): void {
+function clearSelectionColorPreview(): boolean {
   if (!selectionColorPreview) {
-    return;
+    return false;
   }
 
   const { viewDom } = selectionColorPreview;
@@ -442,6 +442,7 @@ function clearSelectionColorPreview(): void {
     }
   });
   selectionColorPreview = null;
+  return true;
 }
 
 function getTextSelectionOverlayElements(viewDom: HTMLElement): HTMLElement[] {
@@ -677,9 +678,9 @@ function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
   return true;
 }
 
-function clearPreviewOverlay(): void {
+function clearPreviewOverlay(): boolean {
   if (!previewOverlay) {
-    return;
+    return false;
   }
 
   const { node, originalViewDisplay, viewDom } = previewOverlay;
@@ -692,6 +693,13 @@ function clearPreviewOverlay(): void {
   }
   previewOverlay = null;
   restorePreviewScrollSnapshot(scrollSnapshot);
+  return true;
+}
+
+function clearFormatPreviewState(): boolean {
+  const didClearPreview = clearPreviewOverlay();
+  const didClearSelectionColorPreview = clearSelectionColorPreview();
+  return didClearPreview || didClearSelectionColorPreview;
 }
 
 function setCollapsedSelectionNear(tr: EditorState['tr'], pos: number): void {
@@ -771,7 +779,7 @@ export function applyFormatPreview(view: EditorView, action: string, isActive: b
     return;
   }
 
-  clearFormatPreview(view);
+  clearFormatPreviewState();
 
   const markName = FORMAT_MARKS[action];
   if (action === 'link') {
@@ -803,7 +811,7 @@ export function applyTextColorPreview(view: EditorView, color: string | null): v
     return;
   }
 
-  clearFormatPreview(view);
+  clearFormatPreviewState();
   const didRenderAppliedPreview = renderAppliedPreview(view, key, (previewView) => {
     setTextColor(previewView, color);
   });
@@ -821,7 +829,7 @@ export function applyBgColorPreview(view: EditorView, color: string | null): voi
     return;
   }
 
-  clearFormatPreview(view);
+  clearFormatPreviewState();
   const didRenderAppliedPreview = renderAppliedPreview(view, key, (previewView) => {
     setBgColor(previewView, color);
   });
@@ -850,7 +858,7 @@ export function applyAlignmentPreview(view: EditorView, alignment: TextAlignment
     return;
   }
 
-  clearFormatPreview(view);
+  clearFormatPreviewState();
   renderAppliedPreview(view, key, (previewView) => {
     setTextAlignment(previewView, alignment);
   });
@@ -862,7 +870,7 @@ export function applyBlockPreview(view: EditorView, blockType: BlockType): void 
     return;
   }
 
-  clearFormatPreview(view);
+  clearFormatPreviewState();
   renderAppliedPreview(view, key, (previewView) => {
     convertBlockType(previewView, blockType);
   });
@@ -889,7 +897,7 @@ export function commitBlockPreview(view: EditorView, blockType: BlockType): bool
 }
 
 export function clearFormatPreview(view: EditorView): void {
-  void view;
-  clearPreviewOverlay();
-  clearSelectionColorPreview();
+  if (clearFormatPreviewState()) {
+    showTextSelectionOverlayForPreview(view);
+  }
 }

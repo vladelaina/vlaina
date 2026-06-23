@@ -8,6 +8,10 @@ import { codePlugin } from '../code';
 import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
 import { videoPlugin } from '../video';
+import {
+  TEXT_SELECTION_OVERLAY_CLASS,
+  textSelectionOverlayPlugin,
+} from '../selection/textSelectionOverlayPlugin';
 import { colorMarksPlugin } from './colorMarks';
 import {
   applyAlignmentPreview,
@@ -56,6 +60,27 @@ async function createEditor(markdown: string) {
     })
     .use(commonmark)
     .use(gfm);
+
+  colorMarksPlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+
+  await editor.create();
+  return { editor, host, view: editor.ctx.get(editorViewCtx) };
+}
+
+async function createEditorWithSelectionOverlay(markdown: string) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const editor = Editor.make()
+    .config((ctx) => {
+      configureTheme(ctx);
+      ctx.set(rootCtx, host);
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(textSelectionOverlayPlugin);
 
   colorMarksPlugin.forEach((plugin) => {
     editor.use(plugin);
@@ -328,6 +353,37 @@ describe('previewStyles', () => {
     clearFormatPreview(view);
     await editor.destroy();
     host.remove();
+  });
+
+  it('restores overlay selection styling after clearing an applied hover preview', async () => {
+    const { editor, host, view } = await createEditorWithSelectionOverlay('format me');
+    try {
+      selectText(view, 'format');
+      view.dispatch(
+        view.state.tr
+          .setMeta('editorTextSelectionPointerNative', true)
+          .setMeta('addToHistory', false)
+      );
+
+      expect(view.dom.classList.contains('editor-pointer-native-selection')).toBe(true);
+      expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(0);
+
+      applyFormatPreview(view, 'bold');
+      expect(host.querySelector('.toolbar-applied-preview-overlay')).toBeInstanceOf(HTMLElement);
+      expect(view.dom.style.display).toBe('none');
+
+      clearFormatPreview(view);
+
+      expect(host.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
+      expect(view.dom.style.display).toBe('');
+      expect(view.dom.classList.contains('editor-pointer-native-selection')).toBe(false);
+      expect(Array.from(
+        view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)
+      ).map((element) => element.textContent ?? '').join('')).toBe('format');
+    } finally {
+      await editor.destroy();
+      host.remove();
+    }
   });
 
   it('skips applied preview rendering for oversized documents', () => {
