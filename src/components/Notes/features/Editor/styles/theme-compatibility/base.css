@@ -18,7 +18,7 @@
   --vlaina-text-tertiary: #636363;
   --vlaina-border: #e3e2e4;
   --vlaina-code-block-background: #f5f5f5;
-  --vlaina-code-inline-background: #f5f5f5;
+  --vlaina-code-inline-background: #f3f4f4;
   --vlaina-code-inline-foreground: #262626;
   --vlaina-code-syntax-foreground: #24292e;
   --vlaina-code-syntax-muted: #6a737d;
@@ -34,7 +34,7 @@
   --vlaina-code-syntax-markup: #005cc5;
   --vlaina-code-syntax-list: #735c0f;
   --vlaina-code-syntax-invalid: #b31d28;
-  --vlaina-color-editor-inline-code-bg: rgba(175, 184, 193, 0.2);
+  --vlaina-color-editor-inline-code-bg: #f3f4f4;
   --vlaina-color-mark-highlight-bg: #fef08a;
   --vlaina-color-mark-highlight-fg: #2c2c2b;
   --vlaina-color-find-match-bg: rgba(255, 221, 87, 0.82);
@@ -84,7 +84,7 @@
   --font-monospace: var(--v-fm-code, var(--v-fm-code-local, var(--font-mono)));
   --vlaina-markdown-font-size: var(--v-f-size, var(--vlaina-size-17px));
   --vlaina-code-block-background: var(--typora-code-editor-bg);
-  --vlaina-code-inline-background: var(--code-bg, var(--typora-code-editor-bg));
+  --vlaina-code-inline-background: var(--code-bg, var(--d-cb, #f3f4f4));
   --vlaina-code-inline-foreground: var(--code-t, var(--text-code));
   --vlaina-code-syntax-foreground: var(--df, var(--code-t, currentColor));
   --vlaina-code-syntax-muted: var(--cm-comment, var(--df-a, currentColor));
@@ -148,6 +148,8 @@
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror code:not(pre code) {
+  padding: var(--vlaina-space-0);
+  border-radius: var(--vlaina-radius-0);
   background-color: var(--code-bg, var(--vlaina-code-inline-background));
   color: var(--code-t, var(--vlaina-code-inline-foreground, inherit));
   font-family: var(--v-fm-code, var(--font-monospace, var(--font-mono)));

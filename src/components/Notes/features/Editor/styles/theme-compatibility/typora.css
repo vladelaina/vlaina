@@ -196,6 +196,8 @@
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(code:not(pre code), .v-std-code, .cm-inline-code) {
+  padding: var(--vlaina-space-0);
+  border-radius: var(--vlaina-radius-0);
   background: var(--typora-inline-code-bg);
   color: var(--typora-inline-code-fg);
   border-color: var(--std-code-sd, var(--typora-block-border));

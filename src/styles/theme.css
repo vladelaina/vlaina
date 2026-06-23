@@ -757,7 +757,7 @@
   --vlaina-color-panel-glass: linear-gradient(180deg, rgb(255 255 255 / 0.64), rgb(255 255 255 / 0.38));
   --vlaina-color-panel-muted: rgb(0 0 0 / 0.05);
   --vlaina-color-row-soft: rgb(244 244 245 / 0.4);
-  --vlaina-color-editor-inline-code-bg: rgba(175, 184, 193, 0.2);
+  --vlaina-color-editor-inline-code-bg: #f3f4f4;
   --vlaina-color-editor-html-source-text: #a7a7a7;
   --vlaina-color-editor-frontmatter-placeholder: color-mix(in srgb, var(--vlaina-color-text-soft), transparent 18%);
   --vlaina-color-image-drag-placeholder-bg: var(--vlaina-color-accent-light);

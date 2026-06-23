@@ -144,9 +144,9 @@
   display: inline;
   vertical-align: baseline;
   margin: var(--vlaina-space-0);
-  padding: var(--vlaina-space-02em) var(--vlaina-space-04em);
+  padding: var(--vlaina-space-0);
   border: var(--vlaina-border-width-0);
-  border-radius: var(--vlaina-radius-6px);
+  border-radius: var(--vlaina-radius-0);
   background-color: var(--vlaina-color-editor-inline-code-bg);
   color: inherit;
   caret-color: transparent;
