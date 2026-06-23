@@ -22,6 +22,7 @@ describe('themeTextSchemaOverrides', () => {
     renderRawMarkdownHtmlValueIntoElement(element, '<!--注释-->');
 
     expect(element.classList.contains('md-htmlblock-literal-text')).toBe(true);
+    expect(element.classList.contains('md-html-source-text')).toBe(true);
     expect(element.dataset.value).toBe('<!--注释-->');
     expect(element.childNodes).toHaveLength(1);
     expect(element.childNodes[0]?.nodeType).toBe(Node.TEXT_NODE);
@@ -34,6 +35,7 @@ describe('themeTextSchemaOverrides', () => {
     renderRawMarkdownHtmlValueIntoElement(element, '<strong>HTML</strong>');
 
     expect(element.classList.contains('md-htmlblock-literal-text')).toBe(false);
+    expect(element.classList.contains('md-html-source-text')).toBe(false);
     expect(element.querySelector('strong')?.textContent).toBe('HTML');
 
     renderRawMarkdownHtmlValueIntoElement(element, '<!--vlaina-markdown-blank-line-->');

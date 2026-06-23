@@ -95,6 +95,17 @@ describe('autolinkPlugin findUrls', () => {
         ]);
     });
 
+    it('does not treat a file extension prefix as a bare domain', () => {
+        expect(findUrls('play xxx.mp4 and open cati.me', 0)).toEqual([
+            {
+                start: 22,
+                end: 29,
+                url: 'cati.me',
+                href: 'https://cati.me',
+            },
+        ]);
+    });
+
     it('does not treat a plain TLD word as a URL', () => {
         expect(findUrls('me', 0)).toEqual([]);
     });
@@ -217,6 +228,38 @@ describe('autolinkPlugin findUrls', () => {
         }]);
 
         await editor.destroy();
+    });
+
+    it('does not decorate URLs inside inline HTML tags', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, [
+                    'Inline <video src="xxx.mp4" /> and <video src="https://cdn.example.com/demo.mp4" />.',
+                    '',
+                    'Open https://visible.example',
+                ].join('\n'));
+            })
+            .use(commonmark)
+            .use(autolinkPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(getAutolinkTexts(view)).toEqual(['https://visible.example']);
+
+        await editor.destroy();
+    });
+
+    it('does not decorate URL-looking text inside HTML tag text nodes', () => {
+        const decorations = collectAutolinkDecorations(createDocNode([
+            createTextNode('Inline <video src="https://cdn.example.com/demo.mp4" /> and open https://visible.example'),
+        ]));
+
+        expect(decorations.map((decoration: Decoration) => ({
+            href: (decoration.type as any).attrs?.href,
+        }))).toEqual([{
+            href: 'https://visible.example',
+        }]);
     });
 
     it('does not decorate local-network or credentialed URLs', async () => {

@@ -12,5 +12,5 @@ export const URL_PATTERNS = [
     // Email addresses
     /[\w\-\._%+-]+@[\w\-\._]+\.[a-zA-Z]{2,}/g,
     // Bare domains with a syntactically valid TLD, e.g. cati.me or catim.md.
-    new RegExp(String.raw`(?<![@\w.-])${BARE_DOMAIN_SOURCE}`, 'gi'),
+    new RegExp(String.raw`(?<![@\w.-])${BARE_DOMAIN_SOURCE}(?![\w-])`, 'gi'),
 ];
