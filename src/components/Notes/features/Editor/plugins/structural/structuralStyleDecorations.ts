@@ -325,11 +325,13 @@ export function applyStructuralStyleDecorationsState(
 
   let decorations = previous.decorations.map(tr.mapping, newDoc);
   const nextDecorations: ProseDecoration[] = [];
+  let removedDecorationCount = 0;
 
   for (const range of affectedRanges) {
     const staleDecorations = decorations.find(range.from, range.to) as ProseDecoration[];
     if (staleDecorations.length > 0) {
       decorations = decorations.remove(staleDecorations);
+      removedDecorationCount += staleDecorations.length;
     }
 
     if (nextDecorations.length >= MAX_STRUCTURAL_STYLE_DECORATIONS) {
@@ -351,7 +353,7 @@ export function applyStructuralStyleDecorationsState(
   }
 
   return {
-    decorationCount: decorations.find().length,
+    decorationCount: Math.max(0, previous.decorationCount - removedDecorationCount + nextDecorations.length),
     decorations,
   };
 }

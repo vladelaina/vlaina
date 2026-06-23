@@ -111,6 +111,65 @@ describe('usePredictedTextareaHeight', () => {
     }
   });
 
+  it('keeps max-height textarea appends from remeasuring the full value', () => {
+    textLayoutMocks.measureTextareaContentHeight.mockImplementationOnce(() => 308);
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => 320,
+    });
+
+    try {
+      const view = render(<Harness value="long content" />);
+      const textarea = view.container.querySelector('textarea');
+      expect(textarea).not.toBeNull();
+      expect(textarea!.style.height).toBe('320px');
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+
+      view.rerender(<Harness value="long content appended text" />);
+
+      expect(textarea!.style.height).toBe('320px');
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+
+      view.rerender(<Harness value="short" />);
+
+      expect(textarea!.style.height).toBe('60px');
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(2);
+    } finally {
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);
+      } else {
+        delete (HTMLTextAreaElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    }
+  });
+
+  it('remeasures max-height textarea appends after a width change', () => {
+    textLayoutMocks.measureTextareaContentHeight.mockImplementationOnce(() => 308);
+    let width = 320;
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => width,
+    });
+
+    try {
+      const view = render(<Harness value="long content" />);
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+
+      width = 280;
+      view.rerender(<Harness value="long content appended text" />);
+
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(2);
+    } finally {
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);
+      } else {
+        delete (HTMLTextAreaElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    }
+  });
+
   it('ignores ResizeObserver callbacks caused by its own stable height write', () => {
     const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
     Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
