@@ -143,6 +143,8 @@ export function useImageDrag({
         const containerRect = containerRef.current?.getBoundingClientRect();
         const sourceWidth = containerRef.current?.offsetWidth || 200;
         const sourceHeight = containerRef.current?.offsetHeight || 100;
+        let pendingPointer: { clientX: number; clientY: number } | null = null;
+        let dragFrame: number | null = null;
 
         const session = createDragSession({
             sourcePos,
@@ -163,12 +165,71 @@ export function useImageDrag({
             beginDragging(active);
         };
 
+        const applyDragMove = (active: DragSession, clientX: number, clientY: number) => {
+            updatePreviewPosition(active, clientX, clientY);
+
+            const alignment = calculateAlignmentFromPosition(view, clientX);
+            active.alignment = alignment;
+            setPreviewAlignment(alignment);
+            updatePlaceholderMargin(alignment);
+
+            if (active.sourcePos !== null) {
+                const targetPos = calculateDropPosition(view, clientY, active.sourcePos);
+                if (targetPos !== null) {
+                    active.targetPos = targetPos;
+                }
+                syncPluginDragState(active);
+            }
+        };
+
+        const flushPendingDrag = () => {
+            dragFrame = null;
+            const pointer = pendingPointer;
+            pendingPointer = null;
+            const active = dragSessionRef.current;
+            if (active !== session || active.phase !== 'dragging' || !pointer) {
+                return;
+            }
+
+            applyDragMove(active, pointer.clientX, pointer.clientY);
+        };
+
+        const schedulePendingDrag = () => {
+            if (dragFrame !== null) return;
+            dragFrame = window.requestAnimationFrame(flushPendingDrag);
+        };
+
+        const flushPendingDragNow = () => {
+            if (dragFrame !== null) {
+                window.cancelAnimationFrame(dragFrame);
+                dragFrame = null;
+            }
+
+            const pointer = pendingPointer;
+            pendingPointer = null;
+            const active = dragSessionRef.current;
+            if (active !== session || active.phase !== 'dragging' || !pointer) {
+                return;
+            }
+
+            applyDragMove(active, pointer.clientX, pointer.clientY);
+        };
+
+        const cancelPendingDrag = () => {
+            if (dragFrame !== null) {
+                window.cancelAnimationFrame(dragFrame);
+                dragFrame = null;
+            }
+            pendingPointer = null;
+        };
+
         const onPointerMove = (moveEvent: PointerEvent) => {
             const active = dragSessionRef.current;
             if (active !== session) return;
 
             if (moveEvent.ctrlKey || moveEvent.metaKey) {
                 clearLongPressTimeout(active);
+                cancelPendingDrag();
                 return;
             }
 
@@ -183,20 +244,11 @@ export function useImageDrag({
                 return;
             }
 
-            updatePreviewPosition(active, moveEvent.clientX, moveEvent.clientY);
-
-            const alignment = calculateAlignmentFromPosition(view, moveEvent.clientX);
-            active.alignment = alignment;
-            setPreviewAlignment(alignment);
-            updatePlaceholderMargin(alignment);
-
-            if (active.sourcePos !== null) {
-                const targetPos = calculateDropPosition(view, moveEvent.clientY, active.sourcePos);
-                if (targetPos !== null) {
-                    active.targetPos = targetPos;
-                }
-                syncPluginDragState(active);
-            }
+            pendingPointer = {
+                clientX: moveEvent.clientX,
+                clientY: moveEvent.clientY,
+            };
+            schedulePendingDrag();
         };
 
         const cleanupListeners = () => {
@@ -204,9 +256,11 @@ export function useImageDrag({
             window.removeEventListener('pointerup', onPointerUp, true);
             window.removeEventListener('pointercancel', onPointerCancel, true);
             window.removeEventListener('blur', onPointerCancel, true);
+            cancelPendingDrag();
         };
 
         const onPointerUp = () => {
+            flushPendingDragNow();
             cleanupListeners();
             finishSession(session, true);
         };

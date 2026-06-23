@@ -1,11 +1,63 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeSerializedMarkdownDocument } from './markdownSerializationUtils';
+import {
+  normalizeEditorStateMarkdownDocument,
+  normalizeSerializedMarkdownDocument,
+} from './markdownSerializationUtils';
 
 describe('markdown internal artifact protection', () => {
   it('removes editor blank-line comments outside protected content', () => {
     expect(
       normalizeSerializedMarkdownDocument(['A', '<!--vlaina-markdown-blank-line-->', 'B'].join('\n'))
     ).toBe(['A', '', 'B'].join('\n'));
+  });
+
+  it('removes editor-generated rendered HTML boundary helper comments', () => {
+    const markdown = [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After image.',
+    ].join('\n');
+    const expected = [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      'After image.',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(expected);
+    expect(normalizeEditorStateMarkdownDocument(markdown)).toBe(expected);
+  });
+
+  it('preserves user-authored rendered HTML boundary comments outside helper positions', () => {
+    const markdown = [
+      'Before',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+    expect(normalizeEditorStateMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('removes case-insensitive internal artifact comments outside protected content', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['A', '<!--VLAINA-MARKDOWN-BLANK-LINE-->', 'B'].join('\n'))
+    ).toBe(['A', '', 'B'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument([
+        '<img src="./assets/demo.svg" alt="Demo" />',
+        '',
+        '<!--VLAINA-RENDERED-HTML-BOUNDARY-BLANK-LINE-->',
+        'After image.',
+      ].join('\n'))
+    ).toBe([
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      'After image.',
+    ].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['# Alpha', '', '<!--VLAINA-MARKDOWN-TIGHT-HEADING-->', '', '## Beta'].join('\n'))
+    ).toBe(['# Alpha', '## Beta'].join('\n'));
   });
 
   it('removes editor tight-heading comments outside protected content', () => {
@@ -18,6 +70,7 @@ describe('markdown internal artifact protection', () => {
     const markdown = [
       '```html',
       '<!--vlaina-markdown-blank-line-->',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
       '<!--vlaina-markdown-tight-heading-->',
       '<br data-vlaina-empty-line="true" />',
       '��VLAINA_LIST_GAP_SENTINEL��',
@@ -48,6 +101,7 @@ describe('markdown internal artifact protection', () => {
     const markdown = [
       `${marker}markdown`,
       '<!--vlaina-markdown-blank-line-->',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
       '- \u2800',
       marker,
     ].join('\n');
@@ -59,6 +113,7 @@ describe('markdown internal artifact protection', () => {
     const markdown = [
       '---',
       'description: "<!--vlaina-markdown-blank-line-->"',
+      'htmlBoundary: "<!--vlaina-rendered-html-boundary-blank-line-->"',
       'gap: "\u2800"',
       'literal: "��VLAINA_LIST_GAP_SENTINEL��"',
       '---',
@@ -73,6 +128,7 @@ describe('markdown internal artifact protection', () => {
     const blankLineComment = [
       '<!--',
       '<!--vlaina-markdown-blank-line-->',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
       '',
       'Body',
     ].join('\n');
@@ -99,6 +155,7 @@ describe('markdown internal artifact protection', () => {
     const markdown = [
       '<pre>',
       '<!--vlaina-markdown-blank-line-->',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
       '<br data-vlaina-empty-line="true" />',
       '��VLAINA_USER_BR_SENTINEL��',
       '</pre>',
@@ -125,6 +182,7 @@ describe('markdown internal artifact protection', () => {
       '<source srcset="images/a.webp 1x">',
       '<br data-vlaina-empty-line="true" />',
       '<!--vlaina-markdown-blank-line-->',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
       '',
       'Body',
     ].join('\n');
@@ -136,6 +194,7 @@ describe('markdown internal artifact protection', () => {
     const markdown = [
       '<custom-element>',
       '<!--vlaina-markdown-blank-line-->',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
       '<br data-vlaina-empty-line="true" />',
       '��VLAINA_USER_BR_SENTINEL��',
       '</custom-element>',

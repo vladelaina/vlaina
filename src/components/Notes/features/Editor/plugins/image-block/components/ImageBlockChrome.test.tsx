@@ -71,6 +71,19 @@ describe('ImageBlockChrome', () => {
     expect(caption!).not.toHaveClass('left-2');
   });
 
+  it('renders caption text in a wrapping text container for long image names', () => {
+    const longAlt = 'very-long-image-file-name-without-natural-breakpoints-abcdefghijklmnopqrstuvwxyz-0123456789';
+    renderChrome({
+      nodeAlt: longAlt,
+      captionInput: longAlt,
+    });
+
+    const captionText = screen.getByText(longAlt);
+
+    expect(captionText).toHaveClass('image-caption-text');
+    expect(captionText.closest('.image-caption-btn')).not.toBeNull();
+  });
+
   it('does not submit the caption when Enter is pressed during IME composition', () => {
     const onCaptionSubmit = vi.fn();
     renderChrome({

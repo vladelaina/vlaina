@@ -334,19 +334,34 @@
 }
 
 .image-caption-btn {
+  align-items: flex-start;
   justify-content: flex-start;
   gap: var(--vlaina-space-0375rem);
   min-width: 0;
   max-width: var(--vlaina-width-toolbar-caption-max);
-  height: var(--vlaina-size-24px);
+  height: auto;
+  min-height: var(--vlaina-size-24px);
+  max-height: var(--vlaina-size-96px);
   padding: var(--vlaina-space-2px) var(--vlaina-space-0625rem);
   font-size: var(--vlaina-font-13);
   font-weight: var(--vlaina-font-weight-medium);
+  white-space: normal;
+  overflow-y: auto;
 }
 
 .image-caption-btn svg {
+  flex: 0 0 auto;
   width: var(--vlaina-size-20px);
   height: var(--vlaina-size-20px);
+}
+
+.image-caption-text {
+  min-width: 0;
+  max-width: 100%;
+  line-height: var(--vlaina-leading-125);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: start;
 }
 
 /* Toolbar button tooltip */

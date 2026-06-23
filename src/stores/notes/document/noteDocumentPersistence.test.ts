@@ -170,6 +170,66 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('cleans rendered HTML boundary helpers before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: [
+          '<img src="./assets/demo.svg" alt="Demo" />',
+          '',
+          '<!--vlaina-rendered-html-boundary-blank-line-->',
+          'After image.',
+        ].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    const expected = [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      'After image.',
+    ].join('\n');
+    const written = String(adapter.writeFile.mock.calls[0]?.[1] ?? '');
+    expect(written).toBe(expected);
+    expect(written).not.toContain('vlaina-rendered-html-boundary-blank-line');
+    expect(result.content).toBe(expected);
+
+    vi.useRealTimers();
+  });
+
+  it('preserves user-authored rendered HTML boundary comments outside helper positions when writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const content = [
+      'Before',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After',
+    ].join('\n');
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content,
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', content);
+    expect(result.content).toBe(content);
+
+    vi.useRealTimers();
+  });
+
   it('converts internal user break markers to markdown hard breaks before writing markdown', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -500,6 +560,50 @@ describe('saveNoteDocument', () => {
     expect(result.content).not.toContain('&#x20');
     expect(result.content).not.toContain('&#32');
     expect(result.nextCache.get('alpha.md')?.content).toBe(expected);
+  });
+
+  it('cleans rendered HTML boundary helpers when loading markdown', async () => {
+    adapter.readFile.mockResolvedValue([
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After image.',
+    ].join('\n'));
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+
+    const expected = [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      'After image.',
+    ].join('\n');
+    expect(result.content).toBe(expected);
+    expect(result.content).not.toContain('vlaina-rendered-html-boundary-blank-line');
+    expect(result.nextCache.get('alpha.md')?.content).toBe(expected);
+  });
+
+  it('preserves user-authored rendered HTML boundary comments outside helper positions when loading markdown', async () => {
+    const content = [
+      'Before',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After',
+    ].join('\n');
+    adapter.readFile.mockResolvedValue(content);
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+
+    expect(result.content).toBe(content);
+    expect(result.nextCache.get('alpha.md')?.content).toBe(content);
   });
 
   it('preserves markdown blank lines between list items when loading markdown', async () => {

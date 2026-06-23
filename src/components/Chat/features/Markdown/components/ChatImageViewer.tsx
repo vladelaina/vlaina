@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
+import {
+  DialogCloseIconButton,
+  dialogCloseIconButtonClassName,
+} from "@/components/common/DialogCloseIconButton";
 import { Icon } from "@/components/ui/icons";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard, MAX_CHAT_MESSAGE_IMAGE_SOURCES } from "@/components/Chat/common/messageClipboard";
@@ -41,9 +45,6 @@ const MAX_COMPARABLE_IMAGE_SRC_DECODE_CHARS = 4096;
 const resolvedViewerImageCache = new Map<string, Promise<string | null>>();
 const resolvedViewerImageCacheSizes = new Map<string, number>();
 let resolvedViewerImageCacheChars = 0;
-const imageViewerToolbarButtonClass =
-  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-[var(--vlaina-color-text-strong)] transition-colors hover:bg-[var(--vlaina-hover)]";
-
 type ViewerPoint = { x: number; y: number };
 type ViewerSize = { width: number; height: number };
 
@@ -498,7 +499,7 @@ export function ChatImageViewer({
     return () => {
       document.removeEventListener("pointerdown", handleDocumentPress, true);
     };
-  }, [isPointOnImage, onOpenChange, open]);
+  }, [onOpenChange, open]);
 
   const handleDialogPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
     const target = event.target instanceof Element ? event.target : null;
@@ -572,24 +573,18 @@ export function ChatImageViewer({
           onOpenChange(false);
         }}
       >
-        <button
-          type="button"
-          aria-label={t('chat.closePreview')}
+        <DialogCloseIconButton
+          label={t('chat.closePreview')}
           data-no-focus-input="true"
           data-chat-image-viewer-control="true"
-          className={cn(
-            "absolute right-12 top-12 z-[var(--vlaina-z-10)] inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-all hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]",
-            iconButtonStyles
-          )}
+          className="absolute right-12 top-[4.5rem] z-[var(--vlaina-z-10)]"
           onMouseDown={stopViewerControlMouseDown}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
             onOpenChange(false);
           }}
-        >
-          <Icon name="common.close" size="md" />
-        </button>
+        />
 
         {hasPrevious && (
           <div className="absolute inset-y-0 left-4 z-[var(--vlaina-z-10)] flex items-center">
@@ -713,10 +708,7 @@ export function ChatImageViewer({
                 type="button"
                 aria-label={t('chat.zoomOut')}
                 data-no-focus-input="true"
-                className={cn(
-                  imageViewerToolbarButtonClass,
-                  iconButtonStyles
-                )}
+                className={dialogCloseIconButtonClassName}
                 onMouseDown={stopViewerControlMouseDown}
                 onClick={() => setZoom((value) => clampZoom(value - ZOOM_STEP))}
               >
@@ -729,10 +721,7 @@ export function ChatImageViewer({
                 type="button"
                 aria-label={t('chat.zoomIn')}
                 data-no-focus-input="true"
-                className={cn(
-                  imageViewerToolbarButtonClass,
-                  iconButtonStyles
-                )}
+                className={dialogCloseIconButtonClassName}
                 onMouseDown={stopViewerControlMouseDown}
                 onClick={() => setZoom((value) => clampZoom(value + ZOOM_STEP))}
               >
@@ -751,8 +740,7 @@ export function ChatImageViewer({
                 data-no-focus-input="true"
                 data-action="copy"
                 className={cn(
-                  imageViewerToolbarButtonClass,
-                  iconButtonStyles,
+                  dialogCloseIconButtonClassName,
                   copied && "text-[var(--vlaina-accent)] bg-[var(--vlaina-accent-soft)]"
                 )}
                 onMouseDown={stopViewerControlMouseDown}
@@ -768,10 +756,7 @@ export function ChatImageViewer({
                 type="button"
                 aria-label={t('chat.downloadImage')}
                 data-no-focus-input="true"
-                className={cn(
-                  imageViewerToolbarButtonClass,
-                  iconButtonStyles
-                )}
+                className={dialogCloseIconButtonClassName}
                 onMouseDown={stopViewerControlMouseDown}
                 onClick={(event) => {
                   event.preventDefault();

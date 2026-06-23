@@ -326,6 +326,7 @@ const RICH_BLOCK_SELECTION_NODE_NAMES = new Set([
 ]);
 const NON_RICH_HTML_BLOCK_VALUES = new Set([
   '<!--vlaina-markdown-blank-line-->',
+  '<!--vlaina-rendered-html-boundary-blank-line-->',
   '<!--vlaina-markdown-tight-heading-->',
 ]);
 const NON_RENDERING_HTML_COMMENT_PATTERN = /^<!--(?:(?!-->)[\s\S])*-->$/;

@@ -134,6 +134,5 @@ export class ImageBlockNodeView implements NodeView {
         queueMicrotask(() => {
             this.root.unmount();
         });
-        this.dom.remove();
     }
 }

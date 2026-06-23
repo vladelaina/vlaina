@@ -51,6 +51,12 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain(`${scope} #write .vlook-caption-gap {`);
     expect(css).toContain(`${scope} #write .vlook-caption-target-codeblock.code-block-container.md-fences,`);
     expect(css).toContain(`${scope} #write .v-page-break.vlook-page-break {`);
+    const typoraImageCaptionRule = extractCssRule(
+      css,
+      `${scope} #write .image-block-container[data-alt]:not([data-alt='']):not([src*='#logo']):not([src*='#icon']):not([src*='#card'])::after`
+    );
+    expect(typoraImageCaptionRule).toContain('overflow-wrap: anywhere;');
+    expect(typoraImageCaptionRule).toContain('word-break: break-word;');
     expect(css).toContain('break-before: page;');
     expect(css).toContain(`${scope} #write .v-tbl-row-g-btn,`);
     expect(css).toContain(`${scope} #write .v-svg-input-checkbox {`);

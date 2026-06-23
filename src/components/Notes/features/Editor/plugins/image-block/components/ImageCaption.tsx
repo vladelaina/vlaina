@@ -116,7 +116,9 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     }}
                 >
                     {!originalAlt && <Icon name="common.compose" size="md" className="opacity-[var(--vlaina-opacity-70)]" />}
-                    {originalAlt || t('editor.caption')}
+                    <span className="image-caption-text">
+                        {originalAlt || t('editor.caption')}
+                    </span>
                 </button>
             )}
         </div>

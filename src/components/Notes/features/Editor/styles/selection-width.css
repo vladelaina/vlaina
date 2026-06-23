@@ -1,4 +1,5 @@
 .milkdown .ProseMirror {
+  container-type: inline-size;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
@@ -6,6 +7,10 @@
 .milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.editor-block-selected):not(.editor-editable-markdown-blank-line):not(.editor-empty-paragraph):not(.editor-paragraph-has-image-block) {
   width: fit-content;
   max-width: 100%;
+}
+
+.milkdown .ProseMirror > p > .image-block-container {
+  min-width: min(100cqi, var(--vlaina-width-editor-content-max));
 }
 
 .milkdown .ProseMirror.editor-text-selection-overlay-active:not(.editor-pointer-native-selection) *::selection {

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   EDITOR_SELECTOR,
   NOTE_IMAGE_BLOCK_SELECTOR,
@@ -8,10 +8,12 @@ import {
   cleanupIsolatedElectron,
   clearSelectedNoteBlocks,
   collectEditorDomMetrics,
+  createVaultFilesFixture,
   getBlankAreaDragTarget,
   getOpenBridgePages,
   launchIsolatedElectron,
   measureRepeatedBlockScan,
+  openAbsoluteNote,
   openMarkdownFixture,
   selectNoteBlocksByText,
 } from './notesE2E';
@@ -67,6 +69,82 @@ function createRemoteCoverImageMarkdown(): string {
   ].join('\n');
 }
 
+function createStackedLocalImagesMarkdown(): string {
+  return [
+    '# E2E Stacked Local Images',
+    '',
+    'Before local images sentinel.',
+    '',
+    '![Upper local image](./assets/upper.svg)',
+    '![Lower local image](./assets/lower.svg)',
+    '',
+    'After local images sentinel.',
+    '',
+  ].join('\n');
+}
+
+function createLocalSvg(fill: string): string {
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90" viewBox="0 0 160 90">',
+    `<rect width="160" height="90" rx="8" fill="${fill}" />`,
+    '<circle cx="120" cy="28" r="18" fill="rgba(255,255,255,0.72)" />',
+    '</svg>',
+  ].join('');
+}
+
+function createSizedLocalSvg(fill: string, width: number, height: number): string {
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    `<rect width="${width}" height="${height}" rx="18" fill="${fill}" />`,
+    `<circle cx="${Math.round(width * 0.74)}" cy="${Math.round(height * 0.32)}" r="${Math.round(height * 0.16)}" fill="rgba(255,255,255,0.72)" />`,
+    '</svg>',
+  ].join('');
+}
+
+const IMAGE_AUDIT_IMAGES = [
+  { src: './assets/audit-0.svg', alt: 'Audit adjacent upper' },
+  { src: './assets/audit-1.svg', alt: 'Audit adjacent lower' },
+  { src: './assets/shared.svg', alt: 'Audit duplicate first' },
+  { src: './assets/shared.svg', alt: 'Audit duplicate second' },
+  { src: './assets/audit-2.svg', alt: 'Audit html width' },
+  { src: './assets/audit-3.svg', alt: 'Audit markdown title' },
+  { src: './assets/audit-4.svg', alt: 'Audit standalone four' },
+  { src: './assets/audit-5.svg', alt: 'Audit standalone five' },
+  { src: './assets/audit-6.svg', alt: 'Audit standalone six' },
+  { src: './assets/audit-7.svg', alt: 'Audit standalone seven' },
+] as const;
+
+function createImageInteractionAuditMarkdown(): string {
+  return [
+    '# E2E Image Interaction Audit',
+    '',
+    'Before image audit sentinel.',
+    '',
+    '![Audit adjacent upper](./assets/audit-0.svg)',
+    '![Audit adjacent lower](./assets/audit-1.svg)',
+    '',
+    'Paragraph between adjacent and duplicate images.',
+    '',
+    '![Audit duplicate first](./assets/shared.svg)',
+    '![Audit duplicate second](./assets/shared.svg)',
+    '',
+    '<img src="./assets/audit-2.svg" alt="Audit html width" width="58%" align="right" />',
+    '',
+    '![Audit markdown title](./assets/audit-3.svg "Audit title")',
+    '',
+    '![Audit standalone four](./assets/audit-4.svg)',
+    '',
+    '![Audit standalone five](./assets/audit-5.svg)',
+    '',
+    '![Audit standalone six](./assets/audit-6.svg)',
+    '',
+    '![Audit standalone seven](./assets/audit-7.svg)',
+    '',
+    'After image audit sentinel.',
+    '',
+  ].join('\n');
+}
+
 async function getImageBlockDiagnostics(page: Page) {
   return page.evaluate(() => {
     const block = document.querySelector<HTMLElement>('.milkdown .ProseMirror .image-block-container');
@@ -100,6 +178,213 @@ async function getImageBlockDiagnostics(page: Page) {
   });
 }
 
+async function getAllImageBlockDiagnostics(page: Page) {
+  return page.evaluate(() => Array.from(
+    document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .image-block-container')
+  ).map((block) => {
+    const image = block.querySelector<HTMLImageElement>('img');
+    const blockRect = block.getBoundingClientRect();
+    const imageRect = image?.getBoundingClientRect();
+    const blockStyle = window.getComputedStyle(block);
+    const imageStyle = image ? window.getComputedStyle(image) : null;
+
+    return {
+      dataSrc: block.dataset.src ?? block.getAttribute('src') ?? '',
+      dataAlt: block.dataset.alt ?? '',
+      dataAlign: block.dataset.align ?? block.getAttribute('align') ?? '',
+      dataWidth: block.dataset.width ?? block.getAttribute('width') ?? '',
+      hasImage: Boolean(image),
+      imageComplete: image?.complete ?? false,
+      blockWidth: Math.round(blockRect.width),
+      blockHeight: Math.round(blockRect.height),
+      imageWidth: Math.round(imageRect?.width ?? 0),
+      imageHeight: Math.round(imageRect?.height ?? 0),
+      blockDisplay: blockStyle.display,
+      blockVisibility: blockStyle.visibility,
+      imageDisplay: imageStyle?.display ?? null,
+      imageVisibility: imageStyle?.visibility ?? null,
+      imageOpacity: imageStyle?.opacity ?? null,
+    };
+  }));
+}
+
+async function getEditorBlankPoint(page: Page): Promise<{ x: number; y: number } | null> {
+  return page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    if (!editor) return null;
+
+    const editorRect = editor.getBoundingClientRect();
+    const visibleMinY = Math.max(Math.ceil(editorRect.top + 12), 12);
+    const visibleMaxY = Math.min(Math.floor(editorRect.bottom - 12), window.innerHeight - 12);
+    const visibleMinX = Math.max(Math.ceil(editorRect.left + 24), 12);
+    const visibleMaxX = Math.min(Math.floor(editorRect.right - 24), window.innerWidth - 12);
+
+    for (let y = visibleMinY; y <= visibleMaxY; y += 16) {
+      for (let x = visibleMinX; x <= visibleMaxX; x += 32) {
+        if (document.elementFromPoint(x, y) === editor) {
+          return { x, y };
+        }
+      }
+    }
+
+    const lastChild = Array.from(editor.children)
+      .filter((element): element is HTMLElement => element instanceof HTMLElement)
+      .at(-1);
+    const lastRect = lastChild?.getBoundingClientRect();
+    const minY = Math.ceil((lastRect?.bottom ?? editorRect.top) + 12);
+    const maxY = Math.floor(editorRect.bottom - 12);
+    const minX = Math.ceil(editorRect.left + 24);
+    const maxX = Math.floor(editorRect.right - 24);
+
+    for (let y = minY; y <= maxY; y += 12) {
+      for (let x = minX; x <= maxX; x += 24) {
+        if (document.elementFromPoint(x, y) === editor) {
+          return { x, y };
+        }
+      }
+    }
+
+    return null;
+  });
+}
+
+async function expectImageBlocksStable(page: Page, expectedSources: readonly string[]) {
+  const diagnostics = await getAllImageBlockDiagnostics(page);
+  expect(diagnostics.map((item) => item.dataSrc)).toEqual(expectedSources);
+  expect(diagnostics).toHaveLength(expectedSources.length);
+  for (const item of diagnostics) {
+    expect(item.blockDisplay, JSON.stringify(item)).toBe('block');
+    expect(item.blockVisibility, JSON.stringify(item)).toBe('visible');
+    expect(item.blockWidth, JSON.stringify(item)).toBeGreaterThan(0);
+    expect(item.blockHeight, JSON.stringify(item)).toBeGreaterThan(0);
+    if (item.hasImage) {
+      expect(item.imageVisibility, JSON.stringify(item)).toBe('visible');
+      expect(item.imageOpacity, JSON.stringify(item)).not.toBe('0');
+    }
+  }
+  await expect(page.locator('[data-note-source-fallback="true"]')).toHaveCount(0);
+}
+
+async function waitForImageBlockReady(imageBlock: Locator, label = 'image block') {
+  await expect.poll(async () => {
+    const diagnostics = await imageBlock.evaluate((block) => {
+      const image = block.querySelector<HTMLImageElement>('img');
+      const blockRect = block.getBoundingClientRect();
+      const imageRect = image?.getBoundingClientRect();
+      const parent = block.parentElement;
+      const parentRect = parent?.getBoundingClientRect();
+      const parentStyle = parent ? window.getComputedStyle(parent) : null;
+      const selectionWrapper = block.querySelector<HTMLElement>('[data-image-selection-wrapper="true"]');
+      const selectionWrapperRect = selectionWrapper?.getBoundingClientRect();
+      const imageContainer = selectionWrapper?.querySelector<HTMLElement>(':scope > div');
+      const imageContainerRect = imageContainer?.getBoundingClientRect();
+      const imageContainerStyle = imageContainer ? window.getComputedStyle(imageContainer) : null;
+      const blockStyle = window.getComputedStyle(block);
+      const imageStyle = image ? window.getComputedStyle(image) : null;
+
+      return {
+        dataSrc: block.dataset.src ?? block.getAttribute('src') ?? '',
+        dataAlt: block.dataset.alt ?? '',
+        dataAlign: block.dataset.align ?? block.getAttribute('align') ?? '',
+        dataWidth: block.dataset.width ?? block.getAttribute('width') ?? '',
+        hasImage: Boolean(image),
+        imageComplete: image?.complete ?? false,
+        blockWidth: Math.round(blockRect.width),
+        blockHeight: Math.round(blockRect.height),
+        blockTop: Math.round(blockRect.top),
+        blockBottom: Math.round(blockRect.bottom),
+        parentTag: parent?.tagName ?? null,
+        parentClassName: parent?.className ?? null,
+        parentWidth: Math.round(parentRect?.width ?? 0),
+        parentHeight: Math.round(parentRect?.height ?? 0),
+        parentTop: Math.round(parentRect?.top ?? 0),
+        parentBottom: Math.round(parentRect?.bottom ?? 0),
+        parentDisplay: parentStyle?.display ?? null,
+        parentVisibility: parentStyle?.visibility ?? null,
+        parentContentVisibility: parentStyle?.contentVisibility ?? null,
+        selectionWrapperWidth: Math.round(selectionWrapperRect?.width ?? 0),
+        selectionWrapperHeight: Math.round(selectionWrapperRect?.height ?? 0),
+        imageContainerWidth: Math.round(imageContainerRect?.width ?? 0),
+        imageContainerHeight: Math.round(imageContainerRect?.height ?? 0),
+        imageContainerStyleWidth: imageContainerStyle?.width ?? null,
+        imageContainerStyleMinHeight: imageContainerStyle?.minHeight ?? null,
+        imageContainerStyleAspectRatio: imageContainerStyle?.aspectRatio ?? null,
+        imageWidth: Math.round(imageRect?.width ?? 0),
+        imageHeight: Math.round(imageRect?.height ?? 0),
+        imageTop: Math.round(imageRect?.top ?? 0),
+        imageBottom: Math.round(imageRect?.bottom ?? 0),
+        blockDisplay: blockStyle.display,
+        blockVisibility: blockStyle.visibility,
+        blockContentVisibility: blockStyle.contentVisibility,
+        imageVisibility: imageStyle?.visibility ?? null,
+        imageOpacity: imageStyle?.opacity ?? null,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        scrollX: Math.round(window.scrollX),
+        scrollY: Math.round(window.scrollY),
+        ready: Boolean(image) &&
+          Boolean(image?.complete) &&
+          blockStyle.display === 'block' &&
+          blockStyle.visibility === 'visible' &&
+          imageStyle?.visibility === 'visible' &&
+          imageStyle?.opacity !== '0' &&
+          Math.round(blockRect.width) > 0 &&
+          Math.round(blockRect.height) > 0 &&
+          Math.round(imageRect?.width ?? 0) > 0 &&
+          Math.round(imageRect?.height ?? 0) > 0,
+      };
+    });
+
+    return JSON.stringify(diagnostics, null, 2);
+  }, {
+    timeout: 30_000,
+    message: `Expected ${label} to render a complete visible image with non-zero layout`,
+  }).toContain('"ready": true');
+}
+
+async function scrollImageBlockIntoView(imageBlock: Locator) {
+  await imageBlock.evaluate(async (block) => {
+    block.scrollIntoView({ block: 'center', inline: 'nearest' });
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  });
+}
+
+async function hoverImageBlockContent(imageBlock: Locator) {
+  const imageContent = imageBlock.locator('[data-image-selection-wrapper="true"] > div').first();
+  await expect(imageContent).toBeVisible({ timeout: 10_000 });
+  await imageContent.hover();
+}
+
+async function clickImageBlockContent(imageBlock: Locator) {
+  const imageContent = imageBlock.locator('[data-image-selection-wrapper="true"] > div').first();
+  await expect(imageContent).toBeVisible({ timeout: 10_000 });
+  await imageContent.click();
+}
+
+async function getImageBlockLayoutMetrics(imageBlock: Locator) {
+  return imageBlock.evaluate((block) => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const imageContainer = block
+      .querySelector<HTMLElement>('[data-image-selection-wrapper="true"] > div');
+    const image = block.querySelector<HTMLImageElement>('img');
+    const editorRect = editor?.getBoundingClientRect();
+    const blockRect = block.getBoundingClientRect();
+    const imageContainerRect = imageContainer?.getBoundingClientRect();
+    const imageRect = image?.getBoundingClientRect();
+
+    return {
+      viewportWidth: window.innerWidth,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      editorWidth: Math.round(editorRect?.width ?? 0),
+      blockWidth: Math.round(blockRect.width),
+      imageContainerWidth: Math.round(imageContainerRect?.width ?? 0),
+      imageWidth: Math.round(imageRect?.width ?? 0),
+    };
+  });
+}
+
 async function waitForToolbarInteractive(page: Page) {
   await expect.poll(async () => {
     const diagnostics = await getImageBlockDiagnostics(page);
@@ -112,6 +397,36 @@ async function waitForToolbarInteractive(page: Page) {
     buttonCount: expect.any(Number),
     pointerEvents: 'auto',
     opacity: 1,
+  });
+}
+
+async function waitForImageToolbarInteractive(imageBlock: Locator) {
+  await expect.poll(async () => imageBlock.locator('.image-toolbar').evaluate((toolbar) => {
+    const style = window.getComputedStyle(toolbar);
+    return {
+      buttonCount: toolbar.querySelectorAll('button').length,
+      opacity: Number(style.opacity),
+      pointerEvents: style.pointerEvents,
+    };
+  }), { timeout: 10_000 }).toMatchObject({
+    buttonCount: expect.any(Number),
+    opacity: 1,
+    pointerEvents: 'auto',
+  });
+}
+
+async function waitForImageCropperToolbarInteractive(imageBlock: Locator) {
+  await expect.poll(async () => imageBlock.locator('.image-cropper-toolbar').evaluate((toolbar) => {
+    const style = window.getComputedStyle(toolbar);
+    return {
+      buttonCount: toolbar.querySelectorAll('button').length,
+      opacity: Number(style.opacity),
+      pointerEvents: style.pointerEvents,
+    };
+  }), { timeout: 10_000 }).toMatchObject({
+    buttonCount: expect.any(Number),
+    opacity: 1,
+    pointerEvents: 'auto',
   });
 }
 
@@ -154,7 +469,7 @@ test.describe('notes image block interaction', () => {
         sourceFallbackCount: 0,
       });
 
-      await imageBlock.hover();
+      await hoverImageBlockContent(imageBlock);
       await waitForToolbarInteractive(page);
       await page.locator(`${NOTE_IMAGE_TOOLBAR_SELECTOR} [data-image-toolbar-action="copy"]`).click();
 
@@ -172,7 +487,7 @@ test.describe('notes image block interaction', () => {
       await app.evaluate(({ clipboard }) => {
         clipboard.clear();
       });
-      await imageBlock.locator('img').dispatchEvent('click');
+      await clickImageBlockContent(imageBlock);
       const viewer = page.locator('[role="dialog"][data-chat-image-viewer-surface="true"]');
       await expect(viewer).toBeVisible({ timeout: 10_000 });
       await viewer.locator('[data-action="copy"]').click();
@@ -228,7 +543,7 @@ test.describe('notes image block interaction', () => {
       expect(initialDomMetrics.countsBySelector.images).toBeGreaterThanOrEqual(1);
       expect(initialDomMetrics.countsBySelector.sourceFallback).toBe(0);
 
-      await imageBlock.hover();
+      await hoverImageBlockContent(imageBlock);
       await waitForToolbarInteractive(page);
 
       const cropOpenStartedAt = Date.now();
@@ -285,6 +600,475 @@ test.describe('notes image block interaction', () => {
 
       expect(cropOpenMs).toBeLessThan(5_000);
       expect(dragMs).toBeLessThan(5_000);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps the upper local image visible after editing and blurring the lower caption', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-stacked-local-image-caption-blur');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const { notePaths } = await createVaultFilesFixture(page, {
+        name: 'stacked-local-images',
+        files: [
+          {
+            filename: 'stacked-local-images.md',
+            content: createStackedLocalImagesMarkdown(),
+          },
+          {
+            filename: 'assets/upper.svg',
+            content: createLocalSvg('#4f46e5'),
+          },
+          {
+            filename: 'assets/lower.svg',
+            content: createLocalSvg('#0f766e'),
+          },
+        ],
+      });
+
+      await openAbsoluteNote(page, notePaths[0]!);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('After local images sentinel.', {
+        timeout: 30_000,
+      });
+
+      await expect.poll(() => getAllImageBlockDiagnostics(page), { timeout: 30_000 }).toEqual([
+        expect.objectContaining({
+          dataSrc: './assets/upper.svg',
+          dataAlt: 'Upper local image',
+          hasImage: true,
+          imageComplete: true,
+          blockDisplay: 'block',
+          blockVisibility: 'visible',
+          imageDisplay: 'block',
+          imageVisibility: 'visible',
+        }),
+        expect.objectContaining({
+          dataSrc: './assets/lower.svg',
+          dataAlt: 'Lower local image',
+          hasImage: true,
+          imageComplete: true,
+          blockDisplay: 'block',
+          blockVisibility: 'visible',
+          imageDisplay: 'block',
+          imageVisibility: 'visible',
+        }),
+      ]);
+
+      const lowerImageBlock = page.locator(`${NOTE_IMAGE_BLOCK_SELECTOR}[data-src="./assets/lower.svg"]`);
+      await hoverImageBlockContent(lowerImageBlock);
+      const captionButton = lowerImageBlock.locator('.image-caption-btn');
+      await expect(captionButton).toBeVisible({ timeout: 10_000 });
+      await captionButton.click();
+
+      const captionInput = lowerImageBlock.locator('.image-caption-toolbar input');
+      await expect(captionInput).toBeVisible({ timeout: 10_000 });
+      await expect(captionInput).toHaveValue('Lower local image');
+
+      const blankPoint = await getEditorBlankPoint(page);
+      expect(blankPoint).not.toBeNull();
+      await page.mouse.click(blankPoint!.x, blankPoint!.y);
+      await expect(captionInput).toHaveCount(0);
+
+      const diagnostics = await getAllImageBlockDiagnostics(page);
+      expect(diagnostics).toHaveLength(2);
+      expect(diagnostics[0]).toMatchObject({
+        dataSrc: './assets/upper.svg',
+        dataAlt: 'Upper local image',
+        hasImage: true,
+        imageComplete: true,
+        blockDisplay: 'block',
+        blockVisibility: 'visible',
+        imageDisplay: 'block',
+        imageVisibility: 'visible',
+      });
+      expect(diagnostics[0]!.blockWidth).toBeGreaterThan(0);
+      expect(diagnostics[0]!.blockHeight).toBeGreaterThan(0);
+      expect(diagnostics[0]!.imageWidth).toBeGreaterThan(0);
+      expect(diagnostics[0]!.imageHeight).toBeGreaterThan(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('resizes image blocks with the editor after narrowing the window', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-image-responsive-window-width');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      const { notePaths } = await createVaultFilesFixture(page, {
+        name: 'responsive-image-window-width',
+        files: [
+          {
+            filename: 'responsive-image-window-width.md',
+            content: [
+              '# E2E Responsive Image Width',
+              '',
+              'Before responsive image sentinel.',
+              '',
+              '![Responsive local image](./assets/responsive.svg)',
+              '',
+              'After responsive image sentinel.',
+              '',
+            ].join('\n'),
+          },
+          {
+            filename: 'assets/responsive.svg',
+            content: createSizedLocalSvg('#2563eb', 960, 540),
+          },
+        ],
+      });
+
+      await openAbsoluteNote(page, notePaths[0]!);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('After responsive image sentinel.', {
+        timeout: 30_000,
+      });
+
+      const imageBlock = page.locator(`${NOTE_IMAGE_BLOCK_SELECTOR}[data-src="./assets/responsive.svg"]`);
+      await scrollImageBlockIntoView(imageBlock);
+      await waitForImageBlockReady(imageBlock, 'responsive image wide viewport');
+      const wideMetrics = await getImageBlockLayoutMetrics(imageBlock);
+
+      await page.setViewportSize({ width: 760, height: 860 });
+      await page.waitForFunction(() => window.innerWidth <= 760);
+      await scrollImageBlockIntoView(imageBlock);
+      await waitForImageBlockReady(imageBlock, 'responsive image narrow viewport');
+      const narrowMetrics = await getImageBlockLayoutMetrics(imageBlock);
+
+      expect(narrowMetrics.editorWidth, { wideMetrics, narrowMetrics }).toBeLessThan(wideMetrics.editorWidth - 100);
+      expect(narrowMetrics.blockWidth, { wideMetrics, narrowMetrics }).toBeLessThanOrEqual(narrowMetrics.editorWidth + 2);
+      expect(narrowMetrics.imageContainerWidth, { wideMetrics, narrowMetrics })
+        .toBeLessThan(wideMetrics.imageContainerWidth - 80);
+      expect(narrowMetrics.documentScrollWidth, { wideMetrics, narrowMetrics })
+        .toBeLessThanOrEqual(narrowMetrics.viewportWidth + 2);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('does not persist rendered HTML boundary helpers after image interactions', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-image-boundary-helper-persistence');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const { notePaths } = await createVaultFilesFixture(page, {
+        name: 'image-boundary-helper-persistence',
+        files: [
+          {
+            filename: 'image-boundary-helper-persistence.md',
+            content: [
+              '# E2E Image Boundary Helper Persistence',
+              '',
+              '<img src="./assets/boundary.svg" alt="Boundary helper image" />',
+              '',
+              'After boundary helper image.',
+              '',
+            ].join('\n'),
+          },
+          {
+            filename: 'assets/boundary.svg',
+            content: createLocalSvg('#2563eb'),
+          },
+        ],
+      });
+
+      await openAbsoluteNote(page, notePaths[0]!);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('After boundary helper image.', {
+        timeout: 30_000,
+      });
+
+      const imageBlock = page.locator(`${NOTE_IMAGE_BLOCK_SELECTOR}[data-src="./assets/boundary.svg"]`);
+      await scrollImageBlockIntoView(imageBlock);
+      await waitForImageBlockReady(imageBlock, 'boundary helper image');
+      await hoverImageBlockContent(imageBlock);
+      await waitForImageToolbarInteractive(imageBlock);
+      await imageBlock.locator('[data-image-toolbar-action="align-center"]').click();
+      await expect(imageBlock).toHaveAttribute('data-align', 'center');
+
+      await page.evaluate(() => (window as any).__vlainaE2E.flushCurrentEditorMarkdown());
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate((path) =>
+        (window as any).__vlainaE2E.readTextFile(path), notePaths[0]!
+      );
+
+      expect(saved).toContain('./assets/boundary.svg');
+      expect(saved).toContain('After boundary helper image.');
+      expect(saved).not.toContain('vlaina-rendered-html-boundary-blank-line');
+      expect(saved).not.toContain('vlaina-markdown-blank-line');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('wraps long image caption names in the lower corner chrome', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-image-long-caption-wrap');
+    const longAlt = 'extremely-long-image-file-name-without-natural-breakpoints-abcdefghijklmnopqrstuvwxyz-0123456789-repeat-abcdefghijklmnopqrstuvwxyz-0123456789';
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const { notePaths } = await createVaultFilesFixture(page, {
+        name: 'image-long-caption-wrap',
+        files: [
+          {
+            filename: 'image-long-caption-wrap.md',
+            content: [
+              '# E2E Image Long Caption Wrap',
+              '',
+              `![${longAlt}](./assets/long-caption.svg)`,
+              '',
+              'After long caption image.',
+              '',
+            ].join('\n'),
+          },
+          {
+            filename: 'assets/long-caption.svg',
+            content: createSizedLocalSvg('#0f766e', 640, 360),
+          },
+        ],
+      });
+
+      await openAbsoluteNote(page, notePaths[0]!);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('After long caption image.', {
+        timeout: 30_000,
+      });
+
+      const imageBlock = page.locator(`${NOTE_IMAGE_BLOCK_SELECTOR}[data-src="./assets/long-caption.svg"]`);
+      await scrollImageBlockIntoView(imageBlock);
+      await waitForImageBlockReady(imageBlock, 'long caption image');
+      await hoverImageBlockContent(imageBlock);
+
+      const captionButton = imageBlock.locator('.image-caption-btn');
+      await expect(captionButton).toBeVisible({ timeout: 10_000 });
+      await expect(captionButton.locator('.image-caption-text')).toHaveText(longAlt);
+
+      const captionMetrics = await captionButton.evaluate((button) => {
+        const text = button.querySelector<HTMLElement>('.image-caption-text');
+        const buttonRect = button.getBoundingClientRect();
+        const textRangeRects = text ? (() => {
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          const rects = Array.from(range.getClientRects()).filter((rect) =>
+            rect.width > 0 && rect.height > 0
+          );
+          range.detach();
+          return rects;
+        })() : [];
+        const textRects = textRangeRects.map((rect) => ({
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        }));
+        const buttonStyle = window.getComputedStyle(button);
+        const textStyle = text ? window.getComputedStyle(text) : null;
+
+        return {
+          buttonWidth: Math.round(buttonRect.width),
+          buttonHeight: Math.round(buttonRect.height),
+          textLineCount: textRects.length,
+          buttonWhiteSpace: buttonStyle.whiteSpace,
+          textOverflowWrap: textStyle?.overflowWrap ?? null,
+          textWordBreak: textStyle?.wordBreak ?? null,
+          textScrollWidth: text?.scrollWidth ?? 0,
+          textClientWidth: text?.clientWidth ?? 0,
+        };
+      });
+
+      expect(captionMetrics.buttonWhiteSpace, captionMetrics).toBe('normal');
+      expect(captionMetrics.textOverflowWrap, captionMetrics).toBe('anywhere');
+      expect(captionMetrics.textWordBreak, captionMetrics).toBe('break-word');
+      expect(captionMetrics.textLineCount, captionMetrics).toBeGreaterThan(1);
+      expect(captionMetrics.buttonHeight, captionMetrics).toBeGreaterThan(24);
+      expect(captionMetrics.buttonWidth, captionMetrics).toBeLessThanOrEqual(282);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('audits many image blocks across caption, alignment, viewer, crop, and resize interactions', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-many-image-interaction-audit');
+    const expectedSources = IMAGE_AUDIT_IMAGES.map((image) => image.src);
+    const expectedAlts = IMAGE_AUDIT_IMAGES.map((image) => image.alt);
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const fills = [
+        '#2563eb',
+        '#16a34a',
+        '#b45309',
+        '#7c3aed',
+        '#dc2626',
+        '#0f766e',
+        '#334155',
+        '#be185d',
+      ];
+      const { notePaths } = await createVaultFilesFixture(page, {
+        name: 'many-image-interaction-audit',
+        files: [
+          {
+            filename: 'many-image-interaction-audit.md',
+            content: createImageInteractionAuditMarkdown(),
+          },
+          ...fills.map((fill, index) => ({
+            filename: `assets/audit-${index}.svg`,
+            content: createLocalSvg(fill),
+          })),
+          {
+            filename: 'assets/shared.svg',
+            content: createLocalSvg('#0891b2'),
+          },
+        ],
+      });
+
+      await openAbsoluteNote(page, notePaths[0]!);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('After image audit sentinel.', {
+        timeout: 30_000,
+      });
+      await expect(page.locator(NOTE_IMAGE_BLOCK_SELECTOR)).toHaveCount(expectedSources.length, {
+        timeout: 30_000,
+      });
+      await expect.poll(async () => {
+        const diagnostics = await getAllImageBlockDiagnostics(page);
+        return {
+          count: diagnostics.length,
+          sources: diagnostics.map((item) => item.dataSrc),
+        };
+      }, { timeout: 30_000 }).toEqual({
+        count: expectedSources.length,
+        sources: expectedSources,
+      });
+
+      for (let index = 0; index < expectedSources.length; index += 1) {
+        const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).nth(index);
+        await scrollImageBlockIntoView(imageBlock);
+        await waitForImageBlockReady(imageBlock, `initial ${index} ${expectedSources[index]}`);
+      }
+      await expectImageBlocksStable(page, expectedSources);
+
+      for (let index = 0; index < expectedSources.length; index += 1) {
+        const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).nth(index);
+        await scrollImageBlockIntoView(imageBlock);
+        await waitForImageBlockReady(imageBlock, `caption before ${index} ${expectedSources[index]}`);
+        await hoverImageBlockContent(imageBlock);
+        await waitForImageToolbarInteractive(imageBlock);
+
+        const captionButton = imageBlock.locator('.image-caption-btn');
+        await expect(captionButton).toBeVisible({ timeout: 10_000 });
+        await captionButton.click();
+
+        const captionInput = imageBlock.locator('.image-caption-toolbar input');
+        await expect(captionInput).toBeVisible({ timeout: 10_000 });
+        await expect(captionInput).toHaveValue(expectedAlts[index]);
+
+        if (index % 3 === 0) {
+          const nextAlt = `Audit edited caption ${index}`;
+          await captionInput.fill(nextAlt);
+          await captionInput.press('Enter');
+          expectedAlts[index] = nextAlt;
+        } else if (index % 3 === 1) {
+          await captionInput.fill(`Audit cancelled caption ${index}`);
+          await captionInput.press('Escape');
+        } else {
+          const blankPoint = await getEditorBlankPoint(page);
+          if (blankPoint) {
+            await page.mouse.click(blankPoint.x, blankPoint.y);
+          } else {
+            await page.getByText('After image audit sentinel.').click();
+          }
+        }
+
+        await expect(captionInput).toHaveCount(0);
+        await expect(imageBlock).toHaveAttribute('data-alt', expectedAlts[index]);
+        await waitForImageBlockReady(imageBlock, `caption after ${index} ${expectedSources[index]}`);
+        await expectImageBlocksStable(page, expectedSources);
+      }
+
+      const alignments = [
+        { action: 'align-left', value: 'left' },
+        { action: 'align-center', value: 'center' },
+        { action: 'align-right', value: 'right' },
+      ] as const;
+      for (let index = 0; index < expectedSources.length; index += 1) {
+        const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).nth(index);
+        const alignment = alignments[index % alignments.length]!;
+        await scrollImageBlockIntoView(imageBlock);
+        await waitForImageBlockReady(imageBlock, `align before ${index} ${expectedSources[index]}`);
+        await hoverImageBlockContent(imageBlock);
+        await waitForImageToolbarInteractive(imageBlock);
+        await imageBlock.locator(`[data-image-toolbar-action="${alignment.action}"]`).click();
+        await expect(imageBlock).toHaveAttribute('data-align', alignment.value);
+        await waitForImageBlockReady(imageBlock, `align after ${index} ${expectedSources[index]}`);
+        await expectImageBlocksStable(page, expectedSources);
+      }
+
+      for (const index of [0, 3, 9]) {
+        const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).nth(index);
+        await scrollImageBlockIntoView(imageBlock);
+        await waitForImageBlockReady(imageBlock, `viewer before ${index} ${expectedSources[index]}`);
+        await clickImageBlockContent(imageBlock);
+
+        const viewer = page.locator('[role="dialog"][data-chat-image-viewer-surface="true"]');
+        await expect(viewer).toBeVisible({ timeout: 10_000 });
+        const viewerButtons = viewer.locator('[data-chat-image-viewer-control="true"] button');
+        await expect(viewerButtons).toHaveCount(4);
+        await viewerButtons.nth(1).click();
+        await viewerButtons.nth(0).click();
+        await page.keyboard.press('Escape');
+        await expect(viewer).toHaveCount(0);
+        await waitForImageBlockReady(imageBlock, `viewer after ${index} ${expectedSources[index]}`);
+        await expectImageBlocksStable(page, expectedSources);
+      }
+
+      for (const index of [2, 5, 8]) {
+        const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).nth(index);
+        await scrollImageBlockIntoView(imageBlock);
+        await waitForImageBlockReady(imageBlock, `crop before ${index} ${expectedSources[index]}`);
+        await hoverImageBlockContent(imageBlock);
+        await waitForImageToolbarInteractive(imageBlock);
+        await imageBlock.locator('[data-image-toolbar-action="edit"]').click();
+        await waitForImageCropperToolbarInteractive(imageBlock);
+        await imageBlock.locator('.image-cropper-toolbar button').first().click();
+        await expect.poll(async () => imageBlock.locator('.image-cropper-toolbar').evaluate((toolbar) =>
+          window.getComputedStyle(toolbar).pointerEvents
+        ), { timeout: 10_000 }).toBe('none');
+        await waitForImageBlockReady(imageBlock, `crop after ${index} ${expectedSources[index]}`);
+        await expectImageBlocksStable(page, expectedSources);
+      }
+
+      for (const { index, handleIndex, deltaX, deltaY } of [
+        { index: 1, handleIndex: 1, deltaX: 28, deltaY: 0 },
+        { index: 4, handleIndex: 4, deltaX: -24, deltaY: 18 },
+        { index: 7, handleIndex: 1, deltaX: 24, deltaY: 0 },
+      ]) {
+        const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).nth(index);
+        await scrollImageBlockIntoView(imageBlock);
+        await waitForImageBlockReady(imageBlock, `resize before ${index} ${expectedSources[index]}`);
+        const handle = imageBlock.locator('[data-resize-handle="true"]').nth(handleIndex);
+        const box = await handle.boundingBox();
+        expect(box).not.toBeNull();
+        const startX = box!.x + box!.width / 2;
+        const startY = box!.y + box!.height / 2;
+        await page.mouse.move(startX, startY);
+        await page.mouse.down();
+        await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 6 });
+        await page.mouse.up();
+        await expect(imageBlock).toHaveAttribute('data-width', /%$/);
+        await waitForImageBlockReady(imageBlock, `resize after ${index} ${expectedSources[index]}`);
+        await expectImageBlocksStable(page, expectedSources);
+      }
+
+      for (let index = 0; index < expectedSources.length; index += 1) {
+        const imageBlock = page.locator(NOTE_IMAGE_BLOCK_SELECTOR).nth(index);
+        await scrollImageBlockIntoView(imageBlock);
+        await waitForImageBlockReady(imageBlock, `final ${index} ${expectedSources[index]}`);
+      }
+      const finalDiagnostics = await getAllImageBlockDiagnostics(page);
+      expect(finalDiagnostics.map((item) => item.dataAlt)).toEqual(expectedAlts);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

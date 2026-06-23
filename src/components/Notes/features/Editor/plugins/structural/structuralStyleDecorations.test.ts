@@ -40,6 +40,7 @@ const schema = new SchemaCtor({
       atom: true,
       attrs: {
         src: { default: null },
+        width: { default: null },
       },
       toDOM: () => ['span', { class: 'image-block-container' }],
       parseDOM: [{ tag: 'span.image-block-container' }],
@@ -264,6 +265,28 @@ describe('structuralStyleDecorations', () => {
 
     expect(next.decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
       STRUCTURAL_EMPTY_PARAGRAPH_CLASS,
+    ]);
+  });
+
+  it('keeps image paragraph classes when image attrs change without replacing the paragraph', () => {
+    const state = EditorStateCtor.create({
+      schema,
+      doc: docWith([paragraphWithChildren([image()]), paragraph('After')]),
+    });
+    const previousDecorations = createStructuralStyleDecorations(state.doc);
+    const imagePos = findNodePosition(state.doc, 'image');
+    const tr = state.tr.setNodeMarkup(imagePos, undefined, {
+      ...state.doc.nodeAt(imagePos)!.attrs,
+      width: '33.13%',
+    });
+
+    const next = applyStructuralStyleDecorationsState(tr, {
+      decorationCount: previousDecorations.find().length,
+      decorations: previousDecorations,
+    }, tr.doc);
+
+    expect(next.decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
+      STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
     ]);
   });
 

@@ -10,6 +10,9 @@ describe('themeTextSchemaOverrides', () => {
     expect(sanitizeRawMarkdownHtmlValue('<!--vlaina-markdown-blank-line-->')).toBe(
       '<!--vlaina-markdown-blank-line-->',
     );
+    expect(sanitizeRawMarkdownHtmlValue('<!--vlaina-rendered-html-boundary-blank-line-->')).toBe(
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+    );
   });
 
   it('renders authored markdown html comments as literal editor text', () => {
@@ -17,6 +20,7 @@ describe('themeTextSchemaOverrides', () => {
 
     expect(shouldRenderRawMarkdownHtmlValueAsLiteralText('<!--注释-->')).toBe(true);
     expect(shouldRenderRawMarkdownHtmlValueAsLiteralText('<!--vlaina-markdown-blank-line-->')).toBe(false);
+    expect(shouldRenderRawMarkdownHtmlValueAsLiteralText('<!--vlaina-rendered-html-boundary-blank-line-->')).toBe(false);
     expect(shouldRenderRawMarkdownHtmlValueAsLiteralText('<!--align:center-->')).toBe(false);
 
     renderRawMarkdownHtmlValueIntoElement(element, '<!--注释-->');
@@ -37,6 +41,11 @@ describe('themeTextSchemaOverrides', () => {
     expect(element.querySelector('strong')?.textContent).toBe('HTML');
 
     renderRawMarkdownHtmlValueIntoElement(element, '<!--vlaina-markdown-blank-line-->');
+
+    expect(element.classList.contains('md-htmlblock-literal-text')).toBe(false);
+    expect(element.textContent).toBe('');
+
+    renderRawMarkdownHtmlValueIntoElement(element, '<!--vlaina-rendered-html-boundary-blank-line-->');
 
     expect(element.classList.contains('md-htmlblock-literal-text')).toBe(false);
     expect(element.textContent).toBe('');

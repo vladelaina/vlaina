@@ -140,6 +140,24 @@ describe("editor floating toolbar and preview styles", () => {
     expect(css).toContain('grid-template-columns: repeat(5, 1fr);');
   });
 
+  it('allows long image caption names to wrap inside the floating caption button', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    const captionButtonRule = css.slice(
+      css.indexOf('.image-caption-btn {'),
+      css.indexOf('.image-caption-btn svg {')
+    );
+    const captionTextRule = css.slice(
+      css.indexOf('.image-caption-text {'),
+      css.indexOf('/* Toolbar button tooltip */')
+    );
+
+    expect(captionButtonRule).toContain('height: auto;');
+    expect(captionButtonRule).toContain('white-space: normal;');
+    expect(captionTextRule).toContain('overflow-wrap: anywhere;');
+    expect(captionTextRule).toContain('word-break: break-word;');
+  });
+
   it('places floating toolbar shortcut tooltips below the hovered button', () => {
     const css = readStyleFile('floating-toolbar.css');
     const source = readToolbarInteractionsSource();

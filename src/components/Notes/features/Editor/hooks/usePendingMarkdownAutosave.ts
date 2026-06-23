@@ -54,6 +54,8 @@ const MAX_COMPOSITION_REPAIR_LOOKBACK_CHARS = 160;
 const MAX_COMPOSITION_REPAIR_TEXT_LENGTH = 128;
 const ALLOW_SYNTHETIC_USER_EVENTS =
   import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST);
+const LIVE_PREVIEW_EDITOR_ARTIFACT_PATTERN =
+  /(?:vlaina-markdown-|vlaina-rendered-html-boundary-blank-line|dat[ae]-vlaina|VLAINA_|[\u200B\u200C\u2800]|<br\b|&#(?:x0*20|0*32)(?:;|(?=$|[ \t])))/i;
 interface PendingMarkdownAutosaveOptions {
   currentNotePath: string | undefined;
   currentNoteDiskRevision: number;
@@ -80,6 +82,14 @@ function publishLiveMarkdownPreview(path: string | undefined, content: string) {
   window.dispatchEvent(new CustomEvent('editor:note-markdown-preview', {
     detail: { path, content },
   }));
+}
+
+function getLiveMarkdownPreviewContent(markdown: string, referenceMarkdown: string): string {
+  if (!LIVE_PREVIEW_EDITOR_ARTIFACT_PATTERN.test(markdown)) {
+    return markdown;
+  }
+
+  return serializeEditorMarkdownSnapshot(markdown, referenceMarkdown);
 }
 
 function isContentEditingUserEvent(event: Event): boolean {
@@ -801,7 +811,12 @@ export function usePendingMarkdownAutosave({
         return;
       }
 
-      scheduleLiveMarkdownPreview(currentNotePath, markdown);
+      const previewMarkdown = getLiveMarkdownPreviewContent(markdown, currentContent);
+      if (currentContent === previewMarkdown) {
+        return;
+      }
+
+      scheduleLiveMarkdownPreview(currentNotePath, previewMarkdown);
       pendingRawMarkdownRef.current = markdown;
       pendingUserInputVersionRef.current = userInputVersion;
       if (pendingMarkdownUpdateFrameRef.current !== null) {

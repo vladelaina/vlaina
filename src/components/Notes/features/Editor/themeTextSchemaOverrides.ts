@@ -46,6 +46,7 @@ function isExternalLinkHref(href: string | null): boolean {
 function isSafeInternalMarkdownHtmlValue(value: string): boolean {
     const trimmed = value.trim();
     return trimmed === '<!--vlaina-markdown-blank-line-->'
+        || trimmed === '<!--vlaina-rendered-html-boundary-blank-line-->'
         || trimmed === '<!--vlaina-markdown-tight-heading-->';
 }
 

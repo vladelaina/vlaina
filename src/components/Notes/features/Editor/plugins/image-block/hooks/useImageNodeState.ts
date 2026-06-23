@@ -38,6 +38,10 @@ export function useImageNodeState(node: ImageNodeLike): UseImageNodeStateResult 
     }, [node.attrs.src, node.attrs.crop]);
 
     useEffect(() => {
+        setCaptionInput(nodeAlt);
+    }, [nodeAlt]);
+
+    useEffect(() => {
         const nextAlignment = getImageAlignment(node.attrs);
         if (alignment !== nextAlignment) {
             setAlignment(nextAlignment);

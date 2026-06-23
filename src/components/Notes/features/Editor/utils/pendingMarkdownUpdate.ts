@@ -6,6 +6,7 @@ import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/fron
 
 const EDITOR_PARAGRAPH_SEPARATOR_SENTINEL = '\u0000VLAINA_EDITOR_PARAGRAPH_SEPARATOR\u0000';
 const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
+const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
 const EDITOR_EMPTY_PARAGRAPH_LINE_PATTERN = /^\s*(?:<br\s*\/?>|\\?\u200B)\s*$/i;
 const STRUCTURAL_MARKDOWN_LINE_PATTERN =
   /^(?:\s*(?:#{1,6}\s+|(?:[-+*]|\d+[.)])\s+|(?:[-*_][ \t]*){3,}|={2,}\s*$|-{2,}\s*$|\|.*\|\s*$|:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$|\$\$\s*$|```|~~~|\\\[|\\\]|\[|\]|>|\[[^\]]+\]:|\[\^[^\]]+\]:|:\s+|<\/?[A-Za-z][^>]*>|<!--|<![A-Za-z]|<\?))/;
@@ -166,17 +167,26 @@ function consumeEditorEmptyParagraphRun({
 
 function isEditorEmptyParagraphLine(line: string): boolean {
   return EDITOR_EMPTY_PARAGRAPH_LINE_PATTERN.test(line)
-    || INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line);
+    || isInternalEditorBlankLineComment(line);
 }
 
 function isPlainTextParagraphLine(line: string): boolean {
   const trimmed = line.trim();
   if (trimmed.length === 0) return false;
   if (trimmed.includes(EDITOR_PARAGRAPH_SEPARATOR_SENTINEL)) return false;
-  if (INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)) return false;
+  if (isInternalEditorArtifactLine(line)) return false;
   if (STRUCTURAL_MARKDOWN_LINE_PATTERN.test(line)) return false;
   if (MARKDOWN_IMAGE_ONLY_LINE_PATTERN.test(line)) return false;
   return true;
+}
+
+function isInternalEditorBlankLineComment(line: string): boolean {
+  return INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line);
+}
+
+function isInternalEditorArtifactLine(line: string): boolean {
+  return isInternalEditorBlankLineComment(line)
+    || INTERNAL_TIGHT_HEADING_COMMENT_PATTERN.test(line);
 }
 
 function stripEditorParagraphSeparatorSentinels(markdown: string): string {
@@ -237,26 +247,34 @@ function collectReferenceBlankLineGaps(lines: readonly string[]): Array<{
 
   for (let index = 0; index < lines.length;) {
     const before = lines[index] ?? '';
-    if (before.trim() === '') {
+    if (!isReferenceBlankLineGapBoundaryLine(before)) {
       index += 1;
       continue;
     }
 
     let cursor = index + 1;
     let blankCount = 0;
-    while (cursor < lines.length && (lines[cursor] ?? '').trim() === '') {
+    while (cursor < lines.length && isReferenceBlankLineGapSpacerLine(lines[cursor] ?? '')) {
       blankCount += 1;
       cursor += 1;
     }
 
     const after = lines[cursor] ?? '';
-    if (blankCount > 0 && after.trim() !== '') {
+    if (blankCount > 0 && isReferenceBlankLineGapBoundaryLine(after)) {
       gaps.push({ before, after, blankCount });
     }
     index = Math.max(cursor, index + 1);
   }
 
   return gaps;
+}
+
+function isReferenceBlankLineGapSpacerLine(line: string): boolean {
+  return line.trim() === '' || isInternalEditorBlankLineComment(line);
+}
+
+function isReferenceBlankLineGapBoundaryLine(line: string): boolean {
+  return line.trim() !== '' && !isInternalEditorArtifactLine(line);
 }
 
 function preserveReferenceBlankLineGap(

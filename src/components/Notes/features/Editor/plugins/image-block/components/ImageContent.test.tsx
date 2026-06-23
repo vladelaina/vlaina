@@ -22,7 +22,6 @@ function renderImageContent(overrides: Partial<Parameters<typeof ImageContent>[0
     resolvedSrc: 'https://example.com/image.png',
     isRemoteImageSource: true,
     isDeferred: false,
-    isReady: true,
     cropParams: null,
     containerSize: { width: 320, height: 180 },
     isSaving: false,
@@ -109,7 +108,6 @@ describe('ImageContent', () => {
     renderImageContent({
       resolvedSrc: '',
       isDeferred: true,
-      isReady: false,
       isLoading: false,
     });
 
@@ -121,8 +119,18 @@ describe('ImageContent', () => {
   it('marks the loading surface for selected-image background resets', () => {
     const { container } = renderImageContent({
       resolvedSrc: undefined,
-      isReady: false,
       isLoading: true,
+    });
+
+    expect(container.querySelector('[data-image-selection-surface="true"]')).toBeInTheDocument();
+    expect(screen.queryByTestId('image-cropper')).toBeNull();
+  });
+
+  it('does not mount the cropper with an empty current resource after a reused image view was ready', () => {
+    const { container } = renderImageContent({
+      resolvedSrc: '',
+      isLoading: false,
+      isRemoteImageSource: false,
     });
 
     expect(container.querySelector('[data-image-selection-surface="true"]')).toBeInTheDocument();
@@ -133,7 +141,6 @@ describe('ImageContent', () => {
     const { container } = renderImageContent({
       resolvedSrc: 'blob:prefetched-image',
       isDeferred: true,
-      isReady: true,
     });
 
     expect(screen.getByTestId('deferred-image-placeholder')).toBeInTheDocument();

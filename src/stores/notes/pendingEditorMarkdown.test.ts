@@ -85,6 +85,63 @@ describe('flushPendingEditorMarkdown', () => {
     expect(state.currentNote?.content).not.toContain('&#32');
   });
 
+  it('normalizes rendered HTML boundary helpers before they enter note state', () => {
+    useNotesStore.setState({
+      currentNote: { path: 'alpha.md', content: 'Old content' },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old content', modifiedAt: 7 }]]),
+    });
+
+    const didFlush = flushPendingEditorMarkdown('alpha.md', [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After image.',
+    ].join('\n'));
+
+    const expected = [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      'After image.',
+    ].join('\n');
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(true);
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: expected });
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: expected,
+      modifiedAt: 7,
+    });
+    expect(state.currentNote?.content).not.toContain('vlaina-rendered-html-boundary-blank-line');
+  });
+
+  it('preserves user-authored rendered HTML boundary comments outside helper positions', () => {
+    useNotesStore.setState({
+      currentNote: { path: 'alpha.md', content: 'Old content' },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old content', modifiedAt: 7 }]]),
+    });
+
+    const expected = [
+      'Before',
+      '',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After',
+    ].join('\n');
+    const didFlush = flushPendingEditorMarkdown('alpha.md', expected);
+
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(true);
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: expected });
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: expected,
+      modifiedAt: 7,
+    });
+  });
+
   it('normalizes serializer-escaped html-like paragraph text before it enters note state', () => {
     useNotesStore.setState({
       currentNote: { path: 'alpha.md', content: 'Old content' },

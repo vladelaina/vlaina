@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToBase64 } from '@/lib/storage/attachmentStorage';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
+import { dialogCloseIconButtonClassName } from '@/components/common/DialogCloseIconButton';
 import {
   ChatImageViewer,
   RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT,
@@ -144,6 +145,53 @@ describe('ChatImageViewer', () => {
     fireEvent.pointerDown(image, { button: 0, clientX: 350, clientY: 250 });
 
     expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('uses the shared dialog close button treatment for image viewer controls', async () => {
+    render(
+      <ChatImageViewer
+        open
+        src="https://example.com/image.png"
+        alt="preview"
+        onOpenChange={() => {}}
+      />,
+    );
+
+    const closeButton = await screen.findByRole('button', { name: 'Close preview' });
+
+    expect(closeButton).toHaveClass('top-[4.5rem]');
+    for (const buttonName of ['Close preview', 'Zoom out', 'Zoom in', 'Copy image', 'Download image']) {
+      const button = screen.getByRole('button', { name: buttonName });
+      for (const className of dialogCloseIconButtonClassName.split(' ')) {
+        expect(button).toHaveClass(className);
+      }
+    }
+  });
+
+  it('does not rebind the document blank-area listener when zoom changes', async () => {
+    const addEventListenerSpy = vi.spyOn(document, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+
+    render(
+      <ChatImageViewer
+        open
+        src="https://example.com/image.png"
+        alt="preview"
+        onOpenChange={() => {}}
+      />,
+    );
+
+    await screen.findByRole('button', { name: 'Zoom in' });
+    addEventListenerSpy.mockClear();
+    removeEventListenerSpy.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    expect(removeEventListenerSpy).not.toHaveBeenCalledWith('pointerdown', expect.any(Function), true);
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith('pointerdown', expect.any(Function), true);
+
+    addEventListenerSpy.mockRestore();
+    removeEventListenerSpy.mockRestore();
   });
 
   it('resolves stored attachment sources before rendering the cropper image', async () => {

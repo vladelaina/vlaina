@@ -53,6 +53,7 @@ export const atomicBlockKeyboardNavigationPluginKey =
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
 export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'editor-atomic-block-keyboard-selected';
 const NON_NAVIGABLE_HTML_BLOCK_VALUES = new Set<unknown>([
+  '<!--vlaina-rendered-html-boundary-blank-line-->',
   '<!--vlaina-markdown-tight-heading-->',
 ]);
 const TEXT_CONTAINER_STRUCTURAL_BLOCK_NODE_NAMES = new Set([

@@ -1698,7 +1698,8 @@ function hasPotentialEditorBreakPlaceholder(text: string): boolean {
     || text.includes('\u200C')
     || text.includes('\u2800')
     || containsAsciiCaseInsensitive(text, '<br')
-    || containsAsciiCaseInsensitive(text, 'vlaina-markdown-');
+    || containsAsciiCaseInsensitive(text, 'vlaina-markdown-')
+    || containsAsciiCaseInsensitive(text, 'vlaina-rendered-html-boundary-blank-line');
 }
 
 function hasPotentialHtmlBreakTag(text: string): boolean {
@@ -1735,8 +1736,8 @@ function toAsciiLowerCode(code: number): number {
 
 function normalizeInternalMarkdownBlankLineComments(text: string): string {
   if (
-    !text.includes('vlaina-markdown-blank-line')
-    && !text.includes('vlaina-rendered-html-boundary-blank-line')
+    !containsAsciiCaseInsensitive(text, 'vlaina-markdown-blank-line')
+    && !containsAsciiCaseInsensitive(text, 'vlaina-rendered-html-boundary-blank-line')
   ) return text;
 
   const afterRenderedHtmlBoundaryHelpers = normalizeRenderedHtmlBoundaryHelperComments(text);
@@ -1754,7 +1755,7 @@ function normalizeInternalMarkdownBlankLineComments(text: string): string {
 }
 
 function normalizeRenderedHtmlBoundaryHelperComments(text: string): string {
-  if (!text.includes('vlaina-rendered-html-boundary-blank-line')) return text;
+  if (!containsAsciiCaseInsensitive(text, 'vlaina-rendered-html-boundary-blank-line')) return text;
 
   return mapMarkdownOutsideProtectedSegments(
     text,
@@ -1772,19 +1773,26 @@ function normalizeRenderedHtmlBoundaryHelperCommentSegment(
   const lines = text.split('\n');
   let changed = false;
   const output: string[] = [];
+  let activeHtmlComment = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
+    if (activeHtmlComment || isMultiLineHtmlCommentOpenLine(line)) {
+      output.push(line);
+      activeHtmlComment = shouldKeepHtmlCommentProtectionActive(activeHtmlComment, line);
+      continue;
+    }
+
     if (!RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN.test(line)) {
       output.push(line);
       continue;
     }
 
-    changed = true;
     const previousBoundaryLine =
       findNearestPreviousNonBlankOutputLine(output)
       ?? findNearestPreviousNonBlankInputLine(allLines, startIndex + index - 1);
     if (isRenderedOneLineHtmlBlockBoundaryLine(previousBoundaryLine)) {
+      changed = true;
       const hadLocalBlankBeforeHelper = output.length > 0 && output[output.length - 1]?.trim() === '';
       const hadInputBlankBeforeHelper = (allLines[startIndex + index - 1] ?? '').trim() === '';
       while (output.length > 0 && output[output.length - 1]?.trim() === '') {
@@ -1794,7 +1802,8 @@ function normalizeRenderedHtmlBoundaryHelperCommentSegment(
         output.push('');
       }
     } else {
-      output.push('');
+      output.push(line);
+      continue;
     }
 
     while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
@@ -1905,7 +1914,7 @@ function normalizeInternalMarkdownBlankLineCommentSegment(
     const line = lines[index] ?? '';
     if (activeHtmlComment || isMultiLineHtmlCommentOpenLine(line)) {
       output.push(line);
-      activeHtmlComment = !isHtmlCommentCloseLine(line);
+      activeHtmlComment = shouldKeepHtmlCommentProtectionActive(activeHtmlComment, line);
       continue;
     }
 
@@ -1969,7 +1978,7 @@ function hasStructuralBlankAfterImage(lines: readonly string[]): boolean {
 }
 
 function normalizeInternalTightHeadingComments(text: string): string {
-  if (!text.includes('vlaina-markdown-tight-heading')) return text;
+  if (!containsAsciiCaseInsensitive(text, 'vlaina-markdown-tight-heading')) return text;
 
   return mapMarkdownOutsideProtectedSegments(
     text,
@@ -1987,7 +1996,7 @@ function normalizeInternalTightHeadingCommentSegment(segment: string): string {
     const line = lines[index] ?? '';
     if (activeHtmlComment || isMultiLineHtmlCommentOpenLine(line)) {
       output.push(line);
-      activeHtmlComment = !isHtmlCommentCloseLine(line);
+      activeHtmlComment = shouldKeepHtmlCommentProtectionActive(activeHtmlComment, line);
       continue;
     }
 
@@ -2018,6 +2027,19 @@ function isHtmlCommentOpenLine(line: string): boolean {
 
 function isHtmlCommentCloseLine(line: string): boolean {
   return HTML_COMMENT_CLOSE_PATTERN.test(getMarkdownBlockContent(line));
+}
+
+function shouldKeepHtmlCommentProtectionActive(wasActive: boolean, line: string): boolean {
+  if (wasActive && isInternalEditorCommentLine(line)) {
+    return true;
+  }
+  return !isHtmlCommentCloseLine(line);
+}
+
+function isInternalEditorCommentLine(line: string): boolean {
+  return INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)
+    || RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN.test(line)
+    || INTERNAL_TIGHT_HEADING_COMMENT_PATTERN.test(line);
 }
 
 function normalizeUserBreakSentinels(text: string): string {

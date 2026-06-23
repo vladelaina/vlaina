@@ -29,6 +29,14 @@ describe("editor text selection and link styles", () => {
     expect(css).toContain(':not(.editor-empty-paragraph)');
   });
 
+  it('keeps top-level image block paragraphs from collapsing when structural classes are not present yet', () => {
+    const css = readStyleFile('selection-width.css');
+
+    expect(css).toContain('container-type: inline-size;');
+    expect(css).toContain('.milkdown .ProseMirror > p > .image-block-container {');
+    expect(css).toContain('min-width: min(100cqi, var(--vlaina-width-editor-content-max));');
+  });
+
   it('uses tabular numeric glyphs so digit-only line selections have equal width', () => {
     const css = readStyleFile('selection-width.css');
 

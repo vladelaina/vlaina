@@ -37,7 +37,6 @@ interface ImageContentProps {
     resolvedSrc?: string;
     isRemoteImageSource: boolean;
     isDeferred: boolean;
-    isReady: boolean;
     cropParams: CropParams | null;
     containerSize: { width: number; height: number };
     isSaving: boolean;
@@ -58,7 +57,6 @@ export const ImageContent = ({
     resolvedSrc,
     isRemoteImageSource,
     isDeferred,
-    isReady,
     cropParams,
     containerSize,
     isSaving,
@@ -107,7 +105,7 @@ export const ImageContent = ({
         );
     }
 
-    if ((isLoading || !resolvedSrc) && !isReady) {
+    if (isLoading || !resolvedSrc) {
         return (
             <div
                 data-image-selection-surface="true"

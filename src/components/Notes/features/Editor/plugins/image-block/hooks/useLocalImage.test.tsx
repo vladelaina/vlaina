@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocalImage } from './useLocalImage';
 import { clearRemoteImageMemoryCacheForTests } from '../utils/remoteImageMemoryCache';
@@ -336,6 +336,43 @@ describe('useLocalImage', () => {
     expect(result.current.resolvedSrc).toBe('');
     expect(hoisted.exists).not.toHaveBeenCalled();
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not expose the previous local blob while a new local image is resolving', async () => {
+    let resolveSecondImage!: (value: string) => void;
+    hoisted.loadImageAsBlob
+      .mockResolvedValueOnce('blob:first-local-image')
+      .mockReturnValueOnce(new Promise<string>((resolve) => {
+        resolveSecondImage = resolve;
+      }));
+
+    const { result, rerender } = renderHook(
+      ({ src }) => useLocalImage(src, '/vault', 'daily/demo.md'),
+      { initialProps: { src: './assets/first.png' } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:first-local-image');
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    rerender({ src: './assets/second.png' });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error).toBeNull();
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(true);
+    });
+
+    await act(async () => {
+      resolveSecondImage('blob:second-local-image');
+    });
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:second-local-image');
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 
   it('reuses a cached remote image blob for repeated remote image opens', async () => {

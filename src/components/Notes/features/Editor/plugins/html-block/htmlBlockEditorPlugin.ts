@@ -16,6 +16,7 @@ const HTML_BLOCK_SELECTOR = '[data-type="html-block"]';
 const MARKDOWN_HTML_BLOCK_START_PATTERN = /^\s*(?:<\/?[A-Za-z][^>]*>|<!--|<![A-Za-z]|<\?)/;
 const INTERNAL_HTML_BLOCK_VALUES = new Set([
   '<!--vlaina-markdown-blank-line-->',
+  '<!--vlaina-rendered-html-boundary-blank-line-->',
   '<!--vlaina-markdown-tight-heading-->',
 ]);
 

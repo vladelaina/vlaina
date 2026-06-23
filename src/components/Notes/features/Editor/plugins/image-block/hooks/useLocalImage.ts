@@ -12,6 +12,13 @@ interface UseLocalImageResult {
     error: Error | null;
 }
 
+interface LocalImageState {
+    key: string;
+    src: string;
+    isLoading: boolean;
+    error: Error | null;
+}
+
 function canUseVaultlessLocalImageFallback(src: string): boolean {
     const localSrc = getLocalImageSourcePath(src);
     if (!localSrc || hasInternalNoteAssetPathSegment(localSrc)) {
@@ -48,44 +55,72 @@ export function useLocalImage(
     currentNotePath: string | undefined,
     enabled = true
 ): UseLocalImageResult {
-    const [initialResolvedSrc] = useState(() => getInitialResolvedImageSrc(rawSrc, enabled));
-    const [resolvedSrc, setResolvedSrc] = useState<string>(initialResolvedSrc);
-    const [isLoading, setIsLoading] = useState(() => (
-        enabled && !initialResolvedSrc
-    ));
-    const [error, setError] = useState<Error | null>(null);
+    const resolutionKey = `${enabled ? '1' : '0'}\0${rawSrc}\0${notesPath}\0${currentNotePath ?? ''}`;
+    const initialResolvedSrc = getInitialResolvedImageSrc(rawSrc, enabled);
+    const initialState: LocalImageState = {
+        key: resolutionKey,
+        src: initialResolvedSrc,
+        isLoading: enabled && !initialResolvedSrc,
+        error: null,
+    };
+    const [imageState, setImageState] = useState<LocalImageState>(() => initialState);
+    const currentImageState = imageState.key === resolutionKey ? imageState : initialState;
+    const { src: resolvedSrc, isLoading, error } = currentImageState;
 
     useEffect(() => {
         let isMounted = true;
 
+        const commitState = (state: Omit<LocalImageState, 'key'>) => {
+            if (!isMounted) {
+                return;
+            }
+
+            setImageState({
+                key: resolutionKey,
+                ...state,
+            });
+        };
+
+        const commitLoading = (src = initialResolvedSrc) => {
+            commitState({
+                src,
+                isLoading: true,
+                error: null,
+            });
+        };
+
+        const commitResolved = (src: string) => {
+            commitState({
+                src,
+                isLoading: false,
+                error: null,
+            });
+        };
+
+        const commitError = (nextError: Error, src = '') => {
+            commitState({
+                src,
+                isLoading: false,
+                error: nextError,
+            });
+        };
+
         const resolveImage = async () => {
             if (!enabled) {
-                if (isMounted) {
-                    setIsLoading(false);
-                    setError(null);
-                    setResolvedSrc('');
-                }
+                commitResolved('');
                 return;
             }
 
             if (!rawSrc) {
-                if (isMounted) {
-                    setIsLoading(false);
-                    setResolvedSrc('');
-                }
+                commitResolved('');
                 return;
             }
-
-            setError(null);
 
             try {
                 const baseSrc = getImageSourceBase(rawSrc);
                 const safeBaseSrc = sanitizeNoteMediaSrc(baseSrc);
                 if (!safeBaseSrc) {
-                    if (isMounted) {
-                        setResolvedSrc('');
-                        setIsLoading(false);
-                    }
+                    commitResolved('');
                     return;
                 }
 
@@ -93,31 +128,22 @@ export function useLocalImage(
                 if (normalizedRemoteSrc) {
                     const cachedRemoteSrc = getCachedRemoteImageSrc(normalizedRemoteSrc);
                     if (cachedRemoteSrc) {
-                        if (isMounted) {
-                            setResolvedSrc(cachedRemoteSrc);
-                            setIsLoading(false);
-                        }
+                        commitResolved(cachedRemoteSrc);
                         return;
                     }
 
-                    setIsLoading(true);
+                    commitLoading();
                     const resolvedRemoteSrc = await resolveRemoteImageFromMemoryCache(normalizedRemoteSrc);
-                    if (isMounted) {
-                        setResolvedSrc(resolvedRemoteSrc);
-                        setIsLoading(false);
-                    }
+                    commitResolved(resolvedRemoteSrc);
                     return;
                 }
 
                 if (isVirtualImageSource(safeBaseSrc)) {
-                    if (isMounted) {
-                        setResolvedSrc(safeBaseSrc);
-                        setIsLoading(false);
-                    }
+                    commitResolved(safeBaseSrc);
                     return;
                 }
 
-                setIsLoading(true);
+                commitLoading();
                 const candidatePaths = await resolveImageSourcePathCandidates({
                     rawSrc: safeBaseSrc,
                     notesPath,
@@ -147,9 +173,7 @@ export function useLocalImage(
                     for (const fullPath of pathsToTry) {
                         try {
                             const blobUrl = await loadImageAsBlob(fullPath);
-                            if (isMounted) {
-                                setResolvedSrc(blobUrl);
-                            }
+                            commitResolved(blobUrl);
                             return;
                         } catch (err) {
                             lastError = err;
@@ -158,22 +182,15 @@ export function useLocalImage(
 
                     throw lastError ?? new Error(`Failed to load image: ${rawSrc}`);
                 } else if (!notesPath && canUseVaultlessLocalImageFallback(safeBaseSrc)) {
-                    if (isMounted) {
-                        setResolvedSrc(baseSrc);
-                    }
+                    commitResolved(baseSrc);
                 } else if (isMounted) {
-                    setResolvedSrc('');
-                    setError(new Error(`Failed to resolve image: ${rawSrc}`));
+                    commitError(new Error(`Failed to resolve image: ${rawSrc}`));
                 }
             } catch (err) {
-                if (isMounted) {
-                    setError(err instanceof Error ? err : new Error('Unknown error loading image'));
-                    setResolvedSrc(notesPath ? '' : getImageSourceBase(rawSrc));
-                }
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
+                commitError(
+                    err instanceof Error ? err : new Error('Unknown error loading image'),
+                    notesPath ? '' : getImageSourceBase(rawSrc)
+                );
             }
         };
 
@@ -182,7 +199,7 @@ export function useLocalImage(
         return () => {
             isMounted = false;
         };
-    }, [rawSrc, notesPath, currentNotePath, enabled]);
+    }, [rawSrc, notesPath, currentNotePath, enabled, resolutionKey, initialResolvedSrc]);
 
     return { resolvedSrc, isLoading, error };
 }

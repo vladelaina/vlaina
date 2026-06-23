@@ -713,6 +713,124 @@ describe('usePendingMarkdownAutosave', () => {
     }
   });
 
+  it('normalizes editor-only rendered HTML boundary helpers before publishing live previews', () => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+    const previewListener = vi.fn();
+    window.addEventListener('editor:note-markdown-preview', previewListener);
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    const rawMarkdown = [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After image.',
+    ].join('\n');
+    const expected = [
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      'After image.',
+    ].join('\n');
+
+    try {
+      act(() => {
+        result.current.createUserInputMarker(editorView as never, null)(
+          new CustomEvent('editor:image-user-input')
+        );
+        result.current.configureMarkdownListener(ctx, '# alpha')(rawMarkdown);
+        vi.advanceTimersByTime(16);
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(previewListener).toHaveBeenCalledTimes(1);
+      expect(previewListener.mock.calls[0]?.[0]).toMatchObject({
+        detail: {
+          path: 'docs/alpha.md',
+          content: expected,
+        },
+      });
+      expect(updateContent).toHaveBeenCalledWith(expected);
+      expect(previewListener.mock.calls[0]?.[0].detail.content).not.toContain(
+        'vlaina-rendered-html-boundary-blank-line'
+      );
+    } finally {
+      window.removeEventListener('editor:note-markdown-preview', previewListener);
+    }
+  });
+
+  it('preserves user-authored rendered HTML boundary comments in live previews', () => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+    const previewListener = vi.fn();
+    window.addEventListener('editor:note-markdown-preview', previewListener);
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    const expected = [
+      'Before',
+      '',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After',
+    ].join('\n');
+
+    try {
+      act(() => {
+        result.current.createUserInputMarker(editorView as never, null)(
+          new CustomEvent('editor:markdown-user-input')
+        );
+        result.current.configureMarkdownListener(ctx, '# alpha')(expected);
+        vi.advanceTimersByTime(16);
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(previewListener).toHaveBeenCalledTimes(1);
+      expect(previewListener.mock.calls[0]?.[0]).toMatchObject({
+        detail: {
+          path: 'docs/alpha.md',
+          content: expected,
+        },
+      });
+      expect(updateContent).toHaveBeenCalledWith(expected);
+    } finally {
+      window.removeEventListener('editor:note-markdown-preview', previewListener);
+    }
+  });
+
   it('flushes the latest pending raw markdown when unmounted before the next frame', () => {
     const updateContent = vi.fn();
     const debouncedSave = vi.fn();

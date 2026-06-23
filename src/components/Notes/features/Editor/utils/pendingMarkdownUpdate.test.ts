@@ -172,6 +172,45 @@ describe('resolvePendingMarkdownUpdate', () => {
     ).toBe(['1', '', '2', '3'].join('\n'));
   });
 
+  it('strips rendered HTML boundary helpers around one-line HTML image blocks before note state', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          '<img src="./assets/demo.svg" alt="Demo" />',
+          '',
+          '<!--vlaina-rendered-html-boundary-blank-line-->',
+          'After image.',
+          '',
+        ].join('\n'),
+        '<img src="./assets/demo.svg" alt="Demo" />',
+      ),
+    ).toBe([
+      '<img src="./assets/demo.svg" alt="Demo" />',
+      '',
+      'After image.',
+    ].join('\n'));
+  });
+
+  it('preserves user-authored rendered HTML boundary comments outside helper positions', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          'Before',
+          '',
+          '<!--vlaina-rendered-html-boundary-blank-line-->',
+          'After',
+          '',
+        ].join('\n'),
+        'Before',
+      ),
+    ).toBe([
+      'Before',
+      '',
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'After',
+    ].join('\n'));
+  });
+
   it('preserves editor-created empty paragraphs without keeping serializer separator blanks', () => {
     expect(
       serializeEditorMarkdownSnapshot(

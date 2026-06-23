@@ -76,6 +76,8 @@
   line-height: 1;
   text-transform: none;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#card'] {
@@ -114,6 +116,8 @@
   border-radius: 0 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
   font: normal 0.875em/1.5 var(--typora-content-font);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card {
