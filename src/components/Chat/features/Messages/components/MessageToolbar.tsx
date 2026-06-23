@@ -26,6 +26,7 @@ interface MessageToolbarProps {
   showCopyAction?: boolean;
   showVersionNavigation?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
+  onFork?: () => void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }
@@ -37,6 +38,7 @@ export const MessageToolbar = memo(function MessageToolbar({
   showCopyAction = true,
   showVersionNavigation = true,
   onCopy,
+  onFork,
   onRegenerate,
   onSwitchVersion
 }: MessageToolbarProps) {
@@ -173,6 +175,18 @@ export const MessageToolbar = memo(function MessageToolbar({
                 className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
               >
                 <Icon name="common.refresh" size="md" />
+              </button>
+            )}
+
+            {onFork && !isCopyClosing && (
+              <button
+                type="button"
+                aria-label="Branch conversation"
+                data-chat-message-action="fork"
+                onClick={onFork}
+                className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
+              >
+                <Icon name="chat.branch" size="md" />
               </button>
             )}
         </div>
