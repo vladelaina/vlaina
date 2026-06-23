@@ -1,5 +1,5 @@
 import { cleanup, render } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { forwardRef, type ReactNode, type Ref } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from './AppShell';
 
@@ -19,12 +19,20 @@ vi.mock('@/stores/uiSlice', () => ({
 }));
 
 vi.mock('./UnifiedTitleBar', () => ({
-  UnifiedTitleBar: () => <div data-testid="titlebar" />,
+  UnifiedTitleBar: forwardRef<HTMLDivElement>(function UnifiedTitleBar(_props, ref) {
+    return <div ref={ref} data-testid="titlebar" />;
+  }),
 }));
 
 vi.mock('./UnifiedSidebarContainer', () => ({
-  UnifiedSidebarContainer: ({ children }: { children: ReactNode }) => (
-    <aside data-testid="sidebar">{children}</aside>
+  UnifiedSidebarContainer: ({
+    children,
+    widthScopeRef,
+  }: {
+    children: ReactNode;
+    widthScopeRef?: Ref<HTMLDivElement>;
+  }) => (
+    <aside ref={widthScopeRef} data-testid="sidebar">{children}</aside>
   ),
 }));
 
@@ -34,7 +42,7 @@ describe('AppShell', () => {
     vi.clearAllMocks();
   });
 
-  it('writes both sidebar width variables on the shell root', () => {
+  it('scopes live sidebar width variables away from the main shell root', () => {
     const { container, rerender } = render(
       <AppShell
         sidebarWidth={260}
@@ -48,9 +56,18 @@ describe('AppShell', () => {
     );
 
     const shell = container.querySelector<HTMLElement>('[data-app-shell-root="true"]');
+    const titlebar = container.querySelector<HTMLElement>('[data-testid="titlebar"]');
+    const sidebar = container.querySelector<HTMLElement>('[data-testid="sidebar"]');
     expect(shell).not.toBeNull();
-    expect(shell!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('260px');
-    expect(shell!.style.getPropertyValue('--vlaina-width-sidebar-content-inner')).toBe(
+    expect(titlebar).not.toBeNull();
+    expect(sidebar).not.toBeNull();
+    expect(shell!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('');
+    expect(titlebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('260px');
+    expect(titlebar!.style.getPropertyValue('--vlaina-width-sidebar-content-inner')).toBe(
+      'calc(260px - var(--vlaina-size-32px))'
+    );
+    expect(sidebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('260px');
+    expect(sidebar!.style.getPropertyValue('--vlaina-width-sidebar-content-inner')).toBe(
       'calc(260px - var(--vlaina-size-32px))'
     );
 
@@ -66,8 +83,10 @@ describe('AppShell', () => {
       </AppShell>
     );
 
-    expect(shell!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('320px');
-    expect(shell!.style.getPropertyValue('--vlaina-width-sidebar-content-inner')).toBe(
+    expect(shell!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('');
+    expect(titlebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('320px');
+    expect(sidebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('320px');
+    expect(sidebar!.style.getPropertyValue('--vlaina-width-sidebar-content-inner')).toBe(
       'calc(320px - var(--vlaina-size-32px))'
     );
   });

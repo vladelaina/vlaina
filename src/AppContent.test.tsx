@@ -373,6 +373,19 @@ describe('AppContent view switching chrome readiness', () => {
     expect(mocks.notesSidebarMounts).toBe(1);
   });
 
+  it('keeps inactive prewarmed sidebars mounted but out of layout', async () => {
+    const { rerender } = render(<AppContent />);
+
+    expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(screen.getByTestId('chat-sidebar').parentElement).toHaveClass('hidden');
+
+    mocks.appViewMode = 'chat';
+    rerender(<AppContent />);
+
+    expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(screen.getByTestId('notes-sidebar').parentElement).toHaveClass('hidden');
+  });
+
   it('scopes the appearance font size to markdown content surfaces', async () => {
     document.documentElement.style.fontSize = '17px';
     mocks.fontSize = 17;

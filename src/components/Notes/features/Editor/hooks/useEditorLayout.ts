@@ -20,12 +20,14 @@ export function useEditorLayout(isPeeking: boolean, peekOffset: number) {
   const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : themeEditorLayoutTokens.defaultViewportWidthPx);
 
   useEffect(() => {
+    if (!isPeeking) return;
     const handleResize = () => setViewportWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isPeeking]);
 
   const contentOffset = useMemo(() => {
+    if (!isPeeking) return 0;
     return calculateGoldenOffset(viewportWidth, peekOffset, isPeeking);
   }, [viewportWidth, peekOffset, isPeeking]);
 
