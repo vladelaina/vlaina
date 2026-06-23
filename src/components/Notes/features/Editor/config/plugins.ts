@@ -20,6 +20,7 @@ import { mermaidPlugin } from '../plugins/mermaid/mermaidPlugin';
 import { mermaidEditorPlugin } from '../plugins/mermaid/mermaidEditorPlugin';
 import { htmlBlockEditorPlugin } from '../plugins/html-block/htmlBlockEditorPlugin';
 import { htmlInlineSourceTextPlugin } from '../plugins/html-inline';
+import { backslashHardBreakTextPlugins } from '../plugins/hard-break';
 import { codePlugin } from '../plugins/code/codePlugin';
 import { codeBlockPlugins } from '../plugins/code/codeKeymap';
 import { frontmatterPlugin } from '../plugins/frontmatter/frontmatterPlugin';
@@ -107,6 +108,7 @@ export const customPluginGroups = [
       mermaidEditorPlugin,
       htmlBlockEditorPlugin,
       htmlInlineSourceTextPlugin,
+      ...backslashHardBreakTextPlugins,
       ...frontmatterPlugin,
       ...codePlugin,
       ...codeBlockPlugins,

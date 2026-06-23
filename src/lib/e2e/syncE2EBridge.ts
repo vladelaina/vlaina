@@ -218,6 +218,7 @@ export interface E2EBridge {
     selectedText: string;
     docTextLength: number;
   } | null;
+  setEditorSelectionRange(from: number, to?: number): Promise<ReturnType<typeof getEditorSelectionSummary>>;
   focusCurrentEditor(): Promise<boolean>;
   focusCurrentEditorAtEnd(): Promise<boolean>;
   startEditorDispatchProfile(): boolean;
@@ -421,6 +422,23 @@ function getEditorSelectionSummary() {
     selectedText: from < to ? view.state.doc.textBetween(from, to, '\n') : '',
     docTextLength: view.state.doc.content.size,
   };
+}
+
+async function setEditorSelectionRange(from: number, to = from): Promise<ReturnType<typeof getEditorSelectionSummary>> {
+  const view = getCurrentEditorView();
+  if (!view) return null;
+
+  window.focus();
+  view.dom.focus({ preventScroll: true });
+  view.focus();
+  view.dispatch(
+    view.state.tr
+      .setSelection(TextSelection.create(view.state.doc, from, to))
+      .setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
+      .scrollIntoView()
+  );
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  return getEditorSelectionSummary();
 }
 
 function getEditorToolbarDebugState() {
@@ -1363,6 +1381,7 @@ export function installSyncE2EBridge(): void {
       };
     },
     getEditorSelectionSummary,
+    setEditorSelectionRange,
     focusCurrentEditor,
     focusCurrentEditorAtEnd,
     startEditorDispatchProfile,

@@ -8,6 +8,7 @@ import {
   STOP_PROSE_SCAN,
   scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
+import { isNavigableAtomicBlockNode } from '../shared/blockNodeTypes';
 
 export const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
 const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`;
@@ -208,6 +209,17 @@ function resolveTextSelectionInAdjacentBlock(
   return adjacentSelection instanceof TextSelection ? adjacentSelection : null;
 }
 
+function resolveNodeSelectionForAdjacentAtomicBlock(
+  view: EditorView,
+  adjacent: TopLevelBlock,
+): NodeSelection | null {
+  if (!isNavigableAtomicBlockNode(adjacent.node)) {
+    return null;
+  }
+
+  return NodeSelection.create(view.state.doc, adjacent.from);
+}
+
 function moveSelectionOutOfEditableBlankLine(view: EditorView, direction: Direction): boolean {
   const adjacent = resolveAdjacentBlockFromEditableBlankLine(view, direction);
   if (!adjacent) {
@@ -216,6 +228,18 @@ function moveSelectionOutOfEditableBlankLine(view: EditorView, direction: Direct
 
   if (isMarkdownBlankLinePlaceholderNode(adjacent.node)) {
     return replaceMarkdownBlankLineWithEditableParagraph(view, adjacent);
+  }
+
+  const atomicSelection = resolveNodeSelectionForAdjacentAtomicBlock(view, adjacent);
+  if (atomicSelection) {
+    view.dispatch(
+      view.state.tr
+        .setSelection(atomicSelection)
+        .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+        .scrollIntoView()
+    );
+    view.focus();
+    return true;
   }
 
   const adjacentSelection = resolveTextSelectionInAdjacentBlock(view, adjacent, direction);

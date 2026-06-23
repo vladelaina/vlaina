@@ -73,6 +73,21 @@ function replaceWithEditableBlankLineDocument(view: EditorView): void {
   ]);
 }
 
+function replaceWithHtmlBlockAndEditableBlankLineDocument(view: EditorView): void {
+  const { schema } = view.state;
+  const paragraphType = schema.nodes.paragraph;
+  const htmlBlockType = schema.nodes.html_block;
+  if (!paragraphType || !htmlBlockType) {
+    throw new Error('Expected paragraph and html_block schema nodes');
+  }
+
+  replaceDocument(view, [
+    htmlBlockType.create({ value: '<p>HTML</p>' }),
+    createEditableBlankLineParagraph(view),
+    paragraphType.create(null, schema.text('Beta')),
+  ]);
+}
+
 function replaceWithListAndEditableBlankLineDocument(view: EditorView): void {
   const { schema } = view.state;
   const paragraphType = schema.nodes.paragraph;
@@ -500,6 +515,38 @@ describe('markdownBlankLineInteraction', () => {
       expect(view.state.selection.empty).toBe(true);
       expect(view.state.selection.$from.parent.textContent).toBe('Alpha');
       expect(view.state.selection.$from.parentOffset).toBe('Alpha'.length);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('selects an adjacent navigable HTML block when ArrowUp leaves an editable markdown blank line', async () => {
+    const editor = await createEditor('Alpha');
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      replaceWithHtmlBlockAndEditableBlankLineDocument(view);
+      const blankLinePos = topLevelNodePos(
+        view,
+        (node) => node.type.name === 'paragraph' && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      );
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          blankLinePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length,
+        )),
+      );
+
+      const event = createArrowEvent('ArrowUp');
+      const handled = handleMarkdownBlankLineKeyboardNavigation(view, event);
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(NodeSelection);
+      expect((view.state.selection as NodeSelection).node.type.name).toBe('html_block');
+      expect((view.state.selection as NodeSelection).node.attrs.value).toBe('<p>HTML</p>');
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
     } finally {
       await editor.destroy();
     }

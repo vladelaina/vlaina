@@ -6,6 +6,7 @@ import {
   NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES,
   STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES,
   TEXT_ONLY_BLOCK_EDGE_NODE_NAMES,
+  isNavigableAtomicBlockNode,
 } from './blockNodeTypes';
 
 describe('blockNodeTypes', () => {
@@ -26,5 +27,20 @@ describe('blockNodeTypes', () => {
     expect([...TEXT_ONLY_BLOCK_EDGE_NODE_NAMES].sort()).toEqual(
       [...NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES].sort()
     );
+  });
+
+  it('excludes internal html placeholders from atomic keyboard navigation', () => {
+    expect(isNavigableAtomicBlockNode({
+      type: { name: 'html_block' },
+      attrs: { value: '<!--vlaina-rendered-html-boundary-blank-line-->' },
+    })).toBe(false);
+    expect(isNavigableAtomicBlockNode({
+      type: { name: 'html_block' },
+      attrs: { value: '<!--vlaina-markdown-blank-line-->' },
+    })).toBe(false);
+    expect(isNavigableAtomicBlockNode({
+      type: { name: 'html_block' },
+      attrs: { value: '<div>content</div>' },
+    })).toBe(true);
   });
 });

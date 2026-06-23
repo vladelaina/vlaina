@@ -262,6 +262,28 @@ describe('autolinkPlugin findUrls', () => {
         }]);
     });
 
+    it('does not decorate file-like or URL-like attribute values across inline HTML media tags', () => {
+        const text = [
+            '<video src="xxx.mp4" poster="poster.webp" />',
+            '<audio src="demo.ogg"></audio>',
+            '<source srcset="catim.md 1x, https://cdn.example.com/demo.webp 2x">',
+            '<img src="image.png" alt="https://not-a-link.example">',
+            '<iframe src="https://player.example.com/embed"></iframe>',
+            'open https://visible.example',
+        ].join(' ');
+        const decorations = collectAutolinkDecorations(createDocNode([
+            createTextNode(text),
+        ]));
+
+        expect(decorations.map((decoration: Decoration) => ({
+            text: text.slice(decoration.from, decoration.to),
+            href: (decoration.type as any).attrs?.href,
+        }))).toEqual([{
+            text: 'https://visible.example',
+            href: 'https://visible.example',
+        }]);
+    });
+
     it('does not decorate local-network or credentialed URLs', async () => {
         const editor = Editor.make()
             .config((ctx) => {
