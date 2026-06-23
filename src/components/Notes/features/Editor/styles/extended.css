@@ -165,6 +165,110 @@
   -webkit-user-select: none;
 }
 
+.milkdown .footnote-def:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+),
+.milkdown :is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+) .footnote-def {
+  position: relative;
+  border-left-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown .footnote-def:has(:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+)) {
+  position: relative;
+  border-left-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown .footnote-def:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+),
+.milkdown :is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+) .footnote-def,
+.milkdown .footnote-def:has(:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+)) {
+  --vlaina-block-selection-fill-top: 0px !important;
+  --vlaina-block-selection-fill-bottom: 0px !important;
+}
+
+.milkdown .footnote-def:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+)::before,
+.milkdown :is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+) .footnote-def::before,
+.milkdown .footnote-def:has(:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+))::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: var(--vlaina-z-2, 2) !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  border-left: var(--vlaina-size-3px) solid var(--vlaina-editor-block-selection-fg) !important;
+  border-radius: inherit !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+.milkdown .footnote-def:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+) .footnote-def-label,
+.milkdown :is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+) .footnote-def-label {
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown .footnote-def:has(:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-native-selected-textlike
+)) > .footnote-def-label {
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
 .milkdown .footnote-def-content {
   flex: 1;
   min-width: var(--vlaina-size-0);
