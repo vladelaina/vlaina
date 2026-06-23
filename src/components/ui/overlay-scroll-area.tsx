@@ -289,7 +289,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     }
 
     const resizeObserver = new ResizeObserver(() => {
-      updateMetrics();
+      scheduleMetricsUpdate();
     });
 
     resizeObserver.observe(viewport);
@@ -301,7 +301,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     return () => {
       resizeObserver.disconnect();
     };
-  }, [children, updateMetrics]);
+  }, [children, scheduleMetricsUpdate]);
 
   const handleThumbPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) {

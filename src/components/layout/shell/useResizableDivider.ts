@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { themeDomStyleTokens, themeRenderingTokens } from '@/styles/themeTokens';
+import { useCallback } from 'react';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
+import { useResizeDragSession, type ResizeDragStartEvent } from './useResizeDragSession';
 
 export interface ResizableSnapOptions {
   threshold: number;
@@ -37,164 +38,59 @@ export function useResizableDivider({
   useOverlay = false,
   allowDoubleClickReset = true,
 }: UseResizableDividerOptions) {
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartX = useRef(0);
-  const dragStartWidth = useRef(0);
-  const currentWidthRef = useRef(width);
-  const pendingWidth = useRef<number | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const didCreateOverlayRef = useRef(false);
-  const dragStateRef = useRef(false);
+  const computeNextWidth = useCallback(({
+    startValue,
+    startClientX,
+    clientX,
+  }: {
+    startValue: number;
+    startClientX: number;
+    clientX: number;
+  }) => {
+    const delta = clientX - startClientX;
+    let nextWidth = direction === 'reverse'
+      ? startValue - delta
+      : startValue + delta;
 
-  const notifyDragState = useCallback((next: boolean) => {
-    if (dragStateRef.current === next) {
-      return;
-    }
-    dragStateRef.current = next;
-    onDragStateChange?.(next);
-  }, [onDragStateChange]);
-
-  useEffect(() => {
-    if (!isDragging) {
-      currentWidthRef.current = width;
-    }
-  }, [isDragging, width]);
-
-  const applyDefaultWidth = useCallback(() => {
-    const nextWidth = clampWidth(defaultWidth, minWidth, maxWidth);
-    currentWidthRef.current = nextWidth;
-    onWidthChange(nextWidth);
-    onWidthCommit?.(nextWidth);
-  }, [defaultWidth, maxWidth, minWidth, onWidthChange, onWidthCommit]);
-
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-
-    if (allowDoubleClickReset && e.detail === 2) {
-      applyDefaultWidth();
-      return;
+    if (snap) {
+      const { threshold, resistance } = snap;
+      if (nextWidth < minWidth + threshold) {
+        const overMin = minWidth - nextWidth;
+        if (overMin > 0) nextWidth = minWidth - (overMin * resistance);
+      } else if (nextWidth > maxWidth - threshold) {
+        const overMax = nextWidth - maxWidth;
+        if (overMax > 0) nextWidth = maxWidth + (overMax * resistance);
+      }
     }
 
-    dragStartX.current = e.clientX;
-    dragStartWidth.current = width;
-    currentWidthRef.current = width;
-    setIsDragging(true);
-    notifyDragState(true);
+    return clampWidth(nextWidth, minWidth, maxWidth);
+  }, [direction, maxWidth, minWidth, snap]);
 
-    document.body.style.userSelect = themeRenderingTokens.userSelectNone;
-    document.body.style.cursor = themeDomStyleTokens.cursorColumnResize;
+  const {
+    isDragging,
+    beginDrag,
+    resetToDefaultValue,
+  } = useResizeDragSession<number>({
+    value: width,
+    defaultValue: clampWidth(defaultWidth, minWidth, maxWidth),
+    onValueChange: onWidthChange,
+    onValueCommit: onWidthCommit,
+    onDragStateChange,
+    computeNextValue: computeNextWidth,
+    cursor: themeDomStyleTokens.cursorColumnResize,
+    eventType: 'mouse',
+    listenTarget: 'document',
+    useOverlay,
+    allowDoubleClickReset,
+  });
 
-    if (!useOverlay) return;
-
-    const overlay = document.createElement('div');
-    overlay.id = 'resize-overlay';
-    overlay.style.position = themeDomStyleTokens.positionFixed;
-    overlay.style.inset = themeDomStyleTokens.sizeZero;
-    overlay.style.zIndex = themeDomStyleTokens.zIndexResizeOverlay;
-    overlay.style.cursor = themeDomStyleTokens.cursorColumnResize;
-    document.body.appendChild(overlay);
-    didCreateOverlayRef.current = true;
-  }, [allowDoubleClickReset, applyDefaultWidth, notifyDragState, useOverlay, width]);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const delta = e.clientX - dragStartX.current;
-      let nextWidth = direction === 'reverse'
-        ? dragStartWidth.current - delta
-        : dragStartWidth.current + delta;
-
-      if (snap) {
-        const { threshold, resistance } = snap;
-        if (nextWidth < minWidth + threshold) {
-          const overMin = minWidth - nextWidth;
-          if (overMin > 0) nextWidth = minWidth - (overMin * resistance);
-        } else if (nextWidth > maxWidth - threshold) {
-          const overMax = nextWidth - maxWidth;
-          if (overMax > 0) nextWidth = maxWidth + (overMax * resistance);
-        }
-      }
-
-      nextWidth = clampWidth(nextWidth, minWidth, maxWidth);
-      currentWidthRef.current = nextWidth;
-      pendingWidth.current = nextWidth;
-
-      if (rafRef.current !== null) return;
-      rafRef.current = requestAnimationFrame(() => {
-        if (pendingWidth.current !== null) {
-          onWidthChange(pendingWidth.current);
-          pendingWidth.current = null;
-        }
-        rafRef.current = null;
-      });
-    };
-
-    const clearDraggingStyle = () => {
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-
-    const handleMouseUp = () => {
-      let committedWidth = currentWidthRef.current;
-
-      if (pendingWidth.current !== null) {
-        committedWidth = pendingWidth.current;
-        onWidthChange(committedWidth);
-        pendingWidth.current = null;
-      }
-
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-
-      if (didCreateOverlayRef.current) {
-        document.getElementById('resize-overlay')?.remove();
-        didCreateOverlayRef.current = false;
-      }
-
-      clearDraggingStyle();
-      setIsDragging(false);
-      notifyDragState(false);
-      onWidthCommit?.(committedWidth);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        handleMouseUp();
-      }
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('blur', handleMouseUp);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('blur', handleMouseUp);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-
-      if (didCreateOverlayRef.current) {
-        document.getElementById('resize-overlay')?.remove();
-        didCreateOverlayRef.current = false;
-      }
-
-      clearDraggingStyle();
-      notifyDragState(false);
-    };
-  }, [direction, isDragging, maxWidth, minWidth, notifyDragState, onWidthChange, onWidthCommit, snap]);
+  const handleDragStart = useCallback((event: ResizeDragStartEvent) => {
+    beginDrag(event);
+  }, [beginDrag]);
 
   return {
     isDragging,
     handleDragStart,
-    resetToDefaultWidth: applyDefaultWidth,
+    resetToDefaultWidth: resetToDefaultValue,
   };
 }

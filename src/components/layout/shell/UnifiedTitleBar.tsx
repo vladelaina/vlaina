@@ -1,4 +1,4 @@
-import { ReactNode, useCallback } from 'react';
+import { forwardRef, useCallback, type ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { WindowControls } from '@/components/layout/WindowControls';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
@@ -51,7 +51,7 @@ function MacOSTrafficLightPreviewControls() {
   );
 }
 
-export function UnifiedTitleBar({
+export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(function UnifiedTitleBar({
   leftSlot,
   centerSlot,
   rightSlot,
@@ -60,7 +60,7 @@ export function UnifiedTitleBar({
   backgroundColor = 'transparent',
   centerOverflowVisible = false,
   showWindowControls = true
-}: UnifiedTitleBarProps) {
+}, ref) {
   const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
   const shouldReserveMacTrafficLightSpace = isMacOS(devPlatformPreview);
   const shouldShowTrafficLightPreview = shouldRenderMacOSTrafficLightPreview(devPlatformPreview);
@@ -83,6 +83,7 @@ export function UnifiedTitleBar({
 
   return (
     <div
+      ref={ref}
       className="app-drag-region app-title-bar h-10 flex items-center select-none relative z-[var(--vlaina-z-50)] flex-shrink-0"
       style={{ backgroundColor }}
       onMouseDownCapture={handleTitleBarMouseDownCapture}
@@ -148,4 +149,4 @@ export function UnifiedTitleBar({
       {showWindowControls ? <WindowControls className="z-[var(--vlaina-z-50)]" /> : null}
     </div>
   );
-}
+});

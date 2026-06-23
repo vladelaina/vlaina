@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { messageDialog } from '@/lib/storage/dialog';
+import { NATIVE_CARET_OVERLAY_REFRESH_EVENT } from '@/hooks/useNativeCaretOverlay';
 import { NotesView } from './NotesView';
 import { useAbsoluteNoteExternalRenameSync } from './hooks/useAbsoluteNoteExternalRenameSync';
 import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
@@ -262,6 +263,7 @@ vi.mock('@/components/layout/ResizablePanel', () => ({
     minWidth,
     maxWidth,
     storageKey,
+    onWidthChange,
   }: {
     children: ReactNode;
     className?: string;
@@ -269,6 +271,7 @@ vi.mock('@/components/layout/ResizablePanel', () => ({
     minWidth?: number;
     maxWidth?: number;
     storageKey?: string;
+    onWidthChange?: (width: number) => void;
   }) => (
     <div
       data-testid="resizable-panel"
@@ -278,6 +281,11 @@ vi.mock('@/components/layout/ResizablePanel', () => ({
       data-max-width={maxWidth}
       data-storage-key={storageKey}
     >
+      <button
+        type="button"
+        data-testid="resizable-panel-width-change"
+        onClick={() => onWidthChange?.(480)}
+      />
       {children}
     </div>
   ),
@@ -1465,6 +1473,34 @@ describe('NotesView', () => {
     expect(document.querySelector('[data-notes-chat-floating="true"]')).toBeNull();
   });
 
+  it('refreshes the native caret overlay after docked chat panel width changes', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatPanelCollapsed = false;
+    uiState.notesChatFloatingOpen = false;
+    const refreshListener = vi.fn();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+    document.addEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, refreshListener);
+
+    try {
+      render(<NotesView />);
+      await waitForVaultInitializationEffects();
+      refreshListener.mockClear();
+      requestAnimationFrameSpy.mockClear();
+
+      fireEvent.click(screen.getByTestId('resizable-panel-width-change'));
+
+      expect(requestAnimationFrameSpy).toHaveBeenCalled();
+      expect(refreshListener).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, refreshListener);
+    }
+  });
+
   it('resizes floating notes chat from the left, top, and top-left handles', async () => {
     notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
     uiState.notesChatFloatingOpen = true;
@@ -1476,6 +1512,9 @@ describe('NotesView', () => {
     const leftHandle = document.querySelector('[data-notes-chat-floating-resize-handle="left"]') as HTMLElement;
     fireEvent.pointerDown(leftHandle, { clientX: 600, clientY: 300 });
     fireEvent.pointerMove(window, { clientX: 540, clientY: 300 });
+
+    expect(uiState.setNotesChatFloatingSize).not.toHaveBeenCalled();
+
     fireEvent.pointerUp(window);
 
     expect(uiState.setLayoutPanelDragging).toHaveBeenCalledWith(true);
@@ -1488,6 +1527,9 @@ describe('NotesView', () => {
     const topHandle = document.querySelector('[data-notes-chat-floating-resize-handle="top"]') as HTMLElement;
     fireEvent.pointerDown(topHandle, { clientX: 500, clientY: 600 });
     fireEvent.pointerMove(window, { clientX: 500, clientY: 560 });
+
+    expect(uiState.setNotesChatFloatingSize).not.toHaveBeenCalled();
+
     fireEvent.pointerUp(window);
 
     expect(uiState.setLayoutPanelDragging).toHaveBeenCalledWith(true);
@@ -1500,6 +1542,9 @@ describe('NotesView', () => {
     const topLeftHandle = document.querySelector('[data-notes-chat-floating-resize-handle="top-left"]') as HTMLElement;
     fireEvent.pointerDown(topLeftHandle, { clientX: 600, clientY: 600 });
     fireEvent.pointerMove(window, { clientX: 570, clientY: 570 });
+
+    expect(uiState.setNotesChatFloatingSize).not.toHaveBeenCalled();
+
     fireEvent.pointerUp(window);
 
     expect(uiState.setLayoutPanelDragging).toHaveBeenCalledWith(true);

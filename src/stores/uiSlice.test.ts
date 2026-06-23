@@ -270,6 +270,16 @@ describe('uiSlice', () => {
     expect(useUIStore.getState().sidebarWidth).toBe(SIDEBAR_MIN_WIDTH);
   });
 
+  it('does not persist unchanged sidebar width values', () => {
+    const setItemSpy = vi.spyOn(localStorage, 'setItem');
+    const listener = vi.fn();
+    const unsubscribe = useUIStore.subscribe(listener);
+    useUIStore.getState().setSidebarWidth(280);
+    expect(setItemSpy).not.toHaveBeenCalled();
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
   it('ignores non-decimal numeric UI preferences loaded from storage', () => {
     localStorage.setItem('vlaina_sidebar_width', '1e3');
     localStorage.setItem('fontSize', '18px');
@@ -475,6 +485,16 @@ describe('uiSlice', () => {
     expect(useUIStore.getState().notesChatFloatingSize).toEqual(NOTES_CHAT_FLOATING_DEFAULT_SIZE);
     expect(localStorage.getItem('vlaina_notes_chat_floating_size')).toBeNull();
     expect(useUnifiedStore.getState().data.settings.ui?.notesChatFloatingSize).toEqual(NOTES_CHAT_FLOATING_DEFAULT_SIZE);
+  });
+
+  it('does not persist unchanged notes floating chat size updates', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    const setUnifiedFloatingSizeSpy = vi.spyOn(useUnifiedStore.getState(), 'setNotesChatFloatingSize');
+
+    useUIStore.getState().setNotesChatFloatingSize(NOTES_CHAT_FLOATING_DEFAULT_SIZE);
+
+    expect(setItemSpy).not.toHaveBeenCalled();
+    expect(setUnifiedFloatingSizeSpy).not.toHaveBeenCalled();
   });
 
   it('consumes only the matching pending composer insert request', () => {

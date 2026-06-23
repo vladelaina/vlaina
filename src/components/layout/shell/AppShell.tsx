@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { UnifiedSidebarContainer } from './UnifiedSidebarContainer';
@@ -41,21 +41,21 @@ export function AppShell({
   backgroundColor = 'transparent',
   isDragging = false
 }: AppShellProps) {
-  const shellRef = useRef<HTMLDivElement>(null);
+  const titleBarWidthScopeRef = useRef<HTMLDivElement>(null);
+  const sidebarWidthScopeRef = useRef<HTMLDivElement>(null);
   const [isSidebarDragging, setIsSidebarDragging] = useState(false);
   const setLayoutPanelDragging = useUIStore((state) => state.setLayoutPanelDragging);
   const setWindowResizeActive = useUIStore((state) => state.setWindowResizeActive);
 
   const applySidebarWidth = useCallback((width: number) => {
-    const shell = shellRef.current;
-    if (!shell) return;
-
     const sidebarWidthValue = `${width}px`;
-    shell.style.setProperty('--vlaina-shell-sidebar-width', sidebarWidthValue);
-    shell.style.setProperty(
-      '--vlaina-width-sidebar-content-inner',
-      `calc(${sidebarWidthValue} - var(--vlaina-size-32px))`
-    );
+    const sidebarContentInnerValue = `calc(${sidebarWidthValue} - var(--vlaina-size-32px))`;
+
+    for (const target of [titleBarWidthScopeRef.current, sidebarWidthScopeRef.current]) {
+      if (!target) continue;
+      target.style.setProperty('--vlaina-shell-sidebar-width', sidebarWidthValue);
+      target.style.setProperty('--vlaina-width-sidebar-content-inner', sidebarContentInnerValue);
+    }
   }, []);
 
   const handleSidebarDragStateChange = useCallback((dragging: boolean) => {
@@ -100,7 +100,6 @@ export function AppShell({
 
   return (
     <div
-      ref={shellRef}
       data-app-shell-root="true"
       className={cn(
         "h-full flex overflow-hidden flex-col",
@@ -108,7 +107,8 @@ export function AppShell({
       )}
     >
       
-      <UnifiedTitleBar 
+      <UnifiedTitleBar
+        ref={titleBarWidthScopeRef}
         leftSlot={titleBarLeft}
         centerSlot={titleBarCenter}
         rightSlot={titleBarRight}
@@ -127,6 +127,7 @@ export function AppShell({
             onWidthChange={onSidebarWidthChange}
             onLiveWidthChange={applySidebarWidth}
             onDragStateChange={handleSidebarDragStateChange}
+            widthScopeRef={sidebarWidthScopeRef}
             backgroundColor={backgroundColor}
           >
             {sidebarContent}
