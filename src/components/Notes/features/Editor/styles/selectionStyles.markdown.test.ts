@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readStyleFile, readCommonMarkdownSurfaceStyle } from "./selectionStylesTestUtils";
+import { extractCssRule, readStyleFile, readCommonMarkdownSurfaceStyle } from "./selectionStylesTestUtils";
 
 describe("editor markdown presentation styles", () => {
   it('collapses paragraph line box around standalone image blocks', () => {
@@ -55,6 +55,28 @@ describe("editor markdown presentation styles", () => {
     expect(css).toContain('.milkdown .ProseMirror.editor-task-checkbox-hover,');
     expect(css).toContain('.milkdown .ProseMirror.editor-task-checkbox-hover * {');
     expect(css).toContain('cursor: pointer !important;');
+  });
+
+  it('keeps native list markers before center- and right-aligned list text', () => {
+    const css = readStyleFile('markdown.css');
+    const markerRule = extractCssRule(css, '.milkdown li.editor-list-item-align-center:not([data-item-type="task"]),');
+    const textBlockRule = extractCssRule(css, '.milkdown li.editor-list-item-align-center:not([data-item-type="task"]) > [data-text-align],');
+    const centerRule = extractCssRule(css, '.milkdown li.editor-list-item-align-center:not([data-item-type="task"]) > [data-text-align] {');
+    const rightMarginRule = [
+      '.milkdown li.editor-list-item-align-right:not([data-item-type="task"]) > [data-text-align] {',
+      '  margin-left: auto;',
+      '  margin-right: var(--vlaina-space-0);',
+      '}',
+    ].join('\n');
+
+    expect(markerRule).toContain('.milkdown li.editor-list-item-align-right:not([data-item-type="task"]) {');
+    expect(markerRule).toContain('list-style-position: outside;');
+    expect(markerRule).not.toContain('list-style-position: inside;');
+    expect(textBlockRule).toContain('display: block;');
+    expect(textBlockRule).not.toContain('display: inline-block;');
+    expect(centerRule).toContain('margin-left: auto;');
+    expect(centerRule).toContain('margin-right: auto;');
+    expect(css).toContain(rightMarginRule);
   });
 
   it('centers task checkboxes against the actual markdown body line height', () => {

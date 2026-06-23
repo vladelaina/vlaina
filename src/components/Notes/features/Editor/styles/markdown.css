@@ -173,14 +173,24 @@
 
 .milkdown li.editor-list-item-align-center:not([data-item-type="task"]),
 .milkdown li.editor-list-item-align-right:not([data-item-type="task"]) {
-  list-style-position: inside;
+  list-style-position: outside;
 }
 
 .milkdown li.editor-list-item-align-center:not([data-item-type="task"]) > [data-text-align],
 .milkdown li.editor-list-item-align-right:not([data-item-type="task"]) > [data-text-align] {
-  display: inline-block;
+  display: block;
   width: fit-content;
   max-width: 100%;
+}
+
+.milkdown li.editor-list-item-align-center:not([data-item-type="task"]) > [data-text-align] {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.milkdown li.editor-list-item-align-right:not([data-item-type="task"]) > [data-text-align] {
+  margin-left: auto;
+  margin-right: var(--vlaina-space-0);
 }
 
 .milkdown li.editor-list-item-align-center > ul,
