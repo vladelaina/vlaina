@@ -4,18 +4,15 @@
  */
 
 /* Highlight */
-.milkdown mark.highlight,
-.milkdown .highlight {
-  background-color: var(--vlaina-color-mark-highlight-bg);
-  color: var(--vlaina-color-mark-highlight-fg);
-  padding: var(--vlaina-space-0125rem) var(--vlaina-space-025rem);
-  border-radius: var(--vlaina-radius-0125rem);
+.milkdown .ProseMirror :is(mark.highlight, .highlight) {
+  --vlaina-editor-inline-background-fill: var(--vlaina-color-mark-highlight-bg);
+  --vlaina-editor-inline-background-fg: var(--vlaina-color-mark-highlight-fg);
 }
 
-.dark .milkdown mark.highlight,
-.dark .milkdown .highlight {
-  background-color: var(--vlaina-color-mark-highlight-bg);
-  color: var(--vlaina-color-mark-highlight-fg);
+.milkdown .ProseMirror :is(mark[data-bg-color], span[data-bg-color]) {
+  --vlaina-editor-inline-background-fill: var(--vlaina-bg-color-mark-bg, transparent);
+  --vlaina-editor-inline-background-fg: inherit;
+  background-color: var(--vlaina-editor-inline-background-fill) !important;
 }
 
 /* Tags */

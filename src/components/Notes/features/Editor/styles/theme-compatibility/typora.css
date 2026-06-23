@@ -33,7 +33,6 @@
   --typora-kbd-bg: var(--v-btn-bg, var(--kbd-bg, var(--typora-inline-code-bg)));
   --typora-kbd-fg: var(--kbd-c, var(--db, var(--vlaina-bg-primary)));
   --typora-kbd-shadow: 0 var(--vlaina-space-3px, 3px) 0 0 var(--btn-raised, var(--typora-block-border)), 0 var(--vlaina-space-3px, 3px) 0 0 var(--typora-kbd-bg);
-  --typora-mark-shadow: 0 calc(var(--vlaina-space-0625rem, 0.625rem) * -1) 0 0 var(--mark-bg, var(--typora-selection-bg)) inset;
   --typora-hr-color: var(--ac-bk-fd, var(--pn-c, var(--typora-block-border)));
   --typora-caption-bg: var(--pn03, var(--pn-c, var(--typora-block-bg)));
   --typora-caption-font: condensed italic 12px/1 var(--typora-tag-font);
@@ -122,11 +121,13 @@
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(mark, .highlight) {
-  color: inherit;
-  background: transparent;
-  box-shadow: var(--typora-mark-shadow);
-  border-radius: 0;
-  padding-inline: var(--vlaina-space-015em, 0.15em);
+  --vlaina-editor-inline-background-fill: var(--mark-bg, var(--vlaina-color-mark-highlight-bg));
+  --vlaina-editor-inline-background-fg: var(--vlaina-color-mark-highlight-fg, inherit);
+  color: var(--vlaina-editor-inline-background-fg);
+  background: var(--vlaina-editor-inline-background-fill);
+  box-shadow: var(--vlaina-editor-inline-background-shadow, none);
+  border-radius: var(--vlaina-editor-inline-background-radius, var(--vlaina-radius-0));
+  padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0));
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(blockquote, details, .md-alert) {
@@ -196,8 +197,9 @@
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(code:not(pre code), .v-std-code, .cm-inline-code) {
-  padding: var(--vlaina-space-0);
-  border-radius: var(--vlaina-radius-0);
+  padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0));
+  border-radius: var(--vlaina-editor-inline-background-radius, var(--vlaina-radius-0));
+  box-shadow: var(--vlaina-editor-inline-background-shadow, none);
   background: var(--typora-inline-code-bg);
   color: var(--typora-inline-code-fg);
   border-color: var(--std-code-sd, var(--typora-block-border));

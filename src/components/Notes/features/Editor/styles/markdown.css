@@ -140,27 +140,42 @@
   transition: none;
 }
 
-.milkdown .ProseMirror code:not(pre code) {
+.milkdown .ProseMirror {
+  --vlaina-editor-inline-background-fill: transparent;
+  --vlaina-editor-inline-background-fg: inherit;
+  --vlaina-editor-inline-background-padding: var(--vlaina-space-0);
+  --vlaina-editor-inline-background-radius: var(--vlaina-radius-0);
+  --vlaina-editor-inline-background-shadow: none;
+}
+
+.milkdown .ProseMirror :where(
+  code:not(pre code),
+  mark.highlight,
+  .highlight,
+  mark[data-bg-color],
+  span[data-bg-color]
+) {
   display: inline;
   vertical-align: baseline;
   margin: var(--vlaina-space-0);
-  padding: var(--vlaina-space-0);
+  padding: var(--vlaina-editor-inline-background-padding);
   border: var(--vlaina-border-width-0);
-  border-radius: var(--vlaina-radius-0);
-  background-color: var(--vlaina-color-editor-inline-code-bg);
-  color: inherit;
-  caret-color: transparent;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
-  font-size: inherit;
-  font-weight: var(--vlaina-font-weight-normal);
+  border-radius: var(--vlaina-editor-inline-background-radius);
+  background-color: var(--vlaina-editor-inline-background-fill);
+  color: var(--vlaina-editor-inline-background-fg);
   line-height: inherit;
+  box-shadow: var(--vlaina-editor-inline-background-shadow);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
-.dark .milkdown .ProseMirror code:not(pre code) {
-  background-color: var(--vlaina-color-editor-inline-code-bg);
-  color: inherit;
+.milkdown .ProseMirror code:not(pre code) {
+  --vlaina-editor-inline-background-fill: var(--vlaina-color-editor-inline-code-bg);
+  --vlaina-editor-inline-background-fg: inherit;
+  caret-color: transparent;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+  font-size: inherit;
+  font-weight: var(--vlaina-font-weight-normal);
 }
 
 .milkdown .ProseMirror .md-html-source-text {
