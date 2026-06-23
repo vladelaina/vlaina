@@ -205,19 +205,19 @@ body.editor-block-drag-active .milkdown .ProseMirror .editor-native-selected-tex
   box-shadow: none !important;
 }
 
-/* Only the shared edges between adjacent selected blocks are pulled inward. */
+/* Keep shared edges between adjacent selected text blocks visually connected. */
 .milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-next,
 .milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike.editor-block-selected-has-next,
 .milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-next,
 .milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-next {
-  --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
+  --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);
 }
 
 .milkdown .ProseMirror .editor-block-selected-textlike.editor-block-selected-has-previous,
 .milkdown .ProseMirror.editor-block-selection-large .editor-block-selected-large-textlike.editor-block-selected-has-previous,
 .milkdown .ProseMirror .editor-block-drag-source-textlike.editor-block-drag-source-has-previous,
 .milkdown .ProseMirror .editor-native-selected-textlike.editor-native-selected-has-previous {
-  --vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
+  --vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);
 }
 
 .milkdown .editor-block-selection-line-fill-layer {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { extractCssRule, readStyleFile, readCommonMarkdownSurfaceStyle } from "./selectionStylesTestUtils";
+import {
+  extractCssRule,
+  readCommonMarkdownSurfaceStyle,
+  readStyleFile,
+  readThemeCompatibilityStyle,
+} from "./selectionStylesTestUtils";
 
 describe("editor markdown presentation styles", () => {
   it('collapses paragraph line box around standalone image blocks', () => {
@@ -158,6 +163,72 @@ describe("editor markdown presentation styles", () => {
     expect(codeRule).toContain('--vlaina-editor-inline-background-fill: var(--vlaina-color-editor-inline-code-bg);');
     expect(compatibilityRule).toContain('code:not(pre code),');
     expect(compatibilityRule).not.toContain(':is(');
+  });
+
+  it('keeps inline code readable inside selected blocks', () => {
+    const css = readStyleFile('markdown.css');
+    const themeCompatibilityCss = readThemeCompatibilityStyle();
+    const selectedInlineCodeRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is('
+    );
+    const externalSelectedInlineCodeRule = extractCssRule(
+      themeCompatibilityCss,
+      ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .editor-native-selected-textlike :is(code:not(pre code), .v-std-code, .cm-inline-code) {"
+    );
+
+    expect(selectedInlineCodeRule).toContain('.editor-block-selected,');
+    expect(selectedInlineCodeRule).toContain('.editor-block-selected-textlike,');
+    expect(selectedInlineCodeRule).toContain('.editor-block-drag-source,');
+    expect(selectedInlineCodeRule).toContain(') code:not(pre code),');
+    expect(selectedInlineCodeRule).toContain('.milkdown .ProseMirror .editor-native-selected-textlike code:not(pre code) {');
+    expect(selectedInlineCodeRule).toContain('--vlaina-inline-code-selected-border-shadow: inset 0 0 0 var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) var(--vlaina-color-white);');
+    expect(selectedInlineCodeRule).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(selectedInlineCodeRule).toContain('background-color: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(selectedInlineCodeRule).toContain('outline: none;');
+    expect(selectedInlineCodeRule).toContain('box-shadow: var(--vlaina-inline-code-selected-border-shadow);');
+    expect(selectedInlineCodeRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(selectedInlineCodeRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+
+    expect(themeCompatibilityCss).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(");
+    expect(themeCompatibilityCss).toContain(') :is(code:not(pre code), .v-std-code, .cm-inline-code),');
+    expect(externalSelectedInlineCodeRule).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .editor-native-selected-textlike :is(code:not(pre code), .v-std-code, .cm-inline-code) {");
+    expect(externalSelectedInlineCodeRule).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(externalSelectedInlineCodeRule).toContain('outline: none !important;');
+    expect(externalSelectedInlineCodeRule).toContain('box-shadow: var(--vlaina-inline-code-selected-border-shadow) !important;');
+    expect(externalSelectedInlineCodeRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+  });
+
+  it('keeps highlighted text readable inside selected blocks', () => {
+    const css = readStyleFile('extended.css');
+    const themeCompatibilityCss = readThemeCompatibilityStyle();
+    const selectedHighlightRule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is('
+    );
+    const externalSelectedHighlightRule = extractCssRule(
+      themeCompatibilityCss,
+      ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .editor-native-selected-textlike :is(mark.highlight, .highlight) {"
+    );
+
+    expect(selectedHighlightRule).toContain('.editor-block-selected,');
+    expect(selectedHighlightRule).toContain('.editor-block-selected-textlike,');
+    expect(selectedHighlightRule).toContain('.editor-block-drag-source,');
+    expect(selectedHighlightRule).toContain(') :is(mark.highlight, .highlight),');
+    expect(selectedHighlightRule).toContain('.milkdown .ProseMirror .editor-native-selected-textlike :is(mark.highlight, .highlight) {');
+    expect(selectedHighlightRule).toContain('--vlaina-highlight-selected-border-shadow: inset 0 0 0 var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) var(--vlaina-color-white);');
+    expect(selectedHighlightRule).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(selectedHighlightRule).toContain('background-color: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(selectedHighlightRule).toContain('outline: none;');
+    expect(selectedHighlightRule).toContain('box-shadow: var(--vlaina-highlight-selected-border-shadow);');
+    expect(selectedHighlightRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(selectedHighlightRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+
+    expect(themeCompatibilityCss).toContain(') :is(mark.highlight, .highlight),');
+    expect(externalSelectedHighlightRule).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(externalSelectedHighlightRule).toContain('outline: none !important;');
+    expect(externalSelectedHighlightRule).toContain('box-shadow: var(--vlaina-highlight-selected-border-shadow) !important;');
+    expect(externalSelectedHighlightRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
   });
 
   it('renders footnote references as smaller inline-code chips with a capsule hover value', () => {

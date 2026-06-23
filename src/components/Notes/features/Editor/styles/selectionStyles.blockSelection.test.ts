@@ -224,9 +224,9 @@ describe("editor block selection styles", () => {
     expect(textBlockFillRule).toContain('z-index: var(--vlaina-z-behind);');
     expect(textBlockFillRule).toContain('background: var(--vlaina-block-selection-color);');
     expect(adjacentBottomRule).toContain('.editor-block-selected-has-next');
-    expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
+    expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);');
     expect(adjacentTopRule).toContain('.editor-block-selected-has-previous');
-    expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
+    expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);');
     expect(extendedCss).toContain('.milkdown .ProseMirror .callout:is(.editor-block-selected-textlike, .editor-block-selected, .ProseMirror-selectednode) {');
     expect(extractCssRule(
       extendedCss,
