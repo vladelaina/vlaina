@@ -21,7 +21,7 @@ interface VFileLike {
   toString?: () => string;
 }
 
-const BACKSLASH_HARD_BREAK_TEXT_DATA_KEY = 'vlainaBackslashHardBreakText';
+const BACKSLASH_HARD_BREAK_TEXT_DATA_FIELD = 'vlainaBackslashHardBreakText';
 const BACKSLASH_HARD_BREAK_SOURCE_TEXT_NODE_TYPE = 'vlainaBackslashHardBreakSourceText';
 const BACKSLASH_HARD_BREAK_SOURCE_TEXT_MARK_NAME = 'backslash_hard_break_source_text';
 export const backslashHardBreakCursorPluginKey = new PluginKey('backslashHardBreakCursor');
@@ -34,7 +34,7 @@ function getFileMarkdown(file: VFileLike | undefined): string {
 
 function isBackslashHardBreakNode(node: MdastNode, markdown: string): boolean {
   if (node.type !== 'break') return false;
-  if (node.data?.[BACKSLASH_HARD_BREAK_TEXT_DATA_KEY]) return false;
+  if (node.data?.[BACKSLASH_HARD_BREAK_TEXT_DATA_FIELD]) return false;
 
   const start = node.position?.start?.offset;
   const end = node.position?.end?.offset;
@@ -66,7 +66,7 @@ function transformChildren(children: MdastNode[] | undefined, markdown: string) 
 
     node.data = {
       ...(node.data || {}),
-      [BACKSLASH_HARD_BREAK_TEXT_DATA_KEY]: true,
+      [BACKSLASH_HARD_BREAK_TEXT_DATA_FIELD]: true,
     };
     children.splice(index, 0, {
       children: [{

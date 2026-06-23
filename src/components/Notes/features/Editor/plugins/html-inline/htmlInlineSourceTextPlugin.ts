@@ -55,7 +55,7 @@ function transactionChangedContextMayContainHtmlInlineSourceText(doc: ProseNode,
 function collectHtmlInlineSourceTextDecorationsFromTextNode(
   node: ProseNode,
   pos: number,
-  parent: ProseNode | null,
+  parent: ProseNode | null | undefined,
   decorations: ProseDecoration[],
   maxDecorations: number,
 ) {
@@ -213,7 +213,7 @@ export function collectHtmlInlineSourceTextDecorationsInRange(
   }
 
   let scannedNodes = 0;
-  doc.nodesBetween(start, end, (node: ProseNode, pos: number, parent: ProseNode | null) => {
+  doc.nodesBetween(start, end, (node: ProseNode, pos: number, parent?: ProseNode) => {
     scannedNodes += 1;
     if (scannedNodes > maxScanNodes) return false;
     if (decorations.length >= maxDecorations) return false;
