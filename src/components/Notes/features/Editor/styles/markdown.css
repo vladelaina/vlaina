@@ -163,6 +163,11 @@
   color: inherit;
 }
 
+.milkdown .ProseMirror .md-html-source-text {
+  color: var(--vlaina-color-editor-html-source-text);
+  -webkit-text-fill-color: var(--vlaina-color-editor-html-source-text);
+}
+
 .milkdown li.editor-list-item-align-center {
   text-align: center;
 }

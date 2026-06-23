@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import { collectHtmlTagRanges, isOffsetInRanges, type ContentRange } from '@/lib/markdown/markdownRanges';
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 import { URL_PATTERNS } from '../utils/constants';
 import { sanitizeEditorExternalLinkHref } from '../utils/linkHref';
@@ -40,6 +41,12 @@ function getParenBalance(url: string): number {
         if (char === ')') balance -= 1;
     }
     return balance;
+}
+
+function getAutolinkHtmlTagProtectionRanges(text: string): ContentRange[] {
+    const scan = collectHtmlTagRanges(text, { start: 0, end: text.length }, MAX_AUTOLINK_DECORATIONS);
+    return [...scan.ranges, ...scan.protectedRanges]
+        .sort((left, right) => left.start - right.start || left.end - right.end);
 }
 
 export function trimTrailingUrlPunctuation(url: string): string {
@@ -147,6 +154,9 @@ function collectAutolinkDecorationsFromTextNode(
     }
 
     const matches = findUrls(text, pos, maxDecorations - decorations.length);
+    const htmlTagProtectionRanges = text.includes('<')
+        ? getAutolinkHtmlTagProtectionRanges(text)
+        : [];
 
     for (const match of matches) {
         const $pos = doc.resolve(match.start);
@@ -154,8 +164,9 @@ function collectAutolinkDecorationsFromTextNode(
         const hasLinkMark = marks.some((m: any) => m.type.name === 'link');
         const textBefore = text.slice(0, match.start - pos);
         const isInMarkdownLink = /\]\($/.test(textBefore);
+        const isInInlineHtmlTag = isOffsetInRanges(match.start - pos, htmlTagProtectionRanges);
 
-        if (!hasLinkMark && !isInMarkdownLink) {
+        if (!hasLinkMark && !isInMarkdownLink && !isInInlineHtmlTag) {
             const safeHref = sanitizeAutolinkHref(match.href);
             if (!safeHref) continue;
 

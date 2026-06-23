@@ -27,6 +27,7 @@ import { codePlugin } from '../code';
 import { highlightPlugin } from '../highlight';
 import { colorMarksPlugin } from '../floating-toolbar';
 import { videoPlugin } from '../video';
+import { htmlInlineSourceTextPlugin } from '../html-inline';
 import { tocPlugin } from '../toc';
 import { blockAlignmentPlugin } from '../floating-toolbar';
 import { markdownLinkPlugin } from '../links/markdown-link/markdownLinkPlugin';
@@ -74,6 +75,7 @@ async function createPasteEditor(options: { includeMarkdownLinkPlugin?: boolean 
     ...mathPlugin,
     ...mermaidPlugin,
     ...codePlugin,
+    htmlInlineSourceTextPlugin,
     ...highlightPlugin,
     ...colorMarksPlugin,
     ...videoPlugin,
@@ -215,6 +217,10 @@ describe('clipboard paste markdown persistence', () => {
     expect(simulatePasteText(view, pasted)).toBe(true);
     expect(view.dom.querySelector('video')).toBeNull();
     expect(view.dom.textContent).toContain('<video src="xxx.mp4" />');
+    const literalHtml = Array.from(
+      view.dom.querySelectorAll<HTMLElement>('span.md-html-inline.md-html-source-text')
+    ).find((element) => element.textContent === '<video src="xxx.mp4" />');
+    expect(literalHtml).toBeInstanceOf(HTMLElement);
 
     const serializer = editor.ctx.get(serializerCtx);
     const persisted = stripTrailingNewlines(
