@@ -413,8 +413,11 @@ export const useUIStore = create<UIStore>()((set) => ({
   }),
   setSidebarWidth: (width) => {
     const next = clampSidebarWidth(width);
-    savePreferenceString(STORAGE_KEY_SIDEBAR_WIDTH, String(next));
-    set({ sidebarWidth: next });
+    set((state) => {
+      if (state.sidebarWidth === next) return state;
+      savePreferenceString(STORAGE_KEY_SIDEBAR_WIDTH, String(next));
+      return { sidebarWidth: next };
+    });
   },
   layoutPanelDragging: false,
   setLayoutPanelDragging: (dragging) => set({ layoutPanelDragging: dragging }),
@@ -525,9 +528,18 @@ export const useUIStore = create<UIStore>()((set) => ({
   setNotesChatFloatingOpen: (open) => set({ notesChatFloatingOpen: open }),
   setNotesChatFloatingSize: (size) => {
     const next = clampNotesChatFloatingSize(size);
-    savePreferenceString(STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE, JSON.stringify(next));
-    useUnifiedStore.getState().setNotesChatFloatingSize(next);
-    set({ notesChatFloatingSize: next });
+    set((state) => {
+      if (
+        state.notesChatFloatingSize.width === next.width &&
+        state.notesChatFloatingSize.height === next.height
+      ) {
+        return state;
+      }
+
+      savePreferenceString(STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE, JSON.stringify(next));
+      useUnifiedStore.getState().setNotesChatFloatingSize(next);
+      return { notesChatFloatingSize: next };
+    });
   },
   restoreNotesChatFloatingSize: (size) => {
     const next = clampNotesChatFloatingSize(size);

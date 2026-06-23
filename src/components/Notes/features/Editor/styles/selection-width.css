@@ -107,11 +107,9 @@
 .milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay {
   background: var(--vlaina-bg-primary, var(--background, transparent)) !important;
   background-color: var(--vlaina-bg-primary, var(--background, transparent)) !important;
-  border-radius: var(--vlaina-radius-0125rem) !important;
-  box-shadow:
-    var(--vlaina-space-015em) 0 0 var(--vlaina-bg-primary, var(--background, transparent)),
-    calc(var(--vlaina-space-015em) * -1) 0 0 var(--vlaina-bg-primary, var(--background, transparent)) !important;
-  padding: var(--vlaina-space-05em) 0 !important;
+  border-radius: var(--vlaina-editor-inline-background-radius, var(--vlaina-radius-0)) !important;
+  box-shadow: var(--vlaina-editor-inline-background-shadow, none) !important;
+  padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0)) !important;
 }
 
 .milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="text"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay :is(mark[data-bg-color], span[data-bg-color]) {
@@ -130,13 +128,11 @@
 
 .milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"] .editor-text-selection-overlay {
   background-color: var(--vlaina-toolbar-preview-bg-color, transparent) !important;
-  border-radius: var(--vlaina-radius-0125rem) !important;
-  box-shadow:
-    var(--vlaina-space-015em) 0 0 var(--vlaina-toolbar-preview-bg-color, transparent),
-    calc(var(--vlaina-space-015em) * -1) 0 0 var(--vlaina-toolbar-preview-bg-color, transparent) !important;
+  border-radius: var(--vlaina-editor-inline-background-radius, var(--vlaina-radius-0)) !important;
+  box-shadow: var(--vlaina-editor-inline-background-shadow, none) !important;
   color: inherit !important;
   -webkit-text-fill-color: currentColor !important;
-  padding: var(--vlaina-space-05em) 0 !important;
+  padding: var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0)) !important;
 }
 
 .milkdown .ProseMirror.toolbar-selection-hidden-preview[data-toolbar-color-preview="bg"][data-toolbar-color-preview-removes-counterpart="true"] .editor-text-selection-overlay,

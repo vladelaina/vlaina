@@ -20,6 +20,7 @@ interface MessageItemProps {
   isLastMessage?: boolean;
   suspendStreamAnimation?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
+  onFork?: (id: string) => void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (id: string, targetIndex: number) => void;
@@ -34,6 +35,7 @@ function MessageItemInner({
   isLastMessage = true,
   suspendStreamAnimation,
   onCopy,
+  onFork,
   onRegenerate,
   onEdit,
   onSwitchVersion
@@ -72,6 +74,7 @@ function MessageItemInner({
                   isLastMessage={isLastMessage}
                   suspendStreamAnimation={suspendStreamAnimation}
                   onCopy={onCopy}
+                  onFork={onFork ? () => onFork(msg.id) : undefined}
                   onRegenerate={() => onRegenerate(msg.id)}
                   onSwitchVersion={(idx) => onSwitchVersion(msg.id, idx)}
               />
@@ -108,6 +111,7 @@ function areMessageItemPropsEqual(prevProps: MessageItemProps, nextProps: Messag
     prevProps.isLastMessage === nextProps.isLastMessage &&
     prevProps.suspendStreamAnimation === nextProps.suspendStreamAnimation &&
     prevProps.onCopy === nextProps.onCopy &&
+    prevProps.onFork === nextProps.onFork &&
     prevProps.onRegenerate === nextProps.onRegenerate
   );
 }

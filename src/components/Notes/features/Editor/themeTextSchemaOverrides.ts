@@ -33,6 +33,8 @@ const PLAIN_UNCLOSED_HTML_BLOCK_START_PATTERN =
     /^(?: {0,3})<(div|blockquote|details|figure|section|article|aside|table|tbody|thead|tfoot|tr|td|th|ul|ol|li|dl|dt|dd|p|pre)>\n/i;
 const RAW_MARKDOWN_HTML_COMMENT_PATTERN = /^<!--(?:(?!-->)[\s\S])*-->$/;
 const RAW_MARKDOWN_ALIGNMENT_COMMENT_PATTERN = /^<!--\s*align\s*:\s*(?:left|center|right)\s*-->$/i;
+const MARKDOWN_HTML_INLINE_CLASS = 'md-html-inline';
+const MARKDOWN_HTML_SOURCE_TEXT_CLASS = 'md-html-source-text';
 
 function getHeadingCompatibilityClass(level: unknown): string {
     const normalizedLevel = typeof level === 'number' && level >= 1 && level <= 6 ? level : 1;
@@ -93,12 +95,19 @@ export function shouldRenderRawMarkdownHtmlValueAsLiteralText(value: unknown): v
 export function renderRawMarkdownHtmlValueIntoElement(element: HTMLElement, value: string) {
     const renderAsLiteralText = shouldRenderRawMarkdownHtmlValueAsLiteralText(value);
     element.classList.toggle('md-htmlblock-literal-text', renderAsLiteralText);
+    element.classList.toggle(MARKDOWN_HTML_SOURCE_TEXT_CLASS, renderAsLiteralText);
     element.dataset.value = value;
     if (renderAsLiteralText) {
         element.textContent = value;
     } else {
         element.innerHTML = value;
     }
+}
+
+function isLiteralInlineMarkdownHtmlElement(element: HTMLElement, value: string): boolean {
+    return element.childNodes.length === 1
+        && element.firstChild?.nodeType === Node.TEXT_NODE
+        && element.textContent === value;
 }
 
 export function applyTextSchemaOverrides(ctx: Ctx) {
@@ -228,13 +237,21 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         ...prev,
         toDOM: (node: any) => {
             const safeValue = sanitizeRawMarkdownHtmlValue(node.attrs?.value);
-            return prev.toDOM({
+            const dom = prev.toDOM({
                 ...node,
                 attrs: {
                     ...node.attrs,
                     value: safeValue,
                 },
             });
+            if (dom instanceof HTMLElement) {
+                dom.classList.add(MARKDOWN_HTML_INLINE_CLASS);
+                dom.classList.toggle(
+                    MARKDOWN_HTML_SOURCE_TEXT_CLASS,
+                    isLiteralInlineMarkdownHtmlElement(dom, safeValue),
+                );
+            }
+            return dom;
         },
         parseMarkdown: {
             match: (node: any) => prev.parseMarkdown?.match?.(node) ?? node.type === 'html',

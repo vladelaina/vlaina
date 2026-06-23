@@ -47,6 +47,7 @@ interface AIMessageProps {
   isLastMessage?: boolean;
   suspendStreamAnimation?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
+  onFork?: () => void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }
@@ -58,6 +59,7 @@ export function AIMessage({
   isLoading,
   suspendStreamAnimation = false,
   onCopy,
+  onFork,
   onRegenerate,
   onSwitchVersion
 }: AIMessageProps) {
@@ -169,6 +171,7 @@ export function AIMessage({
                 showCopyAction={!isManagedAuthErrorMessage}
                 showVersionNavigation={!isManagedAuthErrorMessage}
                 onCopy={onCopy}
+                onFork={isManagedAuthErrorMessage ? undefined : onFork}
                 onRegenerate={onRegenerate}
                 onSwitchVersion={onSwitchVersion}
             />

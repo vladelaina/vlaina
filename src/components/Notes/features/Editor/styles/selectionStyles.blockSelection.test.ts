@@ -139,6 +139,27 @@ describe("editor block selection styles", () => {
     expect(largeRule).toContain('background: var(--vlaina-editor-block-selection-fg) !important;');
   });
 
+  it('tints footnote definition rails and labels with the selected block foreground', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('.milkdown .footnote-def:is(');
+    expect(css).toContain('.milkdown .footnote-def:has(:is(');
+    expect(css).toContain('.milkdown :is(');
+    expect(css).toContain('.ProseMirror-selectednode');
+    expect(css).toContain('.editor-native-selected-textlike');
+    expect(css).toContain(') .footnote-def {');
+    expect(css).toContain('position: relative;');
+    expect(css).toContain('border-left-color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('--vlaina-block-selection-fill-top: 0px !important;');
+    expect(css).toContain('--vlaina-block-selection-fill-bottom: 0px !important;');
+    expect(css).toContain(') .footnote-def::before,');
+    expect(css).toContain('border-left: var(--vlaina-size-3px) solid var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('border-radius: inherit !important;');
+    expect(css).toContain(') .footnote-def-label,');
+    expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+  });
+
   it('keeps selected text block backgrounds separated by the shared vertical gap token', () => {
     const css = readBlockSelectionStyle();
     const extendedCss = readStyleFile('extended.css');
@@ -203,9 +224,9 @@ describe("editor block selection styles", () => {
     expect(textBlockFillRule).toContain('z-index: var(--vlaina-z-behind);');
     expect(textBlockFillRule).toContain('background: var(--vlaina-block-selection-color);');
     expect(adjacentBottomRule).toContain('.editor-block-selected-has-next');
-    expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
+    expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);');
     expect(adjacentTopRule).toContain('.editor-block-selected-has-previous');
-    expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
+    expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);');
     expect(extendedCss).toContain('.milkdown .ProseMirror .callout:is(.editor-block-selected-textlike, .editor-block-selected, .ProseMirror-selectednode) {');
     expect(extractCssRule(
       extendedCss,

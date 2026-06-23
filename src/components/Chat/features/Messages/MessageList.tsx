@@ -68,6 +68,7 @@ interface MessageListProps {
   spacerHeight: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
+  onFork?: (id: string) => void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (msgId: string, idx: number) => void;
@@ -102,6 +103,7 @@ export const MessageList = memo(function MessageList({
   spacerHeight,
   containerRef,
   onCopy,
+  onFork,
   onRegenerate,
   onEdit,
   onSwitchVersion
@@ -622,6 +624,7 @@ export const MessageList = memo(function MessageList({
                     frame.index === renderedMessages.length - 1
                   }
                   onCopy={onCopy}
+                  onFork={onFork}
                   onRegenerate={onRegenerate}
                   onEdit={onEdit}
                   onSwitchVersion={onSwitchVersion}

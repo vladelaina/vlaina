@@ -3,6 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverlayScrollArea } from './overlay-scroll-area';
 
 class ResizeObserverMock {
+  static instances: ResizeObserverMock[] = [];
+  callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    ResizeObserverMock.instances.push(this);
+  }
+
   observe() {}
   disconnect() {}
 }
@@ -30,10 +38,12 @@ describe('OverlayScrollArea', () => {
   const originalResizeObserver = globalThis.ResizeObserver;
 
   beforeEach(() => {
+    ResizeObserverMock.instances = [];
     globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     globalThis.ResizeObserver = originalResizeObserver;
     document.body.className = '';
   });
@@ -186,5 +196,30 @@ describe('OverlayScrollArea', () => {
     expect(thumb?.className).toContain('w-2');
     expect(thumb?.className).toContain('right-[var(--vlaina-scrollbar-thumb-offset)]');
     expect(thumb?.className).toContain('bg-[var(--vlaina-color-scrollbar-thumb-hover)]');
+  });
+
+  it('coalesces resize observer metric updates into one animation frame', () => {
+    const frameCallbacks: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        frameCallbacks.push(callback);
+        return frameCallbacks.length;
+      });
+
+    render(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea>
+          <div style={{ height: 480 }}>content</div>
+        </OverlayScrollArea>
+      </div>
+    );
+
+    requestAnimationFrameSpy.mockClear();
+    const observer = ResizeObserverMock.instances[0];
+    observer.callback([], observer as unknown as ResizeObserver);
+    observer.callback([], observer as unknown as ResizeObserver);
+
+    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
   });
 });

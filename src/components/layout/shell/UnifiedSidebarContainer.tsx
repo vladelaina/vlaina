@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { cn } from '@/lib/utils';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { RESIZE_HANDLE_HALF_WIDTH } from './ResizeDividerVisual';
@@ -11,6 +11,7 @@ interface UnifiedSidebarContainerProps {
   onWidthChange: (width: number) => void;
   onLiveWidthChange?: (width: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
+  widthScopeRef?: Ref<HTMLDivElement>;
   backgroundColor?: string;
 }
 
@@ -21,6 +22,7 @@ export function UnifiedSidebarContainer({
   onWidthChange,
   onLiveWidthChange,
   onDragStateChange,
+  widthScopeRef,
   backgroundColor = 'transparent',
 }: UnifiedSidebarContainerProps) {
   const { isDragging, handleDragStart } = useShellSidebarResize({
@@ -31,7 +33,11 @@ export function UnifiedSidebarContainer({
   });
 
   return (
-    <>
+    <div
+      ref={widthScopeRef}
+      data-shell-sidebar-width-scope="true"
+      style={{ display: 'contents' }}
+    >
       <aside
         className={cn(
           'flex-shrink-0 flex min-h-0 flex-col overflow-hidden select-none relative z-[var(--vlaina-z-20)] app-scrollbar',
@@ -58,6 +64,6 @@ export function UnifiedSidebarContainer({
           />
         </>
       )}
-    </>
+    </div>
   );
 }

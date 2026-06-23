@@ -79,7 +79,12 @@ vi.mock('@/stores/useAIStore', () => ({
 }));
 
 vi.mock('@/lib/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
+  useI18n: () => ({
+    t: (key: string, values?: Record<string, unknown>) => {
+      if (!values) return key;
+      return `${key}:${Object.entries(values).map(([name, value]) => `${name}=${String(value)}`).join(',')}`;
+    },
+  }),
 }));
 
 vi.mock('@/lib/ui/composerFocusRegistry', () => ({
@@ -90,13 +95,21 @@ vi.mock('@/components/common/ConfirmDialog', () => ({
   ConfirmDialog: ({
     isOpen,
     onConfirm,
+    title,
+    description,
   }: {
     isOpen: boolean;
     onConfirm: () => void | Promise<void>;
+    title?: string;
+    description?: string;
   }) => isOpen ? (
-    <button type="button" data-testid="confirm-dialog" onClick={() => void onConfirm()}>
-      confirm
-    </button>
+    <div data-testid="confirm-dialog">
+      <span data-testid="confirm-title">{title}</span>
+      <span data-testid="confirm-description">{description}</span>
+      <button type="button" onClick={() => void onConfirm()}>
+        confirm
+      </button>
+    </div>
   ) : null,
 }));
 
@@ -293,7 +306,8 @@ describe('ChatSidebar', () => {
     render(<ChatSidebar active />);
 
     fireEvent.click(screen.getByText('delete Alpha'));
-    fireEvent.click(screen.getByTestId('confirm-dialog'));
+    expect(screen.getByTestId('confirm-description')).toHaveTextContent('itemLabel=Alpha');
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
 
     await waitFor(() => {
       expect(hoisted.deleteSession).toHaveBeenCalledWith('s1');
@@ -310,7 +324,7 @@ describe('ChatSidebar', () => {
     render(<ChatSidebar active />);
 
     fireEvent.click(screen.getByText('delete Alpha'));
-    fireEvent.click(screen.getByTestId('confirm-dialog'));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
 
     await waitFor(() => {
       expect(hoisted.deleteSession).toHaveBeenCalledWith('s1');

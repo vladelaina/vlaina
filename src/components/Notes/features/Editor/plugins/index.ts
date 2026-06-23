@@ -15,6 +15,7 @@ export { calloutPlugin } from './callout';
 export { tocPlugin } from './toc';
 export { mermaidPlugin, mermaidEditorPlugin } from './mermaid';
 export { videoPlugin } from './video';
+export { htmlInlineSourceTextPlugin } from './html-inline';
 export { footnotePlugin } from './footnote';
 export { imageBlockPlugin } from './image-block';
 export { frontmatterPlugin } from './frontmatter';
