@@ -488,18 +488,15 @@ describe('previewStyles', () => {
     expect(textMark.style.cssText).toBe(originalTextMarkStyle);
   });
 
-  it('reuses existing background mark spacing during lightweight background previews', () => {
+  it('uses shared background mark geometry during lightweight background previews', () => {
     const view = createOversizedPreviewView();
     const bgMark = document.createElement('mark');
     const overlay = document.createElement('span');
     bgMark.dataset.bgColor = '#fde68a';
     bgMark.style.setProperty('--vlaina-bg-color-mark-bg', '#fde68a');
     bgMark.style.setProperty('background-color', 'var(--vlaina-bg-color-mark-bg)', 'important');
-    bgMark.style.setProperty('padding', 'var(--vlaina-space-05em) 0');
-    bgMark.style.setProperty(
-      'box-shadow',
-      'var(--vlaina-space-015em) 0 0 var(--vlaina-bg-color-mark-bg), calc(var(--vlaina-space-015em) * -1) 0 0 var(--vlaina-bg-color-mark-bg)'
-    );
+    bgMark.style.setProperty('padding', 'var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0))');
+    bgMark.style.setProperty('box-shadow', 'var(--vlaina-editor-inline-background-shadow, none)');
     overlay.className = 'editor-text-selection-overlay';
     overlay.textContent = 'target';
     bgMark.append(overlay);
@@ -513,11 +510,11 @@ describe('previewStyles', () => {
     expect(view.dom.hasAttribute('data-toolbar-color-preview-removes-counterpart')).toBe(false);
     expect(overlay.style.getPropertyValue('background-color')).toBe('transparent');
     expect(overlay.style.getPropertyValue('box-shadow')).toBe('none');
-    expect(overlay.style.getPropertyValue('padding')).toBe('0px');
+    expect(overlay.style.getPropertyValue('padding')).toBe('var(--vlaina-editor-inline-background-padding, var(--vlaina-space-0))');
     expect(bgMark.style.getPropertyValue('--vlaina-bg-color-mark-bg')).toBe('#fca9bd');
     expect(bgMark.style.getPropertyValue('background-color')).toBe('var(--vlaina-bg-color-mark-bg)');
-    expect(bgMark.style.getPropertyValue('padding')).toContain('var(--vlaina-space-05em) 0');
-    expect(bgMark.style.getPropertyValue('box-shadow')).toContain('var(--vlaina-bg-color-mark-bg)');
+    expect(bgMark.style.getPropertyValue('padding')).toContain('var(--vlaina-editor-inline-background-padding');
+    expect(bgMark.style.getPropertyValue('box-shadow')).toBe('var(--vlaina-editor-inline-background-shadow, none)');
 
     clearFormatPreview(view);
 
@@ -963,9 +960,9 @@ describe('previewStyles', () => {
     expect(overlay?.classList.contains('toolbar-selection-hidden-preview')).toBe(true);
     const bgPreviewMark = overlay?.querySelector<HTMLElement>('[style*="#fde68a"], [style*="253, 230, 138"]');
     expect(bgPreviewMark).toBeInstanceOf(HTMLElement);
-    expect(bgPreviewMark?.style.cssText).toContain('padding: var(--vlaina-space-05em) 0');
     expect(bgPreviewMark?.style.cssText).toContain('--vlaina-bg-color-mark-bg: #fde68a');
-    expect(bgPreviewMark?.style.cssText).toContain('box-shadow: var(--vlaina-space-015em) 0 0 var(--vlaina-bg-color-mark-bg)');
+    expect(bgPreviewMark?.style.cssText).not.toContain('padding: var(--vlaina-space-05em) 0');
+    expect(bgPreviewMark?.style.cssText).not.toContain('box-shadow: var(--vlaina-space-015em)');
     expect(view.state.doc).toBe(originalDoc);
 
     clearFormatPreview(view);
@@ -1147,9 +1144,9 @@ describe('previewStyles', () => {
 
     const bgMark = view.dom.querySelector<HTMLElement>('[style*="#fde68a"], [style*="253, 230, 138"]');
     expect(bgMark).toBeInstanceOf(HTMLElement);
-    expect(bgMark?.style.cssText).toContain('padding: var(--vlaina-space-05em) 0');
     expect(bgMark?.style.cssText).toContain('--vlaina-bg-color-mark-bg: #fde68a');
-    expect(bgMark?.style.cssText).toContain('box-shadow: var(--vlaina-space-015em) 0 0 var(--vlaina-bg-color-mark-bg)');
+    expect(bgMark?.style.cssText).not.toContain('padding: var(--vlaina-space-05em) 0');
+    expect(bgMark?.style.cssText).not.toContain('box-shadow: var(--vlaina-space-015em)');
 
     clearFormatPreview(view);
     await editor.destroy();

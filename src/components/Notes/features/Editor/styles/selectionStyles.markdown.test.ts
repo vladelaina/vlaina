@@ -136,6 +136,30 @@ describe("editor markdown presentation styles", () => {
     expect(notesCss).toContain('transition: none;');
   });
 
+  it('keeps inline background geometry low-specificity so inline code can set its fill', () => {
+    const notesCss = readStyleFile('markdown.css');
+    const compatibilityCss = readStyleFile('theme-compatibility/base.css');
+    const rootRule = extractCssRule(notesCss, '.milkdown .ProseMirror {');
+    const sharedRule = extractCssRule(notesCss, '.milkdown .ProseMirror :where(');
+    const codeRule = extractCssRule(notesCss, '.milkdown .ProseMirror code:not(pre code) {');
+    const compatibilityRule = extractCssRule(
+      compatibilityCss,
+      ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :where("
+    );
+
+    expect(sharedRule).toContain('code:not(pre code),');
+    expect(sharedRule).toContain('mark.highlight,');
+    expect(sharedRule).toContain('mark[data-bg-color],');
+    expect(rootRule).toContain('--vlaina-editor-inline-background-fill: transparent;');
+    expect(rootRule).toContain('--vlaina-editor-inline-background-padding: var(--vlaina-space-0);');
+    expect(sharedRule).toContain('background-color: var(--vlaina-editor-inline-background-fill);');
+    expect(sharedRule).not.toContain('--vlaina-editor-inline-background-fill: transparent;');
+    expect(sharedRule).not.toContain(':is(');
+    expect(codeRule).toContain('--vlaina-editor-inline-background-fill: var(--vlaina-color-editor-inline-code-bg);');
+    expect(compatibilityRule).toContain('code:not(pre code),');
+    expect(compatibilityRule).not.toContain(':is(');
+  });
+
   it('renders footnote references as smaller inline-code chips with a capsule hover value', () => {
     const css = readStyleFile('extended.css');
 
