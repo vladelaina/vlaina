@@ -143,7 +143,7 @@ describe("editor block selection styles", () => {
     const css = readStyleFile('extended.css');
 
     expect(css).toContain('.milkdown .footnote-def:is(');
-    expect(css).toContain('.milkdown .footnote-def:has(:is(');
+    expect(css).not.toContain('.milkdown .footnote-def:has(:is(');
     expect(css).toContain('.milkdown :is(');
     expect(css).toContain('.ProseMirror-selectednode');
     expect(css).toContain('.editor-native-selected-textlike');
@@ -152,7 +152,7 @@ describe("editor block selection styles", () => {
     expect(css).toContain('border-left-color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(css).toContain('--vlaina-block-selection-fill-top: 0px !important;');
     expect(css).toContain('--vlaina-block-selection-fill-bottom: 0px !important;');
-    expect(css).toContain(') .footnote-def::before,');
+    expect(css).toContain(') .footnote-def::before {');
     expect(css).toContain('border-left: var(--vlaina-size-3px) solid var(--vlaina-editor-block-selection-fg) !important;');
     expect(css).toContain('border-radius: inherit !important;');
     expect(css).toContain(') .footnote-def-label,');

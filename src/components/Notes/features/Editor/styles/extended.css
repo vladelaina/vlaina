@@ -194,16 +194,6 @@
   border-left-color: var(--vlaina-editor-block-selection-fg) !important;
 }
 
-.milkdown .footnote-def:has(:is(
-  .editor-block-selected,
-  .editor-block-drag-source,
-  .ProseMirror-selectednode,
-  .editor-native-selected-textlike
-)) {
-  position: relative;
-  border-left-color: var(--vlaina-editor-block-selection-fg) !important;
-}
-
 .milkdown .footnote-def:is(
   .editor-block-selected,
   .editor-block-drag-source,
@@ -215,13 +205,7 @@
   .editor-block-drag-source,
   .ProseMirror-selectednode,
   .editor-native-selected-textlike
-) .footnote-def,
-.milkdown .footnote-def:has(:is(
-  .editor-block-selected,
-  .editor-block-drag-source,
-  .ProseMirror-selectednode,
-  .editor-native-selected-textlike
-)) {
+) .footnote-def {
   --vlaina-block-selection-fill-top: 0px !important;
   --vlaina-block-selection-fill-bottom: 0px !important;
 }
@@ -237,13 +221,7 @@
   .editor-block-drag-source,
   .ProseMirror-selectednode,
   .editor-native-selected-textlike
-) .footnote-def::before,
-.milkdown .footnote-def:has(:is(
-  .editor-block-selected,
-  .editor-block-drag-source,
-  .ProseMirror-selectednode,
-  .editor-native-selected-textlike
-))::before {
+) .footnote-def::before {
   content: '' !important;
   position: absolute !important;
   inset: 0 !important;
@@ -268,16 +246,6 @@
   .ProseMirror-selectednode,
   .editor-native-selected-textlike
 ) .footnote-def-label {
-  color: var(--vlaina-editor-block-selection-fg) !important;
-  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
-}
-
-.milkdown .footnote-def:has(:is(
-  .editor-block-selected,
-  .editor-block-drag-source,
-  .ProseMirror-selectednode,
-  .editor-native-selected-textlike
-)) > .footnote-def-label {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
