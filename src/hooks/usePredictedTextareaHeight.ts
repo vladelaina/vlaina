@@ -40,7 +40,11 @@ export function usePredictedTextareaHeight(
     metrics: ElementTextLayoutMetrics;
   } | null>(null);
   const lastAppliedRef = useRef<{
+    clampedToMax: boolean;
     height: string;
+    maxHeight: number;
+    minHeight: number;
+    value: string;
     width: number;
   } | null>(null);
   const retryFrameRef = useRef<number | null>(null);
@@ -143,6 +147,25 @@ export function usePredictedTextareaHeight(
 
       clearPendingRetry();
       try {
+        const lastApplied = lastAppliedRef.current;
+        if (
+          lastApplied?.clampedToMax &&
+          lastApplied.width === width &&
+          lastApplied.maxHeight === nextMaxHeight &&
+          lastApplied.minHeight === nextMinHeight &&
+          nextValue.length > lastApplied.value.length &&
+          nextValue.startsWith(lastApplied.value)
+        ) {
+          if (current.style.height !== lastApplied.height) {
+            current.style.height = lastApplied.height;
+          }
+          lastAppliedRef.current = {
+            ...lastApplied,
+            value: nextValue,
+          };
+          return;
+        }
+
         let metrics = metricsRef.current?.element === current
           ? metricsRef.current.metrics
           : null;
@@ -161,13 +184,22 @@ export function usePredictedTextareaHeight(
           current.style.height = nextStyleHeight;
         }
         lastAppliedRef.current = {
+          clampedToMax: nextHeight + metrics.paddingBlock >= nextMaxHeight,
           height: nextStyleHeight,
+          maxHeight: nextMaxHeight,
+          minHeight: nextMinHeight,
+          value: nextValue,
           width,
         };
       } catch {
         applyFallbackHeight(current, nextMinHeight, nextMaxHeight);
+        const fallbackHeight = Number.parseFloat(current.style.height);
         lastAppliedRef.current = {
+          clampedToMax: Number.isFinite(fallbackHeight) && fallbackHeight >= nextMaxHeight,
           height: current.style.height,
+          maxHeight: nextMaxHeight,
+          minHeight: nextMinHeight,
+          value: nextValue,
           width,
         };
       }

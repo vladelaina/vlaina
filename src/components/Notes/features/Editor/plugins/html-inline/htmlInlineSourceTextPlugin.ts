@@ -8,11 +8,15 @@ import {
   STOP_PROSE_SCAN,
   scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
-import { getTransactionChangedRanges } from '../shared/transactionStepText';
+import {
+  getTransactionChangedRanges,
+  transactionTouchesDecorations,
+} from '../shared/transactionStepText';
 
 export const htmlInlineSourceTextPluginKey = new PluginKey<DecorationSet>('htmlInlineSourceText');
 export const MAX_HTML_INLINE_SOURCE_TEXT_DECORATIONS = 2000;
 export const MAX_HTML_INLINE_SOURCE_TEXT_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_HTML_INLINE_SOURCE_TEXT_UPDATE_RANGE_SCAN_NODES = MAX_HTML_INLINE_SOURCE_TEXT_SCAN_NODES;
 export const MAX_HTML_INLINE_SOURCE_TEXT_CHARS = 1024 * 1024;
 export const MAX_HTML_INLINE_SOURCE_TEXT_CHANGED_CONTEXT_CHARS = 512;
 
@@ -106,6 +110,167 @@ function createHtmlInlineSourceTextDecorations(doc: ProseNode): DecorationSet {
   return decorations.length > 0 ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
 }
 
+type HtmlInlineSourceTextUpdateRange = {
+  from: number;
+  to: number;
+};
+
+function addTextblockRangeAt(doc: ProseNode, pos: number, ranges: HtmlInlineSourceTextUpdateRange[]): void {
+  if (typeof doc.resolve !== 'function') return;
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  const safePos = Math.max(0, Math.min(pos, docSize));
+
+  try {
+    const $pos = doc.resolve(safePos);
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+      const node = $pos.node(depth);
+      if (!node?.isTextblock) continue;
+      ranges.push({
+        from: $pos.start(depth),
+        to: $pos.end(depth),
+      });
+      return;
+    }
+  } catch {
+  }
+}
+
+function mergeHtmlInlineSourceTextUpdateRanges(
+  ranges: HtmlInlineSourceTextUpdateRange[],
+): HtmlInlineSourceTextUpdateRange[] {
+  if (ranges.length <= 1) return ranges;
+
+  const sorted = [...ranges]
+    .filter((range) => Number.isFinite(range.from) && Number.isFinite(range.to) && range.to > range.from)
+    .sort((a, b) => a.from - b.from || a.to - b.to);
+  const merged: HtmlInlineSourceTextUpdateRange[] = [];
+
+  for (const range of sorted) {
+    const previous = merged[merged.length - 1];
+    if (!previous || range.from > previous.to + 1) {
+      merged.push({ ...range });
+      continue;
+    }
+    previous.to = Math.max(previous.to, range.to);
+  }
+
+  return merged;
+}
+
+export function collectHtmlInlineSourceTextUpdateRanges(
+  doc: ProseNode,
+  tr: unknown,
+  maxScanNodes = MAX_HTML_INLINE_SOURCE_TEXT_UPDATE_RANGE_SCAN_NODES,
+): HtmlInlineSourceTextUpdateRange[] {
+  const ranges: HtmlInlineSourceTextUpdateRange[] = [];
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  let scannedNodes = 0;
+
+  for (const range of getTransactionChangedRanges(tr)) {
+    const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
+    const to = Math.max(from, Math.min(Math.max(range.newFrom, range.newTo), docSize));
+
+    addTextblockRangeAt(doc, from, ranges);
+    addTextblockRangeAt(doc, to, ranges);
+
+    if (to > from && typeof doc.nodesBetween === 'function') {
+      let exhausted = false;
+      doc.nodesBetween(from, to, (node: ProseNode, pos: number) => {
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) {
+          exhausted = true;
+          return false;
+        }
+        if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
+        ranges.push({
+          from: pos + 1,
+          to: Math.max(pos + 1, pos + node.nodeSize - 1),
+        });
+        return true;
+      });
+      if (exhausted) {
+        return [{ from: 0, to: docSize }];
+      }
+    }
+  }
+
+  return mergeHtmlInlineSourceTextUpdateRanges(ranges);
+}
+
+export function collectHtmlInlineSourceTextDecorationsInRange(
+  doc: ProseNode,
+  from: number,
+  to: number,
+  maxDecorations = MAX_HTML_INLINE_SOURCE_TEXT_DECORATIONS,
+  maxScanNodes = MAX_HTML_INLINE_SOURCE_TEXT_UPDATE_RANGE_SCAN_NODES,
+): ProseDecoration[] {
+  const decorations: ProseDecoration[] = [];
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  const start = Math.max(0, Math.min(from, docSize));
+  const end = Math.max(start, Math.min(to, docSize));
+  if (start >= end || typeof doc.nodesBetween !== 'function') {
+    return decorations;
+  }
+
+  let scannedNodes = 0;
+  doc.nodesBetween(start, end, (node: ProseNode, pos: number, parent: ProseNode | null) => {
+    scannedNodes += 1;
+    if (scannedNodes > maxScanNodes) return false;
+    if (decorations.length >= maxDecorations) return false;
+    if (!node.isText) return true;
+    collectHtmlInlineSourceTextDecorationsFromTextNode(
+      node,
+      pos,
+      parent,
+      decorations,
+      maxDecorations,
+    );
+    return decorations.length < maxDecorations;
+  });
+
+  return decorations;
+}
+
+export function updateHtmlInlineSourceTextDecorationsForTransaction(
+  previous: DecorationSet,
+  tr: unknown,
+  doc: ProseNode,
+): DecorationSet {
+  const mapped = previous.map((tr as { mapping: any }).mapping, doc);
+  const ranges = collectHtmlInlineSourceTextUpdateRanges(doc, tr);
+  if (ranges.length === 0) {
+    return mapped;
+  }
+
+  const decorationsToRemove: ProseDecoration[] = [];
+  for (const range of ranges) {
+    decorationsToRemove.push(...mapped.find(range.from, range.to) as ProseDecoration[]);
+  }
+
+  let next = decorationsToRemove.length > 0
+    ? mapped.remove(decorationsToRemove)
+    : mapped;
+  let remainingBudget = MAX_HTML_INLINE_SOURCE_TEXT_DECORATIONS - next.find().length;
+  if (remainingBudget <= 0) {
+    return next;
+  }
+
+  for (const range of ranges) {
+    if (remainingBudget <= 0) break;
+    const decorations = collectHtmlInlineSourceTextDecorationsInRange(
+      doc,
+      range.from,
+      range.to,
+      remainingBudget,
+    );
+    if (decorations.length === 0) continue;
+    next = next.add(doc, decorations);
+    remainingBudget -= decorations.length;
+  }
+
+  return next;
+}
+
 export const htmlInlineSourceTextPlugin = $prose(() => new Plugin({
   key: htmlInlineSourceTextPluginKey,
   state: {
@@ -117,12 +282,12 @@ export const htmlInlineSourceTextPlugin = $prose(() => new Plugin({
         return old;
       }
       if (
-        old.find().length === 0
+        !transactionTouchesDecorations(old, tr)
         && !transactionChangedContextMayContainHtmlInlineSourceText(tr.doc, tr)
       ) {
         return old.map(tr.mapping, tr.doc);
       }
-      return createHtmlInlineSourceTextDecorations(tr.doc);
+      return updateHtmlInlineSourceTextDecorationsForTransaction(old, tr, tr.doc);
     },
   },
   props: {
