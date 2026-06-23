@@ -1,0 +1,208 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  Editor,
+  defaultValueCtx,
+  editorViewCtx,
+  serializerCtx,
+} from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import {
+  backslashHardBreakTextPlugins,
+  findBackslashHardBreakArrowLeftTarget,
+  findBackslashHardBreakBlankClickTarget,
+  transformBackslashHardBreaksToText,
+} from './backslashHardBreakTextPlugin';
+
+const editors: Array<ReturnType<typeof Editor.make>> = [];
+
+interface TestMdastNode {
+  children?: TestMdastNode[];
+  data?: Record<string, unknown>;
+  position?: {
+    start?: { offset?: number };
+    end?: { offset?: number };
+  };
+  type: string;
+  value?: string;
+}
+
+async function createEditor(markdown: string) {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark);
+
+  for (const plugin of backslashHardBreakTextPlugins) {
+    editor.use(plugin);
+  }
+
+  await editor.create();
+  editors.push(editor);
+  return editor;
+}
+
+afterEach(async () => {
+  while (editors.length > 0) {
+    const editor = editors.pop();
+    await editor?.destroy();
+  }
+  document.body.innerHTML = '';
+});
+
+describe('backslashHardBreakTextPlugin', () => {
+  it('turns the source hard-break backslash after a literal backslash into text', () => {
+    const tree: TestMdastNode = {
+      children: [{
+        children: [
+          { type: 'text', value: 'A\\' },
+          {
+            type: 'break',
+            position: {
+              start: { offset: 3 },
+              end: { offset: 5 },
+            },
+          },
+          { type: 'text', value: 'B' },
+        ],
+        type: 'paragraph',
+      }],
+      type: 'root',
+    };
+
+    transformBackslashHardBreaksToText(tree, { value: `A${'\\'.repeat(3)}\nB` });
+    const paragraphChildren = tree.children?.[0]?.children ?? [];
+
+    expect(paragraphChildren.map((node) => node.type)).toEqual([
+      'text',
+      'vlainaBackslashHardBreakSourceText',
+      'break',
+      'text',
+    ]);
+    expect(paragraphChildren[1]?.children?.[0]?.value).toBe('\\');
+    expect(paragraphChildren[2]?.data?.vlainaBackslashHardBreakText).toBe(true);
+  });
+
+  it('also exposes a single source backslash hard break as cursor-addressable text', () => {
+    const tree: TestMdastNode = {
+      children: [{
+        children: [
+          { type: 'text', value: 'A' },
+          {
+            type: 'break',
+            position: {
+              start: { offset: 1 },
+              end: { offset: 3 },
+            },
+          },
+          { type: 'text', value: 'B' },
+        ],
+        type: 'paragraph',
+      }],
+      type: 'root',
+    };
+
+    transformBackslashHardBreaksToText(tree, { value: 'A\\\nB' });
+    const paragraphChildren = tree.children?.[0]?.children ?? [];
+
+    expect(paragraphChildren.map((node) => node.type)).toEqual([
+      'text',
+      'vlainaBackslashHardBreakSourceText',
+      'break',
+      'text',
+    ]);
+  });
+
+  it('renders three source backslashes as two cursor-addressable text backslashes plus a hard break', async () => {
+    const source = `A${'\\'.repeat(3)}\nB`;
+    const editor = await createEditor(source);
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    const paragraph = view.state.doc.firstChild;
+
+    expect(view.dom.querySelector('p')?.textContent).toBe(`A${'\\'.repeat(2)}B`);
+    expect(paragraph?.child(0).isText).toBe(true);
+    expect(paragraph?.child(0).text).toBe('A\\');
+    expect(paragraph?.child(1).isText).toBe(true);
+    expect(paragraph?.child(1).text).toBe('\\');
+    expect(paragraph?.child(1).marks[0]?.type.name).toBe('backslash_hard_break_source_text');
+    expect(paragraph?.child(2).type.name).toBe('hardbreak');
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trimEnd()).toBe(source);
+  });
+
+  it('moves left from the hard break edge to the position between visible backslashes', async () => {
+    const source = `。${'\\'.repeat(3)}\n下一行`;
+    const editor = await createEditor(source);
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    const paragraph = view.state.doc.firstChild;
+    const hardBreakEnd = 1
+      + (paragraph?.child(0).nodeSize ?? 0)
+      + (paragraph?.child(1).nodeSize ?? 0)
+      + (paragraph?.child(2).nodeSize ?? 0);
+    const betweenBackslashes = 1 + (paragraph?.child(0).nodeSize ?? 0);
+
+    expect(paragraph?.child(0).text).toBe('。\\');
+    expect(paragraph?.child(1).text).toBe('\\');
+    expect(findBackslashHardBreakArrowLeftTarget(view.state.doc, hardBreakEnd)).toBe(betweenBackslashes);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, hardBreakEnd)));
+    const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+    let handled = false;
+    view.someProp('handleKeyDown', (handler: (view: EditorView, event: KeyboardEvent) => boolean) => {
+      handled = handler(view, event) || handled;
+    });
+
+    expect(handled).toBe(true);
+    expect(view.state.selection.from).toBe(betweenBackslashes);
+  });
+
+  it('does not override ArrowLeft once the cursor is between visible backslashes', async () => {
+    const source = `。${'\\'.repeat(3)}\n下一行`;
+    const editor = await createEditor(source);
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    const paragraph = view.state.doc.firstChild;
+    const betweenBackslashes = 1 + (paragraph?.child(0).nodeSize ?? 0);
+
+    expect(findBackslashHardBreakArrowLeftTarget(view.state.doc, betweenBackslashes)).toBeNull();
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betweenBackslashes)));
+    const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+    let handled = false;
+    view.someProp('handleKeyDown', (handler: (view: EditorView, event: KeyboardEvent) => boolean) => {
+      handled = handler(view, event) || handled;
+    });
+
+    expect(handled).toBe(false);
+    expect(view.state.selection.from).toBe(betweenBackslashes);
+  });
+
+  it('maps a blank click after the visible hard-break backslash to the hard-break edge', async () => {
+    const source = `。${'\\'.repeat(3)}\n下一行`;
+    const editor = await createEditor(source);
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    const paragraph = view.state.doc.firstChild;
+    const hardBreakEdge = 1
+      + (paragraph?.child(0).nodeSize ?? 0)
+      + (paragraph?.child(1).nodeSize ?? 0);
+    const mockView = {
+      state: view.state,
+      coordsAtPos: () => ({
+        bottom: 24,
+        left: 40,
+        right: 40,
+        top: 8,
+      }),
+    } as unknown as EditorView;
+
+    const event = new MouseEvent('mousedown', {
+      button: 0,
+      clientX: 80,
+      clientY: 16,
+    });
+
+    expect(findBackslashHardBreakBlankClickTarget(mockView, event)).toBe(hardBreakEdge);
+  });
+});

@@ -29,6 +29,28 @@ export const NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES = new Set([
   'video',
 ]);
 
+const NON_NAVIGABLE_HTML_BLOCK_VALUES = new Set<unknown>([
+  '<!--vlaina-markdown-blank-line-->',
+  '<!--vlaina-markdown-tight-heading-->',
+]);
+
+export function isNavigableAtomicBlockNode(
+  node: { type?: { name?: string }; attrs?: { value?: unknown } } | null | undefined
+): boolean {
+  if (!node?.type?.name || !NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES.has(node.type.name)) {
+    return false;
+  }
+
+  if (
+    node.type.name === 'html_block' &&
+    NON_NAVIGABLE_HTML_BLOCK_VALUES.has(node.attrs?.value)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export const TEXT_ONLY_BLOCK_EDGE_NODE_NAMES = new Set([
   'html_block',
   'math_block',

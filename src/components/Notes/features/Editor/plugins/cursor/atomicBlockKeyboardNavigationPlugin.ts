@@ -16,8 +16,8 @@ import {
 } from '../shared/emptyParagraphNearBlockDeletion';
 import {
   LIST_CONTAINER_NODE_NAMES,
-  NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES,
   STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES,
+  isNavigableAtomicBlockNode,
 } from '../shared/blockNodeTypes';
 import {
   EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
@@ -52,9 +52,6 @@ export const atomicBlockKeyboardNavigationPluginKey =
 
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
 export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'editor-atomic-block-keyboard-selected';
-const NON_NAVIGABLE_HTML_BLOCK_VALUES = new Set<unknown>([
-  '<!--vlaina-markdown-tight-heading-->',
-]);
 const TEXT_CONTAINER_STRUCTURAL_BLOCK_NODE_NAMES = new Set([
   'blockquote',
   'callout',
@@ -72,19 +69,7 @@ function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
 }
 
 function isNavigableAtomicBlock(node: ProseNode | null | undefined): boolean {
-  if (!node || !NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES.has(node.type.name)) {
-    return false;
-  }
-
-  if (isMarkdownBlankLinePlaceholderNode(node)) {
-    return false;
-  }
-
-  if (node.type.name === 'html_block' && NON_NAVIGABLE_HTML_BLOCK_VALUES.has(node.attrs?.value)) {
-    return false;
-  }
-
-  return true;
+  return isNavigableAtomicBlockNode(node);
 }
 
 function isListContainerNode(node: ProseNode | null | undefined): node is ProseNode {

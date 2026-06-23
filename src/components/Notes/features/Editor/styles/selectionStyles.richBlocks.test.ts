@@ -358,6 +358,10 @@ describe("editor rich block selection styles", () => {
       blockSelectionCss,
       ".milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is("
     );
+    const keyboardAtomicSelectionRule = extractCssRule(
+      blockSelectionCss,
+      ".milkdown .ProseMirror.editor-atomic-block-keyboard-selected :is(\n  [data-type='math-block'].math-block-wrapper,"
+    );
 
     expect(indexCss.indexOf("@import './math-editor.css';")).toBeGreaterThanOrEqual(0);
     expect(indexCss.indexOf("@import './block-selection-atomic-rich.css';")).toBeGreaterThan(
@@ -411,6 +415,11 @@ describe("editor rich block selection styles", () => {
     expect(atomicHtmlForegroundRule).toContain(') * {');
     expect(atomicHtmlForegroundRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(atomicHtmlForegroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(keyboardAtomicSelectionRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text)");
+    expect(keyboardAtomicSelectionRule).toContain('.ProseMirror-selectednode');
+    expect(keyboardAtomicSelectionRule).toContain('background: var(--vlaina-math-hover-color) !important;');
+    expect(keyboardAtomicSelectionRule).toContain('box-shadow:');
+    expect(keyboardAtomicSelectionRule).toContain('var(--vlaina-math-hover-color) !important;');
 
     const selectedAtomicForegroundRule = extractCssRule(
       mathCss,
