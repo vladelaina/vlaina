@@ -205,4 +205,27 @@ describe("MessageToolbar", () => {
 
     expect(onRegenerate).toHaveBeenCalledTimes(1);
   });
+
+  it("renders the branch action after regenerate", () => {
+    const onFork = vi.fn();
+
+    render(
+      <MessageToolbar
+        msg={createMessage()}
+        isLoading={false}
+        onCopy={() => {}}
+        onFork={onFork}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    const actions = screen.getAllByRole("button").map((button) => button.dataset.chatMessageAction);
+    expect(actions).toEqual(["copy", "regenerate", "fork"]);
+    expect(screen.getByTestId("icon-chat.branch")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Branch conversation" }));
+
+    expect(onFork).toHaveBeenCalledTimes(1);
+  });
 });

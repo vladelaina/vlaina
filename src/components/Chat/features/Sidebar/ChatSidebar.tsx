@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -71,6 +71,10 @@ export const ChatSidebar = memo(function ChatSidebar({
 
   const sessions = isActive ? activeSessions : lastActiveSessionsRef.current;
   const currentSessionId = isActive ? activeCurrentSessionId : lastActiveCurrentSessionIdRef.current;
+  const deleteSession = useMemo(
+    () => deleteId ? sessions.find((session) => session.id === deleteId) ?? null : null,
+    [deleteId, sessions],
+  );
   const {
     inputRef: searchInputRef,
     scrollRootRef,
@@ -254,7 +258,11 @@ export const ChatSidebar = memo(function ChatSidebar({
           }
         }}
         title={t('sidebar.deleteChatTitle')}
-        description={t('sidebar.deleteChatDescription')}
+        description={
+          deleteSession
+            ? t('sidebar.deleteItemDescription', { itemLabel: deleteSession.title || t('sidebar.newChat') })
+            : t('sidebar.deleteChatDescription')
+        }
         confirmText={t('sidebar.deleteChat')}
         variant="danger"
       />

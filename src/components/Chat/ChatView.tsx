@@ -337,6 +337,13 @@ export function ChatView({
   const handleRegenerate = useCallback((messageId: string) => {
     regenerateRef.current(messageId);
   }, []);
+  const handleFork = useCallback((messageId: string) => {
+    const sessionId = currentSessionIdRef.current;
+    if (!sessionId) {
+      return;
+    }
+    aiActions.forkSessionFromMessage(sessionId, messageId);
+  }, []);
   const handleEdit = useCallback((messageId: string, newContent: string) => {
     editMessageRef.current(messageId, newContent);
   }, []);
@@ -556,6 +563,7 @@ export function ChatView({
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           onCopy={copyToClipboard}
+          onFork={handleFork}
           onRegenerate={handleRegenerate}
           onEdit={handleEdit}
           onSwitchVersion={handleSwitchVersion}
