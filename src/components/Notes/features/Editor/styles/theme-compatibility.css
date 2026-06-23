@@ -114,6 +114,38 @@
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
 }
 
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+  .editor-block-selected,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source,
+  .editor-block-drag-source-textlike
+) :is(code:not(pre code), .v-std-code, .cm-inline-code),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .editor-native-selected-textlike :is(code:not(pre code), .v-std-code, .cm-inline-code) {
+  --vlaina-inline-code-selected-border-shadow: inset 0 0 0 var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) var(--vlaina-color-white);
+  background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  background-color: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  outline: none !important;
+  box-shadow: var(--vlaina-inline-code-selected-border-shadow) !important;
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+  .editor-block-selected,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source,
+  .editor-block-drag-source-textlike
+) :is(mark.highlight, .highlight),
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .editor-native-selected-textlike :is(mark.highlight, .highlight) {
+  --vlaina-highlight-selected-border-shadow: inset 0 0 0 var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) var(--vlaina-color-white);
+  background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  background-color: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  outline: none !important;
+  box-shadow: var(--vlaina-highlight-selected-border-shadow) !important;
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],

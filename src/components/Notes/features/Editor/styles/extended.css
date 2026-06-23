@@ -18,6 +18,22 @@
   color: var(--vlaina-color-mark-highlight-fg);
 }
 
+.milkdown .ProseMirror:is(.editor-block-selection-active, .editor-block-selection-pending) :is(
+  .editor-block-selected,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source,
+  .editor-block-drag-source-textlike
+) :is(mark.highlight, .highlight),
+.milkdown .ProseMirror .editor-native-selected-textlike :is(mark.highlight, .highlight) {
+  --vlaina-highlight-selected-border-shadow: inset 0 0 0 var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) var(--vlaina-color-white);
+  background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  background-color: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  outline: none;
+  box-shadow: var(--vlaina-highlight-selected-border-shadow);
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
 /* Tags */
 .milkdown .editor-tag-token {
   display: inline;

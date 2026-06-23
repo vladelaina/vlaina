@@ -12,7 +12,6 @@ const LINE_FILL_CLASS = 'editor-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
 const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 72;
 const FALLBACK_BLOCK_SELECTION_BLEED_Y_PX = 2;
-const FALLBACK_BLOCK_SELECTION_GAP_Y_PX = 1;
 const LINE_FILL_VIEWPORT_OVERSCAN_PX = 600;
 export const MAX_BLOCK_SELECTION_LINE_FILL_RANGES = 512;
 const MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE = 128;
@@ -86,11 +85,7 @@ function resolveSelectedElementForBlockSelectionMetrics(element: HTMLElement): H
     : element.querySelector<HTMLElement>('.editor-block-selected') ?? element;
 }
 
-function resolveLineFillEdges(
-  element: HTMLElement,
-  hasPrevious: boolean,
-  hasNext: boolean,
-): LineFillEdges {
+function resolveLineFillEdges(element: HTMLElement): LineFillEdges {
   const selectedElement = resolveSelectedElementForBlockSelectionMetrics(element);
   const style = window.getComputedStyle(selectedElement);
   const bleedY = readCssPx(
@@ -98,15 +93,10 @@ function resolveLineFillEdges(
     '--vlaina-block-selection-bleed-y',
     FALLBACK_BLOCK_SELECTION_BLEED_Y_PX,
   );
-  const gapY = readCssPx(
-    style,
-    '--vlaina-block-selection-gap-y',
-    FALLBACK_BLOCK_SELECTION_GAP_Y_PX,
-  );
 
   return {
-    top: hasPrevious ? gapY : -bleedY,
-    bottom: hasNext ? gapY : -bleedY,
+    top: -bleedY,
+    bottom: -bleedY,
   };
 }
 
@@ -401,7 +391,7 @@ function appendSelectedImageBlockLineFills(
     const rowBottom = imageRect.height > 0 ? imageRect.bottom : anchorRect.bottom;
     const fillStart = anchorRect.left - resolveBlockSelectionBleedXStart(anchor);
     const fillRight = resolveLineFillRight(view, anchor, anchorRect);
-    const edges = resolveLineFillEdges(anchor, false, false);
+    const edges = resolveLineFillEdges(anchor);
 
     if (appendLineFillElement(doc, layer, hostRect, fillStart, fillRight, rowTop, rowBottom, edges)) {
       createdFills += 1;
@@ -474,7 +464,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
 
       const fillStart = resolveLineFillLeft(paragraph, paragraphRect);
       const fillRight = resolveLineFillRight(updatedView, paragraph, paragraphRect);
-      const edges = resolveLineFillEdges(paragraph, false, false);
+      const edges = resolveLineFillEdges(paragraph);
       const rows = collectRangeRows(updatedView, range);
       if (rows.length === 0) continue;
       const firstRow = rows[0];

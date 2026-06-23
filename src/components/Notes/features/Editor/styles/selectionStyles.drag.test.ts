@@ -127,7 +127,7 @@ describe("editor block drag interaction styles", () => {
     expect(lineFillSource).toContain('const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;');
     expect(lineFillSource).toContain('return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);');
     expect(lineFillSource).toContain('const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 72;');
-    expect(lineFillSource).toContain('const edges = resolveLineFillEdges(paragraph, false, false);');
+    expect(lineFillSource).toContain('const edges = resolveLineFillEdges(paragraph);');
     expect(lineFillSource).not.toContain('collectLineFillAdjacency');
   });
 
