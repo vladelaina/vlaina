@@ -11,6 +11,7 @@ describe("editor style theme compatibility", () => {
     expect(css).toContain("[data-markdown-theme-color-scheme-mode='fixed-light']");
     expect(css).toContain('color-scheme: light;');
     expect(css).toContain('--vlaina-code-block-background: #f5f5f5;');
+    expect(css).toContain('--vlaina-color-editor-inline-code-bg: var(--vlaina-code-inline-background);');
     expect(css).toContain('--vlaina-text-primary: #2c2c2b;');
     expect(css).toContain("#write .callout.md-alert");
     expect(css).toContain("#write .md-hr::before");

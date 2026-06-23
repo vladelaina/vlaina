@@ -148,7 +148,6 @@ export const VLAINA_COLOR_THEME_MAPPINGS: VlainaThemeMapping[] = [
   { target: '--vlaina-color-table-column-source-highlight-bg', sources: ['--v-selected-c', '--table-selection', '--text-selection'] },
   { target: '--vlaina-color-frontmatter-border', sources: ['--pn-c-a', '--background-modifier-border'] },
   { target: '--vlaina-color-footnote-ref-bg', sources: ['--code-bg', '--code-background', '--background-secondary'] },
-  { target: '--vlaina-color-editor-inline-code-bg', sources: ['--code-bg', '--code-background'] },
   { target: '--vlaina-color-math-editor-border', sources: ['--pn-c-a', '--background-modifier-border'] },
   { target: '--vlaina-color-math-editor-text', sources: ['--df', '--text-normal'] },
   { target: '--vlaina-color-math-editor-secondary-bg-hover', sources: ['--bq-bg-fd', '--background-modifier-hover'] },
