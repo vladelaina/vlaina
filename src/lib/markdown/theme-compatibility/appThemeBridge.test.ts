@@ -43,7 +43,9 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-sidebar-row-selected-bg: var(--v-selected-c);');
     expect(bridged).toContain('--vlaina-sidebar-row-selected-text: var(--a-c);');
     expect(bridged).toContain('--vlaina-code-block-background: var(--code-bg);');
+    expect(bridged).toContain('--vlaina-code-inline-background: var(--code-bg);');
     expect(bridged).toContain('--vlaina-code-syntax-foreground: var(--code-t);');
+    expect(bridged).not.toContain('--vlaina-color-editor-inline-code-bg: var(--code-bg);');
     expect(bridged).toContain('--vlaina-color-mark-highlight-bg: var(--mark-bg);');
     expect(bridged).toContain('--vlaina-color-info: var(--ac-bu);');
     expect(bridged).toContain('--vlaina-color-success: var(--ac-gn);');
@@ -123,7 +125,9 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-color-accent: var(--interactive-accent);');
     expect(bridged).toContain('--vlaina-color-selection: var(--text-selection);');
     expect(bridged).toContain('--vlaina-code-block-background: var(--code-background);');
+    expect(bridged).toContain('--vlaina-code-inline-background: var(--code-background);');
     expect(bridged).toContain('--vlaina-code-syntax-foreground: var(--code-normal);');
+    expect(bridged).not.toContain('--vlaina-color-editor-inline-code-bg: var(--code-background);');
     expect(bridged).toContain('--vlaina-color-danger: var(--color-red);');
     expect(bridged).toContain('--vlaina-color-success: var(--color-green);');
     expect(bridged).toContain('--vlaina-color-warning: var(--color-orange);');

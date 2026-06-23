@@ -757,7 +757,7 @@
   --vlaina-color-panel-glass: linear-gradient(180deg, rgb(255 255 255 / 0.64), rgb(255 255 255 / 0.38));
   --vlaina-color-panel-muted: rgb(0 0 0 / 0.05);
   --vlaina-color-row-soft: rgb(244 244 245 / 0.4);
-  --vlaina-color-editor-inline-code-bg: #f0f1f2;
+  --vlaina-color-editor-inline-code-bg: var(--vlaina-code-inline-background);
   --vlaina-color-editor-html-source-text: #a7a7a7;
   --vlaina-color-editor-frontmatter-placeholder: color-mix(in srgb, var(--vlaina-color-text-soft), transparent 18%);
   --vlaina-color-image-drag-placeholder-bg: var(--vlaina-color-accent-light);
@@ -825,7 +825,7 @@
   --vlaina-shadow-accent-action: 0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28);
   --vlaina-shadow-drag-row: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 10px 24px -18px rgba(30, 150, 235, 0.65);
   --vlaina-code-block-background: #f5f5f5;
-  --vlaina-code-inline-background: #f5f5f5;
+  --vlaina-code-inline-background: #e8eaed;
   --vlaina-code-inline-foreground: #262626;
   --vlaina-code-syntax-foreground: #24292e;
   --vlaina-code-syntax-muted: #6a737d;
@@ -1135,7 +1135,7 @@
   --vlaina-color-panel-glass: linear-gradient(180deg, rgb(22 22 24 / 0.94), rgb(14 14 16 / 0.88));
   --vlaina-color-panel-muted: rgb(255 255 255 / 0.055);
   --vlaina-color-row-soft: rgb(255 255 255 / 0.055);
-  --vlaina-color-editor-inline-code-bg: rgb(255 255 255 / 0.11);
+  --vlaina-color-editor-inline-code-bg: var(--vlaina-code-inline-background);
   --vlaina-color-editor-html-source-text: #a7a7a7;
   --vlaina-color-editor-frontmatter-placeholder: color-mix(in srgb, var(--vlaina-color-text-soft), transparent 18%);
   --vlaina-color-image-drag-placeholder-bg: var(--vlaina-color-accent-light);
@@ -1180,7 +1180,7 @@
   --vlaina-sidebar-notes-folder-icon: #7cc7f5;
 
   --vlaina-code-block-background: #111113;
-  --vlaina-code-inline-background: rgb(255 255 255 / 0.1);
+  --vlaina-code-inline-background: rgb(255 255 255 / 0.16);
   --vlaina-code-inline-foreground: #f2f2f3;
   --vlaina-code-syntax-foreground: #e9e9ec;
   --vlaina-code-syntax-muted: #8a8a93;
