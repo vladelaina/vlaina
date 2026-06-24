@@ -124,6 +124,20 @@ function moveCursorAfterText(view: EditorView, text: string) {
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)));
 }
 
+function moveCursorBeforeText(view: EditorView, text: string) {
+  let pos: number | null = null;
+  view.state.doc.descendants((node, nodePos) => {
+    if (pos !== null || !node.isText || typeof node.text !== 'string') return;
+    const index = node.text.indexOf(text);
+    if (index < 0) return;
+    pos = nodePos + index;
+  });
+  if (pos === null) {
+    throw new Error(`Expected text: ${text}`);
+  }
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)));
+}
+
 function moveCursorToFirstEmptyParagraph(view: EditorView) {
   let pos: number | null = null;
   view.state.doc.descendants((node, nodePos) => {
@@ -225,8 +239,157 @@ function pressBackspace(view: EditorView) {
   return { event, handled };
 }
 
+function pressDelete(view: EditorView) {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Delete',
+    bubbles: true,
+    cancelable: true,
+  });
+
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+
+  return { event, handled };
+}
+
 function replaceDocument(view: EditorView, nodes: any[]): void {
   view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
+}
+
+function createTextListItem(view: EditorView, text: string, attrs: Record<string, unknown> | null = null) {
+  const { schema } = view.state;
+  return schema.nodes.list_item.create(attrs, [
+    schema.nodes.paragraph.create(null, schema.text(text)),
+  ]);
+}
+
+function createNestedListItem(
+  view: EditorView,
+  text: string,
+  nestedNodes: any[],
+  attrs: Record<string, unknown> | null = null
+) {
+  const { schema } = view.state;
+  return schema.nodes.list_item.create(attrs, [
+    schema.nodes.paragraph.create(null, schema.text(text)),
+    ...nestedNodes,
+  ]);
+}
+
+function replaceWithOrderedListGap(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.ordered_list.create(null, [
+      schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+        schema.nodes.paragraph.create(null, schema.text('1')),
+      ]),
+    ]),
+    schema.nodes.bullet_list.create(null, [
+      schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+        schema.nodes.paragraph.create(null, schema.text('\u2800')),
+      ]),
+    ]),
+    schema.nodes.ordered_list.create(null, [
+      schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+        schema.nodes.paragraph.create(null, schema.text('2')),
+      ]),
+    ]),
+  ]);
+}
+
+function replaceWithBulletListGap(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.bullet_list.create(null, [
+      createTextListItem(view, '1'),
+      createTextListItem(view, '\u2800'),
+      createTextListItem(view, '2'),
+    ]),
+  ]);
+}
+
+function replaceWithTaskListGap(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.bullet_list.create(null, [
+      createTextListItem(view, '1', { checked: false }),
+      createTextListItem(view, '\u2800'),
+      createTextListItem(view, '2', { checked: true }),
+    ]),
+  ]);
+}
+
+function replaceWithNestedBulletListGap(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.bullet_list.create(null, [
+      createNestedListItem(view, 'parent', [
+        schema.nodes.bullet_list.create(null, [
+          createTextListItem(view, '1'),
+          createTextListItem(view, '\u2800'),
+          createTextListItem(view, '2'),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function replaceWithNestedOrderedListGap(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.bullet_list.create(null, [
+      createNestedListItem(view, 'parent', [
+        schema.nodes.ordered_list.create(null, [
+          createTextListItem(view, '1'),
+        ]),
+        schema.nodes.bullet_list.create(null, [
+          createTextListItem(view, '\u2800'),
+        ]),
+        schema.nodes.ordered_list.create(null, [
+          createTextListItem(view, '2'),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function collectListItemPrimaryTexts(view: EditorView): string[] {
+  const texts: string[] = [];
+  view.state.doc.descendants((node) => {
+    if (node.type.name !== 'list_item') return true;
+    const firstChild = node.childCount > 0 ? node.child(0) : null;
+    texts.push(firstChild?.type.name === 'paragraph' ? firstChild.textContent : '');
+    return true;
+  });
+  return texts;
+}
+
+function collectOrderedListLabels(view: EditorView): string[][] {
+  const labels: string[][] = [];
+  view.state.doc.descendants((node) => {
+    if (node.type.name !== 'ordered_list') return true;
+    const listLabels: string[] = [];
+    node.forEach((child) => {
+      listLabels.push(String(child.attrs.label ?? ''));
+    });
+    labels.push(listLabels);
+    return true;
+  });
+  return labels;
+}
+
+function collectTaskItemCheckedAttrs(view: EditorView): boolean[] {
+  const checkedAttrs: boolean[] = [];
+  view.state.doc.descendants((node) => {
+    if (node.type.name === 'list_item' && typeof node.attrs.checked === 'boolean') {
+      checkedAttrs.push(node.attrs.checked);
+    }
+    return true;
+  });
+  return checkedAttrs;
 }
 
 function getMarkdown(editor: any): string {
@@ -859,6 +1022,87 @@ describe('listTabIndentPlugin', () => {
     expect(view.state.doc.child(3).type.name).toBe('ordered_list');
     expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
   });
+
+  const listGapDeletionCases = [
+    {
+      name: 'top-level ordered list gap',
+      replace: replaceWithOrderedListGap,
+      expectedAfterDelete: ['1', '2'],
+      expectedAfterType: ['1X', '2'],
+      expectedOrderedLabels: [['1.', '2.']],
+    },
+    {
+      name: 'top-level bullet list gap',
+      replace: replaceWithBulletListGap,
+      expectedAfterDelete: ['1', '2'],
+      expectedAfterType: ['1X', '2'],
+    },
+    {
+      name: 'top-level task list gap',
+      replace: replaceWithTaskListGap,
+      expectedAfterDelete: ['1', '2'],
+      expectedAfterType: ['1X', '2'],
+      expectedTaskCheckedAttrs: [false, true],
+    },
+    {
+      name: 'nested bullet list gap',
+      replace: replaceWithNestedBulletListGap,
+      expectedAfterDelete: ['parent', '1', '2'],
+      expectedAfterType: ['parent', '1X', '2'],
+    },
+    {
+      name: 'nested ordered list gap',
+      replace: replaceWithNestedOrderedListGap,
+      expectedAfterDelete: ['parent', '1', '2'],
+      expectedAfterType: ['parent', '1X', '2'],
+      expectedOrderedLabels: [['1.', '2.']],
+    },
+  ];
+
+  for (const gapCase of listGapDeletionCases) {
+    for (const [key, pressKey] of [
+      ['Backspace', pressBackspace],
+      ['Delete', pressDelete],
+    ] as const) {
+      for (const [selectionSide, moveCursor] of [
+        ['start', moveCursorBeforeText],
+        ['end', moveCursorAfterText],
+      ] as const) {
+        it(`keeps the cursor after the previous item when ${key} removes a ${gapCase.name} from the placeholder ${selectionSide}`, async () => {
+          const editor = createEditorWithContent('');
+          await editor.create();
+
+          const view = editor.ctx.get(editorViewCtx);
+          gapCase.replace(view);
+          moveCursor(view, '\u2800');
+
+          const { event, handled } = pressKey(view);
+
+          expect(handled).toBe(true);
+          expect(event.defaultPrevented).toBe(true);
+          expect(view.state.doc.textContent).not.toContain('\u2800');
+          expect(collectListItemPrimaryTexts(view)).toEqual(gapCase.expectedAfterDelete);
+          if (gapCase.expectedOrderedLabels) {
+            expect(collectOrderedListLabels(view)).toEqual(gapCase.expectedOrderedLabels);
+          }
+          if (gapCase.expectedTaskCheckedAttrs) {
+            expect(collectTaskItemCheckedAttrs(view)).toEqual(gapCase.expectedTaskCheckedAttrs);
+          }
+          expect(view.state.selection.$from.parent.textContent).toBe('1');
+          expect(view.state.selection.$from.parentOffset).toBe(1);
+
+          typeText(view, 'X');
+
+          expect(collectListItemPrimaryTexts(view)).toEqual(gapCase.expectedAfterType);
+          if (gapCase.expectedTaskCheckedAttrs) {
+            expect(collectTaskItemCheckedAttrs(view)).toEqual(gapCase.expectedTaskCheckedAttrs);
+          }
+
+          await editor.destroy();
+        });
+      }
+    }
+  }
 
   it('renumbers ordered list items after splitting an item with Enter', async () => {
     const editor = createEditorWithContent(['1. one', '2. two'].join('\n'));

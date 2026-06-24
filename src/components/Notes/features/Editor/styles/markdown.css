@@ -236,6 +236,18 @@
   text-align: left;
 }
 
+.milkdown .ProseMirror li > :is(p, [data-text-align]):first-of-type {
+  margin-top: var(--vlaina-space-0);
+}
+
+.milkdown .ProseMirror li > :is(ul, ol) {
+  margin-block: var(--vlaina-space-0);
+}
+
+.milkdown .ProseMirror li > :is(ul, ol) > li:last-child {
+  margin-bottom: var(--vlaina-space-0);
+}
+
 .milkdown .ProseMirror li.editor-list-gap-placeholder-item {
   list-style-type: none;
   margin-left: calc(-1 * var(--vlaina-list-gap-placeholder-outdent));
@@ -281,8 +293,7 @@
   flex-basis: 100%;
   width: 100%;
   margin-left: var(--vlaina-space-0);
-  margin-top: var(--vlaina-space-6px);
-  margin-bottom: var(--vlaina-space-0);
+  margin-block: var(--vlaina-space-0);
   /* Remove extra indentation, let ul padding handle it */
 }
 

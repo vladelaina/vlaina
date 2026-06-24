@@ -264,6 +264,104 @@ function createListWithItems(list: ProseNode, items: ProseNode[]): ProseNode | n
     return items.length > 0 ? list.type.create(list.attrs, items, list.marks) : null;
 }
 
+function findLastVisibleTextblockEndInNode(node: ProseNode, nodeStart: number): number | null {
+    const stack: Array<{ node: ProseNode; start: number }> = [{ node, start: nodeStart }];
+
+    while (stack.length > 0) {
+        const current = stack.pop();
+        if (!current) continue;
+
+        if (current.node.isTextblock && !isInternalListGapPlaceholderNode(current.node)) {
+            return current.start + 1 + current.node.content.size;
+        }
+
+        let childStart = current.start + 1;
+        const children: Array<{ node: ProseNode; start: number }> = [];
+        for (let index = 0; index < current.node.childCount; index += 1) {
+            const child = current.node.child(index);
+            children.push({ node: child, start: childStart });
+            childStart += child.nodeSize;
+        }
+
+        for (const child of children) {
+            stack.push(child);
+        }
+    }
+
+    return null;
+}
+
+function findPreviousVisibleTextblockEndBefore(doc: ProseNode, boundary: number): number | null {
+    const safeBoundary = Math.max(0, Math.min(boundary, doc.content.size));
+    const $boundary = doc.resolve(safeBoundary);
+
+    for (let depth = $boundary.depth; depth >= 0; depth -= 1) {
+        const parent = $boundary.node(depth);
+        const beforeIndex = $boundary.index(depth);
+        let childStart = $boundary.start(depth);
+        const childStarts: number[] = [];
+
+        for (let index = 0; index < beforeIndex; index += 1) {
+            const child = parent.child(index);
+            childStarts.push(childStart);
+            childStart += child.nodeSize;
+        }
+
+        for (let index = beforeIndex - 1; index >= 0; index -= 1) {
+            const result = findLastVisibleTextblockEndInNode(parent.child(index), childStarts[index]);
+            if (result !== null && result <= safeBoundary) return result;
+        }
+    }
+
+    return null;
+}
+
+function handleInternalPlaceholderListDeletion(view: EditorView, event: KeyboardEvent): boolean {
+    if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.isComposing) return false;
+    if (!view.state.selection.empty || !(view.state.selection instanceof TextSelection)) return false;
+
+    const listItemDepth = findSelectionListItemDepth(view);
+    if (listItemDepth === null || listItemDepth < 2) return false;
+    if (!isInternalPlaceholderOnlyListItem(view, listItemDepth)) return false;
+
+    const { state } = view;
+    const { $from } = state.selection;
+    const listDepth = listItemDepth - 1;
+    const parentList = $from.node(listDepth);
+    if (parentList.type.name !== 'ordered_list' && parentList.type.name !== 'bullet_list') return false;
+
+    const listItemIndex = $from.index(listDepth);
+    const listFrom = $from.before(listDepth);
+    const listTo = $from.after(listDepth);
+    const listItemFrom = $from.before(listItemDepth);
+    const listItemTo = $from.after(listItemDepth);
+    const deleteWholeList = parentList.childCount === 1;
+    const deleteFrom = deleteWholeList ? listFrom : listItemFrom;
+    const deleteTo = deleteWholeList ? listTo : listItemTo;
+    const previousTextBoundary = deleteWholeList || listItemIndex === 0 ? listFrom : listItemFrom;
+    const previousTextEnd = findPreviousVisibleTextblockEndBefore(state.doc, previousTextBoundary);
+    if (previousTextEnd === null) return false;
+
+    event.preventDefault();
+
+    let tr = state.tr.delete(deleteFrom, deleteTo);
+    const selectionPos = Math.max(
+        0,
+        Math.min(tr.doc.content.size, tr.mapping.map(previousTextEnd, -1))
+    );
+
+    try {
+        tr = tr.setSelection(TextSelection.create(tr.doc, selectionPos));
+    } catch {
+        tr = tr.setSelection(TextSelection.near(tr.doc.resolve(selectionPos), -1));
+    }
+
+    view.dispatch(tr.scrollIntoView());
+    view.focus();
+    return true;
+}
+
 function handleEmptyParentListItemBackspace(view: EditorView, event: KeyboardEvent): boolean {
     if (event.key !== 'Backspace') return false;
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.isComposing) return false;
@@ -830,6 +928,7 @@ export const listTabIndentPlugin = $prose(() => {
             },
             handleKeyDown(view, event) {
                 if (handleInternalPlaceholderListEnter(view, event)) return true;
+                if (handleInternalPlaceholderListDeletion(view, event)) return true;
                 if (handleEmptyParentListItemBackspace(view, event)) return true;
                 if (event.key !== 'Tab') return false;
                 if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return false;

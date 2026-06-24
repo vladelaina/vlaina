@@ -22,6 +22,14 @@ type AlignedListMarkerSample = {
   lineCount: number;
 };
 
+type NestedListSpacingSample = {
+  kind: string;
+  previousToParentGap: number;
+  parentToFirstChildGap: number;
+  childSiblingGap: number;
+  lastChildToNextParentGap: number;
+};
+
 function createAlignedListFixture(): string {
   return [
     '# Aligned List Marker Fixture',
@@ -39,6 +47,56 @@ function createAlignedListFixture(): string {
     '2. Right aligned ordered marker sentinel first line  ',
     '   Right aligned ordered marker sentinel second line',
     '   <!--align:right-->',
+    '',
+  ].join('\n');
+}
+
+function createNestedListSpacingFixture(): string {
+  return [
+    '# Nested List Spacing Fixture',
+    '',
+    '- Bullet spacing previous',
+    '- Bullet spacing parent',
+    '  - Bullet spacing child one',
+    '  - Bullet spacing child two',
+    '- Bullet spacing next',
+    '',
+    '1. Ordered spacing previous',
+    '2. Ordered spacing parent',
+    '   1. Ordered spacing child one',
+    '   2. Ordered spacing child two',
+    '3. Ordered spacing next',
+    '',
+    '- [ ] Task spacing previous',
+    '- [ ] Task spacing parent',
+    '  - [ ] Task spacing child one',
+    '  - [ ] Task spacing child two',
+    '- [ ] Task spacing next',
+    '',
+  ].join('\n');
+}
+
+function createTabNestedListSpacingFixture(): string {
+  return [
+    '# Tab Nested List Spacing Fixture',
+    '',
+    '- Bullet spacing previous',
+    '- Bullet spacing parent',
+    '- Bullet spacing child one',
+    '- Bullet spacing child two',
+    '- Bullet spacing next',
+    '',
+    '1. Ordered spacing previous',
+    '2. Ordered spacing parent',
+    '3. Ordered spacing child one',
+    '4. Ordered spacing child two',
+    '5. Ordered spacing next',
+    '',
+    '- [ ] Task spacing previous',
+    '- [ ] Task spacing parent',
+    '- [ ] Task spacing child one',
+    '- [ ] Task spacing child two',
+    '- [ ] Task spacing next',
     '',
   ].join('\n');
 }
@@ -83,6 +141,75 @@ async function collectAlignedListMarkerSamples(page: Page): Promise<AlignedListM
   }, EDITOR_SELECTOR);
 }
 
+async function setEditorSelectionInsideBlock(page: Page, text: string): Promise<void> {
+  const selection = await page.evaluate((targetText) => {
+    const bridge = (window as any).__vlainaE2E;
+    const blocks = bridge.getNoteSelectableBlocks() as Array<{
+      text: string;
+      from: number;
+      to: number;
+    }>;
+    const block = blocks.find((candidate) => candidate.text.includes(targetText));
+    if (!block) return null;
+
+    const textOffset = block.text.indexOf(targetText);
+    const caretOffset = Math.max(1, textOffset + Math.min(targetText.length, Math.ceil(targetText.length / 2)));
+    return bridge.setEditorSelectionRange(block.from + caretOffset);
+  }, text);
+
+  expect(selection, `Expected editor selection inside "${text}"`).not.toBeNull();
+  await expect.poll(async () => page.evaluate(() => {
+    const selectionSummary = (window as any).__vlainaE2E.getEditorSelectionSummary();
+    return Boolean(selectionSummary?.empty);
+  })).toBe(true);
+}
+
+async function indentListItemsWithTab(page: Page, labels: string[]): Promise<void> {
+  for (const label of labels) {
+    await setEditorSelectionInsideBlock(page, label);
+    await page.keyboard.press('Tab');
+  }
+}
+
+async function collectNestedListSpacingSamples(page: Page): Promise<NestedListSpacingSample[]> {
+  return page.evaluate((editorSelector) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return [];
+
+    const findBlock = (text: string): HTMLElement | null => {
+      return Array.from(editor.querySelectorAll<HTMLElement>('li > p'))
+        .find((block) => block.textContent?.trim() === text) ?? null;
+    };
+
+    const gap = (before: HTMLElement, after: HTMLElement): number => {
+      const beforeRect = before.getBoundingClientRect();
+      const afterRect = after.getBoundingClientRect();
+      return Math.round((afterRect.top - beforeRect.bottom) * 100) / 100;
+    };
+
+    return [
+      ['bullet', 'Bullet'],
+      ['ordered', 'Ordered'],
+      ['task', 'Task'],
+    ].map(([kind, label]) => {
+      const previous = findBlock(`${label} spacing previous`);
+      const parent = findBlock(`${label} spacing parent`);
+      const childOne = findBlock(`${label} spacing child one`);
+      const childTwo = findBlock(`${label} spacing child two`);
+      const next = findBlock(`${label} spacing next`);
+      if (!previous || !parent || !childOne || !childTwo || !next) return null;
+
+      return {
+        kind,
+        previousToParentGap: gap(previous, parent),
+        parentToFirstChildGap: gap(parent, childOne),
+        childSiblingGap: gap(childOne, childTwo),
+        lastChildToNextParentGap: gap(childTwo, next),
+      };
+    }).filter((sample): sample is NestedListSpacingSample => sample !== null);
+  }, EDITOR_SELECTOR);
+}
+
 test.describe('notes list alignment', () => {
   test.setTimeout(90_000);
 
@@ -122,6 +249,77 @@ test.describe('notes list alignment', () => {
         } else {
           expect(rightSpace, sample.label).toBeLessThanOrEqual(1);
         }
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps nested bullet, ordered, and task list spacing consistent', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-nested-list-spacing');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await openMarkdownFixture(page, {
+        filename: 'nested-list-spacing.md',
+        content: createNestedListSpacingFixture(),
+      });
+
+      await expect.poll(async () => collectNestedListSpacingSamples(page)).toHaveLength(3);
+
+      const samples = await collectNestedListSpacingSamples(page);
+      for (const sample of samples) {
+        const gaps = [
+          sample.previousToParentGap,
+          sample.parentToFirstChildGap,
+          sample.childSiblingGap,
+          sample.lastChildToNextParentGap,
+        ];
+        const minGap = Math.min(...gaps);
+        const maxGap = Math.max(...gaps);
+
+        expect(maxGap - minGap, `${sample.kind} list gaps: ${gaps.join(', ')}`).toBeLessThanOrEqual(1);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps spacing consistent after creating nested lists with Tab', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-tab-nested-list-spacing');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await openMarkdownFixture(page, {
+        filename: 'tab-nested-list-spacing.md',
+        content: createTabNestedListSpacingFixture(),
+      });
+
+      await indentListItemsWithTab(page, [
+        'Bullet spacing child one',
+        'Bullet spacing child two',
+        'Ordered spacing child one',
+        'Ordered spacing child two',
+        'Task spacing child one',
+        'Task spacing child two',
+      ]);
+
+      await expect.poll(async () => collectNestedListSpacingSamples(page)).toHaveLength(3);
+
+      const samples = await collectNestedListSpacingSamples(page);
+      for (const sample of samples) {
+        const gaps = [
+          sample.previousToParentGap,
+          sample.parentToFirstChildGap,
+          sample.childSiblingGap,
+          sample.lastChildToNextParentGap,
+        ];
+        const minGap = Math.min(...gaps);
+        const maxGap = Math.max(...gaps);
+
+        expect(maxGap - minGap, `${sample.kind} list gaps after Tab: ${gaps.join(', ')}`).toBeLessThanOrEqual(1);
       }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
