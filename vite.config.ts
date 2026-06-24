@@ -90,10 +90,15 @@ export default defineConfig(async () => ({
     outDir: 'dist',
     // Generate sourcemaps for debugging
     sourcemap: false,
-    // Mermaid ecosystem pulls in a large but lazily-loaded chunk; raise warning threshold to reduce noise.
-    chunkSizeWarningLimit: 1700,
+    // ZenUML support is an intentionally lazy Mermaid extension, but its upstream
+    // bundle is a single large module. Keep the warning threshold above that
+    // known lazy chunk while preserving warnings for new larger bundles.
+    chunkSizeWarningLimit: 3600,
     // Optimize chunk size
     rollupOptions: {
+      checks: {
+        pluginTimings: false,
+      },
       output: {
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/');
@@ -132,6 +137,13 @@ export default defineConfig(async () => ({
             return 'ui-vendor';
           }
         },
+      },
+    },
+  },
+  worker: {
+    rollupOptions: {
+      checks: {
+        pluginTimings: false,
       },
     },
   },

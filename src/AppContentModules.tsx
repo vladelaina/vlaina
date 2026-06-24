@@ -1,9 +1,17 @@
 import { lazy, useEffect } from 'react';
 
-function once<T>(factory: () => Promise<T>): () => Promise<T> {
+export function once<T>(factory: () => Promise<T>): () => Promise<T> {
   let promise: Promise<T> | null = null;
   return () => {
-    promise ??= factory();
+    if (!promise) {
+      const nextPromise = factory().catch((error) => {
+        if (promise === nextPromise) {
+          promise = null;
+        }
+        throw error;
+      });
+      promise = nextPromise;
+    }
     return promise;
   };
 }
