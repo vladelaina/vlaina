@@ -1,7 +1,37 @@
 import { describe, expect, it } from 'vitest';
+import { getMessageVariants } from '@/lib/i18n/messages';
 import { slashCommandDefinitions } from './slashCommandDefinitions';
 import { slashMenuItems } from './slashItems';
 import { filterSlashItems } from './slashQuery';
+
+const SINGLE_CHARACTER_AUDIT_QUERIES = '0123456789abcdefghijklmnopqrstuvwxyz'.split('');
+
+function normalizeAuditCandidate(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '');
+}
+
+function getSingleCharacterAuditQueries(values: string[]): string[] {
+  const queries = new Set<string>();
+
+  for (const value of values) {
+    const normalized = normalizeAuditCandidate(value);
+    if (!normalized) continue;
+
+    for (const query of SINGLE_CHARACTER_AUDIT_QUERIES) {
+      if (/^[a-z]$/.test(query) && normalized.startsWith(query)) {
+        queries.add(query);
+      } else if (/^\d$/.test(query) && normalized.includes(query)) {
+        queries.add(query);
+      }
+    }
+  }
+
+  return [...queries];
+}
 
 describe('slashMenuItems', () => {
   it('is derived from the command definitions', () => {
@@ -44,6 +74,49 @@ describe('filterSlashItems', () => {
     expect(filterSlashItems('h').map((item) => item.name)).toContain('Heading 1');
   });
 
+  it('matches every command by the first letter of its visible name', () => {
+    for (const item of slashMenuItems) {
+      const firstAsciiLetter = item.name.match(/[a-z]/i)?.[0]?.toLowerCase();
+      if (!firstAsciiLetter) continue;
+
+      expect(
+        filterSlashItems(firstAsciiLetter).map((matchedItem) => matchedItem.commandId),
+        item.name
+      ).toContain(item.commandId);
+    }
+  });
+
+  it('audits single-character lookup across all command names, ids, aliases, and locales', () => {
+    const expectedCommandIdsByQuery = new Map(
+      SINGLE_CHARACTER_AUDIT_QUERIES.map((query) => [query, new Set<string>()])
+    );
+
+    for (const item of slashMenuItems) {
+      const definition = slashCommandDefinitions.find((entry) => entry.commandId === item.commandId);
+      const candidates = [
+        item.name,
+        item.id,
+        item.commandId,
+        ...item.searchTerms,
+        ...getMessageVariants(item.nameKey),
+        ...(definition?.searchTerms ?? []),
+      ];
+
+      for (const prefix of getSingleCharacterAuditQueries(candidates)) {
+        const commandIds = expectedCommandIdsByQuery.get(prefix) ?? new Set<string>();
+        commandIds.add(item.commandId);
+        expectedCommandIdsByQuery.set(prefix, commandIds);
+      }
+    }
+
+    for (const query of SINGLE_CHARACTER_AUDIT_QUERIES) {
+      const actualCommandIds = new Set(filterSlashItems(query).map((item) => item.commandId));
+      const expectedCommandIds = expectedCommandIdsByQuery.get(query) ?? new Set<string>();
+
+      expect(actualCommandIds, `/${query}`).toEqual(expectedCommandIds);
+    }
+  });
+
   it('matches command names from any app locale', () => {
     expect(filterSlashItems('表格').map((item) => item.name)).toContain('Table');
     expect(filterSlashItems('目录').map((item) => item.name)).toContain('Table of Contents');
@@ -72,6 +145,18 @@ describe('filterSlashItems', () => {
     expect(filterSlashItems('fm')[0]?.name).toBe('Frontmatter');
   });
 
+  it('matches single-letter prefixes from common aliases', () => {
+    const commandIds = filterSlashItems('m').map((item) => item.commandId);
+
+    expect(commandIds).toEqual(expect.arrayContaining([
+      'equation',
+      'inline-math',
+      'mermaid',
+      'video',
+      'frontmatter',
+    ]));
+  });
+
   it('matches common misspellings for discoverability', () => {
     expect(filterSlashItems('vedio')[0]?.name).toBe('Video');
   });
@@ -88,12 +173,22 @@ describe('filterSlashItems', () => {
     expect(filterSlashItems('ssssss3')[0]?.name).toBe('Heading 3');
   });
 
+  it('matches numeric heading aliases without inventing unsupported numeric commands', () => {
+    for (const level of ['1', '2', '3', '4', '5', '6']) {
+      expect(filterSlashItems(level).map((item) => item.commandId), `/${level}`).toEqual([`heading-${level}`]);
+    }
+
+    for (const digit of ['0', '7', '8', '9']) {
+      expect(filterSlashItems(digit), `/${digit}`).toEqual([]);
+    }
+  });
+
   it('does not match pure numeric noise as a heading alias typo', () => {
     expect(filterSlashItems('2023')).toEqual([]);
   });
 
-  it('does not make single-character typo queries overly broad', () => {
-    expect(filterSlashItems('j')).toEqual([]);
+  it('does not make single-character queries match non-prefix candidates', () => {
+    expect(filterSlashItems('x')).toEqual([]);
   });
 
   it('keeps stronger matches before fuzzy subsequence matches', () => {

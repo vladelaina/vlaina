@@ -150,7 +150,7 @@ describe('deriveSlashState', () => {
   it('stays closed while a slash query has no matches', () => {
     const next = deriveSlashState(
       createTransaction({
-        selectionText: '/j',
+        selectionText: '/x',
         docChanged: true,
       }),
       createSlashState()

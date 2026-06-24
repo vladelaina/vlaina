@@ -105,7 +105,8 @@ function scoreCandidate(query: string, candidate: string) {
 
   if (candidate === query) return 0;
   if (query.length === 1 && /[a-z]/.test(query)) {
-    return candidate.length <= 3 && candidate.startsWith(query) ? 1 : null;
+    if (!candidate.startsWith(query)) return null;
+    return candidate.length <= 3 ? 2 : 1;
   }
   if (candidate.startsWith(query)) return 1;
   if (candidate.includes(query)) return 2;

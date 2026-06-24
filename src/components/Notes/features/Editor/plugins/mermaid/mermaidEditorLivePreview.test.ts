@@ -124,15 +124,17 @@ describe('mermaidEditorLivePreview', () => {
     expect(element.querySelector('[data-rendered="disposed"]')).toBeNull();
   });
 
-  it('renders whitespace-only Mermaid elements as empty diagrams', () => {
+  it('renders whitespace-only Mermaid elements without visible placeholder copy', () => {
     const element = createMermaidElement('   \n\t');
+    const emptyElement = element.querySelector('.mermaid-empty');
 
     expect(getMermaidElementCode(element)).toBe('   \n\t');
     expect(element.dataset.code).toBeUndefined();
-    expect(element.querySelector('.mermaid-empty')?.textContent).toBe('Empty diagram');
+    expect(emptyElement?.textContent).toBe('\u200b');
+    expect(emptyElement?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('updates empty previews immediately without dispatching through the editor', async () => {
+  it('updates empty previews immediately without visible placeholder copy', async () => {
     const anchor = document.createElement('div');
     anchor.setAttribute('data-type', 'mermaid');
     anchor.dataset.code = 'graph TD';
@@ -146,7 +148,9 @@ describe('mermaidEditorLivePreview', () => {
 
     expect(getMermaidElementCode(anchor)).toBe('');
     expect(anchor.dataset.code).toBeUndefined();
-    expect(anchor.querySelector('.mermaid-empty')?.textContent).toBe('Empty diagram');
+    const emptyElement = anchor.querySelector('.mermaid-empty');
+    expect(emptyElement?.textContent).toBe('\u200b');
+    expect(emptyElement?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('ignores stale async renders when a newer draft is already present', async () => {

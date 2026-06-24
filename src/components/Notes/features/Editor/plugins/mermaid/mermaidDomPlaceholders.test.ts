@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/i18n', () => ({
   translate: (key: string) => {
-    if (key === 'editor.emptyDiagram') return '<img src=x onerror=alert(1)> empty';
     if (key === 'editor.mermaidRenderError') return '<img src=x onerror=alert(1)> error';
     return key;
   },
@@ -11,10 +10,13 @@ vi.mock('@/lib/i18n', () => ({
 import { createMermaidElement, renderMermaidEditorLivePreview } from './mermaidDom';
 
 describe('mermaid placeholder markup', () => {
-  it('escapes translated empty and error placeholders before writing them as html', async () => {
+  it('renders empty placeholders without translated copy and escapes error placeholders', async () => {
     const emptyElement = createMermaidElement('');
+    const emptyPlaceholder = emptyElement.querySelector('.mermaid-empty');
+
     expect(emptyElement.querySelector('img')).toBeNull();
-    expect(emptyElement.querySelector('.mermaid-empty')?.textContent).toBe('<img src=x onerror=alert(1)> empty');
+    expect(emptyPlaceholder?.textContent).toBe('\u200b');
+    expect(emptyPlaceholder?.getAttribute('aria-hidden')).toBe('true');
 
     const anchor = document.createElement('div');
     document.body.appendChild(anchor);

@@ -122,8 +122,9 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
         className="mermaid-block mermaid-empty"
         data-type="mermaid"
         data-chat-selection-excluded="true"
+        aria-hidden="true"
       >
-        {translate('editor.emptyDiagram')}
+        {'\u200b'}
       </div>
     );
   }

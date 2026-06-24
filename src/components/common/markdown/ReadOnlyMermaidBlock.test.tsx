@@ -23,6 +23,16 @@ describe('ReadOnlyMermaidBlock', () => {
     vi.mocked(renderMermaid).mockReset();
   });
 
+  it('renders empty Mermaid blocks without visible placeholder copy', () => {
+    const { container } = render(<ReadOnlyMermaidBlock code={'   \n\t'} />);
+    const emptyElement = container.querySelector('.mermaid-empty');
+
+    expect(emptyElement?.textContent).toBe('\u200b');
+    expect(emptyElement?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.textContent).not.toContain('Empty diagram');
+    expect(renderMermaid).not.toHaveBeenCalled();
+  });
+
   it('does not expose diagram source in DOM attributes while loading or rendered', async () => {
     let resolveRender: (markup: string) => void = () => undefined;
     vi.mocked(renderMermaid).mockImplementationOnce(

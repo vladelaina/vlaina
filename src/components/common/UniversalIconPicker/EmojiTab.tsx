@@ -24,6 +24,31 @@ const EMOJI_CATEGORY_LABEL_KEYS: Record<string, MessageKey> = {
   flags: 'icon.categoryFlags',
 };
 
+export function filterEmojiPickerSearchResults(
+  searchQuery: string,
+  categories = EMOJI_CATEGORIES,
+  limit = 90
+): EmojiItem[] {
+  const query = searchQuery.trim().toLowerCase();
+  if (!query) return [];
+
+  const results: EmojiItem[] = [];
+  for (const cat of categories) {
+    for (const emoji of cat.emojis) {
+      if (
+        emoji.name.toLowerCase().includes(query) ||
+        emoji.id.toLowerCase().includes(query) ||
+        emoji.keywords.some(k => k.toLowerCase().includes(query))
+      ) {
+        results.push(emoji);
+        if (results.length >= limit) break;
+      }
+    }
+    if (results.length >= limit) break;
+  }
+  return results;
+}
+
 interface EmojiTabProps {
   skinTone: number;
   setSkinTone: (tone: number) => void;
@@ -154,22 +179,7 @@ export function EmojiTab({
 
   const searchResults = useMemo(() => {
     if (!effectiveSearchQuery.trim()) return null;
-    const query = effectiveSearchQuery.toLowerCase();
-    const results: EmojiItem[] = [];
-    for (const cat of EMOJI_CATEGORIES) {
-      for (const emoji of cat.emojis) {
-        if (
-          emoji.name.toLowerCase().includes(query) ||
-          emoji.id.toLowerCase().includes(query) ||
-          emoji.keywords.some(k => k.toLowerCase().includes(query))
-        ) {
-          results.push(emoji);
-          if (results.length >= 90) break;
-        }
-      }
-      if (results.length >= 90) break;
-    }
-    return results;
+    return filterEmojiPickerSearchResults(effectiveSearchQuery);
   }, [effectiveSearchQuery]);
 
   const handlePreview = useCallback((emoji: string | null) => {
