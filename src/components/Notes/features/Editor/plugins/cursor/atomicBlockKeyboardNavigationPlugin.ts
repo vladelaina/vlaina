@@ -21,8 +21,10 @@ import {
 } from '../shared/blockNodeTypes';
 import {
   EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
+  handleMarkdownBlankLineDeletion,
+  isEditableBlankLinePlaceholderNode,
   isMarkdownBlankLinePlaceholderNode,
-  replaceMarkdownBlankLineWithEditableParagraph,
+  replaceBlankLinePlaceholderWithEditableParagraph,
 } from './markdownBlankLineInteraction';
 
 type Direction = 'up' | 'down';
@@ -572,8 +574,8 @@ function setSelectionPastAtomicBlock(
 
 function moveSelectionPastAtomicBlock(view: EditorView, block: TopLevelBlock, direction: Direction): boolean {
   const adjacent = getAdjacentTopLevelBlock(view.state.doc, block, direction);
-  if (adjacent && isMarkdownBlankLinePlaceholderNode(adjacent.node)) {
-    return replaceMarkdownBlankLineWithEditableParagraph(view, adjacent);
+  if (adjacent && isEditableBlankLinePlaceholderNode(adjacent.node)) {
+    return replaceBlankLinePlaceholderWithEditableParagraph(view, adjacent);
   }
 
   const tr = setSelectionPastAtomicBlock(view.state, view.state.tr, block, direction);
@@ -582,16 +584,6 @@ function moveSelectionPastAtomicBlock(view: EditorView, block: TopLevelBlock, di
   }
 
   view.dispatch(tr.scrollIntoView());
-  view.focus();
-  return true;
-}
-
-function selectAtomicBlockFromTextBoundary(view: EditorView, block: TopLevelBlock): boolean {
-  view.dispatch(
-    view.state.tr
-      .setSelection(NodeSelection.create(view.state.doc, block.from))
-      .scrollIntoView()
-  );
   view.focus();
   return true;
 }
@@ -655,8 +647,8 @@ function handleTextblockBoundaryArrow(view: EditorView, direction: Direction): b
     return false;
   }
 
-  if (isMarkdownBlankLinePlaceholderNode(adjacent.node)) {
-    return replaceMarkdownBlankLineWithEditableParagraph(view, adjacent);
+  if (isEditableBlankLinePlaceholderNode(adjacent.node)) {
+    return replaceBlankLinePlaceholderWithEditableParagraph(view, adjacent);
   }
 
   const containerSelection = resolveTextSelectionInsideContainerBlock(view.state, adjacent, direction);
@@ -674,7 +666,7 @@ function handleTextblockBoundaryArrow(view: EditorView, direction: Direction): b
     return false;
   }
 
-  return selectAtomicBlockFromTextBoundary(view, adjacent);
+  return moveSelectionPastAtomicBlock(view, adjacent, direction);
 }
 
 function isSelectionAtTextblockVerticalBoundary(
@@ -756,8 +748,8 @@ function handleTextContainerSiblingArrow(view: EditorView, direction: Direction)
     return false;
   }
 
-  if (isMarkdownBlankLinePlaceholderNode(adjacent.node)) {
-    return replaceMarkdownBlankLineWithEditableParagraph(view, adjacent);
+  if (isEditableBlankLinePlaceholderNode(adjacent.node)) {
+    return replaceBlankLinePlaceholderWithEditableParagraph(view, adjacent);
   }
 
   if (
@@ -859,6 +851,10 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
     },
     props: {
       handleKeyDown(view, event) {
+        if (handleMarkdownBlankLineDeletion(view, event)) {
+          return true;
+        }
+
         if (shouldPreserveParagraphAfterCodeBlockOnBackspace(view, event)) {
           event.preventDefault();
           return true;

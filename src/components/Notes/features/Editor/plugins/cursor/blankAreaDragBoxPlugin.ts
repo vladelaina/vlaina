@@ -66,10 +66,12 @@ import {
 } from './blankAreaInteractionUtils';
 import { handleListGapPlaceholderPointerDown } from './listGapPlaceholder';
 import {
+  appendMarkdownBlankLineNodeSelectionRecoveryTransaction,
   appendFreshEmptyParagraphInputBoundaryTransaction,
   createEditableMarkdownBlankLineDecorations,
   EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
   handleFreshEmptyParagraphTextInput,
+  handleMarkdownBlankLineDeletion,
   handleMarkdownBlankLineKeyboardNavigation,
   handleMarkdownBlankLinePointerDown,
   handleMarkdownBlankLineTextInput,
@@ -674,6 +676,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
   return new Plugin({
     key: blankAreaDragBoxPluginKey,
     appendTransaction(transactions, oldState, newState) {
+      const markdownBlankLineSelectionRecovery =
+        appendMarkdownBlankLineNodeSelectionRecoveryTransaction(oldState, newState);
+      if (markdownBlankLineSelectionRecovery) {
+        return markdownBlankLineSelectionRecovery;
+      }
+
       if (!transactions.some((tr) => tr.docChanged)) return null;
       return appendFreshEmptyParagraphInputBoundaryTransaction(oldState, newState);
     },
@@ -767,6 +775,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           serializeSelectedBlocks,
           deleteSelectedBlocks,
         })) {
+          return true;
+        }
+        if (handleMarkdownBlankLineDeletion(view, event)) {
           return true;
         }
         return handleMarkdownBlankLineKeyboardNavigation(view, event);
