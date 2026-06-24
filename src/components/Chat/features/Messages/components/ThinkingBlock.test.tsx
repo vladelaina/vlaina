@@ -107,7 +107,7 @@ describe('ThinkingBlock', () => {
     expect(wrapper).toHaveAttribute('data-chat-thinking-collapsed', 'true');
     expect(container.querySelector('[data-chat-selection-surface="true"]')).not.toBeInTheDocument();
     expect(container.querySelector('[data-chat-selection-start="true"]')).not.toBeInTheDocument();
-    const toggle = screen.getByRole('button', { name: 'Reasoning' });
+    const toggle = screen.getByRole('button', { name: 'Reasoned' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(toggle);
@@ -127,7 +127,7 @@ describe('ThinkingBlock', () => {
       />,
     );
 
-    const toggle = screen.getByRole('button', { name: 'Thought...' });
+    const toggle = screen.getByRole('button', { name: 'Reasoning...' });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     rerender(
@@ -137,7 +137,7 @@ describe('ThinkingBlock', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Reasoning' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Reasoned' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('uses the live markdown animation layer while thinking is streaming', () => {
@@ -184,7 +184,7 @@ describe('ThinkingBlock', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reasoning' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoned' }));
 
     expect(container.querySelector('.code-block-chrome')).not.toBeNull();
     expect(container.querySelector('.code-block-chrome-language-label')).toHaveTextContent('ts');
@@ -198,7 +198,7 @@ describe('ThinkingBlock', () => {
       />,
     );
 
-    const toggle = screen.getByRole('button', { name: 'Thought...' });
+    const toggle = screen.getByRole('button', { name: 'Reasoning...' });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     fireEvent.click(toggle);
@@ -306,7 +306,7 @@ describe('ThinkingBlock', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reasoning' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoned' }));
     const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
     fireEvent.mouseDown(surface, { button: 0 });
 
