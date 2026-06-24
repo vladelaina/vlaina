@@ -112,6 +112,9 @@ test.describe("notes block selection", () => {
       expect(geometry!.rows, JSON.stringify(geometry, null, 2)).toHaveLength(3);
       expect(Math.abs(geometry!.rectTopDeltas[0] - geometry!.rectTopDeltas[1]), JSON.stringify(geometry, null, 2)).toBeLessThanOrEqual(1);
       expect(Math.abs(geometry!.paintGaps[0] - geometry!.paintGaps[1]), JSON.stringify(geometry, null, 2)).toBeLessThanOrEqual(1);
+      for (const gap of geometry!.paintGaps) {
+        expect(gap, JSON.stringify(geometry, null, 2)).toBeGreaterThan(0.5);
+      }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

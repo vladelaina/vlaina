@@ -9,6 +9,7 @@
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ):is(
   .editor-block-selected,
@@ -39,6 +40,7 @@
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ):is(
   .editor-block-selected,
@@ -64,11 +66,13 @@
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ).editor-block-drag-source.editor-block-drag-source-has-next {
   --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
@@ -77,11 +81,13 @@
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-previous,
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ).editor-block-drag-source.editor-block-drag-source-has-previous {
   --vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
@@ -90,6 +96,7 @@
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode) > * {
   position: relative;
@@ -99,6 +106,7 @@
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ):is(
   .editor-block-selected,
@@ -111,6 +119,7 @@
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
   .mermaid-block
 ):is(
   .editor-block-selected,

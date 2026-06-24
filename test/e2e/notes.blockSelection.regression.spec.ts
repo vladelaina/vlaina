@@ -295,9 +295,12 @@ async function measureBrightTextPixels(page: Page, clip: TextClip) {
 }
 
 async function measureSelectedAtomicBlock(page: Page, selector: string) {
-  return page.evaluate((targetSelector) => {
+  return page.evaluate(async (targetSelector) => {
     const element = document.querySelector<HTMLElement>(targetSelector);
     if (!element) return null;
+
+    element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
     const parsePx = (value: string, fallback = 0) => {
       const parsed = Number.parseFloat(value);
@@ -325,6 +328,11 @@ async function measureSelectedAtomicBlock(page: Page, selector: string) {
       hasAfterPaint,
       overflowX: style.overflowX,
       overflowY: style.overflowY,
+      outline: style.outline,
+      outlineColor: style.outlineColor,
+      outlineOffset: style.outlineOffset,
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
       position: style.position,
       rect: {
         bottom: rect.bottom,
@@ -372,6 +380,15 @@ function expectNoComputedTransition(
   }
   expect(value.transitionProperty, JSON.stringify({ label, value }, null, 2)).not.toContain('background');
   expect(value.transitionProperty, JSON.stringify({ label, value }, null, 2)).not.toContain('box-shadow');
+}
+
+function expectSelectedAtomicOutline(metrics: AtomicBlockMetrics, label: string) {
+  const outlineWidth = Number.parseFloat(metrics.outlineWidth);
+  const outlineOffset = Number.parseFloat(metrics.outlineOffset);
+  expect(metrics.outlineStyle, JSON.stringify({ label, metrics }, null, 2)).toBe('solid');
+  expect(outlineWidth, JSON.stringify({ label, metrics }, null, 2)).toBeGreaterThan(0);
+  expect(outlineOffset, JSON.stringify({ label, metrics }, null, 2)).toBeLessThanOrEqual(0);
+  expect(metrics.outlineColor, JSON.stringify({ label, metrics }, null, 2)).not.toBe('rgba(0, 0, 0, 0)');
 }
 
 async function expectSelectedAtomicBleedPixels(page: Page, metrics: AtomicBlockMetrics, label: string) {
@@ -1429,6 +1446,10 @@ test.describe("notes block selection regressions", () => {
         content: [
           'Paragraph before html block selection.',
           '',
+          '# Atomic Rich TOC Heading',
+          '',
+          '[TOC]',
+          '',
           '<!--注释-->',
           '',
           '<div><span style="color: #d22;">HTML block selection sentinel</span></div>',
@@ -1451,6 +1472,7 @@ test.describe("notes block selection regressions", () => {
       });
 
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-literal-text`, { hasText: '<!--注释-->' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="toc"].toc-block`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'Code block selection sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text)`, { hasText: 'HTML block selection sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="math-block"]`)).toBeVisible();
@@ -1469,14 +1491,17 @@ test.describe("notes block selection regressions", () => {
         return {
           html: readTransition(`${editorSelector} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text)`),
           math: readTransition(`${editorSelector} [data-type="math-block"]`),
+          toc: readTransition(`${editorSelector} [data-type="toc"].toc-block`),
           mermaid: readTransition(`${editorSelector} [data-type="mermaid"].mermaid-block`),
         };
       }, EDITOR_SELECTOR);
       expect(baseAtomicTransitions.html, JSON.stringify(baseAtomicTransitions, null, 2)).not.toBeNull();
       expect(baseAtomicTransitions.math, JSON.stringify(baseAtomicTransitions, null, 2)).not.toBeNull();
+      expect(baseAtomicTransitions.toc, JSON.stringify(baseAtomicTransitions, null, 2)).not.toBeNull();
       expect(baseAtomicTransitions.mermaid, JSON.stringify(baseAtomicTransitions, null, 2)).not.toBeNull();
       expectNoComputedTransition(baseAtomicTransitions.html!, 'base html block');
       expectNoComputedTransition(baseAtomicTransitions.math!, 'base math block');
+      expectNoComputedTransition(baseAtomicTransitions.toc!, 'base toc block');
       expectNoComputedTransition(baseAtomicTransitions.mermaid!, 'base mermaid block');
 
       const indexes = await page.evaluate(() => {
@@ -1493,6 +1518,7 @@ test.describe("notes block selection regressions", () => {
           codeIndex: blocks.findIndex((block) => includesText(block, 'Code block selection sentinel')),
           htmlIndex: blocks.findIndex((block) => includesText(block, 'HTML block selection sentinel')),
           mathIndex: blocks.findIndex((block) => includesText(block, 'E = mc^2') || includesText(block, 'E=mc')),
+          tocIndex: blocks.findIndex((block) => block.className.includes('toc-block')),
           mermaidIndex: blocks.findIndex((block) => block.className.includes('mermaid-block')),
           blocks: blocks.map((block, index) => ({
             className: block.className,
@@ -1507,6 +1533,7 @@ test.describe("notes block selection regressions", () => {
       expect(indexes.codeIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
       expect(indexes.htmlIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
       expect(indexes.mathIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
+      expect(indexes.tocIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
       expect(indexes.mermaidIndex, JSON.stringify(indexes, null, 2)).toBeGreaterThanOrEqual(0);
 
       let selectedCount = await selectNoteBlocksByIndexes(page, [indexes.commentIndex]);
@@ -1545,6 +1572,7 @@ test.describe("notes block selection regressions", () => {
       expect(htmlMetrics!.after?.left, JSON.stringify(htmlMetrics, null, 2)).toBeLessThan(-1);
       expect(htmlMetrics!.after?.right, JSON.stringify(htmlMetrics, null, 2)).toBeLessThan(-1);
       expect(htmlMetrics!.boxShadow, JSON.stringify(htmlMetrics, null, 2)).not.toBe('none');
+      expectSelectedAtomicOutline(htmlMetrics!, 'html block');
       const htmlForeground = await page.evaluate((editorSelector) => {
         const block = document.querySelector<HTMLElement>(
           `${editorSelector} [data-type="html-block"].md-htmlblock-container:not(.md-htmlblock-literal-text).editor-block-selected`
@@ -1585,7 +1613,28 @@ test.describe("notes block selection regressions", () => {
       expect(mathMetrics!.after?.left, JSON.stringify(mathMetrics, null, 2)).toBeLessThan(-1);
       expect(mathMetrics!.after?.right, JSON.stringify(mathMetrics, null, 2)).toBeLessThan(-1);
       expect(mathMetrics!.boxShadow, JSON.stringify(mathMetrics, null, 2)).not.toBe('none');
+      expectSelectedAtomicOutline(mathMetrics!, 'math block');
       await expectSelectedAtomicBleedPixels(page, mathMetrics!, 'math block');
+
+      await clearSelectedNoteBlocks(page);
+      selectedCount = await selectNoteBlocksByIndexes(page, [indexes.tocIndex]);
+      expect(selectedCount, JSON.stringify(indexes, null, 2)).toBe(1);
+      const tocMetrics = await measureSelectedAtomicBlock(page, `${EDITOR_SELECTOR} [data-type="toc"].toc-block.editor-block-selected`);
+      expect(tocMetrics, 'selected toc block metrics').not.toBeNull();
+      expect(tocMetrics!.className, JSON.stringify(tocMetrics, null, 2)).toContain('toc-block');
+      expect(tocMetrics!.overflowX, JSON.stringify(tocMetrics, null, 2)).toBe('visible');
+      expect(tocMetrics!.overflowY, JSON.stringify(tocMetrics, null, 2)).toBe('visible');
+      expect(tocMetrics!.contentVisibility, JSON.stringify(tocMetrics, null, 2)).toBe('visible');
+      expect(tocMetrics!.contain, JSON.stringify(tocMetrics, null, 2)).toBe('none');
+      expect(tocMetrics!.position, JSON.stringify(tocMetrics, null, 2)).toBe('relative');
+      expect(tocMetrics!.scrollbarHeight, JSON.stringify(tocMetrics, null, 2)).toBe(0);
+      expectNoComputedTransition(tocMetrics!, 'selected toc block');
+      expect(tocMetrics!.hasAfterPaint, JSON.stringify(tocMetrics, null, 2)).toBe(true);
+      expect(tocMetrics!.after?.left, JSON.stringify(tocMetrics, null, 2)).toBeLessThan(-1);
+      expect(tocMetrics!.after?.right, JSON.stringify(tocMetrics, null, 2)).toBeLessThan(-1);
+      expect(tocMetrics!.boxShadow, JSON.stringify(tocMetrics, null, 2)).not.toBe('none');
+      expectSelectedAtomicOutline(tocMetrics!, 'toc block');
+      await expectSelectedAtomicBleedPixels(page, tocMetrics!, 'toc block');
 
       await clearSelectedNoteBlocks(page);
       selectedCount = await selectNoteBlocksByIndexes(page, [indexes.mermaidIndex]);
@@ -1603,6 +1652,7 @@ test.describe("notes block selection regressions", () => {
       expect(mermaidMetrics!.after?.left, JSON.stringify(mermaidMetrics, null, 2)).toBeLessThan(-1);
       expect(mermaidMetrics!.after?.right, JSON.stringify(mermaidMetrics, null, 2)).toBeLessThan(-1);
       expect(mermaidMetrics!.boxShadow, JSON.stringify(mermaidMetrics, null, 2)).not.toBe('none');
+      expectSelectedAtomicOutline(mermaidMetrics!, 'mermaid block');
       await expectSelectedAtomicBleedPixels(page, mermaidMetrics!, 'mermaid block');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

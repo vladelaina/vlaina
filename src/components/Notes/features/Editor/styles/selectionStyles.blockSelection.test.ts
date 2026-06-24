@@ -224,9 +224,9 @@ describe("editor block selection styles", () => {
     expect(textBlockFillRule).toContain('z-index: var(--vlaina-z-behind);');
     expect(textBlockFillRule).toContain('background: var(--vlaina-block-selection-color);');
     expect(adjacentBottomRule).toContain('.editor-block-selected-has-next');
-    expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);');
+    expect(adjacentBottomRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
     expect(adjacentTopRule).toContain('.editor-block-selected-has-previous');
-    expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);');
+    expect(adjacentTopRule).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
     expect(extendedCss).toContain('.milkdown .ProseMirror .callout:is(.editor-block-selected-textlike, .editor-block-selected, .ProseMirror-selectednode) {');
     expect(extractCssRule(
       extendedCss,
@@ -401,6 +401,7 @@ describe("editor block selection styles", () => {
     expect(richBlockRule).toContain('.frontmatter-block-container,');
     expect(richBlockRule).toContain('.image-block-container,');
     expect(richBlockRule).toContain('.video-block,');
+    expect(richBlockRule).toContain('.toc-block,');
     expect(richBlockRule).toContain("[data-type='math-block'],");
     expect(richBlockRule).toContain('.mermaid-block,');
     expect(richBlockRule).toContain('.milkdown-table-block,');
@@ -492,7 +493,7 @@ describe("editor block selection styles", () => {
     expect(blockSelectionCss).toContain('box-shadow: var(--vlaina-shadow-hr-selected);');
     expect(blockSelectionCss).toContain('.editor-native-selected-textlike');
     expect(blockSelectionCss).not.toContain('.footnote-def,');
-    expect(blockSelectionCss).not.toContain('.toc-block,');
+    expect(blockSelectionCss).toContain('.toc-block,');
     expect(blockSelectionCss).not.toContain('.callout,');
     expect(blockSelectionCss).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected");
     expect(markdownCss).not.toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode::before');

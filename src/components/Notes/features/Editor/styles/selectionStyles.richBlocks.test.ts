@@ -163,6 +163,7 @@ describe("editor rich block selection styles", () => {
     expect(rule).toContain('.frontmatter-block-container,');
     expect(rule).toContain('.image-block-container,');
     expect(rule).toContain('.video-block,');
+    expect(rule).toContain('.toc-block,');
     expect(rule).toContain("[data-type='math-block'],");
     expect(rule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
     expect(rule).toContain('.mermaid-block');
@@ -352,7 +353,7 @@ describe("editor rich block selection styles", () => {
     );
     const atomicBlockNextGapRule = extractCssRule(
       blockSelectionCss,
-      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
+      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .toc-block,\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
     );
     const atomicForegroundRule = extractCssRule(
       blockSelectionCss,
@@ -360,6 +361,7 @@ describe("editor rich block selection styles", () => {
         ".milkdown .ProseMirror :is(",
         "  [data-type='math-block'].math-block-wrapper,",
         "  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),",
+        "  .toc-block,",
         "  .mermaid-block",
         "):is(",
         "  .editor-block-selected,",
@@ -397,6 +399,7 @@ describe("editor rich block selection styles", () => {
     expect(literalHtmlBlockRule).toContain('overflow-wrap: anywhere;');
     expect(atomicBlockFillRule).toContain("[data-type='math-block'].math-block-wrapper");
     expect(atomicBlockFillRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])");
+    expect(atomicBlockFillRule).toContain('.toc-block');
     expect(atomicBlockFillRule).toContain('.mermaid-block');
     expect(atomicBlockFillRule).toContain('.editor-block-selected');
     expect(atomicBlockFillRule).toContain('.editor-block-drag-source');
@@ -414,6 +417,7 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockNextGapRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
     expect(atomicBlockFrameRule).toContain("[data-type='math-block'].math-block-wrapper");
+    expect(atomicBlockFrameRule).toContain('.toc-block');
     expect(atomicBlockFrameRule).toContain('.mermaid-block');
     expect(atomicBlockFrameRule).toContain('content-visibility: visible;');
     expect(atomicBlockFrameRule).toContain('contain: none;');
@@ -433,6 +437,7 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockFrameRule).toContain('transition: none !important;');
     expect(atomicForegroundRule).toContain("[data-type='math-block'].math-block-wrapper");
     expect(atomicForegroundRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text)");
+    expect(atomicForegroundRule).toContain('.toc-block');
     expect(atomicForegroundRule).toContain('.mermaid-block');
     expect(atomicForegroundRule).toContain('.editor-block-selected');
     expect(atomicForegroundRule).toContain('.editor-block-drag-source');
@@ -534,6 +539,7 @@ describe("editor rich block selection styles", () => {
       '.frontmatter-block-container',
       '.image-block-container',
       '.video-block',
+      '.toc-block',
       "[data-type='html-block']",
       "[data-type='math-block']",
       '.mermaid-block',
