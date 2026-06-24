@@ -5,6 +5,7 @@ import { mathEditorPluginKey } from './mathEditorPluginKey';
 import { isMathBlockShortcutText } from './mathBlockFence';
 import { createOpenMathEditorState } from './mathEditorState';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
+import { moveSelectionAfterInsertedNode } from '../shared/insertedNodeSelection';
 
 const MAX_MATH_BLOCK_SHORTCUT_TEXT_CHARS = 128;
 
@@ -71,18 +72,24 @@ export function handleMathBlockShortcutEnter(view: EditorView): boolean {
 
   const paragraphPos = $from.before();
   const paragraphEnd = paragraphPos + $from.parent.nodeSize;
-  const tr = state.tr
-    .replaceWith(paragraphPos, paragraphEnd, mathBlockType.create({ latex: '' }))
-    .setMeta(
-      mathEditorPluginKey,
-      createOpenMathEditorState({
-        latex: '',
-        displayMode: true,
-        position: getMathBlockEnterViewportPosition(view),
-        nodePos: paragraphPos,
-        openSource: 'new-empty-block',
-      })
-    );
+  const mathNode = mathBlockType.create({ latex: '' });
+  const tr = state.tr.replaceWith(paragraphPos, paragraphEnd, mathNode);
+  moveSelectionAfterInsertedNode({
+    tr,
+    nodePos: paragraphPos,
+    insertedNodeFallback: mathNode,
+    paragraphType: schema.nodes.paragraph,
+  });
+  tr.setMeta(
+    mathEditorPluginKey,
+    createOpenMathEditorState({
+      latex: '',
+      displayMode: true,
+      position: getMathBlockEnterViewportPosition(view),
+      nodePos: paragraphPos,
+      openSource: 'new-empty-block',
+    })
+  );
 
   markMathUserInput(view);
   view.dispatch(tr);

@@ -6,6 +6,7 @@ import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
 import { createMermaidFenceStarterCode } from './mermaidFenceCode';
 import { parseMermaidFenceLanguage } from './mermaidLanguage';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
+import { moveSelectionAfterInsertedNode } from '../shared/insertedNodeSelection';
 
 const MAX_MERMAID_FENCE_SHORTCUT_TEXT_CHARS = 128;
 
@@ -110,11 +111,18 @@ export function handleMermaidFenceEnter(view: EditorView): boolean {
     nodePos: paragraphPos,
     openSource: 'new-empty-block',
   });
+  const mermaidNode = mermaidType.create({ code: starterCode });
   const tr = state.tr.replaceWith(
     paragraphPos,
     paragraphEnd,
-    mermaidType.create({ code: starterCode })
+    mermaidNode
   );
+  moveSelectionAfterInsertedNode({
+    tr,
+    nodePos: paragraphPos,
+    insertedNodeFallback: mermaidNode,
+    paragraphType: schema.nodes.paragraph,
+  });
 
   markMermaidUserInput(view);
   view.dispatch(tr);

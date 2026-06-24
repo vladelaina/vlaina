@@ -4,6 +4,10 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { TocAttrs } from './types';
 import { isTocShortcutText } from './tocShortcut';
 import {
+  findInsertedNodePos,
+  moveSelectionAfterInsertedNode,
+} from '../shared/insertedNodeSelection';
+import {
   createHeadingsSignature,
   extractHeadings,
   normalizeTocMaxLevel,
@@ -199,6 +203,20 @@ export const insertTocCommand = $command('insertToc', () => () => {
     if (dispatch) {
       const node = tocType.create({ maxLevel: 6 });
       const tr = state.tr.replaceSelectionWith(node);
+      const preferredPos = typeof tr.mapping?.map === 'function'
+        ? tr.mapping.map(state.selection.from, -1)
+        : state.selection.from;
+      const tocPos = findInsertedNodePos({
+        doc: tr.doc,
+        preferredPos,
+        nodeTypeName: 'toc',
+      });
+      moveSelectionAfterInsertedNode({
+        tr,
+        nodePos: tocPos,
+        insertedNodeFallback: node,
+        paragraphType: schema.nodes.paragraph,
+      });
       dispatch(tr.scrollIntoView());
     }
     
@@ -250,9 +268,16 @@ export function handleTocShortcutEnter(view: EditorView): boolean {
 
   const paragraphPos = $from.before();
   const paragraphEnd = paragraphPos + $from.parent.nodeSize;
+  const tocNode = tocType.create({ maxLevel: 6 });
   const tr = state.tr
-    .replaceWith(paragraphPos, paragraphEnd, tocType.create({ maxLevel: 6 }))
+    .replaceWith(paragraphPos, paragraphEnd, tocNode)
     .scrollIntoView();
+  moveSelectionAfterInsertedNode({
+    tr,
+    nodePos: paragraphPos,
+    insertedNodeFallback: tocNode,
+    paragraphType: schema.nodes.paragraph,
+  });
 
   view.dispatch(tr);
   return true;

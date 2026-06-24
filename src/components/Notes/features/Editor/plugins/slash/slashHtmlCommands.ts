@@ -4,7 +4,11 @@ import {
   createOpenHtmlBlockEditorState,
   htmlBlockEditorPluginKey,
 } from '../html-block/htmlBlockEditorPlugin';
-import { findInsertedNodePos, getSlashInsertViewportPosition } from './slashInsertUtils';
+import {
+  findInsertedNodePos,
+  getSlashInsertViewportPosition,
+  moveSelectionAfterInsertedNode,
+} from './slashInsertUtils';
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
   view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
@@ -26,6 +30,12 @@ export function insertHtmlBlockNodeAndOpenEditor(ctx: Ctx) {
       doc: tr.doc,
       preferredPos,
       nodeTypeName: 'html_block',
+    });
+    moveSelectionAfterInsertedNode({
+      tr,
+      nodePos,
+      insertedNodeFallback: node,
+      paragraphType: state.schema.nodes.paragraph,
     });
 
     tr

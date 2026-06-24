@@ -1,10 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import {
+  Editor,
+  defaultValueCtx,
+  editorViewCtx,
+  remarkStringifyOptionsCtx,
+  serializerCtx,
+} from '@milkdown/kit/core';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import {
+  normalizeSerializedMarkdownDocument,
+  preserveMarkdownBlankLinesForEditor,
+  stripTrailingNewlines,
+} from '@/lib/notes/markdown/markdownSerializationUtils';
+import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { deleteSelectedBlocks } from './blockSelectionDeletion';
 import { EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER } from './markdownBlankLineInteraction';
@@ -28,6 +40,34 @@ async function createEditor(markdown: string) {
 
   await editor.create();
   return editor;
+}
+
+async function createSerializableEditor(markdown: string) {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, preserveMarkdownBlankLinesForEditor(
+        normalizeSerializedMarkdownDocument(markdown)
+      ));
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(mathPlugin)
+    .use(mermaidPlugin)
+    .use(codePlugin)
+    .use(listTabIndentPlugin);
+
+  await editor.create();
+  return editor;
+}
+
+function serializeNormalizedEditorMarkdown(editor: ReturnType<typeof Editor.make>): string {
+  const view = editor.ctx.get(editorViewCtx);
+  const serializer = editor.ctx.get(serializerCtx);
+  return stripTrailingNewlines(normalizeSerializedMarkdownDocument(serializer(view.state.doc)));
 }
 
 function replaceDocument(view: EditorView, nodes: ProseNode[]): void {
@@ -339,6 +379,34 @@ describe('deleteSelectedBlocks', () => {
     expect(view.state.selection).toBeInstanceOf(TextSelection);
     expect(view.state.selection.from).toBe(view.state.doc.content.size - 1);
 
+    await editor.destroy();
+  });
+
+  it('does not leak markdown blank placeholders into the previous formula after deleting an adjacent formula', async () => {
+    const markdown = ['$$', 'hi', '$$', '', '$$', 'bye', '$$'].join('\n');
+    const editor = await createSerializableEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const lastMathBlock = blocks.find((block) => {
+      const node = view.state.doc.resolve(block.from).nodeAfter;
+      return node?.type.name === 'math_block' && node.attrs.latex === 'bye';
+    });
+
+    expect(lastMathBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [lastMathBlock!], (tr) => tr)).toBe(true);
+
+    const persisted = serializeNormalizedEditorMarkdown(editor);
+    expect(persisted).toBe(['$$', 'hi', '$$'].join('\n'));
+    expect(persisted).not.toContain('vlaina-markdown-blank-line');
+
+    const reopened = await createSerializableEditor(persisted);
+    const reopenedView = reopened.ctx.get(editorViewCtx);
+    const firstNode = reopenedView.state.doc.child(0);
+
+    expect(firstNode.type.name).toBe('math_block');
+    expect(firstNode.attrs.latex).toBe('hi');
+
+    await reopened.destroy();
     await editor.destroy();
   });
 

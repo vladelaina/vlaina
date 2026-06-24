@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { handleTocShortcutEnter } from './tocPlugin';
+import {
+  defaultValueCtx,
+  Editor,
+  editorViewCtx,
+} from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+import { handleTocShortcutEnter, tocPlugin } from './tocPlugin';
 import { isTocShortcutText } from './tocShortcut';
 
 describe('tocShortcut', () => {
@@ -78,6 +85,37 @@ describe('handleTocShortcutEnter', () => {
     expect(view.state.schema.nodes.toc.create).toHaveBeenCalledWith({ maxLevel: 6 });
     expect(tr.replaceWith).toHaveBeenCalledWith(4, 11, { attrs: { maxLevel: 6 } });
     expect(view.dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('moves the cursor after a toc node created from the Enter shortcut', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(tocPlugin);
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const paragraph = view.state.schema.nodes.paragraph.create(
+        null,
+        view.state.schema.text('[TOC]')
+      );
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, paragraph));
+      view.dispatch(view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, 1 + '[TOC]'.length)
+      ));
+
+      expect(handleTocShortcutEnter(view)).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.doc.child(0).type.name).toBe('toc');
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    } finally {
+      await editor.destroy();
+    }
   });
 
   it('converts a standalone {:toc} paragraph into a toc node on Enter', () => {
