@@ -350,6 +350,28 @@ describe('ChatImageViewer', () => {
     expect(imageActionMocks.downloadImageWithPrompt).toHaveBeenCalledWith(originalSrc, 'cover');
   });
 
+  it('uses a custom image copy handler when provided', async () => {
+    const onOpenChange = vi.fn();
+    const onCopyImage = vi.fn(async () => true);
+
+    render(
+      <ChatImageViewer
+        open
+        src="blob:notes-preview"
+        alt="cover"
+        onCopyImage={onCopyImage}
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy image' }));
+
+    await waitFor(() => {
+      expect(onCopyImage).toHaveBeenCalledWith('blob:notes-preview');
+    });
+    expect(imageActionMocks.copyImageSourceToClipboard).not.toHaveBeenCalled();
+  });
+
   it('still matches short decoded gallery image sources', async () => {
     const onOpenChange = vi.fn();
 

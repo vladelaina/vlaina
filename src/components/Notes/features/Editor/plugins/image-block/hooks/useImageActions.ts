@@ -1,15 +1,17 @@
 import { useCallback, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
-import { sanitizeFilename } from '@/lib/assets/core/naming';
+import { getMimeType, isImageFilename, sanitizeFilename } from '@/lib/assets/core/naming';
 import { writeImageBlobToClipboard, writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { fetchBoundedImageBlobResult, MAX_FETCHED_IMAGE_BYTES } from '@/lib/markdown/fetchBoundedImageBlob';
 import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from '@/lib/markdown/svgRasterize';
 import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { saveDialog } from '@/lib/storage/dialog';
+import { getStorageAdapter } from '@/lib/storage/adapter';
+import { toBlobPart } from '@/lib/blobPart';
 import { ensureImageFileExists } from '../utils/fileUtils';
-import { getImageSourceBase, isVirtualImageSource } from '../utils/imageSourcePath';
+import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { deleteImageNodeAtPos } from '../commands/imageNodeCommands';
@@ -39,6 +41,15 @@ function isLikelySvgImageSource(src: string | null | undefined): boolean {
 
 function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
     return Number.isFinite(size) && size >= 0 && size <= maxBytes;
+}
+
+type LocalActionImageBlobResult =
+    | { status: 'ok'; blob: Blob }
+    | { status: 'too-large' }
+    | { status: 'not-local' | 'not-found' };
+
+function isTooLargeReadError(error: unknown): boolean {
+    return error instanceof Error && /too large/i.test(error.message);
 }
 
 async function normalizeActionImageBlob(blob: Blob): Promise<Blob | null> {
@@ -77,6 +88,63 @@ function getImageActionResourceSrc(baseSrc: string, resolvedSrc?: string): strin
         return baseResourceSrc;
     }
     return resolvedSrc || '';
+}
+
+async function readLocalActionImageBlob(
+    baseSrc: string,
+    notesPath: string,
+    currentNotePath?: string,
+): Promise<LocalActionImageBlobResult> {
+    const baseResourceSrc = getImageSourceBase(baseSrc);
+    if (!baseResourceSrc || normalizePublicRemoteMediaUrl(baseResourceSrc) || isVirtualImageSource(baseResourceSrc)) {
+        return { status: 'not-local' };
+    }
+
+    const candidatePaths = await resolveImageSourcePathCandidates({
+        rawSrc: baseResourceSrc,
+        notesPath,
+        currentNotePath,
+    });
+    if (candidatePaths.length === 0) {
+        return { status: 'not-found' };
+    }
+
+    const storage = getStorageAdapter();
+    let sawTooLargeCandidate = false;
+
+    for (const candidatePath of candidatePaths) {
+        if (!isImageFilename(candidatePath)) {
+            continue;
+        }
+
+        const info = await storage.stat(candidatePath).catch(() => null);
+        if (info?.isDirectory || info?.isFile === false) {
+            continue;
+        }
+        if (typeof info?.size === 'number' && !isBlobByteLengthWithinLimit(info.size, MAX_FETCHED_IMAGE_BYTES)) {
+            sawTooLargeCandidate = true;
+            continue;
+        }
+
+        try {
+            const bytes = await storage.readBinaryFile(candidatePath, MAX_FETCHED_IMAGE_BYTES);
+            if (!isBlobByteLengthWithinLimit(bytes.byteLength, MAX_FETCHED_IMAGE_BYTES)) {
+                sawTooLargeCandidate = true;
+                continue;
+            }
+
+            return {
+                status: 'ok',
+                blob: new Blob([toBlobPart(bytes)], { type: getMimeType(candidatePath) }),
+            };
+        } catch (error) {
+            if (isTooLargeReadError(error)) {
+                sawTooLargeCandidate = true;
+            }
+        }
+    }
+
+    return sawTooLargeCandidate ? { status: 'too-large' } : { status: 'not-found' };
 }
 
 async function readBlobBytes(blob: Blob): Promise<Uint8Array> {
@@ -164,6 +232,18 @@ export function useImageActions({
     const handleCopy = async () => {
         try {
             await restoreIfNeeded();
+            const localImage = await readLocalActionImageBlob(baseSrc, notesPath, currentNotePath);
+            if (localImage.status === 'too-large') {
+                return false;
+            }
+            if (localImage.status === 'ok') {
+                const blob = await normalizeActionImageBlob(localImage.blob);
+                if (!blob) {
+                    return writeTextToClipboard(nodeSrc);
+                }
+                return writeImageBlobToClipboard(blob);
+            }
+
             const resourceSrc = getImageActionResourceSrc(baseSrc, resolvedSrc);
             if (resourceSrc) {
                 const result = await fetchBoundedImageBlobResult(resourceSrc);
