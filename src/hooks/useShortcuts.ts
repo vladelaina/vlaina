@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { desktopWindow } from '@/lib/desktop/window';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { dispatchEditorFindOpenEvent } from '@/components/Notes/features/Editor/find/editorFindEvents';
+import { dispatchNoteSourceModeToggleEvent } from '@/components/Notes/features/Editor/sourceMode/sourceModeEvents';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
@@ -55,6 +56,9 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     },
     editorFind: () => {
       dispatchEditorFindOpenEvent();
+    },
+    toggleNoteSourceMode: () => {
+      dispatchNoteSourceModeToggleEvent();
     },
     'open-settings': () => {
       window.dispatchEvent(new Event('toggle-settings'));

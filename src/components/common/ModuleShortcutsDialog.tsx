@@ -183,7 +183,7 @@ export function ModuleShortcutsDialog({
                 {resolvedDescription}
               </DialogDescription>
               <ShortcutKeys
-                keys={['Ctrl', '/']}
+                keys={['Ctrl', 'Shift', '/']}
                 className="shrink-0"
                 keyClassName={shortcutKeyClassName}
               />

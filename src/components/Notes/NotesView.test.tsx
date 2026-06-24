@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
+import { NOTE_SOURCE_MODE_TOGGLE_EVENT } from '@/components/Notes/features/Editor/sourceMode/sourceModeEvents';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { messageDialog } from '@/lib/storage/dialog';
 import { NATIVE_CARET_OVERLAY_REFRESH_EVENT } from '@/hooks/useNativeCaretOverlay';
@@ -1774,6 +1775,34 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.reopenClosedTab).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('dispatches source mode toggle on Ctrl+/', async () => {
+    notesState.currentNote = { path: 'docs/current.md', content: '# current' };
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleNoteSourceMode' && event.key === '/' && event.ctrlKey && !event.shiftKey
+    ));
+    const sourceModeListener = vi.fn();
+    window.addEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+
+    try {
+      render(<NotesView />);
+      await waitForVaultInitializationEffects();
+
+      const event = new KeyboardEvent('keydown', {
+        key: '/',
+        code: 'Slash',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      document.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(sourceModeListener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+    }
   });
 
   it('opens the delete dialog for the current note and confirms deletion', async () => {

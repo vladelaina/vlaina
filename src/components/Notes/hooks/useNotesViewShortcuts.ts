@@ -12,6 +12,7 @@ import {
   openSidebarDiscussionForSelection,
 } from '@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
+import { dispatchNoteSourceModeToggleEvent } from '@/components/Notes/features/Editor/sourceMode/sourceModeEvents';
 
 interface UseNotesViewShortcutsOptions {
   active: boolean;
@@ -98,6 +99,12 @@ export function useNotesViewShortcuts({
 
       const target = event.target;
       if (target instanceof Element && target.closest('[data-notes-chat-panel="true"]')) {
+        return;
+      }
+
+      if (matchesShortcutBinding(event, 'toggleNoteSourceMode')) {
+        event.preventDefault();
+        dispatchNoteSourceModeToggleEvent();
         return;
       }
 

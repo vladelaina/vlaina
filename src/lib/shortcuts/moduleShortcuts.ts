@@ -126,7 +126,10 @@ function buildSections(
   if (module === 'notes') {
     const editorShortcuts = getEditorShortcutPreset(t);
     for (const [section, shortcuts] of Object.entries(editorShortcuts) as Array<[ShortcutSection, ModuleShortcutItem[]]>) {
-      buckets.set(section, shortcuts);
+      buckets.set(section, [
+        ...(buckets.get(section) ?? []),
+        ...shortcuts,
+      ]);
     }
   }
 

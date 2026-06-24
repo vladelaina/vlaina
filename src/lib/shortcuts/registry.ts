@@ -171,6 +171,16 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     section: 'Notes',
   },
   {
+    id: 'toggleNoteSourceMode',
+    action: 'Toggle source / rendered mode',
+    actionKey: 'shortcut.action.toggleNoteSourceMode',
+    description: 'Toggle source / rendered mode',
+    keys: ['Ctrl', '/'],
+    scope: 'notes',
+    modules: ['notes'],
+    section: 'View',
+  },
+  {
     id: 'deleteCurrentNote',
     action: 'Delete current note',
     actionKey: 'shortcut.action.deleteCurrentNote',

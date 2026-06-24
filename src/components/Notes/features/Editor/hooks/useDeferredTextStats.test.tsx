@@ -40,16 +40,22 @@ describe('useDeferredTextStats', () => {
       { initialProps: { text: initialText } },
     );
 
-    const initialWordCount = result.current.wordCount;
-
-    rerender({ text: nextText });
-
-    expect(result.current.wordCount).toBe(initialWordCount);
+    expect(result.current.wordCount).toBe(0);
 
     act(() => {
       vi.advanceTimersByTime(180);
     });
 
-    expect(result.current.wordCount).toBe(initialWordCount + 1);
+    expect(result.current.wordCount).toBe(2);
+
+    rerender({ text: nextText });
+
+    expect(result.current.wordCount).toBe(2);
+
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(result.current.wordCount).toBe(3);
   });
 });
