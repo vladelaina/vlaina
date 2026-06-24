@@ -234,60 +234,113 @@ function findCommandOnPath(command, envPath = process.env.PATH, exists = existsS
   return null;
 }
 
-function getLinuxItemRevealer(options = {}) {
-  const candidates = [
-    { command: 'nautilus', args: ['--new-window', '--select'], target: 'item' },
-    { command: 'dolphin', args: ['--select'], target: 'item' },
-    { command: 'thunar', args: ['--select'], target: 'item' },
-    { command: 'nemo', args: [], target: 'folder' },
-    { command: 'pcmanfm', args: [], target: 'folder' },
-    { command: 'caja', args: [], target: 'folder' },
-    { command: 'io.elementary.files', args: [], target: 'folder' },
-  ];
-
-  for (const candidate of candidates) {
-    const commandPath = findCommandOnPath(candidate.command, options.envPath, options.exists);
-    if (commandPath) {
-      return { command: commandPath, args: candidate.args, target: candidate.target };
-    }
-  }
-
-  return { command: 'xdg-open', args: [], target: 'folder' };
+function escapeGVariantString(value) {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-function getLinuxDirectoryOpener(options = {}) {
-  const candidates = [
-    { command: 'nautilus', args: ['--new-window'] },
-    { command: 'dolphin', args: ['--new-window'] },
-    { command: 'thunar', args: ['--new-window'] },
-    { command: 'nemo', args: ['--new-window'] },
-    { command: 'pcmanfm', args: [] },
-    { command: 'caja', args: [] },
-    { command: 'io.elementary.files', args: [] },
-  ];
+const LINUX_ITEM_REVEALER_CANDIDATES = [
+  { command: 'nautilus', args: ['--select'], target: 'item' },
+  { command: 'dolphin', args: ['--select'], target: 'item' },
+  { command: 'thunar', args: ['--select'], target: 'item' },
+  { command: 'nemo', args: [], target: 'folder' },
+  { command: 'pcmanfm', args: [], target: 'folder' },
+  { command: 'caja', args: [], target: 'folder' },
+  { command: 'io.elementary.files', args: [], target: 'folder' },
+];
 
+const LINUX_DIRECTORY_OPENER_CANDIDATES = [
+  { command: 'nautilus', args: ['--new-window'] },
+  { command: 'dolphin', args: ['--new-window'] },
+  { command: 'thunar', args: ['--new-window'] },
+  { command: 'nemo', args: ['--new-window'] },
+  { command: 'pcmanfm', args: [] },
+  { command: 'caja', args: [] },
+  { command: 'io.elementary.files', args: [] },
+];
+
+const LINUX_XDG_OPEN_FOLDER_OPENER = { command: 'xdg-open', args: [], target: 'folder' };
+
+function findLinuxCommandOpener(candidates, options = {}) {
   for (const candidate of candidates) {
     const commandPath = findCommandOnPath(candidate.command, options.envPath, options.exists);
     if (commandPath) {
-      return { command: commandPath, args: candidate.args };
+      return { ...candidate, command: commandPath };
     }
   }
 
   return null;
 }
 
+function getLinuxFileManagerDbusRevealer(filePath, options = {}) {
+  const commandPath = findCommandOnPath('gdbus', options.envPath, options.exists);
+  if (!commandPath) {
+    return null;
+  }
+
+  const fileUrl = pathToFileURL(filePath).toString();
+  return {
+    command: commandPath,
+    args: [
+      'call',
+      '--session',
+      '--dest',
+      'org.freedesktop.FileManager1',
+      '--object-path',
+      '/org/freedesktop/FileManager1',
+      '--method',
+      'org.freedesktop.FileManager1.ShowItems',
+      `['${escapeGVariantString(fileUrl)}']`,
+      '',
+    ],
+    target: 'none',
+  };
+}
+
+function getLinuxCommandItemRevealer(options = {}) {
+  return findLinuxCommandOpener(LINUX_ITEM_REVEALER_CANDIDATES, options)
+    ?? LINUX_XDG_OPEN_FOLDER_OPENER;
+}
+
+function getLinuxDirectoryOpener(options = {}) {
+  return findLinuxCommandOpener(LINUX_DIRECTORY_OPENER_CANDIDATES, options);
+}
+
+function getLinuxOpenerTargetPath(filePath, target) {
+  if (target === 'none') {
+    return null;
+  }
+  if (target === 'folder') {
+    return path.dirname(filePath);
+  }
+  return filePath;
+}
+
+function getLinuxContainingFolderOpener(options = {}) {
+  const folderOpener = getLinuxDirectoryOpener(options);
+  return folderOpener
+    ? { ...folderOpener, target: 'folder' }
+    : LINUX_XDG_OPEN_FOLDER_OPENER;
+}
+
 function openItemWithLinuxFileManager(filePath, options = {}) {
-  const { command, args, target } = options.opener ?? getLinuxItemRevealer(options);
+  const opener = options.opener ?? getLinuxCommandItemRevealer(options);
+  const { command, args, target } = opener;
   const spawnDetached = options.spawnDetached ?? spawn;
   const fallbackShell = options.fallbackShell ?? shell;
   const folderPath = path.dirname(filePath);
-  const targetPath = target === 'folder' ? folderPath : filePath;
+  const targetPath = getLinuxOpenerTargetPath(filePath, target);
+  const spawnArgs = targetPath === null ? args : [...args, targetPath];
   let didFallback = false;
+
   const fallbackToContainingFolder = () => {
     if (didFallback) {
       return;
     }
     didFallback = true;
+
+    if (options.disableFallback) {
+      return;
+    }
 
     if (target === 'folder') {
       if (path.basename(command) === 'xdg-open') {
@@ -302,15 +355,13 @@ function openItemWithLinuxFileManager(filePath, options = {}) {
       return;
     }
 
-    const folderOpener = getLinuxDirectoryOpener(options);
     openItemWithLinuxFileManager(filePath, {
       ...options,
-      opener: folderOpener
-        ? { ...folderOpener, target: 'folder' }
-        : { command: 'xdg-open', args: [], target: 'folder' },
+      opener: getLinuxContainingFolderOpener(options),
     });
   };
-  const child = spawnDetached(command, [...args, targetPath], {
+
+  const child = spawnDetached(command, spawnArgs, {
     detached: true,
     stdio: 'ignore',
   });
@@ -355,13 +406,21 @@ export async function revealItemInFolder(filePath, options = {}) {
   const shellImpl = options.shellImpl ?? shell;
 
   if (platform === 'linux') {
-    const folderOpener = getLinuxDirectoryOpener(options);
+    // DBus is desktop-neutral; the direct command covers file managers that do not honor DBus selection reliably.
+    const dbusOpener = getLinuxFileManagerDbusRevealer(filePath, options);
+    if (dbusOpener) {
+      openItemWithLinuxFileManager(filePath, {
+        ...options,
+        fallbackShell: shellImpl,
+        opener: dbusOpener,
+        disableFallback: true,
+      });
+    }
+
     openItemWithLinuxFileManager(filePath, {
       ...options,
       fallbackShell: shellImpl,
-      opener: folderOpener
-        ? { ...folderOpener, target: 'folder' }
-        : { command: 'xdg-open', args: [], target: 'folder' },
+      opener: getLinuxCommandItemRevealer(options),
     });
     return;
   }
@@ -834,7 +893,8 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:shell:reveal-item', async (_event, filePath) => {
-    await revealItemInFolder(await assertAuthorizedFsPath(filePath));
+    const resolvedPath = await assertAuthorizedFsPath(filePath);
+    await revealItemInFolder(resolvedPath);
   });
 
   handleIpc('desktop:clipboard:write-text', async (_event, text) => {

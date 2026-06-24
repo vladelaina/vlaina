@@ -138,7 +138,61 @@ describe('desktop export ipc', () => {
     },
   );
 
-  it('opens the containing folder in a new file manager window on Linux', async () => {
+  it('uses both freedesktop DBus reveal and a file manager selection command on Linux when available', async () => {
+    const child = {
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    const spawnDetached = vi.fn(() => child);
+    const shellImpl = {
+      openPath: vi.fn(),
+      showItemInFolder: vi.fn(),
+    };
+
+    await revealItemInFolder('/vault/docs/readme.md', {
+      platform: 'linux',
+      shellImpl,
+      spawnDetached,
+      envPath: '/usr/bin',
+      exists: (candidatePath: string) =>
+        candidatePath === '/usr/bin/gdbus' || candidatePath === '/usr/bin/nautilus',
+    });
+
+    expect(spawnDetached).toHaveBeenCalledTimes(2);
+    expect(spawnDetached).toHaveBeenNthCalledWith(
+      1,
+      '/usr/bin/gdbus',
+      [
+        'call',
+        '--session',
+        '--dest',
+        'org.freedesktop.FileManager1',
+        '--object-path',
+        '/org/freedesktop/FileManager1',
+        '--method',
+        'org.freedesktop.FileManager1.ShowItems',
+        "['file:///vault/docs/readme.md']",
+        '',
+      ],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
+    expect(spawnDetached).toHaveBeenNthCalledWith(
+      2,
+      '/usr/bin/nautilus',
+      ['--select', '/vault/docs/readme.md'],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
+    expect(child.unref).toHaveBeenCalledTimes(2);
+    expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
+  });
+
+  it('reveals the selected file in a new file manager window on Linux', async () => {
     const child = {
       once: vi.fn(),
       unref: vi.fn(),
@@ -163,7 +217,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       1,
       '/usr/bin/nautilus',
-      ['--new-window', '/vault/docs'],
+      ['--select', '/vault/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -172,7 +226,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
       '/usr/bin/nautilus',
-      ['--new-window', '/vault/docs'],
+      ['--select', '/vault/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -182,7 +236,7 @@ describe('desktop export ipc', () => {
     expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
   });
 
-  it('falls back to xdg-open when Linux directory opening exits unsuccessfully', async () => {
+  it('falls back to opening the containing folder when Linux file reveal exits unsuccessfully', async () => {
     const firstHandlers = new Map<string, (...args: unknown[]) => void>();
     const firstChild = {
       once: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
@@ -218,7 +272,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       1,
       '/usr/bin/nautilus',
-      ['--new-window', '/vault/docs'],
+      ['--select', '/vault/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -226,6 +280,79 @@ describe('desktop export ipc', () => {
     );
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
+      '/usr/bin/nautilus',
+      ['--new-window', '/vault/docs'],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
+    expect(shellImpl.openPath).not.toHaveBeenCalled();
+  });
+
+  it('falls back to xdg-open when Linux directory opening exits unsuccessfully', async () => {
+    const firstHandlers = new Map<string, (...args: unknown[]) => void>();
+    const firstChild = {
+      once: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        firstHandlers.set(event, handler);
+        return firstChild;
+      }),
+      unref: vi.fn(),
+    };
+    const secondHandlers = new Map<string, (...args: unknown[]) => void>();
+    const secondChild = {
+      once: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        secondHandlers.set(event, handler);
+        return secondChild;
+      }),
+      unref: vi.fn(),
+    };
+    const thirdChild = {
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    const spawnDetached = vi
+      .fn()
+      .mockReturnValueOnce(firstChild)
+      .mockReturnValueOnce(secondChild)
+      .mockReturnValueOnce(thirdChild);
+    const shellImpl = {
+      openPath: vi.fn(),
+      showItemInFolder: vi.fn(),
+    };
+
+    await revealItemInFolder('/vault/docs/readme.md', {
+      platform: 'linux',
+      shellImpl,
+      spawnDetached,
+      envPath: '/usr/bin',
+      exists: (candidatePath: string) => candidatePath === '/usr/bin/nautilus',
+    });
+
+    firstHandlers.get('exit')?.(1);
+    secondHandlers.get('exit')?.(1);
+
+    expect(spawnDetached).toHaveBeenCalledTimes(3);
+    expect(spawnDetached).toHaveBeenNthCalledWith(
+      1,
+      '/usr/bin/nautilus',
+      ['--select', '/vault/docs/readme.md'],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
+    expect(spawnDetached).toHaveBeenNthCalledWith(
+      2,
+      '/usr/bin/nautilus',
+      ['--new-window', '/vault/docs'],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
+    expect(spawnDetached).toHaveBeenNthCalledWith(
+      3,
       'xdg-open',
       ['/vault/docs'],
       {
