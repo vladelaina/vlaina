@@ -123,6 +123,7 @@ describe('slashCommandDefinitions', () => {
       'code-block',
       'table',
       'image',
+      'emoji',
       'frontmatter',
       'equation',
       'inline-math',
@@ -136,6 +137,10 @@ describe('slashCommandDefinitions', () => {
     ]);
 
     expect(ids.includes('text')).toBe(false);
+  });
+
+  it('uses the note header heart icon for the emoji command', () => {
+    expect(slashCommandDefinitions.find((definition) => definition.id === 'emoji')?.icon).toBe('misc.heart');
   });
 
   it('inserts an empty HTML block and opens the shared HTML editor from slash', () => {

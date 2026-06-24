@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { slashPluginKey } from './slashPluginKey';
 import {
   canOpenSlashMenuFromSelection,
+  createDismissedSlashState,
   createSlashState,
   deriveSlashState,
+  getSlashTextRange,
 } from './slashState';
 
 function createSelection(
@@ -19,8 +21,16 @@ function createSelection(
       parent: {
         isTextblock: options.isTextblock ?? true,
         type: { spec: { code: options.isCode ?? false } },
-        textBetween: () => textBefore,
+        textBetween: (from = 0, to = textBefore.length) => textBefore.slice(from, to),
       },
+    },
+  } as any;
+}
+
+function createView(textBefore: string, pos = textBefore.length) {
+  return {
+    state: {
+      selection: createSelection(textBefore, pos),
     },
   } as any;
 }
@@ -193,7 +203,20 @@ describe('deriveSlashState', () => {
     expect(next).toEqual(createSlashState());
   });
 
-  it('does not track slashes inside words or urls', () => {
+  it('tracks slashes inside ordinary text', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: 'hello/e',
+        docChanged: true,
+      }),
+      createSlashState()
+    );
+
+    expect(next.isOpen).toBe(true);
+    expect(next.query).toBe('e');
+  });
+
+  it('does not track slashes inside urls', () => {
     const next = deriveSlashState(
       createTransaction({
         selectionText: 'https://example.com',
@@ -208,17 +231,112 @@ describe('deriveSlashState', () => {
 
     expect(next).toEqual(createSlashState());
   });
+
+  it('does not track slashes inside domain-like urls without protocols', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: 'visit example.com/path/e',
+        docChanged: true,
+      }),
+      createSlashState()
+    );
+
+    expect(next).toEqual(createSlashState());
+  });
+
+  it('does not track slashes in long url paths beyond the old short lookback window', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: `visit https://example.com/${'a'.repeat(80)}/e`,
+        docChanged: true,
+      }),
+      createSlashState()
+    );
+
+    expect(next).toEqual(createSlashState());
+  });
+
+  it('keeps an explicitly dismissed slash query closed while the user keeps typing it', () => {
+    const dismissed = createDismissedSlashState(createSelection('/h', 10));
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/he',
+        selectionPos: 11,
+        docChanged: true,
+      }),
+      dismissed
+    );
+
+    expect(next.isOpen).toBe(false);
+    expect(next.dismissedSlashFrom).toBe(dismissed.dismissedSlashFrom);
+  });
+
+  it('clears a dismissed slash query after the slash range stops being active', () => {
+    const dismissed = createDismissedSlashState(createSelection('/h', 10));
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/h ',
+        selectionPos: 12,
+        docChanged: true,
+      }),
+      dismissed
+    );
+
+    expect(next).toEqual(createSlashState());
+  });
+
+  it('opens again for a new slash after a different dismissed slash query', () => {
+    const dismissed = createDismissedSlashState(createSelection('/h', 10));
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/he /e',
+        selectionPos: 20,
+        docChanged: true,
+      }),
+      dismissed
+    );
+
+    expect(next.isOpen).toBe(true);
+    expect(next.query).toBe('e');
+    expect(next.dismissedSlashFrom).toBeUndefined();
+  });
+});
+
+describe('getSlashTextRange', () => {
+  it('returns the exact delete range for a slash query inside ordinary text', () => {
+    const range = getSlashTextRange(createView('prefix/e', 42));
+
+    expect(range).toEqual({
+      query: 'e',
+      deleteFrom: 40,
+      deleteTo: 42,
+    });
+  });
+
+  it('returns the exact delete range for a slash query before existing suffix text', () => {
+    const range = getSlashTextRange(createView('prefix/e', 18));
+
+    expect(range).toEqual({
+      query: 'e',
+      deleteFrom: 16,
+      deleteTo: 18,
+    });
+  });
 });
 
 describe('canOpenSlashMenuFromSelection', () => {
-  it('opens at the start of a text block or after whitespace', () => {
+  it('opens at the start of a text block, after whitespace, and inside ordinary text', () => {
     expect(canOpenSlashMenuFromSelection(createSelection(''))).toBe(true);
     expect(canOpenSlashMenuFromSelection(createSelection('hello '))).toBe(true);
+    expect(canOpenSlashMenuFromSelection(createSelection('hello'))).toBe(true);
   });
 
-  it('does not open inside words, urls, code blocks, or range selections', () => {
-    expect(canOpenSlashMenuFromSelection(createSelection('hello'))).toBe(false);
+  it('does not open inside urls, code blocks, or range selections', () => {
+    expect(canOpenSlashMenuFromSelection(createSelection('https:'))).toBe(false);
     expect(canOpenSlashMenuFromSelection(createSelection('https:/'))).toBe(false);
+    expect(canOpenSlashMenuFromSelection(createSelection('https://example.com'))).toBe(false);
+    expect(canOpenSlashMenuFromSelection(createSelection('visit www.example.com'))).toBe(false);
+    expect(canOpenSlashMenuFromSelection(createSelection('visit example.com/path'))).toBe(false);
     expect(canOpenSlashMenuFromSelection(createSelection('', 0, { isCode: true }))).toBe(false);
     expect(canOpenSlashMenuFromSelection(createSelection('', 0, { empty: false }))).toBe(false);
   });

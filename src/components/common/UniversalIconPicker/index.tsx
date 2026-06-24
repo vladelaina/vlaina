@@ -52,6 +52,8 @@ export interface UniversalIconPickerProps {
   alwaysShowEmojiCategories?: boolean;
   surface?: boolean;
   allowLegacyImageScheme?: boolean;
+  showUploadTab?: boolean;
+  fixedPanelHeight?: boolean;
 }
 
 export function UniversalIconPicker({
@@ -81,12 +83,16 @@ export function UniversalIconPicker({
   alwaysShowEmojiCategories = false,
   surface = !embedded,
   allowLegacyImageScheme = false,
+  showUploadTab = true,
+  fixedPanelHeight = false,
 }: UniversalIconPickerProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const onPreviewRef = useRef(onPreview);
-  const [activeTab, setActiveTab] = useState<TabType>(() => emojiOnly ? 'emoji' : loadActiveTab());
+  const uploadTabEnabled = !emojiOnly && showUploadTab;
+  const [activeTab, setActiveTab] = useState<TabType>(() => uploadTabEnabled ? loadActiveTab() : 'emoji');
+  const effectiveActiveTab = uploadTabEnabled ? activeTab : 'emoji';
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
   const [debugCopied, setDebugCopied] = useState(false);
@@ -106,12 +112,12 @@ export function UniversalIconPicker({
   );
 
   const handleTabChange = useCallback((tab: TabType) => {
-    if (emojiOnly && tab !== 'emoji') return;
+    if (tab === 'upload' && !uploadTabEnabled) return;
     setActiveTab(tab);
-    if (!emojiOnly) {
+    if (uploadTabEnabled) {
       saveActiveTab(tab);
     }
-  }, [emojiOnly]);
+  }, [uploadTabEnabled]);
 
   const recentIconsRef = useRef(recentIcons);
   recentIconsRef.current = recentIcons;
@@ -139,7 +145,10 @@ export function UniversalIconPicker({
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === ACTIVE_TAB_KEY) {
-        if (emojiOnly) return;
+        if (!uploadTabEnabled) {
+          setActiveTab('emoji');
+          return;
+        }
         setActiveTab(loadActiveTab());
         return;
       }
@@ -158,7 +167,13 @@ export function UniversalIconPicker({
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
-  }, [emojiOnly, onSkinToneChange]);
+  }, [onSkinToneChange, uploadTabEnabled]);
+
+  useEffect(() => {
+    if (!uploadTabEnabled && activeTab !== 'emoji') {
+      setActiveTab('emoji');
+    }
+  }, [activeTab, uploadTabEnabled]);
 
   const handleUploadSelect = useCallback((assetUrl: string) => {
     lastRandomIconRef.current = null;
@@ -202,7 +217,7 @@ export function UniversalIconPicker({
   }, [handleRemove]);
 
   const handleRandom = useCallback(() => {
-    if (activeTab === 'emoji') {
+    if (effectiveActiveTab === 'emoji') {
       const currentCategory = EMOJI_CATEGORIES.find(c => c.id === activeEmojiCategory);
       const emojis = currentCategory?.emojis || [];
       if (emojis.length > 0) {
@@ -214,7 +229,7 @@ export function UniversalIconPicker({
         });
         onSelect(randomEmoji.native);
       }
-    } else if (activeTab === 'upload') {
+    } else if (effectiveActiveTab === 'upload') {
       if (customIcons.length > 0) {
         const randomEmoji = customIcons[Math.floor(Math.random() * customIcons.length)];
         lastRandomIconRef.current = randomEmoji.url;
@@ -222,7 +237,7 @@ export function UniversalIconPicker({
         onSelect(randomEmoji.url);
       }
     }
-  }, [activeTab, activeEmojiCategory, onSelect, customIcons]);
+  }, [activeEmojiCategory, effectiveActiveTab, onSelect, customIcons]);
 
   const handleCopyDebugLog = useCallback(async () => {
     const text = getIconPickerDebugLogText();
@@ -288,7 +303,7 @@ export function UniversalIconPicker({
         handleClose('escape');
       }
       if (e.key === 'Tab' && e.ctrlKey) {
-        if (emojiOnly) return;
+        if (!uploadTabEnabled) return;
         e.preventDefault();
         e.stopPropagation();
         const tabs: TabType[] = ['emoji', 'upload'];
@@ -299,7 +314,7 @@ export function UniversalIconPicker({
     };
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [emojiOnly, handleClose, activeTab, handleTabChange]);
+  }, [activeTab, handleClose, handleTabChange, uploadTabEnabled]);
 
   return (
     <div
@@ -356,6 +371,7 @@ export function UniversalIconPicker({
 
       <div className={cn(
         "flex flex-col overflow-hidden",
+        fixedPanelHeight && "min-h-[var(--vlaina-size-420px)]",
         surface && cn("!rounded-[var(--vlaina-radius-26px)] backdrop-blur-[var(--vlaina-backdrop-blur-lg)]", chatComposerPillSurfaceClass)
       )}>
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--vlaina-border)] overflow-x-auto no-scrollbar">
@@ -369,14 +385,14 @@ export function UniversalIconPicker({
               }}
               className={cn(
                 "text-sm font-medium pb-1 border-b-2 transition-all active:scale-[var(--vlaina-scale-95)] whitespace-nowrap",
-                activeTab === 'emoji'
+                effectiveActiveTab === 'emoji'
                   ? "text-[var(--vlaina-text-primary)] border-[var(--vlaina-accent)]"
                   : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
               )}
             >
               {t('icon.emoji')}
             </button>
-            {!emojiOnly && (
+            {uploadTabEnabled && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -386,7 +402,7 @@ export function UniversalIconPicker({
                 }}
                 className={cn(
                   "text-sm font-medium pb-1 border-b-2 transition-all active:scale-[var(--vlaina-scale-95)] whitespace-nowrap",
-                  activeTab === 'upload'
+                  effectiveActiveTab === 'upload'
                     ? "text-[var(--vlaina-text-primary)] border-[var(--vlaina-accent)]"
                     : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
                 )}
@@ -419,7 +435,7 @@ export function UniversalIconPicker({
           )}
         </div>
 
-        {activeTab === 'emoji' ? (
+        {effectiveActiveTab === 'emoji' ? (
           <EmojiTab
             skinTone={skinTone}
             setSkinTone={handleSkinToneChangeInternal}

@@ -1384,7 +1384,8 @@ export function normalizeEditorRuntimeMarkdownArtifacts(text: string): string {
   const afterLeakedInternalArtifacts = normalizeUserBreakSentinels(
     normalizeLeakedInternalArtifacts(afterListItems)
   );
-  const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterLeakedInternalArtifacts);
+  const afterEmptyAtxHeadings = normalizeEmptyAtxHeadingMarkers(afterLeakedInternalArtifacts);
+  const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterEmptyAtxHeadings);
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
   const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterMarkdownSpaceEntities);
@@ -1405,7 +1406,8 @@ export function normalizeEditorRuntimeMarkdownArtifactsForState(text: string): s
   const afterLeakedInternalArtifacts = normalizeUserBreakSentinels(
     normalizeLeakedInternalArtifacts(afterListItems)
   );
-  const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterLeakedInternalArtifacts);
+  const afterEmptyAtxHeadings = normalizeEmptyAtxHeadingMarkers(afterLeakedInternalArtifacts);
+  const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterEmptyAtxHeadings);
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const afterInlineHtmlText = normalizeInlineHtmlTextForPersistence(afterStandaloneBreakHtml);
   const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterInlineHtmlText);

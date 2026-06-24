@@ -802,6 +802,15 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('canonicalizes empty atx headings on the editor-state persistence path', () => {
+    expect(
+      normalizeEditorStateMarkdownDocument(['#', '##', '', 'Body'].join('\n'))
+    ).toBe(['# #', '## ##', '', 'Body'].join('\n'));
+
+    const fenced = ['```md', '#', '##', '```'].join('\n');
+    expect(normalizeEditorStateMarkdownDocument(fenced)).toBe(fenced);
+  });
+
   it('does not convert leading frontmatter line breaks into hard breaks', () => {
     expect(
       normalizeSerializedMarkdownDocument(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'))

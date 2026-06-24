@@ -111,6 +111,13 @@
   background: transparent;
 }
 
+.slash-emoji-inline-preview {
+  position: relative;
+  top: var(--slash-emoji-preview-offset-y, 0px);
+  pointer-events: none;
+  user-select: none;
+}
+
 .editor-preview-context-menu {
   overflow: visible;
 }

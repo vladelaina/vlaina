@@ -9,6 +9,7 @@ const SLASH_USAGE_ORDER = [
   'code-block',
   'table',
   'image',
+  'emoji',
   'divider',
   'callout',
   'heading-4',

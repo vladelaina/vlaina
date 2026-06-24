@@ -5,7 +5,7 @@ import { getSlashMenuItems } from './slashItems';
 import { filterSlashItems } from './slashQuery';
 import type { SlashMenuState } from './types';
 
-const LOOKBACK_LIMIT = 50;
+const LOOKBACK_LIMIT = 512;
 const SLASH_MENU_OFFSET_Y = 4;
 
 function getTextBeforeSelection(selection: Selection) {
@@ -27,8 +27,19 @@ function getTextBeforeSelection(selection: Selection) {
   );
 }
 
-function hasValidSlashPrefix(textBeforeSlash: string) {
-  return textBeforeSlash.length === 0 || /\s$/.test(textBeforeSlash);
+function getCurrentToken(value: string) {
+  return value.match(/(?:^|[\s([<{])(\S*)$/)?.[1] ?? '';
+}
+
+function isSuppressedSlashContext(textBeforeSlash: string) {
+  const token = getCurrentToken(textBeforeSlash);
+  if (!token) return false;
+
+  if (/^(?:[a-z][a-z0-9+.-]*:\/?|www\.)\S*$/i.test(token)) {
+    return true;
+  }
+
+  return /^[^\s/]*[a-z0-9-]+\.[a-z]{2,}(?:[/:?#]|$)\S*$/i.test(token);
 }
 
 export function createSlashState(): SlashMenuState {
@@ -36,6 +47,18 @@ export function createSlashState(): SlashMenuState {
     isOpen: false,
     query: '',
     selectedIndex: 0,
+  };
+}
+
+export function createDismissedSlashState(selection: Selection): SlashMenuState {
+  const slashRange = getSlashTextRangeFromSelection(selection);
+  if (!slashRange) {
+    return createSlashState();
+  }
+
+  return {
+    ...createSlashState(),
+    dismissedSlashFrom: slashRange.deleteFrom,
   };
 }
 
@@ -52,7 +75,7 @@ function getSlashTextRangeFromSelection(selection: Selection) {
     return null;
   }
 
-  if (!hasValidSlashPrefix(textBefore.slice(0, slashIndex))) {
+  if (isSuppressedSlashContext(textBefore.slice(0, slashIndex))) {
     return null;
   }
 
@@ -82,7 +105,7 @@ export function canOpenSlashMenuFromSelection(selection: Selection) {
     return false;
   }
 
-  return hasValidSlashPrefix(textBefore);
+  return !isSuppressedSlashContext(textBefore);
 }
 
 export function deriveSlashState(tr: Transaction, state: SlashMenuState) {
@@ -101,7 +124,14 @@ export function deriveSlashState(tr: Transaction, state: SlashMenuState) {
 
   const slashRange = getSlashTextRangeFromSelection(tr.selection);
   if (!slashRange) {
-    return state.isOpen ? createSlashState() : state;
+    return state.isOpen || state.dismissedSlashFrom !== undefined ? createSlashState() : state;
+  }
+
+  if (!state.isOpen && state.dismissedSlashFrom === slashRange.deleteFrom) {
+    return {
+      ...createSlashState(),
+      dismissedSlashFrom: state.dismissedSlashFrom,
+    };
   }
 
   const filtered = filterSlashItems(slashRange.query, getSlashMenuItems());
@@ -110,7 +140,6 @@ export function deriveSlashState(tr: Transaction, state: SlashMenuState) {
   }
 
   return {
-    ...state,
     isOpen: true,
     query: slashRange.query,
     selectedIndex: slashRange.query === state.query

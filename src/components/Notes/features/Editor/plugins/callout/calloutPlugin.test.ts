@@ -17,6 +17,7 @@ import {
   handleEmptyCalloutExit,
   serializeCalloutToMarkdown,
 } from './calloutPlugin';
+import { createCalloutContentSelection } from './CalloutNodeView';
 
 function createEditor(defaultValue = '') {
   return Editor.make()
@@ -296,6 +297,21 @@ describe('callout editor behavior', () => {
     })).resolves.toMatchObject({
       icon: { type: 'icon', value: 'icon:star' },
     });
+  });
+
+  it('resolves a focus target inside callout content after icon changes', async () => {
+    const editor = createEditor('> 💡 Body');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const selection = createCalloutContentSelection(view.state.doc, 0);
+
+    expect(selection).toBeInstanceOf(TextSelection);
+    expect(selection?.$from.parent.type.name).toBe('paragraph');
+    expect(selection?.from).toBeGreaterThan(1);
+    expect(selection?.from).toBeLessThan(view.state.doc.firstChild?.nodeSize ?? 0);
+
+    await editor.destroy();
   });
 
   it('keeps ordinary numbered blockquotes as blockquotes instead of callouts', async () => {

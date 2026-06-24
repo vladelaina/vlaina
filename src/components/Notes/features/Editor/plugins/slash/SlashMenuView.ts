@@ -9,7 +9,12 @@ import { getSlashMenuItems } from './slashItems';
 import { isPlainSlashMenuNavigationKey } from './slashKeyboard';
 import { slashPluginKey } from './slashPluginKey';
 import { filterSlashItems } from './slashQuery';
-import { createSlashState, getSlashMenuPosition, getSlashTextRange } from './slashState';
+import {
+  createDismissedSlashState,
+  createSlashState,
+  getSlashMenuPosition,
+  getSlashTextRange,
+} from './slashState';
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -56,7 +61,12 @@ export class SlashMenuView {
     this.unlistenOverlayOpen = onNotesOverlayOpen(({ source }) => {
       if (source === 'slash-menu') return;
       if (!slashPluginKey.getState(this.editorView.state)?.isOpen) return;
-      this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, createSlashState()));
+      this.editorView.dispatch(
+        this.editorView.state.tr.setMeta(
+          slashPluginKey,
+          createDismissedSlashState(this.editorView.state.selection)
+        )
+      );
     });
     this.resizeObserver?.observe(this.editorView.dom);
     if (this.scrollRoot) {
@@ -267,7 +277,12 @@ export class SlashMenuView {
     if (!(target instanceof Node)) return;
     if (this.menuElement?.contains(target)) return;
 
-    this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, createSlashState()));
+    this.editorView.dispatch(
+      this.editorView.state.tr.setMeta(
+        slashPluginKey,
+        createDismissedSlashState(this.editorView.state.selection)
+      )
+    );
   };
 
   private handleDocumentKeyDown = (event: KeyboardEvent) => {
@@ -312,7 +327,12 @@ export class SlashMenuView {
       case 'Escape':
         event.preventDefault();
         event.stopPropagation();
-        this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, createSlashState()));
+        this.editorView.dispatch(
+          this.editorView.state.tr.setMeta(
+            slashPluginKey,
+            createDismissedSlashState(this.editorView.state.selection)
+          )
+        );
         break;
     }
   };

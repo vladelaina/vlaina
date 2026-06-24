@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import { Selection } from '@milkdown/kit/prose/state';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import type { CalloutBlockAttrs, IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
@@ -12,6 +13,28 @@ import {
   getObsidianCalloutRgb,
   getObsidianCalloutType,
 } from './calloutThemeCompatibility';
+
+function isSelectionInsideNode(selection: Selection, pos: number, node: ProseNode): boolean {
+  const contentStart = pos + 1;
+  const contentEnd = pos + node.nodeSize - 1;
+  return selection.from >= contentStart && selection.to <= contentEnd;
+}
+
+export function createCalloutContentSelection(doc: ProseNode, pos: number): Selection | null {
+  const node = doc.nodeAt(pos);
+  if (!node || node.type.name !== 'callout' || node.childCount === 0) {
+    return null;
+  }
+
+  const contentStart = pos + 1;
+  const contentEnd = pos + node.nodeSize - 1;
+  const targetPos = Math.min(contentStart + 1, contentEnd);
+  try {
+    return Selection.near(doc.resolve(targetPos), 1);
+  } catch {
+    return null;
+  }
+}
 
 export class CalloutNodeView implements NodeView {
   dom: HTMLElement;
@@ -78,8 +101,17 @@ export class CalloutNodeView implements NodeView {
       ...this.node.attrs,
       icon,
     };
+    const tr = this.view.state.tr.setNodeMarkup(pos, undefined, attrs);
+    const updatedNode = tr.doc.nodeAt(pos);
+    if (updatedNode && !isSelectionInsideNode(tr.selection, pos, updatedNode)) {
+      const selection = createCalloutContentSelection(tr.doc, pos);
+      if (selection) {
+        tr.setSelection(selection);
+      }
+    }
+
     this.view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
-    this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, undefined, attrs));
+    this.view.dispatch(tr);
     this.view.focus();
   }
 
