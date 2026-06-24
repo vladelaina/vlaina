@@ -17,10 +17,10 @@ import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.m
 import { normalizeMarkdownOpenPath } from './markdownOpenPath.mjs';
 import {
   normalizeExternalUrl,
-  normalizeHttpUrl,
   normalizeProxyConfig,
   summarizeUrlForLog,
 } from './externalUrlPolicy.mjs';
+import { compareVersions, fetchUpdateManifest as fetchDesktopUpdateManifest } from './updateManifest.mjs';
 
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, session, shell } = electron;
 
@@ -627,218 +627,13 @@ function createTray() {
   }
 }
 
-function parseVersionParts(version) {
-  return String(version ?? '')
-    .trim()
-    .replace(/^v/i, '')
-    .split(/[.-]/)
-    .map((part) => {
-      const numeric = Number.parseInt(part, 10);
-      return Number.isFinite(numeric) ? numeric : 0;
-    });
-}
-
-function compareVersions(left, right) {
-  const leftParts = parseVersionParts(left);
-  const rightParts = parseVersionParts(right);
-  const length = Math.max(leftParts.length, rightParts.length, 3);
-
-  for (let index = 0; index < length; index += 1) {
-    const leftPart = leftParts[index] ?? 0;
-    const rightPart = rightParts[index] ?? 0;
-    if (leftPart > rightPart) return 1;
-    if (leftPart < rightPart) return -1;
-  }
-
-  return 0;
-}
-
-function normalizeReleaseVersion(rawVersion) {
-  return String(rawVersion ?? '')
-    .trim()
-    .replace(/^v/i, '');
-}
-
-function splitReleaseAssetNameParts(name) {
-  return String(name ?? '')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-}
-
-function getCurrentAssetArchAliases() {
-  if (process.arch === 'x64') return ['x64', 'amd64'];
-  if (process.arch === 'arm64') return ['arm64', 'aarch64'];
-  if (process.arch === 'ia32') return ['ia32', 'x86'];
-  return [process.arch];
-}
-
-function releaseAssetPartsIncludeAny(parts, aliases) {
-  return aliases.some((alias) => parts.includes(alias));
-}
-
-function normalizeReleaseAssets(rawAssets) {
-  if (!Array.isArray(rawAssets)) {
-    return [];
-  }
-
-  return rawAssets
-    .map((asset) => {
-      if (!asset || typeof asset !== 'object') {
-        return null;
-      }
-
-      const name = typeof asset.name === 'string' ? asset.name : '';
-      const downloadUrl = typeof asset.browser_download_url === 'string'
-        ? asset.browser_download_url
-        : typeof asset.downloadUrl === 'string'
-          ? asset.downloadUrl
-          : '';
-
-      if (!name || !downloadUrl) {
-        return null;
-      }
-
-      try {
-        return {
-          name,
-          downloadUrl: normalizeHttpUrl(downloadUrl, 'Release asset URL'),
-        };
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-}
-
-function getCurrentPlatformAssetPriority() {
-  if (process.platform === 'win32') {
-    return [
-      (name) => name.endsWith('.exe') && name.includes('setup') && !name.includes('portable'),
-      (name) => name.endsWith('.exe') && !name.includes('portable'),
-      (name) => name.endsWith('.exe'),
-    ];
-  }
-
-  if (process.platform === 'darwin') {
-    return [
-      (name) => name.endsWith('.dmg'),
-      (name) => name.endsWith('.zip'),
-    ];
-  }
-
-  if (process.platform === 'linux') {
-    return [
-      (name) => name.endsWith('.appimage'),
-      (name) => name.endsWith('.deb'),
-      (name) => name.endsWith('.tar.gz'),
-    ];
-  }
-
-  return [];
-}
-
-function selectCurrentPlatformAsset(assets) {
-  const platformPriority = getCurrentPlatformAssetPriority();
-  const normalizedAssets = assets.map((asset) => ({
-    ...asset,
-    normalizedName: asset.name.toLowerCase(),
-    nameParts: splitReleaseAssetNameParts(asset.name),
-  }));
-  const platformAssets = normalizedAssets.filter((asset) =>
-    platformPriority.some((matchesAsset) => matchesAsset(asset.normalizedName))
-  );
-  const knownArchAliases = ['x64', 'amd64', 'arm64', 'aarch64', 'ia32', 'x86'];
-  const currentArchAliases = getCurrentAssetArchAliases();
-  const currentArchAssets = platformAssets.filter((asset) =>
-    releaseAssetPartsIncludeAny(asset.nameParts, currentArchAliases)
-  );
-  const platformAssetsWithKnownArch = platformAssets.filter((asset) =>
-    releaseAssetPartsIncludeAny(asset.nameParts, knownArchAliases)
-  );
-  const candidateAssets = currentArchAssets.length > 0
-    ? currentArchAssets
-    : platformAssetsWithKnownArch.length > 0
-      ? []
-      : platformAssets;
-
-  for (const matchesAsset of platformPriority) {
-    const match = candidateAssets.find((asset) => matchesAsset(asset.normalizedName));
-    if (match) {
-      return {
-        name: match.name,
-        downloadUrl: match.downloadUrl,
-      };
-    }
-  }
-
-  return null;
-}
-
-function normalizeUpdateManifest(payload) {
-  if (!payload || typeof payload !== 'object') {
-    throw new Error('Update manifest must be a JSON object.');
-  }
-
-  const latestVersion = requireNonEmptyString(
-    payload.version ?? payload.tag_name,
-    'latest version'
-  ).trim();
-  const normalizedLatestVersion = normalizeReleaseVersion(latestVersion);
-  const releaseUrl = normalizeHttpUrl(
-    payload.downloadUrl ?? payload.html_url ?? defaultDownloadUrl,
-    'Download URL'
-  );
-  const assets = normalizeReleaseAssets(payload.assets);
-  const platformAsset = selectCurrentPlatformAsset(assets);
-  const releaseNotes = typeof payload.releaseNotes === 'string'
-    ? payload.releaseNotes
-    : typeof payload.body === 'string'
-      ? payload.body
-      : '';
-  const publishedAt = typeof payload.publishedAt === 'string'
-    ? payload.publishedAt
-    : typeof payload.published_at === 'string'
-      ? payload.published_at
-      : '';
-
-  return {
-    latestVersion: normalizedLatestVersion,
-    downloadUrl: platformAsset?.downloadUrl ?? releaseUrl,
-    releaseUrl,
-    platformAssetName: platformAsset?.name ?? '',
-    hasPlatformAsset: Boolean(platformAsset),
-    releaseNotes,
-    publishedAt,
-  };
-}
-
 async function fetchUpdateManifest() {
-  const manifestUrl = normalizeHttpUrl(updateManifestUrl, 'Update manifest URL');
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const response = await fetch(manifestUrl, {
-      cache: 'no-store',
-      signal: controller.signal,
-      headers: {
-        accept: 'application/json',
-        'user-agent': `vlaina/${app.getVersion()} desktop-updater`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Update manifest request failed: HTTP ${response.status}`);
-    }
-
-    return normalizeUpdateManifest(await readBoundedJsonResponse(response, {
-      signal: controller.signal,
-      tooLargeMessage: 'Update manifest response body is too large.',
-    }));
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchDesktopUpdateManifest({
+    manifestUrl: updateManifestUrl,
+    defaultDownloadUrl,
+    appVersion: app.getVersion(),
+    readJsonResponse: readBoundedJsonResponse,
+  });
 }
 
 function isTrustedRendererUrl(rawUrl) {
