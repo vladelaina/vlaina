@@ -106,6 +106,14 @@ describe("editor style theme compatibility", () => {
         ") :is(",
       ].join('\n')
     );
+    const selectedRichNodeSurfaceRule = extractCssRule(
+      css,
+      ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(\n  [data-type='math-inline'],"
+    );
+    const keyboardRichNodeRule = extractCssRule(
+      css,
+      ".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-atomic-block-keyboard-selected :is("
+    );
 
     expect(css).not.toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike {\n  background-color:");
     expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror:not(.editor-block-selection-large) .editor-block-selected-textlike > *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *):not(.heading-toggle-btn):not(.editor-collapse-btn):not(.ProseMirror-widget) {");
@@ -135,6 +143,21 @@ describe("editor style theme compatibility", () => {
     expect(selectedCodeForegroundRule).toContain(".cm-s-inner *,");
     expect(selectedCodeForegroundRule).toContain("color: var(--vlaina-editor-block-selection-fg) !important;");
     expect(selectedCodeForegroundRule).toContain("-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;");
+    expect(selectedRichNodeSurfaceRule).toContain("[data-type='math-inline'],");
+    expect(selectedRichNodeSurfaceRule).toContain("[data-type='math-block'],");
+    expect(selectedRichNodeSurfaceRule).toContain("[data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
+    expect(selectedRichNodeSurfaceRule).toContain(".mermaid-block");
+    expect(selectedRichNodeSurfaceRule).toContain(".ProseMirror-selectednode {");
+    expect(selectedRichNodeSurfaceRule).toContain("--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);");
+    expect(selectedRichNodeSurfaceRule).toContain("background: var(--vlaina-block-selection-color) !important;");
+    expect(selectedRichNodeSurfaceRule).toContain("background-color: var(--vlaina-block-selection-color) !important;");
+    expect(selectedRichNodeSurfaceRule).toContain("box-shadow: var(--vlaina-block-selection-shadow) !important;");
+    expect(css).toContain(".milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .mermaid-block\n).ProseMirror-selectednode * {");
+    expect(css).toContain("color: var(--vlaina-editor-block-selection-fg) !important;");
+    expect(keyboardRichNodeRule).toContain(".ProseMirror-selectednode {");
+    expect(keyboardRichNodeRule).toContain("background: var(--vlaina-math-hover-color) !important;");
+    expect(keyboardRichNodeRule).toContain("box-shadow:");
+    expect(keyboardRichNodeRule).toContain("color: inherit !important;");
   });
 
   it('does not use CSS :has selectors in editor styles', () => {

@@ -163,6 +163,7 @@ describe("editor rich block selection styles", () => {
     expect(rule).toContain('.frontmatter-block-container,');
     expect(rule).toContain('.image-block-container,');
     expect(rule).toContain('.video-block,');
+    expect(rule).toContain('.toc-block,');
     expect(rule).toContain("[data-type='math-block'],");
     expect(rule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
     expect(rule).toContain('.mermaid-block');
@@ -352,11 +353,34 @@ describe("editor rich block selection styles", () => {
     );
     const atomicBlockNextGapRule = extractCssRule(
       blockSelectionCss,
-      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
+      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper,\n  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .toc-block,\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source).editor-block-selected-has-next,"
     );
-    const atomicHtmlForegroundRule = extractCssRule(
+    const atomicForegroundRule = extractCssRule(
       blockSelectionCss,
-      ".milkdown .ProseMirror [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']):is("
+      [
+        ".milkdown .ProseMirror :is(",
+        "  [data-type='math-block'].math-block-wrapper,",
+        "  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),",
+        "  .toc-block,",
+        "  .mermaid-block",
+        "):is(",
+        "  .editor-block-selected,",
+        "  .editor-block-drag-source,",
+        "  .ProseMirror-selectednode,",
+        "  .editor-block-selected-textlike,",
+        "  .editor-block-drag-source-textlike,",
+        "  .editor-native-selected-textlike",
+        "),",
+        ".milkdown .ProseMirror :is(",
+      ].join('\n')
+    );
+    const atomicMathForegroundRule = extractCssRule(
+      blockSelectionCss,
+      ".milkdown .ProseMirror :is(\n  [data-type='math-block'].math-block-wrapper\n):is("
+    );
+    const atomicMermaidForegroundRule = extractCssRule(
+      blockSelectionCss,
+      ".milkdown .ProseMirror .mermaid-block:is("
     );
     const keyboardAtomicSelectionRule = extractCssRule(
       blockSelectionCss,
@@ -375,6 +399,7 @@ describe("editor rich block selection styles", () => {
     expect(literalHtmlBlockRule).toContain('overflow-wrap: anywhere;');
     expect(atomicBlockFillRule).toContain("[data-type='math-block'].math-block-wrapper");
     expect(atomicBlockFillRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])");
+    expect(atomicBlockFillRule).toContain('.toc-block');
     expect(atomicBlockFillRule).toContain('.mermaid-block');
     expect(atomicBlockFillRule).toContain('.editor-block-selected');
     expect(atomicBlockFillRule).toContain('.editor-block-drag-source');
@@ -392,6 +417,7 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockNextGapRule).toContain('--vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);');
     expect(atomicBlockFrameRule).toContain("[data-type='math-block'].math-block-wrapper");
+    expect(atomicBlockFrameRule).toContain('.toc-block');
     expect(atomicBlockFrameRule).toContain('.mermaid-block');
     expect(atomicBlockFrameRule).toContain('content-visibility: visible;');
     expect(atomicBlockFrameRule).toContain('contain: none;');
@@ -403,18 +429,30 @@ describe("editor rich block selection styles", () => {
     expect(atomicBlockFrameRule).toContain('overflow: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-x: visible;');
     expect(atomicBlockFrameRule).toContain('overflow-y: visible;');
+    expect(atomicBlockFrameRule).toContain('--vlaina-atomic-rich-selected-border-outline: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid var(--vlaina-color-white);');
+    expect(atomicBlockFrameRule).toContain('--vlaina-atomic-rich-selected-border-outline-offset: calc(-1 * var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)));');
+    expect(atomicBlockFrameRule).toContain('outline: var(--vlaina-atomic-rich-selected-border-outline);');
+    expect(atomicBlockFrameRule).toContain('outline-offset: var(--vlaina-atomic-rich-selected-border-outline-offset);');
     expect(atomicBlockFrameRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
     expect(atomicBlockFrameRule).toContain('transition: none !important;');
-    expect(atomicHtmlForegroundRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text)");
-    expect(atomicHtmlForegroundRule).toContain('.editor-block-selected');
-    expect(atomicHtmlForegroundRule).toContain('.editor-block-drag-source');
-    expect(atomicHtmlForegroundRule).toContain('.ProseMirror-selectednode');
-    expect(atomicHtmlForegroundRule).toContain('.editor-block-selected-textlike');
-    expect(atomicHtmlForegroundRule).toContain('.editor-block-drag-source-textlike');
-    expect(atomicHtmlForegroundRule).toContain('.editor-native-selected-textlike');
-    expect(atomicHtmlForegroundRule).toContain(') * {');
-    expect(atomicHtmlForegroundRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
-    expect(atomicHtmlForegroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(atomicForegroundRule).toContain("[data-type='math-block'].math-block-wrapper");
+    expect(atomicForegroundRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text)");
+    expect(atomicForegroundRule).toContain('.toc-block');
+    expect(atomicForegroundRule).toContain('.mermaid-block');
+    expect(atomicForegroundRule).toContain('.editor-block-selected');
+    expect(atomicForegroundRule).toContain('.editor-block-drag-source');
+    expect(atomicForegroundRule).toContain('.ProseMirror-selectednode');
+    expect(atomicForegroundRule).toContain('.editor-block-selected-textlike');
+    expect(atomicForegroundRule).toContain('.editor-block-drag-source-textlike');
+    expect(atomicForegroundRule).toContain('.editor-native-selected-textlike');
+    expect(atomicForegroundRule).toContain(') * {');
+    expect(atomicForegroundRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(atomicForegroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(atomicMathForegroundRule).toContain(':is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon) {');
+    expect(atomicMathForegroundRule).toContain('fill: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(atomicMathForegroundRule).toContain('stroke: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(atomicMermaidForegroundRule).toContain(':is(text, tspan, .nodeLabel, .label, .edgeLabel) {');
+    expect(atomicMermaidForegroundRule).toContain('fill: var(--vlaina-editor-block-selection-fg) !important;');
     expect(keyboardAtomicSelectionRule).toContain("[data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text)");
     expect(keyboardAtomicSelectionRule).toContain('.ProseMirror-selectednode');
     expect(keyboardAtomicSelectionRule).toContain('background: var(--vlaina-math-hover-color) !important;');
@@ -425,10 +463,19 @@ describe("editor rich block selection styles", () => {
       mathCss,
       ".milkdown .ProseMirror .editor-block-selected :is("
     );
+    const selectedAtomicDirectForegroundRule = extractCssRule(
+      mathCss,
+      ".milkdown .ProseMirror :is(\n  [data-type='math-inline'],\n  [data-type='math-block'],\n  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),\n  .mermaid-block\n):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is("
+    );
     const narrowedHtmlBlockSelector = "[data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])";
-    expect(selectedAtomicForegroundRule.match(/\[data-type='html-block'\]/g)).toHaveLength(4);
-    expect(selectedAtomicForegroundRule.split(narrowedHtmlBlockSelector)).toHaveLength(5);
+    expect(selectedAtomicForegroundRule.match(/\[data-type='html-block'\]/g)).toHaveLength(2);
+    expect(selectedAtomicForegroundRule.split(narrowedHtmlBlockSelector)).toHaveLength(3);
     expect(selectedAtomicForegroundRule).not.toContain("[data-type='html-block'],");
+    expect(selectedAtomicForegroundRule).toContain('color: var(--vlaina-text-primary) !important;');
+    expect(selectedAtomicDirectForegroundRule.match(/\[data-type='html-block'\]/g)).toHaveLength(2);
+    expect(selectedAtomicDirectForegroundRule.split(narrowedHtmlBlockSelector)).toHaveLength(3);
+    expect(selectedAtomicDirectForegroundRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(selectedAtomicDirectForegroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
     expect(mathCss).toContain(".milkdown [data-type='math-inline'],");
     expect(mathCss).toContain(".milkdown [data-type='math-block'],");
     expect(mathCss).toContain(".milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),");
@@ -492,6 +539,7 @@ describe("editor rich block selection styles", () => {
       '.frontmatter-block-container',
       '.image-block-container',
       '.video-block',
+      '.toc-block',
       "[data-type='html-block']",
       "[data-type='math-block']",
       '.mermaid-block',
@@ -621,24 +669,27 @@ describe("editor rich block selection styles", () => {
     expect(mathCss).not.toContain('box-shadow: var(--vlaina-block-selection-shadow-y) !important;');
   });
 
-  it('restores formula and mermaid text color while preserving mermaid shape colors on selected hover', () => {
+  it('keeps selected formula and mermaid text on the selected foreground during hover', () => {
     const css = readStyleFile('math-editor.css');
     const themeCss = readThemeStyle();
 
     expect(themeCss).toContain('--vlaina-math-hover-bleed-x-start-default: 0px;');
     expect(css).toContain('.milkdown .ProseMirror .editor-block-selected :is(');
-    expect(css).toMatch(
-      /\[data-type='math-inline'\],\s*\[data-type='math-block'\]\s*\):is\(:hover, :focus-visible, \.ProseMirror-selectednode, \.editor-preview-context-menu-active\) :is\(svg, svg \*, \.katex, \.katex \*, text, tspan, path, rect, circle, ellipse, line, polyline, polygon\),/
-    );
-    expect(css).toMatch(
-      /\.mermaid-block\s*\):is\(:hover, :focus-visible, \.ProseMirror-selectednode, \.editor-preview-context-menu-active\) :is\(text, tspan, \.nodeLabel, \.label, \.edgeLabel\)\s*[, {]/
-    );
+    expect(css).toContain('):not(.editor-block-selected):not(.editor-block-drag-source):not(.ProseMirror-selectednode):is(:hover, :focus-visible, .editor-preview-context-menu-active),');
+    expect(css).toContain('):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),');
+    expect(css).toContain('):not(.editor-block-selected):not(.editor-block-drag-source):not(.ProseMirror-selectednode):is(:hover, :focus-visible, .editor-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon) {');
+    expect(css).toContain('):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon) {');
+    expect(css).toContain('):not(.editor-block-selected):not(.editor-block-drag-source):not(.ProseMirror-selectednode):is(:hover, :focus-visible, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel) {');
+    expect(css).toContain('):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel) {');
     expect(css).not.toContain('.mermaid-block\n):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon)');
     expect(css).toContain('color: var(--vlaina-text-primary) !important;');
     expect(css).toContain('-webkit-text-fill-color: var(--vlaina-text-primary) !important;');
     expect(css).toContain('fill: var(--vlaina-text-primary) !important;');
     expect(css).toContain('stroke: var(--vlaina-text-primary) !important;');
-    expect(css).toContain(').editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),');
+    expect(css).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('fill: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(css).toContain('stroke: var(--vlaina-editor-block-selection-fg) !important;');
   });
 
   it('keeps selected CodeMirror gutter surfaces transition-free', () => {

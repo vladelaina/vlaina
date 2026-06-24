@@ -84,6 +84,7 @@
   .frontmatter-block-container,
   .image-block-container,
   .video-block,
+  .toc-block,
   [data-type='math-block'],
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
@@ -97,6 +98,7 @@
   .frontmatter-block-container,
   .image-block-container,
   .video-block,
+  .toc-block,
   [data-type='math-block'],
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
