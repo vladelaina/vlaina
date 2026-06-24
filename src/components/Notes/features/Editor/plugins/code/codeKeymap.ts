@@ -22,6 +22,9 @@ export const codeEnterKeymap = $prose(() => {
     Backspace: (state, dispatch) => {
       return handleEmptyCodeBlockBackspace(state, dispatch);
     },
+    Delete: (state, dispatch) => {
+      return handleEmptyCodeBlockBackspace(state, dispatch);
+    },
   });
 });
 

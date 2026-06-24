@@ -408,6 +408,40 @@ function handleEmptyParagraphNearStructuralBlockDelete(
   return true;
 }
 
+function handleEmptyCodeBlockDelete(view: EditorView, event: KeyboardEvent): boolean {
+  const deleteDirection = getPlainDeleteDirection(event);
+  if (deleteDirection === null) {
+    return false;
+  }
+
+  const { selection } = view.state;
+  if (!(selection instanceof TextSelection) || !selection.empty) {
+    return false;
+  }
+
+  const { $from } = selection;
+  if ($from.parent.type.name !== 'code_block' || $from.parent.content.size > 0) {
+    return false;
+  }
+
+  const codeBlockFrom = $from.before($from.depth);
+  const codeBlockTo = $from.after($from.depth);
+  let tr = view.state.tr.delete(codeBlockFrom, codeBlockTo);
+  const safePos = Math.max(0, Math.min(codeBlockFrom, tr.doc.content.size));
+  const resolved = tr.doc.resolve(safePos);
+  const adjacentSelection = Selection.findFrom(resolved, deleteDirection > 0 ? 1 : -1, true)
+    ?? Selection.findFrom(resolved, deleteDirection > 0 ? -1 : 1, true);
+
+  if (adjacentSelection) {
+    tr = tr.setSelection(adjacentSelection);
+  }
+
+  event.preventDefault();
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
+  return true;
+}
+
 function isListContainerNodeName(nodeName: string): boolean {
   return LIST_CONTAINER_NODE_NAMES.has(nodeName);
 }
@@ -831,6 +865,10 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
         }
 
         if (handleEmptyParagraphNearStructuralBlockDelete(view, event)) {
+          return true;
+        }
+
+        if (handleEmptyCodeBlockDelete(view, event)) {
           return true;
         }
 
