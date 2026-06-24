@@ -201,6 +201,25 @@ describe('slashCommandDefinitions', () => {
     expect(dispatch).toHaveBeenCalledWith(tr);
   });
 
+  it('selects the abbreviation placeholder after inserting the abbreviation template', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    await editor.create();
+    applySlashCommand(editor.ctx, 'abbreviation');
+
+    const view = editor.ctx.get(editorViewCtx);
+    expect(view.state.doc.textContent).toBe('*[ABBR]: Full phrase');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.empty).toBe(false);
+    expect(view.state.doc.textBetween(view.state.selection.from, view.state.selection.to)).toBe('ABBR');
+
+    await editor.destroy();
+  });
+
   it.each([
     { commandId: 'equation' as const, expectedNodeType: 'math_block' },
     { commandId: 'inline-math' as const, expectedNodeType: 'math_inline' },

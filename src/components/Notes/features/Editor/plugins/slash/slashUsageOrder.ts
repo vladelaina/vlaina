@@ -23,6 +23,7 @@ const SLASH_USAGE_ORDER = [
   'footnote-definition',
   'frontmatter',
   'video',
+  'html-block',
   'abbreviation',
 ] as const;
 

@@ -67,7 +67,11 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   }
 }
 
-function replaceCurrentTextBlockWithParagraphText(ctx: Ctx, text: string) {
+function replaceCurrentTextBlockWithParagraphText(
+  ctx: Ctx,
+  text: string,
+  selectionRange?: { from: number; to: number }
+) {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
   const { $from } = state.selection;
@@ -80,9 +84,23 @@ function replaceCurrentTextBlockWithParagraphText(ctx: Ctx, text: string) {
   const nextNode = paragraph.create(null, textNode);
   const tr = state.tr.replaceWith(from, to, nextNode);
 
-  tr.setSelection(TextSelection.create(tr.doc, from + 1 + text.length)).scrollIntoView();
+  const selectionFrom = selectionRange
+    ? from + 1 + Math.max(0, Math.min(selectionRange.from, text.length))
+    : from + 1 + text.length;
+  const selectionTo = selectionRange
+    ? from + 1 + Math.max(0, Math.min(selectionRange.to, text.length))
+    : selectionFrom;
+  tr.setSelection(TextSelection.create(tr.doc, selectionFrom, selectionTo)).scrollIntoView();
   markSlashUserInput(view);
   dispatch(tr);
+}
+
+function insertAbbreviationDefinitionTemplate(ctx: Ctx) {
+  const template = '*[ABBR]: Full phrase';
+  replaceCurrentTextBlockWithParagraphText(ctx, template, {
+    from: template.indexOf('ABBR'),
+    to: template.indexOf('ABBR') + 'ABBR'.length,
+  });
 }
 
 function convertCurrentBlock(ctx: Ctx, blockType: Parameters<typeof convertBlockType>[1]) {
@@ -336,7 +354,7 @@ export const slashCommandDefinitions = [
     icon: 'editor.abbreviation',
     searchTerms: ['abbr', 'acronym', 'short form', 'short', 'abbreviation definition', '缩写', '简称', 'suoxie', ...localizedSearchTerms.abbreviation],
     commandId: 'abbreviation',
-    run: (ctx) => replaceCurrentTextBlockWithParagraphText(ctx, '*[ABBR]: Full phrase'),
+    run: insertAbbreviationDefinitionTemplate,
   },
   {
     id: 'video',
