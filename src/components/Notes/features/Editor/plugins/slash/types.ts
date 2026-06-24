@@ -15,4 +15,5 @@ export interface SlashMenuState {
   isOpen: boolean;
   query: string;
   selectedIndex: number;
+  dismissedSlashFrom?: number;
 }

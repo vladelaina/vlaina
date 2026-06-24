@@ -6,6 +6,7 @@ import { slashPluginKey } from './slashPluginKey';
 import { filterSlashItems } from './slashQuery';
 import {
   canOpenSlashMenuFromSelection,
+  createDismissedSlashState,
   createSlashState,
   deriveSlashState,
 } from './slashState';
@@ -79,7 +80,12 @@ export const slashPlugin = $prose((ctx) => {
 
           case 'Escape':
             event.preventDefault();
-            view.dispatch(view.state.tr.setMeta(slashPluginKey, createSlashState()));
+            view.dispatch(
+              view.state.tr.setMeta(
+                slashPluginKey,
+                createDismissedSlashState(view.state.selection)
+              )
+            );
             return true;
 
           default:

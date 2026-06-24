@@ -362,7 +362,7 @@ export function HeroIconHeader({
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-soft-placeholder)] hover:text-[var(--vlaina-sidebar-row-selected-text)] transition-colors")}
                   >
-                      <Icon size="md" name="misc.activity" />
+                      <Icon size="md" name="misc.heart" />
                       {!compact && <span>{t('icon.addIcon')}</span>}
                   </button>
               </div>

@@ -55,6 +55,7 @@ describe('filterSlashItems', () => {
     expect(filterSlashItems('biaoti').map((item) => item.name)).toContain('Heading 1');
     expect(filterSlashItems('gongshi').map((item) => item.name)).toContain('Equation');
     expect(filterSlashItems('tupian').map((item) => item.name)).toContain('Image');
+    expect(filterSlashItems('biaoqing').map((item) => item.name)).toContain('Emoji');
   });
 
   it('matches common habits across supported languages', () => {
@@ -99,6 +100,34 @@ describe('filterSlashItems', () => {
     const names = filterSlashItems('im').map((item) => item.name);
 
     expect(names.indexOf('Image')).toBeLessThan(names.indexOf('Inline Math'));
+  });
+
+  it('finds the emoji picker command', () => {
+    expect(filterSlashItems('e')[0]?.commandId).toBe('emoji');
+    expect(filterSlashItems('emoji')[0]?.commandId).toBe('emoji');
+    expect(filterSlashItems('表情').map((item) => item.commandId)).toContain('emoji');
+  });
+
+  it('matches localized emoji aliases across supported languages', () => {
+    const aliases = [
+      '表情符號',
+      '絵文字',
+      '이모티콘',
+      'émoticône',
+      'gesicht',
+      'emoticón',
+      'reação',
+      'faccina',
+      'эмодзи',
+      'gülen yüz',
+      'biểu tượng cảm xúc',
+      'emotikon',
+      'อีโมจิ',
+    ];
+
+    for (const alias of aliases) {
+      expect(filterSlashItems(alias).map((item) => item.commandId), alias).toContain('emoji');
+    }
   });
 
   it('uses common-usage order when search scores tie', () => {

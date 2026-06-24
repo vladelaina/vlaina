@@ -15,6 +15,7 @@ import {
 } from './slashInsertUtils';
 import { insertMathNodeAndOpenEditor } from './slashMathCommands';
 import { insertMermaidNodeAndOpenEditor } from './slashMermaidCommands';
+import { openSlashEmojiPicker } from './slashEmojiCommand';
 import { openVideoPrompt } from './slashVideoCommand';
 
 export {
@@ -109,6 +110,21 @@ const localizedSearchTerms = {
   footnote: ['note de bas de page', 'nota al pie', 'fussnote', 'nota de rodape', 'nota a pie', 'сноска', 'dipnot', 'catatan kaki', 'chu thich', '脚注', '각주'],
   abbreviation: ['abreviation', 'abreviatura', 'abkurzung', 'abbreviazione', 'сокращение', 'kisaltma', 'singkatan', 'tu viet tat', '略語', '약어'],
   video: ['video', 'film', 'filme', 'vídeo', 'видео', 'vidyo', 'phim', 'วิดีโอ', '動画', '동영상'],
+  emoji: [
+    'emoji', 'emote', 'emoticon', 'smiley', 'face', 'reaction',
+    '表情', '表情符号', '表情符號', '颜文字', '顔文字', '絵文字', 'biaoqing',
+    '이모지', '이모티콘', '표정',
+    'emoji', 'émoji', 'emoticone', 'émoticône', 'smiley', 'visage', 'reaction', 'réaction',
+    'emoticon', 'smiley', 'gesicht', 'reaktion',
+    'emoticono', 'emoticón', 'cara', 'reaccion', 'reacción',
+    'emoticon', 'carinha', 'reacao', 'reação',
+    'faccina', 'reazione',
+    'эмодзи', 'смайлик', 'смайл', 'реакция',
+    'emoji', 'ifade', 'gulen yuz', 'gülen yüz', 'tepki',
+    'bieu tuong cam xuc', 'biểu tượng cảm xúc', 'cam xuc', 'cảm xúc',
+    'emotikon', 'reaksi', 'wajah',
+    'อีโมจิ', 'อิโมจิ', 'หน้ายิ้ม', 'อารมณ์', 'สัญลักษณ์แสดงอารมณ์',
+  ],
 } as const;
 
 export const slashCommandDefinitions = [
@@ -241,6 +257,14 @@ export const slashCommandDefinitions = [
     searchTerms: ['img', 'picture', 'photo', 'figure', 'upload', '图片', '图像', '照片', 'tupian', 'zhaopian', ...localizedSearchTerms.image],
     commandId: 'image',
     run: insertImageFromFilePicker,
+  },
+  {
+    id: 'emoji',
+    nameKey: 'icon.emoji',
+    icon: 'misc.heart',
+    searchTerms: ['e', 'emoji', 'emote', 'smile', 'face', 'reaction', '表情', '表情符号', '表情符號', 'biaoqing', ...localizedSearchTerms.emoji],
+    commandId: 'emoji',
+    run: (ctx) => openSlashEmojiPicker(ctx.get(editorViewCtx)),
   },
   {
     id: 'frontmatter',

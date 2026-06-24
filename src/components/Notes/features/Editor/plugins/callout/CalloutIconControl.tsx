@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { AppIcon } from '@/components/common/AppIcon';
-import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
 import { useI18n } from '@/lib/i18n';
 import type { IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
@@ -32,8 +31,6 @@ function CalloutIconPicker({
   onRemove,
   onSelect,
 }: CalloutIconPickerProps) {
-  const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
-
   return (
     <UniversalIconPicker
       onSelect={onSelect}
@@ -42,10 +39,9 @@ function CalloutIconPicker({
       onClose={onClose}
       hasIcon
       currentIcon={currentIcon}
-      customIcons={customIcons}
-      onUploadFile={onUploadFile}
-      onDeleteCustomIcon={onDeleteCustomIcon}
       allowLegacyImageScheme
+      showUploadTab={false}
+      fixedPanelHeight
     />
   );
 }

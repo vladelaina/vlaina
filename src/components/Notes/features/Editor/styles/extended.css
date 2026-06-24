@@ -516,6 +516,10 @@ body.editor-block-drag-active .milkdown .video-block video {
 .milkdown .callout-icon-control {
   display: inline-flex;
   position: relative;
+  width: var(--vlaina-size-175rem);
+  height: var(--vlaina-size-175rem);
+  line-height: var(--vlaina-leading-1);
+  vertical-align: top;
 }
 
 .milkdown .callout-icon-button {

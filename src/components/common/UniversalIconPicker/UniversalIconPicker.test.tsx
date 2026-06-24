@@ -271,6 +271,37 @@ describe('UniversalIconPicker', () => {
     expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-recent', '😀');
   });
 
+  it('keeps the picker on emoji when the upload tab is disabled', async () => {
+    localStorage.setItem(ACTIVE_TAB_KEY, 'upload');
+
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        showUploadTab={false}
+      />,
+    );
+
+    expect(screen.getByTestId('emoji-tab')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Upload' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('upload-tab')).not.toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true });
+
+    expect(screen.getByTestId('emoji-tab')).toBeInTheDocument();
+    expect(screen.queryByTestId('upload-tab')).not.toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: ACTIVE_TAB_KEY,
+        newValue: 'upload',
+      }));
+    });
+
+    expect(screen.getByTestId('emoji-tab')).toBeInTheDocument();
+    expect(screen.queryByTestId('upload-tab')).not.toBeInTheDocument();
+  });
+
   it('ignores oversized persisted icon picker preferences', () => {
     localStorage.setItem(SKIN_TONE_KEY, '2'.repeat(65));
     localStorage.setItem(ICON_COLOR_KEY, 'a'.repeat(65));
