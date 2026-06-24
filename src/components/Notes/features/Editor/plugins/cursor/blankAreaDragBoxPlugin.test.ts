@@ -716,7 +716,7 @@ describe('blankAreaDragBoxPlugin document routing', () => {
     }
   });
 
-  it('collapses a native markdown blank-line node selection when left-clicking the notes sidebar', async () => {
+  it('keeps a recovered markdown blank-line selection stable when left-clicking the notes sidebar', async () => {
     const { editor, view } = await createBlockSelectionEditor([
       'Alpha',
       '<!--vlaina-markdown-blank-line-->',
@@ -738,7 +738,8 @@ describe('blankAreaDragBoxPlugin document routing', () => {
           .setSelection(NodeSelection.create(view.state.doc, blankLinePos))
           .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
       );
-      expect(view.state.selection).toBeInstanceOf(NodeSelection);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
 
       const mouseDown = createMouseEvent('mousedown', {
         button: 0,
@@ -749,6 +750,7 @@ describe('blankAreaDragBoxPlugin document routing', () => {
       sidebarRow.dispatchEvent(mouseDown);
 
       expect(mouseDown.defaultPrevented).toBe(false);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
       expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
     } finally {
@@ -757,7 +759,7 @@ describe('blankAreaDragBoxPlugin document routing', () => {
     }
   });
 
-  it('collapses a native markdown blank-line node selection when right-clicking the notes sidebar', async () => {
+  it('keeps a recovered markdown blank-line selection stable when right-clicking the notes sidebar', async () => {
     const { editor, view } = await createBlockSelectionEditor([
       'Alpha',
       '<!--vlaina-markdown-blank-line-->',
@@ -779,7 +781,8 @@ describe('blankAreaDragBoxPlugin document routing', () => {
           .setSelection(NodeSelection.create(view.state.doc, blankLinePos))
           .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
       );
-      expect(view.state.selection).toBeInstanceOf(NodeSelection);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
 
       const mouseDown = createMouseEvent('mousedown', {
@@ -791,6 +794,7 @@ describe('blankAreaDragBoxPlugin document routing', () => {
       sidebarRow.dispatchEvent(mouseDown);
 
       expect(mouseDown.defaultPrevented).toBe(false);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
       expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
     } finally {
