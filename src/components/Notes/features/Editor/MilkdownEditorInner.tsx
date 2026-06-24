@@ -419,6 +419,11 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
+  const currentDraftName = useNotesStore(
+    useCallback((state) => (
+      currentNotePath ? state.draftNotes?.[currentNotePath]?.name : undefined
+    ), [currentNotePath])
+  );
   const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
   const typewriterMode = useUnifiedStore(selectMarkdownTypewriterModeEnabled);
   const { resolvedTheme } = useTheme();
@@ -916,7 +921,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     return content.length === 0 || /^#\s*$/.test(content);
   }, [currentNoteContent]);
 
-  const shouldFocusEmptyDraftBody = isDraftNote && !isNewlyCreated && isEmptyContent;
+  const shouldKeepFocusOnEmptyDraftTitle = isDraftNote && isEmptyContent && !currentDraftName?.trim();
+  const shouldFocusEmptyDraftBody =
+    isDraftNote && !isNewlyCreated && isEmptyContent && !shouldKeepFocusOnEmptyDraftTitle;
   if (
     lazyBlockVisibilityRef.current?.path !== currentNotePath ||
     lazyBlockVisibilityRef.current?.diskRevision !== currentNoteDiskRevision ||
@@ -954,6 +961,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     if (!active || !get || hasAutoFocused.current || hasScheduledAutoFocus.current) return;
     const blockedReason = isNewlyCreated
       ? 'new-note-title-autofocus'
+      : shouldKeepFocusOnEmptyDraftTitle
+        ? 'empty-draft-title-autofocus'
       : !isEmptyContent
         ? 'non-empty-content'
         : null;
@@ -975,7 +984,16 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       clearTimeout(timer);
       hasScheduledAutoFocus.current = false;
     };
-  }, [active, currentNotePath, focusEditorBody, get, isDraftNote, isNewlyCreated, isEmptyContent]);
+  }, [
+    active,
+    currentNotePath,
+    focusEditorBody,
+    get,
+    isDraftNote,
+    isNewlyCreated,
+    isEmptyContent,
+    shouldKeepFocusOnEmptyDraftTitle,
+  ]);
 
   useEffect(() => {
     if (!active || !shouldFocusEmptyDraftBody || hasAutoFocused.current) return;

@@ -314,9 +314,21 @@ vi.mock('@/lib/desktop/launchContext', () => ({
 vi.mock('./features/Editor', () => ({
   MarkdownEditor: ({ active }: { active?: boolean }) => {
     const hasRenderableNote = Boolean(mocks.notesState.currentNote?.path);
-    return active && hasRenderableNote
-      ? <div data-testid="markdown-editor" />
-      : <div data-testid="markdown-editor-shell" />;
+    if (!hasRenderableNote) {
+      return <div data-testid="markdown-editor-shell" />;
+    }
+
+    const path = mocks.notesState.currentNote?.path ?? '';
+    return (
+      <div>
+        <textarea
+          data-testid="note-title-input"
+          data-note-title-input="true"
+          defaultValue={mocks.notesState.draftNotes[path]?.name ?? path}
+        />
+        {active ? <div data-testid="markdown-editor" /> : <div data-testid="markdown-editor-shell" />}
+      </div>
+    );
   },
 }));
 
@@ -324,9 +336,21 @@ vi.mock('./features/Editor/preloadMarkdownEditor', () => ({
   preloadMarkdownEditor: vi.fn(async () => ({
     MarkdownEditor: ({ active }: { active?: boolean }) => {
       const hasRenderableNote = Boolean(mocks.notesState.currentNote?.path);
-      return active && hasRenderableNote
-        ? <div data-testid="markdown-editor" />
-        : <div data-testid="markdown-editor-shell" />;
+      if (!hasRenderableNote) {
+        return <div data-testid="markdown-editor-shell" />;
+      }
+
+      const path = mocks.notesState.currentNote?.path ?? '';
+      return (
+        <div>
+          <textarea
+            data-testid="note-title-input"
+            data-note-title-input="true"
+            defaultValue={mocks.notesState.draftNotes[path]?.name ?? path}
+          />
+          {active ? <div data-testid="markdown-editor" /> : <div data-testid="markdown-editor-shell" />}
+        </div>
+      );
     },
   })),
 }));
@@ -580,6 +604,31 @@ describe('NotesView', () => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
     expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
+  });
+
+  it('focuses the empty untitled draft title when returning from chat to notes', async () => {
+    notesState.currentNote = { path: 'draft:blank', content: '' };
+    notesState.openTabs = [{ path: 'draft:blank', name: '', isDirty: false }];
+    notesState.draftNotes = {
+      'draft:blank': { parentPath: null, name: '' },
+    };
+
+    const { rerender } = render(<NotesView active />);
+
+    const titleInput = await screen.findByTestId('note-title-input');
+    const outsideButton = document.createElement('button');
+    document.body.appendChild(outsideButton);
+    outsideButton.focus();
+    expect(document.activeElement).toBe(outsideButton);
+
+    rerender(<NotesView active={false} />);
+    rerender(<NotesView active />);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(titleInput);
+    });
+
+    document.body.removeChild(outsideButton);
   });
 
   it('does not create an untitled draft when the opened vault already has files', async () => {

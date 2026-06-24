@@ -36,6 +36,7 @@ import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigatio
 import { useI18n } from '@/lib/i18n';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 import { preloadMarkdownEditor } from './features/Editor/preloadMarkdownEditor';
+import { focusNoteTitleInputAtEnd } from './features/Editor/utils/titleInputDom';
 import {
   LargeMarkdownFirstPaintPreview,
   createLargeMarkdownFirstPaintPreviewBlocks,
@@ -73,6 +74,33 @@ function scheduleSidebarScroll(path: string): void {
     .then((mod) => {
       mod.scheduleSidebarItemIntoView(path, 2);
     });
+}
+
+function isEmptyUntitledDraft({
+  content,
+  draftNotes,
+  noteMetadata,
+  path,
+}: {
+  content: string;
+  draftNotes: ReturnType<typeof useNotesStore.getState>['draftNotes'];
+  noteMetadata: ReturnType<typeof useNotesStore.getState>['noteMetadata'];
+  path: string | null | undefined;
+}): boolean {
+  if (!path || !isDraftNotePath(path)) {
+    return false;
+  }
+
+  const draftEntry = draftNotes[path];
+  if (!draftEntry) {
+    return false;
+  }
+
+  return !hasDraftUnsavedChanges({
+    draftName: draftEntry.name,
+    content,
+    metadata: noteMetadata?.notes[path],
+  });
 }
 
 export function NotesView({
@@ -152,6 +180,7 @@ export function NotesView({
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
   const hasPresentedNoteRef = useRef(false);
+  const previousActiveRef = useRef(active);
   const lastPresentedNotesErrorRef = useRef<string | null>(null);
   const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
   const vaultInitializingRef = useRef(false);
@@ -258,6 +287,48 @@ export function NotesView({
       window.clearTimeout(timeoutId);
     };
   }, [active]);
+
+  useEffect(() => {
+    const wasActive = previousActiveRef.current;
+    previousActiveRef.current = active;
+    if (!active || wasActive) {
+      return;
+    }
+
+    if (
+      openTabs.length !== 1 ||
+      openTabs[0]?.path !== currentNotePath ||
+      !isEmptyUntitledDraft({
+        content: currentNoteContent,
+        draftNotes,
+        noteMetadata,
+        path: currentNotePath,
+      })
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let nextFrameId: number | null = null;
+    const frameId = window.requestAnimationFrame(() => {
+      nextFrameId = window.requestAnimationFrame(() => {
+        if (cancelled) {
+          return;
+        }
+        if (focusNoteTitleInputAtEnd(notesViewRef.current ?? document)) {
+          requestNativeCaretOverlayRefresh();
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frameId);
+      if (nextFrameId !== null) {
+        window.cancelAnimationFrame(nextFrameId);
+      }
+    };
+  }, [active, currentNoteContent, currentNotePath, draftNotes, noteMetadata, openTabs]);
 
   const reportNotesPrimaryContentReady = useCallback(() => {
     setPrimaryContentReadyPath(currentNotePath ?? null);
