@@ -5,7 +5,7 @@ import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
 import { themeDomStyleTokens, themeLazyLoadTokens } from '@/styles/themeTokens';
 
-const MAX_CONCURRENT_THUMBNAIL_LOADS = 2;
+const MAX_CONCURRENT_THUMBNAIL_LOADS = 4;
 
 interface ThumbnailLoadJob {
   cancelled: boolean;

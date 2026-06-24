@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverPicker } from './CoverPicker';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -8,11 +8,13 @@ const hoisted = vi.hoisted(() => ({
   loadAssets: vi.fn(),
   uploadAsset: vi.fn(),
   assetList: [] as Array<{ filename: string }>,
+  isLoadingAssets: false,
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({
   useNotesStore: (selector: (state: any) => unknown) => selector({
     assetList: hoisted.assetList,
+    isLoadingAssets: hoisted.isLoadingAssets,
     loadAssets: hoisted.loadAssets,
     uploadAsset: hoisted.uploadAsset,
   }),
@@ -65,7 +67,9 @@ vi.mock('./EmptyState', () => ({
 describe('CoverPicker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hoisted.loadAssets.mockReturnValue(new Promise(() => undefined));
     hoisted.assetList = [];
+    hoisted.isLoadingAssets = false;
   });
 
   it('uses the shared composer pill surface for the picker shell', () => {
@@ -119,8 +123,8 @@ describe('CoverPicker', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('debounces cover previews while moving across library items', () => {
-    vi.useFakeTimers();
+  it('debounces cover previews while moving across library items', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [{ filename: 'a.png' }];
     const onPreview = vi.fn();
 
@@ -135,6 +139,9 @@ describe('CoverPicker', () => {
       />,
     );
 
+    await waitFor(() => expect(screen.getByTestId('asset-grid')).toBeInTheDocument());
+
+    vi.useFakeTimers();
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'hover a' }));
     act(() => {
       vi.advanceTimersByTime(100);
@@ -149,8 +156,7 @@ describe('CoverPicker', () => {
     vi.useRealTimers();
   });
 
-  it('defers asset reload until after the picker opens and uses the latest note scope', () => {
-    vi.useFakeTimers();
+  it('starts asset reload when the picker opens and uses the latest note scope', async () => {
     hoisted.assetList = [{ filename: 'a.png' }];
 
     const { rerender } = render(
@@ -163,7 +169,7 @@ describe('CoverPicker', () => {
       />,
     );
 
-    expect(hoisted.loadAssets).not.toHaveBeenCalled();
+    await waitFor(() => expect(hoisted.loadAssets).toHaveBeenCalledTimes(1));
 
     rerender(
       <CoverPicker
@@ -175,13 +181,84 @@ describe('CoverPicker', () => {
       />,
     );
 
-    act(() => {
-      vi.advanceTimersByTime(120);
-    });
+    await waitFor(() => expect(hoisted.loadAssets).toHaveBeenCalledTimes(2));
+    expect(hoisted.loadAssets).toHaveBeenLastCalledWith('/vault');
+  });
 
+  it('shows a stable loading state instead of stale assets while the library refreshes', async () => {
+    let resolveLoad: () => void = () => {};
+    hoisted.assetList = [{ filename: 'stale-single-cover.png' }];
+    hoisted.loadAssets.mockReturnValue(new Promise<void>((resolve) => {
+      resolveLoad = resolve;
+    }));
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    expect(screen.getByTestId('asset-library-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('asset-grid')).not.toBeInTheDocument();
+
+    await waitFor(() => expect(hoisted.loadAssets).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      resolveLoad();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(screen.getByTestId('asset-grid')).toBeInTheDocument());
+  });
+
+  it('does not refetch only because the asset count changes while open', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
+    hoisted.assetList = [];
+    const { rerender } = render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    await waitFor(() => expect(hoisted.loadAssets).toHaveBeenCalledTimes(1));
+
+    hoisted.assetList = [{ filename: 'a.png' }];
+    rerender(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('asset-grid')).toBeInTheDocument());
     expect(hoisted.loadAssets).toHaveBeenCalledTimes(1);
-    expect(hoisted.loadAssets).toHaveBeenCalledWith('/vault');
-    vi.useRealTimers();
+  });
+
+  it('does not enter library loading when opened without a vault path', () => {
+    hoisted.assetList = [];
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath=""
+        currentNotePath="one.md"
+      />,
+    );
+
+    expect(hoisted.loadAssets).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('asset-library-loading')).not.toBeInTheDocument();
+    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
   });
 
   it('does not show paste instructions in the upload tab', () => {
@@ -223,7 +300,8 @@ describe('CoverPicker', () => {
     expect(container.querySelector('.border-b')).toBeInTheDocument();
   });
 
-  it('keeps the header controls when editing an existing cover even if the library is empty', () => {
+  it('keeps the header controls when editing an existing cover even if the library is empty', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [];
 
     const { container } = render(
@@ -241,10 +319,11 @@ describe('CoverPicker', () => {
     expect(screen.getByRole('button', { name: /Upload/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Remove/ })).toBeInTheDocument();
     expect(container.querySelector('.border-b')).toBeInTheDocument();
-    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('upload-zone')).toBeInTheDocument());
   });
 
-  it('shows upload inside library when there are no cover images', () => {
+  it('shows upload inside library when there are no cover images', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [];
 
     render(
@@ -257,13 +336,14 @@ describe('CoverPicker', () => {
       />,
     );
 
-    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('upload-zone')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /Library/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Upload/ })).not.toBeInTheDocument();
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
   });
 
-  it('hides tabs and the divider while showing empty-library upload', () => {
+  it('hides tabs and the divider while showing empty-library upload', async () => {
+    hoisted.loadAssets.mockResolvedValue(undefined);
     hoisted.assetList = [];
 
     const { container } = render(
@@ -276,8 +356,8 @@ describe('CoverPicker', () => {
       />,
     );
 
+    await waitFor(() => expect(screen.getByTestId('upload-zone')).toBeInTheDocument());
     expect(container.querySelector('.border-b')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Library/ })).not.toBeInTheDocument();
-    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
   });
 });

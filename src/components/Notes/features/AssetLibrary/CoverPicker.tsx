@@ -21,19 +21,32 @@ export function CoverPicker({
 }: CoverPickerProps) {
   const { t } = useI18n();
   const assetList = useNotesStore((state) => state.assetList);
+  const isLoadingAssets = useNotesStore((state) => state.isLoadingAssets);
   const loadAssets = useNotesStore((state) => state.loadAssets);
   const uploadAsset = useNotesStore((state) => state.uploadAsset);
   const hasAssets = assetList.length > 0;
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
   const [isUploading, setIsUploading] = useState(false);
+  const [isPickerAssetRefreshPending, setIsPickerAssetRefreshPending] = useState(
+    () => isOpen && Boolean(vaultPath)
+  );
+  const assetRefreshScope = `${vaultPath}\0${currentNotePath ?? ''}`;
 
   const uploadingRef = useRef(false);
   const mountedRef = useRef(true);
   const isOpenRef = useRef(isOpen);
+  const requestedAssetScopeRef = useRef<string | null>(null);
   const removeTriggeredRef = useRef(false);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestPreviewAssetRef = useRef<string | null>(null);
   const showHeaderControls = hasAssets || Boolean(onRemove);
+  const isUnrefreshedAssetScope =
+    isOpen && Boolean(vaultPath) && requestedAssetScopeRef.current !== assetRefreshScope;
+  const shouldShowLibraryLoading = activeTab === 'library' && (
+    isPickerAssetRefreshPending ||
+    isUnrefreshedAssetScope ||
+    (isLoadingAssets && !hasAssets)
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -63,40 +76,32 @@ export function CoverPicker({
   useEffect(() => {
     if (isOpen && vaultPath) {
       let cancelled = false;
-      let idleId: number | null = null;
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-      const runLoad = () => {
-        if (cancelled) return;
-        void Promise.resolve(loadAssets(vaultPath)).catch(() => undefined);
-      };
-
-      timeoutId = setTimeout(() => {
-        timeoutId = null;
-        if ('requestIdleCallback' in window) {
-          idleId = window.requestIdleCallback(runLoad, { timeout: themeLazyLoadTokens.coverAssetIdleLoadTimeoutMs });
-        } else {
-          runLoad();
-        }
-      }, themeLazyLoadTokens.coverAssetLoadAfterOpenDelayMs);
+      requestedAssetScopeRef.current = assetRefreshScope;
+      setIsPickerAssetRefreshPending(true);
+      void Promise.resolve(loadAssets(vaultPath))
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled && mountedRef.current) {
+            setIsPickerAssetRefreshPending(false);
+          }
+        });
 
       return () => {
         cancelled = true;
-        if (timeoutId !== null) {
-          clearTimeout(timeoutId);
-        }
-        if (idleId !== null && 'cancelIdleCallback' in window) {
-          window.cancelIdleCallback(idleId);
-        }
       };
-    } else if (!isOpen) {
+    }
+
+    requestedAssetScopeRef.current = null;
+    setIsPickerAssetRefreshPending(false);
+
+    if (!isOpen) {
       const timer = setTimeout(() => {
         setActiveTab('library');
         setIsUploading(false);
       }, themeLazyLoadTokens.coverPickerResetAfterCloseDelayMs);
       return () => clearTimeout(timer);
     }
-  }, [currentNotePath, hasAssets, isOpen, vaultPath, loadAssets]);
+  }, [assetRefreshScope, isOpen, vaultPath, loadAssets]);
 
   const handleAssetSelect = useCallback((assetPath: string) => {
     if (previewTimerRef.current) {
@@ -255,7 +260,9 @@ export function CoverPicker({
         ) : null}
 
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'library' && hasAssets ? (
+          {shouldShowLibraryLoading ? (
+            <AssetLibraryLoadingState />
+          ) : activeTab === 'library' && hasAssets ? (
             <AssetGrid
               onSelect={handleAssetSelect}
               onHover={handleAssetHover}
@@ -276,5 +283,22 @@ export function CoverPicker({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function AssetLibraryLoadingState() {
+  return (
+    <div
+      data-testid="asset-library-loading"
+      className="grid grid-cols-3 gap-2 p-3"
+      aria-busy="true"
+    >
+      {Array.from({ length: 9 }, (_value, index) => (
+        <div
+          key={index}
+          className="aspect-square rounded-lg bg-[var(--vlaina-bg-tertiary)] animate-pulse"
+        />
+      ))}
+    </div>
   );
 }
