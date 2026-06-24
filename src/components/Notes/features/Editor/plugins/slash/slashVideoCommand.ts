@@ -65,12 +65,22 @@ function normalizeBilibiliEmbedForUpdate(src: string) {
   }
 }
 
+function hasBilibiliPlaybackCid(src: string) {
+  try {
+    const url = new URL(src);
+    return url.hostname.replace(/^www\./, '') === 'player.bilibili.com'
+      && Boolean(url.searchParams.get('cid'));
+  } catch {
+    return false;
+  }
+}
+
 export function shouldSkipResolvedVideoUpdate(previousSrc: string, nextSrc: string) {
   if (previousSrc === nextSrc) return true;
 
   const previousEmbed = normalizeBilibiliEmbedForUpdate(previousSrc);
   const nextEmbed = normalizeBilibiliEmbedForUpdate(nextSrc);
-  return previousEmbed !== null && previousEmbed === nextEmbed;
+  return hasBilibiliPlaybackCid(previousSrc) && previousEmbed !== null && previousEmbed === nextEmbed;
 }
 
 export function updateInsertedVideoNodeSrc(args: {
@@ -112,15 +122,6 @@ export function updateInsertedVideoNodeSrc(args: {
 }
 
 async function resolveVideoUrlForInsert(url: string) {
-  const parsed = parseVideoUrl(url);
-  if (parsed?.type === 'bilibili') {
-    return {
-      resolvedUrl: url,
-      source: 'unchanged',
-      stage: 'playable-bilibili-embed',
-    } as const;
-  }
-
   const mediaBridge = getElectronBridge()?.media;
   if (!mediaBridge?.resolveVideoUrl) {
     return {

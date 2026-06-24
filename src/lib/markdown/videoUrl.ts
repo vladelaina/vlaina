@@ -93,16 +93,26 @@ function extractYouTubeVideoId(rawUrl: string) {
   try {
     const parsedUrl = new URL(rawUrl);
     if (!isPublicHttpVideoUrl(parsedUrl.toString())) return null;
-    const hostname = parsedUrl.hostname.replace(/^www\./, '');
+    const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
     if (hostname === 'youtu.be') {
       return parsedUrl.pathname.split('/').filter(Boolean)[0] ?? null;
     }
-    if (hostname === 'youtube.com' || hostname === 'youtube-nocookie.com') {
+    if (
+      hostname === 'youtube.com'
+      || hostname === 'youtube-nocookie.com'
+      || hostname === 'm.youtube.com'
+      || hostname === 'music.youtube.com'
+    ) {
       const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
       if (pathParts[0] === 'watch') {
         return parsedUrl.searchParams.get('v');
       }
-      if (pathParts[0] === 'embed' || pathParts[0] === 'shorts' || pathParts[0] === 'live') {
+      if (
+        pathParts[0] === 'embed'
+        || pathParts[0] === 'shorts'
+        || pathParts[0] === 'live'
+        || pathParts[0] === 'v'
+      ) {
         return pathParts[1] ?? null;
       }
     }

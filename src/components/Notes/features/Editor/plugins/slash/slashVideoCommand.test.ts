@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { shouldSkipResolvedVideoUpdate, updateInsertedVideoNodeSrc } from './slashVideoCommand';
 
 describe('slash video resolved URL updates', () => {
-  it('skips resolved Bilibili URLs that only add aid and cid', () => {
+  it('keeps resolved Bilibili updates that add playable aid and cid to page URLs', () => {
     expect(
       shouldSkipResolvedVideoUpdate(
         'https://www.bilibili.com/video/BV17jR5BgEsZ?spm_id_from=333&vd_source=secret',
         'https://player.bilibili.com/player.html?isOutside=true&bvid=BV17jR5BgEsZ&p=1&danmaku=0&autoplay=0&aid=116502715957447&cid=38002428818'
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('skips resolved Bilibili URLs that preserve the same page', () => {
+  it('skips resolved Bilibili URLs when the existing player URL already has a cid', () => {
     expect(
       shouldSkipResolvedVideoUpdate(
-        'https://www.bilibili.com/video/BV17jR5BgEsZ?p=2',
+        'https://player.bilibili.com/player.html?isOutside=true&bvid=BV17jR5BgEsZ&p=2&danmaku=0&autoplay=0&cid=38002428818',
         'https://player.bilibili.com/player.html?isOutside=true&bvid=BV17jR5BgEsZ&p=2&danmaku=0&autoplay=0&aid=116502715957447&cid=38002428818'
       )
     ).toBe(true);

@@ -5,6 +5,58 @@ import { selectVideoBlock } from './videoBlockSelection';
 import { createVideoDom } from './videoDom';
 import { shouldStopVideoNodeEvent } from './videoNodeViewEvents';
 
+const PARKED_VIDEO_DOM_TTL_MS = 1000;
+const MAX_PARKED_VIDEO_DOMS = 8;
+const parkedVideoDomByKey = new Map<string, { dom: HTMLElement; timeout: number }>();
+
+function createVideoDomParkingKey(attrs: VideoAttrs) {
+  return JSON.stringify({
+    src: attrs.src,
+    title: attrs.title,
+    width: attrs.width,
+    height: attrs.height,
+  });
+}
+
+function clearParkedVideoDom(key: string) {
+  const parked = parkedVideoDomByKey.get(key);
+  if (!parked) return;
+  window.clearTimeout(parked.timeout);
+  parkedVideoDomByKey.delete(key);
+}
+
+function takeParkedVideoDom(attrs: VideoAttrs) {
+  const key = createVideoDomParkingKey(attrs);
+  const parked = parkedVideoDomByKey.get(key);
+  if (!parked) return null;
+
+  clearParkedVideoDom(key);
+  parked.dom.classList.remove(
+    'ProseMirror-selectednode',
+    'editor-block-selected',
+    'editor-block-drag-source',
+    'editor-block-drag-source-textlike',
+    'editor-block-drag-source-has-next',
+    'editor-block-drag-source-has-previous',
+  );
+  return parked.dom;
+}
+
+function parkVideoDom(attrs: VideoAttrs, dom: HTMLElement) {
+  const key = createVideoDomParkingKey(attrs);
+  clearParkedVideoDom(key);
+  while (parkedVideoDomByKey.size >= MAX_PARKED_VIDEO_DOMS) {
+    const oldestKey = parkedVideoDomByKey.keys().next().value;
+    if (typeof oldestKey !== 'string') break;
+    clearParkedVideoDom(oldestKey);
+  }
+
+  const timeout = window.setTimeout(() => {
+    parkedVideoDomByKey.delete(key);
+  }, PARKED_VIDEO_DOM_TTL_MS);
+  parkedVideoDomByKey.set(key, { dom, timeout });
+}
+
 export class VideoNodeView implements NodeView {
   dom: HTMLElement;
   private node: ProseMirrorNode;
@@ -25,7 +77,7 @@ export class VideoNodeView implements NodeView {
     this.node = node;
     this.view = view;
     this.getPos = getPos;
-    this.dom = createVideoDom(node.attrs as VideoAttrs);
+    this.dom = takeParkedVideoDom(node.attrs as VideoAttrs) ?? createVideoDom(node.attrs as VideoAttrs);
     this.handleDoubleClick = (event) => this.handleNodeDoubleClick(event);
     this.handleMouseDown = (event) => this.handleNodeMouseDown(event);
     this.handleWindowMouseMove = (event) => this.handlePointerMove(event);
@@ -146,5 +198,6 @@ export class VideoNodeView implements NodeView {
     this.clearMouseDownState();
     this.dom.removeEventListener('dblclick', this.handleDoubleClick);
     this.dom.removeEventListener('mousedown', this.handleMouseDown, true);
+    parkVideoDom(this.node.attrs as VideoAttrs, this.dom);
   }
 }
