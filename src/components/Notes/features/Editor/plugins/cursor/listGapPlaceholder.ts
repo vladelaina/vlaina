@@ -14,7 +14,10 @@ export const MAX_LIST_GAP_TEXT_HIT_CHARS = 100_000;
 export const MAX_LIST_GAP_TEXT_HIT_NODES = 512;
 export const MAX_LIST_GAP_TEXT_HIT_RECTS = 1024;
 
-export function resolvePointInsideActualText(root: HTMLElement, clientX: number, clientY: number): boolean | null {
+function visitActualTextRects(
+  root: HTMLElement,
+  visitor: (rect: DOMRect) => boolean,
+): boolean | null {
   const doc = root.ownerDocument;
   let measuredTextChars = 0;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -54,13 +57,7 @@ export function resolvePointInsideActualText(root: HTMLElement, clientX: number,
 
         const rect = rects[index];
         if (!rect || rect.width <= 0 || rect.height <= 0) continue;
-        const verticalSlack = Math.max(2, Math.min(5, rect.height * 0.15));
-        if (
-          clientX >= rect.left &&
-          clientX <= rect.right &&
-          clientY >= rect.top - verticalSlack &&
-          clientY <= rect.bottom + verticalSlack
-        ) {
+        if (visitor(rect)) {
           return true;
         }
       }
@@ -72,12 +69,32 @@ export function resolvePointInsideActualText(root: HTMLElement, clientX: number,
   return false;
 }
 
-function shouldResolveNearbyListGapPlaceholder(view: EditorView, event: MouseEvent): boolean {
+export function resolvePointInsideActualText(root: HTMLElement, clientX: number, clientY: number): boolean | null {
+  return visitActualTextRects(root, (rect) => {
+    const verticalSlack = Math.max(2, Math.min(5, rect.height * 0.15));
+    return (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top - verticalSlack &&
+      clientY <= rect.bottom + verticalSlack
+    );
+  });
+}
+
+export function resolvePointOnActualTextLine(root: HTMLElement, clientY: number): boolean | null {
+  return visitActualTextRects(root, (rect) => {
+    const verticalSlack = Math.max(2, Math.min(5, rect.height * 0.15));
+    return clientY >= rect.top - verticalSlack && clientY <= rect.bottom + verticalSlack;
+  });
+}
+
+export function shouldResolveNearbyListGapPlaceholder(view: EditorView, event: MouseEvent): boolean {
   const target = event.target instanceof HTMLElement ? event.target : event.target instanceof Node ? event.target.parentElement : null;
   if (!target || !view.dom.contains(target)) return true;
   const textBlock = target.closest('p, li') as HTMLElement | null;
   if (!textBlock || !view.dom.contains(textBlock)) return true;
-  return resolvePointInsideActualText(textBlock, event.clientX, event.clientY) === false;
+  if (textBlock.closest('li.editor-list-gap-placeholder-item')) return true;
+  return resolvePointOnActualTextLine(textBlock, event.clientY) === false;
 }
 
 function isListGapPlaceholderText(text: string): boolean {
@@ -193,6 +210,8 @@ export function handleListGapPlaceholderPointerDown(view: EditorView, event: Mou
   if (!isSameEditorScrollRoot(view, event.target)) return false;
   if (event.button !== 0) return false;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+  const shouldResolveListGap = shouldResolveNearbyListGapPlaceholder(view, event);
+  if (!shouldResolveListGap) return false;
 
   const coords = resolvePosAtCoordsForBlankClick(view, event);
   if (!coords) {
@@ -201,11 +220,7 @@ export function handleListGapPlaceholderPointerDown(view: EditorView, event: Mou
 
   const directParagraphStart = findListGapPlaceholderParagraphStart(view, coords.pos);
   const paragraphStart = directParagraphStart
-    ?? (
-      shouldResolveNearbyListGapPlaceholder(view, event)
-        ? resolveListGapPlaceholderFromNearbyBlock(view, event)
-        : null
-    );
+    ?? resolveListGapPlaceholderFromNearbyBlock(view, event);
   if (paragraphStart === null) return false;
 
   const targetPos = Math.min(paragraphStart + 1, view.state.doc.content.size);

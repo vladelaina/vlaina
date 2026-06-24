@@ -27,6 +27,7 @@ type ListBlankLineState = {
 type ListBlankLineCase = {
   content: string;
   expectedAfterDelete: string[];
+  expectedAfterLineEndType: string[];
   expectedAfterType: string[];
   expectedTopLevelListsAfterDelete: ListBlankLineState['topLevelLists'];
   expectedTopLevelListsAfterType: ListBlankLineState['topLevelLists'];
@@ -40,6 +41,7 @@ const listBlankLineCases: ListBlankLineCase[] = [
     filename: 'ordered-list-blank-line-caret.md',
     content: ['1. 1', '', '1. 2'].join('\n'),
     expectedAfterDelete: ['1', '2'],
+    expectedAfterLineEndType: ['1X', '', '2'],
     expectedAfterType: ['1X', '2'],
     expectedTopLevelListsAfterDelete: [{ tagName: 'OL', items: ['1', '2'] }],
     expectedTopLevelListsAfterType: [{ tagName: 'OL', items: ['1X', '2'] }],
@@ -49,6 +51,7 @@ const listBlankLineCases: ListBlankLineCase[] = [
     filename: 'bullet-list-blank-line-caret.md',
     content: ['- 1', '', '- 2'].join('\n'),
     expectedAfterDelete: ['1', '2'],
+    expectedAfterLineEndType: ['1X', '', '2'],
     expectedAfterType: ['1X', '2'],
     expectedTopLevelListsAfterDelete: [{ tagName: 'UL', items: ['1', '2'] }],
     expectedTopLevelListsAfterType: [{ tagName: 'UL', items: ['1X', '2'] }],
@@ -58,6 +61,7 @@ const listBlankLineCases: ListBlankLineCase[] = [
     filename: 'task-list-blank-line-caret.md',
     content: ['- [ ] 1', '', '- [x] 2'].join('\n'),
     expectedAfterDelete: ['1', '2'],
+    expectedAfterLineEndType: ['1X', '', '2'],
     expectedAfterType: ['1X', '2'],
     expectedTopLevelListsAfterDelete: [{ tagName: 'UL', items: ['1', '2'] }],
     expectedTopLevelListsAfterType: [{ tagName: 'UL', items: ['1X', '2'] }],
@@ -67,6 +71,27 @@ const listBlankLineCases: ListBlankLineCase[] = [
     filename: 'nested-bullet-list-blank-line-caret.md',
     content: ['- parent', '  - 1', '', '  - 2'].join('\n'),
     expectedAfterDelete: ['parent', '1', '2'],
+    expectedAfterLineEndType: ['parent', '1X', '', '2'],
+    expectedAfterType: ['parent', '1X', '2'],
+    expectedTopLevelListsAfterDelete: [{ tagName: 'UL', items: ['parent'] }],
+    expectedTopLevelListsAfterType: [{ tagName: 'UL', items: ['parent'] }],
+  },
+  {
+    label: 'nested ordered list',
+    filename: 'nested-ordered-list-blank-line-caret.md',
+    content: ['1. parent', '   1. 1', '', '   1. 2'].join('\n'),
+    expectedAfterDelete: ['parent', '1', '2'],
+    expectedAfterLineEndType: ['parent', '1X', '', '2'],
+    expectedAfterType: ['parent', '1X', '2'],
+    expectedTopLevelListsAfterDelete: [{ tagName: 'OL', items: ['parent'] }],
+    expectedTopLevelListsAfterType: [{ tagName: 'OL', items: ['parent'] }],
+  },
+  {
+    label: 'nested task list',
+    filename: 'nested-task-list-blank-line-caret.md',
+    content: ['- [ ] parent', '  - [ ] 1', '', '  - [x] 2'].join('\n'),
+    expectedAfterDelete: ['parent', '1', '2'],
+    expectedAfterLineEndType: ['parent', '1X', '', '2'],
     expectedAfterType: ['parent', '1X', '2'],
     expectedTopLevelListsAfterDelete: [{ tagName: 'UL', items: ['parent'] }],
     expectedTopLevelListsAfterType: [{ tagName: 'UL', items: ['parent'] }],
@@ -133,6 +158,53 @@ async function collectListBlankLineState(page: Page): Promise<ListBlankLineState
 
 test.describe('notes list blank line caret', () => {
   test.setTimeout(90_000);
+
+  test('keeps line-end clicks on the previous list item out of the blank gap', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-list-line-end-gap-click');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      for (const listCase of listBlankLineCases) {
+        await openMarkdownFixture(page, {
+          filename: `line-end-${listCase.filename}`,
+          content: listCase.content,
+        });
+
+        await expect.poll(async () => collectListBlankLineState(page), {
+          message: `Expected ${listCase.label} to expose one list gap before the line-end click`,
+        }).toMatchObject({
+          gapCount: 1,
+        });
+
+        const firstItemParagraph = page.locator(`${EDITOR_SELECTOR} li:not(.editor-list-gap-placeholder-item) > p`, {
+          hasText: /^1$/,
+        }).first();
+        await expect(firstItemParagraph).toBeVisible({ timeout: 30_000 });
+        const box = await firstItemParagraph.boundingBox();
+        expect(box, `Expected a paragraph box for ${listCase.label}`).not.toBeNull();
+
+        await page.mouse.click(box!.x + box!.width - 8, box!.y + box!.height / 2);
+        await page.keyboard.type('X');
+        await waitForEditorAnimationFrame(page);
+
+        await expect.poll(async () => collectListBlankLineState(page), {
+          message: `Expected ${listCase.label} line-end typing to stay in the previous item`,
+        }).toMatchObject({
+          anchorParagraphText: '1X',
+          gapCount: 1,
+          listItemPrimaryTexts: listCase.expectedAfterLineEndType,
+          selection: {
+            empty: true,
+          },
+        });
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('keeps the caret after the previous list item when Backspace deletes a blank line', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-list-blank-line-caret');

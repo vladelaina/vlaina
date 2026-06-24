@@ -518,7 +518,7 @@ export function ThinkingBlock({
     return contentHeight ? `${contentHeight}px` : themeStyleResetTokens.maxSizeNone;
   };
 
-  const titleText = activelyThinking ? "Thought..." : "Reasoning";
+  const titleText = activelyThinking ? "Reasoning..." : "Reasoned";
 
   return (
     <div
