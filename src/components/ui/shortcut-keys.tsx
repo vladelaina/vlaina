@@ -1,3 +1,4 @@
+import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 const MAC_KEY_MAP: Record<string, string> = {
@@ -11,7 +12,7 @@ const MAC_KEY_MAP: Record<string, string> = {
 export const COMPACT_SHORTCUT_KEY_CLASSNAME =
   'px-1.5 py-0.5 text-[var(--vlaina-font-10)] font-medium rounded bg-[var(--vlaina-color-shortcut-key-bg)] text-[var(--vlaina-color-shortcut-key-fg)] font-sans';
 
-interface ShortcutKeysProps {
+interface ShortcutKeysProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'children'> {
   keys: string[];
   className?: string;
   keyClassName?: string;
@@ -31,6 +32,7 @@ export function ShortcutKeys({
   className,
   keyClassName,
   adaptToPlatform = true,
+  ...props
 }: ShortcutKeysProps) {
   const isMac =
     adaptToPlatform &&
@@ -38,7 +40,7 @@ export function ShortcutKeys({
     /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
   return (
-    <span className={cn('inline-flex items-center gap-1.5', className)}>
+    <span className={cn('inline-flex items-center gap-1.5', className)} {...props}>
       {keys.map((key, index) => (
         <kbd key={`${key}-${index}`} className={cn(COMPACT_SHORTCUT_KEY_CLASSNAME, keyClassName)}>
           {normalizeShortcutKey(key, isMac)}

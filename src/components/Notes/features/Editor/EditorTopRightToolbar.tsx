@@ -10,8 +10,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Icon } from '@/components/ui/icons';
+import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
+import { getShortcutKeys } from '@/lib/shortcuts';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
@@ -91,6 +93,7 @@ export function EditorTopRightToolbar({
   const showStarButton = starred || canToggleStar;
   const starButtonLabel = starred ? t('notes.removeFromStarred') : t('notes.addToStarred');
   const sourceModeButtonLabel = isSourceMode ? t('notes.switchToRenderedMode') : t('notes.switchToSourceMode');
+  const sourceModeShortcutKeys = getShortcutKeys('toggleNoteSourceMode') ?? ['Ctrl', '/'];
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const preventMenuCloseAutoFocusRef = useRef(false);
   const addToast = useToastStore((state) => state.addToast);
@@ -205,15 +208,24 @@ export function EditorTopRightToolbar({
               {onToggleSourceMode ? (
                 <>
                   <DropdownMenuItem
-                    className={exportMenuItemClassName}
+                    className={cn(
+                      exportMenuItemClassName,
+                      'group gap-2 [&[data-highlighted]_.source-mode-shortcut]:opacity-100',
+                    )}
                     onSelect={handleSourceModeSelect}
                   >
                     <Icon
                       size="md"
                       name="editor.code"
-                      className="mr-2"
+                      className="mr-2 shrink-0"
                     />
-                    {sourceModeButtonLabel}
+                    <span className="min-w-0 flex-1 truncate">{sourceModeButtonLabel}</span>
+                    <ShortcutKeys
+                      keys={sourceModeShortcutKeys}
+                      aria-hidden="true"
+                      className="source-mode-shortcut ml-4 shrink-0 opacity-0 transition-opacity duration-[var(--vlaina-duration-100)] group-hover:opacity-100 group-focus:opacity-100"
+                      keyClassName="bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)]"
+                    />
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
