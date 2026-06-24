@@ -20,7 +20,7 @@ interface UnifiedTitleBarProps {
   showWindowControls?: boolean;
 }
 
-function MacOSTrafficLightPreviewControls() {
+export function MacOSTrafficLightPreviewControls() {
   const buttonClass =
     'h-3 w-3 rounded-full border border-black/15 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.35)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-accent-focus-ring)]';
 

@@ -81,6 +81,24 @@ export interface ElectronAppApi {
   setLanguage?(language: string): Promise<boolean>;
   onOpenMarkdownFile?(callback: (filePath: string) => void): () => void;
   reportStartupReady?(): void;
+  getErrorLogInfo?(): Promise<{
+    logsDir: string;
+    currentLogFilePath: string;
+  }>;
+  openErrorLogFolder?(): Promise<void>;
+  reportRendererError?(details: {
+    source?: string;
+    type?: string;
+    name?: string;
+    message?: string;
+    stack?: string;
+    componentStack?: string;
+    error?: unknown;
+  }): Promise<{
+    logsDir: string;
+    currentLogFilePath: string;
+    logFilePath: string | null;
+  }>;
 }
 
 export interface ElectronUpdateApi {

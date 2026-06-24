@@ -8,6 +8,7 @@ const OPEN_MARKDOWN_FILE_EXTENSION_PATTERN = /\.(?:md|markdown|mdown|mkd)$/i;
 const UNSAFE_OPEN_MARKDOWN_FILE_PATH_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const pendingOpenMarkdownFiles = [];
 const openMarkdownFileListeners = new Set();
+const MAX_ERROR_REPORT_FIELD_CHARS = 32 * 1024;
 
 function isSafeOpenMarkdownFilePath(filePath) {
   return (
@@ -122,6 +123,81 @@ function deepFreeze(value) {
   }
   return value;
 }
+
+function truncateErrorReportField(value) {
+  const text = primitiveToString(value);
+  const normalized = text === null ? '' : text;
+  if (normalized.length <= MAX_ERROR_REPORT_FIELD_CHARS) {
+    return normalized;
+  }
+  return `${normalized.slice(0, MAX_ERROR_REPORT_FIELD_CHARS)}\n...[truncated ${normalized.length - MAX_ERROR_REPORT_FIELD_CHARS} chars]`;
+}
+
+function serializeErrorForReport(error) {
+  if (error && typeof error === 'object') {
+    return {
+      name: truncateErrorReportField(error.name),
+      message: truncateErrorReportField(error.message),
+      stack: truncateErrorReportField(error.stack),
+    };
+  }
+
+  return {
+    name: typeof error,
+    message: truncateErrorReportField(error),
+    stack: '',
+  };
+}
+
+function createRendererErrorReport(details = {}) {
+  const serializedError = serializeErrorForReport(details.error);
+  return {
+    source: truncateErrorReportField(details.source || 'renderer'),
+    type: truncateErrorReportField(details.type || 'error'),
+    name: truncateErrorReportField(details.name || serializedError.name),
+    message: truncateErrorReportField(details.message || serializedError.message),
+    stack: truncateErrorReportField(details.stack || serializedError.stack),
+    componentStack: truncateErrorReportField(details.componentStack),
+    href: truncateErrorReportField(globalThis.location?.href),
+    userAgent: truncateErrorReportField(globalThis.navigator?.userAgent),
+    language: truncateErrorReportField(globalThis.navigator?.language),
+    languages: Array.isArray(globalThis.navigator?.languages)
+      ? globalThis.navigator.languages.map((language) => truncateErrorReportField(language)).slice(0, 16)
+      : [],
+    platform: truncateErrorReportField(globalThis.navigator?.platform),
+    viewport: {
+      width: globalThis.innerWidth,
+      height: globalThis.innerHeight,
+      devicePixelRatio: globalThis.devicePixelRatio,
+    },
+    online: globalThis.navigator?.onLine,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function reportRendererErrorBestEffort(details) {
+  try {
+    ipcRenderer.send('desktop:app:report-renderer-error', createRendererErrorReport(details));
+  } catch {
+  }
+}
+
+globalThis.addEventListener?.('error', (event) => {
+  reportRendererErrorBestEffort({
+    source: 'window.error',
+    type: 'error',
+    message: event.message,
+    error: event.error,
+  });
+});
+
+globalThis.addEventListener?.('unhandledrejection', (event) => {
+  reportRendererErrorBestEffort({
+    source: 'window.unhandledrejection',
+    type: 'unhandledrejection',
+    error: event.reason,
+  });
+});
 
 const desktopApi = {
   platform: 'electron',
@@ -246,6 +322,15 @@ const desktopApi = {
     },
     reportStartupReady() {
       ipcRenderer.send('desktop:startup-ready');
+    },
+    getErrorLogInfo() {
+      return ipcRenderer.invoke('desktop:app:get-error-log-info');
+    },
+    openErrorLogFolder() {
+      return ipcRenderer.invoke('desktop:app:open-error-log-folder');
+    },
+    reportRendererError(details) {
+      return ipcRenderer.invoke('desktop:app:report-renderer-error', createRendererErrorReport(details));
     },
   },
   update: {

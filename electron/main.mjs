@@ -6,13 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { createDesktopAccountService } from './accountAuthFlow.mjs';
 import { readSecretsStore, updateSecretsStore } from './aiProviderSecretStore.mjs';
 import { readBoundedJsonResponse } from './boundedJsonResponse.mjs';
-import { registerDesktopIpc } from './desktopIpc.mjs';
+import { openPathInFileManager, registerDesktopIpc } from './desktopIpc.mjs';
 import { registerManagedIpc } from './managedIpc.mjs';
 import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
 import { createWindowManager } from './windowManager.mjs';
 import { configureDevelopmentUserDataPath } from './userDataPath.mjs';
 import { authorizeFsPath } from './fsAccess.mjs';
 import { installApplicationMenu } from './appMenu.mjs';
+import { createErrorLogService } from './errorLog.mjs';
 import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
 import { normalizeMarkdownOpenPath } from './markdownOpenPath.mjs';
 import {
@@ -45,6 +46,7 @@ const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public
 const trayIconSize = process.platform === 'darwin' ? 18 : 16;
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
+const errorLogService = createErrorLogService({ app });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
 let tray = null;
 let trayQuitRequested = false;
@@ -114,10 +116,12 @@ function installDevelopmentParentProcessGuard() {
 }
 
 process.on('uncaughtException', (error) => {
+  errorLogService.logMainError(error, 'uncaughtException');
   console.error('[vlaina] Uncaught exception in Electron main process:', error);
 });
 
 process.on('unhandledRejection', (reason) => {
+  errorLogService.logMainError(reason, 'unhandledRejection');
   console.error('[vlaina] Unhandled rejection in Electron main process:', reason);
 });
 
@@ -960,6 +964,9 @@ const windowManager = createWindowManager({
   isDevelopment,
   openExternalIfAllowed,
   isTrustedRendererUrl,
+  reportError(error, context) {
+    errorLogService.logMainError(error, context);
+  },
 });
 const { createMainWindow, isReadyToReveal, resolveTargetWindow } = windowManager;
 windowManager.registerWindowIpc(handleIpc);
@@ -1056,6 +1063,33 @@ handleIpc('desktop:app:set-language', async (_event, language) => {
   return setTrayLanguage(language);
 });
 
+handleIpc('desktop:app:get-error-log-info', async () => {
+  return errorLogService.getInfo();
+});
+
+handleIpc('desktop:app:open-error-log-folder', async () => {
+  const { logsDir } = errorLogService.getInfo();
+  fs.mkdirSync(logsDir, { recursive: true });
+  await openPathInFileManager(logsDir);
+});
+
+handleIpc('desktop:app:report-renderer-error', async (_event, payload) => {
+  const logFilePath = errorLogService.logRendererError(payload, 'renderer-reported-error');
+  return {
+    ...errorLogService.getInfo(),
+    logFilePath,
+  };
+});
+
+ipcMain.on('desktop:app:report-renderer-error', (event, payload) => {
+  try {
+    assertTrustedIpcSender(event);
+    errorLogService.logRendererError(payload, 'renderer-global-error');
+  } catch (error) {
+    errorLogService.logMainError(error, 'renderer-error-report-blocked');
+  }
+});
+
 handleIpc('desktop:update:check', async () => {
   const currentVersion = app.getVersion();
   const manifest = await fetchUpdateManifest();
@@ -1104,6 +1138,7 @@ app.whenReady().then(async () => {
     }
   });
 }).catch((error) => {
+  errorLogService.logMainError(error, 'app.whenReady');
 });
 
 app.on('window-all-closed', () => {

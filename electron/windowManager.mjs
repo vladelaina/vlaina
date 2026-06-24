@@ -138,6 +138,7 @@ export function createWindowManager({
   isDevelopment,
   openExternalIfAllowed,
   isTrustedRendererUrl,
+  reportError = () => {},
 }) {
   const closeApprovedWebContents = new Set();
   const readyToRevealWebContents = new Set();
@@ -383,12 +384,21 @@ export function createWindowManager({
         return;
       }
 
+      reportError(new Error(`Renderer failed to load: ${summary}`), {
+        label: getWindowLabel(window),
+        validatedURL: validatedURL || '',
+      });
       console.error(`[vlaina] Renderer failed to load: ${summary}`);
     });
 
     window.webContents.on('render-process-gone', (_event, details) => {
       const reason = details?.reason ?? 'unknown';
       const exitCode = details?.exitCode ?? 'unknown';
+      reportError(new Error(`Renderer process gone (${reason}, exitCode ${exitCode})`), {
+        label: getWindowLabel(window),
+        reason,
+        exitCode,
+      });
       console.error(`[vlaina] Renderer process gone (${reason}, exitCode ${exitCode})`);
 
       if (!isUsableWindow(window)) {
@@ -563,6 +573,9 @@ export function createWindowManager({
         return;
       }
 
+      reportError(new Error(`Initial renderer load failed: ${message}`), {
+        label: getWindowLabel(window),
+      });
       console.error(`[vlaina] Initial renderer load failed: ${message}`);
     });
 
