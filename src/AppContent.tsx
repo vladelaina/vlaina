@@ -35,6 +35,36 @@ const UPDATE_AUTO_CHECK_DELAY_MS = 2500;
 const UPDATE_AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const UPDATE_LAST_AUTO_CHECK_KEY = 'vlaina:update:lastAutoCheckAt';
 
+interface DesktopUpdateAutoCheckInfo {
+  latestVersion?: string;
+  updateAvailable: boolean;
+}
+
+interface DesktopUpdateAutoCheckOptions {
+  checkForUpdates: () => Promise<DesktopUpdateAutoCheckInfo>;
+  notifyUpdateAvailable: (updateInfo: DesktopUpdateAutoCheckInfo) => void;
+  markCheckedAt: (timestamp: number) => void;
+  getNow?: () => number;
+  isCancelled?: () => boolean;
+}
+
+export async function runDesktopUpdateAutoCheck({
+  checkForUpdates,
+  notifyUpdateAvailable,
+  markCheckedAt,
+  getNow = Date.now,
+  isCancelled = () => false,
+}: DesktopUpdateAutoCheckOptions) {
+  const updateInfo = await checkForUpdates();
+  if (isCancelled()) return;
+
+  if (updateInfo.updateAvailable) {
+    notifyUpdateAvailable(updateInfo);
+  }
+
+  markCheckedAt(getNow());
+}
+
 function readStoredTimestamp(key: string) {
   try {
     const value = Number.parseInt(window.localStorage.getItem(key) ?? '', 10);
@@ -207,21 +237,21 @@ export function AppContent() {
 
     let cancelled = false;
     const timeoutId = window.setTimeout(() => {
-      void bridge.update?.check()
-        .then((updateInfo) => {
-          if (cancelled || !updateInfo.updateAvailable) return;
+      void runDesktopUpdateAutoCheck({
+        checkForUpdates: () => bridge.update!.check(),
+        notifyUpdateAvailable: (updateInfo) => {
           useToastStore.getState().addToast(
             translate('settings.about.updateToastAvailable', { version: updateInfo.latestVersion || APP_VERSION }),
             'info',
             8000,
           );
-        })
+        },
+        markCheckedAt: (timestamp) => {
+          writeStoredTimestamp(UPDATE_LAST_AUTO_CHECK_KEY, timestamp);
+        },
+        isCancelled: () => cancelled,
+      })
         .catch(() => {
-        })
-        .finally(() => {
-          if (!cancelled) {
-            writeStoredTimestamp(UPDATE_LAST_AUTO_CHECK_KEY, Date.now());
-          }
         });
     }, UPDATE_AUTO_CHECK_DELAY_MS);
 
