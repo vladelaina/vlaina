@@ -609,8 +609,6 @@ export const themeMermaidTokens = {
 } as const;
 
 export const themeLazyLoadTokens = {
-  coverAssetLoadAfterOpenDelayMs: 120,
-  coverAssetIdleLoadTimeoutMs: 600,
   coverPickerResetAfterCloseDelayMs: 200,
   coverPreviewDelayMs: 180,
   assetThumbnailRootMargin: '80px',
