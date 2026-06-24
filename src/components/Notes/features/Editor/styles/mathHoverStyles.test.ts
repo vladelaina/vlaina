@@ -68,7 +68,7 @@ describe('math hover styles', () => {
     expect(css).toContain('cursor: pointer !important;');
   });
 
-  it('uses the shared block selection surface for selected math and mermaid nodes', () => {
+  it('uses the shared block selection surface for selected math, HTML, and mermaid nodes', () => {
     const css = readMathStyles();
     const selectedRule = extractCssRuleContaining(
       css,
@@ -77,6 +77,7 @@ describe('math hover styles', () => {
 
     expect(selectedRule).toContain(".milkdown [data-type='math-inline'].ProseMirror-selectednode,");
     expect(selectedRule).toContain(".milkdown [data-type='math-block'].ProseMirror-selectednode,");
+    expect(selectedRule).toContain(".milkdown [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']).ProseMirror-selectednode,");
     expect(selectedRule).toContain('.milkdown .mermaid-block.ProseMirror-selectednode {');
     expect(selectedRule).toContain('--vlaina-block-selection-color: var(--vlaina-block-selection-color-default);');
     expect(selectedRule).toContain('background: var(--vlaina-block-selection-color);');
@@ -148,6 +149,10 @@ describe('math hover styles', () => {
     expect(selectedAtomicSurfaceRule).toContain('z-index: var(--vlaina-z-1);');
     expect(selectedAtomicSurfaceRule).toContain('overflow-x: visible;');
     expect(selectedAtomicSurfaceRule).toContain('overflow-y: visible;');
+    expect(selectedAtomicSurfaceRule).toContain('--vlaina-atomic-rich-selected-border-outline: var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)) solid var(--vlaina-color-white);');
+    expect(selectedAtomicSurfaceRule).toContain('--vlaina-atomic-rich-selected-border-outline-offset: calc(-1 * var(--vlaina-code-block-selected-border-width, var(--vlaina-border-width-2)));');
+    expect(selectedAtomicSurfaceRule).toContain('outline: var(--vlaina-atomic-rich-selected-border-outline);');
+    expect(selectedAtomicSurfaceRule).toContain('outline-offset: var(--vlaina-atomic-rich-selected-border-outline-offset);');
     expect(selectedAtomicSurfaceRule).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {');
     expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected,');

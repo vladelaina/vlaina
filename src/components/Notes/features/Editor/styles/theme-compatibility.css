@@ -152,6 +152,34 @@
   [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
   .mermaid-block
 ).ProseMirror-selectednode {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  background: var(--vlaina-block-selection-color) !important;
+  background-color: var(--vlaina-block-selection-color) !important;
+  box-shadow: var(--vlaina-block-selection-shadow) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode,
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode * {
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-atomic-block-keyboard-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .mermaid-block
+).ProseMirror-selectednode {
   background: var(--vlaina-math-hover-color) !important;
   background-color: var(--vlaina-math-hover-color) !important;
   box-shadow:
