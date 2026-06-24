@@ -2,7 +2,6 @@ import type { VideoAttrs } from './types';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { parseVideoUrl } from './videoUrl';
 import type { IframeVideoUrl } from './videoUrl';
-import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { translate } from '@/lib/i18n';
 import { themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
@@ -13,6 +12,8 @@ const MAX_VIDEO_TITLE_CHARS = 256;
 const MAX_VIDEO_DIMENSION_CHARS = 32;
 const MAX_VIDEO_DIMENSION = 4096;
 const VIDEO_DIMENSION_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
+const VIDEO_IFRAME_ALLOW = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+const VIDEO_IFRAME_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-popups';
 
 function normalizeVideoTitle(value: unknown): string {
   return typeof value === 'string' ? value.slice(0, MAX_VIDEO_TITLE_CHARS) : '';
@@ -100,16 +101,18 @@ function createVideoIframe(args: {
   iframe.width = String(attrs.width || DEFAULT_VIDEO_WIDTH);
   iframe.height = String(attrs.height || DEFAULT_VIDEO_HEIGHT);
   iframe.frameBorder = '0';
-  iframe.allow = 'clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+  iframe.allow = VIDEO_IFRAME_ALLOW;
+  iframe.setAttribute('allow', VIDEO_IFRAME_ALLOW);
   iframe.allowFullscreen = true;
   const referrerPolicy = 'strict-origin-when-cross-origin';
   iframe.referrerPolicy = referrerPolicy;
   iframe.setAttribute('referrerpolicy', referrerPolicy);
+  iframe.setAttribute('sandbox', VIDEO_IFRAME_SANDBOX);
   iframe.setAttribute('scrolling', 'no');
   iframe.setAttribute('border', '0');
   iframe.setAttribute('framespacing', '0');
   iframe.loading = 'lazy';
-  if (attrs.title) iframe.title = attrs.title;
+  iframe.title = parsed.type;
   iframe.src = parsed.embedUrl;
   return iframe;
 }
@@ -136,12 +139,6 @@ export function createVideoDom(attrs: VideoAttrs): HTMLElement {
     return wrapper;
   }
 
-  if (isPublicRemoteMediaUrl(parsed.embedUrl)) {
-    wrapper.appendChild(createVideoMessage('video-placeholder', translate('editor.video.remoteBlocked')));
-    wrapper.appendChild(createVideoExternalAction(attrs.src));
-    return wrapper;
-  }
-
   if (parsed.type === 'direct') {
     const video = document.createElement('video');
     video.src = parsed.embedUrl;
@@ -149,7 +146,6 @@ export function createVideoDom(attrs: VideoAttrs): HTMLElement {
     video.preload = 'none';
     video.style.maxWidth = themeImageBlockStyleTokens.maxWidthFull;
     video.style.height = themeImageBlockStyleTokens.heightAuto;
-    if (attrs.title) video.title = attrs.title;
     video.addEventListener('error', () => {
     });
     wrapper.appendChild(video);

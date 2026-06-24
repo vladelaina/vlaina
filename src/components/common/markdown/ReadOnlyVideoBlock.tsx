@@ -33,7 +33,7 @@ export function ReadOnlyVideoBlock({
     );
   }
 
-  if (isPublicRemoteMediaUrl(parsed.embedUrl)) {
+  if (parsed.type !== 'direct' && isPublicRemoteMediaUrl(parsed.embedUrl)) {
     return (
       <div
         className="video-block"

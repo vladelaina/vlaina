@@ -99,6 +99,22 @@ describe('videoPlugin URL support', () => {
       type: 'youtube',
       embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&playsinline=1&rel=0',
     });
+    expect(parseVideoUrl('https://m.youtube.com/watch?v=dQw4w9WgXcQ')).toEqual({
+      type: 'youtube',
+      embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&playsinline=1&rel=0',
+    });
+    expect(parseVideoUrl('https://music.youtube.com/watch?v=dQw4w9WgXcQ')).toEqual({
+      type: 'youtube',
+      embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&playsinline=1&rel=0',
+    });
+    expect(parseVideoUrl('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')).toEqual({
+      type: 'youtube',
+      embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&playsinline=1&rel=0',
+    });
+    expect(parseVideoUrl('https://www.youtube.com/v/dQw4w9WgXcQ')).toEqual({
+      type: 'youtube',
+      embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&playsinline=1&rel=0',
+    });
     expect(parseVideoUrl('https://www.bilibili.com/video/BV1xx411c7mD')).toEqual({
       type: 'bilibili',
       embedUrl: 'https://player.bilibili.com/player.html?isOutside=true&bvid=BV1xx411c7mD&p=1&danmaku=0&autoplay=0',
@@ -106,6 +122,10 @@ describe('videoPlugin URL support', () => {
     expect(parseVideoUrl('https://www.bilibili.com/video/BV1xx411c7mD?p=2')).toEqual({
       type: 'bilibili',
       embedUrl: 'https://player.bilibili.com/player.html?isOutside=true&bvid=BV1xx411c7mD&p=2&danmaku=0&autoplay=0',
+    });
+    expect(parseVideoUrl('https://www.bilibili.com/video/BV1KPJx6NEtQ/?spm_id_from=333.1007.tianma.1-1-1.click&vd_source=secret')).toEqual({
+      type: 'bilibili',
+      embedUrl: 'https://player.bilibili.com/player.html?isOutside=true&bvid=BV1KPJx6NEtQ&p=1&danmaku=0&autoplay=0',
     });
     expect(parseVideoUrl('https://player.bilibili.com/player.html?isOutside=true&aid=123&bvid=BV1xx411c7mD&cid=456&p=2')).toEqual({
       type: 'bilibili',
@@ -215,7 +235,7 @@ describe('videoPlugin URL support', () => {
     });
   });
 
-  it('does not auto-load public remote video embeds when rendering a note', () => {
+  it('renders supported public video URLs in editor video blocks', () => {
     const youtube = createVideoDom({
       src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       title: '',
@@ -229,12 +249,22 @@ describe('videoPlugin URL support', () => {
       height: 315,
     });
 
-    expect(youtube.querySelector('iframe')).toBeNull();
+    const youtubeFrame = youtube.querySelector('iframe');
+    expect(youtubeFrame).toBeInstanceOf(HTMLIFrameElement);
+    expect(youtubeFrame).toHaveAttribute(
+      'src',
+      'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&playsinline=1&rel=0'
+    );
+    expect(youtubeFrame).toHaveAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+    expect(youtubeFrame).toHaveAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation allow-popups');
+    expect(youtubeFrame?.getAttribute('allow')).not.toContain('camera');
+    expect(youtubeFrame?.getAttribute('allow')).not.toContain('microphone');
     expect(youtube.querySelector('video')).toBeNull();
-    expect(youtube.textContent).toContain('Remote video blocked');
+    expect(youtube.textContent).not.toContain('Remote video blocked');
     expect(direct.querySelector('iframe')).toBeNull();
-    expect(direct.querySelector('video')).toBeNull();
-    expect(direct.textContent).toContain('Remote video blocked');
+    expect(direct.querySelector('video')).toBeInstanceOf(HTMLVideoElement);
+    expect(direct.querySelector('video')).toHaveAttribute('src', 'https://example.com/video.mp4');
+    expect(direct.textContent).not.toContain('Remote video blocked');
   });
 
   it('does not register global video debug listeners while video debug logging is disabled', () => {

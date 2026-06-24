@@ -29,4 +29,14 @@ describe('ReadOnlyVideoBlock', () => {
     expect(container.innerHTML).not.toContain('camera');
     expect(container.innerHTML).not.toContain('microphone');
   });
+
+  it('renders public direct video URLs with native controls', () => {
+    const { container } = render(<ReadOnlyVideoBlock src="https://example.com/video.mp4" title="Demo" />);
+    const video = container.querySelector('video');
+
+    expect(video).toBeInstanceOf(HTMLVideoElement);
+    expect(video).toHaveAttribute('src', 'https://example.com/video.mp4');
+    expect(video).toHaveAttribute('preload', 'none');
+    expect(container.textContent).not.toContain('Remote video blocked');
+  });
 });

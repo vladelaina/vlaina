@@ -143,7 +143,11 @@ describe("editor block drag interaction styles", () => {
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror .video-block.editor-block-selected {');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);');
     expect(blockSelectionCss).toContain('--vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .video-block.ProseMirror-selectednode:not(.editor-block-selected) {');
+    expect(blockSelectionCss).toContain('background-color: transparent;');
+    expect(blockSelectionCss).toContain('box-shadow: 0 0 0 var(--vlaina-space-2px) var(--vlaina-editor-block-selection-base);');
     expect(blockSelectionCss).toContain('background-color: var(--vlaina-block-selection-color);');
+    expect(blockSelectionCss).toContain('box-shadow: var(--vlaina-block-selection-shadow);');
     expect(css).not.toContain('.milkdown .video-block.ProseMirror-selectednode::after,');
     expect(css).not.toContain('.milkdown .video-block.editor-block-selected {');
     expect(css).toContain('.editor-block-drag-preview .video-drag-preview-surface {');
