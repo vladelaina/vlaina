@@ -4,6 +4,11 @@ import { calculateTextStats, type TextStats } from '../utils/textStats';
 const IMMEDIATE_TEXT_STATS_CHARS = 20_000;
 const DEFERRED_TEXT_STATS_DELAY_MS = 180;
 const DEFERRED_TEXT_STATS_IDLE_TIMEOUT_MS = 600;
+const EMPTY_TEXT_STATS: TextStats = {
+  lineCount: 0,
+  wordCount: 0,
+  characterCount: 0,
+};
 
 function scheduleDeferredTextStats(callback: () => void): () => void {
   if (typeof window === 'undefined') {
@@ -23,13 +28,21 @@ function scheduleDeferredTextStats(callback: () => void): () => void {
 }
 
 export function useDeferredTextStats(notePath: string | null | undefined, text: string): TextStats {
-  const initialStats = useMemo(() => calculateTextStats(text), [notePath]);
+  const initialStats = useMemo(() => (
+    text.length <= IMMEDIATE_TEXT_STATS_CHARS
+      ? calculateTextStats(text)
+      : EMPTY_TEXT_STATS
+  ), [notePath]);
   const [stats, setStats] = useState(initialStats);
   const statsNotePathRef = useRef(notePath);
 
   useEffect(() => {
     statsNotePathRef.current = notePath;
-    setStats(calculateTextStats(text));
+    setStats(
+      text.length <= IMMEDIATE_TEXT_STATS_CHARS
+        ? calculateTextStats(text)
+        : EMPTY_TEXT_STATS
+    );
   }, [notePath]);
 
   useEffect(() => {

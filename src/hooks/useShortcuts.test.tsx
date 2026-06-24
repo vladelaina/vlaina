@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDITOR_FIND_OPEN_EVENT } from '@/components/Notes/features/Editor/find/editorFindEvents';
+import { NOTE_SOURCE_MODE_TOGGLE_EVENT } from '@/components/Notes/features/Editor/sourceMode/sourceModeEvents';
 import { DELETE_CURRENT_NOTE_EVENT } from '@/components/Notes/noteDeleteEvents';
 import { SIDEBAR_OPEN_SEARCH_EVENT } from '@/components/layout/sidebar/sidebarEvents';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -257,6 +258,34 @@ describe('useShortcuts', () => {
       expect(openMarkdownListener).toHaveBeenCalledTimes(1);
     } finally {
       window.removeEventListener('app-open-markdown-file', openMarkdownListener);
+    }
+  });
+
+  it('dispatches note source mode toggle for Ctrl+/', () => {
+    const sourceModeListener = vi.fn();
+    window.addEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const textarea = document.createElement('textarea');
+      document.body.appendChild(textarea);
+      const event = new KeyboardEvent('keydown', {
+        key: '/',
+        code: 'Slash',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      textarea.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(sourceModeListener).toHaveBeenCalledTimes(1);
+      textarea.remove();
+    } finally {
+      window.removeEventListener(NOTE_SOURCE_MODE_TOGGLE_EVENT, sourceModeListener);
+      document.querySelector('textarea')?.remove();
     }
   });
 

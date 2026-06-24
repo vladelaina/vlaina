@@ -42,6 +42,7 @@ describe("getModuleShortcutPreset", () => {
     );
     expect(viewSection?.shortcuts).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ action: "Toggle source / rendered mode", keys: ["Ctrl", "/"] }),
         expect.objectContaining({ action: "Toggle sidebar", keys: ["Ctrl", "\\"] }),
         expect.objectContaining({ action: "Actual size", keys: ["Ctrl", "Shift", "9"] }),
       ]),
@@ -75,6 +76,7 @@ describe("getModuleShortcutPreset", () => {
       "shortcut.action.insertTable": "插入表格",
       "shortcut.action.clearFormatting": "清除格式",
       "shortcut.action.actualSize": "实际大小",
+      "shortcut.action.toggleNoteSourceMode": "切换源码 / 渲染模式",
     };
     const preset = getModuleShortcutPreset("notes", {
       t: (key) => translations[key] ?? key,
@@ -92,6 +94,7 @@ describe("getModuleShortcutPreset", () => {
     );
     expect(preset.sections.find((section) => section.title === "视图")?.shortcuts).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ action: "切换源码 / 渲染模式", keys: ["Ctrl", "/"] }),
         expect.objectContaining({ action: "实际大小", keys: ["Ctrl", "Shift", "9"] }),
       ]),
     );

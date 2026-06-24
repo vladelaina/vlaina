@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,8 @@ export interface EditorTopRightToolbarProps {
   currentNotePath: string | null | undefined;
   currentNoteTitle: string;
   getCurrentNoteContent: () => string;
+  isSourceMode?: boolean;
+  onToggleSourceMode?: () => void;
   notesPath: string;
   starred: boolean;
   toggleStarred: (path: string) => void;
@@ -77,6 +79,8 @@ export function EditorTopRightToolbar({
   currentNotePath,
   currentNoteTitle,
   getCurrentNoteContent,
+  isSourceMode = false,
+  onToggleSourceMode,
   notesPath,
   starred,
   toggleStarred,
@@ -86,6 +90,9 @@ export function EditorTopRightToolbar({
   const canToggleStar = canStarNotePath(currentNotePath, notesPath);
   const showStarButton = starred || canToggleStar;
   const starButtonLabel = starred ? t('notes.removeFromStarred') : t('notes.addToStarred');
+  const sourceModeButtonLabel = isSourceMode ? t('notes.switchToRenderedMode') : t('notes.switchToSourceMode');
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
+  const preventMenuCloseAutoFocusRef = useRef(false);
   const addToast = useToastStore((state) => state.addToast);
   const chatPanelCollapsed = useUIStore((state) => state.notesChatPanelCollapsed);
   const chatFloatingOpen = useUIStore((state) => state.notesChatFloatingOpen);
@@ -110,6 +117,13 @@ export function EditorTopRightToolbar({
       addToast(error instanceof Error ? error.message : t('notes.exportFailed'), 'error', themeUiFeedbackTokens.errorToastDurationMs);
     }
   };
+  const handleSourceModeSelect = useCallback(() => {
+    preventMenuCloseAutoFocusRef.current = true;
+    onToggleSourceMode?.();
+    window.requestAnimationFrame(() => {
+      moreButtonRef.current?.blur();
+    });
+  }, [onToggleSourceMode]);
 
   return (
     <div
@@ -164,6 +178,8 @@ export function EditorTopRightToolbar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                ref={moreButtonRef}
+                aria-label={t('notes.moreActions')}
                 onClick={(event) => event.stopPropagation()}
                 className={cn(
                   toolbarIconButtonClassName,
@@ -175,9 +191,33 @@ export function EditorTopRightToolbar({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
+              onCloseAutoFocus={(event) => {
+                if (!preventMenuCloseAutoFocusRef.current) {
+                  return;
+                }
+                preventMenuCloseAutoFocusRef.current = false;
+                event.preventDefault();
+                moreButtonRef.current?.blur();
+              }}
               className={cn('w-max min-w-56', noteMenuSurfaceClassName)}
               data-no-editor-drag-box="true"
             >
+              {onToggleSourceMode ? (
+                <>
+                  <DropdownMenuItem
+                    className={exportMenuItemClassName}
+                    onSelect={handleSourceModeSelect}
+                  >
+                    <Icon
+                      size="md"
+                      name="editor.code"
+                      className="mr-2"
+                    />
+                    {sourceModeButtonLabel}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className={exportMenuItemClassName}>
                   <Icon size="md" name="common.download" className="mr-2" />

@@ -8,21 +8,43 @@ import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/
 const mocks = vi.hoisted(() => ({
   addToast: vi.fn(),
   currentNote: null as { path: string; content: string } | null,
+  dropdownMenuCloseAutoFocus: undefined as undefined | ((event: { preventDefault: () => void }) => void),
   exportNote: vi.fn(),
   flushCurrentPendingEditorMarkdown: vi.fn(),
+  lastCloseAutoFocusPreventDefault: vi.fn(),
   notesChatPanelCollapsed: true,
   notesChatFloatingOpen: false,
+  languagePreference: 'en',
   setNotesChatPanelCollapsed: vi.fn(),
   setNotesChatFloatingOpen: vi.fn(),
+  setLanguagePreference: vi.fn(),
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuContent: ({ children, className, ...props }: { children?: React.ReactNode; className?: string }) => (
-    <div data-testid="note-menu-content" className={className} {...props}>{children}</div>
-  ),
+  DropdownMenuContent: ({
+    children,
+    className,
+    onCloseAutoFocus,
+    ...props
+  }: {
+    children?: React.ReactNode;
+    className?: string;
+    onCloseAutoFocus?: (event: { preventDefault: () => void }) => void;
+  }) => {
+    mocks.dropdownMenuCloseAutoFocus = onCloseAutoFocus;
+    return <div data-testid="note-menu-content" className={className} {...props}>{children}</div>;
+  },
   DropdownMenuItem: ({ children, onSelect }: { children?: React.ReactNode; onSelect?: () => void }) => (
-    <button type="button" onClick={onSelect}>{children}</button>
+    <button
+      type="button"
+      onClick={() => {
+        onSelect?.();
+        mocks.dropdownMenuCloseAutoFocus?.({ preventDefault: mocks.lastCloseAutoFocusPreventDefault });
+      }}
+    >
+      {children}
+    </button>
   ),
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuSub: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -65,14 +87,18 @@ vi.mock('@/stores/uiSlice', () => ({
   useUIStore: (selector: (state: {
     notesChatPanelCollapsed: boolean;
     notesChatFloatingOpen: boolean;
+    languagePreference: string;
     setNotesChatPanelCollapsed: typeof mocks.setNotesChatPanelCollapsed;
     setNotesChatFloatingOpen: typeof mocks.setNotesChatFloatingOpen;
+    setLanguagePreference: typeof mocks.setLanguagePreference;
   }) => unknown) =>
     selector({
       notesChatPanelCollapsed: mocks.notesChatPanelCollapsed,
       notesChatFloatingOpen: mocks.notesChatFloatingOpen,
+      languagePreference: mocks.languagePreference,
       setNotesChatPanelCollapsed: mocks.setNotesChatPanelCollapsed,
       setNotesChatFloatingOpen: mocks.setNotesChatFloatingOpen,
+      setLanguagePreference: mocks.setLanguagePreference,
     }),
 }));
 
@@ -121,8 +147,11 @@ describe('EditorTopRightToolbar', () => {
   beforeEach(() => {
     mocks.addToast.mockReset();
     mocks.currentNote = null;
+    mocks.dropdownMenuCloseAutoFocus = undefined;
     mocks.exportNote.mockReset();
     mocks.flushCurrentPendingEditorMarkdown.mockReset();
+    mocks.lastCloseAutoFocusPreventDefault.mockReset();
+    mocks.languagePreference = 'en';
     mocks.notesChatPanelCollapsed = true;
     mocks.notesChatFloatingOpen = false;
     mocks.setNotesChatPanelCollapsed.mockReset();
@@ -324,6 +353,38 @@ describe('EditorTopRightToolbar', () => {
     expect(getByTestId('note-export-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
     expect(getByTestId('note-menu-content').className).toContain('sidebar-menu-surface');
     expect(getByTestId('note-export-menu-content').className).toContain('sidebar-menu-surface');
+  });
+
+  it('localizes and toggles source mode from the more menu action', () => {
+    const onToggleSourceMode = vi.fn();
+    mocks.languagePreference = 'zh-CN';
+    const { container, getByRole } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
+        isSourceMode
+        onToggleSourceMode={onToggleSourceMode}
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+      />,
+    );
+
+    const moreButton = getByRole('button', { name: '更多笔记操作' });
+    const sourceMenuItem = getByRole('button', { name: '渲染模式' });
+    moreButton.focus();
+    expect(moreButton).toHaveFocus();
+
+    fireEvent.click(sourceMenuItem);
+
+    expect(moreButton).toBeInTheDocument();
+    expect(moreButton).not.toHaveFocus();
+    expect(container.querySelector('[data-icon="editor.code"]')).toBeInTheDocument();
+    expect(mocks.lastCloseAutoFocusPreventDefault).toHaveBeenCalledTimes(1);
+    expect(onToggleSourceMode).toHaveBeenCalledTimes(1);
   });
 
   it('uses the sidebar selected surface for export previews', () => {

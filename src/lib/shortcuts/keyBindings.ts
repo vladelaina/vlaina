@@ -1,10 +1,11 @@
 import { getKeysFromEvent, matchShortcut } from './matcher';
+import { normalizeShortcutEventKey } from './normalize';
 import { getShortcutKeys } from './storage';
 import type { ShortcutKeyboardEventLike } from './types';
 
 export function isToggleShortcutsBinding(event: ShortcutKeyboardEventLike): boolean {
   const isMod = event.ctrlKey || event.metaKey;
-  return isMod && !event.altKey && !event.shiftKey && event.key === '/';
+  return isMod && !event.altKey && event.shiftKey && normalizeShortcutEventKey(event) === '/';
 }
 
 export function isOpenSettingsBinding(event: ShortcutKeyboardEventLike): boolean {

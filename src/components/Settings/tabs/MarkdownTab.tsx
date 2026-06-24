@@ -39,7 +39,7 @@ export function MarkdownTab() {
       <div className={cn('mb-8 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[var(--vlaina-radius-22px)] px-6 py-3 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-notes-text-soft)] max-[640px]:px-4', chatComposerPillSurfaceClass)}>
         <span className="min-w-0 flex-1">{t('settings.markdown.shortcutHint')}</span>
         <ShortcutKeys
-          keys={['Ctrl', '/']}
+          keys={['Ctrl', 'Shift', '/']}
           keyClassName="rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-2.5 py-0.5 text-[var(--vlaina-font-11)] font-medium text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)]"
         />
       </div>

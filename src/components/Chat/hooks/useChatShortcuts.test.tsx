@@ -163,10 +163,10 @@ describe("useChatShortcuts", () => {
     expect(mocked.createSession).not.toHaveBeenCalled();
   });
 
-  it("handles Ctrl+/ to open shortcuts dialog", () => {
+  it("handles Ctrl+Shift+/ to open shortcuts dialog", () => {
     const { onToggleShortcuts } = setup();
 
-    const event = fireKeydown({ key: "/", ctrlKey: true });
+    const event = fireKeydown({ key: "?", code: "Slash", ctrlKey: true, shiftKey: true });
 
     expect(event.defaultPrevented).toBe(true);
     expect(onToggleShortcuts).toHaveBeenCalledTimes(1);
