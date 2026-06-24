@@ -620,6 +620,99 @@ test.describe('notes blank line caret interaction', () => {
     }
   });
 
+  test('does not select the next leading blank line after deleting the top blank line', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-delete-leading-blank-line-selection');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'delete-leading-blank-line-selection-e2e.md',
+        content: ['', '', 'Body after two leading blank lines'].join('\n'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Body after two leading blank lines');
+      await expect(page.locator(BLANK_LINE_SELECTOR)).toHaveCount(2);
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+
+      const body = page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Body after two leading blank lines' }).first();
+      await expect(body).toBeVisible({ timeout: 30_000 });
+      await body.click({ position: { x: 1, y: 8 } });
+      await page.keyboard.press('ArrowLeft');
+      await page.keyboard.press('Backspace');
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+
+      await expect(page.locator(BLANK_LINE_SELECTOR)).toHaveCount(1);
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_NODE_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_MARKDOWN_BLANK_LINE_SELECTOR)).toHaveCount(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('does not native-select leading blank lines after Delete or repeated Backspace', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-clicked-leading-blank-line-delete');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const runCase = async (label: string, key: 'Backspace' | 'Delete', presses = 1) => {
+        await openMarkdownFixture(page, {
+          filename: `${label}.md`,
+          content: ['', '', `Body ${label}`].join('\n'),
+        });
+        const blankLine = page.locator(BLANK_LINE_SELECTOR).first();
+        await expect(blankLine).toBeVisible({ timeout: 30_000 });
+        const box = await blankLine.boundingBox();
+        expect(box).not.toBeNull();
+        await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+        for (let index = 0; index < presses; index += 1) {
+          await page.keyboard.press(key);
+          await waitForEditorAnimationFrame(page);
+        }
+        await waitForEditorAnimationFrame(page);
+
+        const diagnostics = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+          selectedBlocks: editor.querySelectorAll('.editor-block-selected').length,
+          selectedNodes: Array.from(editor.querySelectorAll<HTMLElement>('.ProseMirror-selectednode')).map((element) => ({
+            tagName: element.tagName,
+            className: element.className,
+            dataType: element.getAttribute('data-type'),
+            dataValue: element.getAttribute('data-value'),
+            text: element.textContent,
+          })),
+          selectedMarkdownBlankLines: editor.querySelectorAll(
+            '[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"].editor-block-selected, [data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"].ProseMirror-selectednode, p.editor-editable-markdown-blank-line.editor-block-selected, p.editor-editable-markdown-blank-line.ProseMirror-selectednode'
+          ).length,
+          blankLines: editor.querySelectorAll('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"], p.editor-editable-markdown-blank-line, p:empty').length,
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        }));
+        expect(diagnostics.blankLines, JSON.stringify(diagnostics, null, 2)).toBe(1);
+        expect(diagnostics.selectedBlocks, JSON.stringify(diagnostics, null, 2)).toBe(0);
+        expect(diagnostics.selectedNodes, JSON.stringify(diagnostics, null, 2)).toHaveLength(0);
+        expect(diagnostics.selectedMarkdownBlankLines, JSON.stringify(diagnostics, null, 2)).toBe(0);
+        await expect.poll(
+          async () => page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary()),
+          { timeout: 5_000 },
+        ).toMatchObject({
+          empty: true,
+          selectedText: '',
+        });
+      };
+
+      await runCase('double-backspace-on-clicked-leading-blank', 'Backspace', 2);
+      await runCase('delete-on-clicked-leading-blank', 'Delete');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('clears stale block selection when opening a note that starts with a blank line', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-leading-blank-line-stale-selection');
 

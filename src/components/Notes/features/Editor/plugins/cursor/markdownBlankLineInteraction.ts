@@ -11,6 +11,7 @@ import {
 import { isNavigableAtomicBlockNode } from '../shared/blockNodeTypes';
 
 export const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+export const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`;
 export const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
@@ -39,6 +40,14 @@ export function isMarkdownBlankLinePlaceholderNode(node: { attrs?: { value?: unk
   return node?.type?.name === 'html_block' && node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE;
 }
 
+export function isRenderedHtmlBoundaryBlankLinePlaceholderNode(node: { attrs?: { value?: unknown }; type?: { name?: string } } | null | undefined): boolean {
+  return node?.type?.name === 'html_block' && node.attrs?.value === RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE;
+}
+
+export function isEditableBlankLinePlaceholderNode(node: { attrs?: { value?: unknown }; type?: { name?: string } } | null | undefined): boolean {
+  return isMarkdownBlankLinePlaceholderNode(node) || isRenderedHtmlBoundaryBlankLinePlaceholderNode(node);
+}
+
 function getPlainNavigationDirection(event: KeyboardEvent): Direction | null {
   if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
     return null;
@@ -48,6 +57,16 @@ function getPlainNavigationDirection(event: KeyboardEvent): Direction | null {
   if (event.key === 'ArrowDown') return 'down';
   if (event.key === 'ArrowLeft') return 'left';
   if (event.key === 'ArrowRight') return 'right';
+  return null;
+}
+
+function getPlainDeleteDirection(event: KeyboardEvent): -1 | 1 | null {
+  if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
+    return null;
+  }
+
+  if (event.key === 'Backspace') return -1;
+  if (event.key === 'Delete') return 1;
   return null;
 }
 
@@ -71,8 +90,49 @@ function findTopLevelBlockAfter(doc: EditorState['doc'], pos: number): TopLevelB
   return found;
 }
 
+function createTextSelectionNearDocumentPosition(
+  doc: EditorState['doc'],
+  pos: number,
+  bias: -1 | 1,
+): TextSelection | null {
+  let before: TextSelection | null = null;
+  let after: TextSelection | null = null;
+
+  doc.descendants((node, nodePos) => {
+    if (!node.isTextblock || !node.inlineContent) return true;
+
+    const start = nodePos + 1;
+    const end = start + node.content.size;
+    if (nodePos <= pos) {
+      try {
+        before = TextSelection.create(doc, end);
+      } catch {
+        before = null;
+      }
+    }
+    if (after === null && nodePos >= pos) {
+      try {
+        after = TextSelection.create(doc, start);
+      } catch {
+        after = null;
+      }
+    }
+    return true;
+  });
+
+  return bias < 0 ? before ?? after : after ?? before;
+}
+
 export function replaceMarkdownBlankLineWithEditableParagraph(view: EditorView, block: TopLevelBlock): boolean {
   if (!isMarkdownBlankLinePlaceholderNode(block.node)) {
+    return false;
+  }
+
+  return replaceBlankLinePlaceholderWithEditableParagraph(view, block);
+}
+
+export function replaceBlankLinePlaceholderWithEditableParagraph(view: EditorView, block: TopLevelBlock): boolean {
+  if (!isEditableBlankLinePlaceholderNode(block.node)) {
     return false;
   }
 
@@ -91,6 +151,210 @@ export function replaceMarkdownBlankLineWithEditableParagraph(view: EditorView, 
     .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
   view.dispatch(tr.scrollIntoView());
   view.focus();
+  return true;
+}
+
+function createEditableMarkdownBlankLineParagraph(view: EditorView): ProseNode | null {
+  const paragraphType = view.state.schema.nodes.paragraph;
+  if (!paragraphType) return null;
+  return paragraphType.create(
+    null,
+    view.state.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)
+  );
+}
+
+function replaceRangeWithEditableMarkdownBlankLine(
+  view: EditorView,
+  from: number,
+  to: number,
+): boolean {
+  const paragraph = createEditableMarkdownBlankLineParagraph(view);
+  if (!paragraph) return false;
+
+  let tr = view.state.tr.replaceWith(from, to, paragraph);
+  tr = tr
+    .setSelection(TextSelection.create(tr.doc, from + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length))
+    .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
+  return true;
+}
+
+function deleteRangeAndSetNearbyTextSelection(
+  view: EditorView,
+  from: number,
+  to: number,
+  bias: -1 | 1,
+): boolean {
+  let tr = view.state.tr.delete(from, to);
+  const selection = createTextSelectionNearDocumentPosition(tr.doc, from, bias);
+  if (!selection) return false;
+
+  tr = tr
+    .setSelection(selection)
+    .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
+  return true;
+}
+
+function isEmptyTopLevelParagraphSelection(selection: TextSelection): boolean {
+  return selection.empty
+    && selection.$from.depth === 1
+    && selection.$from.parent.type.name === 'paragraph'
+    && selection.$from.parent.content.size === 0;
+}
+
+function isEditableMarkdownBlankLineSelection(selection: TextSelection): boolean {
+  return selection.empty
+    && selection.$from.depth === 1
+    && isEditableMarkdownBlankLineNode(selection.$from.parent);
+}
+
+function createReplaceSelectedMarkdownBlankLineTransaction(
+  state: EditorState,
+  selection: NodeSelection,
+): Transaction | null {
+  const paragraphType = state.schema.nodes.paragraph;
+  if (!paragraphType) return null;
+
+  const paragraph = paragraphType.create(
+    null,
+    state.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)
+  );
+  let tr = state.tr.replaceWith(selection.from, selection.to, paragraph);
+  tr = tr
+    .setSelection(TextSelection.create(tr.doc, selection.from + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length))
+    .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  return tr.scrollIntoView();
+}
+
+function createDeleteSelectedMarkdownBlankLineTransaction(
+  state: EditorState,
+  selection: NodeSelection,
+): Transaction | null {
+  let tr = state.tr.delete(selection.from, selection.to);
+  const nextSelection = createTextSelectionNearDocumentPosition(tr.doc, selection.from, 1);
+  if (!nextSelection) return null;
+
+  tr = tr
+    .setSelection(nextSelection)
+    .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  return tr.scrollIntoView();
+}
+
+export function appendMarkdownBlankLineNodeSelectionRecoveryTransaction(
+  oldState: EditorState,
+  newState: EditorState,
+): Transaction | null {
+  const { selection } = newState;
+  if (!(selection instanceof NodeSelection) || !isMarkdownBlankLinePlaceholderNode(selection.node)) {
+    return null;
+  }
+
+  if (oldState.selection instanceof TextSelection) {
+    if (isEditableMarkdownBlankLineSelection(oldState.selection)) {
+      return createDeleteSelectedMarkdownBlankLineTransaction(newState, selection)
+        ?? createReplaceSelectedMarkdownBlankLineTransaction(newState, selection);
+    }
+    if (isEmptyTopLevelParagraphSelection(oldState.selection)) {
+      return createReplaceSelectedMarkdownBlankLineTransaction(newState, selection);
+    }
+  }
+
+  if (
+    oldState.selection instanceof NodeSelection &&
+    isMarkdownBlankLinePlaceholderNode(oldState.selection.node)
+  ) {
+    return createDeleteSelectedMarkdownBlankLineTransaction(newState, selection)
+      ?? createReplaceSelectedMarkdownBlankLineTransaction(newState, selection);
+  }
+
+  return createReplaceSelectedMarkdownBlankLineTransaction(newState, selection);
+}
+
+function handleSelectedMarkdownBlankLineDelete(
+  view: EditorView,
+  direction: -1 | 1,
+): boolean {
+  const { selection } = view.state;
+  if (!(selection instanceof NodeSelection) || !isMarkdownBlankLinePlaceholderNode(selection.node)) {
+    return false;
+  }
+
+  return deleteRangeAndSetNearbyTextSelection(view, selection.from, selection.to, direction);
+}
+
+function handleEditableMarkdownBlankLineDelete(
+  view: EditorView,
+  direction: -1 | 1,
+): boolean {
+  const { selection } = view.state;
+  if (!(selection instanceof TextSelection) || !selection.empty) return false;
+
+  const $from = selection.$from;
+  if ($from.depth !== 1 || !isEditableMarkdownBlankLineNode($from.parent)) return false;
+
+  const blockFrom = $from.before(1);
+  const blockTo = $from.after(1);
+  if (direction < 0 && $from.parentOffset > 0) return false;
+  if (direction > 0 && $from.parentOffset < $from.parent.content.size) return false;
+
+  const primaryAdjacent = direction < 0
+    ? findTopLevelBlockBefore(view.state.doc, blockFrom)
+    : findTopLevelBlockAfter(view.state.doc, blockTo);
+  const adjacent = primaryAdjacent && isMarkdownBlankLinePlaceholderNode(primaryAdjacent.node)
+    ? primaryAdjacent
+    : direction < 0
+      ? findTopLevelBlockAfter(view.state.doc, blockTo)
+      : findTopLevelBlockBefore(view.state.doc, blockFrom);
+  if (!adjacent || !isMarkdownBlankLinePlaceholderNode(adjacent.node)) return false;
+
+  return deleteRangeAndSetNearbyTextSelection(view, adjacent.from, adjacent.to, direction);
+}
+
+function handleEmptyParagraphBesideMarkdownBlankLineDelete(
+  view: EditorView,
+  direction: -1 | 1,
+): boolean {
+  const { selection } = view.state;
+  if (!(selection instanceof TextSelection) || !isEmptyTopLevelParagraphSelection(selection)) {
+    return false;
+  }
+
+  const $from = selection.$from;
+  const blockFrom = $from.before(1);
+  const blockTo = $from.after(1);
+  if (direction < 0 && $from.parentOffset > 0) return false;
+  if (direction > 0 && $from.parentOffset < $from.parent.content.size) return false;
+
+  const primaryAdjacent = direction < 0
+    ? findTopLevelBlockBefore(view.state.doc, blockFrom)
+    : findTopLevelBlockAfter(view.state.doc, blockTo);
+  const adjacent = primaryAdjacent && isMarkdownBlankLinePlaceholderNode(primaryAdjacent.node)
+    ? primaryAdjacent
+    : direction < 0
+      ? findTopLevelBlockAfter(view.state.doc, blockTo)
+      : findTopLevelBlockBefore(view.state.doc, blockFrom);
+  if (!adjacent || !isMarkdownBlankLinePlaceholderNode(adjacent.node)) return false;
+
+  const from = Math.min(blockFrom, adjacent.from);
+  const to = Math.max(blockTo, adjacent.to);
+  return replaceRangeWithEditableMarkdownBlankLine(view, from, to);
+}
+
+export function handleMarkdownBlankLineDeletion(view: EditorView, event: KeyboardEvent): boolean {
+  const direction = getPlainDeleteDirection(event);
+  if (!direction) return false;
+
+  const handled = (
+    handleSelectedMarkdownBlankLineDelete(view, direction) ||
+    handleEditableMarkdownBlankLineDelete(view, direction) ||
+    handleEmptyParagraphBesideMarkdownBlankLineDelete(view, direction)
+  );
+  if (!handled) return false;
+
+  event.preventDefault();
   return true;
 }
 
