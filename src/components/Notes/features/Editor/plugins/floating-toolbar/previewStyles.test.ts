@@ -1179,10 +1179,15 @@ describe('previewStyles', () => {
 
     applyFormatPreview(view, 'bold');
 
-    const previewIframe = host.querySelector<HTMLIFrameElement>('.toolbar-applied-preview-overlay [data-type="video"] iframe');
-    expect(previewIframe).toBeInstanceOf(HTMLIFrameElement);
-    expect(previewIframe?.getAttribute('src')).toBeNull();
-    expect(previewIframe?.dataset.previewSrc).toBe(sourceIframe?.getAttribute('src'));
+    const previewIframes = Array.from(host.querySelectorAll<HTMLIFrameElement>('.toolbar-applied-preview-overlay [data-type="video"] iframe'));
+    expect(previewIframes).toHaveLength(2);
+    previewIframes.forEach((previewIframe) => {
+      expect(previewIframe.getAttribute('src')).toBeNull();
+    });
+    expect(previewIframes.map((previewIframe) => previewIframe.dataset.previewSrc)).toEqual([
+      'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&playsinline=1&rel=0',
+      sourceIframe?.getAttribute('src'),
+    ]);
 
     clearFormatPreview(view);
     await editor.destroy();
