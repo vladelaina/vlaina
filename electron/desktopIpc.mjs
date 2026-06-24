@@ -277,7 +277,7 @@ function getLinuxFileManagerDbusRevealer(filePath, options = {}) {
     return null;
   }
 
-  const fileUrl = pathToFileURL(filePath).toString();
+  const fileUrl = pathToFileURL(filePath, { windows: false }).toString();
   return {
     command: commandPath,
     args: [
