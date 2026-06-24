@@ -25,7 +25,8 @@ describe('slashMenuItems', () => {
 
 describe('filterSlashItems', () => {
   it('returns all items for an empty query in common-usage order', () => {
-    const names = filterSlashItems('').map((item) => item.name);
+    const items = filterSlashItems('');
+    const names = items.map((item) => item.name);
 
     expect(names).toHaveLength(slashMenuItems.length);
     expect(names.slice(0, 6)).toEqual([
@@ -36,6 +37,9 @@ describe('filterSlashItems', () => {
       'Bullet List',
       'Numbered List',
     ]);
+    expect(items.findIndex((item) => item.commandId === 'html-block')).toBeLessThan(
+      items.findIndex((item) => item.commandId === 'abbreviation')
+    );
   });
 
   it('matches names and search terms case-insensitively', () => {
