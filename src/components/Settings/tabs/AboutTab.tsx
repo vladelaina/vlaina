@@ -17,6 +17,7 @@ import {
 } from './aboutCommunitySettings';
 
 type UpdateStatus = 'idle' | 'checking' | 'current' | 'available' | 'error';
+type CommunityQrPillId = 'qq' | 'wechat';
 
 interface UpdateInfo {
   currentVersion: string;
@@ -92,23 +93,30 @@ function renderRichText(text: string): ReactNode[] {
 }
 
 function CommunityQrPill({
+  id,
   title,
   label,
   icon,
   qrText,
   detail,
+  isOpen,
+  onOpen,
+  onClose,
 }: {
+  id: CommunityQrPillId;
   title: string;
   label: string;
   icon: ReactNode;
   qrText: string;
   detail?: string;
+  isOpen: boolean;
+  onOpen: (id: CommunityQrPillId) => void;
+  onClose: (id: CommunityQrPillId) => void;
 }) {
-  const [shouldRenderQr, setShouldRenderQr] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
 
   useEffect(() => {
-    if (!shouldRenderQr || !qrText) {
+    if (!isOpen || !qrText) {
       setQrDataUrl('');
       return;
     }
@@ -139,10 +147,17 @@ function CommunityQrPill({
     return () => {
       cancelled = true;
     };
-  }, [qrText, shouldRenderQr]);
+  }, [qrText, isOpen]);
 
   return (
-    <div className="group relative" onMouseEnter={() => setShouldRenderQr(true)} onFocus={() => setShouldRenderQr(true)}>
+    <div
+      className="relative"
+      data-community-qr-pill={id}
+      onBlur={() => onClose(id)}
+      onFocus={() => onOpen(id)}
+      onMouseEnter={() => onOpen(id)}
+      onMouseLeave={() => onClose(id)}
+    >
       <button
         type="button"
         aria-label={title}
@@ -152,9 +167,12 @@ function CommunityQrPill({
         <span>{label}</span>
       </button>
       <div className={cn(
-        'pointer-events-none absolute left-1/2 top-full z-[var(--vlaina-z-20)] mt-3 w-[var(--vlaina-size-168px)] -translate-x-1/2 rounded-[var(--vlaina-radius-26px)] p-3 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)] group-hover:opacity-[var(--vlaina-opacity-100)] group-focus-within:opacity-[var(--vlaina-opacity-100)]',
+        'pointer-events-none absolute left-1/2 top-full z-[var(--vlaina-z-20)] mt-3 w-[var(--vlaina-size-168px)] -translate-x-1/2 rounded-[var(--vlaina-radius-26px)] p-3 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)]',
+        isOpen && 'opacity-[var(--vlaina-opacity-100)]',
         chatComposerPillSurfaceClass
-      )}>
+      )}
+        data-community-qr-panel={id}
+      >
         {detail ? (
           <div className="mb-1 truncate text-center text-[var(--vlaina-font-xs)] font-bold tabular-nums text-[var(--vlaina-sidebar-notes-text)]">
             {detail}
@@ -265,6 +283,11 @@ function GithubPill() {
 
 function CommunityPills({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
+  const [activeQrPill, setActiveQrPill] = useState<CommunityQrPillId | null>(null);
+
+  const closeQrPill = useCallback((id: CommunityQrPillId) => {
+    setActiveQrPill((current) => current === id ? null : current);
+  }, []);
 
   return (
     <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 gap-y-2 overflow-visible px-1.5 py-1 max-[420px]:gap-1 max-[420px]:gap-y-2 max-[420px]:px-0">
@@ -273,17 +296,25 @@ function CommunityPills({ community }: { community: CommunitySettings }) {
       <DiscordPill />
       <SlackPill />
       <CommunityQrPill
+        id="qq"
         title={t('settings.about.qqGroup')}
         label="QQ"
         icon={<FaQq size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-qq)]" />}
         qrText={community.qqQrCodeText}
         detail={community.qqGroupNumber || undefined}
+        isOpen={activeQrPill === 'qq'}
+        onOpen={setActiveQrPill}
+        onClose={closeQrPill}
       />
       <CommunityQrPill
+        id="wechat"
         title={t('settings.about.wechatGroup')}
         label="WeChat"
         icon={<FaWeixin size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-wechat)]" />}
         qrText={community.wechatQrCodeText}
+        isOpen={activeQrPill === 'wechat'}
+        onOpen={setActiveQrPill}
+        onClose={closeQrPill}
       />
     </div>
   );
