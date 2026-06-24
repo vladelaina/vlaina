@@ -188,6 +188,7 @@ describe('DevMainOverlay', () => {
     mocks.colorMode = 'dark';
     render(<DevMainOverlay effectiveAppViewMode="notes" />);
 
+    expect(screen.getByRole('button', { name: 'Preview error screen' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open Design Lab' }));
 

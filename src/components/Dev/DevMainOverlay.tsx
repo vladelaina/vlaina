@@ -16,6 +16,10 @@ import {
 const DEV_OVERLAY_BUTTON_CLASS =
   'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)] disabled:opacity-[var(--vlaina-opacity-50)]';
 
+function DevErrorScreenPreviewCrash(): never {
+  throw new Error('vlaina dev error screen preview');
+}
+
 function getNextDevMarkdownThemeId(currentThemeId: string | null, themeIds: string[]): string | null {
   const uniqueThemeIds = [...new Set(themeIds)];
   if (uniqueThemeIds.length === 0) return null;
@@ -77,6 +81,7 @@ export function DevMainOverlay({
   const applyManagedBudgetSnapshot = useManagedAIStore((state) => state.applyBudgetSnapshot);
   const clearManagedBudget = useManagedAIStore((state) => state.clearBudget);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
+  const [shouldPreviewErrorScreen, setShouldPreviewErrorScreen] = useState(false);
 
   const handleMarkdownThemeCycle = useCallback(async () => {
     if (isThemeSwitching) return;
@@ -117,8 +122,17 @@ export function DevMainOverlay({
     ? 'Clear managed quota exhaustion'
     : 'Simulate managed quota exhaustion';
 
+  if (shouldPreviewErrorScreen) {
+    return <DevErrorScreenPreviewCrash />;
+  }
+
   return (
     <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
+      <DevOverlayButton
+        iconName="common.error"
+        label="Preview error screen"
+        onClick={() => setShouldPreviewErrorScreen(true)}
+      />
       <DevOverlayButton
         disabled={isThemeSwitching}
         iconName="theme.palette"
