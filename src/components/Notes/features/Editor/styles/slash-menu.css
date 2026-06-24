@@ -112,10 +112,20 @@
 }
 
 .slash-emoji-inline-preview {
-  position: relative;
-  top: var(--slash-emoji-preview-offset-y, 0px);
+  display: inline-block;
+  width: 0;
+  height: 0;
+  line-height: inherit;
+  overflow: visible;
   pointer-events: none;
   user-select: none;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.slash-emoji-inline-preview-empty-block {
+  position: relative;
+  top: calc(1lh - 1em);
 }
 
 .editor-preview-context-menu {
