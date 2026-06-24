@@ -11,6 +11,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { calloutPlugin } from '../callout';
+import { codeBlockPlugins } from '../code';
 import { footnotePlugin } from '../footnote';
 import { frontmatterPlugin } from '../frontmatter';
 import { mathPlugin } from '../math';
@@ -38,6 +39,24 @@ function createEditor(markdown = '') {
     .use(mermaidPlugin)
     .use(tocPlugin)
     .use(videoPlugin)
+    .use(atomicBlockKeyboardNavigationPlugin);
+}
+
+function createEditorWithCodeKeymap(markdown = '') {
+  return Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(calloutPlugin)
+    .use(footnotePlugin)
+    .use(frontmatterPlugin)
+    .use(mathPlugin)
+    .use(mermaidPlugin)
+    .use(tocPlugin)
+    .use(videoPlugin)
+    .use(codeBlockPlugins)
     .use(atomicBlockKeyboardNavigationPlugin);
 }
 
@@ -120,7 +139,7 @@ function createCodeBlockNode(view: EditorView, text = 'const value = 1;'): Prose
   if (!codeBlockType) {
     throw new Error('Expected code block schema');
   }
-  return codeBlockType.create({ language: 'ts' }, schema.text(text));
+  return codeBlockType.create({ language: 'ts' }, text ? schema.text(text) : undefined);
 }
 
 function createMarkdownBlankLinePlaceholderNode(view: EditorView): ProseNode {
@@ -1378,6 +1397,57 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.selection).toBeInstanceOf(TextSelection);
     expect(selectionAncestorNames(view)).not.toContain('code_block');
     expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty code block on Delete before structural navigation can select the previous block', async () => {
+    const editor = createEditorWithCodeKeymap();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.paragraph.create(null, schema.text('above')),
+      createCodeBlockNode(view, ''),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const codeBlockPos = topLevelNodePos(view, 'code_block');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, codeBlockPos + 1)));
+    expect(selectionAncestorNames(view)).toContain('code_block');
+    expect(view.state.selection.$from.parent.type.name).toBe('code_block');
+    pressKey(view, 'Delete');
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('above');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty code block through structural fallback when the code keymap is unavailable', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.paragraph.create(null, schema.text('above')),
+      createCodeBlockNode(view, ''),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const codeBlockPos = topLevelNodePos(view, 'code_block');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, codeBlockPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('above');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
 
     await editor.destroy();
   });

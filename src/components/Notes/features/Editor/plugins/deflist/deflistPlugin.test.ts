@@ -3,6 +3,9 @@ import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { Decoration } from '@milkdown/kit/prose/view';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { atomicBlockKeyboardNavigationPlugin } from '../cursor/atomicBlockKeyboardNavigationPlugin';
 import {
   changedRangeContainsDefinitionDescriptionParagraph,
   createDeflistDecorations,
@@ -34,6 +37,39 @@ async function createDefinitionListEditor() {
 
   await editor.create();
   return editor;
+}
+
+async function createDefinitionListEditorWithKeyboardNavigation() {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, '');
+    })
+    .use(commonmark);
+
+  for (const plugin of deflistPlugin) {
+    editor.use(plugin);
+  }
+  editor.use(atomicBlockKeyboardNavigationPlugin);
+
+  await editor.create();
+  return editor;
+}
+
+function pressKey(view: EditorView, key: string): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
+
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    if (handled) return handled;
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+
+  return event;
 }
 
 function getDecorationClasses(doc: ProseMirrorNode): string[] {
@@ -114,6 +150,41 @@ describe('deflistPlugin visual decorations', () => {
       'editor-dl-term',
       'editor-dl-desc editor-dl-gap-fix',
     ]);
+
+    await editor.destroy();
+  });
+
+  it('keeps a text cursor when deleting from an empty definition description', async () => {
+    const editor = await createDefinitionListEditorWithKeyboardNavigation();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const definitionList = schema.nodes.definition_list.create(null, [
+      schema.nodes.definition_term.create(null, schema.text('Term')),
+      schema.nodes.definition_desc.create(null, [
+        schema.nodes.paragraph.create(),
+      ]),
+    ]);
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+      definitionList,
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]));
+
+    let emptyDescriptionPos: number | null = null;
+    view.state.doc.descendants((node, pos) => {
+      if (emptyDescriptionPos !== null) return false;
+      if (node.type.name === 'paragraph' && node.content.size === 0) {
+        emptyDescriptionPos = pos + 1;
+        return false;
+      }
+      return true;
+    });
+    expect(emptyDescriptionPos).toBeTypeOf('number');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyDescriptionPos!)));
+
+    pressKey(view, 'Delete');
+
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
 
     await editor.destroy();
   });

@@ -1,6 +1,12 @@
 import { $node, $inputRule, $prose } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
-import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
+import {
+  Plugin,
+  PluginKey,
+  Selection,
+  TextSelection,
+  type EditorState,
+} from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
 import { markEditorUserInput } from '../shared/userInputEvents';
@@ -123,6 +129,93 @@ function findFootnoteDefinitionDepth(view: EditorView): number | null {
     }
   }
   return null;
+}
+
+function isPlainFootnoteDeleteEvent(event: KeyboardEvent): boolean {
+  return (
+    (event.key === 'Delete' || event.key === 'Backspace')
+    && !event.metaKey
+    && !event.ctrlKey
+    && !event.altKey
+    && !event.shiftKey
+    && !event.isComposing
+  );
+}
+
+function isEmptyFootnoteDefinitionNode(node: { descendants?: (...args: any[]) => void; textContent?: string }): boolean {
+  if ((node.textContent ?? '').trim().length > 0) {
+    return false;
+  }
+
+  let hasNonTextLeafContent = false;
+  node.descendants?.((child: any) => {
+    if (child.isText) {
+      return true;
+    }
+    if (child.isLeaf) {
+      hasNonTextLeafContent = true;
+      return false;
+    }
+    return true;
+  });
+  return !hasNonTextLeafContent;
+}
+
+function setSelectionNearDeletedFootnote(state: EditorState, tr: any, pos: number) {
+  const docSize = tr.doc.content.size;
+  const safePos = Math.max(0, Math.min(pos, docSize));
+  const resolved = tr.doc.resolve(safePos);
+  const selection = Selection.findFrom(resolved, 1, true)
+    ?? Selection.findFrom(resolved, -1, true);
+  if (selection) {
+    return tr.setSelection(selection);
+  }
+
+  const paragraphType = state.schema.nodes.paragraph;
+  if (!paragraphType) {
+    return tr;
+  }
+
+  tr.insert(safePos, paragraphType.create());
+  return tr.setSelection(TextSelection.create(tr.doc, safePos + 1));
+}
+
+export function handleEmptyFootnoteDefinitionDelete(view: EditorView, event: KeyboardEvent): boolean {
+  if (!isPlainFootnoteDeleteEvent(event)) {
+    return false;
+  }
+
+  const { state } = view;
+  const { selection } = state;
+  if (!(selection instanceof TextSelection) || !selection.empty) {
+    return false;
+  }
+  if (!selection.$from.parent.isTextblock || selection.$from.parent.textContent.trim().length > 0) {
+    return false;
+  }
+
+  const footnoteDepth = findFootnoteDefinitionDepth(view);
+  if (footnoteDepth === null) {
+    return false;
+  }
+
+  const footnoteNode = selection.$from.node(footnoteDepth);
+  if (!isEmptyFootnoteDefinitionNode(footnoteNode)) {
+    return false;
+  }
+
+  const footnotePos = selection.$from.before(footnoteDepth);
+  const tr = setSelectionNearDeletedFootnote(
+    state,
+    state.tr.delete(footnotePos, footnotePos + footnoteNode.nodeSize),
+    footnotePos
+  ).scrollIntoView();
+
+  event.preventDefault();
+  markEditorUserInput(view);
+  view.dispatch(tr);
+  view.focus();
+  return true;
 }
 
 function transactionMayInsertFootnote(tr: unknown): boolean {
@@ -304,6 +397,10 @@ export const footnoteInteractionPlugin = $prose(() => {
     },
     props: {
       handleKeyDown(view, event) {
+        if (handleEmptyFootnoteDefinitionDelete(view, event)) {
+          return true;
+        }
+
         if (handleFootnoteArrowNavigation(view, event)) {
           return true;
         }

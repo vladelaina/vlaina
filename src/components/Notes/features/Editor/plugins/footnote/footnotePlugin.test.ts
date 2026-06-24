@@ -5,11 +5,12 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import {
   MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
   footnoteInteractionPluginKey,
   footnotePlugin,
+  handleEmptyFootnoteDefinitionDelete,
   handleFootnoteArrowNavigation,
   handleFootnoteModEnterExit,
   hasNonBlankFootnoteRefInputPrefix,
@@ -18,6 +19,7 @@ import {
 } from './footnotePlugin';
 import { normalizeFootnoteLabel, normalizeFootnotePreview } from './footnoteLabels';
 import { configureTheme } from '../../theme';
+import { atomicBlockKeyboardNavigationPlugin } from '../cursor/atomicBlockKeyboardNavigationPlugin';
 
 function createRecorder() {
   const calls: Array<{ method: string; args: unknown[] }> = [];
@@ -377,6 +379,134 @@ describe('footnote reference markup', () => {
 
     view.dom.removeEventListener('editor:block-user-input', userInputListener);
     await editor.destroy();
+  });
+
+  it('deletes an empty footnote definition on Delete without selecting the previous block', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(footnotePlugin);
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      const footnoteType = schema.nodes.footnote_def ?? schema.nodes.footnote_definition;
+      const before = schema.nodes.paragraph.create(null, schema.text('Before'));
+      const emptyFootnoteParagraph = schema.nodes.paragraph.create();
+      const footnote = footnoteType.create({ id: '1', label: '1' }, [emptyFootnoteParagraph]);
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [before, footnote]));
+
+      let emptyFootnoteTextPos: number | null = null;
+      view.state.doc.descendants((node, pos) => {
+        if (emptyFootnoteTextPos !== null) return false;
+        if (node.type.name === 'paragraph' && node.content.size === 0 && pos > before.nodeSize) {
+          emptyFootnoteTextPos = pos + 1;
+          return false;
+        }
+        return true;
+      });
+      expect(emptyFootnoteTextPos).toBeTypeOf('number');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyFootnoteTextPos!)));
+
+      const userInputListener = vi.fn();
+      view.dom.addEventListener('editor:block-user-input', userInputListener);
+      const event = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+
+      expect(handleEmptyFootnoteDefinitionDelete(view, event)).toBe(true);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(userInputListener).toHaveBeenCalledTimes(1);
+      expect(view.state.doc.childCount).toBe(1);
+      expect(view.state.doc.child(0).textContent).toBe('Before');
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+
+      view.dom.removeEventListener('editor:block-user-input', userInputListener);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('handles empty footnote definition Delete before structural block navigation', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(footnotePlugin)
+      .use(atomicBlockKeyboardNavigationPlugin);
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      const footnoteType = schema.nodes.footnote_def ?? schema.nodes.footnote_definition;
+      const before = schema.nodes.heading.create({ level: 2 }, schema.text('Before'));
+      const emptyFootnoteParagraph = schema.nodes.paragraph.create();
+      const footnote = footnoteType.create({ id: '1', label: '1' }, [emptyFootnoteParagraph]);
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [before, footnote]));
+
+      let emptyFootnoteTextPos: number | null = null;
+      view.state.doc.descendants((node, pos) => {
+        if (emptyFootnoteTextPos !== null) return false;
+        if (node.type.name === 'paragraph' && node.content.size === 0 && pos > before.nodeSize) {
+          emptyFootnoteTextPos = pos + 1;
+          return false;
+        }
+        return true;
+      });
+      expect(emptyFootnoteTextPos).toBeTypeOf('number');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyFootnoteTextPos!)));
+
+      const event = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+      let handled = false;
+      view.someProp('handleKeyDown', (handleKeyDown: any) => {
+        if (handled) return handled;
+        handled = handleKeyDown(view, event) || handled;
+        return handled;
+      });
+
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.doc.childCount).toBe(1);
+      expect(view.state.doc.child(0).type.name).toBe('heading');
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not delete a non-empty footnote definition with the empty-definition shortcut', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['Before', '', '[^1]: Body'].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(footnotePlugin);
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const bodyPos = findTextEndPosition(view.state.doc, 'Body');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, bodyPos)));
+      const event = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+
+      expect(handleEmptyFootnoteDefinitionDelete(view, event)).toBe(false);
+      expect(event.defaultPrevented).toBe(false);
+      expect(view.state.doc.textContent).toContain('Body');
+    } finally {
+      await editor.destroy();
+    }
   });
 
   it('keeps footnote interaction state stable for unrelated paragraph edits', async () => {
