@@ -28,6 +28,7 @@ interface ChatImageViewerProps {
   gallery?: Array<{ id: string; src: string }>;
   currentImageId?: string;
   previewSrc?: string | null;
+  onCopyImage?: (src: string) => boolean | Promise<boolean>;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -224,6 +225,7 @@ export function ChatImageViewer({
   gallery,
   currentImageId,
   previewSrc,
+  onCopyImage,
   onOpenChange,
 }: ChatImageViewerProps) {
   const { t } = useI18n();
@@ -541,7 +543,7 @@ export function ChatImageViewer({
 
   const handleCopy = async () => {
     try {
-      const didCopy = await copyImageOrUrl(activeSrc);
+      const didCopy = await (onCopyImage ? onCopyImage(activeSrc) : copyImageOrUrl(activeSrc));
       setCopied(didCopy);
       if (!didCopy) {
         addToast(t('chat.copyImageFailed'), 'error');

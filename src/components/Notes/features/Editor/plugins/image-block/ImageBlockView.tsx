@@ -354,6 +354,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 src={viewerResourceSrc}
                 alt={nodeAlt}
                 previewSrc={resolvedSrc || null}
+                onCopyImage={handleCopy}
                 onOpenChange={setIsViewerOpen}
             />
         </>

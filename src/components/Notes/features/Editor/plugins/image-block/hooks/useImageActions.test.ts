@@ -3,12 +3,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_FETCHED_IMAGE_BYTES } from '@/lib/markdown/fetchBoundedImageBlob';
 import { createImageDownloadDefaultName, useImageActions } from './useImageActions';
 
+type MockStorageFileInfo = {
+    name: string;
+    path: string;
+    isDirectory: boolean;
+    isFile: boolean;
+    size?: number;
+};
+
 const mocks = vi.hoisted(() => ({
     ensureImageFileExists: vi.fn(async () => undefined),
     saveDialog: vi.fn(async () => '/downloads/demo.png'),
     writeDesktopBinaryFile: vi.fn(async () => undefined),
     writeTextToClipboard: vi.fn(async () => true),
     rasterizeSvgBlobToPngBlob: vi.fn(),
+    storage: {
+        stat: vi.fn(async (_path: string): Promise<MockStorageFileInfo | null> => null),
+        readBinaryFile: vi.fn(async (_path: string, _maxBytes?: number): Promise<Uint8Array> => {
+            throw new Error('File not found');
+        }),
+    },
 }));
 
 vi.mock('@/lib/i18n', () => ({
@@ -26,6 +40,14 @@ vi.mock('@/lib/clipboard', async (importOriginal) => {
 vi.mock('@/lib/desktop/fs', () => ({
     writeDesktopBinaryFile: mocks.writeDesktopBinaryFile,
 }));
+
+vi.mock('@/lib/storage/adapter', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/lib/storage/adapter')>();
+    return {
+        ...actual,
+        getStorageAdapter: () => mocks.storage,
+    };
+});
 
 vi.mock('@/lib/storage/dialog', () => ({
     saveDialog: mocks.saveDialog,
@@ -73,6 +95,27 @@ function renderImageActions(overrides: ImageActionOverrides = {}) {
     );
 }
 
+function createDesktopBridgeWithClipboard({
+    writeImage,
+    writeText = vi.fn(),
+}: {
+    writeImage?: (dataUrl: string) => Promise<void>;
+    writeText?: (text: string) => Promise<void>;
+}) {
+    return {
+        platform: 'electron' as const,
+        clipboard: {
+            writeText,
+            writeImage,
+        },
+        path: {
+            join: async (...segments: string[]) => segments.filter(Boolean).join('/'),
+            appDataDir: async () => '/app',
+            toFileUrl: async (filePath: string) => `file://${filePath}`,
+        },
+    };
+}
+
 describe('createImageDownloadDefaultName', () => {
     it('removes path separators and control characters from image download names', () => {
         expect(createImageDownloadDefaultName('../secret\u0000name', 'assets/photo.webp')).toBe('secretname.webp');
@@ -90,6 +133,10 @@ describe('useImageActions', () => {
         vi.clearAllMocks();
         vi.unstubAllGlobals();
         mocks.rasterizeSvgBlobToPngBlob.mockImplementation(async (blob: Blob) => blob);
+        mocks.storage.stat.mockResolvedValue(null);
+        mocks.storage.readBinaryFile.mockImplementation(async () => {
+            throw new Error('File not found');
+        });
         Object.defineProperty(window, 'vlainaDesktop', {
             configurable: true,
             value: undefined,
@@ -194,13 +241,7 @@ describe('useImageActions', () => {
         });
         Object.defineProperty(window, 'vlainaDesktop', {
             configurable: true,
-            value: {
-                platform: 'electron',
-                clipboard: {
-                    writeText: vi.fn(),
-                    writeImage: desktopWriteImage,
-                },
-            },
+            value: createDesktopBridgeWithClipboard({ writeImage: desktopWriteImage }),
         });
         vi.stubGlobal('fetch', vi.fn(async () => ({
             headers: new Headers({
@@ -222,17 +263,50 @@ describe('useImageActions', () => {
         expect(mocks.writeTextToClipboard).not.toHaveBeenCalled();
     });
 
+    it('copies local relative image content from disk instead of fetching the resolved blob URL', async () => {
+        const desktopWriteImage = vi.fn(async () => undefined);
+        Object.defineProperty(window, 'vlainaDesktop', {
+            configurable: true,
+            value: createDesktopBridgeWithClipboard({ writeImage: desktopWriteImage }),
+        });
+        vi.stubGlobal('fetch', vi.fn(async () => {
+            throw new Error('local image copy should not fetch the resolved blob URL');
+        }));
+        mocks.storage.stat.mockResolvedValue({
+            name: '2026-06-24_13-31-00.png',
+            path: '/vault/assets/2026-06-24_13-31-00.png',
+            isDirectory: false,
+            isFile: true,
+            size: 3,
+        });
+        mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3]));
+        const nodeSrc = './assets/2026-06-24_13-31-00.png';
+        const { result } = renderImageActions({
+            alt: '2026-06-24_13-31-00',
+            baseSrc: nodeSrc,
+            nodeSrc,
+            resolvedSrc: 'blob:resolved-local-image',
+        });
+
+        let copied = false;
+        await act(async () => {
+            copied = await result.current.handleCopy();
+        });
+
+        expect(copied).toBe(true);
+        expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith(
+            '/vault/assets/2026-06-24_13-31-00.png',
+            MAX_FETCHED_IMAGE_BYTES,
+        );
+        expect(fetch).not.toHaveBeenCalled();
+        expect(desktopWriteImage).toHaveBeenCalledWith('data:image/png;base64,AQID');
+    });
+
     it('copies remote image content from the original resource URL instead of the cached blob URL', async () => {
         const desktopWriteImage = vi.fn(async () => undefined);
         Object.defineProperty(window, 'vlainaDesktop', {
             configurable: true,
-            value: {
-                platform: 'electron',
-                clipboard: {
-                    writeText: vi.fn(),
-                    writeImage: desktopWriteImage,
-                },
-            },
+            value: createDesktopBridgeWithClipboard({ writeImage: desktopWriteImage }),
         });
         vi.stubGlobal('fetch', vi.fn(async () => ({
             headers: new Headers({
@@ -270,13 +344,7 @@ describe('useImageActions', () => {
         const desktopWriteImage = vi.fn(async () => undefined);
         Object.defineProperty(window, 'vlainaDesktop', {
             configurable: true,
-            value: {
-                platform: 'electron',
-                clipboard: {
-                    writeText: vi.fn(),
-                    writeImage: desktopWriteImage,
-                },
-            },
+            value: createDesktopBridgeWithClipboard({ writeImage: desktopWriteImage }),
         });
         vi.stubGlobal('fetch', vi.fn(async () => ({
             headers: new Headers({
