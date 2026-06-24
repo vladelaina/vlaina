@@ -9,7 +9,7 @@ import type { ImportedMarkdownTheme } from '@/lib/markdown/theme-compatibility/t
 
 interface MarkdownThemeCompilerModules {
   scopeImportedMarkdownThemeCss: typeof import('@/lib/markdown/theme-compatibility/cssScoping').scopeImportedMarkdownThemeCss;
-  sanitizeImportedMarkdownThemeCss: typeof import('@/lib/markdown/theme-compatibility/cssUrls').sanitizeImportedMarkdownThemeCss;
+  sanitizeImportedMarkdownThemeCss: typeof import('@/lib/markdown/theme-compatibility/cssUrls/security').sanitizeImportedMarkdownThemeCss;
   buildImportedAppThemeCss: typeof import('@/lib/markdown/theme-compatibility/appThemeBridge').buildImportedAppThemeCss;
   buildImportedMarkdownThemePostBridgeCss: typeof import('@/lib/markdown/theme-compatibility/postBridge').buildImportedMarkdownThemePostBridgeCss;
 }
@@ -33,7 +33,7 @@ const inFlightThemePreloads = new Map<string, Promise<void>>();
 function loadMarkdownThemeCompilerModules(): Promise<MarkdownThemeCompilerModules> {
   compilerModulesPromise ??= Promise.all([
     import('@/lib/markdown/theme-compatibility/cssScoping'),
-    import('@/lib/markdown/theme-compatibility/cssUrls'),
+    import('@/lib/markdown/theme-compatibility/cssUrls/security'),
     import('@/lib/markdown/theme-compatibility/appThemeBridge'),
     import('@/lib/markdown/theme-compatibility/postBridge'),
   ]).then(([

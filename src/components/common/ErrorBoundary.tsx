@@ -1,11 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { WindowControls } from '@/components/layout/WindowControls';
-import { MacOSTrafficLightPreviewControls } from '@/components/layout/shell/UnifiedTitleBar';
 import { writeTextToClipboard } from '@/lib/clipboard';
-import { isMacOS, shouldRenderMacOSTrafficLightPreview } from '@/lib/desktop/platform';
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { translate } from '@/lib/i18n';
-import { useUIStore } from '@/stores/uiSlice';
+import { translate, type MessageKey } from '@/lib/i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -23,19 +19,127 @@ interface ErrorBoundaryState {
 }
 
 const GITHUB_ISSUES_URL = 'https://github.com/vladelaina/vlaina/issues';
+const FALLBACK_MESSAGES = {
+  'common.somethingWentWrong': 'Something went wrong',
+  'common.errorReportInstruction': 'Please copy this error report and contact the developer as soon as possible. A diagnostic log was also saved in the system configuration folder.',
+  'common.logFile': 'Log file',
+  'common.errorDetails': 'Error details',
+  'common.copied': 'Copied',
+  'common.copyErrorReport': 'Copy error report',
+  'common.openLogFolder': 'Open log folder',
+  'common.tryAgain': 'Try again',
+  'common.reload': 'Reload',
+  'common.reportOnGitHub': 'Open GitHub Issues',
+} satisfies Partial<Record<MessageKey, string>>;
 
-function ErrorWindowChrome() {
-  const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
-  const reserveMacTrafficLightSpace = isMacOS(devPlatformPreview);
-  const showTrafficLightPreview = shouldRenderMacOSTrafficLightPreview(devPlatformPreview);
+function isNativeMacOS() {
+  return (
+    typeof navigator !== 'undefined' &&
+    /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+  );
+}
+
+function shouldPreviewMacOSChrome() {
+  return (
+    import.meta.env.DEV &&
+    !isNativeMacOS() &&
+    typeof document !== 'undefined' &&
+    document.documentElement.getAttribute('data-vlaina-dev-platform-preview') === 'macos'
+  );
+}
+
+function safeTranslate(key: keyof typeof FALLBACK_MESSAGES) {
+  try {
+    return translate(key);
+  } catch {
+    return FALLBACK_MESSAGES[key];
+  }
+}
+
+function ErrorWindowButton({
+  children,
+  className = '',
+  label,
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={`app-no-drag flex h-10 w-12 items-center justify-center text-sm text-foreground/75 transition-colors hover:bg-muted hover:text-foreground ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ErrorMacOSTrafficLightControls() {
+  const buttonClass =
+    'app-no-drag h-3 w-3 rounded-full border border-black/15 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.35)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-accent-focus-ring)]';
 
   return (
-    <div className="app-drag-region app-title-bar flex h-10 shrink-0 select-none items-center bg-background/95">
-      <div className="relative flex h-full flex-1 items-center">
-        {showTrafficLightPreview ? <MacOSTrafficLightPreviewControls /> : null}
-        <div className={reserveMacTrafficLightSpace ? 'w-[var(--vlaina-space-76px)]' : 'w-3'} />
-      </div>
-      <WindowControls className="z-[var(--vlaina-z-50)]" />
+    <div className="absolute left-3 top-0 z-[var(--vlaina-z-60)] flex h-10 items-center gap-2">
+      <button
+        type="button"
+        aria-label="Close window"
+        onClick={() => void getElectronBridge()?.window?.close?.()}
+        className={`${buttonClass} bg-[#ff5f57]`}
+      />
+      <button
+        type="button"
+        aria-label="Minimize window"
+        onClick={() => void getElectronBridge()?.window?.minimize?.()}
+        className={`${buttonClass} bg-[#febc2e]`}
+      />
+      <button
+        type="button"
+        aria-label="Maximize window"
+        onClick={() => void getElectronBridge()?.window?.toggleMaximize?.()}
+        className={`${buttonClass} bg-[#28c840]`}
+      />
+    </div>
+  );
+}
+
+function ErrorWindowChrome() {
+  const nativeMacOS = isNativeMacOS();
+  const showMacOSPreview = shouldPreviewMacOSChrome();
+  const useMacOSLayout = nativeMacOS || showMacOSPreview;
+
+  return (
+    <div className="app-drag-region app-title-bar relative flex h-10 shrink-0 select-none items-center bg-background/95">
+      {showMacOSPreview ? <ErrorMacOSTrafficLightControls /> : null}
+      <div className={useMacOSLayout ? 'w-[var(--vlaina-space-76px)]' : 'w-3'} />
+      <div className="min-w-0 flex-1" />
+      {!useMacOSLayout ? (
+        <div className="app-no-drag flex shrink-0">
+          <ErrorWindowButton
+            label="Minimize window"
+            onClick={() => void getElectronBridge()?.window?.minimize?.()}
+          >
+            -
+          </ErrorWindowButton>
+          <ErrorWindowButton
+            label="Maximize window"
+            onClick={() => void getElectronBridge()?.window?.toggleMaximize?.()}
+          >
+            □
+          </ErrorWindowButton>
+          <ErrorWindowButton
+            label="Close window"
+            onClick={() => void getElectronBridge()?.window?.close?.()}
+            className="hover:bg-[var(--vlaina-color-danger)] hover:text-[var(--vlaina-color-white)]"
+          >
+            ×
+          </ErrorWindowButton>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -148,17 +252,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   private handleOpenLogFolder = () => {
-    void getElectronBridge()?.app?.openErrorLogFolder?.();
+    void getElectronBridge()?.app?.openErrorLogFolder?.().catch(() => undefined);
   };
 
   private handleOpenGitHubIssues = () => {
     const shell = getElectronBridge()?.shell;
     if (shell?.openExternal) {
-      void shell.openExternal(GITHUB_ISSUES_URL);
+      void shell.openExternal(GITHUB_ISSUES_URL).catch(() => undefined);
       return;
     }
 
-    window.open(GITHUB_ISSUES_URL, '_blank', 'noopener,noreferrer');
+    try {
+      window.open(GITHUB_ISSUES_URL, '_blank', 'noopener,noreferrer');
+    } catch {
+    }
   };
 
   render() {
@@ -173,68 +280,68 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div className="flex h-full min-h-screen w-full flex-col bg-background">
           <ErrorWindowChrome />
           <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-          <div className="w-full max-w-3xl space-y-4 text-left">
-            <h2 className="text-lg font-semibold text-foreground">
-              {translate('common.somethingWentWrong')}
-            </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {translate('common.errorReportInstruction')}
-            </p>
-            {this.state.logFilePath ? (
-              <p className="break-all text-xs text-muted-foreground">
-                {translate('common.logFile')}: {this.state.logFilePath}
+            <div className="w-full max-w-3xl space-y-4 text-left">
+              <h2 className="text-lg font-semibold text-foreground">
+                {safeTranslate('common.somethingWentWrong')}
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {safeTranslate('common.errorReportInstruction')}
               </p>
-            ) : null}
-            <div>
-              <div className="mb-2 text-sm font-medium text-foreground">
-                {translate('common.errorDetails')}
+              {this.state.logFilePath ? (
+                <p className="break-all text-xs text-muted-foreground">
+                  {safeTranslate('common.logFile')}: {this.state.logFilePath}
+                </p>
+              ) : null}
+              <div>
+                <div className="mb-2 text-sm font-medium text-foreground">
+                  {safeTranslate('common.errorDetails')}
+                </div>
+                <pre className="max-h-72 overflow-auto rounded-md border border-border bg-muted p-3 text-left text-xs leading-5 text-muted-foreground">
+                  {errorReport}
+                </pre>
               </div>
-              <pre className="max-h-72 overflow-auto rounded-md border border-border bg-muted p-3 text-left text-xs leading-5 text-muted-foreground">
-                {errorReport}
-              </pre>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={this.handleCopyErrorReport}
-                className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-              >
-                {this.state.copied
-                  ? translate('common.copied')
-                  : translate('common.copyErrorReport')}
-              </button>
-              {getElectronBridge()?.app?.openErrorLogFolder ? (
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={this.handleOpenLogFolder}
+                  onClick={this.handleCopyErrorReport}
+                  className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                >
+                  {this.state.copied
+                    ? safeTranslate('common.copied')
+                    : safeTranslate('common.copyErrorReport')}
+                </button>
+                {getElectronBridge()?.app?.openErrorLogFolder ? (
+                  <button
+                    type="button"
+                    onClick={this.handleOpenLogFolder}
+                    className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
+                  >
+                    {safeTranslate('common.openLogFolder')}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={this.handleDismiss}
                   className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
                 >
-                  {translate('common.openLogFolder')}
+                  {safeTranslate('common.tryAgain')}
                 </button>
-              ) : null}
+                <button
+                  type="button"
+                  onClick={this.handleReload}
+                  className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  {safeTranslate('common.reload')}
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={this.handleDismiss}
-                className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
+                onClick={this.handleOpenGitHubIssues}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
-                {translate('common.tryAgain')}
-              </button>
-              <button
-                type="button"
-                onClick={this.handleReload}
-                className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
-              >
-                {translate('common.reload')}
+                {safeTranslate('common.reportOnGitHub')}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={this.handleOpenGitHubIssues}
-              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              {translate('common.reportOnGitHub')}
-            </button>
-          </div>
           </div>
         </div>
       );

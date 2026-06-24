@@ -24,7 +24,7 @@ vi.mock('@/lib/markdown/theme-compatibility/cssScoping', () => ({
     mocks.scopeImportedMarkdownThemeCss(css, platform, scope),
 }));
 
-vi.mock('@/lib/markdown/theme-compatibility/cssUrls', () => ({
+vi.mock('@/lib/markdown/theme-compatibility/cssUrls/security', () => ({
   sanitizeImportedMarkdownThemeCss: (css: string) => mocks.sanitizeImportedMarkdownThemeCss(css),
 }));
 

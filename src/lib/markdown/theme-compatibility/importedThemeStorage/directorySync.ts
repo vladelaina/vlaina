@@ -1,5 +1,5 @@
 import { getStorageAdapter, type FileInfo } from '@/lib/storage/adapter';
-import { getRelativeMarkdownThemeCssImports } from '../cssUrls';
+import { getRelativeMarkdownThemeCssImports } from '../cssUrls/imports';
 import { isStandaloneMarkdownThemeCss } from '../platformDetection';
 import type { ImportedMarkdownThemeMetadata } from '../types';
 import { cachedThemeCssExists, deleteImportedThemeFiles } from './cssAssets';

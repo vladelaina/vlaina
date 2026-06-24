@@ -6,8 +6,11 @@ import "./index.css";
 import { isElectronRuntime } from "@/lib/electron/bridge";
 
 const app = <App />;
+const rootElement = document.getElementById("root") ?? document.body.appendChild(
+  Object.assign(document.createElement("div"), { id: "root" })
+);
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+ReactDOM.createRoot(rootElement).render(
   isElectronRuntime() ? app : (
     <React.StrictMode>
       {app}

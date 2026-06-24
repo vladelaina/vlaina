@@ -6,8 +6,8 @@ import {
 } from '@/lib/storage/adapter';
 import {
   rewriteRelativeMarkdownThemeCssUrls,
-  type RelativeMarkdownThemeCssUrl,
-} from '../cssUrls';
+} from '../cssUrls/rewrite';
+import type { RelativeMarkdownThemeCssUrl } from '../cssUrls/types';
 import {
   hasInvalidImportedThemeFileSize,
   MAX_IMPORTED_THEME_ASSET_BYTES,

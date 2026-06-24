@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -82,6 +82,13 @@ export function DevMainOverlay({
   const clearManagedBudget = useManagedAIStore((state) => state.clearBudget);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
   const [shouldPreviewErrorScreen, setShouldPreviewErrorScreen] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-vlaina-dev-platform-preview', devPlatformPreview);
+    return () => {
+      document.documentElement.removeAttribute('data-vlaina-dev-platform-preview');
+    };
+  }, [devPlatformPreview]);
 
   const handleMarkdownThemeCycle = useCallback(async () => {
     if (isThemeSwitching) return;

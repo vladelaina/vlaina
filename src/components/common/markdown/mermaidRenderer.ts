@@ -1,4 +1,3 @@
-import zenumlDiagram from '@mermaid-js/mermaid-zenuml';
 import { translate } from '@/lib/i18n';
 import { createDefaultMermaidThemeConfig } from '@/lib/notes/mermaid/mermaidTheme';
 
@@ -44,10 +43,13 @@ async function getMermaid() {
   if (!mermaidPromise) {
     mermaidPromise = (async () => {
       try {
-        const m = await import('mermaid');
+        const [m, zenuml] = await Promise.all([
+          import('mermaid'),
+          import('@mermaid-js/mermaid-zenuml'),
+        ]);
         mermaidInstance = m.default;
         mermaidInstance.initialize(createMermaidRenderConfig());
-        await mermaidInstance.registerExternalDiagrams([zenumlDiagram]);
+        await mermaidInstance.registerExternalDiagrams([zenuml.default]);
         return mermaidInstance;
       } catch {
         mermaidAvailable = false;
