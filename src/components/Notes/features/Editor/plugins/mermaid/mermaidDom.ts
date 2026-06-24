@@ -42,7 +42,7 @@ function mermaidRenderTooLargeMarkup(): string {
 }
 
 function mermaidEmptyMarkup(): string {
-  return `<div class="mermaid-empty">${escapeHtmlText(translate('editor.emptyDiagram'))}</div>`;
+  return '<div class="mermaid-empty" aria-hidden="true">\u200b</div>';
 }
 
 function normalizeMermaidRenderMarkup(markup: string): string {

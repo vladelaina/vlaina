@@ -17,6 +17,17 @@ interface LanguageSelectorProps {
     onOpenChange: (open: boolean) => void;
 }
 
+export function filterCodeBlockLanguages(searchTerm: string, languages = codeBlockLanguages) {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return languages;
+
+    return languages.filter(l =>
+        l.name.toLowerCase().includes(term) ||
+        l.id.toLowerCase().includes(term) ||
+        l.aliases?.some(a => a.toLowerCase().includes(term))
+    );
+}
+
 export const LanguageSelector = React.memo(function LanguageSelector({
     language,
     displayName,
@@ -32,13 +43,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     const filteredLanguages = useMemo(() => {
-        if (!searchTerm) return codeBlockLanguages;
-        const term = searchTerm.toLowerCase();
-        return codeBlockLanguages.filter(l =>
-            l.name.toLowerCase().includes(term) ||
-            l.id.toLowerCase().includes(term) ||
-            l.aliases?.some(a => a.toLowerCase().includes(term))
-        );
+        return filterCodeBlockLanguages(searchTerm);
     }, [searchTerm]);
 
     useEffect(() => {

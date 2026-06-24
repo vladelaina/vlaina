@@ -20,6 +20,16 @@ describe('model selector search', () => {
     expect(modelMatchesSelectorSearch(createModel('provider/model-a'), getModelSelectorSearchTerm('missing'))).toBe(false)
   })
 
+  it('trims accidental whitespace around the model search query', () => {
+    expect(modelMatchesSelectorSearch(createModel('openai/gpt-5'), getModelSelectorSearchTerm('  GPT  '))).toBe(true)
+  })
+
+  it('matches compact model queries across separators', () => {
+    expect(modelMatchesSelectorSearch(createModel('openai/gpt-4.1'), getModelSelectorSearchTerm('gpt41'))).toBe(true)
+    expect(modelMatchesSelectorSearch(createModel('anthropic/claude-3.5-sonnet'), getModelSelectorSearchTerm('claude35'))).toBe(true)
+    expect(modelMatchesSelectorSearch(createModel('openai/gpt-4o-mini'), getModelSelectorSearchTerm('gpt 4o'))).toBe(true)
+  })
+
   it('bounds the user search term used for filtering', () => {
     const term = getModelSelectorSearchTerm(`${'x'.repeat(256)}needle`)
 

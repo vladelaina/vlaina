@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-import { LanguageSelector } from './LanguageSelector';
+import { filterCodeBlockLanguages, LanguageSelector } from './LanguageSelector';
 
 vi.mock('@/components/ui/popover', () => ({
   Popover: ({ open, children }: { open: boolean; children?: ReactNode }) => (
@@ -32,6 +32,15 @@ vi.mock('@/components/ui/popover', () => ({
 describe('LanguageSelector', () => {
   beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('trims accidental whitespace before filtering languages', () => {
+    const languages = [
+      { id: 'js', name: 'JavaScript', aliases: ['javascript'] },
+      { id: 'ts', name: 'TypeScript', aliases: ['typescript'] },
+    ];
+
+    expect(filterCodeBlockLanguages('  ts  ', languages).map((language) => language.id)).toEqual(['ts']);
   });
 
   it('uses lowercase capsule options inside the shared pill surface', () => {
