@@ -25,18 +25,16 @@ const EMPTY_SLASH_EMOJI_PREVIEW_STATE: SlashEmojiPreviewState = {
 
 const slashEmojiPreviewPluginKey = new PluginKey<SlashEmojiPreviewState>('slashEmojiPreview');
 
-function markSlashEmojiUserInput(view: EditorView): void {
-  view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
+export function shouldUpdateSlashEmojiPreview(
+  current: SlashEmojiPreviewState | null | undefined,
+  emoji: string,
+  pos: number
+): boolean {
+  return current?.emoji !== emoji || current.pos !== pos;
 }
 
-function alignSlashEmojiPreview(preview: HTMLElement): void {
-  const style = window.getComputedStyle(preview);
-  const fontSize = Number.parseFloat(style.fontSize);
-  const lineHeight = Number.parseFloat(style.lineHeight);
-  if (!Number.isFinite(fontSize) || !Number.isFinite(lineHeight)) return;
-
-  const offset = Math.max(0, Math.min(32, lineHeight - fontSize));
-  preview.style.setProperty('--slash-emoji-preview-offset-y', `${offset}px`);
+function markSlashEmojiUserInput(view: EditorView): void {
+  view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 function createSlashEmojiPreviewDecorations(state: SlashEmojiPreviewState, doc: ProseNode): DecorationSet {
@@ -46,23 +44,22 @@ function createSlashEmojiPreviewDecorations(state: SlashEmojiPreviewState, doc: 
 
   const docSize = doc.content.size;
   const pos = Math.max(0, Math.min(state.pos, docSize));
+  const $pos = doc.resolve(pos);
+  const isInEmptyTextBlock = $pos.parent.isTextblock && $pos.parent.content.size === 0;
 
   return DecorationSet.create(doc, [
     Decoration.widget(
       pos,
       () => {
         const preview = document.createElement('span');
-        preview.className = 'slash-emoji-inline-preview';
+        preview.className = isInEmptyTextBlock
+          ? 'slash-emoji-inline-preview slash-emoji-inline-preview-empty-block'
+          : 'slash-emoji-inline-preview';
         preview.textContent = state.emoji;
         preview.setAttribute('data-slash-emoji-preview', 'true');
         preview.setAttribute('data-no-editor-drag-box', 'true');
         preview.setAttribute('contenteditable', 'false');
         preview.setAttribute('aria-hidden', 'true');
-        requestAnimationFrame(() => {
-          if (preview.isConnected) {
-            alignSlashEmojiPreview(preview);
-          }
-        });
         return preview;
       },
       {
@@ -237,10 +234,16 @@ class SlashEmojiPickerSession {
       return;
     }
 
+    const pos = this.editorView.state.selection.from;
+    const current = slashEmojiPreviewPluginKey.getState(this.editorView.state);
+    if (!shouldUpdateSlashEmojiPreview(current, emoji, pos)) {
+      return;
+    }
+
     this.editorView.dispatch(
       this.editorView.state.tr.setMeta(slashEmojiPreviewPluginKey, {
         emoji,
-        pos: this.editorView.state.selection.from,
+        pos,
       } satisfies SlashEmojiPreviewState)
     );
   };
