@@ -14,6 +14,10 @@ import { mathEditorPluginKey } from './math/mathEditorPluginKey';
 import { createOpenMathEditorState } from './math/mathEditorState';
 import { markEditorUserInput } from './shared/userInputEvents';
 import { getBoundedTextBetween, isEditorTextRangeTooLarge } from './shared/selectionTextLimits';
+import {
+  findInsertedNodePos,
+  moveSelectionAfterInsertedNode,
+} from './shared/insertedNodeSelection';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 function isModShortcut(event: KeyboardEvent): boolean {
@@ -95,15 +99,37 @@ function createMathBlock(view: EditorView): boolean {
   const latex = state.selection.empty || isEditorTextRangeTooLarge(from, to)
     ? ''
     : getBoundedTextBetween(state.doc, from, to, '\n', '\n');
-  const tr = state.tr
-    .replaceRangeWith(from, to, mathBlockType.create({ latex }))
+  const mathNode = mathBlockType.create({ latex });
+  const tr = state.tr.replaceRangeWith(from, to, mathNode);
+  const canResolveInsertedNode =
+    tr.doc
+    && typeof tr.doc.nodeAt === 'function'
+    && typeof tr.doc.nodesBetween === 'function'
+    && typeof tr.doc.content?.size === 'number'
+    && typeof tr.mapping?.map === 'function';
+  const nodePos = canResolveInsertedNode
+    ? findInsertedNodePos({
+        doc: tr.doc,
+        preferredPos: tr.mapping.map(from, -1),
+        nodeTypeName: 'math_block',
+      })
+    : from;
+  if (tr.doc) {
+    moveSelectionAfterInsertedNode({
+      tr,
+      nodePos,
+      insertedNodeFallback: mathNode,
+      paragraphType: state.schema.nodes.paragraph,
+    });
+  }
+  tr
     .setMeta(
       mathEditorPluginKey,
       createOpenMathEditorState({
         latex,
         displayMode: true,
         position: getViewportPosition(view),
-        nodePos: from,
+        nodePos,
         openSource: 'new-empty-block',
       })
     )

@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
+import {
+  defaultValueCtx,
+  Editor,
+  editorViewCtx,
+} from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import { handleMermaidFenceEnter } from './mermaidEnterPlugin';
 import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
+import { mermaidPlugin } from './index';
 
 function createView(args?: {
   text?: string;
@@ -118,6 +126,41 @@ describe('mermaidEnterPlugin', () => {
     expect(tr.setMeta).toHaveBeenCalledWith('addToHistory', false);
     expect(dispatch).toHaveBeenCalledTimes(2);
     expect(dispatch).toHaveBeenNthCalledWith(2, tr);
+  });
+
+  it('moves the cursor after a mermaid block created from the Enter shortcut', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    for (const plugin of mermaidPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const text = '```mermaid';
+      const paragraph = view.state.schema.nodes.paragraph.create(
+        null,
+        view.state.schema.text(text)
+      );
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, paragraph));
+      view.dispatch(view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, 1 + text.length)
+      ));
+
+      expect(handleMermaidFenceEnter(view)).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.doc.child(0).type.name).toBe('mermaid');
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    } finally {
+      await editor.destroy();
+    }
   });
 
   it('supports flow as a diagram fence alias', () => {

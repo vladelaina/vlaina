@@ -7,11 +7,15 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import { icons } from '@/components/ui/icons/registry';
 import { normalizeSerializedMarkdownDocument, stripTrailingNewlines } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { htmlBlockEditorPluginKey } from '../html-block/htmlBlockEditorPlugin';
+import { mathPlugin } from '../math';
+import { mermaidPlugin } from '../mermaid';
+import { tocPlugin } from '../toc';
 import { applySlashCommand } from './slashCommands';
 import {
   collectFootnoteIds,
@@ -190,6 +194,41 @@ describe('slashCommandDefinitions', () => {
     expect(tr.scrollIntoView).toHaveBeenCalled();
     expect(domDispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'editor:block-user-input' }));
     expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it.each([
+    { commandId: 'equation' as const, expectedNodeType: 'math_block' },
+    { commandId: 'inline-math' as const, expectedNodeType: 'math_inline' },
+    { commandId: 'mermaid' as const, expectedNodeType: 'mermaid' },
+    { commandId: 'toc' as const, expectedNodeType: 'toc' },
+  ])('moves the selection off a slash-created $commandId node before opening its editor', async ({
+    commandId,
+    expectedNodeType,
+  }) => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    for (const plugin of [...mathPlugin, ...mermaidPlugin, ...tocPlugin]) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    applySlashCommand(editor.ctx, commandId);
+
+    const view = editor.ctx.get(editorViewCtx);
+    const nodes: string[] = [];
+    view.state.doc.descendants((node) => {
+      nodes.push(node.type.name);
+    });
+
+    expect(nodes).toContain(expectedNodeType);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+
+    await editor.destroy();
   });
 });
 

@@ -191,6 +191,48 @@ describe('resolvePendingMarkdownUpdate', () => {
     ].join('\n'));
   });
 
+  it('normalizes leaked editor artifact comments out of display math before note state', () => {
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          '$$',
+          '<!--vlaina-markdown-blank-line-->',
+          'hi',
+          '<!--vlaina-rendered-html-boundary-blank-line-->',
+          '<!--vlaina-markdown-tight-heading-->',
+          '$$',
+          '',
+        ].join('\n'),
+        '',
+      ),
+    ).toBe(['$$', 'hi', '$$'].join('\n'));
+  });
+
+  it('does not persist known editor-only markers from snapshot output', () => {
+    const result = serializeEditorMarkdownSnapshot(
+      [
+        'Before',
+        '<!--vlaina-markdown-blank-line-->',
+        '<br data-vlaina-empty-line="true" />',
+        '��VLAINA_LIST_GAP_SENTINEL��',
+        '<br data-vlaina-user-br="true" />',
+        '��VLAINA_USER_BR_SENTINEL��',
+        '\u200B',
+        '\u200B\u200C',
+        '\u2800',
+        'After',
+        '',
+      ].join('\n'),
+      '',
+    );
+
+    expect(result).not.toMatch(
+      /vlaina-markdown-|vlaina-rendered-html-boundary|data-vlaina|VLAINA_|\u200B|\u200C|\u2800|�/i,
+    );
+    expect(result).toContain('Before');
+    expect(result).toContain('After');
+  });
+
   it('preserves user-authored rendered HTML boundary comments outside helper positions', () => {
     expect(
       serializeEditorMarkdownSnapshot(

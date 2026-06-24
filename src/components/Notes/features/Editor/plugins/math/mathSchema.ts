@@ -4,10 +4,48 @@ import type { MathBlockAttrs, MathInlineAttrs } from './types';
 import { renderLatex } from './katex';
 
 const MAX_LEGACY_MATH_DATA_LATEX_CHARS = 10000;
+const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
+const RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN =
+  /^\s*<!--\s*vlaina-rendered-html-boundary-blank-line\s*-->\s*$/i;
+const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
 const mathElementLatex = new WeakMap<HTMLElement, string>();
 
 export function normalizeMathLatexAttr(value: unknown): string {
-  return typeof value === 'string' ? value : '';
+  if (typeof value !== 'string') return '';
+  return normalizeMathLatexInternalArtifacts(value);
+}
+
+function normalizeMathLatexInternalArtifacts(latex: string): string {
+  if (!/vlaina-(?:markdown|rendered-html-boundary)/i.test(latex)) {
+    return latex;
+  }
+
+  let changed = false;
+  const lines = latex.split('\n').map((line) => {
+    if (
+      INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)
+      || RENDERED_HTML_BOUNDARY_BLANK_LINE_COMMENT_PATTERN.test(line)
+    ) {
+      changed = true;
+      return '';
+    }
+    if (INTERNAL_TIGHT_HEADING_COMMENT_PATTERN.test(line)) {
+      changed = true;
+      return '';
+    }
+    return line;
+  });
+
+  if (!changed) return latex;
+
+  while (lines.length > 0 && (lines[0] ?? '').trim() === '') {
+    lines.shift();
+  }
+  while (lines.length > 0 && (lines[lines.length - 1] ?? '').trim() === '') {
+    lines.pop();
+  }
+
+  return lines.join('\n');
 }
 
 function emptyMathMarkup() {
@@ -38,7 +76,7 @@ export function getMathElementLatex(element: HTMLElement) {
 
 export function parseMathAttrs(dom: HTMLElement) {
   return {
-    latex: getMathElementLatex(dom),
+    latex: normalizeMathLatexAttr(getMathElementLatex(dom)),
   };
 }
 

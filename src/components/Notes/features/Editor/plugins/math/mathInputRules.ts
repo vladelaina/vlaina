@@ -4,6 +4,10 @@ import {
   getMathBlockLatexFromInputMatch,
   MATH_BLOCK_INPUT_RULE_PATTERN,
 } from './mathBlockFence';
+import {
+  findInsertedNodePos,
+  moveSelectionAfterInsertedNode,
+} from '../shared/insertedNodeSelection';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
@@ -18,7 +22,12 @@ export function applyMathBlockInputRule(
         replaceSelectionWith: (node: any, inheritMarks?: boolean) => any;
       };
     };
-    schema: { nodes: { math_block?: { create: (attrs: { latex: string }) => any } } };
+    schema: {
+      nodes: {
+        math_block?: { create: (attrs: { latex: string }) => any };
+        paragraph?: { create: () => any };
+      };
+    };
   },
   match: RegExpMatchArray,
   start: number,
@@ -32,9 +41,12 @@ export function applyMathBlockInputRule(
     return null;
   }
 
-  return tr
+  const mathNode = mathBlockType.create({ latex });
+  const nextTr = tr
     .delete(start, end)
-    .replaceSelectionWith(mathBlockType.create({ latex }));
+    .replaceSelectionWith(mathNode);
+
+  return moveSelectionAfterMathInputRuleNode(nextTr, start, 'math_block', mathNode, schema.nodes.paragraph);
 }
 
 export function applyMathInlineInputRule(
@@ -44,7 +56,12 @@ export function applyMathInlineInputRule(
         replaceSelectionWith: (node: any, inheritMarks?: boolean) => any;
       };
     };
-    schema: { nodes: { math_inline?: { create: (attrs: { latex: string }) => any } } };
+    schema: {
+      nodes: {
+        math_inline?: { create: (attrs: { latex: string }) => any };
+        paragraph?: { create: () => any };
+      };
+    };
   },
   match: RegExpMatchArray,
   start: number,
@@ -58,9 +75,37 @@ export function applyMathInlineInputRule(
     return null;
   }
 
-  return tr
+  const mathNode = mathInlineType.create({ latex });
+  const nextTr = tr
     .delete(start, end)
-    .replaceSelectionWith(mathInlineType.create({ latex }));
+    .replaceSelectionWith(mathNode);
+
+  return moveSelectionAfterMathInputRuleNode(nextTr, start, 'math_inline', mathNode, schema.nodes.paragraph);
+}
+
+function moveSelectionAfterMathInputRuleNode(
+  tr: any,
+  start: number,
+  nodeTypeName: string,
+  node: { nodeSize?: number; isInline?: boolean },
+  paragraphType?: { create: () => any },
+) {
+  if (!tr?.doc || typeof tr.mapping?.map !== 'function') {
+    return tr;
+  }
+
+  const preferredPos = tr.mapping.map(start, -1);
+  const nodePos = findInsertedNodePos({
+    doc: tr.doc,
+    preferredPos,
+    nodeTypeName,
+  });
+  return moveSelectionAfterInsertedNode({
+    tr,
+    nodePos,
+    insertedNodeFallback: node,
+    paragraphType,
+  });
 }
 
 export const mathBlockInputRule = $inputRule(() => {

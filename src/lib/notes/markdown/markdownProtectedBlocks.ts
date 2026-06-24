@@ -16,10 +16,12 @@ const NEVER_CLOSE_HTML_BLOCK_PATTERN = /$a/;
 type FenceLine = { infoStart: number; length: number; marker: string };
 type FenceState = { marker: string; length: number };
 type HtmlBlockState = { closePattern: RegExp; rawTagName?: string };
+type MathBlockState = { style: 'dollar' | 'bracket' };
 
 interface ProtectedSegmentOptions {
   protectHtmlBlocks?: boolean;
   protectHtmlComments?: boolean;
+  protectMathBlocks?: boolean;
 }
 
 export function mapMarkdownOutsideProtectedBlocks(
@@ -51,8 +53,10 @@ export function mapMarkdownOutsideProtectedSegments(
   let segmentStartIndex = 0;
   let activeFence: FenceState | null = null;
   let activeHtmlBlock: HtmlBlockState | null = null;
+  let activeMathBlock: MathBlockState | null = null;
   let activeIndentedCode = false;
   const protectHtmlComments = options.protectHtmlComments !== false;
+  const protectMathBlocks = options.protectMathBlocks !== false;
 
   const flushSegment = (nextIndex: number) => {
     if (segment.length === 0) {
@@ -101,6 +105,13 @@ export function mapMarkdownOutsideProtectedSegments(
       return;
     }
 
+    if (protectMathBlocks && activeMathBlock) {
+      flushSegment(index + 1);
+      output.push(line);
+      activeMathBlock = nextMathBlockState(line, activeMathBlock);
+      return;
+    }
+
     const content = getMarkdownBlockContent(line);
     if (isIndentedCodeBlockLine(content) && canStartIndentedCodeBlock(lines, index)) {
       flushSegment(index + 1);
@@ -126,6 +137,14 @@ export function mapMarkdownOutsideProtectedSegments(
       return;
     }
 
+    const mathBlock = protectMathBlocks ? nextMathBlockState(line, null) : null;
+    if (mathBlock) {
+      flushSegment(index + 1);
+      output.push(line);
+      activeMathBlock = mathBlock;
+      return;
+    }
+
     if (segment.length === 0) {
       segmentStartIndex = index;
     }
@@ -134,6 +153,40 @@ export function mapMarkdownOutsideProtectedSegments(
 
   flushSegment(lines.length);
   return output.join('\n');
+}
+
+function nextMathBlockState(line: string, activeMathBlock: MathBlockState | null): MathBlockState | null {
+  const content = getMarkdownBlockContent(line);
+
+  if (activeMathBlock?.style === 'dollar') {
+    return isDollarMathBlockFenceLine(content) ? null : activeMathBlock;
+  }
+
+  if (activeMathBlock?.style === 'bracket') {
+    return isBracketMathBlockCloseLine(content) ? null : activeMathBlock;
+  }
+
+  if (isDollarMathBlockFenceLine(content)) {
+    return { style: 'dollar' };
+  }
+
+  if (isBracketMathBlockOpenLine(content)) {
+    return { style: 'bracket' };
+  }
+
+  return null;
+}
+
+function isDollarMathBlockFenceLine(content: string): boolean {
+  return /^(?: {0,3})\$\$\s*$/.test(content);
+}
+
+function isBracketMathBlockOpenLine(content: string): boolean {
+  return /^(?: {0,3})\\\[\s*$/.test(content);
+}
+
+function isBracketMathBlockCloseLine(content: string): boolean {
+  return /^(?: {0,3})\\\]\s*$/.test(content);
 }
 
 function nextFenceState(line: string, activeFence: FenceState | null): FenceState | null {

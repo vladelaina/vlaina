@@ -776,6 +776,66 @@ describe('usePendingMarkdownAutosave', () => {
     }
   });
 
+  it('normalizes leaked editor-only comments out of display math before publishing live previews', () => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+    const previewListener = vi.fn();
+    window.addEventListener('editor:note-markdown-preview', previewListener);
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: ['$$', 'hi', '$$'].join('\n'),
+      updateContent,
+      debouncedSave,
+    }));
+
+    const rawMarkdown = [
+      '$$',
+      '<!--vlaina-markdown-blank-line-->',
+      'hi',
+      '<!--vlaina-markdown-blank-line-->',
+      '$$',
+    ].join('\n');
+    const expected = ['$$', 'hi', '$$'].join('\n');
+
+    try {
+      act(() => {
+        result.current.createUserInputMarker(editorView as never, null)(
+          new CustomEvent('editor:math-user-input')
+        );
+        result.current.configureMarkdownListener(ctx, expected)(rawMarkdown);
+        vi.advanceTimersByTime(16);
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(previewListener).toHaveBeenCalledTimes(1);
+      expect(previewListener.mock.calls[0]?.[0]).toMatchObject({
+        detail: {
+          path: 'docs/alpha.md',
+          content: expected,
+        },
+      });
+      expect(updateContent).toHaveBeenCalledWith(expected);
+      expect(previewListener.mock.calls[0]?.[0].detail.content).not.toContain(
+        'vlaina-markdown-blank-line'
+      );
+    } finally {
+      window.removeEventListener('editor:note-markdown-preview', previewListener);
+    }
+  });
+
   it('preserves user-authored rendered HTML boundary comments in live previews', () => {
     (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
       .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;

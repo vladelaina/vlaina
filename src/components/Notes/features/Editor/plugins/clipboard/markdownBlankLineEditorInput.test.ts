@@ -87,6 +87,28 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
   });
 
+  it('does not inject editor blank-line comments inside display math blocks', () => {
+    const dollarMath = ['$$', '', 'hi', '', '$$'].join('\n');
+    const bracketMath = ['\\[', '', 'x^2', '', '\\]'].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(dollarMath)).toBe(dollarMath);
+    expect(preserveMarkdownBlankLinesForEditor(bracketMath)).toBe(bracketMath);
+  });
+
+  it('keeps editor blank-line comments outside adjacent display math blocks', () => {
+    const markdown = ['$$', 'hi', '$$', '', '$$', 'bye', '$$'].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe([
+      '$$',
+      'hi',
+      '$$',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      '$$',
+      'bye',
+      '$$',
+    ].join('\n'));
+  });
+
   it('handles long blank line runs inside indented code blocks within the default test timeout', () => {
     const blankRun = Array.from({ length: 8_000 }, () => '').join('\n');
     const markdown = ['    before', blankRun, '    after', '', 'body'].join('\n');

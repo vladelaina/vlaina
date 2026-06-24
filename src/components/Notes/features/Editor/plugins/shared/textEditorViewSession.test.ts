@@ -167,6 +167,24 @@ describe('createTextEditorViewSession', () => {
     session.destroy();
   });
 
+  it('renders live preview immediately when debounce is disabled', () => {
+    vi.useFakeTimers();
+    const { previewInput, refs, session } = createSessionHarness({ previewInputDebounceMs: 0 });
+
+    session.update();
+    typeInTextarea(refs.textareaElement!, 'instant');
+
+    expect(previewInput).toHaveBeenCalledTimes(1);
+    expect(previewInput).toHaveBeenLastCalledWith(expect.objectContaining({
+      value: 'instant',
+    }));
+
+    vi.advanceTimersByTime(25);
+    expect(previewInput).toHaveBeenCalledTimes(1);
+
+    session.destroy();
+  });
+
   it('marks editor user input when the popup textarea changes', () => {
     const { editorDom, refs, session } = createSessionHarness({ previewInputDebounceMs: 1_000 });
     const userInputListener = vi.fn();

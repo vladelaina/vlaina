@@ -470,6 +470,7 @@ function createHtmlBlockEditorViewSession(args: {
     getAnchorViewportPosition: getHtmlBlockAnchorViewportPosition,
     scrollPopupIntoViewOnInitialRender: true,
     constrainTextareaHeightToViewport: false,
+    previewInputDebounceMs: 0,
     previewInput({ value, resolveAnchor, scheduleResize }) {
       renderHtmlBlockEditorLivePreview({ anchor: resolveAnchor(), value });
       scheduleResize();

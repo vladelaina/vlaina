@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   getMathElementLatex,
+  normalizeMathLatexAttr,
   parseMathAttrs,
   parseMathBlockFromMarkdown,
   parseMathInlineFromMarkdown,
@@ -18,6 +19,26 @@ describe('mathSchema', () => {
     expect(parseMathAttrs(dom)).toEqual({
       latex: '\\frac{1}{2}',
     });
+  });
+
+  it('normalizes leaked editor blank-line comments out of math attrs', () => {
+    expect(normalizeMathLatexAttr([
+      '<!--vlaina-markdown-blank-line-->',
+      'hi',
+      '<!--vlaina-markdown-blank-line-->',
+    ].join('\n'))).toBe('hi');
+
+    expect(normalizeMathLatexAttr([
+      'a = b',
+      '<!--vlaina-markdown-blank-line-->',
+      'c = d',
+    ].join('\n'))).toBe(['a = b', '', 'c = d'].join('\n'));
+
+    expect(normalizeMathLatexAttr([
+      '<!--vlaina-rendered-html-boundary-blank-line-->',
+      'x',
+      '<!--vlaina-markdown-tight-heading-->',
+    ].join('\n'))).toBe('x');
   });
 
   it('bounds legacy latex attrs parsed from wrapper dataset', () => {

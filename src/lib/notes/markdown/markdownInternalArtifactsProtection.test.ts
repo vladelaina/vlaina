@@ -83,6 +83,38 @@ describe('markdown internal artifact protection', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('cleans leaked editor artifact comments inside display math blocks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument([
+        '$$',
+        '<!--vlaina-markdown-blank-line-->',
+        'hi',
+        '<!--vlaina-markdown-blank-line-->',
+        '$$',
+      ].join('\n'))
+    ).toBe(['$$', 'hi', '$$'].join('\n'));
+
+    expect(
+      normalizeSerializedMarkdownDocument([
+        '$$',
+        'a = b',
+        '<!--vlaina-markdown-blank-line-->',
+        'c = d',
+        '$$',
+      ].join('\n'))
+    ).toBe(['$$', 'a = b', '', 'c = d', '$$'].join('\n'));
+
+    expect(
+      normalizeSerializedMarkdownDocument([
+        '\\[',
+        '<!--vlaina-rendered-html-boundary-blank-line-->',
+        'x',
+        '<!--vlaina-markdown-tight-heading-->',
+        '\\]',
+      ].join('\n'))
+    ).toBe(['\\[', 'x', '\\]'].join('\n'));
+  });
+
   it('preserves list gap placeholders inside longer fenced code blocks', () => {
     const markdown = [
       '````markdown',

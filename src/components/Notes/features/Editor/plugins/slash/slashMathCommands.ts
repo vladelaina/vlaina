@@ -2,7 +2,11 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { mathEditorPluginKey } from '../math/mathEditorPluginKey';
 import { createOpenMathEditorState } from '../math/mathEditorState';
-import { findInsertedNodePos, getSlashInsertViewportPosition } from './slashInsertUtils';
+import {
+  findInsertedNodePos,
+  getSlashInsertViewportPosition,
+  moveSelectionAfterInsertedNode,
+} from './slashInsertUtils';
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
   view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
@@ -23,6 +27,12 @@ export function insertMathNodeAndOpenEditor(ctx: Ctx, nodeType: 'math_block' | '
       doc: tr.doc,
       preferredPos,
       nodeTypeName: nodeType,
+    });
+    moveSelectionAfterInsertedNode({
+      tr,
+      nodePos,
+      insertedNodeFallback: node,
+      paragraphType: state.schema.nodes.paragraph,
     });
 
     tr
