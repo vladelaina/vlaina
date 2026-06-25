@@ -9,6 +9,7 @@ const TOC_SHORTCUT_PATTERN = /^\s*(?:\[toc\]|\{:toc\})\s*$/i;
 const HTML_HARD_BREAK_PATTERN = /<br\s*\/?>/i;
 const LINE_ENDING_PATTERN = /\r\n?/g;
 const TRAILING_WHITESPACE_PATTERN = /[ \t]*$/;
+const STANDALONE_SINGLE_BACKSLASH_LINE_PATTERN = /^(\s*)\\([ \t]*)$/;
 
 export const normalizeMarkdownLineEndings = (value: string) => value.replace(LINE_ENDING_PATTERN, '\n');
 
@@ -51,6 +52,10 @@ function escapeParagraphTrailingBackslashLine(
   lines: readonly string[],
 ): string {
   if (!hasSingleTrailingBackslash(line)) return line;
+  const standaloneSingleBackslashMatch = STANDALONE_SINGLE_BACKSLASH_LINE_PATTERN.exec(line);
+  if (standaloneSingleBackslashMatch) {
+    return `${standaloneSingleBackslashMatch[1] ?? ''}\\\\${standaloneSingleBackslashMatch[2] ?? ''}`;
+  }
   if (TOC_SHORTCUT_PATTERN.test(line)) return line;
   if (BLOCK_MARKDOWN_LINE_PATTERN.test(line)) return line;
   if (HTML_HARD_BREAK_PATTERN.test(line)) return line;

@@ -17,6 +17,7 @@ import {
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { expectPersistedMarkdownToBeClean } from './persistedMarkdownAssertions';
+import { backslashHardBreakTextPlugins } from '../hard-break';
 
 const EMPTY_LINE_PLACEHOLDER = '\u200B';
 
@@ -72,7 +73,8 @@ async function serializeMarkdownThroughEditor(
       }));
     })
     .use(commonmark)
-    .use(gfm);
+    .use(gfm)
+    .use(backslashHardBreakTextPlugins);
 
   await editor.create();
   const view = editor.ctx.get(editorViewCtx);
@@ -185,6 +187,18 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
 
   it('round trips existing markdown blank lines through the editor parser and serializer', async () => {
     await expectEditorMarkdown(['1', '', '2', '', '', '3'].join('\n'));
+  });
+
+  it('keeps a line-start standalone backslash from joining the following line on reopen', async () => {
+    const persisted = ['\\\\', '下一行'].join('\n');
+    await expectEditorMarkdown(['\\', '下一行'].join('\n'), persisted);
+    await expectEditorMarkdown(persisted, persisted);
+  });
+
+  it('keeps a leading blank line before a standalone backslash stable on reopen', async () => {
+    const persisted = ['', '\\\\', '下一行'].join('\n');
+    await expectEditorMarkdown(['', '\\', '下一行'].join('\n'), persisted);
+    await expectEditorMarkdown(persisted, persisted);
   });
 
   it('persists editor-created paragraph line breaks so they survive reopen', async () => {
