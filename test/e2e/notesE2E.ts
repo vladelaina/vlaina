@@ -186,19 +186,23 @@ export async function openMarkdownFixture(
       await expect.poll(async () => page.evaluate(() => {
         const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
         const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks();
+        const state = (window as any).__vlainaE2E.getNotesState();
         return {
+          currentNotePath: state.currentNote?.path ?? null,
           hasEditor: Boolean(editor),
           textLength: editor?.textContent?.trim().length ?? 0,
           selectableCount: blocks.length,
           hasSourceFallback: Boolean(document.querySelector('[data-note-source-fallback="true"]')),
         };
       }), { timeout: 30_000 }).toMatchObject({
+        currentNotePath: notePath,
         hasEditor: true,
         hasSourceFallback: false,
         selectableCount: expect.any(Number),
       });
       await expect(page.locator(EDITOR_SELECTOR)).toBeVisible({ timeout: 30_000 });
       await expect(page.locator(NOTE_SOURCE_FALLBACK_SELECTOR)).toHaveCount(0);
+      await waitForEditorAnimationFrame(page);
 
       return {
         notePath,
