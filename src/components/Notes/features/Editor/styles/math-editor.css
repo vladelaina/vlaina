@@ -13,10 +13,19 @@
   max-width: 100%;
   margin: var(--vlaina-space-1rem) var(--vlaina-space-0);
   padding: var(--vlaina-space-1rem);
+  white-space: normal;
   overflow-x: auto;
   overflow-y: hidden;
   box-sizing: border-box;
   cursor: pointer;
+}
+
+.milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {
+  white-space: normal;
+}
+
+.milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {
+  white-space: pre;
 }
 
 .milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {

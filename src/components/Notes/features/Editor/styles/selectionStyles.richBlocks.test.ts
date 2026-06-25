@@ -174,6 +174,21 @@ describe("editor rich block selection styles", () => {
     expect(rule).not.toContain(':has(');
   });
 
+  it('keeps raw html block descendants on GitHub-like whitespace while preserving pre blocks', () => {
+    const themeCompatibilityCss = readThemeCompatibilityStyle();
+    const rawHtmlWhitespaceRule = extractCssRule(
+      themeCompatibilityCss,
+      ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {"
+    );
+    const rawHtmlPreWhitespaceRule = extractCssRule(
+      themeCompatibilityCss,
+      ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {"
+    );
+
+    expect(rawHtmlWhitespaceRule).toContain('white-space: normal;');
+    expect(rawHtmlPreWhitespaceRule).toContain('white-space: pre;');
+  });
+
   it('keeps code block drag previews transparent while carrying the code block frame', () => {
     const codeCss = readStyleFile('code-block.css');
     const themeCompatibilityCss = readThemeCompatibilityStyle();
@@ -342,6 +357,14 @@ describe("editor rich block selection styles", () => {
       mathCss,
       ".milkdown [data-type='html-block'].md-htmlblock-container:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
     );
+    const htmlBlockDescendantRule = extractCssRule(
+      mathCss,
+      ".milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {"
+    );
+    const htmlBlockPreDescendantRule = extractCssRule(
+      mathCss,
+      ".milkdown [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {"
+    );
     const literalHtmlBlockRule = extractCssRule(
       mathCss,
       ".milkdown [data-type='html-block'].md-htmlblock-container.md-htmlblock-literal-text:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) {"
@@ -392,6 +415,9 @@ describe("editor rich block selection styles", () => {
       indexCss.indexOf("@import './math-editor.css';")
     );
     expect(htmlBlockRule).toContain('overflow-x: auto;');
+    expect(htmlBlockRule).toContain('white-space: normal;');
+    expect(htmlBlockDescendantRule).toContain('white-space: normal;');
+    expect(htmlBlockPreDescendantRule).toContain('white-space: pre;');
     expect(literalHtmlBlockRule).toContain('overflow: visible;');
     expect(literalHtmlBlockRule).toContain('overflow-x: visible;');
     expect(literalHtmlBlockRule).toContain('overflow-y: visible;');

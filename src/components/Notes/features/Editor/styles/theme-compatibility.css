@@ -6,6 +6,14 @@
 @import './theme-compatibility/typora.css';
 @import './theme-compatibility/typora-extensions.css';
 
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) * {
+  white-space: normal;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']) :is(pre, pre *) {
+  white-space: pre;
+}
+
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected,
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-drag-source,
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected,

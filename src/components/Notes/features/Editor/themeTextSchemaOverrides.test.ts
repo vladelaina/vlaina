@@ -53,6 +53,21 @@ describe('themeTextSchemaOverrides', () => {
     expect(element.textContent).toBe('');
   });
 
+  it('renders multiline raw html paragraphs as html so browser whitespace rules can collapse them', () => {
+    const element = document.createElement('div');
+    const value = [
+      '<p> 标签创建的html的编辑',
+      '                  1. 还有复制的识别</p>',
+    ].join('\n');
+
+    renderRawMarkdownHtmlValueIntoElement(element, value);
+
+    expect(element.classList.contains('md-htmlblock-literal-text')).toBe(false);
+    expect(element.querySelector('p')).toBeInstanceOf(HTMLParagraphElement);
+    expect(element.querySelector('br')).toBeNull();
+    expect(element.dataset.value).toBe(value);
+  });
+
   it('sanitizes unsafe raw markdown HTML values', () => {
     expect(sanitizeRawMarkdownHtmlValue('<img src="javascript:alert(1)" onerror="alert(1)">')).toBe('<img>');
   });
