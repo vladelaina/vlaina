@@ -23,7 +23,6 @@ const EDITOR_TIGHT_HEADING_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
 const EDITOR_NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER = EDITOR_TIGHT_HEADING_PLACEHOLDER;
 const LIST_GAP_PLACEHOLDER = '\u2800';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
-const MAX_CONSECUTIVE_EDITOR_BLANK_LINES = 8;
 const HARD_BREAK_LINE_PATTERN = /(?:\\| {2,})$/;
 const INLINE_TERMINAL_LIST_BR_PATTERN =
   /^(\s*(?:>\s*)*)((?:[-+*])|(\d+[.)]))\s+(?:\[(?: |x|X)\]\s+)?(.+?)<br\s*\/?>\s*$/i;
@@ -68,8 +67,7 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
 
   const expandedText = expandInlineTerminalListBreaksForEditor(text);
   const escapedText = escapeParagraphTrailingBackslashesForEditor(expandedText);
-  const collapsedText = collapseExcessiveBlankLineRunsForEditor(escapedText);
-  const preserved = mapMarkdownOutsideProtectedBlocks(collapsedText, (line, index, lines) => {
+  const preserved = mapMarkdownOutsideProtectedBlocks(escapedText, (line, index, lines) => {
     const emptyListItemMatch = EMPTY_LIST_ITEM_LINE_PATTERN.exec(line);
     if (emptyListItemMatch) {
       return `${emptyListItemMatch[1]} ${EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER}`;
@@ -279,29 +277,6 @@ function expandInlineTerminalListBreaksForEditor(text: string): string {
       return `${lineWithoutBreak}\\\n${continuationIndent}<br />`;
     }).join('\n')
   );
-}
-
-function collapseExcessiveBlankLineRunsForEditor(text: string): string {
-  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
-    const lines = segment.split('\n');
-    const output: string[] = [];
-    let blankRunLength = 0;
-
-    for (const line of lines) {
-      if (line.trim() === '') {
-        blankRunLength += 1;
-        if (blankRunLength <= MAX_CONSECUTIVE_EDITOR_BLANK_LINES) {
-          output.push(line);
-        }
-        continue;
-      }
-
-      blankRunLength = 0;
-      output.push(line);
-    }
-
-    return output.join('\n');
-  });
 }
 
 function getEditorBlankLinePlaceholder(
