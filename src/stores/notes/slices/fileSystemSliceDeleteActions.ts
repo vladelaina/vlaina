@@ -26,6 +26,7 @@ import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlush
 import { setCachedNoteContent } from '../document/noteContentCache';
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
+import { pruneNoteNavigationHistoryForExternalDeletion } from '../document/noteNavigationHistory';
 import {
   pruneOpenTabsForExternalDeletion,
   shouldRemoveForExternalDeletion,
@@ -332,6 +333,12 @@ export function createFileSystemDeleteActions(
           noteMetadata: latestMetadata,
           noteContentsCache: nextNoteContentsCache,
           rootFolder: nextRootFolder ?? latestRootFolder,
+          ...pruneNoteNavigationHistoryForExternalDeletion(
+            latestState.noteNavigationHistory,
+            latestState.noteNavigationHistoryIndex,
+            deletedPath,
+            preserveDirtyDeletedCurrentNote ? latestCurrentNote?.path ?? null : null,
+          ),
           pendingDeletedItems: [
             ...latestState.pendingDeletedItems,
             pendingDeletedItem,
@@ -496,6 +503,12 @@ export function createFileSystemDeleteActions(
           noteMetadata: latestMetadata,
           noteContentsCache: nextNoteContentsCache,
           rootFolder: nextRootFolder ?? latestRootFolder,
+          ...pruneNoteNavigationHistoryForExternalDeletion(
+            latestState.noteNavigationHistory,
+            latestState.noteNavigationHistoryIndex,
+            deletedPath,
+            preserveDirtyDeletedCurrentNote ? latestCurrentNote?.path ?? null : null,
+          ),
           pendingDeletedItems: [
             ...latestState.pendingDeletedItems,
             pendingDeletedItem,

@@ -359,6 +359,8 @@ function resetNotesWorkspaceForVaultTransition(
     isDirty: preservedWorkspace?.isDirty ?? false,
     openTabs: preservedWorkspace?.openTabs ?? [],
     recentlyClosedTabs: [],
+    noteNavigationHistory: [],
+    noteNavigationHistoryIndex: -1,
     rootFolder: transitionRootFolder,
     rootFolderPath: transitionRootFolderPath,
     notesPath,

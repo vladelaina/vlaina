@@ -12,6 +12,7 @@ import {
   setNoteEntry,
 } from '../storage';
 import { removeCachedNoteContent, setCachedNoteContent } from '../document/noteContentCache';
+import { remapNoteNavigationHistoryForExternalRename } from '../document/noteNavigationHistory';
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
@@ -191,6 +192,12 @@ export async function saveDraftNote({
     recentNotes: nextRecentNotes,
     displayNames: nextDisplayNames,
     draftNotes: nextDraftNotes,
+    ...remapNoteNavigationHistoryForExternalRename(
+      latestState.noteNavigationHistory,
+      latestState.noteNavigationHistoryIndex,
+      currentNote.path,
+      savedPath,
+    ),
     pendingDraftDiscardPath:
       latestState.pendingDraftDiscardPath === currentNote.path
         ? null

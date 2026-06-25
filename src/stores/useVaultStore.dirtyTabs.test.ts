@@ -175,6 +175,8 @@ describe('useVaultStore dirty note protection', () => {
       },
       rootFolderPath: '/vault/old',
       recentlyClosedTabs: [{ tab: { path: 'old.md', name: 'old', isDirty: false }, index: 0 }],
+      noteNavigationHistory: ['older.md', 'current.md'],
+      noteNavigationHistoryIndex: 1,
       noteContentsCache: new Map([['current.md', { content: 'Current', modifiedAt: null }]]),
       displayNames: new Map([['current.md', 'current']]),
     });
@@ -188,6 +190,8 @@ describe('useVaultStore dirty note protection', () => {
       isDirty: false,
       openTabs: [],
       recentlyClosedTabs: [],
+      noteNavigationHistory: [],
+      noteNavigationHistoryIndex: -1,
       rootFolder: expect.objectContaining({
         children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
       }),
