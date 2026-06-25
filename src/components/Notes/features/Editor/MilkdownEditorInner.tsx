@@ -58,7 +58,10 @@ import {
 } from './plugins/frontmatter/frontmatterMarkdown';
 import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
 import { serializeEditorMarkdownSnapshot } from './utils/pendingMarkdownUpdate';
-import { createDocumentStartTextSelection } from './utils/editorSelection';
+import {
+  createDocumentFirstLineEndTextSelection,
+  createDocumentStartTextSelection,
+} from './utils/editorSelection';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
 import {
   blankAreaDragBoxPluginKey,
@@ -331,7 +334,7 @@ function createPreservedEditorSelection(doc: ProseNode, previousSelection: Selec
 }
 
 export function normalizeInitialEditorSelection(view: EditorView): boolean {
-  const nextSelection = createDocumentStartTextSelection(view.state.doc);
+  const nextSelection = createDocumentFirstLineEndTextSelection(view.state.doc);
   if (!(nextSelection instanceof TextSelection) || nextSelection.eq(view.state.selection)) {
     return false;
   }
@@ -383,7 +386,7 @@ export function replaceEditorMarkdown(
 
   if (options.resetSelection) {
     tr = tr
-      .setSelection(createDocumentStartTextSelection(tr.doc))
+      .setSelection(createDocumentFirstLineEndTextSelection(tr.doc))
       .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
   } else if (canPreserveSelection(tr.doc, previousSelection)) {
     tr = tr.setSelection(createPreservedEditorSelection(tr.doc, previousSelection));
@@ -959,14 +962,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
   useEffect(() => {
     if (!active || !get || hasAutoFocused.current || hasScheduledAutoFocus.current) return;
-    const blockedReason = isNewlyCreated
-      ? 'new-note-title-autofocus'
-      : shouldKeepFocusOnEmptyDraftTitle
-        ? 'empty-draft-title-autofocus'
-      : !isEmptyContent
-        ? 'non-empty-content'
-        : null;
-    if (blockedReason) {
+    if (isNewlyCreated || shouldKeepFocusOnEmptyDraftTitle) {
       return;
     }
 
@@ -986,12 +982,11 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     };
   }, [
     active,
+    activatedRevision,
     currentNotePath,
     focusEditorBody,
     get,
-    isDraftNote,
     isNewlyCreated,
-    isEmptyContent,
     shouldKeepFocusOnEmptyDraftTitle,
   ]);
 
