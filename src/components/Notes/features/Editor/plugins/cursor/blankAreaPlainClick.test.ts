@@ -359,6 +359,64 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
     });
   });
 
+  it('uses the clicked visual line start for list item leading space', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 24,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            contentLineRects: [
+              { left: 96, top: 80, right: 180, bottom: 100 },
+            ],
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 88,
+        clientY: 90,
+      })
+    ).toEqual({
+      targetPos: 5,
+      bias: 1,
+      blockFrom: 4,
+    });
+  });
+
+  it('uses the clicked visual line start for the narrow task checkbox-to-text gap', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 24,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            contentLineRects: [
+              { left: 96, top: 80, right: 180, bottom: 100 },
+            ],
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 95,
+        clientY: 90,
+      })
+    ).toEqual({
+      targetPos: 5,
+      bias: 1,
+      blockFrom: 4,
+    });
+  });
+
   it('leaves left-side list item gaps to the editor native handler', () => {
     expect(
       resolveInsideBlockTrailingPlainClickAction({
@@ -420,6 +478,74 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
 });
 
 describe('applyBlankAreaPlainClickSelection', () => {
+  it('places list item right-side blank clicks at the head paragraph end, not nested child end', () => {
+    const selection = Object.create(TextSelection.prototype);
+    const setSelection = vi.fn().mockImplementation(() => tr);
+    const createSpy = vi.spyOn(TextSelection, 'create').mockReturnValue(selection as any);
+    const nearSpy = vi.spyOn(Selection, 'near');
+    const tr = {
+      doc: {
+        content: { size: 100 },
+        nodeAt: vi.fn().mockReturnValue({
+          type: { name: 'list_item' },
+          firstChild: {
+            type: { name: 'paragraph' },
+            isTextblock: true,
+            inlineContent: true,
+            content: { size: 18 },
+          },
+        }),
+      },
+      setSelection,
+    } as any;
+
+    applyBlankAreaPlainClickSelection(tr, {
+      targetPos: 99,
+      bias: -1,
+      blockFrom: 4,
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(tr.doc, 24);
+    expect(setSelection).toHaveBeenCalledWith(selection);
+    expect(nearSpy).not.toHaveBeenCalled();
+    createSpy.mockRestore();
+    nearSpy.mockRestore();
+  });
+
+  it('places list item left-side blank clicks at the head paragraph start', () => {
+    const selection = Object.create(TextSelection.prototype);
+    const setSelection = vi.fn().mockImplementation(() => tr);
+    const createSpy = vi.spyOn(TextSelection, 'create').mockReturnValue(selection as any);
+    const nearSpy = vi.spyOn(Selection, 'near');
+    const tr = {
+      doc: {
+        content: { size: 100 },
+        nodeAt: vi.fn().mockReturnValue({
+          type: { name: 'list_item' },
+          firstChild: {
+            type: { name: 'paragraph' },
+            isTextblock: true,
+            inlineContent: true,
+            content: { size: 18 },
+          },
+        }),
+      },
+      setSelection,
+    } as any;
+
+    applyBlankAreaPlainClickSelection(tr, {
+      targetPos: 5,
+      bias: 1,
+      blockFrom: 4,
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(tr.doc, 6);
+    expect(setSelection).toHaveBeenCalledWith(selection);
+    expect(nearSpy).not.toHaveBeenCalled();
+    createSpy.mockRestore();
+    nearSpy.mockRestore();
+  });
+
   it('clamps the requested position into the current document before resolving selection', () => {
     const resolved = { pos: 10 };
     const selection = { from: 10, to: 10, empty: true };

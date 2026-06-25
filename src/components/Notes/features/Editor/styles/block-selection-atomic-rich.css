@@ -63,6 +63,22 @@
   pointer-events: none;
 }
 
+body.editor-block-drag-active .milkdown .ProseMirror :is(
+  [data-type='math-block'].math-block-wrapper,
+  [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
+  .toc-block,
+  .mermaid-block
+):is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike
+) {
+  box-shadow: none !important;
+}
+
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),

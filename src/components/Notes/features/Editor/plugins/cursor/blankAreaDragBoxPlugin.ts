@@ -240,6 +240,7 @@ function resolveInsideBlockTrailingPlainClick(view: EditorView, event: MouseEven
   if (!isSameEditorBlankAreaInteractionTarget(view, event.target)) return null;
   if (event.button !== 0) return null;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
+  const startedInsideEditor = event.target instanceof Node && view.dom.contains(event.target);
   if (event.target instanceof HTMLElement) {
     const textLineHit = resolveTargetTextLinePointerHit(view, event.target, event.clientX, event.clientY);
     if (textLineHit?.type === 'content') {
@@ -258,6 +259,7 @@ function resolveInsideBlockTrailingPlainClick(view: EditorView, event: MouseEven
     clientY: event.clientY,
   });
   resolver.invalidate();
+  if (action?.bias === 1 && !startedInsideEditor) return null;
   return action;
 }
 

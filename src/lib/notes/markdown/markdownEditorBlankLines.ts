@@ -23,7 +23,6 @@ const EDITOR_TIGHT_HEADING_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
 const EDITOR_NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER = EDITOR_TIGHT_HEADING_PLACEHOLDER;
 const LIST_GAP_PLACEHOLDER = '\u2800';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
-const MAX_CONSECUTIVE_EDITOR_BLANK_LINES = 8;
 const HARD_BREAK_LINE_PATTERN = /(?:\\| {2,})$/;
 const INLINE_TERMINAL_LIST_BR_PATTERN =
   /^(\s*(?:>\s*)*)((?:[-+*])|(\d+[.)]))\s+(?:\[(?: |x|X)\]\s+)?(.+?)<br\s*\/?>\s*$/i;
@@ -35,6 +34,8 @@ const HTML_ONE_LINE_RENDERED_BLOCK_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)[\s\S]*?(?:<\/\1>|\/>)[ \t]*$/;
 const HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN =
   /^(?: {0,3})<(?:img|hr|br)(?:\s|\/?>|$)[\s\S]*$/i;
+const HTML_CLOSING_RENDERED_BLOCK_PATTERN =
+  /^(?: {0,3})<\/([A-Za-z][A-Za-z0-9-]*)\s*>[ \t]*$/;
 const NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES = new Set([
   'base',
   'basefont',
@@ -68,8 +69,7 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
 
   const expandedText = expandInlineTerminalListBreaksForEditor(text);
   const escapedText = escapeParagraphTrailingBackslashesForEditor(expandedText);
-  const collapsedText = collapseExcessiveBlankLineRunsForEditor(escapedText);
-  const preserved = mapMarkdownOutsideProtectedBlocks(collapsedText, (line, index, lines) => {
+  const preserved = mapMarkdownOutsideProtectedBlocks(escapedText, (line, index, lines) => {
     const emptyListItemMatch = EMPTY_LIST_ITEM_LINE_PATTERN.exec(line);
     if (emptyListItemMatch) {
       return `${emptyListItemMatch[1]} ${EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER}`;
@@ -210,7 +210,7 @@ function exposeRenderedHtmlBoundaryBlankLinesForEditor(text: string): string {
 
     const previous = findNearestNonBlankLine(lines, index, -1);
     const next = findNearestNonBlankLine(lines, index, 1);
-    if (!next || !isRenderedOneLineHtmlBlockLine(previous)) continue;
+    if (!next || !isRenderedHtmlBoundaryBlockLine(previous)) continue;
     if ((lines[index + 1] ?? '').trim() === EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER) continue;
 
     changed = true;
@@ -220,12 +220,13 @@ function exposeRenderedHtmlBoundaryBlankLinesForEditor(text: string): string {
   return changed ? output.join('\n') : text;
 }
 
-function isRenderedOneLineHtmlBlockLine(line: string | null): boolean {
+function isRenderedHtmlBoundaryBlockLine(line: string | null): boolean {
   if (line === null) return false;
 
   const match = HTML_ONE_LINE_RENDERED_BLOCK_PATTERN.exec(line)
     ?? HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN.exec(line);
-  const tagName = match?.[1]?.toLowerCase() ?? getHtmlStartTagName(line);
+  const closingTagName = HTML_CLOSING_RENDERED_BLOCK_PATTERN.exec(line)?.[1]?.toLowerCase();
+  const tagName = match?.[1]?.toLowerCase() ?? closingTagName ?? getHtmlStartTagName(line);
   return Boolean(tagName && !NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES.has(tagName));
 }
 
@@ -279,29 +280,6 @@ function expandInlineTerminalListBreaksForEditor(text: string): string {
       return `${lineWithoutBreak}\\\n${continuationIndent}<br />`;
     }).join('\n')
   );
-}
-
-function collapseExcessiveBlankLineRunsForEditor(text: string): string {
-  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
-    const lines = segment.split('\n');
-    const output: string[] = [];
-    let blankRunLength = 0;
-
-    for (const line of lines) {
-      if (line.trim() === '') {
-        blankRunLength += 1;
-        if (blankRunLength <= MAX_CONSECUTIVE_EDITOR_BLANK_LINES) {
-          output.push(line);
-        }
-        continue;
-      }
-
-      blankRunLength = 0;
-      output.push(line);
-    }
-
-    return output.join('\n');
-  });
 }
 
 function getEditorBlankLinePlaceholder(

@@ -75,17 +75,38 @@ async function captureHoverStyle(
 ) {
   const element = page.locator(selector).first();
   await expect(element).toBeVisible();
-  await element.hover();
-  await waitForEditorAnimationFrame(page);
-  await page.waitForTimeout(220);
-  return element.evaluate((node) => {
-    const style = window.getComputedStyle(node);
-    return {
-      backgroundColor: style.backgroundColor,
-      boxShadow: style.boxShadow,
-      cursor: style.cursor,
-    };
-  });
+  let lastStyle: {
+    backgroundColor: string;
+    boxShadow: string;
+    cursor: string;
+  } | null = null;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await element.scrollIntoViewIfNeeded();
+    const box = await element.boundingBox();
+    expect(box, `Expected hover target box for ${selector}`).not.toBeNull();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await waitForEditorAnimationFrame(page);
+    await page.waitForTimeout(120);
+    lastStyle = await element.evaluate((node) => {
+      const style = window.getComputedStyle(node);
+      return {
+        backgroundColor: style.backgroundColor,
+        boxShadow: style.boxShadow,
+        cursor: style.cursor,
+      };
+    });
+    if (
+      lastStyle.cursor === 'pointer' &&
+      lastStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+      lastStyle.boxShadow !== 'none'
+    ) {
+      return lastStyle;
+    }
+  }
+
+  expect(lastStyle, `Expected hover style for ${selector}`).not.toBeNull();
+  return lastStyle!;
 }
 
 async function captureElementStyle(
@@ -204,44 +225,64 @@ test.describe('notes html block caret parity', () => {
 
       await clickParagraphText(page, 'After html parity');
       await page.keyboard.press('ArrowUp');
+      const htmlGapState = await captureCaretState(page);
+      await page.keyboard.press('ArrowUp');
       const htmlSelectedState = await captureCaretState(page);
 
-      for (const state of [mathGapState]) {
+      for (const state of [mathGapState, htmlGapState]) {
         expect(state.selectedNodes, {
           mathGapState,
+          htmlGapState,
           htmlSelectedState,
         }).toEqual([]);
         expect(state.selection?.empty, {
           mathGapState,
+          htmlGapState,
           htmlSelectedState,
         }).toBe(true);
         expect(state.domAnchor?.tagName, {
           mathGapState,
+          htmlGapState,
           htmlSelectedState,
         }).toBe('P');
         expect(state.domAnchor?.closestBlockType, {
           mathGapState,
+          htmlGapState,
           htmlSelectedState,
         }).toBe('');
       }
 
       expect(mathGapState.domAnchor?.previousSiblingType, {
         mathGapState,
+        htmlGapState,
         htmlSelectedState,
       }).toBe('math-block');
       expect(mathGapState.domAnchor?.className, {
         mathGapState,
+        htmlGapState,
+        htmlSelectedState,
+      }).toContain('editor-editable-markdown-blank-line');
+      expect(htmlGapState.domAnchor?.previousSiblingType, {
+        mathGapState,
+        htmlGapState,
+        htmlSelectedState,
+      }).toBe('html-block');
+      expect(htmlGapState.domAnchor?.className, {
+        mathGapState,
+        htmlGapState,
         htmlSelectedState,
       }).toContain('editor-editable-markdown-blank-line');
 
       expect(mathSelectedState.selectedNodes, {
         mathSelectedState,
+        htmlGapState,
         htmlSelectedState,
       }).toEqual([
         expect.objectContaining({ dataType: 'math-block' }),
       ]);
       expect(htmlSelectedState.selectedNodes, {
         mathSelectedState,
+        htmlGapState,
         htmlSelectedState,
       }).toEqual([
         expect.objectContaining({ dataType: 'html-block' }),
