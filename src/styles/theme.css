@@ -690,7 +690,7 @@
   --vlaina-color-tab-muted-fg: #a1a1aa;
   --vlaina-color-tab-muted-hover-fg: #52525b;
   --vlaina-color-tab-close-fg: #d4d4d8;
-  --vlaina-color-tab-close-hover-fg: #71717a;
+  --vlaina-color-tab-close-hover-fg: var(--vlaina-accent);
   --vlaina-color-tab-separator: #e4e4e7;
   --vlaina-color-tab-overlay-bg: rgb(255 255 255 / 0.9);
   --vlaina-color-attachment-surface: #f3f4f6;
@@ -1083,7 +1083,7 @@
   --vlaina-color-tab-muted-fg: #797981;
   --vlaina-color-tab-muted-hover-fg: #c7c7cc;
   --vlaina-color-tab-close-fg: #5a5a62;
-  --vlaina-color-tab-close-hover-fg: #b4b4b8;
+  --vlaina-color-tab-close-hover-fg: var(--vlaina-accent);
   --vlaina-color-tab-separator: #25252a;
   --vlaina-color-tab-overlay-bg: rgb(13 13 14 / 0.9);
   --vlaina-color-attachment-surface: #19191c;
