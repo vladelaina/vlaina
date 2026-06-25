@@ -3,6 +3,9 @@ import { createDefaultMermaidThemeConfig } from '@/lib/notes/mermaid/mermaidThem
 
 let mermaidInstance: any = null;
 let mermaidPromise: Promise<any> | null = null;
+let zenumlRegistrationPromise: Promise<boolean> | null = null;
+let zenumlRegistered = false;
+let zenumlAvailable = true;
 let mermaidAvailable = true;
 let mermaidCounter = 0;
 
@@ -43,13 +46,9 @@ async function getMermaid() {
   if (!mermaidPromise) {
     mermaidPromise = (async () => {
       try {
-        const [m, zenuml] = await Promise.all([
-          import('mermaid'),
-          import('@mermaid-js/mermaid-zenuml'),
-        ]);
+        const m = await import('mermaid');
         mermaidInstance = m.default;
         mermaidInstance.initialize(createMermaidRenderConfig());
-        await mermaidInstance.registerExternalDiagrams([zenuml.default]);
         return mermaidInstance;
       } catch {
         mermaidAvailable = false;
@@ -59,6 +58,31 @@ async function getMermaid() {
   }
 
   return mermaidPromise;
+}
+
+function isZenumlDiagram(code: string): boolean {
+  return /^zenuml(?:\s|$)/i.test(code.trimStart());
+}
+
+async function ensureZenumlExternalDiagram(mermaid: any): Promise<boolean> {
+  if (zenumlRegistered) return true;
+  if (!zenumlAvailable) return false;
+
+  if (!zenumlRegistrationPromise) {
+    zenumlRegistrationPromise = (async () => {
+      try {
+        const zenuml = await import('@mermaid-js/mermaid-zenuml');
+        await mermaid.registerExternalDiagrams([zenuml.default]);
+        zenumlRegistered = true;
+        return true;
+      } catch {
+        zenumlAvailable = false;
+        return false;
+      }
+    })();
+  }
+
+  return zenumlRegistrationPromise;
 }
 
 export function prewarmMermaidRenderer() {
@@ -155,6 +179,9 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
 
   try {
     mermaid.initialize(createMermaidRenderConfig());
+    if (isZenumlDiagram(code) && !(await ensureZenumlExternalDiagram(mermaid))) {
+      return mermaidRenderErrorMarkup();
+    }
     const renderContainer = createMermaidRenderContainer();
     try {
       const { svg } = await withoutThirdPartyConsoleOutput<{ svg: string }>(() =>

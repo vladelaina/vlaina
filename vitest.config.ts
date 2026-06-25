@@ -6,6 +6,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     dedupe: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'scheduler',
       '@codemirror/autocomplete',
       '@codemirror/commands',
       '@codemirror/language',

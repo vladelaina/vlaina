@@ -52,6 +52,10 @@ function woff2OnlyFontCssPlugin(): Plugin {
   };
 }
 
+function isReactSingletonModule(id: string): boolean {
+  return /(?:^|\/)node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?(?:react|react-dom|scheduler)(?:\/|$)/.test(id);
+}
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [
@@ -61,6 +65,11 @@ export default defineConfig(async () => ({
   ],
   resolve: {
     dedupe: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'scheduler',
       '@codemirror/autocomplete',
       '@codemirror/commands',
       '@codemirror/language',
@@ -103,15 +112,11 @@ export default defineConfig(async () => ({
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/');
 
-          if (normalizedId.includes('/src/lib/i18n/')) {
-            return 'i18n';
+          if (isReactSingletonModule(normalizedId)) {
+            return 'react-vendor';
           }
 
           if (!normalizedId.includes('node_modules')) return;
-
-          if (normalizedId.includes('/react/') || normalizedId.includes('/react-dom/') || normalizedId.includes('/scheduler/')) {
-            return 'react-vendor';
-          }
 
           if (normalizedId.includes('/dagre-d3-es/') || normalizedId.includes('/dagre/') || normalizedId.includes('/graphlib/')) {
             return 'mermaid-layout-vendor';
@@ -127,10 +132,6 @@ export default defineConfig(async () => ({
 
           if (normalizedId.includes('/cytoscape')) {
             return 'cytoscape-vendor';
-          }
-
-          if (normalizedId.includes('/framer-motion/')) {
-            return 'motion-vendor';
           }
 
           if (normalizedId.includes('/@radix-ui/')) {

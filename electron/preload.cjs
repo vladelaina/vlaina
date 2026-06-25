@@ -149,6 +149,77 @@ function serializeErrorForReport(error) {
   };
 }
 
+function safeReadErrorReportValue(readValue, fallback = undefined) {
+  try {
+    return readValue();
+  } catch {
+    return fallback;
+  }
+}
+
+function storageAvailable(storage) {
+  try {
+    if (!storage) {
+      return false;
+    }
+    const key = '__vlaina_error_log_probe__';
+    storage.setItem(key, '1');
+    storage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function createRendererDiagnosticsReport() {
+  const searchParams = safeReadErrorReportValue(
+    () => new URLSearchParams(globalThis.location?.search || ''),
+    null,
+  );
+
+  return {
+    document: {
+      title: truncateErrorReportField(globalThis.document?.title),
+      visibilityState: truncateErrorReportField(globalThis.document?.visibilityState),
+      hasFocus: safeReadErrorReportValue(() => globalThis.document?.hasFocus?.(), null),
+    },
+    location: {
+      protocol: truncateErrorReportField(globalThis.location?.protocol),
+      origin: truncateErrorReportField(globalThis.location?.origin),
+      pathname: truncateErrorReportField(globalThis.location?.pathname),
+      hash: truncateErrorReportField(globalThis.location?.hash),
+      searchKeys: searchParams ? [...searchParams.keys()].map((key) => truncateErrorReportField(key)).slice(0, 32) : [],
+    },
+    screen: {
+      width: globalThis.screen?.width,
+      height: globalThis.screen?.height,
+      availWidth: globalThis.screen?.availWidth,
+      availHeight: globalThis.screen?.availHeight,
+      colorDepth: globalThis.screen?.colorDepth,
+      pixelDepth: globalThis.screen?.pixelDepth,
+    },
+    timezone: {
+      timeZone: truncateErrorReportField(safeReadErrorReportValue(
+        () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+        '',
+      )),
+      offsetMinutes: safeReadErrorReportValue(() => new Date().getTimezoneOffset(), null),
+    },
+    storage: {
+      localStorage: storageAvailable(globalThis.localStorage),
+      sessionStorage: storageAvailable(globalThis.sessionStorage),
+      indexedDB: typeof globalThis.indexedDB !== 'undefined',
+    },
+    runtime: {
+      isSecureContext: globalThis.isSecureContext,
+      crossOriginIsolated: globalThis.crossOriginIsolated,
+      hardwareConcurrency: globalThis.navigator?.hardwareConcurrency,
+      deviceMemory: globalThis.navigator?.deviceMemory,
+      maxTouchPoints: globalThis.navigator?.maxTouchPoints,
+    },
+  };
+}
+
 function createRendererErrorReport(details = {}) {
   const serializedError = serializeErrorForReport(details.error);
   return {
@@ -171,6 +242,11 @@ function createRendererErrorReport(details = {}) {
       devicePixelRatio: globalThis.devicePixelRatio,
     },
     online: globalThis.navigator?.onLine,
+    ...createRendererDiagnosticsReport(),
+    reactVersion: truncateErrorReportField(details.reactVersion),
+    buildMode: truncateErrorReportField(details.buildMode),
+    isDev: typeof details.isDev === 'boolean' ? details.isDev : null,
+    isProd: typeof details.isProd === 'boolean' ? details.isProd : null,
     timestamp: new Date().toISOString(),
   };
 }
