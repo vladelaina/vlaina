@@ -82,6 +82,13 @@ export const FolderItem = memo(function FolderItem({
   } = useFolderItemState(node, dragEnabled);
   const hasChildren = node.children.length > 0;
   const [shouldRenderChildren, setShouldRenderChildren] = useState(node.expanded);
+  const isExpandedTreeDragOver = (
+    isDragOver &&
+    renderChildren &&
+    node.expanded &&
+    shouldRenderChildren &&
+    hasChildren
+  );
   const notesPath = useNotesStore((state) => state.notesPath);
   const currentNotePath = useNotesStore((state) => state.currentNote?.path);
   const isCurrentNoteAncestor = isCurrentNoteInsideFolder(currentNotePath, node.path);
@@ -233,7 +240,8 @@ export const FolderItem = memo(function FolderItem({
         </span>
       }
       isHighlighted={showMenu}
-      isDragOver={isDragOver}
+      isDragOver={!isExpandedTreeDragOver && isDragOver}
+      isTreeDragOver={isExpandedTreeDragOver}
       onClick={handleClick}
       onDoubleClick={handleRenameFromDoubleClick}
       onContextMenu={handleContextMenu}
