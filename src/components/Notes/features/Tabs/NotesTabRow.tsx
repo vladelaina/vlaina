@@ -32,6 +32,43 @@ import { NotesDragOverlay } from '../common/NotesDragOverlay';
 import { NoteTabContent } from './NoteTabContent';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
+function NoteHistoryButton({
+  direction,
+  disabled,
+  label,
+  onNavigate,
+}: {
+  direction: 'back' | 'forward';
+  disabled: boolean;
+  label: string;
+  onNavigate: () => Promise<void>;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void onNavigate();
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      className={cn(
+        'notes-tab-row-history-button app-no-drag flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all',
+        chatComposerGhostIconButtonClass,
+        'text-[var(--vlaina-color-tab-muted-fg)] disabled:pointer-events-none disabled:opacity-[var(--vlaina-opacity-35)]'
+      )}
+    >
+      <Icon name={direction === 'back' ? 'nav.chevronLeft' : 'nav.chevronRight'} className="h-4 w-4" />
+    </button>
+  );
+}
+
 interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
@@ -243,8 +280,17 @@ export function NotesTabRow() {
   const openNote = useNotesStore((s) => s.openNote);
   const createNote = useNotesStore((s) => s.createNote);
   const reorderTabs = useNotesStore((s) => s.reorderTabs);
+  const noteNavigationHistory = useNotesStore((s) => s.noteNavigationHistory ?? []);
+  const noteNavigationHistoryIndex = useNotesStore((s) => s.noteNavigationHistoryIndex ?? -1);
+  const navigateBackInNoteHistory = useNotesStore((s) => s.navigateBackInNoteHistory);
+  const navigateForwardInNoteHistory = useNotesStore((s) => s.navigateForwardInNoteHistory);
   const hasOpenedFolder = Boolean(currentVaultPath && notesPath === currentVaultPath && rootFolderPath === currentVaultPath);
   const hasOpenTabs = openTabs.length > 0;
+  const hasNoteNavigationHistory = noteNavigationHistory.length > 1;
+  const canNavigateBack = noteNavigationHistoryIndex > 0;
+  const canNavigateForward =
+    noteNavigationHistoryIndex >= 0 &&
+    noteNavigationHistoryIndex < noteNavigationHistory.length - 1;
 
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
 
@@ -282,6 +328,28 @@ export function NotesTabRow() {
 
   return (
     <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
+      {hasNoteNavigationHistory ? (
+        <div
+          className={cn(
+            'notes-tab-row-history-controls flex h-7 w-14 shrink-0 items-center justify-center transition-all',
+            'pointer-events-none opacity-[var(--vlaina-opacity-0)] group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)]'
+          )}
+        >
+          <NoteHistoryButton
+            direction="back"
+            disabled={!canNavigateBack}
+            label={t('notes.previous')}
+            onNavigate={navigateBackInNoteHistory}
+          />
+          <NoteHistoryButton
+            direction="forward"
+            disabled={!canNavigateForward}
+            label={t('notes.next')}
+            onNavigate={navigateForwardInNoteHistory}
+          />
+        </div>
+      ) : null}
+
       {hasOpenTabs ? (
         <div
           className={cn(

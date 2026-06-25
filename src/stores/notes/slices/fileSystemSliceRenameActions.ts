@@ -38,6 +38,7 @@ import {
   remapCurrentNoteForExternalRename,
   remapOpenTabsForExternalRename,
 } from '../document/externalPathSync';
+import { remapNoteNavigationHistoryForExternalRename } from '../document/noteNavigationHistory';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { applyPathRenameState } from './fileSystemSliceHelpers';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
@@ -199,6 +200,12 @@ export function createFileSystemRenameActions(
           recentNotes: nextRecentNotes,
           displayNames: nextDisplayNames,
           noteContentsCache: nextNoteContentsCache,
+          ...remapNoteNavigationHistoryForExternalRename(
+            latestState.noteNavigationHistory,
+            latestState.noteNavigationHistoryIndex,
+            result.sourcePath,
+            result.newPath,
+          ),
           ...(nextRootFolder ? { rootFolder: nextRootFolder } : {}),
         });
 
@@ -321,6 +328,12 @@ export function createFileSystemRenameActions(
           recentNotes: nextRecentNotes,
           displayNames: nextDisplayNames,
           noteContentsCache: nextNoteContentsCache,
+          ...remapNoteNavigationHistoryForExternalRename(
+            latestState.noteNavigationHistory,
+            latestState.noteNavigationHistoryIndex,
+            normalizedPath,
+            newPath,
+          ),
         });
       } catch (error) {
         if (notesPath && !isActiveNotesPath(get, notesPath)) {
@@ -398,6 +411,12 @@ export function createFileSystemRenameActions(
               latestState.currentNote?.path !== updatedCurrentNote?.path
                 ? latestState.currentNoteRevision + 1
                 : latestState.currentNoteRevision,
+            ...remapNoteNavigationHistoryForExternalRename(
+              latestState.noteNavigationHistory,
+              latestState.noteNavigationHistoryIndex,
+              safePath,
+              newPath,
+            ),
           });
           return;
         }
@@ -424,6 +443,12 @@ export function createFileSystemRenameActions(
             latestState.currentNote?.path !== updatedCurrentNote?.path
               ? latestState.currentNoteRevision + 1
               : latestState.currentNoteRevision,
+          ...remapNoteNavigationHistoryForExternalRename(
+            latestState.noteNavigationHistory,
+            latestState.noteNavigationHistoryIndex,
+            safePath,
+            newPath,
+          ),
         });
 
         persistWorkspaceSnapshot(notesPath, {
@@ -519,6 +544,12 @@ export function createFileSystemRenameActions(
           recentNotes: nextRecentNotes,
           displayNames: nextDisplayNames,
           noteContentsCache: nextNoteContentsCache,
+          ...remapNoteNavigationHistoryForExternalRename(
+            latestState.noteNavigationHistory,
+            latestState.noteNavigationHistoryIndex,
+            result.sourcePath,
+            result.newPath,
+          ),
           ...(nextRootFolder ? { rootFolder: nextRootFolder } : {}),
         });
 

@@ -147,6 +147,26 @@ describe('workspace document actions', () => {
     expect(store.getState().openTabs).toEqual([{ path: '/vault/Untitled.md', name: 'Untitled', isDirty: true }]);
   });
 
+  it('remaps draft navigation history to the saved markdown path', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'draft text' },
+      isDirty: true,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([['draft:blank', { content: 'draft text', modifiedAt: null }]]),
+      noteNavigationHistory: ['alpha.md', 'draft:blank'],
+      noteNavigationHistoryIndex: 1,
+    });
+
+    await store.getState().saveNote({ explicit: true });
+
+    expect(store.getState().currentNote?.path).toBe('Untitled.md');
+    expect(store.getState().noteNavigationHistory).toEqual(['alpha.md', 'Untitled.md']);
+    expect(store.getState().noteNavigationHistoryIndex).toBe(1);
+  });
+
   it('does not invalidate cached content for a dirty background tab', () => {
     const store = createNotesStore({
       currentNote: { path: 'beta.md', content: '# beta' },

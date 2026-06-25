@@ -1,10 +1,11 @@
 import { isAbsolutePath } from '@/lib/storage/adapter';
+import type { OpenNoteOptions } from './types';
 
 export async function openStoredNotePath(
   path: string,
   handlers: {
-    openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
-    openNoteByAbsolutePath: (path: string, openInNewTab?: boolean) => Promise<void>;
+    openNote: (path: string, openInNewTab?: boolean, options?: OpenNoteOptions) => Promise<void>;
+    openNoteByAbsolutePath: (path: string, openInNewTab?: boolean, options?: OpenNoteOptions) => Promise<void>;
   },
   options?: {
     openInNewTab?: boolean;

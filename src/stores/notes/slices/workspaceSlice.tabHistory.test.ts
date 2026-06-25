@@ -281,6 +281,62 @@ describe('workspaceSlice tab history', () => {
     });
   });
 
+  it('navigates backward and forward through opened notes without duplicating history', async () => {
+    storageAdapter.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault/alpha.md') return '# alpha';
+      if (path === '/vault/beta.md') return '# beta';
+      if (path === '/vault/gamma.md') return '# gamma';
+      if (path === '/vault/delta.md') return '# delta';
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const store = createNotesStore();
+
+    await store.getState().openNote('alpha.md');
+    await store.getState().openNote('beta.md');
+    await store.getState().openNote('gamma.md');
+
+    expect(store.getState().noteNavigationHistory).toEqual(['alpha.md', 'beta.md', 'gamma.md']);
+    expect(store.getState().noteNavigationHistoryIndex).toBe(2);
+
+    await store.getState().navigateBackInNoteHistory();
+    expect(store.getState().currentNote?.path).toBe('beta.md');
+    expect(store.getState().noteNavigationHistory).toEqual(['alpha.md', 'beta.md', 'gamma.md']);
+    expect(store.getState().noteNavigationHistoryIndex).toBe(1);
+
+    await store.getState().navigateBackInNoteHistory();
+    expect(store.getState().currentNote?.path).toBe('alpha.md');
+    expect(store.getState().noteNavigationHistoryIndex).toBe(0);
+
+    await store.getState().navigateForwardInNoteHistory();
+    expect(store.getState().currentNote?.path).toBe('beta.md');
+    expect(store.getState().noteNavigationHistoryIndex).toBe(1);
+
+    await store.getState().openNote('delta.md');
+    expect(store.getState().currentNote?.path).toBe('delta.md');
+    expect(store.getState().noteNavigationHistory).toEqual(['alpha.md', 'beta.md', 'delta.md']);
+    expect(store.getState().noteNavigationHistoryIndex).toBe(2);
+  });
+
+  it('skips stale draft history entries without showing a markdown file error', async () => {
+    storageAdapter.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault/alpha.md') return '# alpha';
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      openTabs: [{ path: 'beta.md', name: 'beta', isDirty: false }],
+      noteNavigationHistory: ['alpha.md', 'draft:stale', 'beta.md'],
+      noteNavigationHistoryIndex: 2,
+    });
+
+    await store.getState().navigateBackInNoteHistory();
+
+    expect(store.getState().currentNote?.path).toBe('alpha.md');
+    expect(store.getState().noteNavigationHistory).toEqual(['alpha.md', 'beta.md']);
+    expect(store.getState().noteNavigationHistoryIndex).toBe(0);
+    expect(store.getState().error).toBeNull();
+  });
+
   it('flushes pending editor markdown before deciding whether to save while opening another note', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({
