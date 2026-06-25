@@ -92,6 +92,12 @@ export function RootFolderRow({
     () => rootFolder ? countVisibleFileTreeRows(rootFolder.children) : 0,
     [rootFolder],
   );
+  const isExpandedRootDragOver = (
+    isRootDragOver &&
+    expanded &&
+    shouldRenderChildren &&
+    hasChildren
+  );
   const useVirtualFileTree = Boolean(
     scrollRootRef && shouldVirtualizeFileTree(visibleFileTreeRowCount),
   );
@@ -283,8 +289,14 @@ export function RootFolderRow({
   return (
     <div
       ref={rootRowRef}
-      className={cn('py-1', isRootBusy && 'pointer-events-none')}
+      className={cn(
+        'py-1',
+        isRootBusy && 'pointer-events-none',
+        isExpandedRootDragOver &&
+          'rounded-xl bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]',
+      )}
       aria-busy={isRootBusy || undefined}
+      data-file-tree-root-drop-target="true"
       data-file-tree-primary="true"
     >
       <NotesSidebarRow
@@ -322,7 +334,7 @@ export function RootFolderRow({
         }
         onClick={hasChildren ? handleClick : undefined}
         isHighlighted={showMenu}
-        isDragOver={isRootDragOver}
+        isDragOver={!isExpandedRootDragOver && isRootDragOver}
         showActionsByDefault={showMenu}
         data-notes-root-folder-row="true"
         main={

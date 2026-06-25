@@ -6,15 +6,15 @@ function resolveFolderDropTargetPathFromElements(elements: Element[]) {
       continue;
     }
 
-    const rootDropTarget = element.closest<HTMLElement>('[data-file-tree-root-drop-target="true"]');
-    if (rootDropTarget) {
-      return '';
-    }
-
     const folderElement = element.closest<HTMLElement>('[data-file-tree-kind="folder"]');
     const targetPath = folderElement?.dataset.fileTreePath;
     if (targetPath) {
       return targetPath;
+    }
+
+    const rootDropTarget = element.closest<HTMLElement>('[data-file-tree-root-drop-target="true"]');
+    if (rootDropTarget) {
+      return '';
     }
   }
 

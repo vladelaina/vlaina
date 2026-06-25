@@ -22,6 +22,7 @@ interface TreeItemShellProps {
   isActive?: boolean;
   isHighlighted?: boolean;
   isDragOver?: boolean;
+  isTreeDragOver?: boolean;
   showActionsByDefault?: boolean;
   showMenuButton?: boolean;
   dragHandlers?: NotesSidebarRowDragHandlers;
@@ -47,6 +48,7 @@ export function TreeItemShell({
   isActive = false,
   isHighlighted = false,
   isDragOver = false,
+  isTreeDragOver = false,
   showActionsByDefault = false,
   showMenuButton = true,
   dragHandlers,
@@ -62,7 +64,11 @@ export function TreeItemShell({
 
   return (
     <div
-      className="relative"
+      className={cn(
+        'relative',
+        isTreeDragOver &&
+          'rounded-xl bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]',
+      )}
       data-file-tree-path={itemPath}
       data-file-tree-kind={itemKind}
       data-file-tree-parent-folder-path={parentFolderPath}
