@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, version as reactVersion, type ErrorInfo, type ReactNode } from 'react';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { translate, type MessageKey } from '@/lib/i18n';
@@ -187,6 +187,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         stack: error.stack,
         componentStack,
         error,
+        reactVersion,
+        buildMode: import.meta.env.MODE,
+        isDev: import.meta.env.DEV,
+        isProd: import.meta.env.PROD,
       }).catch(() => null) ?? Promise.resolve(null),
     ]).then(([appVersion, logInfo]) => {
       this.setState({
@@ -221,6 +225,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       'vlaina error report',
       `Time: ${reportedAt ?? new Date().toISOString()}`,
       `Version: ${appVersion ?? 'unknown'}`,
+      `React: ${reactVersion}`,
+      `Build: mode=${import.meta.env.MODE} dev=${String(import.meta.env.DEV)} prod=${String(import.meta.env.PROD)}`,
       `URL: ${window.location.href}`,
       `Log file: ${logFilePath ?? 'not available'}`,
       `Log folder: ${logsDir ?? 'not available'}`,
@@ -228,6 +234,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       `Language: ${navigator.language}`,
       `Viewport: ${window.innerWidth}x${window.innerHeight} @ ${window.devicePixelRatio}x`,
       `Online: ${navigator.onLine}`,
+      `Document: visibility=${document.visibilityState} focus=${String(document.hasFocus())}`,
       '',
       `${error.name || 'Error'}: ${error.message || 'Unknown error'}`,
       '',

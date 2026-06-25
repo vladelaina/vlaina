@@ -94,6 +94,10 @@ export interface ElectronAppApi {
     stack?: string;
     componentStack?: string;
     error?: unknown;
+    reactVersion?: string;
+    buildMode?: string;
+    isDev?: boolean;
+    isProd?: boolean;
   }): Promise<{
     logsDir: string;
     currentLogFilePath: string;

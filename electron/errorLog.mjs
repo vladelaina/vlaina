@@ -4,6 +4,7 @@ import util from 'node:util';
 
 const MAX_FIELD_CHARS = 32 * 1024;
 const MAX_RENDERER_DETAILS_CHARS = 128 * 1024;
+const ERROR_LOG_SCHEMA_VERSION = 2;
 const UNSAFE_LOG_FIELD_CHARS_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
 function getLogsDir(app) {
@@ -58,6 +59,79 @@ function serializeError(error, depth = 0) {
   };
 }
 
+function normalizeOptionalBoolean(value) {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function normalizeOptionalNumber(value) {
+  return Number.isFinite(value) ? value : null;
+}
+
+function normalizeScreenPayload(screen) {
+  if (!screen || typeof screen !== 'object') {
+    return null;
+  }
+
+  return {
+    width: normalizeOptionalNumber(screen.width),
+    height: normalizeOptionalNumber(screen.height),
+    availWidth: normalizeOptionalNumber(screen.availWidth),
+    availHeight: normalizeOptionalNumber(screen.availHeight),
+    colorDepth: normalizeOptionalNumber(screen.colorDepth),
+    pixelDepth: normalizeOptionalNumber(screen.pixelDepth),
+  };
+}
+
+function normalizeRendererDiagnosticsPayload(detail) {
+  return {
+    reactVersion: normalizeLogText(detail.reactVersion),
+    buildMode: normalizeLogText(detail.buildMode),
+    isDev: normalizeOptionalBoolean(detail.isDev),
+    isProd: normalizeOptionalBoolean(detail.isProd),
+    document: detail.document && typeof detail.document === 'object'
+      ? {
+          title: normalizeLogText(detail.document.title, 2048),
+          visibilityState: normalizeLogText(detail.document.visibilityState, 512),
+          hasFocus: normalizeOptionalBoolean(detail.document.hasFocus),
+        }
+      : null,
+    location: detail.location && typeof detail.location === 'object'
+      ? {
+          protocol: normalizeLogText(detail.location.protocol, 512),
+          origin: normalizeLogText(detail.location.origin, 2048),
+          pathname: normalizeLogText(detail.location.pathname, 4096),
+          hash: normalizeLogText(detail.location.hash, 4096),
+          searchKeys: Array.isArray(detail.location.searchKeys)
+            ? detail.location.searchKeys.map((key) => normalizeLogText(key, 512)).slice(0, 32)
+            : [],
+        }
+      : null,
+    screen: normalizeScreenPayload(detail.screen),
+    timezone: detail.timezone && typeof detail.timezone === 'object'
+      ? {
+          timeZone: normalizeLogText(detail.timezone.timeZone, 512),
+          offsetMinutes: normalizeOptionalNumber(detail.timezone.offsetMinutes),
+        }
+      : null,
+    storage: detail.storage && typeof detail.storage === 'object'
+      ? {
+          localStorage: normalizeOptionalBoolean(detail.storage.localStorage),
+          sessionStorage: normalizeOptionalBoolean(detail.storage.sessionStorage),
+          indexedDB: normalizeOptionalBoolean(detail.storage.indexedDB),
+        }
+      : null,
+    runtime: detail.runtime && typeof detail.runtime === 'object'
+      ? {
+          isSecureContext: normalizeOptionalBoolean(detail.runtime.isSecureContext),
+          crossOriginIsolated: normalizeOptionalBoolean(detail.runtime.crossOriginIsolated),
+          hardwareConcurrency: normalizeOptionalNumber(detail.runtime.hardwareConcurrency),
+          deviceMemory: normalizeOptionalNumber(detail.runtime.deviceMemory),
+          maxTouchPoints: normalizeOptionalNumber(detail.runtime.maxTouchPoints),
+        }
+      : null,
+  };
+}
+
 function normalizeRendererPayload(payload) {
   const detail = payload && typeof payload === 'object' ? payload : {};
   return {
@@ -85,6 +159,7 @@ function normalizeRendererPayload(payload) {
       : null,
     online: typeof detail.online === 'boolean' ? detail.online : null,
     timestamp: normalizeLogText(detail.timestamp),
+    diagnostics: normalizeRendererDiagnosticsPayload(detail),
   };
 }
 
@@ -135,6 +210,7 @@ function buildLogEntry({ app, processType, error, payload, context }) {
   }
 
   return {
+    schemaVersion: ERROR_LOG_SCHEMA_VERSION,
     timestamp: now.toISOString(),
     appVersion,
     platform: process.platform,

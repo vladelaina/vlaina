@@ -67,6 +67,16 @@ describe('mermaidRenderer', () => {
         primaryTextColor: '#27272A',
       }),
     }));
+    expect(registerExternalDiagrams).not.toHaveBeenCalled();
+  });
+
+  it('does not load the ZenUML external diagram for normal Mermaid diagrams', async () => {
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    await renderMermaid('sequenceDiagram\nAlice->Bob: Hi', 'diagram-1');
+
+    expect(registerExternalDiagrams).not.toHaveBeenCalled();
+    expect(render).toHaveBeenCalledWith('diagram-1', 'sequenceDiagram\nAlice->Bob: Hi', expect.any(HTMLElement));
   });
 
   it('suppresses third-party renderer console output so diagram source is not leaked', async () => {
