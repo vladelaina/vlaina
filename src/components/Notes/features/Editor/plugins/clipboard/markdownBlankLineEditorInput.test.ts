@@ -12,11 +12,27 @@ import {
 const LEGACY_EMPTY_LINE_PLACEHOLDER = '\u200B';
 const MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
 const RENDERED_HTML_BOUNDARY_PLACEHOLDER = '<!--vlaina-rendered-html-boundary-blank-line-->';
+const NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
 
 describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   it('uses editor-only blocks for ordinary markdown blank lines', () => {
     expect(preserveMarkdownBlankLinesForEditor('1\n\n2')).toBe(
       ['1', MARKDOWN_BLANK_LINE_PLACEHOLDER, '2'].join('\n')
+    );
+  });
+
+  it('uses one editor-only block for each leading markdown blank line', () => {
+    expect(preserveMarkdownBlankLinesForEditor(['', 'Top'].join('\n'))).toBe(
+      [MARKDOWN_BLANK_LINE_PLACEHOLDER, 'Top'].join('\n')
+    );
+    expect(preserveMarkdownBlankLinesForEditor(['', '', 'Top', '', 'Body'].join('\n'))).toBe(
+      [
+        MARKDOWN_BLANK_LINE_PLACEHOLDER,
+        MARKDOWN_BLANK_LINE_PLACEHOLDER,
+        'Top',
+        MARKDOWN_BLANK_LINE_PLACEHOLDER,
+        'Body',
+      ].join('\n')
     );
   });
 
@@ -148,6 +164,15 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
 
     expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(
       '底线（-/=）方式（**不推荐**）：\\\\\\'
+    );
+  });
+
+  it('escapes a standalone line-start backslash as literal text instead of a hard break', () => {
+    expect(preserveMarkdownBlankLinesForEditor(['\\', '下一行'].join('\n'))).toBe(
+      ['\\\\', NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER, '下一行'].join('\n')
+    );
+    expect(preserveMarkdownBlankLinesForEditor(['', '\\', '下一行'].join('\n'))).toBe(
+      [MARKDOWN_BLANK_LINE_PLACEHOLDER, '\\\\', NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER, '下一行'].join('\n')
     );
   });
 

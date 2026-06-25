@@ -1,6 +1,7 @@
 import { mapMarkdownOutsideProtectedSegments } from './markdownProtectedBlocks';
 
 const HARD_BREAK_LINE_PATTERN = /(?:\\| {2,})$/;
+const BACKSLASH_ONLY_LINE_PATTERN = /^\\+$/;
 const UTF8_BOM = '\uFEFF';
 const FRONTMATTER_OPEN_DELIMITER_PATTERN = /^---[ \t]*$/;
 const FRONTMATTER_CLOSE_DELIMITER_PATTERN = /^(?:---|\.\.\.)[ \t]*$/;
@@ -190,6 +191,7 @@ function shouldPreserveSoftBreakAfterLine(
   if (nextLine === null) return false;
   if (protectedLines.has(index) || protectedLines.has(index + 1)) return false;
   if (line.trim() === '' || nextLine.trim() === '') return false;
+  if (BACKSLASH_ONLY_LINE_PATTERN.test(line.trim())) return false;
   if (HARD_BREAK_LINE_PATTERN.test(line)) return false;
   if (isSlashCommandTextBoundary(line, nextLine)) return false;
   if (isListItemSoftBreakLine(line, nextLine)) return true;

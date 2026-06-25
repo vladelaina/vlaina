@@ -20,6 +20,7 @@ const EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER = '<br />';
 const EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
 const EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const EDITOR_TIGHT_HEADING_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
+const EDITOR_NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER = EDITOR_TIGHT_HEADING_PLACEHOLDER;
 const LIST_GAP_PLACEHOLDER = '\u2800';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
 const MAX_CONSECUTIVE_EDITOR_BLANK_LINES = 8;
@@ -29,6 +30,7 @@ const INLINE_TERMINAL_LIST_BR_PATTERN =
 const USER_BR_SENTINEL_LINE_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKDOWN_HEADING_LINE_PATTERN = /^\s{0,3}#{1,6}\s+/;
+const STANDALONE_ESCAPED_BACKSLASH_LINE_PATTERN = /^[ \t]*\\\\[ \t]*$/;
 const HTML_ONE_LINE_RENDERED_BLOCK_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)[\s\S]*?(?:<\/\1>|\/>)[ \t]*$/;
 const HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN =
@@ -109,6 +111,13 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
 
     if (line.trim() === '') {
       return EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER;
+    }
+
+    if (
+      STANDALONE_ESCAPED_BACKSLASH_LINE_PATTERN.test(line)
+      && (lines[index + 1] ?? '').trim() !== ''
+    ) {
+      return `${line}\n${EDITOR_NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER}`;
     }
 
     if (
