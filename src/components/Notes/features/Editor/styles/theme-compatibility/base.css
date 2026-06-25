@@ -35,8 +35,9 @@
   --vlaina-code-syntax-list: #735c0f;
   --vlaina-code-syntax-invalid: #b31d28;
   --vlaina-color-editor-inline-code-bg: var(--vlaina-code-inline-background);
-  --vlaina-color-mark-highlight-bg: #fef08a;
-  --vlaina-color-mark-highlight-fg: #2c2c2b;
+  --vlaina-color-mark-highlight-bg: #ccfbf1;
+  --vlaina-color-mark-highlight-fg: #115e59;
+  --vlaina-color-mark-highlight-surface-bg: #ccfbf138;
   --vlaina-color-find-match-bg: rgba(255, 221, 87, 0.82);
   --vlaina-color-find-match-active-bg: rgba(255, 176, 32, 0.96);
   --vlaina-color-footnote-ref-bg: #f5f5f5;
