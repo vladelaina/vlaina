@@ -561,15 +561,24 @@ function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | 
   return blankLine instanceof HTMLElement && view.dom.contains(blankLine) ? blankLine : null;
 }
 
-function isPointInsideMarkdownBlankLineRect(blankLine: HTMLElement, clientX: number, clientY: number): boolean {
+function isPointInsideMarkdownBlankLineRect(
+  blankLine: HTMLElement,
+  clientX: number,
+  clientY: number,
+  horizontalBounds?: DOMRect,
+): boolean {
   const rect = blankLine.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return false;
+  if (rect.height <= 0) return false;
 
   const verticalSlack = Math.max(1, Math.min(4, rect.height / 4));
-  const horizontalSlack = 1;
+  const horizontalSlack = 4;
+  const horizontalRect = horizontalBounds && horizontalBounds.width > 0
+    ? horizontalBounds
+    : rect;
+  if (horizontalRect.width <= 0) return false;
   return (
-    clientX >= rect.left - horizontalSlack &&
-    clientX <= rect.right + horizontalSlack &&
+    clientX >= horizontalRect.left - horizontalSlack &&
+    clientX <= horizontalRect.right + horizontalSlack &&
     clientY >= rect.top - verticalSlack &&
     clientY <= rect.bottom + verticalSlack
   );
@@ -598,11 +607,12 @@ function resolveAdjacentMarkdownBlankLineTargetAtCoords(
     topLevelTarget.previousElementSibling,
     topLevelTarget.nextElementSibling,
   ];
+  const editorRect = view.dom.getBoundingClientRect();
   for (const candidate of candidates) {
     if (
       candidate instanceof HTMLElement &&
       candidate.matches(MARKDOWN_BLANK_LINE_SELECTOR) &&
-      isPointInsideMarkdownBlankLineRect(candidate, clientX, clientY)
+      isPointInsideMarkdownBlankLineRect(candidate, clientX, clientY, editorRect)
     ) {
       return candidate;
     }
@@ -622,13 +632,14 @@ export function resolveMarkdownBlankLineTargetAtCoords(
   let closestBlankLine: HTMLElement | null = null;
   let closestDistance = Number.POSITIVE_INFINITY;
   const blankLines = view.dom.querySelectorAll(MARKDOWN_BLANK_LINE_SELECTOR);
+  const editorRect = view.dom.getBoundingClientRect();
 
   for (let index = 0; index < blankLines.length; index += 1) {
     const blankLine = blankLines.item(index);
     if (!(blankLine instanceof HTMLElement)) continue;
 
     const rect = blankLine.getBoundingClientRect();
-    if (!isPointInsideMarkdownBlankLineRect(blankLine, clientX, clientY)) continue;
+    if (!isPointInsideMarkdownBlankLineRect(blankLine, clientX, clientY, editorRect)) continue;
 
     const yCenter = rect.top + rect.height / 2;
     const xCenter = rect.left + rect.width / 2;

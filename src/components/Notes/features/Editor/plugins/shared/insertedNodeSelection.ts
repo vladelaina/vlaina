@@ -1,5 +1,8 @@
 import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 
+const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
+const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
+
 export function findInsertedNodePos(args: {
   doc: { content: { size: number }; nodesBetween: (...args: any[]) => void; nodeAt: (pos: number) => any };
   preferredPos: number;
@@ -24,6 +27,13 @@ export function findInsertedNodePos(args: {
   });
 
   return nodePos >= 0 ? nodePos : preferredPos;
+}
+
+function isMarkdownBlankLineBlock(node: any): boolean {
+  return node?.type?.name === 'html_block' && (
+    node.attrs?.value === MARKDOWN_BLANK_LINE_VALUE ||
+    node.attrs?.value === RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE
+  );
 }
 
 function setTextSelectionSafely(tr: any, pos: number) {
@@ -64,6 +74,20 @@ export function moveSelectionAfterInsertedNode(args: {
   const nextNode = tr.doc.nodeAt(afterNodePos);
   if (nextNode?.isTextblock) {
     return setTextSelectionSafely(tr, afterNodePos + 1);
+  }
+
+  if (isMarkdownBlankLineBlock(nextNode)) {
+    const afterBlankLinePos = Math.min(
+      afterNodePos + Math.max(1, nextNode.nodeSize ?? 1),
+      tr.doc.content.size
+    );
+    try {
+      const selection = Selection.findFrom(tr.doc.resolve(afterBlankLinePos), 1, true)
+        ?? Selection.findFrom(tr.doc.resolve(afterBlankLinePos), -1, true);
+      return selection ? tr.setSelection(selection) : tr;
+    } catch {
+      return tr;
+    }
   }
 
   if (paragraphType) {

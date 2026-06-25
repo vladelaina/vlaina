@@ -781,6 +781,37 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it('converts rendered html boundary blank lines after an html block before crossing it', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.paragraph.create(null, schema.text('before')),
+      schema.nodes.html_block.create({ value: '<div>HTML</div>' }),
+      schema.nodes.html_block.create({ value: RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE }),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const afterPos = topLevelNodePos(view, 'paragraph', 1);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, afterPos + 1)));
+    vi.spyOn(view, 'endOfTextblock').mockReturnValue(true);
+
+    const event = pressKey(view, 'ArrowUp');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(4);
+    expect(view.state.doc.child(1).type.name).toBe('html_block');
+    expect(view.state.doc.child(1).attrs.value).toBe('<div>HTML</div>');
+    expect(view.state.doc.child(2).type.name).toBe('paragraph');
+    expect(view.state.doc.child(2).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(2));
+
+    await editor.destroy();
+  });
+
   it.each(['Backspace', 'Delete'] as const)(
     'deletes an empty paragraph next to markdown blank-line placeholders on %s without selecting a blank-line block',
     async (key) => {

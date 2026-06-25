@@ -372,7 +372,7 @@ test.describe("notes block selection", () => {
           })
           .filter((rect) => rect.bottom > rect.top);
 
-        const rows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
+        const rawRows = Array.from(editor.querySelectorAll<HTMLElement>('.editor-block-selected'))
           .filter((element) => !element.classList.contains('editor-block-selected-parent-marker'))
           .map((element) => {
             const rect = element.getBoundingClientRect();
@@ -394,12 +394,32 @@ test.describe("notes block selection", () => {
           })
           .sort((left, right) => left.rectTop - right.rectTop);
 
+        const rows = rawRows.reduce<typeof rawRows>((merged, row) => {
+          const previous = merged[merged.length - 1];
+          if (
+            previous &&
+            Math.abs(previous.rectTop - row.rectTop) <= 0.5 &&
+            Math.abs(previous.rectBottom - row.rectBottom) <= 0.5
+          ) {
+            previous.text = previous.text.includes(row.text)
+              ? previous.text
+              : `${previous.text} ${row.text}`.trim();
+            previous.visualTop = Math.min(previous.visualTop, row.visualTop);
+            previous.visualBottom = Math.max(previous.visualBottom, row.visualBottom);
+            previous.matchingFillCount = Math.max(previous.matchingFillCount, row.matchingFillCount);
+            return merged;
+          }
+
+          merged.push({ ...row });
+          return merged;
+        }, []);
+
         const visualGaps = rows.slice(1).map((row, index) => (
           Math.round((row.visualTop - rows[index].visualBottom) * 100) / 100
         ));
         const penultimateToLastGap = visualGaps.length >= 2 ? visualGaps[1] : null;
 
-        return { rows, lineFills, penultimateToLastGap, visualGaps };
+        return { rows, rawRows, lineFills, penultimateToLastGap, visualGaps };
       });
 
       expect(geometry).not.toBeNull();

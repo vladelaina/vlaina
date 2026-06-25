@@ -4,6 +4,7 @@ import { TEXT_ONLY_BLOCK_EDGE_NODE_NAMES } from '../shared/blockNodeTypes';
 
 const INSIDE_BLOCK_TRAILING_CLICK_MIN_GAP_PX = 24;
 const INSIDE_BLOCK_TRAILING_LINE_CLICK_MIN_GAP_PX = 8;
+const INSIDE_BLOCK_LEADING_LINE_CLICK_MIN_GAP_PX = 1;
 const VISUAL_LINE_EDGE_CLICK_GAP_PX = 8;
 const VISUAL_LINE_VERTICAL_SLACK_PX = 4;
 
@@ -66,6 +67,29 @@ function resolveVisualLineHorizontalBias(block: BlockRect, clientX: number, clie
   return null;
 }
 
+function createListItemHeadTextSelection(
+  doc: Transaction['doc'],
+  itemFrom: number,
+  bias: 1 | -1,
+): TextSelection | null {
+  const item = doc.nodeAt(itemFrom);
+  if (!item || item.type.name !== 'list_item') return null;
+
+  const firstChild = item.firstChild;
+  if (!firstChild || !firstChild.isTextblock || !firstChild.inlineContent) return null;
+
+  const firstChildFrom = itemFrom + 1;
+  const textPos = bias === 1
+    ? firstChildFrom + 1
+    : firstChildFrom + 1 + firstChild.content.size;
+
+  try {
+    return TextSelection.create(doc, textPos);
+  } catch {
+    return null;
+  }
+}
+
 export function resolveBlankAreaPlainClickAction(args: {
   blockRects: readonly BlockRect[];
   clientX: number;
@@ -110,8 +134,15 @@ export function resolveInsideBlockTrailingPlainClickAction(args: {
     const block = blockRects[index];
     if (!block.allowInsideTrailingClick) continue;
     const trailingLine = resolveNearestVisualLine(block, clientY);
-    if (trailingLine && clientX < trailingLine.right + INSIDE_BLOCK_TRAILING_LINE_CLICK_MIN_GAP_PX) continue;
     if (trailingLine) {
+      if (clientX <= trailingLine.left - INSIDE_BLOCK_LEADING_LINE_CLICK_MIN_GAP_PX) {
+        return {
+          targetPos: block.from + 1,
+          bias: 1,
+          blockFrom: block.from,
+        };
+      }
+      if (clientX < trailingLine.right + INSIDE_BLOCK_TRAILING_LINE_CLICK_MIN_GAP_PX) continue;
       return {
         targetPos: Math.max(block.from + 1, block.to - 1),
         bias: -1,
@@ -143,6 +174,11 @@ export function applyBlankAreaPlainClickSelection(
   const docEnd = tr.doc.content.size;
   const safeBlockFrom = Math.max(0, Math.min(action.blockFrom, docEnd));
   const block = tr.doc.nodeAt(safeBlockFrom);
+  if (block?.type.name === 'list_item') {
+    const listItemSelection = createListItemHeadTextSelection(tr.doc, safeBlockFrom, action.bias);
+    if (listItemSelection) return tr.setSelection(listItemSelection);
+  }
+
   if (block && TEXT_ONLY_BLOCK_EDGE_NODE_NAMES.has(block.type.name)) {
     const blockEnd = Math.max(0, Math.min(safeBlockFrom + block.nodeSize, docEnd));
     const primaryPos = action.bias === 1 ? safeBlockFrom : blockEnd;

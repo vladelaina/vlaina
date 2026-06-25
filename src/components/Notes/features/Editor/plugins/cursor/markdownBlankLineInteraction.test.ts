@@ -299,6 +299,19 @@ describe('markdownBlankLineInteraction', () => {
     secondBlankLine.setAttribute('data-value', MARKDOWN_BLANK_LINE_VALUE);
     root.append(firstBlankLine, secondBlankLine);
     const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
+      if (this === root) {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 500,
+          bottom: 200,
+          width: 500,
+          height: 200,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
       if (this === firstBlankLine) {
         return {
           x: 10,
@@ -340,8 +353,66 @@ describe('markdownBlankLineInteraction', () => {
 
     try {
       expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 32)).toBe(firstBlankLine);
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 4, 32)).toBe(firstBlankLine);
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 496, 32)).toBe(firstBlankLine);
       expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 72)).toBe(secondBlankLine);
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 496, 72)).toBe(secondBlankLine);
       expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 120)).toBeNull();
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 520, 32)).toBeNull();
+    } finally {
+      rectSpy.mockRestore();
+    }
+  });
+
+  it('resolves markdown blank line clicks through editor width when the blank line has no own width', () => {
+    const root = document.createElement('div');
+    const blankLine = document.createElement('div');
+    blankLine.setAttribute('data-type', 'html-block');
+    blankLine.setAttribute('data-value', MARKDOWN_BLANK_LINE_VALUE);
+    root.append(blankLine);
+
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
+      if (this === root) {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 500,
+          bottom: 200,
+          width: 500,
+          height: 200,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if (this === blankLine) {
+        return {
+          x: 10,
+          y: 20,
+          top: 20,
+          left: 10,
+          right: 10,
+          bottom: 44,
+          width: 0,
+          height: 24,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+
+    try {
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 250, 32)).toBe(blankLine);
     } finally {
       rectSpy.mockRestore();
     }

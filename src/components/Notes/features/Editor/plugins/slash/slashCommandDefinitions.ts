@@ -12,6 +12,7 @@ import { insertHtmlBlockNodeAndOpenEditor } from './slashHtmlCommands';
 import {
   findInsertedNodePos,
   moveSelectionAfterInsertedNode,
+  replaceSelectionOrCurrentBlankTextBlockWithNode,
 } from './slashInsertUtils';
 import { insertMathNodeAndOpenEditor } from './slashMathCommands';
 import { insertMermaidNodeAndOpenEditor } from './slashMermaidCommands';
@@ -46,7 +47,7 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   try {
     const node = type.createAndFill?.(attrs) ?? type.create(attrs);
     if (!node) return;
-    const tr = state.tr.replaceSelectionWith(node);
+    const tr = replaceSelectionOrCurrentBlankTextBlockWithNode(state, node);
     if (node.isAtom || node.isLeaf) {
       const preferredPos = tr.mapping.map(state.selection.from, -1);
       const nodePos = findInsertedNodePos({

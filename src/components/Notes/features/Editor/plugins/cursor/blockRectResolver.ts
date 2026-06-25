@@ -124,7 +124,7 @@ export function collectTextContentBounds(root: HTMLElement): { left: number; rig
   return {
     left,
     right,
-    ...(lineRects.length > 1 ? { lineRects } : {}),
+    ...(lineRects.length > 0 ? { lineRects } : {}),
   };
 }
 

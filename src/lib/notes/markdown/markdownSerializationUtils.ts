@@ -42,6 +42,8 @@ const HTML_ONE_LINE_RENDERED_BLOCK_PATTERN =
   /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)[\s\S]*?(?:<\/\1>|\/>)[ \t]*$/;
 const HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN =
   /^(?: {0,3})<(?:img|hr|br)(?:\s|\/?>|$)[\s\S]*$/i;
+const HTML_CLOSING_RENDERED_BLOCK_PATTERN =
+  /^(?: {0,3})<\/([A-Za-z][A-Za-z0-9-]*)\s*>[ \t]*$/;
 const NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES = new Set([
   'base',
   'basefont',
@@ -1793,7 +1795,7 @@ function normalizeRenderedHtmlBoundaryHelperCommentSegment(
     const previousBoundaryLine =
       findNearestPreviousNonBlankOutputLine(output)
       ?? findNearestPreviousNonBlankInputLine(allLines, startIndex + index - 1);
-    if (isRenderedOneLineHtmlBlockBoundaryLine(previousBoundaryLine)) {
+    if (isRenderedHtmlBlockBoundaryLine(previousBoundaryLine)) {
       changed = true;
       const hadLocalBlankBeforeHelper = output.length > 0 && output[output.length - 1]?.trim() === '';
       const hadInputBlankBeforeHelper = (allLines[startIndex + index - 1] ?? '').trim() === '';
@@ -1888,12 +1890,13 @@ function isHtmlBlockBoundaryLine(line: string | null): boolean {
     );
 }
 
-function isRenderedOneLineHtmlBlockBoundaryLine(line: string | null): boolean {
+function isRenderedHtmlBlockBoundaryLine(line: string | null): boolean {
   if (line === null) return false;
 
   const match = HTML_ONE_LINE_RENDERED_BLOCK_PATTERN.exec(line)
     ?? HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN.exec(line);
-  const tagName = match?.[1]?.toLowerCase() ?? getHtmlStartTagName(line);
+  const closingTagName = HTML_CLOSING_RENDERED_BLOCK_PATTERN.exec(line)?.[1]?.toLowerCase();
+  const tagName = match?.[1]?.toLowerCase() ?? closingTagName ?? getHtmlStartTagName(line);
   return Boolean(tagName && !NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES.has(tagName));
 }
 

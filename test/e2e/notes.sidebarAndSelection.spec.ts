@@ -226,7 +226,7 @@ test.describe('notes sidebar and block selection interaction', () => {
       await openVaultInNotes(page, {
         vaultPath: fixture.vaultPath,
         name: 'Sidebar Selection Vault',
-        minFileCount: 3,
+        minFileCount: 2,
       });
 
       await expect(page.locator(NOTES_VIEW_SELECTOR)).toBeVisible();

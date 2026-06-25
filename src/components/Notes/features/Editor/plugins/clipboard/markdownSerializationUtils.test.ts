@@ -564,6 +564,58 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument('- one\n\u200B\u200C\n- two\n')).toBe('- one\n\n- two\n');
   });
 
+  it('does not duplicate editor blank-line comments after one-line html blocks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument([
+        'hi',
+        '',
+        '<p>Fresh middle HTML body</p>',
+        '',
+        '<!--vlaina-markdown-blank-line-->',
+        '',
+        '1',
+      ].join('\n'))
+    ).toBe([
+      'hi',
+      '',
+      '<p>Fresh middle HTML body</p>',
+      '',
+      '1',
+    ].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument([
+        'hi',
+        '',
+        '<div>h1</div>',
+        '',
+        '<!--vlaina-markdown-blank-line-->',
+        '',
+        '1',
+      ].join('\n'))
+    ).toBe(['hi', '', '<div>h1</div>', '', '1'].join('\n'));
+  });
+
+  it('strips editor rendered-boundary comments after multi-line html blocks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument([
+        '<p align="center">',
+        '  <img src="logo.png"><br>',
+        'HTML',
+        '</p>',
+        '',
+        '<!--vlaina-rendered-html-boundary-blank-line-->',
+        'after',
+      ].join('\n'))
+    ).toBe([
+      '<p align="center">',
+      '  <img src="logo.png"><br>',
+      'HTML',
+      '</p>',
+      '',
+      'after',
+    ].join('\n'));
+  });
+
   it('persists consecutive ordered list lines that are missing marker spaces as lists', () => {
     expect(
       normalizeSerializedMarkdownDocument(['1.苹果', '2.香蕉', '3.橘子'].join('\n'))
@@ -952,6 +1004,41 @@ describe('normalizeSerializedMarkdownDocument', () => {
 
       expect(serialized.trim()).toBe('\\<p>');
       expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serialized))).toBe('<p>');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('normalizes serializer spacing around editor-authored one-line html blocks', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark);
+
+    await editor.create();
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const schema = view.state.schema;
+      const paragraph = schema.nodes.paragraph;
+      const htmlBlock = schema.nodes.html_block;
+      const doc = schema.nodes.doc.create(null, [
+        paragraph.create(null, schema.text('hi')),
+        htmlBlock.create({ value: '<p>Fresh middle HTML body</p>' }),
+        paragraph.create(null, schema.text('1')),
+      ]);
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content));
+
+      const serializer = editor.ctx.get(serializerCtx);
+      const serialized = serializer(view.state.doc);
+
+      expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serialized))).toBe(
+        ['hi', '', '<p>Fresh middle HTML body</p>', '', '1'].join('\n')
+      );
     } finally {
       await editor.destroy();
     }
