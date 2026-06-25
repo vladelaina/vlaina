@@ -13,7 +13,7 @@ const reactSingletonPackages = [
 ] as const;
 
 function readText(path: string) {
-  return readFileSync(path, 'utf8');
+  return readFileSync(path, 'utf8').replace(/\r\n?/g, '\n');
 }
 
 async function resolveConfig(configExport: unknown) {
