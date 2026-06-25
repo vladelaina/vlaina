@@ -73,6 +73,10 @@ function isTagTokenBoundary(view: EditorView): boolean {
   return isTagTokenBoundaryAtTextblock(selection.$from.parent, selection.$from.parentOffset);
 }
 
+function isVerticalCaretNavigationKey(event: Pick<KeyboardEvent, 'key'>): boolean {
+  return event.key === 'ArrowDown' || event.key === 'ArrowUp';
+}
+
 function resolveRangeRect(node: Node, fromOffset: number, toOffset: number): DOMRect | null {
   if (node.nodeType !== Node.TEXT_NODE) {
     return null;
@@ -118,6 +122,7 @@ export class TextBlockCaretOverlayView {
   private caret: HTMLElement | null = null;
   private frameId: number | null = null;
   private keyboardCaretNavigationActive = false;
+  private pendingVerticalNavigationHead: number | null = null;
   private readonly resizeObserver: ResizeObserver | null = null;
 
   constructor(private view: EditorView) {
@@ -180,12 +185,17 @@ export class TextBlockCaretOverlayView {
     this.frameId = null;
   }
 
-  private hide = (): void => {
-    this.keyboardCaretNavigationActive = false;
+  private removeCaretOverlay(): void {
     releaseCaretBlink(this.caret);
     this.caret?.remove();
     this.caret = null;
     this.view.dom.classList.remove(TEXTBLOCK_CARET_CLASS);
+  }
+
+  private hide = (): void => {
+    this.keyboardCaretNavigationActive = false;
+    this.pendingVerticalNavigationHead = null;
+    this.removeCaretOverlay();
   };
 
   private handleKeyDown = (event: KeyboardEvent): void => {
@@ -193,7 +203,13 @@ export class TextBlockCaretOverlayView {
 
     if (isCaretNavigationKey(event)) {
       this.keyboardCaretNavigationActive = true;
-      holdCaretBlink(this.caret, null);
+      if (isVerticalCaretNavigationKey(event)) {
+        const { selection } = this.view.state;
+        this.pendingVerticalNavigationHead = selection.empty ? selection.head : null;
+        this.removeCaretOverlay();
+      } else {
+        holdCaretBlink(this.caret, null);
+      }
     }
     this.scheduleUpdate();
   };
@@ -203,6 +219,9 @@ export class TextBlockCaretOverlayView {
 
     if (isCaretNavigationKey(event)) {
       this.keyboardCaretNavigationActive = false;
+      if (isVerticalCaretNavigationKey(event)) {
+        this.pendingVerticalNavigationHead = null;
+      }
       holdCaretBlink(this.caret);
     }
     this.scheduleUpdate();
@@ -231,6 +250,16 @@ export class TextBlockCaretOverlayView {
       this.hide();
       return;
     }
+
+    if (
+      this.pendingVerticalNavigationHead !== null &&
+      this.view.state.selection.empty &&
+      this.view.state.selection.head === this.pendingVerticalNavigationHead
+    ) {
+      this.removeCaretOverlay();
+      return;
+    }
+    this.pendingVerticalNavigationHead = null;
 
     let rect: { left: number; top: number; bottom: number };
     try {
