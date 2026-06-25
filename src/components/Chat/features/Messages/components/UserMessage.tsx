@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { LocalImage } from '@/components/Chat/common/LocalImage';
-import { cn } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { resolveUserMessageBubbleWidth } from '@/components/Chat/features/Layout/chatUserBubbleWidth';
@@ -16,7 +16,12 @@ import { useUIStore } from '@/stores/uiSlice';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 
 const userMessageActionButtonClass =
-  cn('flex h-7 w-7 items-center justify-center text-[var(--vlaina-sidebar-chat-text)]', chatComposerGhostIconButtonClass);
+  cn(
+    'flex h-7 w-7 items-center justify-center',
+    iconButtonStyles,
+    chatComposerGhostIconButtonClass,
+    'text-[var(--vlaina-sidebar-chat-text)]',
+  );
 
 function isSwitchableUserVersion(version: ChatMessage['versions'][number]): boolean {
   return version.kind === 'original' || version.kind === 'edit';

@@ -2,6 +2,7 @@ import { act, fireEvent, render, renderHook, screen as rtlScreen } from '@testin
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useMessageAutoscroll } from './useMessageAutoscroll';
+import { buildChatMessageFrameLayout } from '@/components/Chat/features/Layout/chatMessageFrames';
 
 function createMessage(id: string, role: ChatMessage['role']): ChatMessage {
   const content = `${role}-${id}`;
@@ -418,6 +419,109 @@ describe('useMessageAutoscroll', () => {
     });
 
     expect(scrollTop).toBe(1240);
+    requestAnimationFrameSpy.mockRestore();
+  });
+
+  it('jumps near an offscreen current user row using estimated distance from the nearest rendered row', () => {
+    const queuedFrames: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        queuedFrames.push(callback);
+        return queuedFrames.length;
+      });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    const initialMessages = Array.from({ length: 12 }, (_value, index) =>
+      createMessage(index % 2 === 0 ? `u${index}` : `a${index}`, index % 2 === 0 ? 'user' : 'assistant')
+    );
+    const messages = [
+      ...initialMessages,
+      createMessage('u-final', 'user'),
+    ];
+
+    function TestHarness({ messages }: { messages: ChatMessage[] }) {
+      const { containerRef, handleNewUserMessage } = useMessageAutoscroll({
+        messages,
+        isStreaming: true,
+        chatId: 'chat-1',
+        showLoading: false,
+      });
+
+      return (
+        <div data-testid="scrollable-offscreen-anchor" ref={containerRef}>
+          <button type="button" onClick={handleNewUserMessage}>send</button>
+          <div data-message-index="1" data-testid="early-rendered-row" />
+        </div>
+      );
+    }
+
+    const view = render(<TestHarness messages={initialMessages} />);
+    const scrollable = rtlScreen.getByTestId('scrollable-offscreen-anchor');
+    const earlyRow = rtlScreen.getByTestId('early-rendered-row');
+    let scrollTop = 0;
+
+    Object.defineProperty(scrollable, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(scrollable, 'clientWidth', {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(scrollable, 'scrollHeight', {
+      configurable: true,
+      get: () => 6000,
+    });
+    Object.defineProperty(scrollable, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+    });
+    scrollable.getBoundingClientRect = () => ({
+      bottom: 600,
+      height: 600,
+      left: 0,
+      right: 900,
+      top: 100,
+      width: 900,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    earlyRow.getBoundingClientRect = () => ({
+      bottom: 360,
+      height: 180,
+      left: 0,
+      right: 900,
+      top: 180,
+      width: 900,
+      x: 0,
+      y: 180,
+      toJSON: () => ({}),
+    });
+
+    const layout = buildChatMessageFrameLayout(messages, {
+      cacheKey: 'chat-1',
+      containerWidth: 900,
+      isSessionActive: true,
+    });
+    const previousFrame = layout.items[1]!;
+    const targetFrame = layout.items[layout.items.length - 1]!;
+    const previousRenderedBottom = earlyRow.getBoundingClientRect().bottom - scrollable.getBoundingClientRect().top;
+    const expectedScrollTop = previousRenderedBottom + targetFrame.top - previousFrame.bottom;
+
+    act(() => {
+      rtlScreen.getByRole('button', { name: 'send' }).click();
+    });
+    act(() => {
+      view.rerender(<TestHarness messages={messages} />);
+    });
+
+    expect(scrollTop).toBe(expectedScrollTop);
+    expect(scrollTop).toBeGreaterThan(1000);
+    expect(queuedFrames.length).toBeGreaterThan(0);
     requestAnimationFrameSpy.mockRestore();
   });
 
