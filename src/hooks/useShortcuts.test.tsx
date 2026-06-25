@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDITOR_FIND_OPEN_EVENT } from '@/components/Notes/features/Editor/find/editorFindEvents';
 import { NOTE_SOURCE_MODE_TOGGLE_EVENT } from '@/components/Notes/features/Editor/sourceMode/sourceModeEvents';
@@ -411,6 +411,50 @@ describe('useShortcuts', () => {
     await Promise.resolve();
 
     expect(toggleDrawer).not.toHaveBeenCalled();
+  });
+
+  it('adjusts the appearance font size with Ctrl+wheel', () => {
+    useUIStore.setState({ fontSize: 17 });
+
+    renderHook(() => useShortcuts());
+
+    const zoomInEvent = new WheelEvent('wheel', {
+      ctrlKey: true,
+      deltaY: -80,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(zoomInEvent);
+    });
+
+    expect(zoomInEvent.defaultPrevented).toBe(true);
+    expect(useUIStore.getState().fontSize).toBe(18);
+
+    const zoomOutEvent = new WheelEvent('wheel', {
+      ctrlKey: true,
+      deltaY: 80,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(zoomOutEvent);
+    });
+
+    expect(zoomOutEvent.defaultPrevented).toBe(true);
+    expect(useUIStore.getState().fontSize).toBe(17);
+
+    const normalWheelEvent = new WheelEvent('wheel', {
+      deltaY: -80,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(normalWheelEvent);
+    });
+
+    expect(normalWheelEvent.defaultPrevented).toBe(false);
+    expect(useUIStore.getState().fontSize).toBe(17);
   });
 
   it('creates a notes draft with Ctrl+Shift+T and leaves Ctrl+T free', async () => {
