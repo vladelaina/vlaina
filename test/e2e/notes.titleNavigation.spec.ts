@@ -64,8 +64,8 @@ const TITLE_ARROW_DOWN_SYNTAX_CASES: TitleArrowDownSyntaxCase[] = [
   },
   {
     label: 'task-list',
-    markdown: ['- [ ] Task arrow down target sentinel', '- [x] Task second line should not be targeted'].join('\n'),
-    expectedText: 'Task arrow down target sentinel',
+    markdown: ['- [ ] hi', '- [x] Task second line should not be targeted'].join('\n'),
+    expectedText: 'hi',
   },
   {
     label: 'nested-list-parent',
@@ -115,6 +115,69 @@ const TITLE_ARROW_DOWN_SYNTAX_CASES: TitleArrowDownSyntaxCase[] = [
     label: 'image-before-paragraph',
     markdown: [`![Image before paragraph](${TINY_PNG_DATA_URL})`, '', 'Paragraph after image arrow target sentinel'].join('\n'),
     expectedText: 'Paragraph after image arrow target sentinel',
+  },
+];
+
+const BODY_ARROW_DOWN_SYNTAX_CASES: TitleArrowDownSyntaxCase[] = [
+  {
+    label: 'heading',
+    markdown: '## hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'paragraph',
+    markdown: 'hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'short-bullet-list',
+    markdown: '- hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'plus-bullet-list',
+    markdown: '+ hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'star-bullet-list',
+    markdown: '* hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'long-bullet-list',
+    markdown: ['- Bullet hi', '- Bullet second line should not be targeted'].join('\n'),
+    expectedText: 'Bullet hi',
+  },
+  {
+    label: 'indented-bullet-list',
+    markdown: '  - hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'short-ordered-list',
+    markdown: '1. hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'parenthesized-ordered-list',
+    markdown: '1) hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'short-task-list',
+    markdown: '- [ ] hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'indented-task-list',
+    markdown: '  - [ ] hi',
+    expectedText: 'hi',
+  },
+  {
+    label: 'code-block',
+    markdown: ['```ts', 'hi', '```'].join('\n'),
+    expectedText: 'hi',
   },
 ];
 
@@ -352,6 +415,59 @@ test.describe('notes title keyboard navigation', () => {
           (window as any).__vlainaE2E.getNotesState().currentNote?.content ?? ''
         ));
         expect(savedContent, `${syntaxCase.label}: navigation must not change markdown`).toBe(content);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('moves from the previous body line end to the next syntax line end with ArrowDown', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-body-arrow-down-syntax-matrix');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      for (const syntaxCase of BODY_ARROW_DOWN_SYNTAX_CASES) {
+        await test.step(syntaxCase.label, async () => {
+          const aboveText = `Above body arrow line for ${syntaxCase.label} with target column padding text`;
+          const content = [aboveText, syntaxCase.markdown].join('\n');
+          await openMarkdownFixture(page, {
+            filename: `body-arrow-down-${syntaxCase.label}.md`,
+            content,
+          });
+
+          const above = await page.evaluate(
+            (targetText) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, targetText),
+            aboveText,
+          );
+          expect(above.selected, `${syntaxCase.label}: above text must be selectable`).toBe(true);
+          const target = await page.evaluate(
+            ({ targetText, anchorText }) => (
+              (window as any).__vlainaE2E.selectEditorTextByText(targetText, anchorText)
+            ),
+            {
+              targetText: syntaxCase.expectedText,
+              anchorText: syntaxCase.anchorText ?? syntaxCase.expectedText,
+            },
+          );
+          expect(target.selected, `${syntaxCase.label}: target text must be selectable`).toBe(true);
+
+          await page.evaluate((position) => (window as any).__vlainaE2E.setEditorSelectionRange(position), above.to);
+          await waitForEditorAnimationFrame(page);
+          await page.keyboard.press('ArrowDown');
+          await waitForEditorAnimationFrame(page);
+
+          await expect.poll(
+            async () => page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary()),
+            { timeout: 5_000, message: `${syntaxCase.label}: ArrowDown should target syntax line end` },
+          ).toMatchObject({
+            empty: true,
+            from: target.to,
+            to: target.to,
+          });
+        });
       }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
