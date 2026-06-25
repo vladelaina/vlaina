@@ -80,6 +80,21 @@ describe('UserMessage', () => {
     expect(useNotesStoreMock).not.toHaveBeenCalled();
   });
 
+  it('uses the shared compact icon button styling for sent message actions', () => {
+    render(<UserMessage message={createMessage()} containerWidth={880} onEdit={vi.fn()} />);
+
+    const copyButton = screen.getByLabelText('Copy message');
+    const editButton = screen.getByLabelText('Edit message');
+
+    for (const button of [copyButton, editButton]) {
+      expect(button.className).toContain('h-7');
+      expect(button.className).toContain('w-7');
+      expect(button.className).toContain('cursor-pointer');
+      expect(button.className).toContain('hover:text-[var(--vlaina-accent)]');
+      expect(button.className).toContain('text-[var(--vlaina-sidebar-chat-text)]');
+    }
+  });
+
   it('subscribes to notes state after entering edit mode', () => {
     render(<UserMessage message={createMessage()} containerWidth={880} onEdit={vi.fn()} />);
 

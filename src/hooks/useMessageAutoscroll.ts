@@ -217,14 +217,6 @@ export const useMessageAutoscroll = ({
       }
     }
 
-    if (previousRenderedRow) {
-      const previousRect = previousRenderedRow.getBoundingClientRect();
-      const previousBottom = previousRect.bottom - containerRect.top + container.scrollTop;
-      const requestedScrollTop = previousBottom + CHAT_MESSAGE_LIST_GAP;
-      setProgrammaticScrollTop(container, requestedScrollTop);
-      return 'estimated';
-    }
-
     const layoutWidth = normalizeChatContainerWidth(container.clientWidth);
     const estimatedLayout = buildChatMessageFrameLayout(messages, {
       cacheKey: chatId,
@@ -235,11 +227,25 @@ export const useMessageAutoscroll = ({
     if (!targetFrame) {
       return false;
     }
-
-    const nextScrollTop = targetFrame.height > container.clientHeight
+    const targetEstimatedScrollTop = targetFrame.height > container.clientHeight
       ? targetFrame.bottom - LONG_USER_MESSAGE_VISIBLE_HEIGHT
       : targetFrame.top;
-    setProgrammaticScrollTop(container, nextScrollTop);
+
+    if (previousRenderedRow) {
+      const previousFrame = estimatedLayout.items[previousRenderedIndex];
+      const previousRect = previousRenderedRow.getBoundingClientRect();
+      const previousBottom = previousRect.bottom - containerRect.top + container.scrollTop;
+      const previousEstimatedBottom = previousFrame?.bottom ?? 0;
+      const estimatedDistanceToTarget = Math.max(
+        CHAT_MESSAGE_LIST_GAP,
+        targetEstimatedScrollTop - previousEstimatedBottom,
+      );
+      const requestedScrollTop = previousBottom + estimatedDistanceToTarget;
+      setProgrammaticScrollTop(container, requestedScrollTop);
+      return 'estimated';
+    }
+
+    setProgrammaticScrollTop(container, targetEstimatedScrollTop);
     return 'estimated';
   }, [chatId, getLastUserMessageIndex, messages, setProgrammaticScrollTop]);
 
