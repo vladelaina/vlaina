@@ -185,6 +185,7 @@ export async function saveDraftNote({
       ? get().currentNoteRevision + 1
       : get().currentNoteRevision,
     isDirty: draftStillCurrent ? hasNewerDraftEdit : latestState.isDirty,
+    isNewlyCreated: draftStillCurrent ? false : latestState.isNewlyCreated,
     noteMetadata: nextMetadata,
     rootFolder: nextRootFolder,
     noteContentsCache: nextCacheWithSavedNote,

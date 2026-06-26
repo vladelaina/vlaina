@@ -492,6 +492,7 @@ describe('workspace document actions', () => {
     const store = createNotesStore({
       currentNote: { path: 'draft:blank', content: 'draft text' },
       isDirty: true,
+      isNewlyCreated: true,
       openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
       draftNotes: {
         'draft:blank': { parentPath: null, name: 'Draft title' },
@@ -509,6 +510,7 @@ describe('workspace document actions', () => {
     });
     expect(store.getState().currentNote?.path).toBe('Draft title.md');
     expect(store.getState().openTabs).toEqual([{ path: 'Draft title.md', name: 'Draft title', isDirty: false }]);
+    expect(store.getState().isNewlyCreated).toBe(false);
   });
 
   it('keeps newer draft edits dirty after materializing while a save is in flight', async () => {

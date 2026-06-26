@@ -183,4 +183,70 @@ describe('workspace draft save state races', () => {
       currentNotePath: 'beta.md',
     }));
   });
+
+  it('does not clear a newer current draft created while an older draft save is finishing', async () => {
+    let resolveSave: ((value: {
+      content: string;
+      metadata: Record<string, unknown>;
+      modifiedAt: number;
+      size: number;
+      nextCache: Map<string, { content: string; modifiedAt: number | null }>;
+    }) => void) | undefined;
+    hoisted.saveNoteDocument.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
+    const store = createNotesStore({
+      currentNote: { path: 'draft:first', content: 'First draft body' },
+      isDirty: true,
+      isNewlyCreated: true,
+      openTabs: [{ path: 'draft:first', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:first': { parentPath: null, name: 'First title' },
+      },
+      noteContentsCache: new Map([
+        ['draft:first', { content: 'First draft body', modifiedAt: null }],
+      ]),
+    });
+
+    const save = store.getState().saveNote({ explicit: false });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    store.setState((state) => ({
+      currentNote: { path: 'draft:second', content: '' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: false,
+      isNewlyCreated: true,
+      openTabs: [
+        ...state.openTabs,
+        { path: 'draft:second', name: '', isDirty: false },
+      ],
+      draftNotes: {
+        ...state.draftNotes,
+        'draft:second': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map(state.noteContentsCache).set('draft:second', {
+        content: '',
+        modifiedAt: null,
+      }),
+    }));
+
+    resolveSave?.({
+      content: 'First draft saved',
+      metadata: { updatedAt: 2 },
+      modifiedAt: 2,
+      size: 17,
+      nextCache: new Map([['First title.md', { content: 'First draft saved', modifiedAt: 2 }]]),
+    });
+    await save;
+
+    expect(store.getState().currentNote).toEqual({ path: 'draft:second', content: '' });
+    expect(store.getState().isNewlyCreated).toBe(true);
+    expect(store.getState().draftNotes).toEqual({
+      'draft:second': { parentPath: null, name: '' },
+    });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'First title.md', name: 'First title', isDirty: false },
+      { path: 'draft:second', name: '', isDirty: false },
+    ]);
+  });
 });

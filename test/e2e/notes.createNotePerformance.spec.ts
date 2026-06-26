@@ -10,7 +10,7 @@ import {
 } from './notesE2E';
 
 const SIDEBAR_MENU_LAYER_SELECTOR = '[data-sidebar-context-menu-layer="true"]';
-const ROOT_FOLDER_ROW_SELECTOR = '[data-file-tree-root-drop-target="true"]';
+const ROOT_FOLDER_ROW_SELECTOR = '[data-notes-root-folder-row="true"]';
 const NEW_NOTE_MENU_ITEM_SELECTOR = `${SIDEBAR_MENU_LAYER_SELECTOR} [data-sidebar-context-menu-item="new-note"]`;
 const CREATE_DRAFT_SWITCH_BUDGET_MS = 500;
 const CREATE_DRAFT_SWITCH_POLL_INTERVALS_MS = [16, 32, 50, 100];
