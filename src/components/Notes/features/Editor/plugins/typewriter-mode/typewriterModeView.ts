@@ -10,6 +10,7 @@ import {
 } from './typewriterModeRules';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+const INPUT_EVENT_LISTENER_OPTIONS = { capture: true };
 
 interface RectLike {
   top: number;
@@ -35,8 +36,8 @@ export class TypewriterModeView {
       }
     });
     this.view.dom.addEventListener('pointerdown', this.handlePointerDown);
-    this.view.dom.addEventListener('beforeinput', this.handleBeforeInput);
-    this.view.dom.addEventListener('keydown', this.handleKeyDown);
+    this.view.dom.addEventListener('beforeinput', this.handleBeforeInput, INPUT_EVENT_LISTENER_OPTIONS);
+    this.view.dom.addEventListener('keydown', this.handleKeyDown, INPUT_EVENT_LISTENER_OPTIONS);
   }
 
   update(view: EditorView, prevState: EditorView['state']): void {
@@ -57,8 +58,8 @@ export class TypewriterModeView {
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.view.dom.removeEventListener('pointerdown', this.handlePointerDown);
-    this.view.dom.removeEventListener('beforeinput', this.handleBeforeInput);
-    this.view.dom.removeEventListener('keydown', this.handleKeyDown);
+    this.view.dom.removeEventListener('beforeinput', this.handleBeforeInput, INPUT_EVENT_LISTENER_OPTIONS);
+    this.view.dom.removeEventListener('keydown', this.handleKeyDown, INPUT_EVENT_LISTENER_OPTIONS);
     this.view.dom.ownerDocument.defaultView?.removeEventListener('pointerup', this.handlePointerUp);
     this.view.dom.ownerDocument.defaultView?.removeEventListener('pointercancel', this.handlePointerUp);
   }

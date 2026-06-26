@@ -232,8 +232,8 @@ describe('caret styles', () => {
     expect(source).toContain('holdCaretBlink(this.caret, null)');
     expect(source).toContain('holdCaretBlink(this.caret, this.keyboardCaretNavigationActive ? null : undefined)');
     expect(source).toContain('releaseCaretBlink(this.caret)');
-    expect(source).toContain("view.dom.addEventListener('keydown', this.handleKeyDown)");
-    expect(source).toContain("view.dom.addEventListener('keyup', this.handleKeyUp)");
+    expect(source).toContain("view.dom.addEventListener('keydown', this.handleKeyDown, KEY_EVENT_LISTENER_OPTIONS)");
+    expect(source).toContain("view.dom.addEventListener('keyup', this.handleKeyUp, KEY_EVENT_LISTENER_OPTIONS)");
     expect(source).not.toContain('Math.max(12, rect.bottom - rect.top)');
     expect(source).not.toContain('#41ace2');
   });
