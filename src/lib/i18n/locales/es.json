@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "Suelta archivos aqui",
   "chat.dropBlocksHere": "Suelta bloques aqui",
   "common.somethingWentWrong": "Algo salio mal",
-  "common.errorReportInstruction": "Copia este informe de error y contacta al desarrollador lo antes posible. Tambien se guardo un registro de diagnostico en la carpeta de configuracion del sistema.",
+  "common.errorReportInstruction": "Copia este informe de error y envialo a hi@vlaina.com lo antes posible. Tambien se guardo un registro de diagnostico en la carpeta de configuracion del sistema.",
   "common.errorDetails": "Detalles del error",
   "common.copyErrorReport": "Copiar informe de error",
   "common.openLogFolder": "Abrir carpeta de registros",

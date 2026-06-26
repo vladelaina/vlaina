@@ -1,4 +1,4 @@
-import { Component, version as reactVersion, type ErrorInfo, type ReactNode } from 'react';
+import { Component, Fragment, version as reactVersion, type ErrorInfo, type ReactNode } from 'react';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { translate, type MessageKey } from '@/lib/i18n';
@@ -19,9 +19,13 @@ interface ErrorBoundaryState {
 }
 
 const GITHUB_ISSUES_URL = 'https://github.com/vladelaina/vlaina/issues';
+const SUPPORT_EMAIL = 'hi@vlaina.com';
+const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}`;
+const SUPPORT_EMAIL_LINK_CLASS =
+  'inline p-0 font-medium text-[var(--vlaina-accent)] underline-offset-4 hover:text-[var(--vlaina-accent-hover)] hover:underline';
 const FALLBACK_MESSAGES = {
   'common.somethingWentWrong': 'Something went wrong',
-  'common.errorReportInstruction': 'Please copy this error report and contact the developer as soon as possible. A diagnostic log was also saved in the system configuration folder.',
+  'common.errorReportInstruction': `Please copy this error report and email it to ${SUPPORT_EMAIL} as soon as possible. A diagnostic log was also saved in the system configuration folder.`,
   'common.logFile': 'Log file',
   'common.errorDetails': 'Error details',
   'common.copied': 'Copied',
@@ -227,6 +231,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       `Version: ${appVersion ?? 'unknown'}`,
       `React: ${reactVersion}`,
       `Build: mode=${import.meta.env.MODE} dev=${String(import.meta.env.DEV)} prod=${String(import.meta.env.PROD)}`,
+      `Support email: ${SUPPORT_EMAIL}`,
       `URL: ${window.location.href}`,
       `Log file: ${logFilePath ?? 'not available'}`,
       `Log folder: ${logsDir ?? 'not available'}`,
@@ -275,6 +280,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   };
 
+  private handleOpenSupportEmail = () => {
+    const shell = getElectronBridge()?.shell;
+    if (shell?.openExternal) {
+      void shell.openExternal(SUPPORT_EMAIL_HREF).catch(() => undefined);
+      return;
+    }
+
+    try {
+      window.open(SUPPORT_EMAIL_HREF, '_blank', 'noopener,noreferrer');
+    } catch {
+    }
+  };
+
   render() {
     if (this.state.error) {
       if (this.props.fallback) {
@@ -282,6 +300,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       const errorReport = this.buildErrorReport();
+      const errorReportInstruction = safeTranslate('common.errorReportInstruction');
+      const errorReportInstructionParts = errorReportInstruction.split(SUPPORT_EMAIL);
 
       return (
         <div className="flex h-full min-h-screen w-full flex-col bg-background">
@@ -292,7 +312,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 {safeTranslate('common.somethingWentWrong')}
               </h2>
               <p className="text-sm leading-6 text-muted-foreground">
-                {safeTranslate('common.errorReportInstruction')}
+                {errorReportInstructionParts.map((part, index) => (
+                  <Fragment key={`${part}-${index}`}>
+                    {part}
+                    {index < errorReportInstructionParts.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={this.handleOpenSupportEmail}
+                        className={SUPPORT_EMAIL_LINK_CLASS}
+                      >
+                        {SUPPORT_EMAIL}
+                      </button>
+                    ) : null}
+                  </Fragment>
+                ))}
               </p>
               {this.state.logFilePath ? (
                 <p className="break-all text-xs text-muted-foreground">

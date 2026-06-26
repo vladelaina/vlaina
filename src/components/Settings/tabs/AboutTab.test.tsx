@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { AboutTab } from './AboutTab';
 
 vi.mock('@/lib/electron/bridge', () => ({
@@ -82,5 +83,21 @@ describe('AboutTab community QR pills', () => {
 
     expect(qqPanel).not.toHaveClass('opacity-[var(--vlaina-opacity-100)]');
     expect(wechatPanel).toHaveClass('opacity-[var(--vlaina-opacity-100)]');
+  });
+
+  it('opens the support email from the about community pills', () => {
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'hi@vlaina.com' }));
+
+    expect(openExternalHref).toHaveBeenCalledWith('mailto:hi@vlaina.com');
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ExternalLink, Globe, QrCode, RefreshCw } from 'lucide-react';
+import { ExternalLink, Globe, Mail, QrCode, RefreshCw } from 'lucide-react';
 import { FaDiscord, FaGithub, FaQq, FaWeixin } from 'react-icons/fa';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getElectronBridge } from '@/lib/electron/bridge';
@@ -37,6 +37,8 @@ const officialWebsiteLabel = 'vlaina.com';
 const githubRepositoryUrl = 'https://github.com/vladelaina/vlaina';
 const discordInviteUrl = 'https://discord.gg/nvsh9QpTqS';
 const slackInviteUrl = 'https://join.slack.com/t/vlainafeedback/shared_invite/zt-406ohel4j-lIBFjHpDinWbMunatud_xA';
+const supportEmail = 'hi@vlaina.com';
+const supportEmailHref = `mailto:${supportEmail}`;
 const appLogoUrl = `${import.meta.env.BASE_URL}logo.png`;
 const communityPillClassName =
   'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[var(--vlaina-font-xs)] font-semibold text-[var(--vlaina-sidebar-notes-text)] transition-all duration-[var(--vlaina-duration-200)]';
@@ -211,6 +213,20 @@ function WebsitePill() {
   );
 }
 
+function EmailPill() {
+  return (
+    <button
+      type="button"
+      onClick={() => void openExternalHref(supportEmailHref)}
+      aria-label={supportEmail}
+      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+    >
+      <Mail size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-accent)]" />
+      <span>{supportEmail}</span>
+    </button>
+  );
+}
+
 function DiscordPill() {
   const { t } = useI18n();
 
@@ -284,38 +300,45 @@ function GithubPill() {
 function CommunityPills({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
   const [activeQrPill, setActiveQrPill] = useState<CommunityQrPillId | null>(null);
+  const rowClassName =
+    'flex min-w-0 max-w-full flex-wrap items-center gap-1.5 gap-y-2 overflow-visible max-[420px]:gap-1 max-[420px]:gap-y-2';
 
   const closeQrPill = useCallback((id: CommunityQrPillId) => {
     setActiveQrPill((current) => current === id ? null : current);
   }, []);
 
   return (
-    <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 gap-y-2 overflow-visible px-1.5 py-1 max-[420px]:gap-1 max-[420px]:gap-y-2 max-[420px]:px-0">
-      <WebsitePill />
-      <GithubPill />
-      <DiscordPill />
-      <SlackPill />
-      <CommunityQrPill
-        id="qq"
-        title={t('settings.about.qqGroup')}
-        label="QQ"
-        icon={<FaQq size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-qq)]" />}
-        qrText={community.qqQrCodeText}
-        detail={community.qqGroupNumber || undefined}
-        isOpen={activeQrPill === 'qq'}
-        onOpen={setActiveQrPill}
-        onClose={closeQrPill}
-      />
-      <CommunityQrPill
-        id="wechat"
-        title={t('settings.about.wechatGroup')}
-        label="WeChat"
-        icon={<FaWeixin size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-wechat)]" />}
-        qrText={community.wechatQrCodeText}
-        isOpen={activeQrPill === 'wechat'}
-        onOpen={setActiveQrPill}
-        onClose={closeQrPill}
-      />
+    <div className="space-y-2 overflow-visible px-1.5 py-1 max-[420px]:px-0">
+      <div className={rowClassName}>
+        <WebsitePill />
+        <EmailPill />
+      </div>
+      <div className={rowClassName}>
+        <GithubPill />
+        <DiscordPill />
+        <SlackPill />
+        <CommunityQrPill
+          id="qq"
+          title={t('settings.about.qqGroup')}
+          label="QQ"
+          icon={<FaQq size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-qq)]" />}
+          qrText={community.qqQrCodeText}
+          detail={community.qqGroupNumber || undefined}
+          isOpen={activeQrPill === 'qq'}
+          onOpen={setActiveQrPill}
+          onClose={closeQrPill}
+        />
+        <CommunityQrPill
+          id="wechat"
+          title={t('settings.about.wechatGroup')}
+          label="WeChat"
+          icon={<FaWeixin size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-wechat)]" />}
+          qrText={community.wechatQrCodeText}
+          isOpen={activeQrPill === 'wechat'}
+          onOpen={setActiveQrPill}
+          onClose={closeQrPill}
+        />
+      </div>
     </div>
   );
 }
