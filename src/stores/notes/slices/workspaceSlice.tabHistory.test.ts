@@ -717,6 +717,43 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('Unsaved alpha');
   });
 
+  it('keeps the save failure error when switching to a vault note leaves the previous tab dirty', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        error: 'Disk is read-only',
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+      }));
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      saveNote,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().openNote('beta.md');
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(store.getState().error).toBe('Disk is read-only');
+  });
+
   it('saves a dirty regular tab before switching to an already open absolute tab', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({
@@ -790,6 +827,43 @@ describe('workspaceSlice tab history', () => {
       { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
     ]);
     expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('Unsaved alpha');
+  });
+
+  it('keeps the save failure error when switching to an absolute note leaves the previous tab dirty', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        error: 'Disk is read-only',
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+      }));
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      saveNote,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md');
+
+    expect(store.getState().currentNote).toEqual({
+      path: '/other-vault/starred.md',
+      content: '# starred',
+    });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+    ]);
+    expect(store.getState().error).toBe('Disk is read-only');
   });
 
   it('prefetches a note into cache without changing the current note or tabs', async () => {
@@ -1181,6 +1255,82 @@ describe('workspaceSlice tab history', () => {
       name: 'Untitled',
       isDirty: false,
     });
+  });
+
+  it('saves a dirty regular note before switching to an existing draft tab', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        isDirty: false,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: false } : tab
+        ),
+      }));
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      saveNote,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'draft:blank', name: '', isDirty: true },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+      ]),
+    });
+
+    await store.getState().openNote('draft:blank');
+
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: false },
+      { path: 'draft:blank', name: 'Untitled', isDirty: true },
+    ]);
+    expect(store.getState().error).toBeNull();
+  });
+
+  it('keeps the save failure error when switching from a dirty regular note to a draft tab', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        error: 'Disk is read-only',
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+      }));
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      saveNote,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'draft:blank', name: '', isDirty: true },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+      ]),
+    });
+
+    await store.getState().openNote('draft:blank');
+
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'draft:blank', name: 'Untitled', isDirty: true },
+    ]);
+    expect(store.getState().error).toBe('Disk is read-only');
   });
 
   it('restores unsaved cached content when switching back to a dirty regular tab', async () => {
