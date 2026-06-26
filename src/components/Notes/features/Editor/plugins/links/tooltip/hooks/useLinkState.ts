@@ -12,6 +12,7 @@ export interface UseLinkStateProps {
     href: string;
     initialText?: string;
     autoFocus?: boolean;
+    containerElement?: HTMLElement | null;
     onEdit: (text: string, url: string, shouldClose?: boolean) => void;
     onClose: () => void;
 }
@@ -49,7 +50,14 @@ function isAutolinkTextForHref(href: string, initialText: string): boolean {
         normalizedHref.slice('mailto:'.length) === normalizedText;
 }
 
-export function useLinkState({ href, initialText = '', autoFocus = false, onEdit, onClose }: UseLinkStateProps) {
+export function useLinkState({
+    href,
+    initialText = '',
+    autoFocus = false,
+    containerElement,
+    onEdit,
+    onClose
+}: UseLinkStateProps) {
     const isNewLink = !href;
     const [mode, setMode] = useState<'view' | 'edit'>(isNewLink ? 'edit' : 'view');
     const [showCopied, setShowCopied] = useState(false);
@@ -92,7 +100,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
 
     // Sync edit mode to parent container
     useEffect(() => {
-        const container = document.querySelector('.link-tooltip-container');
+        const container = containerElement ?? document.querySelector('.link-tooltip-container');
         if (container) {
             if (mode === 'edit') {
                 container.setAttribute('data-editing', 'true');
@@ -100,7 +108,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
                 container.removeAttribute('data-editing');
             }
         }
-    }, [mode]);
+    }, [containerElement, mode]);
 
     const handleSaveEdit = useCallback((shouldClose: boolean = false) => {
         const trimmedUrl = editUrl.trim();
@@ -112,7 +120,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         const isEmptyOrMatchesUrl = !editText.trim() || editText.trim() === trimmedUrl;
         const textToSave = isEmptyOrMatchesUrl ? trimmedUrl : editText;
 
-        const container = document.querySelector('.link-tooltip-container');
+        const container = containerElement ?? document.querySelector('.link-tooltip-container');
         container?.removeAttribute('data-editing');
 
         onEdit(textToSave, trimmedUrl, shouldClose);
@@ -120,16 +128,16 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
             setMode('view');
         }
         return true;
-    }, [editText, editUrl, onEdit]);
+    }, [containerElement, editText, editUrl, onEdit]);
 
     const handleCancelEdit = useCallback(() => {
-        const container = document.querySelector('.link-tooltip-container');
+        const container = containerElement ?? document.querySelector('.link-tooltip-container');
         container?.removeAttribute('data-editing');
 
         setEditUrl(userFacingUrl);
         setEditText(isAutolink ? '' : initialText);
         onClose();
-    }, [userFacingUrl, initialText, isAutolink, onClose]);
+    }, [containerElement, userFacingUrl, initialText, isAutolink, onClose]);
 
     const handleCopy = useCallback(() => {
         let copyText: string;

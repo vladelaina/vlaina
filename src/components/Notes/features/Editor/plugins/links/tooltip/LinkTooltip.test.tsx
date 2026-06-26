@@ -31,12 +31,14 @@ function renderInTooltipContainer(props: Partial<ComponentProps<typeof LinkToolt
             onOpen={onOpen}
             onUnlink={onUnlink}
             onRemove={onRemove}
+            containerElement={container}
             {...props}
         />,
         { container }
     );
 
     return {
+        container,
         onClose,
         onEdit,
     };
@@ -80,5 +82,57 @@ describe('LinkTooltip', () => {
 
         expect(onClose).toHaveBeenCalledTimes(1);
         expect(onEdit).not.toHaveBeenCalled();
+    });
+
+    it('treats a non-element event target outside the tooltip as an outside click', () => {
+        const { onEdit } = renderInTooltipContainer();
+        const textNode = document.createTextNode('outside text');
+        document.body.append(textNode);
+
+        textNode.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        expect(onEdit).toHaveBeenCalledWith('Link target', '', true);
+    });
+
+    it('handles pointerdown outside before editor mousedown handlers can intercept the click', () => {
+        const { onEdit } = renderInTooltipContainer();
+        const editorBlank = document.createElement('div');
+        document.body.append(editorBlank);
+
+        editorBlank.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        editorBlank.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        expect(onEdit).toHaveBeenCalledTimes(1);
+        expect(onEdit).toHaveBeenCalledWith('Link target', '', true);
+    });
+
+    it('uses its own tooltip container when another tooltip container is still in the document', () => {
+        const staleContainer = document.createElement('div');
+        staleContainer.className = 'link-tooltip-container';
+        const staleBlank = document.createElement('div');
+        staleContainer.append(staleBlank);
+        document.body.append(staleContainer);
+
+        const { container, onEdit } = renderInTooltipContainer();
+
+        expect(staleContainer.hasAttribute('data-editing')).toBe(false);
+        expect(container.getAttribute('data-editing')).toBe('true');
+
+        staleBlank.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        expect(onEdit).toHaveBeenCalledWith('Link target', '', true);
+        expect(container.hasAttribute('data-editing')).toBe(false);
     });
 });

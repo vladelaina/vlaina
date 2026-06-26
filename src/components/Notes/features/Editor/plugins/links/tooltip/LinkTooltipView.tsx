@@ -138,10 +138,16 @@ export class LinkTooltipView {
 
     handleEdit = (link: HTMLElement, text: string, url: string, shouldClose = false) => {
         const start = editExistingLink(this.view, link, text, url);
-        if (start === null) return;
+        if (start === null) {
+            if (shouldClose) {
+                this.hide(true);
+                this.scheduleFocus();
+            }
+            return;
+        }
 
         if (shouldClose) {
-            this.hide();
+            this.hide(true);
             this.scheduleFocus();
             return;
         }
@@ -161,6 +167,7 @@ export class LinkTooltipView {
                 key={Date.now()}
                 href={href}
                 initialText={getBoundedLinkTooltipText(link)}
+                containerElement={this.dom}
                 onOpen={() => void openEditorLinkHref(href, { view: this.view })}
                 onEdit={(text, url, shouldClose) => this.handleEdit(link, text, url, shouldClose)}
                 onUnlink={() => this.handleUnlink(link)}
@@ -257,6 +264,7 @@ export class LinkTooltipView {
                 href=""
                 initialText={selectedText}
                 autoFocus={autoFocus}
+                containerElement={this.dom}
                 onOpen={() => { }}
                 onEdit={(text, url, shouldClose) => this.handleEditAtPosition(from, to, text, url, shouldClose)}
                 onUnlink={() => { }}
@@ -286,7 +294,7 @@ export class LinkTooltipView {
         }
 
         if (shouldClose) {
-            this.hide();
+            this.hide(true);
             this.scheduleFocus();
             return;
         }
