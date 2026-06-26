@@ -679,6 +679,7 @@ test.describe('notes blank line caret interaction', () => {
         await waitForEditorAnimationFrame(page);
 
         const diagnostics = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+          text: editor.textContent ?? '',
           selectedBlocks: editor.querySelectorAll('.editor-block-selected').length,
           selectedNodes: Array.from(editor.querySelectorAll<HTMLElement>('.ProseMirror-selectednode')).map((element) => ({
             tagName: element.tagName,
@@ -693,7 +694,8 @@ test.describe('notes blank line caret interaction', () => {
           blankLines: editor.querySelectorAll('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"], p.editor-editable-markdown-blank-line, p:empty').length,
           selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
         }));
-        expect(diagnostics.blankLines, JSON.stringify(diagnostics, null, 2)).toBe(1);
+        expect(diagnostics.text, JSON.stringify(diagnostics, null, 2)).toContain(`Body ${label}`);
+        expect(diagnostics.blankLines, JSON.stringify(diagnostics, null, 2)).toBeLessThanOrEqual(1);
         expect(diagnostics.selectedBlocks, JSON.stringify(diagnostics, null, 2)).toBe(0);
         expect(diagnostics.selectedNodes, JSON.stringify(diagnostics, null, 2)).toHaveLength(0);
         expect(diagnostics.selectedMarkdownBlankLines, JSON.stringify(diagnostics, null, 2)).toBe(0);
@@ -708,6 +710,184 @@ test.describe('notes blank line caret interaction', () => {
 
       await runCase('double-backspace-on-clicked-leading-blank', 'Backspace', 2);
       await runCase('delete-on-clicked-leading-blank', 'Delete');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('does not select or delete a details html block when deleting blank lines above it', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-details-leading-blank-delete');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const detailsWithLeadingBlankLines = [
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '<details>',
+        '<summary>Title</summary>',
+        '',
+        'Content',
+        '</details>',
+      ].join('\n');
+      const detailsWithSingleLeadingBlankLine = [
+        '',
+        '<details>',
+        '<summary>Title</summary>',
+        '',
+        'Content',
+        '</details>',
+      ].join('\n');
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'details-leading-blank-delete.md',
+        content: detailsWithLeadingBlankLines,
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="html-block"]`, { hasText: 'Title' })).toBeVisible({
+        timeout: 30_000,
+      });
+
+      const clickBlankBeforeDetails = async () => {
+        const clicked = await page.evaluate(({ editorSelector }) => {
+          const editor = document.querySelector<HTMLElement>(editorSelector);
+          const detailsBlock = Array.from(editor?.querySelectorAll<HTMLElement>('[data-type="html-block"]') ?? [])
+            .find((element) => element.textContent?.includes('Title'));
+          const blank = detailsBlock?.previousElementSibling instanceof HTMLElement
+            ? detailsBlock.previousElementSibling
+            : null;
+          if (!blank) return null;
+          const rect = blank.getBoundingClientRect();
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+            className: blank.className,
+            dataType: blank.dataset.type ?? '',
+            dataValue: blank.dataset.value ?? '',
+            text: blank.textContent ?? '',
+          };
+        }, { editorSelector: EDITOR_SELECTOR });
+        expect(clicked, JSON.stringify(clicked, null, 2)).not.toBeNull();
+        await page.mouse.click(clicked!.x, clicked!.y);
+        await waitForEditorAnimationFrame(page);
+      };
+
+      const assertDetailsNotSelectedOrDeleted = async (label: string) => {
+        await waitForEditorAnimationFrame(page);
+
+        const diagnostics = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+          text: editor.textContent ?? '',
+          selectedBlocks: editor.querySelectorAll('.editor-block-selected').length,
+          selectedNodes: Array.from(editor.querySelectorAll<HTMLElement>('.ProseMirror-selectednode')).map((element) => ({
+            tagName: element.tagName,
+            className: element.className,
+            dataType: element.dataset.type ?? '',
+            text: element.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          })),
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        }));
+        expect(diagnostics.text, `${label}\n${JSON.stringify(diagnostics, null, 2)}`).toContain('Title');
+        expect(diagnostics.text, `${label}\n${JSON.stringify(diagnostics, null, 2)}`).toContain('Content');
+        expect(diagnostics.selectedBlocks, `${label}\n${JSON.stringify(diagnostics, null, 2)}`).toBe(0);
+        expect(diagnostics.selectedNodes, `${label}\n${JSON.stringify(diagnostics, null, 2)}`).toEqual([]);
+        expect(diagnostics.selection?.empty, `${label}\n${JSON.stringify(diagnostics, null, 2)}`).toBe(true);
+        expect(diagnostics.selection?.selectedText, `${label}\n${JSON.stringify(diagnostics, null, 2)}`).toBe('');
+      };
+
+      await clickBlankBeforeDetails();
+      for (let index = 0; index < 3; index += 1) {
+        await page.keyboard.press('Delete');
+        await assertDetailsNotSelectedOrDeleted(`Delete ${index + 1}`);
+      }
+
+      const backspaceOpened = await openMarkdownFixture(page, {
+        filename: 'details-leading-blank-backspace.md',
+        content: detailsWithLeadingBlankLines,
+      });
+      await clickBlankBeforeDetails();
+      for (let index = 0; index < 3; index += 1) {
+        await page.keyboard.press('Backspace');
+        await assertDetailsNotSelectedOrDeleted(`Backspace ${index + 1}`);
+      }
+
+      const enterOpened = await openMarkdownFixture(page, {
+        filename: 'details-leading-blank-enter.md',
+        content: detailsWithLeadingBlankLines,
+      });
+      await clickBlankBeforeDetails();
+      for (let index = 0; index < 3; index += 1) {
+        await page.keyboard.press('Enter');
+        await assertDetailsNotSelectedOrDeleted(`Enter ${index + 1}`);
+      }
+      for (let index = 0; index < 3; index += 1) {
+        await page.keyboard.press('Backspace');
+        await assertDetailsNotSelectedOrDeleted(`Enter then Backspace ${index + 1}`);
+      }
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const saved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        enterOpened.notePath,
+      );
+      const deleteSaved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        opened.notePath,
+      );
+      const backspaceSaved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        backspaceOpened.notePath,
+      );
+      expect(saved).toContain('<summary>Title</summary>');
+      expect(saved).toContain('Content');
+      expect(deleteSaved).toContain('<summary>Title</summary>');
+      expect(deleteSaved).toContain('Content');
+      expect(backspaceSaved).toContain('<summary>Title</summary>');
+      expect(backspaceSaved).toContain('Content');
+
+      const singleBackspaceOpened = await openMarkdownFixture(page, {
+        filename: 'details-single-leading-blank-backspace.md',
+        content: detailsWithSingleLeadingBlankLine,
+      });
+      await clickBlankBeforeDetails();
+      for (let index = 0; index < 3; index += 1) {
+        await page.keyboard.press('Backspace');
+        await assertDetailsNotSelectedOrDeleted(`Single blank Backspace ${index + 1}`);
+      }
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const singleBackspaceSaved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        singleBackspaceOpened.notePath,
+      );
+      expect(singleBackspaceSaved).toContain('<summary>Title</summary>');
+      expect(singleBackspaceSaved).toContain('Content');
+
+      const singleDeleteOpened = await openMarkdownFixture(page, {
+        filename: 'details-single-leading-blank-delete.md',
+        content: detailsWithSingleLeadingBlankLine,
+      });
+      await clickBlankBeforeDetails();
+      for (let index = 0; index < 3; index += 1) {
+        await page.keyboard.press('Delete');
+        await assertDetailsNotSelectedOrDeleted(`Single blank Delete ${index + 1}`);
+      }
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      const singleDeleteSaved = await page.evaluate(
+        (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
+        singleDeleteOpened.notePath,
+      );
+      expect(singleDeleteSaved).toContain('<summary>Title</summary>');
+      expect(singleDeleteSaved).toContain('Content');
+
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

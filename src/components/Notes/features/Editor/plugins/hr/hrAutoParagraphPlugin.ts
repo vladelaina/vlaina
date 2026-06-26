@@ -139,6 +139,19 @@ function skipHorizontalRuleOnArrowDown(view: EditorView): boolean {
   return true;
 }
 
+function findTextSelectionFromBoundary(
+  doc: EditorView['state']['doc'],
+  pos: number,
+  direction: -1 | 1
+): TextSelection | null {
+  const selection = Selection.findFrom(
+    doc.resolve(Math.max(0, Math.min(pos, doc.content.size))),
+    direction,
+    true
+  );
+  return selection instanceof TextSelection ? selection : null;
+}
+
 function deleteAdjacentHorizontalRule(view: EditorView, key: string): boolean {
   const { state } = view;
   const { selection } = state;
@@ -160,7 +173,26 @@ function deleteAdjacentHorizontalRule(view: EditorView, key: string): boolean {
         const paragraphFrom = selection.$from.before();
         const paragraphTo = paragraphFrom + selection.$from.parent.nodeSize;
         let tr = state.tr.delete(paragraphFrom, paragraphTo);
-        tr = tr.setSelection(NodeSelection.create(tr.doc, from)).scrollIntoView();
+        const hrTo = from + prevNode.nodeSize;
+        const textSelection = findTextSelectionFromBoundary(
+          tr.doc,
+          hrTo,
+          -1
+        ) ?? findTextSelectionFromBoundary(
+          tr.doc,
+          hrTo,
+          1
+        );
+        if (textSelection) {
+          tr = tr.setSelection(textSelection);
+        } else {
+          const paragraphType = tr.doc.type.schema.nodes.paragraph;
+          if (paragraphType) {
+            tr = tr
+              .insert(hrTo, paragraphType.create())
+              .setSelection(TextSelection.create(tr.doc, hrTo + 1));
+          }
+        }
         view.dispatch(tr);
         return true;
       }

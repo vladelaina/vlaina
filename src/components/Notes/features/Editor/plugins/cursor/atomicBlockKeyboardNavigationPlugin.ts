@@ -12,6 +12,7 @@ import {
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
   findAdjacentEmptyParagraphNearBlockDeleteRange,
+  isNodeContentEffectivelyEmpty,
   type AdjacentEmptyParagraphDeleteRange,
 } from '../shared/emptyParagraphNearBlockDeletion';
 import {
@@ -48,6 +49,13 @@ interface TransientGapState {
 type TransientGapAction =
   | { type: 'track'; pos: number }
   | { type: 'clear' };
+
+type AtomicSelectionRepairSide = 'before' | 'after';
+
+interface AtomicSelectionRepairCandidate {
+  side: AtomicSelectionRepairSide;
+  typeName: string;
+}
 
 export const atomicBlockKeyboardNavigationPluginKey =
   new PluginKey<TransientGapState>('atomicBlockKeyboardNavigation');
@@ -140,6 +148,18 @@ function findTopLevelBlockAfter(doc: ProseNode, pos: number): TopLevelBlock | nu
   return found;
 }
 
+function findTopLevelBlockAwayFromDeletedEmptyParagraph(
+  doc: ProseNode,
+  range: AdjacentEmptyParagraphDeleteRange,
+  blockFrom: number,
+  block: ProseNode
+): TopLevelBlock | null {
+  const blockTo = blockFrom + block.nodeSize;
+  return range.searchDir < 0
+    ? findTopLevelBlockAfter(doc, blockTo)
+    : findTopLevelBlockBefore(doc, blockFrom);
+}
+
 function getAdjacentTopLevelBlock(
   doc: ProseNode,
   block: TopLevelBlock,
@@ -158,6 +178,79 @@ function isDisposableTransientGap(state: EditorState, gap: TopLevelBlock): boole
   const previous = findTopLevelBlockBefore(state.doc, gap.from);
   const next = findTopLevelBlockAfter(state.doc, gap.to);
   return isNavigableAtomicBlock(previous?.node) || isNavigableAtomicBlock(next?.node);
+}
+
+function collectAtomicSelectionRepairCandidates(state: EditorState): AtomicSelectionRepairCandidate[] {
+  const { selection, doc } = state;
+  if (!selection.empty) {
+    return [];
+  }
+
+  const candidates: AtomicSelectionRepairCandidate[] = [];
+  const selectedBlock = findTopLevelBlockAt(doc, selection.from);
+  if (selectedBlock?.node.type.name === 'paragraph' && isNodeContentEffectivelyEmpty(selectedBlock.node)) {
+    const previous = findTopLevelBlockBefore(doc, selectedBlock.from);
+    const next = findTopLevelBlockAfter(doc, selectedBlock.to);
+    if (
+      previous &&
+      isNavigableAtomicBlock(previous.node) &&
+      (!next || next.node.type.name === 'paragraph')
+    ) {
+      candidates.push({ side: 'after', typeName: previous.node.type.name });
+    }
+    if (
+      next &&
+      isNavigableAtomicBlock(next.node) &&
+      (!previous || previous.node.type.name === 'paragraph')
+    ) {
+      candidates.push({ side: 'before', typeName: next.node.type.name });
+    }
+    return candidates;
+  }
+
+  if (selection instanceof TextSelection && selection.$from.parent.isTextblock) {
+    return [];
+  }
+
+  const cursorPos = Math.max(0, Math.min(selection.from, doc.content.size));
+  const previous = findTopLevelBlockBefore(doc, cursorPos);
+  const next = findTopLevelBlockAfter(doc, cursorPos);
+  if (previous?.to === cursorPos && isNavigableAtomicBlock(previous.node)) {
+    candidates.push({ side: 'after', typeName: previous.node.type.name });
+  }
+  if (next?.from === cursorPos && isNavigableAtomicBlock(next.node)) {
+    candidates.push({ side: 'before', typeName: next.node.type.name });
+  }
+
+  return candidates;
+}
+
+function createAtomicSelectionRepairTransaction(
+  transactions: readonly Transaction[],
+  oldState: EditorState,
+  newState: EditorState
+): Transaction | null {
+  const selectedBlock = findTopLevelBlockAt(newState.doc, newState.selection.from);
+  if (
+    !selectedBlock ||
+    !isNavigableAtomicBlock(selectedBlock.node) ||
+    newState.selection.to > selectedBlock.to
+  ) {
+    return null;
+  }
+
+  if (transactions.some((tr) => tr.getMeta('pointer'))) {
+    return null;
+  }
+
+  const candidate = collectAtomicSelectionRepairCandidates(oldState)
+    .find((repairCandidate) => repairCandidate.typeName === selectedBlock.node.type.name);
+  if (!candidate) {
+    return null;
+  }
+
+  const insertPos = candidate.side === 'before' ? selectedBlock.from : selectedBlock.to;
+  return setTransientInputParagraphSelection(newState, newState.tr, insertPos);
 }
 
 function createClearTransientGapTransaction(state: EditorState): Transaction | null {
@@ -203,6 +296,49 @@ function shouldPreserveParagraphAfterCodeBlockOnBackspace(view: EditorView, even
 
   const previousNode = $from.node(0).child(paragraphIndex - 1);
   return previousNode.type.name === 'code_block' && $from.parent.content.size > 0;
+}
+
+function findTextSelectionFromBoundary(
+  doc: ProseNode,
+  pos: number,
+  direction: -1 | 1
+): TextSelection | null {
+  const selection = Selection.findFrom(
+    doc.resolve(Math.max(0, Math.min(pos, doc.content.size))),
+    direction,
+    true
+  );
+  if (!(selection instanceof TextSelection)) {
+    return null;
+  }
+
+  const selectedBlock = findTopLevelBlockAt(doc, selection.from);
+  if (isNavigableAtomicBlock(selectedBlock?.node)) {
+    return null;
+  }
+
+  return selection;
+}
+
+function createSafeSelectionAfterStructuralGapDelete(
+  state: EditorState,
+  tr: Transaction,
+  range: AdjacentEmptyParagraphDeleteRange,
+  mappedBlockFrom: number,
+  block: ProseNode
+): Transaction | null {
+  const blockTo = mappedBlockFrom + block.nodeSize;
+  const boundaryPos = range.searchDir < 0 ? blockTo : mappedBlockFrom;
+  const intoBlockDir = range.searchDir < 0 ? -1 : 1;
+  const awayFromBlockDir = range.searchDir < 0 ? 1 : -1;
+
+  const textSelection = (isNavigableAtomicBlock(block) ? null : findTextSelectionFromBoundary(tr.doc, boundaryPos, intoBlockDir))
+    ?? findTextSelectionFromBoundary(tr.doc, boundaryPos, awayFromBlockDir);
+  if (textSelection) {
+    return tr.setSelection(textSelection);
+  }
+
+  return setTransientInputParagraphSelection(state, tr, boundaryPos);
 }
 
 function dispatchDeleteEmptyParagraphNearStructuralBlock(
@@ -265,15 +401,6 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
     const blockTo = mappedBlockFrom + nextNode.nodeSize;
     const siblingBeforeCode = findTopLevelBlockBefore(tr.doc, mappedBlockFrom)?.node;
     const siblingAfterCode = tr.doc.nodeAt(blockTo);
-    const hasListAcrossCode = range.searchDir < 0
-      ? isListContainerNode(siblingAfterCode)
-      : isListContainerNode(siblingBeforeCode);
-    if (hasListAcrossCode) {
-      view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, mappedBlockFrom)).scrollIntoView());
-      view.focus();
-      return;
-    }
-
     const adjacentSelection = range.searchDir < 0
       ? Selection.findFrom(tr.doc.resolve(blockTo), 1, true)
       : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), -1, true);
@@ -285,9 +412,18 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
     }
 
     if (siblingBeforeCode || siblingAfterCode) {
-      view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, mappedBlockFrom)).scrollIntoView());
-      view.focus();
-      return;
+      const safeSelectionTr = createSafeSelectionAfterStructuralGapDelete(
+        view.state,
+        tr,
+        range,
+        mappedBlockFrom,
+        nextNode
+      );
+      if (safeSelectionTr) {
+        view.dispatch(safeSelectionTr.scrollIntoView());
+        view.focus();
+        return;
+      }
     }
 
     const paragraphType = tr.doc.type.schema.nodes.paragraph;
@@ -328,11 +464,70 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
     return;
   }
 
-  const nextSelection = nextNode?.type.name === range.blockName
-    ? NodeSelection.create(tr.doc, mappedBlockFrom)
-    : Selection.findFrom(tr.doc.resolve(Math.max(0, Math.min(mappedBlockFrom, tr.doc.content.size))), range.searchDir, true);
+  if (nextNode) {
+    const blockTo = mappedBlockFrom + nextNode.nodeSize;
+    const adjacentAwayFromBlock = findTopLevelBlockAwayFromDeletedEmptyParagraph(
+      tr.doc,
+      range,
+      mappedBlockFrom,
+      nextNode
+    );
+    const adjacentSelection = adjacentAwayFromBlock?.node.type.name === 'paragraph'
+      ? Selection.findFrom(
+        tr.doc.resolve(range.searchDir < 0 ? blockTo : mappedBlockFrom),
+        range.searchDir < 0 ? 1 : -1,
+        true
+      )
+      : null;
 
-  view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
+    if (adjacentSelection instanceof TextSelection) {
+      view.dispatch(tr.setSelection(adjacentSelection).scrollIntoView());
+      view.focus();
+      return;
+    }
+
+    if (adjacentAwayFromBlock && isMarkdownBlankLinePlaceholderNode(adjacentAwayFromBlock.node)) {
+      const paragraphType = view.state.schema.nodes.paragraph;
+      if (paragraphType) {
+        const paragraph = paragraphType.create(
+          null,
+          view.state.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)
+        );
+        tr = tr.replaceWith(adjacentAwayFromBlock.from, adjacentAwayFromBlock.to, paragraph);
+        view.dispatch(
+          tr
+            .setSelection(TextSelection.create(
+              tr.doc,
+              adjacentAwayFromBlock.from + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length
+            ))
+            .scrollIntoView()
+        );
+        view.focus();
+        return;
+      }
+    }
+
+    const safeSelectionTr = createSafeSelectionAfterStructuralGapDelete(
+      view.state,
+      tr,
+      range,
+      mappedBlockFrom,
+      nextNode
+    );
+    if (safeSelectionTr) {
+      view.dispatch(safeSelectionTr.scrollIntoView());
+      view.focus();
+      return;
+    }
+  }
+
+  const nextSelection = Selection.findFrom(
+    tr.doc.resolve(Math.max(0, Math.min(mappedBlockFrom, tr.doc.content.size))),
+    range.searchDir,
+    true
+  );
+
+  view.dispatch((nextSelection instanceof TextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
   view.focus();
 }
 
@@ -407,6 +602,40 @@ function handleEmptyParagraphNearStructuralBlockDelete(
 
   event.preventDefault();
   dispatchDeleteEmptyParagraphNearStructuralBlock(view, range, primarySearchDir);
+  return true;
+}
+
+function handleDocumentBoundaryAtomicBlockDelete(view: EditorView, event: KeyboardEvent): boolean {
+  if (getPlainDeleteDirection(event) === null) {
+    return false;
+  }
+
+  const { selection, doc } = view.state;
+  if (!selection.empty || (selection instanceof TextSelection && selection.$from.parent.isTextblock)) {
+    return false;
+  }
+
+  const cursorPos = Math.max(0, Math.min(selection.from, doc.content.size));
+  const blockAfter = findTopLevelBlockAfter(doc, cursorPos);
+  const blockBefore = findTopLevelBlockBefore(doc, cursorPos);
+  const insertPos = blockAfter?.from === cursorPos && isNavigableAtomicBlock(blockAfter.node)
+    ? blockAfter.from
+    : blockBefore?.to === cursorPos && isNavigableAtomicBlock(blockBefore.node)
+      ? blockBefore.to
+      : null;
+
+  if (insertPos === null) {
+    return false;
+  }
+
+  const tr = setTransientInputParagraphSelection(view.state, view.state.tr, insertPos);
+  if (!tr) {
+    return false;
+  }
+
+  event.preventDefault();
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
   return true;
 }
 
@@ -841,7 +1070,12 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
         return { pos: mappedPos };
       },
     },
-    appendTransaction(_transactions, _oldState, newState) {
+    appendTransaction(transactions, oldState, newState) {
+      const repairedAtomicSelection = createAtomicSelectionRepairTransaction(transactions, oldState, newState);
+      if (repairedAtomicSelection) {
+        return repairedAtomicSelection;
+      }
+
       const gap = getTrackedEmptyGap(newState);
       if (!gap || isSelectionInsideBlock(newState.selection, gap)) {
         return null;
@@ -857,6 +1091,10 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
 
         if (shouldPreserveParagraphAfterCodeBlockOnBackspace(view, event)) {
           event.preventDefault();
+          return true;
+        }
+
+        if (handleDocumentBoundaryAtomicBlockDelete(view, event)) {
           return true;
         }
 
