@@ -282,7 +282,12 @@ function handleSelectedMarkdownBlankLineDelete(
     return false;
   }
 
-  return deleteRangeAndSetNearbyTextSelection(view, selection.from, selection.to, direction);
+  return deleteRangeAndSetNearbyTextSelection(view, selection.from, selection.to, direction)
+    || replaceBlankLinePlaceholderWithEditableParagraph(view, {
+      from: selection.from,
+      to: selection.to,
+      node: selection.node,
+    });
 }
 
 function handleEditableMarkdownBlankLineDelete(

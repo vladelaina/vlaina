@@ -46,7 +46,7 @@ export function isNodeContentEffectivelyEmpty(
   if (!node) return true;
 
   if (node.isText) {
-    return (node.text ?? '').trim().length === 0;
+    return (node.text ?? '').replace(/\u200B/g, '').trim().length === 0;
   }
 
   if (node.type.name === 'hard_break') {
