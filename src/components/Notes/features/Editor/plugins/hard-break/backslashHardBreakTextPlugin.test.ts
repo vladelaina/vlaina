@@ -133,6 +133,27 @@ describe('backslashHardBreakTextPlugin', () => {
     expect(serializer(view.state.doc).trimEnd()).toBe(source);
   });
 
+  it('keeps a source hard-break backslash after a markdown link outside the link mark', async () => {
+    const source = '[Linked note](note.md)\\\nNext line';
+    const editor = await createEditor(source);
+    const view = editor.ctx.get(editorViewCtx) as EditorView;
+    const paragraph = view.state.doc.firstChild;
+    const linkMarkType = view.state.schema.marks.link;
+
+    expect(view.dom.querySelector('p')?.textContent).toBe('Linked note\\Next line');
+    expect(paragraph?.child(0).isText).toBe(true);
+    expect(paragraph?.child(0).text).toBe('Linked note');
+    expect(paragraph?.child(0).marks.some((mark) => mark.type === linkMarkType)).toBe(true);
+    expect(paragraph?.child(1).isText).toBe(true);
+    expect(paragraph?.child(1).text).toBe('\\');
+    expect(paragraph?.child(1).marks.some((mark) => mark.type === linkMarkType)).toBe(false);
+    expect(paragraph?.child(1).marks[0]?.type.name).toBe('backslash_hard_break_source_text');
+    expect(paragraph?.child(2).type.name).toBe('hardbreak');
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trimEnd()).toBe(source);
+  });
+
   it('moves left from the hard break edge to the position between visible backslashes', async () => {
     const source = `。${'\\'.repeat(3)}\n下一行`;
     const editor = await createEditor(source);

@@ -402,7 +402,7 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     await editor.destroy();
   });
 
-  it('normalizes bare domains in explicit markdown links', async () => {
+  it('normalizes non-markdown bare domains in explicit markdown links', async () => {
     const editor = Editor.make()
       .config((ctx) => {
         ctx.set(defaultValueCtx, '');
@@ -413,15 +413,34 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
 
-    expect(simulatePasteText(view, '[Docs](catim.md)')).toBe(true);
+    expect(simulatePasteText(view, '[Docs](cati.me)')).toBe(true);
 
     const serializer = editor.ctx.get(serializerCtx);
-    expect(serializer(view.state.doc).trim()).toBe('[Docs](https://catim.md)');
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](https://cati.me)');
 
     await editor.destroy();
   });
 
-  it('preserves explicit relative markdown links', async () => {
+  it('preserves explicit relative markdown file links that look like bare domains', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Docs](catim.md) [Guide](guide.markdown#intro)')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](catim.md) [Guide](guide.markdown#intro)');
+
+    await editor.destroy();
+  });
+
+  it('preserves explicit nested relative markdown links', async () => {
     const editor = Editor.make()
       .config((ctx) => {
         ctx.set(defaultValueCtx, '');
