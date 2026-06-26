@@ -31,6 +31,27 @@ describe('getMarkdownBodySourceLineNumbers', () => {
     expect(getMarkdownBodySourceLineNumbers(markdown)).toEqual([1, 7]);
   });
 
+  it('skips internal blank line placeholders while preserving following source line numbers', () => {
+    const markdown = [
+      '# Title',
+      '<!--vlaina-markdown-blank-line-->',
+      '<!-- vlaina-rendered-html-boundary-blank-line -->',
+      'Body',
+    ].join('\n');
+
+    expect(getMarkdownBodySourceLineNumbers(markdown)).toEqual([1, 4]);
+  });
+
+  it('treats internal blank line placeholders as paragraph boundaries', () => {
+    const markdown = [
+      'Before placeholder',
+      '<!--vlaina-markdown-blank-line-->',
+      'After placeholder',
+    ].join('\n');
+
+    expect(getMarkdownBodySourceLineNumbers(markdown)).toEqual([1, 3]);
+  });
+
   it('returns source line numbers for list items and nested list items', () => {
     const markdown = [
       '- One',
@@ -42,4 +63,3 @@ describe('getMarkdownBodySourceLineNumbers', () => {
     expect(getMarkdownBodySourceLineNumbers(markdown)).toEqual([1, 3, 4]);
   });
 });
-
