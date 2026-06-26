@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { TypewriterModeView } from './typewriterModePlugin';
+import { TypewriterModeView } from './typewriterModeView';
 
 function setTypewriterMode(typewriterMode: boolean): void {
   useUnifiedStore.setState((state) => ({

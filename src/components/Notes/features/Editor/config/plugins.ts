@@ -50,7 +50,7 @@ import { containerBoundaryShiftSelectionPlugin } from '../plugins/cursor/contain
 import { hrAutoParagraphPlugin } from '../plugins/hr/hrAutoParagraphPlugin';
 import { autoPairPlugin } from '../plugins/pairs/autoPairPlugin';
 import { titleNavigationPlugin } from '../plugins/cursor/titleNavigationPlugin';
-import { typewriterModePlugin } from '../plugins/cursor/typewriterModePlugin';
+import { typewriterModePlugin } from '../plugins/typewriter-mode';
 import { editorShortcutsPlugin } from '../plugins/editorShortcutsPlugin';
 import { tagTokenPlugin } from '../plugins/tags/tagTokenPlugin';
 import { structuralStyleDecorationsPlugin } from '../plugins/structural/structuralStyleDecorations';

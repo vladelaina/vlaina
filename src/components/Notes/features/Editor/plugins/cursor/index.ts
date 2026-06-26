@@ -6,7 +6,6 @@ export {
   textBlockCaretOverlayPluginKey,
 } from './textBlockCaretOverlayPlugin';
 export { titleNavigationPlugin, titleNavigationPluginKey } from './titleNavigationPlugin';
-export { typewriterModePlugin, typewriterModePluginKey } from './typewriterModePlugin';
 export { nativeDragGuardPlugin } from './nativeDragGuard';
 export { containerBoundaryShiftSelectionPlugin } from './containerBoundaryShiftSelectionPlugin';
 export {
