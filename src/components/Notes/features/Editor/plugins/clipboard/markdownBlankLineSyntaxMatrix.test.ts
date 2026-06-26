@@ -406,7 +406,19 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'raw html block keeps internal blank lines',
       markdown: lines(['Before', '', '<div>', 'Alpha', '', 'Beta', '</div>', '', 'After']),
-      expected: lines(['Before', '', '<div>', 'Alpha', '', 'Beta', '</div>', '', 'After']),
+      expected: lines([
+        'Before',
+        '',
+        '<div>',
+        'Alpha',
+        '',
+        'Beta',
+        '</div>',
+        '',
+        '<!--vlaina-rendered-html-boundary-blank-line-->',
+        '',
+        'After',
+      ]),
     },
     {
       name: 'raw pre html keeps list-like blank lines protected',

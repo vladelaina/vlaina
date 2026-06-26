@@ -612,7 +612,32 @@ describe('normalizeSerializedMarkdownDocument', () => {
       'HTML',
       '</p>',
       '',
-      'after',
+        'after',
+      ].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument([
+        'Before',
+        '',
+        '<div>',
+        'Alpha',
+        '',
+        'Beta',
+        '</div>',
+        '',
+        '<!--vlaina-rendered-html-boundary-blank-line-->',
+        '',
+        'After',
+      ].join('\n'))
+    ).toBe([
+      'Before',
+      '',
+      '<div>',
+      'Alpha',
+      '',
+      'Beta',
+      '</div>',
+      '',
+      'After',
     ].join('\n'));
   });
 

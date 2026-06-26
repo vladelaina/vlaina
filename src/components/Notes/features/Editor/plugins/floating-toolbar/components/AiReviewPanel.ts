@@ -22,25 +22,39 @@ export interface AiReviewPanelController {
 }
 
 export function createAiReviewPanelController(): AiReviewPanelController {
-  let modelSelectorRoot: Root | null = null;
-  let loadingRoot: Root | null = null;
-  let errorRoot: Root | null = null;
+  type RootSlot = {
+    root: Root | null;
+    unmountTimer: ReturnType<typeof setTimeout> | null;
+  };
+  const modelSelectorSlot: RootSlot = { root: null, unmountTimer: null };
+  const loadingSlot: RootSlot = { root: null, unmountTimer: null };
+  const errorSlot: RootSlot = { root: null, unmountTimer: null };
   let reviewBindingsCleanup: ReviewBindingsCleanup | null = null;
 
-  const deferUnmount = (root: Root | null) => {
-    if (!root) return;
-    globalThis.setTimeout(() => root.unmount(), 0);
+  const getRoot = (slot: RootSlot, host: HTMLElement): Root => {
+    if (slot.unmountTimer) {
+      globalThis.clearTimeout(slot.unmountTimer);
+      slot.unmountTimer = null;
+    }
+    slot.root ??= createRoot(host);
+    return slot.root;
+  };
+
+  const deferUnmount = (slot: RootSlot) => {
+    if (!slot.root || slot.unmountTimer) return;
+    slot.unmountTimer = globalThis.setTimeout(() => {
+      slot.root?.unmount();
+      slot.root = null;
+      slot.unmountTimer = null;
+    }, 0);
   };
 
   const cleanup = () => {
     reviewBindingsCleanup?.();
     reviewBindingsCleanup = null;
-    deferUnmount(modelSelectorRoot);
-    modelSelectorRoot = null;
-    deferUnmount(loadingRoot);
-    loadingRoot = null;
-    deferUnmount(errorRoot);
-    errorRoot = null;
+    deferUnmount(modelSelectorSlot);
+    deferUnmount(loadingSlot);
+    deferUnmount(errorSlot);
   };
 
   const render = (
@@ -56,9 +70,9 @@ export function createAiReviewPanelController(): AiReviewPanelController {
 
     const modelSelectorHost = container.querySelector('.ai-review-model-selector-slot');
     if (modelSelectorHost instanceof HTMLElement) {
-      cleanup();
-      modelSelectorRoot = createRoot(modelSelectorHost);
-      modelSelectorRoot.render(
+      reviewBindingsCleanup?.();
+      reviewBindingsCleanup = null;
+      getRoot(modelSelectorSlot, modelSelectorHost).render(
         React.createElement(AiToolbarModelSelector, {
           onSelectModel: () => {
             const toolbarState = floatingToolbarKey.getState(view.state);
@@ -79,19 +93,19 @@ export function createAiReviewPanelController(): AiReviewPanelController {
     }
 
     const loadingHost = container.querySelector('.ai-review-loading-slot');
-    if (loadingHost instanceof HTMLElement && review.isLoading) {
-      loadingRoot = createRoot(loadingHost);
-      loadingRoot.render(React.createElement(ChatLoading));
+    if (loadingHost instanceof HTMLElement) {
+      getRoot(loadingSlot, loadingHost).render(review.isLoading ? React.createElement(ChatLoading) : null);
     }
 
     const errorHost = container.querySelector('.ai-review-error-slot');
-    if (errorHost instanceof HTMLElement && review.errorMessage) {
-      errorRoot = createRoot(errorHost);
-      errorRoot.render(
-        React.createElement(ErrorBlock, {
-          content: review.errorMessage,
-          showLoginPrompt: review.errorType === 'AUTH_ERROR',
-        })
+    if (errorHost instanceof HTMLElement) {
+      getRoot(errorSlot, errorHost).render(
+        review.errorMessage
+          ? React.createElement(ErrorBlock, {
+              content: review.errorMessage,
+              showLoginPrompt: review.errorType === 'AUTH_ERROR',
+            })
+          : null
       );
     }
 

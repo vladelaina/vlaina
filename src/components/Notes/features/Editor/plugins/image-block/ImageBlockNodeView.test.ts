@@ -36,8 +36,8 @@ function createImageNode(attrs: Record<string, unknown> = {}) {
   };
 }
 
-async function flushMicrotasks() {
-  await new Promise<void>((resolve) => queueMicrotask(resolve));
+async function flushTimers() {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 describe('ImageBlockNodeView', () => {
@@ -52,7 +52,7 @@ describe('ImageBlockNodeView', () => {
     nodeView.destroy();
 
     expect(document.body.contains(nodeView.dom)).toBe(true);
-    await flushMicrotasks();
+    await flushTimers();
     expect(mocks.unmount).toHaveBeenCalledTimes(1);
     nodeView.dom.remove();
   });

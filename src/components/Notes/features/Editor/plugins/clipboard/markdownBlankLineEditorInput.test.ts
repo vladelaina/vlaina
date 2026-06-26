@@ -483,6 +483,19 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
+  it('does not duplicate rendered html boundary blank-line blocks on reopen', () => {
+    const markdown = [
+      '<div>',
+      'HTML',
+      '</div>',
+      '',
+      RENDERED_HTML_BOUNDARY_PLACEHOLDER,
+      'after',
+    ].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
+  });
+
   it('strips editor-only blank line comments next to one-line html blocks on save', () => {
     const markdown = [
       '<p align="center">HTML</p>',
