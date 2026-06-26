@@ -11,6 +11,7 @@ import { getInvalidFileNameReason } from '@/stores/notes/noteUtils';
 import { useToastStore } from '@/stores/useToastStore';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { themeTextAreaTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { clearCurrentEditorBlockSelection } from './utils/editorViewRegistry';
 
 interface TitleInputProps {
   notePath: string;
@@ -166,6 +167,10 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     }
   }, [notePath, setNotesPreviewTitle, showInvalidFileNameToast]);
 
+  const handleTitleInteraction = useCallback(() => {
+    clearCurrentEditorBlockSelection();
+  }, []);
+
   const commitTitleIfNeeded = useCallback(async () => {
     if (isCommittingRef.current) return;
     const trimmed = title.trim();
@@ -304,6 +309,8 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       spellCheck={false}
       value={title}
       onChange={handleChange}
+      onFocus={handleTitleInteraction}
+      onPointerDown={handleTitleInteraction}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[var(--vlaina-note-title-font-size)] font-bold leading-[var(--vlaina-leading-title)] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-[var(--vlaina-color-white)]"

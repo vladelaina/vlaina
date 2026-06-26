@@ -46,6 +46,7 @@ import { usePendingMarkdownAutosave } from './hooks/usePendingMarkdownAutosave';
 import {
   clearCurrentMarkdownRuntime,
   getCurrentEditorView,
+  setCurrentEditorBlockSelectionClearer,
   setCurrentEditorView,
   setCurrentMarkdownRuntime,
 } from './utils/editorViewRegistry';
@@ -66,6 +67,7 @@ import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
 import {
   blankAreaDragBoxPluginKey,
   CLEAR_BLOCKS_ACTION,
+  clearBlockSelection,
 } from './plugins/cursor/blockSelectionPluginState';
 import {
   applyMarkdownThemeRuntimeAttributes,
@@ -621,6 +623,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       }
 
       setCurrentEditorView(view);
+      setCurrentEditorBlockSelectionClearer(() => clearBlockSelection(view));
       try {
         normalizeInitialEditorSelection(view);
       } catch {
@@ -665,6 +668,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         blockPositionController.destroy();
         if (getCurrentEditorView() === view) {
           setCurrentEditorView(null);
+          setCurrentEditorBlockSelectionClearer(null);
           clearCurrentEditorBlockPositionSnapshot();
           clearCurrentMarkdownRuntime();
         }
@@ -672,6 +676,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     } catch {
       if (activatedView && getCurrentEditorView() === activatedView) {
         setCurrentEditorView(null);
+        setCurrentEditorBlockSelectionClearer(null);
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
       }
