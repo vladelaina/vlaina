@@ -162,7 +162,9 @@ export function normalizeProxyConfig(rawProxy, source) {
   }
 }
 
-export function normalizeExternalUrl(rawUrl) {
+export function normalizeExternalUrl(rawUrl, {
+  allowLocalNetwork = false,
+} = {}) {
   if (typeof rawUrl !== 'string') {
     throw new Error('A non-empty URL is required.');
   }
@@ -191,15 +193,15 @@ export function normalizeExternalUrl(rawUrl) {
   if (parsed.username || parsed.password) {
     throw new Error('External URLs with credentials are not allowed.');
   }
-  if (isLocalNetworkHttpUrl(parsed)) {
+  if (!allowLocalNetwork && isLocalNetworkHttpUrl(parsed)) {
     throw new Error('Local-network external URLs are not allowed.');
   }
 
   return parsed.toString();
 }
 
-export function normalizeHttpUrl(rawUrl, label) {
-  const normalized = normalizeExternalUrl(rawUrl);
+export function normalizeHttpUrl(rawUrl, label, options) {
+  const normalized = normalizeExternalUrl(rawUrl, options);
   const parsed = new URL(normalized);
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new Error(`${label} must be an HTTP or HTTPS URL.`);

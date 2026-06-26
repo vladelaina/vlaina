@@ -56,6 +56,15 @@ describe('electron external URL policy', () => {
     expect(normalizeExternalUrl('https://example.com/admin')).toBe('https://example.com/admin');
   });
 
+  it('allows local-network HTTP URLs only when explicitly requested', () => {
+    expect(normalizeExternalUrl('http://127.0.0.1:3100/latest', {
+      allowLocalNetwork: true,
+    })).toBe('http://127.0.0.1:3100/latest');
+    expect(normalizeHttpUrl('http://localhost:3100/latest', 'Update manifest URL', {
+      allowLocalNetwork: true,
+    })).toBe('http://localhost:3100/latest');
+  });
+
   it('keeps update URLs restricted to HTTP protocols', () => {
     expect(normalizeHttpUrl('https://example.com/download', 'Download URL')).toBe('https://example.com/download');
     expect(() => normalizeHttpUrl('mailto:support@example.com', 'Download URL')).toThrow(

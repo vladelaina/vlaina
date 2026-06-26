@@ -637,6 +637,7 @@ async function fetchUpdateManifest() {
     defaultDownloadUrl,
     appVersion: app.getVersion(),
     readJsonResponse: readBoundedJsonResponse,
+    allowLocalManifestUrl: !app.isPackaged,
   });
 }
 

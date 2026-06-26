@@ -484,7 +484,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
                 type="button"
                 onClick={openUpdateDownload}
                 title={updateInfo?.platformAssetName || undefined}
-                className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)]"
+                className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-sidebar-row-selected-bg)] px-4 text-[var(--vlaina-font-13)] font-[var(--vlaina-font-weight-semibold-plus)] text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-selection-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] hover:text-[var(--vlaina-sidebar-row-selected-text)]"
               >
                 <ExternalLink size={themeIconTokens.sizeSidebar} />
                 {t('settings.about.updateAction')}

@@ -47,6 +47,78 @@ describe('electron update manifest helpers', () => {
     });
   });
 
+  it('selects accurate package URLs for each supported desktop platform and architecture', () => {
+    const payload = {
+      tag_name: 'v0.1.16',
+      html_url: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.16',
+      assets: [
+        {
+          name: 'vlaina-0.1.16-windows-x64-setup.exe',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-windows-x64-setup.exe',
+        },
+        {
+          name: 'vlaina-0.1.16-windows-x64-portable.exe',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-windows-x64-portable.exe',
+        },
+        {
+          name: 'vlaina-0.1.16-windows-arm64-setup.exe',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-windows-arm64-setup.exe',
+        },
+        {
+          name: 'vlaina-0.1.16-mac-x64.dmg',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-mac-x64.dmg',
+        },
+        {
+          name: 'vlaina-0.1.16-mac-arm64.zip',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-mac-arm64.zip',
+        },
+        {
+          name: 'vlaina-0.1.16-mac-arm64.dmg',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-mac-arm64.dmg',
+        },
+        {
+          name: 'vlaina-0.1.16-linux-x86_64.AppImage',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-linux-x86_64.AppImage',
+        },
+        {
+          name: 'vlaina-0.1.16-linux-x64.deb',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-linux-x64.deb',
+        },
+        {
+          name: 'vlaina-0.1.16-linux-arm64.tar.gz',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-linux-arm64.tar.gz',
+        },
+        {
+          name: 'vlaina-0.1.16-linux-arm64.AppImage',
+          browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v0.1.16/vlaina-0.1.16-linux-arm64.AppImage',
+        },
+      ],
+    };
+    const cases = [
+      ['win32', 'x64', 'vlaina-0.1.16-windows-x64-setup.exe'],
+      ['win32', 'arm64', 'vlaina-0.1.16-windows-arm64-setup.exe'],
+      ['darwin', 'x64', 'vlaina-0.1.16-mac-x64.dmg'],
+      ['darwin', 'arm64', 'vlaina-0.1.16-mac-arm64.dmg'],
+      ['linux', 'x64', 'vlaina-0.1.16-linux-x86_64.AppImage'],
+      ['linux', 'arm64', 'vlaina-0.1.16-linux-arm64.AppImage'],
+    ];
+
+    for (const [platform, arch, expectedAssetName] of cases) {
+      const manifest = normalizeUpdateManifest(payload, {
+        defaultDownloadUrl: 'https://github.com/vladelaina/vlaina/releases/latest',
+        platform,
+        arch,
+      });
+
+      expect(manifest).toMatchObject({
+        latestVersion: '0.1.16',
+        platformAssetName: expectedAssetName,
+        hasPlatformAsset: true,
+        downloadUrl: `https://github.com/vladelaina/vlaina/releases/download/v0.1.16/${expectedAssetName}`,
+      });
+    }
+  });
+
   it('does not select a known wrong-architecture platform asset', () => {
     const assets = normalizeReleaseAssets([
       {
@@ -102,6 +174,39 @@ describe('electron update manifest helpers', () => {
     }));
     expect(readJsonResponse).toHaveBeenCalledWith(response, expect.objectContaining({
       tooLargeMessage: 'Update manifest response body is too large.',
+    }));
+  });
+
+  it('keeps local update manifest URLs opt-in for development and e2e', async () => {
+    const response = { ok: true, status: 200 };
+    const fetchImpl = vi.fn().mockResolvedValue(response);
+    const readJsonResponse = vi.fn().mockResolvedValue({
+      version: '1.2.3',
+      downloadUrl: 'https://example.com/releases/latest',
+    });
+    const input = {
+      manifestUrl: 'http://127.0.0.1:3100/latest',
+      defaultDownloadUrl: 'https://example.com/releases/latest',
+      appVersion: '1.0.0',
+      fetchImpl,
+      readJsonResponse,
+      timeoutMs: 1000,
+    };
+
+    await expect(fetchUpdateManifest(input)).rejects.toThrow('Local-network external URLs are not allowed');
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await expect(fetchUpdateManifest({
+      ...input,
+      allowLocalManifestUrl: true,
+    })).resolves.toMatchObject({
+      latestVersion: '1.2.3',
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith('http://127.0.0.1:3100/latest', expect.objectContaining({
+      headers: expect.objectContaining({
+        'user-agent': 'vlaina/1.0.0 desktop-updater',
+      }),
     }));
   });
 
