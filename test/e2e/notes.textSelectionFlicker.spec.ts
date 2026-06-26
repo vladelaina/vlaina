@@ -1116,6 +1116,80 @@ test.describe('notes text selection stability', () => {
     }
   });
 
+  test('clears overlay text selection on blank note body mousedown without repainting a shorter blue range', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-overlay-selection-clear-note-blank-mousedown');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'overlay-selection-clear-note-blank-mousedown.md',
+        content: [
+          '# Overlay Selection Clear Note Blank Mousedown',
+          '',
+          TARGET_TEXT,
+          '',
+          'Clicking blank note body space should clear selected text on pointer down.',
+        ].join('\n'),
+      });
+
+      for (const kind of ['right-text-gap', 'left-text-gap', 'below-last-block'] as const) {
+        await scrollParagraphTextIntoSelectionView(page, TARGET_TEXT);
+        const selected = await page.evaluate((text) =>
+          (window as any).__vlainaE2E.selectEditorTextByText(text), TARGET_TEXT);
+        expect(selected.selected).toBe(true);
+
+        const beforeClick = await page.evaluate(() => {
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          return {
+            selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+            nativeSelectedText: window.getSelection()?.toString() ?? '',
+            overlayCount: document.querySelectorAll('.editor-text-selection-overlay').length,
+            hasPointerNativeClass: Boolean(editor?.classList.contains('editor-pointer-native-selection')),
+          };
+        });
+        expect(beforeClick.selection?.empty).toBe(false);
+        expect(beforeClick.overlayCount).toBeGreaterThan(0);
+        expect(beforeClick.hasPointerNativeClass).toBe(false);
+
+        const point = await getNoteBodyBlankClickPoint(page, TARGET_TEXT, kind);
+        await page.mouse.move(point.x, point.y);
+        await page.mouse.down();
+        await waitForEditorAnimationFrame(page);
+
+        const whilePressed = await page.evaluate(() => {
+          const toolbar = document.querySelector<HTMLElement>('.floating-toolbar');
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          return {
+            selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+            nativeSelectedText: window.getSelection()?.toString() ?? '',
+            overlayCount: document.querySelectorAll('.editor-text-selection-overlay').length,
+            hasOverlayActiveClass: Boolean(editor?.classList.contains('editor-text-selection-overlay-active')),
+            hasPointerNativeClass: Boolean(editor?.classList.contains('editor-pointer-native-selection')),
+            toolbarVisible: Boolean(toolbar?.classList.contains('visible')),
+          };
+        });
+
+        expect(whilePressed, JSON.stringify({ kind, point, beforeClick, whilePressed }, null, 2)).toMatchObject({
+          selection: {
+            empty: true,
+            selectedText: '',
+          },
+          nativeSelectedText: '',
+          overlayCount: 0,
+          hasOverlayActiveClass: false,
+          hasPointerNativeClass: false,
+          toolbarVisible: false,
+        });
+
+        await page.mouse.up();
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps repeated ordinary text selection rendering responsive in a large note', async () => {
     const { content, targets } = createLargeTextSelectionMarkdown(120);
     const sampledTargets = Array.from({ length: 10 }, () => targets[60]);

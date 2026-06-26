@@ -60,6 +60,35 @@ function findNodePos(view: EditorView, typeName: string): number {
   return found;
 }
 
+function mockCaretRangeFromPoint(view: EditorView, textOffset: number) {
+  const documentWithCaretRange = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+  };
+  const originalCaretRangeFromPoint = documentWithCaretRange.caretRangeFromPoint;
+
+  Object.defineProperty(document, 'caretRangeFromPoint', {
+    configurable: true,
+    value: () => {
+      const walker = document.createTreeWalker(view.dom, NodeFilter.SHOW_TEXT);
+      const textNode = walker.nextNode() as Text | null;
+      if (!textNode) {
+        throw new Error('Expected editor text node');
+      }
+      const range = document.createRange();
+      range.setStart(textNode, textOffset);
+      range.collapse(true);
+      return range;
+    },
+  });
+
+  return () => {
+    Object.defineProperty(document, 'caretRangeFromPoint', {
+      configurable: true,
+      value: originalCaretRangeFromPoint,
+    });
+  };
+}
+
 describe('textSelectionOverlayPlugin', () => {
   it('enables overlay styling for ordinary text selections', async () => {
     const view = await createEditor('hello');
@@ -93,6 +122,41 @@ describe('textSelectionOverlayPlugin', () => {
 
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+    } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('clears an existing text selection immediately when pointer down starts from editor blank space', async () => {
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+
+      const event = new MouseEvent('mousedown', {
+        button: 0,
+        bubbles: true,
+        cancelable: true,
+        clientX: 240,
+        clientY: 160,
+      });
+      view.dom.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(0);
     } finally {
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
@@ -398,7 +462,7 @@ describe('textSelectionOverlayPlugin', () => {
   it('collapses a retained pointer text selection at the clicked position', async () => {
     const view = await createEditor('hello world');
     const originalElementFromPoint = document.elementFromPoint;
-    const posAtCoords = vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 4, inside: -1 });
+    const restoreCaretRangeFromPoint = mockCaretRangeFromPoint(view, 3);
     Object.defineProperty(document, 'elementFromPoint', {
       configurable: true,
       value: () => view.dom,
@@ -455,7 +519,7 @@ describe('textSelectionOverlayPlugin', () => {
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
     } finally {
-      posAtCoords.mockRestore();
+      restoreCaretRangeFromPoint();
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
         value: originalElementFromPoint,
@@ -466,7 +530,7 @@ describe('textSelectionOverlayPlugin', () => {
   it('collapses an overlay text selection at the clicked position', async () => {
     const view = await createEditor('hello world');
     const originalElementFromPoint = document.elementFromPoint;
-    const posAtCoords = vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 4, inside: -1 });
+    const restoreCaretRangeFromPoint = mockCaretRangeFromPoint(view, 3);
     Object.defineProperty(document, 'elementFromPoint', {
       configurable: true,
       value: () => view.dom,
@@ -510,7 +574,7 @@ describe('textSelectionOverlayPlugin', () => {
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
     } finally {
-      posAtCoords.mockRestore();
+      restoreCaretRangeFromPoint();
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
         value: originalElementFromPoint,
@@ -521,7 +585,7 @@ describe('textSelectionOverlayPlugin', () => {
   it('does not collapse a retained pointer text selection when the next gesture drags', async () => {
     const view = await createEditor('hello world');
     const originalElementFromPoint = document.elementFromPoint;
-    const posAtCoords = vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 4, inside: -1 });
+    const restoreCaretRangeFromPoint = mockCaretRangeFromPoint(view, 3);
     Object.defineProperty(document, 'elementFromPoint', {
       configurable: true,
       value: () => view.dom,
@@ -558,7 +622,7 @@ describe('textSelectionOverlayPlugin', () => {
       expect(view.state.selection.to).toBe(6);
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
     } finally {
-      posAtCoords.mockRestore();
+      restoreCaretRangeFromPoint();
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
         value: originalElementFromPoint,

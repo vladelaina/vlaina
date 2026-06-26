@@ -368,38 +368,6 @@ export const textSelectionOverlayPlugin = $prose(() => {
         syncActiveClass();
       };
 
-      const getCaretTargetFromPoint = (event: MouseEvent): PointerCaretTarget | null => {
-        const ownerDocument = view.dom.ownerDocument as Document & {
-          caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
-          caretRangeFromPoint?: (x: number, y: number) => Range | null;
-        };
-        const textNodeTarget = getTextNodeCaretTargetFromPoint(event);
-        if (textNodeTarget !== null) {
-          return textNodeTarget;
-        }
-
-        const caretPosition = ownerDocument.caretPositionFromPoint?.(event.clientX, event.clientY);
-        const caretRange = caretPosition
-          ? null
-          : ownerDocument.caretRangeFromPoint?.(event.clientX, event.clientY);
-        const node = caretPosition?.offsetNode ?? caretRange?.startContainer ?? null;
-        const offset = caretPosition?.offset ?? caretRange?.startOffset ?? null;
-
-        if (node && offset !== null && view.dom.contains(node)) {
-          try {
-            return {
-              node,
-              offset,
-              pos: view.posAtDOM(node, offset),
-            };
-          } catch {
-          }
-        }
-
-        const coordsPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
-        return coordsPos === null ? null : { pos: coordsPos };
-      };
-
       const getDomCaretTarget = (target: PointerCaretTarget): PointerCaretTarget | null => {
         if (target.node && target.offset !== undefined && view.dom.contains(target.node)) {
           return target;
@@ -516,13 +484,46 @@ export const textSelectionOverlayPlugin = $prose(() => {
         syncActiveClass();
       };
 
+      const clearTextSelectionFromBlankPointerDown = () => {
+        pendingPointerClickCollapseTarget = null;
+        pointerClickRestoreSelectionRange = null;
+        cancelPointerClickCollapseReassertion();
+        if (pointerNativeReleaseFrame !== null) {
+          cancelAnimationFrame(pointerNativeReleaseFrame);
+          pointerNativeReleaseFrame = null;
+        }
+
+        const nextPos = Math.max(0, Math.min(view.state.selection.from, view.state.doc.content.size));
+        let tr = view.state.tr
+          .setSelection(TextSelection.create(view.state.doc, nextPos))
+          .setMeta(POINTER_NATIVE_SELECTION_META, false)
+          .setMeta('addToHistory', false);
+        const toolbarState = floatingToolbarKey.getState(view.state);
+        if (
+          toolbarState?.isVisible &&
+          !(toolbarState.subMenu === 'aiReview' && toolbarState.aiReview)
+        ) {
+          tr = tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          });
+        }
+        view.dispatch(tr);
+        clearNativeSelectionRange();
+        syncActiveClass();
+      };
+
       const getTextNodeCaretTargetFromPoint = (event: MouseEvent): PointerCaretTarget | null => {
         const ownerDocument = view.dom.ownerDocument;
         const hitElement = ownerDocument.elementFromPoint(event.clientX, event.clientY);
         const root = hitElement && view.dom.contains(hitElement) ? hitElement : view.dom;
         const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         const range = ownerDocument.createRange();
-        let best: { distance: number; node: Text; offset: number } | null = null;
+        let best: {
+          distance: number;
+          horizontalDistance: number;
+          node: Text;
+          offset: number;
+        } | null = null;
 
         try {
           while (walker.nextNode()) {
@@ -562,6 +563,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
 
                 best = {
                   distance,
+                  horizontalDistance,
                   node: textNode,
                   offset: event.clientX <= rect.left + rect.width / 2 ? offset : offset + 1,
                 };
@@ -573,6 +575,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
         }
 
         if (!best) return null;
+        if (best.horizontalDistance > 8) return null;
         try {
           return {
             node: best.node,
@@ -582,6 +585,37 @@ export const textSelectionOverlayPlugin = $prose(() => {
         } catch {
           return null;
         }
+      };
+
+      const getCaretTargetFromPoint = (event: MouseEvent): PointerCaretTarget | null => {
+        const ownerDocument = view.dom.ownerDocument as Document & {
+          caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+          caretRangeFromPoint?: (x: number, y: number) => Range | null;
+        };
+        const textNodeTarget = getTextNodeCaretTargetFromPoint(event);
+        if (textNodeTarget !== null) {
+          return textNodeTarget;
+        }
+
+        const caretPosition = ownerDocument.caretPositionFromPoint?.(event.clientX, event.clientY);
+        const caretRange = caretPosition
+          ? null
+          : ownerDocument.caretRangeFromPoint?.(event.clientX, event.clientY);
+        const node = caretPosition?.offsetNode ?? caretRange?.startContainer ?? null;
+        const offset = caretPosition?.offset ?? caretRange?.startOffset ?? null;
+
+        if (node && offset !== null && view.dom.contains(node)) {
+          try {
+            return {
+              node,
+              offset,
+              pos: view.posAtDOM(node, offset),
+            };
+          } catch {
+          }
+        }
+
+        return null;
       };
 
       const scheduleClearNativeSelection = () => {
@@ -672,6 +706,11 @@ export const textSelectionOverlayPlugin = $prose(() => {
             schedulePointerClickCollapseReassertion(clickedTarget);
             return;
           }
+
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          clearTextSelectionFromBlankPointerDown();
+          return;
         }
         if (!pointerClickCollapseTarget) {
           setPointerNativeSelection(true);
