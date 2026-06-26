@@ -26,6 +26,7 @@ vi.mock('@/stores/useNotesStore', () => ({
 
 vi.mock('@/hooks/useTitleSync', () => ({
   useDisplayIcon: () => undefined,
+  useDisplayName: () => undefined,
 }));
 
 vi.mock('@/lib/i18n', () => ({

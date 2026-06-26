@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { stripMarkdownExtension } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
@@ -10,7 +10,7 @@ import {
 } from '../common/collapseTrianglePrimitive';
 import { useI18n } from '@/lib/i18n';
 import { Icon } from '@/components/ui/icons';
-import { useDisplayIcon } from '@/hooks/useTitleSync';
+import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -383,19 +383,22 @@ export function NotesTagsSection({
   );
 }
 
-function NotesTagFileRow({
-  target,
-  currentNotePath,
-  getDisplayName,
-  onOpenNote,
-}: {
+interface NotesTagFileRowProps {
   target: NotesSidebarTagPath;
   currentNotePath?: string | null;
   getDisplayName: (path: string) => string;
   onOpenNote: (target: NotesSidebarTagPath) => void;
-}) {
+}
+
+const NotesTagFileRow = memo(function NotesTagFileRow({
+  target,
+  currentNotePath,
+  getDisplayName,
+  onOpenNote,
+}: NotesTagFileRowProps) {
   const path = target.path;
   const storeIcon = useDisplayIcon(path);
+  const displayName = useDisplayName(path);
   const notesPath = useNotesStore((state) => state.notesPath);
   const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath: path });
   const cacheKey = useMemo(() => `${vaultPath}\u001f${path}`, [vaultPath, path]);
@@ -461,10 +464,24 @@ function NotesTagFileRow({
       isActive={currentNotePath === path}
       main={
         <span className="block min-w-0 max-w-full whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
-          {getDisplayName(path) || stripMarkdownExtension(path.split('/').pop() ?? '') || path}
+          {displayName || getDisplayName(path) || stripMarkdownExtension(path.split('/').pop() ?? '') || path}
         </span>
       }
       onClick={() => onOpenNote(target)}
     />
+  );
+}, areNotesTagFileRowPropsEqual);
+
+function areNotesTagFileRowPropsEqual(
+  previous: NotesTagFileRowProps,
+  next: NotesTagFileRowProps,
+) {
+  const wasActive = previous.currentNotePath === previous.target.path;
+  const isActive = next.currentNotePath === next.target.path;
+  return (
+    previous.target === next.target &&
+    previous.getDisplayName === next.getDisplayName &&
+    previous.onOpenNote === next.onOpenNote &&
+    wasActive === isActive
   );
 }

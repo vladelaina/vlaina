@@ -57,14 +57,17 @@ export function useChatSidebarSearch({
     [visibleSessions],
   );
 
+  const shouldComputeSearchResults = enabled && isSearchOpen;
   const searchEntries = useMemo(
-    () => enabled ? buildChatSidebarSearchEntries(sortedSessions) : EMPTY_SEARCH_ENTRIES,
-    [enabled, sortedSessions],
+    () => shouldComputeSearchResults ? buildChatSidebarSearchEntries(sortedSessions) : EMPTY_SEARCH_ENTRIES,
+    [shouldComputeSearchResults, sortedSessions],
   );
 
   const filteredSessions = useMemo(
-    () => enabled ? queryChatSidebarSessions(searchEntries, deferredSearchQuery) : EMPTY_FILTERED_SESSIONS,
-    [deferredSearchQuery, enabled, searchEntries],
+    () => shouldComputeSearchResults
+      ? queryChatSidebarSessions(searchEntries, deferredSearchQuery)
+      : EMPTY_FILTERED_SESSIONS,
+    [deferredSearchQuery, searchEntries, shouldComputeSearchResults],
   );
 
   useEffect(() => {
