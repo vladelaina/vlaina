@@ -43,6 +43,28 @@ describe('NoteIcon', () => {
     });
   });
 
+  it('reuses resolved image icons after sidebar remounts', async () => {
+    mocked.resolveCoverAssetUrl.mockResolvedValue('blob:stable-sidebar-icon');
+
+    const firstRender = render(
+      <NoteIcon icon="assets/icons/stable-sidebar.png" notePath="/vault/stable.md" size={20} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:stable-sidebar-icon');
+    });
+
+    firstRender.unmount();
+
+    render(<NoteIcon icon="assets/icons/stable-sidebar.png" notePath="/vault/stable.md" size={20} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:stable-sidebar-icon');
+    });
+
+    expect(mocked.resolveCoverAssetUrl).toHaveBeenCalledTimes(1);
+  });
+
   it('does not render a note icon image when the shared asset resolver rejects', async () => {
     mocked.resolveCoverAssetUrl.mockRejectedValue(new Error('cover-path-unsupported'));
 

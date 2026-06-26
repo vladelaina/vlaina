@@ -1,4 +1,4 @@
-import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SidebarSearchDrawer, useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import {
   SidebarCapsulePanel,
@@ -11,6 +11,7 @@ import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
+import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
 import {
@@ -71,7 +72,14 @@ export function SidebarContent({
   const { t } = useI18n();
   const openNote = useNotesStore((s) => s.openNote);
   const openNoteByAbsolutePath = useNotesStore((s) => s.openNoteByAbsolutePath);
-  const currentNote = useNotesStore((s) => s.currentNote);
+  const currentNoteTagContent = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath || state.currentNote?.path !== currentNotePath) {
+        return null;
+      }
+      return stripManagedFrontmatter(state.currentNote.content);
+    }, [currentNotePath])
+  );
   const draftNotes = useNotesStore((s) => s.draftNotes);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
@@ -226,8 +234,8 @@ export function SidebarContent({
     liveNoteContent:
       liveNoteContent?.path === currentNotePath
         ? liveNoteContent
-        : currentNote?.path === currentNotePath
-          ? currentNote
+        : currentNotePath && currentNoteTagContent !== null
+          ? { path: currentNotePath, content: currentNoteTagContent }
           : null,
     scanAllNotes,
     starredEntries,
@@ -289,10 +297,17 @@ export function SidebarContent({
       return;
     }
 
-    const liveCurrentNote = currentNote?.path === currentNotePath ? currentNote : null;
-    setLiveNoteContent(
-      liveCurrentNote
-        ? { path: liveCurrentNote.path, content: liveCurrentNote.content }
+    const setNextLiveNoteContent = (next: { path: string; content: string } | null) => {
+      setLiveNoteContent((current) => (
+        current?.path === next?.path && current?.content === next?.content
+          ? current
+          : next
+      ));
+    };
+
+    setNextLiveNoteContent(
+      currentNotePath && currentNoteTagContent !== null
+        ? { path: currentNotePath, content: currentNoteTagContent }
         : null,
     );
 
@@ -307,14 +322,17 @@ export function SidebarContent({
         return;
       }
 
-      setLiveNoteContent({ path: detail.path, content: detail.content });
+      setNextLiveNoteContent({
+        path: detail.path,
+        content: stripManagedFrontmatter(detail.content),
+      });
     };
 
     window.addEventListener('editor:note-markdown-preview', handleLiveMarkdownPreview);
     return () => {
       window.removeEventListener('editor:note-markdown-preview', handleLiveMarkdownPreview);
     };
-  }, [active, currentNote?.content, currentNote?.path, currentNotePath]);
+  }, [active, currentNotePath, currentNoteTagContent]);
 
   useEffect(() => {
     if (!active) {

@@ -456,6 +456,39 @@ describe('notesSidebarTags', () => {
     expect(Array.from(entry?.tags.keys() ?? [])).toEqual(['alpha']);
   });
 
+  it('keeps a tag path index entry when only managed frontmatter changes', () => {
+    const index = new Map();
+    const path = 'projects/alpha.md';
+    const entries = [{ path }];
+    let content = [
+      '---',
+      'vlaina_cover: "assets/old.webp" x=50 y=50 height=220 scale=1',
+      '---',
+      '',
+      '# Alpha',
+      '',
+      'Body #work',
+    ].join('\n');
+
+    reconcileNotesSidebarTagPathIndex(index, entries, () => content);
+    const firstEntry = index.get(path);
+
+    content = [
+      '---',
+      'vlaina_cover: "assets/new.webp" x=40 y=60 height=260 scale=1.2',
+      '---',
+      '',
+      '# Alpha',
+      '',
+      'Body #work',
+    ].join('\n');
+
+    reconcileNotesSidebarTagPathIndex(index, entries, () => content);
+
+    expect(index.get(path)).toBe(firstEntry);
+    expect(Array.from(index.get(path)?.tags.keys() ?? [])).toEqual(['work']);
+  });
+
   it('prunes tag path index entries outside the active scope', () => {
     const index = new Map();
     const contents = new Map([

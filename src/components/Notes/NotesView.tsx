@@ -45,6 +45,7 @@ import { hasFileTreeNoteFiles, shouldAutoCreateBlankDraft } from './autoCreateBl
 import { cn } from '@/lib/utils';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { themeBackdropTokens, themeEditorLayoutTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
+import type { NoteMetadataEntry } from '@/stores/notes/types';
 
 let embeddedChatViewModulePromise: Promise<typeof import('@/components/Chat/ChatView')> | null = null;
 let embeddedChatViewModuleReady = false;
@@ -78,13 +79,13 @@ function scheduleSidebarScroll(path: string): void {
 
 function isEmptyUntitledDraft({
   content,
+  draftMetadata,
   draftNotes,
-  noteMetadata,
   path,
 }: {
   content: string;
+  draftMetadata?: NoteMetadataEntry;
   draftNotes: ReturnType<typeof useNotesStore.getState>['draftNotes'];
-  noteMetadata: ReturnType<typeof useNotesStore.getState>['noteMetadata'];
   path: string | null | undefined;
 }): boolean {
   if (!path || !isDraftNotePath(path)) {
@@ -99,7 +100,7 @@ function isEmptyUntitledDraft({
   return !hasDraftUnsavedChanges({
     draftName: draftEntry.name,
     content,
-    metadata: noteMetadata?.notes[path],
+    metadata: draftMetadata,
   });
 }
 
@@ -136,7 +137,14 @@ export function NotesView({
   const isLoading = useNotesStore(s => s.isLoading);
   const unifiedLoaded = useUnifiedStore((s) => s.loaded);
   const draftNotes = useNotesStore(s => s.draftNotes);
-  const noteMetadata = useNotesStore(s => s.noteMetadata);
+  const currentDraftMetadata = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
+        return undefined;
+      }
+      return state.noteMetadata?.notes[currentNotePath];
+    }, [currentNotePath])
+  );
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
   const adoptAbsoluteNoteIntoVault = useNotesStore(s => s.adoptAbsoluteNoteIntoVault);
   const pendingDraftDiscardPath = useNotesStore(s => s.pendingDraftDiscardPath);
@@ -299,8 +307,8 @@ export function NotesView({
       openTabs[0]?.path !== currentNotePath ||
       !isEmptyUntitledDraft({
         content: currentNoteContent,
+        draftMetadata: currentDraftMetadata,
         draftNotes,
-        noteMetadata,
         path: currentNotePath,
       })
     ) {
@@ -327,7 +335,7 @@ export function NotesView({
         window.cancelAnimationFrame(nextFrameId);
       }
     };
-  }, [active, currentNoteContent, currentNotePath, draftNotes, noteMetadata, openTabs]);
+  }, [active, currentDraftMetadata, currentNoteContent, currentNotePath, draftNotes, openTabs]);
 
   const reportNotesPrimaryContentReady = useCallback(() => {
     setPrimaryContentReadyPath(currentNotePath ?? null);
@@ -516,7 +524,7 @@ export function NotesView({
     return !hasDraftUnsavedChanges({
       draftName: draftEntry.name,
       content: blankDropDraftContent,
-      metadata: noteMetadata?.notes[currentNotePath],
+      metadata: currentDraftMetadata,
     });
   })();
 

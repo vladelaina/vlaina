@@ -38,6 +38,7 @@ describe('useNoteCoverController', () => {
     hoisted.storeRef.state = {
       notesPath: '/vault',
       noteMetadata: { notes: {} },
+      currentNote: null,
       setNoteCover: hoisted.setNoteCover,
     };
   });
@@ -87,6 +88,53 @@ describe('useNoteCoverController', () => {
 
   it('uses defaults when note has no cover metadata', () => {
     const { result } = renderHook(() => useNoteCoverController('empty.md'));
+    expect(result.current.cover).toEqual({
+      url: null,
+      positionX: 50,
+      positionY: 50,
+      height: undefined,
+      scale: 1,
+    });
+  });
+
+  it('falls back to the current note frontmatter cover while metadata is not indexed yet', () => {
+    hoisted.storeRef.state.currentNote = {
+      path: 'frontmatter-cover.md',
+      content: [
+        '---',
+        'vlaina_cover: "assets/frontmatter.png" x=22 y=33 height=244 scale=1.5',
+        '---',
+        '',
+        '# Frontmatter Cover',
+      ].join('\n'),
+    };
+
+    const { result } = renderHook(() => useNoteCoverController('frontmatter-cover.md'));
+
+    expect(result.current.cover).toEqual({
+      url: 'assets/frontmatter.png',
+      positionX: 22,
+      positionY: 33,
+      height: 244,
+      scale: 1.5,
+    });
+  });
+
+  it('does not resurrect a cover from current content once metadata explicitly has no cover', () => {
+    hoisted.storeRef.state.noteMetadata.notes['frontmatter-cover.md'] = {};
+    hoisted.storeRef.state.currentNote = {
+      path: 'frontmatter-cover.md',
+      content: [
+        '---',
+        'vlaina_cover: "assets/stale.png" x=22 y=33 height=244 scale=1.5',
+        '---',
+        '',
+        '# Frontmatter Cover',
+      ].join('\n'),
+    };
+
+    const { result } = renderHook(() => useNoteCoverController('frontmatter-cover.md'));
+
     expect(result.current.cover).toEqual({
       url: null,
       positionX: 50,

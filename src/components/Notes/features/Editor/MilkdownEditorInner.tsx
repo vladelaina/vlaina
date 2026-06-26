@@ -58,7 +58,10 @@ import {
   normalizeLeadingFrontmatterMarkdown,
 } from './plugins/frontmatter/frontmatterMarkdown';
 import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
-import { serializeEditorMarkdownSnapshot } from './utils/pendingMarkdownUpdate';
+import {
+  normalizeMarkdownParagraphSeparatorsForEditorComparison,
+  serializeEditorMarkdownSnapshot,
+} from './utils/pendingMarkdownUpdate';
 import {
   createDocumentFirstLineEndTextSelection,
   createDocumentStartTextSelection,
@@ -399,7 +402,25 @@ export function replaceEditorMarkdown(
 }
 
 function normalizeComparableEditorMarkdown(markdown: string): string {
-  return normalizeEditorStateMarkdownDocument(stripManagedFrontmatter(markdown));
+  return normalizeMarkdownParagraphSeparatorsForEditorComparison(
+    normalizeEditorStateMarkdownDocument(
+      normalizeMarkdownParagraphSeparatorsForEditorComparison(stripManagedFrontmatter(markdown))
+    )
+  );
+}
+
+function normalizeNoteContentWithoutManagedFrontmatter(markdown: string): string {
+  return stripManagedFrontmatter(markdown).replace(/\r\n?/g, '\n');
+}
+
+export function isSameVisibleNoteContentIgnoringManagedFrontmatter(
+  previousNoteContent: string,
+  nextNoteContent: string,
+): boolean {
+  return (
+    normalizeNoteContentWithoutManagedFrontmatter(previousNoteContent) ===
+    normalizeNoteContentWithoutManagedFrontmatter(nextNoteContent)
+  );
 }
 
 export function isEditorMarkdownEquivalentToNoteContent(
@@ -793,6 +814,18 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
       const view = editor.ctx.get(editorViewCtx) as EditorView;
       const isSameNotePath = lastAppliedNote.path === currentNotePath;
+      if (
+        isSameNotePath &&
+        lastAppliedNote.content !== currentNoteContent &&
+        isSameVisibleNoteContentIgnoringManagedFrontmatter(lastAppliedNote.content, currentNoteContent)
+      ) {
+        lastAppliedNoteRef.current = {
+          path: currentNotePath,
+          diskRevision: currentNoteDiskRevision,
+          content: currentNoteContent,
+        };
+        return;
+      }
       let liveSerializer: ((doc: unknown) => string) | null = null;
       let shouldPreserveSameRevisionWithoutReplace = false;
       try {

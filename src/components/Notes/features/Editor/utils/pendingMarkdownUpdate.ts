@@ -72,6 +72,44 @@ export function serializeEditorMarkdownSnapshot(markdown: string, referenceMarkd
   return preserveReferenceBlankLineGapsAroundInsertedText(serializedMarkdown, referenceMarkdown);
 }
 
+export function normalizeMarkdownParagraphSeparatorsForEditorComparison(markdown: string): string {
+  const normalizedMarkdown = markdown.replace(/\r\n?/g, '\n');
+  const lines = normalizedMarkdown.split('\n');
+  const output: string[] = [];
+
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index] ?? '';
+    if (line.trim() !== '') {
+      output.push(line);
+      index += 1;
+      continue;
+    }
+
+    const runStart = index;
+    while (index < lines.length && (lines[index] ?? '').trim() === '') {
+      index += 1;
+    }
+
+    const previousLine = output[output.length - 1] ?? null;
+    const nextLine = lines[index] ?? null;
+    const isPlainParagraphGap =
+      previousLine !== null &&
+      nextLine !== null &&
+      isPlainTextParagraphLine(previousLine) &&
+      isPlainTextParagraphLine(nextLine);
+
+    if (isPlainParagraphGap) {
+      continue;
+    }
+
+    for (let blankIndex = runStart; blankIndex < index; blankIndex += 1) {
+      output.push(lines[blankIndex] ?? '');
+    }
+  }
+
+  return stripEditorParagraphSeparatorSentinels(output.join('\n'));
+}
+
 function stripAutomaticEditorTrailingNewline(markdown: string): string {
   return markdown.endsWith('\n') ? markdown.slice(0, -1) : markdown;
 }

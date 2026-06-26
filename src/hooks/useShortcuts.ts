@@ -43,7 +43,10 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     setFontSize,
     resetFontSize,
   } = useAppUIStore();
-  const { createNote, currentNote, saveNote, restoreLastDeletedItem } = useNotesStore();
+  const createNote = useNotesStore((state) => state.createNote);
+  const currentNotePath = useNotesStore((state) => state.currentNote?.path);
+  const saveNote = useNotesStore((state) => state.saveNote);
+  const restoreLastDeletedItem = useNotesStore((state) => state.restoreLastDeletedItem);
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
     toggleAppViewMode,
@@ -69,7 +72,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     newTab: () => {
       const folderPath = resolveSiblingNoteParentPath(
         useNotesStore.getState().draftNotes,
-        currentNote?.path,
+        currentNotePath,
       );
       createNote(folderPath, { asDraft: true });
     },
@@ -83,7 +86,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       dispatchDeleteCurrentNoteEvent();
     },
     toggleDrawer,
-  }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, saveNote, toggleDrawer, appViewMode]);
+  }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNotePath, saveNote, toggleDrawer, appViewMode]);
 
   const handlers = useMemo(() => ({
     ...builtinHandlers,

@@ -11,6 +11,8 @@ import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEn
 const AUTO_TITLE_TIMEOUT_MS = 12_000;
 export const MAX_AUTO_TITLE_CHARS = 80;
 const autoTitleInFlightSessionIds = new Set<string>();
+const EMPTY_PROVIDERS: never[] = [];
+const EMPTY_MODELS: never[] = [];
 
 function getAutoTitleLanguageLabel(language: AppLanguage): string {
   const option = APP_LANGUAGES.find((item) => item.code === language);
@@ -68,8 +70,8 @@ function updateSessionAutoTitleIfCurrent(sessionId: string, title: string, title
 
 export function useAutoTitle() {
   const { language, t } = useI18n();
-  const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
-  const models = useUnifiedStore((state) => state.data.ai?.models || []);
+  const providers = useUnifiedStore((state) => state.data.ai?.providers || EMPTY_PROVIDERS);
+  const models = useUnifiedStore((state) => state.data.ai?.models || EMPTY_MODELS);
 
   const generateAutoTitle = useCallback(async (sessionId: string, providerId: string, modelId: string) => {
       if (autoTitleInFlightSessionIds.has(sessionId)) return;

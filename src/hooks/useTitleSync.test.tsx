@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { useDisplayName } from './useTitleSync';
+import { useDisplayIcon, useDisplayName } from './useTitleSync';
 
 describe('useDisplayName', () => {
   beforeEach(() => {
@@ -58,5 +58,61 @@ describe('useDisplayName', () => {
     const { result } = renderHook(() => useDisplayName('draft:blank'));
 
     expect(result.current).toBe('Live Draft');
+  });
+});
+
+describe('useDisplayIcon', () => {
+  beforeEach(() => {
+    useNotesStore.setState(useNotesStore.getInitialState(), true);
+    useUIStore.setState(useUIStore.getInitialState(), true);
+  });
+
+  it('uses current markdown frontmatter while note icon metadata is not loaded yet', () => {
+    act(() => {
+      useNotesStore.setState({
+        currentNote: {
+          path: 'notes/demo.md',
+          content: [
+            '---',
+            'vlaina_icon: "assets/icons/demo.svg"',
+            '---',
+            '',
+            '# Demo',
+          ].join('\n'),
+        },
+        noteMetadata: { version: 2, notes: {} },
+      });
+    });
+
+    const { result } = renderHook(() => useDisplayIcon('notes/demo.md'));
+
+    expect(result.current).toBe('assets/icons/demo.svg');
+  });
+
+  it('does not restore a removed icon from current frontmatter after metadata explicitly loaded the note', () => {
+    act(() => {
+      useNotesStore.setState({
+        currentNote: {
+          path: 'notes/demo.md',
+          content: [
+            '---',
+            'vlaina_icon: "assets/icons/stale.svg"',
+            '---',
+            '',
+            '# Demo',
+          ].join('\n'),
+        },
+        noteMetadata: {
+          version: 2,
+          notes: {
+            'notes/demo.md': {},
+          },
+        },
+      });
+    });
+
+    const { result } = renderHook(() => useDisplayIcon('notes/demo.md'));
+
+    expect(result.current).toBeUndefined();
   });
 });

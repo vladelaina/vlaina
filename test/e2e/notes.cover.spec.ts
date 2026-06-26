@@ -21,6 +21,7 @@ import {
 } from './notesE2E';
 
 const COVER_ASSET_PATH = 'assets/e2e-cover.svg';
+const NOTE_ICON_ASSET_PATH = 'assets/e2e-note-icon.svg';
 const COVER_HEIGHT = 220;
 const COVER_INITIAL_Y = 35;
 const SWITCH_COVER_COUNT = 10;
@@ -44,6 +45,15 @@ const COVER_SVG = [
   '<rect x="90" y="95" width="430" height="54" rx="18" fill="#ffffff" opacity="0.45"/>',
   '<rect x="90" y="185" width="650" height="32" rx="16" fill="#0f172a" opacity="0.30"/>',
   '<rect x="90" y="245" width="520" height="28" rx="14" fill="#ffffff" opacity="0.30"/>',
+  '</svg>',
+].join('');
+
+const NOTE_ICON_SVG = [
+  '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">',
+  '<rect width="96" height="96" rx="18" fill="#0f766e"/>',
+  '<path d="M25 25h32l14 14v32H25z" fill="#f8fafc"/>',
+  '<path d="M57 25v14h14" fill="#d1fae5"/>',
+  '<text x="48" y="63" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#0f766e">MD</text>',
   '</svg>',
 ].join('');
 
@@ -95,10 +105,16 @@ type CoverFrontmatter = {
   y: number | null;
 };
 
-function createCoveredMarkdown(title: string, paragraphCount = 80, coverAssetPath = COVER_ASSET_PATH): string {
+function createCoveredMarkdown(
+  title: string,
+  paragraphCount = 80,
+  coverAssetPath = COVER_ASSET_PATH,
+  iconAssetPath?: string,
+): string {
   return [
     '---',
     `vlaina_cover: "${coverAssetPath}" x=50 y=${COVER_INITIAL_Y} height=${COVER_HEIGHT} scale=1`,
+    ...(iconAssetPath ? [`vlaina_icon: "${iconAssetPath}"`] : []),
     '---',
     '',
     `# ${title}`,
@@ -139,6 +155,7 @@ async function openCoverFixture(
     title: string;
     paragraphCount?: number;
     coverAssetPath?: string;
+    iconAssetPath?: string;
     assetFiles?: Array<{ filename: string; content: string }>;
   },
 ): Promise<CoverFixture> {
@@ -153,7 +170,12 @@ async function openCoverFixture(
     files: [
       {
         filename: input.filename,
-        content: createCoveredMarkdown(input.title, input.paragraphCount, input.coverAssetPath),
+        content: createCoveredMarkdown(
+          input.title,
+          input.paragraphCount,
+          input.coverAssetPath,
+          input.iconAssetPath,
+        ),
       },
       ...assetFiles,
     ],
@@ -343,6 +365,213 @@ async function getCoverSwitchDiagnostics(page: Page) {
   });
 }
 
+async function startCoverLayoutShiftProbe(page: Page) {
+  return page.evaluate(({ regionSelector, editorSelector }) => {
+    const key = '__vlainaCoverLayoutShiftProbe';
+    const previous = (window as any)[key] as { stop?: () => void } | undefined;
+    previous?.stop?.();
+
+    type Sample = {
+      at: number;
+      regionHeight: number;
+      regionTop: number;
+      regionBottom: number;
+      editorTop: number;
+      scrollHeight: number;
+      coverRegionCount: number;
+      coverPlaceholderCount: number;
+    };
+
+    const samples: Sample[] = [];
+    let stopped = false;
+    let frameId = 0;
+    const startedAt = performance.now();
+    const read = () => {
+      if (stopped) return;
+
+      const region = document.querySelector<HTMLElement>(regionSelector);
+      const editor = document.querySelector<HTMLElement>(editorSelector);
+      const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+      const regionRect = region?.getBoundingClientRect();
+      const editorRect = editor?.getBoundingClientRect();
+
+      samples.push({
+        at: Math.round((performance.now() - startedAt) * 10) / 10,
+        regionHeight: Math.round((regionRect?.height ?? 0) * 100) / 100,
+        regionTop: Math.round((regionRect?.top ?? 0) * 100) / 100,
+        regionBottom: Math.round((regionRect?.bottom ?? 0) * 100) / 100,
+        editorTop: Math.round((editorRect?.top ?? 0) * 100) / 100,
+        scrollHeight: scrollRoot?.scrollHeight ?? 0,
+        coverRegionCount: document.querySelectorAll(regionSelector).length,
+        coverPlaceholderCount: document.querySelectorAll('[data-note-cover-placeholder="true"]').length,
+      });
+      frameId = requestAnimationFrame(read);
+    };
+
+    frameId = requestAnimationFrame(read);
+    (window as any)[key] = {
+      samples,
+      stop: () => {
+        stopped = true;
+        cancelAnimationFrame(frameId);
+      },
+    };
+  }, {
+    regionSelector: NOTE_COVER_REGION_SELECTOR,
+    editorSelector: EDITOR_SELECTOR,
+  });
+}
+
+async function stopCoverLayoutShiftProbe(page: Page) {
+  return page.evaluate(() => {
+    const key = '__vlainaCoverLayoutShiftProbe';
+    const probe = (window as any)[key] as {
+      samples: Array<{
+        regionHeight: number;
+        regionTop: number;
+        regionBottom: number;
+        editorTop: number;
+        scrollHeight: number;
+        coverRegionCount: number;
+        coverPlaceholderCount: number;
+      }>;
+      stop: () => void;
+    } | undefined;
+    probe?.stop();
+    delete (window as any)[key];
+
+    const samples = probe?.samples ?? [];
+    const first = samples[0] ?? null;
+    const maxDelta = (field: 'regionHeight' | 'regionTop' | 'regionBottom' | 'editorTop' | 'scrollHeight') => {
+      if (!first) return 0;
+      return Math.max(...samples.map((sample) => Math.abs(sample[field] - first[field])));
+    };
+
+    return {
+      sampleCount: samples.length,
+      maxRegionHeightDelta: Math.round(maxDelta('regionHeight') * 100) / 100,
+      maxRegionTopDelta: Math.round(maxDelta('regionTop') * 100) / 100,
+      maxRegionBottomDelta: Math.round(maxDelta('regionBottom') * 100) / 100,
+      maxEditorTopDelta: Math.round(maxDelta('editorTop') * 100) / 100,
+      maxScrollHeightDelta: Math.round(maxDelta('scrollHeight') * 100) / 100,
+      maxCoverRegionCount: samples.length ? Math.max(...samples.map((sample) => sample.coverRegionCount)) : 0,
+      maxCoverPlaceholderCount: samples.length ? Math.max(...samples.map((sample) => sample.coverPlaceholderCount)) : 0,
+      minCoverSupportCount: samples.length
+        ? Math.min(...samples.map((sample) => sample.coverRegionCount + sample.coverPlaceholderCount))
+        : 0,
+    };
+  });
+}
+
+async function waitForSidebarNoteIconReady(page: Page, filePath: string) {
+  const row = page.locator(`[data-file-tree-kind="file"][data-file-tree-path="${filePath}"]`).first();
+  const icon = row.locator('img[alt="icon"]').first();
+  await expect(icon).toBeVisible({ timeout: 10_000 });
+  await expect.poll(async () => icon.evaluate((image) => ({
+    srcIsBlob: (image as HTMLImageElement).src.startsWith('blob:'),
+    complete: (image as HTMLImageElement).complete,
+    naturalWidth: (image as HTMLImageElement).naturalWidth,
+    naturalHeight: (image as HTMLImageElement).naturalHeight,
+  })), { timeout: 10_000 }).toMatchObject({
+    srcIsBlob: true,
+    complete: true,
+    naturalWidth: 96,
+    naturalHeight: 96,
+  });
+}
+
+async function startSidebarIconStabilityProbe(page: Page, filePath: string) {
+  return page.evaluate((path) => {
+    const key = '__vlainaSidebarIconStabilityProbe';
+    const previous = (window as any)[key] as { stop?: () => void } | undefined;
+    previous?.stop?.();
+
+    type Sample = {
+      at: number;
+      rowExists: boolean;
+      exists: boolean;
+      hasSvg: boolean;
+      src: string;
+      complete: boolean;
+      naturalWidth: number;
+      naturalHeight: number;
+    };
+
+    const samples: Sample[] = [];
+    let stopped = false;
+    let frameId = 0;
+    const startedAt = performance.now();
+    const findRowAndIcon = () => {
+      const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-file-tree-kind="file"]'));
+      const row = rows.find((candidate) => candidate.dataset.fileTreePath === path);
+      return {
+        row: row ?? null,
+        icon: row?.querySelector<HTMLImageElement>('img[alt="icon"]') ?? null,
+      };
+    };
+    const read = () => {
+      if (stopped) return;
+      const { row, icon } = findRowAndIcon();
+      samples.push({
+        at: Math.round((performance.now() - startedAt) * 10) / 10,
+        rowExists: Boolean(row),
+        exists: Boolean(icon),
+        hasSvg: Boolean(row?.querySelector('svg')),
+        src: icon?.src ?? '',
+        complete: icon?.complete ?? false,
+        naturalWidth: icon?.naturalWidth ?? 0,
+        naturalHeight: icon?.naturalHeight ?? 0,
+      });
+      frameId = requestAnimationFrame(read);
+    };
+
+    frameId = requestAnimationFrame(read);
+    (window as any)[key] = {
+      samples,
+      stop: () => {
+        stopped = true;
+        cancelAnimationFrame(frameId);
+      },
+    };
+  }, filePath);
+}
+
+async function stopSidebarIconStabilityProbe(page: Page) {
+  return page.evaluate(() => {
+    const key = '__vlainaSidebarIconStabilityProbe';
+    const probe = (window as any)[key] as {
+      samples: Array<{
+        rowExists?: boolean;
+        exists: boolean;
+        hasSvg?: boolean;
+        src: string;
+        complete: boolean;
+        naturalWidth: number;
+        naturalHeight: number;
+      }>;
+      stop: () => void;
+    } | undefined;
+    probe?.stop();
+    delete (window as any)[key];
+
+    const samples = probe?.samples ?? [];
+    const srcs = samples.map((sample) => sample.src).filter(Boolean);
+    return {
+      sampleCount: samples.length,
+      rowMissingCount: samples.filter((sample) => !sample.rowExists).length,
+      rowWithoutImageCount: samples.filter((sample) => sample.rowExists && !sample.exists).length,
+      fallbackSvgCount: samples.filter((sample) => sample.rowExists && !sample.exists && sample.hasSvg).length,
+      imagePlaceholderCount: samples.filter((sample) => sample.rowExists && !sample.exists && !sample.hasSvg).length,
+      missingCount: samples.filter((sample) => !sample.exists).length,
+      incompleteCount: samples.filter((sample) => sample.exists && !sample.complete).length,
+      zeroNaturalSizeCount: samples.filter((sample) => sample.exists && (sample.naturalWidth <= 0 || sample.naturalHeight <= 0)).length,
+      distinctSrcCount: new Set(srcs).size,
+      firstSrc: srcs[0] ?? '',
+      lastSrc: srcs[srcs.length - 1] ?? '',
+    };
+  });
+}
+
 async function waitForCoverAssetGridItem(page: Page, gridFilename: string) {
   const item = page.locator(`[data-filename="${gridFilename}"]`).first();
   await expect(item).toBeVisible({ timeout: 10_000 });
@@ -361,6 +590,7 @@ async function hoverCoverAssetPreview(page: Page, gridFilename: string) {
   const box = await item.boundingBox();
   expect(box).not.toBeNull();
   const startedAt = await page.evaluate(() => performance.now());
+  await startCoverLayoutShiftProbe(page);
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
 
   let diagnostics = previous;
@@ -375,12 +605,14 @@ async function hoverCoverAssetPreview(page: Page, gridFilename: string) {
     );
   }, { timeout: 10_000 }).toBe(true);
   await waitForEditorAnimationFrame(page);
+  const layoutShift = await stopCoverLayoutShiftProbe(page);
   const endedAt = await page.evaluate(() => performance.now());
 
   return {
     gridFilename,
     visualSwitchMs: Math.round((endedAt - startedAt) * 10) / 10,
     diagnostics,
+    layoutShift,
   };
 }
 
@@ -388,6 +620,7 @@ async function selectCoverAssetFromPicker(page: Page, gridFilename: string) {
   const previous = await getCoverSwitchDiagnostics(page);
   const item = await openCoverPickerForAsset(page, gridFilename);
   const startedAt = await page.evaluate(() => performance.now());
+  await startCoverLayoutShiftProbe(page);
   await item.click();
 
   let diagnostics = previous;
@@ -402,12 +635,14 @@ async function selectCoverAssetFromPicker(page: Page, gridFilename: string) {
     );
   }, { timeout: 10_000 }).toBe(true);
   await waitForEditorAnimationFrame(page);
+  const layoutShift = await stopCoverLayoutShiftProbe(page);
   const endedAt = await page.evaluate(() => performance.now());
 
   return {
     gridFilename,
     visualSwitchMs: Math.round((endedAt - startedAt) * 10) / 10,
     diagnostics,
+    layoutShift,
   };
 }
 
@@ -491,6 +726,7 @@ test.describe('notes top cover e2e coverage', () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-cover-rapid-switching');
     const frameProbeKey = '__vlainaCoverRapidSwitchingProbe';
     let frameProbeRunning = false;
+    let sidebarIconProbeRunning = false;
     let page: Page | null = null;
 
     try {
@@ -523,9 +759,17 @@ test.describe('notes top cover e2e coverage', () => {
         title: 'Cover Rapid Switching E2E',
         paragraphCount: 120,
         coverAssetPath: SWITCH_COVER_ASSET_PATHS[0],
-        assetFiles: switchAssetFiles,
+        iconAssetPath: NOTE_ICON_ASSET_PATH,
+        assetFiles: [
+          ...switchAssetFiles,
+          {
+            filename: NOTE_ICON_ASSET_PATH,
+            content: NOTE_ICON_SVG,
+          },
+        ],
       });
       await waitForCoverReady(page);
+      await waitForSidebarNoteIconReady(page, 'cover-rapid-switching.md');
 
       await clickCoverCenter(page);
       await expect(page.getByRole('button', { name: /^(Library|图库|圖庫)$/ })).toBeVisible({ timeout: 10_000 });
@@ -535,6 +779,8 @@ test.describe('notes top cover e2e coverage', () => {
       const commitTargets = SWITCH_COVER_GRID_FILENAMES.slice(6, 10);
       await startMainThreadFrameProbe(page, frameProbeKey);
       frameProbeRunning = true;
+      await startSidebarIconStabilityProbe(page, 'cover-rapid-switching.md');
+      sidebarIconProbeRunning = true;
 
       const hoverMetrics = [];
       for (const target of hoverTargets) {
@@ -550,6 +796,8 @@ test.describe('notes top cover e2e coverage', () => {
         commitMetrics.push(await selectCoverAssetFromPicker(page, target));
       }
 
+      const sidebarIconProbe = await stopSidebarIconStabilityProbe(page);
+      sidebarIconProbeRunning = false;
       const frameProbe = await stopMainThreadFrameProbe(page, frameProbeKey);
       frameProbeRunning = false;
       const finalTarget = commitTargets[commitTargets.length - 1]!;
@@ -563,6 +811,13 @@ test.describe('notes top cover e2e coverage', () => {
       const visualSwitchTimes = allSwitchMetrics.map((entry) => entry.visualSwitchMs);
       const maxVisualSwitchMs = Math.max(...visualSwitchTimes);
       const avgVisualSwitchMs = visualSwitchTimes.reduce((sum, value) => sum + value, 0) / visualSwitchTimes.length;
+      const layoutShiftMetrics = allSwitchMetrics.map((entry) => entry.layoutShift);
+      const maxEditorTopDelta = Math.max(...layoutShiftMetrics.map((entry) => entry.maxEditorTopDelta));
+      const maxRegionHeightDelta = Math.max(...layoutShiftMetrics.map((entry) => entry.maxRegionHeightDelta));
+      const maxRegionBottomDelta = Math.max(...layoutShiftMetrics.map((entry) => entry.maxRegionBottomDelta));
+      const maxScrollHeightDelta = Math.max(...layoutShiftMetrics.map((entry) => entry.maxScrollHeightDelta));
+      const maxCoverPlaceholderCount = Math.max(...layoutShiftMetrics.map((entry) => entry.maxCoverPlaceholderCount));
+      const minCoverSupportCount = Math.min(...layoutShiftMetrics.map((entry) => entry.minCoverSupportCount));
 
       console.info('[notes-cover-rapid-switching]', {
         hoverMetrics,
@@ -570,8 +825,15 @@ test.describe('notes top cover e2e coverage', () => {
         frameProbe,
         finalFrontmatter,
         finalDiagnostics,
+        sidebarIconProbe,
         maxVisualSwitchMs,
         avgVisualSwitchMs: Math.round(avgVisualSwitchMs * 10) / 10,
+        maxEditorTopDelta,
+        maxRegionHeightDelta,
+        maxRegionBottomDelta,
+        maxScrollHeightDelta,
+        maxCoverPlaceholderCount,
+        minCoverSupportCount,
       });
 
       expect(hoverMetrics).toHaveLength(5);
@@ -584,15 +846,98 @@ test.describe('notes top cover e2e coverage', () => {
       expect(finalDiagnostics.selectedBlockCount).toBe(0);
       expect(maxVisualSwitchMs).toBeLessThan(3_000);
       expect(avgVisualSwitchMs).toBeLessThan(1_500);
+      expect(maxEditorTopDelta).toBeLessThanOrEqual(1);
+      expect(maxRegionHeightDelta).toBeLessThanOrEqual(1);
+      expect(maxRegionBottomDelta).toBeLessThanOrEqual(1);
+      expect(maxScrollHeightDelta).toBeLessThanOrEqual(1);
+      expect(maxCoverPlaceholderCount).toBe(0);
+      expect(minCoverSupportCount).toBeGreaterThanOrEqual(1);
+      expect(sidebarIconProbe.sampleCount).toBeGreaterThan(0);
+      expect(sidebarIconProbe.missingCount).toBe(0);
+      expect(sidebarIconProbe.incompleteCount).toBe(0);
+      expect(sidebarIconProbe.zeroNaturalSizeCount).toBe(0);
+      expect(sidebarIconProbe.distinctSrcCount).toBe(1);
+      expect(sidebarIconProbe.lastSrc).toBe(sidebarIconProbe.firstSrc);
       expect(frameProbe.p95FrameMs).toBeLessThan(100);
       expect(frameProbe.maxFrameMs).toBeLessThan(300);
       expect(frameProbe.longFramesOver100).toBeLessThanOrEqual(3);
       expect(frameProbe.maxLongTaskMs).toBeLessThan(300);
       expect(pageErrors).toEqual([]);
     } finally {
+      if (sidebarIconProbeRunning && page && !page.isClosed()) {
+        await stopSidebarIconStabilityProbe(page).catch(() => undefined);
+      }
       if (frameProbeRunning && page && !page.isClosed()) {
         await stopMainThreadFrameProbe(page, frameProbeKey).catch(() => undefined);
       }
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps cover space reserved while switching between covered notes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-cover-covered-note-switch');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1360, height: 900 });
+      const pageErrors: string[] = [];
+      page.on('pageerror', (error) => {
+        pageErrors.push(error.message);
+        console.info(`[notes-cover-covered-note-switch:pageerror] ${error.message}`);
+      });
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'cover-covered-note-switch',
+        files: [
+          {
+            filename: 'cover-switch-alpha.md',
+            content: createCoveredMarkdown(
+              'Cover Switch Alpha E2E',
+              80,
+              SWITCH_COVER_ASSET_PATHS[0],
+            ),
+          },
+          {
+            filename: 'cover-switch-beta.md',
+            content: createCoveredMarkdown(
+              'Cover Switch Beta E2E',
+              80,
+              SWITCH_COVER_ASSET_PATHS[1],
+            ),
+          },
+          ...SWITCH_COVER_ASSET_PATHS.slice(0, 2).map((filename, index) => ({
+            filename,
+            content: createSwitchCoverSvg(index),
+          })),
+        ],
+      });
+
+      await openVaultInNotes(page, {
+        vaultPath: fixture.vaultPath,
+        name: 'Cover Note Switch Vault',
+        minFileCount: 2,
+      });
+
+      await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'cover-switch-alpha' }).first().click();
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Cover Switch Alpha E2E', { timeout: 30_000 });
+      await waitForCoverReady(page);
+
+      await startCoverLayoutShiftProbe(page);
+      await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'cover-switch-beta' }).first().click();
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Cover Switch Beta E2E', { timeout: 30_000 });
+      await waitForCoverReady(page);
+      await waitForEditorAnimationFrame(page);
+      const layoutShift = await stopCoverLayoutShiftProbe(page);
+
+      console.info('[notes-cover-covered-note-switch]', layoutShift);
+
+      expect(layoutShift.minCoverSupportCount).toBeGreaterThanOrEqual(1);
+      expect(layoutShift.maxRegionHeightDelta).toBeLessThanOrEqual(1);
+      expect(layoutShift.maxRegionBottomDelta).toBeLessThanOrEqual(1);
+      expect(layoutShift.maxEditorTopDelta).toBeLessThanOrEqual(1);
+      expect(pageErrors).toEqual([]);
+    } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
   });

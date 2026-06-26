@@ -9,6 +9,7 @@ import { resolveCoverAssetUrl } from '../Cover/utils/resolveCoverAssetUrl';
 import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 import { focusEditorAtTop } from './utils/focusEditor';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
+import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
@@ -25,7 +26,6 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setNoteIconSize = useNotesStore(s => s.setNoteIconSize);
     const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
-    const noteMetadata = useNotesStore(s => s.noteMetadata);
     const draftTitle = useNotesStore(
         useCallback((state) => {
             if (!currentNotePath) return undefined;
@@ -33,17 +33,40 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
         }, [currentNotePath])
     );
 
-    const noteIcon = useNotesStore(
+    const metadataIcon = useNotesStore(
         useCallback(state => {
             return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.icon;
         }, [currentNotePath])
     );
 
-    const iconSize = useNotesStore(
+    const metadataIconSize = useNotesStore(
         useCallback(state => {
-            return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.iconSize ?? state.noteIconSize;
+            return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.iconSize;
         }, [currentNotePath])
     );
+    const defaultIconSize = useNotesStore(s => s.noteIconSize);
+    const hasMetadataEntry = useNotesStore(
+        useCallback((state) => {
+            if (!currentNotePath) return false;
+            const notes = state.noteMetadata?.notes;
+            return Boolean(notes && Object.prototype.hasOwnProperty.call(notes, currentNotePath));
+        }, [currentNotePath])
+    );
+    const currentNoteContent = useNotesStore(
+        useCallback((state) => {
+            if (hasMetadataEntry || !currentNotePath || state.currentNote?.path !== currentNotePath) {
+                return null;
+            }
+            return state.currentNote.content;
+        }, [currentNotePath, hasMetadataEntry])
+    );
+    const currentNoteMetadata = useMemo(
+        () => currentNoteContent ? readNoteMetadataFromMarkdown(currentNoteContent) : undefined,
+        [currentNoteContent]
+    );
+    const fallbackMetadata = hasMetadataEntry ? undefined : currentNoteMetadata;
+    const noteIcon = metadataIcon ?? fallbackMetadata?.icon ?? null;
+    const iconSize = metadataIconSize ?? fallbackMetadata?.iconSize ?? defaultIconSize;
 
     const notesPath = useNotesStore(s => s.notesPath);
     const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
@@ -103,8 +126,9 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
         }
     };
 
-    const scopedUsedIcons = useMemo(() => {
+    const getScopedUsedIcons = useCallback(() => {
         const usedIcons = new Set<string>();
+        const noteMetadata = useNotesStore.getState().noteMetadata;
         if (!noteMetadata) {
             return usedIcons;
         }
@@ -127,11 +151,11 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
         }
 
         return usedIcons;
-    }, [currentNotePath, noteMetadata]);
+    }, [currentNotePath]);
 
     const handleRequestRandomIcon = useCallback(() => {
-        return getRandomHeaderEmoji(scopedUsedIcons);
-    }, [scopedUsedIcons]);
+        return getRandomHeaderEmoji(getScopedUsedIcons());
+    }, [getScopedUsedIcons]);
 
     const isDraftNote = isDraftNotePath(currentNotePath);
     const titleInitialValue = isNewlyCreated

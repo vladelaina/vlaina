@@ -86,6 +86,100 @@ describe('featureSlice metadata dirty background tabs', () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 1, size: 16 });
   });
 
+  it('keeps the file tree reference stable when cover metadata does not affect sorting', async () => {
+    const notePath = 'alpha.md';
+    const betaPath = 'beta.md';
+    const rootFolder: NonNullable<NotesStore['rootFolder']> = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        { id: notePath, name: 'alpha', path: notePath, isFolder: false },
+        { id: betaPath, name: 'beta', path: betaPath, isFolder: false },
+      ],
+    };
+    const store = createNotesStore({
+      rootFolder,
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      fileTreeSortMode: 'updated-desc',
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 10 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          [notePath]: { updatedAt: 10 },
+          [betaPath]: { updatedAt: 2 },
+        },
+      },
+    });
+
+    store.getState().setNoteCover(notePath, {
+      assetPath: '@monet/1',
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteMetadata?.notes[notePath]?.cover?.assetPath).toBe('@monet/1');
+    });
+    await vi.waitFor(() => {
+      expect(mocks.stat).toHaveBeenCalledTimes(2);
+    });
+
+    expect(store.getState().rootFolder).toBe(rootFolder);
+  });
+
+  it('still rebuilds the file tree when metadata changes the active sort timestamp', async () => {
+    const notePath = 'alpha.md';
+    const betaPath = 'beta.md';
+    const rootFolder: NonNullable<NotesStore['rootFolder']> = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        { id: betaPath, name: 'beta', path: betaPath, isFolder: false },
+        { id: notePath, name: 'alpha', path: notePath, isFolder: false },
+      ],
+    };
+    const store = createNotesStore({
+      rootFolder,
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      fileTreeSortMode: 'updated-desc',
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 10 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          [betaPath]: { updatedAt: 2 },
+        },
+      },
+    });
+
+    store.getState().setNoteCover(notePath, {
+      assetPath: '@monet/1',
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteMetadata?.notes[notePath]?.updatedAt).toBe(10);
+    });
+
+    expect(store.getState().rootFolder).not.toBe(rootFolder);
+    expect(store.getState().rootFolder?.children.map((node) => node.path)).toEqual([
+      notePath,
+      betaPath,
+    ]);
+  });
+
   it('keeps vault metadata changes in memory for a dirty background tab', async () => {
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({

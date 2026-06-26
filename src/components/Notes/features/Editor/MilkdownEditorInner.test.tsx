@@ -8,6 +8,7 @@ import {
   MilkdownEditorInner,
   createLargePlainMarkdownDocJSON,
   isEditorMarkdownEquivalentToNoteContent,
+  isSameVisibleNoteContentIgnoringManagedFrontmatter,
   normalizeInitialEditorSelection,
   replaceEditorMarkdown,
   shouldUseLazyBlockVisibility,
@@ -547,6 +548,34 @@ describe('isEditorMarkdownEquivalentToNoteContent', () => {
     ).toBe(true);
   });
 
+  it('treats managed-only cover changes as equivalent for long paragraph notes', () => {
+    const body = [
+      '# Cover Rapid Switching E2E',
+      '',
+      'Cover e2e sentinel paragraph near the top.',
+      '',
+      ...Array.from({ length: 120 }, (_value, index) => (
+        `Cover performance paragraph ${index + 1}: enough repeated text to make the editor scroll while the top cover remains stable.`
+      )),
+      '',
+      'Final cover performance sentinel.',
+    ].join('\n\n');
+    const noteContent = [
+      '---',
+      'vlaina_cover: "./assets/e2e-cover-switch-06.svg" x=50 y=50 height=220 scale=1',
+      '---',
+      '',
+      body,
+    ].join('\n');
+
+    expect(
+      isEditorMarkdownEquivalentToNoteContent(
+        body,
+        noteContent,
+      )
+    ).toBe(true);
+  });
+
   it('keeps user-authored frontmatter differences visible when comparing editor markdown', () => {
     expect(
       isEditorMarkdownEquivalentToNoteContent(
@@ -562,6 +591,62 @@ describe('isEditorMarkdownEquivalentToNoteContent', () => {
           'vlaina_cover: "./assets/readme.gif" x=50 y=50 height=255 scale=1',
           '---',
           '# Body',
+        ].join('\n'),
+      )
+    ).toBe(false);
+  });
+});
+
+describe('isSameVisibleNoteContentIgnoringManagedFrontmatter', () => {
+  it('treats cover-only metadata updates as the same visible note content', () => {
+    const body = [
+      '# Cover Rapid Switching E2E',
+      '',
+      'Cover e2e sentinel paragraph near the top.',
+      '',
+      ...Array.from({ length: 120 }, (_value, index) => (
+        `Cover performance paragraph ${index + 1}: enough repeated text to make the editor scroll while the top cover remains stable.`
+      )),
+      '',
+      'Final cover performance sentinel.',
+    ].join('\n\n');
+
+    expect(
+      isSameVisibleNoteContentIgnoringManagedFrontmatter(
+        [
+          '---',
+          'vlaina_cover: "./assets/e2e-cover-switch-05.svg" x=50 y=50 height=220 scale=1',
+          '---',
+          '',
+          body,
+        ].join('\n'),
+        [
+          '---',
+          'vlaina_cover: "./assets/e2e-cover-switch-06.svg" x=50 y=50 height=220 scale=1',
+          '---',
+          '',
+          body,
+        ].join('\n'),
+      )
+    ).toBe(true);
+  });
+
+  it('does not hide body changes behind managed frontmatter updates', () => {
+    expect(
+      isSameVisibleNoteContentIgnoringManagedFrontmatter(
+        [
+          '---',
+          'vlaina_cover: "./assets/a.svg"',
+          '---',
+          '',
+          '# Body',
+        ].join('\n'),
+        [
+          '---',
+          'vlaina_cover: "./assets/b.svg"',
+          '---',
+          '',
+          '# Body changed',
         ].join('\n'),
       )
     ).toBe(false);

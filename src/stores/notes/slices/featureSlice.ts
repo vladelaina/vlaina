@@ -259,6 +259,22 @@ function replaceNoteEntry(
   };
 }
 
+function shouldRebuildRootFolderForMetadataChange(
+  fileTreeSortMode: NotesStore['fileTreeSortMode'],
+  previousEntry: NoteMetadataEntry | undefined,
+  nextEntry: NoteMetadataEntry | undefined,
+): boolean {
+  if (fileTreeSortMode === 'updated-desc') {
+    return (previousEntry?.updatedAt ?? 0) !== (nextEntry?.updatedAt ?? 0);
+  }
+
+  if (fileTreeSortMode === 'created-desc') {
+    return (previousEntry?.createdAt ?? 0) !== (nextEntry?.createdAt ?? 0);
+  }
+
+  return false;
+}
+
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
   noteContentsCache: NotesStore['noteContentsCache'];
@@ -594,12 +610,19 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           modifiedAt: cachedModifiedAt ?? metadataBase.notes[path]?.updatedAt,
         });
     const nextMetadata = replaceNoteEntry(metadataBase, path, nextMetadataEntry);
-    const nextRootFolder = buildSortedRootFolder(
-      latestState.rootFolder,
-      latestState.rootFolder?.children ?? [],
+    const shouldRebuildRootFolder = shouldRebuildRootFolderForMetadataChange(
       latestState.fileTreeSortMode,
-      nextMetadata
+      metadataBase.notes[path],
+      nextMetadata.notes[path],
     );
+    const nextRootFolder = shouldRebuildRootFolder
+      ? buildSortedRootFolder(
+          latestState.rootFolder,
+          latestState.rootFolder?.children ?? [],
+          latestState.fileTreeSortMode,
+          nextMetadata
+        )
+      : latestState.rootFolder;
     const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
     if (!isActiveVaultRequest(vaultPathAtStart)) {

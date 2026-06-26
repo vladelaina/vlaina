@@ -16,6 +16,8 @@ interface TemporaryChatToggleProps {
 }
 
 const EMPTY_MESSAGES: never[] = [];
+const EMPTY_MODELS: never[] = [];
+const EMPTY_PROVIDERS: never[] = [];
 
 export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: TemporaryChatToggleProps) {
   const { t } = useI18n();
@@ -38,8 +40,8 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
 
     return (state.data.ai?.sessions || []).find((session) => session.id === currentSessionId)?.modelId;
   });
-  const models = useUnifiedStore((state) => state.data.ai?.models || []);
-  const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
+  const models = useUnifiedStore((state) => state.data.ai?.models || EMPTY_MODELS);
+  const providers = useUnifiedStore((state) => state.data.ai?.providers || EMPTY_PROVIDERS);
   const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null);
   const { generateAutoTitle } = useAutoTitle();
   const selectedModel = selectedModelId
