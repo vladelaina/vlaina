@@ -32,6 +32,8 @@ const config = {
   maxHttpErrorRate: readNumberEnv("PERF_MAX_HTTP_ERROR_RATE", 0.05, 0, 1),
   maxServerErrorRate: readNumberEnv("PERF_MAX_SERVER_ERROR_RATE", 0.01, 0, 1),
   p95BudgetMs: readIntegerEnv("PERF_P95_BUDGET_MS", 0, 0, 600_000),
+  chatModelId: String(process.env.PERF_CHAT_MODEL_ID || "perf-model-000001").trim() || "perf-model-000001",
+  chatStream: readBooleanEnv("PERF_CHAT_STREAM", false),
   json: readBooleanEnv("PERF_JSON", false),
 };
 
@@ -113,8 +115,9 @@ async function runWorker({ workerId, deadline, collect, stats }) {
 
     try {
       const response = await fetch(request.url, {
-        method: "GET",
+        method: request.method,
         headers: request.headers,
+        body: request.body,
         signal: controller.signal,
       });
       maybeUpdateSessionToken(request.sessionIndex, response.headers.get("x-app-session-token"));
@@ -155,6 +158,7 @@ function buildScenario(name) {
       endpoint("GET /v1/models", () => "/v1/models", 100),
     ],
     budget: budgetEndpoints(),
+    chat: chatEndpoints(),
     analytics: adminAnalyticsEndpoints(),
     "analytics-ranges": adminAnalyticsEndpoints(),
     "analytics-page": adminAnalyticsPageEndpoints(),
@@ -179,6 +183,11 @@ function buildScenario(name) {
       ...budgetEndpoints(),
       ...adminAnalyticsPageEndpoints(),
       ...adminOpenEndpoints(),
+    ],
+    "mixed-chat": [
+      ...weighted(managedClientEndpoints(), 2),
+      ...chatEndpoints(),
+      ...budgetEndpoints(),
     ],
     mixed: [
       ...weighted(publicEndpoints(), 2),
@@ -207,6 +216,25 @@ function managedClientEndpoints() {
 function budgetEndpoints() {
   return [
     endpoint("GET /v1/budget", () => "/v1/budget", 100, { session: true }),
+  ];
+}
+
+function chatEndpoints() {
+  return [
+    endpoint("POST /v1/chat/completions", () => "/v1/chat/completions", 100, {
+      session: true,
+      method: "POST",
+      bodyFactory: () => ({
+        model: config.chatModelId,
+        stream: config.chatStream,
+        messages: [
+          {
+            role: "user",
+            content: "Return a short local performance test response.",
+          },
+        ],
+      }),
+    }),
   ];
 }
 
@@ -298,6 +326,8 @@ function endpoint(name, pathFactory, weight, options = {}) {
     name,
     pathFactory,
     weight: Math.max(1, Math.floor(weight)),
+    method: String(options.method || "GET").toUpperCase(),
+    bodyFactory: typeof options.bodyFactory === "function" ? options.bodyFactory : null,
     admin: options.admin === true,
     session: options.session === true,
   };
@@ -317,7 +347,7 @@ function validateScenario(items) {
   }
   const needsSession = items.some((item) => item.session);
   if (needsSession && config.sessionUsers <= 0) {
-    throw new Error("This scenario includes /v1/budget. Seed sessions first or set PERF_SESSION_USERS > 0.");
+    throw new Error("This scenario includes authenticated endpoints. Seed sessions first or set PERF_SESSION_USERS > 0.");
   }
 }
 
@@ -333,6 +363,7 @@ function pickEndpoint(items) {
 
 function buildRequest(endpointConfig, workerId, requestIndex) {
   const path = endpointConfig.pathFactory();
+  const method = endpointConfig.method || "GET";
   const sessionIndex = endpointConfig.session && config.sessionUsers > 0
     ? (workerId + requestIndex) % config.sessionUsers
     : null;
@@ -349,9 +380,17 @@ function buildRequest(endpointConfig, workerId, requestIndex) {
     headers.Authorization = `Bearer ${sessionTokens[sessionIndex] || perfSessionToken(sessionIndex + 1)}`;
   }
 
+  let body;
+  if (endpointConfig.bodyFactory) {
+    body = JSON.stringify(endpointConfig.bodyFactory({ workerId, requestIndex, sessionIndex }));
+    headers["Content-Type"] = "application/json";
+  }
+
   return {
     path,
+    method,
     headers,
+    body,
     sessionIndex,
     url: new URL(path, `${config.baseUrl}/`).toString(),
   };
