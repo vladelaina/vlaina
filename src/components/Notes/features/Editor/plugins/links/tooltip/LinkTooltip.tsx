@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLinkState, UseLinkStateProps } from './hooks/useLinkState';
 import { LinkEditor } from './components/LinkEditor';
 import { LinkViewer } from './components/LinkViewer';
@@ -10,6 +10,7 @@ export interface LinkTooltipProps extends UseLinkStateProps {
 }
 
 const LinkTooltip = (props: LinkTooltipProps) => {
+    const skipNextMouseDownRef = useRef(false);
     const {
         mode, setMode,
         isAutolink,
@@ -26,19 +27,29 @@ const LinkTooltip = (props: LinkTooltipProps) => {
     } = useLinkState(props);
 
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const container = document.querySelector('.link-tooltip-container');
+        const handlePressOutside = (event: MouseEvent | PointerEvent) => {
+            if (event.type === 'mousedown' && skipNextMouseDownRef.current) {
+                skipNextMouseDownRef.current = false;
+                return;
+            }
+
+            const container = props.containerElement ?? document.querySelector('.link-tooltip-container');
             if (container && container.contains(event.target as Node)) {
                 return;
             }
 
-            const target = event.target instanceof Element ? event.target : null;
-            if (!target) {
+            const target = event.target instanceof Element
+                ? event.target
+                : event.target instanceof Node
+                    ? event.target.parentElement
+                    : null;
+
+            if (target?.closest('[data-radix-popper-content-wrapper]') || target?.closest('[role="menu"]')) {
                 return;
             }
 
-            if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="menu"]')) {
-                return;
+            if (event.type === 'pointerdown') {
+                skipNextMouseDownRef.current = true;
             }
 
             if (mode === 'edit') {
@@ -52,11 +63,13 @@ const LinkTooltip = (props: LinkTooltipProps) => {
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside, true);
+        document.addEventListener('pointerdown', handlePressOutside, true);
+        document.addEventListener('mousedown', handlePressOutside, true);
         return () => {
-            document.removeEventListener('mousedown', handleClickOutside, true);
+            document.removeEventListener('pointerdown', handlePressOutside, true);
+            document.removeEventListener('mousedown', handlePressOutside, true);
         };
-    }, [mode, handleSaveEdit, props.onClose]);
+    }, [mode, handleSaveEdit, props.containerElement, props.onClose]);
 
 
     if (mode === 'edit') {
