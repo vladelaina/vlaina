@@ -12,7 +12,6 @@ import {
   normalizeInlineHtmlTextForPersistence,
 } from './markdownCanonicalSpacing';
 import { isMarkdownImageOnlyLine } from './markdownImageLine';
-import { preserveParagraphSoftBreaksAsHardBreaks } from './markdownSoftBreaks';
 export {
   preserveMarkdownBlankLinesForEditor,
   preserveMarkdownBlankLinesForPaste,
@@ -1391,9 +1390,7 @@ export function normalizeEditorRuntimeMarkdownArtifacts(text: string): string {
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
   const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterMarkdownSpaceEntities);
-  const afterRedundantMarkdownEscapes = normalizeRedundantMarkdownEscapes(afterEscapedAngleBracketText);
-
-  return preserveParagraphSoftBreaksAsHardBreaks(afterRedundantMarkdownEscapes);
+  return normalizeRedundantMarkdownEscapes(afterEscapedAngleBracketText);
 }
 
 export function normalizeEditorRuntimeMarkdownArtifactsForState(text: string): string {
@@ -1443,8 +1440,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterEscapedAngleBracketText = normalizeEscapedAngleBracketText(afterSyntheticBlankLines);
   const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterEscapedAngleBracketText);
   const afterGenericHtmlBlockClosingSpacing = normalizeGenericHtmlBlockClosingSpacing(afterCanonicalSpacing);
-  const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterGenericHtmlBlockClosingSpacing);
-  const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterLenientLineMarkers);
+  const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterGenericHtmlBlockClosingSpacing);
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
   const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
   const afterListItems = normalizeListItemBlankLines(afterUserBreaks);
@@ -1458,9 +1454,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
   const afterRedundantMarkdownEscapes = normalizeRedundantMarkdownEscapes(afterMarkdownSpaceEntities);
-  const output = normalizeUrlSerializationArtifacts(
-    preserveParagraphSoftBreaksAsHardBreaks(afterRedundantMarkdownEscapes)
-  );
+  const output = normalizeUrlSerializationArtifacts(afterRedundantMarkdownEscapes);
 
   return {
     input: text,
@@ -1471,7 +1465,6 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterEscapedAngleBracketText,
     afterCanonicalSpacing,
     afterGenericHtmlBlockClosingSpacing,
-    afterLenientLineMarkers,
     afterStripPlaceholders,
     afterEmptyParagraphBreaks,
     afterUserBreaks,
