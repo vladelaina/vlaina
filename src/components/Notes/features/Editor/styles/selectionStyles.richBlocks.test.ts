@@ -731,4 +731,33 @@ describe("editor rich block selection styles", () => {
     expect(frontmatterCss).toContain('.milkdown .frontmatter-block-container .cm-lineNumbers,');
     expect(frontmatterCss).toContain('transition: none !important;');
   });
+
+  it('keeps selected frontmatter YAML tokens on the selected foreground', () => {
+    const frontmatterCss = readStyleFile('frontmatter.css');
+    const selectedFrontmatterForegroundRule = extractCssRule(
+      frontmatterCss,
+      [
+        ".milkdown .frontmatter-block-container:is(",
+        "  .ProseMirror-selectednode,",
+        "  .editor-block-selected,",
+        "  .editor-block-drag-source,",
+        "  .editor-block-selected-textlike,",
+        "  .editor-block-drag-source-textlike,",
+        "  .editor-native-selected-textlike",
+        "),",
+      ].join('\n')
+    );
+
+    expect(selectedFrontmatterForegroundRule).toContain('.ProseMirror-selectednode,');
+    expect(selectedFrontmatterForegroundRule).toContain('.editor-block-selected,');
+    expect(selectedFrontmatterForegroundRule).toContain('.editor-block-drag-source,');
+    expect(selectedFrontmatterForegroundRule).toContain('.editor-block-selected-textlike,');
+    expect(selectedFrontmatterForegroundRule).toContain('.editor-block-drag-source-textlike,');
+    expect(selectedFrontmatterForegroundRule).toContain('.editor-native-selected-textlike');
+    expect(selectedFrontmatterForegroundRule).toContain('.cm-line *,');
+    expect(selectedFrontmatterForegroundRule).toContain('.cm-s-inner *,');
+    expect(selectedFrontmatterForegroundRule).toContain('.cm-gutterElement,');
+    expect(selectedFrontmatterForegroundRule).toContain('color: var(--vlaina-editor-block-selection-fg) !important;');
+    expect(selectedFrontmatterForegroundRule).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;');
+  });
 });
