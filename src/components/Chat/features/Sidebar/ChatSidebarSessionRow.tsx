@@ -19,6 +19,7 @@ import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInl
 import type { ChatSession } from '@/lib/ai/types';
 import { useI18n } from '@/lib/i18n';
 import {
+  CHAT_SIDEBAR_SEARCH_RESULT_TITLE_WRAP_CLASS,
   CHAT_SIDEBAR_SESSION_ROW_VERTICAL_PADDING_CLASS,
   CHAT_SIDEBAR_TITLE_WRAP_CLASS,
 } from './chatSidebarLayout';
@@ -57,9 +58,15 @@ function getChatSessionTitleClass({
   );
 }
 
-function ChatSidebarLoadingTitle({ title }: { title: string }) {
+function ChatSidebarLoadingTitle({
+  title,
+  fullWrap = false,
+}: {
+  title: string;
+  fullWrap?: boolean;
+}) {
   return (
-    <span className="chat-sidebar-loading-title">
+    <span className={cn('chat-sidebar-loading-title', fullWrap && 'chat-sidebar-loading-title-unclamped')}>
       <span className="chat-sidebar-loading-title-base">{title}</span>
       <span className="chat-sidebar-loading-title-overlay" aria-hidden>
         {title}
@@ -181,6 +188,9 @@ function ChatSidebarSessionRowInner({
     isGenerating,
     isUnread,
   });
+  const titleWrapClassName = shouldHideSearchResults
+    ? CHAT_SIDEBAR_SEARCH_RESULT_TITLE_WRAP_CLASS
+    : CHAT_SIDEBAR_TITLE_WRAP_CLASS;
 
   return (
     <ChatSidebarRow
@@ -227,13 +237,13 @@ function ChatSidebarSessionRowInner({
             )}
           />
         ) : isGenerating && !isActive ? (
-          <span className={CHAT_SIDEBAR_TITLE_WRAP_CLASS}>
-            <ChatSidebarLoadingTitle title={displayTitle} />
+          <span className={titleWrapClassName}>
+            <ChatSidebarLoadingTitle title={displayTitle} fullWrap={shouldHideSearchResults} />
           </span>
         ) : (
           <span
             className={cn(
-              CHAT_SIDEBAR_TITLE_WRAP_CLASS,
+              titleWrapClassName,
               'transition-opacity',
               titleClassName
             )}

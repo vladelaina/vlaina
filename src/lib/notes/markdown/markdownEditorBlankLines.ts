@@ -212,6 +212,7 @@ function exposeRenderedHtmlBoundaryBlankLinesForEditor(text: string): string {
     const next = findNearestNonBlankLine(lines, index, 1);
     if (!next || !isRenderedHtmlBoundaryBlockLine(previous)) continue;
     if ((lines[index + 1] ?? '').trim() === EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER) continue;
+    if ((lines[index + 1] ?? '').trim() === EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER) continue;
 
     changed = true;
     output.push(EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER);

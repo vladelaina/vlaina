@@ -1765,7 +1765,7 @@ function normalizeRenderedHtmlBoundaryHelperComments(text: string): string {
     text,
     (segment, startIndex, lines) =>
       normalizeRenderedHtmlBoundaryHelperCommentSegment(segment, startIndex, lines),
-    { protectHtmlComments: false },
+    { protectHtmlBlocks: false, protectHtmlComments: false },
   );
 }
 

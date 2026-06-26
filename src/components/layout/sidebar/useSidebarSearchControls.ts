@@ -8,6 +8,11 @@ import {
 } from 'react';
 
 const OVERSCROLL_OPEN_THRESHOLD = 56;
+const ESCAPE_BLOCKING_LAYER_SELECTOR = [
+  '[role="dialog"]',
+  '[data-sidebar-context-menu-layer="true"]',
+  '[data-radix-popper-content-wrapper]',
+].join(',');
 
 interface UseSidebarSearchControlsOptions {
   enabled?: boolean;
@@ -16,6 +21,25 @@ interface UseSidebarSearchControlsOptions {
   onOpen: () => void;
   onClose: () => void;
   interactionScopeRef?: RefObject<HTMLElement | null>;
+}
+
+function isEditableTargetOutsideSearchInput(
+  target: EventTarget | null,
+  searchInput: HTMLInputElement | null,
+) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target === searchInput) {
+    return false;
+  }
+
+  return Boolean(target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'));
+}
+
+function hasEscapeBlockingLayer() {
+  return Boolean(document.querySelector(ESCAPE_BLOCKING_LAYER_SELECTOR));
 }
 
 export function useSidebarSearchControls({
@@ -74,6 +98,58 @@ export function useSidebarSearchControls({
       overscrollDistanceRef.current = 0;
     }
   }, []);
+
+  useEffect(() => {
+    if (!enabled || !isOpen) {
+      return;
+    }
+
+    const interactionScope = interactionScopeRef?.current ?? scrollRootRef.current;
+    if (!interactionScope) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape' ||
+        event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.defaultPrevented
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      const activeElement = document.activeElement;
+      const targetWithinScope = target instanceof Node && interactionScope.contains(target);
+      const activeWithinScope = activeElement instanceof Node && interactionScope.contains(activeElement);
+
+      if (!targetWithinScope && !activeWithinScope && hasEscapeBlockingLayer()) {
+        return;
+      }
+
+      if (
+        (targetWithinScope || activeWithinScope) &&
+        (
+          isEditableTargetOutsideSearchInput(target, inputRef.current) ||
+          isEditableTargetOutsideSearchInput(activeElement, inputRef.current)
+        )
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      hideSearch();
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [enabled, hideSearch, interactionScopeRef, isOpen]);
 
   useEffect(() => {
     if (!enabled) {

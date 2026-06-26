@@ -328,28 +328,6 @@ export function NotesTabRow() {
 
   return (
     <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
-      {hasNoteNavigationHistory ? (
-        <div
-          className={cn(
-            'notes-tab-row-history-controls flex h-7 w-14 shrink-0 items-center justify-center transition-all',
-            'pointer-events-none opacity-[var(--vlaina-opacity-0)] group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)]'
-          )}
-        >
-          <NoteHistoryButton
-            direction="back"
-            disabled={!canNavigateBack}
-            label={t('notes.previous')}
-            onNavigate={navigateBackInNoteHistory}
-          />
-          <NoteHistoryButton
-            direction="forward"
-            disabled={!canNavigateForward}
-            label={t('notes.next')}
-            onNavigate={navigateForwardInNoteHistory}
-          />
-        </div>
-      ) : null}
-
       {hasOpenTabs ? (
         <div
           className={cn(
@@ -421,6 +399,30 @@ export function NotesTabRow() {
             />
           </TooltipContent>
         </Tooltip>
+      ) : null}
+
+      {hasNoteNavigationHistory ? (
+        <div
+          className={cn(
+            'notes-tab-row-history-controls flex h-7 w-14 shrink-0 items-center justify-center transition-all',
+            hasOpenTabs
+              ? 'pointer-events-none opacity-[var(--vlaina-opacity-0)] group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)]'
+              : 'pointer-events-auto opacity-[var(--vlaina-opacity-100)]'
+          )}
+        >
+          <NoteHistoryButton
+            direction="back"
+            disabled={!canNavigateBack}
+            label={t('notes.previous')}
+            onNavigate={navigateBackInNoteHistory}
+          />
+          <NoteHistoryButton
+            direction="forward"
+            disabled={!canNavigateForward}
+            label={t('notes.next')}
+            onNavigate={navigateForwardInNoteHistory}
+          />
+        </div>
       ) : null}
     </div>
   );
