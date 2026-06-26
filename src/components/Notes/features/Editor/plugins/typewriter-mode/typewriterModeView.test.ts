@@ -76,6 +76,29 @@ function defineScrollMetrics(element: HTMLElement, metrics: {
   });
 }
 
+function trackScrollTopWrites(element: HTMLElement, initialValue: number) {
+  let value = initialValue;
+  let writes = 0;
+
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    get: () => value,
+    set: (nextValue: number) => {
+      value = nextValue;
+      writes += 1;
+    },
+  });
+
+  return {
+    get value() {
+      return value;
+    },
+    get writes() {
+      return writes;
+    },
+  };
+}
+
 function createTypewriterHarness(options: { enabled: boolean }) {
   setTypewriterMode(options.enabled);
 
@@ -255,6 +278,49 @@ describe('TypewriterModeView', () => {
     }
   });
 
+  it('reuses the resolved notes scroll root while the editor stays attached', () => {
+    const harness = createTypewriterHarness({ enabled: true });
+    const closest = vi.spyOn(harness.dom, 'closest');
+
+    try {
+      harness.input();
+      harness.pluginView.update(harness.view, harness.prevState);
+      animationFrame.flush();
+
+      harness.input();
+      harness.pluginView.update(harness.view, harness.prevState);
+      animationFrame.flush();
+
+      expect(closest).toHaveBeenCalledTimes(1);
+      expect(harness.view.coordsAtPos).toHaveBeenCalledTimes(2);
+    } finally {
+      harness.cleanup();
+    }
+  });
+
+  it('does not write scrollTop when the cursor is already centered', () => {
+    const harness = createTypewriterHarness({ enabled: true });
+    const scrollTop = trackScrollTopWrites(harness.scrollRoot, 100);
+    vi.mocked(harness.view.coordsAtPos).mockReturnValue({
+      left: 0,
+      right: 0,
+      top: 190,
+      bottom: 210,
+    });
+
+    try {
+      harness.input();
+      harness.pluginView.update(harness.view, harness.prevState);
+      animationFrame.flush();
+
+      expect(scrollTop.value).toBe(100);
+      expect(scrollTop.writes).toBe(0);
+      expect(harness.view.coordsAtPos).toHaveBeenCalledTimes(1);
+    } finally {
+      harness.cleanup();
+    }
+  });
+
   it('does not use another notes scroll root when the editor is outside one', () => {
     const harness = createTypewriterHarness({ enabled: true });
     const strayRoot = document.createElement('div');
@@ -276,6 +342,40 @@ describe('TypewriterModeView', () => {
 
       expect(strayRoot.scrollTop).toBe(100);
       expect(harness.view.coordsAtPos).not.toHaveBeenCalled();
+    } finally {
+      strayRoot.remove();
+      harness.cleanup();
+    }
+  });
+
+  it('re-resolves the cached scroll root when the current root stops matching', () => {
+    const harness = createTypewriterHarness({ enabled: true });
+    const strayRoot = document.createElement('div');
+    strayRoot.setAttribute('data-note-scroll-root', 'true');
+    defineScrollMetrics(strayRoot, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      rect: { top: 0, bottom: 400 },
+    });
+    strayRoot.scrollTop = 100;
+    document.body.append(strayRoot);
+
+    try {
+      harness.input();
+      harness.pluginView.update(harness.view, harness.prevState);
+      animationFrame.flush();
+
+      expect(harness.scrollRoot.scrollTop).toBe(190);
+      expect(harness.view.coordsAtPos).toHaveBeenCalledTimes(1);
+
+      harness.scrollRoot.removeAttribute('data-note-scroll-root');
+      harness.input();
+      harness.pluginView.update(harness.view, harness.prevState);
+      animationFrame.flush();
+
+      expect(strayRoot.scrollTop).toBe(100);
+      expect(harness.scrollRoot.scrollTop).toBe(190);
+      expect(harness.view.coordsAtPos).toHaveBeenCalledTimes(1);
     } finally {
       strayRoot.remove();
       harness.cleanup();

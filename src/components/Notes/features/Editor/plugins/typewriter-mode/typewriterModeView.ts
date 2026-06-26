@@ -6,6 +6,7 @@ import {
   isTypewriterKeyEvent,
   resolveTypewriterScrollTop,
   shouldCenterTypewriterSelection,
+  shouldUpdateTypewriterScrollTop,
 } from './typewriterModeRules';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
@@ -15,21 +16,18 @@ interface RectLike {
   bottom: number;
 }
 
-function getScrollRoot(view: EditorView): HTMLElement | null {
-  return view.dom.closest(SCROLL_ROOT_SELECTOR);
-}
-
 export class TypewriterModeView {
   private enabled = selectMarkdownTypewriterModeEnabled(useUnifiedStore.getState());
   private frameId: number | null = null;
+  private scrollRoot: HTMLElement | null = null;
   private unsubscribe: (() => void) | null = null;
   private pointerDown = false;
   private pendingInputCenter = false;
 
   constructor(private readonly view: EditorView) {
-    this.unsubscribe = useUnifiedStore.subscribe((state) => {
+    this.unsubscribe = useUnifiedStore.subscribe((state, previousState) => {
       const nextEnabled = selectMarkdownTypewriterModeEnabled(state);
-      if (this.enabled === nextEnabled) return;
+      if (nextEnabled === selectMarkdownTypewriterModeEnabled(previousState)) return;
       this.enabled = nextEnabled;
       if (!nextEnabled) {
         this.pendingInputCenter = false;
@@ -113,12 +111,25 @@ export class TypewriterModeView {
     this.frameId = null;
   }
 
+  private getScrollRoot(): HTMLElement | null {
+    if (
+      this.scrollRoot?.isConnected &&
+      this.scrollRoot.matches(SCROLL_ROOT_SELECTOR) &&
+      this.scrollRoot.contains(this.view.dom)
+    ) {
+      return this.scrollRoot;
+    }
+
+    this.scrollRoot = this.view.dom.closest<HTMLElement>(SCROLL_ROOT_SELECTOR);
+    return this.scrollRoot;
+  }
+
   private centerCursor(): void {
     if (!this.enabled) return;
     if (this.pointerDown) return;
     if (!shouldCenterTypewriterSelection(this.view.state.selection)) return;
 
-    const scrollRoot = getScrollRoot(this.view);
+    const scrollRoot = this.getScrollRoot();
     if (!scrollRoot) return;
 
     let cursorRect: RectLike;
@@ -128,12 +139,15 @@ export class TypewriterModeView {
       return;
     }
 
-    scrollRoot.scrollTop = resolveTypewriterScrollTop({
+    const nextScrollTop = resolveTypewriterScrollTop({
       scrollTop: scrollRoot.scrollTop,
       scrollHeight: scrollRoot.scrollHeight,
       clientHeight: scrollRoot.clientHeight,
       rootRect: scrollRoot.getBoundingClientRect(),
       cursorRect,
     });
+    if (!shouldUpdateTypewriterScrollTop(scrollRoot.scrollTop, nextScrollTop)) return;
+
+    scrollRoot.scrollTop = nextScrollTop;
   }
 }

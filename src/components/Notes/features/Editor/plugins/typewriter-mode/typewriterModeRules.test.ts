@@ -4,6 +4,7 @@ import {
   isTypewriterKeyEvent,
   resolveTypewriterScrollTop,
   shouldCenterTypewriterSelection,
+  shouldUpdateTypewriterScrollTop,
 } from './typewriterModeRules';
 
 describe('resolveTypewriterScrollTop', () => {
@@ -32,6 +33,15 @@ describe('shouldCenterTypewriterSelection', () => {
   it('centers only collapsed cursor selections', () => {
     expect(shouldCenterTypewriterSelection({ empty: true })).toBe(true);
     expect(shouldCenterTypewriterSelection({ empty: false })).toBe(false);
+  });
+});
+
+describe('shouldUpdateTypewriterScrollTop', () => {
+  it('skips scroll writes when the target is already within tolerance', () => {
+    expect(shouldUpdateTypewriterScrollTop(100, 100)).toBe(false);
+    expect(shouldUpdateTypewriterScrollTop(100, 100.5)).toBe(false);
+    expect(shouldUpdateTypewriterScrollTop(100, 101)).toBe(false);
+    expect(shouldUpdateTypewriterScrollTop(100, 101.1)).toBe(true);
   });
 });
 

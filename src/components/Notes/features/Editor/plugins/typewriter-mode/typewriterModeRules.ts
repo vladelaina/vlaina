@@ -11,6 +11,8 @@ interface ScrollTargetMetrics {
   cursorRect: RectLike;
 }
 
+export const TYPEWRITER_SCROLL_TOP_TOLERANCE_PX = 1;
+
 export function resolveTypewriterScrollTop({
   scrollTop,
   scrollHeight,
@@ -22,6 +24,14 @@ export function resolveTypewriterScrollTop({
   const rootCenter = (rootRect.top + rootRect.bottom) / 2;
   const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
   return Math.max(0, Math.min(maxScrollTop, scrollTop + cursorCenter - rootCenter));
+}
+
+export function shouldUpdateTypewriterScrollTop(
+  currentScrollTop: number,
+  nextScrollTop: number,
+  tolerancePx = TYPEWRITER_SCROLL_TOP_TOLERANCE_PX
+): boolean {
+  return Math.abs(nextScrollTop - currentScrollTop) > tolerancePx;
 }
 
 export function shouldCenterTypewriterSelection(selection: { empty: boolean }): boolean {
