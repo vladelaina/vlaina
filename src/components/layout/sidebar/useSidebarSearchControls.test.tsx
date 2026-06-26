@@ -52,6 +52,10 @@ function SidebarSearchControlsHarness({
   return (
     <div ref={interactionScopeRef} data-testid="interaction-scope">
       <input ref={inputRef} aria-label="search-input" />
+      <button type="button" data-testid="scope-button">
+        result
+      </button>
+      <textarea aria-label="rename-input" />
       <div ref={scrollRootRef} data-testid="scroll-root" />
     </div>
   );
@@ -146,6 +150,127 @@ describe('useSidebarSearchControls', () => {
     );
 
     expect(document.activeElement).not.toBe(input);
+  });
+
+  it('closes the open search drawer on Escape from non-editable sidebar focus', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query="alpha"
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const scopeButton = screen.getByTestId('scope-button');
+    const keyEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Escape',
+    });
+
+    act(() => {
+      scopeButton.dispatchEvent(keyEvent);
+    });
+
+    expect(keyEvent.defaultPrevented).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('leaves Escape inside another editable sidebar target alone', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query="alpha"
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const renameInput = screen.getByLabelText('rename-input');
+    const keyEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Escape',
+    });
+
+    act(() => {
+      renameInput.dispatchEvent(keyEvent);
+    });
+
+    expect(keyEvent.defaultPrevented).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('closes the open search drawer on Escape after focus leaves the sidebar', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query="alpha"
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const keyEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Escape',
+    });
+
+    act(() => {
+      document.body.dispatchEvent(keyEvent);
+    });
+
+    expect(keyEvent.defaultPrevented).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('does not steal Escape from an open dialog outside the sidebar', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+
+    try {
+      render(
+        <SidebarSearchControlsHarness
+          isOpen
+          query="alpha"
+          onOpen={onOpen}
+          onClose={onClose}
+        />,
+      );
+
+      const keyEvent = new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        key: 'Escape',
+      });
+
+      act(() => {
+        document.body.dispatchEvent(keyEvent);
+      });
+
+      expect(keyEvent.defaultPrevented).toBe(false);
+      expect(onClose).not.toHaveBeenCalled();
+      expect(onOpen).not.toHaveBeenCalled();
+    } finally {
+      dialog.remove();
+    }
   });
 
   it('still closes the empty search drawer on downward wheel even after results were scrolled', () => {

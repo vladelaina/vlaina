@@ -172,7 +172,7 @@ function SidebarSearchResultRow({
       main={(
         <div className={cn('min-w-0', hasContentLine && 'space-y-0.5')}>
           {showFileHeader ? (
-            <div className="truncate text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)]">
+            <div className="whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
               <HighlightedSearchText
                 text={name}
                 query={query}
@@ -181,7 +181,7 @@ function SidebarSearchResultRow({
             </div>
           ) : null}
           {locationLabel ? (
-            <div className="truncate text-[var(--vlaina-font-11)] leading-3 text-[var(--vlaina-sidebar-notes-text-soft)]">
+            <div className="whitespace-normal break-words text-[var(--vlaina-font-11)] leading-3 text-[var(--vlaina-sidebar-notes-text-soft)] [overflow-wrap:anywhere]">
               <HighlightedSearchText text={locationLabel} query={query} />
             </div>
           ) : null}
