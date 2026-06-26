@@ -641,15 +641,15 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ].join('\n'));
   });
 
-  it('does not canonicalize consecutive ordered list lines while normalizing persisted markdown', () => {
+  it('canonicalizes missing ordered list marker spaces while normalizing persisted markdown', () => {
     expect(
       normalizeSerializedMarkdownDocument(['1.苹果', '2.香蕉', '3.橘子'].join('\n'))
-    ).toBe(['1.苹果', '2.香蕉', '3.橘子'].join('\n'));
+    ).toBe(['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n'));
     expect(normalizeSerializedMarkdownDocument(['1.1', '2.1'].join('\n'))).toBe(
-      ['1.1', '2.1'].join('\n')
+      ['1. 1', '2. 1'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['0.安装', '', '1.调用笔记'].join('\n'))).toBe(
-      ['0.安装', '', '1.调用笔记'].join('\n')
+      ['0. 安装', '', '1. 调用笔记'].join('\n')
     );
   });
 

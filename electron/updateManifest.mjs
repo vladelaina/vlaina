@@ -255,12 +255,15 @@ export async function fetchUpdateManifest({
   fetchImpl = fetch,
   readJsonResponse,
   timeoutMs = 8000,
+  allowLocalManifestUrl = false,
 }) {
   if (typeof readJsonResponse !== 'function') {
     throw new Error('Update manifest JSON reader must be provided.');
   }
 
-  const normalizedManifestUrl = normalizeHttpUrl(manifestUrl, 'Update manifest URL');
+  const normalizedManifestUrl = normalizeHttpUrl(manifestUrl, 'Update manifest URL', {
+    allowLocalNetwork: allowLocalManifestUrl,
+  });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 

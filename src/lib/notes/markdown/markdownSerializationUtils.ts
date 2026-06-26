@@ -1454,7 +1454,9 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
   const afterRedundantMarkdownEscapes = normalizeRedundantMarkdownEscapes(afterMarkdownSpaceEntities);
-  const output = normalizeUrlSerializationArtifacts(afterRedundantMarkdownEscapes);
+  const afterMissingOrderedListMarkerSpaces =
+    normalizeMissingOrderedListMarkerSpaces(afterRedundantMarkdownEscapes);
+  const output = normalizeUrlSerializationArtifacts(afterMissingOrderedListMarkerSpaces);
 
   return {
     input: text,
@@ -1477,6 +1479,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterStandaloneBreakHtml,
     afterMarkdownSpaceEntities,
     afterRedundantMarkdownEscapes,
+    afterMissingOrderedListMarkerSpaces,
     output,
   };
 }
