@@ -251,6 +251,11 @@ function createStructuralBlockCases(view: EditorView): Array<{
       node: schema.nodes.frontmatter.create(null, schema.text('title: Demo')),
     },
     {
+      label: 'hr',
+      typeName: 'hr',
+      node: schema.nodes.hr.create(),
+    },
+    {
       label: 'footnote_def',
       typeName: 'footnote_def',
       node: schema.nodes.footnote_def.create({ id: '1' }, [
@@ -851,6 +856,463 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     }
   );
 
+  it('keeps the cursor in an adjacent paragraph when deleting repeated blank lines around node-selection-prone blocks', async () => {
+    const blockCases: Array<{
+      label: string;
+      typeName: string;
+      node: (view: EditorView) => ProseNode;
+    }> = [
+      {
+        label: 'frontmatter',
+        typeName: 'frontmatter',
+        node: (view) => view.state.schema.nodes.frontmatter.create(null, view.state.schema.text('title: Demo')),
+      },
+      {
+        label: 'hr',
+        typeName: 'hr',
+        node: (view) => view.state.schema.nodes.hr.create(),
+      },
+      {
+        label: 'html_block',
+        typeName: 'html_block',
+        node: (view) => view.state.schema.nodes.html_block.create({
+          value: [
+            '<details>',
+            '<summary>Title</summary>',
+            '',
+            'Content',
+            '</details>',
+          ].join('\n'),
+        }),
+      },
+      {
+        label: 'code_block',
+        typeName: 'code_block',
+        node: (view) => createCodeBlockNode(view),
+      },
+      {
+        label: 'table',
+        typeName: 'table',
+        node: (view) => createTableNode(view),
+      },
+      {
+        label: 'toc',
+        typeName: 'toc',
+        node: (view) => view.state.schema.nodes.toc.create({ maxLevel: 6 }),
+      },
+      {
+        label: 'video',
+        typeName: 'video',
+        node: (view) => view.state.schema.nodes.video.create({
+          src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        }),
+      },
+      {
+        label: 'math_block',
+        typeName: 'math_block',
+        node: (view) => createAtomicNode(view, 'math_block'),
+      },
+      {
+        label: 'mermaid',
+        typeName: 'mermaid',
+        node: (view) => createAtomicNode(view, 'mermaid'),
+      },
+    ];
+    const layouts: Array<{
+      label: string;
+      key: 'Backspace' | 'Delete';
+      selectionParagraphOccurrence: number;
+      buildNodes: (view: EditorView, block: ProseNode) => ProseNode[];
+    }> = [
+      {
+        label: 'blank above block on Backspace',
+        key: 'Backspace',
+        selectionParagraphOccurrence: 1,
+        buildNodes: (view, block) => [
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text('anchor')),
+          view.state.schema.nodes.paragraph.create(),
+          block,
+        ],
+      },
+      {
+        label: 'blank above block on Delete',
+        key: 'Delete',
+        selectionParagraphOccurrence: 1,
+        buildNodes: (view, block) => [
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text('anchor')),
+          view.state.schema.nodes.paragraph.create(),
+          block,
+        ],
+      },
+      {
+        label: 'blank below block on Backspace',
+        key: 'Backspace',
+        selectionParagraphOccurrence: 0,
+        buildNodes: (view, block) => [
+          block,
+          view.state.schema.nodes.paragraph.create(),
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text('anchor')),
+        ],
+      },
+      {
+        label: 'blank below block on Delete',
+        key: 'Delete',
+        selectionParagraphOccurrence: 0,
+        buildNodes: (view, block) => [
+          block,
+          view.state.schema.nodes.paragraph.create(),
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text('anchor')),
+        ],
+      },
+    ];
+
+    for (const blockCase of blockCases) {
+      for (const layout of layouts) {
+        const editor = createEditor();
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        replaceDocument(view, layout.buildNodes(view, blockCase.node(view)));
+
+        const emptyParagraphPos = topLevelNodePos(view, 'paragraph', layout.selectionParagraphOccurrence);
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+
+        const event = pressKey(view, layout.key);
+        const label = `${blockCase.label}, ${layout.label}`;
+        const remainingNodeNames = Array.from({ length: view.state.doc.childCount }, (_, index) =>
+          view.state.doc.child(index).type.name
+        );
+
+        expect(event.defaultPrevented, label).toBe(true);
+        expect(remainingNodeNames, label).toHaveLength(2);
+        expect(remainingNodeNames, label).toContain(blockCase.typeName);
+        expect(remainingNodeNames, label).toContain('paragraph');
+        expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+        expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
+        expect(view.state.selection.empty, label).toBe(true);
+        expect(view.state.selection.$from.parent.type.name, label).toBe('paragraph');
+        expect(view.state.selection.$from.parent.textContent, label).toBe('anchor');
+
+        await editor.destroy();
+      }
+    }
+  }, 30_000);
+
+  it('keeps a transient cursor paragraph when deleting the last blank line beside a navigable atomic block', async () => {
+    const blockCases: Array<{
+      label: string;
+      typeName: string;
+      node: (view: EditorView) => ProseNode;
+    }> = [
+      {
+        label: 'html_block',
+        typeName: 'html_block',
+        node: (view) => view.state.schema.nodes.html_block.create({ value: '<details><summary>Title</summary></details>' }),
+      },
+      {
+        label: 'video',
+        typeName: 'video',
+        node: (view) => view.state.schema.nodes.video.create({
+          src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        }),
+      },
+      {
+        label: 'math_block',
+        typeName: 'math_block',
+        node: (view) => createAtomicNode(view, 'math_block'),
+      },
+      {
+        label: 'mermaid',
+        typeName: 'mermaid',
+        node: (view) => createAtomicNode(view, 'mermaid'),
+      },
+    ];
+    const layouts: Array<{
+      label: string;
+      key: 'Backspace' | 'Delete';
+      expectedNodeNames: (typeName: string) => string[];
+      buildNodes: (view: EditorView, block: ProseNode) => ProseNode[];
+    }> = [
+      {
+        label: 'single blank above block on Backspace',
+        key: 'Backspace',
+        expectedNodeNames: (typeName) => ['paragraph', typeName],
+        buildNodes: (view, block) => [
+          view.state.schema.nodes.paragraph.create(),
+          block,
+        ],
+      },
+      {
+        label: 'single blank above block on Delete',
+        key: 'Delete',
+        expectedNodeNames: (typeName) => ['paragraph', typeName],
+        buildNodes: (view, block) => [
+          view.state.schema.nodes.paragraph.create(),
+          block,
+        ],
+      },
+      {
+        label: 'single blank below block on Backspace',
+        key: 'Backspace',
+        expectedNodeNames: (typeName) => [typeName, 'paragraph'],
+        buildNodes: (view, block) => [
+          block,
+          view.state.schema.nodes.paragraph.create(),
+        ],
+      },
+      {
+        label: 'single blank below block on Delete',
+        key: 'Delete',
+        expectedNodeNames: (typeName) => [typeName, 'paragraph'],
+        buildNodes: (view, block) => [
+          block,
+          view.state.schema.nodes.paragraph.create(),
+        ],
+      },
+    ];
+
+    for (const blockCase of blockCases) {
+      for (const layout of layouts) {
+        const editor = createEditor();
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        replaceDocument(view, layout.buildNodes(view, blockCase.node(view)));
+
+        const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+
+        for (let pressIndex = 0; pressIndex < 2; pressIndex += 1) {
+          const event = pressKey(view, layout.key);
+          const label = `${blockCase.label}, ${layout.label}, press ${pressIndex + 1}`;
+          const remainingNodeNames = Array.from({ length: view.state.doc.childCount }, (_, index) =>
+            view.state.doc.child(index).type.name
+          );
+
+          expect(event.defaultPrevented, label).toBe(true);
+          expect(remainingNodeNames, label).toEqual(layout.expectedNodeNames(blockCase.typeName));
+          expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+          expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
+          expect(view.state.selection.empty, label).toBe(true);
+          expect(view.state.selection.$from.parent.type.name, label).toBe('paragraph');
+          expect(view.state.selection.$from.parent.content.size, label).toBe(0);
+        }
+
+        await editor.destroy();
+      }
+    }
+  }, 30_000);
+
+  it.each(['Backspace', 'Delete'] as const)(
+    'treats editable markdown blank-line placeholder paragraphs as empty near html blocks on repeated %s',
+    async (key) => {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      replaceDocument(view, [
+        schema.nodes.paragraph.create(null, schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)),
+        schema.nodes.html_block.create({ value: '<details><summary>Title</summary></details>' }),
+      ]);
+
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length
+        ))
+      );
+
+      for (let pressIndex = 0; pressIndex < 3; pressIndex += 1) {
+        const event = pressKey(view, key);
+        const label = `${key} ${pressIndex + 1}`;
+
+        expect(event.defaultPrevented, label).toBe(true);
+        expect(view.state.doc.childCount, label).toBe(2);
+        expect(view.state.doc.child(0).type.name, label).toBe('paragraph');
+        expect(view.state.doc.child(1).type.name, label).toBe('html_block');
+        expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+        expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
+        expect(view.state.selection.$from.parent, label).toBe(view.state.doc.child(0));
+      }
+
+      await editor.destroy();
+    }
+  );
+
+  it('moves the cursor into the remaining markdown blank-line placeholder when deleting blanks near html blocks', async () => {
+    const layouts: Array<{
+      label: string;
+      key: 'Backspace' | 'Delete';
+      expectedNodeNames: string[];
+      buildNodes: (view: EditorView, htmlBlock: ProseNode) => ProseNode[];
+    }> = [
+      {
+        label: 'placeholder above html block',
+        key: 'Delete',
+        expectedNodeNames: ['paragraph', 'html_block'],
+        buildNodes: (view, htmlBlock) => [
+          createMarkdownBlankLinePlaceholderNode(view),
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)),
+          htmlBlock,
+        ],
+      },
+      {
+        label: 'placeholder below html block',
+        key: 'Backspace',
+        expectedNodeNames: ['html_block', 'paragraph'],
+        buildNodes: (view, htmlBlock) => [
+          htmlBlock,
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)),
+          createMarkdownBlankLinePlaceholderNode(view),
+        ],
+      },
+    ];
+
+    for (const layout of layouts) {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const htmlBlock = view.state.schema.nodes.html_block.create({
+        value: '<details><summary>Title</summary></details>',
+      });
+      replaceDocument(view, layout.buildNodes(view, htmlBlock));
+
+      const editableParagraphPos = topLevelNodePos(view, 'paragraph');
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(
+          view.state.doc,
+          editableParagraphPos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length
+        ))
+      );
+
+      const event = pressKey(view, layout.key);
+      const label = layout.label;
+
+      expect(event.defaultPrevented, label).toBe(true);
+      expect(Array.from({ length: view.state.doc.childCount }, (_, index) => view.state.doc.child(index).type.name), label)
+        .toEqual(layout.expectedNodeNames);
+      expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+      expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.$from.parent.textContent, label).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+
+      await editor.destroy();
+    }
+  });
+
+  it('recreates a transient cursor paragraph when deletion starts at a document boundary beside an atomic block', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const layouts: Array<{
+      label: string;
+      key: 'Backspace' | 'Delete';
+      selectionPos: (view: EditorView) => number;
+      expectedNodeNames: string[];
+      expectedParagraphIndex: number;
+    }> = [
+      {
+        label: 'before block',
+        key: 'Backspace',
+        selectionPos: () => 0,
+        expectedNodeNames: ['paragraph', 'html_block'],
+        expectedParagraphIndex: 0,
+      },
+      {
+        label: 'after block',
+        key: 'Delete',
+        selectionPos: (view) => view.state.doc.content.size,
+        expectedNodeNames: ['html_block', 'paragraph'],
+        expectedParagraphIndex: 1,
+      },
+    ];
+
+    for (const layout of layouts) {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const htmlBlock = view.state.schema.nodes.html_block.create({
+        value: '<details><summary>Title</summary></details>',
+      });
+      replaceDocument(view, [htmlBlock]);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, layout.selectionPos(view))));
+
+      const event = pressKey(view, layout.key);
+      const label = layout.label;
+
+      expect(event.defaultPrevented, label).toBe(true);
+      expect(Array.from({ length: view.state.doc.childCount }, (_, index) => view.state.doc.child(index).type.name), label)
+        .toEqual(layout.expectedNodeNames);
+      expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+      expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
+      expect(view.state.selection.$from.parent, label).toBe(view.state.doc.child(layout.expectedParagraphIndex));
+
+      await editor.destroy();
+    }
+
+    consoleWarn.mockRestore();
+  });
+
+  it('repairs an adjacent atomic node selection created by another delete transaction', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.paragraph.create(),
+      schema.nodes.html_block.create({ value: '<details><summary>Title</summary></details>' }),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    const htmlBlockPos = topLevelNodePos(view, 'html_block');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+
+    let tr = view.state.tr.delete(
+      emptyParagraphPos,
+      emptyParagraphPos + view.state.doc.nodeAt(emptyParagraphPos)!.nodeSize
+    );
+    tr = tr.setSelection(NodeSelection.create(tr.doc, tr.mapping.map(htmlBlockPos, -1)));
+    view.dispatch(tr);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).type.name).toBe('html_block');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+
+    await editor.destroy();
+  });
+
+  it('repairs an adjacent atomic node selection created from an editable markdown blank line', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.paragraph.create(null, schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)),
+      schema.nodes.html_block.create({ value: '<details><summary>Title</summary></details>' }),
+    ]);
+
+    const editableParagraphPos = topLevelNodePos(view, 'paragraph');
+    const htmlBlockPos = topLevelNodePos(view, 'html_block');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(
+      view.state.doc,
+      editableParagraphPos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length
+    )));
+
+    let tr = view.state.tr.delete(
+      editableParagraphPos,
+      editableParagraphPos + view.state.doc.nodeAt(editableParagraphPos)!.nodeSize
+    );
+    tr = tr.setSelection(NodeSelection.create(tr.doc, tr.mapping.map(htmlBlockPos, -1)));
+    view.dispatch(tr);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).type.name).toBe('html_block');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+
+    await editor.destroy();
+  });
+
   it('moves past navigable atom-like blocks without exposing native node selection', async () => {
     const cases: Array<{
       label: string;
@@ -1224,7 +1686,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
-  it('deletes an empty paragraph immediately below a table without moving to the next line first', async () => {
+  it('deletes an empty paragraph immediately below a table without selecting the table', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -1243,12 +1705,14 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.childCount).toBe(2);
     expect(view.state.doc.child(0).type.name).toBe('table');
     expect(view.state.doc.child(1).textContent).toBe('after');
-    expect(selectionAncestorNames(view)).toContain('table');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('table');
+    expect(view.state.selection.$from.parent.textContent).toBe('after');
 
     await editor.destroy();
   });
 
-  it('deletes an empty paragraph immediately below a formula with the same structural block logic', async () => {
+  it('deletes an empty paragraph immediately below a formula without selecting the formula', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -1267,13 +1731,14 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.childCount).toBe(2);
     expect(view.state.doc.child(0).type.name).toBe('math_block');
     expect(view.state.doc.child(1).textContent).toBe('after');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(0);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('after');
 
     await editor.destroy();
   });
 
-  it('deletes an empty paragraph immediately below a diagram and selects that diagram', async () => {
+  it('deletes an empty paragraph immediately below a diagram without selecting that diagram', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -1292,8 +1757,9 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.childCount).toBe(2);
     expect(view.state.doc.child(0).type.name).toBe('mermaid');
     expect(view.state.doc.child(1).textContent).toBe('after');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(0);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('after');
 
     await editor.destroy();
   });
@@ -1637,7 +2103,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
-  it('deletes an empty paragraph immediately above a diagram with the same structural block logic', async () => {
+  it('deletes an empty paragraph immediately above a diagram without selecting that diagram', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -1656,8 +2122,9 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.childCount).toBe(2);
     expect(view.state.doc.child(0).textContent).toBe('before');
     expect(view.state.doc.child(1).type.name).toBe('mermaid');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'mermaid'));
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('before');
 
     await editor.destroy();
   });
@@ -1808,7 +2275,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
-  it('deletes an empty paragraph between a horizontal rule and task list without moving into the task', async () => {
+  it('deletes an empty paragraph between a horizontal rule and task list without selecting the rule', async () => {
     const editor = createEditor();
     await editor.create();
     const view = editor.ctx.get(editorViewCtx);
@@ -1827,18 +2294,17 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.childCount).toBe(2);
     expect(view.state.doc.child(0).type.name).toBe('hr');
     expect(view.state.doc.child(1).type.name).toBe('bullet_list');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'hr'));
-    expect(selectionAncestorNames(view)).not.toContain('list_item');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(selectionAncestorNames(view)).toContain('list_item');
 
     await editor.destroy();
   });
 
-  it('uses the non-list markdown block as the deletion anchor across representative block syntaxes, list types, and directions', async () => {
+  it('keeps a text cursor across representative structural block, list type, and delete direction pairs', async () => {
     const cases: Array<{
       name: string;
       node: (view: EditorView) => ProseNode;
-      expectedNodeSelection?: boolean;
     }> = [
       {
         name: 'heading',
@@ -1859,7 +2325,6 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
       {
         name: 'frontmatter',
         node: (view) => view.state.schema.nodes.frontmatter.create(null, view.state.schema.text('title: Demo')),
-        expectedNodeSelection: true,
       },
       {
         name: 'footnote_def',
@@ -1870,12 +2335,10 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
       {
         name: 'html_block',
         node: (view) => view.state.schema.nodes.html_block.create({ value: '<div>HTML</div>' }),
-        expectedNodeSelection: true,
       },
       {
         name: 'code_block',
         node: (view) => createCodeBlockNode(view),
-        expectedNodeSelection: true,
       },
       {
         name: 'table',
@@ -1884,22 +2347,18 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
       {
         name: 'toc',
         node: (view) => view.state.schema.nodes.toc.create({ maxLevel: 6 }),
-        expectedNodeSelection: true,
       },
       {
         name: 'video',
         node: (view) => view.state.schema.nodes.video.create({ src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }),
-        expectedNodeSelection: true,
       },
       {
         name: 'math_block',
         node: (view) => createAtomicNode(view, 'math_block'),
-        expectedNodeSelection: true,
       },
       {
         name: 'mermaid',
         node: (view) => createAtomicNode(view, 'mermaid'),
-        expectedNodeSelection: true,
       },
     ];
     const layouts: Array<{
@@ -1982,7 +2441,8 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
           expect(remainingNodeNames, label).toHaveLength(2);
           expect(remainingNodeNames, label).toContain(testCase.name);
           expect(remainingNodeNames, label).toContain(listCase.typeName);
-          expect(selectionAncestorNames(view), label).not.toContain('list_item');
+          expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+          expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
           if (testCase.name === 'heading') {
             const headingPos = topLevelNodePos(view, 'heading');
             expectCursorAtHeadingEdge(
@@ -2006,9 +2466,6 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
               containerPos,
               layout.markdownBlockPosition === 'above' ? 'end' : 'start'
             );
-          }
-          if (testCase.expectedNodeSelection) {
-            expect(view.state.selection, label).toBeInstanceOf(NodeSelection);
           }
 
           await editor.destroy();
@@ -2054,8 +2511,18 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
             view.state.doc.child(index).type.name
           );
           expect(event.defaultPrevented, label).toBe(true);
+          expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
           if (previous.typeName === 'ordered_list' && next.typeName === 'ordered_list') {
             expect(remainingNodeNames, label).toEqual(['ordered_list']);
+          } else if (
+            remainingNodeNames.length === 3 &&
+            remainingNodeNames[0] === previous.typeName &&
+            remainingNodeNames[1] === 'paragraph' &&
+            remainingNodeNames[2] === next.typeName
+          ) {
+            expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+            expect(view.state.selection.$from.parent.type.name, label).toBe('paragraph');
+            expect(view.state.selection.$from.parent.content.size, label).toBe(0);
           } else {
             expect(remainingNodeNames, label).toHaveLength(2);
             expect(remainingNodeNames, label).toContain(previous.typeName);

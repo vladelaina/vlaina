@@ -7,6 +7,10 @@ const focusEditorMock = vi.hoisted(() => ({
   focusEditorToFirstLineEnd: vi.fn(),
 }));
 
+const blockSelectionMocks = vi.hoisted(() => ({
+  clearCurrentEditorBlockSelection: vi.fn(),
+}));
+
 const notesState = {
   renameNote: vi.fn(async () => undefined),
   renameAbsoluteNote: vi.fn(async () => undefined),
@@ -44,6 +48,10 @@ vi.mock('@/lib/i18n', () => ({
 
 vi.mock('./utils/focusEditor', () => ({
   focusEditorToFirstLineEnd: focusEditorMock.focusEditorToFirstLineEnd,
+}));
+
+vi.mock('./utils/editorViewRegistry', () => ({
+  clearCurrentEditorBlockSelection: blockSelectionMocks.clearCurrentEditorBlockSelection,
 }));
 
 describe('TitleInput', () => {
@@ -163,6 +171,15 @@ describe('TitleInput', () => {
     });
 
     expect(focusEditorMock.focusEditorToFirstLineEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the active editor block selection when focusing the title', () => {
+    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+    fireEvent.focus(input);
+
+    expect(blockSelectionMocks.clearCurrentEditorBlockSelection).toHaveBeenCalledTimes(1);
   });
 
   it('does not commit or move focus when Enter is pressed during IME composition', () => {

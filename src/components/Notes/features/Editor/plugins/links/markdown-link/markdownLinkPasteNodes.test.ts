@@ -29,7 +29,7 @@ describe('createMarkdownLinkPasteNodes', () => {
 
     expect(nodes.map((node) => node.text)).toEqual(['Docs', ' and ', 'Site']);
     expect(nodes[0]?.marks[0]?.attrs.href).toBe('https://example.com');
-    expect(nodes[2]?.marks[0]?.attrs.href).toBe('https://catim.md');
+    expect(nodes[2]?.marks[0]?.attrs.href).toBe('catim.md');
   });
 
   it('returns null instead of creating oversized paste node lists', () => {

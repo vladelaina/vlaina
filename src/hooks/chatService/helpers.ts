@@ -58,6 +58,7 @@ import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImag
 import { replaceRenderableMessageImageTokens } from '@/lib/markdown/renderableImageTokens';
 
 const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
+const TEXT_ATTACHMENT_NAME_REGEX = /\.(?:bash|c|cc|conf|cpp|cs|css|csv|env|fish|go|h|hpp|html|ini|java|js|json|jsonl|jsx|kt|kts|log|md|markdown|php|ps1|py|rb|rs|sh|sql|swift|toml|ts|tsx|txt|xml|ya?ml|zsh)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
@@ -82,7 +83,9 @@ const MAX_INFERRED_IMAGE_NAME_SEGMENT_DECODE_CHARS = 2048;
 const MAX_INFERRED_IMAGE_NAME_CHARS = 512;
 const MAX_STORED_USER_MESSAGE_IMAGE_TOKENS = 2000;
 export const MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS = 64;
+export const MAX_CHAT_MESSAGE_FILE_ATTACHMENTS = 16;
 export const MAX_CHAT_MESSAGE_IMAGE_SOURCE_CHARS = 32 * 1024 * 1024;
+export const MAX_CHAT_MESSAGE_FILE_CONTEXT_CHARS = 120_000;
 const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?:\\*:|&|&#)/i;
 const PROMPT_LABEL_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]+/g;
 const MAX_PROMPT_LABEL_LENGTH = 240;
@@ -219,7 +222,38 @@ export function isImageAttachment(attachment: Attachment): boolean {
   return IMAGE_NAME_REGEX.test(name);
 }
 
+export function isTextAttachment(attachment: Attachment): boolean {
+  if (isImageAttachment(attachment)) {
+    return false;
+  }
+
+  if (typeof attachment.textContent === 'string') {
+    return true;
+  }
+
+  const mimeType = trimString(attachment.type).toLowerCase();
+  if (
+    mimeType.startsWith('text/') ||
+    mimeType === 'application/json' ||
+    mimeType === 'application/ld+json' ||
+    mimeType === 'application/toml' ||
+    mimeType === 'application/x-ndjson' ||
+    mimeType === 'application/xml' ||
+    mimeType === 'application/yaml' ||
+    mimeType === 'application/x-yaml'
+  ) {
+    return true;
+  }
+
+  const name = trimString(attachment.name);
+  return TEXT_ATTACHMENT_NAME_REGEX.test(name);
+}
+
 export function limitChatMessageImageAttachments(attachments: readonly Attachment[]): Attachment[] {
+  return attachments.slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
+}
+
+export function limitChatMessageAttachments(attachments: readonly Attachment[]): Attachment[] {
   return attachments.slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
 }
 
@@ -1602,4 +1636,70 @@ export async function buildMessageImageSources(attachments: Attachment[]): Promi
   }
 
   return { content: markdownParts.join('\n\n'), imageSources };
+}
+
+function escapeAttachedFileName(name: string): string {
+  return name.replace(/[<>&"]/g, (character) => {
+    switch (character) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '"': return '&quot;';
+      default: return character;
+    }
+  });
+}
+
+async function readTextAttachmentContent(attachment: Attachment): Promise<string | null> {
+  if (typeof attachment.textContent === 'string') {
+    return attachment.textContent;
+  }
+
+  if (!extractTrustedManagedAttachmentPathFilename(attachment.path)) {
+    return null;
+  }
+
+  try {
+    const storage = getStorageAdapter();
+    return await storage.readFile(attachment.path, MAX_CHAT_MESSAGE_FILE_CONTEXT_CHARS);
+  } catch {
+    return null;
+  }
+}
+
+export async function buildMessageFileAttachmentContext(attachments: Attachment[]): Promise<string> {
+  const sections: string[] = [];
+  let usedChars = 0;
+
+  for (const attachment of attachments.slice(0, MAX_CHAT_MESSAGE_FILE_ATTACHMENTS)) {
+    if (!isTextAttachment(attachment)) {
+      continue;
+    }
+
+    const rawContent = await readTextAttachmentContent(attachment);
+    const content = rawContent?.replace(/\r\n?/g, '\n').trim();
+    if (!content) {
+      continue;
+    }
+
+    const safeName = escapeAttachedFileName(trimString(attachment.name) || 'attachment.txt');
+    const remainingChars = MAX_CHAT_MESSAGE_FILE_CONTEXT_CHARS - usedChars;
+    if (remainingChars <= 0) {
+      break;
+    }
+
+    const header = `<attached_file name="${safeName}">\n`;
+    const footer = '\n</attached_file>';
+    const availableContentChars = remainingChars - header.length - footer.length - (sections.length > 0 ? 2 : 0);
+    if (availableContentChars <= 0) {
+      break;
+    }
+
+    const boundedContent = content.slice(0, availableContentChars);
+    const section = `${header}${boundedContent}${footer}`;
+    sections.push(section);
+    usedChars += section.length + (sections.length > 1 ? 2 : 0);
+  }
+
+  return sections.length > 0 ? `Attached files:\n\n${sections.join('\n\n')}` : '';
 }

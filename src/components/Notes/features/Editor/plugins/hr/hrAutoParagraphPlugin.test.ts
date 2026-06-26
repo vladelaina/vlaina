@@ -398,7 +398,7 @@ describe('hrAutoParagraphPlugin', () => {
     await editor.destroy();
   });
 
-  it('removes the generated empty paragraph before selecting the preceding horizontal rule', async () => {
+  it('removes the generated empty paragraph without selecting the preceding horizontal rule', async () => {
     const editor = createEditor('before\n\nplaceholder');
 
     await editor.create();
@@ -414,8 +414,10 @@ describe('hrAutoParagraphPlugin', () => {
     expect(pressKey(view, 'Backspace')).toBe(true);
     expect(view.state.doc.childCount).toBe(2);
     expect(view.state.doc.child(1).type.name).toBe('hr');
-    expect(view.state.selection).toBeInstanceOf(NodeSelection);
-    expect((view.state.selection as NodeSelection).node.type.name).toBe('hr');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('before');
+    expect(view.state.selection.$from.parentOffset).toBe('before'.length);
 
     await editor.destroy();
   });

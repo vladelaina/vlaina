@@ -34,6 +34,7 @@ import {
   createStoredAttachmentFromSource,
   deleteAttachment,
   MAX_ATTACHMENT_IMAGE_BYTES,
+  MAX_ATTACHMENT_TEXT_BYTES,
   persistDataUrlAttachment,
   saveAttachment,
 } from './attachmentStorage';
@@ -108,8 +109,49 @@ describe('attachmentStorage', () => {
     });
   });
 
-  it('rejects non-image attachments before reading storage', async () => {
+  it('saves supported text attachments with decoded content', async () => {
     const file = new File(['hello'], 'note.txt', { type: 'text/plain' });
+
+    const attachment = await saveAttachment(file);
+
+    expect(mocks.adapter.writeBinaryFile.mock.calls[0]?.[0]).toBe(
+      '/appdata/.vlaina/chat/attachments/12345678-12345678.txt',
+    );
+    expect(Array.from(mocks.adapter.writeBinaryFile.mock.calls[0]?.[1] as Uint8Array)).toEqual(
+      Array.from(new TextEncoder().encode('hello')),
+    );
+    expect(mocks.adapter.writeBinaryFile.mock.calls[0]?.[2]).toEqual({ recursive: true });
+    expect(attachment).toMatchObject({
+      path: '/appdata/.vlaina/chat/attachments/12345678-12345678.txt',
+      previewUrl: '',
+      assetUrl: 'file:///appdata/.vlaina/chat/attachments/12345678-note.png',
+      name: 'note.txt',
+      type: 'text/plain',
+      size: 5,
+      textContent: 'hello',
+    });
+  });
+
+  it('keeps temporary text attachments in memory without writing to disk', async () => {
+    const file = new File(['# Heading'], 'note.md', { type: '' });
+
+    const attachment = await saveAttachment(file, { persist: false });
+
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+    expect(attachment).toMatchObject({
+      path: '',
+      previewUrl: '',
+      assetUrl: '',
+      name: 'note.md',
+      type: 'text/markdown',
+      size: 9,
+      textContent: '# Heading',
+    });
+  });
+
+  it('rejects unsupported file attachments before reading storage', async () => {
+    const file = new File(['pdf'], 'doc.pdf', { type: 'application/pdf' });
 
     await expect(saveAttachment(file)).rejects.toThrow('Unsupported attachment type');
 
@@ -144,6 +186,24 @@ describe('attachmentStorage', () => {
     });
 
     await expect(saveAttachment(file)).rejects.toThrow('Attachment image is too large.');
+
+    expect(file.arrayBuffer).not.toHaveBeenCalled();
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized text attachments before reading or writing them', async () => {
+    const file = new File(['small'], 'huge.txt', { type: 'text/plain' });
+    Object.defineProperty(file, 'size', {
+      configurable: true,
+      value: MAX_ATTACHMENT_TEXT_BYTES + 1,
+    });
+    Object.defineProperty(file, 'arrayBuffer', {
+      configurable: true,
+      value: vi.fn(async () => new Uint8Array([1]).buffer),
+    });
+
+    await expect(saveAttachment(file)).rejects.toThrow('Attachment file is too large.');
 
     expect(file.arrayBuffer).not.toHaveBeenCalled();
     expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();

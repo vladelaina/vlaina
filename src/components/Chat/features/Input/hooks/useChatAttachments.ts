@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { deleteAttachment, saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import { useAIUIStore } from '@/stores/ai/chatState';
+import { useToastStore } from '@/stores/useToastStore';
+import { translate } from '@/lib/i18n';
 
 export const MAX_CHAT_ATTACHMENT_INPUT_FILES = 64;
 export const MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN = 1024;
@@ -153,6 +155,22 @@ function deleteAttachmentQuietly(attachment: Attachment): void {
   }
 }
 
+function getAttachmentSaveFailureToastMessage(results: PromiseSettledResult<Attachment>[]): string | null {
+  const rejectedResults = results.filter((result) => result.status === 'rejected');
+  if (rejectedResults.length === 0) {
+    return null;
+  }
+
+  const hasUnsupportedFile = rejectedResults.some((result) =>
+    result.reason instanceof Error && /unsupported attachment type/i.test(result.reason.message)
+  );
+  if (hasUnsupportedFile) {
+    return translate('notes.unsupportedFile');
+  }
+
+  return translate('asset.uploadFailed');
+}
+
 export function useChatAttachments() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -227,18 +245,22 @@ export function useChatAttachments() {
     results.forEach((result) => {
       if (result.status === 'fulfilled') {
         newAttachments.push(result.value);
-      } else {
       }
     });
 
-    if (newAttachments.length > 0) {
-      if (!isMountedRef.current || generation !== attachmentGenerationRef.current) {
-        newAttachments.forEach((attachment) => {
-          deleteAttachmentQuietly(attachment);
-        });
-        return;
-      }
+    if (!isMountedRef.current || generation !== attachmentGenerationRef.current) {
+      newAttachments.forEach((attachment) => {
+        deleteAttachmentQuietly(attachment);
+      });
+      return;
+    }
 
+    const failureToastMessage = getAttachmentSaveFailureToastMessage(results);
+    if (failureToastMessage) {
+      useToastStore.getState().addToast(failureToastMessage, 'error', 3500);
+    }
+
+    if (newAttachments.length > 0) {
       setAttachments((prev) => {
         if (generation !== attachmentGenerationRef.current) {
           newAttachments.forEach((attachment) => {

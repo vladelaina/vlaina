@@ -1,6 +1,9 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import type { Attachment } from '@/lib/storage/attachmentStorage';
+import {
+  SUPPORTED_ATTACHMENT_INPUT_ACCEPT,
+  type Attachment,
+} from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { authorizeExternalNoteMentionPath } from '@/lib/ai/authorizedExternalNoteMentions';
 import {
@@ -674,6 +677,7 @@ export const ChatInput = memo(function ChatInput({
         type="file"
         spellCheck={false}
         multiple
+        accept={SUPPORTED_ATTACHMENT_INPUT_ACCEPT}
         className="hidden"
         ref={fileInputRef}
         onChange={handleHiddenFileInputChange}

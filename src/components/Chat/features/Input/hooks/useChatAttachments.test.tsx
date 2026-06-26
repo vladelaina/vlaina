@@ -11,6 +11,7 @@ import {
 } from './useChatAttachments';
 
 const mocks = vi.hoisted(() => ({
+  addToast: vi.fn(),
   deleteAttachment: vi.fn(),
   saveAttachment: vi.fn(),
   temporaryChatEnabled: false,
@@ -25,6 +26,14 @@ vi.mock('@/stores/ai/chatState', () => ({
   useAIUIStore: {
     getState: () => ({
       temporaryChatEnabled: mocks.temporaryChatEnabled,
+    }),
+  },
+}));
+
+vi.mock('@/stores/useToastStore', () => ({
+  useToastStore: {
+    getState: () => ({
+      addToast: mocks.addToast,
     }),
   },
 }));
@@ -71,6 +80,7 @@ function createClipboardItems(files: File[]): DataTransferItemList {
 
 describe('useChatAttachments', () => {
   beforeEach(() => {
+    mocks.addToast.mockReset();
     mocks.deleteAttachment.mockReset();
     mocks.saveAttachment.mockReset();
     mocks.temporaryChatEnabled = false;
@@ -88,7 +98,7 @@ describe('useChatAttachments', () => {
         target: {
           files: [
             new File(['image'], 'photo.png', { type: 'image/png' }),
-            new File(['text'], 'note.txt', { type: 'text/plain' }),
+            new File(['pdf'], 'note.pdf', { type: 'application/pdf' }),
           ],
           value: 'selected',
         },
@@ -96,8 +106,9 @@ describe('useChatAttachments', () => {
     });
 
     expect(saveAttachment).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: 'photo.png' }), { persist: true });
-    expect(saveAttachment).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: 'note.txt' }), { persist: true });
+    expect(saveAttachment).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: 'note.pdf' }), { persist: true });
     expect(result.current.attachments).toEqual([accepted]);
+    expect(mocks.addToast).toHaveBeenCalledWith('Unsupported File', 'error', 3500);
   });
 
   it('collects readable File-like objects from drag payloads', () => {

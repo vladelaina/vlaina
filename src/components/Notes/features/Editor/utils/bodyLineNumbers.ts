@@ -4,6 +4,8 @@ const LIST_ITEM_PATTERN = /^\s*(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s+)?\S?/;
 const THEMATIC_BREAK_PATTERN = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
 const TABLE_SEPARATOR_PATTERN = /^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\s*$/;
 const FRONTMATTER_BOUNDARY_PATTERN = /^---[ \t]*$/;
+const INTERNAL_MARKDOWN_BODY_LINE_PLACEHOLDER_PATTERN =
+  /^\s*<!--\s*(?:vlaina-markdown-blank-line|vlaina-rendered-html-boundary-blank-line|vlaina-markdown-tight-heading)\s*-->\s*$/i;
 
 function normalizeLineEndings(value: string): string {
   return value.replace(LINE_ENDING_PATTERN, '\n');
@@ -25,6 +27,14 @@ function findLeadingFrontmatterEnd(lines: readonly string[]): number {
 
 function isBlank(line: string): boolean {
   return line.trim().length === 0;
+}
+
+export function isInternalMarkdownBodyLinePlaceholder(line: string): boolean {
+  return INTERNAL_MARKDOWN_BODY_LINE_PLACEHOLDER_PATTERN.test(line);
+}
+
+function isBodyLineBoundary(line: string): boolean {
+  return isBlank(line) || isInternalMarkdownBodyLinePlaceholder(line);
 }
 
 function isFenceStart(line: string): boolean {
@@ -62,7 +72,7 @@ function isBlockStart(line: string, nextLine?: string): boolean {
 
 function findParagraphEnd(lines: readonly string[], startIndex: number): number {
   for (let index = startIndex + 1; index < lines.length; index += 1) {
-    if (isBlank(lines[index] ?? '')) {
+    if (isBodyLineBoundary(lines[index] ?? '')) {
       return index - 1;
     }
 
@@ -77,7 +87,7 @@ function findParagraphEnd(lines: readonly string[], startIndex: number): number 
 function findQuoteEnd(lines: readonly string[], startIndex: number): number {
   for (let index = startIndex + 1; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
-    if (isBlank(line) || !/^\s{0,3}>/.test(line)) {
+    if (isBodyLineBoundary(line) || !/^\s{0,3}>/.test(line)) {
       return index - 1;
     }
   }
@@ -88,7 +98,7 @@ function findQuoteEnd(lines: readonly string[], startIndex: number): number {
 function findTableEnd(lines: readonly string[], startIndex: number): number {
   for (let index = startIndex + 2; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
-    if (isBlank(line) || !line.includes('|')) {
+    if (isBodyLineBoundary(line) || !line.includes('|')) {
       return index - 1;
     }
   }
@@ -106,7 +116,7 @@ export function getMarkdownBodySourceLineNumbers(markdown: string): number[] {
     const line = lines[index] ?? '';
     const nextLine = lines[index + 1];
 
-    if (isBlank(line)) {
+    if (isBodyLineBoundary(line)) {
       index += 1;
       continue;
     }

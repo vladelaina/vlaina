@@ -602,6 +602,38 @@ describe('markdownBlankLineInteraction', () => {
     }
   });
 
+  it.each(['Backspace', 'Delete'] as const)(
+    'converts a selected markdown blank line before an html block when %s has no text cursor target',
+    async (key) => {
+      const editor = await createEditor('Alpha');
+      const view = editor.ctx.get(editorViewCtx);
+
+      try {
+        const { schema } = view.state;
+        replaceDocument(view, [
+          schema.nodes.html_block.create({ value: MARKDOWN_BLANK_LINE_VALUE }),
+          schema.nodes.html_block.create({ value: '<details><summary>Title</summary></details>' }),
+        ]);
+        view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, 0)));
+
+        const event = createDeleteEvent(key);
+        const handled = handleMarkdownBlankLineDeletion(view, event);
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(view.state.selection).toBeInstanceOf(TextSelection);
+        expect(view.state.selection).not.toBeInstanceOf(NodeSelection);
+        expect(view.state.doc.childCount).toBe(2);
+        expect(view.state.doc.child(0).type.name).toBe('paragraph');
+        expect(view.state.doc.child(0).textContent).toBe(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+        expect(view.state.doc.child(1).type.name).toBe('html_block');
+        expect(view.state.doc.child(1).attrs.value).toContain('<summary>Title</summary>');
+      } finally {
+        await editor.destroy();
+      }
+    }
+  );
+
   it('recovers an accidental native blank-line selection after Delete from an editable blank line', async () => {
     const editor = await createEditor('Alpha');
     const view = editor.ctx.get(editorViewCtx);
