@@ -32,6 +32,7 @@ import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases';
 import {
   buildMentionedNotesContext,
+  buildMessageFileAttachmentContext,
   buildMessageImageSources,
   buildStoredUserMessageContent,
   isAllowedChatImageAttachmentPath,
@@ -41,6 +42,8 @@ import {
   normalizeVisionAttachment,
   refreshManagedBudgetIfNeeded,
   isImageAttachment,
+  isTextAttachment,
+  limitChatMessageAttachments,
   limitChatMessageImageAttachments,
 } from './chatService/helpers';
 import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
@@ -253,6 +256,9 @@ async function makeTemporaryAttachmentsEphemeral(
     MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY,
     async (attachment, index) => {
       throwIfChatRequestAborted(signal);
+      if (!isImageAttachment(attachment)) {
+        return attachment;
+      }
       const hasPersistentReference =
         !!attachment.path ||
         isStoredAttachmentSrc(attachment.previewUrl) ||
@@ -430,7 +436,7 @@ export function useChatService() {
     async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[] = []) => {
       const limitedText = limitChatComposerText(text);
       const isTextEmpty = !limitedText || limitedText.trim().length === 0;
-      const normalizedAttachments = limitChatMessageImageAttachments(attachments || []);
+      const normalizedAttachments = limitChatMessageAttachments(attachments || []);
       const hasNoAttachments = normalizedAttachments.length === 0;
       const normalizedMentions = normalizeNoteMentions(noteMentions);
       const hasNoMentions = normalizedMentions.length === 0;
@@ -453,7 +459,9 @@ export function useChatService() {
         .replace(UNIVERSAL_NEWLINE_REGEX, '\n'));
       const userMessageText = normalizedInput.trim();
       const mentionText = normalizedMentions.map((mention) => `@${mention.title}`).join(' ');
-      const unsupportedAttachments = normalizedAttachments.filter((attachment) => !isImageAttachment(attachment));
+      const unsupportedAttachments = normalizedAttachments.filter((attachment) =>
+        !isImageAttachment(attachment) && !isTextAttachment(attachment)
+      );
       if (unsupportedAttachments.length > 0) {
         const { message } = buildChatErrorPayload({
           message: 'UNSUPPORTED_MODEL_INPUT',
@@ -533,13 +541,18 @@ export function useChatService() {
         let storageContent = userMessageText;
         let messageImageSources: string[] = [];
         if (requestAttachments.length > 0) {
-          const builtImages = await buildMessageImageSources(requestAttachments);
+          const [builtImages, fileAttachmentContext] = await Promise.all([
+            buildMessageImageSources(requestAttachments),
+            buildMessageFileAttachmentContext(requestAttachments),
+          ]);
           ensureRequestActive();
           const imageMarkdown = builtImages.content;
           messageImageSources = builtImages.imageSources;
-          storageContent = imageMarkdown
-            ? imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '')
-            : userMessageText;
+          storageContent = [
+            imageMarkdown,
+            fileAttachmentContext,
+            userMessageText,
+          ].filter((part) => part.trim()).join('\n\n');
         }
 
         if (!storageContent.trim() && normalizedMentions.length > 0) {
@@ -608,7 +621,12 @@ export function useChatService() {
             const mentionedFolderImages = await loadMentionedFolderImageAttachments(normalizedMentions);
             throwIfChatRequestAborted(signal);
             const notesContext = buildMentionedNotesContext(mentionedNotes);
-            const requestText = userMessageText;
+            const fileAttachmentContext = await buildMessageFileAttachmentContext(requestAttachments);
+            throwIfChatRequestAborted(signal);
+            const requestText = [
+              fileAttachmentContext,
+              userMessageText,
+            ].filter((part) => part.trim()).join('\n\n');
             const textPayload = notesContext
               ? requestText
                 ? `${notesContext}\n\nUser request:\n${requestText}`
@@ -617,7 +635,7 @@ export function useChatService() {
 
             let apiMessageContent: ChatMessageContent = textPayload;
             const apiAttachments = limitChatMessageImageAttachments([
-              ...requestAttachments,
+              ...requestAttachments.filter(isImageAttachment),
               ...mentionedFolderImages,
             ]);
             if (apiAttachments.length > 0) {
