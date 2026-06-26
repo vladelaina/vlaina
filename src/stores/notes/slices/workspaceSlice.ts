@@ -111,6 +111,7 @@ function openDraftNoteFromMemory(
   path: string,
   openInNewTab: boolean,
   updateNavigationHistory: boolean,
+  error: string | null = null,
 ) {
   const {
     currentNote,
@@ -158,7 +159,7 @@ function openDraftNoteFromMemory(
     isDirty: existingTab?.isDirty ?? true,
     openTabs: updatedTabs,
     isNewlyCreated: false,
-    error: null,
+    error,
     ...(navigationHistoryUpdate ?? {}),
   });
   return true;
@@ -295,23 +296,23 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     flushCurrentPendingEditorMarkdown();
     const openRequestId = ++latestOpenNoteRequestId;
     const shouldUpdateNavigationHistory = options?.updateNavigationHistory !== false;
-    if (openDraftNoteFromMemory(set, get, path, openInNewTab, shouldUpdateNavigationHistory)) {
-      return;
+    const targetIsDraft = Boolean(get().draftNotes[path]);
+    if (!targetIsDraft) {
+      if (!isSupportedMarkdownPath(path)) {
+        set({ error: 'Only Markdown files can be opened as notes.' });
+        return;
+      }
+      const normalizedPath = normalizeVaultRelativePath(path);
+      if (normalizedPath == null) {
+        set({ error: 'Path must stay inside the current vault.' });
+        return;
+      }
+      if (isInternalWorkspaceNotePath(normalizedPath)) {
+        set({ error: 'Path must not be inside an internal notes folder.' });
+        return;
+      }
+      path = normalizedPath;
     }
-    if (!isSupportedMarkdownPath(path)) {
-      set({ error: 'Only Markdown files can be opened as notes.' });
-      return;
-    }
-    const normalizedPath = normalizeVaultRelativePath(path);
-    if (normalizedPath == null) {
-      set({ error: 'Path must stay inside the current vault.' });
-      return;
-    }
-    if (isInternalWorkspaceNotePath(normalizedPath)) {
-      set({ error: 'Path must not be inside an internal notes folder.' });
-      return;
-    }
-    path = normalizedPath;
     const pathMutationRevision = getExternalPathMutationRevision();
 
     const discardableDraftPath = getDiscardableCurrentDraftPath(get(), path);
@@ -324,6 +325,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
     let { notesPath, isDirty, saveNote, recentNotes, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
+    let preservedDirtySaveError: string | null = null;
     if (isDirty && currentNote && draftNotes[currentNote.path]) {
       shouldOpenInNewTab = true;
     }
@@ -340,8 +342,20 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       }
       if (get().isDirty) {
         shouldOpenInNewTab = true;
+        preservedDirtySaveError = get().error;
       }
       ({ notesPath, recentNotes, currentNote, noteContentsCache } = get());
+    }
+
+    if (targetIsDraft && openDraftNoteFromMemory(
+      set,
+      get,
+      path,
+      shouldOpenInNewTab,
+      shouldUpdateNavigationHistory,
+      preservedDirtySaveError,
+    )) {
+      return;
     }
 
     try {
@@ -398,7 +412,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         currentNote: { path, content: latestOpenedContent.content },
         currentNoteRevision: latestState.currentNoteRevision + 1,
         isDirty: latestExistingTab?.isDirty ?? false,
-        error: null,
+        error: preservedDirtySaveError,
         recentNotes: updatedRecent,
         openTabs: updatedTabs,
         isNewlyCreated: false,
@@ -461,6 +475,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
     let { notesPath, isDirty, saveNote, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
+    let preservedDirtySaveError: string | null = null;
     if (isDirty && currentNote && draftNotes[currentNote.path]) {
       shouldOpenInNewTab = true;
     }
@@ -477,6 +492,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       }
       if (get().isDirty) {
         shouldOpenInNewTab = true;
+        preservedDirtySaveError = get().error;
       }
       ({ notesPath, currentNote, noteContentsCache } = get());
     }
@@ -529,7 +545,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         currentNote: { path: normalizedAbsolutePath, content: latestOpenedContent.content },
         currentNoteRevision: latestState.currentNoteRevision + 1,
         isDirty: latestExistingTab?.isDirty ?? false,
-        error: null,
+        error: preservedDirtySaveError,
         openTabs: updatedTabs,
         isNewlyCreated: false,
         noteContentsCache: limitCachedNoteContents(
