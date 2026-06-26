@@ -90,6 +90,58 @@ async function clickFirstLineEnd(page: Page) {
   await waitForEditorAnimationFrame(page);
 }
 
+async function getBackslashLineEndDragPoints(page: Page, targetText: string) {
+  return page.evaluate(({ editorSelector, targetText }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) throw new Error('Missing editor');
+
+    const markedSlash = editor.querySelector<HTMLElement>('[data-vlaina-backslash-hard-break-source-text="true"]');
+    if (!markedSlash) throw new Error('Missing visible backslash hard-break source');
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    let targetIndex = -1;
+    while (walker.nextNode()) {
+      const candidate = walker.currentNode as Text;
+      targetIndex = candidate.data.indexOf(targetText);
+      if (targetIndex >= 0) {
+        textNode = candidate;
+        break;
+      }
+    }
+    if (!textNode) throw new Error(`Missing target text: ${targetText}`);
+
+    const targetRange = document.createRange();
+    targetRange.setStart(textNode, targetIndex + targetText.length - 2);
+    targetRange.setEnd(textNode, targetIndex + targetText.length - 1);
+    const targetRect = targetRange.getBoundingClientRect();
+    targetRange.detach();
+
+    const slashRect = markedSlash.getBoundingClientRect();
+    const editorRect = editor.getBoundingClientRect();
+    const startX = Math.min(
+      editorRect.right - 32,
+      slashRect.right + 8,
+    );
+    const startY = slashRect.top + slashRect.height / 2;
+    const endX = targetRect.right - Math.max(2, Math.min(6, targetRect.width / 2));
+    const endY = targetRect.top + targetRect.height / 2;
+
+    const startTarget = document.elementFromPoint(startX, startY);
+    return {
+      start: { x: startX, y: startY },
+      end: { x: endX, y: endY },
+      startTarget: startTarget instanceof HTMLElement
+        ? {
+          className: startTarget.className,
+          tagName: startTarget.tagName,
+          text: startTarget.textContent ?? '',
+        }
+        : null,
+    };
+  }, { editorSelector: EDITOR_SELECTOR, targetText });
+}
+
 test.describe('notes backslash hard break caret', () => {
   test.setTimeout(90_000);
 
@@ -150,6 +202,55 @@ test.describe('notes backslash hard break caret', () => {
         empty: true,
         from: positions.betweenBackslashes,
         to: positions.betweenBackslashes,
+      });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('allows mouse-drag text selection from a backslash hard-break line end', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-backslash-hard-break-drag-selection');
+    const targetText = 'Next line selectable hard break drag target sentinel text.';
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'backslash-hard-break-drag-selection.md',
+        content: [
+          '# Backslash hard break drag selection',
+          '',
+          'Backslash selection starts here\\',
+          targetText,
+          '',
+          'Trailing paragraph after selection.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(targetText);
+
+      const points = await getBackslashLineEndDragPoints(page, targetText);
+      await page.mouse.move(points.start.x, points.start.y);
+      await page.mouse.down();
+      await page.mouse.move(points.end.x, points.end.y, { steps: 18 });
+      await page.mouse.up();
+      await waitForEditorAnimationFrame(page);
+
+      await expect.poll(async () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        return {
+          nativeSelectedText: window.getSelection()?.toString() ?? '',
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          hasPointerNativeClass: Boolean(editor?.classList.contains('editor-pointer-native-selection')),
+        };
+      }), {
+        message: JSON.stringify(points),
+      }).toMatchObject({
+        selection: {
+          empty: false,
+          selectedText: expect.stringContaining('Next line selectable hard break drag target'),
+        },
       });
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

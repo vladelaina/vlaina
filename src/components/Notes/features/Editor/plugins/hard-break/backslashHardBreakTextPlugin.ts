@@ -287,7 +287,7 @@ export const backslashHardBreakCursorPlugin = $prose(() => new Plugin({
   },
   props: {
     handleDOMEvents: {
-      mousedown(view, event) {
+      click(view, event) {
         if (!(event instanceof MouseEvent)) return false;
 
         const target = findBackslashHardBreakBlankClickTarget(view, event);

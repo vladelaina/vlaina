@@ -358,7 +358,7 @@ export const tagTokenPlugin = $prose(() => new Plugin({
       return tagTokenPluginKey.getState(state) ?? DecorationSet.empty;
     },
     handleDOMEvents: {
-      mousedown(view, event) {
+      click(view, event) {
         if (!(event instanceof MouseEvent)) return false;
         if (event.button !== 0) return false;
         if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;

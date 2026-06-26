@@ -87,11 +87,25 @@ function clampDocPosition(view: EditorView, pos: number): number {
   return Math.max(0, Math.min(pos, view.state.doc.content.size));
 }
 
+function isInlineTextSelectionEndpoint(view: EditorView, pos: number): boolean {
+  try {
+    return view.state.doc.resolve(clampDocPosition(view, pos)).parent.inlineContent;
+  } catch {
+    return false;
+  }
+}
+
 function dispatchNestedListTextSelection(view: EditorView, anchor: number, head = anchor): boolean {
   if (!view.dom.isConnected) return false;
 
   const nextAnchor = clampDocPosition(view, anchor);
   const nextHead = clampDocPosition(view, head);
+  if (
+    !isInlineTextSelectionEndpoint(view, nextAnchor) ||
+    !isInlineTextSelectionEndpoint(view, nextHead)
+  ) {
+    return false;
+  }
   try {
     const selection = TextSelection.create(view.state.doc, nextAnchor, nextHead);
     const tr = view.state.tr.setSelection(selection).scrollIntoView();
@@ -158,6 +172,23 @@ export function resolveNestedListTextPositionAtPoint(
   return best?.pos ?? null;
 }
 
+function resolveNestedListDragHeadAtPoint(
+  view: EditorView,
+  clientX: number,
+  clientY: number,
+  scanRoot: HTMLElement,
+): number | null {
+  const coordsPos = view.posAtCoords({ left: clientX, top: clientY })?.pos ?? null;
+  const safeCoordsPos = coordsPos !== null && isInlineTextSelectionEndpoint(view, coordsPos)
+    ? coordsPos
+    : null;
+  return (
+    resolveNestedListTextPositionAtPoint(view, clientX, clientY, scanRoot) ??
+    (scanRoot === view.dom ? null : resolveNestedListTextPositionAtPoint(view, clientX, clientY, view.dom)) ??
+    safeCoordsPos
+  );
+}
+
 function startNestedListPointerSelection(view: EditorView, event: MouseEvent, pos: number, scanRoot: HTMLElement): void {
   const { ownerDocument } = view.dom;
   const startX = event.clientX;
@@ -177,7 +208,7 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
     if (!moved && !hasDragged) return;
 
     moved = true;
-    const head = resolveNestedListTextPositionAtPoint(view, moveEvent.clientX, moveEvent.clientY, scanRoot);
+    const head = resolveNestedListDragHeadAtPoint(view, moveEvent.clientX, moveEvent.clientY, scanRoot);
     if (head !== null) {
       dispatchNestedListTextSelection(view, pos, head);
     }
@@ -190,7 +221,7 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
       return;
     }
 
-    const head = resolveNestedListTextPositionAtPoint(view, upEvent.clientX, upEvent.clientY, scanRoot);
+    const head = resolveNestedListDragHeadAtPoint(view, upEvent.clientX, upEvent.clientY, scanRoot);
     if (head !== null) {
       dispatchNestedListTextSelection(view, pos, head);
     }

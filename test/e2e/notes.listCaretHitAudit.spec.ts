@@ -138,6 +138,54 @@ async function resolveTextClickPoint(
   }, { editorSelector: EDITOR_SELECTOR, text: target.text, offset: target.offset });
 }
 
+async function resolveTextDragPoint(
+  page: Page,
+  text: string,
+  offset: number,
+  edge: 'start' | 'end',
+): Promise<{ x: number; y: number }> {
+  const point = await page.evaluate(({ editorSelector, edge, offset, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return null;
+
+    const walker = editor.ownerDocument.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const value = node.textContent ?? '';
+        if (!value.includes(text)) return NodeFilter.FILTER_REJECT;
+        const parent = node.parentElement;
+        if (parent?.closest('[contenteditable="false"]')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!(node instanceof Text)) continue;
+      const index = node.textContent?.indexOf(text) ?? -1;
+      if (index < 0) continue;
+
+      const charOffset = Math.max(0, Math.min(text.length - 1, offset));
+      const range = editor.ownerDocument.createRange();
+      range.setStart(node, index + charOffset);
+      range.setEnd(node, index + charOffset + 1);
+      const rect = range.getBoundingClientRect();
+      range.detach();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+
+      return {
+        x: edge === 'end'
+          ? rect.right - Math.max(1, Math.min(4, rect.width / 3))
+          : rect.left + Math.max(1, Math.min(4, rect.width / 3)),
+        y: rect.top + rect.height / 2,
+      };
+    }
+
+    return null;
+  }, { editorSelector: EDITOR_SELECTOR, edge, offset, text });
+
+  expect(point, `Expected a drag point for "${text}"`).not.toBeNull();
+  return point!;
+}
+
 async function clickTextOffset(
   page: Page,
   target: Pick<CaretTarget, 'text' | 'offset' | 'label'>,
@@ -425,6 +473,51 @@ test.describe('notes list caret hit audit', () => {
       for (const target of targets) {
         await assertClickInsertsAtTarget(page, target);
       }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('allows mouse-drag text selection across nested list items', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-nested-list-drag-text-selection');
+    const sourceText = 'Nested drag source line edge';
+    const targetText = 'Nested drag target selectable sentinel text';
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'nested-list-drag-text-selection.md',
+        content: [
+          '# Nested List Drag Text Selection',
+          '',
+          '- Parent drag list',
+          `  - ${sourceText}`,
+          `  - ${targetText}`,
+          '- After nested drag list',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(targetText);
+
+      const start = await resolveTextDragPoint(page, sourceText, sourceText.length - 1, 'end');
+      const end = await resolveTextDragPoint(page, targetText, targetText.length - 1, 'end');
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(end.x, end.y, { steps: 18 });
+      await page.mouse.up();
+      await waitForEditorAnimationFrame(page);
+
+      await expect.poll(async () => page.evaluate(() =>
+        (window as any).__vlainaE2E.getEditorSelectionSummary()
+      ), {
+        message: JSON.stringify({ start, end }),
+      }).toMatchObject({
+        empty: false,
+        selectedText: expect.stringContaining('Nested drag target selectable sentinel'),
+      });
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

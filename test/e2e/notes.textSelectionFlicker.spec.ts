@@ -107,6 +107,48 @@ async function getTextDragPoints(page: Page, text: string) {
   }, { editorSelector: EDITOR_SELECTOR, text });
 }
 
+async function getTagEdgeDragPoints(page: Page, tagText: string, targetText: string) {
+  return page.evaluate(({ editorSelector, tagText, targetText }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) throw new Error('Editor not found');
+
+    const tag = Array.from(editor.querySelectorAll<HTMLElement>('[data-editor-tag-token="true"]'))
+      .find((candidate) => candidate.textContent === tagText);
+    if (!tag) throw new Error(`Tag token not found: ${tagText}`);
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    let index = -1;
+    while (walker.nextNode()) {
+      const candidate = walker.currentNode as Text;
+      index = candidate.data.indexOf(targetText);
+      if (index >= 0) {
+        textNode = candidate;
+        break;
+      }
+    }
+    if (!textNode) throw new Error(`Target text not found: ${targetText}`);
+
+    const endRange = document.createRange();
+    endRange.setStart(textNode, index + targetText.length - 2);
+    endRange.setEnd(textNode, index + targetText.length - 1);
+    const endRect = endRange.getBoundingClientRect();
+    endRange.detach();
+
+    const tagRect = tag.getBoundingClientRect();
+    return {
+      start: {
+        x: tagRect.right - Math.max(2, Math.min(5, tagRect.width * 0.08)),
+        y: tagRect.top + tagRect.height / 2,
+      },
+      end: {
+        x: endRect.right - Math.max(2, Math.min(6, endRect.width / 2)),
+        y: endRect.top + endRect.height / 2,
+      },
+    };
+  }, { editorSelector: EDITOR_SELECTOR, tagText, targetText });
+}
+
 async function getTextRangeScreenshotClip(page: Page, text: string): Promise<ScreenshotClip> {
   return page.evaluate(({ editorSelector, text }) => {
     const editor = document.querySelector<HTMLElement>(editorSelector);
@@ -694,6 +736,49 @@ test.describe('notes text selection stability', () => {
 
       const finalSummary = await page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary());
       expect(finalSummary?.selectedText).toContain('Ordinary selectable paragraph alpha sentinel');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('allows mouse-drag text selection from a tag token edge', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-tag-token-edge-drag-selection');
+    const tagText = '#drag-audit';
+    const targetText = 'after tag selectable drag target sentinel text';
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'tag-token-edge-drag-selection.md',
+        content: [
+          '# Tag Token Edge Drag Selection',
+          '',
+          `Before ${tagText} ${targetText} continues after the token.`,
+          '',
+          'Trailing paragraph after tag selection.',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-editor-tag-token="true"]`, { hasText: tagText })).toBeVisible();
+
+      const points = await getTagEdgeDragPoints(page, tagText, targetText);
+      await page.mouse.move(points.start.x, points.start.y);
+      await page.mouse.down();
+      await page.mouse.move(points.end.x, points.end.y, { steps: 18 });
+      await page.mouse.up();
+      await waitForEditorAnimationFrame(page);
+
+      await expect.poll(async () => page.evaluate(() =>
+        (window as any).__vlainaE2E.getEditorSelectionSummary()
+      ), {
+        message: JSON.stringify(points),
+      }).toMatchObject({
+        empty: false,
+        selectedText: expect.stringContaining('after tag selectable drag target sentinel'),
+      });
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
