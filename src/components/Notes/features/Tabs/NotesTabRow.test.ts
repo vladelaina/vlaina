@@ -37,6 +37,9 @@ describe('NotesTabRow', () => {
     expect(source).toContain('notes-tab-row-history-button app-no-drag flex h-7 w-7');
     expect(source).toContain('navigateBackInNoteHistory');
     expect(source).toContain('navigateForwardInNoteHistory');
+    expect(source.indexOf('notes-tab-row-history-controls flex h-7 w-14')).toBeGreaterThan(
+      source.indexOf('notes-tab-row-new-note-button app-no-drag flex h-7')
+    );
     expect(source).toContain('flex h-7 w-7');
     expect(source).toContain('h-7 w-7 shrink-0');
     expect(source).toContain('items-center justify-center rounded-full');
