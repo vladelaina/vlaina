@@ -30,6 +30,10 @@ import {
   remapOpenTabsForExternalRename,
   remapRecentNotesForExternalRename,
 } from '../document/externalPathSync';
+import {
+  pushNoteNavigationHistory,
+  remapNoteNavigationHistoryForExternalRename,
+} from '../document/noteNavigationHistory';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
@@ -106,6 +110,7 @@ function openDraftNoteFromMemory(
   get: NotesGet,
   path: string,
   openInNewTab: boolean,
+  updateNavigationHistory: boolean,
 ) {
   const {
     currentNote,
@@ -143,6 +148,10 @@ function openDraftNoteFromMemory(
     }
   }
 
+  const navigationHistoryUpdate = updateNavigationHistory
+    ? pushNoteNavigationHistory(get(), path)
+    : null;
+
   set({
     currentNote: { path, content },
     currentNoteRevision: currentNoteRevision + 1,
@@ -150,6 +159,7 @@ function openDraftNoteFromMemory(
     openTabs: updatedTabs,
     isNewlyCreated: false,
     error: null,
+    ...(navigationHistoryUpdate ?? {}),
   });
   return true;
 }
@@ -275,14 +285,17 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   error: null,
   openTabs: [],
   recentlyClosedTabs: [],
+  noteNavigationHistory: [],
+  noteNavigationHistoryIndex: -1,
   draftNotes: {},
   pendingDraftDiscardPath: null,
   displayNames: new Map(),
 
-  openNote: async (path: string, openInNewTab: boolean = false) => {
+  openNote: async (path: string, openInNewTab: boolean = false, options) => {
     flushCurrentPendingEditorMarkdown();
     const openRequestId = ++latestOpenNoteRequestId;
-    if (openDraftNoteFromMemory(set, get, path, openInNewTab)) {
+    const shouldUpdateNavigationHistory = options?.updateNavigationHistory !== false;
+    if (openDraftNoteFromMemory(set, get, path, openInNewTab, shouldUpdateNavigationHistory)) {
       return;
     }
     if (!isSupportedMarkdownPath(path)) {
@@ -376,6 +389,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         path,
         latestOpenedContent.dirtyContent,
       );
+      const navigationHistoryUpdate = shouldUpdateNavigationHistory
+        ? pushNoteNavigationHistory(latestState, path)
+        : null;
 
       updateDisplayName(set, path, tabName);
       set({
@@ -397,6 +413,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
           { maxContentChars: MAX_NOTE_CONTENT_CACHE_CHARS },
         ),
         noteMetadata: nextMetadata,
+        ...(navigationHistoryUpdate ?? {}),
       });
 
       const { rootFolder, fileTreeSortMode } = get();
@@ -412,8 +429,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
   },
 
-  openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
+  openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false, options) => {
     flushCurrentPendingEditorMarkdown();
+    const shouldUpdateNavigationHistory = options?.updateNavigationHistory !== false;
     const normalizedAbsolutePath = normalizeAbsolutePath(absolutePath);
     if (!isAbsolutePath(normalizedAbsolutePath)) {
       set({ error: 'Selected file path must be absolute' });
@@ -502,6 +520,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         normalizedAbsolutePath,
         latestOpenedContent.dirtyContent,
       );
+      const navigationHistoryUpdate = shouldUpdateNavigationHistory
+        ? pushNoteNavigationHistory(latestState, normalizedAbsolutePath)
+        : null;
 
       updateDisplayName(set, normalizedAbsolutePath, tabName);
       set({
@@ -522,6 +543,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
           { maxContentChars: MAX_NOTE_CONTENT_CACHE_CHARS },
         ),
         noteMetadata: nextMetadata,
+        ...(navigationHistoryUpdate ?? {}),
       });
     } catch (error) {
       if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
@@ -656,7 +678,16 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {
-    const { currentNote, openTabs, noteContentsCache, noteMetadata, displayNames, recentNotes } = get();
+    const {
+      currentNote,
+      openTabs,
+      noteContentsCache,
+      noteMetadata,
+      displayNames,
+      recentNotes,
+      noteNavigationHistory,
+      noteNavigationHistoryIndex,
+    } = get();
     const normalizedAbsolutePath = normalizeAbsolutePath(absolutePath);
     if (!isAbsolutePath(normalizedAbsolutePath) || currentNote?.path !== normalizedAbsolutePath) {
       return false;
@@ -681,6 +712,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       ),
       displayNames: remapDisplayNamesForExternalRename(displayNames, normalizedAbsolutePath, normalizedNextPath),
       recentNotes: remapRecentNotesForExternalRename(recentNotes, normalizedAbsolutePath, normalizedNextPath),
+      ...remapNoteNavigationHistoryForExternalRename(
+        noteNavigationHistory,
+        noteNavigationHistoryIndex,
+        normalizedAbsolutePath,
+        normalizedNextPath,
+      ),
     });
     return true;
   },

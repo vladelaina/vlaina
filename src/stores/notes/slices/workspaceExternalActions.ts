@@ -34,6 +34,10 @@ import {
   remapRecentlyClosedTabsForExternalRename,
 } from '../document/recentlyClosedTabState';
 import {
+  pruneNoteNavigationHistoryForExternalDeletion,
+  remapNoteNavigationHistoryForExternalRename,
+} from '../document/noteNavigationHistory';
+import {
   pruneDisplayNamesForExternalDeletion,
   pruneOpenTabsForExternalDeletion,
   pruneRecentNotesForExternalDeletion,
@@ -345,6 +349,8 @@ export function createWorkspaceExternalActions(
         noteMetadata,
         starredEntries,
         recentlyClosedTabs,
+        noteNavigationHistory,
+        noteNavigationHistoryIndex,
         notesPath,
         recentNotes,
         rootFolder,
@@ -389,6 +395,12 @@ export function createWorkspaceExternalActions(
       const nextDisplayNames = remapDisplayNamesForExternalRename(displayNamesForRename, oldPath, newPath);
       const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, oldPath, newPath);
       const nextRecentlyClosedTabs = remapRecentlyClosedTabsForExternalRename(recentlyClosedTabs, oldPath, newPath);
+      const nextNoteNavigationHistory = remapNoteNavigationHistoryForExternalRename(
+        noteNavigationHistory,
+        noteNavigationHistoryIndex,
+        oldPath,
+        newPath,
+      );
       const nextCache = remapCachedNoteContents(cacheForRename, (path) => {
         return remapPathForExternalRename(path, oldPath, newPath);
       });
@@ -439,6 +451,7 @@ export function createWorkspaceExternalActions(
         displayNames: nextDisplayNames,
         recentNotes: nextRecentNotes,
         recentlyClosedTabs: nextRecentlyClosedTabs,
+        ...nextNoteNavigationHistory,
         noteContentsCache: nextCache,
         noteMetadata: nextMetadata ?? noteMetadata,
         rootFolder: nextRootFolder,
@@ -480,6 +493,8 @@ export function createWorkspaceExternalActions(
         noteMetadata,
         starredEntries,
         recentlyClosedTabs,
+        noteNavigationHistory,
+        noteNavigationHistoryIndex,
         notesPath,
         isDirty,
         recentNotes,
@@ -515,6 +530,12 @@ export function createWorkspaceExternalActions(
       const nextDisplayNames = pruneDisplayNamesForExternalDeletion(displayNames, path, preservedPaths);
       const nextRecentNotes = pruneRecentNotesForExternalDeletion(recentNotes, path, preservedPaths);
       const nextRecentlyClosedTabs = pruneRecentlyClosedTabsForExternalDeletion(recentlyClosedTabs, path);
+      const nextNoteNavigationHistory = pruneNoteNavigationHistoryForExternalDeletion(
+        noteNavigationHistory,
+        noteNavigationHistoryIndex,
+        path,
+        preservedPaths,
+      );
       const nextCache = pruneCachedNoteContents(noteContentsCache, (cachedPath) => {
         if (hasPreservedDeletedPath(preservedDeletedPaths, cachedPath)) return false;
         return shouldRemoveForExternalDeletion(cachedPath, path);
@@ -567,6 +588,7 @@ export function createWorkspaceExternalActions(
         displayNames: nextDisplayNames,
         recentNotes: nextRecentNotes,
         recentlyClosedTabs: nextRecentlyClosedTabs,
+        ...nextNoteNavigationHistory,
         noteContentsCache: nextCache,
         noteMetadata: nextMetadata ?? noteMetadata,
         rootFolder: nextRootFolder,

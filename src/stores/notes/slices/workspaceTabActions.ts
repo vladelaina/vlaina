@@ -1,9 +1,12 @@
 import { isAbsolutePath } from '@/lib/storage/adapter';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { updateDisplayName } from '../displayNameUtils';
 import { hasDraftUnsavedChanges, resolveDraftNoteTitle } from '../draftNote';
+import { isSameExternalPath } from '../document/externalPathSync';
 import { openStoredNotePath } from '../openNotePath';
 import { removeCachedNoteContent, setCachedNoteContent } from '../document/noteContentCache';
+import { pruneNoteNavigationHistoryForExternalDeletion } from '../document/noteNavigationHistory';
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import {
@@ -46,6 +49,8 @@ type WorkspaceTabActions = Pick<
   | 'closeNote'
   | 'closeTab'
   | 'reopenClosedTab'
+  | 'navigateBackInNoteHistory'
+  | 'navigateForwardInNoteHistory'
   | 'switchTab'
   | 'reorderTabs'
   | 'syncDisplayName'
@@ -56,6 +61,48 @@ function getKnownClosedTabModifiedAt(modifiedAt: number | null | undefined): num
   return typeof modifiedAt === 'number' && Number.isFinite(modifiedAt)
     ? modifiedAt
     : null;
+}
+
+function isOpenableHistoryTarget(state: NotesState, path: string): boolean {
+  return Boolean(state.draftNotes[path]) || isSupportedMarkdownPath(path);
+}
+
+async function navigateNoteHistory(set: NotesSet, get: NotesGet, delta: -1 | 1): Promise<void> {
+  flushCurrentPendingEditorMarkdown();
+
+  let stateBeforeNavigation = get();
+  let targetIndex = stateBeforeNavigation.noteNavigationHistoryIndex + delta;
+  let targetPath = stateBeforeNavigation.noteNavigationHistory[targetIndex];
+
+  while (targetPath && !isOpenableHistoryTarget(stateBeforeNavigation, targetPath)) {
+    set(pruneNoteNavigationHistoryForExternalDeletion(
+      stateBeforeNavigation.noteNavigationHistory,
+      stateBeforeNavigation.noteNavigationHistoryIndex,
+      targetPath,
+    ));
+    stateBeforeNavigation = get();
+    targetIndex = stateBeforeNavigation.noteNavigationHistoryIndex + delta;
+    targetPath = stateBeforeNavigation.noteNavigationHistory[targetIndex];
+  }
+
+  if (!targetPath) return;
+
+  set({ noteNavigationHistoryIndex: targetIndex });
+
+  await openStoredNotePath(targetPath, {
+    openNote: (path, openInNewTab) =>
+      get().openNote(path, openInNewTab, { updateNavigationHistory: false }),
+    openNoteByAbsolutePath: (path, openInNewTab) =>
+      get().openNoteByAbsolutePath(path, openInNewTab, { updateNavigationHistory: false }),
+  });
+
+  const latestState = get();
+  if (
+    latestState.noteNavigationHistoryIndex === targetIndex &&
+    (!latestState.currentNote || !isSameExternalPath(latestState.currentNote.path, targetPath))
+  ) {
+    set({ noteNavigationHistoryIndex: stateBeforeNavigation.noteNavigationHistoryIndex });
+  }
 }
 
 export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): WorkspaceTabActions {
@@ -119,6 +166,11 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         noteContentsCache: removeCachedNoteContent(noteContentsCache, path),
         isDirty: isCurrentDraft ? false : isDirty,
         pendingDraftDiscardPath: pendingDraftDiscardPath === path ? null : pendingDraftDiscardPath,
+        ...pruneNoteNavigationHistoryForExternalDeletion(
+          get().noteNavigationHistory,
+          get().noteNavigationHistoryIndex,
+          path,
+        ),
       });
 
       if (isCurrentDraft && activateFallback) {
@@ -419,6 +471,10 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         set({ recentlyClosedTabs: remainingTabs });
       }
     },
+
+    navigateBackInNoteHistory: () => navigateNoteHistory(set, get, -1),
+
+    navigateForwardInNoteHistory: () => navigateNoteHistory(set, get, 1),
 
     switchTab: (path: string) => {
       void openStoredNotePath(path, {

@@ -86,14 +86,17 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     ].join('\n'));
   });
 
-  it('caps pathological body blank line runs before they become editor nodes', () => {
-    const blankRun = Array.from({ length: 200 }, () => '').join('\n');
+  it('preserves long body blank line runs as editor-visible blank lines', () => {
+    const blankLineCount = 200;
+    const blankRun = Array.from({ length: blankLineCount }, () => '').join('\n');
     const markdown = ['before', blankRun, 'after'].join('\n');
     const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
 
-    expect(editorInput.split('\n').length).toBeLessThan(40);
+    expect(editorInput.split('\n').filter((line) => line === MARKDOWN_BLANK_LINE_PLACEHOLDER))
+      .toHaveLength(blankLineCount);
     expect(editorInput).toContain('before');
     expect(editorInput).toContain('after');
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
   it('does not cap long blank line runs inside fenced code blocks', () => {
@@ -450,6 +453,29 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
 
     expect(editorInput).toBe([
       '<p align="center">HTML</p>',
+      '',
+      RENDERED_HTML_BOUNDARY_PLACEHOLDER,
+      'after',
+    ].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
+  });
+
+  it('uses an editor-only blank line block after rendered multi-line html blocks', () => {
+    const markdown = [
+      '<p align="center">',
+      '  <img src="logo.png"><br>',
+      'HTML',
+      '</p>',
+      '',
+      'after',
+    ].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toBe([
+      '<p align="center">',
+      '  <img src="logo.png"><br>',
+      'HTML',
+      '</p>',
       '',
       RENDERED_HTML_BOUNDARY_PLACEHOLDER,
       'after',

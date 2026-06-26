@@ -79,6 +79,10 @@ export interface RecentlyClosedTabState {
   modifiedAt?: number | null;
 }
 
+export interface OpenNoteOptions {
+  updateNavigationHistory?: boolean;
+}
+
 export interface DraftNoteEntry {
   parentPath: string | null;
   name: string;
@@ -114,6 +118,8 @@ export interface NotesState {
   recentNotes: string[];
   openTabs: NoteTabState[];
   recentlyClosedTabs: RecentlyClosedTabState[];
+  noteNavigationHistory: string[];
+  noteNavigationHistoryIndex: number;
   noteContentsCache: Map<string, NoteContentCacheEntry>;
   noteContentsCacheRevision: number;
   draftNotes: Record<string, DraftNoteEntry>;
@@ -138,8 +144,8 @@ export interface NotesState {
 export interface NotesActions {
   loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
-  openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
-  openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
+  openNote: (path: string, openInNewTab?: boolean, options?: OpenNoteOptions) => Promise<void>;
+  openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean, options?: OpenNoteOptions) => Promise<void>;
   prefetchNote: (path: string) => Promise<void>;
   cancelPrefetchNote: (path: string) => void;
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
@@ -168,6 +174,8 @@ export interface NotesActions {
   closeNote: () => Promise<void>;
   closeTab: (path: string) => Promise<void>;
   reopenClosedTab: () => Promise<void>;
+  navigateBackInNoteHistory: () => Promise<void>;
+  navigateForwardInNoteHistory: () => Promise<void>;
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<void>;

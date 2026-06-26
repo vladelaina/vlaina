@@ -23,6 +23,7 @@ import {
   getNextFootnoteRefId,
   slashCommandDefinitions,
 } from './slashCommandDefinitions';
+import { getSlashTextRange } from './slashState';
 
 function createDoc(
   nodes: Array<{ type: string; id?: string; label?: string }>,
@@ -199,6 +200,170 @@ describe('slashCommandDefinitions', () => {
     expect(tr.scrollIntoView).toHaveBeenCalled();
     expect(domDispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'editor:block-user-input' }));
     expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('replaces a middle empty paragraph with an HTML block without adding another gap', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraph = schema.nodes.paragraph;
+    const htmlBlock = schema.nodes.html_block;
+    expect(paragraph).toBeDefined();
+    expect(htmlBlock).toBeDefined();
+
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+      paragraph.create(null, schema.text('hi')),
+      paragraph.create(),
+      paragraph.create(null, schema.text('1')),
+    ]));
+
+    let emptyParagraphPos = -1;
+    view.state.doc.forEach((node, offset) => {
+      if (emptyParagraphPos >= 0) return;
+      if (node.type.name === 'paragraph' && node.content.size === 0) {
+        emptyParagraphPos = offset;
+      }
+    });
+    expect(emptyParagraphPos).toBeGreaterThanOrEqual(0);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+
+    applySlashCommand(editor.ctx, 'html-block');
+
+    const children: Array<{ type: string; text: string; value?: string }> = [];
+    view.state.doc.forEach((node) => {
+      children.push({
+        type: node.type.name,
+        text: node.textContent,
+        value: typeof node.attrs.value === 'string' ? node.attrs.value : undefined,
+      });
+    });
+    expect(children).toEqual([
+      { type: 'paragraph', text: 'hi', value: undefined },
+      { type: 'html_block', text: '', value: '' },
+      { type: 'paragraph', text: '1', value: undefined },
+    ]);
+
+    await editor.destroy();
+  });
+
+  it('replaces a middle editable blank-line slash query without preserving the zero-width gap', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraph = schema.nodes.paragraph;
+    const editableBlankSlashText = '\u200B/html';
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+      paragraph.create(null, schema.text('hi')),
+      paragraph.create(null, schema.text(editableBlankSlashText)),
+      paragraph.create(null, schema.text('1')),
+    ]));
+
+    let slashParagraphPos = -1;
+    view.state.doc.forEach((node, offset) => {
+      if (slashParagraphPos >= 0) return;
+      if (node.textContent === editableBlankSlashText) {
+        slashParagraphPos = offset;
+      }
+    });
+    expect(slashParagraphPos).toBeGreaterThanOrEqual(0);
+    view.dispatch(
+      view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, slashParagraphPos + 1 + editableBlankSlashText.length)
+      )
+    );
+
+    const slashRange = getSlashTextRange(view);
+    expect(slashRange).not.toBeNull();
+    view.dispatch(view.state.tr.delete(slashRange!.deleteFrom, slashRange!.deleteTo));
+    applySlashCommand(editor.ctx, 'html-block');
+
+    const children: Array<{ type: string; text: string; value?: string }> = [];
+    view.state.doc.forEach((node) => {
+      children.push({
+        type: node.type.name,
+        text: node.textContent,
+        value: typeof node.attrs.value === 'string' ? node.attrs.value : undefined,
+      });
+    });
+    expect(children).toEqual([
+      { type: 'paragraph', text: 'hi', value: undefined },
+      { type: 'html_block', text: '', value: '' },
+      { type: 'paragraph', text: '1', value: undefined },
+    ]);
+
+    await editor.destroy();
+  });
+
+  it('does not insert an extra empty paragraph before an existing markdown blank-line block', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraph = schema.nodes.paragraph;
+    const htmlBlock = schema.nodes.html_block;
+    const editableBlankSlashText = '\u200B/html';
+    const markdownBlankLineValue = '<!--vlaina-markdown-blank-line-->';
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+      paragraph.create(null, schema.text('hi')),
+      htmlBlock.create({ value: markdownBlankLineValue }),
+      paragraph.create(null, schema.text(editableBlankSlashText)),
+      htmlBlock.create({ value: markdownBlankLineValue }),
+      paragraph.create(null, schema.text('1')),
+    ]));
+
+    let slashParagraphPos = -1;
+    view.state.doc.forEach((node, offset) => {
+      if (slashParagraphPos >= 0) return;
+      if (node.textContent === editableBlankSlashText) {
+        slashParagraphPos = offset;
+      }
+    });
+    expect(slashParagraphPos).toBeGreaterThanOrEqual(0);
+    view.dispatch(
+      view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, slashParagraphPos + 1 + editableBlankSlashText.length)
+      )
+    );
+
+    const slashRange = getSlashTextRange(view);
+    expect(slashRange).not.toBeNull();
+    view.dispatch(view.state.tr.delete(slashRange!.deleteFrom, slashRange!.deleteTo));
+    applySlashCommand(editor.ctx, 'html-block');
+
+    const children: Array<{ type: string; text: string; value?: string }> = [];
+    view.state.doc.forEach((node) => {
+      children.push({
+        type: node.type.name,
+        text: node.textContent,
+        value: typeof node.attrs.value === 'string' ? node.attrs.value : undefined,
+      });
+    });
+    expect(children).toEqual([
+      { type: 'paragraph', text: 'hi', value: undefined },
+      { type: 'html_block', text: '', value: markdownBlankLineValue },
+      { type: 'html_block', text: '', value: '' },
+      { type: 'html_block', text: '', value: markdownBlankLineValue },
+      { type: 'paragraph', text: '1', value: undefined },
+    ]);
+
+    await editor.destroy();
   });
 
   it('selects the abbreviation placeholder after inserting the abbreviation template', async () => {

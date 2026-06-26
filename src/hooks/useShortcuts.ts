@@ -91,6 +91,19 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
   }), [builtinHandlers, extraHandlers]);
 
   useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.defaultPrevented) {
+        return;
+      }
+      if ((!e.ctrlKey && !e.metaKey) || e.deltaY === 0) {
+        return;
+      }
+
+      e.preventDefault();
+      const currentFontSize = useAppUIStore.getState().fontSize;
+      setFontSize(currentFontSize + (e.deltaY < 0 ? 1 : -1));
+    };
+
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.defaultPrevented) {
         return;
@@ -189,7 +202,11 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       }
     };
 
+    window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [scope, appViewMode, handlers, restoreLastDeletedItem, fontSize, resetFontSize, setFontSize]);
 }

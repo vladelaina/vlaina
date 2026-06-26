@@ -33,6 +33,10 @@ describe('NotesTabRow', () => {
     expect(source).not.toContain('flex min-w-0 max-w-[var(--vlaina-width-dialog-default)] items-center overflow-x-auto');
     expect(source).not.toContain('flex min-w-0 flex-1 items-center overflow-x-auto');
     expect(source).toContain('notes-tab-row-new-note-button app-no-drag flex h-7');
+    expect(source).toContain('notes-tab-row-history-controls flex h-7 w-14');
+    expect(source).toContain('notes-tab-row-history-button app-no-drag flex h-7 w-7');
+    expect(source).toContain('navigateBackInNoteHistory');
+    expect(source).toContain('navigateForwardInNoteHistory');
     expect(source).toContain('flex h-7 w-7');
     expect(source).toContain('h-7 w-7 shrink-0');
     expect(source).toContain('items-center justify-center rounded-full');

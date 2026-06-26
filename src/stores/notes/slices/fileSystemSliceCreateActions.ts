@@ -18,6 +18,7 @@ import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { setCachedNoteContent } from '../document/noteContentCache';
+import { pushNoteNavigationHistory } from '../document/noteNavigationHistory';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
@@ -70,6 +71,7 @@ function finalizeCreatedNote({
   openTabs,
   currentNote,
   currentRootFolder,
+  navigationState,
 }: {
   set: FileSystemSliceSet;
   notesPath: string;
@@ -85,6 +87,7 @@ function finalizeCreatedNote({
   openTabs: NotesStore['openTabs'];
   currentNote: NotesStore['currentNote'];
   currentRootFolder: NonNullable<NotesStore['rootFolder']>;
+  navigationState: Pick<NotesStore, 'currentNote' | 'noteNavigationHistory' | 'noteNavigationHistoryIndex'>;
 }) {
   const parentPath = relativePath.includes('/')
     ? relativePath.slice(0, relativePath.lastIndexOf('/'))
@@ -118,6 +121,7 @@ function finalizeCreatedNote({
       updateBaseline: true,
       size,
     }),
+    ...pushNoteNavigationHistory(navigationState, relativePath),
   });
 
   persistWorkspaceSnapshot(notesPath, {
@@ -162,7 +166,17 @@ export function createFileSystemCreateActions(
             draftNotes,
             displayNames,
           });
-          set(nextState);
+          set({
+            ...nextState,
+            ...pushNoteNavigationHistory(
+              {
+                currentNote,
+                noteNavigationHistory: get().noteNavigationHistory,
+                noteNavigationHistoryIndex: get().noteNavigationHistoryIndex,
+              },
+              draftPath,
+            ),
+          });
           return draftPath;
         }
 
@@ -194,7 +208,17 @@ export function createFileSystemCreateActions(
               draftNotes,
               displayNames,
             });
-            set(nextState);
+            set({
+              ...nextState,
+              ...pushNoteNavigationHistory(
+                {
+                  currentNote,
+                  noteNavigationHistory: get().noteNavigationHistory,
+                  noteNavigationHistoryIndex: get().noteNavigationHistoryIndex,
+                },
+                draftPath,
+              ),
+            });
             return draftPath;
           }
 
@@ -236,6 +260,7 @@ export function createFileSystemCreateActions(
           openTabs: latestState.openTabs,
           currentNote: latestState.currentNote,
           currentRootFolder: latestRootFolder,
+          navigationState: latestState,
         });
       } catch (error) {
         if (notesPathForError && !isActiveNotesPath(get, notesPathForError)) {
@@ -392,6 +417,7 @@ export function createFileSystemCreateActions(
           openTabs: latestState.openTabs,
           currentNote: latestState.currentNote,
           currentRootFolder: latestRootFolder,
+          navigationState: latestState,
         });
       } catch (error) {
         if (notesPath && !isActiveNotesPath(get, notesPath)) {

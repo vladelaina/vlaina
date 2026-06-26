@@ -690,7 +690,7 @@
   --vlaina-color-tab-muted-fg: #a1a1aa;
   --vlaina-color-tab-muted-hover-fg: #52525b;
   --vlaina-color-tab-close-fg: #d4d4d8;
-  --vlaina-color-tab-close-hover-fg: #71717a;
+  --vlaina-color-tab-close-hover-fg: var(--vlaina-accent);
   --vlaina-color-tab-separator: #e4e4e7;
   --vlaina-color-tab-overlay-bg: rgb(255 255 255 / 0.9);
   --vlaina-color-attachment-surface: #f3f4f6;
@@ -709,9 +709,9 @@
   --vlaina-color-find-match-bg: rgba(255, 221, 87, 0.82);
   --vlaina-color-find-match-active-bg: rgba(255, 176, 32, 0.96);
   --vlaina-shadow-find-match-active: inset 0 0 0 1px rgba(120, 53, 15, 0.2), 0 0 0 1px rgba(255, 176, 32, 0.45);
-  --vlaina-color-mark-highlight-bg: #fef08a;
-  --vlaina-color-mark-highlight-fg: var(--vlaina-color-text-primary);
-  --vlaina-color-mark-highlight-surface-bg: color-mix(in srgb, var(--vlaina-accent) 22%, transparent);
+  --vlaina-color-mark-highlight-bg: #ccfbf1;
+  --vlaina-color-mark-highlight-fg: #115e59;
+  --vlaina-color-mark-highlight-surface-bg: #ccfbf138;
   --vlaina-color-callout-gray-bg: color-mix(in srgb, var(--vlaina-text-tertiary) 10%, var(--vlaina-bg-secondary));
   --vlaina-color-callout-icon-hover-bg: color-mix(in srgb, var(--vlaina-text-primary) 8%, transparent);
   --vlaina-color-frontmatter-border: color-mix(in srgb, var(--vlaina-border), transparent 45%);
@@ -1083,7 +1083,7 @@
   --vlaina-color-tab-muted-fg: #797981;
   --vlaina-color-tab-muted-hover-fg: #c7c7cc;
   --vlaina-color-tab-close-fg: #5a5a62;
-  --vlaina-color-tab-close-hover-fg: #b4b4b8;
+  --vlaina-color-tab-close-hover-fg: var(--vlaina-accent);
   --vlaina-color-tab-separator: #25252a;
   --vlaina-color-tab-overlay-bg: rgb(13 13 14 / 0.9);
   --vlaina-color-attachment-surface: #19191c;
@@ -1102,8 +1102,9 @@
   --vlaina-color-find-match-bg: rgb(250 204 21 / 0.46);
   --vlaina-color-find-match-active-bg: rgb(251 191 36 / 0.78);
   --vlaina-shadow-find-match-active: inset 0 0 0 1px rgba(255, 251, 235, 0.08), 0 0 0 1px rgba(251, 191, 36, 0.38);
-  --vlaina-color-mark-highlight-bg: #854d0e;
-  --vlaina-color-mark-highlight-fg: #fef9c3;
+  --vlaina-color-mark-highlight-bg: #134e4a;
+  --vlaina-color-mark-highlight-fg: #2dd4bf;
+  --vlaina-color-mark-highlight-surface-bg: #134e4a38;
   --vlaina-color-media-surface: #000000;
   --vlaina-color-media-overlay-border: rgba(248, 250, 252, 0.32);
   --vlaina-color-media-overlay-bg: rgba(15, 23, 42, 0.76);

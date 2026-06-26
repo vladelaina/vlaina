@@ -38,6 +38,22 @@ function createTextblockSelection() {
   };
 }
 
+function createTextblockSelectionAt(head: number) {
+  const text = 'alpha';
+  return {
+    empty: true,
+    head,
+    $from: {
+      parent: {
+        content: { size: text.length },
+        textBetween: vi.fn((from: number, to: number) => text.slice(from, to)),
+        isTextblock: true,
+      },
+      parentOffset: head,
+    },
+  };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -155,4 +171,56 @@ describe('textBlockCaretOverlayPlugin', () => {
 
     overlay.destroy();
   });
+
+  it.each(['ArrowDown', 'ArrowUp'])(
+    'does not redraw a stale caret overlay before %s updates selection',
+    (key) => {
+      const animationFrames: FrameRequestCallback[] = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+        animationFrames.push(callback);
+        return animationFrames.length;
+      });
+      vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+      vi.stubGlobal('ResizeObserver', TestResizeObserver);
+
+      const editorDom = document.createElement('div');
+      document.body.appendChild(editorDom);
+
+      const view = {
+        dom: editorDom,
+        composing: false,
+        hasFocus: () => true,
+        coordsAtPos: vi.fn((pos: number) => ({
+          left: pos === 1 ? 24 : 48,
+          top: 12,
+          bottom: 32,
+        })),
+        domAtPos: vi.fn(),
+        state: {
+          selection: createTextblockSelectionAt(1),
+        },
+      };
+
+      const overlay = new TextBlockCaretOverlayView(view as any);
+      animationFrames.shift()?.(0);
+      expect(document.querySelector<HTMLElement>('.editor-textblock-caret-overlay')?.style.left).toBe('24px');
+
+      editorDom.dispatchEvent(new KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+      }));
+
+      expect(document.querySelector('.editor-textblock-caret-overlay')).toBeNull();
+      animationFrames.shift()?.(0);
+      expect(document.querySelector('.editor-textblock-caret-overlay')).toBeNull();
+
+      view.state.selection = createTextblockSelectionAt(2);
+      overlay.update(view as any);
+      animationFrames.shift()?.(0);
+
+      expect(document.querySelector<HTMLElement>('.editor-textblock-caret-overlay')?.style.left).toBe('48px');
+
+      overlay.destroy();
+    },
+  );
 });

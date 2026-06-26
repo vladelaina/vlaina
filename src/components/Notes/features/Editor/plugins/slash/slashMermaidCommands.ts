@@ -6,6 +6,7 @@ import {
   findInsertedNodePos,
   getSlashInsertViewportPosition,
   moveSelectionAfterInsertedNode,
+  replaceSelectionOrCurrentBlankTextBlockWithNode,
 } from './slashInsertUtils';
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
@@ -21,7 +22,7 @@ export function insertMermaidNodeAndOpenEditor(ctx: Ctx) {
   try {
     const position = getSlashInsertViewportPosition(ctx);
     const node = type.create({ code: '' });
-    const tr = state.tr.replaceSelectionWith(node);
+    const tr = replaceSelectionOrCurrentBlankTextBlockWithNode(state, node);
     const preferredPos = tr.mapping.map(state.selection.from, -1);
     const nodePos = findInsertedNodePos({
       doc: tr.doc,

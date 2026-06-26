@@ -210,6 +210,28 @@ async function insertImeText(page: Page, text: string): Promise<void> {
   }, { editorSelector: EDITOR_SELECTOR, text });
 }
 
+async function expectEditorFocusedAtFirstLineEnd(page: Page): Promise<void> {
+  await expect.poll(async () => page.evaluate((editorSelector) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const firstTextBlock = editor?.querySelector<HTMLElement>('h1, h2, h3, h4, h5, h6, p');
+    const selection = (window as any).__vlainaE2E.getEditorSelectionSummary();
+    const expectedLineEnd = (firstTextBlock?.textContent?.length ?? 0) + 1;
+    return {
+      focused: Boolean(editor && (
+        document.activeElement === editor ||
+        editor.contains(document.activeElement)
+      )),
+      atFirstLineEnd: selection?.from === expectedLineEnd,
+      selectionEmpty: selection?.empty ?? false,
+      selectionFrom: selection?.from ?? null,
+    };
+  }, EDITOR_SELECTOR), { timeout: 5_000 }).toMatchObject({
+    focused: true,
+    atFirstLineEnd: true,
+    selectionEmpty: true,
+  });
+}
+
 async function getTypingDiagnostics(page: Page, markers: string[]): Promise<TypingDiagnostics> {
   return page.evaluate(({ editorSelector, markers, scrollRootSelector }) => {
     const editor = document.querySelector<HTMLElement>(editorSelector);
@@ -252,6 +274,28 @@ function expectMarkersAwayFromLastLine(diagnostics: TypingDiagnostics, markers: 
 
 test.describe('notes typing caret position', () => {
   test.setTimeout(120_000);
+
+  test('focuses the editor body when opening a populated note', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-open-populated-autofocus');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'populated-autofocus-e2e.md',
+        content: [
+          '# Populated Autofocus',
+          '',
+          'Opening this existing note should place the cursor in the editor without a click.',
+        ].join('\n'),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Opening this existing note');
+      await expectEditorFocusedAtFirstLineEnd(page);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('keeps middle-of-note typing at the clicked paragraph instead of jumping to the last line', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-position');

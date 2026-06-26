@@ -10,12 +10,14 @@ export interface WorkspaceSlice {
   error: NotesStore['error'];
   openTabs: NotesStore['openTabs'];
   recentlyClosedTabs: NotesStore['recentlyClosedTabs'];
+  noteNavigationHistory: NotesStore['noteNavigationHistory'];
+  noteNavigationHistoryIndex: NotesStore['noteNavigationHistoryIndex'];
   draftNotes: NotesStore['draftNotes'];
   pendingDraftDiscardPath: NotesStore['pendingDraftDiscardPath'];
   displayNames: NotesStore['displayNames'];
 
-  openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
-  openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
+  openNote: NotesStore['openNote'];
+  openNoteByAbsolutePath: NotesStore['openNoteByAbsolutePath'];
   prefetchNote: NotesStore['prefetchNote'];
   cancelPrefetchNote: NotesStore['cancelPrefetchNote'];
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
@@ -32,6 +34,8 @@ export interface WorkspaceSlice {
   closeNote: () => Promise<void>;
   closeTab: (path: string) => Promise<void>;
   reopenClosedTab: () => Promise<void>;
+  navigateBackInNoteHistory: NotesStore['navigateBackInNoteHistory'];
+  navigateForwardInNoteHistory: NotesStore['navigateForwardInNoteHistory'];
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   syncDisplayName: (path: string, title: string) => void;

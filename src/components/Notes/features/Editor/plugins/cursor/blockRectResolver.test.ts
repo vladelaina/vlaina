@@ -165,6 +165,14 @@ describe('createBlockRectResolver', () => {
     expect(collectTextContentBounds(paragraph)).toEqual({
       left: 10,
       right: 90,
+      lineRects: [
+        {
+          left: 10,
+          top: 20,
+          right: 90,
+          bottom: 42,
+        },
+      ],
     });
     expect(rectIterator).not.toHaveBeenCalled();
 
@@ -638,6 +646,14 @@ describe('createBlockRectResolver', () => {
           bottom: 64,
           contentLeft: 140,
           contentRight: 190,
+          contentLineRects: [
+            {
+              left: 140,
+              top: 44,
+              right: 190,
+              bottom: 60,
+            },
+          ],
           allowInsideTrailingClick: true,
         },
       ]);
@@ -881,6 +897,14 @@ describe('createBlockRectResolver', () => {
           bottom: 64,
           contentLeft: 60,
           contentRight: 128,
+          contentLineRects: [
+            {
+              left: 60,
+              top: 36,
+              right: 128,
+              bottom: 60,
+            },
+          ],
           allowInsideTrailingClick: true,
         },
       ]);

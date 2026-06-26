@@ -4,7 +4,10 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { parseVideoUrl, sanitizeVideoUrlInput } from '../video';
-import { findInsertedNodePos } from './slashInsertUtils';
+import {
+  findInsertedNodePos,
+  replaceSelectionOrCurrentBlankTextBlockWithNode,
+} from './slashInsertUtils';
 import { openSlashVideoPrompt } from './slashVideoPrompt';
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
@@ -25,7 +28,7 @@ function insertVideoNode(ctx: Ctx, src: string) {
 
   try {
     const videoNode = videoType.create({ src: safeSrc });
-    const tr = state.tr.replaceSelectionWith(videoNode);
+    const tr = replaceSelectionOrCurrentBlankTextBlockWithNode(state, videoNode);
     const preferredPos = tr.mapping.map(state.selection.from, -1);
     const nodePos = findInsertedNodePos({
       doc: tr.doc,

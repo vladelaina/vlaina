@@ -8,6 +8,7 @@ import {
   findInsertedNodePos,
   getSlashInsertViewportPosition,
   moveSelectionAfterInsertedNode,
+  replaceSelectionOrCurrentBlankTextBlockWithNode,
 } from './slashInsertUtils';
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
@@ -24,7 +25,7 @@ export function insertHtmlBlockNodeAndOpenEditor(ctx: Ctx) {
     const position = getSlashInsertViewportPosition(ctx);
     const value = '';
     const node = type.create({ value });
-    const tr = state.tr.replaceSelectionWith(node);
+    const tr = replaceSelectionOrCurrentBlankTextBlockWithNode(state, node);
     const preferredPos = tr.mapping.map(state.selection.from, -1);
     const nodePos = findInsertedNodePos({
       doc: tr.doc,

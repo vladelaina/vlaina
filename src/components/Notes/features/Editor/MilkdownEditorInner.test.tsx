@@ -12,7 +12,10 @@ import {
   replaceEditorMarkdown,
   shouldUseLazyBlockVisibility,
 } from './MilkdownEditorInner';
-import { createDocumentStartTextSelection } from './utils/editorSelection';
+import {
+  createDocumentFirstLineEndTextSelection,
+  createDocumentStartTextSelection,
+} from './utils/editorSelection';
 import {
   blankAreaDragBoxPluginKey,
   CLEAR_BLOCKS_ACTION,
@@ -500,7 +503,7 @@ describe('replaceEditorMarkdown', () => {
 
     const selection = setSelection.mock.calls[0]?.[0];
     expect(selection).toBeInstanceOf(TextSelection);
-    expect((selection as TextSelection).from).toBe(2);
+    expect((selection as TextSelection).from).toBe(2 + 'After leading blank line'.length);
     expect(setMeta).toHaveBeenCalledWith(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
     expect(dispatch).toHaveBeenCalledWith(transaction);
   });
@@ -709,8 +712,42 @@ describe('createDocumentStartTextSelection', () => {
   });
 });
 
+describe('createDocumentFirstLineEndTextSelection', () => {
+  it('skips a leading atomic block and places the cursor at the end of the first text block line', () => {
+    const schema = new ProseSchema({
+      nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+          content: 'text*',
+          group: 'block',
+          toDOM: () => ['p', 0],
+          parseDOM: [{ tag: 'p' }],
+        },
+        text: { group: 'inline' },
+        atom_block: {
+          group: 'block',
+          atom: true,
+          toDOM: () => ['div'],
+          parseDOM: [{ tag: 'div' }],
+        },
+      },
+    });
+    const text = 'First editable block';
+    const doc = schema.node('doc', null, [
+      schema.nodes.atom_block.create(),
+      schema.nodes.paragraph.create(null, schema.text(text)),
+    ]);
+
+    const selection = createDocumentFirstLineEndTextSelection(doc);
+
+    expect(selection).toBeInstanceOf(TextSelection);
+    expect(selection.from).toBe(2 + text.length);
+    expect(selection.empty).toBe(true);
+  });
+});
+
 describe('normalizeInitialEditorSelection', () => {
-  it('moves an initial atomic node selection into the first editable text block', () => {
+  it('moves an initial atomic node selection to the end of the first editable text block line', () => {
     const schema = new ProseSchema({
       nodes: {
         doc: { content: 'block+' },
@@ -730,9 +767,10 @@ describe('normalizeInitialEditorSelection', () => {
         },
       },
     });
+    const text = 'First editable block';
     const doc = schema.node('doc', null, [
       schema.nodes.atom_block.create(),
-      schema.nodes.paragraph.create(null, schema.text('First editable block')),
+      schema.nodes.paragraph.create(null, schema.text(text)),
     ]);
     const transaction = {
       setSelection: vi.fn(function setSelection(_selection: unknown) {
@@ -755,7 +793,7 @@ describe('normalizeInitialEditorSelection', () => {
 
     const nextSelection = transaction.setSelection.mock.calls[0]?.[0];
     expect(nextSelection).toBeInstanceOf(TextSelection);
-    expect((nextSelection as TextSelection).from).toBe(2);
+    expect((nextSelection as TextSelection).from).toBe(2 + text.length);
     expect(transaction.setMeta).toHaveBeenCalledWith(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
     expect(view.dispatch).toHaveBeenCalledWith(transaction);
   });

@@ -286,6 +286,42 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('preserves long body and terminal blank line runs when saving markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const bodyBlankLineCount = 64;
+    const terminalBlankLineCount = 32;
+    const content = `${[
+      '---',
+      'title: Blank Lines',
+      '---',
+      '',
+      '# Alpha',
+      '',
+      'Before long run',
+      ...Array.from({ length: bodyBlankLineCount }, () => ''),
+      'After long run',
+    ].join('\n')}${'\n'.repeat(terminalBlankLineCount)}`;
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content,
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', content);
+    expect(result.content).toBe(content);
+    expect(result.nextCache.get('alpha.md')?.content).toBe(content);
+
+    vi.useRealTimers();
+  });
+
   it('preserves editor-created empty paragraph runs before writing markdown', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -608,6 +644,29 @@ describe('saveNoteDocument', () => {
 
   it('preserves markdown blank lines between list items when loading markdown', async () => {
     const markdown = ['- one', '', '', '', '- two'].join('\n');
+    adapter.readFile.mockResolvedValue(markdown);
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+
+    expect(result.content).toBe(markdown);
+    expect(result.nextCache.get('alpha.md')?.content).toBe(markdown);
+  });
+
+  it('preserves long body and terminal blank line runs when loading markdown', async () => {
+    const bodyBlankLineCount = 64;
+    const terminalBlankLineCount = 32;
+    const markdown = `${[
+      '# Alpha',
+      '',
+      'Before long run',
+      ...Array.from({ length: bodyBlankLineCount }, () => ''),
+      'After long run',
+    ].join('\n')}${'\n'.repeat(terminalBlankLineCount)}`;
     adapter.readFile.mockResolvedValue(markdown);
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
