@@ -122,7 +122,6 @@ export function NotesView({
   const openNote = useNotesStore(s => s.openNote);
   const loadStarred = useNotesStore(s => s.loadStarred);
   const deleteNote = useNotesStore(s => s.deleteNote);
-  const loadAssets = useNotesStore(s => s.loadAssets);
   const saveNote = useNotesStore(s => s.saveNote);
   const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
   const clearAssetUrlCache = useNotesStore(s => s.clearAssetUrlCache);
@@ -417,7 +416,6 @@ export function NotesView({
     pendingStarredNavigation,
     pendingOpenMarkdownTargetVaultPath,
     loadStarred,
-    loadAssets,
     loadFileTree,
     cleanupAssetTempFiles,
     clearAssetUrlCache,

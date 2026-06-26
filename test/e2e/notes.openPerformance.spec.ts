@@ -1,10 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {
   EDITOR_SELECTOR,
   SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
   getOpenBridgePages,
   launchIsolatedElectron,
+  setAppViewMode,
 } from './notesE2E';
 
 function createLongParagraph(index: number): string {
@@ -24,6 +27,78 @@ function createLongMarkdown(blockCount: number): string {
   }
   blocks.push('Final performance sentinel paragraph.');
   return blocks.join('\n');
+}
+
+function getVaultStorageKey(vaultPath: string): string {
+  const normalized = vaultPath.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '') || vaultPath;
+  let hash = 2166136261;
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `vault-${(hash >>> 0).toString(36)}`;
+}
+
+async function writeVaultWorkspace(
+  userDataDir: string,
+  vaultPath: string,
+  workspace: { currentNotePath: string | null; expandedFolders?: string[] },
+): Promise<void> {
+  const workspaceDir = path.join(userDataDir, '.vlaina', 'notes', 'vaults', getVaultStorageKey(vaultPath));
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(
+    path.join(workspaceDir, 'workspace.json'),
+    JSON.stringify({
+      currentNotePath: workspace.currentNotePath,
+      expandedFolders: workspace.expandedFolders ?? [],
+      fileTreeSortMode: 'name-asc',
+    }, null, 2),
+    'utf8',
+  );
+}
+
+async function createManyFileVaultFixture(
+  rootPath: string,
+  fileCount: number,
+): Promise<{ vaultPath: string; restoreRelativePath: string; restoreAbsolutePath: string }> {
+  const vaultPath = path.join(rootPath, `large-vault-${Date.now().toString(36)}`);
+  const directoryCount = 60;
+  const restoreRelativePath = 'section-00/note-00000.md';
+  await fs.mkdir(vaultPath, { recursive: true });
+
+  for (let directoryIndex = 0; directoryIndex < directoryCount; directoryIndex += 1) {
+    await fs.mkdir(path.join(vaultPath, `section-${String(directoryIndex).padStart(2, '0')}`), { recursive: true });
+  }
+  await fs.mkdir(path.join(vaultPath, 'section-00', 'nested-expanded'), { recursive: true });
+
+  const writes: Promise<void>[] = [];
+  for (let index = 0; index < fileCount; index += 1) {
+    const directory = `section-${String(index % directoryCount).padStart(2, '0')}`;
+    const filename = `note-${String(index).padStart(5, '0')}.md`;
+    const content = [
+      '---',
+      `createdAt: ${1_700_000_000_000 + index}`,
+      `updatedAt: ${1_700_100_000_000 + index}`,
+      '---',
+      '',
+      `# Large Vault Note ${index}`,
+      '',
+      'Startup should not wait for every note metadata read before showing the file tree.',
+      '',
+    ].join('\n');
+    writes.push(fs.writeFile(path.join(vaultPath, directory, filename), content, 'utf8'));
+
+    if (writes.length >= 128) {
+      await Promise.all(writes.splice(0));
+    }
+  }
+  await Promise.all(writes);
+
+  return {
+    vaultPath,
+    restoreRelativePath,
+    restoreAbsolutePath: path.join(vaultPath, restoreRelativePath),
+  };
 }
 
 async function measureLongNoteOpenAndDrag(page: Page, notePath: string, contentCharCount: number, label: string) {
@@ -200,6 +275,162 @@ async function measureLongNoteOpenAndDrag(page: Page, notePath: string, contentC
 
 test.describe('notes long markdown open performance', () => {
   test.setTimeout(120_000);
+
+  test('shows a large vault file tree before full metadata indexing finishes', async () => {
+    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-vault-open');
+
+    try {
+      const fixture = await createManyFileVaultFixture(userDataDir, 1800);
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await setAppViewMode(page, 'notes');
+      const openStartedAt = Date.now();
+      await page.evaluate(
+        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
+        { path: fixture.vaultPath, name: 'Large Vault Performance' },
+      );
+
+      await expect.poll(async () => page.evaluate((expectedVaultPath) => {
+        const vaultState = (window as any).__vlainaE2E.getVaultState();
+        const treeMetrics = (window as any).__vlainaE2E.getNotesTreeMetrics();
+        return {
+          currentVaultPath: vaultState.currentVault?.path ?? null,
+          rootVisible: Boolean(document.querySelector('[data-file-tree-primary="true"]')),
+          visibleFolderCount: document.querySelectorAll('[data-file-tree-kind="folder"]').length,
+          isLoading: treeMetrics.isLoading,
+          expectedVaultPath,
+        };
+      }, fixture.vaultPath), { timeout: 30_000 }).toMatchObject({
+        currentVaultPath: fixture.vaultPath,
+        rootVisible: true,
+        visibleFolderCount: expect.any(Number),
+      });
+
+      await expect.poll(async () => page.locator('[data-file-tree-kind="folder"]').count(), { timeout: 30_000 })
+        .toBeGreaterThan(0);
+      const firstTreeVisibleMs = Date.now() - openStartedAt;
+
+      await expect.poll(async () => page.evaluate(() => (
+        (window as any).__vlainaE2E.getNotesTreeMetrics().files
+      )), { timeout: 30_000 }).toBe(1800);
+      const treeMetrics = await page.evaluate(() => (window as any).__vlainaE2E.getNotesTreeMetrics());
+      console.info('[notes-large-vault-open-performance]', {
+        firstTreeVisibleMs,
+        ...treeMetrics,
+      });
+
+      expect(treeMetrics.files).toBe(1800);
+      expect(firstTreeVisibleMs).toBeLessThan(5_000);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('shows a large vault file tree quickly after switching from another vault', async () => {
+    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-vault-switch');
+
+    try {
+      const previousVaultPath = path.join(userDataDir, `previous-vault-${Date.now().toString(36)}`);
+      await fs.mkdir(previousVaultPath, { recursive: true });
+      await fs.writeFile(path.join(previousVaultPath, 'previous.md'), '# Previous vault\n', 'utf8');
+      const fixture = await createManyFileVaultFixture(userDataDir, 1800);
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await setAppViewMode(page, 'notes');
+      await page.evaluate(
+        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
+        { path: previousVaultPath, name: 'Previous Vault' },
+      );
+      await expect.poll(async () => page.evaluate((expectedVaultPath) => (
+        (window as any).__vlainaE2E.getNotesTreeMetrics().rootFolderPath === expectedVaultPath
+      ), previousVaultPath), { timeout: 30_000 }).toBe(true);
+
+      const openStartedAt = Date.now();
+      await page.evaluate(
+        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
+        { path: fixture.vaultPath, name: 'Large Vault Switch Performance' },
+      );
+
+      await expect.poll(async () => page.evaluate((expectedVaultPath) => {
+        const treeMetrics = (window as any).__vlainaE2E.getNotesTreeMetrics();
+        return {
+          rootFolderPath: treeMetrics.rootFolderPath,
+          rootVisible: Boolean(document.querySelector('[data-file-tree-primary="true"]')),
+          visibleFolderCount: document.querySelectorAll('[data-file-tree-kind="folder"]').length,
+        };
+      }, fixture.vaultPath), { timeout: 30_000 }).toMatchObject({
+        rootFolderPath: fixture.vaultPath,
+        rootVisible: true,
+        visibleFolderCount: expect.any(Number),
+      });
+
+      await expect.poll(async () => page.locator('[data-file-tree-kind="folder"]').count(), { timeout: 30_000 })
+        .toBeGreaterThan(0);
+      const firstTreeVisibleMs = Date.now() - openStartedAt;
+
+      await expect.poll(async () => page.evaluate(() => (
+        (window as any).__vlainaE2E.getNotesTreeMetrics().files
+      )), { timeout: 30_000 }).toBe(1800);
+      const treeMetrics = await page.evaluate(() => (window as any).__vlainaE2E.getNotesTreeMetrics());
+      console.info('[notes-large-vault-switch-performance]', {
+        firstTreeVisibleMs,
+        ...treeMetrics,
+      });
+
+      expect(treeMetrics.files).toBe(1800);
+      expect(firstTreeVisibleMs).toBeLessThan(5_000);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('restores note content in a large vault before full metadata indexing finishes', async () => {
+    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-vault-restore-note');
+
+    try {
+      const fixture = await createManyFileVaultFixture(userDataDir, 1800);
+      await writeVaultWorkspace(userDataDir, fixture.vaultPath, {
+        currentNotePath: fixture.restoreRelativePath,
+        expandedFolders: ['section-00', 'section-00/nested-expanded'],
+      });
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await setAppViewMode(page, 'notes');
+      const openStartedAt = Date.now();
+      await page.evaluate(
+        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
+        { path: fixture.vaultPath, name: 'Large Vault Restore Note Performance' },
+      );
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Large Vault Note 0', {
+        timeout: 30_000,
+      });
+      const editorVisibleMs = Date.now() - openStartedAt;
+      const state = await page.evaluate(() => ({
+        notes: (window as any).__vlainaE2E.getNotesState(),
+        tree: (window as any).__vlainaE2E.getNotesTreeMetrics(),
+      }));
+      console.info('[notes-large-vault-restore-note-performance]', {
+        editorVisibleMs,
+        currentNotePath: state.notes.currentNote?.path ?? null,
+        ...state.tree,
+      });
+
+      expect(state.notes.currentNote?.path).toBe(fixture.restoreRelativePath);
+      expect(editorVisibleMs).toBeLessThan(5_000);
+      await expect.poll(async () => page.evaluate(() => (
+        (window as any).__vlainaE2E.getNotesTreeMetrics().expandedFolders
+      )), { timeout: 30_000 }).toEqual(expect.arrayContaining([
+        'section-00',
+        'section-00/nested-expanded',
+      ]));
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
 
   test('cold-opens a long markdown note as rendered Milkdown', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-open-performance-cold');

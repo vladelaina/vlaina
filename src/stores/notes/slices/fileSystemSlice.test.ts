@@ -3,6 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   persistWorkspaceSnapshot: vi.fn(),
   flushCurrentPendingEditorMarkdown: vi.fn(),
+  storageAdapter: {
+    exists: vi.fn(),
+    mkdir: vi.fn(),
+    listDir: vi.fn(),
+    stat: vi.fn(),
+    readFile: vi.fn(),
+  },
 }));
 
 vi.mock('../workspacePersistence', () => ({
@@ -12,6 +19,15 @@ vi.mock('../workspacePersistence', () => ({
 vi.mock('../pendingEditorMarkdownFlusher', () => ({
   flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
+
+vi.mock('@/lib/storage/adapter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/storage/adapter')>();
+  return {
+    ...actual,
+    getStorageAdapter: () => hoisted.storageAdapter,
+    joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/').replace(/\/+/g, '/'),
+  };
+});
 
 import { createFileSystemSlice } from './fileSystemSlice';
 import { getWorkspaceRestoreCandidatePaths } from './fileSystemSliceTreeActions';
@@ -41,6 +57,9 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
     draftNotes: {},
     noteMetadata: null,
     displayNames: new Map(),
+    starredEntries: [],
+    starredNotes: [],
+    starredFolders: [],
     saveNote: vi.fn(),
     ...overrides,
   };
@@ -221,6 +240,12 @@ describe('createFileSystemSlice tree flows', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    setCurrentVaultPath(null);
+    hoisted.storageAdapter.exists.mockResolvedValue(false);
+    hoisted.storageAdapter.mkdir.mockResolvedValue(undefined);
+    hoisted.storageAdapter.listDir.mockResolvedValue([]);
+    hoisted.storageAdapter.stat.mockResolvedValue(null);
+    hoisted.storageAdapter.readFile.mockResolvedValue('');
   });
 
   afterEach(() => {
@@ -334,6 +359,81 @@ describe('createFileSystemSlice tree flows', () => {
     vi.runOnlyPendingTimers();
 
     expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('uses a shallow initial tree when switching from an existing vault tree to a new vault', async () => {
+    setCurrentVaultPath('/vault-new');
+    let newVaultRootListCalls = 0;
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => (
+      path === '/vault-new'
+    ));
+    hoisted.storageAdapter.listDir.mockImplementation((path: string) => {
+      if (path === '/vault-new') {
+        newVaultRootListCalls += 1;
+        if (newVaultRootListCalls === 1) {
+          return Promise.resolve([
+            {
+              name: 'deep',
+              path: '/vault-new/deep',
+              isDirectory: true,
+              isFile: false,
+            },
+            {
+              name: 'top.md',
+              path: '/vault-new/top.md',
+              isDirectory: false,
+              isFile: true,
+            },
+          ]);
+        }
+
+        return new Promise(() => undefined);
+      }
+
+      return Promise.resolve([]);
+    });
+
+    const harness = createSliceHarness({
+      notesPath: '/vault-old',
+      rootFolderPath: '/vault-old',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'old.md',
+            name: 'old',
+            path: 'old.md',
+            isFolder: false,
+          },
+        ],
+      },
+    });
+
+    await harness.getState().loadFileTree();
+
+    expect(newVaultRootListCalls).toBe(1);
+    expect(hoisted.storageAdapter.listDir).toHaveBeenCalledWith('/vault-new', { includeHidden: true });
+    expect(hoisted.storageAdapter.listDir).not.toHaveBeenCalledWith('/vault-new/deep', { includeHidden: true });
+    expect(harness.getState().rootFolderPath).toBe('/vault-new');
+    expect(harness.getState().rootFolder.children).toEqual([
+      expect.objectContaining({
+        path: 'deep',
+        isFolder: true,
+        children: [],
+      }),
+      expect.objectContaining({
+        path: 'top.md',
+        isFolder: false,
+      }),
+    ]);
+    expect(harness.getState().isLoading).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(newVaultRootListCalls).toBe(2);
   });
 
   it('does not collapse an empty root folder', () => {

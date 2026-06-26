@@ -170,8 +170,11 @@ export class SlashMenuView {
   }
 
   private destroyMenu() {
-    this.root?.unmount();
+    const root = this.root;
     this.root = null;
+    if (root) {
+      window.setTimeout(() => root.unmount(), 0);
+    }
 
     if (!this.menuElement) return;
     this.menuElement.remove();

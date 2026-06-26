@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FolderNode } from '@/stores/useNotesStore';
 import {
+  MAX_TAG_AUTO_SCAN_SCOPE_ENTRIES,
   MAX_TAG_DIRECT_READ_CONTENT_CHARS,
   MAX_TAG_DIRECT_READ_MISSING_PATHS,
   useNotesSidebarTags,
@@ -510,7 +511,7 @@ describe('useNotesSidebarTags', () => {
     }
   });
 
-  it('uses the idle full scan instead of direct reads when many tag contents are missing', async () => {
+  it('uses the idle full scan instead of direct reads when a moderate number of tag contents are missing', async () => {
     vi.useFakeTimers();
     const scanAllNotes = vi.fn(async () => undefined);
 
@@ -536,6 +537,37 @@ describe('useNotesSidebarTags', () => {
         await vi.advanceTimersByTimeAsync(251);
       });
       expect(scanAllNotes).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not automatically full-scan tags for large vaults', async () => {
+    vi.useFakeTimers();
+    const scanAllNotes = vi.fn(async () => undefined);
+
+    try {
+      renderHook(() => useNotesSidebarTags({
+        rootFolder: createRootFolderFromPaths(
+          Array.from(
+            { length: MAX_TAG_AUTO_SCAN_SCOPE_ENTRIES + 1 },
+            (_value, index) => `note-${index}.md`,
+          ),
+        ),
+        noteContentsCache: new Map(),
+        scanAllNotes,
+        currentVaultPath: '/vault',
+      }));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mocked.stat).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(scanAllNotes).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

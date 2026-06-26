@@ -23,6 +23,7 @@ import {
 const TAG_SCAN_IDLE_DELAY_MS = 250;
 const TAG_CONTENT_READ_BATCH_SIZE = 8;
 export const MAX_TAG_DIRECT_READ_MISSING_PATHS = 200;
+export const MAX_TAG_AUTO_SCAN_SCOPE_ENTRIES = 500;
 export const MAX_TAG_DIRECT_READ_CONTENT_CHARS = 8 * 1024 * 1024;
 const MAX_TAG_CONTENT_READ_BYTES = 512 * 1024;
 const tagContentUtf8Encoder = new TextEncoder();
@@ -425,7 +426,12 @@ export function useNotesSidebarTags({
       }
     };
 
-    if (!active || scopeEntries.length === 0 || isTagIndexReady) {
+    if (
+      !active ||
+      scopeEntries.length === 0 ||
+      scopeEntries.length > MAX_TAG_AUTO_SCAN_SCOPE_ENTRIES ||
+      isTagIndexReady
+    ) {
       setIsTagScanPending(false);
       clearPendingScanTimer();
       scanAbortControllerRef.current?.abort();

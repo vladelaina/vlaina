@@ -73,6 +73,7 @@ describe('starred persistence', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
@@ -290,7 +291,7 @@ describe('starred persistence', () => {
     expect(payload.deletedEntryKeys).toEqual(['note::c:/vault-a::removed.md']);
   });
 
-  it('prunes invalid entries during load', async () => {
+  it('defers pruning invalid entries until after load', async () => {
     const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
     const invalidEntry = createEntry('2', 'note', 'C:/vault-b', 'missing.md');
 
@@ -323,7 +324,13 @@ describe('starred persistence', () => {
     const persistence = await import('./persistence');
     const result = await persistence.loadStarredRegistry();
 
-    expect(result.entries).toEqual([validEntry]);
+    expect(result.entries).toEqual([validEntry, invalidEntry]);
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-b');
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(adapter.writeFile).toHaveBeenCalledTimes(1));
+
     expect(adapter.writeFile).toHaveBeenCalledTimes(1);
     const [, content] = adapter.writeFile.mock.calls[0];
     expect(JSON.parse(content)).toMatchObject({ entries: [validEntry] });
@@ -427,7 +434,7 @@ describe('starred persistence', () => {
     const result = await persistence.loadStarredRegistry();
 
     expect(result.entries).toEqual([validEntry]);
-    expect(adapter.exists).toHaveBeenCalledWith('C:/vault-a/alive.md');
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-a/alive.md');
   });
 
   it('does not parse oversized starred registries', async () => {

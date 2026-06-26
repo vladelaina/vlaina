@@ -1197,7 +1197,8 @@ export class CodeBlockNodeView implements NodeView {
     this.unsubscribeSettings();
     this.unsubscribeSelectionSync();
     this.disposeFontMetricsSync();
-    this.root.unmount();
+    const root = this.root;
+    (this.getOwnerWindow() ?? globalThis).setTimeout(() => root.unmount(), 0);
     if (this.cm) {
       this.cm.contentDOM.removeEventListener('keydown', this.trackCodeMirrorSelectionKeydown, true);
       this.cm.dom.removeEventListener('blur', this.clearEditorSelectionOnBlur, true);

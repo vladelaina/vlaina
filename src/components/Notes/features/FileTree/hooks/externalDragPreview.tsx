@@ -97,6 +97,13 @@ function buildPreviewState(paths: string[], kind: ExternalDragPreviewKind): Exte
   };
 }
 
+function deferRootUnmount(root: Root, hostElement: HTMLElement) {
+  window.setTimeout(() => {
+    root.unmount();
+    hostElement.remove();
+  }, 0);
+}
+
 export function createExternalDragPreview(paths: string[]): ExternalDragPreviewHandle {
   const hostElement = document.createElement('div');
   applyPreviewElementStyles(hostElement);
@@ -157,9 +164,13 @@ export function createExternalDragPreview(paths: string[]): ExternalDragPreviewH
 
         destroyed = true;
         document.body.style.cursor = previousBodyCursor;
-        root?.unmount();
+        const rootToUnmount = root;
         root = null;
-        hostElement.remove();
+        if (rootToUnmount) {
+          deferRootUnmount(rootToUnmount, hostElement);
+        } else {
+          hostElement.remove();
+        }
       },
     };
   } catch (error) {

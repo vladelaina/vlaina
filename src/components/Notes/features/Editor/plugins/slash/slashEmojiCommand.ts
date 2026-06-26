@@ -179,8 +179,11 @@ class SlashEmojiPickerSession {
     document.removeEventListener('keydown', this.handleDocumentKeyDown, true);
     this.unlistenOverlayOpen();
     this.resizeObserver?.disconnect();
-    this.root?.unmount();
+    const root = this.root;
     this.root = null;
+    if (root) {
+      window.setTimeout(() => root.unmount(), 0);
+    }
     this.menuElement?.remove();
     this.menuElement = null;
     if (activeSlashEmojiPicker === this) {

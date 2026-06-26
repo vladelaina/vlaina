@@ -93,6 +93,25 @@ describe('shouldAutoCreateBlankDraft', () => {
     expect(result.blockedReasons).not.toContain('vault-has-files');
   });
 
+  it('does not auto-create a blank draft when the file tree scan budget is exhausted', () => {
+    const result = shouldAutoCreateBlankDraft(createInput({
+      rootFolder: {
+        ...emptyRoot,
+        children: Array.from({ length: 20_001 }, (_value, index) => ({
+          id: `folder-${index}`,
+          name: `folder-${index}`,
+          path: `folder-${index}`,
+          isFolder: true as const,
+          children: [],
+          expanded: false,
+        })),
+      },
+    }));
+
+    expect(result.shouldCreate).toBe(false);
+    expect(result.blockedReasons).toContain('vault-tree-scan-budget');
+  });
+
   it('blocks while a previous current note is still being restored', () => {
     const result = shouldAutoCreateBlankDraft(createInput({
       vaultInitializing: true,

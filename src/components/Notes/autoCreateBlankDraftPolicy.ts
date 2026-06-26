@@ -1,5 +1,7 @@
 import type { FolderNode } from '@/stores/notes/types';
 
+const MAX_AUTO_CREATE_FILE_TREE_SCAN_NODES = 20_000;
+
 export interface AutoCreateBlankDraftPolicyInput {
   active: boolean;
   currentNotePath?: string | null;
@@ -32,6 +34,7 @@ export type AutoCreateBlankDraftBlockReason =
   | 'pending-launch-note'
   | 'vault-path-mismatch'
   | 'vault-root-not-loaded'
+  | 'vault-tree-scan-budget'
   | 'vault-has-files';
 
 export interface AutoCreateBlankDraftPolicyResult {
@@ -39,21 +42,30 @@ export interface AutoCreateBlankDraftPolicyResult {
   blockedReasons: AutoCreateBlankDraftBlockReason[];
 }
 
-export function hasFileTreeNoteFiles(rootFolder: FolderNode | null): boolean {
+function scanFileTreeForNoteFiles(rootFolder: FolderNode | null): {
+  hasFiles: boolean;
+  exhaustedBudget: boolean;
+} {
   if (!rootFolder) {
-    return false;
+    return { hasFiles: false, exhaustedBudget: false };
   }
 
   const stack = [...rootFolder.children];
-  while (stack.length > 0) {
+  let visitedNodes = 0;
+  while (stack.length > 0 && visitedNodes < MAX_AUTO_CREATE_FILE_TREE_SCAN_NODES) {
     const node = stack.pop()!;
+    visitedNodes += 1;
     if (!node.isFolder) {
-      return true;
+      return { hasFiles: true, exhaustedBudget: false };
     }
     stack.push(...node.children);
   }
 
-  return false;
+  return { hasFiles: false, exhaustedBudget: stack.length > 0 };
+}
+
+export function hasFileTreeNoteFiles(rootFolder: FolderNode | null): boolean {
+  return scanFileTreeForNoteFiles(rootFolder).hasFiles;
 }
 
 export function shouldAutoCreateBlankDraft(
@@ -81,8 +93,14 @@ export function shouldAutoCreateBlankDraft(
   if (input.hasPendingLaunchNote) blockedReasons.push('pending-launch-note');
   if (currentVaultPath && input.notesPath !== currentVaultPath) blockedReasons.push('vault-path-mismatch');
   if (currentVaultPath && !rootFolderCurrent) blockedReasons.push('vault-root-not-loaded');
-  if (rootFolderCurrent && hasFileTreeNoteFiles(input.rootFolder)) {
-    blockedReasons.push('vault-has-files');
+  if (rootFolderCurrent) {
+    const fileTreeScan = scanFileTreeForNoteFiles(input.rootFolder);
+    if (fileTreeScan.hasFiles) {
+      blockedReasons.push('vault-has-files');
+    }
+    if (fileTreeScan.exhaustedBudget) {
+      blockedReasons.push('vault-tree-scan-budget');
+    }
   }
 
   return {

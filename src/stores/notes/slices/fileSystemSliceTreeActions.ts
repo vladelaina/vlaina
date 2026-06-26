@@ -2,6 +2,7 @@ import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import {
   buildFileTree,
+  buildFileTreeLevel,
   collectExpandedPaths,
   expandFoldersForPath,
   isGitRepositoryDirectory,
@@ -13,6 +14,7 @@ import { DEFAULT_FILE_TREE_SORT_MODE, sortNestedFileTree } from '../fileTreeSort
 import { isDraftNotePath } from '../draftNote';
 import {
   ensureNotesFolder,
+  createEmptyMetadataFile,
   getCurrentVaultPath,
   getNotesBasePath,
   loadNoteMetadata,
@@ -27,6 +29,48 @@ import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './
 let pendingWorkspaceSnapshotTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingWorkspaceSnapshotGet: FileSystemSliceGet | null = null;
 let latestLoadFileTreeRequestId = 0;
+const BACKGROUND_FILE_TREE_LOAD_DELAY_MS = 100;
+
+function mergeDraftMetadata(
+  metadata: ReturnType<typeof createEmptyMetadataFile>,
+  currentMetadata: ReturnType<FileSystemSliceGet>['noteMetadata'],
+) {
+  const draftMetadataEntries = Object.entries(currentMetadata?.notes ?? {})
+    .filter(([path]) => isDraftNotePath(path));
+  return draftMetadataEntries.length > 0
+    ? {
+        ...metadata,
+        notes: {
+          ...metadata.notes,
+          ...Object.fromEntries(draftMetadataEntries),
+        },
+      }
+    : metadata;
+}
+
+function getExpandedPathsForBackgroundTreeRestore(
+  currentExpandedPaths: Set<string> | null,
+  workspaceExpandedFolders: string[] | undefined,
+  skipRestore: boolean,
+) {
+  if (skipRestore) {
+    return currentExpandedPaths;
+  }
+
+  const expandedPaths = new Set(workspaceExpandedFolders ?? []);
+  if (currentExpandedPaths) {
+    for (const expandedPath of currentExpandedPaths) {
+      expandedPaths.add(expandedPath);
+    }
+  }
+  return expandedPaths.size > 0 ? expandedPaths : null;
+}
+
+function scheduleBackgroundFileTreeLoad(task: () => Promise<void>) {
+  setTimeout(() => {
+    void task().catch(() => undefined);
+  }, BACKGROUND_FILE_TREE_LOAD_DELAY_MS);
+}
 
 export function getWorkspaceRestoreCandidatePaths({
   currentNotePath,
@@ -98,26 +142,35 @@ export function createFileSystemTreeActions(
   return {
     loadFileTree: async (skipRestore = false) => {
       const requestId = ++latestLoadFileTreeRequestId;
-      const shouldShowLoading = !get().rootFolder;
-      set(shouldShowLoading ? { isLoading: true, error: null } : { error: null });
+      set({ error: null });
       try {
         const storage = getStorageAdapter();
         const basePath = await getNotesBasePath();
 
         await ensureNotesFolder(basePath);
 
-        const metadata = await loadNoteMetadata(basePath);
-
         const workspace = await loadWorkspaceState(basePath);
 
         const fileTreeSortMode = workspace?.fileTreeSortMode ?? DEFAULT_FILE_TREE_SORT_MODE;
-        const builtChildren = await buildFileTree(basePath);
+        const shouldBuildShallowInitialTree = !(get().rootFolder && get().rootFolderPath === basePath);
+        if (shouldBuildShallowInitialTree) {
+          set({
+            notesPath: basePath,
+            rootFolderPath: null,
+            rootFolder: null,
+            isLoading: true,
+          });
+        }
+        const builtChildren = shouldBuildShallowInitialTree
+          ? await buildFileTreeLevel(basePath, '', undefined, { detectGitRepositories: false })
+          : await buildFileTree(basePath);
 
         const isRootGitRepository = await isGitRepositoryDirectory(basePath);
+        const initialMetadata = mergeDraftMetadata(createEmptyMetadataFile(), get().noteMetadata);
 
         let children = sortNestedFileTree(builtChildren, {
           mode: fileTreeSortMode,
-          metadata,
+          metadata: initialMetadata,
         });
         if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
           return;
@@ -148,7 +201,7 @@ export function createFileSystemTreeActions(
           if (shouldPreserveCurrentNoteInTree) {
             children = sortNestedFileTree(ensureFileNodeInTree(children, currentNote.path), {
               mode: fileTreeSortMode,
-              metadata,
+              metadata: initialMetadata,
             });
           }
         }
@@ -169,17 +222,7 @@ export function createFileSystemTreeActions(
         }
 
         const currentMetadata = get().noteMetadata;
-        const draftMetadataEntries = Object.entries(currentMetadata?.notes ?? {})
-          .filter(([path]) => isDraftNotePath(path));
-        const nextMetadata = draftMetadataEntries.length > 0
-          ? {
-              ...metadata,
-              notes: {
-                ...metadata.notes,
-                ...Object.fromEntries(draftMetadataEntries),
-              },
-            }
-          : metadata;
+        const nextMetadata = mergeDraftMetadata(createEmptyMetadataFile(), currentMetadata);
 
         set({
           notesPath: basePath,
@@ -220,6 +263,84 @@ export function createFileSystemTreeActions(
             }
           }
         }
+
+        const treeStateBeforeBackgroundLoad = get();
+        scheduleBackgroundFileTreeLoad(async () => {
+          let nextBackgroundChildren = treeStateBeforeBackgroundLoad.rootFolder?.children ?? [];
+
+          if (shouldBuildShallowInitialTree) {
+            const fullChildren = await buildFileTree(basePath);
+            if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+              return;
+            }
+
+            const currentState = get();
+            const currentExpandedPaths = currentState.rootFolder && currentState.rootFolderPath === basePath
+              ? collectExpandedPaths(currentState.rootFolder.children)
+              : null;
+            const backgroundExpandedPaths = getExpandedPathsForBackgroundTreeRestore(
+              currentExpandedPaths,
+              workspace?.expandedFolders,
+              skipRestore,
+            );
+            nextBackgroundChildren = backgroundExpandedPaths
+              ? restoreExpandedState(fullChildren, backgroundExpandedPaths)
+              : fullChildren;
+
+            const currentNote = currentState.currentNote;
+            const currentTab = currentNote
+              ? currentState.openTabs.find((tab) => tab.path === currentNote.path)
+              : undefined;
+            if (
+              currentNote &&
+              !isAbsolutePath(currentNote.path) &&
+              !isDraftNotePath(currentNote.path) &&
+              (currentState.isDirty || currentTab?.isDirty === true)
+            ) {
+              nextBackgroundChildren = ensureFileNodeInTree(nextBackgroundChildren, currentNote.path);
+            }
+
+            const sortedBackgroundChildren = sortNestedFileTree(nextBackgroundChildren, {
+              mode: currentState.fileTreeSortMode,
+              metadata: currentState.noteMetadata,
+            });
+
+            if (currentState.rootFolder && currentState.rootFolderPath === basePath) {
+              set({
+                rootFolder: {
+                  ...currentState.rootFolder,
+                  children: sortedBackgroundChildren,
+                },
+              });
+            }
+          }
+
+          const metadataStateBeforeBackgroundLoad = get().noteMetadata;
+          const metadata = await loadNoteMetadata(basePath);
+          if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+            return;
+          }
+          if (get().noteMetadata !== metadataStateBeforeBackgroundLoad) {
+            return;
+          }
+
+          const mergedMetadata = mergeDraftMetadata(metadata, get().noteMetadata);
+          const currentState = get();
+          const nextRootFolder = currentState.rootFolder && currentState.rootFolderPath === basePath
+            ? {
+                ...currentState.rootFolder,
+                children: sortNestedFileTree(currentState.rootFolder.children, {
+                  mode: currentState.fileTreeSortMode,
+                  metadata: mergedMetadata,
+                }),
+              }
+            : currentState.rootFolder;
+
+          set({
+            noteMetadata: mergedMetadata,
+            ...(nextRootFolder ? { rootFolder: nextRootFolder } : {}),
+          });
+        });
 
         if (requestId === latestLoadFileTreeRequestId && getCurrentVaultPath() === basePath) {
           set({ isLoading: false });

@@ -177,10 +177,12 @@ export async function buildFileTreeLevel(
   basePath: string,
   relativePath: string = '',
   budget?: FileTreeBuildBudget,
+  options: { detectGitRepositories?: boolean } = {},
 ): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
   const entries = await storage.listDir(fullPath, { includeHidden: true });
+  const detectGitRepositories = options.detectGitRepositories !== false;
 
   const levelEntries: FileTreeLevelEntry[] = [];
 
@@ -224,10 +226,9 @@ export async function buildFileTreeLevel(
     MAX_GIT_REPOSITORY_DETECTION_CONCURRENCY,
     async (entry): Promise<FileTreeNode> => {
       if (entry.isDirectory) {
-        const entryFullPath = await joinPath(fullPath, entry.name);
-        const isGitRepository = isLowPriorityDirectory(entry.name)
-          ? false
-          : await isGitRepositoryDirectory(entryFullPath);
+        const isGitRepository = detectGitRepositories && !isLowPriorityDirectory(entry.name)
+          ? await isGitRepositoryDirectory(await joinPath(fullPath, entry.name))
+          : false;
         return {
           id: entry.entryPath,
           name: entry.name,

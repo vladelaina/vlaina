@@ -7,6 +7,7 @@ import {
     MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS,
     MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES,
     editExistingLink,
+    editLinkAtPosition,
     removeExistingLink,
     sanitizeTooltipLinkHref,
 } from './linkTooltipTransactions';
@@ -207,6 +208,13 @@ describe('link tooltip transactions', () => {
         expect(tr!.doc.textContent).toBe('Before Docs! after');
         expect(tr!.doc.rangeHasMark(linkStart, linkEnd, view.state.schema.marks.link)).toBe(true);
         expect(tr!.doc.rangeHasMark(linkEnd, linkEnd + 1, view.state.schema.marks.link)).toBe(false);
+    });
+
+    it('ignores stale link tooltip ranges without dispatching', () => {
+        const { view } = createExistingLinkTransactionFixture();
+
+        expect(editLinkAtPosition(view as never, 5000, 5005, 'Docs', 'https://example.com')).toBeNull();
+        expect(view.dispatch).not.toHaveBeenCalled();
     });
 
     it('removes an existing link without deleting the following character', () => {

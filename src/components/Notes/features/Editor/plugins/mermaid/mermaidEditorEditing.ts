@@ -9,6 +9,9 @@ interface MermaidEditorViewLike<TTransaction> {
   };
   state: {
     doc: {
+      content?: {
+        size?: number;
+      };
       nodeAt: (pos: number) => MermaidNodeLike | null;
     };
     tr: {
@@ -26,6 +29,26 @@ function markMermaidUserInput(editorView: { dom?: { dispatchEvent?: (event: Even
   editorView.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
+function getMermaidNodeAt<TTransaction>(
+  editorView: MermaidEditorViewLike<TTransaction>,
+  nodePos: number,
+): MermaidNodeLike | null {
+  const docSize = editorView.state.doc.content?.size;
+  if (!Number.isFinite(nodePos) || nodePos < 0) {
+    return null;
+  }
+  if (typeof docSize === 'number' && nodePos > docSize) {
+    return null;
+  }
+
+  try {
+    const node = editorView.state.doc.nodeAt(nodePos);
+    return node?.type.name === 'mermaid' ? node : null;
+  } catch {
+    return null;
+  }
+}
+
 export function removeMermaidNode<TTransaction>(
   editorView: MermaidEditorViewLike<TTransaction> & {
     state: MermaidEditorViewLike<TTransaction>['state'] & {
@@ -36,12 +59,8 @@ export function removeMermaidNode<TTransaction>(
   },
   nodePos: number
 ) {
-  if (nodePos < 0) {
-    return false;
-  }
-
-  const node = editorView.state.doc.nodeAt(nodePos);
-  if (!node || node.type.name !== 'mermaid') {
+  const node = getMermaidNodeAt(editorView, nodePos);
+  if (!node) {
     return false;
   }
 
@@ -56,12 +75,8 @@ export function applyMermaidNodeCode<TTransaction>(
   nodePos: number,
   code: string
 ) {
-  if (nodePos < 0) {
-    return false;
-  }
-
-  const node = editorView.state.doc.nodeAt(nodePos);
-  if (!node || node.type.name !== 'mermaid') {
+  const node = getMermaidNodeAt(editorView, nodePos);
+  if (!node) {
     return false;
   }
 

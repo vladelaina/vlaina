@@ -80,6 +80,22 @@ describe('mermaidEditorEditing', () => {
     expect(missing.dispatch).not.toHaveBeenCalled();
   });
 
+  it('skips dispatching when a stale mermaid position is outside the current document', () => {
+    const stale = createEditorView({
+      type: { name: 'mermaid' },
+      attrs: { code: 'graph TD' },
+    });
+    stale.editorView.state.doc.nodeAt.mockImplementation(() => {
+      throw new RangeError('Position outside of fragment');
+    });
+
+    expect(applyMermaidNodeCode(stale.editorView, 5000, 'graph TD\nA --> B')).toBe(false);
+    expect(removeMermaidNode(stale.editorView, 5000)).toBe(false);
+    expect(stale.setNodeMarkup).not.toHaveBeenCalled();
+    expect(stale.deleteNode).not.toHaveBeenCalled();
+    expect(stale.dispatch).not.toHaveBeenCalled();
+  });
+
   it('removes a mermaid node when a newly created empty diagram is cancelled', () => {
     const { editorView, deleteNode, dispatch, transaction } = createEditorView({
       type: { name: 'mermaid' },

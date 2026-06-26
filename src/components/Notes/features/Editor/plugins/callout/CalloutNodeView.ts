@@ -156,6 +156,6 @@ export class CalloutNodeView implements NodeView {
   }
 
   destroy() {
-    this.root.unmount();
+    window.setTimeout(() => this.root.unmount(), 0);
   }
 }

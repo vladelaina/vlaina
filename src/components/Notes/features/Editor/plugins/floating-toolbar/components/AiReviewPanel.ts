@@ -27,14 +27,19 @@ export function createAiReviewPanelController(): AiReviewPanelController {
   let errorRoot: Root | null = null;
   let reviewBindingsCleanup: ReviewBindingsCleanup | null = null;
 
+  const deferUnmount = (root: Root | null) => {
+    if (!root) return;
+    globalThis.setTimeout(() => root.unmount(), 0);
+  };
+
   const cleanup = () => {
     reviewBindingsCleanup?.();
     reviewBindingsCleanup = null;
-    modelSelectorRoot?.unmount();
+    deferUnmount(modelSelectorRoot);
     modelSelectorRoot = null;
-    loadingRoot?.unmount();
+    deferUnmount(loadingRoot);
     loadingRoot = null;
-    errorRoot?.unmount();
+    deferUnmount(errorRoot);
     errorRoot = null;
   };
 

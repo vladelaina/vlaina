@@ -24,6 +24,7 @@ const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
 const MAX_DELETED_ENTRY_KEYS = MAX_STARRED_ENTRIES;
 const MAX_DELETED_ENTRY_KEY_SCAN_ITEMS = 20_000;
 const MAX_DELETED_ENTRY_KEY_CHARS = 4096;
+const STARRED_PRUNE_IDLE_DELAY_MS = 1000;
 const starredRegistryUtf8Encoder = new TextEncoder();
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
@@ -267,6 +268,40 @@ const starredPersistenceQueue = createPersistenceQueue<StarredSavePayload>({
 });
 
 let lifecycleRegistered = false;
+let pendingStarredPruneTimer: ReturnType<typeof setTimeout> | null = null;
+let latestStarredPruneRequestId = 0;
+
+function scheduleStarredRegistryPrune(
+  registry: StarredRegistry,
+  dedupedEntries: StarredEntry[],
+): void {
+  const requestId = ++latestStarredPruneRequestId;
+  if (pendingStarredPruneTimer !== null) {
+    clearTimeout(pendingStarredPruneTimer);
+    pendingStarredPruneTimer = null;
+  }
+
+  pendingStarredPruneTimer = setTimeout(() => {
+    pendingStarredPruneTimer = null;
+    void (async () => {
+      const prunedRegistry = await pruneInvalidStarredEntries(dedupedEntries);
+      if (requestId !== latestStarredPruneRequestId || !prunedRegistry.changed) {
+        return;
+      }
+
+      const prunedKeys = new Set(prunedRegistry.entries.map(getStarredEntryKey));
+      await starredPersistenceQueue.saveNow({
+        entries: prunedRegistry.entries,
+        deletedEntryKeys: [
+          ...(registry.deletedEntryKeys || []),
+          ...dedupedEntries
+            .filter((entry) => !prunedKeys.has(getStarredEntryKey(entry)))
+            .map(getStarredEntryKey),
+        ],
+      });
+    })().catch(() => undefined);
+  }, STARRED_PRUNE_IDLE_DELAY_MS);
+}
 
 function registerPersistenceLifecycle(): void {
   if (lifecycleRegistered || typeof window === 'undefined') {
@@ -299,24 +334,11 @@ export async function loadStarredRegistry(): Promise<StarredRegistry> {
     }
 
     const dedupedEntries = dedupeStarredEntries(registry.entries);
-    const prunedRegistry = await pruneInvalidStarredEntries(dedupedEntries);
-
-    if (prunedRegistry.changed) {
-      const prunedKeys = new Set(prunedRegistry.entries.map(getStarredEntryKey));
-      await starredPersistenceQueue.saveNow({
-        entries: prunedRegistry.entries,
-        deletedEntryKeys: [
-          ...(registry.deletedEntryKeys || []),
-          ...dedupedEntries
-            .filter((entry) => !prunedKeys.has(getStarredEntryKey(entry)))
-            .map(getStarredEntryKey),
-        ],
-      });
-    }
+    scheduleStarredRegistryPrune(registry, dedupedEntries);
 
     return {
       version: CURRENT_STARRED_VERSION,
-      entries: prunedRegistry.entries,
+      entries: dedupedEntries,
       deletedEntryKeys: registry.deletedEntryKeys || [],
     };
   } catch (error) {

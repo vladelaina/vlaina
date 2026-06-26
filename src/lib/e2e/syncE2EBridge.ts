@@ -20,6 +20,7 @@ import { buildScopedModelId } from '@/lib/ai/utils';
 import type { ImportedMarkdownThemeMetadata } from '@/lib/markdown/theme-compatibility/types';
 import { getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
 import { flushStarredRegistry } from '@/stores/notes/starred';
+import { collectExpandedPaths } from '@/stores/notes/fileTreeUtils';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
@@ -262,6 +263,14 @@ export interface E2EBridge {
     }>;
   }>;
   getNotesState(): Pick<NotesState, 'currentNote' | 'isDirty' | 'error' | 'openTabs'>;
+  getNotesTreeMetrics(): {
+    folders: number;
+    files: number;
+    metadataEntries: number;
+    expandedFolders: string[];
+    isLoading: boolean;
+    rootFolderPath: string | null;
+  };
   getNoteContentCacheEntry(path: string): {
     hasEntry: boolean;
     contentLength: number;
@@ -1480,6 +1489,30 @@ export function installSyncE2EBridge(): void {
         isDirty,
         error,
         openTabs: openTabs.map((tab) => ({ ...tab })),
+      };
+    },
+    getNotesTreeMetrics: () => {
+      const { rootFolder, rootFolderPath, noteMetadata, isLoading } = useNotesStore.getState();
+      const stack = [...(rootFolder?.children ?? [])];
+      let folders = 0;
+      let files = 0;
+      while (stack.length > 0) {
+        const node = stack.pop();
+        if (!node) continue;
+        if (node.isFolder) {
+          folders += 1;
+          stack.push(...node.children);
+        } else {
+          files += 1;
+        }
+      }
+      return {
+        folders,
+        files,
+        metadataEntries: Object.keys(noteMetadata?.notes ?? {}).length,
+        expandedFolders: rootFolder ? Array.from(collectExpandedPaths(rootFolder.children)) : [],
+        isLoading,
+        rootFolderPath,
       };
     },
     getNoteContentCacheEntry: (path) => {

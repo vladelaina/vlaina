@@ -14,6 +14,10 @@ vi.mock('@/lib/storage/adapter', () => ({
 
 describe('createExternalDragPreview', () => {
   afterEach(() => {
+    if (vi.isFakeTimers()) {
+      vi.runOnlyPendingTimers();
+    }
+    vi.useRealTimers();
     vi.restoreAllMocks();
     document.body.innerHTML = '';
     document.body.style.cursor = '';
@@ -30,6 +34,25 @@ describe('createExternalDragPreview', () => {
     expect(() => createExternalDragPreview(['/vault/demo.md'])).toThrow('append failed');
 
     expect(document.body.style.cursor).toBe('default');
+    expect(document.body.childElementCount).toBe(childCountBefore);
+  });
+
+  it('defers React root unmount on normal disposal', () => {
+    vi.useFakeTimers();
+    mocks.stat.mockResolvedValue({ isDirectory: false });
+    document.body.style.cursor = 'default';
+    const childCountBefore = document.body.childElementCount;
+
+    const preview = createExternalDragPreview(['/vault/demo.md']);
+    expect(document.body.childElementCount).toBe(childCountBefore + 1);
+
+    preview.dispose();
+
+    expect(document.body.style.cursor).toBe('default');
+    expect(document.body.childElementCount).toBe(childCountBefore + 1);
+
+    vi.runOnlyPendingTimers();
+
     expect(document.body.childElementCount).toBe(childCountBefore);
   });
 });

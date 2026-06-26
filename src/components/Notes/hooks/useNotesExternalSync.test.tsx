@@ -334,6 +334,19 @@ describe('useNotesExternalSync', () => {
       expect.any(Function),
       { recursive: true },
     );
+    expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1499);
+    });
+    expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+      await Promise.resolve();
+    });
+
     expect(buildExternalTreeSnapshot).toHaveBeenCalled();
     expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalled();
     expect(hoisted.releaseWatcher).not.toHaveBeenCalled();

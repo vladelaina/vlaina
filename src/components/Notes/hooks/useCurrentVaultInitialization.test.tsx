@@ -52,6 +52,27 @@ describe('useCurrentVaultInitialization', () => {
     });
   });
 
+  it('does not wait for starred loading before starting the file tree load', async () => {
+    baseProps.loadStarred.mockImplementationOnce(() => new Promise<void>(() => undefined));
+
+    renderHook(() => useCurrentVaultInitialization(baseProps));
+
+    await waitFor(() => {
+      expect(baseProps.loadStarred).toHaveBeenCalledWith('/vault');
+      expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('does not preload assets during vault initialization', async () => {
+    renderHook(() => useCurrentVaultInitialization(baseProps));
+
+    await waitFor(() => {
+      expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
+    });
+
+    expect(baseProps.loadAssets).not.toHaveBeenCalled();
+  });
+
   it('does not reload the vault when a consumed starred navigation is cleared', async () => {
     const { rerender } = renderHook(
       ({ currentVaultPath, pendingStarredNavigation }) => useCurrentVaultInitialization({

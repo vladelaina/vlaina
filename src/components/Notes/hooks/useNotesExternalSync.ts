@@ -222,7 +222,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
           return;
         }
 
-        startReconcilePolling();
+        startReconcilePolling({ immediate: false });
         return;
       }
     };

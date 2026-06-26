@@ -316,7 +316,11 @@ export class LinkTooltipView {
         this.cleanupEvents?.();
         this.disconnectPositionDependencies();
         this.cancelScheduledReposition();
-        this.root?.unmount();
+        const root = this.root;
+        this.root = null;
+        if (root) {
+            window.setTimeout(() => root.unmount(), 0);
+        }
         this.dom.remove();
     }
 

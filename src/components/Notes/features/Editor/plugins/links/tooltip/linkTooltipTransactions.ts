@@ -125,21 +125,39 @@ export function editLinkAtPosition(
     const { state, dispatch } = view;
     const linkMarkType = state.schema.marks.link;
     if (!linkMarkType) return null;
-
-    const safeUrl = sanitizeTooltipLinkHref(url);
-    if (!safeUrl) {
-        const tr = state.tr.removeMark(from, to, linkMarkType);
-        markEditorUserInput(view);
-        dispatch(tr);
+    const docSize = state.doc.content.size;
+    if (
+        !Number.isFinite(from) ||
+        !Number.isFinite(to) ||
+        from < 0 ||
+        to < from ||
+        to > docSize
+    ) {
         return null;
     }
 
-    const tr = state.tr
-        .insertText(text, from, to)
-        .addMark(from, from + text.length, linkMarkType.create({ href: safeUrl }));
+    const safeUrl = sanitizeTooltipLinkHref(url);
+    if (!safeUrl) {
+        try {
+            const tr = state.tr.removeMark(from, to, linkMarkType);
+            markEditorUserInput(view);
+            dispatch(tr);
+        } catch {
+            return null;
+        }
+        return null;
+    }
 
-    tr.setSelection(TextSelection.create(tr.doc, from + text.length));
-    markEditorUserInput(view);
-    dispatch(tr);
-    return tr.mapping.map(from);
+    try {
+        const tr = state.tr
+            .insertText(text, from, to)
+            .addMark(from, from + text.length, linkMarkType.create({ href: safeUrl }));
+
+        tr.setSelection(TextSelection.create(tr.doc, from + text.length));
+        markEditorUserInput(view);
+        dispatch(tr);
+        return tr.mapping.map(from);
+    } catch {
+        return null;
+    }
 }

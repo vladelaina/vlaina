@@ -131,8 +131,8 @@ export class ImageBlockNodeView implements NodeView {
 
     destroy() {
         this.dom.removeEventListener('dragstart', this.dragStartHandler, true);
-        queueMicrotask(() => {
+        window.setTimeout(() => {
             this.root.unmount();
-        });
+        }, 0);
     }
 }
