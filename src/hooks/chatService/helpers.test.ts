@@ -11,6 +11,7 @@ import {
   clearAuthorizedExternalNoteMentionPaths,
 } from '@/lib/ai/authorizedExternalNoteMentions';
 import {
+  buildMessageFileAttachmentContext,
   buildMessageImageSources,
   buildMentionedNotesContext,
   buildStoredUserMessageContent,
@@ -238,6 +239,52 @@ describe('chat service helpers', () => {
     expect(result.imageSources).toEqual(['attachment://demo%20image.png']);
     expect(result.content).toBe('![image](<attachment://demo%20image.png>)');
     expect(result.content).not.toContain('file://');
+  });
+
+  it('builds text file attachment context for chat messages', async () => {
+    const context = await buildMessageFileAttachmentContext([
+      createAttachment({
+        id: 'notes',
+        path: '/home/user/.vlaina/chat/attachments/notes.md',
+        previewUrl: '',
+        assetUrl: 'file:///home/user/.vlaina/chat/attachments/notes.md',
+        name: 'notes.md',
+        type: 'text/markdown',
+        textContent: '# Notes\n\nRemember this.',
+      }),
+      createAttachment(),
+    ]);
+
+    expect(context).toBe([
+      'Attached files:',
+      '',
+      '<attached_file name="notes.md">',
+      '# Notes',
+      '',
+      'Remember this.',
+      '</attached_file>',
+    ].join('\n'));
+  });
+
+  it('loads persisted text file attachment content from trusted chat attachment paths', async () => {
+    mocks.storage.readFile.mockResolvedValueOnce('Persisted file body.');
+
+    const context = await buildMessageFileAttachmentContext([
+      createAttachment({
+        id: 'persisted-text',
+        path: '/home/user/.vlaina/chat/attachments/persisted.txt',
+        previewUrl: '',
+        assetUrl: 'file:///home/user/.vlaina/chat/attachments/persisted.txt',
+        name: 'persisted.txt',
+        type: 'text/plain',
+      }),
+    ]);
+
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/home/user/.vlaina/chat/attachments/persisted.txt',
+      120000,
+    );
+    expect(context).toContain('Persisted file body.');
   });
 
   it('does not resolve file attachment asset URLs without a trusted attachment path', async () => {
