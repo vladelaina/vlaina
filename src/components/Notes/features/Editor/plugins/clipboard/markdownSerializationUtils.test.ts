@@ -887,6 +887,25 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['1', '', '2'].join('\n'));
   });
 
+  it('preserves long body and terminal blank line runs during document normalization', () => {
+    const bodyBlankLineCount = 64;
+    const terminalBlankLineCount = 32;
+    const markdown = `${[
+      '---',
+      'title: Blank Lines',
+      '---',
+      '',
+      '# Blank Lines',
+      '',
+      'Before long run',
+      ...Array.from({ length: bodyBlankLineCount }, () => ''),
+      'After long run',
+    ].join('\n')}${'\n'.repeat(terminalBlankLineCount)}`;
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+    expect(normalizeEditorStateMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('normalizes serializer space entities before persistence', () => {
     expect(
       normalizeSerializedMarkdownDocument(

@@ -151,6 +151,28 @@ async function getCurrentNotePath(page: Page): Promise<string> {
   );
 }
 
+async function getRenderedTerminalBlankLineCount(page: Page, tailText: string): Promise<number> {
+  return page.locator(EDITOR_SELECTOR).evaluate((editor, expectedTailText) => {
+    const isBlankLineElement = (element: Element) => {
+      if (element.matches('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]')) {
+        return true;
+      }
+      if (element.matches('p.editor-editable-markdown-blank-line, p.editor-empty-paragraph, p:empty')) {
+        return true;
+      }
+      return element.tagName === 'P' && (element.textContent ?? '').trim() === '';
+    };
+    const children = Array.from(editor.children);
+    const tailIndex = children.findIndex((element) =>
+      (element.textContent ?? '').includes(expectedTailText)
+    );
+    if (tailIndex < 0) {
+      return -1;
+    }
+    return children.slice(tailIndex + 1).filter(isBlankLineElement).length;
+  }, tailText);
+}
+
 async function clickFileTreeNote(page: Page, row: Locator, expectedPathTail: string): Promise<void> {
   await row.scrollIntoViewIfNeeded();
   await expect(row).toBeVisible({ timeout: 10_000 });
@@ -518,6 +540,85 @@ test.describe('notes source mode layout', () => {
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Alpha edited from source with literal markdown markers', {
         timeout: 30_000,
       });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps source-mode terminal blank lines through rendered switch, save, and note switch', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-source-terminal-blank-lines-audit');
+    const terminalBlankLineCount = 18;
+    const alphaTail = 'Source terminal blank tail sentinel';
+    const alphaInitial = ['# Source Terminal Blank Lines', '', alphaTail].join('\n');
+    const expectedAlphaContent = `${alphaInitial}${'\n'.repeat(terminalBlankLineCount)}`;
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1360, height: 860 });
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'source-terminal-blank-lines-audit',
+        files: [
+          { filename: 'alpha-source-terminal-blank-lines.md', content: alphaInitial },
+          { filename: 'beta-source-terminal-blank-lines.md', content: 'Beta source switch sentinel' },
+        ],
+      });
+      await openVaultInNotes(page, {
+        vaultPath: fixture.vaultPath,
+        name: 'Source Terminal Blank Lines Audit',
+        minFileCount: 2,
+      });
+
+      const alphaRow = page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'alpha-source-terminal-blank-lines' }).first();
+      const betaRow = page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'beta-source-terminal-blank-lines' }).first();
+      await clickFileTreeNote(page, alphaRow, 'alpha-source-terminal-blank-lines.md');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(alphaTail, { timeout: 30_000 });
+
+      await toggleSourceModeWithShortcut(page, 'source');
+      const sourceEditor = page.locator(SOURCE_EDITOR_SELECTOR);
+      await expect(sourceEditor).toBeVisible({ timeout: 10_000 });
+      await expect.poll(() => getSourceEditorValue(page), { timeout: 10_000 })
+        .toBe(alphaInitial);
+
+      await sourceEditor.focus();
+      await sourceEditor.evaluate((element) => {
+        const textarea = element as HTMLTextAreaElement;
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      });
+      for (let index = 0; index < terminalBlankLineCount; index += 1) {
+        await page.keyboard.press('Enter');
+      }
+
+      await expect.poll(() => getSourceEditorValue(page), { timeout: 10_000 })
+        .toBe(expectedAlphaContent);
+      await expect.poll(() => getCurrentNoteContent(page), { timeout: 10_000 })
+        .toBe(expectedAlphaContent);
+
+      await page.keyboard.press('Control+S');
+      await expect.poll(async () =>
+        page.evaluate((pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead), fixture.notePaths[0]!)
+      , { timeout: 10_000 }).toBe(expectedAlphaContent);
+
+      await toggleSourceModeWithShortcut(page, 'rendered');
+      await expect(page.locator(SOURCE_EDITOR_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(alphaTail, { timeout: 30_000 });
+      await expect.poll(() => getRenderedTerminalBlankLineCount(page, alphaTail), { timeout: 10_000 })
+        .toBe(terminalBlankLineCount);
+
+      const heading = page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Source Terminal Blank Lines' }).first();
+      await heading.click();
+      await expect.poll(() => getRenderedTerminalBlankLineCount(page, alphaTail), { timeout: 10_000 })
+        .toBe(terminalBlankLineCount);
+
+      await clickFileTreeNote(page, betaRow, 'beta-source-terminal-blank-lines.md');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Beta source switch sentinel', { timeout: 30_000 });
+      await clickFileTreeNote(page, alphaRow, 'alpha-source-terminal-blank-lines.md');
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(alphaTail, { timeout: 30_000 });
+      await expect.poll(() => getCurrentNoteContent(page), { timeout: 10_000 })
+        .toBe(expectedAlphaContent);
+      await expect.poll(() => getRenderedTerminalBlankLineCount(page, alphaTail), { timeout: 10_000 })
+        .toBe(terminalBlankLineCount);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

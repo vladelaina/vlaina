@@ -2,10 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
+  createVaultFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
   openAbsoluteNote,
   openMarkdownFixture,
+  openVaultInNotes,
+  waitForEditorAnimationFrame,
 } from './notesE2E';
 
 async function typeIntoEmptyNote(page: Page, actions: () => Promise<void>): Promise<void> {
@@ -95,6 +98,70 @@ async function expectVisibleMarkdownBlankLineCount(page: Page, expected: number)
     ),
     { timeout: 10_000 },
   ).toBe(expected);
+}
+
+async function readTerminalBlankLineAudit(page: Page, tailText: string): Promise<{
+  content: string;
+  directChildren: Array<{
+    tagName: string;
+    text: string;
+    className: string;
+    dataType: string;
+    dataValue: string;
+    isBlankLine: boolean;
+  }>;
+  terminalBlankCount: number;
+}> {
+  return page.locator(EDITOR_SELECTOR).evaluate((editor, expectedTailText) => {
+    const isBlankLineElement = (element: Element) => {
+      if (element.matches('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]')) {
+        return true;
+      }
+      if (element.matches('p.editor-editable-markdown-blank-line, p.editor-empty-paragraph, p:empty')) {
+        return true;
+      }
+      return (element.textContent ?? '').trim() === '' && element.tagName === 'P';
+    };
+    const children = Array.from(editor.children);
+    const tailIndex = children.findIndex((element) =>
+      (element.textContent ?? '').includes(expectedTailText)
+    );
+    const trailingChildren = tailIndex >= 0 ? children.slice(tailIndex + 1) : [];
+
+    return {
+      content: String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? ''),
+      directChildren: children.map((element) => ({
+        tagName: element.tagName,
+        text: element.textContent ?? '',
+        className: element.getAttribute('class') ?? '',
+        dataType: element.getAttribute('data-type') ?? '',
+        dataValue: element.getAttribute('data-value') ?? '',
+        isBlankLine: isBlankLineElement(element),
+      })),
+      terminalBlankCount: trailingChildren.filter(isBlankLineElement).length,
+    };
+  }, tailText);
+}
+
+async function focusEditorTextEnd(page: Page, text: string): Promise<void> {
+  const selected = await page.evaluate((targetText) =>
+    (window as any).__vlainaE2E.selectEditorTextByText(targetText, targetText), text
+  );
+  expect(selected).toMatchObject({
+    selected: true,
+    selectedText: text,
+  });
+  expect(typeof selected.to).toBe('number');
+
+  const selection = await page.evaluate((position) =>
+    (window as any).__vlainaE2E.setEditorSelectionRange(position), selected.to
+  );
+  expect(selection).toMatchObject({
+    empty: true,
+    from: selected.to,
+    to: selected.to,
+  });
+  await waitForEditorAnimationFrame(page);
 }
 
 test.describe('notes line break persistence', () => {
@@ -223,6 +290,75 @@ test.describe('notes line break persistence', () => {
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Bottom blank sentinel');
       await expectVisibleMarkdownBlankLineCount(page, 4);
       await expectCurrentNoteAndDiskContent(page, fixture.notePath, content);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps editor-created terminal blank lines after refocus, save, and note switch', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-terminal-blank-lines-persistence-audit');
+    const terminalBlankLineCount = 14;
+    const alphaTail = 'Alpha terminal blank tail sentinel';
+    const alphaContent = ['Alpha opening sentinel', '', alphaTail].join('\n');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'terminal-blank-lines-persistence-audit',
+        files: [
+          { filename: 'alpha-terminal-blank-lines.md', content: alphaContent },
+          { filename: 'beta-terminal-blank-lines.md', content: 'Beta switch sentinel' },
+        ],
+      });
+      await openVaultInNotes(page, {
+        vaultPath: fixture.vaultPath,
+        name: 'Terminal Blank Lines Persistence Audit',
+        minFileCount: 2,
+      });
+      const alphaPath = fixture.notePaths[0]!;
+      const betaPath = fixture.notePaths[1]!;
+      await openAbsoluteNote(page, alphaPath);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(alphaTail);
+
+      await focusEditorTextEnd(page, alphaTail);
+      for (let index = 0; index < terminalBlankLineCount; index += 1) {
+        await page.keyboard.press('Enter');
+      }
+      await waitForEditorAnimationFrame(page);
+
+      await expect.poll(() => readTerminalBlankLineAudit(page, alphaTail), { timeout: 10_000 })
+        .toMatchObject({ terminalBlankCount: terminalBlankLineCount });
+
+      await focusEditorTextEnd(page, 'Alpha opening sentinel');
+
+      await expect.poll(() => readTerminalBlankLineAudit(page, alphaTail), { timeout: 10_000 })
+        .toMatchObject({ terminalBlankCount: terminalBlankLineCount });
+
+      const expectedAlphaContent = `${alphaContent}${'\n'.repeat(terminalBlankLineCount)}`;
+      await page.evaluate(() => (window as any).__vlainaE2E.flushCurrentEditorMarkdown());
+      await expect.poll(() => readTerminalBlankLineAudit(page, alphaTail), { timeout: 10_000 })
+        .toMatchObject({
+          content: expectedAlphaContent,
+          terminalBlankCount: terminalBlankLineCount,
+        });
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      await expect.poll(async () => page.evaluate((pathToRead) =>
+        (window as any).__vlainaE2E.readTextFile(pathToRead), alphaPath
+      ), { timeout: 10_000 }).toBe(expectedAlphaContent);
+
+      await openAbsoluteNote(page, betaPath);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Beta switch sentinel');
+      await openAbsoluteNote(page, alphaPath);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(alphaTail);
+      await expect.poll(() => readTerminalBlankLineAudit(page, alphaTail), { timeout: 10_000 })
+        .toMatchObject({
+          content: expectedAlphaContent,
+          terminalBlankCount: terminalBlankLineCount,
+        });
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

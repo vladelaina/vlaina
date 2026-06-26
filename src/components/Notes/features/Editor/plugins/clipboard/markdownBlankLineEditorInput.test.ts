@@ -86,13 +86,14 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     ].join('\n'));
   });
 
-  it('preserves long body blank line runs as editor blank-line nodes', () => {
-    const blankRun = Array.from({ length: 20 }, () => '').join('\n');
+  it('preserves long body blank line runs as editor-visible blank lines', () => {
+    const blankLineCount = 200;
+    const blankRun = Array.from({ length: blankLineCount }, () => '').join('\n');
     const markdown = ['before', blankRun, 'after'].join('\n');
     const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
 
     expect(editorInput.split('\n').filter((line) => line === MARKDOWN_BLANK_LINE_PLACEHOLDER))
-      .toHaveLength(20);
+      .toHaveLength(blankLineCount);
     expect(editorInput).toContain('before');
     expect(editorInput).toContain('after');
     expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
