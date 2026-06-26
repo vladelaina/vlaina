@@ -191,4 +191,32 @@ describe('ChatSidebarSessionRow', () => {
     expect(title).not.toHaveClass('font-[var(--vlaina-font-weight-semibold-plus)]');
     expect(title).not.toHaveClass('font-medium');
   });
+
+  it('allows chat search result titles to wrap like outline entries', () => {
+    const longTitle = 'alpha-super-long-chat-session-title-without-natural-breakpoints';
+
+    renderRow({
+      session: buildSession({ title: longTitle }),
+      shouldHideSearchResults: true,
+    });
+
+    const title = screen.getByText(longTitle);
+
+    expect(title).toHaveClass('block');
+    expect(title).toHaveClass('w-full');
+    expect(title).toHaveClass('whitespace-normal');
+    expect(title).toHaveClass('break-words');
+    expect(title).toHaveClass('[overflow-wrap:anywhere]');
+    expect(title).not.toHaveClass('line-clamp-2');
+  });
+
+  it('keeps regular chat titles clamped to two lines', () => {
+    renderRow();
+
+    const title = screen.getByText('Alpha chat');
+
+    expect(title).toHaveClass('line-clamp-2');
+    expect(title).toHaveClass('[overflow-wrap:anywhere]');
+    expect(title).not.toHaveClass('whitespace-normal');
+  });
 });

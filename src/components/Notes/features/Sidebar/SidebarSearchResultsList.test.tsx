@@ -114,6 +114,44 @@ describe('SidebarSearchResultsList', () => {
     );
   });
 
+  it('wraps long result names and locations instead of truncating them', () => {
+    const longName = 'alpha-super-long-note-title-without-natural-breakpoints.md';
+    const longLocation = 'deeply/nested/folder/name/without/easy/breakpoints/';
+
+    render(
+      <SidebarSearchResultsList
+        results={[
+          buildResult({
+            id: 'long-result',
+            path: `${longLocation}${longName}`,
+            name: longName,
+            preview: longLocation,
+          }),
+        ]}
+        query="alpha"
+        currentNotePath={null}
+        onOpen={() => {}}
+        scrollRootRef={createRef<HTMLDivElement>()}
+        isContentScanPending={false}
+      />,
+    );
+
+    const row = screen.getByRole('button');
+    const textBlocks = Array.from(row.querySelectorAll('div'));
+    const name = textBlocks.find((element) => element.textContent === longName);
+    const locationText = longLocation.replace(/\/$/, '');
+    const location = textBlocks.find((element) => element.textContent === locationText);
+
+    expect(name).toHaveClass('whitespace-normal');
+    expect(name).toHaveClass('break-words');
+    expect(name).toHaveClass('[overflow-wrap:anywhere]');
+    expect(name).not.toHaveClass('truncate');
+    expect(location).toHaveClass('whitespace-normal');
+    expect(location).toHaveClass('break-words');
+    expect(location).toHaveClass('[overflow-wrap:anywhere]');
+    expect(location).not.toHaveClass('truncate');
+  });
+
   it('only marks the clicked match active when one file has multiple results', () => {
     render(
       <SidebarSearchResultsList

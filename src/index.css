@@ -390,6 +390,13 @@ html, body, #root {
   pointer-events: none;
 }
 
+.chat-sidebar-loading-title-unclamped .chat-sidebar-loading-title-base,
+.chat-sidebar-loading-title-unclamped .chat-sidebar-loading-title-overlay {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
 @keyframes chat-stream-char-fade {
   from {
     opacity: var(--vlaina-opacity-0);
