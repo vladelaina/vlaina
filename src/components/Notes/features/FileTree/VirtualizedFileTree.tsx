@@ -34,6 +34,7 @@ export function VirtualizedFileTree({
 }: VirtualizedFileTreeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportFrameRef = useRef<number | null>(null);
+  const containerTopInScrollRef = useRef<number | null>(null);
   const rows = useMemo(
     () => flattenVisibleFileTreeRows(nodes, startDepth, parentFolderPath),
     [nodes, parentFolderPath, startDepth],
@@ -42,6 +43,38 @@ export function VirtualizedFileTree({
   const rowOffsets = useMemo(() => buildVirtualFileTreeRowOffsets(rowHeights), [rowHeights]);
   const [viewport, setViewport] = useState({ start: 0, height: 0 });
 
+  const measureContainerTopInScroll = useCallback(() => {
+    const scrollRoot = scrollRootRef.current;
+    const container = containerRef.current;
+    if (!scrollRoot || !container) {
+      return null;
+    }
+
+    const scrollRootRect = scrollRoot.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const containerTopInScroll = containerRect.top - scrollRootRect.top + scrollRoot.scrollTop;
+    containerTopInScrollRef.current = containerTopInScroll;
+    return containerTopInScroll;
+  }, [scrollRootRef]);
+
+  const commitViewport = useCallback(() => {
+    const scrollRoot = scrollRootRef.current;
+    const containerTopInScroll = containerTopInScrollRef.current ?? measureContainerTopInScroll();
+    if (!scrollRoot || containerTopInScroll === null) {
+      return;
+    }
+
+    const nextViewport = {
+      start: scrollRoot.scrollTop - containerTopInScroll,
+      height: scrollRoot.clientHeight,
+    };
+    setViewport((previous) => (
+      previous.start === nextViewport.start && previous.height === nextViewport.height
+        ? previous
+        : nextViewport
+    ));
+  }, [measureContainerTopInScroll, scrollRootRef]);
+
   const updateViewport = useCallback(() => {
     if (viewportFrameRef.current !== null) {
       return;
@@ -49,21 +82,9 @@ export function VirtualizedFileTree({
 
     viewportFrameRef.current = window.requestAnimationFrame(() => {
       viewportFrameRef.current = null;
-      const scrollRoot = scrollRootRef.current;
-      const container = containerRef.current;
-      if (!scrollRoot || !container) {
-        return;
-      }
-
-      const scrollRootRect = scrollRoot.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const containerTopInScroll = containerRect.top - scrollRootRect.top + scrollRoot.scrollTop;
-      setViewport({
-        start: scrollRoot.scrollTop - containerTopInScroll,
-        height: scrollRoot.clientHeight,
-      });
+      commitViewport();
     });
-  }, [scrollRootRef]);
+  }, [commitViewport]);
 
   const updateViewportNow = useCallback(() => {
     if (viewportFrameRef.current !== null) {
@@ -71,20 +92,9 @@ export function VirtualizedFileTree({
       viewportFrameRef.current = null;
     }
 
-    const scrollRoot = scrollRootRef.current;
-    const container = containerRef.current;
-    if (!scrollRoot || !container) {
-      return;
-    }
-
-    const scrollRootRect = scrollRoot.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const containerTopInScroll = containerRect.top - scrollRootRect.top + scrollRoot.scrollTop;
-    setViewport({
-      start: scrollRoot.scrollTop - containerTopInScroll,
-      height: scrollRoot.clientHeight,
-    });
-  }, [scrollRootRef]);
+    measureContainerTopInScroll();
+    commitViewport();
+  }, [commitViewport, measureContainerTopInScroll]);
 
   useLayoutEffect(() => {
     updateViewportNow();
@@ -95,12 +105,15 @@ export function VirtualizedFileTree({
     }
 
     scrollRoot.addEventListener('scroll', updateViewport, { passive: true });
-    window.addEventListener('resize', updateViewport);
+    window.addEventListener('resize', updateViewportNow);
 
     const resizeObserver = typeof ResizeObserver === 'undefined'
       ? null
-      : new ResizeObserver(updateViewport);
+      : new ResizeObserver(updateViewportNow);
     resizeObserver?.observe(scrollRoot);
+    if (containerRef.current) {
+      resizeObserver?.observe(containerRef.current);
+    }
 
     return () => {
       if (viewportFrameRef.current !== null) {
@@ -108,10 +121,14 @@ export function VirtualizedFileTree({
         viewportFrameRef.current = null;
       }
       scrollRoot.removeEventListener('scroll', updateViewport);
-      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('resize', updateViewportNow);
       resizeObserver?.disconnect();
     };
   }, [scrollRootRef, updateViewport, updateViewportNow]);
+
+  useLayoutEffect(() => {
+    updateViewportNow();
+  }, [rowOffsets, updateViewportNow]);
 
   useLayoutEffect(() => {
     const scrollRoot = scrollRootRef.current;
@@ -134,9 +151,11 @@ export function VirtualizedFileTree({
 
       event.preventDefault();
 
-      const scrollRootRect = scrollRoot.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const containerTopInScroll = containerRect.top - scrollRootRect.top + scrollRoot.scrollTop;
+      const containerTopInScroll = measureContainerTopInScroll();
+      if (containerTopInScroll === null) {
+        return;
+      }
+
       const targetTop = containerTopInScroll + (rowOffsets[rowIndex] ?? 0);
       const targetHeight = rowHeights[rowIndex] ?? VIRTUAL_FILE_TREE_ROW_HEIGHT;
       const block = customEvent.detail.block;
@@ -171,7 +190,7 @@ export function VirtualizedFileTree({
     return () => {
       scrollRoot.removeEventListener(SIDEBAR_SCROLL_TO_PATH_EVENT, handleScrollToPath);
     };
-  }, [rowHeights, rowOffsets, rows, scrollRootRef, updateViewport]);
+  }, [measureContainerTopInScroll, rowHeights, rowOffsets, rows, scrollRootRef, updateViewport]);
 
   const virtualWindow = getVirtualFileTreeWindow({
     rowCount: rows.length,

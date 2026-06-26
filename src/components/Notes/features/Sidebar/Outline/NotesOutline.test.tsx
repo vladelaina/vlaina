@@ -22,6 +22,23 @@ const hoisted = vi.hoisted(() => ({
   setNotesSidebarView: vi.fn(),
 }));
 
+vi.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: (options: { count: number; enabled?: boolean }) => ({
+    getTotalSize: () => options.count * 38,
+    getVirtualItems: () =>
+      Array.from(
+        { length: options.enabled ? Math.min(options.count, 24) : options.count },
+        (_, index) => ({
+          index,
+          size: 38,
+          start: index * 38,
+        }),
+      ),
+    measure: () => {},
+    measureElement: () => {},
+  }),
+}));
+
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
@@ -98,6 +115,21 @@ describe('NotesOutline', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Parent' }));
 
     expect(hoisted.jumpToHeading).toHaveBeenCalledWith('parent');
+  });
+
+  it('virtualizes large outlines instead of rendering every heading row', () => {
+    hoisted.outlineState.headings = Array.from({ length: 220 }, (_, index) => ({
+      id: `heading-${index + 1}`,
+      level: 1,
+      text: `Heading ${index + 1}`,
+      from: index,
+      to: index + 1,
+    }));
+
+    render(<NotesOutline enabled />);
+
+    expect(screen.getByRole('button', { name: 'Heading 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Heading 220' })).toBeNull();
   });
 
   it('shows open target actions without switching sidebar views when no file or starred entry is available', () => {
