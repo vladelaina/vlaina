@@ -1,121 +1,18 @@
 import { useEffect, useState, type RefObject } from 'react';
-import { getMarkdownBodySourceLineNumbers } from '../utils/bodyLineNumbers';
+import {
+  resolveBodyLineNumberLabels,
+  type BodyLineNumberLabel,
+} from '../utils/bodyLineNumberLayout';
 
-const BODY_LINE_NUMBER_LABEL_WIDTH = 40;
-const BODY_LINE_NUMBER_LABEL_GAP = 18;
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
-const PENDING_BLOCK_SELECTION_REFRESH_RETRY_MS = 80;
-export const MAX_BODY_LINE_NUMBER_TARGETS = 5000;
-export const MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS = 10000;
-export const MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS = 20000;
+const BLOCK_DRAG_ACTIVE_CLASS = 'editor-block-drag-active';
+const DEFERRED_BLOCK_INTERACTION_REFRESH_RETRY_MS = 80;
+const POINTER_INTERACTION_REFRESH_FALLBACK_MS = 10_000;
 
 interface BodyLineNumberGutterProps {
   markdown: string;
   revision: number;
   shellRef: RefObject<HTMLDivElement | null>;
-}
-
-interface BodyLineNumberLabel {
-  lineNumber: number;
-  top: number;
-  left: number;
-}
-
-export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLElement[] {
-  const targets: HTMLElement[] = [];
-
-  for (let index = 0; index < editorRoot.children.length && targets.length < MAX_BODY_LINE_NUMBER_TARGETS; index += 1) {
-    const child = editorRoot.children.item(index);
-    if (!(child instanceof HTMLElement)) continue;
-    if (child.classList.contains('code-block-container')) continue;
-    if (child.classList.contains('frontmatter-block-container')) continue;
-
-    const tagName = child.tagName.toLowerCase();
-    if (tagName === 'ul' || tagName === 'ol') {
-      const walker = child.ownerDocument.createTreeWalker(child, NodeFilter.SHOW_ELEMENT);
-      let scanned = 0;
-      for (
-        let node = walker.nextNode();
-        node && targets.length < MAX_BODY_LINE_NUMBER_TARGETS && scanned < MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS;
-        node = walker.nextNode()
-      ) {
-        scanned += 1;
-        if (
-          node instanceof HTMLElement &&
-          node.tagName.toLowerCase() === 'li' &&
-          !node.closest('.code-block-container, .frontmatter-block-container')
-        ) {
-          targets.push(node);
-        }
-      }
-      continue;
-    }
-
-    targets.push(child);
-  }
-
-  return targets;
-}
-
-function collectSelectedBlockDescendantTargets(editorRoot: HTMLElement): WeakSet<HTMLElement> {
-  const selectedDescendantTargets = new WeakSet<HTMLElement>();
-  const walker = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
-  let scanned = 0;
-
-  for (
-    let node = walker.nextNode();
-    node && scanned < MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS;
-    node = walker.nextNode()
-  ) {
-    scanned += 1;
-    if (!(node instanceof HTMLElement) || !node.classList.contains('editor-block-selected')) {
-      continue;
-    }
-
-    for (
-      let ancestor = node.parentElement;
-      ancestor && ancestor !== editorRoot;
-      ancestor = ancestor.parentElement
-    ) {
-      selectedDescendantTargets.add(ancestor);
-    }
-  }
-
-  return selectedDescendantTargets;
-}
-
-function isInsideSelectedBlock(target: HTMLElement, selectedDescendantTargets: WeakSet<HTMLElement>): boolean {
-  return target.classList.contains('editor-block-selected')
-    || target.closest('.editor-block-selected') !== null
-    || selectedDescendantTargets.has(target);
-}
-
-export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string): BodyLineNumberLabel[] {
-  const editorRoot = shell.querySelector<HTMLElement>('.ProseMirror');
-  if (!editorRoot) return [];
-
-  const sourceLineNumbers = getMarkdownBodySourceLineNumbers(markdown);
-  const targets = collectBodyLineNumberTargets(editorRoot);
-  const selectedDescendantTargets = collectSelectedBlockDescendantTargets(editorRoot);
-  const shellRect = shell.getBoundingClientRect();
-  const editorRect = editorRoot.getBoundingClientRect();
-  const left = Math.max(
-    0,
-    editorRect.left - shellRect.left - BODY_LINE_NUMBER_LABEL_GAP - BODY_LINE_NUMBER_LABEL_WIDTH
-  );
-
-  return targets
-    .slice(0, sourceLineNumbers.length)
-    .map((target, index) => ({ target, lineNumber: sourceLineNumbers[index] }))
-    .filter(({ target }) => !isInsideSelectedBlock(target, selectedDescendantTargets))
-    .map(({ target, lineNumber }) => {
-      const targetRect = target.getBoundingClientRect();
-      return {
-        lineNumber,
-        top: targetRect.top - shellRect.top + targetRect.height / 2,
-        left,
-      };
-    });
 }
 
 export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineNumberGutterProps) {
@@ -130,40 +27,73 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
 
     const resolvedShell: HTMLDivElement = shell;
     let frameId: number | null = null;
-    let pendingBlockSelectionRefreshTimerId: number | null = null;
-    let needsRefreshAfterPendingBlockSelection = false;
+    let deferredBlockInteractionRefreshTimerId: number | null = null;
+    let pointerInteractionFallbackTimerId: number | null = null;
+    let needsRefreshAfterDeferredBlockInteraction = false;
+    let pointerInteractionActive = false;
     const editorRoot = resolvedShell.querySelector<HTMLElement>('.ProseMirror');
 
-    function isBlockSelectionPending() {
-      return editorRoot?.classList.contains(BLOCK_SELECTION_PENDING_CLASS) === true;
+    function shouldDeferRefreshForBlockInteraction() {
+      return editorRoot?.classList.contains(BLOCK_SELECTION_PENDING_CLASS) === true
+        || resolvedShell.ownerDocument.body.classList.contains(BLOCK_DRAG_ACTIVE_CLASS)
+        || pointerInteractionActive;
     }
 
-    function clearPendingBlockSelectionRefresh() {
-      if (pendingBlockSelectionRefreshTimerId === null) {
+    function clearDeferredBlockInteractionRefresh() {
+      if (deferredBlockInteractionRefreshTimerId === null) {
         return;
       }
-      window.clearTimeout(pendingBlockSelectionRefreshTimerId);
-      pendingBlockSelectionRefreshTimerId = null;
+      window.clearTimeout(deferredBlockInteractionRefreshTimerId);
+      deferredBlockInteractionRefreshTimerId = null;
     }
 
-    function scheduleRefreshAfterPendingBlockSelection() {
-      needsRefreshAfterPendingBlockSelection = true;
-      if (pendingBlockSelectionRefreshTimerId !== null) {
+    function clearPointerInteractionFallback() {
+      if (pointerInteractionFallbackTimerId === null) {
+        return;
+      }
+      window.clearTimeout(pointerInteractionFallbackTimerId);
+      pointerInteractionFallbackTimerId = null;
+    }
+
+    function scheduleRefreshAfterDeferredBlockInteraction() {
+      needsRefreshAfterDeferredBlockInteraction = true;
+      if (deferredBlockInteractionRefreshTimerId !== null) {
         return;
       }
 
-      pendingBlockSelectionRefreshTimerId = window.setTimeout(() => {
-        pendingBlockSelectionRefreshTimerId = null;
-        if (isBlockSelectionPending()) {
-          scheduleRefreshAfterPendingBlockSelection();
+      deferredBlockInteractionRefreshTimerId = window.setTimeout(() => {
+        deferredBlockInteractionRefreshTimerId = null;
+        if (shouldDeferRefreshForBlockInteraction()) {
+          scheduleRefreshAfterDeferredBlockInteraction();
           return;
         }
-        if (!needsRefreshAfterPendingBlockSelection) {
+        if (!needsRefreshAfterDeferredBlockInteraction) {
           return;
         }
-        needsRefreshAfterPendingBlockSelection = false;
+        needsRefreshAfterDeferredBlockInteraction = false;
         refresh();
-      }, PENDING_BLOCK_SELECTION_REFRESH_RETRY_MS);
+      }, DEFERRED_BLOCK_INTERACTION_REFRESH_RETRY_MS);
+    }
+
+    function handlePointerInteractionStart() {
+      pointerInteractionActive = true;
+      clearPointerInteractionFallback();
+      pointerInteractionFallbackTimerId = window.setTimeout(() => {
+        pointerInteractionFallbackTimerId = null;
+        handlePointerInteractionEnd();
+      }, POINTER_INTERACTION_REFRESH_FALLBACK_MS);
+    }
+
+    function handlePointerInteractionEnd() {
+      if (!pointerInteractionActive) {
+        clearPointerInteractionFallback();
+        return;
+      }
+      pointerInteractionActive = false;
+      clearPointerInteractionFallback();
+      if (needsRefreshAfterDeferredBlockInteraction) {
+        scheduleRefreshAfterDeferredBlockInteraction();
+      }
     }
 
     function refresh() {
@@ -173,12 +103,12 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
 
       frameId = requestAnimationFrame(() => {
         frameId = null;
-        if (isBlockSelectionPending()) {
-          scheduleRefreshAfterPendingBlockSelection();
+        if (shouldDeferRefreshForBlockInteraction()) {
+          scheduleRefreshAfterDeferredBlockInteraction();
           return;
         }
-        needsRefreshAfterPendingBlockSelection = false;
-        clearPendingBlockSelectionRefresh();
+        needsRefreshAfterDeferredBlockInteraction = false;
+        clearDeferredBlockInteractionRefresh();
         setLabels(resolveBodyLineNumberLabels(resolvedShell, markdown));
       });
     }
@@ -201,15 +131,28 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
     }
 
     window.addEventListener('resize', refresh);
+    window.addEventListener('pointerdown', handlePointerInteractionStart, true);
+    window.addEventListener('pointerup', handlePointerInteractionEnd, true);
+    window.addEventListener('pointercancel', handlePointerInteractionEnd, true);
+    window.addEventListener('mousedown', handlePointerInteractionStart, true);
+    window.addEventListener('mouseup', handlePointerInteractionEnd, true);
+    window.addEventListener('blur', handlePointerInteractionEnd);
 
     return () => {
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
-      clearPendingBlockSelectionRefresh();
+      clearDeferredBlockInteractionRefresh();
+      clearPointerInteractionFallback();
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       window.removeEventListener('resize', refresh);
+      window.removeEventListener('pointerdown', handlePointerInteractionStart, true);
+      window.removeEventListener('pointerup', handlePointerInteractionEnd, true);
+      window.removeEventListener('pointercancel', handlePointerInteractionEnd, true);
+      window.removeEventListener('mousedown', handlePointerInteractionStart, true);
+      window.removeEventListener('mouseup', handlePointerInteractionEnd, true);
+      window.removeEventListener('blur', handlePointerInteractionEnd);
     };
   }, [markdown, revision, shellRef]);
 
