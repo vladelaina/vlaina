@@ -249,7 +249,7 @@ export function NotesSidebarHoverEmptyHint({
                 ) : null}
                 <button
                   type="button"
-                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)]"
+                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)]"
                   onClick={(event) => {
                     event.stopPropagation();
                     action.onAction();
@@ -308,7 +308,7 @@ export function NotesSidebarPillEmptyHint({
                 ) : null}
                 <button
                   type="button"
-                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)]"
+                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)]"
                   onClick={(event) => {
                     event.stopPropagation();
                     action.onAction();

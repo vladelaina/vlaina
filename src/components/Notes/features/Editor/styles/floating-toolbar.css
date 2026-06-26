@@ -125,7 +125,8 @@
 }
 
 .toolbar-btn:hover {
-  background-color: var(--vlaina-hover);
+  background-color: transparent;
+  color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));
 }
 
 .toolbar-btn[data-action="color"]:hover {
@@ -191,7 +192,8 @@
 }
 
 .dark .toolbar-btn:hover {
-  background-color: var(--vlaina-hover);
+  background-color: transparent;
+  color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));
 }
 
 .dark .toolbar-btn[data-action="color"]:hover {
@@ -553,7 +555,7 @@
 }
 
 .block-dropdown-item:hover {
-  background-color: var(--vlaina-sidebar-notes-row-hover, var(--vlaina-hover));
+  background-color: transparent;
 }
 
 .dark .block-dropdown-item {
@@ -561,7 +563,7 @@
 }
 
 .dark .block-dropdown-item:hover {
-  background-color: var(--vlaina-sidebar-notes-row-hover, var(--vlaina-hover));
+  background-color: transparent;
 }
 
 .block-dropdown-item.active {
@@ -588,6 +590,10 @@
   transition:
     color var(--vlaina-duration-toolbar-enter) var(--vlaina-ease-toolbar),
     transform var(--vlaina-duration-toolbar-enter) var(--vlaina-ease-toolbar);
+}
+
+.block-dropdown-item:hover .block-dropdown-item-icon {
+  color: var(--vlaina-sidebar-row-selected-text);
 }
 
 .block-dropdown-item-icon svg {
@@ -724,7 +730,8 @@
 
 .ai-dropdown-category:hover,
 .ai-dropdown-category.active {
-  background-color: var(--vlaina-hover);
+  background-color: var(--vlaina-sidebar-notes-row-active);
+  color: var(--vlaina-sidebar-row-selected-text);
 }
 
 .ai-dropdown-category.ai-dropdown-category-action {
@@ -773,7 +780,16 @@
 }
 
 .ai-dropdown-item:hover {
-  background-color: var(--vlaina-hover);
+  background-color: var(--vlaina-sidebar-notes-row-active);
+  color: var(--vlaina-sidebar-row-selected-text);
+}
+
+.ai-dropdown-category:hover .ai-dropdown-category-chevron,
+.ai-dropdown-category.active .ai-dropdown-category-chevron,
+.ai-dropdown-category:hover .ai-dropdown-item-shortcut,
+.ai-dropdown-category.active .ai-dropdown-item-shortcut,
+.ai-dropdown-item:hover .ai-dropdown-item-shortcut {
+  color: currentColor;
 }
 
 .ai-dropdown-item:active {
@@ -832,11 +848,13 @@
 
 .dark .ai-dropdown-category:hover,
 .dark .ai-dropdown-category.active {
-  background-color: var(--vlaina-hover);
+  background-color: var(--vlaina-sidebar-notes-row-active);
+  color: var(--vlaina-sidebar-row-selected-text);
 }
 
 .dark .ai-dropdown-item:hover {
-  background-color: var(--vlaina-hover);
+  background-color: var(--vlaina-sidebar-notes-row-active);
+  color: var(--vlaina-sidebar-row-selected-text);
 }
 
 /* FP: The Rail Link Editor */

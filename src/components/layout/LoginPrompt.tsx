@@ -3,7 +3,6 @@ import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { cn } from '@/lib/utils';
-import { getSidebarIdleRowSurfaceClass } from './sidebar/sidebarLabelStyles';
 import { themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface LoginPromptProps {
@@ -22,9 +21,8 @@ export const LoginPrompt: React.FC<LoginPromptProps> = ({ onOpenDialog }) => {
         onClick={onOpenDialog}
         style={{ boxShadow: themeStyleResetTokens.boxShadowNone }}
         className={cn(
-          'group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium !shadow-[var(--vlaina-shadow-none)] transition-colors hover:!shadow-[var(--vlaina-shadow-none)] active:scale-[var(--vlaina-scale-985)]',
-          getSidebarIdleRowSurfaceClass('chat'),
-          'text-[var(--vlaina-color-brand-pink)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]'
+          'group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-transparent px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium !shadow-[var(--vlaina-shadow-none)] transition-colors hover:!bg-transparent hover:!text-[var(--vlaina-color-brand-pink)] hover:!shadow-[var(--vlaina-shadow-none)] active:scale-[var(--vlaina-scale-985)]',
+          'text-[var(--vlaina-color-brand-pink)]'
         )}
       >
         <span>ヾ(๑╹ヮ╹๑)ﾉ {signInLabel}</span>

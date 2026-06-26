@@ -116,7 +116,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
   }
 > = {
   chat: {
-    triggerHover: 'hover:bg-[var(--vlaina-sidebar-chat-row-hover)]',
+    triggerHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]',
     triggerText: 'text-[var(--vlaina-sidebar-chat-text-muted)]',
     triggerTextActive: 'text-[var(--vlaina-sidebar-chat-text)]',
     sectionLabel: 'text-[var(--vlaina-sidebar-chat-text-soft)]',
@@ -124,13 +124,13 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     inputText: 'text-[var(--vlaina-sidebar-chat-text)]',
     inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-chat-text-soft)]',
     settingsButton: 'text-[var(--vlaina-sidebar-chat-text)]',
-    categoryHover: 'hover:bg-[var(--vlaina-sidebar-chat-row-hover)]',
+    categoryHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]',
     optionText: 'text-[var(--vlaina-sidebar-chat-text)]',
     optionTextActive: 'text-[var(--vlaina-sidebar-row-selected-text)]',
     emptyText: 'text-[var(--vlaina-sidebar-chat-text-soft)]',
   },
   notes: {
-    triggerHover: 'hover:bg-[var(--vlaina-sidebar-notes-row-hover)]',
+    triggerHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]',
     triggerText: 'text-[var(--vlaina-sidebar-notes-text-muted)]',
     triggerTextActive: 'text-[var(--vlaina-sidebar-notes-text)]',
     sectionLabel: 'text-[var(--vlaina-sidebar-notes-text-soft)]',
@@ -138,7 +138,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     inputText: 'text-[var(--vlaina-sidebar-notes-text)]',
     inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-notes-text-soft)]',
     settingsButton: 'text-[var(--vlaina-sidebar-notes-text)]',
-    categoryHover: 'hover:bg-[var(--vlaina-sidebar-notes-row-hover)]',
+    categoryHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]',
     optionText: 'text-[var(--vlaina-sidebar-notes-text)]',
     optionTextActive: 'text-[var(--vlaina-sidebar-row-selected-text)]',
     emptyText: 'text-[var(--vlaina-sidebar-notes-text-soft)]',
@@ -200,7 +200,7 @@ const ModelOption = memo(({
                 )}
                 <span className={cn(
                     "whitespace-nowrap text-[var(--vlaina-font-15)] font-semibold tracking-tight",
-                    isSelected
+                    isSelected || isFocused
                       ? styles.optionTextActive
                       : styles.optionText
                 )}>
@@ -210,7 +210,7 @@ const ModelOption = memo(({
                     <span
                         className={cn(
                             "ml-2 inline-flex items-center rounded-md border px-1 py-[var(--vlaina-space-1px)] text-[7px] font-medium leading-none tracking-normal",
-                            isSelected
+                            isSelected || isFocused
                               ? "border-[var(--vlaina-color-sidebar-focus-ring)] text-[var(--vlaina-sidebar-row-selected-text)] opacity-[var(--vlaina-opacity-80)]"
                               : "border-[var(--vlaina-color-subtle-border)] text-[var(--vlaina-sidebar-chat-text-soft)] opacity-[var(--vlaina-opacity-60)]"
                         )}
@@ -819,7 +819,7 @@ export function ModelSelector({
                         aria-label={category.name}
                         onClick={() => handleSelectCategory(category.id)}
                         className={cn(
-                          "relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,box-shadow] duration-[var(--vlaina-duration-150)]",
+                          "group/model-category relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,color,box-shadow] duration-[var(--vlaina-duration-150)]",
                           isActive
                             ? "rounded-2xl bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-md)]"
                             : cn("rounded-2xl bg-transparent", styles.categoryHover)
@@ -843,7 +843,13 @@ export function ModelSelector({
                             draggable={false}
                           />
                         ) : (
-                          <CustomModelIcon size={isActive ? 32 : "md"} className={styles.optionText} />
+                          <CustomModelIcon
+                            size={isActive ? 32 : "md"}
+                            className={cn(
+                              isActive ? styles.optionTextActive : styles.optionText,
+                              !isActive && "group-hover/model-category:text-[var(--vlaina-sidebar-row-selected-text)]"
+                            )}
+                          />
                         )}
                       </button>
                       </div>
@@ -930,7 +936,8 @@ export function ModelSelector({
         className={cn(
           "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-[background-color,color,box-shadow] duration-[var(--vlaina-duration-200)] group",
           chatComposerPillSurfaceClass,
-          selectedModel ? styles.triggerTextActive : styles.triggerText
+          selectedModel ? styles.triggerTextActive : styles.triggerText,
+          styles.triggerHover
         )}
       >
         {selectedModelFamily ? (

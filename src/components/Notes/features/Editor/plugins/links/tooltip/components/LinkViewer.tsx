@@ -49,7 +49,7 @@ export const LinkViewer = ({
                 <span className="flex size-5 shrink-0 items-center justify-center rounded transition-colors">
                     <Icon size="md" name="nav.external" />
                 </span>
-                <span className="min-w-0 flex-1 whitespace-normal break-all text-left text-[var(--vlaina-font-13)] font-medium leading-5 text-[var(--vlaina-text-tertiary)] transition-colors group-hover:text-[var(--vlaina-text-primary)]">
+                <span className="min-w-0 flex-1 whitespace-normal break-all text-left text-[var(--vlaina-font-13)] font-medium leading-5 text-[var(--vlaina-text-tertiary)] transition-colors group-hover:text-[var(--vlaina-sidebar-row-selected-text)]">
                     {displayUrl}
                 </span>
             </button>
@@ -77,10 +77,7 @@ export const LinkViewer = ({
                     </button>
                 )}
 
-                <button
-                    onClick={onRemove}
-                    className={cn(actionButtonClass, 'hover:!text-[var(--vlaina-color-status-danger-fg)]')}
-                >
+                <button onClick={onRemove} className={actionButtonClass}>
                     <Icon size="md" name="common.delete" />
                 </button>
             </div>

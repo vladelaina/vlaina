@@ -7,24 +7,24 @@ const SIDEBAR_TONE_STYLES = {
     text: 'text-[var(--vlaina-sidebar-notes-text)]',
     softText: 'text-[var(--vlaina-sidebar-notes-text-soft)]',
     activeRow: 'bg-[var(--vlaina-sidebar-notes-row-active)] text-[var(--vlaina-sidebar-notes-text)]',
-    highlightRow: 'bg-[var(--vlaina-sidebar-notes-row-hover)] text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-sidebar-row-hover)]',
-    inactiveRow: 'text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)]',
-    rowHover: 'hover:bg-[var(--vlaina-sidebar-notes-row-hover)]',
+    highlightRow: 'bg-transparent text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-none)]',
+    inactiveRow: 'text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-none)]',
+    rowHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-none)]',
     fade: 'from-[var(--vlaina-sidebar-notes-fade)]',
-    fadeHover: 'from-[var(--vlaina-sidebar-notes-row-hover)]',
-    groupFadeHover: 'group-hover/sidebar-row:from-[var(--vlaina-sidebar-notes-row-hover)]',
+    fadeHover: 'from-transparent',
+    groupFadeHover: 'group-hover/sidebar-row:from-transparent',
     fadeActive: 'from-[var(--vlaina-sidebar-notes-row-active)]',
   },
   chat: {
     text: 'text-[var(--vlaina-sidebar-chat-text)]',
     softText: 'text-[var(--vlaina-sidebar-chat-text-soft)]',
     activeRow: 'bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-sidebar-chat-text)]',
-    highlightRow: 'bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)] shadow-[var(--vlaina-shadow-sidebar-row-hover)]',
-    inactiveRow: 'text-[var(--vlaina-sidebar-chat-text)] shadow-[var(--vlaina-shadow-none)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)] hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)]',
-    rowHover: 'hover:bg-[var(--vlaina-sidebar-chat-row-hover)]',
+    highlightRow: 'bg-transparent text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-none)]',
+    inactiveRow: 'text-[var(--vlaina-sidebar-chat-text)] shadow-[var(--vlaina-shadow-none)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-none)]',
+    rowHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-none)]',
     fade: 'from-[var(--vlaina-sidebar-chat-fade)]',
-    fadeHover: 'from-[var(--vlaina-sidebar-chat-row-hover)]',
-    groupFadeHover: 'group-hover/sidebar-row:from-[var(--vlaina-sidebar-chat-row-hover)]',
+    fadeHover: 'from-transparent',
+    groupFadeHover: 'group-hover/sidebar-row:from-transparent',
     fadeActive: 'from-[var(--vlaina-sidebar-chat-row-active)]',
   },
 } as const;
@@ -75,7 +75,10 @@ export function getSidebarLabelClass(
   return cn(
     options.selected
       ? 'text-[var(--vlaina-sidebar-row-selected-text)]'
-      : getSidebarTextClass(tone),
+      : cn(
+          getSidebarTextClass(tone),
+          'group-hover/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)] group-focus-within/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)]',
+        ),
     getSidebarLabelWeightClass(options)
   );
 }

@@ -205,10 +205,10 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                                     data-active={isActive ? 'true' : undefined}
                                     onClick={() => setActiveTab(item.id)}
                                     className={cn(
-                                      "flex min-h-[var(--vlaina-size-44px)] w-full items-center gap-3.5 rounded-[var(--vlaina-radius-18px)] px-4 py-3 text-sm leading-none transition-all duration-[var(--vlaina-duration-300)] ease-out max-[900px]:w-auto max-[900px]:gap-2.5 max-[900px]:whitespace-nowrap max-[900px]:px-3.5",
+                                      "group/settings-sidebar-tab flex min-h-[var(--vlaina-size-44px)] w-full items-center gap-3.5 rounded-[var(--vlaina-radius-18px)] px-4 py-3 text-sm leading-none transition-all duration-[var(--vlaina-duration-300)] ease-out max-[900px]:w-auto max-[900px]:gap-2.5 max-[900px]:whitespace-nowrap max-[900px]:px-3.5",
                                       isActive
                                         ? "bg-[var(--vlaina-sidebar-row-selected-bg)] text-[var(--vlaina-sidebar-row-selected-text)] font-[var(--vlaina-font-weight-semibold-plus)] shadow-[var(--vlaina-shadow-selection-soft)]"
-                                        : "text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] font-medium"
+                                        : "text-[var(--vlaina-sidebar-notes-text)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-none)] font-medium"
                                     )}
                                   >
                                     <span className="flex size-5 shrink-0 items-center justify-center leading-none">
@@ -219,7 +219,7 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                                           "transition-all duration-[var(--vlaina-duration-300)]",
                                           isActive
                                             ? "text-[var(--vlaina-sidebar-row-selected-text)] scale-[var(--vlaina-scale-110)]"
-                                            : "text-[var(--vlaina-sidebar-notes-text)]"
+                                            : "text-[var(--vlaina-sidebar-notes-text)] group-hover/settings-sidebar-tab:text-[var(--vlaina-sidebar-row-selected-text)]"
                                         )}
                                       />
                                     </span>

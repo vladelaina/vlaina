@@ -177,7 +177,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             onClick={onClose}
             aria-label={closeLabel}
             className={cn(
-              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]',
+              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]',
               closeButtonClassName,
             )}
           >

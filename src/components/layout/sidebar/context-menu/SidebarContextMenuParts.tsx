@@ -34,10 +34,10 @@ export function SidebarContextMenuItem({
       }}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium leading-none outline-none transition-colors',
+        'group/sidebar-context-menu-item flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium leading-none outline-none transition-colors',
         danger
-          ? 'text-[var(--vlaina-color-status-danger-fg)] hover:bg-[var(--vlaina-color-status-danger-bg)]'
-          : 'text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)]',
+          ? 'text-[var(--vlaina-color-status-danger-fg)] hover:bg-transparent hover:text-[var(--vlaina-color-status-danger-fg)]'
+          : 'text-[var(--vlaina-sidebar-notes-text)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]',
         disabled && 'cursor-not-allowed opacity-[var(--vlaina-opacity-50)] hover:bg-transparent dark:hover:bg-transparent',
         className,
       )}
@@ -45,13 +45,13 @@ export function SidebarContextMenuItem({
       <span
         className={cn(
           'flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center leading-none',
-          danger ? 'text-[var(--vlaina-color-status-danger-fg)]' : 'text-[var(--vlaina-accent)]',
+          danger ? 'text-[var(--vlaina-color-status-danger-fg)]' : 'text-[var(--vlaina-accent)] group-hover/sidebar-context-menu-item:text-[var(--vlaina-sidebar-row-selected-text)]',
         )}
       >
         {icon}
       </span>
       <span className="inline-flex min-w-0 flex-1 items-center truncate text-left leading-none">{label}</span>
-      {trailing ? <span className="inline-flex shrink-0 items-center leading-none text-[var(--vlaina-sidebar-notes-text)]">{trailing}</span> : null}
+      {trailing ? <span className="inline-flex shrink-0 items-center leading-none text-[var(--vlaina-sidebar-notes-text)] group-hover/sidebar-context-menu-item:text-[var(--vlaina-sidebar-row-selected-text)]">{trailing}</span> : null}
     </button>
   );
 }

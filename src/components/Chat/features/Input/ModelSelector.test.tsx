@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
   ModelSelector,
@@ -7,6 +9,10 @@ import {
 } from './ModelSelector';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
+
+function readModelSelectorSource(): string {
+  return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/ModelSelector.tsx'), 'utf8');
+}
 
 const mocks = vi.hoisted(() => ({
   refreshManagedProviderInBackground: vi.fn(),
@@ -339,5 +345,16 @@ describe('ModelSelector', () => {
         compareModelSelectorProviderIds(providerOrder, leftProviderId, rightProviderId)
       )
     ).toEqual(['provider-b', 'provider-a', MANAGED_PROVIDER_ID]);
+  });
+
+  it('uses transparent hover surfaces with blue emphasis in the model selector', () => {
+    const source = readModelSelectorSource();
+
+    expect(source).toContain("triggerHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]'");
+    expect(source).toContain("categoryHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]'");
+    expect(source).toContain('isSelected || isFocused');
+    expect(source).toContain('group-hover/model-category:text-[var(--vlaina-sidebar-row-selected-text)]');
+    expect(source).not.toContain('hover:bg-[var(--vlaina-sidebar-chat-row-hover)]');
+    expect(source).not.toContain('hover:bg-[var(--vlaina-sidebar-notes-row-hover)]');
   });
 });

@@ -100,11 +100,12 @@ describe("editor floating toolbar and preview styles", () => {
     );
   });
 
-  it('keeps floating toolbar hover states flat without lift transforms', () => {
+  it('keeps floating toolbar hover backgrounds transparent without lift transforms', () => {
     const css = readStyleFile('floating-toolbar.css');
 
     expect(css).toContain('.toolbar-btn:hover {');
-    expect(css).toContain('background-color: var(--vlaina-hover);');
+    expect(css).toContain('background-color: transparent;');
+    expect(css).toContain('color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));');
     expect(css).not.toContain('transform: translateY(-1px);');
   });
 
@@ -183,18 +184,33 @@ describe("editor floating toolbar and preview styles", () => {
     expect(css).not.toContain('background-color: hsl(var(--foreground));');
   });
 
-  it('keeps block dropdown icons neutral and selected items on the shared sidebar row surface', () => {
+  it('keeps block dropdown hover backgrounds transparent while tinting hovered icons', () => {
     const css = readStyleFile('floating-toolbar.css');
     const themeCss = readThemeStyle();
 
     expect(themeCss).toContain('--vlaina-toolbar-block-dropdown-active-bg: var(--vlaina-sidebar-notes-row-active');
     expect(themeCss).toContain('--vlaina-toolbar-block-dropdown-active-fg: var(--vlaina-sidebar-row-selected-text');
     expect(css).toContain('border-radius: var(--vlaina-radius-05rem);');
-    expect(css).toContain('background-color: var(--vlaina-sidebar-notes-row-hover');
+    expect(css).toContain('.block-dropdown-item:hover {');
+    expect(css).toContain('background-color: transparent;');
     expect(css).toContain('.block-dropdown-item-icon {');
     expect(css).toContain('color: currentColor;');
+    expect(css).toContain('.block-dropdown-item:hover .block-dropdown-item-icon {');
+    expect(css).toContain('color: var(--vlaina-sidebar-row-selected-text);');
     expect(css).toContain('background-color: var(--vlaina-toolbar-block-dropdown-active-bg);');
     expect(css).toContain('color: var(--vlaina-toolbar-block-dropdown-active-fg);');
+  });
+
+  it('uses the selected notes sidebar row surface for AI dropdown hover states', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    expect(css).toContain('.ai-dropdown-category:hover,');
+    expect(css).toContain('.ai-dropdown-category.active {');
+    expect(css).toContain('.ai-dropdown-item:hover {');
+    expect(css).toContain('background-color: var(--vlaina-sidebar-notes-row-active);');
+    expect(css).toContain('color: var(--vlaina-sidebar-row-selected-text);');
+    expect(css).toContain('.ai-dropdown-item:hover .ai-dropdown-item-shortcut {');
+    expect(css).toContain('color: currentColor;');
   });
 
   it('applies block preview sizes directly without transform scaling', () => {
