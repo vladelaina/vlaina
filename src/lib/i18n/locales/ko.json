@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "여기에 파일 놓기",
   "chat.dropBlocksHere": "여기에 블록 놓기",
   "common.somethingWentWrong": "문제가 발생했습니다",
-  "common.errorReportInstruction": "이 오류 보고서를 복사해 가능한 한 빨리 개발자에게 연락해 주세요. 진단 로그도 시스템 설정 폴더에 저장되었습니다.",
+  "common.errorReportInstruction": "이 오류 보고서를 복사해 가능한 한 빨리 hi@vlaina.com 으로 보내 주세요. 진단 로그도 시스템 설정 폴더에 저장되었습니다.",
   "common.errorDetails": "오류 상세 정보",
   "common.copyErrorReport": "오류 보고서 복사",
   "common.openLogFolder": "로그 폴더 열기",

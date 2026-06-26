@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "Dateien hier ablegen",
   "chat.dropBlocksHere": "Blocke hier ablegen",
   "common.somethingWentWrong": "Etwas ist schiefgelaufen",
-  "common.errorReportInstruction": "Bitte kopiere diesen Fehlerbericht und kontaktiere den Entwickler so schnell wie moglich. Ein Diagnoselog wurde auch im Systemkonfigurationsordner gespeichert.",
+  "common.errorReportInstruction": "Bitte kopiere diesen Fehlerbericht und sende ihn so schnell wie moglich an hi@vlaina.com. Ein Diagnoselog wurde auch im Systemkonfigurationsordner gespeichert.",
   "common.errorDetails": "Fehlerdetails",
   "common.copyErrorReport": "Fehlerbericht kopieren",
   "common.openLogFolder": "Log-Ordner offnen",

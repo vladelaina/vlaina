@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "Deposez les fichiers ici",
   "chat.dropBlocksHere": "Deposez les blocs ici",
   "common.somethingWentWrong": "Une erreur est survenue",
-  "common.errorReportInstruction": "Copiez ce rapport d'erreur et contactez le developpeur des que possible. Un journal de diagnostic a aussi ete enregistre dans le dossier de configuration du systeme.",
+  "common.errorReportInstruction": "Copiez ce rapport d'erreur et envoyez-le a hi@vlaina.com des que possible. Un journal de diagnostic a aussi ete enregistre dans le dossier de configuration du systeme.",
   "common.errorDetails": "Details de l'erreur",
   "common.copyErrorReport": "Copier le rapport d'erreur",
   "common.openLogFolder": "Ouvrir le dossier des journaux",
