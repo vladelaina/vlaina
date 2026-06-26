@@ -99,7 +99,14 @@ function trackScrollTopWrites(element: HTMLElement, initialValue: number) {
   };
 }
 
-function createTypewriterHarness(options: { enabled: boolean }) {
+function createTypewriterHarness(options: {
+  enabled: boolean;
+  beforePluginMount?: (context: {
+    dom: HTMLElement;
+    view: EditorView;
+    prevState: EditorView['state'];
+  }) => void;
+}) {
   setTypewriterMode(options.enabled);
 
   const scrollRoot = document.createElement('div');
@@ -129,6 +136,7 @@ function createTypewriterHarness(options: { enabled: boolean }) {
     hasFocus: vi.fn(() => true),
     coordsAtPos: vi.fn(() => ({ top: 280, bottom: 300 })),
   } as unknown as EditorView;
+  options.beforePluginMount?.({ dom, view, prevState });
   const pluginView = new TypewriterModeView(view);
 
   return {
@@ -250,6 +258,55 @@ describe('TypewriterModeView', () => {
       } finally {
         harness.cleanup();
       }
+    }
+  });
+
+  it('marks Backspace before earlier bubble handlers update the plugin view', () => {
+    let pluginView: TypewriterModeView | null = null;
+    const harness = createTypewriterHarness({
+      enabled: true,
+      beforePluginMount: ({ dom, view, prevState }) => {
+        dom.addEventListener('keydown', () => {
+          pluginView?.update(view, prevState);
+        });
+      },
+    });
+    pluginView = harness.pluginView;
+
+    try {
+      harness.pressKey('Backspace');
+      animationFrame.flush();
+
+      expect(harness.scrollRoot.scrollTop).toBe(190);
+      expect(harness.view.coordsAtPos).toHaveBeenCalledTimes(1);
+    } finally {
+      harness.cleanup();
+    }
+  });
+
+  it('marks deletion beforeinput before earlier bubble handlers update the plugin view', () => {
+    let pluginView: TypewriterModeView | null = null;
+    const harness = createTypewriterHarness({
+      enabled: true,
+      beforePluginMount: ({ dom, view, prevState }) => {
+        dom.addEventListener('beforeinput', () => {
+          pluginView?.update(view, prevState);
+        });
+      },
+    });
+    pluginView = harness.pluginView;
+
+    try {
+      harness.dom.dispatchEvent(new InputEvent('beforeinput', {
+        bubbles: true,
+        inputType: 'deleteContentBackward',
+      }));
+      animationFrame.flush();
+
+      expect(harness.scrollRoot.scrollTop).toBe(190);
+      expect(harness.view.coordsAtPos).toHaveBeenCalledTimes(1);
+    } finally {
+      harness.cleanup();
     }
   });
 

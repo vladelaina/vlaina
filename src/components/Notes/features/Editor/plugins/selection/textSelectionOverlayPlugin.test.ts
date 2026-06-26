@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/kit/core';
-import { AllSelection, NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+import { AllSelection, NodeSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import type { Decoration, EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import type { MilkdownPlugin } from '@milkdown/kit/ctx';
+import { $prose } from '@milkdown/kit/utils';
 import {
   addTextSelectionOverlayDecorations,
   createTextSelectionDecorationState,
@@ -22,6 +23,7 @@ import { videoPlugin } from '../video';
 
 const OVERLAY_ACTIVE_CLASS = 'editor-text-selection-overlay-active';
 const POINTER_NATIVE_SELECTION_CLASS = 'editor-pointer-native-selection';
+const KEYBOARD_SELECTION_PENDING_CLASS = 'editor-keyboard-selection-pending';
 
 function getOverlayText(view: EditorView): string {
   return Array.from(
@@ -231,6 +233,49 @@ describe('textSelectionOverlayPlugin', () => {
 
     expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+  });
+
+  it('captures initial keyboard selection before earlier bubble handlers update selection', async () => {
+    let sawPendingClassBeforeBubbleUpdate = false;
+    const earlierBubbleSelectionPlugin = $prose(() => new Plugin({
+      view(view) {
+        const handleKeyDown = (event: KeyboardEvent) => {
+          if (event.key !== 'ArrowRight' || !event.shiftKey) return;
+          sawPendingClassBeforeBubbleUpdate = view.dom.classList.contains(KEYBOARD_SELECTION_PENDING_CLASS);
+          view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 2)));
+        };
+
+        view.dom.addEventListener('keydown', handleKeyDown);
+        return {
+          destroy() {
+            view.dom.removeEventListener('keydown', handleKeyDown);
+          },
+        };
+      },
+    }));
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, 'hello world');
+      })
+      .use(commonmark)
+      .use(earlierBubbleSelectionPlugin)
+      .use(textSelectionOverlayPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)));
+
+    view.dom.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+
+    expect(view.state.selection.empty).toBe(false);
+    expect(sawPendingClassBeforeBubbleUpdate).toBe(true);
   });
 
   it('hides the floating toolbar when plain navigation clears an overlay selection', async () => {

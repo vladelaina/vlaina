@@ -223,4 +223,54 @@ describe('textBlockCaretOverlayPlugin', () => {
       overlay.destroy();
     },
   );
+
+  it('captures vertical navigation before earlier bubble handlers update selection', () => {
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(vi.fn());
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+
+    const editorDom = document.createElement('div');
+    document.body.appendChild(editorDom);
+
+    const view = {
+      dom: editorDom,
+      composing: false,
+      hasFocus: () => true,
+      coordsAtPos: vi.fn((pos: number) => ({
+        left: pos === 1 ? 24 : 48,
+        top: 12,
+        bottom: 32,
+      })),
+      domAtPos: vi.fn(),
+      state: {
+        selection: createTextblockSelectionAt(1),
+      },
+    };
+    let overlay: TextBlockCaretOverlayView | null = null;
+
+    editorDom.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown') return;
+      view.state.selection = createTextblockSelectionAt(2);
+      overlay?.update(view as any);
+    });
+
+    overlay = new TextBlockCaretOverlayView(view as any);
+    animationFrames.shift()?.(0);
+    expect(document.querySelector<HTMLElement>('.editor-textblock-caret-overlay')?.style.left).toBe('24px');
+
+    editorDom.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowDown',
+      bubbles: true,
+    }));
+
+    animationFrames.shift()?.(0);
+
+    expect(document.querySelector<HTMLElement>('.editor-textblock-caret-overlay')?.style.left).toBe('48px');
+
+    overlay.destroy();
+  });
 });

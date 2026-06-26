@@ -13,6 +13,7 @@ export const TEXT_SELECTION_OVERLAY_CLASS = 'editor-text-selection-overlay';
 const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'editor-text-selection-overlay-active';
 const POINTER_NATIVE_SELECTION_CLASS = 'editor-pointer-native-selection';
 const KEYBOARD_SELECTION_PENDING_CLASS = 'editor-keyboard-selection-pending';
+const KEY_EVENT_LISTENER_OPTIONS = { capture: true };
 const POINTER_NATIVE_SELECTION_META = 'editorTextSelectionPointerNative';
 const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u2800']);
 const VISIBLE_TEXT_PATTERN = /\S/u;
@@ -831,7 +832,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
 
       const ownerDocument = view.dom.ownerDocument;
       view.dom.addEventListener('mousedown', handleMouseDown, true);
-      view.dom.addEventListener('keydown', handleKeyDown);
+      view.dom.addEventListener('keydown', handleKeyDown, KEY_EVENT_LISTENER_OPTIONS);
       ownerDocument.addEventListener('mousemove', handleMouseMove, true);
       ownerDocument.addEventListener('mouseup', handleMouseUp, true);
       view.dom.addEventListener('click', handleClick, true);
@@ -858,7 +859,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
             cancelAnimationFrame(clearNativeSelectionFrame);
           }
           view.dom.removeEventListener('mousedown', handleMouseDown, true);
-          view.dom.removeEventListener('keydown', handleKeyDown);
+          view.dom.removeEventListener('keydown', handleKeyDown, KEY_EVENT_LISTENER_OPTIONS);
           ownerDocument.removeEventListener('mousemove', handleMouseMove, true);
           ownerDocument.removeEventListener('mouseup', handleMouseUp, true);
           view.dom.removeEventListener('click', handleClick, true);
