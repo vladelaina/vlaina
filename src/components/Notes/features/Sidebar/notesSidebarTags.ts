@@ -7,6 +7,7 @@ import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import { extractNoteTagOccurrences, extractNoteTags } from '@/lib/notes/tags';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 
@@ -50,6 +51,10 @@ function createContentSignature(content: string): string {
   const head = content.slice(0, TAG_CONTENT_SIGNATURE_SAMPLE_CHARS);
   const tail = content.slice(-TAG_CONTENT_SIGNATURE_SAMPLE_CHARS);
   return `${content.length}:${hash >>> 0}:${head}:${tail}`;
+}
+
+function createTagRelevantContentSignature(content: string): string {
+  return createContentSignature(stripManagedFrontmatter(content));
 }
 
 function isPathInsideFolder(path: string, folderPath: string): boolean {
@@ -204,7 +209,7 @@ export function buildNotesSidebarTagPathIndexEntry(
     }
   }
 
-  return { contentSignature: createContentSignature(content), tags };
+  return { contentSignature: createTagRelevantContentSignature(content), tags };
 }
 
 export function reconcileNotesSidebarTagPathIndex(
@@ -228,7 +233,7 @@ export function reconcileNotesSidebarTagPathIndex(
     }
 
     const indexed = index.get(entry.path);
-    const contentSignature = createContentSignature(content);
+    const contentSignature = createTagRelevantContentSignature(content);
     if (indexed?.contentSignature === contentSignature) {
       continue;
     }

@@ -3,6 +3,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { normalizeNotePathKey, resolveNoteDisplayName } from '@/lib/notes/displayName';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
+import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 
 const TITLE_SNAPSHOT_SEPARATOR = '\u001f';
 
@@ -82,7 +83,17 @@ export function useDisplayIcon(path: string | undefined): string | undefined {
 
   const getNoteIconSnapshot = useCallback(() => {
     if (!path) return undefined;
-    return useNotesStore.getState().noteMetadata?.notes[path]?.icon;
+    const state = useNotesStore.getState();
+    const notes = state.noteMetadata?.notes;
+    if (notes && Object.prototype.hasOwnProperty.call(notes, path)) {
+      return notes[path]?.icon;
+    }
+
+    if (state.currentNote?.path === path) {
+      return readNoteMetadataFromMarkdown(state.currentNote.content).icon;
+    }
+
+    return undefined;
   }, [path]);
 
   const getPreviewIconSnapshot = useCallback(() => {

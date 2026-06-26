@@ -36,6 +36,9 @@ import { sortModelsForDisplay } from './modelSort'
 import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from './composerStyles'
 
 type ModelSelectorTheme = 'chat' | 'notes'
+const EMPTY_MODELS: AIModel[] = []
+const EMPTY_PROVIDERS: Provider[] = []
+
 type ModelSelectorListRow =
   | {
       type: 'label'
@@ -280,8 +283,8 @@ export function ModelSelector({
   restoreComposerFocusOnClose = true,
 }: ModelSelectorProps) {
   const { t } = useI18n()
-  const models = useUnifiedStore((state) => state.data.ai?.models || [])
-  const providers = useUnifiedStore((state) => state.data.ai?.providers || [])
+  const models = useUnifiedStore((state) => state.data.ai?.models || EMPTY_MODELS)
+  const providers = useUnifiedStore((state) => state.data.ai?.providers || EMPTY_PROVIDERS)
   const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null)
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

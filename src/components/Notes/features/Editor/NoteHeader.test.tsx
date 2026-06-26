@@ -60,6 +60,11 @@ vi.mock('../Cover/utils/resolveCoverAssetUrl', () => ({
 describe('NoteHeader', () => {
   beforeEach(() => {
     mocks.heroProps = null;
+    mocks.notesState.currentNote = { path: 'notes/demo.md', content: '# Demo' };
+    mocks.notesState.noteMetadata = { notes: {} };
+    mocks.notesState.noteIconSize = 60;
+    mocks.notesState.draftNotes = {};
+    mocks.notesState.notesPath = '/vault';
     mocks.loadAssets.mockReset();
     mocks.loadAssets.mockResolvedValue(undefined);
     mocks.resolveCoverAssetUrl.mockReset();
@@ -101,5 +106,45 @@ describe('NoteHeader', () => {
       currentNotePath: 'notes/demo.md',
       replayAnimated: true,
     });
+  });
+
+  it('uses current markdown frontmatter while note icon metadata is not loaded yet', () => {
+    mocks.notesState.currentNote = {
+      path: 'notes/demo.md',
+      content: [
+        '---',
+        'vlaina_icon: "icon:common.sparkle:#ffcc00" size=84',
+        '---',
+        '# Demo',
+      ].join('\n'),
+    };
+    mocks.notesState.noteMetadata = { notes: {} };
+
+    render(<NoteHeader coverUrl={null} onAddCover={vi.fn()} />);
+
+    expect(mocks.heroProps.icon).toBe('icon:common.sparkle:#ffcc00');
+    expect(mocks.heroProps.iconSize).toBe(84);
+  });
+
+  it('does not restore a removed icon from frontmatter after metadata explicitly loaded the note', () => {
+    mocks.notesState.currentNote = {
+      path: 'notes/demo.md',
+      content: [
+        '---',
+        'vlaina_icon: "icon:common.sparkle:#ffcc00" size=84',
+        '---',
+        '# Demo',
+      ].join('\n'),
+    };
+    mocks.notesState.noteMetadata = {
+      notes: {
+        'notes/demo.md': {},
+      },
+    };
+
+    render(<NoteHeader coverUrl={null} onAddCover={vi.fn()} />);
+
+    expect(mocks.heroProps.icon).toBeNull();
+    expect(mocks.heroProps.iconSize).toBe(60);
   });
 });

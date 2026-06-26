@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import type { NoteCoverController } from '../types';
 
@@ -26,11 +27,33 @@ function coverEntryMatchesControllerCover(
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
   const notesPath = useNotesStore(s => s.notesPath);
   const setNoteCover = useNotesStore(s => s.setNoteCover);
-  const coverEntry = useNotesStore(
+  const metadataCoverEntry = useNotesStore(
     useCallback((state) => {
       if (!currentNotePath) return undefined;
       return state.noteMetadata?.notes[currentNotePath]?.cover;
     }, [currentNotePath])
+  );
+  const hasMetadataEntry = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath) return false;
+      const notes = state.noteMetadata?.notes;
+      return Boolean(notes && Object.prototype.hasOwnProperty.call(notes, currentNotePath));
+    }, [currentNotePath])
+  );
+  const currentNoteContent = useNotesStore(
+    useCallback((state) => {
+      if (hasMetadataEntry || !currentNotePath || state.currentNote?.path !== currentNotePath) {
+        return null;
+      }
+      return state.currentNote.content;
+    }, [currentNotePath, hasMetadataEntry])
+  );
+  const currentNoteCoverEntry = useMemo(
+    () => currentNoteContent ? readNoteMetadataFromMarkdown(currentNoteContent).cover : undefined,
+    [currentNoteContent]
+  );
+  const coverEntry = metadataCoverEntry ?? (
+    hasMetadataEntry ? undefined : currentNoteCoverEntry
   );
 
   const [pickerOpenPath, setPickerOpenPath] = useState<string | null>(null);

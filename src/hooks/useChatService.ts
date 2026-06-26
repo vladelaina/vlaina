@@ -57,6 +57,8 @@ import { limitChatComposerText } from '@/lib/ui/composerTextLimit';
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 const EMPTY_MESSAGES: never[] = [];
+const EMPTY_PROVIDERS: never[] = [];
+const EMPTY_MODELS: never[] = [];
 
 function primitiveToString(value: unknown): string {
   if (value == null) {
@@ -302,8 +304,8 @@ export function useChatService() {
 
     return state.data.ai?.messages?.[currentSessionId] || EMPTY_MESSAGES;
   });
-  const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
-  const models = useUnifiedStore((state) => state.data.ai?.models || []);
+  const providers = useUnifiedStore((state) => state.data.ai?.providers || EMPTY_PROVIDERS);
+  const models = useUnifiedStore((state) => state.data.ai?.models || EMPTY_MODELS);
   const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null);
   const customSystemPrompt = useUnifiedStore((state) => state.data.ai?.customSystemPrompt || '');
   const includeTimeContext = useUnifiedStore((state) => state.data.ai?.includeTimeContext !== false);

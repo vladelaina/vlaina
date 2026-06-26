@@ -45,6 +45,9 @@ interface ChatViewProps {
 }
 
 const EMPTY_MESSAGES: never[] = [];
+const EMPTY_SESSIONS: never[] = [];
+const EMPTY_PROVIDERS: never[] = [];
+const EMPTY_MODELS: never[] = [];
 
 export function ChatView({
   mode = 'full',
@@ -60,7 +63,7 @@ export function ChatView({
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
   const isEmbedded = mode === 'embedded';
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
-  const sessions = useUnifiedStore((state) => state.data.ai?.sessions || []);
+  const sessions = useUnifiedStore((state) => state.data.ai?.sessions || EMPTY_SESSIONS);
   const messages = useUnifiedStore((state) => {
     const sessionId = currentSessionId;
     if (!sessionId) {
@@ -81,8 +84,8 @@ export function ChatView({
 
     return state.data.ai?.messages?.[sessionId] !== undefined;
   });
-  const providers = useUnifiedStore((s) => s.data.ai?.providers || []);
-  const models = useUnifiedStore((s) => s.data.ai?.models || []);
+  const providers = useUnifiedStore((s) => s.data.ai?.providers || EMPTY_PROVIDERS);
+  const models = useUnifiedStore((s) => s.data.ai?.models || EMPTY_MODELS);
   const selectedModelId = useUnifiedStore((s) => s.data.ai?.selectedModelId || null);
   const managedBudget = useManagedAIStore((state) => state.budget);
   const managedBudgetSyncAt = useManagedAIStore((state) => state.lastBudgetSyncAt);

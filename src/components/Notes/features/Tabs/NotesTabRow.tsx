@@ -32,6 +32,8 @@ import { NotesDragOverlay } from '../common/NotesDragOverlay';
 import { NoteTabContent } from './NoteTabContent';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
+const EMPTY_NOTE_NAVIGATION_HISTORY: never[] = [];
+
 function NoteHistoryButton({
   direction,
   disabled,
@@ -280,7 +282,7 @@ export function NotesTabRow() {
   const openNote = useNotesStore((s) => s.openNote);
   const createNote = useNotesStore((s) => s.createNote);
   const reorderTabs = useNotesStore((s) => s.reorderTabs);
-  const noteNavigationHistory = useNotesStore((s) => s.noteNavigationHistory ?? []);
+  const noteNavigationHistory = useNotesStore((s) => s.noteNavigationHistory ?? EMPTY_NOTE_NAVIGATION_HISTORY);
   const noteNavigationHistoryIndex = useNotesStore((s) => s.noteNavigationHistoryIndex ?? -1);
   const navigateBackInNoteHistory = useNotesStore((s) => s.navigateBackInNoteHistory);
   const navigateForwardInNoteHistory = useNotesStore((s) => s.navigateForwardInNoteHistory);

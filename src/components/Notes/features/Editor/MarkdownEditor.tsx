@@ -115,11 +115,27 @@ export function MarkdownEditor({
   const openTabs = useNotesStore(s => s.openTabs);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
-  const noteMetadata = useNotesStore(s => s.noteMetadata);
-  
+  const currentNoteCreatedAt = useNotesStore(
+    useCallback((state) => {
+      return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.createdAt;
+    }, [currentNotePath])
+  );
+  const currentNoteUpdatedAt = useNotesStore(
+    useCallback((state) => {
+      return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.updatedAt;
+    }, [currentNotePath])
+  );
+
   const currentNoteMetadata = useMemo(() => {
-    return getNoteMetadataEntry(noteMetadata, currentNotePath);
-  }, [currentNotePath, noteMetadata]);
+    if (currentNoteCreatedAt === undefined && currentNoteUpdatedAt === undefined) {
+      return undefined;
+    }
+
+    return {
+      createdAt: currentNoteCreatedAt,
+      updatedAt: currentNoteUpdatedAt,
+    };
+  }, [currentNoteCreatedAt, currentNoteUpdatedAt]);
   const openTabPathsKey = useMemo(
     () => openTabs.map((tab) => tab.path).join('\0'),
     [openTabs],
