@@ -373,7 +373,7 @@ describe('resolvePendingMarkdownUpdate', () => {
       '---',
       '# Alpha',
       '',
-      '  Pro:   \\$76.80 / year\\',
+      '  Pro:   \\$76.80 / year',
       ' Max:   \\$191.90 / year',
     ].join('\n');
 

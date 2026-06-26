@@ -412,7 +412,7 @@ describe('clipboard paste markdown persistence', () => {
     const pasted = ['• 1. Release note', 'This paragraph is not part of the outline.', '2. Next'].join('\n');
 
     await expect(pasteAndPersist(pasted)).resolves.toBe(
-      ['• 1. Release note\\', 'This paragraph is not part of the outline.\\', '2\\. Next'].join('\n')
+      ['• 1. Release note', 'This paragraph is not part of the outline.', '2\\. Next'].join('\n')
     );
   });
 

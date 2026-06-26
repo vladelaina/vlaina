@@ -641,33 +641,33 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ].join('\n'));
   });
 
-  it('persists consecutive ordered list lines that are missing marker spaces as lists', () => {
+  it('does not canonicalize consecutive ordered list lines while normalizing persisted markdown', () => {
     expect(
       normalizeSerializedMarkdownDocument(['1.苹果', '2.香蕉', '3.橘子'].join('\n'))
-    ).toBe(['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n'));
+    ).toBe(['1.苹果', '2.香蕉', '3.橘子'].join('\n'));
     expect(normalizeSerializedMarkdownDocument(['1.1', '2.1'].join('\n'))).toBe(
-      ['1. 1', '2. 1'].join('\n')
+      ['1.1', '2.1'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['0.安装', '', '1.调用笔记'].join('\n'))).toBe(
-      ['0. 安装', '', '1. 调用笔记'].join('\n')
+      ['0.安装', '', '1.调用笔记'].join('\n')
     );
   });
 
-  it('persists malformed task list markers as standard task markdown', () => {
+  it('does not canonicalize malformed task list markers while normalizing persisted markdown', () => {
     expect(normalizeSerializedMarkdownDocument(['- [] fsedf', '-[] ', '-[x]done'].join('\n'))).toBe(
-      ['- [ ] fsedf', '- [ ]', '- [x] done'].join('\n')
+      ['- [] fsedf', '-[] ', '-[x]done'].join('\n')
     );
   });
 
-  it('persists common non-standard markdown markers as standard markdown', () => {
+  it('does not canonicalize common non-standard markdown markers while normalizing persisted markdown', () => {
     expect(normalizeSerializedMarkdownDocument(['1、苹果', '2、香蕉'].join('\n'))).toBe(
-      ['1. 苹果', '2. 香蕉'].join('\n')
+      ['1、苹果', '2、香蕉'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['-苹果', '-香蕉'].join('\n'))).toBe(
-      ['- 苹果', '- 香蕉'].join('\n')
+      ['-苹果', '-香蕉'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['＃标题', '＞引用'].join('\n'))).toBe(
-      ['# 标题', '> 引用'].join('\n')
+      ['＃标题', '＞引用'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument('－普通破折号文本')).toBe('－普通破折号文本');
   });
@@ -774,13 +774,13 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe('1\\\n2\n');
   });
 
-  it('preserves user-authored paragraph line breaks as markdown hard breaks', () => {
+  it('keeps ordinary paragraph line breaks as plain markdown newlines', () => {
     expect(
       normalizeSerializedMarkdownDocument(['1', '2', '', '3', '4'].join('\n'))
-    ).toBe(['1\\', '2', '', '3\\', '4'].join('\n'));
+    ).toBe(['1', '2', '', '3', '4'].join('\n'));
   });
 
-  it('does not turn slash command text lines into markdown hard breaks', () => {
+  it('does not turn ordinary slash-adjacent text lines into markdown hard breaks', () => {
     expect(
       normalizeSerializedMarkdownDocument(['hi', '/h', '1'].join('\n'))
     ).toBe(['hi', '/h', '1'].join('\n'));
@@ -792,19 +792,19 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['hi', '/h1', '1'].join('\n'));
     expect(
       normalizeSerializedMarkdownDocument(['hi', '/usr/bin', '1'].join('\n'))
-    ).toBe(['hi\\', '/usr/bin\\', '1'].join('\n'));
+    ).toBe(['hi', '/usr/bin', '1'].join('\n'));
   });
 
-  it('preserves user-authored line breaks inside list items as markdown hard breaks', () => {
+  it('keeps ordinary line breaks inside list-adjacent text as plain markdown newlines', () => {
     expect(
       normalizeSerializedMarkdownDocument(['- one', '  two', '- three'].join('\n'))
-    ).toBe(['- one\\', '  two', '- three'].join('\n'));
+    ).toBe(['- one', '  two', '- three'].join('\n'));
     expect(
       normalizeSerializedMarkdownDocument(['1. one', '   two', '2. three'].join('\n'))
-    ).toBe(['1. one\\', '   two', '2. three'].join('\n'));
+    ).toBe(['1. one', '   two', '2. three'].join('\n'));
     expect(
       normalizeSerializedMarkdownDocument(['- [ ] one', '  two', '- [ ] three'].join('\n'))
-    ).toBe(['- [ ] one\\', '  two', '- [ ] three'].join('\n'));
+    ).toBe(['- [ ] one', '  two', '- [ ] three'].join('\n'));
   });
 
   it('does not convert structural markdown boundaries into hard breaks', () => {
@@ -840,7 +840,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown.replace(/^#$/m, '# #'));
   });
 
-  it('does not fast-path large documents with soft line breaks', () => {
+  it('does not add hard breaks to large documents with soft line breaks', () => {
     const paragraph = 'This is a long plain paragraph for large markdown normalization. '.repeat(200);
     const markdown = [
       '# Large Soft Break Document',
@@ -849,7 +849,8 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ].join('\n\n');
 
     expect(markdown.length).toBeGreaterThan(1_000_000);
-    expect(normalizeSerializedMarkdownDocument(markdown)).toContain('\\\ncontinued 0.');
+    expect(normalizeSerializedMarkdownDocument(markdown)).toContain('\ncontinued 0.');
+    expect(normalizeSerializedMarkdownDocument(markdown)).not.toContain('\\\ncontinued 0.');
   });
 
   it('does not fast-path large documents with setext heading markers', () => {
@@ -891,7 +892,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
   it('does not convert leading frontmatter line breaks into hard breaks', () => {
     expect(
       normalizeSerializedMarkdownDocument(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'))
-    ).toBe(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one\\', 'Line two'].join('\n'));
+    ).toBe(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'));
   });
 
   it('keeps editor-state paragraph line breaks as plain newlines for persistence', () => {
@@ -944,7 +945,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
       )
     ).toBe(
       [
-        '  Pro:   \\$76.80 / year\\',
+        '  Pro:   \\$76.80 / year',
         '  Max:   \\$191.90 / year',
         '>   quoted',
         '-   list item',
