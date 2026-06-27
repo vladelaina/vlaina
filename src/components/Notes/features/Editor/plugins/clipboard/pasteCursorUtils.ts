@@ -33,17 +33,22 @@ type DocLike = {
 
 type PasteRangeState = {
     doc: {
+        child?: (index: number) => ProseNode;
+        childCount?: number;
+        content?: {
+            size: number;
+        };
         nodeAt: (pos: number) => ProseNode | null;
     };
     selection: {
         $from?: {
-            after: (depth?: number) => number;
-            before: (depth?: number) => number;
-            depth: number;
-            parent: ProseNode;
+            after?: (depth?: number) => number;
+            before?: (depth?: number) => number;
+            depth?: number;
+            parent?: ProseNode;
         };
         $to?: {
-            parent: ProseNode;
+            parent?: ProseNode;
         };
         empty?: boolean;
         from: number;
@@ -59,15 +64,19 @@ type PasteRange = {
 const isEmptyParagraphNode = (node: ProseNode | null): node is ProseNode =>
     node?.type.name === 'paragraph' && node.content.size === 0;
 
-const isEmptyTopLevelParagraphSelection = (selection: PasteRangeState['selection']): boolean =>
-    Boolean(
-        selection.empty !== false &&
-        selection.$from &&
-        selection.$to &&
-        selection.$from.depth === 1 &&
-        selection.$from.parent === selection.$to.parent &&
-        isEmptyParagraphNode(selection.$from.parent),
-    );
+const hasOnlyEmptyParagraphs = (doc: PasteRangeState['doc']): boolean => {
+    if (typeof doc.child !== 'function' || typeof doc.childCount !== 'number' || doc.childCount <= 0) {
+        return false;
+    }
+
+    for (let index = 0; index < doc.childCount; index += 1) {
+        if (!isEmptyParagraphNode(doc.child(index))) {
+            return false;
+        }
+    }
+
+    return true;
+};
 
 const hasOnlyInlineContent = (slice: Slice): boolean => {
     let hasContent = false;
@@ -89,27 +98,26 @@ export const resolvePasteRange = (state: PasteRangeState, slice: Slice): PasteRa
         return { from, to };
     }
 
-    const nodeAfter = state.doc.nodeAt(from);
-    if (!isEmptyParagraphNode(nodeAfter)) {
-        if (!isEmptyTopLevelParagraphSelection(state.selection)) {
-            return { from, to };
-        }
+    const inlinePaste = hasOnlyInlineContent(slice);
+    if (!inlinePaste && hasOnlyEmptyParagraphs(state.doc) && typeof state.doc.content?.size === 'number') {
+        return { from: 0, to: state.doc.content.size };
+    }
 
-        if (hasOnlyInlineContent(slice)) {
-            return { from, to };
-        }
-
-        try {
-            return {
-                from: state.selection.$from!.before(state.selection.$from!.depth),
-                to: state.selection.$from!.after(state.selection.$from!.depth),
-            };
-        } catch {
-            return { from, to };
+    const parent = state.selection.$from?.parent;
+    if (!inlinePaste && isEmptyParagraphNode(parent ?? null) && (state.selection.$from?.depth ?? 0) > 0) {
+        const parentFrom = state.selection.$from?.before?.();
+        const parentTo = state.selection.$from?.after?.();
+        if (typeof parentFrom === 'number' && typeof parentTo === 'number') {
+            return { from: parentFrom, to: parentTo };
         }
     }
 
-    if (hasOnlyInlineContent(slice)) {
+    const nodeAfter = state.doc.nodeAt(from);
+    if (!isEmptyParagraphNode(nodeAfter)) {
+        return { from, to };
+    }
+
+    if (inlinePaste) {
         const insideEmptyParagraph = from + 1;
         return { from: insideEmptyParagraph, to: insideEmptyParagraph };
     }

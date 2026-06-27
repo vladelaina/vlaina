@@ -244,25 +244,40 @@ describe('resolvePasteRange', () => {
         expect(resolvePasteRange(state as any, slice)).toEqual({ from: 7, to: 9 });
     });
 
-    it('replaces an empty top-level paragraph interior for block paste', () => {
-        const paragraph = createParagraph(0);
+    it('replaces all placeholder paragraphs when a block paste fills an empty document', () => {
         const slice = createSlice([createHeading()]);
+        const paragraphs = [createParagraph(0), createParagraph(0)];
+        const state = {
+            selection: { from: 3, to: 3 },
+            doc: {
+                child: (index: number) => paragraphs[index],
+                childCount: paragraphs.length,
+                content: { size: 4 },
+                nodeAt: () => null,
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 0, to: 4 });
+    });
+
+    it('replaces the active empty paragraph when the cursor is inside it', () => {
+        const slice = createSlice([createHeading()]);
+        const paragraph = createParagraph(0);
         const state = {
             selection: {
-                empty: true,
-                from: 8,
-                to: 8,
                 $from: {
                     after: () => 9,
                     before: () => 7,
                     depth: 1,
                     parent: paragraph,
                 },
-                $to: {
-                    parent: paragraph,
-                },
+                from: 8,
+                to: 8,
             },
             doc: {
+                child: () => createParagraph(5),
+                childCount: 1,
+                content: { size: 7 },
                 nodeAt: () => null,
             },
         };
