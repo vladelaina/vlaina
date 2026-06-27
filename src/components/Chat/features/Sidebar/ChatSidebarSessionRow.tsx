@@ -44,15 +44,17 @@ interface ChatSidebarSessionRowProps {
 
 function getChatSessionTitleClass({
   isActive,
+  isMenuTarget,
   isGenerating,
   isUnread,
 }: {
   isActive: boolean;
+  isMenuTarget: boolean;
   isGenerating: boolean;
   isUnread: boolean;
 }) {
   return cn(
-    isActive
+    isActive || isMenuTarget
       ? 'text-[var(--vlaina-sidebar-row-selected-text)]'
       : getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
   );
@@ -61,14 +63,27 @@ function getChatSessionTitleClass({
 function ChatSidebarLoadingTitle({
   title,
   fullWrap = false,
+  selected = false,
 }: {
   title: string;
   fullWrap?: boolean;
+  selected?: boolean;
 }) {
   return (
     <span className={cn('chat-sidebar-loading-title', fullWrap && 'chat-sidebar-loading-title-unclamped')}>
-      <span className="chat-sidebar-loading-title-base">{title}</span>
-      <span className="chat-sidebar-loading-title-overlay" aria-hidden>
+      <span className={cn(
+        'chat-sidebar-loading-title-base',
+        selected && '!text-[var(--vlaina-sidebar-row-selected-text)]',
+      )}>
+        {title}
+      </span>
+      <span
+        className={cn(
+          'chat-sidebar-loading-title-overlay',
+          selected && '!text-[var(--vlaina-sidebar-row-selected-text)]',
+        )}
+        aria-hidden
+      >
         {title}
       </span>
     </span>
@@ -185,6 +200,7 @@ function ChatSidebarSessionRowInner({
   ) : null;
   const titleClassName = getChatSessionTitleClass({
     isActive,
+    isMenuTarget: showContextMenu || isKeyboardHighlighted,
     isGenerating,
     isUnread,
   });
@@ -238,7 +254,11 @@ function ChatSidebarSessionRowInner({
           />
         ) : isGenerating && !isActive ? (
           <span className={titleWrapClassName}>
-            <ChatSidebarLoadingTitle title={displayTitle} fullWrap={shouldHideSearchResults} />
+            <ChatSidebarLoadingTitle
+              title={displayTitle}
+              fullWrap={shouldHideSearchResults}
+              selected={showContextMenu || isKeyboardHighlighted}
+            />
           </span>
         ) : (
           <span

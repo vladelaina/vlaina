@@ -105,10 +105,10 @@ export function SidebarRow({
           SIDEBAR_LABEL_TEXT_METRICS_CLASS,
           rowClassName,
           props.onClick && 'cursor-pointer',
-          isHighlighted
-            ? highlightClassName ?? inactiveClassName
-            : isActive
-              ? activeClassName
+          isActive
+            ? activeClassName
+            : isHighlighted
+              ? highlightClassName ?? inactiveClassName
               : inactiveClassName,
           isDragOver && dragOverClassName,
         )}

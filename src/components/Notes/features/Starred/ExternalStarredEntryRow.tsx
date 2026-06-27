@@ -270,11 +270,11 @@ export function ExternalStarredEntryRow({
                 onCancel={() => setIsRenaming(false)}
                 className={cn(
                   'w-full min-w-0 border-none bg-transparent p-0 outline-none',
-                  getSidebarLabelClass('notes', { selected: isActive }),
+                  getSidebarLabelClass('notes', { selected: isActive || showMenu }),
                 )}
               />
             ) : (
-              <span className={getSidebarLabelClass('notes', { selected: isActive })}>
+              <span className={getSidebarLabelClass('notes', { selected: isActive || showMenu })}>
                 {title}
               </span>
             )}
