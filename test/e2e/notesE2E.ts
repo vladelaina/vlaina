@@ -854,10 +854,15 @@ export async function collectEditorVisibilityProblems(page: Page, limit = 50) {
       /^rgba?\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(value.trim());
 
     const blockDisplayValues = new Set(['block', 'flow-root', 'flex', 'grid', 'list-item', 'table', 'table-row', 'table-cell']);
+    const isInternalBlankLine = (element: HTMLElement) =>
+      element.matches('p.editor-editable-markdown-blank-line') ||
+      element.matches('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]') ||
+      (element.tagName === 'P' && (element.textContent ?? '').trim() === '⠀');
 
     return Array.from(editor.querySelectorAll<HTMLElement>(textSelectors))
       .flatMap((element) => {
         if (element.closest('div[data-type="toc"]')) return [];
+        if (isInternalBlankLine(element)) return [];
         const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
         if (!text) return [];
         const style = window.getComputedStyle(element);

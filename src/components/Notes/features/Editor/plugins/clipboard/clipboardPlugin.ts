@@ -195,6 +195,20 @@ export function hasClipboardPayload(event: ClipboardEvent): boolean {
     return (clipboardData.types?.length ?? 0) > 0;
 }
 
+function getClipboardTextPayload(clipboardData: DataTransfer | null | undefined): string {
+    if (!clipboardData) return '';
+
+    for (const type of ['text/plain', 'text', 'Text']) {
+        try {
+            const value = clipboardData.getData(type);
+            if (value) return value;
+        } catch {
+        }
+    }
+
+    return '';
+}
+
 export function createStandaloneTocPasteNode(schema: {
     nodes: {
         toc?: {
@@ -1010,7 +1024,7 @@ export const clipboardPlugin = $prose((ctx) => {
         }
 
         const plainTextWithHtmlBreaks = normalizePlainTextHtmlBreaksForPaste(text);
-        if (plainTextWithHtmlBreaks !== text) {
+        if (plainTextWithHtmlBreaks !== text && !looksLikeMarkdownForPaste(text)) {
             const blankLineSlice = createPlainTextBlankLineSlice(state, plainTextWithHtmlBreaks);
             if (blankLineSlice) {
                 dispatchSliceAndKeepCursorAtTail(view, blankLineSlice);
@@ -1040,7 +1054,7 @@ export const clipboardPlugin = $prose((ctx) => {
             return true;
         }
 
-        if (looksLikePlainHtmlLikeTextPaste(text)) {
+        if (looksLikePlainHtmlLikeTextPaste(text) && !looksLikeMarkdownForPaste(text)) {
             const plainTextSlice = createPlainTextLineBreakSlice(state, text);
             if (plainTextSlice) {
                 dispatchSliceAndKeepCursorAtTail(
@@ -1248,7 +1262,7 @@ export const clipboardPlugin = $prose((ctx) => {
                 },
             },
             handlePaste(view, event) {
-                const text = event.clipboardData?.getData('text/plain');
+                const text = getClipboardTextPayload(event.clipboardData);
                 if (!text) {
                     if (hasSelectedBlocks(view.state) && hasClipboardPayload(event)) {
                         replaceBlockSelectionBeforePaste(view);

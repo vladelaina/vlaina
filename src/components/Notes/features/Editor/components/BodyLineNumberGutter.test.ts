@@ -66,31 +66,35 @@ function mockTextRects(rectsByText: Record<string, Partial<DOMRect>>) {
 }
 
 describe('BodyLineNumberGutter', () => {
-  it('collects body targets without code blocks or frontmatter blocks', () => {
+  it('collects body targets with each code block line but without frontmatter blocks', () => {
     const editorRoot = document.createElement('div');
     editorRoot.className = 'ProseMirror';
     editorRoot.innerHTML = [
       '<div class="frontmatter-block-container"></div>',
       '<h1 id="heading">Title</h1>',
-      '<div class="code-block-container"></div>',
+      '<div id="code" class="code-block-container"><div class="cm-content"><div id="code-one" class="cm-line">one</div><div id="code-two" class="cm-line">two</div></div></div>',
       '<ul><li id="one">One</li><li id="two">Two</li></ul>',
       '<p id="paragraph">Text</p>',
     ].join('');
 
     expect(collectBodyLineNumberTargets(editorRoot).map((item) => item.id)).toEqual([
       'heading',
+      'code-one',
+      'code-two',
       'one',
       'two',
       'paragraph',
     ]);
   });
 
-  it('collects body targets without internal blank line placeholders', () => {
+  it('collects body targets with numbered blank lines but without editor-only separators', () => {
     const editorRoot = document.createElement('div');
     editorRoot.className = 'ProseMirror';
     editorRoot.innerHTML = [
       '<h1 id="heading">Title</h1>',
       '<div id="blank-html" data-type="html-block" data-value="<!--vlaina-markdown-blank-line-->"></div>',
+      '<div id="html-boundary" data-type="html-block" data-value="<!--vlaina-rendered-html-boundary-blank-line-->"></div>',
+      '<div id="tight-heading" data-type="html-block" data-value="<!--vlaina-markdown-tight-heading-->"></div>',
       '<p id="blank-paragraph" class="editor-editable-markdown-blank-line"></p>',
       '<p id="empty-paragraph" class="editor-empty-paragraph"></p>',
       '<p id="paragraph">Text</p>',
@@ -98,6 +102,10 @@ describe('BodyLineNumberGutter', () => {
 
     expect(collectBodyLineNumberTargets(editorRoot).map((item) => item.id)).toEqual([
       'heading',
+      'blank-html',
+      'html-boundary',
+      'blank-paragraph',
+      'empty-paragraph',
       'paragraph',
     ]);
   });
@@ -129,6 +137,154 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
+  it('observes editor child blocks so media resize can refresh labels', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    const observedElements: Element[] = [];
+    class TestResizeObserver {
+      constructor(_callback: ResizeObserverCallback) {}
+
+      observe = vi.fn((element: Element) => {
+        observedElements.push(element);
+      });
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    class TestMutationObserver {
+      constructor(_callback: MutationCallback) {}
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+
+    editorRoot.className = 'ProseMirror';
+    paragraph.textContent = 'Body';
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(paragraph);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(paragraph, { left: 106, top: 40, height: 24 });
+
+    try {
+      render(createElement(BodyLineNumberGutter, {
+        markdown: 'Body',
+        revision: 1,
+        shellRef,
+      }));
+
+      expect(observedElements).toEqual(expect.arrayContaining([shell, editorRoot, paragraph]));
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('ignores internal code editor mutations because code block resize already refreshes labels', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    class TestResizeObserver {
+      constructor(_callback: ResizeObserverCallback) {}
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    let mutationCallback: MutationCallback = () => {};
+    class TestMutationObserver {
+      constructor(callback: MutationCallback) {
+        mutationCallback = callback;
+      }
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const codeBlock = document.createElement('div');
+    const codeBody = document.createElement('div');
+    const codeLine = document.createElement('div');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+    let codeLineTop = 72;
+    let selectedNode: Node | null = null;
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockImplementation(() => ({
+      selectNodeContents: vi.fn((node: Node) => {
+        selectedNode = node;
+      }),
+      getClientRects: vi.fn(() => createRectList(
+        selectedNode?.textContent === 'const value = 1;'
+          ? [createRect({ top: codeLineTop, height: 16, width: 120 })]
+          : []
+      )),
+      detach: vi.fn(),
+    } as unknown as Range));
+
+    editorRoot.className = 'ProseMirror';
+    codeBlock.className = 'code-block-container';
+    codeBody.className = 'code-block-editable';
+    codeLine.className = 'cm-line';
+    codeLine.textContent = 'const value = 1;';
+    codeBody.appendChild(codeLine);
+    codeBlock.appendChild(codeBody);
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(codeBlock);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(codeBlock, { left: 106, top: 40, height: 120 });
+
+    try {
+      const { container } = render(createElement(BodyLineNumberGutter, {
+        markdown: ['```ts', 'const value = 1;', '```'].join('\n'),
+        revision: 1,
+        shellRef,
+      }));
+
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(container.querySelector<HTMLElement>('.body-line-number')?.style.top).toBe('60px');
+
+      codeLineTop = 120;
+      act(() => {
+        mutationCallback([{ target: codeLine } as unknown as MutationRecord], {} as MutationObserver);
+        vi.advanceTimersByTime(0);
+      });
+
+      expect(container.querySelector<HTMLElement>('.body-line-number')?.style.top).toBe('60px');
+    } finally {
+      createRangeSpy.mockRestore();
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('resolves labels in an independent gutter before the editor content', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
@@ -144,15 +300,138 @@ describe('BodyLineNumberGutter', () => {
     setRect(heading, { left: 106, top: 40, height: 32 });
     setRect(paragraph, { left: 106, top: 80, height: 24 });
 
-    const labels = resolveBodyLineNumberLabels(shell, '# Title\n\nBody');
+    const labels = resolveBodyLineNumberLabels(shell, '# Title\nBody');
 
     expect(labels).toEqual([
       { lineNumber: 1, left: 38, top: 36 },
-      { lineNumber: 3, left: 38, top: 72 },
+      { lineNumber: 2, left: 38, top: 72 },
     ]);
   });
 
-  it('keeps internal blank line placeholders from shifting following labels', () => {
+  it('anchors media blocks to the visual block center instead of internal control text', () => {
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const mediaParagraph = document.createElement('p');
+    const hiddenText = document.createElement('span');
+
+    editorRoot.className = 'ProseMirror';
+    mediaParagraph.className = 'editor-paragraph-has-image-block';
+    hiddenText.textContent = 'Image alt text';
+    mediaParagraph.appendChild(hiddenText);
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(mediaParagraph);
+
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(mediaParagraph, { left: 106, top: 40, height: 120 });
+    const rangeSpy = mockTextRects({
+      'Image alt text': { top: 42, height: 12 },
+    });
+
+    try {
+      const labels = resolveBodyLineNumberLabels(shell, '![Image alt text](image.png)');
+
+      expect(labels).toEqual([
+        { lineNumber: 1, left: 38, top: 80 },
+      ]);
+    } finally {
+      rangeSpy.mockRestore();
+    }
+  });
+
+  it('anchors code block labels to the first visible code line', () => {
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const codeBlock = document.createElement('div');
+    const header = document.createElement('div');
+    const codeBody = document.createElement('div');
+    const gutter = document.createElement('div');
+    const gutterLine = document.createElement('div');
+    const codeLine = document.createElement('div');
+    const restoreCreateRange = mockTextRects({
+      TypeScript: { left: 120, top: 42, width: 80, height: 16 },
+      '1': { left: 112, top: 92, width: 8, height: 16 },
+      'const value = 1;': { left: 132, top: 72, width: 140, height: 16 },
+    });
+
+    editorRoot.className = 'ProseMirror';
+    codeBlock.className = 'code-block-container';
+    header.textContent = 'TypeScript';
+    header.contentEditable = 'false';
+    codeBody.className = 'code-block-editable';
+    gutter.className = 'cm-gutters';
+    gutterLine.className = 'cm-gutterElement';
+    gutterLine.textContent = '1';
+    gutter.appendChild(gutterLine);
+    codeLine.className = 'cm-line';
+    codeLine.textContent = 'const value = 1;';
+    codeBody.append(gutter, codeLine);
+    codeBlock.append(header, codeBody);
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(codeBlock);
+
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(codeBlock, { left: 106, top: 40, height: 120 });
+
+    try {
+      const labels = resolveBodyLineNumberLabels(
+        shell,
+        ['```ts', 'const value = 1;', '```'].join('\n')
+      );
+
+      expect(labels).toEqual([{ lineNumber: 1, left: 38, top: 60 }]);
+    } finally {
+      restoreCreateRange.mockRestore();
+    }
+  });
+
+  it('anchors multi-line code block labels to each rendered code line', () => {
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const codeBlock = document.createElement('div');
+    const codeBody = document.createElement('div');
+    const firstLine = document.createElement('div');
+    const secondLine = document.createElement('div');
+    const restoreCreateRange = mockTextRects({
+      'const first = 1;': { left: 132, top: 72, width: 140, height: 16 },
+      'const second = 2;': { left: 132, top: 96, width: 150, height: 16 },
+    });
+
+    editorRoot.className = 'ProseMirror';
+    codeBlock.className = 'code-block-container';
+    codeBody.className = 'cm-content';
+    firstLine.className = 'cm-line';
+    firstLine.textContent = 'const first = 1;';
+    secondLine.className = 'cm-line';
+    secondLine.textContent = 'const second = 2;';
+    codeBody.append(firstLine, secondLine);
+    codeBlock.appendChild(codeBody);
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(codeBlock);
+
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(codeBlock, { left: 106, top: 40, height: 120 });
+    setRect(firstLine, { left: 106, top: 68, height: 24 });
+    setRect(secondLine, { left: 106, top: 92, height: 24 });
+
+    try {
+      const labels = resolveBodyLineNumberLabels(
+        shell,
+        ['```ts', 'const first = 1;', 'const second = 2;', '```'].join('\n')
+      );
+
+      expect(labels).toEqual([
+        { lineNumber: 1, left: 38, top: 60 },
+        { lineNumber: 2, left: 38, top: 84 },
+      ]);
+    } finally {
+      restoreCreateRange.mockRestore();
+    }
+  });
+
+  it('numbers internal blank line placeholders without shifting following labels', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const heading = document.createElement('h1');
@@ -180,6 +459,7 @@ describe('BodyLineNumberGutter', () => {
 
     expect(labels).toEqual([
       { lineNumber: 1, left: 38, top: 36 },
+      { lineNumber: 2, left: 38, top: 64 },
       { lineNumber: 3, left: 38, top: 88 },
     ]);
   });
@@ -256,6 +536,52 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
+  it('aligns table labels before the first visible table row', () => {
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const tableBlock = document.createElement('div');
+    const tableWrapper = document.createElement('div');
+    const table = document.createElement('table');
+    const tbody = document.createElement('tbody');
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    const restoreCreateRange = mockTextRects({
+      A: { left: 96, top: 44, width: 16, height: 16 },
+    });
+
+    editorRoot.className = 'ProseMirror';
+    tableBlock.className = 'milkdown-table-block';
+    tableWrapper.className = 'table-wrapper';
+    tableWrapper.setAttribute('contenteditable', 'false');
+    cell.textContent = 'A';
+    row.appendChild(cell);
+    tbody.appendChild(row);
+    table.appendChild(tbody);
+    tableWrapper.appendChild(table);
+    tableBlock.appendChild(tableWrapper);
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(tableBlock);
+
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(tableBlock, { left: 106, top: 40, height: 180 });
+    setRect(tableWrapper, { left: 70, top: 40, height: 180, width: 320 });
+    setRect(table, { left: 70, top: 40, height: 180, width: 320 });
+    setRect(row, { left: 70, top: 40, height: 36, width: 320 });
+    setRect(cell, { left: 70, top: 40, height: 36, width: 160 });
+
+    try {
+      const labels = resolveBodyLineNumberLabels(
+        shell,
+        ['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n')
+      );
+
+      expect(labels).toEqual([{ lineNumber: 1, left: 2, top: 32 }]);
+    } finally {
+      restoreCreateRange.mockRestore();
+    }
+  });
+
   it('skips per-text range measurement for large body line number sets', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
@@ -275,16 +601,16 @@ describe('BodyLineNumberGutter', () => {
       paragraph.textContent = `Line ${index}`;
       editorRoot.appendChild(paragraph);
       setRect(paragraph, { left: 106, top: 40 + index * 24, height: 24 });
-      markdownLines.push(`Line ${index}`);
+      markdownLines.push(`- Line ${index}`);
     }
 
     try {
-      const labels = resolveBodyLineNumberLabels(shell, markdownLines.join('\n\n'));
+      const labels = resolveBodyLineNumberLabels(shell, markdownLines.join('\n'));
 
       expect(labels).toHaveLength(paragraphCount);
       expect(labels[0]).toEqual({ lineNumber: 1, left: 38, top: 32 });
       expect(labels.at(-1)).toEqual({
-        lineNumber: paragraphCount * 2 - 1,
+        lineNumber: paragraphCount,
         left: 38,
         top: 32 + (paragraphCount - 1) * 24,
       });
@@ -294,7 +620,7 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
-  it('hides labels for selected blocks without shifting source line numbers', () => {
+  it('hides labels for selected blocks without shifting body line numbers', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const first = document.createElement('p');
@@ -312,11 +638,11 @@ describe('BodyLineNumberGutter', () => {
     setRect(selected, { left: 106, top: 72, height: 24 });
     setRect(third, { left: 106, top: 104, height: 24 });
 
-    const labels = resolveBodyLineNumberLabels(shell, 'First\n\nSelected\n\nThird');
+    const labels = resolveBodyLineNumberLabels(shell, '- First\n- Selected\n- Third');
 
     expect(labels).toEqual([
       { lineNumber: 1, left: 38, top: 32 },
-      { lineNumber: 5, left: 38, top: 96 },
+      { lineNumber: 3, left: 38, top: 96 },
     ]);
   });
 

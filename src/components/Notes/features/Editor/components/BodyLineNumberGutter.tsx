@@ -8,6 +8,7 @@ const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const BLOCK_DRAG_ACTIVE_CLASS = 'editor-block-drag-active';
 const DEFERRED_BLOCK_INTERACTION_REFRESH_RETRY_MS = 80;
 const POINTER_INTERACTION_REFRESH_FALLBACK_MS = 10_000;
+const MAX_OBSERVED_EDITOR_CHILD_RESIZE_TARGETS = 5000;
 
 interface BodyLineNumberGutterProps {
   markdown: string;
@@ -32,6 +33,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
     let needsRefreshAfterDeferredBlockInteraction = false;
     let pointerInteractionActive = false;
     const editorRoot = resolvedShell.querySelector<HTMLElement>('.ProseMirror');
+    const observedResizeTargets = new Set<Element>();
 
     function shouldDeferRefreshForBlockInteraction() {
       return editorRoot?.classList.contains(BLOCK_SELECTION_PENDING_CLASS) === true
@@ -113,18 +115,71 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       });
     }
 
-    refresh();
+    const resizeObserver = new ResizeObserver(() => {
+      syncObservedResizeTargets();
+      refresh();
+    });
 
-    const resizeObserver = new ResizeObserver(refresh);
-    resizeObserver.observe(resolvedShell);
-    if (editorRoot) {
-      resizeObserver.observe(editorRoot);
+    function shouldRefreshForMutation(records: MutationRecord[]) {
+      for (const record of records) {
+        if (!(record.target instanceof Element)) {
+          return true;
+        }
+
+        const atomicEditorBlock = record.target.closest('.code-block-container, .frontmatter-block-container');
+        if (atomicEditorBlock && atomicEditorBlock !== record.target) {
+          continue;
+        }
+
+        return true;
+      }
+
+      return false;
     }
 
-    const mutationObserver = new MutationObserver(refresh);
+    function syncObservedResizeTargets() {
+      const nextTargets = new Set<Element>([resolvedShell]);
+      if (editorRoot) {
+        nextTargets.add(editorRoot);
+        for (
+          let index = 0;
+          index < editorRoot.children.length && index < MAX_OBSERVED_EDITOR_CHILD_RESIZE_TARGETS;
+          index += 1
+        ) {
+          const child = editorRoot.children.item(index);
+          if (child) nextTargets.add(child);
+        }
+      }
+
+      for (const target of observedResizeTargets) {
+        if (!nextTargets.has(target)) {
+          resizeObserver.unobserve(target);
+          observedResizeTargets.delete(target);
+        }
+      }
+
+      for (const target of nextTargets) {
+        if (!observedResizeTargets.has(target)) {
+          resizeObserver.observe(target);
+          observedResizeTargets.add(target);
+        }
+      }
+    }
+
+    syncObservedResizeTargets();
+    refresh();
+
+    const mutationObserver = new MutationObserver((records) => {
+      if (!shouldRefreshForMutation(records)) {
+        return;
+      }
+      syncObservedResizeTargets();
+      refresh();
+    });
     if (editorRoot) {
       mutationObserver.observe(editorRoot, {
         attributes: true,
+        attributeFilter: ['class', 'data-type', 'data-value', 'style'],
         childList: true,
         subtree: true,
       });

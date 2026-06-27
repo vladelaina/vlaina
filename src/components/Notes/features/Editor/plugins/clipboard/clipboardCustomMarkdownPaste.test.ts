@@ -16,12 +16,16 @@ import { videoPlugin } from '../video';
 import { deflistPlugin } from '../deflist';
 
 function simulatePasteText(view: any, text: string): boolean {
-  const event = {
-    clipboardData: {
-      getData(type: string) {
-        return type === 'text/plain' ? text : '';
-      },
+  return simulatePasteData(view, {
+    getData(type: string) {
+      return type === 'text/plain' ? text : '';
     },
+  });
+}
+
+function simulatePasteData(view: any, clipboardData: { getData(type: string): string }): boolean {
+  const event = {
+    clipboardData,
     preventDefault: vi.fn(),
   };
 
@@ -96,6 +100,78 @@ describe('clipboard custom markdown paste', () => {
 
     expect(nodeNames[0]).toBe('frontmatter');
     expect(nodeNames.filter((name) => name === 'hr')).toHaveLength(3);
+
+    await editor.destroy();
+  });
+
+  it('parses markdown that contains standalone raw html before the plain-html fallback', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    const markdown = [
+      '# Heading with HTML Sentinel',
+      '',
+      '<div class="raw-html-sentinel">Raw HTML sentinel</div>',
+      '',
+      '- Bullet sentinel',
+    ].join('\n');
+
+    expect(simulatePasteText(view, markdown)).toBe(true);
+
+    const nodeNames: string[] = [];
+    view.state.doc.forEach((node) => {
+      nodeNames.push(node.type.name);
+    });
+
+    expect(nodeNames[0]).toBe('heading');
+    expect(nodeNames).toContain('bullet_list');
+
+    await editor.destroy();
+  });
+
+  it('reads markdown paste text from legacy Text clipboard payloads', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    const markdown = ['# Legacy Text Payload Sentinel', '', '- Bullet sentinel'].join('\n');
+    expect(simulatePasteData(view, {
+      getData(type: string) {
+        return type === 'Text' ? markdown : '';
+      },
+    })).toBe(true);
+
+    const nodeNames: string[] = [];
+    view.state.doc.forEach((node) => {
+      nodeNames.push(node.type.name);
+    });
+
+    expect(nodeNames[0]).toBe('heading');
+    expect(nodeNames).toContain('bullet_list');
+
+    await editor.destroy();
+  });
+
+  it('parses markdown that contains html break tags before the plain-text break fallback', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    const markdown = [
+      '# HTML Break Markdown Sentinel',
+      '',
+      'Line one<br/>Line two.',
+      '',
+      '- Bullet sentinel',
+    ].join('\n');
+
+    expect(simulatePasteText(view, markdown)).toBe(true);
+
+    const nodeNames: string[] = [];
+    view.state.doc.forEach((node) => {
+      nodeNames.push(node.type.name);
+    });
+
+    expect(nodeNames[0]).toBe('heading');
+    expect(nodeNames).toContain('bullet_list');
 
     await editor.destroy();
   });

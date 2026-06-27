@@ -244,6 +244,47 @@ describe('resolvePasteRange', () => {
         expect(resolvePasteRange(state as any, slice)).toEqual({ from: 7, to: 9 });
     });
 
+    it('replaces all placeholder paragraphs when a block paste fills an empty document', () => {
+        const slice = createSlice([createHeading()]);
+        const paragraphs = [createParagraph(0), createParagraph(0)];
+        const state = {
+            selection: { from: 3, to: 3 },
+            doc: {
+                child: (index: number) => paragraphs[index],
+                childCount: paragraphs.length,
+                content: { size: 4 },
+                nodeAt: () => null,
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 0, to: 4 });
+    });
+
+    it('replaces the active empty paragraph when the cursor is inside it', () => {
+        const slice = createSlice([createHeading()]);
+        const paragraph = createParagraph(0);
+        const state = {
+            selection: {
+                $from: {
+                    after: () => 9,
+                    before: () => 7,
+                    depth: 1,
+                    parent: paragraph,
+                },
+                from: 8,
+                to: 8,
+            },
+            doc: {
+                child: () => createParagraph(5),
+                childCount: 1,
+                content: { size: 7 },
+                nodeAt: () => null,
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 7, to: 9 });
+    });
+
     it('keeps ordinary selection ranges unchanged', () => {
         const slice = createSlice([createText()]);
         const state = {
