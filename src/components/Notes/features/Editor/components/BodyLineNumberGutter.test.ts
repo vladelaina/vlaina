@@ -87,7 +87,7 @@ describe('BodyLineNumberGutter', () => {
     ]);
   });
 
-  it('collects body targets with numbered blank lines but without editor-only separators', () => {
+  it('collects body targets with source blank lines but without editor-only separators', () => {
     const editorRoot = document.createElement('div');
     editorRoot.className = 'ProseMirror';
     editorRoot.innerHTML = [
@@ -103,10 +103,39 @@ describe('BodyLineNumberGutter', () => {
     expect(collectBodyLineNumberTargets(editorRoot).map((item) => item.id)).toEqual([
       'heading',
       'blank-html',
-      'html-boundary',
       'blank-paragraph',
       'empty-paragraph',
       'paragraph',
+    ]);
+  });
+
+  it('collects body targets without hidden link reference or abbreviation definitions', () => {
+    const editorRoot = document.createElement('div');
+    editorRoot.className = 'ProseMirror';
+    editorRoot.innerHTML = [
+      '<p id="paragraph">Inline reference</p>',
+      '<p id="reference">[docs]: https://example.com</p>',
+      '<p id="abbr">*[API]: Application Programming Interface</p>',
+      '<p id="after">API body</p>',
+    ].join('');
+
+    expect(collectBodyLineNumberTargets(editorRoot).map((item) => item.id)).toEqual([
+      'paragraph',
+      'after',
+    ]);
+  });
+
+  it('collects body targets without unsupported self-closing raw audio or video HTML', () => {
+    const editorRoot = document.createElement('div');
+    editorRoot.className = 'ProseMirror';
+    editorRoot.innerHTML = [
+      '<div id="iframe">&lt;iframe src="https://example.com/embed"&gt;&lt;/iframe&gt;</div>',
+      '<div id="video">&lt;video src="xxx.mp4" controls /&gt;</div>',
+      '<div id="audio">&lt;audio src="xxx.mp3" controls /&gt;</div>',
+    ].join('');
+
+    expect(collectBodyLineNumberTargets(editorRoot).map((item) => item.id)).toEqual([
+      'iframe',
     ]);
   });
 
@@ -339,6 +368,31 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
+  it('anchors paragraph-wrapped media to the inner visual media block', () => {
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const mediaParagraph = document.createElement('p');
+    const imageBlock = document.createElement('div');
+
+    editorRoot.className = 'ProseMirror';
+    mediaParagraph.className = 'editor-paragraph-has-image-block';
+    imageBlock.className = 'image-block-container';
+    mediaParagraph.appendChild(imageBlock);
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(mediaParagraph);
+
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(mediaParagraph, { left: 106, top: 40, height: 180 });
+    setRect(imageBlock, { left: 126, top: 64, height: 96, width: 160 });
+
+    const labels = resolveBodyLineNumberLabels(shell, '![Image alt text](image.png)');
+
+    expect(labels).toEqual([
+      { lineNumber: 1, left: 38, top: 92 },
+    ]);
+  });
+
   it('anchors code block labels to the first visible code line', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
@@ -380,7 +434,7 @@ describe('BodyLineNumberGutter', () => {
         ['```ts', 'const value = 1;', '```'].join('\n')
       );
 
-      expect(labels).toEqual([{ lineNumber: 1, left: 38, top: 60 }]);
+      expect(labels).toEqual([{ lineNumber: 2, left: 38, top: 60 }]);
     } finally {
       restoreCreateRange.mockRestore();
     }
@@ -423,8 +477,8 @@ describe('BodyLineNumberGutter', () => {
       );
 
       expect(labels).toEqual([
-        { lineNumber: 1, left: 38, top: 60 },
-        { lineNumber: 2, left: 38, top: 84 },
+        { lineNumber: 2, left: 38, top: 60 },
+        { lineNumber: 3, left: 38, top: 84 },
       ]);
     } finally {
       restoreCreateRange.mockRestore();
@@ -536,27 +590,62 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
-  it('aligns table labels before the first visible table row', () => {
+  it('collects table targets as rendered rows', () => {
+    const editorRoot = document.createElement('div');
+    editorRoot.className = 'ProseMirror';
+    editorRoot.innerHTML = [
+      '<p id="before">Before</p>',
+      '<div class="milkdown-table-block">',
+      '<div class="table-wrapper"><table>',
+      '<thead><tr id="header-row"><th>A</th><th>B</th></tr></thead>',
+      '<tbody><tr id="first-row"><td>1</td><td>2</td></tr><tr id="second-row"><td>3</td><td>4</td></tr></tbody>',
+      '</table></div>',
+      '</div>',
+      '<p id="after">After</p>',
+    ].join('');
+
+    expect(collectBodyLineNumberTargets(editorRoot).map((item) => item.id)).toEqual([
+      'before',
+      'header-row',
+      'first-row',
+      'second-row',
+      'after',
+    ]);
+  });
+
+  it('aligns table labels before each visible table row', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const tableBlock = document.createElement('div');
     const tableWrapper = document.createElement('div');
     const table = document.createElement('table');
+    const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
-    const row = document.createElement('tr');
-    const cell = document.createElement('td');
+    const headerRow = document.createElement('tr');
+    const headerCell = document.createElement('th');
+    const firstRow = document.createElement('tr');
+    const firstCell = document.createElement('td');
+    const secondRow = document.createElement('tr');
+    const secondCell = document.createElement('td');
     const restoreCreateRange = mockTextRects({
       A: { left: 96, top: 44, width: 16, height: 16 },
+      '1': { left: 96, top: 80, width: 16, height: 16 },
+      '3': { left: 96, top: 116, width: 16, height: 16 },
     });
 
     editorRoot.className = 'ProseMirror';
     tableBlock.className = 'milkdown-table-block';
     tableWrapper.className = 'table-wrapper';
     tableWrapper.setAttribute('contenteditable', 'false');
-    cell.textContent = 'A';
-    row.appendChild(cell);
-    tbody.appendChild(row);
-    table.appendChild(tbody);
+    headerCell.textContent = 'A';
+    headerRow.appendChild(headerCell);
+    thead.appendChild(headerRow);
+    firstCell.textContent = '1';
+    firstRow.appendChild(firstCell);
+    secondCell.textContent = '3';
+    secondRow.appendChild(secondCell);
+    tbody.append(firstRow, secondRow);
+    table.append(thead, tbody);
     tableWrapper.appendChild(table);
     tableBlock.appendChild(tableWrapper);
     shell.appendChild(editorRoot);
@@ -567,16 +656,24 @@ describe('BodyLineNumberGutter', () => {
     setRect(tableBlock, { left: 106, top: 40, height: 180 });
     setRect(tableWrapper, { left: 70, top: 40, height: 180, width: 320 });
     setRect(table, { left: 70, top: 40, height: 180, width: 320 });
-    setRect(row, { left: 70, top: 40, height: 36, width: 320 });
-    setRect(cell, { left: 70, top: 40, height: 36, width: 160 });
+    setRect(headerRow, { left: 70, top: 40, height: 36, width: 320 });
+    setRect(headerCell, { left: 70, top: 40, height: 36, width: 160 });
+    setRect(firstRow, { left: 70, top: 76, height: 36, width: 320 });
+    setRect(firstCell, { left: 70, top: 76, height: 36, width: 160 });
+    setRect(secondRow, { left: 70, top: 112, height: 36, width: 320 });
+    setRect(secondCell, { left: 70, top: 112, height: 36, width: 160 });
 
     try {
       const labels = resolveBodyLineNumberLabels(
         shell,
-        ['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n')
+        ['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |'].join('\n')
       );
 
-      expect(labels).toEqual([{ lineNumber: 1, left: 2, top: 32 }]);
+      expect(labels).toEqual([
+        { lineNumber: 1, left: 2, top: 32 },
+        { lineNumber: 3, left: 2, top: 68 },
+        { lineNumber: 4, left: 2, top: 104 },
+      ]);
     } finally {
       restoreCreateRange.mockRestore();
     }

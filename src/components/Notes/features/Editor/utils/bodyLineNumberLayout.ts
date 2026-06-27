@@ -7,6 +7,8 @@ const BODY_LINE_NUMBER_LABEL_WIDTH = 40;
 const BODY_LINE_NUMBER_LABEL_GAP = 18;
 const MAX_BODY_LINE_NUMBER_TEXT_ANCHOR_SCAN_NODES = 256;
 const MAX_BODY_LINE_NUMBER_TABLE_CELL_ANCHOR_SCAN_ELEMENTS = 128;
+const HIDDEN_DEFINITION_TEXT_PATTERN = /^(?:\[[^\]\n]+]:\s+\S|\*\[[^\]\n]+]:\s+\S)/;
+const SELF_CLOSING_RAW_MEDIA_HTML_TEXT_PATTERN = /^<(?:video|audio)\b[^>]*\/>$/i;
 
 export const MAX_BODY_LINE_NUMBER_TARGETS = 5000;
 export const MAX_BODY_LINE_NUMBER_PRECISE_TEXT_ANCHOR_TARGETS = 400;
@@ -28,8 +30,19 @@ function isNonNumberedPlaceholderElement(element: HTMLElement): boolean {
     && isNonNumberedMarkdownBodyLinePlaceholder(element.dataset.value ?? '');
 }
 
+function isHiddenDefinitionElement(element: HTMLElement): boolean {
+  return HIDDEN_DEFINITION_TEXT_PATTERN.test((element.textContent ?? '').trim());
+}
+
+function isUnsupportedSelfClosingRawMediaElement(element: HTMLElement): boolean {
+  return SELF_CLOSING_RAW_MEDIA_HTML_TEXT_PATTERN.test((element.textContent ?? '').trim());
+}
+
 function shouldSkipBodyLineNumberTarget(element: HTMLElement): boolean {
-  return isFrontmatterBlock(element) || isNonNumberedPlaceholderElement(element);
+  return isFrontmatterBlock(element)
+    || isNonNumberedPlaceholderElement(element)
+    || isHiddenDefinitionElement(element)
+    || isUnsupportedSelfClosingRawMediaElement(element);
 }
 
 function isCodeBlockTarget(element: HTMLElement): boolean {
@@ -51,6 +64,21 @@ function collectCodeBlockLineNumberTargets(codeBlock: HTMLElement): HTMLElement[
   return [codeRoot];
 }
 
+function isTableBlockTarget(element: HTMLElement): boolean {
+  return element.classList.contains('milkdown-table-block') || element.tagName.toLowerCase() === 'table';
+}
+
+function collectTableRowLineNumberTargets(tableBlock: HTMLElement): HTMLElement[] {
+  const table = tableBlock.tagName.toLowerCase() === 'table'
+    ? tableBlock
+    : tableBlock.querySelector<HTMLElement>('table');
+  if (!table) return [tableBlock];
+
+  const rows = Array.from(table.querySelectorAll<HTMLElement>('tr'))
+    .filter((row) => row.closest('table') === table);
+  return rows.length > 0 ? rows : [tableBlock];
+}
+
 export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLElement[] {
   const targets: HTMLElement[] = [];
 
@@ -62,6 +90,13 @@ export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLEleme
       for (const lineTarget of collectCodeBlockLineNumberTargets(child)) {
         if (targets.length >= MAX_BODY_LINE_NUMBER_TARGETS) break;
         targets.push(lineTarget);
+      }
+      continue;
+    }
+    if (isTableBlockTarget(child)) {
+      for (const rowTarget of collectTableRowLineNumberTargets(child)) {
+        if (targets.length >= MAX_BODY_LINE_NUMBER_TARGETS) break;
+        targets.push(rowTarget);
       }
       continue;
     }
@@ -80,6 +115,8 @@ export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLEleme
         if (node.tagName.toLowerCase() !== 'li') continue;
         if (node.closest('.frontmatter-block-container')) continue;
         if (isNonNumberedPlaceholderElement(node)) continue;
+        if (isHiddenDefinitionElement(node)) continue;
+        if (isUnsupportedSelfClosingRawMediaElement(node)) continue;
         targets.push(node);
       }
       continue;
@@ -192,7 +229,10 @@ function resolveFirstTextLineRect(
 }
 
 function isTableLineNumberTarget(target: HTMLElement): boolean {
-  return target.classList.contains('milkdown-table-block') || target.tagName.toLowerCase() === 'table';
+  const tagName = target.tagName.toLowerCase();
+  return target.classList.contains('milkdown-table-block')
+    || tagName === 'table'
+    || (tagName === 'tr' && target.closest('table') !== null);
 }
 
 function isCodeBlockLineNumberTarget(target: HTMLElement): boolean {
@@ -212,6 +252,21 @@ function isMediaLineNumberTarget(target: HTMLElement): boolean {
 
   return target.dataset.type === 'html-block'
     && target.querySelector('img, video, audio, iframe, source, track') !== null;
+}
+
+function resolveMediaVisualRect(target: HTMLElement): DOMRect | null {
+  if (
+    target.classList.contains('image-block-container')
+    || target.classList.contains('video-block')
+    || target.dataset.type === 'video'
+  ) {
+    return getVisibleRect(target);
+  }
+
+  const visualMedia = target.querySelector<HTMLElement>(
+    '.image-block-container, .video-block, [data-type="video"], img, video, audio, iframe'
+  );
+  return visualMedia ? getVisibleRect(visualMedia) : getVisibleRect(target);
 }
 
 function getVisibleRect(element: HTMLElement): DOMRect | null {
@@ -250,7 +305,10 @@ function resolveFirstCodeBlockLineRect(target: HTMLElement): DOMRect | null {
 function resolveBodyLineNumberAnchorTop(shellRect: DOMRect, target: HTMLElement, usePreciseTextAnchor: boolean): number {
   const targetRect = target.getBoundingClientRect();
   if (usePreciseTextAnchor && isMediaLineNumberTarget(target)) {
-    return targetRect.top - shellRect.top + targetRect.height / 2;
+    const mediaRect = resolveMediaVisualRect(target);
+    if (mediaRect) {
+      return mediaRect.top - shellRect.top + mediaRect.height / 2;
+    }
   }
 
   if (usePreciseTextAnchor && isTableLineNumberTarget(target)) {
@@ -280,8 +338,14 @@ function resolveBodyLineNumberAnchorTop(shellRect: DOMRect, target: HTMLElement,
 function resolveTableContentLeft(target: HTMLElement): number | null {
   if (!isTableLineNumberTarget(target)) return null;
 
-  const tableAnchor = target.querySelector<HTMLElement>('.table-wrapper, .table-scroll, table')
-    ?? (target.tagName.toLowerCase() === 'table' ? target : null);
+  const tableRoot = target.classList.contains('milkdown-table-block')
+    ? target
+    : target.closest<HTMLElement>('.milkdown-table-block')
+      ?? (target.tagName.toLowerCase() === 'table' ? target : target.closest<HTMLElement>('table'));
+  if (!tableRoot) return null;
+
+  const tableAnchor = tableRoot.querySelector<HTMLElement>('.table-wrapper, .table-scroll, table')
+    ?? (tableRoot.tagName.toLowerCase() === 'table' ? tableRoot : null);
   if (!tableAnchor) return null;
 
   return getVisibleRect(tableAnchor)?.left ?? null;

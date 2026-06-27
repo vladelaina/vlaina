@@ -8,6 +8,7 @@ import {
   waitForEditorAnimationFrame,
 } from './notesE2E';
 import { createMarkdownSyntaxRoundtripCases } from './notesMarkdownSyntaxFixture';
+import { getMarkdownBodyLineNumbers } from '../../src/components/Notes/features/Editor/utils/bodyLineNumbers';
 
 const BODY_LINE_NUMBER_MARKDOWN = [
   '---',
@@ -32,7 +33,7 @@ const BODY_LINE_NUMBER_MARKDOWN = [
   '> Quote sentinel',
 ].join('\n');
 
-const EXPECTED_BODY_LINE_LABELS = Array.from({ length: 12 }, (_value, index) => String(index + 1));
+const EXPECTED_BODY_LINE_LABELS = getMarkdownBodyLineNumbers(BODY_LINE_NUMBER_MARKDOWN).map(String);
 
 async function collectBodyLineNumberDiagnostics(page: Page) {
   return page.evaluate(() => {
@@ -61,6 +62,27 @@ async function collectBodyLineNumberDiagnostics(page: Page) {
     }
 
     function firstTextCenterY(root: HTMLElement): number {
+      if (
+        root.classList.contains('editor-paragraph-has-image-block')
+        || root.classList.contains('image-block-container')
+        || root.classList.contains('video-block')
+        || root.dataset.type === 'video'
+        || (
+          root.dataset.type === 'html-block'
+          && root.querySelector('img, video, audio, iframe, source, track') !== null
+        )
+      ) {
+        const mediaAnchor = root.classList.contains('image-block-container')
+          || root.classList.contains('video-block')
+          || root.dataset.type === 'video'
+          ? root
+          : root.querySelector<HTMLElement>(
+            '.image-block-container, .video-block, [data-type="video"], img, video, audio, iframe'
+          ) ?? root;
+        const rect = mediaAnchor.getBoundingClientRect();
+        return rect.top + rect.height / 2;
+      }
+
       const scanRoot = root.classList.contains('code-block-container')
         ? root.querySelector<HTMLElement>('.code-block-editable, .code-block-lazy-preview, .cm-content, pre, code') ?? root
         : root;
@@ -71,7 +93,12 @@ async function collectBodyLineNumberDiagnostics(page: Page) {
         if (!parent) continue;
         if (root.tagName === 'LI' && parent.closest('li') !== root) continue;
         if (parent.closest('[aria-hidden="true"], .body-line-number-gutter')) continue;
-        if (parent.closest('[contenteditable="false"]') && !root.closest('.code-block-container')) continue;
+        if (
+          parent.closest('[contenteditable="false"]')
+          && root.tagName !== 'TR'
+          && !root.classList.contains('milkdown-table-block')
+          && !root.closest('.code-block-container')
+        ) continue;
 
         const range = document.createRange();
         try {
@@ -100,12 +127,20 @@ async function collectBodyLineNumberDiagnostics(page: Page) {
       if (element.classList.contains('editor-editable-markdown-blank-line')) return true;
       if (element.classList.contains('editor-empty-paragraph')) return true;
       return element.dataset.type === 'html-block'
-        && /<!--\s*(?:vlaina-markdown-blank-line|vlaina-rendered-html-boundary-blank-line)\s*-->/.test(element.dataset.value ?? '');
+        && /<!--\s*vlaina-markdown-blank-line\s*-->/.test(element.dataset.value ?? '');
     }
 
     function isNonNumberedPlaceholder(element: HTMLElement): boolean {
       return element.dataset.type === 'html-block'
-        && /<!--\s*vlaina-markdown-tight-heading\s*-->/.test(element.dataset.value ?? '');
+        && /<!--\s*(?:vlaina-rendered-html-boundary-blank-line|vlaina-markdown-tight-heading)\s*-->/.test(element.dataset.value ?? '');
+    }
+
+    function isHiddenDefinition(element: HTMLElement): boolean {
+      return /^(?:\[[^\]\n]+]:\s+\S|\*\[[^\]\n]+]:\s+\S)/.test((element.textContent ?? '').trim());
+    }
+
+    function isUnsupportedSelfClosingRawMedia(element: HTMLElement): boolean {
+      return /^<(?:video|audio)\b[^>]*\/>$/i.test((element.textContent ?? '').trim());
     }
 
     function collectBodyLineTargets(): HTMLElement[] {
@@ -119,19 +154,38 @@ async function collectBodyLineNumberDiagnostics(page: Page) {
           .filter((line) =>
             line.closest('.code-block-container, pre[data-language], pre.code-block-wrapper') === codeBlock
             && line.closest('.cm-gutters, .cm-gutter, .cm-lineNumbers') === null
-          );
+        );
         return lines.length > 0 ? lines : [codeRoot];
+      }
+
+      function collectTableRowTargets(tableBlock: HTMLElement): HTMLElement[] {
+        const table = tableBlock.tagName.toLowerCase() === 'table'
+          ? tableBlock
+          : tableBlock.querySelector<HTMLElement>('table');
+        if (!table) return [tableBlock];
+        const rows = Array.from(table.querySelectorAll<HTMLElement>('tr'))
+          .filter((row) => row.closest('table') === table);
+        return rows.length > 0 ? rows : [tableBlock];
       }
 
       for (let index = 0; index < editor.children.length; index += 1) {
         const child = editor.children.item(index);
         if (!(child instanceof HTMLElement)) continue;
-        if (isFrontmatterBlock(child) || isNonNumberedPlaceholder(child)) continue;
+        if (
+          isFrontmatterBlock(child)
+          || isNonNumberedPlaceholder(child)
+          || isHiddenDefinition(child)
+          || isUnsupportedSelfClosingRawMedia(child)
+        ) continue;
         if (
           child.classList.contains('code-block-container')
           || child.matches('pre[data-language], pre.code-block-wrapper')
         ) {
           targets.push(...collectCodeBlockLineTargets(child));
+          continue;
+        }
+        if (child.classList.contains('milkdown-table-block') || child.tagName.toLowerCase() === 'table') {
+          targets.push(...collectTableRowTargets(child));
           continue;
         }
 
@@ -245,7 +299,7 @@ test.describe('notes body line numbers', () => {
     }
   });
 
-  test('places the table body line number before the first table row', async () => {
+  test('places table body line numbers before each rendered table row', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-body-line-numbers-table');
 
     try {
@@ -284,6 +338,16 @@ test.describe('notes body line numbers', () => {
         function collectBodyLineTargets(): HTMLElement[] {
           const targets: HTMLElement[] = [];
 
+          function collectTableRowTargets(tableBlock: HTMLElement): HTMLElement[] {
+            const table = tableBlock.tagName.toLowerCase() === 'table'
+              ? tableBlock
+              : tableBlock.querySelector<HTMLElement>('table');
+            if (!table) return [tableBlock];
+            const rows = Array.from(table.querySelectorAll<HTMLElement>('tr'))
+              .filter((row) => row.closest('table') === table);
+            return rows.length > 0 ? rows : [tableBlock];
+          }
+
           for (let index = 0; index < editor.children.length; index += 1) {
             const child = editor.children.item(index);
             if (!(child instanceof HTMLElement)) continue;
@@ -292,7 +356,7 @@ test.describe('notes body line numbers', () => {
             }
             if (
               child.dataset.type === 'html-block' &&
-              /<!--\s*vlaina-markdown-tight-heading\s*-->/.test(child.dataset.value ?? '')
+              /<!--\s*(?:vlaina-rendered-html-boundary-blank-line|vlaina-markdown-tight-heading)\s*-->/.test(child.dataset.value ?? '')
             ) {
               continue;
             }
@@ -302,6 +366,10 @@ test.describe('notes body line numbers', () => {
               targets.push(...Array.from(child.querySelectorAll<HTMLElement>('li')));
               continue;
             }
+            if (child.classList.contains('milkdown-table-block') || tagName === 'table') {
+              targets.push(...collectTableRowTargets(child));
+              continue;
+            }
 
             targets.push(child);
           }
@@ -309,8 +377,8 @@ test.describe('notes body line numbers', () => {
           return targets;
         }
 
-        function firstCellTextCenterY(table: HTMLElement): number {
-          const firstCell = table.querySelector<HTMLElement>('th, td');
+        function firstCellTextCenterY(row: HTMLElement): number {
+          const firstCell = row.querySelector<HTMLElement>('th, td');
           if (!firstCell) throw new Error('Missing first table cell');
           const walker = document.createTreeWalker(firstCell, NodeFilter.SHOW_TEXT);
           for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -332,33 +400,49 @@ test.describe('notes body line numbers', () => {
 
         const labels = Array.from(document.querySelectorAll<HTMLElement>('.body-line-number'));
         const targets = collectBodyLineTargets();
-        const table = editor.querySelector<HTMLElement>('.milkdown-table-block, table');
-        if (!table) throw new Error('Missing rendered table');
-        const tableIndex = targets.indexOf(table);
-        if (tableIndex < 0) throw new Error('Rendered table is not a body line number target');
-        const tableLabel = labels[tableIndex];
-        if (!tableLabel) throw new Error('Missing table line number label');
+        const tableBlock = editor.querySelector<HTMLElement>('.milkdown-table-block, table');
+        if (!tableBlock) throw new Error('Missing rendered table');
+        const tableRows = Array.from(tableBlock.querySelectorAll<HTMLElement>('tr'));
+        if (tableRows.length < 5) throw new Error(`Expected at least 5 rendered table rows, got ${tableRows.length}`);
+        const firstTableIndex = targets.indexOf(tableRows[0]);
+        if (firstTableIndex < 0) throw new Error('Rendered table rows are not body line number targets');
+        const tableLabels = labels.slice(firstTableIndex, firstTableIndex + tableRows.length);
+        if (tableLabels.length !== tableRows.length) throw new Error('Missing table row line number labels');
 
-        const labelRect = tableLabel.getBoundingClientRect();
         const tableAnchorRect = (
-          table.querySelector<HTMLElement>('.table-wrapper, .table-scroll, table') ?? table
+          tableBlock.querySelector<HTMLElement>('.table-wrapper, .table-scroll, table') ?? tableBlock
         ).getBoundingClientRect();
-        const tableBlockRect = table.getBoundingClientRect();
-        const labelCenterY = labelRect.top + labelRect.height / 2;
-        const firstCellCenterY = firstCellTextCenterY(table);
+        const rowAudits = tableRows.map((row, index) => {
+          const label = tableLabels[index];
+          const labelRect = label.getBoundingClientRect();
+          const labelCenterY = labelRect.top + labelRect.height / 2;
+          const firstCellCenterY = firstCellTextCenterY(row);
+          const rowRect = row.getBoundingClientRect();
+
+          return {
+            labelText: label.textContent?.trim() ?? '',
+            labelToTableGap: tableAnchorRect.left - labelRect.right,
+            verticalDelta: Math.abs(labelCenterY - firstCellCenterY),
+            rowCenterVerticalDelta: Math.abs(labelCenterY - (rowRect.top + rowRect.height / 2)),
+          };
+        });
 
         return {
-          labelText: tableLabel.textContent?.trim() ?? '',
-          labelToTableGap: tableAnchorRect.left - labelRect.right,
-          firstRowVerticalDelta: Math.abs(labelCenterY - firstCellCenterY),
-          blockCenterVerticalDelta: Math.abs(labelCenterY - (tableBlockRect.top + tableBlockRect.height / 2)),
+          allLabelTexts: labels.map((label) => label.textContent?.trim() ?? ''),
+          tableLabelTexts: tableLabels.map((label) => label.textContent?.trim() ?? ''),
+          minLabelToTableGap: Math.min(...rowAudits.map((audit) => audit.labelToTableGap)),
+          maxVerticalDelta: Math.max(...rowAudits.map((audit) => audit.verticalDelta)),
+          maxRowCenterVerticalDelta: Math.max(...rowAudits.map((audit) => audit.rowCenterVerticalDelta)),
+          tableRowCount: tableRows.length,
         };
       });
 
-      expect(tableDiagnostics.labelText).toBe('3');
-      expect(tableDiagnostics.labelToTableGap).toBeGreaterThanOrEqual(10);
-      expect(tableDiagnostics.firstRowVerticalDelta).toBeLessThanOrEqual(3);
-      expect(tableDiagnostics.blockCenterVerticalDelta).toBeGreaterThan(20);
+      expect(tableDiagnostics.tableRowCount).toBe(5);
+      expect(tableDiagnostics.tableLabelTexts).toEqual(['3', '5', '6', '7', '8']);
+      expect(tableDiagnostics.allLabelTexts).not.toContain('4');
+      expect(tableDiagnostics.minLabelToTableGap).toBeGreaterThanOrEqual(10);
+      expect(tableDiagnostics.maxVerticalDelta).toBeLessThanOrEqual(3);
+      expect(tableDiagnostics.maxRowCenterVerticalDelta).toBeLessThanOrEqual(16);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
@@ -375,6 +459,7 @@ test.describe('notes body line numbers', () => {
 
       for (const syntaxCase of createMarkdownSyntaxRoundtripCases()) {
         await test.step(syntaxCase.label, async () => {
+          const expectedLabelTexts = getMarkdownBodyLineNumbers(syntaxCase.markdown).map(String);
           await openMarkdownFixture(page, {
             filename: `body-line-numbers-syntax-${syntaxCase.label.replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.md`,
             content: syntaxCase.markdown,
@@ -398,6 +483,16 @@ test.describe('notes body line numbers', () => {
               return lines.length > 0 ? lines : [codeRoot];
             }
 
+            function collectTableRowTargets(tableBlock: HTMLElement): HTMLElement[] {
+              const table = tableBlock.tagName.toLowerCase() === 'table'
+                ? tableBlock
+                : tableBlock.querySelector<HTMLElement>('table');
+              if (!table) return [tableBlock];
+              const rows = Array.from(table.querySelectorAll<HTMLElement>('tr'))
+                .filter((row) => row.closest('table') === table);
+              return rows.length > 0 ? rows : [tableBlock];
+            }
+
             let targetCount = 0;
             for (let index = 0; index < editor.children.length; index += 1) {
               const child = editor.children.item(index);
@@ -406,8 +501,10 @@ test.describe('notes body line numbers', () => {
                 child.classList.contains('frontmatter-block-container')
                 || (
                   child.dataset.type === 'html-block'
-                  && /<!--\s*vlaina-markdown-tight-heading\s*-->/.test(child.dataset.value ?? '')
+                  && /<!--\s*(?:vlaina-rendered-html-boundary-blank-line|vlaina-markdown-tight-heading)\s*-->/.test(child.dataset.value ?? '')
                 )
+                || /^(?:\[[^\]\n]+]:\s+\S|\*\[[^\]\n]+]:\s+\S)/.test((child.textContent ?? '').trim())
+                || /^<(?:video|audio)\b[^>]*\/>$/i.test((child.textContent ?? '').trim())
               ) {
                 continue;
               }
@@ -415,6 +512,8 @@ test.describe('notes body line numbers', () => {
               const tagName = child.tagName.toLowerCase();
               if (child.classList.contains('code-block-container') || child.matches('pre[data-language], pre.code-block-wrapper')) {
                 targetCount += collectCodeBlockLineTargets(child).length;
+              } else if (child.classList.contains('milkdown-table-block') || tagName === 'table') {
+                targetCount += collectTableRowTargets(child).length;
               } else {
                 targetCount += tagName === 'ul' || tagName === 'ol'
                   ? child.querySelectorAll('li').length
@@ -439,7 +538,15 @@ test.describe('notes body line numbers', () => {
 
             function isNonNumberedPlaceholder(element: HTMLElement): boolean {
               return element.dataset.type === 'html-block'
-                && /<!--\s*vlaina-markdown-tight-heading\s*-->/.test(element.dataset.value ?? '');
+                && /<!--\s*(?:vlaina-rendered-html-boundary-blank-line|vlaina-markdown-tight-heading)\s*-->/.test(element.dataset.value ?? '');
+            }
+
+            function isHiddenDefinition(element: HTMLElement): boolean {
+              return /^(?:\[[^\]\n]+]:\s+\S|\*\[[^\]\n]+]:\s+\S)/.test((element.textContent ?? '').trim());
+            }
+
+            function isUnsupportedSelfClosingRawMedia(element: HTMLElement): boolean {
+              return /^<(?:video|audio)\b[^>]*\/>$/i.test((element.textContent ?? '').trim());
             }
 
             function collectTargets(): HTMLElement[] {
@@ -457,10 +564,25 @@ test.describe('notes body line numbers', () => {
                 return lines.length > 0 ? lines : [codeRoot];
               }
 
+              function collectTableRowTargets(tableBlock: HTMLElement): HTMLElement[] {
+                const table = tableBlock.tagName.toLowerCase() === 'table'
+                  ? tableBlock
+                  : tableBlock.querySelector<HTMLElement>('table');
+                if (!table) return [tableBlock];
+                const rows = Array.from(table.querySelectorAll<HTMLElement>('tr'))
+                  .filter((row) => row.closest('table') === table);
+                return rows.length > 0 ? rows : [tableBlock];
+              }
+
               for (let index = 0; index < editor.children.length; index += 1) {
                 const child = editor.children.item(index);
                 if (!(child instanceof HTMLElement)) continue;
-                if (isFrontmatterBlock(child) || isNonNumberedPlaceholder(child)) continue;
+                if (
+                  isFrontmatterBlock(child)
+                  || isNonNumberedPlaceholder(child)
+                  || isHiddenDefinition(child)
+                  || isUnsupportedSelfClosingRawMedia(child)
+                ) continue;
                 if (
                   child.classList.contains('code-block-container')
                   || child.matches('pre[data-language], pre.code-block-wrapper')
@@ -470,6 +592,10 @@ test.describe('notes body line numbers', () => {
                 }
 
                 const tagName = child.tagName.toLowerCase();
+                if (child.classList.contains('milkdown-table-block') || tagName === 'table') {
+                  targets.push(...collectTableRowTargets(child));
+                  continue;
+                }
                 if (tagName === 'ul' || tagName === 'ol') {
                   targets.push(...Array.from(child.querySelectorAll<HTMLElement>('li')));
                   continue;
@@ -490,6 +616,27 @@ test.describe('notes body line numbers', () => {
             }
 
             function firstTextCenterY(root: HTMLElement): number {
+              if (
+                root.classList.contains('editor-paragraph-has-image-block')
+                || root.classList.contains('image-block-container')
+                || root.classList.contains('video-block')
+                || root.dataset.type === 'video'
+                || (
+                  root.dataset.type === 'html-block'
+                  && root.querySelector('img, video, audio, iframe, source, track') !== null
+                )
+              ) {
+                const mediaAnchor = root.classList.contains('image-block-container')
+                  || root.classList.contains('video-block')
+                  || root.dataset.type === 'video'
+                  ? root
+                  : root.querySelector<HTMLElement>(
+                    '.image-block-container, .video-block, [data-type="video"], img, video, audio, iframe'
+                  ) ?? root;
+                const rect = mediaAnchor.getBoundingClientRect();
+                return rect.top + rect.height / 2;
+              }
+
               const scanRoot = root.classList.contains('code-block-container')
                 ? root.querySelector<HTMLElement>('.code-block-editable, .code-block-lazy-preview, .cm-content, pre, code') ?? root
                 : root;
@@ -502,6 +649,7 @@ test.describe('notes body line numbers', () => {
                 if (parent.closest('[aria-hidden="true"], .body-line-number-gutter')) continue;
                 if (
                   parent.closest('[contenteditable="false"]')
+                  && root.tagName !== 'TR'
                   && !root.classList.contains('milkdown-table-block')
                   && !root.closest('.code-block-container')
                 ) {
@@ -525,7 +673,6 @@ test.describe('notes body line numbers', () => {
             const labels = Array.from(document.querySelectorAll<HTMLElement>('.body-line-number'));
             const targets = collectTargets();
             const labelTexts = labels.map((label) => label.textContent?.trim() ?? '');
-            const expectedLabelTexts = Array.from({ length: targets.length }, (_value, index) => String(index + 1));
             const labelRects = labels.map((label) => {
               const rect = label.getBoundingClientRect();
               return {
@@ -560,7 +707,6 @@ test.describe('notes body line numbers', () => {
               targetCount: targets.length,
               labelCount: labels.length,
               labelTexts,
-              expectedLabelTexts,
               maxVerticalDelta: verticalDeltas.length > 0 ? Math.max(...verticalDeltas) : 0,
               deltaSummaries,
               invisibleLabels: labelRects.filter((rect) => rect.width <= 0 || rect.height <= 0).map((rect) => rect.text),
@@ -576,8 +722,8 @@ test.describe('notes body line numbers', () => {
 
           expect(audit.labelCount, `${syntaxCase.label}: label count should match numbered targets\n${JSON.stringify(audit.targetSummaries, null, 2)}`)
             .toBe(audit.targetCount);
-          expect(audit.labelTexts, `${syntaxCase.label}: labels should be dense and ordered`)
-            .toEqual(audit.expectedLabelTexts);
+          expect(audit.labelTexts, `${syntaxCase.label}: labels should match source body line numbers`)
+            .toEqual(expectedLabelTexts);
           expect(audit.invisibleLabels, `${syntaxCase.label}: labels should be visible`).toEqual([]);
           expect(audit.maxVerticalDelta, `${syntaxCase.label}: labels should align to target first text line\n${JSON.stringify(audit.deltaSummaries, null, 2)}`)
             .toBeLessThanOrEqual(4);
