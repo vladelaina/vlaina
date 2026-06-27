@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "วางไฟล์ที่นี่",
   "chat.dropBlocksHere": "วางบล็อกที่นี่",
   "common.somethingWentWrong": "มีบางอย่างผิดพลาด",
-  "common.errorReportInstruction": "โปรดคัดลอกรายงานข้อผิดพลาดนี้และส่งไปที่ hi@vlaina.com โดยเร็วที่สุด ระบบได้บันทึกล็อกวินิจฉัยไว้ในโฟลเดอร์การตั้งค่าระบบแล้ว",
+  "common.errorReportInstruction": "หากคุณเห็นข้อผิดพลาดนี้ โปรดติดต่อเราที่ hi@vlaina.com และแนบรายงานข้อผิดพลาดนี้มาด้วย ระบบได้บันทึกล็อกวินิจฉัยไว้ในโฟลเดอร์การตั้งค่าระบบแล้ว",
   "common.errorDetails": "รายละเอียดข้อผิดพลาด",
   "common.copyErrorReport": "คัดลอกรายงานข้อผิดพลาด",
   "common.openLogFolder": "เปิดโฟลเดอร์ล็อก",

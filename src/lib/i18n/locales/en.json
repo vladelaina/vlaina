@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "Drop files here",
   "chat.dropBlocksHere": "Drop blocks here",
   "common.somethingWentWrong": "Something went wrong",
-  "common.errorReportInstruction": "Please copy this error report and email it to hi@vlaina.com as soon as possible. A diagnostic log was also saved in the system configuration folder.",
+  "common.errorReportInstruction": "If you see this error, please contact us at hi@vlaina.com and include this error report. A diagnostic log was also saved in the system configuration folder.",
   "common.errorDetails": "Error details",
   "common.copyErrorReport": "Copy error report",
   "common.openLogFolder": "Open log folder",

@@ -277,12 +277,15 @@ export function NotesTagsSection({
     setExpandedTags((current) => {
       const nextTags = new Set(tags.map((entry) => entry.tag));
       const nextExpanded = new Set<string>();
+      let changed = false;
       current.forEach((tag) => {
         if (nextTags.has(tag)) {
           nextExpanded.add(tag);
+        } else {
+          changed = true;
         }
       });
-      return nextExpanded;
+      return changed || nextExpanded.size !== current.size ? nextExpanded : current;
     });
   }, [tags]);
 

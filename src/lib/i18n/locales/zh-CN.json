@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "将文件拖到这里",
   "chat.dropBlocksHere": "将块拖到这里",
   "common.somethingWentWrong": "出现了一些问题",
-  "common.errorReportInstruction": "如果再次遇到，请第一时间复制这份报错发到 hi@vlaina.com。应用也已将诊断日志保存到系统配置目录。",
+  "common.errorReportInstruction": "如果你看到这个错误，请联系我们：hi@vlaina.com，并附上这份报错。应用也已将诊断日志保存到系统配置目录。",
   "common.errorDetails": "错误详情",
   "common.copyErrorReport": "复制错误报告",
   "common.openLogFolder": "打开日志目录",

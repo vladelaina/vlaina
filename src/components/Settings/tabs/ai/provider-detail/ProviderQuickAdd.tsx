@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 import { cn } from '@/lib/utils';
@@ -34,33 +34,47 @@ export function ProviderQuickAdd({
   const [isFocused, setIsFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const quickAddIds = parseQuickAddModelIds(value);
-  const quickAddSegments = value.split(/[,\uFF0C]/);
-  const quickAddQuery = quickAddSegments[quickAddSegments.length - 1]?.trim() ?? '';
-  const queuedQuickAddIds = new Set(quickAddIds.slice(0, -1).map((id) => id.toLowerCase()));
-  const suggestions = quickAddQuery
-    ? rankByFuzzySearch(
-        sortedFetchedModels.filter((modelId) => {
-          const normalizedModelId = modelId.toLowerCase();
-          return (
-            !providerModelIdSet.has(normalizedModelId) &&
-            !queuedQuickAddIds.has(normalizedModelId)
-          );
-        }),
-        quickAddQuery,
-        (modelId) => modelId
-      )
-    : [];
+  const quickAddIds = useMemo(() => parseQuickAddModelIds(value), [value]);
+  const quickAddQuery = useMemo(() => {
+    const quickAddSegments = value.split(/[,\uFF0C]/);
+    return quickAddSegments[quickAddSegments.length - 1]?.trim() ?? '';
+  }, [value]);
+  const queuedQuickAddIds = useMemo(
+    () => new Set(quickAddIds.slice(0, -1).map((id) => id.toLowerCase())),
+    [quickAddIds]
+  );
+  const suggestions = useMemo(
+    () =>
+      quickAddQuery
+        ? rankByFuzzySearch(
+            sortedFetchedModels.filter((modelId) => {
+              const normalizedModelId = modelId.toLowerCase();
+              return (
+                !providerModelIdSet.has(normalizedModelId) &&
+                !queuedQuickAddIds.has(normalizedModelId)
+              );
+            }),
+            quickAddQuery,
+            (modelId) => modelId
+          )
+        : [],
+    [providerModelIdSet, queuedQuickAddIds, quickAddQuery, sortedFetchedModels]
+  );
   const showSuggestions = isFocused && suggestions.length > 0;
 
   useEffect(() => {
     if (suggestions.length === 0) {
-      setHighlightedIndex(0);
+      if (highlightedIndex !== 0) {
+        setHighlightedIndex(0);
+      }
       return;
     }
 
-    setHighlightedIndex((current) => Math.min(current, suggestions.length - 1));
-  }, [suggestions]);
+    const maxHighlightedIndex = suggestions.length - 1;
+    if (highlightedIndex > maxHighlightedIndex) {
+      setHighlightedIndex(maxHighlightedIndex);
+    }
+  }, [highlightedIndex, suggestions.length]);
 
   useEffect(() => {
     if (!showSuggestions) return;

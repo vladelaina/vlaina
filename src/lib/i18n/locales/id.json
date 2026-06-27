@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "Letakkan file di sini",
   "chat.dropBlocksHere": "Letakkan blok di sini",
   "common.somethingWentWrong": "Terjadi kesalahan",
-  "common.errorReportInstruction": "Salin laporan error ini dan kirim ke hi@vlaina.com secepat mungkin. Log diagnostik juga telah disimpan di folder konfigurasi sistem.",
+  "common.errorReportInstruction": "Jika Anda melihat error ini, hubungi kami di hi@vlaina.com dan sertakan laporan error ini. Log diagnostik juga telah disimpan di folder konfigurasi sistem.",
   "common.errorDetails": "Detail error",
   "common.copyErrorReport": "Salin laporan error",
   "common.openLogFolder": "Buka folder log",

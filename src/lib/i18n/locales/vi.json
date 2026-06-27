@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "Thả tệp vào đây",
   "chat.dropBlocksHere": "Thả khối vào đây",
   "common.somethingWentWrong": "Đã xảy ra lỗi",
-  "common.errorReportInstruction": "Vui long sao chep bao cao loi nay va gui den hi@vlaina.com som nhat co the. Nhat ky chan doan cung da duoc luu trong thu muc cau hinh he thong.",
+  "common.errorReportInstruction": "Neu ban thay loi nay, vui long lien he chung toi qua hi@vlaina.com va dinh kem bao cao loi nay. Nhat ky chan doan cung da duoc luu trong thu muc cau hinh he thong.",
   "common.errorDetails": "Chi tiet loi",
   "common.copyErrorReport": "Sao chep bao cao loi",
   "common.openLogFolder": "Mo thu muc nhat ky",

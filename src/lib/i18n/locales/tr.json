@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "Dosyalari buraya birak",
   "chat.dropBlocksHere": "Bloklari buraya birak",
   "common.somethingWentWrong": "Bir seyler ters gitti",
-  "common.errorReportInstruction": "Lutfen bu hata raporunu kopyalayip en kisa surede hi@vlaina.com adresine gonderin. Tanilama gunlugu de sistem yapilandirma klasorune kaydedildi.",
+  "common.errorReportInstruction": "Bu hatayi gorurseniz lutfen hi@vlaina.com adresinden bize ulasin ve bu hata raporunu ekleyin. Tanilama gunlugu de sistem yapilandirma klasorune kaydedildi.",
   "common.errorDetails": "Hata ayrintilari",
   "common.copyErrorReport": "Hata raporunu kopyala",
   "common.openLogFolder": "Gunluk klasorunu ac",

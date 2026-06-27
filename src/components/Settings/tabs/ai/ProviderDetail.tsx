@@ -81,7 +81,10 @@ export function ProviderDetail({
   const updateProviderRef = useRef(updateProvider);
 
   const providerId = initialProvider?.id;
-  const providerModels = initialProvider ? models.filter((m) => m.providerId === initialProvider.id) : [];
+  const providerModels = useMemo(
+    () => (providerId ? models.filter((m) => m.providerId === providerId) : []),
+    [models, providerId]
+  );
   const providerModelIdSet = useMemo(() => new Set(providerModels.map((m) => m.apiModelId.toLowerCase())), [providerModels]);
   const isManagedProvider = initialProvider?.id === MANAGED_PROVIDER_ID;
   const enabled = initialProvider?.enabled ?? true;

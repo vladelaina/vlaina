@@ -609,7 +609,7 @@
   "chat.dropFilesHere": "ここにファイルをドロップ",
   "chat.dropBlocksHere": "ここにブロックをドロップ",
   "common.somethingWentWrong": "問題が発生しました",
-  "common.errorReportInstruction": "このエラーレポートをコピーして、できるだけ早く hi@vlaina.com へメールしてください。診断ログもシステム設定フォルダーに保存されました。",
+  "common.errorReportInstruction": "このエラーが表示されたら、hi@vlaina.com まで連絡し、このエラーレポートを添付してください。診断ログもシステム設定フォルダーに保存されました。",
   "common.errorDetails": "エラー詳細",
   "common.copyErrorReport": "エラーレポートをコピー",
   "common.openLogFolder": "ログフォルダーを開く",
