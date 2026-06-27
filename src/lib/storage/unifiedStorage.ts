@@ -11,9 +11,6 @@ import {
   normalizeLoadedAIModels,
   normalizeLoadedAIProviders,
 } from './unifiedStorageAI';
-import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
-import { translate } from '@/lib/i18n';
-import { useToastStore } from '@/stores/useToastStore';
 import {
   createDefaultUnifiedData,
   type CustomIcon,
@@ -130,6 +127,29 @@ let autoSyncTrigger: (() => void) | null = null;
 let autoSyncTriggerRegistrationId = 0;
 let hasShownPersistenceFailureToast = false;
 let hasShownSecretLoadFailureToast = false;
+
+async function getAIProviderSecretCommands() {
+  const { aiProviderSecretCommands } = await import('@/lib/desktop/secretsCommands');
+  return aiProviderSecretCommands;
+}
+
+function showStorageToast(
+  messageKey: 'storage.keychainUnavailable' | 'storage.saveFailed',
+  type: 'error',
+  duration: number,
+): void {
+  void Promise.all([
+    import('@/stores/useToastStore'),
+    import('@/lib/i18n'),
+  ])
+    .then(([toastStore, i18n]) => {
+      toastStore.useToastStore
+        .getState()
+        .addToast(i18n.translate(messageKey), type, duration);
+    })
+    .catch(() => {
+    });
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -1137,14 +1157,13 @@ async function hydrateProvidersWithSecrets(
 
   let secretMap: Record<string, string> = {};
   try {
+    const aiProviderSecretCommands = await getAIProviderSecretCommands();
     secretMap = await aiProviderSecretCommands.getProviderSecrets(providers.map((provider) => provider.id));
     hasShownSecretLoadFailureToast = false;
   } catch (error) {
     if (!hasShownSecretLoadFailureToast) {
       hasShownSecretLoadFailureToast = true;
-      useToastStore
-        .getState()
-        .addToast(translate('storage.keychainUnavailable'), 'error', 6000);
+      showStorageToast('storage.keychainUnavailable', 'error', 6000);
     }
   }
 
@@ -1174,6 +1193,7 @@ async function syncProviderSecrets(providers: Provider[]): Promise<void> {
     return;
   }
 
+  const aiProviderSecretCommands = await getAIProviderSecretCommands();
   await mapWithConcurrencyLimit(
     providers,
     MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
@@ -1202,6 +1222,7 @@ async function deleteProviderSecretsBestEffort(
     return;
   }
 
+  const aiProviderSecretCommands = await getAIProviderSecretCommands();
   await mapWithConcurrencyLimit(
     safeProviderIds,
     MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
@@ -1546,9 +1567,7 @@ const unifiedSaveQueue = createPersistenceQueue<UnifiedSaveRequest>({
   onError: (_error) => {
     if (!hasShownPersistenceFailureToast) {
       hasShownPersistenceFailureToast = true;
-      useToastStore
-        .getState()
-        .addToast(translate('storage.saveFailed'), 'error', 5000);
+      showStorageToast('storage.saveFailed', 'error', 5000);
     }
   },
 });

@@ -23,7 +23,6 @@ import {
   type OpenSettingsDetail,
   type SettingsOpenTab,
 } from '@/components/Settings/settingsEvents';
-import { installSyncE2EBridge } from '@/lib/e2e/syncE2EBridge';
 import { AppContentShell } from './AppContentShell';
 import { preloadAIStoreModule } from './AppContentModules';
 import {
@@ -34,6 +33,7 @@ import {
 const UPDATE_AUTO_CHECK_DELAY_MS = 2500;
 const UPDATE_AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const UPDATE_LAST_AUTO_CHECK_KEY = 'vlaina:update:lastAutoCheckAt';
+const E2E_LOCAL_STORAGE_KEY = 'vlaina:e2e:enabled';
 
 interface DesktopUpdateAutoCheckInfo {
   latestVersion?: string;
@@ -82,6 +82,15 @@ function writeStoredTimestamp(key: string, value: number) {
   }
 }
 
+function shouldInstallSyncE2EBridge() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('e2e') === '1' || window.localStorage.getItem(E2E_LOCAL_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function AppContent() {
   const appViewMode = useUIStore((state) => state.appViewMode);
   const fontSize = useUIStore((state) => state.fontSize);
@@ -110,7 +119,14 @@ export function AppContent() {
   const [communitySettings, setCommunitySettings] = useState<CommunitySettings>(() => getCachedCommunitySettings());
 
   useEffect(() => {
-    installSyncE2EBridge();
+    if (!shouldInstallSyncE2EBridge()) return;
+
+    void import('@/lib/e2e/syncE2EBridge')
+      .then((mod) => {
+        mod.installSyncE2EBridge();
+      })
+      .catch(() => {
+      });
   }, []);
 
   const {

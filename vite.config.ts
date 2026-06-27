@@ -1,4 +1,5 @@
-import { defineConfig, Plugin } from "vite";
+import { defineConfig } from "vite";
+import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
@@ -169,10 +170,6 @@ export default defineConfig(async () => ({
         './src/main.tsx',
         './src/App.tsx',
         './src/AppContent.tsx',
-        './src/components/Notes/NotesView.tsx',
-        './src/components/Notes/features/Editor/index.ts',
-        './src/components/Notes/features/Tabs/NotesTabRow.tsx',
-        './src/components/Notes/features/Sidebar/NotesSidebarWrapper.tsx',
       ],
     },
     headers: {
