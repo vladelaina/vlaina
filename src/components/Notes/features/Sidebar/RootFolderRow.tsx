@@ -8,6 +8,7 @@ import { type FolderNode } from '@/stores/useNotesStore';
 import { useI18n } from '@/lib/i18n';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import {
+  getSidebarLabelClass,
   getSidebarTextClass,
   SIDEBAR_LABEL_TEXT_METRICS_CLASS,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
@@ -347,11 +348,11 @@ export function RootFolderRow({
               className={cn(
                 'w-full min-w-0 border-none bg-transparent p-0 outline-none',
                 SIDEBAR_LABEL_TEXT_METRICS_CLASS,
-                getSidebarTextClass('notes')
+                getSidebarLabelClass('notes', { selected: showMenu })
               )}
             />
           ) : (
-            <span className={cn('block whitespace-normal break-all', getSidebarTextClass('notes'))}>
+            <span className={cn('block whitespace-normal break-all', getSidebarLabelClass('notes', { selected: showMenu }))}>
               {title}
             </span>
           )

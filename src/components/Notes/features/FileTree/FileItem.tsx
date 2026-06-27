@@ -266,7 +266,7 @@ export const FileItem = memo(function FileItem({
               path={node.path}
               fallbackName={displayName}
               className={getSidebarTextClass('notes')}
-              titleClassName={getSidebarLabelClass('notes', { selected: isActive })}
+              titleClassName={getSidebarLabelClass('notes', { selected: isActive || showMenu })}
               hintClassName="text-[var(--vlaina-sidebar-notes-text-soft)]"
             />
             {showStarBadge ? (
