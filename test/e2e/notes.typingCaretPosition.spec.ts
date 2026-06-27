@@ -760,6 +760,71 @@ test.describe('notes typing caret position', () => {
     }
   });
 
+  test('keeps typewriter mode typing stable across repeated far-apart paragraph clicks', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-typewriter-loop');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await setContentCommitThrottleMs(page, 120);
+      await enableMarkdownTypewriterMode(page);
+
+      const targets = [12, 42, 72, 31];
+      const markers = targets.map((target, index) => `typewriterLoop${index}E2E`);
+      const opened = await openMarkdownFixture(page, {
+        filename: 'typing-caret-typewriter-loop-e2e.md',
+        content: createLongTypingMarkdown(),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Final typing caret sentinel');
+
+      for (let index = 0; index < targets.length; index += 1) {
+        const targetIndex = targets[index]!;
+        const targetText = `Typing caret paragraph ${targetIndex} sentinel text`;
+        const marker = markers[index]!;
+
+        const before = await scrollTextIntoView(page, targetText);
+        await clickText(page, targetText);
+        await page.keyboard.type(marker, { delay: 0 });
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(marker);
+        await waitForEditorAnimationFrame(page);
+        await page.waitForTimeout(900);
+
+        const after = await getTypingDiagnostics(page, markers.slice(0, index + 1));
+        const markerParagraph = after.markerParagraphs[index];
+        console.info('[notes-typing-caret-typewriter-loop]', {
+          iteration: index,
+          targetIndex,
+          before,
+          markerParagraph,
+          scrollTop: after.scrollTop,
+          maxScrollTop: after.maxScrollTop,
+        });
+
+        expectMarkersAwayFromLastLine(after, markers.slice(0, index + 1));
+        expect(markerParagraph?.index).toBe(targetIndex);
+        expect(markerParagraph?.text).toContain(`Typing caret paragraph ${Math.floor(targetIndex / 10)}`);
+        expect(markerParagraph?.text).toContain(`${targetIndex % 10} sentinel text`);
+        expect(markerParagraph?.text).toContain(marker);
+        expect(after.scrollTop).toBeLessThan(after.maxScrollTop - 120);
+        expect(Math.abs(after.scrollTop - before.scrollTop)).toBeLessThan(420);
+        await expect.poll(async () => page.evaluate((currentMarker) => (
+          (window as any).__vlainaE2E.getNotesState().currentNote?.content?.includes(currentMarker) === true
+        ), marker), { timeout: 8_000 }).toBe(true);
+      }
+
+      await page.evaluate(() => (window as any).__vlainaE2E.saveCurrentNote());
+      for (const marker of markers) {
+        await expect.poll(async () => page.evaluate((input) => (
+          (window as any).__vlainaE2E.readTextFile(input.path)
+            .then((content: string) => content.includes(input.marker))
+        ), { path: opened.notePath, marker }), { timeout: 8_000 }).toBe(true);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps right-side blank clicks in the visible middle paragraph instead of the final line', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-right-blank');
 
