@@ -118,7 +118,8 @@ test.describe('notes blank line caret interaction', () => {
         (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
         opened.notePath,
       );
-      expect(saved, { saved }).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      expect(saved, { saved }).toBe(['hi', '/h', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\n\n/h');
       expect(saved, { saved }).not.toContain('hi\\');
       expect(saved, { saved }).not.toContain('/h\\');
     } finally {
@@ -158,7 +159,8 @@ test.describe('notes blank line caret interaction', () => {
         (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
         opened.notePath,
       );
-      expect(saved, { saved, after }).toBe(['hi', '', '/html', '', '1'].join('\n'));
+      expect(saved, { saved, after }).toBe(['hi', '/html', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\n\n/html');
       expect(saved, { saved }).not.toContain('hi\\');
       expect(saved, { saved }).not.toContain('/html\\');
     } finally {
@@ -210,7 +212,8 @@ test.describe('notes blank line caret interaction', () => {
         (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
         opened.notePath,
       );
-      expect(saved, { saved, after }).toBe(['hi', '', '/h', '', '1'].join('\n'));
+      expect(saved, { saved, after }).toBe(['hi', '/h', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\n\n/h');
       expect(saved, { saved }).not.toContain('hi\\');
       expect(saved, { saved }).not.toContain('/h\\');
     } finally {
@@ -269,7 +272,8 @@ test.describe('notes blank line caret interaction', () => {
         (pathToRead) => (window as any).__vlainaE2E.readTextFile(pathToRead),
         opened.notePath,
       );
-      expect(saved, { saved, after }).toBe(['hi', '', '# #', '', '1'].join('\n'));
+      expect(saved, { saved, after }).toBe(['hi', '# #', '1'].join('\n'));
+      expect(saved, { saved }).not.toContain('hi\n\n# #');
       expect(saved, { saved }).not.toContain('hi\\');
       expect(saved, { saved }).not.toContain('/h\\');
     } finally {

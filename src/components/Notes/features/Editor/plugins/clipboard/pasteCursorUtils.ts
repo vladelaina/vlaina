@@ -36,6 +36,16 @@ type PasteRangeState = {
         nodeAt: (pos: number) => ProseNode | null;
     };
     selection: {
+        $from?: {
+            after: (depth?: number) => number;
+            before: (depth?: number) => number;
+            depth: number;
+            parent: ProseNode;
+        };
+        $to?: {
+            parent: ProseNode;
+        };
+        empty?: boolean;
         from: number;
         to: number;
     };
@@ -48,6 +58,16 @@ type PasteRange = {
 
 const isEmptyParagraphNode = (node: ProseNode | null): node is ProseNode =>
     node?.type.name === 'paragraph' && node.content.size === 0;
+
+const isEmptyTopLevelParagraphSelection = (selection: PasteRangeState['selection']): boolean =>
+    Boolean(
+        selection.empty !== false &&
+        selection.$from &&
+        selection.$to &&
+        selection.$from.depth === 1 &&
+        selection.$from.parent === selection.$to.parent &&
+        isEmptyParagraphNode(selection.$from.parent),
+    );
 
 const hasOnlyInlineContent = (slice: Slice): boolean => {
     let hasContent = false;
@@ -71,7 +91,22 @@ export const resolvePasteRange = (state: PasteRangeState, slice: Slice): PasteRa
 
     const nodeAfter = state.doc.nodeAt(from);
     if (!isEmptyParagraphNode(nodeAfter)) {
-        return { from, to };
+        if (!isEmptyTopLevelParagraphSelection(state.selection)) {
+            return { from, to };
+        }
+
+        if (hasOnlyInlineContent(slice)) {
+            return { from, to };
+        }
+
+        try {
+            return {
+                from: state.selection.$from!.before(state.selection.$from!.depth),
+                to: state.selection.$from!.after(state.selection.$from!.depth),
+            };
+        } catch {
+            return { from, to };
+        }
     }
 
     if (hasOnlyInlineContent(slice)) {

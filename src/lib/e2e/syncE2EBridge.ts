@@ -527,7 +527,12 @@ function editorTextHasMark(text: string, markName: string, anchorText?: string):
 }
 
 function getSelectableBlockTargetsForE2E(view: NonNullable<ReturnType<typeof getCurrentEditorView>>) {
-  return getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view);
+  const cachedTargets = getCachedEditorBlockTargets(view);
+  if (!cachedTargets || cachedTargets.length > 0 || view.state.doc.childCount === 0) {
+    return cachedTargets ?? collectSelectableBlockTargets(view);
+  }
+
+  return collectSelectableBlockTargets(view);
 }
 
 function getSelectableBlockRangeTextForE2E(

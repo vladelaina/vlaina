@@ -910,11 +910,14 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         if (shouldIgnoreBlankAreaDragBoxMouseDown(view, event)) {
           return;
         }
+        if (handleMarkdownBlankLinePointerDown(view, event)) {
+          stopHandledDocumentMouseDown(view, event);
+          return;
+        }
         const target = event.target;
         if (target instanceof Node && view.dom.contains(target)) {
           documentInspectedMouseDownEvents.add(event);
           if (
-            handleMarkdownBlankLinePointerDown(view, event) ||
             handleListGapPlaceholderPointerDown(view, event) ||
             handleTrailingBlankClickInsideLastList(view, event)
           ) {

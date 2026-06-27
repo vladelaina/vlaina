@@ -139,7 +139,9 @@ function simulatePasteText(view: any, text: string): boolean {
 
     let handled = false;
     view.someProp('handlePaste', (handlePaste: any) => {
-        handled = handlePaste(view, event, null) || handled;
+        const didHandle = handlePaste(view, event, null);
+        handled = didHandle || handled;
+        return didHandle || undefined;
     });
     return handled;
 }
@@ -156,7 +158,9 @@ function simulatePasteTextWithEvent(view: any, text: string): { handled: boolean
 
     let handled = false;
     view.someProp('handlePaste', (handlePaste: any) => {
-        handled = handlePaste(view, event, null) || handled;
+        const didHandle = handlePaste(view, event, null);
+        handled = didHandle || handled;
+        return didHandle || undefined;
     });
     return { handled, event };
 }

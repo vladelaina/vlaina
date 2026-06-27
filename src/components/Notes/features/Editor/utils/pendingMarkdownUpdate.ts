@@ -69,7 +69,7 @@ export function serializeEditorMarkdownSnapshot(markdown: string, referenceMarkd
     normalizedMarkdown,
     referenceMarkdown,
   )));
-  return preserveReferenceBlankLineGapsAroundInsertedText(serializedMarkdown, referenceMarkdown);
+  return serializedMarkdown;
 }
 
 export function normalizeMarkdownParagraphSeparatorsForEditorComparison(markdown: string): string {
@@ -233,116 +233,4 @@ function stripEditorParagraphSeparatorSentinels(markdown: string): string {
     .replaceAll(`${EDITOR_PARAGRAPH_SEPARATOR_SENTINEL}\\\n`, '\n')
     .replaceAll(`${EDITOR_PARAGRAPH_SEPARATOR_SENTINEL}\n`, '\n')
     .replaceAll(EDITOR_PARAGRAPH_SEPARATOR_SENTINEL, '');
-}
-
-function preserveReferenceBlankLineGapsAroundInsertedText(
-  markdown: string,
-  referenceMarkdown: string,
-): string {
-  if (!referenceMarkdown.includes('\n\n')) return markdown;
-
-  const reference = splitLeadingFrontmatterLines(referenceMarkdown);
-  const current = splitLeadingFrontmatterLines(markdown);
-  const referenceGaps = collectReferenceBlankLineGaps(reference.bodyLines);
-  if (referenceGaps.length === 0) return markdown;
-
-  let bodyLines = current.bodyLines;
-  for (const gap of referenceGaps) {
-    bodyLines = preserveReferenceBlankLineGap(bodyLines, gap);
-  }
-
-  if (bodyLines === current.bodyLines) return markdown;
-  return [...current.frontmatterLines, ...bodyLines].join('\n');
-}
-
-function splitLeadingFrontmatterLines(markdown: string): {
-  frontmatterLines: string[];
-  bodyLines: string[];
-} {
-  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
-  if ((lines[0] ?? '').trim() !== '---') {
-    return { frontmatterLines: [], bodyLines: lines };
-  }
-
-  for (let index = 1; index < lines.length; index += 1) {
-    const trimmed = (lines[index] ?? '').trim();
-    if (trimmed !== '---' && trimmed !== '...') continue;
-    return {
-      frontmatterLines: lines.slice(0, index + 1),
-      bodyLines: lines.slice(index + 1),
-    };
-  }
-
-  return { frontmatterLines: [], bodyLines: lines };
-}
-
-function collectReferenceBlankLineGaps(lines: readonly string[]): Array<{
-  before: string;
-  after: string;
-  blankCount: number;
-}> {
-  const gaps: Array<{ before: string; after: string; blankCount: number }> = [];
-
-  for (let index = 0; index < lines.length;) {
-    const before = lines[index] ?? '';
-    if (!isReferenceBlankLineGapBoundaryLine(before)) {
-      index += 1;
-      continue;
-    }
-
-    let cursor = index + 1;
-    let blankCount = 0;
-    while (cursor < lines.length && isReferenceBlankLineGapSpacerLine(lines[cursor] ?? '')) {
-      blankCount += 1;
-      cursor += 1;
-    }
-
-    const after = lines[cursor] ?? '';
-    if (blankCount > 0 && isReferenceBlankLineGapBoundaryLine(after)) {
-      gaps.push({ before, after, blankCount });
-    }
-    index = Math.max(cursor, index + 1);
-  }
-
-  return gaps;
-}
-
-function isReferenceBlankLineGapSpacerLine(line: string): boolean {
-  return line.trim() === '' || isInternalEditorBlankLineComment(line);
-}
-
-function isReferenceBlankLineGapBoundaryLine(line: string): boolean {
-  return line.trim() !== '' && !isInternalEditorArtifactLine(line);
-}
-
-function preserveReferenceBlankLineGap(
-  lines: readonly string[],
-  gap: { before: string; after: string; blankCount: number },
-): string[] {
-  for (let beforeIndex = 0; beforeIndex < lines.length; beforeIndex += 1) {
-    if (lines[beforeIndex] !== gap.before) continue;
-
-    for (let afterIndex = beforeIndex + 2; afterIndex < lines.length; afterIndex += 1) {
-      if (lines[afterIndex] !== gap.after) continue;
-
-      const insertedLines = lines.slice(beforeIndex + 1, afterIndex);
-      if (
-        insertedLines.length === 0
-        || insertedLines.some((line) => line.trim() === '')
-      ) {
-        return [...lines];
-      }
-
-      const blanks = Array.from({ length: gap.blankCount }, () => '');
-      return [
-        ...lines.slice(0, beforeIndex + 1),
-        ...blanks,
-        ...insertedLines,
-        ...blanks,
-        ...lines.slice(afterIndex),
-      ];
-    }
-  }
-
-  return [...lines];
 }

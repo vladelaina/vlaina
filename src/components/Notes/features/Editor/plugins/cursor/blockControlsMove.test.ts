@@ -352,9 +352,7 @@ describe('applyBlockMove content integrity', () => {
       'vlaina_icon: value="hero"',
       '---',
       '1',
-      '',
       'hi',
-      '',
       '2',
     ].join('\n'));
 
@@ -397,9 +395,7 @@ describe('applyBlockMove content integrity', () => {
       'vlaina_icon: value="hero"',
       '---',
       '1',
-      '',
       'hi',
-      '',
       '2',
     ].join('\n'));
 

@@ -287,7 +287,7 @@ describe('resolvePendingMarkdownUpdate', () => {
     ).toBe(['1', '', '', '2'].join('\n'));
   });
 
-  it('preserves reference-authored blank line gaps around inserted text', () => {
+  it('does not restore a reference blank line gap after the user fills it with text', () => {
     const referenceMarkdown = [
       '---',
       'vlaina_icon: value="hero"',
@@ -314,9 +314,37 @@ describe('resolvePendingMarkdownUpdate', () => {
       'vlaina_icon: value="hero"',
       '---',
       '1',
-      '',
       'hi',
+      '2',
+    ].join('\n'));
+  });
+
+  it('does not reinsert a reference blank line gap around structural text', () => {
+    const referenceMarkdown = [
+      '---',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
       '',
+      '2',
+    ].join('\n');
+
+    expect(
+      serializeEditorMarkdownSnapshot(
+        [
+          '1',
+          '# #',
+          '2',
+          '',
+        ].join('\n'),
+        referenceMarkdown,
+      ),
+    ).toBe([
+      '---',
+      'vlaina_icon: value="hero"',
+      '---',
+      '1',
+      '# #',
       '2',
     ].join('\n'));
   });

@@ -1423,12 +1423,7 @@ test.describe("notes block selection", () => {
       await expectSelectedParagraphs(page, ['First selectable paragraph', 'Second selectable paragraph']);
 
       const firstSelected = page.locator(SELECTED_BLOCK_SELECTOR).first();
-      const selectedRect = await firstSelected.boundingBox();
-      if (!selectedRect) {
-        throw new Error('Could not resolve selected block geometry');
-      }
-
-      await page.mouse.move(Math.max(8, selectedRect.x - 18), selectedRect.y + selectedRect.height / 2);
+      await moveMouseToBlockHandleGutter(page, firstSelected);
       await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
 
       const geometry = await page.evaluate(() => {

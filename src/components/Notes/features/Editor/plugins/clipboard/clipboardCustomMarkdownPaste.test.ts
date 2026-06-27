@@ -14,6 +14,8 @@ import { highlightPlugin } from '../highlight';
 import { colorMarksPlugin } from '../floating-toolbar';
 import { videoPlugin } from '../video';
 import { deflistPlugin } from '../deflist';
+import { customPlugins } from '../../config/plugins';
+import { createMarkdownSyntaxFixture } from '../../../../../../../test/e2e/notesMarkdownSyntaxFixture';
 
 function simulatePasteText(view: any, text: string): boolean {
   const event = {
@@ -26,8 +28,17 @@ function simulatePasteText(view: any, text: string): boolean {
   };
 
   let handled = false;
+  view.someProp('handleDOMEvents', (handleDOMEvents: any) => {
+    const didHandle = handleDOMEvents.paste?.(view, event) ?? false;
+    handled = didHandle || handled;
+    return didHandle || undefined;
+  });
+  if (handled) return true;
+
   view.someProp('handlePaste', (handlePaste: any) => {
-    handled = handlePaste(view, event, null) || handled;
+    const didHandle = handlePaste(view, event, null);
+    handled = didHandle || handled;
+    return didHandle || undefined;
   });
   return handled;
 }
@@ -55,7 +66,48 @@ async function createPasteEditor() {
   return editor;
 }
 
+async function createFullPasteEditor() {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, '');
+    })
+    .use(clipboardPlugin)
+    .use(commonmark)
+    .use(gfm);
+
+  for (const plugin of customPlugins) {
+    editor.use(plugin);
+  }
+
+  await editor.create();
+  return editor;
+}
+
 describe('clipboard custom markdown paste', () => {
+  it('recognizes the full supported markdown syntax fixture from an empty paragraph interior', async () => {
+    const editor = await createFullPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, createMarkdownSyntaxFixture())).toBe(true);
+
+    const nodeNames: string[] = [];
+    view.state.doc.forEach((node) => {
+      nodeNames.push(node.type.name);
+    });
+
+    expect(nodeNames).toContain('frontmatter');
+    expect(nodeNames).toContain('heading');
+    expect(nodeNames).toContain('bullet_list');
+    expect(nodeNames).toContain('ordered_list');
+    expect(nodeNames).toContain('table');
+    expect(nodeNames).toContain('code_block');
+    expect(nodeNames).toContain('math_block');
+    expect(nodeNames).toContain('mermaid');
+    expect(nodeNames).toContain('footnote_definition');
+
+    await editor.destroy();
+  });
+
   it('recognizes pasted yaml frontmatter as a frontmatter block', async () => {
     const editor = await createPasteEditor();
     const view = editor.ctx.get(editorViewCtx);

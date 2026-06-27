@@ -72,6 +72,7 @@ import {
   CLEAR_BLOCKS_ACTION,
   clearBlockSelection,
 } from './plugins/cursor/blockSelectionPluginState';
+import { clipboardPlugin } from './plugins/clipboard/clipboardPlugin';
 import {
   applyMarkdownThemeRuntimeAttributes,
   resolveMarkdownThemeRuntimeColorScheme,
@@ -758,6 +759,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
           durationMs: Math.round(performance.now() - configStartedAt),
         });
       })
+      .use(clipboardPlugin)
       .use(commonmark)
       .use(gfm)
       .use(history)

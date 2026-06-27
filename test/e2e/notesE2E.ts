@@ -203,6 +203,12 @@ export async function openMarkdownFixture(
       await expect(page.locator(EDITOR_SELECTOR)).toBeVisible({ timeout: 30_000 });
       await expect(page.locator(NOTE_SOURCE_FALLBACK_SELECTOR)).toHaveCount(0);
       await waitForEditorAnimationFrame(page);
+      if (input.content.trim().length > 0) {
+        await waitForStableSelectableBlockCount(page, {
+          timeoutMs: 10_000,
+          minCount: 1,
+        });
+      }
 
       return {
         notePath,
@@ -681,9 +687,10 @@ export async function waitForStableSelectableBlockCount(
     timeoutMs?: number;
     stableFrames?: number;
     stableMs?: number;
+    minCount?: number;
   } = {},
 ): Promise<number> {
-  const result = await page.evaluate(async ({ timeoutMs, stableFrames, stableMs }) => {
+  const result = await page.evaluate(async ({ timeoutMs, stableFrames, stableMs, minCount }) => {
     const bridge = (window as any).__vlainaE2E;
     if (!bridge?.getNoteSelectableBlocks) {
       return {
@@ -720,7 +727,11 @@ export async function waitForStableSelectableBlockCount(
         consecutiveStableFrames = 0;
       }
 
-      if (consecutiveStableFrames >= stableFrames && now - stableStartedAt >= stableMs) {
+      if (
+        count >= minCount &&
+        consecutiveStableFrames >= stableFrames &&
+        now - stableStartedAt >= stableMs
+      ) {
         return {
           ok: true,
           reason: null,
@@ -732,7 +743,7 @@ export async function waitForStableSelectableBlockCount(
 
     return {
       ok: false,
-      reason: 'timeout',
+      reason: lastCount < minCount ? 'below-min-count' : 'timeout',
       count: lastCount,
       samples: samples.slice(-20),
     };
@@ -740,6 +751,7 @@ export async function waitForStableSelectableBlockCount(
     timeoutMs: options.timeoutMs ?? 5_000,
     stableFrames: options.stableFrames ?? 8,
     stableMs: options.stableMs ?? 250,
+    minCount: options.minCount ?? 0,
   });
 
   expect(result.ok, `Selectable block count did not stabilize: ${JSON.stringify(result)}`).toBe(true);
@@ -853,12 +865,19 @@ export async function collectEditorVisibilityProblems(page: Page, limit = 50) {
       value === 'transparent' ||
       /^rgba?\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(value.trim());
 
+    const isInternalInvisiblePlaceholder = (element: HTMLElement, rawText: string) => {
+      const compactText = rawText.replace(/[\s\u200B\u200C\uFEFF]/g, '');
+      return compactText === '\u2800' && Boolean(element.closest('li.editor-list-gap-placeholder-item'));
+    };
+
     const blockDisplayValues = new Set(['block', 'flow-root', 'flex', 'grid', 'list-item', 'table', 'table-row', 'table-cell']);
 
     return Array.from(editor.querySelectorAll<HTMLElement>(textSelectors))
       .flatMap((element) => {
         if (element.closest('div[data-type="toc"]')) return [];
-        const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        const rawText = element.textContent ?? '';
+        if (isInternalInvisiblePlaceholder(element, rawText)) return [];
+        const text = rawText.replace(/\s+/g, ' ').trim();
         if (!text) return [];
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
