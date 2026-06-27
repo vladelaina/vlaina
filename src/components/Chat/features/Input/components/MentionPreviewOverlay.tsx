@@ -1,6 +1,11 @@
 import type { ReactNode } from 'react';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import type { MentionPreviewPart } from '../noteMentionHelpers';
+import {
+  chatComposerMentionAttachmentSurfaceClass,
+  chatComposerMentionAttachmentTokenClass,
+} from '../composerStyles';
+import { ChatAttachmentRemoveButton } from './ChatAttachmentRemoveButton';
 
 interface MentionPreviewOverlayProps {
   mentionPreviewParts: MentionPreviewPart[];
@@ -95,7 +100,7 @@ function MentionPreviewToken({
 
   return (
     <span
-      className="pointer-events-auto group relative inline-flex items-center align-baseline text-[var(--vlaina-font-15)] leading-6 text-[var(--vlaina-sidebar-row-selected-text)]"
+      className={chatComposerMentionAttachmentTokenClass}
       data-mention-preview-token="true"
       data-no-focus-input="true"
       onMouseDown={(event) => {
@@ -104,7 +109,7 @@ function MentionPreviewToken({
       }}
     >
       <span
-        className="pointer-events-none absolute -bottom-0.5 left-0 right-0 top-0.5 rounded-full bg-[var(--vlaina-sidebar-chat-row-active)] shadow-[var(--vlaina-shadow-none)]"
+        className={chatComposerMentionAttachmentSurfaceClass}
         data-mention-preview-token-surface="true"
       />
       <span className="relative">{part.text}</span>
@@ -113,9 +118,8 @@ function MentionPreviewToken({
           {' '}
         </span>
       )}
-      <button
-        type="button"
-        className="absolute -right-1 -top-1 z-[var(--vlaina-z-10)] inline-flex size-4 items-center justify-center rounded-[var(--vlaina-radius-4px)] bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-font-10)] leading-none text-[var(--vlaina-sidebar-row-selected-text)] opacity-[var(--vlaina-opacity-0)] shadow-[var(--vlaina-shadow-selection-soft)] transition-[background-color,opacity] hover:bg-[var(--vlaina-sidebar-chat-row-hover)] group-hover:opacity-[var(--vlaina-opacity-100)]"
+      <ChatAttachmentRemoveButton
+        placement="mention-token"
         data-mention-preview-remove="true"
         data-no-focus-input="true"
         onMouseDown={(event) => {
@@ -123,9 +127,7 @@ function MentionPreviewToken({
           event.stopPropagation();
         }}
         onClick={() => onRemoveMention(part.mention.path, part.start, boundaryEnd)}
-      >
-        ×
-      </button>
+      />
     </span>
   );
 }

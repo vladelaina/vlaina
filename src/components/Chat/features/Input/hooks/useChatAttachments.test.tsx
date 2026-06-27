@@ -169,7 +169,7 @@ describe('useChatAttachments', () => {
     expect(saveAttachment).toHaveBeenCalledWith(expect.objectContaining({ name: 'photo.png' }), { persist: false });
   });
 
-  it('deletes pending attachment files when the user removes them before sending', async () => {
+  it('restores a removed attachment before deleting its file', async () => {
     const first = createAttachment({ id: 'first', path: '/appdata/.vlaina/chat/attachments/first.png' });
     const second = createAttachment({ id: 'second', path: '/appdata/.vlaina/chat/attachments/second.png' });
     mocks.saveAttachment
@@ -191,6 +191,48 @@ describe('useChatAttachments', () => {
 
     act(() => {
       result.current.removeAttachment('first');
+    });
+
+    expect(result.current.attachments).toEqual([second]);
+    expect(deleteAttachment).not.toHaveBeenCalled();
+
+    act(() => {
+      expect(result.current.undoLastRemovedAttachment()).toBe(true);
+    });
+
+    expect(result.current.attachments).toEqual([first, second]);
+    expect(deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  it('deletes removed attachment files when their undo entry is discarded', async () => {
+    const first = createAttachment({ id: 'first', path: '/appdata/.vlaina/chat/attachments/first.png' });
+    const second = createAttachment({ id: 'second', path: '/appdata/.vlaina/chat/attachments/second.png' });
+    mocks.saveAttachment
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second);
+    const { result } = renderHook(() => useChatAttachments());
+
+    await act(async () => {
+      await result.current.handleFileChange({
+        target: {
+          files: [
+            new File(['first'], 'first.png', { type: 'image/png' }),
+            new File(['second'], 'second.png', { type: 'image/png' }),
+          ],
+          value: 'selected',
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    act(() => {
+      result.current.removeAttachment('first');
+    });
+
+    expect(result.current.attachments).toEqual([second]);
+    expect(deleteAttachment).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.discardRemovedAttachmentUndoStack();
     });
 
     expect(result.current.attachments).toEqual([second]);

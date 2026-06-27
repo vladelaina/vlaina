@@ -3,6 +3,12 @@ import { Icon } from '@/components/ui/icons';
 import { LocalImage } from '@/components/Chat/common/LocalImage';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import { ChatImageViewer } from '@/components/Chat/features/Markdown/components/ChatImageViewer';
+import {
+  chatComposerFileAttachmentIconClass,
+  chatComposerFileAttachmentLabelClass,
+  chatComposerFileAttachmentTokenClass,
+} from '../composerStyles';
+import { ChatAttachmentRemoveButton } from './ChatAttachmentRemoveButton';
 
 interface ChatAttachmentPreviewListProps {
   attachments: Attachment[];
@@ -47,39 +53,34 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
                     className="aspect-square w-16 max-w-full object-cover rounded-xl border border-[var(--vlaina-color-subtle-border)] transition-opacity hover:opacity-[var(--vlaina-opacity-90)]"
                     onClick={() => setActiveImageId(attachment.id)}
                   />
-                  <button
-                    type="button"
-                    aria-label="Remove attachment"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRemove(attachment.id);
-                    }}
-                    className="absolute right-1 top-1 z-[var(--vlaina-z-10)] inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--vlaina-color-attachment-remove-bg)] text-[var(--vlaina-color-attachment-remove-fg)] opacity-[var(--vlaina-opacity-0)] shadow-[var(--vlaina-shadow-sm)] ring-1 ring-[var(--vlaina-color-subtle-border)] transition-[background-color,color,opacity] group-hover:opacity-[var(--vlaina-opacity-100)] hover:bg-[var(--vlaina-color-attachment-remove-bg-hover)] hover:text-[var(--vlaina-color-attachment-remove-fg-hover)]"
-                  >
-                    <Icon name="common.close" size="xs" />
-                  </button>
-                </>
-              ) : (
-                <span
-                  className="relative box-border inline-flex items-center gap-1.5 rounded-full bg-[var(--vlaina-sidebar-chat-row-active)] py-1 pl-1.5 pr-6 text-[var(--vlaina-font-15)] leading-6 text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-none)] sm:pl-2.5 sm:pr-7"
-                  style={{ maxWidth: 'min(16rem, calc(100% - 0.5rem))' }}
-                  data-chat-file-attachment-token="true"
-                  data-no-focus-input="true"
-                >
-                  <Icon name="file.attach" size="xs" className="hidden shrink-0 text-[var(--vlaina-sidebar-row-selected-text)] sm:block" />
-                  <span className="min-w-0 truncate">{attachment.name || 'attachment'}</span>
-                  <button
-                    type="button"
+                  <ChatAttachmentRemoveButton
+                    placement="image-thumbnail"
                     aria-label="Remove attachment"
                     data-no-focus-input="true"
                     onClick={(event) => {
                       event.stopPropagation();
                       onRemove(attachment.id);
                     }}
-                    className="absolute right-1.5 top-1/2 z-[var(--vlaina-z-10)] inline-flex size-4 -translate-y-1/2 items-center justify-center rounded-[var(--vlaina-radius-4px)] bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-font-10)] leading-none text-[var(--vlaina-sidebar-row-selected-text)] opacity-[var(--vlaina-opacity-0)] shadow-[var(--vlaina-shadow-selection-soft)] transition-[background-color,opacity] hover:bg-[var(--vlaina-sidebar-chat-row-hover)] focus-visible:opacity-[var(--vlaina-opacity-100)] group-hover:opacity-[var(--vlaina-opacity-100)]"
-                  >
-                    <Icon name="common.close" size="xs" />
-                  </button>
+                  />
+                </>
+              ) : (
+                <span
+                  className={chatComposerFileAttachmentTokenClass}
+                  style={{ maxWidth: 'min(16rem, calc(100% - 0.5rem))' }}
+                  data-chat-file-attachment-token="true"
+                  data-no-focus-input="true"
+                >
+                  <Icon name="file.attach" size="xs" className={chatComposerFileAttachmentIconClass} />
+                  <span className={chatComposerFileAttachmentLabelClass}>{attachment.name || 'attachment'}</span>
+                  <ChatAttachmentRemoveButton
+                    placement="file-token"
+                    aria-label="Remove attachment"
+                    data-no-focus-input="true"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemove(attachment.id);
+                    }}
+                  />
                 </span>
               )}
             </div>

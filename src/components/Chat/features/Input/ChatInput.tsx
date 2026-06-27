@@ -68,6 +68,37 @@ const managedQuotaNoticeSurfaceClass =
   'flex min-h-[var(--vlaina-size-32px)] flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-6 pb-2.5 pt-1.5 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)]';
 const CHAT_DROP_REGION_SELECTOR = '[data-chat-view-mode],[data-notes-chat-panel="true"],[data-chat-input="true"]';
 
+interface UndoShortcutEvent {
+  altKey: boolean;
+  ctrlKey: boolean;
+  key: string;
+  metaKey: boolean;
+  shiftKey: boolean;
+}
+
+function isUndoShortcut(event: UndoShortcutEvent): boolean {
+  return (
+    event.key.toLowerCase() === 'z' &&
+    (event.ctrlKey || event.metaKey) &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
+function isAttachmentUndoTarget(
+  target: EventTarget | null,
+  composerRoot: HTMLElement | null,
+  ownerDocument: Document,
+): boolean {
+  if (!target || target === ownerDocument || target === ownerDocument.defaultView) {
+    return true;
+  }
+  if (target === ownerDocument.body || target === ownerDocument.documentElement) {
+    return true;
+  }
+  return target instanceof Node && !!composerRoot?.contains(target);
+}
+
 function normalizeDroppedPathForCompare(path: string): string {
   const normalized = path.replace(/\\/g, '/');
   return normalized === '/' ? normalized : normalized.replace(/\/+$/, '');
@@ -183,6 +214,8 @@ export const ChatInput = memo(function ChatInput({
     handleFileChange,
     triggerFileSelect,
     removeAttachment,
+    undoLastRemovedAttachment,
+    discardRemovedAttachmentUndoStack,
     clearAttachments,
     clearDragState,
     restoreAttachments,
@@ -455,6 +488,32 @@ export const ChatInput = memo(function ChatInput({
     }
   }, [message, resetHistoryNavigation]);
 
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const handleWindowUndo = (event: KeyboardEvent) => {
+      if (
+        !isUndoShortcut(event) ||
+        !isAttachmentUndoTarget(event.target, composerRootRef.current, document)
+      ) {
+        return;
+      }
+
+      if (!undoLastRemovedAttachment()) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      scheduleComposerFocus();
+    };
+
+    window.addEventListener('keydown', handleWindowUndo, true);
+    return () => window.removeEventListener('keydown', handleWindowUndo, true);
+  }, [active, composerRootRef, scheduleComposerFocus, undoLastRemovedAttachment]);
+
   const handleHiddenFileInputChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       await handleFileChange(e);
@@ -611,12 +670,18 @@ export const ChatInput = memo(function ChatInput({
   const canSubmit = canSend && !isLoading && !isQuotaSendBlocked;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      discardRemovedAttachmentUndoStack();
       const nextValue = limitChatComposerText(event.target.value);
       handleMessageChange(nextValue);
       clearHistoryNavigationOnInput();
       handleCaretChange(Math.min(event.target.selectionStart ?? nextValue.length, nextValue.length));
     },
-    [clearHistoryNavigationOnInput, handleCaretChange, handleMessageChange]
+    [
+      clearHistoryNavigationOnInput,
+      discardRemovedAttachmentUndoStack,
+      handleCaretChange,
+      handleMessageChange,
+    ]
   );
 
   const handleUpgradeClick = useCallback(() => {
