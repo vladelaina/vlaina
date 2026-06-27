@@ -21,7 +21,7 @@
   "account.signInDescription": "Google 로그인을 선택하거나 이메일 인증 코드를 사용하여 계정에 액세스하세요.",
   "account.signInTitle": "vlaina에 로그인",
   "account.switchAccount": "계정 전환",
-  "account.verifyCode": "코드 확인",
+  "account.verifyCode": "인증하고 로그인",
   "account.verifying": "확인 중...",
   "account.changeEmailAddress": "이메일 주소 변경",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ 로그인에 실패했어요",

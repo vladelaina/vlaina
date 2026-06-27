@@ -54,6 +54,27 @@ describe('AccountSignInOptions', () => {
     expect(screen.getByRole('button', { name: /continue with email/i })).toBeTruthy();
   });
 
+  it('resets the email code form when OAuth sign-in starts from the verification step', async () => {
+    const props = buildProps();
+    render(<AccountSignInOptions {...props} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/email address/i), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }));
+
+    await screen.findByRole('button', { name: 'user@example.com' });
+    expect(document.querySelector('input[autocomplete="one-time-code"]')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(props.onOauthSignIn).toHaveBeenCalledWith('google');
+    await waitFor(() => {
+      expect(document.querySelector('input[autocomplete="one-time-code"]')).toBeNull();
+      expect(screen.getByPlaceholderText(/email address/i)).toBeTruthy();
+    });
+  });
+
   it('refreshes the native caret overlay when the account error layout changes', () => {
     const handleRefresh = vi.fn();
     document.addEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, handleRefresh);
@@ -188,7 +209,7 @@ describe('AccountSignInOptions', () => {
       expect(input).toBeTruthy();
       return input as HTMLInputElement;
     });
-    const verifyButton = screen.getByRole('button', { name: /verify code/i });
+    const verifyButton = screen.getByRole('button', { name: /verify and sign in/i });
 
     expect(verifyButton).toBeDisabled();
 

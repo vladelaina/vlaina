@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 import { AccountOauthButtons } from './AccountOauthButtons';
@@ -31,6 +31,15 @@ export function AccountSignInOptions({
   const { t } = useI18n();
   const isCompact = variant === 'compact';
   const disabled = isConnecting;
+  const [emailCodeCardKey, setEmailCodeCardKey] = useState(0);
+
+  const handleOauthSignIn = useCallback(
+    (provider: OauthAccountProvider) => {
+      setEmailCodeCardKey((key) => key + 1);
+      return onOauthSignIn(provider);
+    },
+    [onOauthSignIn]
+  );
 
   useLayoutEffect(() => {
     requestNativeCaretOverlayRefresh();
@@ -38,7 +47,7 @@ export function AccountSignInOptions({
 
   return (
     <div className={cn('flex flex-col gap-6 px-4', className)}>
-      <AccountOauthButtons isCompact={isCompact} disabled={disabled} onOauthSignIn={onOauthSignIn} />
+      <AccountOauthButtons isCompact={isCompact} disabled={disabled} onOauthSignIn={handleOauthSignIn} />
 
       <div className="flex items-center gap-4 px-4">
         <div className="h-px flex-1 bg-[var(--vlaina-divider)]" />
@@ -48,6 +57,7 @@ export function AccountSignInOptions({
 
       <div className="space-y-6">
         <AccountEmailCodeCard
+          key={emailCodeCardKey}
           isCompact={isCompact}
           disabled={disabled}
           onEmailCodeRequest={onEmailCodeRequest}

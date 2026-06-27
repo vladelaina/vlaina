@@ -21,7 +21,7 @@
   "account.signInDescription": "Googleサインインを選択するか、メール確認コードを使用してアカウントにアクセスしてください。",
   "account.signInTitle": "vlainaにサインイン",
   "account.switchAccount": "アカウントを切り替える",
-  "account.verifyCode": "コードを確認",
+  "account.verifyCode": "認証してログイン",
   "account.verifying": "確認中...",
   "account.changeEmailAddress": "メールアドレスを変更",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ ログインに失敗しました",

@@ -21,7 +21,7 @@
   "account.signInDescription": "Choisissez la connexion Google ou utilisez un code de vérification par e-mail pour accéder à votre compte.",
   "account.signInTitle": "Se connecter à vlaina",
   "account.switchAccount": "Changer de compte",
-  "account.verifyCode": "Vérifier le code",
+  "account.verifyCode": "Vérifier et se connecter",
   "account.verifying": "Vérification...",
   "account.changeEmailAddress": "Changer l'adresse e-mail",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ Connexion impossible",

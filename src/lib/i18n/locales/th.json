@@ -21,7 +21,7 @@
   "account.signInDescription": "เลือกการลงชื่อเข้าใช้ด้วย Google หรือใช้รหัสยืนยันอีเมลเพื่อเข้าถึงบัญชีของคุณ",
   "account.signInTitle": "ลงชื่อเข้าใช้ vlaina",
   "account.switchAccount": "สลับบัญชี",
-  "account.verifyCode": "ยืนยันรหัส",
+  "account.verifyCode": "ยืนยันและเข้าสู่ระบบ",
   "account.verifying": "กำลังยืนยัน...",
   "account.changeEmailAddress": "เปลี่ยนที่อยู่อีเมล",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ เข้าสู่ระบบไม่สำเร็จ",

@@ -21,7 +21,7 @@
   "account.signInDescription": "选择 Google 登录，或使用邮箱验证码访问你的账号。",
   "account.signInTitle": "登录 vlaina",
   "account.switchAccount": "切换账号",
-  "account.verifyCode": "验证代码",
+  "account.verifyCode": "验证并登录",
   "account.verifying": "正在验证...",
   "account.changeEmailAddress": "更换邮箱地址",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ 登录失败",

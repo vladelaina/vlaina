@@ -21,7 +21,7 @@
   "account.signInDescription": "Chọn đăng nhập bằng Google hoặc sử dụng mã xác minh email để truy cập tài khoản của bạn.",
   "account.signInTitle": "Đăng nhập vào vlaina",
   "account.switchAccount": "Chuyển tài khoản",
-  "account.verifyCode": "Xác minh mã",
+  "account.verifyCode": "Xác minh và đăng nhập",
   "account.verifying": "Đang xác minh...",
   "account.changeEmailAddress": "Thay đổi địa chỉ email",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ Đăng nhập thất bại",

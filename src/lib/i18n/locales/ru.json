@@ -21,7 +21,7 @@
   "account.signInDescription": "Выберите вход через Google или используйте код подтверждения по электронной почте для доступа к своей учетной записи.",
   "account.signInTitle": "Войти в vlaina",
   "account.switchAccount": "Сменить учетную запись",
-  "account.verifyCode": "Подтвердить код",
+  "account.verifyCode": "Подтвердить и войти",
   "account.verifying": "Проверка...",
   "account.changeEmailAddress": "Изменить адрес электронной почты",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ Не удалось войти",

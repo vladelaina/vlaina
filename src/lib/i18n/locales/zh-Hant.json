@@ -21,7 +21,7 @@
   "account.signInDescription": "選擇 Google 登入或使用電子郵件驗證碼存取您的帳戶。",
   "account.signInTitle": "登入 vlaina",
   "account.switchAccount": "切換帳戶",
-  "account.verifyCode": "驗證驗證碼",
+  "account.verifyCode": "驗證並登入",
   "account.verifying": "正在驗證...",
   "account.changeEmailAddress": "更改電子郵件地址",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ 登入失敗",

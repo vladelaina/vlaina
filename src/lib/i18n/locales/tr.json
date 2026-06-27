@@ -21,7 +21,7 @@
   "account.signInDescription": "Hesabınıza erişmek için Google ile giriş yapmayı seçin veya e-posta doğrulama kodu kullanın.",
   "account.signInTitle": "vlaina'ya giriş yap",
   "account.switchAccount": "Hesap Değiştir",
-  "account.verifyCode": "Kodu Doğrula",
+  "account.verifyCode": "Doğrula ve giriş yap",
   "account.verifying": "Doğrulanıyor...",
   "account.changeEmailAddress": "E-posta adresini değiştir",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ Oturum açılamadı",

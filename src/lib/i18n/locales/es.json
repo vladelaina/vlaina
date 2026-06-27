@@ -21,7 +21,7 @@
   "account.signInDescription": "Elige iniciar sesión con Google o usa un código de verificación por correo electrónico para acceder a tu cuenta.",
   "account.signInTitle": "Inicia sesión en vlaina",
   "account.switchAccount": "Cambiar de cuenta",
-  "account.verifyCode": "Verificar código",
+  "account.verifyCode": "Verificar e iniciar sesión",
   "account.verifying": "Verificando...",
   "account.changeEmailAddress": "Cambiar dirección de correo electrónico",
   "account.error.loginFailed": "๑ᵒᯅᵒ๑ No se pudo iniciar sesión",

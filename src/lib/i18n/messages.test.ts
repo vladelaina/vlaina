@@ -75,6 +75,32 @@ describe('i18n messages', () => {
     });
   });
 
+  it('uses sign-in copy for email-code submit buttons', () => {
+    const expectedVerifyCodeLabels = {
+      en: 'Verify and Sign In',
+      'zh-CN': '验证并登录',
+      'zh-Hant': '驗證並登入',
+      ja: '認証してログイン',
+      ko: '인증하고 로그인',
+      fr: 'Vérifier et se connecter',
+      de: 'Bestätigen und anmelden',
+      es: 'Verificar e iniciar sesión',
+      'pt-BR': 'Verificar e entrar',
+      it: 'Verifica e accedi',
+      ru: 'Подтвердить и войти',
+      tr: 'Doğrula ve giriş yap',
+      vi: 'Xác minh và đăng nhập',
+      id: 'Verifikasi dan masuk',
+      th: 'ยืนยันและเข้าสู่ระบบ',
+    } as const;
+
+    for (const language of APP_LANGUAGES) {
+      expect(getMessages(language.code)['account.verifyCode'], language.code).toBe(
+        expectedVerifyCodeLabels[language.code]
+      );
+    }
+  });
+
   it('keeps every localized language complete before English fallback can apply', () => {
     for (const language of APP_LANGUAGES) {
       if (language.code === 'en') continue;
