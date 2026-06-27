@@ -32,5 +32,6 @@ describe('OpenAI web search text protocol bounds', () => {
 
     expect(client.webSearch).not.toHaveBeenCalled();
     expect(final).toContain('Direct answer instead.');
+    expect(final).not.toContain('<web_search_request>');
   });
 });

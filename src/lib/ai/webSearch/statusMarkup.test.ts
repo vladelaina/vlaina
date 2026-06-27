@@ -135,12 +135,12 @@ describe('web search status markup', () => {
     expect(parsed.content).toBe('Answer');
   });
 
-  it('leaves unterminated status markup text intact', () => {
-    const content = `<web-search-status>${'x'.repeat(MAX_WEB_SEARCH_STATUS_JSON_LENGTH + 1)}Answer`;
+  it('strips unterminated status markup instead of exposing internal status text', () => {
+    const content = `Visible before <web-search-status>${'x'.repeat(MAX_WEB_SEARCH_STATUS_JSON_LENGTH + 1)}Answer`;
     const parsed = extractWebSearchStatuses(content);
 
     expect(parsed.statuses).toEqual([]);
-    expect(parsed.content).toBe(content);
+    expect(parsed.content).toBe('Visible before');
   });
 
   it('accepts only public http sources', () => {

@@ -6,6 +6,7 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag, stripFirstErrorTag } from '@/lib/ai/errorTag';
 import { isManagedModelId } from '@/lib/ai/managedService';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
+import { stripWebSearchRequestMarkup } from '@/lib/ai/webSearch/requestMarkup';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -84,7 +85,7 @@ export function AIMessage({
       errorCode: parsedError?.code,
       errorContent: nextErrorContent,
       webSearchStatuses: webSearch.statuses,
-      contentWithoutError: webSearch.content,
+      contentWithoutError: stripWebSearchRequestMarkup(webSearch.content),
     };
   }, [msg.content]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;

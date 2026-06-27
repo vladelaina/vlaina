@@ -198,7 +198,7 @@ export function extractWebSearchStatuses(content: string): {
     );
     const end = indexOfAsciiCaseInsensitive(boundedEndSearch, WEB_SEARCH_STATUS_END_TAG, 0);
     if (end < 0) {
-      strippedContent += content.slice(start);
+      strippedContent = strippedContent.trimEnd();
       break;
     }
 

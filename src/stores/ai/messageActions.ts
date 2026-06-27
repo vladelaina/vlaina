@@ -20,6 +20,7 @@ import {
 } from '@/components/Chat/common/messageClipboard'
 import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
+import { stripWebSearchRequestMarkup } from '@/lib/ai/webSearch/requestMarkup'
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
 import { requestManager } from '@/lib/ai/requestManager'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
@@ -86,7 +87,7 @@ function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string):
 
 function hasVisibleAssistantReply(content: string): boolean {
   const withoutWebSearchStatuses = extractWebSearchStatuses(content || '').content
-  return stripThinkingContent(withoutWebSearchStatuses).length > 0
+  return stripWebSearchRequestMarkup(stripThinkingContent(withoutWebSearchStatuses)).length > 0
 }
 
 const MAX_MESSAGE_VERSIONS = 20
