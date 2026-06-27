@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, type MouseEvent } from 'react';
-import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
+import { useDisplayName } from '@/hooks/useTitleSync';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
@@ -7,7 +7,6 @@ import type { NoteFile } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { useFileItemState } from './hooks/useFileItemState';
-import { NoteIcon } from '../IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
 import {
   getSidebarLabelClass,
@@ -19,6 +18,7 @@ import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { scrollSidebarItemIntoView } from '../common/sidebarScrollIntoView';
+import { SidebarLiveNoteFileIcon } from '../Sidebar/SidebarNoteFileIcon';
 import { TreeItemShell } from './components/TreeItemShell';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
@@ -96,7 +96,6 @@ export const FileItem = memo(function FileItem({
   );
 
   const displayName = useDisplayName(node.path) || node.name;
-  const noteIcon = useDisplayIcon(node.path);
   const handleRenameFromDoubleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (
@@ -235,13 +234,7 @@ export const FileItem = memo(function FileItem({
       depth={depth}
       actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
       contentClassName={showStarBadge ? 'z-[var(--vlaina-z-30)]' : undefined}
-      leading={
-        noteIcon ? (
-          <NoteIcon icon={noteIcon} notePath={node.path} size={NOTES_SIDEBAR_ICON_SIZE} />
-        ) : (
-          <Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--vlaina-sidebar-notes-file-icon)]" />
-        )
-      }
+      leading={<SidebarLiveNoteFileIcon notePath={node.path} size={NOTES_SIDEBAR_ICON_SIZE} />}
       isActive={isActive}
       isHighlighted={showMenu}
       onMouseEnter={hoverPrefetch.onMouseEnter}

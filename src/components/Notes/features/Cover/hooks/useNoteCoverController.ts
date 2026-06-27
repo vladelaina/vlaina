@@ -3,7 +3,76 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
+import type { NoteCoverMetadata, NotesStore } from '@/stores/notes/types';
 import type { NoteCoverController } from '../types';
+
+const COVER_SNAPSHOT_SEPARATOR = '\u001f';
+const coverSnapshotCache = new Map<string, NoteCoverMetadata>();
+
+function getCoverSnapshotCacheKey(notesPath: string | undefined, path: string): string {
+  return [
+    notesPath ?? '',
+    path,
+  ].join(COVER_SNAPSHOT_SEPARATOR);
+}
+
+function coverEntriesEqual(
+  first: NoteCoverMetadata | undefined,
+  second: NoteCoverMetadata | undefined,
+): boolean {
+  return (
+    first?.assetPath === second?.assetPath &&
+    first?.positionX === second?.positionX &&
+    first?.positionY === second?.positionY &&
+    first?.height === second?.height &&
+    first?.scale === second?.scale
+  );
+}
+
+function getStableCachedCoverEntry(
+  cacheKey: string,
+  cover: NoteCoverMetadata | undefined,
+): NoteCoverMetadata | undefined {
+  if (!cover?.assetPath) {
+    coverSnapshotCache.delete(cacheKey);
+    return undefined;
+  }
+
+  const previous = coverSnapshotCache.get(cacheKey);
+  if (coverEntriesEqual(previous, cover)) {
+    return previous;
+  }
+
+  const next = { ...cover };
+  coverSnapshotCache.set(cacheKey, next);
+  return next;
+}
+
+export function clearNoteCoverSnapshotCacheForTests(): void {
+  coverSnapshotCache.clear();
+}
+
+export function getStableNoteCoverEntrySnapshot(
+  path: string | undefined,
+  state: Pick<NotesStore, 'currentNote' | 'noteMetadata' | 'notesPath'>,
+): NoteCoverMetadata | undefined {
+  if (!path) return undefined;
+
+  const cacheKey = getCoverSnapshotCacheKey(state.notesPath, path);
+  const notes = state.noteMetadata?.notes;
+  if (notes && Object.prototype.hasOwnProperty.call(notes, path)) {
+    return getStableCachedCoverEntry(cacheKey, notes[path]?.cover);
+  }
+
+  if (state.currentNote?.path === path) {
+    const cover = readNoteMetadataFromMarkdown(state.currentNote.content).cover;
+    if (cover?.assetPath) {
+      return getStableCachedCoverEntry(cacheKey, cover);
+    }
+  }
+
+  return coverSnapshotCache.get(cacheKey);
+}
 
 function coverEntryMatchesControllerCover(
   coverEntry: {
@@ -27,11 +96,8 @@ function coverEntryMatchesControllerCover(
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
   const notesPath = useNotesStore(s => s.notesPath);
   const setNoteCover = useNotesStore(s => s.setNoteCover);
-  const metadataCoverEntry = useNotesStore(
-    useCallback((state) => {
-      if (!currentNotePath) return undefined;
-      return state.noteMetadata?.notes[currentNotePath]?.cover;
-    }, [currentNotePath])
+  const coverEntry = useNotesStore(
+    useCallback((state) => getStableNoteCoverEntrySnapshot(currentNotePath, state), [currentNotePath])
   );
   const hasMetadataEntry = useNotesStore(
     useCallback((state) => {
@@ -52,7 +118,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
     () => currentNoteContent ? readNoteMetadataFromMarkdown(currentNoteContent).cover : undefined,
     [currentNoteContent]
   );
-  const coverEntry = metadataCoverEntry ?? (
+  const stableCoverEntry = coverEntry ?? (
     hasMetadataEntry ? undefined : currentNoteCoverEntry
   );
 
@@ -93,21 +159,21 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
     }
 
     return {
-      url: coverEntry?.assetPath ?? null,
-      positionX: coverEntry?.positionX ?? 50,
-      positionY: coverEntry?.positionY ?? 50,
-      height: coverEntry?.height,
-      scale: coverEntry?.scale ?? 1,
+      url: stableCoverEntry?.assetPath ?? null,
+      positionX: stableCoverEntry?.positionX ?? 50,
+      positionY: stableCoverEntry?.positionY ?? 50,
+      height: stableCoverEntry?.height,
+      scale: stableCoverEntry?.scale ?? 1,
     };
-  }, [coverEntry, currentNotePath, optimisticCover]);
+  }, [currentNotePath, optimisticCover, stableCoverEntry]);
 
   useEffect(() => {
     if (optimisticCover === undefined) return;
     if (optimisticCover.path !== currentNotePath) return;
-    if (!coverEntryMatchesControllerCover(coverEntry, optimisticCover.cover)) return;
+    if (!coverEntryMatchesControllerCover(stableCoverEntry, optimisticCover.cover)) return;
 
     setOptimisticCover(undefined);
-  }, [coverEntry, currentNotePath, optimisticCover]);
+  }, [currentNotePath, optimisticCover, stableCoverEntry]);
 
   const updateCover = useCallback(
     (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => {

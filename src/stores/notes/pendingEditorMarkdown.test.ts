@@ -408,6 +408,46 @@ describe('flushPendingEditorMarkdown', () => {
     });
   });
 
+  it('keeps the file tree reference stable when pending autosave only changes mtime metadata under name sorting', async () => {
+    const rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [
+        { id: 'alpha.md', name: 'alpha', path: 'alpha.md', isFolder: false as const },
+        { id: 'beta.md', name: 'beta', path: 'beta.md', isFolder: false as const },
+      ],
+    };
+    saveNoteDocument.mockImplementationOnce(async ({ currentNote, cache }) => ({
+      content: currentNote.content,
+      metadata: { updatedAt: 11 },
+      modifiedAt: 11,
+      size: currentNote.content.length,
+      nextCache: cache,
+    }));
+    useNotesStore.setState({
+      notesPath: '/vault',
+      rootFolder,
+      currentNote: { path: 'alpha.md', content: 'Old alpha' },
+      currentNoteRevision: 4,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      fileTreeSortMode: 'name-asc',
+      noteMetadata: { version: 2, notes: {} },
+      noteContentsCache: new Map([['alpha.md', { content: 'Old alpha', modifiedAt: 2 }]]),
+    });
+
+    const didSave = await savePendingEditorMarkdown('alpha.md', 'Unsaved alpha');
+
+    const state = useNotesStore.getState();
+    expect(didSave).toBe(true);
+    expect(state.rootFolder).toBe(rootFolder);
+    expect(state.noteMetadata?.notes['alpha.md']?.updatedAt).toBe(11);
+    expect(state.openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
+  });
+
   it('restores a dirty tab if navigation already replaced it before the editor flushed', () => {
     useNotesStore.setState({
       currentNote: { path: 'beta.md', content: 'Beta content' },

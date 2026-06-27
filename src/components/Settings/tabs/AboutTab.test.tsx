@@ -96,9 +96,22 @@ describe('AboutTab community QR pills', () => {
     expect(wechatPanel).toHaveClass('opacity-[var(--vlaina-opacity-100)]');
   });
 
-<<<<<<< HEAD
   it('opens the support email from the about community pills', () => {
-=======
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'hi@vlaina.com' }));
+
+    expect(openExternalHref).toHaveBeenCalledWith('mailto:hi@vlaina.com');
+  });
+
   it('opens the platform-specific update package URL returned by the desktop updater', async () => {
     const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.17/vlaina-0.1.17-linux-x86_64.AppImage';
     electronBridgeMock.current = {
@@ -120,7 +133,6 @@ describe('AboutTab community QR pills', () => {
       },
     };
 
->>>>>>> 1
     render(
       <AboutTab
         community={{
@@ -131,11 +143,6 @@ describe('AboutTab community QR pills', () => {
       />,
     );
 
-<<<<<<< HEAD
-    fireEvent.click(screen.getByRole('button', { name: 'hi@vlaina.com' }));
-
-    expect(openExternalHref).toHaveBeenCalledWith('mailto:hi@vlaina.com');
-=======
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
 
     const updateButton = await screen.findByRole('button', { name: 'Update' });
@@ -150,6 +157,5 @@ describe('AboutTab community QR pills', () => {
     await waitFor(() => {
       expect(openExternalHrefMock).toHaveBeenCalledWith(downloadUrl);
     });
->>>>>>> 1
   });
 });

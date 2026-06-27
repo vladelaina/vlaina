@@ -9,16 +9,15 @@ import type { StarredEntry } from '@/stores/notes/types';
 import { getStarredNoteDisplayPath } from '@/stores/notes/starred';
 import { joinPath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
-import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
 import { getSidebarContextMenuPosition } from '../common/sidebarMenuPosition';
 import { getEntryTitle } from './starredSectionUtils';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 import { useI18n } from '@/lib/i18n';
 import { themeIconTokens } from '@/styles/themeTokens';
+import { SidebarNoteFileIcon } from '../Sidebar/SidebarNoteFileIcon';
 
 const NotesSidebarContextMenu = lazy(async () => {
   const mod = await import('../Sidebar/NotesSidebarContextMenu');
@@ -214,20 +213,12 @@ export function ExternalStarredEntryRow({
         data-starred-entry-vault-path={entry.vaultPath}
         leading={
           entry.kind === 'note' ? (
-            displayIcon ? (
-              <NoteIcon
-                icon={displayIcon}
-                notePath={entry.relativePath}
-                vaultPath={entry.vaultPath}
-                size={themeIconTokens.sizeRow}
-              />
-            ) : (
-              <Icon
-                name="file.text"
-                size={NOTES_SIDEBAR_ICON_SIZE}
-                className="text-[var(--vlaina-sidebar-notes-file-icon)]"
-              />
-            )
+            <SidebarNoteFileIcon
+              icon={displayIcon}
+              notePath={entry.relativePath}
+              vaultPath={entry.vaultPath}
+              size={themeIconTokens.sizeRow}
+            />
           ) : (
             <Icon
               name="file.folder"

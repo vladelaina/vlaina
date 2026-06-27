@@ -5,7 +5,10 @@ import { getCachedNoteModifiedAt, setCachedNoteContent } from './document/noteCo
 import { setNoteTabDirtyState } from './document/noteTabState';
 import { saveNoteDocument } from './document/noteDocumentPersistence';
 import { createEmptyMetadataFile, setNoteEntry } from './storage';
-import { buildSortedRootFolder } from './utils/fs/rootFolderState';
+import {
+  buildSortedRootFolder,
+  shouldRebuildRootFolderForMetadataChange,
+} from './utils/fs/rootFolderState';
 import { isDraftNotePath } from './draftNote';
 
 export {
@@ -132,17 +135,27 @@ export async function savePendingEditorMarkdown(
         : latest.noteContentsCache.get(notePath)?.content;
     const hasNewerEdit = latestContent !== undefined && latestContent !== content;
     const nextContent = hasNewerEdit ? latestContent : saved.content;
+    const metadataBase = latest.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile();
     const nextMetadata = setNoteEntry(
-      latest.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
+      metadataBase,
       notePath,
       saved.metadata,
     );
-    const nextRootFolder = buildSortedRootFolder(
-      latest.rootFolder ?? rootFolder,
-      latest.rootFolder?.children ?? rootFolder?.children ?? [],
-      latest.fileTreeSortMode ?? fileTreeSortMode,
-      nextMetadata,
+    const latestSortMode = latest.fileTreeSortMode ?? fileTreeSortMode;
+    const latestRootFolder = latest.rootFolder ?? rootFolder;
+    const shouldRebuildRootFolder = shouldRebuildRootFolderForMetadataChange(
+      latestSortMode,
+      metadataBase.notes[notePath],
+      nextMetadata.notes[notePath],
     );
+    const nextRootFolder = shouldRebuildRootFolder
+      ? buildSortedRootFolder(
+          latestRootFolder,
+          latestRootFolder?.children ?? [],
+          latestSortMode,
+          nextMetadata,
+        )
+      : latestRootFolder;
 
     useNotesStore.setState({
       currentNote: isCurrentNote && latest.currentNote

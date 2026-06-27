@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, type Dispatch, type SetStateAction } from 'react';
 import { calculateCropPixels } from '../../../../utils/coverGeometry';
 
 interface UseCoverPositionSyncProps {
@@ -11,7 +11,7 @@ interface UseCoverPositionSyncProps {
   isResizing: boolean;
   suspendSync?: boolean;
   ignoreCropSyncRef: React.MutableRefObject<boolean>;
-  setCrop: (crop: { x: number; y: number }) => void;
+  setCrop: Dispatch<SetStateAction<{ x: number; y: number }>>;
 }
 
 export function useCoverPositionSync({
@@ -40,7 +40,9 @@ export function useCoverPositionSync({
       effectiveContainerSize,
       zoom
     );
-    setCrop(pixels);
+    setCrop((currentCrop) => (
+      currentCrop.x === pixels.x && currentCrop.y === pixels.y ? currentCrop : pixels
+    ));
   }, [
     positionX,
     positionY,

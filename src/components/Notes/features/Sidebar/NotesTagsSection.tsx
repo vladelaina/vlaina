@@ -9,9 +9,7 @@ import {
   getSidebarCollapseTriangleColorClassName,
 } from '../common/collapseTrianglePrimitive';
 import { useI18n } from '@/lib/i18n';
-import { Icon } from '@/components/ui/icons';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
-import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
@@ -24,6 +22,7 @@ import {
 } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { themeIconTokens } from '@/styles/themeTokens';
 import { cn } from '@/lib/utils';
+import { SidebarNoteFileIcon } from './SidebarNoteFileIcon';
 
 const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
 const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
@@ -451,15 +450,7 @@ const NotesTagFileRow = memo(function NotesTagFileRow({
       leadingClassName="self-start pt-1"
       contentClassName="min-w-0 overflow-hidden pr-2"
       leading={
-        noteIcon ? (
-          <NoteIcon icon={noteIcon} notePath={path} size={NOTES_SIDEBAR_ICON_SIZE} />
-        ) : (
-          <Icon
-            name="file.text"
-            size={NOTES_SIDEBAR_ICON_SIZE}
-            className="text-[var(--vlaina-sidebar-notes-file-icon)]"
-          />
-        )
+        <SidebarNoteFileIcon icon={noteIcon} notePath={path} size={NOTES_SIDEBAR_ICON_SIZE} />
       }
       isActive={currentNotePath === path}
       main={

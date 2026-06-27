@@ -31,7 +31,10 @@ import {
   saveNoteDocument,
 } from '../document/noteDocumentPersistence';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
-import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import {
+  buildSortedRootFolder,
+  shouldRebuildRootFolderForMetadataChange,
+} from '../utils/fs/rootFolderState';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
   hasUnsafeVaultPathSegment,
@@ -257,22 +260,6 @@ function replaceNoteEntry(
       [path]: entry,
     },
   };
-}
-
-function shouldRebuildRootFolderForMetadataChange(
-  fileTreeSortMode: NotesStore['fileTreeSortMode'],
-  previousEntry: NoteMetadataEntry | undefined,
-  nextEntry: NoteMetadataEntry | undefined,
-): boolean {
-  if (fileTreeSortMode === 'updated-desc') {
-    return (previousEntry?.updatedAt ?? 0) !== (nextEntry?.updatedAt ?? 0);
-  }
-
-  if (fileTreeSortMode === 'created-desc') {
-    return (previousEntry?.createdAt ?? 0) !== (nextEntry?.createdAt ?? 0);
-  }
-
-  return false;
 }
 
 export interface FeatureSlice {

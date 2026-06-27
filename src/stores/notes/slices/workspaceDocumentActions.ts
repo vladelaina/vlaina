@@ -7,7 +7,10 @@ import {
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { stripUpdatedFrontmatter } from '../frontmatter';
-import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import {
+  buildSortedRootFolder,
+  shouldRebuildRootFolderForMetadataChange,
+} from '../utils/fs/rootFolderState';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
@@ -96,17 +99,27 @@ export function createWorkspaceDocumentActions(
         return;
       }
 
+      const metadataBase = latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile();
       const nextMetadata = setNoteEntry(
-        latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
+        metadataBase,
         currentNote.path,
         metadata,
       );
-      const nextRootFolder = buildSortedRootFolder(
-        latestState.rootFolder ?? rootFolder,
-        latestState.rootFolder?.children ?? rootFolder?.children ?? [],
-        latestState.fileTreeSortMode ?? fileTreeSortMode,
-        nextMetadata,
+      const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
+      const latestRootFolder = latestState.rootFolder ?? rootFolder;
+      const shouldRebuildRootFolder = shouldRebuildRootFolderForMetadataChange(
+        latestSortMode,
+        metadataBase.notes[currentNote.path],
+        nextMetadata.notes[currentNote.path],
       );
+      const nextRootFolder = shouldRebuildRootFolder
+        ? buildSortedRootFolder(
+            latestRootFolder,
+            latestRootFolder?.children ?? [],
+            latestSortMode,
+            nextMetadata,
+          )
+        : latestRootFolder;
       const hasNewerSaveTargetEdit =
         latestSaveTargetContent !== undefined &&
         latestSaveTargetContent !== contentAtSaveStart;

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useCoverInteraction } from './interaction/useCoverInteraction';
 import { useCoverResize } from './resize/useCoverResize';
 import { useCoverPositionSync } from './interaction/useCoverPositionSync';
@@ -10,7 +10,7 @@ interface UseCoverInteractionControllerProps {
   zoom: number;
   setZoom: (zoom: number) => void;
   crop: { x: number; y: number };
-  setCrop: (crop: { x: number; y: number }) => void;
+  setCrop: Dispatch<SetStateAction<{ x: number; y: number }>>;
   coverHeight: number;
   setCoverHeight: (height: number) => void;
   url: string | null;

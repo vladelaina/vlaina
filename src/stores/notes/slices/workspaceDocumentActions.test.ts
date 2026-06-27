@@ -288,6 +288,42 @@ describe('workspace document actions', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('keeps the file tree reference stable when saving mtime metadata under name sorting', async () => {
+    const rootFolder: NonNullable<NotesStore['rootFolder']> = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        { id: 'alpha.md', name: 'alpha', path: 'alpha.md', isFolder: false },
+        { id: 'beta.md', name: 'beta', path: 'beta.md', isFolder: false },
+      ],
+    };
+    const store = createNotesStore({
+      rootFolder,
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      fileTreeSortMode: 'name-asc',
+      noteContentsCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }]]),
+      noteMetadata: { version: 2, notes: {} },
+    });
+    mocks.saveNoteDocument.mockResolvedValueOnce({
+      content: 'Unsaved alpha',
+      metadata: { updatedAt: 2 },
+      modifiedAt: 2,
+      size: 'Unsaved alpha'.length,
+      nextCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 2 }]]),
+    });
+
+    await store.getState().saveNote();
+
+    expect(store.getState().rootFolder).toBe(rootFolder);
+    expect(store.getState().noteMetadata?.notes['alpha.md']?.updatedAt).toBe(2);
+    expect(store.getState().isDirty).toBe(false);
+  });
+
   it('does not clear dirty state when the note path is externally deleted while save is in flight', async () => {
     type SaveResult = {
       content: string;

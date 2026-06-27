@@ -23,6 +23,11 @@ import {
 import { getVaultStarredPaths } from '../starred';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import {
+  areRootFoldersEquivalent,
+  buildSortedRootFolder,
+  shouldRebuildRootFolderForMetadataFileChange,
+} from '../utils/fs/rootFolderState';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 
@@ -221,21 +226,28 @@ export function createFileSystemTreeActions(
           return;
         }
 
-        const currentMetadata = get().noteMetadata;
+        const currentStateBeforeTreeCommit = get();
+        const currentMetadata = currentStateBeforeTreeCommit.noteMetadata;
         const nextMetadata = mergeDraftMetadata(createEmptyMetadataFile(), currentMetadata);
+        const candidateRootFolder = {
+          id: '',
+          name: 'Notes',
+          path: '',
+          isFolder: true as const,
+          children: restoredChildren,
+          expanded: true,
+          ...(isRootGitRepository ? { isGitRepository: true } : {}),
+        };
+        const nextRootFolder =
+          currentStateBeforeTreeCommit.rootFolderPath === basePath &&
+          areRootFoldersEquivalent(currentStateBeforeTreeCommit.rootFolder, candidateRootFolder)
+            ? currentStateBeforeTreeCommit.rootFolder
+            : candidateRootFolder;
 
         set({
           notesPath: basePath,
           rootFolderPath: basePath,
-          rootFolder: {
-            id: '',
-            name: 'Notes',
-            path: '',
-            isFolder: true,
-            children: restoredChildren,
-            expanded: true,
-            ...(isRootGitRepository ? { isGitRepository: true } : {}),
-          },
+          rootFolder: nextRootFolder,
           noteMetadata: nextMetadata,
           starredNotes: starredPaths.notes,
           starredFolders: starredPaths.folders,
@@ -306,11 +318,18 @@ export function createFileSystemTreeActions(
             });
 
             if (currentState.rootFolder && currentState.rootFolderPath === basePath) {
+              const nextRootFolder = buildSortedRootFolder(
+                currentState.rootFolder,
+                sortedBackgroundChildren,
+                currentState.fileTreeSortMode,
+                currentState.noteMetadata,
+              );
+              if (nextRootFolder === currentState.rootFolder) {
+                return;
+              }
+
               set({
-                rootFolder: {
-                  ...currentState.rootFolder,
-                  children: sortedBackgroundChildren,
-                },
+                rootFolder: nextRootFolder,
               });
             }
           }
@@ -326,19 +345,28 @@ export function createFileSystemTreeActions(
 
           const mergedMetadata = mergeDraftMetadata(metadata, get().noteMetadata);
           const currentState = get();
-          const nextRootFolder = currentState.rootFolder && currentState.rootFolderPath === basePath
-            ? {
-                ...currentState.rootFolder,
-                children: sortNestedFileTree(currentState.rootFolder.children, {
-                  mode: currentState.fileTreeSortMode,
-                  metadata: mergedMetadata,
-                }),
-              }
+          const shouldRebuildRootFolder =
+            currentState.rootFolderPath === basePath &&
+            shouldRebuildRootFolderForMetadataFileChange(
+              currentState.fileTreeSortMode,
+              currentState.rootFolder,
+              currentState.noteMetadata,
+              mergedMetadata,
+            );
+          const nextRootFolder = shouldRebuildRootFolder
+            ? buildSortedRootFolder(
+                currentState.rootFolder,
+                currentState.rootFolder?.children ?? [],
+                currentState.fileTreeSortMode,
+                mergedMetadata,
+              )
             : currentState.rootFolder;
 
           set({
             noteMetadata: mergedMetadata,
-            ...(nextRootFolder ? { rootFolder: nextRootFolder } : {}),
+            ...(nextRootFolder && nextRootFolder !== currentState.rootFolder
+              ? { rootFolder: nextRootFolder }
+              : {}),
           });
         });
 
@@ -382,6 +410,10 @@ export function createFileSystemTreeActions(
             children: updateFolderExpanded(rootFolder.children, path),
           };
 
+      if (updatedRootFolder.children === rootFolder.children && updatedRootFolder.expanded === rootFolder.expanded) {
+        return;
+      }
+
       set({ rootFolder: updatedRootFolder });
       scheduleWorkspaceSnapshotPersistence(get);
     },
@@ -392,16 +424,18 @@ export function createFileSystemTreeActions(
         return;
       }
 
-      const updatedRootFolder = path === ''
-        ? {
-            ...rootFolder,
-            expanded: true,
-          }
-        : {
-            ...rootFolder,
-            expanded: true,
-            children: expandFoldersForPath(rootFolder.children, path),
-          };
+      const nextChildren = path === ''
+        ? rootFolder.children
+        : expandFoldersForPath(rootFolder.children, path);
+      if (rootFolder.expanded && nextChildren === rootFolder.children) {
+        return;
+      }
+
+      const updatedRootFolder = {
+        ...rootFolder,
+        expanded: true,
+        children: nextChildren,
+      };
 
       set({ rootFolder: updatedRootFolder });
       scheduleWorkspaceSnapshotPersistence(get);
@@ -413,15 +447,12 @@ export function createFileSystemTreeActions(
         return;
       }
 
-      const nextRootFolder = rootFolder
-        ? {
-            ...rootFolder,
-            children: sortNestedFileTree(rootFolder.children, {
-              mode,
-              metadata: noteMetadata,
-            }),
-          }
-        : rootFolder;
+      const nextRootFolder = buildSortedRootFolder(
+        rootFolder,
+        rootFolder?.children ?? [],
+        mode,
+        noteMetadata,
+      );
 
       set({
         fileTreeSortMode: mode,

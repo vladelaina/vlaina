@@ -54,7 +54,9 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuSubTrigger: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
-  DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  DropdownMenuTrigger: ({ children, ...props }: React.ComponentProps<'button'>) => (
+    <button type="button" {...props}>{children}</button>
+  ),
 }));
 
 vi.mock('@/components/ui/icons', () => ({
@@ -158,8 +160,12 @@ describe('EditorTopRightToolbar', () => {
     mocks.setNotesChatFloatingOpen.mockReset();
   });
 
+  function openMoreMenu(getByRole: ReturnType<typeof render>['getByRole']) {
+    fireEvent.click(getByRole('button', { name: /More note actions|更多笔记操作/ }));
+  }
+
   it('marks toolbar chrome and menus as ignored by editor blank-area pointer handling', () => {
-    const { container, getByTestId } = render(
+    const { container, getByRole, getByTestId } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="alpha.md"
@@ -171,6 +177,8 @@ describe('EditorTopRightToolbar', () => {
         currentNoteMetadata={undefined}
       />,
     );
+
+    openMoreMenu(getByRole);
 
     expect(container.firstElementChild).toHaveAttribute('data-no-editor-drag-box', 'true');
     expect(getByTestId('note-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
@@ -237,7 +245,8 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    fireEvent.click(getByRole('button', { name: 'HTML' }));
+    openMoreMenu(getByRole);
+    fireEvent.click(getByRole('menuitem', { name: 'HTML' }));
 
     await waitFor(() => {
       expect(mocks.exportNote).toHaveBeenCalledWith({
@@ -285,6 +294,7 @@ describe('EditorTopRightToolbar', () => {
     );
 
     fireEvent.click(getByRole('button', { name: 'Right Chat' }));
+    openMoreMenu(getByRole);
 
     const toolbarIcons = Array.from(container.querySelectorAll('[data-icon]')).map((icon) => icon.getAttribute('data-icon'));
     expect(toolbarIcons.slice(0, 3)).toEqual(['misc.star', 'common.shootingStar', 'common.more']);
@@ -336,7 +346,7 @@ describe('EditorTopRightToolbar', () => {
   });
 
   it('uses the sidebar context menu surface for note info and export menus', () => {
-    const { getByTestId } = render(
+    const { getByRole, getByTestId } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="docs/current.md"
@@ -349,10 +359,11 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
+    openMoreMenu(getByRole);
+
     expect(getByTestId('note-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
-    expect(getByTestId('note-export-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
     expect(getByTestId('note-menu-content').className).toContain('sidebar-menu-surface');
-    expect(getByTestId('note-export-menu-content').className).toContain('sidebar-menu-surface');
+    expect(getByTestId('note-export-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
   });
 
   it('localizes and toggles source mode from the more menu action', () => {
@@ -374,21 +385,22 @@ describe('EditorTopRightToolbar', () => {
     );
 
     const moreButton = getByRole('button', { name: '更多笔记操作' });
-    const sourceMenuItem = getByRole('button', { name: '渲染模式' });
     moreButton.focus();
     expect(moreButton).toHaveFocus();
+    fireEvent.click(moreButton);
+    const sourceMenuItem = getByRole('menuitem', { name: '渲染模式' });
+    expect(container.querySelector('[data-icon="editor.code"]')).toBeInTheDocument();
 
     fireEvent.click(sourceMenuItem);
 
     expect(moreButton).toBeInTheDocument();
     expect(moreButton).not.toHaveFocus();
-    expect(container.querySelector('[data-icon="editor.code"]')).toBeInTheDocument();
-    expect(mocks.lastCloseAutoFocusPreventDefault).toHaveBeenCalledTimes(1);
+    expect(mocks.lastCloseAutoFocusPreventDefault).not.toHaveBeenCalled();
     expect(onToggleSourceMode).toHaveBeenCalledTimes(1);
   });
 
   it('uses the sidebar selected surface for export previews', () => {
-    const { getByText } = render(
+    const { getByRole, getByText } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="docs/current.md"
@@ -400,6 +412,8 @@ describe('EditorTopRightToolbar', () => {
         currentNoteMetadata={undefined}
       />,
     );
+
+    openMoreMenu(getByRole);
 
     expect(getByText('Export').className).toContain('data-[state=open]:bg-[var(--vlaina-sidebar-notes-row-active)]');
     expect(getByText('Export').className).toContain('data-[state=open]:text-[var(--vlaina-sidebar-row-selected-text)]');

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OverlayScrollArea } from './overlay-scroll-area';
 
@@ -31,6 +31,14 @@ function setViewportMetrics(element: HTMLDivElement, metrics: { clientHeight: nu
     set: (value: number) => {
       currentScrollTop = value;
     },
+  });
+}
+
+function flushFrameCallbacks(frameCallbacks: FrameRequestCallback[]) {
+  act(() => {
+    while (frameCallbacks.length > 0) {
+      frameCallbacks.shift()?.(performance.now());
+    }
   });
 }
 
@@ -215,10 +223,48 @@ describe('OverlayScrollArea', () => {
       </div>
     );
 
+    flushFrameCallbacks(frameCallbacks);
     requestAnimationFrameSpy.mockClear();
     const observer = ResizeObserverMock.instances[0];
     observer.callback([], observer as unknown as ResizeObserver);
     observer.callback([], observer as unknown as ResizeObserver);
+
+    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces child content metric updates into one animation frame', () => {
+    const frameCallbacks: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        frameCallbacks.push(callback);
+        return frameCallbacks.length;
+      });
+
+    const { rerender } = render(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea>
+          <div style={{ height: 240 }}>first content</div>
+        </OverlayScrollArea>
+      </div>
+    );
+
+    flushFrameCallbacks(frameCallbacks);
+    requestAnimationFrameSpy.mockClear();
+    rerender(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea>
+          <div style={{ height: 480 }}>updated content</div>
+        </OverlayScrollArea>
+      </div>
+    );
+    rerender(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea>
+          <div style={{ height: 720 }}>updated content again</div>
+        </OverlayScrollArea>
+      </div>
+    );
 
     expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
   });

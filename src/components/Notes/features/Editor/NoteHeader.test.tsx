@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NoteHeader } from './NoteHeader';
+import { clearDisplayIconSnapshotCacheForTests } from '@/hooks/useTitleSync';
 
 const mocks = vi.hoisted(() => {
   const loadAssets = vi.fn();
@@ -65,6 +66,7 @@ describe('NoteHeader', () => {
     mocks.notesState.noteIconSize = 60;
     mocks.notesState.draftNotes = {};
     mocks.notesState.notesPath = '/vault';
+    clearDisplayIconSnapshotCacheForTests();
     mocks.loadAssets.mockReset();
     mocks.loadAssets.mockResolvedValue(undefined);
     mocks.resolveCoverAssetUrl.mockReset();
@@ -146,5 +148,22 @@ describe('NoteHeader', () => {
 
     expect(mocks.heroProps.icon).toBeNull();
     expect(mocks.heroProps.iconSize).toBe(60);
+  });
+
+  it('keeps the last loaded icon while a metadata refresh temporarily omits the note entry', () => {
+    mocks.notesState.noteMetadata = {
+      notes: {
+        'notes/demo.md': { icon: '🌲', iconSize: 72 },
+      },
+    };
+
+    const { rerender } = render(<NoteHeader coverUrl={null} onAddCover={vi.fn()} />);
+
+    expect(mocks.heroProps.icon).toBe('🌲');
+
+    mocks.notesState.noteMetadata = { notes: {} };
+    rerender(<NoteHeader coverUrl={null} onAddCover={vi.fn()} />);
+
+    expect(mocks.heroProps.icon).toBe('🌲');
   });
 });

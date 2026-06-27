@@ -2,12 +2,13 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { useDisplayIcon, useDisplayName } from './useTitleSync';
+import { clearDisplayIconSnapshotCacheForTests, useDisplayIcon, useDisplayName } from './useTitleSync';
 
 describe('useDisplayName', () => {
   beforeEach(() => {
     useNotesStore.setState(useNotesStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
+    clearDisplayIconSnapshotCacheForTests();
   });
 
   it('shows Untitled for an empty draft note instead of leaking its internal path', () => {
@@ -65,6 +66,7 @@ describe('useDisplayIcon', () => {
   beforeEach(() => {
     useNotesStore.setState(useNotesStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
+    clearDisplayIconSnapshotCacheForTests();
   });
 
   it('uses current markdown frontmatter while note icon metadata is not loaded yet', () => {
@@ -112,6 +114,91 @@ describe('useDisplayIcon', () => {
     });
 
     const { result } = renderHook(() => useDisplayIcon('notes/demo.md'));
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it('keeps the last loaded icon while a metadata refresh temporarily omits the note entry', () => {
+    act(() => {
+      useNotesStore.setState({
+        noteMetadata: {
+          version: 2,
+          notes: {
+            'notes/demo.md': { icon: '😁' },
+          },
+        },
+      });
+    });
+
+    const { result } = renderHook(() => useDisplayIcon('notes/demo.md'));
+    expect(result.current).toBe('😁');
+
+    act(() => {
+      useNotesStore.setState({
+        noteMetadata: {
+          version: 2,
+          notes: {},
+        },
+      });
+    });
+
+    expect(result.current).toBe('😁');
+  });
+
+  it('clears the cached icon when metadata explicitly loads the note without one', () => {
+    act(() => {
+      useNotesStore.setState({
+        noteMetadata: {
+          version: 2,
+          notes: {
+            'notes/demo.md': { icon: '🌲' },
+          },
+        },
+      });
+    });
+
+    const { result } = renderHook(() => useDisplayIcon('notes/demo.md'));
+    expect(result.current).toBe('🌲');
+
+    act(() => {
+      useNotesStore.setState({
+        noteMetadata: {
+          version: 2,
+          notes: {
+            'notes/demo.md': {},
+          },
+        },
+      });
+    });
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it('does not reuse a temporarily missing icon cache across vaults for the same note path', () => {
+    act(() => {
+      useNotesStore.setState({
+        notesPath: '/vault-a',
+        noteMetadata: {
+          version: 2,
+          notes: {
+            'notes/demo.md': { icon: '🌲' },
+          },
+        },
+      });
+    });
+
+    const { result } = renderHook(() => useDisplayIcon('notes/demo.md'));
+    expect(result.current).toBe('🌲');
+
+    act(() => {
+      useNotesStore.setState({
+        notesPath: '/vault-b',
+        noteMetadata: {
+          version: 2,
+          notes: {},
+        },
+      });
+    });
 
     expect(result.current).toBeUndefined();
   });

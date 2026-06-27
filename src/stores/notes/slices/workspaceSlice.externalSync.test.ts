@@ -788,6 +788,33 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('keeps the file tree reference stable when disk sync mtime metadata does not affect name sorting', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
+    storageAdapter.readFile.mockResolvedValue('# updated');
+    const rootFolder = createFolder('', 'Notes', [
+      createFile('docs/alpha.md', 'alpha'),
+      createFile('docs/beta.md', 'beta'),
+    ]);
+
+    const store = createNotesStore({
+      rootFolder,
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      currentNoteDiskRevision: 3,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      fileTreeSortMode: 'name-asc',
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+      noteMetadata: { version: 2, notes: {} },
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk();
+
+    expect(result).toBe('reloaded');
+    expect(store.getState().rootFolder).toBe(rootFolder);
+    expect(store.getState().noteMetadata?.notes['docs/alpha.md']?.updatedAt).toBe(2);
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# updated' });
+  });
+
   it('reloads the current note when disk size changes with the same mtime', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 16 });

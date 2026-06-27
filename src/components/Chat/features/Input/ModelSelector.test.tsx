@@ -357,4 +357,11 @@ describe('ModelSelector', () => {
     expect(source).not.toContain('hover:bg-[var(--vlaina-sidebar-chat-row-hover)]');
     expect(source).not.toContain('hover:bg-[var(--vlaina-sidebar-notes-row-hover)]');
   });
+
+  it('guards embedded dropdown style updates against equal layout measurements', () => {
+    const source = readModelSelectorSource();
+
+    expect(source).toContain('areEmbeddedDropdownStylesEqual(currentStyle, nextStyle) ? currentStyle : nextStyle');
+    expect(source).toContain('setEmbeddedDropdownStyle((currentStyle) => (currentStyle === null ? currentStyle : null))');
+  });
 });

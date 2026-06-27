@@ -1,6 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useNoteCoverController } from './useNoteCoverController';
+import {
+  clearNoteCoverSnapshotCacheForTests,
+  getStableNoteCoverEntrySnapshot,
+  useNoteCoverController,
+} from './useNoteCoverController';
 
 const hoisted = vi.hoisted(() => {
   const setNoteCover = vi.fn();
@@ -34,6 +38,7 @@ vi.mock('@/lib/storage/adapter', () => ({
 describe('useNoteCoverController', () => {
   beforeEach(() => {
     hoisted.setNoteCover.mockReset();
+    clearNoteCoverSnapshotCacheForTests();
 
     hoisted.storeRef.state = {
       notesPath: '/vault',
@@ -134,6 +139,101 @@ describe('useNoteCoverController', () => {
     };
 
     const { result } = renderHook(() => useNoteCoverController('frontmatter-cover.md'));
+
+    expect(result.current.cover).toEqual({
+      url: null,
+      positionX: 50,
+      positionY: 50,
+      height: undefined,
+      scale: 1,
+    });
+  });
+
+  it('keeps the last loaded cover while a metadata refresh temporarily omits the note entry', () => {
+    hoisted.storeRef.state.noteMetadata.notes['covered.md'] = {
+      cover: {
+        assetPath: 'assets/current.png',
+        positionX: 30,
+        positionY: 40,
+        height: 260,
+        scale: 1.2,
+      },
+    };
+
+    const { result, rerender } = renderHook(() => useNoteCoverController('covered.md'));
+
+    expect(result.current.cover).toEqual({
+      url: 'assets/current.png',
+      positionX: 30,
+      positionY: 40,
+      height: 260,
+      scale: 1.2,
+    });
+
+    hoisted.storeRef.state.noteMetadata = { notes: {} };
+    rerender();
+
+    expect(result.current.cover).toEqual({
+      url: 'assets/current.png',
+      positionX: 30,
+      positionY: 40,
+      height: 260,
+      scale: 1.2,
+    });
+  });
+
+  it('returns the same cover snapshot reference when cover metadata is unchanged', () => {
+    hoisted.storeRef.state.noteMetadata.notes['covered.md'] = {
+      cover: {
+        assetPath: 'assets/current.png',
+        positionX: 30,
+        positionY: 40,
+        height: 260,
+        scale: 1.2,
+      },
+    };
+
+    const first = getStableNoteCoverEntrySnapshot('covered.md', hoisted.storeRef.state);
+    const second = getStableNoteCoverEntrySnapshot('covered.md', hoisted.storeRef.state);
+
+    expect(second).toBe(first);
+
+    hoisted.storeRef.state.noteMetadata = {
+      notes: {
+        'covered.md': {
+          cover: {
+            assetPath: 'assets/current.png',
+            positionX: 30,
+            positionY: 40,
+            height: 260,
+            scale: 1.2,
+          },
+        },
+      },
+    };
+
+    const third = getStableNoteCoverEntrySnapshot('covered.md', hoisted.storeRef.state);
+    expect(third).toBe(first);
+  });
+
+  it('does not reuse a temporarily missing cover cache across vaults for the same note path', () => {
+    hoisted.storeRef.state.notesPath = '/vault-a';
+    hoisted.storeRef.state.noteMetadata.notes['covered.md'] = {
+      cover: {
+        assetPath: 'assets/vault-a.png',
+        positionX: 30,
+        positionY: 40,
+        height: 260,
+        scale: 1.2,
+      },
+    };
+
+    const { result, rerender } = renderHook(() => useNoteCoverController('covered.md'));
+    expect(result.current.cover.url).toBe('assets/vault-a.png');
+
+    hoisted.storeRef.state.notesPath = '/vault-b';
+    hoisted.storeRef.state.noteMetadata = { notes: {} };
+    rerender();
 
     expect(result.current.cover).toEqual({
       url: null,
