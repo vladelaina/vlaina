@@ -12,6 +12,9 @@ const MAC_KEY_MAP: Record<string, string> = {
 export const COMPACT_SHORTCUT_KEY_CLASSNAME =
   'px-1.5 py-0.5 text-[var(--vlaina-font-10)] font-medium rounded bg-[var(--vlaina-color-shortcut-key-bg)] text-[var(--vlaina-color-shortcut-key-fg)] font-sans';
 
+export const SOFT_SHORTCUT_KEY_CLASSNAME =
+  'rounded-full bg-[var(--vlaina-color-setting-field)] px-2.5 py-0.5 text-[var(--vlaina-font-11)] font-medium text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)]';
+
 interface ShortcutKeysProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'children'> {
   keys: string[];
   className?: string;

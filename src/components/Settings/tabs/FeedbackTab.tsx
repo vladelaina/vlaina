@@ -5,6 +5,7 @@ import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/useToastStore';
 import { SettingsSectionHeader } from '../components/SettingsControls';
+import { settingsSelectedActionButtonClassName } from '../styles';
 import { themeIconTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { readSettingsApiJson } from './settingsApiJson';
 
@@ -106,7 +107,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
+                className={settingsSelectedActionButtonClassName}
               >
                 <Send size={themeIconTokens.sizeSidebar} />
                 {submitting ? t('settings.feedback.submitting') : t('settings.feedback.submit')}

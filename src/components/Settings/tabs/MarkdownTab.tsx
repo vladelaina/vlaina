@@ -4,7 +4,7 @@ import {
   selectCodeBlockLineNumbersEnabled,
   selectMarkdownTypewriterModeEnabled,
 } from '@/stores/unified/settings/markdownSettings';
-import { ShortcutKeys } from '@/components/ui/shortcut-keys';
+import { ShortcutKeys, SOFT_SHORTCUT_KEY_CLASSNAME } from '@/components/ui/shortcut-keys';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
@@ -40,7 +40,7 @@ export function MarkdownTab() {
         <span className="min-w-0 flex-1">{t('settings.markdown.shortcutHint')}</span>
         <ShortcutKeys
           keys={['Ctrl', 'Shift', '/']}
-          keyClassName="rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-2.5 py-0.5 text-[var(--vlaina-font-11)] font-medium text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)]"
+          keyClassName={SOFT_SHORTCUT_KEY_CLASSNAME}
         />
       </div>
       <SettingsSectionHeader>{t('settings.markdown.editing')}</SettingsSectionHeader>

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Icon } from '@/components/ui/icons';
-import { ShortcutKeys } from '@/components/ui/shortcut-keys';
+import { ShortcutKeys, SOFT_SHORTCUT_KEY_CLASSNAME } from '@/components/ui/shortcut-keys';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
 import { getShortcutKeys } from '@/lib/shortcuts';
@@ -224,7 +224,7 @@ export function EditorTopRightToolbar({
                       keys={sourceModeShortcutKeys}
                       aria-hidden="true"
                       className="source-mode-shortcut ml-4 shrink-0 opacity-0 transition-opacity duration-[var(--vlaina-duration-100)] group-hover:opacity-100 group-focus:opacity-100"
-                      keyClassName="bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)]"
+                      keyClassName={SOFT_SHORTCUT_KEY_CLASSNAME}
                     />
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

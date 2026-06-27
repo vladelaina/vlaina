@@ -12,6 +12,7 @@ import { APP_VERSION } from '@/lib/appVersion';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { FeedbackTab } from './FeedbackTab';
 import { themeColorTokens, themeIconTokens, themeQrTokens } from '@/styles/themeTokens';
+import { settingsSelectedActionButtonClassName } from '../styles';
 import {
   type CommunitySettings,
 } from './aboutCommunitySettings';
@@ -497,7 +498,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
               type="button"
               onClick={checkForUpdates}
               disabled={status === 'checking'}
-              className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
+              className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-selection-soft)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
             >
               <RefreshCw size={themeIconTokens.sizeSidebar} className={cn(status === 'checking' && 'animate-spin')} />
               {t('common.check')}
@@ -507,7 +508,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
                 type="button"
                 onClick={openUpdateDownload}
                 title={updateInfo?.platformAssetName || undefined}
-                className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-sidebar-row-selected-bg)] px-4 text-[var(--vlaina-font-13)] font-[var(--vlaina-font-weight-semibold-plus)] text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-selection-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] hover:text-[var(--vlaina-sidebar-row-selected-text)]"
+                className={settingsSelectedActionButtonClassName}
               >
                 <ExternalLink size={themeIconTokens.sizeSidebar} />
                 {t('settings.about.updateAction')}
@@ -527,7 +528,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
           <button
             type="button"
             onClick={() => void openExternalHref(privacyPolicyUrl)}
-            className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)]"
+            className="inline-flex h-10 min-w-0 items-center gap-2 rounded-full bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] hover:text-[var(--vlaina-sidebar-row-selected-text)] hover:shadow-[var(--vlaina-shadow-selection-soft)]"
           >
             <ExternalLink size={themeIconTokens.sizeSidebar} />
             {t('common.open')}
