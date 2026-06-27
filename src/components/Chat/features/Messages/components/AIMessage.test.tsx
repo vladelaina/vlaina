@@ -524,6 +524,47 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with filtered sources.");
   });
 
+  it("does not render unterminated web search status metadata", () => {
+    const content = 'Visible answer.\n<web-search-status>{"phase":"searching","query":"catime"';
+
+    render(
+      <AIMessage
+        msg={createMessage(content)}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Visible answer.");
+    expect(screen.queryByText(/web-search-status/)).not.toBeInTheDocument();
+  });
+
+  it("does not render leaked web search request metadata", () => {
+    const content = [
+      'We need to search.',
+      '<web_search_request>{"query":"catime","reason":"current info"}</web_search_request>',
+      'Catime answer.',
+    ].join('\n');
+
+    render(
+      <AIMessage
+        msg={createMessage(content)}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Catime answer.");
+    expect(screen.queryByText(/web_search_request/)).not.toBeInTheDocument();
+    expect(screen.queryByText("We need to search.")).not.toBeInTheDocument();
+  });
+
   it("stores copied code block feedback above the markdown renderer", () => {
     render(
       <AIMessage

@@ -442,6 +442,22 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('Final answer');
   });
 
+  it('removes leaked web search request markup from model history', () => {
+    const history = [
+      createMessage({
+        role: 'assistant',
+        content: [
+          'We need to search.',
+          '<web_search_request>{"query":"catime","reason":"current info"}</web_search_request>',
+          'Final answer',
+        ].join('\n'),
+      }),
+    ];
+
+    const sanitized = sanitizeHistory(history);
+    expect(sanitized[0].content).toBe('Final answer');
+  });
+
   it('removes rendered thinking markup from fallback model history', () => {
     const history = [
       createMessage({

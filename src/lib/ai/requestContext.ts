@@ -1,6 +1,7 @@
 import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent } from './types';
 import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from './prompts';
 import { extractWebSearchStatuses } from './webSearch/statusMarkup';
+import { stripWebSearchRequestMarkup } from './webSearch/requestMarkup';
 import { stripThinkingContent } from './stripThinkingContent';
 import {
   parseMarkdownAndHtmlImageTokens,
@@ -458,7 +459,9 @@ function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
   return {
     ...msg,
     content: extractWebSearchStatuses(
-      replaceHistoryImageTokens(stripThinkingContent(contentWithoutUiErrors))
+      replaceHistoryImageTokens(
+        stripWebSearchRequestMarkup(stripThinkingContent(contentWithoutUiErrors))
+      )
     ).content,
     apiTranscript,
     versions: stripVersionApiTranscripts(msg.versions),

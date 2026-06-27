@@ -2430,6 +2430,198 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).not.toContain('/internal');
   });
 
+  it('uses a text-protocol search request when only the nonessential JSON fields are malformed', async () => {
+    const leakedDecision = [
+      '我们需要理解用户请求：用户说“你搜一下catime”。',
+      '',
+      '<web_search_request>{"query":"catime","reason":"用户要求搜索 "catime"，需要获取其定义或相关信息。"}</web_search_request>',
+    ].join('\n');
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: leakedDecision,
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Catime answer from search.',
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'catime',
+        results: [{
+          title: 'Catime',
+          url: 'https://cati.me/',
+          snippet: 'Catime source.',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async () => [{
+        url: 'https://cati.me/',
+        ok: true,
+        page: {
+          title: 'Catime',
+          summary: '',
+          siteName: 'cati.me',
+          finalUrl: 'https://cati.me/',
+          content: 'Readable Catime source content.',
+          charCount: 31,
+        },
+      }]),
+    };
+
+    const final = await runOpenAIWebSearchJsonTextProtocolRequest({
+      body: {
+        model: 'test',
+        stream: false,
+        messages: [{ role: 'user', content: '你搜一下catime' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.webSearch).toHaveBeenCalledWith('catime', { limit: 5 });
+    expect(requestJson).toHaveBeenCalledTimes(2);
+    expect(final).toContain('Catime answer from search.');
+    expect(final).not.toContain('我们需要理解用户请求');
+    expect(final).not.toContain('<web_search_request>');
+  });
+
+  it('parses an unfinished text-protocol search request after leaked decision text', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: [
+              '需要先搜索。',
+              '<web_search_request>{"query":"catime","reason":"current info"',
+            ].join('\n'),
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Catime answer after unfinished request.',
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'catime',
+        results: [{
+          title: 'Catime',
+          url: 'https://cati.me/',
+          snippet: 'Catime source.',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async () => [{
+        url: 'https://cati.me/',
+        ok: true,
+        page: {
+          title: 'Catime',
+          summary: '',
+          siteName: 'cati.me',
+          finalUrl: 'https://cati.me/',
+          content: 'Readable Catime source content.',
+          charCount: 31,
+        },
+      }]),
+    };
+
+    const final = await runOpenAIWebSearchJsonTextProtocolRequest({
+      body: {
+        model: 'test',
+        stream: false,
+        messages: [{ role: 'user', content: '你搜一下catime' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.webSearch).toHaveBeenCalledWith('catime', { limit: 5 });
+    expect(final).toContain('Catime answer after unfinished request.');
+    expect(final).not.toContain('需要先搜索');
+    expect(final).not.toContain('<web_search_request>');
+  });
+
+  it('falls back to the latest user text when a text-protocol search request has no parseable query', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'I should search.\n<web_search_request>{"reason":"need current info"}</web_search_request>',
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Fallback query answer.',
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'catime',
+        results: [{
+          title: 'Catime',
+          url: 'https://cati.me/',
+          snippet: 'Catime source.',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async () => [{
+        url: 'https://cati.me/',
+        ok: true,
+        page: {
+          title: 'Catime',
+          summary: '',
+          siteName: 'cati.me',
+          finalUrl: 'https://cati.me/',
+          content: 'Readable Catime source content.',
+          charCount: 31,
+        },
+      }]),
+    };
+
+    const final = await runOpenAIWebSearchJsonTextProtocolRequest({
+      body: {
+        model: 'test',
+        stream: false,
+        messages: [{ role: 'user', content: '帮我搜一下catime' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.webSearch).toHaveBeenCalledWith('catime', { limit: 5 });
+    expect(final).toContain('Fallback query answer.');
+    expect(final).not.toContain('I should search.');
+    expect(final).not.toContain('<web_search_request>');
+  });
+
   it('ignores oversized JSON text-protocol search requests', async () => {
     const requestJson = vi.fn().mockResolvedValueOnce({
       choices: [{
@@ -2461,6 +2653,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(client.webSearch).not.toHaveBeenCalled();
     expect(requestJson).toHaveBeenCalledTimes(1);
     expect(final).toContain('Direct answer instead.');
+    expect(final).not.toContain('<web_search_request>');
   });
 
   it('does not emit a final JSON tool-loop answer after cancellation during response parsing', async () => {

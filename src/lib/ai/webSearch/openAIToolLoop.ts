@@ -29,6 +29,7 @@ const MAX_WEB_SEARCH_QUERY_ARG_CHARS = 1000;
 const MAX_WEB_SEARCH_URL_ARG_CHARS = 16 * 1024;
 const MAX_WEB_SEARCH_OPTION_ARG_CHARS = 64;
 const MAX_WEB_SEARCH_BATCH_URLS = 8;
+const TEXT_PROTOCOL_SEARCH_REQUEST_TAG_REGEX = /<web_search_request\b/i;
 
 interface ToolLoopOptions extends WebSearchToolRunnerOptions {
   body: ChatCompletionRequest;
@@ -549,18 +550,24 @@ function buildTextProtocolAnswerPrompt({
   };
 }
 
-function parseTextProtocolSearchRequest(content: string): { query: string; reason?: string } | null {
+function matchTextProtocolSearchRequest(content: string): RegExpExecArray | null {
   const visible = stripThinkingContent(content);
-  const match =
+  return (
     /<web_search_request>\s*([\s\S]*?)\s*<\/web_search_request>/i.exec(visible) ||
-    /^<web_search_request>\s*([\s\S]*)$/i.exec(visible);
+    /<web_search_request>\s*([\s\S]*)$/i.exec(visible)
+  );
+}
+
+function parseTextProtocolSearchRequest(content: string): { query: string; reason?: string } | null {
+  const match = matchTextProtocolSearchRequest(content);
   if (!match) return null;
 
+  const rawJsonText = match[1] ?? '';
+  if (rawJsonText.length > MAX_TEXT_PROTOCOL_SEARCH_REQUEST_JSON_CHARS) {
+    return null;
+  }
+
   try {
-    const rawJsonText = match[1] ?? '';
-    if (rawJsonText.length > MAX_TEXT_PROTOCOL_SEARCH_REQUEST_JSON_CHARS) {
-      return null;
-    }
     const jsonText = rawJsonText.trim().replace(/\s*<\/web_search_request>\s*$/i, '');
     const parsed = JSON.parse(jsonText) as Record<string, unknown>;
     const query = typeof parsed.query === 'string' && parsed.query.length <= MAX_TEXT_PROTOCOL_SEARCH_QUERY_CHARS
@@ -572,8 +579,69 @@ function parseTextProtocolSearchRequest(content: string): { query: string; reaso
       : '';
     return { query, ...(reason ? { reason } : {}) };
   } catch {
-    return null;
+    const query = extractJsonStringProperty(rawJsonText, 'query', MAX_TEXT_PROTOCOL_SEARCH_QUERY_CHARS)?.trim() ?? '';
+    if (!query) return null;
+    return { query };
   }
+}
+
+function extractJsonStringProperty(content: string, property: string, maxChars: number): string | null {
+  const propertyPattern = new RegExp(`"${property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\s*:\\s*"`, 'i');
+  const match = propertyPattern.exec(content);
+  if (!match) return null;
+
+  let literal = '"';
+  let escaped = false;
+  const start = match.index + match[0].length;
+  for (let index = start; index < content.length; index += 1) {
+    const char = content[index] ?? '';
+    literal += char;
+    if (literal.length > maxChars + 2) return null;
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      try {
+        const parsed = JSON.parse(literal) as unknown;
+        return typeof parsed === 'string' ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
+function containsTextProtocolSearchRequest(content: string): boolean {
+  return TEXT_PROTOCOL_SEARCH_REQUEST_TAG_REGEX.test(stripThinkingContent(content));
+}
+
+function stripTextProtocolDecisionContent(content: string): string {
+  const visible = stripThinkingContent(content);
+  const closed = /<web_search_request>\s*[\s\S]*?<\/web_search_request>/i.exec(visible);
+  if (closed) {
+    return visible.slice(closed.index + closed[0].length).trimStart();
+  }
+
+  const open = TEXT_PROTOCOL_SEARCH_REQUEST_TAG_REGEX.exec(visible);
+  return open ? '' : visible;
+}
+
+function hasOversizedTextProtocolSearchRequest(content: string): boolean {
+  const match = matchTextProtocolSearchRequest(content);
+  return Boolean(match && (match[1] ?? '').length > MAX_TEXT_PROTOCOL_SEARCH_REQUEST_JSON_CHARS);
+}
+
+function hasExplicitTextProtocolQueryProperty(content: string): boolean {
+  const match = matchTextProtocolSearchRequest(content);
+  return Boolean(match && /"query"\s*:/i.test(match[1] ?? ''));
 }
 
 function normalizeFallbackSearchQuery(value: string): string {
@@ -587,6 +655,22 @@ function normalizeFallbackSearchQuery(value: string): string {
     .replace(/\s+/g, ' ')
     .replace(/\s+([？?，,。])/g, '$1')
     .trim();
+}
+
+function resolveTextProtocolSearchRequest(
+  content: string,
+  userText: string,
+): { query: string; reason?: string } | null {
+  const parsed = parseTextProtocolSearchRequest(content);
+  if (parsed) return parsed;
+  if (!containsTextProtocolSearchRequest(content)) return null;
+  if (hasOversizedTextProtocolSearchRequest(content)) return null;
+  if (hasExplicitTextProtocolQueryProperty(content)) return null;
+
+  const fallbackQuery = (normalizeFallbackSearchQuery(userText) || userText.trim())
+    .slice(0, MAX_TEXT_PROTOCOL_SEARCH_QUERY_CHARS)
+    .trim();
+  return fallbackQuery ? { query: fallbackQuery } : null;
 }
 
 function simplifySearchQuery(value: string): string {
@@ -1063,10 +1147,15 @@ export async function runOpenAIWebSearchTextProtocolRequest({
   });
   const decision = await consumeOpenAIStreamWithTools(decisionResponse, () => {}, { signal });
   throwIfAborted(signal);
-  const searchRequest = parseTextProtocolSearchRequest(decision.assistantContent || decision.content);
+  const searchRequest = resolveTextProtocolSearchRequest(
+    decision.assistantContent || decision.content,
+    getLatestUserText(body),
+  );
 
   if (!searchRequest) {
-    const directContent = decision.content;
+    const directContent = containsTextProtocolSearchRequest(decision.assistantContent || decision.content)
+      ? stripTextProtocolDecisionContent(decision.content)
+      : decision.content;
     throwIfMissingVisibleAnswer(directContent);
     addChatDebugLog('web-search-text-protocol', 'stream decision answered directly', {
       visibleChars: stripThinkingContent(directContent).length,
@@ -1141,18 +1230,21 @@ export async function runOpenAIWebSearchJsonTextProtocolRequest({
   });
   throwIfAborted(signal);
   const decision = extractOpenAIMessageFromJson(decisionPayload);
-  const searchRequest = parseTextProtocolSearchRequest(decision.content);
+  const searchRequest = resolveTextProtocolSearchRequest(decision.content, getLatestUserText(body));
 
   if (!searchRequest) {
-    throwIfMissingVisibleAnswer(decision.content);
+    const directContent = containsTextProtocolSearchRequest(decision.content)
+      ? stripTextProtocolDecisionContent(decision.content)
+      : decision.content;
+    throwIfMissingVisibleAnswer(directContent);
     addChatDebugLog('web-search-text-protocol', 'json decision answered directly', {
-      visibleChars: stripThinkingContent(decision.content).length,
+      visibleChars: stripThinkingContent(directContent).length,
     });
-    emitChunk(onChunk, signal, decision.content);
+    emitChunk(onChunk, signal, directContent);
     emitApiTranscript(onApiTranscript, signal, [
-      buildFinalAssistantTranscriptMessage(decision.content, decision.reasoningContent),
+      buildFinalAssistantTranscriptMessage(directContent, decision.reasoningContent),
     ]);
-    return decision.content;
+    return directContent;
   }
 
   addChatDebugLog('web-search-text-protocol', 'json decision requested search', {
@@ -1211,18 +1303,21 @@ export async function runOpenAIWebSearchTextProtocolTextRequest({
     messages: decisionMessages as ChatCompletionRequest['messages'],
   }, () => {});
   throwIfAborted(signal);
-  const searchRequest = parseTextProtocolSearchRequest(decisionContent);
+  const searchRequest = resolveTextProtocolSearchRequest(decisionContent, getLatestUserText(body));
 
   if (!searchRequest) {
-    throwIfMissingVisibleAnswer(decisionContent);
+    const directContent = containsTextProtocolSearchRequest(decisionContent)
+      ? stripTextProtocolDecisionContent(decisionContent)
+      : decisionContent;
+    throwIfMissingVisibleAnswer(directContent);
     addChatDebugLog('web-search-text-protocol', 'text decision answered directly', {
-      visibleChars: stripThinkingContent(decisionContent).length,
+      visibleChars: stripThinkingContent(directContent).length,
     });
-    emitChunk(onChunk, signal, decisionContent);
+    emitChunk(onChunk, signal, directContent);
     emitApiTranscript(onApiTranscript, signal, [
-      buildFinalAssistantTranscriptMessage(stripThinkingContent(decisionContent)),
+      buildFinalAssistantTranscriptMessage(stripThinkingContent(directContent)),
     ]);
-    return decisionContent;
+    return directContent;
   }
 
   addChatDebugLog('web-search-text-protocol', 'text decision requested search', {
