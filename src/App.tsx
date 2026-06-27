@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { AppContent } from '@/AppContent';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -18,7 +18,11 @@ import { useDocumentLanguage, useI18n } from '@/lib/i18n';
 import {
   resolveImportedMarkdownThemeColorModePreference,
 } from '@/lib/markdown/theme-compatibility/colorScheme';
-import { normalizeColorModePreference, syncDocumentColorModeClass } from '@/lib/theme/colorModeSync';
+import {
+  normalizeColorModePreference,
+  suppressDocumentThemeTransitions,
+  syncDocumentColorModeClass,
+} from '@/lib/theme/colorModeSync';
 
 const ConfirmDialog = lazy(async () => {
   const mod = await import('@/components/common/ConfirmDialog');
@@ -38,7 +42,7 @@ function AppThemeSync() {
   const importedThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
   const importedThemePlatform = useImportedMarkdownThemePlatform(importedThemeId);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const normalizedColorMode = normalizeColorModePreference(colorMode);
     const effectiveColorMode = resolveImportedMarkdownThemeColorModePreference({
       importedThemeId,
@@ -46,8 +50,12 @@ function AppThemeSync() {
       appPreference: normalizedColorMode,
     });
 
+    const releaseThemeTransitions = suppressDocumentThemeTransitions();
+    const cleanupColorModeSync = syncDocumentColorModeClass(effectiveColorMode);
     setTheme(effectiveColorMode);
-    return syncDocumentColorModeClass(effectiveColorMode);
+    releaseThemeTransitions();
+
+    return cleanupColorModeSync;
   }, [colorMode, importedThemeId, importedThemePlatform, setTheme]);
 
   return null;

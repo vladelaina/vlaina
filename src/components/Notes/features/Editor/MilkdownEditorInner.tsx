@@ -29,6 +29,7 @@ import {
 import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
 import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
+import { normalizeColorModePreference } from '@/lib/theme/colorModeSync';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
@@ -453,8 +454,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   );
   const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
   const typewriterMode = useUnifiedStore(selectMarkdownTypewriterModeEnabled);
+  const appColorModePreference = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
   const { resolvedTheme } = useTheme();
-  const appMarkdownThemeColorScheme = resolvedTheme === 'dark' ? 'dark' : 'light';
+  const normalizedAppColorMode = normalizeColorModePreference(appColorModePreference);
+  const appMarkdownThemeColorScheme = normalizedAppColorMode === 'system'
+    ? (resolvedTheme === 'dark' ? 'dark' : 'light')
+    : normalizedAppColorMode;
   const importedMarkdownThemePlatform = useImportedMarkdownThemePlatform(importedMarkdownThemeId);
   const [markdownThemeViewport, setMarkdownThemeViewport] = useState(() =>
     resolveMarkdownThemeViewport(typeof window === 'undefined' ? 1024 : window.innerWidth)

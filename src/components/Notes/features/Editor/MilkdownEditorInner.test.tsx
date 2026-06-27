@@ -68,6 +68,9 @@ vi.mock('@/stores/unified/useUnifiedStore', () => ({
   useUnifiedStore: (selector: (state: {
     data: {
       settings: {
+        ui?: {
+          colorMode?: 'system' | 'light' | 'dark';
+        };
         markdown: {
           appearance: { importedThemeId: null };
           typewriterMode: boolean;
@@ -77,6 +80,7 @@ vi.mock('@/stores/unified/useUnifiedStore', () => ({
   }) => unknown) => selector({
     data: {
       settings: {
+        ui: { colorMode: 'system' },
         markdown: {
           appearance: { importedThemeId: null },
           typewriterMode: false,
