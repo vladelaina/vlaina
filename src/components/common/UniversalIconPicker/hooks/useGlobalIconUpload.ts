@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from 'react';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { saveGlobalAsset } from '@/lib/storage/assetStorage';
 import type { CustomIcon } from '@/lib/storage/unifiedStorage';
 
 const EMPTY_ICONS: CustomIcon[] = [];
@@ -17,6 +16,7 @@ export function useGlobalIconUpload() {
   
   const handleUpload = useCallback(async (file: File) => {
       try {
+          const { saveGlobalAsset } = await import('@/lib/storage/assetStorage');
           const path = await saveGlobalAsset(file, 'icons');
           const assetUrl = `img:${path}`; 
           

@@ -1,7 +1,4 @@
-import { Crawler } from './crawler/index.mjs';
 import { readUrlsBatch } from './crawler/batchCrawler.mjs';
-import { SearchService } from './searchService.mjs';
-import { LocalSearchProvider } from './providers/localSearchProvider.mjs';
 import { MAX_WEB_SEARCH_QUERY_CHARS, WebSearchError } from './types.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
@@ -101,13 +98,49 @@ function normalizeReadUrls(urls) {
 }
 
 export function createWebSearchServices({ fetchImpl } = {}) {
+  let runtimePromise = null;
+
+  const loadRuntime = async () => {
+    if (!runtimePromise) {
+      runtimePromise = Promise.all([
+        import('./crawler/index.mjs'),
+        import('./searchService.mjs'),
+        import('./providers/localSearchProvider.mjs'),
+      ]).then(([crawlerModule, searchServiceModule, localSearchProviderModule]) => {
+        const { Crawler } = crawlerModule;
+        const { SearchService } = searchServiceModule;
+        const { LocalSearchProvider } = localSearchProviderModule;
+
+        return {
+          searchService: new SearchService({
+            providers: [
+              new LocalSearchProvider({ fetchImpl }),
+            ],
+          }),
+          crawler: new Crawler({ fetchImpl }),
+        };
+      }).catch((error) => {
+        runtimePromise = null;
+        throw error;
+      });
+    }
+
+    return await runtimePromise;
+  };
+
   return {
-    searchService: new SearchService({
-      providers: [
-        new LocalSearchProvider({ fetchImpl }),
-      ],
-    }),
-    crawler: new Crawler({ fetchImpl }),
+    searchService: {
+      async webSearch(...args) {
+        const runtime = await loadRuntime();
+        return await runtime.searchService.webSearch(...args);
+      },
+    },
+    crawler: {
+      async readUrl(...args) {
+        const runtime = await loadRuntime();
+        return await runtime.crawler.readUrl(...args);
+      },
+    },
   };
 }
 

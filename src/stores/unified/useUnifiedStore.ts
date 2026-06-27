@@ -7,7 +7,6 @@ import {
   type CustomIcon,
   type TimezoneInfo,
 } from '@/lib/storage/unifiedStorage';
-import { deleteGlobalIconAsset, scanGlobalIcons } from '@/lib/storage/assetStorage';
 
 import { createSettingsActions } from './actions/settingsActions';
 import { resolveMarkdownSettings } from './settings/markdownSettings';
@@ -234,11 +233,13 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       persist(newData, { customIcons: true });
 
       if (removedIcon) {
+        const { deleteGlobalIconAsset } = await import('@/lib/storage/assetStorage');
         await deleteGlobalIconAsset(removedIcon.id);
       }
     },
 
     syncCustomIcons: async () => {
+      const { scanGlobalIcons } = await import('@/lib/storage/assetStorage');
       const scanned = await scanGlobalIcons();
       set(state => {
         const currentIcons = state.data.customIcons || [];
