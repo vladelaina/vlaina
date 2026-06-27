@@ -4,8 +4,21 @@ import { useUIStore } from '@/stores/uiSlice';
 import { normalizeNotePathKey, resolveNoteDisplayName } from '@/lib/notes/displayName';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
+import type { NotesStore } from '@/stores/notes/types';
 
 const TITLE_SNAPSHOT_SEPARATOR = '\u001f';
+const displayIconSnapshotCache = new Map<string, string>();
+
+function getDisplayIconSnapshotCacheKey(notesPath: string | undefined, path: string): string {
+  return [
+    notesPath ?? '',
+    path,
+  ].join(TITLE_SNAPSHOT_SEPARATOR);
+}
+
+export function clearDisplayIconSnapshotCacheForTests(): void {
+  displayIconSnapshotCache.clear();
+}
 
 function encodeTitleSnapshot(
   displayName: string | undefined,
@@ -82,18 +95,7 @@ export function useDisplayIcon(path: string | undefined): string | undefined {
   const normalizedPath = normalizeNotePathKey(path);
 
   const getNoteIconSnapshot = useCallback(() => {
-    if (!path) return undefined;
-    const state = useNotesStore.getState();
-    const notes = state.noteMetadata?.notes;
-    if (notes && Object.prototype.hasOwnProperty.call(notes, path)) {
-      return notes[path]?.icon;
-    }
-
-    if (state.currentNote?.path === path) {
-      return readNoteMetadataFromMarkdown(state.currentNote.content).icon;
-    }
-
-    return undefined;
+    return getStableDisplayIconSnapshot(path, useNotesStore.getState());
   }, [path]);
 
   const getPreviewIconSnapshot = useCallback(() => {
@@ -120,4 +122,34 @@ export function useDisplayIcon(path: string | undefined): string | undefined {
   if (!path) return undefined;
   if (previewIcon) return previewIcon;
   return noteIcon;
+}
+
+export function getStableDisplayIconSnapshot(
+  path: string | undefined,
+  state: Pick<NotesStore, 'currentNote' | 'noteMetadata' | 'notesPath'>,
+): string | undefined {
+  if (!path) return undefined;
+
+  const cacheKey = getDisplayIconSnapshotCacheKey(state.notesPath, path);
+  const notes = state.noteMetadata?.notes;
+  if (notes && Object.prototype.hasOwnProperty.call(notes, path)) {
+    const icon = notes[path]?.icon;
+    if (icon) {
+      displayIconSnapshotCache.set(cacheKey, icon);
+      return icon;
+    }
+
+    displayIconSnapshotCache.delete(cacheKey);
+    return undefined;
+  }
+
+  if (state.currentNote?.path === path) {
+    const icon = readNoteMetadataFromMarkdown(state.currentNote.content).icon;
+    if (icon) {
+      displayIconSnapshotCache.set(cacheKey, icon);
+      return icon;
+    }
+  }
+
+  return displayIconSnapshotCache.get(cacheKey);
 }

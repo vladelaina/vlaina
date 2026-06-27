@@ -8,7 +8,10 @@ import {
 import { assertEditorSafeMarkdownContent } from '../document/noteDocumentPersistence';
 import { shouldIgnoreExpectedExternalChange } from '../document/externalChangeRegistry';
 import { setNoteTabDirtyState } from '../document/noteTabState';
-import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import {
+  buildSortedRootFolder,
+  shouldRebuildRootFolderForMetadataChange,
+} from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { isDraftNotePath } from '../draftNote';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
@@ -266,19 +269,27 @@ export function createWorkspaceDiskSyncAction(
           return 'unchanged';
         }
 
+        const metadataBase = latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile();
         const nextMetadata = setNoteEntry(
-          latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
+          metadataBase,
           currentNote.path,
           mergeNoteMetadataWithFileInfo(readNoteMetadataFromMarkdown(nextContent), fileInfo)
         );
         const latestRootFolder = latestState.rootFolder ?? rootFolder;
         const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
-        const nextRootFolder = buildSortedRootFolder(
-          latestRootFolder,
-          latestRootFolder?.children ?? [],
+        const shouldRebuildRootFolder = shouldRebuildRootFolderForMetadataChange(
           latestSortMode,
-          nextMetadata,
+          metadataBase.notes[currentNote.path],
+          nextMetadata.notes[currentNote.path],
         );
+        const nextRootFolder = shouldRebuildRootFolder
+          ? buildSortedRootFolder(
+              latestRootFolder,
+              latestRootFolder?.children ?? [],
+              latestSortMode,
+              nextMetadata,
+            )
+          : latestRootFolder;
         set({
           currentNote: { path: currentNote.path, content: nextContent },
           currentNoteDiskRevision: latestState.currentNoteDiskRevision + 1,

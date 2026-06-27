@@ -2,7 +2,6 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type HTMLAttributes,
@@ -278,9 +277,9 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     };
   }, [draggingBodyClassName, isDragging]);
 
-  useLayoutEffect(() => {
-    updateMetrics();
-  }, [children, updateMetrics]);
+  useEffect(() => {
+    scheduleMetricsUpdate();
+  }, [children, scheduleMetricsUpdate]);
 
   useEffect(() => {
     const viewport = viewportRef.current;

@@ -48,6 +48,17 @@ import {
 } from './chatE2EMock';
 
 const E2E_LOCAL_STORAGE_KEY = 'vlaina:e2e:enabled';
+let lastE2ERootFolderReference: NotesState['rootFolder'] | undefined;
+let e2eRootFolderReferenceVersion = 0;
+
+function getE2ERootFolderReferenceVersion(rootFolder: NotesState['rootFolder']): number {
+  if (rootFolder !== lastE2ERootFolderReference) {
+    lastE2ERootFolderReference = rootFolder;
+    e2eRootFolderReferenceVersion += 1;
+  }
+
+  return e2eRootFolderReferenceVersion;
+}
 
 export interface EditorDispatchProfileSummary {
   decorationPropTotalMs: number;
@@ -270,6 +281,7 @@ export interface E2EBridge {
     expandedFolders: string[];
     isLoading: boolean;
     rootFolderPath: string | null;
+    rootFolderReferenceVersion: number;
   };
   getNoteContentCacheEntry(path: string): {
     hasEntry: boolean;
@@ -1513,6 +1525,7 @@ export function installSyncE2EBridge(): void {
         expandedFolders: rootFolder ? Array.from(collectExpandedPaths(rootFolder.children)) : [],
         isLoading,
         rootFolderPath,
+        rootFolderReferenceVersion: getE2ERootFolderReferenceVersion(rootFolder),
       };
     },
     getNoteContentCacheEntry: (path) => {

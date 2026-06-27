@@ -10,6 +10,7 @@ import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 import { focusEditorAtTop } from './utils/focusEditor';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
+import { getStableDisplayIconSnapshot } from '@/hooks/useTitleSync';
 import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
@@ -33,10 +34,8 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
         }, [currentNotePath])
     );
 
-    const metadataIcon = useNotesStore(
-        useCallback(state => {
-            return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.icon;
-        }, [currentNotePath])
+    const stableIcon = useNotesStore(
+        useCallback(state => getStableDisplayIconSnapshot(currentNotePath, state), [currentNotePath])
     );
 
     const metadataIconSize = useNotesStore(
@@ -65,7 +64,7 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
         [currentNoteContent]
     );
     const fallbackMetadata = hasMetadataEntry ? undefined : currentNoteMetadata;
-    const noteIcon = metadataIcon ?? fallbackMetadata?.icon ?? null;
+    const noteIcon = stableIcon ?? null;
     const iconSize = metadataIconSize ?? fallbackMetadata?.iconSize ?? defaultIconSize;
 
     const notesPath = useNotesStore(s => s.notesPath);

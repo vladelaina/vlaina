@@ -79,7 +79,7 @@ export const LinkEditor = ({
             Math.max(minWidth, naturalWidth + shellPadding + actionWidth)
         );
 
-        setEditorWidth(nextWidth);
+        setEditorWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
     }, [editUrl, maxWidth, minWidth]);
 
     useLayoutEffect(() => {

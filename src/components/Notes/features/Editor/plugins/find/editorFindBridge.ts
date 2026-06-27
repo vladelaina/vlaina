@@ -19,10 +19,23 @@ export function publishEditorFindSnapshot(
   view: EditorView | null,
   state: EditorFindPluginState | null,
 ) {
+  const nextQuery = state?.query ?? '';
+  const nextMatches = state?.matches.length ? state.matches : EMPTY_MATCHES;
+  const nextActiveIndex = state?.activeIndex ?? -1;
+
+  if (
+    currentSnapshot.query === nextQuery &&
+    currentSnapshot.matches === nextMatches &&
+    currentSnapshot.activeIndex === nextActiveIndex &&
+    currentSnapshot.view === view
+  ) {
+    return;
+  }
+
   currentSnapshot = {
-    query: state?.query ?? '',
-    matches: state?.matches ?? EMPTY_MATCHES,
-    activeIndex: state?.activeIndex ?? -1,
+    query: nextQuery,
+    matches: nextMatches,
+    activeIndex: nextActiveIndex,
     view,
     version: currentSnapshot.version + 1,
   };

@@ -1,9 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { useDisplayIcon } from '@/hooks/useTitleSync';
-import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import { useI18n } from '@/lib/i18n';
 import type { NotesSidebarSearchResult } from './notesSidebarSearchResults';
@@ -13,6 +10,7 @@ import {
 } from './sidebarSearchResultLayout';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { themeDomStyleTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
+import { SidebarLiveNoteFileIcon } from './SidebarNoteFileIcon';
 
 interface SidebarSearchResultsListProps {
   results: NotesSidebarSearchResult[];
@@ -133,7 +131,6 @@ function SidebarSearchResultRow({
   showFileHeader: boolean;
 }) {
   const { path, name, preview, contentSnippet } = result;
-  const noteIcon = useDisplayIcon(path);
   const locationLabel = preview.replace(/\/$/, '');
   const hasLocationLine = Boolean(locationLabel);
   const hasContentLine = Boolean(contentSnippet);
@@ -150,15 +147,7 @@ function SidebarSearchResultRow({
   return (
     <NotesSidebarRow
       leading={showFileHeader ? (
-        noteIcon ? (
-          <NoteIcon icon={noteIcon} notePath={path} size={NOTES_SIDEBAR_ICON_SIZE} />
-        ) : (
-          <Icon
-            name="file.text"
-            size={NOTES_SIDEBAR_ICON_SIZE}
-            className="text-[var(--vlaina-sidebar-notes-file-icon)]"
-          />
-        )
+        <SidebarLiveNoteFileIcon notePath={path} size={NOTES_SIDEBAR_ICON_SIZE} />
       ) : (
         <span aria-hidden="true" className="block size-[var(--vlaina-size-20px)]" />
       )}

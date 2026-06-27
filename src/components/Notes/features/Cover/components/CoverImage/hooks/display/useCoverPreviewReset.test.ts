@@ -11,6 +11,15 @@ vi.mock('../../../../utils/coverDimensionCache', () => ({
 }));
 
 describe('useCoverPreviewReset', () => {
+  function expectCropResetUpdater(setCrop: ReturnType<typeof vi.fn>) {
+    expect(setCrop).toHaveBeenCalledWith(expect.any(Function));
+    const updateCrop = setCrop.mock.calls[0]?.[0] as (crop: { x: number; y: number }) => { x: number; y: number };
+    const unchangedCrop = { x: 0, y: 0 };
+
+    expect(updateCrop(unchangedCrop)).toBe(unchangedCrop);
+    expect(updateCrop({ x: 12, y: -8 })).toEqual({ x: 0, y: 0 });
+  }
+
   it('does nothing when preview source is empty', () => {
     const setCrop = vi.fn();
     const setZoom = vi.fn();
@@ -45,7 +54,7 @@ describe('useCoverPreviewReset', () => {
       })
     );
 
-    expect(setCrop).toHaveBeenCalledWith({ x: 0, y: 0 });
+    expectCropResetUpdater(setCrop);
     expect(setZoom).toHaveBeenCalledWith(1);
     expect(setIsImageReady).toHaveBeenCalledWith(false);
   });
@@ -65,7 +74,7 @@ describe('useCoverPreviewReset', () => {
       })
     );
 
-    expect(setCrop).toHaveBeenCalledWith({ x: 0, y: 0 });
+    expectCropResetUpdater(setCrop);
     expect(setZoom).toHaveBeenCalledWith(1);
     expect(setIsImageReady).not.toHaveBeenCalled();
   });

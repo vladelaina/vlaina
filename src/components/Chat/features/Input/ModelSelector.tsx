@@ -60,6 +60,19 @@ const MODEL_SELECTOR_LIST_HEIGHT = 'min(386px, calc(100vh - 170px))'
 const monochromeModelIconClass = 'dark:invert dark:brightness-[1.08] dark:contrast-[0.92] dark:opacity-[0.92]'
 const customModelIconClass = 'flex-shrink-0 text-[var(--vlaina-sidebar-chat-icon)]'
 
+function areEmbeddedDropdownStylesEqual(left: CSSProperties | null, right: CSSProperties): boolean {
+  if (left === null) {
+    return false
+  }
+
+  return (
+    left.left === right.left &&
+    left.top === right.top &&
+    left.width === right.width &&
+    left.maxHeight === right.maxHeight
+  )
+}
+
 function CustomModelIcon({
   size,
   className,
@@ -557,12 +570,16 @@ export function ModelSelector({
       const maxTop = Math.max(viewportPadding, window.innerHeight - dropdownHeight - viewportPadding);
       const top = Math.max(viewportPadding, Math.min(preferredTop, maxTop));
 
-      setEmbeddedDropdownStyle({
+      const nextStyle: CSSProperties = {
           left,
           top,
           width: dropdownWidth,
           maxHeight: MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT,
-      });
+      };
+
+      setEmbeddedDropdownStyle((currentStyle) =>
+          areEmbeddedDropdownStylesEqual(currentStyle, nextStyle) ? currentStyle : nextStyle
+      );
   }, [dropdownAlign, dropdownPlacement, isEmbedded]);
 
   const scheduleEmbeddedDropdownPosition = useCallback(() => {
@@ -582,7 +599,7 @@ export function ModelSelector({
               window.cancelAnimationFrame(embeddedPositionFrameRef.current);
               embeddedPositionFrameRef.current = null;
           }
-          setEmbeddedDropdownStyle(null);
+          setEmbeddedDropdownStyle((currentStyle) => (currentStyle === null ? currentStyle : null));
           return;
       }
 

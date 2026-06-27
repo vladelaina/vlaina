@@ -436,6 +436,152 @@ describe('createFileSystemSlice tree flows', () => {
     expect(newVaultRootListCalls).toBe(2);
   });
 
+  it('keeps the root folder reference stable when background metadata does not affect name sorting', async () => {
+    setCurrentVaultPath('/vault');
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => path === '/vault');
+    hoisted.storageAdapter.listDir.mockImplementation(async (path: string) => {
+      if (path !== '/vault') {
+        return [];
+      }
+
+      return [
+        {
+          name: 'alpha.md',
+          path: '/vault/alpha.md',
+          isDirectory: false,
+          isFile: true,
+        },
+        {
+          name: 'beta.md',
+          path: '/vault/beta.md',
+          isDirectory: false,
+          isFile: true,
+        },
+      ];
+    });
+    hoisted.storageAdapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/vault/alpha.md') {
+        return { isFile: true, isDirectory: false, createdAt: 1, modifiedAt: 11, size: 7 };
+      }
+      if (path === '/vault/beta.md') {
+        return { isFile: true, isDirectory: false, createdAt: 2, modifiedAt: 12, size: 6 };
+      }
+      return null;
+    });
+    hoisted.storageAdapter.readFile.mockImplementation(async (path: string) => (
+      path === '/vault/alpha.md' ? '# Alpha' : '# Beta'
+    ));
+
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      rootFolderPath: '/vault',
+      fileTreeSortMode: 'name-asc',
+      noteMetadata: { version: 2, notes: { 'alpha.md': { updatedAt: 1 } } },
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          { id: 'alpha.md', name: 'alpha', path: 'alpha.md', isFolder: false },
+          { id: 'beta.md', name: 'beta', path: 'beta.md', isFolder: false },
+        ],
+      },
+    });
+    const initialRootFolder = harness.getState().rootFolder;
+
+    await harness.getState().loadFileTree(true);
+    const rootAfterTreeLoad = harness.getState().rootFolder;
+
+    expect(rootAfterTreeLoad).toBe(initialRootFolder);
+
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(harness.getState().noteMetadata.notes['alpha.md']?.updatedAt).toBe(11);
+    expect(harness.getState().noteMetadata.notes['beta.md']?.updatedAt).toBe(12);
+    expect(harness.getState().rootFolder).toBe(rootAfterTreeLoad);
+  });
+
+  it('keeps the root folder reference stable when the initial background tree matches the shallow tree', async () => {
+    setCurrentVaultPath('/vault-flat');
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => path === '/vault-flat');
+    hoisted.storageAdapter.listDir.mockImplementation(async (path: string) => {
+      if (path !== '/vault-flat') {
+        return [];
+      }
+
+      return [
+        {
+          name: 'alpha.md',
+          path: '/vault-flat/alpha.md',
+          isDirectory: false,
+          isFile: true,
+        },
+        {
+          name: 'beta.md',
+          path: '/vault-flat/beta.md',
+          isDirectory: false,
+          isFile: true,
+        },
+      ];
+    });
+    hoisted.storageAdapter.stat.mockResolvedValue({ isFile: true, isDirectory: false, modifiedAt: 1, size: 7 });
+    hoisted.storageAdapter.readFile.mockResolvedValue('# Alpha');
+
+    const harness = createSliceHarness({
+      rootFolder: null,
+      rootFolderPath: null,
+      noteMetadata: { version: 2, notes: {} },
+    });
+
+    await harness.getState().loadFileTree();
+    const rootAfterInitialTree = harness.getState().rootFolder;
+
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(harness.getState().rootFolder).toBe(rootAfterInitialTree);
+  });
+
+  it('keeps the root folder reference stable for no-op tree actions', async () => {
+    const rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'docs',
+          name: 'docs',
+          path: 'docs',
+          isFolder: true,
+          expanded: true,
+          children: [
+            { id: 'docs/alpha.md', name: 'alpha', path: 'docs/alpha.md', isFolder: false },
+          ],
+        },
+      ],
+    };
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      rootFolderPath: '/vault',
+      rootFolder,
+      fileTreeSortMode: 'name-asc',
+      noteMetadata: { version: 2, notes: {} },
+    });
+
+    harness.getState().toggleFolder('missing');
+    expect(harness.getState().rootFolder).toBe(rootFolder);
+
+    harness.getState().revealFolder('docs/alpha.md');
+    expect(harness.getState().rootFolder).toBe(rootFolder);
+
+    await harness.getState().setFileTreeSortMode('updated-desc');
+    expect(harness.getState().rootFolder).toBe(rootFolder);
+    expect(harness.getState().fileTreeSortMode).toBe('updated-desc');
+  });
+
   it('does not collapse an empty root folder', () => {
     const harness = createSliceHarness({
       notesPath: '/vault',

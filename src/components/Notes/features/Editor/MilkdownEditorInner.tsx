@@ -476,6 +476,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
   const hasAutoFocused = useRef(false);
   const hasScheduledAutoFocus = useRef(false);
+  const hasLocalMarkdownCommitRef = useRef(false);
   const activatedEditorRef = useRef<ActiveMilkdownEditor | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const activationCleanupRef = useRef<(() => void) | null>(null);
@@ -488,6 +489,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const [activatedRevision, setActivatedRevision] = useState(0);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
   const markLocalMarkdownCommitted = useCallback((content: string) => {
+    hasLocalMarkdownCommitRef.current = true;
     lastAppliedNoteRef.current = {
       path: currentNotePath,
       diskRevision: currentNoteDiskRevision,
@@ -786,6 +788,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   useEffect(() => {
     hasAutoFocused.current = false;
     hasScheduledAutoFocus.current = false;
+    hasLocalMarkdownCommitRef.current = false;
   }, [currentNotePath]);
 
   useEffect(() => {
@@ -814,6 +817,18 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
       const view = editor.ctx.get(editorViewCtx) as EditorView;
       const isSameNotePath = lastAppliedNote.path === currentNotePath;
+      if (
+        isSameNotePath &&
+        hasLocalMarkdownCommitRef.current &&
+        lastAppliedNote.content === currentNoteContent
+      ) {
+        lastAppliedNoteRef.current = {
+          path: currentNotePath,
+          diskRevision: currentNoteDiskRevision,
+          content: currentNoteContent,
+        };
+        return;
+      }
       if (
         isSameNotePath &&
         lastAppliedNote.content !== currentNoteContent &&

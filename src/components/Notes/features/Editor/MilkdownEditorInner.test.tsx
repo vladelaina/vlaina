@@ -35,8 +35,13 @@ const mocks = vi.hoisted(() => {
     activeEditor: null as any,
     serializedMarkdown: '# Small',
   };
+  const pendingMarkdownAutosaveState = {
+    options: null as null | {
+      onLocalMarkdownCommitted?: (content: string) => void;
+    },
+  };
 
-  return { editorState, notesState };
+  return { editorState, notesState, pendingMarkdownAutosaveState };
 });
 
 vi.mock('@milkdown/react', () => ({
@@ -93,11 +98,16 @@ vi.mock('./hooks/useEditorSave', () => ({
 }));
 
 vi.mock('./hooks/usePendingMarkdownAutosave', () => ({
-  usePendingMarkdownAutosave: () => ({
-    configureMarkdownListener: () => () => {},
-    createUserInputMarker: () => () => {},
-    setEditorGetter: vi.fn(),
-  }),
+  usePendingMarkdownAutosave: (options: {
+    onLocalMarkdownCommitted?: (content: string) => void;
+  }) => {
+    mocks.pendingMarkdownAutosaveState.options = options;
+    return {
+      configureMarkdownListener: () => () => {},
+      createUserInputMarker: () => () => {},
+      setEditorGetter: vi.fn(),
+    };
+  },
 }));
 
 const ProseSchema = (ProseModel as unknown as {
@@ -200,6 +210,7 @@ beforeEach(() => {
   mocks.notesState.notesPath = '/vault';
   mocks.editorState.activeEditor = null;
   mocks.editorState.serializedMarkdown = '# Small';
+  mocks.pendingMarkdownAutosaveState.options = null;
 });
 
 afterEach(() => {
@@ -761,6 +772,24 @@ describe('MilkdownEditorInner external content sync', () => {
     expect(editor.parser).toHaveBeenCalledWith('# Updated');
     expect(editor.replace).toHaveBeenCalledTimes(1);
     expect(editor.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not replace a locally committed same-note document when autosave only advances the disk revision', () => {
+    mocks.notesState.currentNote = { path: 'small.md', content: '# Small' };
+    mocks.editorState.serializedMarkdown = '# Locally edited';
+    const editor = createMockActiveEditor();
+    const { rerender } = render(<MilkdownEditorInner />);
+
+    expect(editor.replace).not.toHaveBeenCalled();
+
+    mocks.pendingMarkdownAutosaveState.options?.onLocalMarkdownCommitted?.('# Locally edited');
+    mocks.notesState.currentNote = { path: 'small.md', content: '# Locally edited' };
+    mocks.notesState.currentNoteDiskRevision = 2;
+    rerender(<MilkdownEditorInner showBodyLineNumbers />);
+
+    expect(editor.parser).not.toHaveBeenCalled();
+    expect(editor.replace).not.toHaveBeenCalled();
+    expect(editor.dispatch).not.toHaveBeenCalled();
   });
 });
 
