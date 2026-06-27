@@ -174,7 +174,9 @@ export function simulatePasteText(view: EditorView, text: string): boolean {
   let handled = false;
 
   view.someProp('handlePaste', (handlePaste: any) => {
-    handled = handlePaste(view, event, null) || handled;
+    const didHandle = handlePaste(view, event, null);
+    handled = didHandle || handled;
+    return didHandle || undefined;
   });
 
   if (!handled) {

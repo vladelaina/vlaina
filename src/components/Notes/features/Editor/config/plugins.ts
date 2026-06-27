@@ -32,7 +32,6 @@ import { taskListCursorPlugin } from '../plugins/task-list/taskListCursorPlugin'
 import { listTabIndentPlugin } from '../plugins/task-list/listTabIndentPlugin';
 import { listCollapsePlugin } from '../plugins/collapse/listCollapse';
 import { markdownLinkPlugin } from '../plugins/links/markdown-link/markdownLinkPlugin';
-import { clipboardPlugin } from '../plugins/clipboard/clipboardPlugin';
 import { imageBlockPlugin } from '../plugins/image-block';
 import { imageUploadPlugin } from '../plugins/image-upload/imageUploadPlugin';
 import { textSelectionOverlayPlugin } from '../plugins/selection/textSelectionOverlayPlugin';
@@ -128,7 +127,6 @@ export const customPluginGroups = [
       structuralStyleDecorationsPlugin,
       themeCompatibilityDecorationsPlugin,
       typoraCompatibilityDomClassesPlugin,
-      clipboardPlugin,
       imageUploadPlugin,
       ...imageBlockPlugin,
     ],

@@ -1,5 +1,5 @@
-import { $prose } from '@milkdown/kit/utils';
-import { parserCtx, serializerCtx } from '@milkdown/kit/core';
+import { parserCtx, prosePluginsCtx, serializerCtx } from '@milkdown/kit/core';
+import type { Ctx, MilkdownPlugin } from '@milkdown/kit/ctx';
 import { AllSelection, NodeSelection, Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { CellSelection } from '@milkdown/kit/prose/tables';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
@@ -91,6 +91,7 @@ function isClipboardCutShortcut(event: KeyboardEvent): boolean {
 
 function looksLikePlainHtmlLikeTextPaste(text: string): boolean {
     if (!text.includes('<')) return false;
+    if (looksLikeMarkdownBeyondPlainTextHtmlBreaks(text)) return false;
 
     return text
         .replace(/\r\n?/g, '\n')
@@ -105,6 +106,17 @@ function looksLikePlainHtmlLikeTextPaste(text: string): boolean {
 
 const PLAIN_TEXT_HTML_BREAK_TAG_PATTERN = /<br\b[^>]*\/?>[ \t]*(?:<\/br>)?/gi;
 const STANDALONE_PLAIN_TEXT_HTML_BREAK_LINE_PATTERN = /^\s*<br\b[^>]*\/?>\s*(?:<\/br>)?\s*$/i;
+
+function looksLikeMarkdownBeyondPlainTextHtmlBreaks(text: string): boolean {
+    if (!/<br\b/i.test(text)) {
+        return looksLikeMarkdownForPaste(text);
+    }
+
+    const withoutPlainTextBreakTags = text
+        .replace(/\r\n?/g, '\n')
+        .replace(PLAIN_TEXT_HTML_BREAK_TAG_PATTERN, '\n');
+    return looksLikeMarkdownForPaste(withoutPlainTextBreakTags);
+}
 
 function normalizePlainTextHtmlBreaksForPaste(text: string): string {
     if (!/<br\b/i.test(text)) return text;
@@ -803,7 +815,7 @@ function dispatchParagraphPasteFromEmptyTaskItem(
     return true;
 }
 
-export const clipboardPlugin = $prose((ctx) => {
+function createClipboardProsePlugin(ctx: Ctx): Plugin {
     let markdownParser: Parser | null = null;
     let markdownSerializer: Serializer | null = null;
     const getMarkdownParser = () => {
@@ -1009,8 +1021,7 @@ export const clipboardPlugin = $prose((ctx) => {
             return true;
         }
 
-        const plainTextWithHtmlBreaks = normalizePlainTextHtmlBreaksForPaste(text);
-        if (plainTextWithHtmlBreaks !== text) {
+        const dispatchPlainTextHtmlBreaks = (plainTextWithHtmlBreaks: string): boolean => {
             const blankLineSlice = createPlainTextBlankLineSlice(state, plainTextWithHtmlBreaks);
             if (blankLineSlice) {
                 dispatchSliceAndKeepCursorAtTail(view, blankLineSlice);
@@ -1022,6 +1033,14 @@ export const clipboardPlugin = $prose((ctx) => {
                 dispatchSliceAndKeepCursorAtTail(view, lineBreakSlice);
                 return true;
             }
+            return false;
+        };
+
+        const plainTextWithHtmlBreaks = normalizePlainTextHtmlBreaksForPaste(text);
+        const shouldHandleHtmlBreaksBeforeMarkdown =
+            plainTextWithHtmlBreaks !== text && !looksLikeMarkdownBeyondPlainTextHtmlBreaks(text);
+        if (shouldHandleHtmlBreaksBeforeMarkdown && dispatchPlainTextHtmlBreaks(plainTextWithHtmlBreaks)) {
+            return true;
         }
 
         const headingPayload = parseStandaloneAtxHeading(text);
@@ -1072,6 +1091,12 @@ export const clipboardPlugin = $prose((ctx) => {
             markdownFenceCandidate ? parseMarkdownNodes(markdownFenceCandidate) : null
         );
         if (!markdownNodes) {
+            if (!shouldHandleHtmlBreaksBeforeMarkdown
+                && plainTextWithHtmlBreaks !== text
+                && dispatchPlainTextHtmlBreaks(plainTextWithHtmlBreaks)) {
+                return true;
+            }
+
             const plainTextBlankLineSlice = createPlainTextBlankLineSlice(state, text);
             if (plainTextBlankLineSlice) {
                 dispatchSliceAndKeepCursorAtTail(
@@ -1114,6 +1139,27 @@ export const clipboardPlugin = $prose((ctx) => {
         const safePos = Math.max(0, Math.min(pos.pos, view.state.doc.content.size));
         const selection = Selection.near(view.state.doc.resolve(safePos), 1);
         view.dispatch(view.state.tr.setSelection(selection));
+        return true;
+    };
+
+    const handlePlainTextPasteEvent = (view: EditorView, event: ClipboardEvent): boolean => {
+        const text = event.clipboardData?.getData('text/plain');
+        if (!text) {
+            if (hasSelectedBlocks(view.state) && hasClipboardPayload(event)) {
+                replaceBlockSelectionBeforePaste(view);
+            }
+            return false;
+        }
+        if (text.length > MAX_MARKDOWN_PASTE_CHARS) {
+            event.preventDefault();
+            return true;
+        }
+
+        if (!dispatchPlainTextPayload(view, text)) {
+            return false;
+        }
+
+        event.preventDefault();
         return true;
     };
 
@@ -1218,6 +1264,9 @@ export const clipboardPlugin = $prose((ctx) => {
                     }).catch(() => undefined);
                     return true;
                 },
+                paste(view, event) {
+                    return handlePlainTextPasteEvent(view, event as ClipboardEvent);
+                },
                 drop(view, event) {
                     const dragEvent = event as DragEvent;
                     if (dragEvent.dataTransfer?.files && dragEvent.dataTransfer.files.length > 0) {
@@ -1248,24 +1297,7 @@ export const clipboardPlugin = $prose((ctx) => {
                 },
             },
             handlePaste(view, event) {
-                const text = event.clipboardData?.getData('text/plain');
-                if (!text) {
-                    if (hasSelectedBlocks(view.state) && hasClipboardPayload(event)) {
-                        replaceBlockSelectionBeforePaste(view);
-                    }
-                    return false;
-                }
-                if (text.length > MAX_MARKDOWN_PASTE_CHARS) {
-                    event.preventDefault();
-                    return true;
-                }
-
-                if (!dispatchPlainTextPayload(view, text)) {
-                    return false;
-                }
-
-                event.preventDefault();
-                return true;
+                return handlePlainTextPasteEvent(view, event);
             },
             // Intercept paste and sanitize HTML using our strict policy
             transformPastedHTML(html) {
@@ -1276,4 +1308,18 @@ export const clipboardPlugin = $prose((ctx) => {
             }
         }
     });
-});
+}
+
+export const clipboardPlugin: MilkdownPlugin = (ctx) => () => {
+    const prosePlugin = createClipboardProsePlugin(ctx);
+    ctx.update(prosePluginsCtx, (plugins) => [
+        prosePlugin,
+        ...plugins.filter((plugin) => plugin.key !== clipboardPluginKey.key),
+    ]);
+
+    return () => {
+        ctx.update(prosePluginsCtx, (plugins) =>
+            plugins.filter((plugin) => plugin !== prosePlugin && plugin.key !== clipboardPluginKey.key)
+        );
+    };
+};

@@ -244,6 +244,58 @@ describe('resolvePasteRange', () => {
         expect(resolvePasteRange(state as any, slice)).toEqual({ from: 7, to: 9 });
     });
 
+    it('replaces an empty top-level paragraph interior for block paste', () => {
+        const paragraph = createParagraph(0);
+        const slice = createSlice([createHeading()]);
+        const state = {
+            selection: {
+                empty: true,
+                from: 8,
+                to: 8,
+                $from: {
+                    after: () => 9,
+                    before: () => 7,
+                    depth: 1,
+                    parent: paragraph,
+                },
+                $to: {
+                    parent: paragraph,
+                },
+            },
+            doc: {
+                nodeAt: () => null,
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 7, to: 9 });
+    });
+
+    it('keeps inline paste inside an empty top-level paragraph interior', () => {
+        const paragraph = createParagraph(0);
+        const slice = createSlice([createText()]);
+        const state = {
+            selection: {
+                empty: true,
+                from: 8,
+                to: 8,
+                $from: {
+                    after: () => 9,
+                    before: () => 7,
+                    depth: 1,
+                    parent: paragraph,
+                },
+                $to: {
+                    parent: paragraph,
+                },
+            },
+            doc: {
+                nodeAt: () => null,
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 8, to: 8 });
+    });
+
     it('keeps ordinary selection ranges unchanged', () => {
         const slice = createSlice([createText()]);
         const state = {

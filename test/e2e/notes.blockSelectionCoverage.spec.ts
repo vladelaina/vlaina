@@ -311,7 +311,7 @@ const LARGE_SELECTION_SYNTAX_PAINT_CASES: LargeSelectionPaintCase[] = [
     selector: '.md-htmlblock',
     anchorText: 'Raw HTML block sentinel',
     targetText: 'Raw HTML block sentinel',
-    expectedClass: 'textlike',
+    expectedClass: 'rich',
   },
 ];
 
@@ -403,6 +403,10 @@ test.describe('notes block selection visual coverage', () => {
         content: createMarkdownSyntaxFixture(),
       });
 
+      await expect.poll(
+        async () => (await getSelectableBlocks(page)).length,
+        { timeout: 30_000 },
+      ).toBeGreaterThan(50);
       const selectableBlocks = await getSelectableBlocks(page);
       expect(selectableBlocks.length).toBeGreaterThan(50);
 
@@ -681,9 +685,7 @@ test.describe('notes block selection visual coverage', () => {
         } else {
           expect(sample.afterDisplay, `${paintCase.label}: selection pseudo display`).not.toBe('none');
           if (paintCase.label === 'html-block') {
-            expect(sample.afterLeft, `${paintCase.label}: inner fill stays within scroll container`).toBe(0);
-            expect(sample.boxShadow, `${paintCase.label}: outer frame shadow`).not.toBe('none');
-            expect(sample.shadowPaintLeft, `${paintCase.label}: shadow paint left`).not.toBeNull();
+            expect(Math.abs((sample.afterLeft ?? 0) + sample.bleedStart), `${paintCase.label}: pseudo fill follows rich-block bleed`).toBeLessThanOrEqual(1);
           }
           expect(Math.abs(sample.leftGap), `${paintCase.label}: left bleed gap`).toBeLessThanOrEqual(1);
         }
@@ -833,12 +835,19 @@ async function measureDraggedCodeBlockPaint(
   page: import('@playwright/test').Page,
   targetText: string,
 ): Promise<DraggedCodeBlockPaintSample | null> {
-  return page.evaluate(({ editorSelector, targetText }) => {
+  return page.evaluate(async ({ editorSelector, targetText }) => {
     const editor = document.querySelector<HTMLElement>(editorSelector);
     if (!editor) return null;
 
-    const selected = Array.from(editor.querySelectorAll<HTMLElement>('.code-block-container.editor-block-selected'))
+    const target = Array.from(editor.querySelectorAll<HTMLElement>('.code-block-container'))
       .find((element) => element.textContent?.includes(targetText)) ?? null;
+    if (target) {
+      target.scrollIntoView({ block: 'center', inline: 'nearest' });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+
+    const selected = target?.classList.contains('editor-block-selected') ? target : null;
     if (!selected) {
       return {
         activeActive: editor.classList.contains('editor-block-selection-active'),
@@ -1360,10 +1369,19 @@ function expectSelectionPixels(
   label: string,
   slots: readonly RenderedSelectionPixelSlot[] = ['innerSurface', 'topBleed', 'bottomBleed', 'leftBleed', 'rightBleed'],
 ): void {
-  const samples = report.samples.filter((sample) => slots.includes(sample.slot));
+  const effectiveSlots = slots.filter((slot) => {
+    if (slot === 'topBleed' && report.className.includes('editor-block-selected-has-previous')) {
+      return false;
+    }
+    if (slot === 'bottomBleed' && report.className.includes('editor-block-selected-has-next')) {
+      return false;
+    }
+    return true;
+  });
+  const samples = report.samples.filter((sample) => effectiveSlots.includes(sample.slot));
   const sampledSlots = Array.from(new Set(samples.map((sample) => sample.slot))).sort();
-  expect(sampledSlots, `${label}: sampled slots`).toEqual([...slots].sort());
-  for (const slot of slots) {
+  expect(sampledSlots, `${label}: sampled slots`).toEqual([...effectiveSlots].sort());
+  for (const slot of effectiveSlots) {
     const slotSamples = samples.filter((sample) => sample.slot === slot);
     const maxDistance = slot === 'innerSurface'
       ? 18

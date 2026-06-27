@@ -1024,6 +1024,83 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
     }
   });
 
+  it('turns a same-scroll-root external blank-space click into the matching markdown blank line', async () => {
+    const { editor, view } = await createBlockSelectionEditor([
+      'Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+      'Beta',
+    ].join('\n'));
+    const scrollRoot = attachNoteScrollRoot(view);
+    const externalSurface = document.createElement('div');
+    scrollRoot.insertBefore(externalSurface, view.dom);
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
+      if (this === view.dom) {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 480,
+          bottom: 72,
+          width: 480,
+          height: 72,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if (
+        this instanceof HTMLElement
+        && this.matches('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]')
+      ) {
+        return {
+          x: 0,
+          y: 24,
+          top: 24,
+          left: 0,
+          right: 0,
+          bottom: 48,
+          width: 0,
+          height: 24,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 480,
+        bottom: 24,
+        width: 480,
+        height: 24,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+
+    try {
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 4,
+        clientY: 36,
+      });
+
+      externalSurface.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.dom.querySelector('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]')).toBeNull();
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent.textContent).toBe('\u200B');
+
+      typeText(view, 'Inserted');
+
+      expect(view.state.selection.$from.parent.textContent).toBe('Inserted');
+      expect(view.state.doc.textContent).toContain('Alpha');
+      expect(view.state.doc.textContent).toContain('Inserted');
+      expect(view.state.doc.textContent).toContain('Beta');
+    } finally {
+      rectSpy.mockRestore();
+      await editor.destroy();
+    }
+  });
+
   it('does not log markdown blank line click diagnostics unless debugging is enabled', async () => {
     const { editor, view } = await createBlockSelectionEditor([
       'Alpha',

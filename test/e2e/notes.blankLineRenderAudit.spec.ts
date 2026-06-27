@@ -306,7 +306,7 @@ test.describe('notes blank line render audit', () => {
 
         await page.mouse.click(clickPoint.clickX, clickPoint.clickY);
 
-        clickAudit.push(await page.locator(EDITOR_SELECTOR).evaluate((editor, { line, clickPoint }) => {
+        const readClickResult = () => page.locator(EDITOR_SELECTOR).evaluate((editor, { line, clickPoint }) => {
           const caretSelector = '.editor-textblock-caret-overlay';
           const blankSelector = '[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"], p.editor-editable-markdown-blank-line';
           const caret = document.querySelector<HTMLElement>(caretSelector);
@@ -329,7 +329,23 @@ test.describe('notes blank line render audit', () => {
               : null,
             activeClass: document.activeElement?.getAttribute('class') ?? '',
           };
-        }, { line, clickPoint }));
+        }, { line, clickPoint });
+
+        await expect.poll(async () => {
+          const result = await readClickResult();
+          return Boolean(
+            result.caretRect &&
+            result.lineRect &&
+            (result.selection as { empty?: boolean } | null)?.empty &&
+            result.caretRect.bottom > result.lineRect.top &&
+            result.caretRect.top < result.lineRect.bottom
+          );
+        }, {
+          message: `Expected caret overlay to settle on blank line ${line + 1}`,
+          timeout: 10_000,
+        }).toBe(true);
+
+        clickAudit.push(await readClickResult());
       }
 
       for (const result of clickAudit) {

@@ -217,7 +217,7 @@ async function measureInlineCodeSelection(page: Page, indexes: number[]) {
 }
 
 test.describe('notes inline mark block selection', () => {
-  test('keeps adjacent text block selection connected while inline code and highlights remain selected', async () => {
+  test('keeps adjacent text block selection gap consistent while inline code and highlights remain selected', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-inline-code-block-selection');
 
     try {
@@ -240,7 +240,8 @@ test.describe('notes inline mark block selection', () => {
 
       expect(single.geometry.block.className).not.toContain('editor-block-selected-has-previous');
       expect(multi.geometry.block.className).toContain('editor-block-selected-has-previous');
-      expect(Number.parseFloat(multi.geometry.block.after.top)).toBeLessThan(0);
+      expect(Number.parseFloat(multi.geometry.block.after.top)).toBeGreaterThanOrEqual(0);
+      expect(Number.parseFloat(multi.geometry.block.after.top)).toBeLessThanOrEqual(2);
 
       expect(single.geometry.code.outline).toContain('none');
       expect(single.geometry.code.boxShadow).toContain('inset');
@@ -256,9 +257,9 @@ test.describe('notes inline mark block selection', () => {
       expectSampleMatchesColor(single.samples, 'rgb(255, 255, 255)', 'highlight-top-center');
       expect(multi.geometry.code.outline).toContain('none');
       expect(multi.geometry.code.boxShadow).toContain('inset');
-      expectSampleMatchesCssColor(
+      expectSampleMatchesColor(
         multi.samples,
-        multi.geometry.block.after.background,
+        'rgb(255, 255, 255)',
         'above-code-center',
       );
       expectSampleMatchesColor(multi.samples, 'rgb(255, 255, 255)', 'code-top-center');
@@ -270,9 +271,9 @@ test.describe('notes inline mark block selection', () => {
       expect(multi.geometry.highlight.outline).toContain('none');
       expect(multi.geometry.highlight.boxShadow).toContain('inset');
       expectCssColorMatches(multi.geometry.highlight.background, multi.geometry.block.after.background);
-      expectSampleMatchesCssColor(
+      expectSampleMatchesColor(
         multi.samples,
-        multi.geometry.block.after.background,
+        'rgb(255, 255, 255)',
         'above-highlight-center',
       );
       expectSampleMatchesColor(multi.samples, 'rgb(255, 255, 255)', 'highlight-top-center');

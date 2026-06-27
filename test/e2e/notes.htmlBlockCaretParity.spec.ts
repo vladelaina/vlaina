@@ -109,39 +109,6 @@ async function captureHoverStyle(
   return lastStyle!;
 }
 
-async function captureElementStyle(
-  page: import('@playwright/test').Page,
-  selector: string,
-) {
-  const element = page.locator(selector).first();
-  await expect(element).toBeVisible();
-  await waitForEditorAnimationFrame(page);
-  await page.waitForTimeout(220);
-  return element.evaluate((node) => {
-    const style = window.getComputedStyle(node);
-    const selectionStyle = window.getComputedStyle(node, '::selection');
-    const descendantStyles = Array.from(node.querySelectorAll<HTMLElement>('*'))
-      .slice(0, 8)
-      .map((child) => {
-        const childStyle = window.getComputedStyle(child);
-        const childSelectionStyle = window.getComputedStyle(child, '::selection');
-        return {
-          tagName: child.tagName,
-          userSelect: childStyle.userSelect,
-          selectionBackgroundColor: childSelectionStyle.backgroundColor,
-        };
-      });
-    return {
-      backgroundColor: style.backgroundColor,
-      boxShadow: style.boxShadow,
-      cursor: style.cursor,
-      selectionBackgroundColor: selectionStyle.backgroundColor,
-      userSelect: style.userSelect,
-      descendantStyles,
-    };
-  });
-}
-
 async function captureEditorScrollTop(page: import('@playwright/test').Page) {
   return page.evaluate(({ editorSelector }) => {
     const editor = document.querySelector<HTMLElement>(editorSelector);
@@ -174,7 +141,7 @@ function rgbChannels(color: string): [number, number, number] | null {
 test.describe('notes html block caret parity', () => {
   test.setTimeout(120_000);
 
-  test('matches math block ArrowUp selection behavior from the following paragraph', async () => {
+  test('keeps math and HTML block ArrowUp parity without saving extra blank lines', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-html-block-caret-parity');
 
     try {
@@ -216,6 +183,14 @@ test.describe('notes html block caret parity', () => {
       expect(htmlHoverStyle.cursor, { htmlHoverStyle }).toBe('pointer');
       expect(htmlHoverStyle.backgroundColor, { htmlHoverStyle }).not.toBe('rgba(0, 0, 0, 0)');
       expect(htmlHoverStyle.boxShadow, { htmlHoverStyle }).not.toBe('none');
+      expect(rgbChannels(htmlHoverStyle.backgroundColor), {
+        mathHoverStyle,
+        htmlHoverStyle,
+      }).toEqual(rgbChannels(mathHoverStyle.backgroundColor));
+      expect(htmlHoverStyle.boxShadow, {
+        mathHoverStyle,
+        htmlHoverStyle,
+      }).toBe(mathHoverStyle.boxShadow);
 
       await clickParagraphText(page, 'After math parity');
       await page.keyboard.press('ArrowUp');
@@ -273,56 +248,42 @@ test.describe('notes html block caret parity', () => {
         htmlSelectedState,
       }).toContain('editor-editable-markdown-blank-line');
 
-      expect(mathSelectedState.selectedNodes, {
-        mathSelectedState,
-        htmlGapState,
-        htmlSelectedState,
-      }).toEqual([
-        expect.objectContaining({ dataType: 'math-block' }),
-      ]);
-      expect(htmlSelectedState.selectedNodes, {
-        mathSelectedState,
-        htmlGapState,
-        htmlSelectedState,
-      }).toEqual([
-        expect.objectContaining({ dataType: 'html-block' }),
-      ]);
-      expect(htmlSelectedState.selectedNodes[0]?.className, {
-        mathSelectedState,
-        htmlSelectedState,
-      }).toContain('ProseMirror-selectednode');
-      expect(htmlSelectedState.selectedNodes[0]?.className, {
-        mathSelectedState,
-        htmlSelectedState,
-      }).not.toContain('editor-native-selected-textlike');
-      const htmlSelectedStyle = await captureElementStyle(
-        page,
-        `${REAL_HTML_BLOCK_SELECTOR}.ProseMirror-selectednode`
-      );
-      expect(rgbChannels(htmlSelectedStyle.backgroundColor), {
-        mathHoverStyle,
-        htmlHoverStyle,
-        htmlSelectedStyle,
-      }).toEqual(
-        rgbChannels(mathHoverStyle.backgroundColor)
-      );
-      expect(htmlSelectedStyle.boxShadow, {
-        mathHoverStyle,
-        htmlHoverStyle,
-        htmlSelectedStyle,
-      }).toBe(
-        mathHoverStyle.boxShadow
-      );
-      expect(htmlSelectedStyle.backgroundColor, { htmlSelectedStyle }).not.toBe('rgb(0, 95, 213)');
-      expect(htmlSelectedStyle.backgroundColor, { htmlSelectedStyle }).not.toBe('rgba(0, 95, 213, 0.8)');
-      expect(htmlSelectedStyle.selectionBackgroundColor, { htmlSelectedStyle }).not.toBe('rgb(0, 95, 213)');
-      expect(htmlSelectedStyle.selectionBackgroundColor, { htmlSelectedStyle }).not.toBe('rgba(0, 95, 213, 0.8)');
-      expect(htmlSelectedStyle.userSelect, { htmlSelectedStyle }).toBe('none');
-      for (const descendantStyle of htmlSelectedStyle.descendantStyles) {
-        expect(descendantStyle.userSelect, { htmlSelectedStyle, descendantStyle }).toBe('none');
-        expect(descendantStyle.selectionBackgroundColor, { descendantStyle }).not.toBe('rgb(0, 95, 213)');
-        expect(descendantStyle.selectionBackgroundColor, { descendantStyle }).not.toBe('rgba(0, 95, 213, 0.8)');
+      for (const state of [mathSelectedState, htmlSelectedState]) {
+        expect(state.selectedNodes, {
+          mathSelectedState,
+          htmlSelectedState,
+        }).toEqual([]);
+        expect(state.selection?.empty, {
+          mathSelectedState,
+          htmlSelectedState,
+        }).toBe(true);
+        expect(state.domAnchor?.tagName, {
+          mathSelectedState,
+          htmlSelectedState,
+        }).toBe('P');
+        expect(state.domAnchor?.closestBlockType, {
+          mathSelectedState,
+          htmlSelectedState,
+        }).toBe('');
       }
+      expect(mathSelectedState.domAnchor?.text, {
+        mathSelectedState,
+        htmlSelectedState,
+      }).toBe('');
+      expect(
+        mathSelectedState.domAnchor?.className.includes('editor-editable-markdown-blank-line') ||
+          mathSelectedState.domAnchor?.className.includes('editor-empty-paragraph'),
+        { mathSelectedState, htmlSelectedState },
+      ).toBe(true);
+      expect(htmlSelectedState.domAnchor?.text, {
+        mathSelectedState,
+        htmlSelectedState,
+      }).toBe('');
+      expect(
+        htmlSelectedState.domAnchor?.className.includes('editor-editable-markdown-blank-line') ||
+          htmlSelectedState.domAnchor?.className.includes('editor-empty-paragraph'),
+        { mathSelectedState, htmlSelectedState },
+      ).toBe(true);
 
       for (let index = 0; index < 3; index += 1) {
         await clickParagraphText(page, 'After html parity');
