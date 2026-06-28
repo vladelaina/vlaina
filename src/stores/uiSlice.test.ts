@@ -308,6 +308,21 @@ describe('uiSlice', () => {
     expect(useUIStore.getState().fontSize).toBe(28);
   });
 
+  it('previews appearance font size through UI state without persisting it', () => {
+    useUIStore.getState().setFontSizePreview(20);
+
+    expect(useUIStore.getState().fontSize).toBe(20);
+    expect(localStorage.getItem('fontSize')).toBeNull();
+  });
+
+  it('persists a font size commit after a transient preview', () => {
+    useUIStore.getState().setFontSizePreview(20);
+    useUIStore.getState().setFontSize(20);
+
+    expect(useUIStore.getState().fontSize).toBe(20);
+    expect(localStorage.getItem('fontSize')).toBe('20');
+  });
+
   it('does not persist or broadcast unchanged appearance font size values', () => {
     const setItemSpy = vi.spyOn(localStorage, 'setItem');
 
