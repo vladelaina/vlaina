@@ -354,6 +354,7 @@ describe('desktop account auth flow', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toEqual({
       email: 'vla@example.com',
+      locale: null,
     });
   });
 
