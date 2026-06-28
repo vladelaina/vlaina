@@ -274,8 +274,8 @@ export const accountCommands = {
     return await getDesktopAccountBridge().cancelAuth?.();
   },
 
-  async requestEmailAuthCode(email: string) {
-    return await getDesktopAccountBridge().requestEmailCode(email);
+  async requestEmailAuthCode(email: string, locale?: string) {
+    return await getDesktopAccountBridge().requestEmailCode(email, locale);
   },
 
   async verifyEmailAuthCode(email: string, code: string) {

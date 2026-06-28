@@ -579,8 +579,8 @@ const desktopApi = {
     cancelAuth() {
       return ipcRenderer.invoke('desktop:account:cancel-auth');
     },
-    requestEmailCode(email) {
-      return ipcRenderer.invoke('desktop:account:request-email-code', email);
+    requestEmailCode(email, locale) {
+      return ipcRenderer.invoke('desktop:account:request-email-code', email, locale);
     },
     verifyEmailCode(email, code) {
       return ipcRenderer.invoke('desktop:account:verify-email-code', email, code);

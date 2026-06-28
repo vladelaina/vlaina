@@ -7,6 +7,8 @@ import { webAccountCommands, handleAuthCallback as parseAuthCallback } from '@/l
 import { isOauthAccountProvider, normalizeAccountProvider } from '@/lib/account/provider';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { normalizeExternalHref } from '@/lib/navigation/externalLinks';
+import { getEffectiveAppLanguage } from '@/lib/i18n/languages';
+import { useUIStore } from '@/stores/uiSlice';
 import {
   AUTH_PROVIDER_STORAGE_KEY,
   AUTH_STATE_STORAGE_KEY,
@@ -84,6 +86,10 @@ function normalizeEmailCodeInput(value: unknown): string | null {
 
   const normalized = value.trim();
   return EMAIL_CODE_PATTERN.test(normalized) ? normalized : null;
+}
+
+function getCurrentEmailTemplateLocale(): string {
+  return getEffectiveAppLanguage(useUIStore.getState().languagePreference);
 }
 
 function isAuthorizationCancellation(message: string): boolean {
@@ -482,8 +488,8 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
     set({ error: null });
     try {
       const ok = hasElectronDesktopBridge()
-        ? await accountCommands.requestEmailAuthCode(normalizedEmail)
-        : await webAccountCommands.requestEmailCode(normalizedEmail);
+        ? await accountCommands.requestEmailAuthCode(normalizedEmail, getCurrentEmailTemplateLocale())
+        : await webAccountCommands.requestEmailCode(normalizedEmail, getCurrentEmailTemplateLocale());
       if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
         return false;
       }

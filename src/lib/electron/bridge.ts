@@ -284,7 +284,7 @@ export interface ElectronAccountApi {
     error: string | null;
   }>;
   cancelAuth?(): Promise<boolean>;
-  requestEmailCode(email: string): Promise<boolean>;
+  requestEmailCode(email: string, locale?: string): Promise<boolean>;
   verifyEmailCode(email: string, code: string): Promise<{
     success: boolean;
     provider: string | null;
