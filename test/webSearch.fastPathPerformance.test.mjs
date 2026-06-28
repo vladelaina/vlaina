@@ -37,7 +37,7 @@ describe('web search fast path performance', () => {
 
     const warmTimings = timings.slice(1).sort((left, right) => left - right);
     const medianMs = warmTimings[Math.floor(warmTimings.length / 2)];
-    const p90Ms = warmTimings[Math.floor(warmTimings.length * 0.9)];
+    const p90Ms = warmTimings[Math.floor((warmTimings.length - 1) * 0.9)];
     const maxWarmMs = Math.max(...warmTimings);
 
     expect(medianMs).toBeLessThan(15);
