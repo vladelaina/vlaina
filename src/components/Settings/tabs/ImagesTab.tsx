@@ -6,6 +6,11 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import { dialogCloseIconButtonClassName } from '@/components/common/DialogCloseIconButton';
 import {
+    settingsPillDropdownContentClassName,
+    settingsPillDropdownItemClassName,
+    settingsPillDropdownItemSelectedClassName,
+} from '../styles';
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -61,14 +66,11 @@ const sidebarDropdownTriggerClassName =
 const storageDropdownTriggerClassName =
     "w-full cursor-pointer";
 
-const sidebarDropdownContentClassName =
-    "z-[var(--vlaina-z-120)] w-[var(--radix-dropdown-menu-trigger-width)] min-w-64 rounded-[var(--vlaina-radius-22px)] border border-[var(--vlaina-sidebar-notes-menu-border)] bg-[var(--vlaina-sidebar-notes-menu-bg)] p-1.5 shadow-[var(--vlaina-sidebar-notes-menu-shadow)] !animate-none";
+const imageDropdownContentClassName =
+    cn(settingsPillDropdownContentClassName, "w-[var(--radix-dropdown-menu-trigger-width)] min-w-64 !animate-none");
 
-const sidebarDropdownItemBaseClassName =
-    "flex min-h-[var(--vlaina-size-36px)] min-w-0 cursor-pointer items-center gap-2 rounded-xl px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium leading-none text-[var(--vlaina-sidebar-notes-text)] outline-none transition-[background-color,box-shadow,color] duration-[var(--vlaina-duration-150)] hover:!bg-[var(--vlaina-sidebar-notes-row-hover)] hover:shadow-[var(--vlaina-shadow-sidebar-row-hover)] focus:!bg-[var(--vlaina-sidebar-notes-row-hover)] focus:text-[var(--vlaina-sidebar-notes-text)] data-[highlighted]:!bg-[var(--vlaina-sidebar-notes-row-hover)] data-[highlighted]:text-[var(--vlaina-sidebar-notes-text)] data-[highlighted]:shadow-[var(--vlaina-shadow-sidebar-row-hover)]";
-
-const sidebarDropdownItemSelectedClassName =
-    "!bg-[var(--vlaina-sidebar-notes-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] shadow-[var(--vlaina-shadow-none)] data-[highlighted]:!bg-[var(--vlaina-sidebar-notes-row-active)] data-[highlighted]:text-[var(--vlaina-sidebar-row-selected-text)]";
+const imageDropdownItemClassName =
+    cn(settingsPillDropdownItemClassName, "cursor-pointer items-center gap-2 leading-none");
 
 function getStorageDirectoryPreview(
     mode: ImageStorageMode,
@@ -276,7 +278,7 @@ function StorageLocationDropdown({
             <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className={sidebarDropdownContentClassName}
+                className={imageDropdownContentClassName}
             >
                 {storageOptions.map((option) => {
                     const isSelected = imageStorageMode === option.id;
@@ -288,8 +290,8 @@ function StorageLocationDropdown({
                             data-selected={isSelected ? 'true' : undefined}
                             onSelect={() => setImageStorageMode(option.id)}
                             className={cn(
-                                sidebarDropdownItemBaseClassName,
-                                isSelected && sidebarDropdownItemSelectedClassName
+                                imageDropdownItemClassName,
+                                isSelected && settingsPillDropdownItemSelectedClassName
                             )}
                         >
                             <span className="flex min-w-0 flex-1 items-center text-left">
@@ -339,7 +341,7 @@ function FilenameFormatDropdown() {
             <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className={sidebarDropdownContentClassName}
+                className={imageDropdownContentClassName}
             >
                 {filenameFormatOptions.map((option) => {
                     const isSelected = imageFilenameFormat === option.id;
@@ -351,8 +353,8 @@ function FilenameFormatDropdown() {
                             data-selected={isSelected ? 'true' : undefined}
                             onSelect={() => setImageFilenameFormat(option.id)}
                             className={cn(
-                                sidebarDropdownItemBaseClassName,
-                                isSelected && sidebarDropdownItemSelectedClassName
+                                imageDropdownItemClassName,
+                                isSelected && settingsPillDropdownItemSelectedClassName
                             )}
                         >
                             <Icon

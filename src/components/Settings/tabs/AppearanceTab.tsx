@@ -29,6 +29,11 @@ import { selectMarkdownImportedThemeId } from '@/stores/unified/settings/markdow
 import { dialogCloseIconButtonClassName } from '@/components/common/DialogCloseIconButton';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import {
+  settingsPillDropdownContentClassName,
+  settingsPillDropdownItemClassName,
+  settingsPillDropdownItemSelectedClassName,
+} from '../styles';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -146,13 +151,16 @@ function ThemeDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="z-[var(--vlaina-z-120)] min-w-[var(--vlaina-size-170px)] rounded-2xl border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-1.5 shadow-[var(--vlaina-shadow-floating-panel)]"
+        className={cn(
+          settingsPillDropdownContentClassName,
+          "min-w-[var(--vlaina-size-170px)]",
+        )}
       >
         <DropdownMenuItem
           onSelect={() => onChange(null)}
           className={cn(
-            "rounded-xl px-3 py-2 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-chat-text)] focus:bg-[var(--vlaina-sidebar-row-selected-bg)] focus:text-[var(--vlaina-sidebar-row-selected-text)]",
-            importedThemeId === null && "text-[var(--vlaina-sidebar-row-selected-text)]"
+            settingsPillDropdownItemClassName,
+            importedThemeId === null && settingsPillDropdownItemSelectedClassName
           )}
         >
           <span className="truncate">{t('settings.appearance.theme.default')}</span>
@@ -164,8 +172,8 @@ function ThemeDropdown({
             onPointerEnter={() => onThemePreload(theme.id)}
             onSelect={() => onChange(theme.id)}
             className={cn(
-              "rounded-xl px-3 py-2 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-chat-text)] focus:bg-[var(--vlaina-sidebar-row-selected-bg)] focus:text-[var(--vlaina-sidebar-row-selected-text)]",
-              importedThemeId === theme.id && "text-[var(--vlaina-sidebar-row-selected-text)]"
+              settingsPillDropdownItemClassName,
+              importedThemeId === theme.id && settingsPillDropdownItemSelectedClassName
             )}
           >
             <span className="min-w-0 flex-1 truncate">{theme.name}</span>

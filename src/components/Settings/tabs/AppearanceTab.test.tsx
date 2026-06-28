@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
 import { AppearanceTab } from './AppearanceTab';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const mocks = vi.hoisted(() => ({
   uiState: {
@@ -80,15 +81,23 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
         },
       });
     },
-    DropdownMenuContent: ({ children }: { children: ReactNode }) => <div role="menu">{children}</div>,
+    DropdownMenuContent: ({
+      children,
+      className,
+    }: {
+      children: ReactNode;
+      className?: string;
+    }) => <div role="menu" className={className}>{children}</div>,
     DropdownMenuItem: ({
       children,
+      className,
       onSelect,
     }: {
       children: ReactNode;
+      className?: string;
       onSelect?: () => void;
     }) => (
-      <button type="button" role="menuitem" onClick={() => onSelect?.()}>
+      <button type="button" role="menuitem" className={className} onClick={() => onSelect?.()}>
         {children}
       </button>
     ),
@@ -195,6 +204,18 @@ describe('AppearanceTab theme entry', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'vlook-fancy' }));
 
     expect(mocks.unifiedState.setMarkdownImportedThemeId).toHaveBeenCalledWith('vlook-fancy');
+  });
+
+  it('reuses the theme capsule surface for the dropdown list', async () => {
+    render(<AppearanceTab />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'vlook-fancy' })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('menu').className).toContain(chatComposerPillSurfaceClass);
+    expect(screen.getByRole('menu').className).toContain('rounded-[var(--vlaina-radius-22px)]');
+    expect(screen.getByRole('menuitem', { name: 'Default' }).className).toContain('rounded-full');
   });
 
   it('refreshes directory themes from the dropdown and opens the fixed theme folder', async () => {
