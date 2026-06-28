@@ -167,11 +167,12 @@ describe('webAccountCommands', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(webAccountCommands.requestEmailCode(' OCTOCAT@example.com ')).resolves.toBe(true);
+    await expect(webAccountCommands.requestEmailCode(' OCTOCAT@example.com ', 'zh-CN')).resolves.toBe(true);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)).toEqual({
       email: 'octocat@example.com',
+      locale: 'zh-CN',
     });
   });
 

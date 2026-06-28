@@ -493,11 +493,12 @@ export function createDesktopAccountService({ apiBaseUrl }) {
       return cancelDesktopOauth();
     });
 
-    handleIpc('desktop:account:request-email-code', async (_event, email) => {
+    handleIpc('desktop:account:request-email-code', async (_event, email, locale) => {
       const normalizedEmail = normalizeEmailInput(email);
       if (!normalizedEmail) {
         throw new Error('Invalid email address');
       }
+      const normalizedLocale = primitiveToString(locale) || null;
 
       await retryTransientAccountNetworkError(() =>
         withAccountRequestTimeout(async (signal) => {
@@ -509,7 +510,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
               Accept: 'application/json',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email: normalizedEmail }),
+            body: JSON.stringify({ email: normalizedEmail, locale: normalizedLocale }),
           }), signal);
 
           await readJsonResponse(response, `Failed to send verification code: HTTP ${response.status}`, signal);

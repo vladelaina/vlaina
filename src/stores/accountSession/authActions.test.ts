@@ -68,6 +68,8 @@ const mocks = vi.hoisted(() => ({
   refreshBudget: vi.fn().mockResolvedValue(undefined),
   refreshBudgetIfStale: vi.fn().mockResolvedValue(undefined),
   clearBudget: vi.fn(),
+  getEffectiveAppLanguage: vi.fn(() => 'zh-CN'),
+  useUIStoreGetState: vi.fn(() => ({ languagePreference: 'zh-CN' })),
 }));
 
 vi.mock('@/lib/desktop/backend', () => ({
@@ -117,6 +119,16 @@ vi.mock('@/stores/useManagedAIStore', () => ({
       refreshBudgetIfStale: mocks.refreshBudgetIfStale,
       clearBudget: mocks.clearBudget,
     })),
+  },
+}));
+
+vi.mock('@/lib/i18n/languages', () => ({
+  getEffectiveAppLanguage: mocks.getEffectiveAppLanguage,
+}));
+
+vi.mock('@/stores/uiSlice', () => ({
+  useUIStore: {
+    getState: mocks.useUIStoreGetState,
   },
 }));
 
@@ -879,7 +891,7 @@ describe('accountSession auth actions', () => {
 
     await expect(createRequestEmailCode(set as never, get as never)(' VLA@example.com ')).resolves.toBe(true);
 
-    expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledWith('vla@example.com');
+    expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledWith('vla@example.com', 'zh-CN');
   });
 
   it('treats email code request cooldown responses as an already-sent code', async () => {

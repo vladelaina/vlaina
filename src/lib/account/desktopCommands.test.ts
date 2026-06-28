@@ -64,11 +64,11 @@ describe('desktop account commands', () => {
     });
 
     await accountCommands.accountAuth('google');
-    await accountCommands.requestEmailAuthCode('vla@example.com');
+    await accountCommands.requestEmailAuthCode('vla@example.com', 'zh-CN');
     await accountCommands.verifyEmailAuthCode('vla@example.com', '123456');
 
     expect(mocks.account.startAuth).toHaveBeenCalledWith('google');
-    expect(mocks.account.requestEmailCode).toHaveBeenCalledWith('vla@example.com');
+    expect(mocks.account.requestEmailCode).toHaveBeenCalledWith('vla@example.com', 'zh-CN');
     expect(mocks.account.verifyEmailCode).toHaveBeenCalledWith('vla@example.com', '123456');
   });
 

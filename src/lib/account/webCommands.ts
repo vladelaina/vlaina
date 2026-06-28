@@ -469,7 +469,7 @@ export const webAccountCommands = {
     }
   },
 
-  async requestEmailCode(email: string): Promise<boolean> {
+  async requestEmailCode(email: string, locale?: string): Promise<boolean> {
     assertSupportedWebAccountOrigin();
     const normalizedEmail = normalizeEmailInput(email);
     if (!normalizedEmail) {
@@ -485,7 +485,7 @@ export const webAccountCommands = {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify({ email: normalizedEmail, locale: locale || null }),
       })
     );
 
