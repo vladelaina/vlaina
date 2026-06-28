@@ -27,6 +27,7 @@ import {
   flushPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
+import { findStarredEntryByPath } from '@/stores/notes/starred';
 import { NOTE_SOURCE_MODE_TOGGLE_EVENT } from './sourceMode/sourceModeEvents';
 import {
   getSidebarSearchNavigationPendingPath,
@@ -113,7 +114,12 @@ export function MarkdownEditor({
     }, [currentNotePath])
   );
   const openTabs = useNotesStore(s => s.openTabs);
-  const isStarred = useNotesStore(s => s.isStarred);
+  const starred = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath) return false;
+      return Boolean(findStarredEntryByPath(state.starredEntries, 'note', currentNotePath, state.notesPath));
+    }, [currentNotePath])
+  );
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const currentNoteCreatedAt = useNotesStore(
     useCallback((state) => {
@@ -148,7 +154,6 @@ export function MarkdownEditor({
   const isSidebarSearchJumpPending =
     Boolean(currentNotePath && pendingSidebarSearchNavigationPath === currentNotePath);
 
-  const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const coverController = useNoteCoverController(currentNotePath);
   const coverUrl = coverController.cover.url;
   const coverSignature = useMemo(

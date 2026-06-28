@@ -12,6 +12,13 @@ type MockNotesState = {
   draftNotes: Record<string, { parentPath: string | null; name: string }>;
   noteMetadata: { notes: Record<string, Record<string, unknown>> } | null;
   notesPath: string;
+  starredEntries: Array<{
+    id: string;
+    kind: 'note' | 'folder';
+    vaultPath: string;
+    relativePath: string;
+    addedAt: number;
+  }>;
   isStarred: (path: string) => boolean;
   toggleStarred: ReturnType<typeof vi.fn>;
   saveNote: ReturnType<typeof vi.fn>;
@@ -21,6 +28,13 @@ type MockNotesState = {
 };
 
 const mocks = vi.hoisted(() => {
+  const notesStoreListeners = new Set<() => void>();
+  const notifyNotesStoreListeners = () => {
+    for (const listener of notesStoreListeners) {
+      listener();
+    }
+  };
+
   const notesState: MockNotesState = {
     currentNote: { path: 'alpha.md', content: '# Alpha\n\nInitial body' },
     currentNoteRevision: 0,
@@ -31,6 +45,7 @@ const mocks = vi.hoisted(() => {
     draftNotes: {},
     noteMetadata: null,
     notesPath: '/vault',
+    starredEntries: [],
     isStarred: () => false,
     toggleStarred: vi.fn(),
     saveNote: vi.fn().mockResolvedValue(undefined),
@@ -45,6 +60,8 @@ const mocks = vi.hoisted(() => {
   };
 
   return {
+    notesStoreListeners,
+    notifyNotesStoreListeners,
     notesState,
     milkdownRuntimeMode: {
       value: 'throw' as 'throw' | 'never-ready' | 'live-dom-never-ready',
@@ -52,19 +69,34 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: Object.assign(
-    (selector: (state: MockNotesState) => unknown) => selector(mocks.notesState),
-    {
-      getState: () => mocks.notesState,
-      subscribe: () => () => {},
-      setState: (updater: Partial<MockNotesState> | ((state: MockNotesState) => Partial<MockNotesState>)) => {
-        const patch = typeof updater === 'function' ? updater(mocks.notesState) : updater;
-        Object.assign(mocks.notesState, patch);
+vi.mock('@/stores/useNotesStore', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+  const subscribe = (listener: () => void) => {
+    mocks.notesStoreListeners.add(listener);
+    return () => {
+      mocks.notesStoreListeners.delete(listener);
+    };
+  };
+
+  return {
+    useNotesStore: Object.assign(
+      (selector: (state: MockNotesState) => unknown) => React.useSyncExternalStore(
+        subscribe,
+        () => selector(mocks.notesState),
+        () => selector(mocks.notesState),
+      ),
+      {
+        getState: () => mocks.notesState,
+        subscribe,
+        setState: (updater: Partial<MockNotesState> | ((state: MockNotesState) => Partial<MockNotesState>)) => {
+          const patch = typeof updater === 'function' ? updater(mocks.notesState) : updater;
+          Object.assign(mocks.notesState, patch);
+          mocks.notifyNotesStoreListeners();
+        },
       },
-    },
-  ),
-}));
+    ),
+  };
+});
 
 vi.mock('@/stores/unified/useUnifiedStore', () => ({
   useUnifiedStore: (selector: (state: { data: { settings: { markdown: { body: { showLineNumbers: boolean } } } } }) => unknown) =>
@@ -114,7 +146,27 @@ vi.mock('@/components/ui/overlay-scroll-area', async () => {
 });
 
 vi.mock('./EditorTopRightToolbar', () => ({
-  EditorTopRightToolbar: () => null,
+  EditorTopRightToolbar: ({
+    currentNotePath,
+    starred,
+    toggleStarred,
+  }: {
+    currentNotePath?: string | null;
+    starred: boolean;
+    toggleStarred: (path: string) => void;
+  }) => (
+    <button
+      type="button"
+      aria-label={starred ? 'Unfavorite' : 'Add to Starred'}
+      onClick={() => {
+        if (currentNotePath) {
+          toggleStarred(currentNotePath);
+        }
+      }}
+    >
+      {starred ? 'Unfavorite' : 'Add to Starred'}
+    </button>
+  ),
 }));
 
 vi.mock('./NoteHeader', () => ({
@@ -189,7 +241,10 @@ describe('MarkdownEditor source fallback', () => {
     mocks.notesState.openTabs = [{ path: 'alpha.md', name: 'alpha.md', isDirty: false }];
     mocks.notesState.draftNotes = {};
     mocks.notesState.noteMetadata = null;
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.starredEntries = [];
     mocks.notesState.isDirty = false;
+    mocks.notesState.toggleStarred.mockClear();
     mocks.notesState.saveNote.mockClear();
     mocks.milkdownRuntimeMode.value = 'throw';
   });
@@ -246,6 +301,32 @@ describe('MarkdownEditor source fallback', () => {
 
     expect(screen.queryByLabelText('Markdown source editor')).toBeNull();
     expect(screen.getByTestId('milkdown-live-dom')).toBeInstanceOf(HTMLElement);
+  });
+
+  it('refreshes the toolbar starred state when the starred registry changes', async () => {
+    render(<MarkdownEditor />);
+
+    expect(await screen.findByRole('button', { name: 'Add to Starred' })).toBeInTheDocument();
+
+    act(() => {
+      mocks.notesState.starredEntries = [{
+        id: 'starred-alpha',
+        kind: 'note',
+        vaultPath: '/vault',
+        relativePath: 'alpha.md',
+        addedAt: 1,
+      }];
+      mocks.notifyNotesStoreListeners();
+    });
+
+    expect(screen.getByRole('button', { name: 'Unfavorite' })).toBeInTheDocument();
+
+    act(() => {
+      mocks.notesState.starredEntries = [];
+      mocks.notifyNotesStoreListeners();
+    });
+
+    expect(screen.getByRole('button', { name: 'Add to Starred' })).toBeInTheDocument();
   });
 
   it('cancels pending fallback autosaves when switching notes', async () => {
