@@ -22,7 +22,6 @@ import {
   preloadCompiledImportedMarkdownThemeStyles,
   preloadMarkdownThemeCompiler,
 } from '@/components/markdown-theme/markdownThemeCompiler';
-import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -223,28 +222,16 @@ interface AppearanceTabProps {
   onFontSizePreviewingChange?: (previewing: boolean) => void;
 }
 
-const FONT_SIZE_PREVIEW_DEBOUNCE_MS = 120;
-
-export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps = {}) {
-  const { t } = useI18n();
+function useAppearanceFontSizeControl(onFontSizePreviewingChange?: (previewing: boolean) => void) {
   const fontSize = useUIStore((state) => state.fontSize);
+  const setFontSizePreview = useUIStore((state) => state.setFontSizePreview);
   const setFontSize = useUIStore((state) => state.setFontSize);
   const resetFontSize = useUIStore((state) => state.resetFontSize);
-  const colorMode = useUnifiedStore((state) => {
-    const mode = state.data.settings.ui?.colorMode;
-    return mode === 'light' || mode === 'dark' ? mode : 'system';
-  });
-  const importedThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
-  const setColorMode = useUnifiedStore((state) => state.setColorMode);
-  const setMarkdownImportedThemeId = useUnifiedStore((state) => state.setMarkdownImportedThemeId);
-  const addToast = useToastStore((state) => state.addToast);
   const [isPreviewingFontSize, setIsPreviewingFontSize] = useState(false);
   const [draftFontSize, setDraftFontSize] = useState(fontSize);
-  const [importedThemes, setImportedThemes] = useState<ImportedMarkdownThemeMetadata[]>([]);
   const draftFontSizeRef = useRef(fontSize);
   const previewingFontSizeRef = useRef(false);
   const pendingFontSizeFrameRef = useRef<number | null>(null);
-  const pendingFontSizeTimerRef = useRef<number | null>(null);
   const pendingFontSizeRef = useRef(fontSize);
 
   const displayedFontSize = isPreviewingFontSize ? draftFontSize : fontSize;
@@ -254,23 +241,19 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     setDraftFontSize(fontSize);
   }, [fontSize, isPreviewingFontSize]);
 
-  const cancelScheduledMarkdownFontSizePreview = useCallback(() => {
+  const cancelScheduledFontSizePreview = useCallback(() => {
     if (typeof window === 'undefined') return;
     if (pendingFontSizeFrameRef.current !== null) {
       window.cancelAnimationFrame(pendingFontSizeFrameRef.current);
       pendingFontSizeFrameRef.current = null;
     }
-    if (pendingFontSizeTimerRef.current !== null) {
-      window.clearTimeout(pendingFontSizeTimerRef.current);
-      pendingFontSizeTimerRef.current = null;
-    }
   }, []);
 
   useEffect(() => {
     return () => {
-      cancelScheduledMarkdownFontSizePreview();
+      cancelScheduledFontSizePreview();
     };
-  }, [cancelScheduledMarkdownFontSizePreview]);
+  }, [cancelScheduledFontSizePreview]);
 
   useEffect(() => {
     onFontSizePreviewingChange?.(isPreviewingFontSize);
@@ -287,8 +270,8 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     const commitPreview = () => {
       if (!previewingFontSizeRef.current) return;
       previewingFontSizeRef.current = false;
-      cancelScheduledMarkdownFontSizePreview();
-      applyMarkdownFontSize(draftFontSizeRef.current);
+      cancelScheduledFontSizePreview();
+      setFontSizePreview(draftFontSizeRef.current);
       setIsPreviewingFontSize(false);
       setFontSize(draftFontSizeRef.current);
     };
@@ -304,56 +287,43 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       window.removeEventListener('blur', commitPreview);
       if (previewingFontSizeRef.current) {
         previewingFontSizeRef.current = false;
-        cancelScheduledMarkdownFontSizePreview();
-        applyMarkdownFontSize(draftFontSizeRef.current);
+        cancelScheduledFontSizePreview();
+        setFontSizePreview(draftFontSizeRef.current);
         setFontSize(draftFontSizeRef.current);
       }
       onFontSizePreviewingChange?.(false);
     };
-  }, [cancelScheduledMarkdownFontSizePreview, isPreviewingFontSize, onFontSizePreviewingChange, setFontSize]);
+  }, [cancelScheduledFontSizePreview, isPreviewingFontSize, onFontSizePreviewingChange, setFontSize, setFontSizePreview]);
 
   const progressPercent = useMemo(() => {
     const bounded = Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, displayedFontSize));
     return `${((bounded - UI_FONT_SIZE_MIN) / (UI_FONT_SIZE_MAX - UI_FONT_SIZE_MIN)) * 100}%`;
   }, [displayedFontSize]);
 
-  const scheduleMarkdownFontSizePreview = useCallback((next: number) => {
+  const scheduleFontSizePreview = useCallback((next: number) => {
     pendingFontSizeRef.current = next;
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
-      applyMarkdownFontSize(next);
-      return;
-    }
-
-    if (previewingFontSizeRef.current) {
-      if (pendingFontSizeTimerRef.current !== null) {
-        window.clearTimeout(pendingFontSizeTimerRef.current);
-      }
-      pendingFontSizeTimerRef.current = window.setTimeout(() => {
-        pendingFontSizeTimerRef.current = null;
-        if (pendingFontSizeFrameRef.current !== null) {
-          return;
-        }
-        pendingFontSizeFrameRef.current = window.requestAnimationFrame(() => {
-          pendingFontSizeFrameRef.current = null;
-          applyMarkdownFontSize(pendingFontSizeRef.current);
-        });
-      }, FONT_SIZE_PREVIEW_DEBOUNCE_MS);
+      setFontSizePreview(next);
       return;
     }
 
     if (pendingFontSizeFrameRef.current !== null) return;
     pendingFontSizeFrameRef.current = window.requestAnimationFrame(() => {
       pendingFontSizeFrameRef.current = null;
-      applyMarkdownFontSize(pendingFontSizeRef.current);
+      setFontSizePreview(pendingFontSizeRef.current);
     });
-  }, []);
+  }, [setFontSizePreview]);
 
   const handleFontSizeChange = (e: ChangeEvent<HTMLInputElement>) => {
     const next = parseInt(e.target.value);
     if (draftFontSizeRef.current === next) return;
     draftFontSizeRef.current = next;
     setDraftFontSize(next);
-    scheduleMarkdownFontSizePreview(next);
+    if (previewingFontSizeRef.current) {
+      scheduleFontSizePreview(next);
+    } else {
+      setFontSize(next);
+    }
   };
 
   const beginFontSizePreview = (event: PointerEvent<HTMLInputElement> | MouseEvent<HTMLInputElement>) => {
@@ -366,12 +336,43 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
   };
 
   const handleResetFontSize = () => {
-    cancelScheduledMarkdownFontSizePreview();
+    cancelScheduledFontSizePreview();
     draftFontSizeRef.current = UI_FONT_SIZE_DEFAULT;
     setDraftFontSize(UI_FONT_SIZE_DEFAULT);
-    applyMarkdownFontSize(UI_FONT_SIZE_DEFAULT);
     resetFontSize();
   };
+
+  return {
+    committedFontSize: fontSize,
+    displayedFontSize,
+    isPreviewingFontSize,
+    progressPercent,
+    handleFontSizeChange,
+    beginFontSizePreview,
+    handleResetFontSize,
+  };
+}
+
+export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps = {}) {
+  const { t } = useI18n();
+  const {
+    committedFontSize,
+    displayedFontSize,
+    isPreviewingFontSize,
+    progressPercent,
+    handleFontSizeChange,
+    beginFontSizePreview,
+    handleResetFontSize,
+  } = useAppearanceFontSizeControl(onFontSizePreviewingChange);
+  const colorMode = useUnifiedStore((state) => {
+    const mode = state.data.settings.ui?.colorMode;
+    return mode === 'light' || mode === 'dark' ? mode : 'system';
+  });
+  const importedThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const setColorMode = useUnifiedStore((state) => state.setColorMode);
+  const setMarkdownImportedThemeId = useUnifiedStore((state) => state.setMarkdownImportedThemeId);
+  const addToast = useToastStore((state) => state.addToast);
+  const [importedThemes, setImportedThemes] = useState<ImportedMarkdownThemeMetadata[]>([]);
 
   const refreshImportedThemes = useCallback(async () => {
     try {
@@ -491,7 +492,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
             type="button"
             data-settings-action="reset-font-size"
             onClick={handleResetFontSize}
-            disabled={fontSize === UI_FONT_SIZE_DEFAULT}
+            disabled={committedFontSize === UI_FONT_SIZE_DEFAULT}
             className={cn(
               "rounded-full px-3 py-1.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--vlaina-sidebar-notes-text-soft)] disabled:opacity-[var(--vlaina-opacity-45)]",
               isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",

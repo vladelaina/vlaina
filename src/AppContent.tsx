@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -288,7 +288,7 @@ export function AppContent() {
     document.body.setAttribute('spellcheck', 'false');
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof document === 'undefined') return;
     document.documentElement.style.removeProperty('font-size');
     applyMarkdownFontSize(fontSize);

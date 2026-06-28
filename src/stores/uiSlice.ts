@@ -97,6 +97,7 @@ interface UIStore {
   notesSidebarView: NotesSidebarView;
   setNotesSidebarView: (view: NotesSidebarView) => void;
   fontSize: number;
+  setFontSizePreview: (fontSize: number) => void;
   setFontSize: (fontSize: number) => void;
   resetFontSize: () => void;
   languagePreference: AppLanguagePreference;
@@ -225,7 +226,19 @@ function loadFontSize(): number {
   if (!Number.isFinite(value)) {
     return UI_FONT_SIZE_DEFAULT;
   }
-  return Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, Math.round(value)));
+  return normalizeFontSize(value);
+}
+
+function normalizeFontSize(fontSize: number): number {
+  return Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, Math.round(fontSize)));
+}
+
+function getStoredPreferenceString(key: string): string | null {
+  try {
+    return loadScalarString(key);
+  } catch {
+    return null;
+  }
 }
 
 function loadImageStorageMode(): ImageStorageMode {
@@ -444,9 +457,21 @@ export const useUIStore = create<UIStore>()((set) => ({
   notesSidebarView: 'workspace',
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
   ...loadUIPreferencesFromStorage(),
-  setFontSize: (fontSize) => set((state) => {
-    const next = Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, Math.round(fontSize)));
+  setFontSizePreview: (fontSize) => set((state) => {
+    const next = normalizeFontSize(fontSize);
     if (state.fontSize === next) {
+      return state;
+    }
+    return { fontSize: next };
+  }),
+  setFontSize: (fontSize) => set((state) => {
+    const next = normalizeFontSize(fontSize);
+    if (state.fontSize === next) {
+      const stored = getStoredPreferenceString(STORAGE_KEY_FONT_SIZE);
+      if (stored === String(next) || (next === UI_FONT_SIZE_DEFAULT && stored === null)) {
+        return state;
+      }
+      savePreferenceString(STORAGE_KEY_FONT_SIZE, String(next));
       return state;
     }
     savePreferenceString(STORAGE_KEY_FONT_SIZE, String(next));

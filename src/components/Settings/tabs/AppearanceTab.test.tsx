@@ -2,11 +2,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
 import { AppearanceTab } from './AppearanceTab';
-import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 
 const mocks = vi.hoisted(() => ({
   uiState: {
     fontSize: 17,
+    setFontSizePreview: vi.fn(),
     setFontSize: vi.fn(),
     resetFontSize: vi.fn(),
   },
@@ -178,7 +178,6 @@ describe('AppearanceTab theme entry', () => {
     cleanup();
     vi.clearAllMocks();
     document.documentElement.style.removeProperty('--vlaina-markdown-font-size');
-    document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.remove();
   });
 
   it('shows directory themes without exposing a compatibility-layer selector', async () => {
@@ -215,7 +214,7 @@ describe('AppearanceTab theme entry', () => {
     });
   });
 
-  it('debounces drag preview of base font size through the scoped markdown font-size rule', async () => {
+  it('previews base font size through UI state while dragging and persists it on release', async () => {
     const { container } = render(<AppearanceTab />);
     const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
     expect(slider).not.toBeNull();
@@ -225,17 +224,17 @@ describe('AppearanceTab theme entry', () => {
     fireEvent.mouseDown(slider!);
     fireEvent.change(slider!, { target: { value: '20' } });
 
-    expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent ?? '').not.toContain(
-      '--vlaina-markdown-font-size: 20px',
-    );
+    expect(mocks.uiState.setFontSize).not.toHaveBeenCalled();
 
     await waitFor(() => {
-      expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
-        '--vlaina-markdown-font-size: 20px',
-      );
+      expect(mocks.uiState.setFontSizePreview).toHaveBeenCalledWith(20);
     });
     const updatedProgress = slider!.style.getPropertyValue('--vlaina-appearance-font-size-progress');
     expect(slider!.style.getPropertyValue('--vlaina-gradient-appearance-font-size-slider')).toContain(updatedProgress);
     expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('');
+
+    fireEvent.mouseUp(window);
+
+    expect(mocks.uiState.setFontSize).toHaveBeenCalledWith(20);
   });
 });
