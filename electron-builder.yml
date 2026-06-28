@@ -1,8 +1,9 @@
 appId: com.vlaina.desktop
 productName: vlaina
 copyright: Copyright © 2026 vladelaina
-compression: maximum
+compression: normal
 beforeBuild: scripts/electron-builder-before-build.mjs
+afterPack: scripts/electron-builder-after-pack.mjs
 removePackageScripts: true
 directories:
   output: release
@@ -61,6 +62,7 @@ win:
 nsis:
   artifactName: ${productName}-${version}-windows-${arch}-setup.${ext}
   oneClick: false
+  useZip: true
   allowToChangeInstallationDirectory: true
   differentialPackage: false
   include: scripts/windows-installer.nsh

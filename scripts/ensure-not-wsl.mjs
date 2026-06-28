@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 export function isWslRuntime() {
@@ -29,7 +30,22 @@ export function assertNotWsl(commandLabel = 'This command') {
   process.exit(1);
 }
 
+function commandExists(command) {
+  const result = spawnSync(command, ['--version'], { stdio: 'ignore' });
+  return result.error?.code !== 'ENOENT';
+}
+
+export function assertPackagingPrerequisites(commandLabel = 'This command') {
+  if (commandLabel !== 'package:win' || process.platform === 'win32') return;
+  if (commandExists('wine')) return;
+
+  console.error('[vlaina] package:win requires wine when run outside Windows.');
+  console.error('[vlaina] Install wine, or run package:win from Windows, before building the Windows installer.');
+  process.exit(1);
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const label = process.argv.slice(2).join(' ').trim() || 'This command';
   assertNotWsl(label);
+  assertPackagingPrerequisites(label);
 }
