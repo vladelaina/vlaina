@@ -23,21 +23,37 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({
+    align,
     children,
     className,
     onCloseAutoFocus,
+    sideOffset,
     ...props
   }: {
+    align?: string;
     children?: React.ReactNode;
     className?: string;
     onCloseAutoFocus?: (event: { preventDefault: () => void }) => void;
+    sideOffset?: number;
   }) => {
     mocks.dropdownMenuCloseAutoFocus = onCloseAutoFocus;
     return <div data-testid="note-menu-content" className={className} {...props}>{children}</div>;
   },
-  DropdownMenuItem: ({ children, onSelect }: { children?: React.ReactNode; onSelect?: () => void }) => (
+  DropdownMenuItem: ({
+    children,
+    className,
+    onSelect,
+    ...props
+  }: {
+    children?: React.ReactNode;
+    className?: string;
+    onSelect?: () => void;
+  } & React.ComponentProps<'button'>) => (
     <button
       type="button"
+      role="menuitem"
+      className={className}
+      {...props}
       onClick={() => {
         onSelect?.();
         mocks.dropdownMenuCloseAutoFocus?.({ preventDefault: mocks.lastCloseAutoFocusPreventDefault });
@@ -51,12 +67,17 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuSubContent: ({ children, className, ...props }: { children?: React.ReactNode; className?: string }) => (
     <div data-testid="note-export-menu-content" className={className} {...props}>{children}</div>
   ),
-  DropdownMenuSubTrigger: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
-    <div className={className}>{children}</div>
+  DropdownMenuSubTrigger: ({
+    children,
+    className,
+    ...props
+  }: {
+    children?: React.ReactNode;
+    className?: string;
+  } & React.ComponentProps<'div'>) => (
+    <div role="menuitem" className={className} {...props}>{children}</div>
   ),
-  DropdownMenuTrigger: ({ children, ...props }: React.ComponentProps<'button'>) => (
-    <button type="button" {...props}>{children}</button>
-  ),
+  DropdownMenuTrigger: ({ children }: React.ComponentProps<'button'> & { asChild?: boolean }) => <>{children}</>,
 }));
 
 vi.mock('@/components/ui/icons', () => ({
@@ -164,6 +185,10 @@ describe('EditorTopRightToolbar', () => {
     fireEvent.click(getByRole('button', { name: /More note actions|更多笔记操作/ }));
   }
 
+  function openExportMenu(getByRole: ReturnType<typeof render>['getByRole']) {
+    fireEvent.mouseEnter(getByRole('menuitem', { name: 'Export' }));
+  }
+
   it('marks toolbar chrome and menus as ignored by editor blank-area pointer handling', () => {
     const { container, getByRole, getByTestId } = render(
       <EditorTopRightToolbar
@@ -179,6 +204,7 @@ describe('EditorTopRightToolbar', () => {
     );
 
     openMoreMenu(getByRole);
+    openExportMenu(getByRole);
 
     expect(container.firstElementChild).toHaveAttribute('data-no-editor-drag-box', 'true');
     expect(getByTestId('note-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
@@ -246,6 +272,7 @@ describe('EditorTopRightToolbar', () => {
     );
 
     openMoreMenu(getByRole);
+    openExportMenu(getByRole);
     fireEvent.click(getByRole('menuitem', { name: 'HTML' }));
 
     await waitFor(() => {
@@ -360,6 +387,7 @@ describe('EditorTopRightToolbar', () => {
     );
 
     openMoreMenu(getByRole);
+    openExportMenu(getByRole);
 
     expect(getByTestId('note-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
     expect(getByTestId('note-menu-content').className).toContain('sidebar-menu-surface');
@@ -400,7 +428,7 @@ describe('EditorTopRightToolbar', () => {
   });
 
   it('uses the sidebar selected surface for export previews', () => {
-    const { getByRole, getByText } = render(
+    const { getByRole } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="docs/current.md"
@@ -415,7 +443,8 @@ describe('EditorTopRightToolbar', () => {
 
     openMoreMenu(getByRole);
 
-    expect(getByText('Export').className).toContain('data-[state=open]:bg-[var(--vlaina-sidebar-notes-row-active)]');
-    expect(getByText('Export').className).toContain('data-[state=open]:text-[var(--vlaina-sidebar-row-selected-text)]');
+    const exportMenuItem = getByRole('menuitem', { name: 'Export' });
+    expect(exportMenuItem.className).toContain('data-[state=open]:bg-[var(--vlaina-sidebar-notes-row-active)]');
+    expect(exportMenuItem.className).toContain('data-[state=open]:text-[var(--vlaina-sidebar-row-selected-text)]');
   });
 });

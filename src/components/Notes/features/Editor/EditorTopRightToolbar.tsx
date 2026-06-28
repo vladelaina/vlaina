@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { ShortcutKeys, SOFT_SHORTCUT_KEY_CLASSNAME } from '@/components/ui/shortcut-keys';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
 import { getShortcutKeys } from '@/lib/shortcuts';
@@ -85,7 +94,6 @@ export function EditorTopRightToolbar({
   const sourceModeButtonLabel = isSourceMode ? t('notes.switchToRenderedMode') : t('notes.switchToSourceMode');
   const sourceModeShortcutKeys = getShortcutKeys('toggleNoteSourceMode') ?? ['Ctrl', '/'];
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
-  const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const addToast = useToastStore((state) => state.addToast);
   const chatPanelCollapsed = useUIStore((state) => state.notesChatPanelCollapsed);
@@ -119,36 +127,6 @@ export function EditorTopRightToolbar({
       moreButtonRef.current?.blur();
     });
   }, [onToggleSourceMode]);
-
-  useEffect(() => {
-    if (!moreMenuOpen) return;
-
-    const ownerDocument = moreButtonRef.current?.ownerDocument ?? document;
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
-      if (moreButtonRef.current?.contains(target) || moreMenuRef.current?.contains(target)) {
-        return;
-      }
-      setMoreMenuOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') {
-        return;
-      }
-      setMoreMenuOpen(false);
-      moreButtonRef.current?.focus();
-    };
-
-    ownerDocument.addEventListener('pointerdown', handlePointerDown, true);
-    ownerDocument.addEventListener('keydown', handleKeyDown);
-    return () => {
-      ownerDocument.removeEventListener('pointerdown', handlePointerDown, true);
-      ownerDocument.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [moreMenuOpen]);
 
   const handleExportSelect = useCallback((format: NoteExportFormat) => {
     setMoreMenuOpen(false);
@@ -205,74 +183,83 @@ export function EditorTopRightToolbar({
             </button>
           ) : null}
 
-          <div className="relative">
-            <button
-              ref={moreButtonRef}
-              type="button"
-              aria-label={t('notes.moreActions')}
-              aria-haspopup="menu"
-              aria-expanded={moreMenuOpen}
-              onClick={(event) => {
-                event.stopPropagation();
-                setMoreMenuOpen((open) => !open);
+          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                ref={moreButtonRef}
+                type="button"
+                aria-label={t('notes.moreActions')}
+                onClick={(event) => event.stopPropagation()}
+                className={cn(
+                  toolbarIconButtonClassName,
+                  'hover:text-[var(--vlaina-sidebar-row-selected-text)]',
+                )}
+              >
+                <Icon size="md" name="common.more" />
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              align="end"
+              sideOffset={4}
+              onCloseAutoFocus={() => {
+                moreButtonRef.current?.blur();
+                window.requestAnimationFrame(() => {
+                  moreButtonRef.current?.blur();
+                });
               }}
               className={cn(
-                toolbarIconButtonClassName,
-                'hover:text-[var(--vlaina-sidebar-row-selected-text)]',
+                'w-max min-w-56 p-1',
+                noteMenuSurfaceClassName,
+                'shadow-[var(--vlaina-shadow-md)]',
               )}
+              data-no-editor-drag-box="true"
+              data-testid="note-menu-content"
+              onClick={(event) => event.stopPropagation()}
             >
-              <Icon size="md" name="common.more" />
-            </button>
+              {onToggleSourceMode ? (
+                <>
+                  <NoteMenuButton
+                    className={cn(
+                      exportMenuItemClassName,
+                      'group gap-2 [&:focus_.source-mode-shortcut]:opacity-100',
+                    )}
+                    onSelect={handleSourceModeSelect}
+                  >
+                    <Icon
+                      size="md"
+                      name="editor.code"
+                      className="mr-2 shrink-0"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{sourceModeButtonLabel}</span>
+                    <ShortcutKeys
+                      keys={sourceModeShortcutKeys}
+                      aria-hidden="true"
+                      className="source-mode-shortcut ml-4 shrink-0 opacity-0 transition-opacity duration-[var(--vlaina-duration-100)] group-hover:opacity-100 group-focus:opacity-100"
+                      keyClassName={SOFT_SHORTCUT_KEY_CLASSNAME}
+                    />
+                  </NoteMenuButton>
+                  <NoteMenuSeparator />
+                </>
+              ) : null}
 
-            {moreMenuOpen ? (
-              <div
-                ref={moreMenuRef}
-                role="menu"
-                className={cn(
-                  'absolute right-0 top-9 w-max min-w-56 p-1',
-                  noteMenuSurfaceClassName,
-                  'z-[var(--vlaina-z-50)] shadow-[var(--vlaina-shadow-md)]',
-                )}
-                data-no-editor-drag-box="true"
-                data-testid="note-menu-content"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {onToggleSourceMode ? (
-                  <>
-                    <NoteMenuButton
-                      className={cn(
-                        exportMenuItemClassName,
-                        'group gap-2 [&:focus_.source-mode-shortcut]:opacity-100',
-                      )}
-                      onSelect={handleSourceModeSelect}
-                    >
-                      <Icon
-                        size="md"
-                        name="editor.code"
-                        className="mr-2 shrink-0"
-                      />
-                      <span className="min-w-0 flex-1 truncate">{sourceModeButtonLabel}</span>
-                      <ShortcutKeys
-                        keys={sourceModeShortcutKeys}
-                        aria-hidden="true"
-                        className="source-mode-shortcut ml-4 shrink-0 opacity-0 transition-opacity duration-[var(--vlaina-duration-100)] group-hover:opacity-100 group-focus:opacity-100"
-                        keyClassName={SOFT_SHORTCUT_KEY_CLASSNAME}
-                      />
-                    </NoteMenuButton>
-                    <NoteMenuSeparator />
-                  </>
-                ) : null}
-
-                <div className={cn(
-                  'flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
-                  exportMenuItemClassName,
-                  'pointer-events-none',
-                )}>
-                  <Icon size="md" name="common.download" className="mr-2" />
-                  {t('notes.export')}
-                </div>
-                <div
-                  className="ml-2 border-l border-[var(--vlaina-border)] pl-1"
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger
+                  className={cn(
+                    'gap-2',
+                    exportMenuItemClassName,
+                  )}
+                  data-no-editor-drag-box="true"
+                >
+                  <Icon size="md" name="common.download" className="mr-2 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{t('notes.export')}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent
+                  className={cn(
+                    'w-max min-w-44 p-1',
+                    noteMenuSurfaceClassName,
+                    'shadow-[var(--vlaina-shadow-md)]',
+                  )}
                   data-no-editor-drag-box="true"
                   data-testid="note-export-menu-content"
                 >
@@ -304,20 +291,20 @@ export function EditorTopRightToolbar({
                     <Icon size="md" name="file.public" className="mr-2" />
                     HTML
                   </NoteMenuButton>
-                </div>
-                <NoteMenuSeparator />
-                <NoteStats currentNotePath={currentNotePath} />
-                <NoteMenuSeparator />
-                <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--vlaina-sidebar-notes-text)]">
-                  <span className="font-medium">{t('notes.created')}</span>
-                  <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.createdAt, language)}</span>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <NoteMenuSeparator />
+              <NoteStats currentNotePath={currentNotePath} />
+              <NoteMenuSeparator />
+              <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--vlaina-sidebar-notes-text)]">
+                <span className="font-medium">{t('notes.created')}</span>
+                <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.createdAt, language)}</span>
 
-                  <span className="font-medium">{t('notes.updated')}</span>
-                  <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.updatedAt, language)}</span>
-                </div>
+                <span className="font-medium">{t('notes.updated')}</span>
+                <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.updatedAt, language)}</span>
               </div>
-            ) : null}
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       ) : null}
     </div>
@@ -334,21 +321,15 @@ function NoteMenuButton({
   onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
-      role="menuitem"
+    <DropdownMenuItem
       className={cn(
-        'flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-left text-sm outline-none',
+        'w-full text-left',
         className,
       )}
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onSelect();
-      }}
+      onSelect={onSelect}
     >
       {children}
-    </button>
+    </DropdownMenuItem>
   );
 }
 
