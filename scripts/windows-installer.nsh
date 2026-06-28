@@ -49,6 +49,18 @@
   ${endif}
 !macroend
 
+!macro customInstallMode
+  ${if} ${isUpdated}
+    ${if} $hasPerUserInstallation == "1"
+    ${andIf} $hasPerMachineInstallation == "0"
+      StrCpy $isForceCurrentInstall "1"
+    ${elseif} $hasPerUserInstallation == "0"
+    ${andIf} $hasPerMachineInstallation == "1"
+      StrCpy $isForceMachineInstall "1"
+    ${endif}
+  ${endif}
+!macroend
+
 !macro customInit
   !insertmacro abortIfInstalledVersionIsNewer HKCU
   !insertmacro abortIfInstalledVersionIsNewer HKLM
@@ -59,15 +71,25 @@
       ${ifNot} ${Silent}
       ${andIfNot} ${isUpdated}
       ${andIf} $R0 == ""
-        ${if} $installMode == "CurrentUser"
+        ${if} $hasPerUserInstallation == "1"
+        ${andIf} $hasPerMachineInstallation == "0"
         ${andIf} $perUserInstallationFolder != ""
-          # Re-enter through electron-builder's update path so assisted upgrades skip the directory page.
+          # Re-enter through electron-builder's update path so assisted upgrades skip setup choices.
           ${GetParameters} $R1
-          Exec '"$EXEPATH" --updated $R1'
+          Exec '"$EXEPATH" --updated /currentuser $R1'
           Quit
-        ${elseif} $installMode == "all"
+        ${elseif} $hasPerUserInstallation == "0"
+        ${andIf} $hasPerMachineInstallation == "1"
         ${andIf} $perMachineInstallationFolder != ""
-          # Re-enter through electron-builder's update path so assisted upgrades skip the directory page.
+          # Re-enter through electron-builder's update path so assisted upgrades skip setup choices.
+          ${GetParameters} $R1
+          Exec '"$EXEPATH" --updated /allusers $R1'
+          Quit
+        ${elseif} $hasPerUserInstallation == "1"
+        ${andIf} $hasPerMachineInstallation == "1"
+        ${andIf} $perUserInstallationFolder != ""
+        ${andIf} $perMachineInstallationFolder != ""
+          # Keep the install-mode page when both installation scopes exist.
           ${GetParameters} $R1
           Exec '"$EXEPATH" --updated $R1'
           Quit
