@@ -16,6 +16,7 @@ export const MERMAID_RENDER_TIMEOUT_MS = 5000;
 const MERMAID_INIT_CONFIG = {
   startOnLoad: false,
   securityLevel: 'strict',
+  logLevel: 'fatal',
   fontFamily: 'inherit',
   flowchart: {
     htmlLabels: false,

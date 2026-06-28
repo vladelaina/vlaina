@@ -19,12 +19,10 @@ function spaFallbackPlugin(): Plugin {
 
       if (fs.existsSync(indexPath)) {
         fs.copyFileSync(indexPath, notFoundPath);
-        console.log('Created 404.html for SPA support');
       }
 
       if (fs.existsSync(redirectsPath)) {
         fs.unlinkSync(redirectsPath);
-        console.log('Removed legacy _redirects for Workers Assets');
       }
     },
   };
@@ -56,6 +54,13 @@ function woff2OnlyFontCssPlugin(): Plugin {
 function isReactSingletonModule(id: string): boolean {
   return /(?:^|\/)node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?(?:react|react-dom|scheduler)(?:\/|$)/.test(id);
 }
+
+const releaseConsolePureFunctions = [
+  'console.log',
+  'console.debug',
+  'console.info',
+  'console.trace',
+];
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
@@ -109,6 +114,9 @@ export default defineConfig(async () => ({
       checks: {
         pluginTimings: false,
       },
+      treeshake: {
+        manualPureFunctions: releaseConsolePureFunctions,
+      },
       output: {
         manualChunks(id) {
           const normalizedId = id.replace(/\\/g, '/');
@@ -146,6 +154,9 @@ export default defineConfig(async () => ({
     rollupOptions: {
       checks: {
         pluginTimings: false,
+      },
+      treeshake: {
+        manualPureFunctions: releaseConsolePureFunctions,
       },
     },
   },
