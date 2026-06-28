@@ -25,6 +25,7 @@ interface UseResizableBoxOptions<TSize extends ResizableBoxSize> {
   onSizeChange: (size: TSize) => void;
   onSizeCommit?: (size: TSize) => void;
   onDragStateChange?: (isDragging: boolean) => void;
+  liveUpdateMode?: 'animation-frame' | 'sync';
   useOverlay?: boolean;
   allowDoubleClickReset?: boolean;
 }
@@ -82,6 +83,7 @@ export function useResizableBox<TSize extends ResizableBoxSize>({
   onSizeChange,
   onSizeCommit,
   onDragStateChange,
+  liveUpdateMode,
   useOverlay = false,
   allowDoubleClickReset = true,
 }: UseResizableBoxOptions<TSize>) {
@@ -135,6 +137,7 @@ export function useResizableBox<TSize extends ResizableBoxSize>({
     cursor: cursorForEdge,
     eventType: 'pointer',
     listenTarget: 'window',
+    liveUpdateMode,
     useOverlay,
     allowDoubleClickReset,
   });

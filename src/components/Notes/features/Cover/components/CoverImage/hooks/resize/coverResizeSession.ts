@@ -26,7 +26,6 @@ export function startCoverResizeSession({
   onFrame,
   onCommit,
 }: StartCoverResizeSessionProps) {
-  let rafId: number | null = null;
   let disposed = false;
   let topPinned = snapshot.maxShiftDown === 0;
   let lastFrame: ResizeFrame | null = null;
@@ -56,29 +55,22 @@ export function startCoverResizeSession({
   const dispose = () => {
     if (disposed) return;
     disposed = true;
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
     document.removeEventListener('mousemove', handleMove, true);
     document.removeEventListener('mouseup', handleUp, true);
   };
 
   const handleMove = (event: MouseEvent) => {
     if (disposed) return;
-    if (rafId !== null) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(() => {
-      const frame = buildFrame(event.clientY);
-      if (
-        lastFrame &&
-        lastFrame.effectiveHeight === frame.effectiveHeight &&
-        Math.abs(lastFrame.shiftY - frame.shiftY) < 0.001
-      ) {
-        return;
-      }
-      lastFrame = frame;
-      onFrame(frame);
-    });
+    const frame = buildFrame(event.clientY);
+    if (
+      lastFrame &&
+      lastFrame.effectiveHeight === frame.effectiveHeight &&
+      Math.abs(lastFrame.shiftY - frame.shiftY) < 0.001
+    ) {
+      return;
+    }
+    lastFrame = frame;
+    onFrame(frame);
   };
 
   const handleUp = (event: MouseEvent) => {

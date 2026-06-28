@@ -10,6 +10,7 @@ import { themeDomStyleTokens, themeRenderingTokens, themeStyleResetTokens } from
 
 type ResizeDragEventType = 'mouse' | 'pointer';
 type ResizeDragListenTarget = 'document' | 'window';
+type ResizeDragLiveUpdateMode = 'animation-frame' | 'sync';
 type NativeResizeDragEvent = MouseEvent | PointerEvent;
 type ResizeDragCursor<TContext> = string | ((context: TContext) => string);
 
@@ -38,6 +39,7 @@ interface UseResizeDragSessionOptions<TValue, TContext = undefined> {
   cursor: ResizeDragCursor<TContext>;
   eventType?: ResizeDragEventType;
   listenTarget?: ResizeDragListenTarget;
+  liveUpdateMode?: ResizeDragLiveUpdateMode;
   useOverlay?: boolean;
   allowDoubleClickReset?: boolean;
 }
@@ -57,6 +59,7 @@ export function useResizeDragSession<TValue, TContext = undefined>({
   cursor,
   eventType = 'mouse',
   listenTarget = 'document',
+  liveUpdateMode = 'animation-frame',
   useOverlay = false,
   allowDoubleClickReset = true,
 }: UseResizeDragSessionOptions<TValue, TContext>) {
@@ -78,6 +81,7 @@ export function useResizeDragSession<TValue, TContext = undefined>({
     cursor,
     eventType,
     listenTarget,
+    liveUpdateMode,
     useOverlay,
     allowDoubleClickReset,
   });
@@ -93,6 +97,7 @@ export function useResizeDragSession<TValue, TContext = undefined>({
     cursor,
     eventType,
     listenTarget,
+    liveUpdateMode,
     useOverlay,
     allowDoubleClickReset,
   };
@@ -176,6 +181,15 @@ export function useResizeDragSession<TValue, TContext = undefined>({
 
     const scheduleValueChange = (nextValue: TValue) => {
       pendingValueRef.current = nextValue;
+
+      if (latestOptionsRef.current.liveUpdateMode === 'sync') {
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        flushPendingValue();
+        return;
+      }
 
       if (rafRef.current !== null) {
         return;

@@ -183,6 +183,7 @@ export function NotesView({
   const [isEmbeddedChatViewReady, setIsEmbeddedChatViewReady] = useState(embeddedChatViewModuleReady);
   const launchContextRef = useRef(readWindowLaunchContext());
   const notesViewRef = useRef<HTMLDivElement>(null);
+  const floatingChatPanelRef = useRef<HTMLDivElement>(null);
   const chatPanelCaretRefreshFrameRef = useRef<number | null>(null);
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
@@ -228,6 +229,19 @@ export function NotesView({
     });
   }, []);
   const [floatingChatLiveSize, setFloatingChatLiveSize] = useState<NotesChatFloatingSize>(chatFloatingSize);
+  const applyFloatingChatLiveSize = useCallback((nextSize: NotesChatFloatingSize) => {
+    const panel = floatingChatPanelRef.current;
+    if (!panel) {
+      return;
+    }
+
+    panel.style.width = `${nextSize.width}px`;
+    panel.style.height = `${nextSize.height}px`;
+  }, []);
+  const handleFloatingChatLiveSizeChange = useCallback((nextSize: NotesChatFloatingSize) => {
+    applyFloatingChatLiveSize(nextSize);
+    requestNativeCaretOverlayRefresh();
+  }, [applyFloatingChatLiveSize]);
   const getFloatingChatMaxSize = useCallback((): NotesChatFloatingSize => {
     const container = notesViewRef.current;
     const containerWidth = container?.clientWidth || window.innerWidth;
@@ -241,9 +255,10 @@ export function NotesView({
     };
   }, []);
   const handleFloatingChatSizeCommit = useCallback((nextSize: NotesChatFloatingSize) => {
+    applyFloatingChatLiveSize(nextSize);
     setFloatingChatLiveSize(nextSize);
     setChatFloatingSize(nextSize);
-  }, [setChatFloatingSize]);
+  }, [applyFloatingChatLiveSize, setChatFloatingSize]);
   const {
     isDragging: isFloatingChatResizing,
     handleResizeStart: beginFloatingChatResize,
@@ -253,9 +268,10 @@ export function NotesView({
     maxSize: NOTES_CHAT_FLOATING_MAX_SIZE,
     defaultSize: NOTES_CHAT_FLOATING_DEFAULT_SIZE,
     getMaxSize: getFloatingChatMaxSize,
-    onSizeChange: setFloatingChatLiveSize,
+    onSizeChange: handleFloatingChatLiveSizeChange,
     onSizeCommit: handleFloatingChatSizeCommit,
     onDragStateChange: handleChatPanelDragStateChange,
+    liveUpdateMode: 'sync',
     allowDoubleClickReset: false,
   });
   const notePathsInTreeOrder = useMemo(() => (
@@ -386,12 +402,13 @@ export function NotesView({
       return;
     }
 
+    applyFloatingChatLiveSize(chatFloatingSize);
     setFloatingChatLiveSize((current) => (
       current.width === chatFloatingSize.width && current.height === chatFloatingSize.height
         ? current
         : chatFloatingSize
     ));
-  }, [chatFloatingSize, isFloatingChatResizing]);
+  }, [applyFloatingChatLiveSize, chatFloatingSize, isFloatingChatResizing]);
 
   useLayoutEffect(() => {
     if (!active || !chatPanelCollapsed || !chatFloatingOpen) {
@@ -728,6 +745,7 @@ export function NotesView({
         {active && chatPanelCollapsed && chatFloatingOpen && isEmbeddedChatViewReady && unifiedLoaded && (
           <Suspense fallback={null}>
             <div
+              ref={floatingChatPanelRef}
               data-notes-chat-floating="true"
               className={cn(
                 'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-radius-26px)]',

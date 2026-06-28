@@ -52,6 +52,29 @@ describe('startCoverResizeSession', () => {
     expect(onCommit).not.toHaveBeenCalled();
   });
 
+  it('does not wait for animation frame before applying live resize frame', () => {
+    const requestAnimationFrameSpy = vi.fn(() => 1);
+    globalThis.requestAnimationFrame = requestAnimationFrameSpy as typeof requestAnimationFrame;
+    const onFrame = vi.fn();
+    const addSpy = vi.spyOn(document, 'addEventListener');
+
+    startCoverResizeSession({
+      startY: 100,
+      startHeight: 200,
+      snapshot,
+      onFrame,
+      onCommit: vi.fn(),
+    });
+
+    const moveHandler = addSpy.mock.calls.find(([eventName]) => eventName === 'mousemove')?.[1];
+    expect(moveHandler).toBeTypeOf('function');
+
+    (moveHandler as EventListener)(new MouseEvent('mousemove', { clientY: 120 }));
+
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+    expect(onFrame).toHaveBeenCalledTimes(1);
+  });
+
   it('commits and removes listeners on mouse up', () => {
     const onFrame = vi.fn();
     const onCommit = vi.fn();

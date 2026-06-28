@@ -8,6 +8,11 @@ interface BindAiReviewDragParams {
   view: EditorView;
 }
 
+interface AiReviewDragPosition {
+  x: number;
+  y: number;
+}
+
 export function bindAiReviewDrag({
   container,
   dragHandle,
@@ -27,10 +32,10 @@ export function bindAiReviewDrag({
     const initialTop = Number.parseFloat(container.style.top || '0');
     const panelWidth = container.offsetWidth;
     const panelHeight = container.offsetHeight;
-    let pendingPoint: { clientX: number; clientY: number } | null = null;
+    let pendingPosition: AiReviewDragPosition | null = null;
     let dragFrame: number | null = null;
 
-    const dispatchDragPosition = (clientX: number, clientY: number) => {
+    const getDragPosition = (clientX: number, clientY: number): AiReviewDragPosition => {
       const nextLeft = initialLeft + (clientX - startX);
       const nextTop = initialTop + (clientY - startY);
       const viewportWidth = window.innerWidth;
@@ -38,14 +43,23 @@ export function bindAiReviewDrag({
       const maxLeft = Math.max(12, viewportWidth - panelWidth - 12);
       const maxTop = Math.max(12, viewportHeight - panelHeight - 12);
 
+      return {
+        x: Math.min(Math.max(12, nextLeft), maxLeft),
+        y: Math.min(Math.max(12, nextTop), maxTop),
+      };
+    };
+
+    const applyDragPosition = (position: AiReviewDragPosition) => {
+      container.style.left = `${position.x}px`;
+      container.style.top = `${position.y}px`;
+    };
+
+    const dispatchDragPosition = (position: AiReviewDragPosition) => {
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
           type: TOOLBAR_ACTIONS.UPDATE_POSITION,
           payload: {
-            dragPosition: {
-              x: Math.min(Math.max(12, nextLeft), maxLeft),
-              y: Math.min(Math.max(12, nextTop), maxTop),
-            },
+            dragPosition: position,
           },
         })
       );
@@ -53,10 +67,10 @@ export function bindAiReviewDrag({
 
     const flushPendingDrag = () => {
       dragFrame = null;
-      if (!pendingPoint) return;
-      const { clientX, clientY } = pendingPoint;
-      pendingPoint = null;
-      dispatchDragPosition(clientX, clientY);
+      if (!pendingPosition) return;
+      const position = pendingPosition;
+      pendingPosition = null;
+      dispatchDragPosition(position);
     };
 
     const cancelPendingDrag = () => {
@@ -67,10 +81,9 @@ export function bindAiReviewDrag({
     };
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      pendingPoint = {
-        clientX: moveEvent.clientX,
-        clientY: moveEvent.clientY,
-      };
+      const position = getDragPosition(moveEvent.clientX, moveEvent.clientY);
+      applyDragPosition(position);
+      pendingPosition = position;
 
       if (dragFrame !== null) return;
       dragFrame = window.requestAnimationFrame(flushPendingDrag);

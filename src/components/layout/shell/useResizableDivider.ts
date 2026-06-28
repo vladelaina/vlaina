@@ -17,6 +17,7 @@ interface UseResizableDividerOptions {
   onDragStateChange?: (isDragging: boolean) => void;
   direction?: 'normal' | 'reverse';
   snap?: ResizableSnapOptions;
+  liveUpdateMode?: 'animation-frame' | 'sync';
   useOverlay?: boolean;
   allowDoubleClickReset?: boolean;
 }
@@ -35,6 +36,7 @@ export function useResizableDivider({
   onDragStateChange,
   direction = 'normal',
   snap,
+  liveUpdateMode,
   useOverlay = false,
   allowDoubleClickReset = true,
 }: UseResizableDividerOptions) {
@@ -80,6 +82,7 @@ export function useResizableDivider({
     cursor: themeDomStyleTokens.cursorColumnResize,
     eventType: 'mouse',
     listenTarget: 'document',
+    liveUpdateMode,
     useOverlay,
     allowDoubleClickReset,
   });

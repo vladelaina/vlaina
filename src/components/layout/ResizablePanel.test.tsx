@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResizablePanel } from './ResizablePanel';
 
@@ -99,5 +99,28 @@ describe('ResizablePanel', () => {
     });
 
     expect(container.querySelector('aside')).toHaveStyle({ width: '320px' });
+  });
+
+  it('updates the live width during the same drag move', () => {
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 1);
+
+    const { container } = render(
+      <ResizablePanel defaultWidth={320} minWidth={300} maxWidth={500}>
+        content
+      </ResizablePanel>
+    );
+
+    const panel = container.querySelector('aside')!;
+    const handle = container.querySelector<HTMLElement>('.cursor-col-resize')!;
+
+    fireEvent.mouseDown(handle, { clientX: 500 });
+    fireEvent.mouseMove(document, { clientX: 460 });
+
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+    expect(panel).toHaveStyle({ width: '360px' });
+
+    fireEvent.mouseUp(document);
   });
 });
