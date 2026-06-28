@@ -213,14 +213,30 @@ export const actions = {
       .some(([key, value]) => !Object.is(provider[key], value));
     if (!hasProviderChanges) return;
 
-    const nextProviders = providers.map((p) =>
-      p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
-    );
-    const enabledModels = filterModelsByEnabledProviders(ai.models, nextProviders)
-    state.updateAIData({
+    const apiHostChanged = typeof updates.apiHost === 'string' && updates.apiHost !== provider.apiHost;
+    const apiKeyChanged = typeof updates.apiKey === 'string' && updates.apiKey !== provider.apiKey;
+    const connectionChanged = apiHostChanged || apiKeyChanged;
+    const nextProviders = providers.map((p) => {
+      if (p.id !== id) return p;
+      const nextProvider = { ...p, ...updates, updatedAt: Date.now() };
+      return connectionChanged
+        ? { ...nextProvider, endpointType: undefined, endpointTypeCheckedAt: undefined }
+        : nextProvider;
+    });
+    const nextModels = connectionChanged
+      ? ai.models.map((model) => model.providerId === id
+        ? { ...model, endpointType: undefined, endpointTypeCheckedAt: undefined }
+        : model)
+      : ai.models;
+    const enabledModels = filterModelsByEnabledProviders(nextModels, nextProviders)
+    const dataUpdates: Parameters<typeof state.updateAIData>[0] = {
       providers: nextProviders,
       selectedModelId: chooseFallbackSelectedModelId(ai.selectedModelId, enabledModels)
-    })
+    };
+    if (connectionChanged) {
+      dataUpdates.models = nextModels;
+    }
+    state.updateAIData(dataUpdates)
   },
 
   reorderCustomProviders: (orderedProviderIds: string[]) => {

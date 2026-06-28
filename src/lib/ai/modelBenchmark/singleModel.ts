@@ -7,12 +7,18 @@ import {
   readBoundedProviderResponseText,
 } from '../providers/boundedResponseText';
 import type { AIModel, Provider } from '../types';
+import {
+  getAlternateEndpointType,
+  getVerifiedModelEndpointType,
+  isLikelyAnthropicModel,
+  shouldTryAlternateEndpointAfterEndpointError,
+} from '../endpointFallback';
 import { DEFAULT_BENCHMARK_TIMEOUT_MS } from './constants';
 import { inferBenchmarkEndpoint } from './endpoint';
 import type { BenchmarkEndpoint, CheckModelHealthOptions, HealthCheckResult } from './types';
 
-function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint): string {
-  if (provider.endpointType === 'anthropic') {
+function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint, endpointType?: Provider['endpointType']): string {
+  if (endpointType === 'anthropic') {
     return `${buildAnthropicBaseUrl(provider.apiHost)}/messages`;
   }
 
@@ -274,7 +280,8 @@ function isExpectedSuccessPayload(payload: unknown, endpoint: BenchmarkEndpoint)
 }
 
 function buildBenchmarkHeaders(provider: Provider): Record<string, string> {
-  if (provider.endpointType === 'anthropic') {
+  const endpointType = provider.endpointType;
+  if (endpointType === 'anthropic') {
     return {
       'x-api-key': provider.apiKey,
       'anthropic-version': '2023-06-01',
@@ -317,7 +324,9 @@ export async function checkModelHealth(
   options: CheckModelHealthOptions = {}
 ): Promise<HealthCheckResult> {
   const apiModelId = resolveApiModelId(model);
-  const endpoint = provider.endpointType === 'anthropic' ? 'chat' : inferBenchmarkEndpoint(apiModelId);
+  const verifiedModelEndpointType = getVerifiedModelEndpointType(model);
+  const endpointType = verifiedModelEndpointType ?? provider.endpointType;
+  const endpoint = endpointType === 'anthropic' ? 'chat' : inferBenchmarkEndpoint(apiModelId);
   const requestedTimeoutMs = options.timeoutMs ?? DEFAULT_BENCHMARK_TIMEOUT_MS;
   const timeoutMs = Number.isFinite(requestedTimeoutMs)
     ? Math.max(0, Math.floor(requestedTimeoutMs))
@@ -348,15 +357,35 @@ export async function checkModelHealth(
     }
   }
 
-  try {
+  const toErrorResult = (error: unknown, resultEndpoint: BenchmarkEndpoint): HealthCheckResult => {
+    if (isAbortError(error) && (didTimeout || didAbortExternally)) {
+      return {
+        status: 'error',
+        error: didTimeout
+          ? `Request timed out (${Math.round(timeoutMs / 1000)}s)`
+          : 'Request aborted',
+        endpoint: resultEndpoint,
+      };
+    }
+
+    const parsedError = parseAPIError(error);
+    return {
+      status: 'error',
+      error: parsedError.message || 'Unknown error',
+      endpoint: resultEndpoint,
+    };
+  };
+
+  const runBenchmarkAttempt = async (attemptEndpointType: Provider['endpointType'] | undefined): Promise<HealthCheckResult> => {
+    const attemptEndpoint = attemptEndpointType === 'anthropic' ? 'chat' : inferBenchmarkEndpoint(apiModelId);
     if (controller.signal.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
 
-    const response = await providerFetch(buildBenchmarkUrl(provider, endpoint), {
+    const response = await providerFetch(buildBenchmarkUrl(provider, attemptEndpoint, attemptEndpointType), {
       method: 'POST',
-      headers: buildBenchmarkHeaders(provider),
-      body: JSON.stringify(buildBenchmarkBody(apiModelId, endpoint, provider.endpointType)),
+      headers: buildBenchmarkHeaders({ ...provider, endpointType: attemptEndpointType }),
+      body: JSON.stringify(buildBenchmarkBody(apiModelId, attemptEndpoint, attemptEndpointType)),
       signal: controller.signal,
     });
     throwIfAborted(controller.signal);
@@ -378,32 +407,36 @@ export async function checkModelHealth(
       throw new Error(upstreamErrorMessage);
     }
 
-    if (!isExpectedSuccessPayload(payload, endpoint)) {
+    if (!isExpectedSuccessPayload(payload, attemptEndpoint)) {
       throw new Error('Unexpected benchmark response');
     }
 
     return {
       status: 'success',
       latency: Math.round(performance.now() - start),
-      endpoint,
+      endpoint: attemptEndpoint,
     };
+  };
+
+  try {
+    return await runBenchmarkAttempt(endpointType);
   } catch (error: unknown) {
-    if (isAbortError(error) && (didTimeout || didAbortExternally)) {
-      return {
-        status: 'error',
-        error: didTimeout
-          ? `Request timed out (${Math.round(timeoutMs / 1000)}s)`
-          : 'Request aborted',
-        endpoint,
-      };
+    const canTryAlternateFallback =
+      endpoint === 'chat' &&
+      isLikelyAnthropicModel(model) &&
+      !controller.signal.aborted &&
+      shouldTryAlternateEndpointAfterEndpointError(error);
+
+    if (canTryAlternateFallback) {
+      const alternateEndpointType = getAlternateEndpointType(endpointType);
+      try {
+        return await runBenchmarkAttempt(alternateEndpointType);
+      } catch (fallbackError: unknown) {
+        return toErrorResult(fallbackError, 'chat');
+      }
     }
 
-    const parsedError = parseAPIError(error);
-    return {
-      status: 'error',
-      error: parsedError.message || 'Unknown error',
-      endpoint,
-    };
+    return toErrorResult(error, endpoint);
   } finally {
     detachExternalAbort?.();
     if (timeoutId !== undefined) {

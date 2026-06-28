@@ -444,6 +444,9 @@ describe('unifiedStorage electron save', () => {
             name: `Model ${index}`,
             group: 'default',
             providerId: 'provider-0',
+            ...(index === 0
+              ? { endpointType: 'anthropic' as const, endpointTypeCheckedAt: 123 }
+              : {}),
             enabled: true,
             createdAt: 1,
           })),
@@ -506,6 +509,11 @@ describe('unifiedStorage electron save', () => {
     );
     const providerPayload = JSON.parse(String(providerWrite?.[1]));
     expect(providerPayload.data.models).toHaveLength(MAX_AI_PROVIDER_MODELS);
+    expect(providerPayload.data.models[0]).toMatchObject({
+      apiModelId: 'model-0',
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: 123,
+    });
     expect(providerPayload.data.models.at(-1).apiModelId).toBe(`model-${MAX_AI_PROVIDER_MODELS - 1}`);
     expect(providerPayload.data.fetchedModels).toHaveLength(MAX_AI_PROVIDER_FETCHED_MODELS);
     expect(providerPayload.data.fetchedModels.at(-1)).toBe(`fetched-${MAX_AI_PROVIDER_FETCHED_MODELS - 1}`);

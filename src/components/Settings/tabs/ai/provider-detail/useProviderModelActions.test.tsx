@@ -166,4 +166,37 @@ describe('useProviderModelActions', () => {
       expect(hook.result.current.isFetchingModels).toBe(false);
     });
   });
+
+  it('does not carry stale endpoint detection into model fetches after the API key changes', async () => {
+    vi.mocked(openaiClient.getModelsWithEndpointDetection)
+      .mockResolvedValueOnce({ models: ['claude-sonnet-4-5'], endpointType: 'anthropic' });
+    const cachedProvider = {
+      ...provider,
+      endpointType: 'openai' as const,
+      endpointTypeCheckedAt: 12,
+    };
+    const { hook } = renderModelActions({
+      provider: cachedProvider,
+      draft: {
+        name: cachedProvider.name,
+        apiHost: cachedProvider.apiHost,
+        apiKey: 'sk-new',
+        enabled: cachedProvider.enabled,
+      },
+    });
+
+    await act(async () => {
+      await hook.result.current.handleFetchModels();
+    });
+
+    expect(openaiClient.getModelsWithEndpointDetection).toHaveBeenCalledTimes(1);
+    expect(openaiClient.getModelsWithEndpointDetection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'sk-new',
+        endpointType: undefined,
+        endpointTypeCheckedAt: undefined,
+      }),
+      expect.any(AbortSignal),
+    );
+  });
 });

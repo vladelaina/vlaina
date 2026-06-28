@@ -2169,6 +2169,40 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(body.messages[0].content).toContain('<web_search_request>');
   });
 
+  it('ignores managed Anthropic endpoint hints and uses the managed chat completions stream', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse([
+        'data: {"choices":[{"delta":{"content":"managed answer"}}]}',
+        'data: [DONE]',
+        '',
+      ].join('\n')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' }),
+      buildProvider({
+        id: 'vlaina-managed',
+        apiHost: 'https://api.vlaina.com/v1',
+        apiKey: '',
+        endpointType: 'anthropic',
+      }),
+      vi.fn(),
+    );
+
+    expect(result).toBe('managed answer');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.vlaina.com/v1/chat/completions');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      model: 'claude-sonnet-4-5',
+      stream: true,
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+  });
+
   it('prefetches web search context for explicit managed Claude search requests without provider tools', async () => {
     const fetchMock = vi
       .fn()

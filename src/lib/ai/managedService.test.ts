@@ -900,6 +900,35 @@ describe('managedService', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('sanitizes managed HTTP error payload types', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({
+        type: 'error',
+        error: {
+          type: 'points_exhausted',
+          message: 'Model is not available for this user',
+        },
+      }, { status: 402 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+
+    await expect(requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: true,
+      },
+      vi.fn()
+    )).rejects.toMatchObject({
+      message: 'MANAGED_QUOTA_EXHAUSTED',
+      errorCode: 'points_exhausted',
+      statusCode: 402,
+    });
+  });
+
   it('passes abort signals through managed web streams', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const controller = new AbortController();
@@ -1053,4 +1082,5 @@ describe('managedService', () => {
     expect(typeof managedChatCompletionStreamMock.mock.calls[0]?.[3]).toBe('string');
     expect(managedChatCompletionStreamMock.mock.calls[0]?.[3]).toContain('managed-stream-');
   });
+
 });

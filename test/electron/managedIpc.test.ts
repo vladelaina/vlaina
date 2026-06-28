@@ -638,6 +638,35 @@ describe('managed ipc stream bridge', () => {
     });
   });
 
+  it('extracts managed HTTP nested error types for streams', async () => {
+    const fetchWithStoredSession = vi.fn(async () => new Response(
+      JSON.stringify({
+        type: 'error',
+        error: {
+          type: 'points_exhausted',
+          message: 'quota unavailable',
+        },
+      }),
+      {
+        status: 402,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    ));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-http-error-type', {});
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-http-error-type:error'
+    );
+
+    expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-http-error-type:error', {
+      message: 'MANAGED_QUOTA_EXHAUSTED',
+      statusCode: 402,
+      errorCode: 'points_exhausted',
+    });
+  });
+
   it('bounds managed stream HTTP error body reads', async () => {
     const cancel = vi.fn();
     const encoder = new TextEncoder();

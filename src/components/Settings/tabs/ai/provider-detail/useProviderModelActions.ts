@@ -49,12 +49,15 @@ export function useProviderModelActions({
 
   const buildTempProvider = (): Provider | null => {
     if (!provider) return null;
+    const sameConnection = draft.apiHost === provider.apiHost && draft.apiKey === provider.apiKey;
     return {
       ...provider,
       name: draft.name,
       apiHost: draft.apiHost,
       apiKey: draft.apiKey,
       enabled: draft.enabled,
+      endpointType: sameConnection ? provider.endpointType : undefined,
+      endpointTypeCheckedAt: sameConnection ? provider.endpointTypeCheckedAt : undefined,
       updatedAt: Date.now(),
     };
   };

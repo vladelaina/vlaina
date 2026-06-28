@@ -66,6 +66,8 @@ export function replaceProviderModels(allModels: AIModel[], providerId: string, 
       return {
         ...model,
         createdAt: existing.createdAt,
+        endpointType: existing.endpointType,
+        endpointTypeCheckedAt: existing.endpointTypeCheckedAt,
         enabled: existing.enabled,
         pinned: existing.pinned,
       }
@@ -104,6 +106,8 @@ export function areModelsEqual(left: AIModel[], right: AIModel[]): boolean {
       model.apiModelId === other.apiModelId &&
       model.name === other.name &&
       model.providerId === other.providerId &&
+      model.endpointType === other.endpointType &&
+      model.endpointTypeCheckedAt === other.endpointTypeCheckedAt &&
       model.group === other.group &&
       model.priceTier === other.priceTier &&
       model.priceScore === other.priceScore &&

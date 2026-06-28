@@ -302,6 +302,73 @@ describe('provider action no-ops', () => {
   });
 });
 
+describe('updateProvider', () => {
+  beforeEach(() => {
+    fetchManagedModelsMock.mockReset();
+    seedAI([
+      buildProvider({
+        id: 'provider-1',
+        apiHost: 'https://old.example.com',
+        apiKey: 'sk-old',
+        endpointType: 'anthropic',
+        endpointTypeCheckedAt: 12,
+      }),
+      buildProvider({ id: 'provider-2', apiHost: 'https://other.example.com' }),
+    ], [
+      buildModel({
+        id: 'provider-1::claude-sonnet-4-5',
+        apiModelId: 'claude-sonnet-4-5',
+        endpointType: 'anthropic',
+        endpointTypeCheckedAt: 12,
+      }),
+      buildModel({
+        id: 'provider-2::claude-sonnet-4-5',
+        apiModelId: 'claude-sonnet-4-5',
+        providerId: 'provider-2',
+        endpointType: 'anthropic',
+        endpointTypeCheckedAt: 12,
+      }),
+    ]);
+    vi.mocked(saveUnifiedData).mockClear();
+  });
+
+  it('clears provider and model endpoint caches when the provider API host changes', () => {
+    actions.updateProvider('provider-1', { apiHost: 'https://new.example.com' });
+
+    const providers = useUnifiedStore.getState().data.ai?.providers || [];
+    const updatedProvider = providers.find((provider) => provider.id === 'provider-1');
+    expect(updatedProvider?.endpointType).toBeUndefined();
+    expect(updatedProvider?.endpointTypeCheckedAt).toBeUndefined();
+
+    const models = useUnifiedStore.getState().data.ai?.models || [];
+    const updatedModel = models.find((model) => model.id === 'provider-1::claude-sonnet-4-5');
+    expect(updatedModel?.endpointType).toBeUndefined();
+    expect(updatedModel?.endpointTypeCheckedAt).toBeUndefined();
+    expect(models.find((model) => model.id === 'provider-2::claude-sonnet-4-5')).toMatchObject({
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: 12,
+    });
+  });
+
+  it('clears provider and model endpoint caches when the provider API key changes', () => {
+    actions.updateProvider('provider-1', { apiKey: 'sk-new' });
+
+    const providers = useUnifiedStore.getState().data.ai?.providers || [];
+    const updatedProvider = providers.find((provider) => provider.id === 'provider-1');
+    expect(updatedProvider?.endpointType).toBeUndefined();
+    expect(updatedProvider?.endpointTypeCheckedAt).toBeUndefined();
+
+    const models = useUnifiedStore.getState().data.ai?.models || [];
+    const updatedModel = models.find((model) => model.id === 'provider-1::claude-sonnet-4-5');
+    expect(updatedModel?.endpointType).toBeUndefined();
+    expect(updatedModel?.endpointTypeCheckedAt).toBeUndefined();
+    expect(models.find((model) => model.id === 'provider-2::claude-sonnet-4-5')).toMatchObject({
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: 12,
+    });
+  });
+});
+
 describe('refreshManagedProviderInBackground', () => {
   beforeEach(() => {
     vi.useFakeTimers();

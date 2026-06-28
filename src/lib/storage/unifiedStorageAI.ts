@@ -129,11 +129,15 @@ export function normalizeLoadedAIModels(
 
     const name = normalizeLoadedString(item.name, MAX_LOADED_AI_NAME_CHARS);
     const group = normalizeLoadedString(item.group, MAX_LOADED_AI_NAME_CHARS);
+    const endpointType = normalizeEndpointType(item.endpointType);
+    const endpointTypeCheckedAt = normalizeTimestamp(item.endpointTypeCheckedAt, NaN);
     normalizedModels.push({
       id,
       apiModelId,
       name: name || generateModelName(apiModelId),
       providerId,
+      ...(endpointType ? { endpointType } : {}),
+      ...(Number.isFinite(endpointTypeCheckedAt) ? { endpointTypeCheckedAt } : {}),
       group: group || generateModelGroup(apiModelId),
       ...normalizeLoadedModelPrice(item),
       enabled: item.enabled !== false,

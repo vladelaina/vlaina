@@ -1,8 +1,17 @@
 import { actions as aiActions } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
-import { parseAPIError } from '@/lib/ai/errors';
-import { AIErrorType, type AIModel, type ChatMessage, type ChatMessageContent, type ChatSendOptions, type Provider } from '@/lib/ai/types';
+import type { AIModel, ChatMessage, ChatMessageContent, ChatSendOptions, Provider } from '@/lib/ai/types';
 import { isManagedProviderId } from '@/lib/ai/managedService';
+import {
+  type EndpointType,
+  getAlternateEndpointType,
+  getVerifiedModelEndpointType,
+  getVerifiedProviderEndpointType,
+  isLikelyAnthropicModel,
+  isTransientEndpointPreStreamError,
+  shouldTryAlternateEndpointAfterEndpointError,
+  shouldTryAnthropicEndpointDuringDiscovery,
+} from '@/lib/ai/endpointFallback';
 
 interface EndpointFallbackClient {
   sendMessage(
@@ -26,12 +35,11 @@ interface SendMessageWithEndpointFallbackOptions {
   options?: ChatSendOptions;
   client?: EndpointFallbackClient;
   updateProvider?: (providerId: string, updates: Partial<Provider>) => void;
+  updateModel?: (modelId: string, updates: Partial<AIModel>) => void;
   retryDelayMs?: number;
 }
 
 const PRE_STREAM_RETRY_DELAY_MS = 900;
-const MAX_ERROR_STATUS_STRING_CHARS = 16;
-const MAX_ERROR_CODE_STRING_CHARS = 128;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
@@ -47,66 +55,12 @@ function throwIfAborted(signal?: AbortSignal): void {
   throw createAbortError();
 }
 
-function extractStatusCode(error: unknown): number | null {
-  if (!error || typeof error !== 'object') {
-    return null;
-  }
-
-  const value = (error as { statusCode?: unknown; status?: unknown }).statusCode
-    ?? (error as { status?: unknown }).status;
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string' && value.length <= MAX_ERROR_STATUS_STRING_CHARS) {
-    const trimmed = value.trim();
-    if (!/^\d{3}$/.test(trimmed)) {
-      return null;
-    }
-    return Number.parseInt(trimmed, 10);
-  }
-
-  return null;
-}
-
-function extractErrorCode(error: unknown): string {
-  if (!error || typeof error !== 'object') {
-    return '';
-  }
-
-  const value = (error as { errorCode?: unknown; code?: unknown }).errorCode
-    ?? (error as { code?: unknown }).code;
-  return typeof value === 'string' && value.length <= MAX_ERROR_CODE_STRING_CHARS
-    ? value.trim().toLowerCase()
-    : '';
-}
-
 function isTransientPreStreamError(error: unknown, signal?: AbortSignal): boolean {
   if (isAbortError(error) && signal?.aborted) {
     return false;
   }
 
-  const statusCode = extractStatusCode(error);
-  if (statusCode != null) {
-    return statusCode === 408 || statusCode === 500 || statusCode === 502 || statusCode === 503 || statusCode === 504;
-  }
-
-  const errorCode = extractErrorCode(error);
-  if (
-    errorCode === 'upstream_rate_limited' ||
-    errorCode === 'points_exhausted' ||
-    errorCode === 'inactive_points' ||
-    errorCode === 'insufficient_points'
-  ) {
-    return false;
-  }
-  if (errorCode === 'upstream_unavailable') {
-    return true;
-  }
-
-  const parsed = parseAPIError(error);
-  return parsed.type === AIErrorType.NETWORK_ERROR
-    || parsed.type === AIErrorType.TIMEOUT
-    || parsed.type === AIErrorType.SERVER_ERROR;
+  return isTransientEndpointPreStreamError(error);
 }
 
 function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
@@ -177,6 +131,7 @@ export async function sendMessageWithEndpointFallback({
   options,
   client = openaiClient,
   updateProvider = aiActions.updateProvider,
+  updateModel = aiActions.updateModel,
   retryDelayMs = PRE_STREAM_RETRY_DELAY_MS,
 }: SendMessageWithEndpointFallbackOptions): Promise<string> {
   throwIfAborted(signal);
@@ -197,8 +152,11 @@ export async function sendMessageWithEndpointFallback({
   }
 
   const shouldAutoRetry = options?.webSearchEnabled !== true;
+  const verifiedModelEndpointType = getVerifiedModelEndpointType(model);
+  const verifiedProviderEndpointType = getVerifiedProviderEndpointType(provider);
+  const isManagedProvider = isManagedProviderId(provider.id);
 
-  if (isManagedProviderId(provider.id) || (provider.endpointType && provider.endpointTypeCheckedAt)) {
+  if (isManagedProvider) {
     return sendWithSinglePreStreamRetry(
       (trackedOnChunk) => client.sendMessage(content, history, model, provider, trackedOnChunk, signal, options),
       onChunk,
@@ -206,6 +164,66 @@ export async function sendMessageWithEndpointFallback({
       retryDelayMs,
       shouldAutoRetry,
     );
+  }
+
+  const sendWithEndpointType = (
+    endpointType: EndpointType,
+    onAttemptChunk?: () => void,
+  ) => sendWithSinglePreStreamRetry(
+    (trackedOnChunk) => client.sendMessage(
+      content,
+      history,
+      model,
+      { ...provider, endpointType },
+      (chunk) => {
+        onAttemptChunk?.();
+        trackedOnChunk(chunk);
+      },
+      signal,
+      options,
+    ),
+    onChunk,
+    signal,
+    retryDelayMs,
+    shouldAutoRetry,
+  );
+
+  const sendWithVerifiedEndpoint = async (endpointType: EndpointType): Promise<string> => {
+    if (!isLikelyAnthropicModel(model)) {
+      return await sendWithEndpointType(endpointType);
+    }
+
+    let didReceiveEndpointChunk = false;
+    try {
+      const result = await sendWithEndpointType(endpointType, () => {
+        didReceiveEndpointChunk = true;
+      });
+      throwIfAborted(signal);
+      return result;
+    } catch (error) {
+      if (
+        signal?.aborted ||
+        didReceiveEndpointChunk ||
+        options?.webSearchEnabled ||
+        !shouldTryAlternateEndpointAfterEndpointError(error)
+      ) {
+        throw error;
+      }
+
+      const alternateEndpointType = getAlternateEndpointType(endpointType);
+      const result = await sendWithEndpointType(alternateEndpointType);
+      throwIfAborted(signal);
+      updateModel(model.id, { endpointType: alternateEndpointType, endpointTypeCheckedAt: Date.now() });
+      return result;
+    }
+  };
+
+  if (verifiedModelEndpointType) {
+    return await sendWithVerifiedEndpoint(verifiedModelEndpointType);
+  }
+
+  if (verifiedProviderEndpointType) {
+    return await sendWithVerifiedEndpoint(verifiedProviderEndpointType);
   }
 
   let didReceiveOpenAIChunk = false;
@@ -242,6 +260,9 @@ export async function sendMessageWithEndpointFallback({
     if (options?.webSearchEnabled) {
       throw openAIError;
     }
+    if (!shouldTryAnthropicEndpointDuringDiscovery(openAIError)) {
+      throw openAIError;
+    }
 
     try {
       const result = await sendWithSinglePreStreamRetry(
@@ -260,7 +281,11 @@ export async function sendMessageWithEndpointFallback({
         shouldAutoRetry,
       );
       throwIfAborted(signal);
-      updateProvider(provider.id, { endpointType: 'anthropic', endpointTypeCheckedAt: Date.now() });
+      if (isLikelyAnthropicModel(model)) {
+        updateModel(model.id, { endpointType: 'anthropic', endpointTypeCheckedAt: Date.now() });
+      } else {
+        updateProvider(provider.id, { endpointType: 'anthropic', endpointTypeCheckedAt: Date.now() });
+      }
       return result;
     } catch (anthropicError) {
       throw anthropicError;

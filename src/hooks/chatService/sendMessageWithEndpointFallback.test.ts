@@ -16,7 +16,7 @@ function buildProvider(overrides: Partial<Provider> = {}): Provider {
   };
 }
 
-function buildModel(): AIModel {
+function buildModel(overrides: Partial<AIModel> = {}): AIModel {
   return {
     id: 'provider-1::claude-sonnet-4-5',
     apiModelId: 'claude-sonnet-4-5',
@@ -24,7 +24,33 @@ function buildModel(): AIModel {
     providerId: 'provider-1',
     enabled: true,
     createdAt: 1,
+    ...overrides,
   };
+}
+
+function buildOpenAIModel(): AIModel {
+  return buildModel({
+    id: 'provider-1::gpt-4o-mini',
+    apiModelId: 'gpt-4o-mini',
+    name: 'GPT 4o Mini',
+  });
+}
+
+function buildManagedProvider(): Provider {
+  return buildProvider({
+    id: 'vlaina-managed',
+    name: 'vlaina AI',
+    apiHost: 'https://api.vlaina.com/v1',
+    apiKey: '',
+  });
+}
+
+function buildManagedModel(overrides: Partial<AIModel> = {}): AIModel {
+  return buildModel({
+    id: 'vlaina-managed::claude-sonnet-4-5',
+    providerId: 'vlaina-managed',
+    ...overrides,
+  });
 }
 
 describe('sendMessageWithEndpointFallback', () => {
@@ -49,6 +75,251 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(client.sendMessage).toHaveBeenCalledTimes(1);
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
     expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('falls back to Anthropic for a Claude model even after the provider was verified as OpenAI', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('OpenAI-compatible chat failed'))
+        .mockResolvedValueOnce('anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-5', {
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
+  it('does not hide OpenAI-compatible rate limits for Claude models behind Anthropic fallback', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const rateLimitError = {
+      type: AIErrorType.RATE_LIMIT,
+      message: 'Too many requests',
+      statusCode: 429,
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(rateLimitError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        updateModel,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toBe(rateLimitError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  it('falls back to Anthropic for verified OpenAI Claude models on endpoint-shaped failures', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          type: AIErrorType.INVALID_REQUEST,
+          message: 'Not found',
+          statusCode: 404,
+        })
+        .mockResolvedValueOnce('anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+  });
+
+  it('uses a verified model endpoint type ahead of the provider endpoint type', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi.fn().mockResolvedValue('anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel({ endpointType: 'anthropic', endpointTypeCheckedAt: 1 }),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+    });
+
+    expect(result).toBe('anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  it('falls back to OpenAI when a verified model Anthropic endpoint no longer matches a Claude model', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          type: AIErrorType.INVALID_REQUEST,
+          message: 'Not found',
+          statusCode: 404,
+        })
+        .mockResolvedValueOnce('openai ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel({ endpointType: 'anthropic', endpointTypeCheckedAt: 1 }),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('openai ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-5', {
+      endpointType: 'openai',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
+  it('ignores verified model endpoint type for managed Claude models', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi.fn().mockResolvedValue('managed anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildManagedModel({ endpointType: 'anthropic', endpointTypeCheckedAt: 1 }),
+      provider: buildManagedProvider(),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+    });
+
+    expect(result).toBe('managed anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({
+      id: 'vlaina-managed',
+    });
+    expect(client.sendMessage.mock.calls[0][3].endpointType).toBeUndefined();
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back from cached managed Anthropic models on managed quota errors', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const quotaError = Object.assign(new Error('MANAGED_QUOTA_EXHAUSTED'), {
+      errorCode: 'points_exhausted',
+    });
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(quotaError),
+    };
+
+    await expect(sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildManagedModel({ endpointType: 'anthropic', endpointTypeCheckedAt: 1 }),
+      provider: buildManagedProvider(),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    })).rejects.toBe(quotaError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({
+      id: 'vlaina-managed',
+    });
+    expect(client.sendMessage.mock.calls[0][3].endpointType).toBeUndefined();
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  it('does not write endpoint state after managed success', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi.fn().mockResolvedValue('managed openai ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildManagedModel({
+        id: 'vlaina-managed::gpt-4o-mini',
+        apiModelId: 'gpt-4o-mini',
+        name: 'GPT 4o Mini',
+      }),
+      provider: buildManagedProvider(),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+    });
+
+    expect(result).toBe('managed openai ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3].endpointType).toBeUndefined();
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
   });
 
   it('retries a verified endpoint once when a transient error happens before streaming output', async () => {
@@ -122,7 +393,7 @@ describe('sendMessageWithEndpointFallback', () => {
       sendMessageWithEndpointFallback({
         content: 'hi',
         history: [],
-        model: buildModel(),
+        model: buildOpenAIModel(),
         provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
         onChunk: vi.fn(),
         client,
@@ -148,7 +419,7 @@ describe('sendMessageWithEndpointFallback', () => {
       sendMessageWithEndpointFallback({
         content: 'hi',
         history: [],
-        model: buildModel(),
+        model: buildOpenAIModel(),
         provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
         onChunk: vi.fn(),
         client,
@@ -291,7 +562,7 @@ describe('sendMessageWithEndpointFallback', () => {
       sendMessageWithEndpointFallback({
         content: 'hi',
         history: [],
-        model: buildModel(),
+        model: buildOpenAIModel(),
         provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
         onChunk: vi.fn(),
         client,
@@ -352,8 +623,46 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
+  it('falls back to OpenAI for a Claude model when the verified provider Anthropic endpoint does not match that model', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          type: AIErrorType.INVALID_REQUEST,
+          message: 'Not found',
+          statusCode: 404,
+        })
+        .mockResolvedValueOnce('openai ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'anthropic', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('openai ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-5', {
+      endpointType: 'openai',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
   it('tries Anthropic and records it when the first OpenAI-compatible chat fails before streaming output', async () => {
     const updateProvider = vi.fn();
+    const updateModel = vi.fn();
     const onChunk = vi.fn();
     const client = {
       sendMessage: vi
@@ -370,13 +679,84 @@ describe('sendMessageWithEndpointFallback', () => {
       onChunk,
       client,
       updateProvider,
+      updateModel,
     });
 
     expect(result).toBe('anthropic ok');
     expect(client.sendMessage).toHaveBeenCalledTimes(2);
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
     expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
-    expect(updateProvider).toHaveBeenCalledWith('provider-1', {
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-5', {
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
+  it('does not hide first-run OpenAI-compatible rate limits behind Anthropic discovery', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const rateLimitError = {
+      type: AIErrorType.RATE_LIMIT,
+      message: 'Too many requests',
+      statusCode: 429,
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(rateLimitError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        updateModel,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toBe(rateLimitError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  it('still probes Anthropic during first-run discovery after an OpenAI-compatible auth-shaped failure', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          type: AIErrorType.AUTH_ERROR,
+          message: 'Invalid API key or unauthorized access.',
+          statusCode: 401,
+        })
+        .mockResolvedValueOnce('anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider(),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-5', {
       endpointType: 'anthropic',
       endpointTypeCheckedAt: expect.any(Number),
     });
@@ -384,6 +764,7 @@ describe('sendMessageWithEndpointFallback', () => {
 
   it('falls back to Anthropic after repeated abort-shaped OpenAI pre-stream failures when still active', async () => {
     const updateProvider = vi.fn();
+    const updateModel = vi.fn();
     const client = {
       sendMessage: vi
         .fn()
@@ -400,6 +781,7 @@ describe('sendMessageWithEndpointFallback', () => {
       onChunk: vi.fn(),
       client,
       updateProvider,
+      updateModel,
       retryDelayMs: 0,
     });
 
@@ -408,7 +790,8 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
     expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'openai' });
     expect(client.sendMessage.mock.calls[2][3]).toMatchObject({ endpointType: 'anthropic' });
-    expect(updateProvider).toHaveBeenCalledWith('provider-1', {
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-5', {
       endpointType: 'anthropic',
       endpointTypeCheckedAt: expect.any(Number),
     });
@@ -522,6 +905,7 @@ describe('sendMessageWithEndpointFallback', () => {
 
   it('does not record Anthropic endpoint type when fallback resolves after cancellation', async () => {
     const updateProvider = vi.fn();
+    const updateModel = vi.fn();
     const controller = new AbortController();
     const client = {
       sendMessage: vi
@@ -542,6 +926,7 @@ describe('sendMessageWithEndpointFallback', () => {
         onChunk: vi.fn(),
         client,
         updateProvider,
+        updateModel,
         signal: controller.signal,
       }),
     ).rejects.toMatchObject({ name: 'AbortError' });
@@ -550,6 +935,7 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
     expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
     expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
   });
 
   it('does not forward chunks that arrive after cancellation', async () => {

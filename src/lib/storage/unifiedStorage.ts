@@ -375,6 +375,12 @@ function normalizeAIModelForSave(value: unknown, providerIds: ReadonlySet<string
   const id = typeof value.id === 'string' && value.id.trim()
     ? value.id.trim().slice(0, MAX_AI_MODEL_FIELD_CHARS)
     : `${providerId}::${apiModelId}`;
+  const endpointType = value.endpointType === 'openai' || value.endpointType === 'anthropic'
+    ? value.endpointType
+    : undefined;
+  const endpointTypeCheckedAt = typeof value.endpointTypeCheckedAt === 'number' && Number.isFinite(value.endpointTypeCheckedAt)
+    ? value.endpointTypeCheckedAt
+    : undefined;
 
   return {
     ...(value as unknown as AIModel),
@@ -383,6 +389,8 @@ function normalizeAIModelForSave(value: unknown, providerIds: ReadonlySet<string
     providerId,
     name: normalizeBoundedString(value.name, MAX_AI_MODEL_FIELD_CHARS),
     group: normalizeBoundedString(value.group, MAX_AI_MODEL_FIELD_CHARS),
+    endpointType,
+    endpointTypeCheckedAt,
     enabled: value.enabled !== false,
     pinned: value.pinned === true,
     createdAt: typeof value.createdAt === 'number' && Number.isFinite(value.createdAt)

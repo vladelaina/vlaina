@@ -71,6 +71,7 @@ export function ProviderDetail({
     endpointType: initialProvider?.endpointType,
     endpointTypeCheckedAt: initialProvider?.endpointTypeCheckedAt,
     persistedApiHost: initialProvider?.apiHost || '',
+    persistedApiKey: initialProvider?.apiKey || '',
   });
   const syncedProviderSnapshotRef = useRef({
     providerId: initialProvider?.id || '',
@@ -199,10 +200,12 @@ export function ProviderDetail({
       endpointType: initialProvider?.endpointType,
       endpointTypeCheckedAt: initialProvider?.endpointTypeCheckedAt,
       persistedApiHost: initialProvider?.apiHost || '',
+      persistedApiKey: initialProvider?.apiKey || '',
     };
   }, [
     initialProvider?.id,
     initialProvider?.apiHost,
+    initialProvider?.apiKey,
     initialProvider?.endpointType,
     initialProvider?.endpointTypeCheckedAt,
     name,
@@ -217,12 +220,14 @@ export function ProviderDetail({
         return;
       }
       const sameApiHost = draft.apiHost === draft.persistedApiHost;
+      const sameApiKey = draft.apiKey === draft.persistedApiKey;
+      const sameConnection = sameApiHost && sameApiKey;
       updateProviderRef.current(draft.providerId, {
         name: draft.name,
         apiHost: draft.apiHost,
         apiKey: draft.apiKey,
-        endpointType: sameApiHost ? draft.endpointType : undefined,
-        endpointTypeCheckedAt: sameApiHost ? draft.endpointTypeCheckedAt : undefined,
+        endpointType: sameConnection ? draft.endpointType : undefined,
+        endpointTypeCheckedAt: sameConnection ? draft.endpointTypeCheckedAt : undefined,
         updatedAt: Date.now(),
       });
     };
@@ -240,6 +245,7 @@ export function ProviderDetail({
     const sameName = name === initialProvider.name;
     const sameApiHost = apiHost === (initialProvider.apiHost || '');
     const sameApiKey = apiKey === (initialProvider.apiKey || '');
+    const sameConnection = sameApiHost && sameApiKey;
     if (sameName && sameApiHost && sameApiKey) return;
 
     const timer = setTimeout(() => {
@@ -247,8 +253,8 @@ export function ProviderDetail({
         name,
         apiKey,
         apiHost,
-        endpointType: sameApiHost ? initialProvider.endpointType : undefined,
-        endpointTypeCheckedAt: sameApiHost ? initialProvider.endpointTypeCheckedAt : undefined,
+        endpointType: sameConnection ? initialProvider.endpointType : undefined,
+        endpointTypeCheckedAt: sameConnection ? initialProvider.endpointTypeCheckedAt : undefined,
         updatedAt: Date.now(),
       });
     }, 240);
