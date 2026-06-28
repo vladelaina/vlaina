@@ -88,7 +88,7 @@ function normalizeEmailCodeInput(value: unknown): string | null {
   return EMAIL_CODE_PATTERN.test(normalized) ? normalized : null;
 }
 
-function getCurrentEmailTemplateLocale(): string {
+function getCurrentEmailAuthLocale(): string {
   return getEffectiveAppLanguage(useUIStore.getState().languagePreference);
 }
 
@@ -488,8 +488,8 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
     set({ error: null });
     try {
       const ok = hasElectronDesktopBridge()
-        ? await accountCommands.requestEmailAuthCode(normalizedEmail, getCurrentEmailTemplateLocale())
-        : await webAccountCommands.requestEmailCode(normalizedEmail, getCurrentEmailTemplateLocale());
+        ? await accountCommands.requestEmailAuthCode(normalizedEmail, getCurrentEmailAuthLocale())
+        : await webAccountCommands.requestEmailCode(normalizedEmail, getCurrentEmailAuthLocale());
       if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
         return false;
       }

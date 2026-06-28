@@ -169,6 +169,10 @@ describe('accountSession auth actions', () => {
     mocks.refreshBudget.mockClear();
     mocks.refreshBudgetIfStale.mockClear();
     mocks.clearBudget.mockClear();
+    mocks.getEffectiveAppLanguage.mockClear();
+    mocks.getEffectiveAppLanguage.mockReturnValue('zh-CN');
+    mocks.useUIStoreGetState.mockClear();
+    mocks.useUIStoreGetState.mockReturnValue({ languagePreference: 'zh-CN' });
     vi.stubGlobal('console', {
       ...console,
       info: vi.fn(),
@@ -892,6 +896,24 @@ describe('accountSession auth actions', () => {
     await expect(createRequestEmailCode(set as never, get as never)(' VLA@example.com ')).resolves.toBe(true);
 
     expect(mocks.webAccountCommands.requestEmailCode).toHaveBeenCalledWith('vla@example.com', 'zh-CN');
+  });
+
+  it('requestEmailCode sends the current app locale through the desktop bridge', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.useUIStoreGetState.mockReturnValue({ languagePreference: 'system' });
+    mocks.getEffectiveAppLanguage.mockReturnValue('ja');
+    mocks.accountCommands.requestEmailAuthCode.mockResolvedValue(true);
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: false,
+      primaryEmail: null,
+    }));
+
+    await expect(createRequestEmailCode(set as never, get as never)(' VLA@example.com ')).resolves.toBe(true);
+
+    expect(mocks.getEffectiveAppLanguage).toHaveBeenCalledWith('system');
+    expect(mocks.accountCommands.requestEmailAuthCode).toHaveBeenCalledWith('vla@example.com', 'ja');
+    expect(mocks.webAccountCommands.requestEmailCode).not.toHaveBeenCalled();
   });
 
   it('treats email code request cooldown responses as an already-sent code', async () => {
