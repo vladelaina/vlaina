@@ -69,7 +69,10 @@ describe('ManagedQuotaMeter', () => {
     expect(screen.queryByLabelText(/Managed AI quota/)).not.toBeInTheDocument();
   });
 
-  it('stays hidden when the budget exists but the remaining percentage is missing', async () => {
+  it.each([
+    ['NaN', Number.NaN],
+    ['null', null],
+  ])('stays hidden when the budget remaining percentage is %s', async (_label, remainingPercent) => {
     const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
     act(() => {
       useManagedAIStore.setState({
@@ -77,9 +80,9 @@ describe('ManagedQuotaMeter', () => {
         budget: {
           active: true,
           usedPercent: 58,
-          remainingPercent: Number.NaN,
+          remainingPercent,
           status: 'active',
-        },
+        } as never,
         isRefreshingBudget: false,
         budgetError: null,
         lastBudgetSyncAt: Date.now(),

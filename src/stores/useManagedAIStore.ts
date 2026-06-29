@@ -4,6 +4,7 @@ import {
   getManagedServiceErrorMessage,
   type ManagedBudgetStatus,
 } from '@/lib/ai/managedService'
+import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota'
 import { normalizeManagedBudgetPayload } from '@/lib/ai/managed/normalizers'
 
 interface ManagedAIState {
@@ -86,6 +87,22 @@ function clearPublishedBudgetSnapshot(): void {
   }
 }
 
+function hasKnownManagedBudgetRemaining(budget: ManagedBudgetStatus): boolean {
+  return typeof budget.remainingPercent === 'number' && Number.isFinite(budget.remainingPercent)
+}
+
+function shouldKeepCurrentBudgetSnapshot(
+  currentBudget: ManagedBudgetStatus | null,
+  nextBudget: ManagedBudgetStatus,
+): boolean {
+  return Boolean(
+    currentBudget &&
+    isManagedBudgetExhausted(currentBudget) &&
+    !isManagedBudgetExhausted(nextBudget) &&
+    !hasKnownManagedBudgetRemaining(nextBudget)
+  )
+}
+
 export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
   budget: null,
   isRefreshingBudget: false,
@@ -105,6 +122,13 @@ export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
       try {
         const budget = await fetchManagedBudget()
         if (requestVersion !== budgetMutationVersion) {
+          return
+        }
+        if (shouldKeepCurrentBudgetSnapshot(useManagedAIStore.getState().budget, budget)) {
+          set({
+            isRefreshingBudget: false,
+            budgetError: null,
+          })
           return
         }
         set({
@@ -157,6 +181,14 @@ export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
     budgetMutationVersion += 1
     budgetRefreshPromise = null
     const now = Date.now()
+    if (shouldKeepCurrentBudgetSnapshot(useManagedAIStore.getState().budget, budget)) {
+      set({
+        isRefreshingBudget: false,
+        budgetError: null,
+        lastBudgetAttemptAt: now,
+      })
+      return
+    }
     set({
       budget,
       isRefreshingBudget: false,
@@ -213,6 +245,9 @@ function registerManagedBudgetStorageListener(): void {
 
     const currentSyncAt = useManagedAIStore.getState().lastBudgetSyncAt || 0
     if (payload.syncedAt < currentSyncAt) {
+      return
+    }
+    if (shouldKeepCurrentBudgetSnapshot(useManagedAIStore.getState().budget, payload.budget)) {
       return
     }
 

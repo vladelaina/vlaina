@@ -21,6 +21,143 @@ afterEach(() => {
 });
 
 describe('useManagedAIStore', () => {
+  it('does not clear an exhausted budget with a non-exhausted snapshot that lacks remaining quota', () => {
+    const exhaustedBudget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: exhaustedBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    useManagedAIStore.getState().applyBudgetSnapshot({
+      active: true,
+      usedPercent: 0,
+      remainingPercent: Number.NaN,
+      status: 'active',
+    });
+
+    expect(useManagedAIStore.getState().budget).toBe(exhaustedBudget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
+  it('does not treat null remaining quota as an authoritative recovery snapshot', () => {
+    const exhaustedBudget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: exhaustedBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    useManagedAIStore.getState().applyBudgetSnapshot({
+      active: true,
+      usedPercent: 0,
+      remainingPercent: null,
+      status: 'active',
+    } as never);
+
+    expect(useManagedAIStore.getState().budget).toBe(exhaustedBudget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
+  it('clears an exhausted budget when the next snapshot has known remaining quota', () => {
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: {
+        active: false,
+        usedPercent: 100,
+        remainingPercent: 0,
+        status: 'exhausted',
+      },
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    const activeBudget = {
+      active: true,
+      usedPercent: 20,
+      remainingPercent: 80,
+      status: 'active',
+    };
+    useManagedAIStore.getState().applyBudgetSnapshot(activeBudget);
+
+    expect(useManagedAIStore.getState().budget).toEqual(activeBudget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).not.toBe(1_700_000_000_000);
+  });
+
+  it('keeps an exhausted budget when refresh returns an active snapshot without remaining quota', async () => {
+    const exhaustedBudget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+    fetchManagedBudgetMock.mockResolvedValueOnce({
+      active: true,
+      usedPercent: 0,
+      remainingPercent: Number.NaN,
+      status: 'active',
+    });
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: exhaustedBudget,
+      isRefreshingBudget: false,
+      budgetError: 'previous error',
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    await useManagedAIStore.getState().refreshBudget();
+
+    expect(useManagedAIStore.getState().budget).toBe(exhaustedBudget);
+    expect(useManagedAIStore.getState().isRefreshingBudget).toBe(false);
+    expect(useManagedAIStore.getState().budgetError).toBeNull();
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
+  it('ignores newer non-authoritative storage snapshots while the current budget is exhausted', () => {
+    const exhaustedBudget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: exhaustedBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: JSON.stringify({
+        budget: {
+          active: true,
+          status: 'active',
+        },
+        syncedAt: 1_700_000_000_001,
+      }),
+    }));
+
+    expect(useManagedAIStore.getState().budget).toBe(exhaustedBudget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
   it('keeps the previous budget when refresh fails', async () => {
     const previousBudget = {
       active: true,

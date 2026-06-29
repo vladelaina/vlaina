@@ -217,7 +217,7 @@ export function selectRelevantElectronAuthEntries(entries: Array<{
   return entries.slice(-40).filter((entry) => isRelevantElectronAuthEvent(entry.event));
 }
 
-export function createCheckStatus(set: Set, get: Get): (options?: { force?: boolean }) => Promise<void> {
+export function createCheckStatus(set: Set, get: Get): (options?: { force?: boolean; refreshBudget?: 'force' }) => Promise<void> {
   return async (options = {}) => {
     const requestVersion = accountSessionMutationVersion;
     if (checkStatusPromise && checkStatusPromiseVersion === requestVersion) {
@@ -268,12 +268,15 @@ export function createCheckStatus(set: Set, get: Get): (options?: { force?: bool
         const sessionBudget = status && 'budget' in status ? status.budget : null;
         const persistent = !(status && 'persistent' in status && status.persistent === false);
         let shouldRefreshBudgetIfStale = connected;
-        let shouldForceRefreshBudget = false;
+        let shouldForceRefreshBudget = connected && options.refreshBudget === 'force';
         if (connected && sessionBudget && typeof sessionBudget === 'object') {
           const normalizedBudget = normalizeManagedBudgetPayload(sessionBudget);
           useManagedAIStore.getState().applyBudgetSnapshot(normalizedBudget);
           shouldRefreshBudgetIfStale = false;
-          shouldForceRefreshBudget = !Number.isFinite(Number(normalizedBudget.remainingPercent));
+          shouldForceRefreshBudget ||= (
+            typeof normalizedBudget.remainingPercent !== 'number' ||
+            !Number.isFinite(normalizedBudget.remainingPercent)
+          );
         }
 
         if (!connected && sessionInvalidated) {

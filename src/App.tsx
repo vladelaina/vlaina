@@ -139,10 +139,10 @@ function App() {
     const addToast = useToastStore.getState().addToast;
     if (billingResult === 'success') {
       addToast(t('app.checkoutCompleted'), 'success', 5000);
-      void useAccountSessionStore.getState().checkStatus({ force: true });
+      void useAccountSessionStore.getState().checkStatus({ force: true, refreshBudget: 'force' });
 
       const timer = window.setTimeout(() => {
-        void useAccountSessionStore.getState().checkStatus({ force: true });
+        void useAccountSessionStore.getState().checkStatus({ force: true, refreshBudget: 'force' });
       }, 4000);
 
       return () => {

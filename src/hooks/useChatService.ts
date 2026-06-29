@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import {
   convertToBase64,
@@ -21,7 +21,7 @@ import { buildErrorTag } from '@/lib/ai/errorTag';
 import { AIErrorType } from '@/lib/ai/types';
 import {
   createManagedQuotaExhaustedBudgetSnapshot,
-  isRecentManagedBudgetExhausted,
+  isManagedBudgetExhausted,
 } from '@/lib/ai/managedQuota';
 import {
   isTemporarySession,
@@ -185,13 +185,8 @@ export interface RecalledComposerDraft {
   noteMentions: NoteMentionReference[];
 }
 
-function createManagedQuotaError(message: string) {
-  return {
-    type: 'QUOTA_EXHAUSTED',
-    message,
-    errorCode: 'points_exhausted',
-    statusCode: 403,
-  };
+export interface PendingRecalledComposerDraft extends RecalledComposerDraft {
+  id: number;
 }
 
 function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
@@ -199,20 +194,30 @@ function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
     return false;
   }
 
-  const { budget, lastBudgetSyncAt } = useManagedAIStore.getState();
-  return isRecentManagedBudgetExhausted(budget, lastBudgetSyncAt);
+  const { budget } = useManagedAIStore.getState();
+  return isManagedBudgetExhausted(budget);
 }
 
-function writeManagedQuotaErrorMessage(
-  sessionId: string,
-  assistantMessageId: string,
-  setError: (error: string | null) => void,
-  message: string,
-) {
-  const { message: errorMessage, xml } = buildChatErrorPayload(createManagedQuotaError(message));
-  setError(errorMessage);
-  aiActions.updateMessage(sessionId, assistantMessageId, xml);
-  aiActions.completeMessage(sessionId, assistantMessageId);
+function markManagedQuotaExhausted(): void {
+  useManagedAIStore.getState().applyBudgetSnapshot(createManagedQuotaExhaustedBudgetSnapshot());
+}
+
+function isManagedQuotaError(error: unknown): boolean {
+  return getUserFacingAIError(error).type === AIErrorType.QUOTA_EXHAUSTED;
+}
+
+function buildRecalledDraft(
+  request: ActiveComposerRequest,
+  fallbackMessage?: string,
+): RecalledComposerDraft {
+  const fallback = fallbackMessage?.trim()
+    ? fallbackMessage
+    : request.submittedText;
+  return {
+    message: fallback.trim() ? fallback : request.submittedText,
+    attachments: request.submittedAttachments,
+    noteMentions: request.submittedNoteMentions,
+  };
 }
 
 function markManagedAuthPromptForError(sessionId: string, error: unknown, managed: boolean) {
@@ -302,6 +307,8 @@ export function useChatService() {
   const { t } = useI18n();
   const { generateAutoTitle } = useAutoTitle();
   const activeComposerRequestRef = useRef<ActiveComposerRequest | null>(null);
+  const recalledDraftSequenceRef = useRef(0);
+  const [recalledComposerDraft, setRecalledComposerDraft] = useState<PendingRecalledComposerDraft | null>(null);
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
   const messages = useUnifiedStore((state) => {
     if (!currentSessionId) {
@@ -341,6 +348,77 @@ export function useChatService() {
     }
     activeComposerRequestRef.current = null;
   }, []);
+
+  const publishRecalledComposerDraft = useCallback((draft: RecalledComposerDraft) => {
+    recalledDraftSequenceRef.current += 1;
+    setRecalledComposerDraft({
+      ...draft,
+      id: recalledDraftSequenceRef.current,
+    });
+  }, []);
+
+  const clearRecalledComposerDraft = useCallback((id?: number) => {
+    setRecalledComposerDraft((current) => {
+      if (!current) {
+        return null;
+      }
+      return id == null || current.id === id ? null : current;
+    });
+  }, []);
+
+  const handleManagedQuotaErrorForComposer = useCallback((
+    request: ActiveComposerRequest,
+    error: unknown,
+  ): boolean => {
+    if (!isManagedQuotaError(error)) {
+      return false;
+    }
+
+    markManagedQuotaExhausted();
+    setError(null);
+    const recalledFromStore = request.userMessageId
+      ? aiActions.retractPendingUserRequest(
+          request.sessionId,
+          request.userMessageId,
+          request.assistantMessageId,
+        )
+      : null;
+    if (request.userMessageId && recalledFromStore === null) {
+      if (request.assistantMessageId) {
+        aiActions.completeMessage(request.sessionId, request.assistantMessageId);
+      }
+      clearActiveComposerRequest(request);
+      return true;
+    }
+
+    const recalledDraft = buildRecalledDraft(request, recalledFromStore ?? undefined);
+    if (
+      recalledFromStore !== null ||
+      recalledDraft.message.trim() ||
+      recalledDraft.attachments.length > 0 ||
+      recalledDraft.noteMentions.length > 0
+    ) {
+      publishRecalledComposerDraft(recalledDraft);
+    }
+    clearActiveComposerRequest(request);
+    return true;
+  }, [clearActiveComposerRequest, publishRecalledComposerDraft, setError]);
+
+  const handleManagedQuotaErrorForVersionRollback = useCallback((
+    sessionId: string,
+    messageId: string,
+    previousVersionIndex: number,
+    error: unknown,
+  ): boolean => {
+    if (!isManagedQuotaError(error)) {
+      return false;
+    }
+
+    markManagedQuotaExhausted();
+    setError(null);
+    aiActions.switchMessageVersion(sessionId, messageId, Math.max(0, previousVersionIndex));
+    return true;
+  }, [setError]);
 
   const stop = useCallback(() => {
     const sessionId = useAIUIStore.getState().currentSessionId;
@@ -394,14 +472,7 @@ export function useChatService() {
       : null;
     clearActiveComposerRequest(activeComposerRequest);
 
-    const fallback = fallbackMessage?.trim()
-      ? fallbackMessage
-      : activeComposerRequest.submittedText;
-    const recalledDraft: RecalledComposerDraft = {
-      message: fallback.trim() ? fallback : activeComposerRequest.submittedText,
-      attachments: activeComposerRequest.submittedAttachments,
-      noteMentions: activeComposerRequest.submittedNoteMentions,
-    };
+    const recalledDraft = buildRecalledDraft(activeComposerRequest, fallbackMessage);
 
     if (recalledFromStore !== null) {
       return recalledDraft;
@@ -476,6 +547,11 @@ export function useChatService() {
       if (isManagedProviderId(provider.id) && !isAccountConnected) {
         setError(null);
         requestManagedAccountSignIn(currentSessionId);
+        return false;
+      }
+      if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+        markManagedQuotaExhausted();
+        setError(null);
         return false;
       }
 
@@ -595,12 +671,6 @@ export function useChatService() {
         }
         composerRequest.assistantMessageId = assistantMessageId;
 
-        if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
-          writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
-          clearActiveComposerRequest(composerRequest);
-          finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
-          return;
-        }
         ensureRequestActive();
 
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -703,6 +773,12 @@ export function useChatService() {
             markManagedAuthPromptForError(targetSessionId, error, isManaged);
             return buildChatErrorPayload(error, isManaged);
           },
+          handleError: (error) => {
+            if (!isManagedProviderId(provider.id)) {
+              return false;
+            }
+            return handleManagedQuotaErrorForComposer(composerRequest, error);
+          },
           createEmptyResponseError: () => createEmptyResponseError(provider.id),
           onSuccess: ({ resolvedSessionId }) => {
             const completionSessionId = resolvedSessionId;
@@ -792,6 +868,7 @@ export function useChatService() {
       setSessionLoading,
       setError,
       clearActiveComposerRequest,
+      handleManagedQuotaErrorForComposer,
       maybeGenerateAutoTitle,
       markSessionUnread,
       isAccountConnected,
@@ -819,6 +896,11 @@ export function useChatService() {
         requestManagedAccountSignIn(sessionId);
         return;
       }
+      if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+        markManagedQuotaExhausted();
+        setError(null);
+        return;
+      }
 
       const requestStartedAt = Date.now();
       const requestController = requestManager.start(sessionId);
@@ -834,10 +916,14 @@ export function useChatService() {
         ensureRequestActive();
         const initialMessages = await hydrateSessionMessagesFromDisk(sessionId);
         ensureRequestActive();
-        if (!initialMessages.some((message) => message.id === messageId)) {
+        const targetMessageBeforeEdit = initialMessages.find((message) => message.id === messageId);
+        if (!targetMessageBeforeEdit) {
           finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
+        const previousVersionIndex = typeof targetMessageBeforeEdit.currentVersionIndex === 'number'
+          ? targetMessageBeforeEdit.currentVersionIndex
+          : 0;
 
         aiActions.editMessageAndBranch(sessionId, messageId, newContent);
 
@@ -850,12 +936,6 @@ export function useChatService() {
           touchSession: false,
         });
         if (!assistantMessageId) {
-          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
-          return;
-        }
-
-        if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
-          writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
           finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
@@ -935,6 +1015,12 @@ export function useChatService() {
             markManagedAuthPromptForError(sessionId, error, isManaged);
             return buildChatErrorPayload(error, isManaged);
           },
+          handleError: (error) => {
+            if (!isManagedProviderId(provider.id)) {
+              return false;
+            }
+            return handleManagedQuotaErrorForVersionRollback(sessionId, messageId, previousVersionIndex, error);
+          },
           createEmptyResponseError: () => createEmptyResponseError(provider.id),
           onSuccess: ({ resolvedSessionId }) => {
             addChatDebugLog('chat', 'edit resend completed', {
@@ -1005,6 +1091,7 @@ export function useChatService() {
       setError,
       setSessionLoading,
       maybeGenerateAutoTitle,
+      handleManagedQuotaErrorForVersionRollback,
       isAccountConnected,
       t,
     ],
@@ -1028,6 +1115,11 @@ export function useChatService() {
       if (isManagedProviderId(provider.id) && !isAccountConnected) {
         setError(null);
         requestManagedAccountSignIn(sessionId);
+        return;
+      }
+      if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+        markManagedQuotaExhausted();
+        setError(null);
         return;
       }
 
@@ -1057,15 +1149,13 @@ export function useChatService() {
           return;
         }
 
+        const targetMessageBeforeRegenerate = latestMessages[messageIndex];
+        const previousVersionIndex = typeof targetMessageBeforeRegenerate.currentVersionIndex === 'number'
+          ? targetMessageBeforeRegenerate.currentVersionIndex
+          : 0;
         const history = latestMessages.slice(0, messageIndex - 1);
 
         aiActions.addVersion(messageId, sessionId);
-
-        if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
-          writeManagedQuotaErrorMessage(sessionId, messageId, setError, t('chat.error.pointsExhausted'));
-          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
-          return;
-        }
 
         addChatDebugLog('chat', 'regenerate started', {
           sessionId,
@@ -1131,6 +1221,12 @@ export function useChatService() {
             const isManaged = isManagedProviderId(provider.id);
             markManagedAuthPromptForError(sessionId, error, isManaged);
             return buildChatErrorPayload(error, isManaged);
+          },
+          handleError: (error) => {
+            if (!isManagedProviderId(provider.id)) {
+              return false;
+            }
+            return handleManagedQuotaErrorForVersionRollback(sessionId, messageId, previousVersionIndex, error);
           },
           createEmptyResponseError: () => createEmptyResponseError(provider.id),
           onSuccess: ({ resolvedSessionId }) => {
@@ -1202,6 +1298,7 @@ export function useChatService() {
       setSessionLoading,
       setError,
       maybeGenerateAutoTitle,
+      handleManagedQuotaErrorForVersionRollback,
       messages,
       isAccountConnected,
       t,
@@ -1222,5 +1319,14 @@ export function useChatService() {
     [],
   );
 
-  return { sendMessage, regenerate, editMessage, switchMessageVersion, stop, stopAndRecallLastUserMessage };
+  return {
+    sendMessage,
+    regenerate,
+    editMessage,
+    switchMessageVersion,
+    stop,
+    stopAndRecallLastUserMessage,
+    recalledComposerDraft,
+    clearRecalledComposerDraft,
+  };
 }

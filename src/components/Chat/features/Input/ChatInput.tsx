@@ -34,7 +34,6 @@ import {
 } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { getCurrentVaultPath, useNotesStore } from '@/stores/notes/useNotesStore';
 import { shouldMarkPastedTextMultiline } from './chatPasteText';
-import { markBillingReturnRefreshPending } from '@/lib/billing/returnRefresh';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
@@ -47,6 +46,8 @@ interface ChatInputProps {
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void | boolean | Promise<void | boolean>;
   onStop: () => void;
   onStopAndRecall?: (lastSubmittedMessage?: string) => RecalledChatInputDraft | string | null | void;
+  recalledDraft?: RecalledChatInputDraft | null;
+  onRecalledDraftConsumed?: (id?: number) => void;
   isLoading: boolean;
   hasSelectedModel: boolean;
   isManagedQuotaExhausted?: boolean;
@@ -57,6 +58,7 @@ interface ChatInputProps {
 }
 
 interface RecalledChatInputDraft {
+  id?: number;
   message: string;
   attachments?: Attachment[];
   noteMentions?: NoteMentionReference[];
@@ -182,6 +184,8 @@ export const ChatInput = memo(function ChatInput({
   onSend,
   onStop,
   onStopAndRecall,
+  recalledDraft,
+  onRecalledDraftConsumed,
   isLoading,
   hasSelectedModel,
   isManagedQuotaExhausted = false,
@@ -685,22 +689,15 @@ export const ChatInput = memo(function ChatInput({
   );
 
   const handleUpgradeClick = useCallback(() => {
-    markBillingReturnRefreshPending();
     void openExternalHref('https://vlaina.com/r/spark_continue');
   }, []);
 
-  const handleStopButton = useCallback(() => {
-    if (!onStopAndRecall) {
-      onStop();
-      return;
-    }
-
-    const recalled = onStopAndRecall(lastSubmittedMessageRef.current);
-    const recalledDraft = typeof recalled === 'string'
-      ? { message: recalled }
-      : recalled;
+  const restoreRecalledDraft = useCallback((draft: RecalledChatInputDraft | string | null | void): boolean => {
+    const recalledDraft = typeof draft === 'string'
+      ? { message: draft }
+      : draft;
     if (!recalledDraft || typeof recalledDraft.message !== 'string') {
-      return;
+      return false;
     }
 
     const recalledMessage = limitChatComposerText(recalledDraft.message);
@@ -711,7 +708,7 @@ export const ChatInput = memo(function ChatInput({
       recalledAttachments.length === 0 &&
       recalledNoteMentions.length === 0
     ) {
-      return;
+      return false;
     }
 
     restoreAttachments(recalledAttachments);
@@ -724,16 +721,56 @@ export const ChatInput = memo(function ChatInput({
     const nextCaret = recalledMessage.length;
     handleCaretChange(nextCaret);
     scheduleComposerFocus(nextCaret);
+    return true;
   }, [
     clearHistoryNavigationOnInput,
     handleCaretChange,
     handleMessageChange,
     markExplicitMultiline,
-    onStop,
-    onStopAndRecall,
     restoreAttachments,
     restoreNoteMentions,
     scheduleComposerFocus,
+  ]);
+
+  useEffect(() => {
+    if (recalledDraft && !isQuotaSendBlocked) {
+      onRecalledDraftConsumed?.(recalledDraft.id);
+      return;
+    }
+    if (
+      recalledDraft &&
+      (
+        message.trim().length > 0 ||
+        attachments.length > 0 ||
+        noteMentions.length > 0
+      )
+    ) {
+      return;
+    }
+    if (restoreRecalledDraft(recalledDraft)) {
+      onRecalledDraftConsumed?.(recalledDraft?.id);
+    }
+  }, [
+    attachments.length,
+    isQuotaSendBlocked,
+    message,
+    noteMentions.length,
+    onRecalledDraftConsumed,
+    recalledDraft,
+    restoreRecalledDraft,
+  ]);
+
+  const handleStopButton = useCallback(() => {
+    if (!onStopAndRecall) {
+      onStop();
+      return;
+    }
+
+    restoreRecalledDraft(onStopAndRecall(lastSubmittedMessageRef.current));
+  }, [
+    onStop,
+    onStopAndRecall,
+    restoreRecalledDraft,
   ]);
 
   return (

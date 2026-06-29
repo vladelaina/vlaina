@@ -19,6 +19,15 @@ const TEMPORARY_IMAGE_DATA_URL = 'data:image/png;base64,VEVNUE9SQVJZ';
 
 const mocked = vi.hoisted(() => {
   const accountSession = { isConnected: true };
+  const managedAIState = {
+    budget: null as null | { active?: boolean; remainingPercent?: number; status?: string; usedPercent?: number },
+    lastBudgetSyncAt: null as number | null,
+    applyBudgetSnapshot: vi.fn((budget: { active?: boolean; remainingPercent?: number; status?: string; usedPercent?: number }) => {
+      managedAIState.budget = budget;
+      managedAIState.lastBudgetSyncAt = Date.now();
+    }),
+    refreshBudget: vi.fn(async () => {}),
+  };
   return {
     saveSessionJson: vi.fn(async () => {}),
     scheduleSessionJsonSave: vi.fn(),
@@ -31,12 +40,9 @@ const mocked = vi.hoisted(() => {
     useAccountSessionStore: (selector: (state: { isConnected: boolean }) => unknown) =>
       selector(accountSession),
     useManagedAIStore: {
-      getState: () => ({
-        budget: null,
-        lastBudgetSyncAt: null,
-        refreshBudget: vi.fn(async () => {}),
-      }),
+      getState: () => managedAIState,
     },
+    managedAIState,
     generateAutoTitle: vi.fn(async () => {}),
     convertToBase64: vi.fn(async () => TEMPORARY_IMAGE_DATA_URL),
     deleteAttachment: vi.fn(async () => {}),
@@ -208,6 +214,10 @@ function seedChatState() {
 
 function seedManagedSignedOutState() {
   mocked.accountSession.isConnected = false;
+  seedManagedConnectedState();
+}
+
+function seedManagedConnectedState() {
   const managedProvider: Provider = {
     ...provider,
     id: 'vlaina-managed',
@@ -238,6 +248,10 @@ describe('useChatService session context isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.accountSession.isConnected = true;
+    mocked.managedAIState.budget = null;
+    mocked.managedAIState.lastBudgetSyncAt = null;
+    mocked.managedAIState.applyBudgetSnapshot.mockClear();
+    mocked.managedAIState.refreshBudget.mockClear();
     mocked.convertToBase64.mockResolvedValue(TEMPORARY_IMAGE_DATA_URL);
     mocked.deleteAttachment.mockResolvedValue(undefined);
     useNotesStore.setState({ notesPath: '/vault', starredEntries: [] });
@@ -328,6 +342,198 @@ describe('useChatService session context isolation', () => {
     expect(useAIUIStore.getState().authPromptSessionId).toBe('session-2');
     expect(useAIUIStore.getState().generatingSessions).toEqual({});
     expect(useUnifiedStore.getState().data.ai?.messages['session-2']).toEqual(previousMessages);
+  });
+
+  it('blocks managed sends before mutating messages when quota is exhausted', async () => {
+    seedManagedConnectedState();
+    mocked.managedAIState.budget = {
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+      usedPercent: 100,
+    };
+    mocked.managedAIState.lastBudgetSyncAt = Date.now();
+    const previousMessages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('please help', [], [])).toBe(false);
+    });
+
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(useAIUIStore.getState().error).toBeNull();
+    expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']).toEqual(previousMessages);
+    expect(mocked.managedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
+  });
+
+  it('keeps blocking managed sends from an exhausted budget snapshot until budget changes', async () => {
+    seedManagedConnectedState();
+    mocked.managedAIState.budget = {
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+      usedPercent: 100,
+    };
+    mocked.managedAIState.lastBudgetSyncAt = Date.now() - 120_000;
+    const previousMessages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('please help after waiting', [], [])).toBe(false);
+    });
+
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(useAIUIStore.getState().error).toBeNull();
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']).toEqual(previousMessages);
+  });
+
+  it('recalls the submitted composer draft instead of writing a quota assistant reply', async () => {
+    seedManagedConnectedState();
+    const quotaError = Object.assign(new Error('MANAGED_QUOTA_EXHAUSTED'), {
+      errorCode: 'points_exhausted',
+      statusCode: 403,
+    });
+    mocked.sendMessageWithEndpointFallback.mockRejectedValueOnce(quotaError);
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('please help', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.recalledComposerDraft).toMatchObject({
+        message: 'please help',
+        attachments: [],
+        noteMentions: [],
+      });
+    });
+
+    const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(messages.map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+    expect(JSON.stringify(messages)).not.toContain('点数已用完');
+    expect(JSON.stringify(messages)).not.toContain('points_exhausted');
+    expect(useAIUIStore.getState().error).toBeNull();
+    expect(mocked.managedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
+  });
+
+  it('recalls the submitted composer draft when remaining quota is too small for the selected model', async () => {
+    seedManagedConnectedState();
+    mocked.managedAIState.budget = {
+      active: true,
+      remainingPercent: 1,
+      status: 'active',
+      usedPercent: 99,
+    };
+    mocked.managedAIState.lastBudgetSyncAt = Date.now();
+    const quotaError = Object.assign(new Error('Insufficient remaining points'), {
+      errorCode: 'insufficient_points',
+      statusCode: 403,
+    });
+    mocked.sendMessageWithEndpointFallback.mockRejectedValueOnce(quotaError);
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('expensive model prompt', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.recalledComposerDraft).toMatchObject({
+        message: 'expensive model prompt',
+        attachments: [],
+        noteMentions: [],
+      });
+    });
+
+    const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    expect(messages.map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+    expect(JSON.stringify(messages)).not.toContain('Insufficient remaining points');
+    expect(JSON.stringify(messages)).not.toContain('insufficient_points');
+    expect(useAIUIStore.getState().error).toBeNull();
+    expect(mocked.managedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
+  });
+
+  it('rolls back edited message branches on managed quota errors without writing an assistant quota reply', async () => {
+    seedManagedConnectedState();
+    const quotaError = Object.assign(new Error('MANAGED_QUOTA_EXHAUSTED'), {
+      errorCode: 'points_exhausted',
+      statusCode: 403,
+    });
+    mocked.sendMessageWithEndpointFallback.mockRejectedValueOnce(quotaError);
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      await result.current.editMessage('s2-user', 'edited prompt');
+    });
+
+    await waitFor(() => {
+      expect(mocked.managedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+        active: false,
+        remainingPercent: 0,
+        status: 'exhausted',
+      }));
+    });
+
+    const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    expect(messages.map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+    expect(JSON.stringify(messages)).not.toContain('点数已用完');
+    expect(JSON.stringify(messages)).not.toContain('points_exhausted');
+    expect(useAIUIStore.getState().error).toBeNull();
+  });
+
+  it('rolls back regenerated assistant versions on managed quota errors without writing an assistant quota reply', async () => {
+    seedManagedConnectedState();
+    const quotaError = Object.assign(new Error('MANAGED_QUOTA_EXHAUSTED'), {
+      errorCode: 'points_exhausted',
+      statusCode: 403,
+    });
+    mocked.sendMessageWithEndpointFallback.mockRejectedValueOnce(quotaError);
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      await result.current.regenerate('s2-assistant');
+    });
+
+    await waitFor(() => {
+      expect(mocked.managedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+        active: false,
+        remainingPercent: 0,
+        status: 'exhausted',
+      }));
+    });
+
+    const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    expect(messages.map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+    expect(JSON.stringify(messages)).not.toContain('点数已用完');
+    expect(JSON.stringify(messages)).not.toContain('points_exhausted');
+    expect(useAIUIStore.getState().error).toBeNull();
   });
 
   it('handles object provider errors without coercion', async () => {

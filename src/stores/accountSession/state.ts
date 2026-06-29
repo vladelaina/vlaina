@@ -17,7 +17,7 @@ export interface AccountSessionState {
 }
 
 export interface AccountSessionActions {
-  checkStatus: (options?: { force?: boolean }) => Promise<void>;
+  checkStatus: (options?: { force?: boolean; refreshBudget?: 'force' }) => Promise<void>;
   signIn: (provider: Exclude<AccountProvider, 'email'>) => Promise<boolean>;
   requestEmailCode: (email: string) => Promise<boolean>;
   verifyEmailCode: (email: string, code: string) => Promise<boolean>;
