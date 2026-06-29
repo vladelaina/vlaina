@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { APP_LANGUAGES } from './languages';
-import { getMessages, localizedMessages, messageKeys } from './messages';
+import { getMessages, localizedMessages, messageKeys, type MessageKey } from './messages';
+
+function expectLocalizedOutsideEnglish(keys: readonly MessageKey[]): void {
+  const englishMessages = getMessages('en');
+
+  for (const language of APP_LANGUAGES) {
+    if (language.code === 'en') continue;
+    const messages = getMessages(language.code);
+    for (const key of keys) {
+      expect(messages[key], `${language.code}:${key}`).not.toBe(englishMessages[key]);
+    }
+  }
+}
 
 describe('i18n messages', () => {
   it('provides every menu message for each supported app language', () => {
@@ -47,7 +59,6 @@ describe('i18n messages', () => {
   });
 
   it('keeps recently added editor action labels localized outside English', () => {
-    const englishMessages = getMessages('en');
     const editorActionKeys = [
       'editor.mathPlaceholder',
       'editor.mermaidPlaceholder',
@@ -56,15 +67,142 @@ describe('i18n messages', () => {
       'editor.videoUrlPlaceholder',
       'editor.videoUrlHint',
       'editor.align',
+      'editor.mermaidRenderTooLarge',
+      'editor.tocEmpty',
     ] as const;
 
-    for (const language of APP_LANGUAGES) {
-      if (language.code === 'en') continue;
-      const messages = getMessages(language.code);
-      for (const key of editorActionKeys) {
-        expect(messages[key], `${language.code}:${key}`).not.toBe(englishMessages[key]);
-      }
-    }
+    expectLocalizedOutsideEnglish(editorActionKeys);
+  });
+
+  it('keeps user-facing account and chat error labels localized outside English', () => {
+    const userFacingErrorKeys = [
+      'account.error.loginFailed',
+      'account.error.emailSignInFailed',
+      'account.error.invalidEmailAddress',
+      'account.error.alreadySignedInWithEmail',
+      'account.error.sendVerificationCodeFailed',
+      'account.error.webSignInUnavailable',
+      'account.error.invalidVerificationCode',
+      'account.error.incorrectVerificationCode',
+      'account.error.expiredVerificationCode',
+      'account.error.tooManyVerificationAttempts',
+      'account.error.secureStorageUnavailable',
+      'account.error.network',
+      'account.error.signInAgain',
+      'account.error.timeout',
+      'app.closeSaveFailedTitle',
+      'app.closeSaveFailedDescription',
+      'settings.appearance.openThemeFolderFailed',
+      'notes.exportFailed',
+      'asset.uploadFailed',
+      'chat.error.providerNotFound',
+      'chat.error.channelOff',
+      'chat.error.network',
+      'chat.error.timeout',
+      'chat.error.authExpired',
+      'chat.error.authFailed',
+      'chat.error.invalidRequest',
+      'chat.error.managedTextOnly',
+      'chat.error.pointsExhausted',
+      'chat.error.sessionLoadFailed',
+      'chat.error.deleteSessionFailed',
+      'chat.error.clearSessionsFailed',
+      'chat.newChatTitle',
+      'chat.temporaryChatTitle',
+      'chat.webSearch.searching',
+      'chat.webSearch.results',
+      'chat.webSearch.reading',
+      'chat.webSearch.complete',
+      'chat.webSearch.noRelevantResults',
+      'chat.webSearch.unableToReadPage',
+      'chat.webSearch.blockedSource',
+      'chat.webSearch.blockedPage',
+      'chat.webSearch.contentTooShort',
+      'chat.webSearch.pageTimedOut',
+      'chat.webSearch.pageUnreachable',
+      'chat.webSearch.pageHttpError',
+      'chat.webSearch.unavailable',
+      'chat.webSearch.unavailableForModel',
+    ] as const;
+
+    expectLocalizedOutsideEnglish(userFacingErrorKeys);
+  });
+
+  it('keeps accessibility labels localized outside English', () => {
+    const accessibilityKeys = [
+      'common.closeWindow',
+      'common.minimizeWindow',
+      'common.maximizeWindow',
+      'common.delete',
+      'common.icon',
+      'common.preview',
+      'command.paletteTitle',
+      'command.paletteDescription',
+      'chat.temporaryChatOn',
+      'chat.copyMessage',
+      'chat.editMessage',
+      'chat.regenerateResponse',
+      'chat.branchConversation',
+      'chat.previousMessageVersion',
+      'chat.nextMessageVersion',
+      'chat.removeAttachment',
+      'chat.attachment',
+      'icon.copyPickerLogs',
+      'icon.skinToneDefault',
+      'icon.skinToneLight',
+      'icon.skinToneMediumLight',
+      'icon.skinToneMedium',
+      'icon.skinToneMediumDark',
+      'icon.skinToneDark',
+      'editor.markdownSourceEditor',
+      'editor.dragBlock',
+      'cover.imageAlt',
+      'cover.frozenAlt',
+      'cover.previewAlt',
+      'cover.cropperAlt',
+      'sidebar.openFileMenu',
+      'sidebar.openFolderMenu',
+    ] as const;
+
+    expectLocalizedOutsideEnglish(accessibilityKeys);
+  });
+
+  it('keeps audited settings and asset labels localized outside English', () => {
+    const auditedUiKeys = [
+      'settings.appearance.colorMode',
+      'settings.appearance.colorModeDescription',
+      'settings.appearance.darkMode',
+      'settings.appearance.display',
+      'settings.appearance.lightMode',
+      'settings.appearance.systemMode',
+      'settings.appearance.theme',
+      'settings.appearance.theme.default',
+      'settings.appearance.openThemeFolder',
+      'settings.appearance.themeDescription',
+      'settings.ai.openaiCompatibleProvider',
+      'settings.ai.openaiCompatibleProviderDescription',
+      'editor.addLink',
+      'editor.highlight',
+      'chat.favorites',
+      'chat.customModels',
+      'notes.addToStarred',
+      'notes.export',
+      'notes.exported',
+      'notes.saveOrDiscardDraftsBeforeSwitchingVaults',
+      'notes.copyPathFailed',
+      'notes.openFileLocationFailed',
+      'notes.openFolderLocationFailed',
+      'notes.openInNewWindowFailed',
+      'asset.onlyImageFilesSupported',
+      'asset.fileExceedsMaxSize',
+      'asset.uploading',
+      'asset.alreadyInLibrary',
+      'asset.uploadComplete',
+      'sidebar.mobileTitle',
+      'sidebar.mobileDescription',
+    ] as const;
+
+    expectLocalizedOutsideEnglish(auditedUiKeys);
   });
 
   it('uses Traditional Chinese for editor action labels', () => {

@@ -3,6 +3,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { getStorageAdapter, isAbsolutePath, normalizeAbsolutePath, type FileInfo } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
@@ -213,7 +214,7 @@ export function useBlankWorkspaceDropOpen({
           });
         } catch (error) {
           if (!cancelled) {
-            await messageDialog(error instanceof Error ? error.message : t('notes.openDroppedFileFailed'), {
+            await messageDialog(normalizeUserFacingErrorMessage(error, 'notes.openDroppedFileFailed'), {
               title: t('notes.openFailed'),
               kind: 'error',
             });

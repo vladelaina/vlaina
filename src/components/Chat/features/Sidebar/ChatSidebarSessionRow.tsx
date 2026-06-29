@@ -111,7 +111,7 @@ function ChatSidebarSessionRowInner({
   const [contextMenuPosition, setContextMenuPosition] = useState({ top: 0, left: 0 });
   const isGenerating = useAIUIStore((state) => !!state.generatingSessions[session.id]);
   const isUnread = useAIUIStore((state) => !!state.unreadSessions[session.id]);
-  const displayTitle = session.title || 'New';
+  const displayTitle = session.title || t('chat.newChatTitle');
   const cancelHoverPrefetch = useCallback(() => {
     aiActions.cancelSessionPrefetch(session.id);
   }, [session.id]);

@@ -1,5 +1,6 @@
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import type { ChatSession } from '@/lib/ai/types';
+import { translate } from '@/lib/i18n';
 
 export interface ChatSidebarSearchEntry {
   session: ChatSession;
@@ -18,7 +19,9 @@ function getChatSidebarSearchQuery(query: string): string {
 }
 
 function getChatSidebarSearchField(value: string | undefined): string {
-  return (value || 'New').slice(0, MAX_CHAT_SIDEBAR_SEARCH_FIELD_CHARS).toLowerCase();
+  return (value || translate('chat.newChatTitle'))
+    .slice(0, MAX_CHAT_SIDEBAR_SEARCH_FIELD_CHARS)
+    .toLowerCase();
 }
 
 export function getVisibleChatSidebarSessions(sessions: ChatSession[]) {

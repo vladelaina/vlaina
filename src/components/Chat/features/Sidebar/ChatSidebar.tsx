@@ -127,8 +127,8 @@ export const ChatSidebar = memo(function ChatSidebar({
 
   const handleRename = useCallback((sessionId: string, currentTitle: string) => {
     setRenamingSessionId(sessionId);
-    setRenameDraft(currentTitle || 'New');
-  }, []);
+    setRenameDraft(currentTitle || t('chat.newChatTitle'));
+  }, [t]);
 
   const cancelRename = useCallback(() => {
     setRenamingSessionId(null);

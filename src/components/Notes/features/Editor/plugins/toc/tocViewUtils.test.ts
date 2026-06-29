@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   extractHeadings,
+  getTocEmptyText,
   MAX_TOC_VIEW_HEADING_TEXT_CHARS,
   MAX_TOC_VIEW_HEADINGS,
   normalizeTocMaxLevel,
   readBoundedTocHeadingText,
   renderTocContent,
-  TOC_EMPTY_TEXT,
 } from './tocViewUtils';
 import type { TocItem } from './types';
 
@@ -135,6 +135,6 @@ describe('tocViewUtils', () => {
       pos: 1,
     }], 2);
 
-    expect(content.querySelector('.toc-empty')).toHaveTextContent(TOC_EMPTY_TEXT);
+    expect(content.querySelector('.toc-empty')).toHaveTextContent(getTocEmptyText());
   });
 });

@@ -10,9 +10,9 @@ import {
 import {
   createHeadingsSignature,
   extractHeadings,
+  getTocEmptyText,
   normalizeTocMaxLevel,
   renderTocContent,
-  TOC_EMPTY_TEXT,
 } from './tocViewUtils';
 import { collectTocBlocks, docHasTocNode, stepSliceContainsToc } from './tocScan';
 
@@ -147,7 +147,7 @@ export const tocSchema = $node('toc', () => ({
         'data-max-level': String(maxLevel),
         class: 'toc-block md-toc'
       },
-      ['div', { class: 'toc-content md-toc-content' }, TOC_EMPTY_TEXT]
+      ['div', { class: 'toc-content md-toc-content' }, getTocEmptyText()]
     ];
   },
   parseMarkdown: {

@@ -18,6 +18,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { useI18n } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { NoteEditorFindBar } from './find/NoteEditorFindBar';
 import type { NoteEditorFindController } from './find/types';
 import { useDeferredTextStats } from './hooks/useDeferredTextStats';
@@ -116,7 +117,7 @@ export function EditorTopRightToolbar({
         title: currentNoteTitle,
       });
     } catch (error) {
-      addToast(error instanceof Error ? error.message : t('notes.exportFailed'), 'error', themeUiFeedbackTokens.errorToastDurationMs);
+      addToast(normalizeUserFacingErrorMessage(error, 'notes.exportFailed'), 'error', themeUiFeedbackTokens.errorToastDurationMs);
     }
   };
   const handleSourceModeSelect = useCallback(() => {

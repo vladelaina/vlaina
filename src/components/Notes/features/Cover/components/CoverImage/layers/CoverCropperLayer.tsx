@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import type { LoadedCoverMedia } from '../coverRenderer.types';
 import { getBaseDimensions } from '../../../utils/coverGeometry';
 import { useCoverCropperInteraction } from '../hooks/interaction/useCoverCropperInteraction';
@@ -50,6 +51,7 @@ export function CoverCropperLayer({
   onInteractionEnd,
   onMediaLoaded,
 }: CoverCropperLayerProps) {
+  const { t } = useI18n();
   const imageRef = useRef<HTMLImageElement>(null);
   const lastLoadedMediaKeyRef = useRef<string | null>(null);
 
@@ -173,7 +175,7 @@ export function CoverCropperLayer({
           key={displaySrc}
           ref={imageRef}
           src={displaySrc}
-          alt="Cover Cropper"
+          alt={t('cover.cropperAlt')}
           draggable={false}
           onLoad={emitMediaLoaded}
           className="absolute select-none pointer-events-none max-w-none"

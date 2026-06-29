@@ -63,8 +63,32 @@ export function normalizeAuthError(raw: string): string {
   if (/^incorrect verification code$/i.test(message)) {
     return translate('account.error.incorrectVerificationCode');
   }
+  if (/^invalid email address$/i.test(message)) {
+    return translate('account.error.invalidEmailAddress');
+  }
+  if (/^you are already signed in with this email$/i.test(message)) {
+    return translate('account.error.alreadySignedInWithEmail');
+  }
+  if (/^failed to send verification code\b/i.test(message)) {
+    return translate('account.error.sendVerificationCodeFailed');
+  }
+  if (/^web sign-in is unavailable on local development origins/i.test(message)) {
+    return translate('account.error.webSignInUnavailable');
+  }
   if (/^invalid verification code$/i.test(message)) {
     return translate('account.error.invalidVerificationCode');
+  }
+  if (
+    /^failed to start account sign-in$/i.test(message) ||
+    /^unable to store sign-in state in this browser session$/i.test(message) ||
+    /^account sign-in (?:state|provider) mismatch$/i.test(message) ||
+    /^unsupported (?:account|desktop) sign-in provider$/i.test(message) ||
+    /^sign-in start response is missing auth url or state$/i.test(message) ||
+    /^sign-in start response contains unsupported auth url$/i.test(message) ||
+    /^oauth state mismatch$/i.test(message) ||
+    /^(?:authorization|account sign-in) failed$/i.test(message)
+  ) {
+    return translate('account.error.loginFailed');
   }
   if (/^verification code expired\.? request a new code\.?$/i.test(message)) {
     return translate('account.error.expiredVerificationCode');

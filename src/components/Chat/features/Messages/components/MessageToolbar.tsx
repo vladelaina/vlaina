@@ -7,6 +7,7 @@ import { subscribeChatMessageCopied } from '@/components/Chat/common/copyFeedbac
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { useI18n } from '@/lib/i18n';
 
 const COPY_FEEDBACK_DURATION_MS = themeUiFeedbackTokens.copyFeedbackDurationMs;
 const COPY_FEEDBACK_CLOSING_MS = themeUiFeedbackTokens.copyFeedbackClosingMs;
@@ -42,6 +43,7 @@ export const MessageToolbar = memo(function MessageToolbar({
   onRegenerate,
   onSwitchVersion
 }: MessageToolbarProps) {
+  const { t } = useI18n();
   const [isCopied, setIsCopied] = useState(false);
   const [isCopyClosing, setIsCopyClosing] = useState(false);
   const [copyFeedbackSource, setCopyFeedbackSource] = useState<CopyFeedbackSource>(null);
@@ -157,7 +159,7 @@ export const MessageToolbar = memo(function MessageToolbar({
             {showCopyAction && (
               <button
                   type="button"
-                  aria-label="Copy message"
+                  aria-label={t('chat.copyMessage')}
                   data-chat-message-action="copy"
                   onClick={handleCopy}
                   className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, sidebarTextIconButtonClass)}
@@ -169,7 +171,7 @@ export const MessageToolbar = memo(function MessageToolbar({
             {!isCopyClosing && (
               <button
                 type="button"
-                aria-label="Regenerate response"
+                aria-label={t('chat.regenerateResponse')}
                 data-chat-message-action="regenerate"
                 onClick={onRegenerate}
                 className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
@@ -181,7 +183,7 @@ export const MessageToolbar = memo(function MessageToolbar({
             {onFork && !isCopyClosing && (
               <button
                 type="button"
-                aria-label="Branch conversation"
+                aria-label={t('chat.branchConversation')}
                 data-chat-message-action="fork"
                 onClick={onFork}
                 className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}

@@ -245,7 +245,7 @@ export const FileItem = memo(function FileItem({
       dragHandlers={effectiveDragEnabled ? dragHandlers : undefined}
       showActionsByDefault={showMenu}
       showMenuButton={showMenuButton}
-      menuButtonLabel="Open file menu"
+      menuButtonLabel={t('sidebar.openFileMenu')}
       onMenuClick={handleMenuTrigger}
       main={
         isRenaming ? (

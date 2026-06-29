@@ -35,7 +35,9 @@ function renderButton(
   const shortcutLabel = shortcutSource ? toPlatformShortcutLabel(shortcutSource) : '';
   const escapedShortcutLabel = escapeToolbarHtml(shortcutLabel);
   const shortcutAttr = escapedShortcutLabel ? `data-shortcut="${escapedShortcutLabel}"` : '';
-  const tooltipAttr = escapedShortcutLabel ? `data-tooltip="${escapedShortcutLabel}"` : '';
+  const tooltipLabel = shortcutOverride ? shortcutLabel : translate(config.tooltipKey);
+  const escapedTooltipLabel = escapeToolbarHtml(tooltipLabel);
+  const tooltipAttr = escapedTooltipLabel ? `data-tooltip="${escapedTooltipLabel}"` : '';
 
   return `
     <button class="toolbar-btn has-tooltip ${isActive ? 'active' : ''}" 
@@ -167,7 +169,7 @@ function renderCopyDeleteGroup(state: FloatingToolbarState): string {
   };
   return `
     <div class="toolbar-group">
-      ${renderButton(copiedButton, state.activeMarks, '', state.copied, state.copied ? 'Copied' : undefined)}
+      ${renderButton(copiedButton, state.activeMarks, '', state.copied, state.copied ? translate('common.copied') : undefined)}
       ${renderButton(deleteButton, state.activeMarks)}
     </div>
   `;

@@ -5,6 +5,7 @@ import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { joinPath, isWeb } from '@/lib/storage/adapter';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { useI18n } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { themeBackdropTokens, themeDomStyleTokens, themeMotionTokens } from '@/styles/themeTokens';
 
 interface CreateVaultModalProps {
@@ -177,7 +178,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                 )}
               </div>
 
-              {error && <div className="vault-modal__error">{error}</div>}
+              {error && <div className="vault-modal__error">{normalizeUserFacingErrorMessage(error)}</div>}
 
               <div className="vault-modal__actions">
                 <button className="vault-modal__btn vault-modal__btn--cancel" onClick={onClose}>

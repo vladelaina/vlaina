@@ -12,6 +12,12 @@ import { renderNoteExportElement, renderNoteExportHtml } from './noteExportHtml'
 import { resolveExportMarkdownAssetSources } from './noteExportMarkdown';
 import type { NoteExportFormat, NoteExportRequest, NoteExportResult } from './noteExportTypes';
 import { themeColorTokens } from '@/styles/themeTokens';
+import {
+  SYSTEM_LANGUAGE_PREFERENCE,
+  getEffectiveAppLanguage,
+  normalizeAppLanguagePreference,
+} from '@/lib/i18n/languages';
+import { formatMessage, getMessages } from '@/lib/i18n/messages';
 
 const EXPORT_EXTENSIONS: Record<NoteExportFormat, string> = {
   docx: 'docx',
@@ -29,6 +35,19 @@ const EXPORT_FILTERS: Record<NoteExportFormat, { name: string; extensions: strin
 const MAX_EXPORT_MARKDOWN_CHARS = 2 * 1024 * 1024;
 const MAX_PNG_EXPORT_BYTES = 50 * 1024 * 1024;
 export const MAX_NOTE_EXPORT_OUTPUT_BYTES = 64 * 1024 * 1024;
+const STORAGE_KEY_LANGUAGE_PREFERENCE = 'vlaina-language-preference';
+
+function translateExportMessage(title: string): string {
+  let storedPreference: string | null = null;
+  try {
+    storedPreference = localStorage.getItem(STORAGE_KEY_LANGUAGE_PREFERENCE);
+  } catch {
+    storedPreference = null;
+  }
+  const preference = normalizeAppLanguagePreference(storedPreference) ?? SYSTEM_LANGUAGE_PREFERENCE;
+  const language = getEffectiveAppLanguage(preference);
+  return formatMessage(getMessages(language)['notes.exported'], { title });
+}
 
 function sanitizeFileName(value: string): string {
   return value
@@ -197,7 +216,7 @@ export async function exportNote(request: NoteExportRequest): Promise<NoteExport
           : await saveExportBytes(request.format, title, await createPngBytes(markdown, title), 'image/png');
 
   if (!result.canceled) {
-    useToastStore.getState().addToast(`Exported ${title}`, 'success');
+    useToastStore.getState().addToast(translateExportMessage(title), 'success');
   }
 
   return result;

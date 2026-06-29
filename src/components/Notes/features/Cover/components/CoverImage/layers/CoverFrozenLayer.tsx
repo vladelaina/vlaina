@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { themeCoverLayerTokens, themeMotionTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface CoverFrozenLayerProps {
@@ -14,6 +15,8 @@ export function CoverFrozenLayer({
   frozenImgRef,
   frozenImageState,
 }: CoverFrozenLayerProps) {
+  const { t } = useI18n();
+
   return (
     <div
       className={cn(
@@ -25,7 +28,7 @@ export function CoverFrozenLayer({
         <img
           ref={frozenImgRef}
           src={displaySrc}
-          alt="Frozen Cover"
+          alt={t('cover.frozenAlt')}
           style={{
             position: 'absolute',
             top: frozenImageState?.top ?? 0,

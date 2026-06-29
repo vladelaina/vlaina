@@ -65,8 +65,8 @@ export function ExternalStarredEntryRow({
     notesPath: entry.vaultPath,
     itemPath: entry.relativePath,
     openLocationErrorMessage: entry.kind === 'folder'
-      ? 'Failed to open folder location.'
-      : 'Failed to open file location.',
+      ? t('notes.openFolderLocationFailed')
+      : t('notes.openFileLocationFailed'),
   });
 
   const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {

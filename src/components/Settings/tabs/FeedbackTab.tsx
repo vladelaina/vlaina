@@ -59,7 +59,7 @@ function normalizeFeedbackError(error: unknown, t: ReturnType<typeof useI18n>['t
   if (/failed to fetch|network|load failed/i.test(message)) {
     return t('settings.feedback.error.network');
   }
-  return message || t('settings.feedback.error.generic');
+  return t('settings.feedback.error.generic');
 }
 
 export function FeedbackTab({ compact = false }: { compact?: boolean }) {

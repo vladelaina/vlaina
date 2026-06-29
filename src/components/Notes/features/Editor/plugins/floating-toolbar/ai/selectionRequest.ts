@@ -27,8 +27,8 @@ import {
   getSerializedSelectionText,
 } from './selectionEditing';
 import {
-  AI_SELECTION_RESULT_TOO_LARGE_MESSAGE,
-  AI_SELECTION_TOO_LARGE_MESSAGE,
+  getAiSelectionResultTooLargeMessage,
+  getAiSelectionTooLargeMessage,
   isAiSelectionRangeTooLarge,
   isAiSelectionTextTooLarge,
 } from './selectionLimits';
@@ -137,18 +137,17 @@ async function requestAiEdit(
 
   try {
     if (trimmedInstruction.length > MAX_EDITOR_AI_INSTRUCTION_CHARS) {
-      return reportError('AI instruction is too large.');
+      return reportError(translate('editor.ai.instructionTooLarge'));
     }
     assertEnglishPromptText('requestAiEdit.instruction', trimmedInstruction);
     assertEnglishPromptText('requestAiEdit.systemPrompt', EDITOR_AI_SYSTEM_PROMPT);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'AI prompt must be English-only.';
-    return reportError(message);
+  } catch {
+    return reportError(translate('editor.ai.promptEnglishOnly'));
   }
 
   const resolved = getSelectedModelAndProvider();
   if (!resolved) {
-    return reportError('Please configure and select an AI model first.');
+    return reportError(translate('editor.ai.modelRequired'));
   }
 
   const { model, provider } = resolved;
@@ -167,10 +166,10 @@ async function requestAiEdit(
     const normalized = normalizeAiEditedText(result);
 
     if (normalized.length === 0) {
-      return reportError('AI returned an empty result.');
+      return reportError(translate('editor.ai.emptyResult'));
     }
     if (isAiSelectionTextTooLarge(normalized)) {
-      return reportError(AI_SELECTION_RESULT_TOO_LARGE_MESSAGE);
+      return reportError(getAiSelectionResultTooLargeMessage());
     }
 
     return {
@@ -188,7 +187,7 @@ async function requestAiEdit(
     const fallbackMessage =
       error instanceof Error && error.message.trim().length > 0
         ? error.message
-        : 'Failed to edit the selected text with AI.';
+        : translate('editor.ai.editFailed');
     const isManaged = isManagedProviderId(provider.id);
     const normalized = isManaged ? getUserFacingAIError(error) : null;
     const message = normalized?.message || fallbackMessage;
@@ -240,12 +239,12 @@ export async function createAiSelectionSuggestionResult(
   }
 
   if (!selectionSource && isAiSelectionRangeTooLarge(from, to)) {
-    return reportSelectionError(AI_SELECTION_TOO_LARGE_MESSAGE);
+    return reportSelectionError(getAiSelectionTooLargeMessage());
   }
 
   const selectedText = selectionSource?.originalText ?? getSerializedSelectionText(view);
   if (isAiSelectionTextTooLarge(selectedText)) {
-    return reportSelectionError(AI_SELECTION_TOO_LARGE_MESSAGE);
+    return reportSelectionError(getAiSelectionTooLargeMessage());
   }
   if (selectedText.trim().length === 0) {
     useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
@@ -311,10 +310,11 @@ export async function retryAiSelectionSuggestionResult(
   options?: AiRequestOptions
 ): Promise<AiSelectionSuggestionResult> {
   if (isAiSelectionTextTooLarge(suggestion.originalText)) {
+    const message = getAiSelectionTooLargeMessage();
     if (!options?.suppressToast) {
-      useToastStore.getState().addToast(AI_SELECTION_TOO_LARGE_MESSAGE, 'warning');
+      useToastStore.getState().addToast(message, 'warning');
     }
-    return { suggestion: null, errorMessage: AI_SELECTION_TOO_LARGE_MESSAGE };
+    return { suggestion: null, errorMessage: message };
   }
 
   const context = boundSelectionContext({

@@ -5,6 +5,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { selectMarkdownBodyLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { NoteHeader } from './NoteHeader';
 import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
 import { DEFAULT_HEIGHT as DEFAULT_COVER_HEIGHT } from '../Cover/utils/coverConstants';
@@ -694,6 +695,7 @@ function MarkdownSourceEditor({
   saveNote: (options?: { explicit?: boolean }) => Promise<void>;
   mode: 'source' | 'fallback';
 }) {
+  const { t } = useI18n();
   const updateContent = useNotesStore((state) => state.updateContent);
   const currentNoteContent = useNotesStore(
     useCallback((state) => (
@@ -908,7 +910,7 @@ function MarkdownSourceEditor({
         }}
         onBlur={flushSave}
         spellCheck={false}
-        aria-label="Markdown source editor"
+        aria-label={t('editor.markdownSourceEditor')}
         className="block min-h-[var(--vlaina-height-prosemirror-min)] w-full resize-none overflow-hidden bg-transparent px-0 py-2 pb-[var(--vlaina-height-prosemirror-bottom-padding)] font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"
       />
     </div>

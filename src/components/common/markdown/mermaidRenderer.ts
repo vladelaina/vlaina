@@ -169,7 +169,7 @@ function createMermaidRenderContainer(): HTMLElement | undefined {
 
 export async function renderMermaid(code: string, id: string): Promise<string> {
   if (code.length > MAX_MERMAID_CODE_CHARS) {
-    return '<div class="mermaid-error">Mermaid Error: Diagram is too large to render.</div>';
+    return `<div class="mermaid-error">${escapeHtmlText(translate('editor.mermaidRenderTooLarge'))}</div>`;
   }
 
   const mermaid = await getMermaid();

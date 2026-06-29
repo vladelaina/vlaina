@@ -11,6 +11,7 @@ import { resolveStarredNoteContext } from '@/stores/notes/starred';
 import { cn } from '@/lib/utils';
 import { scheduleSidebarItemIntoView } from '@/components/Notes/features/common/sidebarScrollIntoView';
 import { truncateNoteLabel } from '@/components/Notes/features/common/truncateNoteLabel';
+import { useI18n } from '@/lib/i18n';
 
 interface NotePathBreadcrumbProps {
   notePath: string;
@@ -167,7 +168,8 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const setPendingStarredNavigation = useNotesStore((s) => s.setPendingStarredNavigation);
-  const vaultName = useVaultStore((s) => s.currentVault?.name ?? 'Root');
+  const { t } = useI18n();
+  const vaultName = useVaultStore((s) => s.currentVault?.name) ?? t('app.viewNotes');
   const openVault = useVaultStore((s) => s.openVault);
   const [homePath, setHomePath] = useState(() => getCachedDesktopHomePath());
   const displayName = useDisplayName(notePath);

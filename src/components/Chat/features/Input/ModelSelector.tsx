@@ -361,7 +361,7 @@ export function ModelSelector({
       const pinnedCount = filteredModels.filter((model) => model.pinned).length;
       categories.push({
           id: 'favorites',
-          name: 'Favorites',
+          name: t('chat.favorites'),
           icon: null,
           kind: 'favorites',
           count: pinnedCount,
@@ -386,7 +386,7 @@ export function ModelSelector({
       if (customCount > 0) {
           categories.push({
               id: 'custom',
-              name: 'Custom',
+              name: t('chat.customModels'),
               icon: null,
               kind: 'custom',
               count: customCount,
@@ -394,7 +394,7 @@ export function ModelSelector({
       }
 
       return categories;
-  }, [filteredModels]);
+  }, [filteredModels, t]);
 
   const visibleActiveCategoryId = useMemo(() => {
       if (activeCategoryId && modelCategories.some((category) => category.id === activeCategoryId)) {

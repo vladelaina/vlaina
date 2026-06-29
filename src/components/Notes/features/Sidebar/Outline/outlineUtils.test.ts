@@ -3,6 +3,7 @@ import {
   areOutlineHeadingsEqual,
   createOutlineHeadingId,
   getHeadingLevelFromTagName,
+  getOutlineFallbackText,
   MAX_OUTLINE_HEADING_TEXT_CHARS,
   normalizeHeadingText,
   readBoundedHeadingText,
@@ -18,7 +19,7 @@ describe('outlineUtils', () => {
 
   it('normalizes heading text and falls back for blank values', () => {
     expect(normalizeHeadingText('  Hello   World  ')).toBe('Hello World');
-    expect(normalizeHeadingText('   ')).toBe('Untitled');
+    expect(normalizeHeadingText('   ')).toBe(getOutlineFallbackText());
   });
 
   it('reads heading text from text nodes with a fixed budget', () => {

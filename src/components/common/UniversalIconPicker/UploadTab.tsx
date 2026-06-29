@@ -184,7 +184,7 @@ export function UploadTab({
                                 <img
                                     src={imageSrc}
                                     className="max-w-full max-h-full object-contain"
-                                    alt="Preview"
+                                    alt={t('cover.previewAlt')}
                                 />
                                 <div className="absolute bottom-3 left-3 bg-[var(--vlaina-color-overlay)] text-[var(--vlaina-color-inverse-text)] text-[var(--vlaina-font-10)] px-2 py-1 rounded-full backdrop-blur-[var(--vlaina-backdrop-blur-sm)] border border-[var(--vlaina-color-panel-border)] flex items-center gap-1.5 pointer-events-none">
                                     <span className="relative flex h-2 w-2">

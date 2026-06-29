@@ -1,4 +1,5 @@
 import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
+import { translate } from '@/lib/i18n';
 
 interface BlockControlsDom {
   controls: HTMLDivElement;
@@ -15,7 +16,7 @@ export function createBlockControlsDom(doc: Document): BlockControlsDom {
   const handleButton = doc.createElement('button');
   handleButton.type = 'button';
   handleButton.className = 'editor-block-control-btn editor-block-control-handle';
-  handleButton.setAttribute('aria-label', 'Drag block');
+  handleButton.setAttribute('aria-label', translate('editor.dragBlock'));
   handleButton.setAttribute('data-no-block-controls', 'true');
   handleButton.setAttribute('data-no-editor-drag-box', 'true');
   handleButton.draggable = false;

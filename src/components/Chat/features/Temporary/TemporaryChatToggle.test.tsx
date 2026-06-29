@@ -182,7 +182,7 @@ describe("TemporaryChatToggle", () => {
     expect(screen.getByText("Enable temporary chat")).toBeInTheDocument();
     expect(screen.getByText("Ctrl+Shift+J")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Enable Temporary Chat" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enable temporary chat" }));
 
     expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(true);
   });
@@ -205,7 +205,7 @@ describe("TemporaryChatToggle", () => {
     expect(screen.getByText("Disable temporary chat")).toBeInTheDocument();
     expect(screen.getByText("Ctrl+Shift+J")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
+    fireEvent.click(screen.getByRole("button", { name: "Temporary chat is on" }));
 
     expect(mocks.openNewChat).toHaveBeenCalledTimes(1);
     expect(mocks.toggleTemporaryChat).not.toHaveBeenCalled();
@@ -239,7 +239,7 @@ describe("TemporaryChatToggle", () => {
     mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="toggle" />);
-    fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
+    fireEvent.click(screen.getByRole("button", { name: "Temporary chat is on" }));
 
     expect(mocks.openNewChat).toHaveBeenCalledTimes(1);
     expect(mocks.toggleTemporaryChat).not.toHaveBeenCalled();
@@ -252,7 +252,7 @@ describe("TemporaryChatToggle", () => {
     mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="toggle" />);
-    fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
+    fireEvent.click(screen.getByRole("button", { name: "Temporary chat is on" }));
 
     expect(mocks.toggleTemporaryChat).not.toHaveBeenCalled();
     expect(mocks.openNewChat).not.toHaveBeenCalled();

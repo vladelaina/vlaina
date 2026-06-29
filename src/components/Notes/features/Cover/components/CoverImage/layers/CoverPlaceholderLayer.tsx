@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { calculateCropPixels, getBaseDimensions } from '../../../utils/coverGeometry';
 import { themeCoverLayerTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
@@ -27,6 +28,7 @@ export function CoverPlaceholderLayer({
   objectFitMode,
   forceVisible = false,
 }: CoverPlaceholderLayerProps) {
+  const { t } = useI18n();
   const hasDisplaySrc = Boolean(displaySrc);
 
   const hasPreciseGeometry = Boolean(mediaSize && effectiveContainerSize);
@@ -79,7 +81,7 @@ export function CoverPlaceholderLayer({
     <img
       key={displaySrc}
       src={displaySrc}
-      alt="Cover"
+      alt={t('cover.imageAlt')}
       className={cn(
         'absolute max-w-none pointer-events-none select-none',
         baseDimensions ? 'object-none' : 'object-none',

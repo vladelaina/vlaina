@@ -158,6 +158,16 @@ describe('getUserFacingAIError', () => {
     });
   });
 
+  it('localizes web search model capability failures', () => {
+    const result = getUserFacingAIError(new Error('Web search is unavailable for this model.'));
+
+    expect(result).toEqual({
+      type: AIErrorType.INVALID_REQUEST,
+      code: '',
+      message: 'Web search is unavailable for this model.',
+    });
+  });
+
   it('keeps low-signal server messages normalized to the upstream fallback copy', () => {
     const result = getUserFacingAIError(new Error('Internal server error'));
 
@@ -193,7 +203,7 @@ describe('getUserFacingAIError', () => {
     });
   });
 
-  it('maps managed upstream 403 proxy failures to an actionable provider message', () => {
+  it('maps managed upstream 403 proxy failures to the upstream fallback copy', () => {
     const result = getUserFacingAIError(
       new Error(
         'Managed API failed with status 403: {"error":{"message":"openai_error","type":"bad_response_status_code","param":"","code":"bad_response_status_code"}}'
@@ -203,8 +213,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.SERVER_ERROR,
       code: '403',
-      message:
-        'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
     });
   });
 
@@ -272,7 +281,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: '403',
-      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
+      message: 'Points exhausted',
     });
   });
 
@@ -285,7 +294,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: '403',
-      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
+      message: 'Points exhausted',
     });
   });
 
@@ -299,7 +308,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: 'points_exhausted',
-      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
+      message: 'Points exhausted',
     });
   });
 
@@ -316,7 +325,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: 'insufficient_points',
-      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
+      message: 'Points exhausted',
     });
   });
 });
@@ -459,11 +468,24 @@ describe('parseHTTPError', () => {
   it('does not expose HTML error documents as provider messages', () => {
     expect(parseHTTPError(524, '<!DOCTYPE html><html><head><title>nekotick.org | 524: A timeout occurred</title></head><body>Cloudflare Error code 524</body></html>')).toMatchObject({
       type: AIErrorType.UNKNOWN,
-      message: 'HTTP 524 Error',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
       statusCode: 524,
     });
 
     expect(getUserFacingAIError(parseHTTPError(524, '<!DOCTYPE html><html><body>Cloudflare Error code 524</body></html>')).message)
       .toBe('๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~');
+  });
+
+  it('uses localized fallback messages when HTTP errors have no readable body', () => {
+    expect(parseHTTPError(401)).toMatchObject({
+      type: AIErrorType.AUTH_ERROR,
+      message: 'Authentication failed. Check your API key or sign in again.',
+      statusCode: 401,
+    });
+    expect(parseHTTPError(400)).toMatchObject({
+      type: AIErrorType.INVALID_REQUEST,
+      message: 'Invalid request. Check your input and try again.',
+      statusCode: 400,
+    });
   });
 });

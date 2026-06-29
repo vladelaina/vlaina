@@ -4,6 +4,7 @@ import {
   MAX_MARKDOWN_AST_NODES,
   countMarkdownAstNodes,
 } from './markdownAstBudget';
+import { translate } from '@/lib/i18n';
 
 function textParagraph(value: string): TocMdastNode {
   return {
@@ -84,6 +85,22 @@ describe('tocMarkdown', () => {
     expect(tree.children?.filter((child) => child.data?.hProperties?.dataType === 'toc')).toHaveLength(8);
     expect(tree.children?.[8]).toEqual(textParagraph('[TOC]'));
     expect(tree.children?.[9]).toEqual(textParagraph('[TOC]'));
+  });
+
+  it('uses the localized empty text when there are no headings', () => {
+    const tree: TocMdastNode = {
+      type: 'root',
+      children: [
+        textParagraph('[TOC]'),
+      ],
+    };
+
+    applyTocShortcutsToTree(tree);
+
+    expect(tree.children?.[0].children?.[0].children?.[0].children?.[0]).toEqual({
+      type: 'text',
+      value: translate('editor.tocEmpty'),
+    });
   });
 
   it('does not trim overlong text nodes while matching TOC shortcuts', () => {

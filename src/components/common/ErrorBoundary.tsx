@@ -30,6 +30,9 @@ const FALLBACK_MESSAGES = {
   'common.errorDetails': 'Error details',
   'common.copied': 'Copied',
   'common.copyErrorReport': 'Copy error report',
+  'common.closeWindow': 'Close window',
+  'common.minimizeWindow': 'Minimize window',
+  'common.maximizeWindow': 'Maximize window',
   'common.openLogFolder': 'Open log folder',
   'common.tryAgain': 'Try again',
   'common.reload': 'Reload',
@@ -91,19 +94,19 @@ function ErrorMacOSTrafficLightControls() {
     <div className="absolute left-3 top-0 z-[var(--vlaina-z-60)] flex h-10 items-center gap-2">
       <button
         type="button"
-        aria-label="Close window"
+        aria-label={safeTranslate('common.closeWindow')}
         onClick={() => void getElectronBridge()?.window?.close?.()}
         className={`${buttonClass} bg-[#ff5f57]`}
       />
       <button
         type="button"
-        aria-label="Minimize window"
+        aria-label={safeTranslate('common.minimizeWindow')}
         onClick={() => void getElectronBridge()?.window?.minimize?.()}
         className={`${buttonClass} bg-[#febc2e]`}
       />
       <button
         type="button"
-        aria-label="Maximize window"
+        aria-label={safeTranslate('common.maximizeWindow')}
         onClick={() => void getElectronBridge()?.window?.toggleMaximize?.()}
         className={`${buttonClass} bg-[#28c840]`}
       />
@@ -124,19 +127,19 @@ function ErrorWindowChrome() {
       {!useMacOSLayout ? (
         <div className="app-no-drag flex shrink-0">
           <ErrorWindowButton
-            label="Minimize window"
+            label={safeTranslate('common.minimizeWindow')}
             onClick={() => void getElectronBridge()?.window?.minimize?.()}
           >
             -
           </ErrorWindowButton>
           <ErrorWindowButton
-            label="Maximize window"
+            label={safeTranslate('common.maximizeWindow')}
             onClick={() => void getElectronBridge()?.window?.toggleMaximize?.()}
           >
             □
           </ErrorWindowButton>
           <ErrorWindowButton
-            label="Close window"
+            label={safeTranslate('common.closeWindow')}
             onClick={() => void getElectronBridge()?.window?.close?.()}
             className="hover:bg-[var(--vlaina-color-danger)] hover:text-[var(--vlaina-color-white)]"
           >

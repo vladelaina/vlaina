@@ -1,5 +1,6 @@
 import { Slice } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import { normalizeSerializedMarkdownSelection } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { useToastStore } from '@/stores/useToastStore';
 import { serializeSliceToText } from '../../clipboard/serializer';
@@ -9,8 +10,8 @@ import { markEditorUserInput } from '../../shared/userInputEvents';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import type { AiSelectionSuggestion } from './selectionCommandTypes';
 import {
-  AI_SELECTION_RESULT_TOO_LARGE_MESSAGE,
-  AI_SELECTION_TOO_LARGE_MESSAGE,
+  getAiSelectionResultTooLargeMessage,
+  getAiSelectionTooLargeMessage,
   isAiSelectionRangeTooLarge,
   isAiSelectionTextTooLarge,
 } from './selectionLimits';
@@ -212,7 +213,7 @@ export function applyAiSelectionSuggestion(
 ): boolean {
   if (hasSelectedBlocks(view.state)) {
     useToastStore.getState().addToast(
-      'Clear the block selection before applying an AI edit.',
+      translate('editor.ai.clearBlockSelection'),
       'warning'
     );
     return false;
@@ -225,18 +226,18 @@ export function applyAiSelectionSuggestion(
     isAiSelectionRangeTooLarge(from, to) ||
     isAiSelectionTextTooLarge(suggestion.originalText)
   ) {
-    useToastStore.getState().addToast(AI_SELECTION_TOO_LARGE_MESSAGE, 'warning');
+    useToastStore.getState().addToast(getAiSelectionTooLargeMessage(), 'warning');
     return false;
   }
 
   if (isAiSelectionTextTooLarge(suggestion.suggestedText)) {
-    useToastStore.getState().addToast(AI_SELECTION_RESULT_TOO_LARGE_MESSAGE, 'warning');
+    useToastStore.getState().addToast(getAiSelectionResultTooLargeMessage(), 'warning');
     return false;
   }
 
   if (!isOriginalSelectionStillCurrent(view, from, to, suggestion.originalText)) {
     useToastStore.getState().addToast(
-      'The selected text changed before the AI result was applied.',
+      translate('editor.ai.selectionChanged'),
       'warning'
     );
     return false;

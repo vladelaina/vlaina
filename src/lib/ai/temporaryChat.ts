@@ -1,6 +1,8 @@
 import type { ChatMessage, ChatSession } from '@/lib/ai/types';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { replaceRenderableMessageImageTokens } from '@/lib/markdown/renderableImageTokens';
+import { getMessageVariants } from '@/lib/i18n/messages';
+import { translate } from '@/lib/i18n/runtime';
 
 export const TEMP_SESSION_PREFIX = 'temp-session-';
 
@@ -16,7 +18,7 @@ export function createTemporarySession(modelId: string): ChatSession {
   const now = Date.now();
   return {
     id: `${TEMP_SESSION_PREFIX}${crypto.randomUUID()}`,
-    title: 'Temporary Chat',
+    title: translate('chat.temporaryChatTitle'),
     modelId,
     createdAt: now,
     updatedAt: now
@@ -69,7 +71,11 @@ export function hasUserMessage(messages: ChatMessage[]): boolean {
 }
 
 const TITLE_SOURCE_MAX_LENGTH = 1200;
-const AUTO_TITLE_PLACEHOLDERS = new Set(['New', 'New Chat']);
+const AUTO_TITLE_PLACEHOLDERS = new Set([
+  'New',
+  'New Chat',
+  ...getMessageVariants('chat.newChatTitle'),
+]);
 
 export function needsAutoTitle(title: string | null | undefined): boolean {
   const normalizedTitle = title?.trim() ?? '';

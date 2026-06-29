@@ -615,8 +615,9 @@ describe('accountSession auth actions', () => {
     expect(sessionStorage.getItem('vlaina_auth_state')).toBeNull();
     expect(sessionStorage.getItem('vlaina_auth_provider')).toBeNull();
     expect(window.location.hash).toBe(initialHash);
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Failed to start account sign-in');
     expect(set).toHaveBeenLastCalledWith({
-      error: 'Failed to start account sign-in',
+      error: 'normalized:Failed to start account sign-in',
       isConnecting: false,
     });
   });
@@ -643,8 +644,9 @@ describe('accountSession auth actions', () => {
     expect(sessionStorage.getItem('vlaina_auth_state')).toBeNull();
     expect(sessionStorage.getItem('vlaina_auth_provider')).toBeNull();
     expect(window.location.hash).toBe(initialHash);
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Failed to start account sign-in');
     expect(set).toHaveBeenLastCalledWith({
-      error: 'Failed to start account sign-in',
+      error: 'normalized:Failed to start account sign-in',
       isConnecting: false,
     });
   });
@@ -672,8 +674,9 @@ describe('accountSession auth actions', () => {
 
     expect(result).toBe(false);
     expect(window.location.hash).toBe(initialHash);
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Unable to store sign-in state in this browser session');
     expect(set).toHaveBeenLastCalledWith({
-      error: 'Unable to store sign-in state in this browser session',
+      error: 'normalized:Unable to store sign-in state in this browser session',
       isConnecting: false,
     });
   });
@@ -864,8 +867,10 @@ describe('accountSession auth actions', () => {
     ).resolves.toBe(false);
 
     expect(mocks.webAccountCommands.requestEmailCode).not.toHaveBeenCalled();
-    expect(set).toHaveBeenNthCalledWith(1, { error: 'Invalid email address' });
-    expect(set).toHaveBeenNthCalledWith(2, { error: 'You are already signed in with this email' });
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Invalid email address');
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('You are already signed in with this email');
+    expect(set).toHaveBeenNthCalledWith(1, { error: 'normalized:Invalid email address' });
+    expect(set).toHaveBeenNthCalledWith(2, { error: 'normalized:You are already signed in with this email' });
   });
 
   it('requestEmailCode rejects oversized emails before trimming them', async () => {
@@ -881,7 +886,8 @@ describe('accountSession auth actions', () => {
     ).resolves.toBe(false);
 
     expect(mocks.webAccountCommands.requestEmailCode).not.toHaveBeenCalled();
-    expect(set).toHaveBeenLastCalledWith({ error: 'Invalid email address' });
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Invalid email address');
+    expect(set).toHaveBeenLastCalledWith({ error: 'normalized:Invalid email address' });
   });
 
   it('requestEmailCode sends normalized emails to the account API', async () => {
@@ -1022,9 +1028,11 @@ describe('accountSession auth actions', () => {
     ).resolves.toBe(false);
 
     expect(mocks.webAccountCommands.verifyEmailCode).not.toHaveBeenCalled();
-    expect(set).toHaveBeenNthCalledWith(1, { error: 'Invalid email address' });
-    expect(set).toHaveBeenNthCalledWith(2, { error: 'Invalid verification code' });
-    expect(set).toHaveBeenNthCalledWith(3, { error: 'Invalid verification code' });
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Invalid email address');
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Invalid verification code');
+    expect(set).toHaveBeenNthCalledWith(1, { error: 'normalized:Invalid email address' });
+    expect(set).toHaveBeenNthCalledWith(2, { error: 'normalized:Invalid verification code' });
+    expect(set).toHaveBeenNthCalledWith(3, { error: 'normalized:Invalid verification code' });
   });
 
   it('handleAuthCallback rejects mismatched callback state and provider', async () => {
@@ -1044,8 +1052,9 @@ describe('accountSession auth actions', () => {
     expect(result).toBe(false);
     expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
     expect(mocks.webAccountCommands.completeAuth).not.toHaveBeenCalled();
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Account sign-in state mismatch');
     expect(set).toHaveBeenLastCalledWith({
-      error: 'Account sign-in state mismatch',
+      error: 'normalized:Account sign-in state mismatch',
       isConnecting: false,
     });
   });
@@ -1067,8 +1076,9 @@ describe('accountSession auth actions', () => {
     expect(result).toBe(false);
     expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
     expect(mocks.webAccountCommands.completeAuth).not.toHaveBeenCalled();
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('Account sign-in state mismatch');
     expect(set).toHaveBeenLastCalledWith({
-      error: 'Account sign-in state mismatch',
+      error: 'normalized:Account sign-in state mismatch',
       isConnecting: false,
     });
   });

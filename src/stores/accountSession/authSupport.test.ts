@@ -45,6 +45,32 @@ describe('normalizeAuthError', () => {
     ).toBe('๑ᵒᯅᵒ๑ That code is incorrect');
   });
 
+  it('localizes invalid email address failures', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+
+    expect(normalizeAuthError('Invalid email address')).toBe('๑ᵒᯅᵒ๑ 请输入有效的邮箱地址');
+    expect(
+      normalizeAuthError("Error invoking remote method 'desktop:account:request-email-code': Invalid email address")
+    ).toBe('๑ᵒᯅᵒ๑ 请输入有效的邮箱地址');
+  });
+
+  it('localizes remaining account sign-in and email request failures', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+
+    expect(normalizeAuthError('You are already signed in with this email')).toBe('๑ᵒᯅᵒ๑ 已使用此邮箱登录');
+    expect(normalizeAuthError('Failed to send verification code: HTTP 400')).toBe(
+      '๑ᵒᯅᵒ๑ 验证码发送失败，请稍后重试'
+    );
+    expect(
+      normalizeAuthError(
+        'Web sign-in is unavailable on local development origins. Use vlaina.com/pricing or the desktop app.'
+      )
+    ).toBe('๑ᵒᯅᵒ๑ 当前环境不支持网页登录，请使用 vlaina.com 或桌面应用');
+    expect(normalizeAuthError('Failed to start account sign-in')).toBe('๑ᵒᯅᵒ๑ 登录失败');
+    expect(normalizeAuthError('Account sign-in state mismatch')).toBe('๑ᵒᯅᵒ๑ 登录失败');
+    expect(normalizeAuthError('OAuth state mismatch')).toBe('๑ᵒᯅᵒ๑ 登录失败');
+  });
+
   it('localizes email code failures', () => {
     useUIStore.setState({ languagePreference: 'zh-CN' });
 

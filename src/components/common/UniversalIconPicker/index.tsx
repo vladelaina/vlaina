@@ -328,8 +328,8 @@ export function UniversalIconPicker({
       {isIconPickerDebugEnabled() && !embedded && (
         <button
           type="button"
-          aria-label="Copy icon picker logs"
-          title="Copy icon picker logs"
+          aria-label={t('icon.copyPickerLogs')}
+          title={t('icon.copyPickerLogs')}
           data-prevent-picker-close="true"
           onPointerDown={(event) => {
             event.preventDefault();

@@ -12,6 +12,7 @@ import {
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import { requestManager } from '@/lib/ai/requestManager'
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext'
+import { translate } from '@/lib/i18n'
 
 export interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -231,7 +232,7 @@ export function buildTemporarySessionState(
   }
 }
 
-export function createAIChatSession(title = 'New'): string {
+export function createAIChatSession(title = translate('chat.newChatTitle')): string {
   const state = useUnifiedStore.getState()
   const ai = state.data.ai! as TemporaryMutationState
   const uiState = useAIUIStore.getState()

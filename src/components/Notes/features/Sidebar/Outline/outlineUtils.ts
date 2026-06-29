@@ -1,7 +1,11 @@
 import type { NotesOutlineHeading } from './types';
+import { translate } from '@/lib/i18n';
 
-const OUTLINE_FALLBACK_TEXT = 'Untitled';
 export const MAX_OUTLINE_HEADING_TEXT_CHARS = 512;
+
+export function getOutlineFallbackText(): string {
+  return translate('notes.untitled');
+}
 
 export function getHeadingLevelFromTagName(tagName: string): number | null {
   const normalized = tagName.toLowerCase();
@@ -11,7 +15,7 @@ export function getHeadingLevelFromTagName(tagName: string): number | null {
 
 export function normalizeHeadingText(rawText: string): string {
   const compact = rawText.replace(/\s+/g, ' ').trim();
-  return compact.length > 0 ? compact : OUTLINE_FALLBACK_TEXT;
+  return compact.length > 0 ? compact : getOutlineFallbackText();
 }
 
 export function readBoundedHeadingText(element: HTMLElement): string {
