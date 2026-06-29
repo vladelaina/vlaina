@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   bindAiReviewActions: vi.fn(() => vi.fn()),
   errorBlock: vi.fn(),
   floatingToolbarGetState: vi.fn(() => null),
+  managedQuotaNoticeFrame: vi.fn(),
 }));
 
 vi.mock('@/components/Chat/features/Messages/components/ErrorBlock', () => ({
@@ -16,6 +17,13 @@ vi.mock('@/components/Chat/features/Messages/components/ErrorBlock', () => ({
   }) => {
     mocks.errorBlock(props);
     return <div data-testid="chat-error-block">{props.content}</div>;
+  },
+}));
+
+vi.mock('@/components/Chat/features/Input/components/ManagedQuotaNotice', () => ({
+  ManagedQuotaNoticeFrame: (props: { className?: string }) => {
+    mocks.managedQuotaNoticeFrame(props);
+    return <div data-testid="managed-quota-notice" />;
   },
 }));
 
@@ -116,7 +124,7 @@ describe('AiReviewPanel', () => {
     });
   });
 
-  it('passes auth and quota review errors through the shared chat ErrorBlock prompts', async () => {
+  it('uses the shared prompts for auth and quota review errors', async () => {
     const controller = createAiReviewPanelController();
     const container = createContainer();
 
@@ -131,18 +139,18 @@ describe('AiReviewPanel', () => {
       content: 'Sign in required.',
       showLoginPrompt: true,
     }));
+    expect(mocks.managedQuotaNoticeFrame).not.toHaveBeenCalled();
 
     await act(async () => {
       controller.render(container, {} as never, createState({
-        errorMessage: 'Quota exhausted.',
+        errorMessage: 'Points exhausted.',
         errorType: 'QUOTA_EXHAUSTED',
       }), vi.fn());
     });
 
-    expect(mocks.errorBlock).toHaveBeenLastCalledWith(expect.objectContaining({
-      content: 'Quota exhausted.',
-      showLoginPrompt: false,
-    }));
+    expect(screen.getByTestId('managed-quota-notice')).toBeInTheDocument();
+    expect(mocks.managedQuotaNoticeFrame).toHaveBeenCalledTimes(1);
+    expect(mocks.errorBlock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       controller.destroy();

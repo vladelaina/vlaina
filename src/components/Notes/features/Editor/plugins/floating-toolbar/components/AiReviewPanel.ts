@@ -3,6 +3,8 @@ import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ChatLoading } from '@/components/Chat/features/Messages/components/ChatLoading';
 import { ErrorBlock } from '@/components/Chat/features/Messages/components/ErrorBlock';
+import { ManagedQuotaNoticeFrame } from '@/components/Chat/features/Input/components/ManagedQuotaNotice';
+import { AIErrorType } from '@/lib/ai/types';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../types';
 import { runAiSelectionReviewCommand } from '../ai/reviewFlow';
@@ -101,10 +103,12 @@ export function createAiReviewPanelController(): AiReviewPanelController {
     if (errorHost instanceof HTMLElement) {
       getRoot(errorSlot, errorHost).render(
         review.errorMessage
-          ? React.createElement(ErrorBlock, {
-              content: review.errorMessage,
-              showLoginPrompt: review.errorType === 'AUTH_ERROR',
-            })
+          ? review.errorType === AIErrorType.QUOTA_EXHAUSTED
+            ? React.createElement(ManagedQuotaNoticeFrame)
+            : React.createElement(ErrorBlock, {
+                content: review.errorMessage,
+                showLoginPrompt: review.errorType === AIErrorType.AUTH_ERROR,
+              })
           : null
       );
     }
