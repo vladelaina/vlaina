@@ -1,11 +1,11 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
-import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { parseVideoUrl, sanitizeVideoUrlInput } from '../video';
 import {
   findInsertedNodePos,
+  moveSelectionAfterInsertedNode,
   replaceSelectionOrCurrentBlankTextBlockWithNode,
 } from './slashInsertUtils';
 import { openSlashVideoPrompt } from './slashVideoPrompt';
@@ -35,16 +35,12 @@ function insertVideoNode(ctx: Ctx, src: string) {
       preferredPos,
       nodeTypeName: 'video',
     });
-    const insertedNode = tr.doc.nodeAt(nodePos);
-    const afterVideoPos = nodePos + (insertedNode?.nodeSize ?? videoNode.nodeSize);
-    const nextNode = tr.doc.nodeAt(afterVideoPos);
-
-    if (nextNode?.isTextblock) {
-      tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
-    } else if (paragraphType) {
-      tr.insert(afterVideoPos, paragraphType.create());
-      tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
-    }
+    moveSelectionAfterInsertedNode({
+      tr,
+      nodePos,
+      insertedNodeFallback: videoNode,
+      paragraphType,
+    });
 
     markSlashUserInput(view);
     dispatch(tr.scrollIntoView());

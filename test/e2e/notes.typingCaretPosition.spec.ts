@@ -760,6 +760,55 @@ test.describe('notes typing caret position', () => {
     }
   });
 
+  test('keeps typewriter mode keyboard input active after Enter creates an empty paragraph', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-typewriter-enter-no-click');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await enableMarkdownTypewriterMode(page);
+
+      const beforeText = 'Typewriter no click before';
+      const marker = 'NoClickAfterEnterE2E';
+      await openMarkdownFixture(page, {
+        filename: 'typewriter-enter-no-click-e2e.md',
+        content: '',
+      });
+
+      await page.locator(EDITOR_SELECTOR).click();
+      await page.keyboard.type(beforeText, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(beforeText);
+      await page.keyboard.press('Enter');
+      await waitForEditorAnimationFrame(page);
+      await page.waitForTimeout(300);
+
+      const beforeType = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        focused: document.activeElement === editor || editor.contains(document.activeElement),
+        selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        paragraphTexts: Array.from(editor.querySelectorAll('p')).map((node) => node.textContent ?? ''),
+      }));
+      expect(beforeType.focused, JSON.stringify(beforeType, null, 2)).toBe(true);
+      expect(beforeType.selection?.empty, JSON.stringify(beforeType, null, 2)).toBe(true);
+      expect(beforeType.paragraphTexts, JSON.stringify(beforeType, null, 2)).toEqual([beforeText, '']);
+
+      await page.keyboard.type(marker, { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(marker);
+      await waitForEditorAnimationFrame(page);
+
+      const afterType = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        focused: document.activeElement === editor || editor.contains(document.activeElement),
+        selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        paragraphTexts: Array.from(editor.querySelectorAll('p')).map((node) => node.textContent ?? ''),
+      }));
+      expect(afterType.focused, JSON.stringify(afterType, null, 2)).toBe(true);
+      expect(afterType.selection?.empty, JSON.stringify(afterType, null, 2)).toBe(true);
+      expect(afterType.paragraphTexts, JSON.stringify(afterType, null, 2)).toEqual([beforeText, marker]);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps typewriter mode typing stable across repeated far-apart paragraph clicks', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-typing-caret-typewriter-loop');
 

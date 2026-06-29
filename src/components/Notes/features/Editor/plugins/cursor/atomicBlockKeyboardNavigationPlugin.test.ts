@@ -354,18 +354,6 @@ function selectionAncestorNames(view: EditorView): string[] {
   return names;
 }
 
-function expectCursorAtHeadingEdge(view: EditorView, headingPos: number, edge: 'start' | 'end'): void {
-  const heading = view.state.doc.nodeAt(headingPos);
-  expect(heading?.type.name).toBe('heading');
-  expect(view.state.selection).toBeInstanceOf(TextSelection);
-  expect(view.state.selection.empty).toBe(true);
-  expect(view.state.selection.from).toBe(
-    edge === 'start'
-      ? headingPos + 1
-      : headingPos + 1 + (heading?.content.size ?? 0)
-  );
-}
-
 function expectCursorAtBlockquoteEdge(view: EditorView, blockquotePos: number, edge: 'start' | 'end'): void {
   const blockquote = view.state.doc.nodeAt(blockquotePos);
   const firstParagraph = blockquote?.firstChild;
@@ -1963,7 +1951,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
   });
 
   it.each(['Backspace', 'Delete'] as const)(
-    'deletes an empty paragraph below a heading on %s and places the cursor after the heading text',
+    'deletes an empty paragraph below a heading on %s without moving the cursor into the heading',
     async (key) => {
       const editor = createEditor();
       await editor.create();
@@ -1984,14 +1972,16 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
       expect(view.state.doc.childCount).toBe(2);
       expect(view.state.doc.child(0).type.name).toBe('heading');
       expect(view.state.doc.child(1).textContent).toBe('after');
-      expectCursorAtHeadingEdge(view, 0, 'end');
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+      expect(view.state.selection.$from.parentOffset).toBe(0);
 
       await editor.destroy();
     }
   );
 
   it.each(['Backspace', 'Delete'] as const)(
-    'deletes an empty paragraph above a heading on %s and places the cursor before the heading text',
+    'deletes an empty paragraph above a heading on %s without moving the cursor into the heading',
     async (key) => {
       const editor = createEditor();
       await editor.create();
@@ -2011,27 +2001,26 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
       expect(view.state.doc.childCount).toBe(2);
       expect(view.state.doc.child(0).textContent).toBe('before');
       expect(view.state.doc.child(1).type.name).toBe('heading');
-      expectCursorAtHeadingEdge(view, topLevelNodePos(view, 'heading'), 'start');
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(0));
+      expect(view.state.selection.$from.parentOffset).toBe('before'.length);
 
       await editor.destroy();
     }
   );
 
-  it('keeps the cursor on the heading when deleting the empty paragraph between a heading and any supported structural block', async () => {
+  it('keeps an editable gap when deleting the empty paragraph between a heading and any supported structural block', async () => {
     const keys: Array<'Backspace' | 'Delete'> = ['Backspace', 'Delete'];
     const headingLayouts: Array<{
       name: string;
-      edge: 'start' | 'end';
       buildNodes: (heading: ProseNode, emptyParagraph: ProseNode, otherBlock: ProseNode) => ProseNode[];
     }> = [
       {
         name: 'heading above',
-        edge: 'end',
         buildNodes: (heading, emptyParagraph, otherBlock) => [heading, emptyParagraph, otherBlock],
       },
       {
         name: 'heading below',
-        edge: 'start',
         buildNodes: (heading, emptyParagraph, otherBlock) => [otherBlock, emptyParagraph, heading],
       },
     ];
@@ -2068,8 +2057,11 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
 
           const label = `${layout.name} with ${other.label} on ${key}`;
           expect(event.defaultPrevented, label).toBe(true);
-          expect(view.state.doc.childCount, label).toBe(2);
-          expectCursorAtHeadingEdge(view, topLevelNodePos(view, 'heading'), layout.edge);
+          expect(view.state.doc.childCount, label).toBe(3);
+          expect(view.state.doc.child(1).type.name, label).toBe('paragraph');
+          expect(view.state.doc.child(1).content.size, label).toBe(0);
+          expect(view.state.selection, label).toBeInstanceOf(TextSelection);
+          expect(view.state.selection.$from.parent, label).toBe(view.state.doc.child(1));
 
           await editor.destroy();
         }
@@ -2438,19 +2430,20 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
             view.state.doc.child(index).type.name
           );
           expect(event.defaultPrevented, label).toBe(true);
-          expect(remainingNodeNames, label).toHaveLength(2);
-          expect(remainingNodeNames, label).toContain(testCase.name);
-          expect(remainingNodeNames, label).toContain(listCase.typeName);
           expect(view.state.selection, label).toBeInstanceOf(TextSelection);
           expect(view.state.selection, label).not.toBeInstanceOf(NodeSelection);
           if (testCase.name === 'heading') {
-            const headingPos = topLevelNodePos(view, 'heading');
-            expectCursorAtHeadingEdge(
-              view,
-              headingPos,
-              layout.markdownBlockPosition === 'above' ? 'end' : 'start'
-            );
+            expect(remainingNodeNames, label).toHaveLength(3);
+            expect(remainingNodeNames, label).toContain('heading');
+            expect(remainingNodeNames, label).toContain(listCase.typeName);
+            expect(view.state.selection.$from.parent.type.name, label).toBe('paragraph');
+            expect(view.state.selection.$from.parent.content.size, label).toBe(0);
+            await editor.destroy();
+            continue;
           }
+          expect(remainingNodeNames, label).toHaveLength(2);
+          expect(remainingNodeNames, label).toContain(testCase.name);
+          expect(remainingNodeNames, label).toContain(listCase.typeName);
           if (testCase.name === 'blockquote') {
             const blockquotePos = topLevelNodePos(view, 'blockquote');
             expectCursorAtBlockquoteEdge(

@@ -145,6 +145,96 @@ describe('mathBlockEnterPlugin', () => {
     }
   });
 
+  it('keeps the cursor out of a following heading after a math block shortcut', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    for (const plugin of mathPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const paragraph = view.state.schema.nodes.paragraph.create(
+        null,
+        view.state.schema.text('$$')
+      );
+      const heading = view.state.schema.nodes.heading.create(
+        { level: 1 },
+        view.state.schema.text('Heading')
+      );
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [paragraph, heading]));
+      view.dispatch(view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, 1 + '$$'.length)
+      ));
+
+      expect(handleMathBlockShortcutEnter(view)).toBe(true);
+      expect(view.state.doc.childCount).toBe(3);
+      expect(view.state.doc.child(0).type.name).toBe('math_block');
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).content.size).toBe(0);
+      expect(view.state.doc.child(2).type.name).toBe('heading');
+      expect(view.state.doc.child(2).textContent).toBe('Heading');
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('uses a following markdown blank line as the cursor target before a heading', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    for (const plugin of mathPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const paragraph = view.state.schema.nodes.paragraph.create(
+        null,
+        view.state.schema.text('$$')
+      );
+      const blankLine = view.state.schema.nodes.html_block.create({
+        value: '<!--vlaina-markdown-blank-line-->',
+      });
+      const heading = view.state.schema.nodes.heading.create(
+        { level: 1 },
+        view.state.schema.text('Heading')
+      );
+      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+        paragraph,
+        blankLine,
+        heading,
+      ]));
+      view.dispatch(view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, 1 + '$$'.length)
+      ));
+
+      expect(handleMathBlockShortcutEnter(view)).toBe(true);
+      expect(view.state.doc.childCount).toBe(3);
+      expect(view.state.doc.child(0).type.name).toBe('math_block');
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe('\u200B');
+      expect(view.state.doc.child(2).type.name).toBe('heading');
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('converts a bracket shortcut-only paragraph into a math block and opens the editor', () => {
     const { view, tr, dispatch, mathBlockType } = createView({ text: '\\[' });
 

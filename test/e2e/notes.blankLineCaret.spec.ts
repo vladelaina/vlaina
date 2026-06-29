@@ -719,6 +719,128 @@ test.describe('notes blank line caret interaction', () => {
     }
   });
 
+  test('keeps the caret out of a heading when Delete removes a blank line above it', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-heading-leading-blank-delete');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'heading-leading-blank-delete-e2e.md',
+        content: ['Intro before heading blank', '', '# Heading after blank'].join('\n'),
+      });
+      await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Heading after blank' })).toBeVisible({
+        timeout: 30_000,
+      });
+
+      const blankLine = page.locator(BLANK_LINE_SELECTOR).first();
+      await expect(blankLine).toBeVisible({ timeout: 30_000 });
+      const box = await blankLine.boundingBox();
+      expect(box).not.toBeNull();
+      await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.keyboard.press('Delete');
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+
+      const diagnostics = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        headings: Array.from(editor.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((heading) => ({
+          tagName: heading.tagName,
+          text: heading.textContent ?? '',
+        })),
+        paragraphs: Array.from(editor.querySelectorAll('p')).map((paragraph) => ({
+          text: paragraph.textContent ?? '',
+          className: paragraph.getAttribute('class') ?? '',
+        })),
+        blankLines: editor.querySelectorAll(
+          '[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"], p.editor-editable-markdown-blank-line, p:empty'
+        ).length,
+        selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        selectionBlock: (() => {
+          const selection = window.getSelection();
+          const anchor = selection?.anchorNode;
+          const anchorElement = anchor instanceof HTMLElement ? anchor : anchor?.parentElement;
+          const block = anchorElement?.closest('p,h1,h2,h3,h4,h5,h6');
+          return block instanceof HTMLElement
+            ? {
+              tagName: block.tagName,
+              text: block.textContent ?? '',
+              className: block.getAttribute('class') ?? '',
+            }
+            : null;
+        })(),
+      }));
+      expect(diagnostics.headings, JSON.stringify(diagnostics, null, 2)).toEqual([{
+        tagName: 'H1',
+        text: 'Heading after blank',
+      }]);
+      expect(diagnostics.blankLines, JSON.stringify(diagnostics, null, 2)).toBe(0);
+      expect(diagnostics.selectionBlock, JSON.stringify(diagnostics, null, 2)).toMatchObject({
+        tagName: 'P',
+        text: 'Intro before heading blank',
+      });
+      const marker = ' TypedAfterHeadingBlankDelete';
+      await page.keyboard.type(marker, { delay: 0 });
+      await waitForEditorAnimationFrame(page);
+
+      const afterType = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        headingText: editor.querySelector('h1')?.textContent ?? '',
+        paragraphTexts: Array.from(editor.querySelectorAll('p')).map((paragraph) => paragraph.textContent ?? ''),
+      }));
+      expect(afterType.headingText, JSON.stringify(afterType, null, 2)).toBe('Heading after blank');
+      expect(afterType.paragraphTexts, JSON.stringify(afterType, null, 2)).toContain(
+        `Intro before heading blank${marker}`,
+      );
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps the caret out of a heading when deleting a fresh Enter-created blank line above it', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-heading-fresh-enter-blank-delete');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'heading-fresh-enter-blank-delete-e2e.md',
+        content: ['Intro before fresh blank', '# Heading after fresh blank'].join('\n'),
+      });
+      await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Heading after fresh blank' })).toBeVisible({
+        timeout: 30_000,
+      });
+
+      const intro = page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Intro before fresh blank' }).first();
+      await expect(intro).toBeVisible({ timeout: 30_000 });
+      await intro.click();
+      await page.keyboard.press('End');
+      await page.keyboard.press('Enter');
+      await waitForEditorAnimationFrame(page);
+      await page.keyboard.press('Delete');
+      await waitForEditorAnimationFrame(page);
+      await waitForEditorAnimationFrame(page);
+
+      const marker = ' TypedAfterFreshBlankDelete';
+      await page.keyboard.type(marker, { delay: 0 });
+      await waitForEditorAnimationFrame(page);
+
+      const afterType = await page.locator(EDITOR_SELECTOR).evaluate((editor) => ({
+        headingText: editor.querySelector('h1')?.textContent ?? '',
+        paragraphTexts: Array.from(editor.querySelectorAll('p')).map((paragraph) => paragraph.textContent ?? ''),
+        selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+      }));
+      expect(afterType.headingText, JSON.stringify(afterType, null, 2)).toBe('Heading after fresh blank');
+      expect(afterType.paragraphTexts, JSON.stringify(afterType, null, 2)).toContain(
+        `Intro before fresh blank${marker}`,
+      );
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('does not select or delete a details html block when deleting blank lines above it', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-details-leading-blank-delete');
 

@@ -341,6 +341,29 @@ function createSafeSelectionAfterStructuralGapDelete(
   return setTransientInputParagraphSelection(state, tr, boundaryPos);
 }
 
+function createSafeSelectionAfterHeadingGapDelete(
+  state: EditorState,
+  tr: Transaction,
+  range: AdjacentEmptyParagraphDeleteRange,
+  mappedHeadingFrom: number,
+  heading: ProseNode
+): Transaction | null {
+  const headingTo = mappedHeadingFrom + heading.nodeSize;
+  const adjacentAwayFromHeading = range.searchDir < 0
+    ? findTopLevelBlockAfter(tr.doc, headingTo)
+    : findTopLevelBlockBefore(tr.doc, mappedHeadingFrom);
+
+  if (adjacentAwayFromHeading?.node.type.name === 'paragraph') {
+    const cursorPos = range.searchDir < 0
+      ? adjacentAwayFromHeading.from + 1
+      : adjacentAwayFromHeading.from + 1 + adjacentAwayFromHeading.node.content.size;
+    return tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+  }
+
+  const insertPos = range.searchDir < 0 ? headingTo : mappedHeadingFrom;
+  return setTransientInputParagraphSelection(state, tr, insertPos);
+}
+
 function dispatchDeleteEmptyParagraphNearStructuralBlock(
   view: EditorView,
   range: AdjacentEmptyParagraphDeleteRange,
@@ -389,12 +412,18 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
   }
 
   if (nextNode?.type.name === 'heading') {
-    const cursorPos = range.searchDir < 0
-      ? mappedBlockFrom + 1 + nextNode.content.size
-      : mappedBlockFrom + 1;
-    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)).scrollIntoView());
-    view.focus();
-    return;
+    const safeSelectionTr = createSafeSelectionAfterHeadingGapDelete(
+      view.state,
+      tr,
+      range,
+      mappedBlockFrom,
+      nextNode
+    );
+    if (safeSelectionTr) {
+      view.dispatch(safeSelectionTr.scrollIntoView());
+      view.focus();
+      return;
+    }
   }
 
   if (range.blockName === 'code_block' && nextNode?.type.name === 'code_block') {

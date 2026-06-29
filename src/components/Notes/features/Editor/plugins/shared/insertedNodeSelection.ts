@@ -2,6 +2,7 @@ import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
 const RENDERED_HTML_BOUNDARY_BLANK_LINE_VALUE = '<!--vlaina-rendered-html-boundary-blank-line-->';
+const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 
 export function findInsertedNodePos(args: {
   doc: { content: { size: number }; nodesBetween: (...args: any[]) => void; nodeAt: (pos: number) => any };
@@ -53,7 +54,7 @@ export function moveSelectionAfterInsertedNode(args: {
   tr: any;
   nodePos: number;
   insertedNodeFallback?: { nodeSize?: number; isInline?: boolean } | null;
-  paragraphType?: { create: () => any } | null;
+  paragraphType?: { create: (attrs?: any, content?: any) => any } | null;
 }) {
   const { tr, nodePos, insertedNodeFallback, paragraphType } = args;
   if (nodePos < 0 || !tr?.doc || typeof tr.doc.nodeAt !== 'function') {
@@ -73,21 +74,32 @@ export function moveSelectionAfterInsertedNode(args: {
 
   const nextNode = tr.doc.nodeAt(afterNodePos);
   if (nextNode?.isTextblock) {
+    if (nextNode.type?.name !== 'paragraph') {
+      if (paragraphType) {
+        try {
+          tr.insert(afterNodePos, paragraphType.create());
+          return setTextSelectionSafely(tr, afterNodePos + 1);
+        } catch {
+        }
+      }
+      return tr;
+    }
     return setTextSelectionSafely(tr, afterNodePos + 1);
   }
 
   if (isMarkdownBlankLineBlock(nextNode)) {
-    const afterBlankLinePos = Math.min(
-      afterNodePos + Math.max(1, nextNode.nodeSize ?? 1),
-      tr.doc.content.size
-    );
-    try {
-      const selection = Selection.findFrom(tr.doc.resolve(afterBlankLinePos), 1, true)
-        ?? Selection.findFrom(tr.doc.resolve(afterBlankLinePos), -1, true);
-      return selection ? tr.setSelection(selection) : tr;
-    } catch {
-      return tr;
+    if (paragraphType) {
+      try {
+        const paragraph = paragraphType.create(
+          null,
+          tr.doc.type.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER)
+        );
+        tr.replaceWith(afterNodePos, afterNodePos + Math.max(1, nextNode.nodeSize ?? 1), paragraph);
+        return setTextSelectionSafely(tr, afterNodePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length);
+      } catch {
+      }
     }
+    return tr;
   }
 
   if (paragraphType) {

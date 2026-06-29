@@ -109,23 +109,23 @@ function dispatchDeleteRangeWithTextSelection(
   view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
 }
 
-function dispatchDeleteRangeWithHeadingTextSelection(
+function dispatchKeepHeadingGapTextSelection(
   view: EditorView,
   range: AdjacentTableParagraphDeleteRange
 ) {
-  const tr = view.state.tr.delete(range.from, range.to);
-  const mappedHeadingFrom = tr.mapping.map(range.blockFrom, -1);
-  const heading = tr.doc.nodeAt(mappedHeadingFrom);
+  const heading = view.state.doc.nodeAt(range.blockFrom);
+  const gap = view.state.doc.nodeAt(range.from);
 
-  if (heading?.type.name !== 'heading') {
+  if (heading?.type.name !== 'heading' || gap?.type.name !== 'paragraph') {
     dispatchDeleteRangeWithTextSelection(view, range.from, range.to, range.blockFrom, range.searchDir);
     return;
   }
 
-  const cursorPos = range.searchDir < 0
-    ? mappedHeadingFrom + 1 + heading.content.size
-    : mappedHeadingFrom + 1;
-  view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)).scrollIntoView());
+  view.dispatch(
+    view.state.tr
+      .setSelection(TextSelection.create(view.state.doc, range.from + 1))
+      .scrollIntoView()
+  );
 }
 
 export function findFirstTableBodyCellPos(
@@ -231,7 +231,7 @@ export const tableKeyboardPlugin = $prose(() => {
             event.preventDefault();
             const headingRange = findAdjacentHeadingParagraphDeleteRange(state, 1);
             if (headingRange) {
-              dispatchDeleteRangeWithHeadingTextSelection(view, headingRange);
+              dispatchKeepHeadingGapTextSelection(view, headingRange);
               view.focus();
               return true;
             }
@@ -310,7 +310,7 @@ export const tableKeyboardPlugin = $prose(() => {
             event.preventDefault();
             const headingRange = findAdjacentHeadingParagraphDeleteRange(state, -1);
             if (headingRange) {
-              dispatchDeleteRangeWithHeadingTextSelection(view, headingRange);
+              dispatchKeepHeadingGapTextSelection(view, headingRange);
               view.focus();
               return true;
             }

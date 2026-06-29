@@ -128,19 +128,6 @@ function countNodesByType(view: EditorView, typeName: string): number {
   return count;
 }
 
-function expectCursorAtHeadingEdge(view: EditorView, edge: 'start' | 'end'): void {
-  const headingPos = topLevelNodePos(view, 'heading');
-  const heading = view.state.doc.nodeAt(headingPos);
-  expect(heading?.type.name).toBe('heading');
-  expect(view.state.selection).toBeInstanceOf(TextSelection);
-  expect(view.state.selection.empty).toBe(true);
-  expect(view.state.selection.from).toBe(
-    edge === 'start'
-      ? headingPos + 1
-      : headingPos + 1 + (heading?.content.size ?? 0)
-  );
-}
-
 describe('pipe table shortcut input', () => {
   it('keeps typed pipe row content in the created table header', async () => {
     const editor = Editor.make()
@@ -291,7 +278,6 @@ describe('pipe table shortcut input', () => {
     {
       name: 'heading above on Delete',
       key: 'Delete',
-      edge: 'end',
       buildNodes: (heading: ProseNode, emptyParagraph: ProseNode, table: ProseNode) => [
         heading,
         emptyParagraph,
@@ -301,14 +287,13 @@ describe('pipe table shortcut input', () => {
     {
       name: 'heading below on Backspace',
       key: 'Backspace',
-      edge: 'start',
       buildNodes: (heading: ProseNode, emptyParagraph: ProseNode, table: ProseNode) => [
         table,
         emptyParagraph,
         heading,
       ],
     },
-  ] as const)('keeps the cursor on the heading when deleting an empty paragraph between a table and heading: $name', async ({ key, edge, buildNodes }) => {
+  ] as const)('keeps the cursor in the safe gap when deleting an empty paragraph between a table and heading: $name', async ({ key, buildNodes }) => {
     const editor = Editor.make()
       .config((ctx) => {
         ctx.set(defaultValueCtx, '');
@@ -337,8 +322,14 @@ describe('pipe table shortcut input', () => {
     const event = pressKey(view, key);
 
     expect(event.defaultPrevented).toBe(true);
-    expect(view.state.doc.childCount).toBe(2);
-    expectCursorAtHeadingEdge(view, edge);
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(0).type.name).toBe(key === 'Delete' ? 'heading' : 'table');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).content.size).toBe(0);
+    expect(view.state.doc.child(2).type.name).toBe(key === 'Delete' ? 'table' : 'heading');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
     expect(getAncestorNodeNames(view)).not.toContain('table');
 
     await editor.destroy();

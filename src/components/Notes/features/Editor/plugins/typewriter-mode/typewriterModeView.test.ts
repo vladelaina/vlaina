@@ -1,7 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { TypewriterModeView } from './typewriterModeView';
+
+function readTypewriterModeViewSource(): string {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/typewriter-mode/typewriterModeView.ts'),
+    'utf8',
+  );
+}
 
 function setTypewriterMode(typewriterMode: boolean): void {
   useUnifiedStore.setState((state) => ({
@@ -183,6 +192,14 @@ describe('TypewriterModeView', () => {
     vi.restoreAllMocks();
     document.body.replaceChildren();
     setTypewriterMode(false);
+  });
+
+  it('keeps typewriter updates out of ProseMirror-managed block DOM', () => {
+    const source = readTypewriterModeViewSource();
+
+    expect(source).not.toMatch(/\b(?:view|this\.view)\.nodeDOM\(/);
+    expect(source).not.toMatch(/\b(?:view|this\.view)\.domAtPos\(/);
+    expect(source).not.toMatch(/\.classList\.(?:add|remove|toggle)\(/);
   });
 
   it('reacts to runtime setting changes without remounting the editor plugin view', () => {
