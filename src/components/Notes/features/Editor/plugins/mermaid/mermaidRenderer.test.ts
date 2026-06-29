@@ -55,6 +55,22 @@ describe('mermaidRenderer', () => {
     );
   });
 
+  it('registers ZenUML when comments or init directives precede the diagram directive', async () => {
+    const { renderMermaid } = await import('./mermaidRenderer');
+    const code = [
+      '%% Sequence example',
+      '%%{init: {"theme": "base"}}%%',
+      'zenuml',
+      '  Alice->Bob: Hi',
+    ].join('\n');
+
+    const svg = await renderMermaid(code, 'diagram-1');
+
+    expect(svg).toBe('<svg data-testid="diagram"></svg>');
+    expect(registerExternalDiagrams).toHaveBeenCalledWith([zenumlDiagram]);
+    expect(render).toHaveBeenCalledWith('diagram-1', code, expect.any(HTMLElement));
+  });
+
   it('uses the built-in beautiful Mermaid default render theme', async () => {
     const { renderMermaid } = await import('./mermaidRenderer');
 
@@ -77,6 +93,23 @@ describe('mermaidRenderer', () => {
 
     expect(registerExternalDiagrams).not.toHaveBeenCalled();
     expect(render).toHaveBeenCalledWith('diagram-1', 'sequenceDiagram\nAlice->Bob: Hi', expect.any(HTMLElement));
+  });
+
+  it('renders in a measurable offscreen host for diagrams that use SVG layout metrics', async () => {
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    await renderMermaid('gantt\ndateFormat YYYY-MM-DD\nTask :a, 2026-01-01, 1d', 'diagram-1');
+
+    const container = render.mock.calls.at(-1)?.[2] as HTMLElement | undefined;
+    expect(container).toBeInstanceOf(HTMLElement);
+    expect(container?.dataset.mermaidRenderHost).toBe('true');
+    expect(container?.style.visibility).not.toBe('hidden');
+    expect(container?.style.display).not.toBe('none');
+    expect(container?.style.width).not.toBe('0px');
+    expect(container?.style.height).not.toBe('0px');
+    expect(container?.style.opacity).toBe('0');
+    expect(container?.style.pointerEvents).toBe('none');
+    expect(document.body.querySelector('[data-mermaid-render-host="true"]')).toBeNull();
   });
 
   it('suppresses third-party renderer console output so diagram source is not leaked', async () => {

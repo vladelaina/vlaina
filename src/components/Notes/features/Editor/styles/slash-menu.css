@@ -63,8 +63,10 @@
 }
 
 .slash-menu-item-icon svg {
+  display: block;
   width: var(--vlaina-size-18px);
   height: var(--vlaina-size-18px);
+  pointer-events: none;
 }
 
 .slash-menu-item.selected .slash-menu-item-icon,

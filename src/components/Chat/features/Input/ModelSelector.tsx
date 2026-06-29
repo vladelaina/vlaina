@@ -978,7 +978,9 @@ export function ModelSelector({
         </span>
         {/* Chevron glyph adapted from Lucide Icons (ISC). */}
         <svg
+          aria-hidden="true"
           className={cn("h-4 w-4 flex-shrink-0 opacity-[var(--vlaina-opacity-60)] transition-transform duration-[var(--vlaina-duration-200)]", isOpen && "rotate-180")}
+          focusable="false"
           fill={themeStyleResetTokens.fillNone}
           stroke={themeStyleResetTokens.currentColor}
           strokeWidth={themeIconTokens.strokeDefault}

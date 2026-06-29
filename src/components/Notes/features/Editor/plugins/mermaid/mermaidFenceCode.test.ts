@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MERMAID_FORMAT_FIXTURES } from '@/test/fixtures/mermaidFormatFixtures';
 import { MERMAID_FENCE_LANGUAGE_ALIAS_LIST } from './mermaidLanguage';
 import {
   createMermaidFenceStarterCode,
@@ -20,6 +21,14 @@ describe('normalizeMermaidFenceCode', () => {
     );
   });
 
+  it('does not duplicate directives for shared Mermaid format fixtures', () => {
+    for (const fixture of MERMAID_FORMAT_FIXTURES) {
+      const code = fixture.source.join('\n');
+
+      expect(normalizeMermaidFenceCode('mermaid', code), fixture.label).toBe(code);
+    }
+  });
+
   it('normalizes short diagram directives already present in the pasted code', () => {
     expect(normalizeMermaidFenceCode('mermaid', 'sequence\nAlice->Bob: Hello')).toBe(
       'sequenceDiagram\nAlice->Bob: Hello'
@@ -35,6 +44,9 @@ describe('normalizeMermaidFenceCode', () => {
     );
     expect(normalizeMermaidFenceCode('mermaid', 'zenuml\nAlice->Bob: Hi')).toBe(
       'zenuml\nAlice->Bob: Hi'
+    );
+    expect(normalizeMermaidFenceCode('mermaid', 'xyChart-beta\ntitle Velocity')).toBe(
+      'xychart-beta\ntitle Velocity'
     );
   });
 
@@ -196,6 +208,14 @@ describe('normalizeMermaidEditorCodeInput', () => {
       'flowchart LR\nA --> B'
     );
     expect(normalizeMermaidEditorCodeInput('A --> B')).toBe('A --> B');
+  });
+
+  it('preserves shared Mermaid format fixtures during editor input normalization', () => {
+    for (const fixture of MERMAID_FORMAT_FIXTURES) {
+      const code = fixture.source.join('\n');
+
+      expect(normalizeMermaidEditorCodeInput(code), fixture.label).toBe(code);
+    }
   });
 
   it('preserves classic flowchart syntax pasted directly into the diagram editor', () => {

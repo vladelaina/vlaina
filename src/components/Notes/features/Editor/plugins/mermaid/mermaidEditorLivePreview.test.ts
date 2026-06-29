@@ -32,6 +32,19 @@ describe('mermaidEditorLivePreview', () => {
     expect(element.dataset.code).toBeUndefined();
   });
 
+  it('marks Gantt Mermaid blocks for readable chart sizing without exposing source', () => {
+    const element = createMermaidElement([
+      '%% Schedule',
+      'gantt',
+      'dateFormat YYYY-MM-DD',
+      'Task :a, 2026-01-01, 1d',
+    ].join('\n'));
+
+    expect(element.dataset.mermaidDiagram).toBe('gantt');
+    expect(element.outerHTML).not.toContain('dateFormat');
+    expect(element.outerHTML).not.toContain('Task :a');
+  });
+
   it('does not expose Mermaid source code in serialized element HTML', async () => {
     const element = createMermaidElement('sequenceDiagram\nAlice->Bob: secret token');
 

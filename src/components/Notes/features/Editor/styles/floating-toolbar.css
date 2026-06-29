@@ -118,8 +118,10 @@
 }
 
 .toolbar-btn svg {
+  display: block;
   width: var(--vlaina-size-20px);
   height: var(--vlaina-size-20px);
+  pointer-events: none;
   font-size: var(--vlaina-font-20);
   stroke-width: var(--vlaina-stroke-width-toolbar);
 }
@@ -150,9 +152,11 @@
 }
 
 .toolbar-btn svg {
+  display: block;
   width: var(--vlaina-size-20px);
   height: var(--vlaina-size-20px);
   flex-shrink: 0;
+  pointer-events: none;
   transition: transform var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-toolbar);
 }
 
@@ -352,9 +356,11 @@
 }
 
 .image-caption-btn svg {
+  display: block;
   flex: 0 0 auto;
   width: var(--vlaina-size-20px);
   height: var(--vlaina-size-20px);
+  pointer-events: none;
 }
 
 .image-caption-text {
@@ -597,9 +603,11 @@
 }
 
 .block-dropdown-item-icon svg {
+  display: block;
   width: var(--vlaina-size-20px);
   height: var(--vlaina-size-20px);
   flex-shrink: 0;
+  pointer-events: none;
   stroke-width: var(--vlaina-stroke-width-toolbar);
   transition: transform var(--vlaina-duration-toolbar-enter) var(--vlaina-ease-toolbar);
 }
@@ -819,8 +827,10 @@
 }
 
 .ai-dropdown-item-icon svg {
+  display: block;
   width: var(--vlaina-size-18px);
   height: var(--vlaina-size-18px);
+  pointer-events: none;
 }
 
 .dark .ai-dropdown-item {

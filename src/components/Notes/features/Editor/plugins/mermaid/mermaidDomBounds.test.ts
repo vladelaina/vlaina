@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MERMAID_FORMAT_FIXTURES } from '@/test/fixtures/mermaidFormatFixtures';
 
 vi.mock('./mermaidRenderer', () => ({
   renderMermaid: vi.fn(async () => '<svg data-rendered="unexpected"></svg>'),
@@ -78,6 +79,71 @@ describe('mermaid DOM render bounds', () => {
     );
     expect(anchor.querySelector('svg')).toBeNull();
     expect(onRendered).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat ER relationship cardinality braces as incomplete syntax', async () => {
+    const anchor = document.createElement('div');
+    document.body.appendChild(anchor);
+    const render = vi.fn(async () => '<svg data-rendered="er"></svg>');
+    const onRendered = vi.fn();
+    const code = [
+      'erDiagram',
+      '  CUSTOMER ||--o{ ORDER : places',
+      '  ORDER ||--|{ ITEM : contains',
+      '  CUSTOMER }|..|{ ADDRESS : uses',
+    ].join('\n');
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code,
+      render,
+      onRendered,
+    });
+
+    expect(render).toHaveBeenCalledWith(code, expect.any(String));
+    expect(anchor.querySelector('[data-rendered="er"]')).not.toBeNull();
+    expect(anchor.querySelector('.mermaid-error')).toBeNull();
+    expect(onRendered).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not short-circuit valid Mermaid format fixtures before rendering', async () => {
+    for (const fixture of MERMAID_FORMAT_FIXTURES) {
+      const render = vi.fn(async () => `<svg data-rendered="${fixture.label}"></svg>`);
+      const code = fixture.source.join('\n');
+
+      const markup = await resolveMermaidMarkup(code, render);
+
+      expect(render, `${fixture.label} should reach the renderer`).toHaveBeenCalledWith(
+        code,
+        expect.any(String)
+      );
+      expect(markup, `${fixture.label} should return rendered markup`).toContain(
+        `data-rendered="${fixture.label}"`
+      );
+    }
+  });
+
+  it('ignores Mermaid comments and init directives when checking incomplete syntax', async () => {
+    const anchor = document.createElement('div');
+    document.body.appendChild(anchor);
+    const render = vi.fn(async () => '<svg data-rendered="comment-safe"></svg>');
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: [
+        '%% Comment text with an unmatched { and "quote',
+        '%%{init: {',
+        '  "theme": "base"',
+        '} }%%',
+        'flowchart TD',
+        '  A[Start] --> B[Done]',
+      ].join('\n'),
+      render,
+    });
+
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(anchor.querySelector('[data-rendered="comment-safe"]')).not.toBeNull();
+    expect(anchor.querySelector('.mermaid-error')).toBeNull();
   });
 
   it('bounds legacy data-code fallback reads', () => {

@@ -67,6 +67,7 @@ export function CollapseTriangleIcon({
 }: CollapseTriangleIconProps) {
   return (
     <svg
+      aria-hidden={props['aria-hidden'] ?? true}
       width={size}
       height={size}
       viewBox={COLLAPSE_TRIANGLE_VIEW_BOX}

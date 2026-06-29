@@ -31,6 +31,12 @@ type ChatMarkdownRenderMetrics = {
   imageWidth: number;
   inlineCodeMaxWidth: number;
   inlineCodeRightOverflowPx: number;
+  mermaidBlockCount: number;
+  mermaidErrorCount: number;
+  mermaidGanttScroll: boolean;
+  mermaidGanttSvgWidth: number;
+  mermaidRightOverflowPx: number;
+  mermaidSvgCount: number;
   surfaceHorizontalOverflowPx: number;
   surfaceRightOverflowPx: number;
   surfaceWidth: number;
@@ -73,6 +79,16 @@ function createRichMarkdown(): string {
     '   - Nested bullet beta with ==highlighted text== and ++underlined text++.',
     '',
     createWideMarkdownTable(),
+    '',
+    '```mermaid',
+    'gantt',
+    '  dateFormat YYYY-MM-DD',
+    '  title Chat Mermaid Gantt Audit',
+    '  section Review',
+    '  Inspect renderer :done, c1, 2026-02-01, 2d',
+    '  Verify sizing :active, c2, after c1, 3d',
+    '  Keep readable :c3, after c2, 4d',
+    '```',
     '',
     '```ts',
     'type ChatRenderProbe = { stable: boolean; overflow: "contained" | "broken" };',
@@ -151,10 +167,16 @@ async function showRichAssistantMessage(page: Page): Promise<void> {
     return {
       hasSurface: Boolean(assistant?.querySelector('.markdown-surface')),
       imageComplete: Boolean(image && image.complete && image.naturalWidth > 0),
+      mermaidErrors: assistant?.querySelectorAll('[data-type="mermaid"].mermaid-error, [data-type="mermaid"] .mermaid-error').length ?? 0,
+      mermaidPending: assistant?.querySelectorAll('[data-type="mermaid"] .mermaid-placeholder').length ?? 0,
+      mermaidSvgCount: assistant?.querySelectorAll('[data-type="mermaid"] svg').length ?? 0,
     };
   }, RICH_MARKDOWN_SENTINEL), { timeout: 30_000 }).toMatchObject({
     hasSurface: true,
     imageComplete: true,
+    mermaidErrors: 0,
+    mermaidPending: 0,
+    mermaidSvgCount: 1,
   });
 
   await waitForTwoAnimationFrames(page);
@@ -188,6 +210,12 @@ async function collectChatMarkdownRenderMetrics(page: Page): Promise<ChatMarkdow
         imageWidth: 0,
         inlineCodeMaxWidth: 0,
         inlineCodeRightOverflowPx: 0,
+        mermaidBlockCount: 0,
+        mermaidErrorCount: 0,
+        mermaidGanttScroll: false,
+        mermaidGanttSvgWidth: 0,
+        mermaidRightOverflowPx: 0,
+        mermaidSvgCount: 0,
         surfaceHorizontalOverflowPx: 0,
         surfaceRightOverflowPx: 0,
         surfaceWidth: 0,
@@ -214,6 +242,9 @@ async function collectChatMarkdownRenderMetrics(page: Page): Promise<ChatMarkdow
       .filter((element) => !element.closest('.code-block-chrome') && !element.closest('pre'));
     const image = surface.querySelector<HTMLImageElement>('img[alt="chat markdown preview"]');
     const heading = surface.querySelector<HTMLElement>('h1');
+    const mermaidBlocks = Array.from(surface.querySelectorAll<HTMLElement>('[data-type="mermaid"]'));
+    const mermaidGantt = surface.querySelector<HTMLElement>('[data-type="mermaid"][data-mermaid-diagram="gantt"]');
+    const mermaidGanttSvg = mermaidGantt?.querySelector<SVGSVGElement>('svg') ?? null;
 
     const textSelectors = [
       'h1', 'h2', 'h3', 'p', 'li', 'blockquote', 'td', 'th', 'code', 'a',
@@ -269,6 +300,12 @@ async function collectChatMarkdownRenderMetrics(page: Page): Promise<ChatMarkdow
       imageWidth: image?.getBoundingClientRect().width ?? 0,
       inlineCodeMaxWidth: maxInlineCodeWidth,
       inlineCodeRightOverflowPx: maxInlineCodeRightOverflow,
+      mermaidBlockCount: mermaidBlocks.length,
+      mermaidErrorCount: surface.querySelectorAll('[data-type="mermaid"].mermaid-error, [data-type="mermaid"] .mermaid-error').length,
+      mermaidGanttScroll: Boolean(mermaidGantt && mermaidGantt.scrollWidth > mermaidGantt.clientWidth + 2),
+      mermaidGanttSvgWidth: mermaidGanttSvg?.getBoundingClientRect().width ?? 0,
+      mermaidRightOverflowPx: Math.max(0, ...mermaidBlocks.map((element) => rightOverflow(element))),
+      mermaidSvgCount: surface.querySelectorAll('[data-type="mermaid"] svg').length,
       surfaceHorizontalOverflowPx: Math.max(0, surface.scrollWidth - surface.clientWidth),
       surfaceRightOverflowPx: Math.max(0, surfaceRect.right - chatRect.right),
       surfaceWidth: surfaceRect.width,
@@ -299,6 +336,12 @@ function expectStableMarkdownLayout(metrics: ChatMarkdownRenderMetrics) {
   expect(metrics.imageWidth).toBeGreaterThan(0);
   expect(metrics.imageWidth).toBeLessThanOrEqual(metrics.surfaceWidth + 2);
   expect(metrics.imageRightOverflowPx).toBeLessThanOrEqual(2);
+  expect(metrics.mermaidBlockCount).toBe(1);
+  expect(metrics.mermaidSvgCount).toBe(1);
+  expect(metrics.mermaidErrorCount).toBe(0);
+  expect(metrics.mermaidGanttScroll).toBe(true);
+  expect(metrics.mermaidGanttSvgWidth).toBeGreaterThanOrEqual(900);
+  expect(metrics.mermaidRightOverflowPx).toBeLessThanOrEqual(2);
   expect(metrics.calloutCount).toBeGreaterThanOrEqual(1);
   expect(metrics.headingFontSizePx).toBeGreaterThan(0);
   expect(metrics.textProblems).toEqual([]);

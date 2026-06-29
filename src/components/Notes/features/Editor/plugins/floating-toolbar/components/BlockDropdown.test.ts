@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { renderBlockDropdown } from './BlockDropdown';
+import { getBlockTypeIconMarkup, renderBlockDropdown } from './BlockDropdown';
 
 const stateMocks = vi.hoisted(() => ({
   selectionNear: vi.fn(),
@@ -144,6 +144,16 @@ describe('BlockDropdown', () => {
 
     expect(headingButton?.getAttribute('title')).toBeNull();
     expect(headingButton?.getAttribute('aria-label')).toBe('Heading 1');
+  });
+
+  it('marks inline block type icons as decorative and non-focusable', () => {
+    const template = document.createElement('template');
+    template.innerHTML = getBlockTypeIconMarkup('heading1');
+    const svg = template.content.querySelector('svg');
+
+    expect(svg).not.toBeNull();
+    expect(svg?.getAttribute('aria-hidden')).toBe('true');
+    expect(svg?.getAttribute('focusable')).toBe('false');
   });
 
   it('collapses a restored editor selection after applying a block type', () => {

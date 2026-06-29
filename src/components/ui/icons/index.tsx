@@ -23,15 +23,20 @@ export const Icon = forwardRef<SVGSVGElement, IconProps>(
     const resolvedSize = (typeof size === 'string' && size in ICON_SIZES)
       ? ICON_SIZES[size as IconSize]
       : size;
+    const isDecorative = props['aria-label'] == null && props['aria-labelledby'] == null;
 
     return (
       <IconComponent
         ref={ref}
-        className={cn('inline-block shrink-0', className)}
+        aria-hidden={props['aria-hidden'] ?? (isDecorative ? true : undefined)}
+        focusable={props.focusable ?? false}
+        role={props.role ?? (isDecorative ? undefined : 'img')}
+        className={cn('inline-block shrink-0 align-middle', className)}
         style={{ 
           width: resolvedSize, 
           height: resolvedSize, 
           fontSize: typeof resolvedSize === 'number' ? `${resolvedSize}px` : resolvedSize,
+          lineHeight: 1,
           ...style 
         }}
         {...props}

@@ -109,6 +109,33 @@ describe("editor floating toolbar and preview styles", () => {
     expect(css).not.toContain('transform: translateY(-1px);');
   });
 
+  it('keeps toolbar SVG icons non-interactive and block-aligned', () => {
+    const css = readStyleFile('floating-toolbar.css');
+    const slashMenuCss = readStyleFile('slash-menu.css');
+
+    const toolbarIconRule = css.slice(
+      css.indexOf('.toolbar-btn svg {'),
+      css.indexOf('.toolbar-btn:hover {')
+    );
+    const dropdownIconRule = css.slice(
+      css.indexOf('.block-dropdown-item-icon svg {'),
+      css.indexOf('.block-dropdown-item.active .block-dropdown-item-icon {')
+    );
+    const aiIconRule = css.slice(
+      css.indexOf('.ai-dropdown-item-icon svg {'),
+      css.indexOf('.dark .ai-dropdown-item {')
+    );
+    const slashIconRule = slashMenuCss.slice(
+      slashMenuCss.indexOf('.slash-menu-item-icon svg {'),
+      slashMenuCss.indexOf('.slash-menu-item.selected .slash-menu-item-icon,')
+    );
+
+    for (const rule of [toolbarIconRule, dropdownIconRule, aiIconRule, slashIconRule]) {
+      expect(rule).toContain('display: block;');
+      expect(rule).toContain('pointer-events: none;');
+    }
+  });
+
   it('keeps the floating toolbar link editor from drawing an accent rail line', () => {
     const css = readStyleFile('floating-toolbar.css');
     const source = readUrlRailEditorSource();

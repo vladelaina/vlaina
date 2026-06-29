@@ -1,4 +1,9 @@
 import { sanitizeMermaidMarkup } from '@/components/common/markdown/mermaidSanitizer';
+import { getMermaidDiagramType } from '@/components/common/markdown/mermaidDiagramType';
+import {
+  getFirstMermaidDirective,
+  getMermaidCodeForLooseSyntaxScan,
+} from '@/components/common/markdown/mermaidDirective';
 import { translate } from '@/lib/i18n';
 import {
   normalizeMermaidCodeForRender,
@@ -60,6 +65,12 @@ function setMermaidElementCode(element: HTMLElement, code: string) {
   disposedMermaidElements.delete(element);
   mermaidElementCode.set(element, code);
   element.dataset.renderKey = `mermaid-render-${mermaidRenderKeyCounter++}`;
+  const diagramType = getMermaidDiagramType(code);
+  if (diagramType) {
+    element.dataset.mermaidDiagram = diagramType;
+  } else {
+    delete element.dataset.mermaidDiagram;
+  }
   delete element.dataset.code;
   return element.dataset.renderKey;
 }
@@ -86,8 +97,10 @@ function isLikelyIncompleteMermaidRenderCode(code: string) {
   const closingStack: string[] = [];
   let quotedBy: string | null = null;
   let escaped = false;
+  const shouldTrackBracketPairs = getFirstMermaidDirective(code) !== 'erdiagram';
+  const syntaxCode = getMermaidCodeForLooseSyntaxScan(code);
 
-  for (const char of code) {
+  for (const char of syntaxCode) {
     if (quotedBy) {
       if (escaped) {
         escaped = false;
@@ -105,6 +118,10 @@ function isLikelyIncompleteMermaidRenderCode(code: string) {
 
     if (char === '"' || char === '`') {
       quotedBy = char;
+      continue;
+    }
+
+    if (!shouldTrackBracketPairs) {
       continue;
     }
 

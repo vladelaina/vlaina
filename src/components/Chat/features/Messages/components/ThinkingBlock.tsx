@@ -542,11 +542,13 @@ export function ThinkingBlock({
           />
           {/* Chevron glyph adapted from Lucide Icons (ISC). */}
           <svg
+            aria-hidden="true"
             className={`h-4 w-4 absolute top-0 left-0 ${
               isCollapsed
                 ? "-rotate-90 opacity-[var(--vlaina-opacity-0)] group-hover/thinking:opacity-[var(--vlaina-opacity-100)]"
                 : "rotate-0 opacity-[var(--vlaina-opacity-100)]"
             }`}
+            focusable="false"
             viewBox={themeIconTokens.viewBoxDefault}
             fill={themeStyleResetTokens.fillNone}
             stroke={themeStyleResetTokens.currentColor}

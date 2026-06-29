@@ -348,6 +348,17 @@
   cursor: pointer;
 }
 
+.milkdown .mermaid-block[data-mermaid-diagram='gantt'] {
+  justify-content: flex-start;
+}
+
+.milkdown .mermaid-block[data-mermaid-diagram='gantt'] svg {
+  flex: 0 0 auto;
+  width: 1200px;
+  max-width: none;
+  height: auto;
+}
+
 .milkdown .mermaid-placeholder,
 .milkdown .mermaid-empty {
   color: var(--vlaina-text-tertiary);

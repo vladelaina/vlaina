@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MERMAID_FORMAT_FIXTURES } from '@/test/fixtures/mermaidFormatFixtures';
 import {
   isMermaidFenceLanguage,
   MERMAID_FENCE_LANGUAGE_ALIAS_LIST,
@@ -87,6 +88,14 @@ describe('mermaidLanguage', () => {
     expect(normalizeMermaidFenceLanguage('mermaid title="Flow"')).toBe('mermaid');
     expect(isMermaidFenceLanguage('sequence data-extra')).toBe(true);
     expect(normalizeMermaidFenceLanguage(`${' '.repeat(257)}mermaid`)).toBe('');
+  });
+
+  it('recognizes the first directive token from shared Mermaid format fixtures', () => {
+    for (const fixture of MERMAID_FORMAT_FIXTURES) {
+      const [directive = ''] = fixture.source[0]?.trim().split(/\s+/) ?? [];
+
+      expect(isMermaidFenceLanguage(directive), fixture.label).toBe(true);
+    }
   });
 
   it('keeps Mermaid core diagram ids covered by fence aliases', async () => {

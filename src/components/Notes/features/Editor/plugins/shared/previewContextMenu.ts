@@ -81,11 +81,12 @@ function insertParagraph(
 }
 
 // Inline context-menu icons are adapted from Lucide Icons (ISC).
+const MENU_ICON_SVG_ATTRS = 'aria-hidden="true" focusable="false"';
 const MENU_ICONS: Record<PreviewContextMenuIcon, string> = {
-  image: `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>`,
-  paragraph: `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="M13 4v16"></path><path d="M17 4v16"></path><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"></path></svg>`,
-  'arrow-up': `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="m12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>`,
-  'arrow-down': `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>`,
+  image: `<svg ${MENU_ICON_SVG_ATTRS} viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>`,
+  paragraph: `<svg ${MENU_ICON_SVG_ATTRS} viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="M13 4v16"></path><path d="M17 4v16"></path><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"></path></svg>`,
+  'arrow-up': `<svg ${MENU_ICON_SVG_ATTRS} viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="m12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>`,
+  'arrow-down': `<svg ${MENU_ICON_SVG_ATTRS} viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>`,
 };
 
 function positionMenu(menu: HTMLElement, element: HTMLElement) {

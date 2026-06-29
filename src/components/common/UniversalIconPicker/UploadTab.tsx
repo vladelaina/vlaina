@@ -258,7 +258,9 @@ export function UploadTab({
                             >
                                 {isUploading ? (
                                     <svg
+                                        aria-hidden="true"
                                         className="animate-spin w-[var(--vlaina-size-18px)] h-[var(--vlaina-size-18px)] text-current"
+                                        focusable="false"
                                         xmlns="http://www.w3.org/2000/svg"
                                         fill={themeStyleResetTokens.fillNone}
                                         viewBox={themeIconTokens.viewBoxDefault}

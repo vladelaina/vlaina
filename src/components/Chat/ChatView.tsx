@@ -437,6 +437,8 @@ export function ChatView({
           >
             {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
             <svg
+              aria-hidden="true"
+              focusable="false"
               xmlns="http://www.w3.org/2000/svg"
               width="24"
               height="24"

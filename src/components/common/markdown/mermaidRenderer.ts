@@ -1,5 +1,6 @@
 import { translate } from '@/lib/i18n';
 import { createDefaultMermaidThemeConfig } from '@/lib/notes/mermaid/mermaidTheme';
+import { getFirstMermaidDirective } from './mermaidDirective';
 
 let mermaidInstance: any = null;
 let mermaidPromise: Promise<any> | null = null;
@@ -62,7 +63,7 @@ async function getMermaid() {
 }
 
 function isZenumlDiagram(code: string): boolean {
-  return /^zenuml(?:\s|$)/i.test(code.trimStart());
+  return getFirstMermaidDirective(code) === 'zenuml';
 }
 
 async function ensureZenumlExternalDiagram(mermaid: any): Promise<boolean> {
@@ -154,14 +155,14 @@ function createMermaidRenderContainer(): HTMLElement | undefined {
   container.dataset.mermaidRenderHost = 'true';
   container.setAttribute('aria-hidden', 'true');
   Object.assign(container.style, {
-    height: '0',
+    contain: 'layout style paint',
     left: '-10000px',
-    overflow: 'hidden',
+    opacity: '0',
+    overflow: 'visible',
     pointerEvents: 'none',
     position: 'absolute',
     top: '-10000px',
-    visibility: 'hidden',
-    width: '0',
+    width: '1200px',
   });
   document.body.appendChild(container);
   return container;

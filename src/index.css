@@ -225,9 +225,11 @@ html, body, #root {
 }
 
 .toolbar-btn svg {
+  display: block;
   width: var(--vlaina-size-20px);
   height: var(--vlaina-size-20px);
   flex-shrink: 0;
+  pointer-events: none;
   font-size: var(--vlaina-font-20);
   stroke-width: var(--vlaina-stroke-width-toolbar);
   transition: transform var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-toolbar);

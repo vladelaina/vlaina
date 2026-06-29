@@ -6,6 +6,7 @@ import {
   mermaidRenderErrorMarkup,
   renderMermaid as renderMermaidMarkup,
 } from './mermaidRenderer';
+import { getMermaidDiagramType } from './mermaidDiagramType';
 import { sanitizeMermaidMarkup } from './mermaidSanitizer';
 
 const READONLY_MERMAID_RENDER_CACHE_LIMIT = 80;
@@ -87,6 +88,7 @@ interface ReadOnlyMermaidBlockProps {
 
 export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
   const normalizedCode = useMemo(() => code.trim(), [code]);
+  const diagramType = useMemo(() => getMermaidDiagramType(normalizedCode), [normalizedCode]);
   const [markup, setMarkup] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -133,6 +135,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
     return (
       <div
         className="mermaid-block mermaid-error"
+        data-mermaid-diagram={diagramType ?? undefined}
         data-type="mermaid"
         data-chat-selection-excluded="true"
       >
@@ -145,6 +148,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
     return (
       <div
         className="mermaid-block"
+        data-mermaid-diagram={diagramType ?? undefined}
         data-type="mermaid"
         data-chat-selection-excluded="true"
       >
@@ -156,6 +160,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
   return (
     <div
       className="mermaid-block"
+      data-mermaid-diagram={diagramType ?? undefined}
       data-type="mermaid"
       data-chat-selection-excluded="true"
       dangerouslySetInnerHTML={{ __html: markup }}

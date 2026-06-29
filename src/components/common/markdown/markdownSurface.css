@@ -542,6 +542,13 @@
   margin: 0 auto;
 }
 
+.markdown-surface .mermaid-block[data-mermaid-diagram='gantt'] svg {
+  width: 1200px;
+  max-width: none;
+  height: auto;
+  margin: 0;
+}
+
 .markdown-surface .mermaid-placeholder,
 .markdown-surface .mermaid-empty,
 .markdown-surface .mermaid-error,

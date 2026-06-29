@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MERMAID_FORMAT_FIXTURES } from '@/test/fixtures/mermaidFormatFixtures';
 
 vi.mock('./mermaidRenderer', () => ({
   generateMermaidId: () => 'mermaid-readonly-test',
@@ -57,6 +58,20 @@ describe('ReadOnlyMermaidBlock', () => {
     expect(container.innerHTML).not.toContain('secret token');
   });
 
+  it('marks Gantt diagrams for readable chart sizing while loading and rendered', async () => {
+    vi.mocked(renderMermaid).mockResolvedValueOnce('<svg><text>rendered</text></svg>');
+    const code = ['%% Schedule', 'gantt', 'dateFormat YYYY-MM-DD'].join('\n');
+    const { container } = render(<ReadOnlyMermaidBlock code={code} />);
+
+    expect(container.querySelector('.mermaid-block')?.getAttribute('data-mermaid-diagram')).toBe('gantt');
+
+    await waitFor(() => {
+      expect(screen.getByText('rendered')).toBeInTheDocument();
+    });
+    expect(container.querySelector('.mermaid-block')?.getAttribute('data-mermaid-diagram')).toBe('gantt');
+    expect(container.innerHTML).not.toContain('dateFormat');
+  });
+
   it('coalesces duplicate read-only Mermaid renders', async () => {
     let resolveRender: (markup: string) => void = () => undefined;
     vi.mocked(renderMermaid).mockImplementationOnce(
@@ -76,6 +91,24 @@ describe('ReadOnlyMermaidBlock', () => {
     await expect(first).resolves.toContain('rendered');
     await expect(second).resolves.toContain('rendered');
     expect(getPendingReadOnlyMermaidRenderCount()).toBe(0);
+  });
+
+  it('passes the shared Mermaid format fixtures through the read-only renderer', async () => {
+    vi.mocked(renderMermaid).mockImplementation(async (code) =>
+      `<svg data-readonly-rendered="${code.split(/\r?\n/, 1)[0]}"></svg>`
+    );
+
+    for (const fixture of MERMAID_FORMAT_FIXTURES) {
+      const code = fixture.source.join('\n');
+      const markup = await resolveReadOnlyMermaidMarkup(code);
+
+      expect(renderMermaid, `${fixture.label} should reach the read-only renderer`).toHaveBeenCalledWith(
+        code,
+        expect.any(String)
+      );
+      expect(markup, `${fixture.label} should return SVG markup`).toContain('data-readonly-rendered');
+      expect(markup, `${fixture.label} should not render an error`).not.toContain('mermaid-error');
+    }
   });
 
   it('bounds pending read-only Mermaid renders for different diagrams', async () => {
