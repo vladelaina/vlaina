@@ -101,6 +101,8 @@ describe("editor markdown presentation styles", () => {
     expect(css).toContain(".milkdown :is(#write, .ProseMirror) > p.editor-editable-markdown-blank-line + :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, .milkdown-table-block, table, .code-block-container, .frontmatter-block-container, .toc-block, .footnote-def, .mermaid-block, .video-block, [data-type='math-block'], [data-type='mermaid'], [data-type='video'], [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->'])),");
     expect(css).toContain(".milkdown :is(#write, .ProseMirror) > p.editor-empty-paragraph:not(.is-editor-empty) + :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, .milkdown-table-block, table, .code-block-container, .frontmatter-block-container, .toc-block, .footnote-def, .mermaid-block, .video-block, [data-type='math-block'], [data-type='mermaid'], [data-type='video'], [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->'])) {");
     expect(css).toContain('margin-block-start: var(--vlaina-space-0);');
+    expect(css).toContain(":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora.ty-on-typewriter-mode) #write > p.editor-empty-paragraph:not(.is-editor-empty) {");
+    expect(css).toContain('margin-block-start: var(--typora-block-gap);');
   });
 
   it('lets autolinks inherit the shared markdown link appearance', () => {

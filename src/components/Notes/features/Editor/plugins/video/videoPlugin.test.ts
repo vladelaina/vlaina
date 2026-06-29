@@ -8,6 +8,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import {
   isSupportedVideoUrl,
@@ -487,6 +488,40 @@ describe('videoPlugin URL support', () => {
     expect(userInputListener).toHaveBeenCalledTimes(1);
 
     view.dom.removeEventListener('editor:block-user-input', userInputListener);
+    await editor.destroy();
+  });
+
+  it('keeps the cursor out of a following heading after inserting a video command', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+
+    const commands = editor.ctx.get(commandsCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraph = schema.nodes.paragraph.create();
+    const heading = schema.nodes.heading.create({ level: 1 }, schema.text('Heading'));
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [paragraph, heading]));
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)));
+
+    expect(commands.call(insertVideoCommand.key, 'https://example.com/video.mp4')).toBe(true);
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(0).type.name).toBe('video');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).content.size).toBe(0);
+    expect(view.state.doc.child(2).type.name).toBe('heading');
+    expect(view.state.doc.child(2).textContent).toBe('Heading');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent).toBe(view.state.doc.child(1));
+
     await editor.destroy();
   });
 });

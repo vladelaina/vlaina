@@ -1,11 +1,15 @@
 import { $node, $command, $prose } from '@milkdown/kit/utils';
-import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
+import { Plugin } from '@milkdown/kit/prose/state';
 import type { VideoAttrs } from './types';
 import { createVideoDom, getVideoElementAttrs, normalizeVideoAttrs } from './videoDom';
 import { VideoNodeView } from './videoNodeView';
 import { parseVideoUrl, sanitizeVideoUrlInput } from './videoUrl';
 import { markEditorUserInput } from '../shared/userInputEvents';
 import { remarkVideoImagesPlugin } from './videoMarkdown';
+import {
+  findInsertedNodePos,
+  moveSelectionAfterInsertedNode,
+} from '../shared/insertedNodeSelection';
 
 function getVideoMarkdownTitle(node: { title?: unknown; alt?: unknown }): string {
   if (typeof node.title === 'string' && node.title) {
@@ -94,14 +98,20 @@ export const insertVideoCommand = $command('insertVideo', () => (src: string = '
     if (dispatch) {
       const node = videoType.create({ src: safeSrc });
       const tr = state.tr.replaceSelectionWith(node);
-      const afterVideoPos = tr.selection.from;
-      const nextNode = tr.doc.nodeAt(afterVideoPos);
-      if (nextNode?.isTextblock) {
-        tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
-      } else if (paragraphType) {
-        tr.insert(afterVideoPos, paragraphType.create());
-        tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
-      }
+      const preferredPos = typeof tr.mapping?.map === 'function'
+        ? tr.mapping.map(state.selection.from, -1)
+        : state.selection.from;
+      const nodePos = findInsertedNodePos({
+        doc: tr.doc,
+        preferredPos,
+        nodeTypeName: 'video',
+      });
+      moveSelectionAfterInsertedNode({
+        tr,
+        nodePos,
+        insertedNodeFallback: node,
+        paragraphType,
+      });
       markEditorUserInput(view);
       dispatch(tr.scrollIntoView());
     }
