@@ -3,6 +3,7 @@ import { registerManagedIpc } from '../../electron/managedIpc.mjs';
 
 const MAX_MANAGED_IPC_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_MANAGED_STREAM_LINE_CHARS = 1024 * 1024;
+const MANAGED_STREAM_TIMEOUT_MS = 300_000;
 
 function registerHarness(overrides: Partial<Parameters<typeof registerManagedIpc>[0]> = {}) {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
@@ -488,6 +489,47 @@ describe('managed ipc stream bridge', () => {
       'desktop:managed:stream:managed-reader-hangs:error',
       { message: 'Aborted' },
     );
+  });
+
+  it('times out stalled managed streams locally without posting diagnostics', async () => {
+    vi.useFakeTimers();
+    try {
+      const reader = {
+        read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+        cancel: vi.fn(async () => undefined),
+        releaseLock: vi.fn(),
+      };
+      const fetchWithStoredSession = vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => reader,
+        },
+      }));
+      const { handlers } = registerHarness({ fetchWithStoredSession });
+      const sender = { isDestroyed: () => false, send: vi.fn() };
+
+      await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-stream-timeout', {
+        model: 'deepseek-chat',
+      });
+      await vi.waitFor(() => expect(reader.read).toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(MANAGED_STREAM_TIMEOUT_MS);
+      await vi.waitFor(() => expect(sender.send).toHaveBeenCalledWith(
+        'desktop:managed:stream:managed-stream-timeout:error',
+        {
+          message: 'Managed stream timed out.',
+          statusCode: undefined,
+          errorCode: 'managed_stream_timeout',
+        },
+      ));
+
+      expect(reader.cancel).toHaveBeenCalled();
+      expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+      expect(fetchWithStoredSession).toHaveBeenCalledTimes(1);
+      expect(String(fetchWithStoredSession.mock.calls[0]?.[0])).toBe('https://api.example.com/v1/chat/completions');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('consumes the final SSE line without a trailing newline', async () => {

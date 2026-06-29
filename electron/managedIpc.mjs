@@ -5,7 +5,7 @@ const MAX_MANAGED_BINARY_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_MANAGED_BINARY_BODY_BASE64_CHARS = Math.ceil(MAX_MANAGED_BINARY_BODY_BYTES / 3) * 4;
 const MAX_MANAGED_STREAM_LINE_CHARS = 1024 * 1024;
 const MAX_MANAGED_ERROR_BODY_BYTES = 64 * 1024;
-const MANAGED_CLIENT_DIAGNOSTIC_TIMEOUT_MS = 2500;
+const MANAGED_STREAM_TIMEOUT_MS = 300_000;
 const MANAGED_BACKEND_STREAM_ERROR = Symbol('managedBackendStreamError');
 
 function requireSafeIpcRequestId(value, label) {
@@ -175,12 +175,18 @@ function createManagedBackendStreamError(payload) {
   return error;
 }
 
-function isManagedBackendStreamError(error) {
-  return !!error && typeof error === 'object' && error[MANAGED_BACKEND_STREAM_ERROR] === true;
-}
-
 function createAbortError() {
   return new DOMException('Aborted', 'AbortError');
+}
+
+function createManagedStreamTimeoutError() {
+  const error = new Error('Managed stream timed out.');
+  error.errorCode = 'managed_stream_timeout';
+  return error;
+}
+
+function isManagedStreamTimeoutError(error) {
+  return !!error && typeof error === 'object' && error.errorCode === 'managed_stream_timeout';
 }
 
 function throwIfAborted(signal) {
@@ -191,69 +197,6 @@ function throwIfAborted(signal) {
 function assertManagedStreamLineLength(line) {
   if (line.length > MAX_MANAGED_STREAM_LINE_CHARS) {
     throw new Error('Managed stream line is too large.');
-  }
-}
-
-function extractManagedDiagnosticMessage(error) {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message.trim();
-  }
-  if (typeof error?.message === 'string' && error.message.trim()) {
-    return error.message.trim();
-  }
-  return String(error ?? '').trim() || 'Unknown managed client failure';
-}
-
-function extractManagedDiagnosticErrorCode(error) {
-  const value = typeof error?.errorCode === 'string' && error.errorCode.trim()
-    ? error.errorCode.trim()
-    : typeof error?.code === 'string' && error.code.trim()
-      ? error.code.trim()
-      : '';
-  return value;
-}
-
-function extractManagedDiagnosticStatusCode(error) {
-  const numeric = Number(error?.statusCode ?? error?.status);
-  return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : null;
-}
-
-async function reportManagedClientDiagnostic({
-  fetchWithStoredSession,
-  managedApiBaseUrl,
-  source,
-  phase,
-  body,
-  error,
-  requestId,
-}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), MANAGED_CLIENT_DIAGNOSTIC_TIMEOUT_MS);
-  const statusCode = extractManagedDiagnosticStatusCode(error);
-  try {
-    await fetchWithStoredSession(`${managedApiBaseUrl}/client-diagnostics`, {
-      method: 'POST',
-      cache: 'no-store',
-      signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        kind: 'chat_stream',
-        source,
-        phase,
-        model: typeof body?.model === 'string' ? body.model : undefined,
-        isStream: true,
-        requestId,
-        statusCode,
-        errorCode: extractManagedDiagnosticErrorCode(error),
-        message: extractManagedDiagnosticMessage(error),
-      }),
-    });
-  } catch {
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -598,8 +541,11 @@ export function registerManagedIpc({
     };
 
     void (async () => {
-      let responseStarted = false;
-      let clientPhase = 'stream_fetch';
+      const timeoutId = setTimeout(() => {
+        if (isCurrentManagedStream(id, controller) && !controller.signal.aborted) {
+          controller.abort(createManagedStreamTimeoutError());
+        }
+      }, MANAGED_STREAM_TIMEOUT_MS);
       try {
         const response = await raceWithAbort(fetchWithStoredSession(`${managedApiBaseUrl}/chat/completions`, {
           method: 'POST',
@@ -619,8 +565,6 @@ export function registerManagedIpc({
           throw new Error('Managed API response body is null');
         }
 
-        responseStarted = true;
-        clientPhase = 'stream_consume';
         const reader = response.body.getReader();
         const cancelReader = () => {
           void reader.cancel(new Error('Aborted')).catch(() => {});
@@ -677,11 +621,9 @@ export function registerManagedIpc({
             for (const line of lines) {
               try {
                 assertManagedStreamLineLength(line);
-                clientPhase = 'stream_parse';
                 if (!consumeLine(line)) {
                   throw new Error('Aborted');
                 }
-                clientPhase = 'stream_consume';
               } catch (error) {
                 if (!(error instanceof SyntaxError)) {
                   throw error;
@@ -709,20 +651,18 @@ export function registerManagedIpc({
       } catch (error) {
         if (controller.signal.aborted) {
           if (isCurrentManagedStream(id, controller)) {
-            safeSend(sender, `desktop:managed:stream:${id}:error`, { message: 'Aborted' });
+            const abortReason = controller.signal.reason;
+            if (isManagedStreamTimeoutError(abortReason)) {
+              safeSend(sender, `desktop:managed:stream:${id}:error`, {
+                message: abortReason.message,
+                statusCode: undefined,
+                errorCode: abortReason.errorCode,
+              });
+            } else {
+              safeSend(sender, `desktop:managed:stream:${id}:error`, { message: 'Aborted' });
+            }
           }
         } else {
-          if (responseStarted && !isManagedBackendStreamError(error)) {
-            await reportManagedClientDiagnostic({
-              fetchWithStoredSession,
-              managedApiBaseUrl,
-              source: 'managed_desktop_stream',
-              phase: clientPhase,
-              body,
-              error,
-              requestId: id,
-            });
-          }
           sendStreamEvent('error', {
             message: getManagedErrorMessage(error),
             statusCode: typeof error?.statusCode === 'number' ? error.statusCode : undefined,
@@ -730,6 +670,7 @@ export function registerManagedIpc({
           });
         }
       } finally {
+        clearTimeout(timeoutId);
         deleteActiveManagedStream(id, controller);
       }
     })();
