@@ -10,23 +10,15 @@ export interface UserFacingAIError {
 export const MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS = 8192
 export const MAX_USER_FACING_AI_ERROR_CODE_CHARS = 512
 
-const NETWORK_ERROR_MESSAGE = 'Network connection error. Please check your connection and try again.'
-const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again later.'
-const AUTH_ERROR_MESSAGE = 'Your sign-in session has expired. Please sign in again and try again.'
-const RATE_LIMIT_ERROR_MESSAGE = 'Too many requests. Please try again later.'
 const UNSUPPORTED_MODEL_INPUT_CODES = new Set([
   'unsupported_message_content',
   'unsupported_model_input',
 ])
-const UPSTREAM_FORBIDDEN_MESSAGE =
-  'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.'
 const KNOWN_MANAGED_BUSINESS_ERRORS = [
   'Points exhausted',
   'No active points balance',
   'Insufficient remaining points',
 ]
-const MANAGED_QUOTA_EXHAUSTED_MESSAGE =
-  '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~'
 
 const MANAGED_UPSTREAM_UNAVAILABLE_CODES = new Set([
   'upstream_unavailable',
@@ -338,15 +330,15 @@ function inferErrorTypeByMessage(message: string): AIErrorType {
 function getUserFacingMessage(type: AIErrorType): string {
   switch (type) {
     case AIErrorType.NETWORK_ERROR:
-      return NETWORK_ERROR_MESSAGE
+      return translate('chat.error.network')
     case AIErrorType.TIMEOUT:
-      return TIMEOUT_ERROR_MESSAGE
+      return translate('chat.error.timeout')
     case AIErrorType.AUTH_ERROR:
-      return AUTH_ERROR_MESSAGE
+      return translate('chat.error.authExpired')
     case AIErrorType.QUOTA_EXHAUSTED:
-      return MANAGED_QUOTA_EXHAUSTED_MESSAGE
+      return translate('chat.error.pointsExhausted')
     case AIErrorType.RATE_LIMIT:
-      return RATE_LIMIT_ERROR_MESSAGE
+      return translate('chat.error.upstreamRateLimited')
     case AIErrorType.INVALID_REQUEST:
       return translate('chat.error.upstreamUnavailable')
     case AIErrorType.SERVER_ERROR:
@@ -391,6 +383,14 @@ function getSpecificUserFacingOverride(message: string, code: string): UserFacin
   const normalized = normalizeUserFacingMessage(message).toLowerCase()
   const normalizedCode = code.trim()
   const normalizedCodeLower = normalizedCode.toLowerCase()
+
+  if (normalized === 'web search is unavailable for this model.') {
+    return {
+      type: AIErrorType.INVALID_REQUEST,
+      code: normalizedCode,
+      message: translate('chat.webSearch.unavailableForModel'),
+    }
+  }
 
   if (
     normalized === 'unsupported_model_input' ||
@@ -448,7 +448,7 @@ function getSpecificUserFacingOverride(message: string, code: string): UserFacin
       return {
         type: AIErrorType.QUOTA_EXHAUSTED,
         code: code || 'quota_exhausted',
-        message: MANAGED_QUOTA_EXHAUSTED_MESSAGE,
+        message: translate('chat.error.pointsExhausted'),
       }
     }
   }
@@ -460,7 +460,7 @@ function getSpecificUserFacingOverride(message: string, code: string): UserFacin
     return {
       type: AIErrorType.SERVER_ERROR,
       code: '403',
-      message: UPSTREAM_FORBIDDEN_MESSAGE,
+      message: translate('chat.error.upstreamUnavailable'),
     }
   }
 
@@ -556,7 +556,7 @@ export function parseHTTPError(status: number, body?: any): AIError {
     case 401:
       return createAIError(
         AIErrorType.AUTH_ERROR,
-        apiMessage || 'Invalid API key or unauthorized access.',
+        apiMessage || translate('chat.error.authFailed'),
         undefined,
         status
       )
@@ -564,7 +564,7 @@ export function parseHTTPError(status: number, body?: any): AIError {
       const inferredType = apiMessage ? inferErrorTypeByMessage(apiMessage) : AIErrorType.UNKNOWN
       return createAIError(
         inferredType === AIErrorType.AUTH_ERROR ? AIErrorType.AUTH_ERROR : AIErrorType.SERVER_ERROR,
-        apiMessage || 'Forbidden request.',
+        apiMessage || translate('chat.error.upstreamUnavailable'),
         undefined,
         status
       )
@@ -572,14 +572,14 @@ export function parseHTTPError(status: number, body?: any): AIError {
     case 429:
       return createAIError(
         AIErrorType.RATE_LIMIT,
-        apiMessage || 'Rate limit exceeded. Please try again later.',
+        apiMessage || translate('chat.error.upstreamRateLimited'),
         undefined,
         status
       )
     case 400:
       return createAIError(
         AIErrorType.INVALID_REQUEST,
-        apiMessage || 'Invalid request. Please check your input.',
+        apiMessage || translate('chat.error.invalidRequest'),
         undefined,
         status
       )
@@ -589,14 +589,14 @@ export function parseHTTPError(status: number, body?: any): AIError {
     case 504:
       return createAIError(
         AIErrorType.SERVER_ERROR,
-        apiMessage || 'Server error. Please try again later.',
+        apiMessage || translate('chat.error.upstreamUnavailable'),
         undefined,
         status
       )
     default:
       return createAIError(
         AIErrorType.UNKNOWN,
-        apiMessage || `HTTP ${status} Error`,
+        apiMessage || translate('chat.error.upstreamUnavailable'),
         undefined,
         status
       )

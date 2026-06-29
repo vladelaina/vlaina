@@ -95,7 +95,7 @@ export const FolderItem = memo(function FolderItem({
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
     itemPath: node.path,
-    openLocationErrorMessage: 'Failed to open folder location.',
+    openLocationErrorMessage: t('notes.openFolderLocationFailed'),
   });
   const handleRenameFromDoubleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
@@ -248,7 +248,7 @@ export const FolderItem = memo(function FolderItem({
       dragHandlers={dragHandlers}
       showActionsByDefault={showMenu}
       showMenuButton={showMenuButton}
-      menuButtonLabel="Open folder menu"
+      menuButtonLabel={t('sidebar.openFolderMenu')}
       onMenuClick={handleMenuTrigger}
       main={
         isRenaming ? (

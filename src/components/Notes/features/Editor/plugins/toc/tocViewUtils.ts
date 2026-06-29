@@ -1,15 +1,18 @@
 import type { TocItem } from './types';
+import { translate } from '@/lib/i18n';
 import {
   STOP_PROSE_SCAN,
   scanProseDescendants,
   type BoundedProseScanNode,
 } from '../shared/boundedProseNodeScan';
 
-export const TOC_EMPTY_TEXT = 'No headings yet';
-
 export const MAX_TOC_VIEW_HEADINGS = 512;
 export const MAX_TOC_VIEW_HEADING_TEXT_CHARS = 240;
 const TOC_MAX_LEVEL_PATTERN = /^\d{1,2}$/;
+
+export function getTocEmptyText(): string {
+  return translate('editor.tocEmpty');
+}
 
 export function normalizeTocMaxLevel(value: unknown): number {
   const parsed = typeof value === 'string'
@@ -97,7 +100,7 @@ export function renderTocContent(contentEl: HTMLElement, headings: readonly TocI
   if (scopedHeadings.length === 0) {
     const empty = doc.createElement('div');
     empty.className = 'toc-empty md-toc-empty';
-    empty.textContent = TOC_EMPTY_TEXT;
+    empty.textContent = getTocEmptyText();
     contentEl.replaceChildren(empty);
     return;
   }

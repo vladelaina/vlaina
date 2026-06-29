@@ -5,6 +5,7 @@ import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Inp
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
 import { desktopWindow } from '@/lib/desktop/window';
 import { isMacOS, shouldRenderMacOSTrafficLightPreview } from '@/lib/desktop/platform';
+import { translate } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
@@ -31,19 +32,19 @@ function MacOSTrafficLightPreviewControls() {
     >
       <button
         type="button"
-        aria-label="Close window"
+        aria-label={translate('common.closeWindow')}
         onClick={() => void desktopWindow.close()}
         className={`${buttonClass} bg-[#ff5f57]`}
       />
       <button
         type="button"
-        aria-label="Minimize window"
+        aria-label={translate('common.minimizeWindow')}
         onClick={() => void desktopWindow.minimize()}
         className={`${buttonClass} bg-[#febc2e]`}
       />
       <button
         type="button"
-        aria-label="Maximize window"
+        aria-label={translate('common.maximizeWindow')}
         onClick={() => void desktopWindow.toggleMaximize()}
         className={`${buttonClass} bg-[#28c840]`}
       />

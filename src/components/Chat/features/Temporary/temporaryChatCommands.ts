@@ -1,6 +1,7 @@
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
+import { translate } from '@/lib/i18n';
 
 export function runOpenNewChatShortcut() {
   aiActions.openNewChat();
@@ -25,5 +26,5 @@ export function runTemporaryChatWelcomeShortcut() {
     return;
   }
 
-  aiActions.createSession('New');
+  aiActions.createSession(translate('chat.newChatTitle'));
 }

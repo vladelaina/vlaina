@@ -442,7 +442,7 @@ export function createSignIn(
       }
       const authUrl = normalizeWebAuthRedirectUrl(authData?.authUrl);
       if (!authData || !isValidAuthIntentValue(authData.state) || !authUrl) {
-        set({ error: 'Failed to start account sign-in', isConnecting: false });
+        set({ error: normalizeAuthError('Failed to start account sign-in'), isConnecting: false });
         return false;
       }
 
@@ -453,7 +453,7 @@ export function createSignIn(
         if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
           return false;
         }
-        set({ error: 'Unable to store sign-in state in this browser session', isConnecting: false });
+        set({ error: normalizeAuthError('Unable to store sign-in state in this browser session'), isConnecting: false });
         return false;
       }
       window.location.href = authUrl;
@@ -474,13 +474,13 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
   return async (email: string) => {
     const normalizedEmail = normalizeEmailInput(email);
     if (!normalizedEmail) {
-      set({ error: 'Invalid email address' });
+      set({ error: normalizeAuthError('Invalid email address') });
       return false;
     }
 
     const { isConnected, primaryEmail } = get();
     if (isConnected && normalizeEmailInput(primaryEmail) === normalizedEmail) {
-      set({ error: 'You are already signed in with this email' });
+      set({ error: normalizeAuthError('You are already signed in with this email') });
       return false;
     }
 
@@ -494,7 +494,7 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
         return false;
       }
       if (!ok) {
-        set({ error: 'Failed to send verification code' });
+        set({ error: normalizeAuthError('Failed to send verification code') });
       }
       return ok;
     } catch (error) {
@@ -516,13 +516,13 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
   return async (email: string, code: string) => {
     const normalizedEmail = normalizeEmailInput(email);
     if (!normalizedEmail) {
-      set({ error: 'Invalid email address' });
+      set({ error: normalizeAuthError('Invalid email address') });
       return false;
     }
 
     const normalizedCode = normalizeEmailCodeInput(code);
     if (!normalizedCode) {
-      set({ error: 'Invalid verification code' });
+      set({ error: normalizeAuthError('Invalid verification code') });
       return false;
     }
 
@@ -597,17 +597,17 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
     }
 
     if (!callback.provider || !savedState || !callback.state || savedState !== callback.state) {
-      set({ error: 'Account sign-in state mismatch', isConnecting: false });
+      set({ error: normalizeAuthError('Account sign-in state mismatch'), isConnecting: false });
       return false;
     }
 
     if (savedProvider && savedProvider !== callback.provider) {
-      set({ error: 'Account sign-in provider mismatch', isConnecting: false });
+      set({ error: normalizeAuthError('Account sign-in provider mismatch'), isConnecting: false });
       return false;
     }
 
     if (!isOauthAccountProvider(callback.provider)) {
-      set({ error: 'Unsupported account sign-in provider', isConnecting: false });
+      set({ error: normalizeAuthError('Unsupported account sign-in provider'), isConnecting: false });
       return false;
     }
 

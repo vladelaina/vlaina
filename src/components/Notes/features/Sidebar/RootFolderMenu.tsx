@@ -61,7 +61,7 @@ export function RootFolderMenu({
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath: vaultPath,
     itemPath: '',
-    openLocationErrorMessage: 'Failed to open folder location.',
+    openLocationErrorMessage: t('notes.openFolderLocationFailed'),
   });
 
   const entries: NotesSidebarMenuEntry[] = [
@@ -113,7 +113,7 @@ export function RootFolderMenu({
       children: FILE_TREE_SORT_OPTIONS.map((option) => ({
         key: option.value,
         icon: <Icon name={sortOptionIconNameByMode[option.value]} size="md" />,
-        label: sortLabelByMode[option.value] ?? option.label,
+        label: sortLabelByMode[option.value] ?? t(option.labelKey),
         onClick: () => {
           onSelectSortMode(option.value);
           onClose();

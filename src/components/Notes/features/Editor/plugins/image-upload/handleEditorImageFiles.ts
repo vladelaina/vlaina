@@ -37,7 +37,7 @@ export async function uploadImageFileAndInsert(
             if (isTransientMissingVaultUpload(result)) {
                 return false;
             }
-            useToastStore.getState().addToast(result.error || translate('editor.imageUploadFailed'), 'error');
+            useToastStore.getState().addToast(translate('editor.imageUploadFailed'), 'error');
             return false;
         }
 
@@ -46,11 +46,8 @@ export async function uploadImageFileAndInsert(
             useToastStore.getState().addToast(translate('editor.imageUploadedCannotInsert'), 'error');
         }
         return inserted;
-    } catch (error) {
-        useToastStore.getState().addToast(
-            error instanceof Error ? error.message : translate('editor.imageUploadFailed'),
-            'error',
-        );
+    } catch {
+        useToastStore.getState().addToast(translate('editor.imageUploadFailed'), 'error');
         return false;
     }
 }

@@ -12,6 +12,7 @@ import { subscribeOpenMarkdownTargetEvent } from '../features/OpenTarget/openTar
 import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitRegistry';
 import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
 import { useI18n } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { toVaultRelativePath } from './notesExternalSyncUtils';
 
 export function useNotesOpenMarkdownTarget({
@@ -124,7 +125,7 @@ export function useNotesOpenMarkdownTarget({
     try {
       target = resolveOpenNoteTarget(selected);
     } catch (error) {
-      await messageDialog(error instanceof Error ? error.message : t('notes.openMarkdownFileFailed'), {
+      await messageDialog(normalizeUserFacingErrorMessage(error, 'notes.openMarkdownFileFailed'), {
         title: t('notes.openFailed'),
         kind: 'error',
       });
@@ -208,7 +209,7 @@ export function useNotesOpenMarkdownTarget({
       return true;
     } catch (error) {
       setPendingShortcutNoteTarget(null);
-      await messageDialog(error instanceof Error ? error.message : t('notes.openMarkdownFileFailed'), {
+      await messageDialog(normalizeUserFacingErrorMessage(error, 'notes.openMarkdownFileFailed'), {
         title: t('notes.openFailed'),
         kind: 'error',
       });
@@ -237,7 +238,7 @@ export function useNotesOpenMarkdownTarget({
       }
       return openedVault;
     } catch (error) {
-      await messageDialog(error instanceof Error ? error.message : t('vault.openFolderFailed'), {
+      await messageDialog(normalizeUserFacingErrorMessage(error, 'vault.openFolderFailed'), {
         title: t('notes.openFailed'),
         kind: 'error',
       });

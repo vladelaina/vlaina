@@ -1,4 +1,5 @@
 import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatSession } from '@/lib/ai/types'
+import { translate } from '@/lib/i18n'
 import { generateId } from '@/lib/id'
 import {
   cancelSessionJsonSave,
@@ -845,7 +846,7 @@ export function createSessionActions() {
         const promotedSessionId = generateId('session-')
         const promotedSession: ChatSession = {
           id: promotedSessionId,
-          title: 'New',
+          title: translate('chat.newChatTitle'),
           modelId: temporarySession.modelId || ai.selectedModelId || '',
           isPinned: temporarySession.isPinned,
           createdAt: temporarySession.createdAt || now,
@@ -904,7 +905,7 @@ export function createSessionActions() {
       })
     },
 
-    createSession: (title = 'New') => createAIChatSession(title),
+    createSession: (title = translate('chat.newChatTitle')) => createAIChatSession(title),
 
     forkSessionFromMessage: (sessionId: string, messageId: string) => {
       const targetSessionId = resolveSessionIdAlias(sessionId)
@@ -1017,7 +1018,7 @@ export function createSessionActions() {
           return
         }
         if (!loadedMessages && await hasSessionJson(sessionId)) {
-          useAIUIStore.getState().setError('This chat could not be loaded from disk. The original file was left untouched.');
+          useAIUIStore.getState().setError(translate('chat.error.sessionLoadFailed'));
           return
         }
         freshState.updateAIData({
@@ -1104,7 +1105,7 @@ export function createSessionActions() {
         try {
           await deleteSessionJson(id)
         } catch (error) {
-          latestUIState.setError('Could not delete this chat from disk. The chat was kept.');
+          latestUIState.setError(translate('chat.error.deleteSessionFailed'));
           throw error
         }
 
@@ -1160,7 +1161,7 @@ export function createSessionActions() {
             throw firstError
           }
         } catch (error) {
-          uiState.setError('Could not clear chats from disk. Existing chats were kept.');
+          uiState.setError(translate('chat.error.clearSessionsFailed'));
           throw error
         }
 

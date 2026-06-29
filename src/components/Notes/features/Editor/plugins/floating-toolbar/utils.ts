@@ -8,7 +8,6 @@ const VISIBLE_TRAILING_COLUMNS_PER_ROW = 2;
 
 const TOOLBAR_COLOR_OPTIONS: ColorOption[] = themeColorTokens.toolbarColorHexes.map((color, index) => ({
   id: `custom-${index + 1}`,
-  label: `Color ${index + 1}`,
   textColor: color,
   bgColor: color,
 }));
@@ -19,28 +18,28 @@ const VISIBLE_TOOLBAR_COLOR_OPTIONS = TOOLBAR_COLOR_OPTIONS.filter((_color, inde
 });
 
 export const COLOR_PALETTE: ColorOption[] = [
-  { id: 'default', label: 'Default' },
+  { id: 'default' },
   ...VISIBLE_TOOLBAR_COLOR_OPTIONS,
 ];
 
 export const COLOR_PALETTE_DARK: ColorOption[] = [
-  { id: 'default', label: 'Default' },
+  { id: 'default' },
   ...VISIBLE_TOOLBAR_COLOR_OPTIONS,
 ];
 
 export const BLOCK_TYPES: BlockTypeConfig[] = [
-  { type: 'paragraph', label: 'Paragraph', icon: 'text' },
-  { type: 'heading1', label: 'Heading 1', icon: 'h1' },
-  { type: 'heading2', label: 'Heading 2', icon: 'h2' },
-  { type: 'heading3', label: 'Heading 3', icon: 'h3' },
-  { type: 'heading4', label: 'Heading 4', icon: 'h4' },
-  { type: 'heading5', label: 'Heading 5', icon: 'h5' },
-  { type: 'heading6', label: 'Heading 6', icon: 'h6' },
-  { type: 'bulletList', label: 'Bullet List', icon: 'list' },
-  { type: 'orderedList', label: 'Numbered List', icon: 'listOrdered' },
-  { type: 'taskList', label: 'Task List', icon: 'listCheck' },
-  { type: 'blockquote', label: 'Quote', icon: 'quote' },
-  { type: 'codeBlock', label: 'Code Block', icon: 'code' },
+  { type: 'paragraph', labelKey: 'editor.blockType.paragraph', icon: 'text' },
+  { type: 'heading1', labelKey: 'editor.blockType.heading1', icon: 'h1' },
+  { type: 'heading2', labelKey: 'editor.blockType.heading2', icon: 'h2' },
+  { type: 'heading3', labelKey: 'editor.blockType.heading3', icon: 'h3' },
+  { type: 'heading4', labelKey: 'editor.blockType.heading4', icon: 'h4' },
+  { type: 'heading5', labelKey: 'editor.blockType.heading5', icon: 'h5' },
+  { type: 'heading6', labelKey: 'editor.blockType.heading6', icon: 'h6' },
+  { type: 'bulletList', labelKey: 'editor.blockType.bulletList', icon: 'list' },
+  { type: 'orderedList', labelKey: 'editor.blockType.orderedList', icon: 'listOrdered' },
+  { type: 'taskList', labelKey: 'editor.blockType.taskList', icon: 'listCheck' },
+  { type: 'blockquote', labelKey: 'editor.blockType.blockquote', icon: 'quote' },
+  { type: 'codeBlock', labelKey: 'editor.blockType.codeBlock', icon: 'code' },
 ];
 
 export function computeToolbarVisibility(from: number, to: number): boolean {

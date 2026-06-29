@@ -3,6 +3,7 @@ import { icons } from '@/components/ui/icons/registry';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
 import { ImageEdgeMask } from '@/components/common/ImageEdgeMask';
+import { useI18n } from '@/lib/i18n';
 import { resolveEmojiForSkinTone } from './randomEmoji';
 import { themeColorTokens, themeDomStyleTokens, themeRenderingTokens, themeTypographyTokens } from '@/styles/themeTokens';
 import {
@@ -86,6 +87,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   rounding?: string;
   maskColor?: string | null;
 }) {
+  const { t } = useI18n();
   const [hasLoadError, setHasLoadError] = useState(false);
   const previousSrcRef = useRef(src);
 
@@ -112,7 +114,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
         className={cn('object-cover select-none pointer-events-none', radiusClassName, className)}
         style={{ width: resolvedSize, height: resolvedSize, display: themeDomStyleTokens.displayInlineBlock }}
         draggable={false}
-        alt="icon"
+        alt={t('common.icon')}
         onError={() => setHasLoadError(true)}
       />
     );
@@ -128,7 +130,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
         className={cn('h-full w-full object-cover select-none pointer-events-none', radiusClassName)}
         style={{ display: themeDomStyleTokens.displayInlineBlock }}
         draggable={false}
-        alt="icon"
+        alt={t('common.icon')}
         onError={() => setHasLoadError(true)}
       />
       <ImageEdgeMask color={maskColor} rounding={radiusClassName} />

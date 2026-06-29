@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import type { MessageKey } from '@/lib/i18n';
 
 export type BlockType =
   | 'paragraph'
@@ -66,14 +67,13 @@ export interface ToolbarAction {
 
 export interface ColorOption {
   id: string;
-  label: string;
   textColor?: string;
   bgColor?: string;
 }
 
 export interface BlockTypeConfig {
   type: BlockType;
-  label: string;
+  labelKey: MessageKey;
   icon: string;
   shortcut?: string;
 }

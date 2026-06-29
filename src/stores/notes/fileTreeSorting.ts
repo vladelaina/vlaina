@@ -1,12 +1,13 @@
 import type { FileTreeNode, FileTreeSortMode, MetadataFile } from './types';
+import { translate, type MessageKey } from '@/lib/i18n';
 
 export const DEFAULT_FILE_TREE_SORT_MODE: FileTreeSortMode = 'name-asc';
 
-export const FILE_TREE_SORT_OPTIONS: Array<{ value: FileTreeSortMode; label: string }> = [
-  { value: 'name-asc', label: 'Name A-Z' },
-  { value: 'name-desc', label: 'Name Z-A' },
-  { value: 'updated-desc', label: 'Recently Updated' },
-  { value: 'created-desc', label: 'Recently Created' },
+export const FILE_TREE_SORT_OPTIONS: Array<{ value: FileTreeSortMode; labelKey: MessageKey }> = [
+  { value: 'name-asc', labelKey: 'sidebar.nameAsc' },
+  { value: 'name-desc', labelKey: 'sidebar.nameDesc' },
+  { value: 'updated-desc', labelKey: 'sidebar.recentlyUpdated' },
+  { value: 'created-desc', labelKey: 'sidebar.recentlyCreated' },
 ];
 
 interface FileTreeSortContext {
@@ -35,7 +36,8 @@ function getNodeTimestamp(
 }
 
 export function getFileTreeSortLabel(mode: FileTreeSortMode) {
-  return FILE_TREE_SORT_OPTIONS.find((option) => option.value === mode)?.label ?? 'Name A-Z';
+  const labelKey = FILE_TREE_SORT_OPTIONS.find((option) => option.value === mode)?.labelKey;
+  return translate(labelKey ?? 'sidebar.nameAsc');
 }
 
 export function sortFileTree(

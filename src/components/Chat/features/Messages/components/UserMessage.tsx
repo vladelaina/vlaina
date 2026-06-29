@@ -14,6 +14,7 @@ import {
 } from './userMessageContent';
 import { useUIStore } from '@/stores/uiSlice';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
+import { useI18n } from '@/lib/i18n';
 
 const userMessageActionButtonClass =
   cn(
@@ -42,6 +43,7 @@ function UserMessageInner({
   onEdit,
   onSwitchVersion,
 }: UserMessageProps) {
+  const { t } = useI18n();
   const fontSize = useUIStore((state) => state.fontSize);
   const content = message.content || '';
   const parsedContent = useMemo(() => {
@@ -145,7 +147,7 @@ function UserMessageInner({
                   >
                     <LocalImage
                       src={src}
-                      alt="attachment"
+                      alt={t('chat.attachment')}
                       className={cn(
                         'rounded-xl object-contain cursor-pointer hover:opacity-[var(--vlaina-opacity-90)] transition-opacity',
                         hasMultipleImages
@@ -166,7 +168,7 @@ function UserMessageInner({
               <ChatImageViewer
                 open={!!activeImage}
                 src={activeImage.src}
-                alt="attachment"
+                alt={t('chat.attachment')}
                 gallery={imageGallery}
                 currentImageId={activeImage.id}
                 onOpenChange={(open) => {
@@ -216,7 +218,7 @@ function UserMessageInner({
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  aria-label="Copy message"
+                  aria-label={t('chat.copyMessage')}
                   data-chat-message-action="copy"
                   onClick={handleCopy}
                   className={userMessageActionButtonClass}
@@ -226,7 +228,7 @@ function UserMessageInner({
 
                 <button
                   type="button"
-                  aria-label="Edit message"
+                  aria-label={t('chat.editMessage')}
                   data-chat-message-action="edit"
                   onClick={handleStartEditing}
                   className={cn(

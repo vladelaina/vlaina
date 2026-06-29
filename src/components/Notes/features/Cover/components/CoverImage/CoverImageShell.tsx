@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { CoverPicker } from '../../../AssetLibrary';
 import { CoverRenderer } from './CoverRenderer';
 import type { CoverImageControllerModel } from './coverImage.types';
@@ -26,6 +27,8 @@ export function CoverImageShell({
   onResetHeight,
   rendererProps,
 }: CoverImageControllerModel) {
+  const { t } = useI18n();
+
   if (phase === 'idle' && !showPicker) {
     return null;
   }
@@ -44,7 +47,7 @@ export function CoverImageShell({
         style={shouldHoldCoverSpace ? { height: coverHeight, overflowAnchor: 'none' } : undefined}
       >
         {previewSrc ? (
-          <img src={previewSrc} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={previewSrc} alt={t('cover.previewAlt')} className="absolute inset-0 w-full h-full object-cover" />
         ) : shouldShowEmptyPlaceholder ? (
           <div
             aria-hidden="true"

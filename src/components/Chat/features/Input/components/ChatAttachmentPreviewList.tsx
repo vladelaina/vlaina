@@ -9,6 +9,7 @@ import {
   chatComposerFileAttachmentTokenClass,
 } from '../composerStyles';
 import { ChatAttachmentRemoveButton } from './ChatAttachmentRemoveButton';
+import { useI18n } from '@/lib/i18n';
 
 interface ChatAttachmentPreviewListProps {
   attachments: Attachment[];
@@ -16,6 +17,7 @@ interface ChatAttachmentPreviewListProps {
 }
 
 export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachmentPreviewListProps) {
+  const { t } = useI18n();
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const imageGallery = useMemo(
     () => attachments
@@ -55,7 +57,7 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
                   />
                   <ChatAttachmentRemoveButton
                     placement="image-thumbnail"
-                    aria-label="Remove attachment"
+                    aria-label={t('chat.removeAttachment')}
                     data-no-focus-input="true"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -74,7 +76,7 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
                   <span className={chatComposerFileAttachmentLabelClass}>{attachment.name || 'attachment'}</span>
                   <ChatAttachmentRemoveButton
                     placement="file-token"
-                    aria-label="Remove attachment"
+                    aria-label={t('chat.removeAttachment')}
                     data-no-focus-input="true"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -91,7 +93,7 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
         <ChatImageViewer
           open={!!activeImage}
           src={activeImage.src}
-          alt="preview"
+          alt={t('common.preview')}
           gallery={imageGallery}
           currentImageId={activeImage.id}
           onOpenChange={(open) => {

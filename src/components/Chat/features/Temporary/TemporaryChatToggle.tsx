@@ -101,7 +101,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
           type="button"
           aria-label={isPromoteMode
             ? t('chat.saveAsRegular')
-            : (temporaryChatEnabled ? 'Temporary Chat is On' : 'Enable Temporary Chat')}
+            : (temporaryChatEnabled ? t('chat.temporaryChatOn') : t('chat.enableTemporaryChat'))}
           onClick={handleClick}
           disabled={isDisabled}
           className={cn(

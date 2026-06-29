@@ -84,7 +84,8 @@ export function RootFolderRow({
     : EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS;
   const autoExpandTimeoutRef = useRef<number | null>(null);
 
-  const title = currentVault?.name || rootFolder?.name || 'Grimoire';
+  const rootFolderTitle = rootFolder?.name === 'Notes' ? t('app.viewNotes') : rootFolder?.name;
+  const title = currentVault?.name || rootFolderTitle || t('app.viewNotes');
   const vaultPath = currentVault?.path ?? '';
   const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
   const expanded = rootFolder?.expanded ?? true;

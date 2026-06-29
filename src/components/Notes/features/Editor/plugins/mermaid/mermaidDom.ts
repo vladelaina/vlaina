@@ -38,7 +38,7 @@ function mermaidRenderErrorMarkup(): string {
 }
 
 function mermaidRenderTooLargeMarkup(): string {
-  return '<div class="mermaid-error">Mermaid Error: Diagram is too large to render.</div>';
+  return `<div class="mermaid-error">${escapeHtmlText(translate('editor.mermaidRenderTooLarge'))}</div>`;
 }
 
 function mermaidEmptyMarkup(): string {

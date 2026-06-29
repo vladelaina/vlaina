@@ -2,7 +2,7 @@ import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { sanitizeWebSearchSourceUrl } from '@/lib/ai/webSearch/statusMarkup';
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, type MessageKey } from '@/lib/i18n';
 import { getExternalLinkProps } from '@/lib/navigation/externalLinks';
 import { cn } from '@/lib/utils';
 import { themeIconTokens } from '@/styles/themeTokens';
@@ -12,12 +12,33 @@ interface WebSearchStatusBlockProps {
   isWaitingForAnswer?: boolean;
 }
 
-function phaseLabel(status: WebSearchStatus): string {
-  if (status.phase === 'searching') return 'Searching';
-  if (status.phase === 'results') return 'Search results';
-  if (status.phase === 'reading') return 'Reading pages';
-  if (status.phase === 'complete') return 'Sources read';
-  return 'Web search';
+type Translate = (key: MessageKey) => string;
+
+const NO_RELEVANT_RESULTS_MESSAGE = 'No relevant results were found.';
+
+const WEB_SEARCH_MESSAGE_KEYS: Record<string, MessageKey> = {
+  [NO_RELEVANT_RESULTS_MESSAGE]: 'chat.webSearch.noRelevantResults',
+  'Unable to read this page.': 'chat.webSearch.unableToReadPage',
+  'This source is blocked by the web search source policy.': 'chat.webSearch.blockedSource',
+  'The page blocked automated reading.': 'chat.webSearch.blockedPage',
+  'The page did not expose enough readable content.': 'chat.webSearch.contentTooShort',
+  'The page request timed out.': 'chat.webSearch.pageTimedOut',
+  'The page could not be reached.': 'chat.webSearch.pageUnreachable',
+  'The page returned an HTTP error.': 'chat.webSearch.pageHttpError',
+  'Web search is temporarily unavailable.': 'chat.webSearch.unavailable',
+};
+
+function phaseLabel(status: WebSearchStatus, t: Translate): string {
+  if (status.phase === 'searching') return t('chat.webSearch.searching');
+  if (status.phase === 'results') return t('chat.webSearch.results');
+  if (status.phase === 'reading') return t('chat.webSearch.reading');
+  if (status.phase === 'complete') return t('chat.webSearch.complete');
+  return t('chat.webSearch');
+}
+
+function localizeWebSearchMessage(message: string, t: Translate): string {
+  const key = WEB_SEARCH_MESSAGE_KEYS[message];
+  return key ? t(key) : message;
 }
 
 function hostLabel(url: string): string {
@@ -82,7 +103,7 @@ function sourceItemsFromStatuses(statuses: WebSearchStatus[]): Array<{ url: stri
 
 function shouldShowStatusMessage(status: WebSearchStatus): boolean {
   if (!status.message) return false;
-  if (status.phase === 'error' && status.message === 'No relevant results were found.') return false;
+  if (status.phase === 'error' && status.message === NO_RELEVANT_RESULTS_MESSAGE) return false;
   return true;
 }
 
@@ -118,12 +139,12 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
           )}
           <Icon name="file.public" size={themeIconTokens.sizeSm} />
         </span>
-        <span>{phaseLabel(status)}</span>
+        <span>{phaseLabel(status, t)}</span>
         {status.query && <span className="min-w-0 truncate text-[var(--vlaina-text-tertiary)]">"{status.query}"</span>}
       </div>
 
       {showStatusMessage && (
-        <div className="mt-1 text-[var(--vlaina-text-tertiary)]">{status.message}</div>
+        <div className="mt-1 text-[var(--vlaina-text-tertiary)]">{localizeWebSearchMessage(status.message ?? '', t)}</div>
       )}
 
       {sourceItems.length > 0 && (
@@ -151,7 +172,7 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
           <div className="font-medium text-[var(--vlaina-text-secondary)]">{t('chat.skippedSources')}</div>
           {failedSources.slice(0, 4).map((source) => (
             <div key={source.url} className="flex min-w-0 gap-2">
-              <span className="shrink-0">{source.message}</span>
+              <span className="shrink-0">{localizeWebSearchMessage(source.message, t)}</span>
               <span className="min-w-0 truncate">{source.url}</span>
             </div>
           ))}

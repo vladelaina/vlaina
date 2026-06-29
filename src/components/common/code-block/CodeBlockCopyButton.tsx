@@ -109,7 +109,7 @@ export function CodeBlockCopyButton({
       />
       {showLabels && (
         <span className="text-[var(--vlaina-font-11)] font-medium uppercase tracking-wider">
-          {isCopied ? 'Copied' : 'Copy'}
+          {isCopied ? t('common.copied') : t('common.copy')}
         </span>
       )}
     </button>

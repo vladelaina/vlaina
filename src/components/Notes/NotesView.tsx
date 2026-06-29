@@ -34,6 +34,7 @@ import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
 import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { useI18n } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 import { preloadMarkdownEditor } from './features/Editor/preloadMarkdownEditor';
 import { focusNoteTitleInputAtEnd } from './features/Editor/utils/titleInputDom';
@@ -428,7 +429,7 @@ export function NotesView({
     }
 
     lastPresentedNotesErrorRef.current = notesError;
-    addToast(notesError, 'error', themeUiFeedbackTokens.errorToastDurationMs);
+    addToast(normalizeUserFacingErrorMessage(notesError), 'error', themeUiFeedbackTokens.errorToastDurationMs);
   }, [active, addToast, notesError]);
 
   const activeVaultPath = active ? currentVault?.path ?? null : null;

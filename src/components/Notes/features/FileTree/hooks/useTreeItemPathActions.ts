@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import { useToastStore } from '@/stores/useToastStore';
+import { translate } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { copyTreeItemPath, openTreeItemInNewWindow, openTreeItemLocation } from '../pathActions';
 
 interface UseTreeItemPathActionsOptions {
@@ -17,9 +19,9 @@ function isUnavailableNotesPathError(error: unknown): boolean {
 export function useTreeItemPathActions({
   notesPath,
   itemPath,
-  copyErrorMessage = 'Failed to copy path.',
-  openLocationErrorMessage = 'Failed to open file location.',
-  openInNewWindowErrorMessage = 'Failed to open in new window.',
+  copyErrorMessage = translate('notes.copyPathFailed'),
+  openLocationErrorMessage = translate('notes.openFileLocationFailed'),
+  openInNewWindowErrorMessage = translate('notes.openInNewWindowFailed'),
 }: UseTreeItemPathActionsOptions) {
   const addToast = useToastStore((state) => state.addToast);
 
@@ -30,7 +32,7 @@ export function useTreeItemPathActions({
       if (isUnavailableNotesPathError(error)) {
         return;
       }
-      addToast(error instanceof Error ? error.message : copyErrorMessage, 'error');
+      addToast(normalizeUserFacingErrorMessage(error, 'notes.copyPathFailed') || copyErrorMessage, 'error');
     }
   }, [addToast, copyErrorMessage, itemPath, notesPath]);
 
@@ -41,7 +43,7 @@ export function useTreeItemPathActions({
       if (isUnavailableNotesPathError(error)) {
         return;
       }
-      addToast(error instanceof Error ? error.message : openLocationErrorMessage, 'error');
+      addToast(normalizeUserFacingErrorMessage(error) || openLocationErrorMessage, 'error');
     }
   }, [addToast, itemPath, notesPath, openLocationErrorMessage]);
 
@@ -52,7 +54,7 @@ export function useTreeItemPathActions({
       if (isUnavailableNotesPathError(error)) {
         return;
       }
-      addToast(error instanceof Error ? error.message : openInNewWindowErrorMessage, 'error');
+      addToast(normalizeUserFacingErrorMessage(error, 'notes.openInNewWindowFailed') || openInNewWindowErrorMessage, 'error');
     }
   }, [addToast, itemPath, notesPath, openInNewWindowErrorMessage]);
 

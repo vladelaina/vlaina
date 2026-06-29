@@ -3,6 +3,7 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
@@ -85,14 +86,14 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
         }
       } else {
         setStatus('error');
-        setMessage(result.error || t('asset.uploadFailed'));
+        setMessage(normalizeUserFacingErrorMessage(result.error, 'asset.uploadFailed'));
       }
     } catch (error) {
       if (!mountedRef.current) {
         return;
       }
       setStatus('error');
-      setMessage(error instanceof Error ? error.message : t('asset.uploadFailed'));
+      setMessage(normalizeUserFacingErrorMessage(error, 'asset.uploadFailed'));
     }
 
     scheduleReset(2000);

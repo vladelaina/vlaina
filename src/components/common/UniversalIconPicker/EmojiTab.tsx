@@ -24,6 +24,15 @@ const EMOJI_CATEGORY_LABEL_KEYS: Record<string, MessageKey> = {
   flags: 'icon.categoryFlags',
 };
 
+const SKIN_TONE_LABEL_KEYS: Record<number, MessageKey> = {
+  0: 'icon.skinToneDefault',
+  1: 'icon.skinToneLight',
+  2: 'icon.skinToneMediumLight',
+  3: 'icon.skinToneMedium',
+  4: 'icon.skinToneMediumDark',
+  5: 'icon.skinToneDark',
+};
+
 export function filterEmojiPickerSearchResults(
   searchQuery: string,
   categories = EMOJI_CATEGORIES,
@@ -209,6 +218,7 @@ export function EmojiTab({
         <div className="relative">
           <button
             onClick={() => setShowSkinTonePicker(!showSkinTonePicker)}
+            aria-label={t(SKIN_TONE_LABEL_KEYS[skinTone] ?? 'icon.skinToneDefault')}
             className="w-7 h-7 flex items-center justify-center text-base opacity-[var(--vlaina-opacity-60)] hover:opacity-[var(--vlaina-opacity-100)] transition-opacity"
           >
             {SKIN_TONES[skinTone].emoji}
@@ -226,6 +236,7 @@ export function EmojiTab({
                 <button
                   key={st.tone}
                   data-tone={st.tone}
+                  aria-label={t(SKIN_TONE_LABEL_KEYS[st.tone] ?? 'icon.skinToneDefault')}
                   onClick={() => handleSkinToneChange(st.tone)}
                   className="w-7 h-7 flex items-center justify-center text-lg"
                 >
@@ -263,6 +274,7 @@ export function EmojiTab({
           {EMOJI_CATEGORIES.map((category) => (
             <button
               key={category.id}
+              aria-label={t(EMOJI_CATEGORY_LABEL_KEYS[category.id] ?? 'icon.categorySmileysPeople')}
               onClick={() => {
                 setEffectiveSearchQuery('');
                 onCategoryChange(category.id);

@@ -12,6 +12,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { openPathInFileManager } from '@/lib/desktop/shell';
 import { useI18n } from '@/lib/i18n';
+import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import {
   ensureImportedMarkdownThemesDirectory,
   listImportedMarkdownThemesFromDirectory,
@@ -420,7 +421,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       const directoryPath = await ensureImportedMarkdownThemesDirectory();
       await openPathInFileManager(directoryPath);
     } catch (error) {
-      const message = error instanceof Error ? error.message : t('settings.appearance.openThemeFolderFailed');
+      const message = normalizeUserFacingErrorMessage(error, 'settings.appearance.openThemeFolderFailed');
       addToast(message, 'error', themeUiFeedbackTokens.errorToastDurationMs);
     }
   }, [addToast, t]);

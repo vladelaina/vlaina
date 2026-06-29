@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import {
   applyAiSelectionSuggestion,
   retryAiSelectionSuggestionResult,
@@ -155,7 +156,7 @@ export function bindAiReviewActions({
       updateReview({
         ...liveReview,
         isLoading: false,
-        errorMessage: error instanceof Error ? error.message : 'Retry failed',
+        errorMessage: translate('editor.ai.retryFailed'),
       });
     });
   }, { signal });

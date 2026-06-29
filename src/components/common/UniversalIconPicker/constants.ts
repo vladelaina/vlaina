@@ -25,12 +25,12 @@ export const SCROLLBAR_CLASSNAME = `
 `;
 
 export const SKIN_TONES = [
-  { tone: 0, emoji: '\u{1F44B}', label: 'Default' },
-  { tone: 1, emoji: '\u{1F44B}\u{1F3FB}', label: 'Light' },
-  { tone: 2, emoji: '\u{1F44B}\u{1F3FC}', label: 'Medium-Light' },
-  { tone: 3, emoji: '\u{1F44B}\u{1F3FD}', label: 'Medium' },
-  { tone: 4, emoji: '\u{1F44B}\u{1F3FE}', label: 'Medium-Dark' },
-  { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: 'Dark' },
+  { tone: 0, emoji: '\u{1F44B}' },
+  { tone: 1, emoji: '\u{1F44B}\u{1F3FB}' },
+  { tone: 2, emoji: '\u{1F44B}\u{1F3FC}' },
+  { tone: 3, emoji: '\u{1F44B}\u{1F3FD}' },
+  { tone: 4, emoji: '\u{1F44B}\u{1F3FE}' },
+  { tone: 5, emoji: '\u{1F44B}\u{1F3FF}' },
 ];
 
 export const CATEGORY_NAMES: Record<string, string> = {

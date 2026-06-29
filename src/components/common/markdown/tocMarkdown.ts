@@ -9,6 +9,7 @@ import {
   createMarkdownAstGrowthBudget,
   type MarkdownAstGrowthBudget,
 } from './markdownAstBudget';
+import { translate } from '@/lib/i18n';
 
 export interface TocMdastNode {
   type: string;
@@ -176,7 +177,7 @@ function createTocNode(headings: readonly TocHeading[]): TocMdastNode {
               hName: 'div',
               hProperties: { className: ['toc-empty'] },
             },
-            children: [{ type: 'text', value: 'No headings yet' }],
+            children: [{ type: 'text', value: translate('editor.tocEmpty') }],
           }],
     }],
   };

@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { useI18n } from '@/lib/i18n';
 
 interface MessageVersionNavigatorProps {
   current: number;
@@ -21,6 +22,8 @@ export function MessageVersionNavigator({
   onNext,
   className,
 }: MessageVersionNavigatorProps) {
+  const { t } = useI18n();
+
   return (
     <div
       className={cn(
@@ -30,7 +33,7 @@ export function MessageVersionNavigator({
     >
       <button
         type="button"
-        aria-label="Previous message version"
+        aria-label={t('chat.previousMessageVersion')}
         onClick={onPrevious}
         disabled={previousDisabled}
         className={cn(
@@ -44,7 +47,7 @@ export function MessageVersionNavigator({
       <span className="mx-1 font-mono">{current}/{total}</span>
       <button
         type="button"
-        aria-label="Next message version"
+        aria-label={t('chat.nextMessageVersion')}
         onClick={onNext}
         disabled={nextDisabled}
         className={cn(
