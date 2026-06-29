@@ -112,6 +112,7 @@ export interface E2EBridge {
     apiHost?: string;
     apiKey?: string;
     enabled?: boolean;
+    endpointType?: 'openai' | 'anthropic';
     endpointTypeCheckedAt?: number;
   }): Promise<string>;
   addModel(input: {
@@ -120,6 +121,8 @@ export interface E2EBridge {
     name?: string;
     enabled?: boolean;
     selected?: boolean;
+    endpointType?: 'openai' | 'anthropic';
+    endpointTypeCheckedAt?: number;
   }): Promise<string>;
   deleteProvider(id: string): Promise<void>;
   prepareChatWebSearchE2E(): Promise<{ providerId: string; modelId: string }>;
@@ -1024,7 +1027,7 @@ export function installSyncE2EBridge(): void {
       const id = providerActions.addProvider({
         name: input.name,
         type: 'newapi',
-        endpointType: 'openai',
+        endpointType: input.endpointType ?? 'openai',
         ...(typeof input.endpointTypeCheckedAt === 'number' ? { endpointTypeCheckedAt: input.endpointTypeCheckedAt } : {}),
         apiHost: input.apiHost ?? 'https://example.invalid/v1',
         apiKey: input.apiKey ?? '',
@@ -1041,6 +1044,8 @@ export function installSyncE2EBridge(): void {
         id: buildScopedModelId(input.providerId, apiModelId),
         name: input.name ?? apiModelId,
         enabled: input.enabled ?? true,
+        ...(input.endpointType ? { endpointType: input.endpointType } : {}),
+        ...(typeof input.endpointTypeCheckedAt === 'number' ? { endpointTypeCheckedAt: input.endpointTypeCheckedAt } : {}),
       });
       const modelId = buildScopedModelId(input.providerId, apiModelId);
       if (input.selected !== false) {

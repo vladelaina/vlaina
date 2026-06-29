@@ -141,6 +141,27 @@ function buildAnthropicMessages(
   }
 }
 
+function buildAnthropicMessageRequest({
+  message,
+  history,
+  model,
+  options,
+}: {
+  message: ChatMessageContent
+  history: ChatMessage[]
+  model: AIModel
+  options?: ChatSendOptions
+}): Record<string, unknown> {
+  const { system, messages } = buildAnthropicMessages(message, history)
+  return {
+    model: resolveApiModelId(model),
+    messages,
+    system,
+    stream: true,
+    max_tokens: options?.max_tokens ?? options?.max_completion_tokens ?? 4096,
+  }
+}
+
 function summarizeError(error: unknown): string {
   let message = ''
   if (error instanceof Error) {
@@ -378,14 +399,7 @@ export async function sendAnthropicMessage({
 }): Promise<string> {
   const baseUrl = buildAnthropicBaseUrl(provider.apiHost)
   const url = `${baseUrl}/messages`
-  const { system, messages } = buildAnthropicMessages(message, history)
-  const body = {
-    model: resolveApiModelId(model),
-    messages,
-    system,
-    stream: true,
-    max_tokens: options?.max_tokens ?? options?.max_completion_tokens ?? 4096,
-  }
+  const body = buildAnthropicMessageRequest({ message, history, model, options })
   const controller = new AbortController()
   let timedOut = false
   const headers = buildAnthropicHeaders(apiKey, true)

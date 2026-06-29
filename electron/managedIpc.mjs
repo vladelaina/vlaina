@@ -129,14 +129,22 @@ function cancelManagedJsonRequest(requestId, label) {
   }
 }
 
+function extractManagedPayloadErrorCode(payload) {
+  if (typeof payload?.errorCode === 'string' && payload.errorCode.trim()) {
+    return payload.errorCode.trim();
+  }
+  if (typeof payload?.error?.code === 'string' && payload.error.code.trim()) {
+    return payload.error.code.trim();
+  }
+  if (typeof payload?.error?.type === 'string' && payload.error.type.trim()) {
+    return payload.error.type.trim();
+  }
+  return null;
+}
+
 function normalizeManagedErrorPayload(payload, status) {
   const fallback = `Managed stream failed: HTTP ${status}`;
-  const errorCode =
-    typeof payload?.errorCode === 'string' && payload.errorCode.trim()
-      ? payload.errorCode.trim()
-      : typeof payload?.error?.code === 'string' && payload.error.code.trim()
-        ? payload.error.code.trim()
-        : null;
+  const errorCode = extractManagedPayloadErrorCode(payload);
   const normalizedCode = typeof errorCode === 'string' ? errorCode.toLowerCase() : '';
   let message = fallback;
   if (normalizedCode === 'points_exhausted' || normalizedCode === 'inactive_points' || normalizedCode === 'insufficient_points') {
@@ -159,11 +167,7 @@ function createManagedBackendStreamError(payload) {
     ? payload.error.message
     : 'Managed stream failed';
   const error = new Error(message);
-  const errorCode = typeof payload?.error?.code === 'string' && payload.error.code.trim()
-    ? payload.error.code.trim()
-    : typeof payload?.errorCode === 'string' && payload.errorCode.trim()
-      ? payload.errorCode.trim()
-      : undefined;
+  const errorCode = extractManagedPayloadErrorCode(payload);
   if (errorCode) {
     error.errorCode = errorCode;
   }

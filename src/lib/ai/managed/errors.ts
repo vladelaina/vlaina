@@ -169,7 +169,7 @@ function extractManagedErrorPayloadCode(payload: Record<string, unknown>): strin
   const nestedError = payload.error;
   if (nestedError && typeof nestedError === 'object') {
     const nested = nestedError as Record<string, unknown>;
-    return normalizeManagedErrorCode(nested.code);
+    return normalizeManagedErrorCode(nested.code) || normalizeManagedErrorCode(nested.type);
   }
 
   return '';

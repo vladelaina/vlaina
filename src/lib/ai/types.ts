@@ -37,6 +37,8 @@ export interface AIModel {
   apiModelId: string
   name: string
   providerId: string
+  endpointType?: 'openai' | 'anthropic'
+  endpointTypeCheckedAt?: number
   group?: string
   priceTier?: '$' | '$$' | '$$$' | '$$$$' | '$$$$$'
   priceScore?: number

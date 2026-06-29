@@ -17,7 +17,7 @@ const provider: Provider = {
   updatedAt: 1,
 };
 
-function createModel(id: string): AIModel {
+function createModel(id: string, overrides: Partial<AIModel> = {}): AIModel {
   return {
     id,
     apiModelId: id,
@@ -25,6 +25,7 @@ function createModel(id: string): AIModel {
     providerId: provider.id,
     enabled: true,
     createdAt: 1,
+    ...overrides,
   };
 }
 
@@ -179,6 +180,214 @@ describe('checkModelHealth', () => {
       messages: [{ role: 'user', content: 'hi' }],
       max_tokens: 16,
     });
+  });
+
+  it('uses a model-level Anthropic endpoint type ahead of the provider endpoint type', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-5', { endpointType: 'anthropic', endpointTypeCheckedAt: 1 })
+    );
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+
+    const [url, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/v1/messages');
+    expect(requestInit.headers).toEqual({
+      'x-api-key': 'sk-test',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('falls back to OpenAI for Claude health checks when a model-level Anthropic endpoint no longer matches', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { message: 'Not found' } }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-5', { endpointType: 'anthropic', endpointTypeCheckedAt: 1 })
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/v1/messages');
+    expect(fetchSpy.mock.calls[1][0]).toBe('https://api.example.com/v1/chat/completions');
+    expect(fetchSpy.mock.calls[1][1]?.headers).toEqual({
+      Authorization: 'Bearer sk-test',
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('ignores unverified model-level endpoint types during health checks', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-5', { endpointType: 'anthropic' })
+    );
+    expect(result.status).toBe('success');
+
+    const [url, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/v1/chat/completions');
+    expect(requestInit.headers).toEqual({
+      Authorization: 'Bearer sk-test',
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('falls back to the Anthropic endpoint for Claude health checks after OpenAI endpoint-shaped failures', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { message: 'Not found' } }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-5')
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/v1/chat/completions');
+    expect(fetchSpy.mock.calls[1][0]).toBe('https://api.example.com/v1/messages');
+    expect(fetchSpy.mock.calls[1][1]?.headers).toMatchObject({
+      'x-api-key': 'sk-test',
+      'anthropic-version': '2023-06-01',
+    });
+  });
+
+  it('falls back to the Anthropic endpoint for Claude health checks after 403 endpoint mismatch responses', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({
+          error: { message: '模型 claude-sonnet-4-6 不支持 /v1/chat/completions 接口' },
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-6')
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/v1/chat/completions');
+    expect(fetchSpy.mock.calls[1][0]).toBe('https://api.example.com/v1/messages');
+  });
+
+  it('does not fall back to Anthropic for ordinary 403 Claude health check failures', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'Forbidden request. Check model access.' } }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-6')
+    );
+
+    expect(result).toMatchObject({
+      status: 'error',
+      endpoint: 'chat',
+      error: 'Forbidden request. Check model access.',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to OpenAI for Claude health checks after provider Anthropic endpoint-shaped failures', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { message: 'Not found' } }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'anthropic' },
+      createModel('claude-sonnet-4-5')
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/v1/messages');
+    expect(fetchSpy.mock.calls[1][0]).toBe('https://api.example.com/v1/chat/completions');
+  });
+
+  it('does not hide Claude health check rate limits behind Anthropic fallback', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'Too many requests' } }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-5')
+    );
+
+    expect(result).toMatchObject({
+      status: 'error',
+      endpoint: 'chat',
+      error: 'Too many requests',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/v1/chat/completions');
   });
 
   it('does not classify downstream abort-shaped failures as user-aborted benchmark requests', async () => {

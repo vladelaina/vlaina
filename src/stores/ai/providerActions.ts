@@ -20,10 +20,10 @@ import {
 } from './providerStoreUtils'
 
 const MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS = 5 * 60 * 1000;
-const MANAGED_MODELS_FORCED_REFRESH_MIN_INTERVAL_MS = 15 * 1000;
+const MANAGED_MODELS_FOREGROUND_SAFETY_REFRESH_MS = 60 * 1000;
 let managedModelsRefreshInFlight: Promise<void> | null = null;
 let managedModelsLastRefreshAttemptAt = 0;
-let managedModelsLastForcedRefreshAttemptAt = 0;
+let managedModelsLastFullRefreshAt = 0;
 let managedModelsCatalogVersion: string | null = null;
 let managedModelsSyncGeneration = 0;
 const locallyCreatedProviderIds = new Set<string>();
@@ -47,6 +47,7 @@ async function syncManagedProviderModels(
 
   const models = catalog.models
   managedModelsCatalogVersion = catalog.version
+  managedModelsLastFullRefreshAt = Date.now()
   const store = useUnifiedStore.getState()
   const ai = store.data.ai!
   const nextProviders = ensureManagedProvider(ai.providers)
@@ -79,14 +80,6 @@ async function syncManagedProviderModels(
 function refreshManagedProviderInBackground(options: { force?: boolean } = {}): Promise<void> | null {
   const now = Date.now();
   if (
-    options.force &&
-    managedModelsLastForcedRefreshAttemptAt > 0 &&
-    now - managedModelsLastForcedRefreshAttemptAt < MANAGED_MODELS_FORCED_REFRESH_MIN_INTERVAL_MS
-  ) {
-    return managedModelsRefreshInFlight;
-  }
-
-  if (
     !options.force &&
     managedModelsLastRefreshAttemptAt > 0 &&
     now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS
@@ -99,14 +92,17 @@ function refreshManagedProviderInBackground(options: { force?: boolean } = {}): 
   }
 
   managedModelsLastRefreshAttemptAt = now;
-  if (options.force) {
-    managedModelsLastForcedRefreshAttemptAt = now;
-  }
   managedModelsRefreshInFlight = (async () => {
     if (options.force && managedModelsCatalogVersion) {
-      const latestVersion = await fetchManagedModelsVersion();
-      if (latestVersion && latestVersion === managedModelsCatalogVersion) {
-        return;
+      try {
+        const latestVersion = await fetchManagedModelsVersion();
+        const fullRefreshIsRecent =
+          managedModelsLastFullRefreshAt > 0 &&
+          Date.now() - managedModelsLastFullRefreshAt < MANAGED_MODELS_FOREGROUND_SAFETY_REFRESH_MS;
+        if (latestVersion && latestVersion === managedModelsCatalogVersion && fullRefreshIsRecent) {
+          return;
+        }
+      } catch {
       }
     }
     await syncManagedProviderModels({ forceRefresh: options.force === true });
@@ -213,14 +209,30 @@ export const actions = {
       .some(([key, value]) => !Object.is(provider[key], value));
     if (!hasProviderChanges) return;
 
-    const nextProviders = providers.map((p) =>
-      p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
-    );
-    const enabledModels = filterModelsByEnabledProviders(ai.models, nextProviders)
-    state.updateAIData({
+    const apiHostChanged = typeof updates.apiHost === 'string' && updates.apiHost !== provider.apiHost;
+    const apiKeyChanged = typeof updates.apiKey === 'string' && updates.apiKey !== provider.apiKey;
+    const connectionChanged = apiHostChanged || apiKeyChanged;
+    const nextProviders = providers.map((p) => {
+      if (p.id !== id) return p;
+      const nextProvider = { ...p, ...updates, updatedAt: Date.now() };
+      return connectionChanged
+        ? { ...nextProvider, endpointType: undefined, endpointTypeCheckedAt: undefined }
+        : nextProvider;
+    });
+    const nextModels = connectionChanged
+      ? ai.models.map((model) => model.providerId === id
+        ? { ...model, endpointType: undefined, endpointTypeCheckedAt: undefined }
+        : model)
+      : ai.models;
+    const enabledModels = filterModelsByEnabledProviders(nextModels, nextProviders)
+    const dataUpdates: Parameters<typeof state.updateAIData>[0] = {
       providers: nextProviders,
       selectedModelId: chooseFallbackSelectedModelId(ai.selectedModelId, enabledModels)
-    })
+    };
+    if (connectionChanged) {
+      dataUpdates.models = nextModels;
+    }
+    state.updateAIData(dataUpdates)
   },
 
   reorderCustomProviders: (orderedProviderIds: string[]) => {
