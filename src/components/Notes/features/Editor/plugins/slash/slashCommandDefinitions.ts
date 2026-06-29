@@ -60,6 +60,7 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
         nodePos,
         insertedNodeFallback: node,
         paragraphType: state.schema.nodes.paragraph,
+        convertFollowingMarkdownBlankLine: false,
       });
     }
     markSlashUserInput(view);

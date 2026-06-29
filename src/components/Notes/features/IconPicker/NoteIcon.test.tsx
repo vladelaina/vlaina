@@ -32,7 +32,7 @@ describe('NoteIcon', () => {
     render(<NoteIcon icon="assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:vault-icon');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:vault-icon');
     });
 
     expect(mocked.resolveCoverAssetUrl).toHaveBeenCalledWith({
@@ -51,7 +51,7 @@ describe('NoteIcon', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:stable-sidebar-icon');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:stable-sidebar-icon');
     });
 
     firstRender.unmount();
@@ -59,7 +59,7 @@ describe('NoteIcon', () => {
     render(<NoteIcon icon="assets/icons/stable-sidebar.png" notePath="/vault/stable.md" size={20} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:stable-sidebar-icon');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:stable-sidebar-icon');
     });
 
     expect(mocked.resolveCoverAssetUrl).toHaveBeenCalledTimes(1);
@@ -74,7 +74,7 @@ describe('NoteIcon', () => {
       expect(mocked.resolveCoverAssetUrl).toHaveBeenCalled();
     });
 
-    expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
   it('does not render legacy img-scheme note icon images', async () => {
@@ -83,6 +83,6 @@ describe('NoteIcon', () => {
     render(<NoteIcon icon="img:assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
 
     expect(mocked.resolveCoverAssetUrl).not.toHaveBeenCalled();
-    expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 });

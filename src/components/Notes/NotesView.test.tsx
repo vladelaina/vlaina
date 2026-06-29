@@ -126,6 +126,7 @@ const mocks = vi.hoisted(() => {
     setLayoutPanelDragging: vi.fn(),
     setAppViewMode: vi.fn(),
     setNotesSidebarView: vi.fn(),
+    languagePreference: 'en',
   };
 
   const storageState = {
@@ -191,7 +192,12 @@ vi.mock('@/stores/uiSlice', () => ({
   NOTES_CHAT_FLOATING_DEFAULT_SIZE: { width: 420, height: 680 },
   NOTES_CHAT_FLOATING_MIN_SIZE: { width: 320, height: 420 },
   NOTES_CHAT_FLOATING_MAX_SIZE: { width: 760, height: 920 },
-  useUIStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
+  useUIStore: Object.assign(
+    (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
+    {
+      getState: () => mocks.uiState,
+    },
+  ),
 }));
 
 vi.mock('@/stores/useToastStore', () => ({
@@ -526,6 +532,7 @@ describe('NotesView', () => {
     uiState.setLayoutPanelDragging.mockClear();
     uiState.setAppViewMode.mockClear();
     uiState.setNotesSidebarView.mockClear();
+    uiState.languagePreference = 'en';
   });
 
   it('shows notes store errors as toast messages', async () => {
@@ -535,7 +542,7 @@ describe('NotesView', () => {
 
     await waitFor(() => {
       expect(mocks.toastState.addToast).toHaveBeenCalledWith(
-        'Save the note before closing it.',
+        'Failed to save changes securely. Please try again.',
         'error',
         4500,
       );

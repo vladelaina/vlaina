@@ -16,6 +16,22 @@ function isUnavailableNotesPathError(error: unknown): boolean {
   return error instanceof Error && error.message === 'Notes path is not available';
 }
 
+function getRawErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message.trim();
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message.trim();
+  }
+  return typeof error === 'string' ? error.trim() : '';
+}
+
+function getPathActionErrorMessage(error: unknown, fallbackMessage: string): string {
+  const message = getRawErrorMessage(error);
+  if (/^path must stay inside the current vault\.?$/i.test(message)) {
+    return message;
+  }
+  return normalizeUserFacingErrorMessage(error) || fallbackMessage;
+}
+
 export function useTreeItemPathActions({
   notesPath,
   itemPath,
@@ -32,7 +48,7 @@ export function useTreeItemPathActions({
       if (isUnavailableNotesPathError(error)) {
         return;
       }
-      addToast(normalizeUserFacingErrorMessage(error, 'notes.copyPathFailed') || copyErrorMessage, 'error');
+      addToast(getPathActionErrorMessage(error, copyErrorMessage), 'error');
     }
   }, [addToast, copyErrorMessage, itemPath, notesPath]);
 
@@ -43,7 +59,7 @@ export function useTreeItemPathActions({
       if (isUnavailableNotesPathError(error)) {
         return;
       }
-      addToast(normalizeUserFacingErrorMessage(error) || openLocationErrorMessage, 'error');
+      addToast(getPathActionErrorMessage(error, openLocationErrorMessage), 'error');
     }
   }, [addToast, itemPath, notesPath, openLocationErrorMessage]);
 
@@ -54,7 +70,7 @@ export function useTreeItemPathActions({
       if (isUnavailableNotesPathError(error)) {
         return;
       }
-      addToast(normalizeUserFacingErrorMessage(error, 'notes.openInNewWindowFailed') || openInNewWindowErrorMessage, 'error');
+      addToast(getPathActionErrorMessage(error, openInNewWindowErrorMessage), 'error');
     }
   }, [addToast, itemPath, notesPath, openInNewWindowErrorMessage]);
 

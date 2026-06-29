@@ -37,6 +37,7 @@ export function insertHtmlBlockNodeAndOpenEditor(ctx: Ctx) {
       nodePos,
       insertedNodeFallback: node,
       paragraphType: state.schema.nodes.paragraph,
+      convertFollowingMarkdownBlankLine: false,
     });
 
     tr

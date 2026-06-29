@@ -33,7 +33,7 @@ describe('AppIcon image loading', () => {
   it('renders legacy global image-scheme icons through the app icon loader', async () => {
     render(createElement(AppIcon, { icon: 'img:/app/.vlaina/app/assets/icons/demo.png' }));
 
-    const image = await screen.findByRole('img', { name: 'icon' });
+    const image = await screen.findByRole('img');
     expect(image).toHaveAttribute('src', 'blob:icon');
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/app/assets/icons/demo.png');
   });

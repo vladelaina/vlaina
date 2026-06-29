@@ -36,6 +36,7 @@ export function insertMathNodeAndOpenEditor(ctx: Ctx, nodeType: 'math_block' | '
       nodePos,
       insertedNodeFallback: node,
       paragraphType: state.schema.nodes.paragraph,
+      convertFollowingMarkdownBlankLine: false,
     });
 
     tr

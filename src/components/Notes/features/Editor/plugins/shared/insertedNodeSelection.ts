@@ -55,8 +55,9 @@ export function moveSelectionAfterInsertedNode(args: {
   nodePos: number;
   insertedNodeFallback?: { nodeSize?: number; isInline?: boolean } | null;
   paragraphType?: { create: (attrs?: any, content?: any) => any } | null;
+  convertFollowingMarkdownBlankLine?: boolean;
 }) {
-  const { tr, nodePos, insertedNodeFallback, paragraphType } = args;
+  const { tr, nodePos, insertedNodeFallback, paragraphType, convertFollowingMarkdownBlankLine = true } = args;
   if (nodePos < 0 || !tr?.doc || typeof tr.doc.nodeAt !== 'function') {
     return tr;
   }
@@ -87,7 +88,7 @@ export function moveSelectionAfterInsertedNode(args: {
     return setTextSelectionSafely(tr, afterNodePos + 1);
   }
 
-  if (isMarkdownBlankLineBlock(nextNode)) {
+  if (convertFollowingMarkdownBlankLine && isMarkdownBlankLineBlock(nextNode)) {
     if (paragraphType) {
       try {
         const paragraph = paragraphType.create(
@@ -99,6 +100,10 @@ export function moveSelectionAfterInsertedNode(args: {
       } catch {
       }
     }
+    return tr;
+  }
+
+  if (isMarkdownBlankLineBlock(nextNode)) {
     return tr;
   }
 

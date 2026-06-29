@@ -40,6 +40,7 @@ function insertVideoNode(ctx: Ctx, src: string) {
       nodePos,
       insertedNodeFallback: videoNode,
       paragraphType,
+      convertFollowingMarkdownBlankLine: false,
     });
 
     markSlashUserInput(view);

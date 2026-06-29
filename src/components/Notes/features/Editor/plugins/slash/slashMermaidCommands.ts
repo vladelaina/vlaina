@@ -34,6 +34,7 @@ export function insertMermaidNodeAndOpenEditor(ctx: Ctx) {
       nodePos,
       insertedNodeFallback: node,
       paragraphType: state.schema.nodes.paragraph,
+      convertFollowingMarkdownBlankLine: false,
     });
 
     tr

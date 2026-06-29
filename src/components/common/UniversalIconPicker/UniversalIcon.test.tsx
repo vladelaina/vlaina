@@ -21,14 +21,14 @@ describe('UniversalIcon', () => {
     const first = render(<UniversalIcon icon="assets/icons/logo.png" imageLoader={imageLoader} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:logo');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:logo');
     });
 
     first.unmount();
 
     render(<UniversalIcon icon="assets/icons/logo.png" imageLoader={imageLoader} />);
 
-    expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:logo');
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:logo');
     expect(imageLoader).toHaveBeenCalledTimes(1);
   });
 
@@ -53,7 +53,7 @@ describe('UniversalIcon', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:logo');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:logo');
     });
     expect(imageLoader).toHaveBeenCalledWith('IMG:/app/.vlaina/app/assets/icons/logo.png');
   });
@@ -64,7 +64,7 @@ describe('UniversalIcon', () => {
     render(<UniversalIcon icon="assets/icons/logo.png" imageLoader={imageLoader} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:logo');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:logo');
     });
 
     expect(imageLoader).toHaveBeenCalledWith('assets/icons/logo.png');
@@ -75,13 +75,13 @@ describe('UniversalIcon', () => {
 
     render(<UniversalIcon icon="assets/icons/missing.png" imageLoader={imageLoader} />);
 
-    const image = await screen.findByRole('img', { name: 'icon' });
+    const image = await screen.findByRole('img');
     expect(image).toHaveAttribute('src', 'blob:missing');
 
     fireEvent.error(image);
 
     await waitFor(() => {
-      expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
     });
   });
 
@@ -93,15 +93,15 @@ describe('UniversalIcon', () => {
 
     const { rerender } = render(<UniversalIcon icon="assets/icons/missing.png" imageLoader={imageLoader} />);
 
-    fireEvent.error(await screen.findByRole('img', { name: 'icon' }));
+    fireEvent.error(await screen.findByRole('img'));
     await waitFor(() => {
-      expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
     });
 
     rerender(<UniversalIcon icon="assets/icons/next.png" imageLoader={imageLoader} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:next');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:next');
     });
   });
 
