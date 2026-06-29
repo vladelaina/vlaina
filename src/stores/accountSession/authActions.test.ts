@@ -347,6 +347,27 @@ describe('accountSession auth actions', () => {
     expect(mocks.refreshBudget).not.toHaveBeenCalled();
   });
 
+  it('force-refreshes managed budget on explicit billing returns even when status has no budget payload', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null }));
+
+    await createCheckStatus(set as never, get as never)({ refreshBudget: 'force' });
+
+    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
+  });
+
   it('force-refreshes budget when the session budget is missing its percentage', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.normalizeManagedBudgetPayload.mockReturnValueOnce({
@@ -381,6 +402,38 @@ describe('accountSession auth actions', () => {
       remainingPercent: Number.NaN,
       status: 'active',
     });
+    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
+  });
+
+  it('does not treat null normalized remaining percentage as a complete budget', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.normalizeManagedBudgetPayload.mockReturnValueOnce({
+      active: true,
+      usedPercent: 10,
+      remainingPercent: null,
+      status: 'active',
+    });
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+      budget: {
+        active: true,
+        usedPercent: 10,
+        status: 'active',
+      },
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null }));
+
+    await createCheckStatus(set as never, get as never)();
+
     expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
     expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
   });

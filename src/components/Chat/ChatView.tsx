@@ -32,7 +32,7 @@ import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '
 import { useI18n } from '@/lib/i18n';
 import { themeChatLayoutTokens, themeIconTokens, themeMotionTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { isManagedProviderId } from '@/lib/ai/managedService';
-import { isRecentManagedBudgetExhausted } from '@/lib/ai/managedQuota';
+import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 
 interface ChatViewProps {
@@ -88,7 +88,6 @@ export function ChatView({
   const models = useUnifiedStore((s) => s.data.ai?.models || EMPTY_MODELS);
   const selectedModelId = useUnifiedStore((s) => s.data.ai?.selectedModelId || null);
   const managedBudget = useManagedAIStore((state) => state.budget);
-  const managedBudgetSyncAt = useManagedAIStore((state) => state.lastBudgetSyncAt);
 
   const loaded = useUnifiedStore(s => s.loaded);
   const pendingComposerInsert = useUIStore((state) => state.pendingNotesChatComposerInsert);
@@ -111,7 +110,7 @@ export function ChatView({
   const isSelectedManagedQuotaExhausted = Boolean(
     selectedModel &&
     isManagedProviderId(selectedModel.providerId) &&
-    isRecentManagedBudgetExhausted(managedBudget, managedBudgetSyncAt)
+    isManagedBudgetExhausted(managedBudget)
   );
   
   useEffect(() => {
@@ -120,7 +119,16 @@ export function ChatView({
     }
   }, [currentSessionId, isMessagesLoaded]);
 
-  const { sendMessage, regenerate, editMessage, switchMessageVersion, stop, stopAndRecallLastUserMessage } = useChatService();
+  const {
+    sendMessage,
+    regenerate,
+    editMessage,
+    switchMessageVersion,
+    stop,
+    stopAndRecallLastUserMessage,
+    recalledComposerDraft,
+    clearRecalledComposerDraft,
+  } = useChatService();
   const regenerateRef = useRef(regenerate);
   const editMessageRef = useRef(editMessage);
   const switchMessageVersionRef = useRef(switchMessageVersion);
@@ -591,6 +599,8 @@ export function ChatView({
                 onSend={handleSend} 
                 onStop={stop}
                 onStopAndRecall={stopAndRecallLastUserMessage}
+                recalledDraft={recalledComposerDraft}
+                onRecalledDraftConsumed={clearRecalledComposerDraft}
                 isLoading={isSessionActive} 
                 hasSelectedModel={!!selectedModel}
                 isManagedQuotaExhausted={isSelectedManagedQuotaExhausted}

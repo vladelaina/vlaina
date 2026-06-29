@@ -33,6 +33,7 @@ interface RunStreamedAssistantMessageOptions {
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   setError: (error: string | null) => void;
   buildErrorPayload: (error: unknown) => ChatErrorPayload;
+  handleError?: (error: unknown) => boolean;
   createEmptyResponseError?: () => Error;
   onSuccess?: (context: StreamedAssistantMessageSuccessContext) => void | Promise<void>;
 }
@@ -47,6 +48,7 @@ export async function runStreamedAssistantMessage({
   setSessionLoading,
   setError,
   buildErrorPayload,
+  handleError,
   createEmptyResponseError,
   onSuccess,
 }: RunStreamedAssistantMessageOptions): Promise<StreamedAssistantMessageStatus> {
@@ -125,6 +127,10 @@ export async function runStreamedAssistantMessage({
       completeMessage(sessionId, assistantMessageId);
       status = 'aborted';
     } else {
+      if (handleError?.(error)) {
+        status = 'failed';
+        return status;
+      }
       const { message, xml } = buildErrorPayload(error);
       setError(message);
       updateMessage(sessionId, assistantMessageId, xml);

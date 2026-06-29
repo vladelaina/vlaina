@@ -25,7 +25,9 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
     void refreshBudgetIfStale().catch(() => undefined);
   }, [accountHasCheckedStatus, accountIsConnected, accountIsLoading, budget, budgetError, isRefreshingBudget, refreshBudgetIfStale]);
 
-  const rawRemainingPercent = budget ? Number(budget.remainingPercent) : Number.NaN;
+  const rawRemainingPercent = typeof budget?.remainingPercent === 'number'
+    ? budget.remainingPercent
+    : Number.NaN;
   const remainingPercent = Number.isFinite(rawRemainingPercent) ? Math.max(0, rawRemainingPercent) : null;
   const progressPercent = remainingPercent == null ? 0 : Math.min(100, remainingPercent);
   const progressWidth = `${progressPercent}%`;
