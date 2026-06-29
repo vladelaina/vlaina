@@ -1,19 +1,28 @@
-export type AppLanguage =
-  | 'en'
-  | 'zh-CN'
-  | 'zh-Hant'
-  | 'ja'
-  | 'ko'
-  | 'fr'
-  | 'de'
-  | 'es'
-  | 'pt-BR'
-  | 'it'
-  | 'ru'
-  | 'tr'
-  | 'vi'
-  | 'id'
-  | 'th';
+interface AppLanguageDefinition {
+  code: string;
+  nativeName: string;
+  baseLanguage?: string;
+}
+
+const APP_LANGUAGE_DEFINITIONS = [
+  { code: 'en', nativeName: 'English', baseLanguage: 'en' },
+  { code: 'zh-CN', nativeName: '简体中文', baseLanguage: 'zh' },
+  { code: 'zh-Hant', nativeName: '繁體中文' },
+  { code: 'ja', nativeName: '日本語', baseLanguage: 'ja' },
+  { code: 'ko', nativeName: '한국어', baseLanguage: 'ko' },
+  { code: 'fr', nativeName: 'Français', baseLanguage: 'fr' },
+  { code: 'de', nativeName: 'Deutsch', baseLanguage: 'de' },
+  { code: 'es', nativeName: 'Español', baseLanguage: 'es' },
+  { code: 'pt-BR', nativeName: 'Português (Brasil)', baseLanguage: 'pt' },
+  { code: 'it', nativeName: 'Italiano', baseLanguage: 'it' },
+  { code: 'ru', nativeName: 'Русский', baseLanguage: 'ru' },
+  { code: 'tr', nativeName: 'Türkçe', baseLanguage: 'tr' },
+  { code: 'vi', nativeName: 'Tiếng Việt', baseLanguage: 'vi' },
+  { code: 'id', nativeName: 'Bahasa Indonesia', baseLanguage: 'id' },
+  { code: 'th', nativeName: 'ไทย', baseLanguage: 'th' },
+] as const satisfies readonly AppLanguageDefinition[];
+
+export type AppLanguage = typeof APP_LANGUAGE_DEFINITIONS[number]['code'];
 
 export type AppLanguagePreference = 'system' | AppLanguage;
 
@@ -25,41 +34,17 @@ export interface LanguageOption {
 export const DEFAULT_APP_LANGUAGE: AppLanguage = 'en';
 export const SYSTEM_LANGUAGE_PREFERENCE = 'system';
 
-export const APP_LANGUAGES: LanguageOption[] = [
-  { code: 'en', nativeName: 'English' },
-  { code: 'zh-CN', nativeName: '简体中文' },
-  { code: 'zh-Hant', nativeName: '繁體中文' },
-  { code: 'ja', nativeName: '日本語' },
-  { code: 'ko', nativeName: '한국어' },
-  { code: 'fr', nativeName: 'Français' },
-  { code: 'de', nativeName: 'Deutsch' },
-  { code: 'es', nativeName: 'Español' },
-  { code: 'pt-BR', nativeName: 'Português (Brasil)' },
-  { code: 'it', nativeName: 'Italiano' },
-  { code: 'ru', nativeName: 'Русский' },
-  { code: 'tr', nativeName: 'Türkçe' },
-  { code: 'vi', nativeName: 'Tiếng Việt' },
-  { code: 'id', nativeName: 'Bahasa Indonesia' },
-  { code: 'th', nativeName: 'ไทย' },
-];
+export const APP_LANGUAGES: LanguageOption[] = APP_LANGUAGE_DEFINITIONS.map((language) => ({
+  code: language.code,
+  nativeName: language.nativeName,
+}));
 
 const LANGUAGE_CODES = new Set<AppLanguage>(APP_LANGUAGES.map((language) => language.code));
-const BASE_LANGUAGE_MAP: Record<string, AppLanguage> = {
-  en: 'en',
-  zh: 'zh-CN',
-  ja: 'ja',
-  ko: 'ko',
-  fr: 'fr',
-  de: 'de',
-  es: 'es',
-  pt: 'pt-BR',
-  it: 'it',
-  ru: 'ru',
-  tr: 'tr',
-  vi: 'vi',
-  id: 'id',
-  th: 'th',
-};
+const BASE_LANGUAGE_MAP = Object.fromEntries(
+  APP_LANGUAGE_DEFINITIONS.flatMap((language) =>
+    'baseLanguage' in language ? [[language.baseLanguage, language.code]] : []
+  )
+) as Record<string, AppLanguage>;
 
 export function isAppLanguage(value: string | null | undefined): value is AppLanguage {
   return LANGUAGE_CODES.has(value as AppLanguage);

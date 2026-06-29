@@ -37,6 +37,22 @@ function findStorageWriteSites(): string[] {
     .sort();
 }
 
+function findHardcodedUiTextAttributeSites(): string[] {
+  const hardcodedUiTextAttributePattern = /\b(?:aria-label|placeholder|title)="[A-Z][^"{}<>]+"/g;
+
+  return listSourceFiles('src/components')
+    .filter((path) => !/\.test\.(?:ts|tsx)$/.test(path))
+    .flatMap((path) => {
+      const source = readText(path);
+      return [...source.matchAll(hardcodedUiTextAttributePattern)].map((match) => {
+        const end = source.indexOf('\n', match.index);
+        const expression = source.slice(match.index, end === -1 ? undefined : end).trim();
+        return `${normalizePathForSnapshot(path)}:${expression}`;
+      });
+    })
+    .sort();
+}
+
 describe('typecheck quality gate', () => {
   it('keeps TypeScript unused-symbol checks enabled', () => {
     const tsconfig = readText('tsconfig.json');
@@ -66,6 +82,31 @@ describe('typecheck quality gate', () => {
     });
 
     expect(offenders).toEqual([]);
+  });
+
+  it('keeps production hard-coded UI text attributes explicitly classified for i18n follow-up', () => {
+    const expectedSites = [
+      'src/components/Chat/features/Input/components/ChatAttachmentPreviewList.tsx:aria-label="Remove attachment"',
+      'src/components/Chat/features/Input/components/ChatAttachmentPreviewList.tsx:aria-label="Remove attachment"',
+      'src/components/Chat/features/Messages/components/MessageToolbar.tsx:aria-label="Branch conversation"',
+      'src/components/Chat/features/Messages/components/MessageToolbar.tsx:aria-label="Copy message"',
+      'src/components/Chat/features/Messages/components/MessageToolbar.tsx:aria-label="Regenerate response"',
+      'src/components/Chat/features/Messages/components/MessageVersionNavigator.tsx:aria-label="Next message version"',
+      'src/components/Chat/features/Messages/components/MessageVersionNavigator.tsx:aria-label="Previous message version"',
+      'src/components/Chat/features/Messages/components/UserMessage.tsx:aria-label="Copy message"',
+      'src/components/Chat/features/Messages/components/UserMessage.tsx:aria-label="Edit message"',
+      'src/components/Notes/features/Editor/MarkdownEditor.tsx:aria-label="Markdown source editor"',
+      'src/components/common/ErrorBoundary.tsx:aria-label="Close window"',
+      'src/components/common/ErrorBoundary.tsx:aria-label="Maximize window"',
+      'src/components/common/ErrorBoundary.tsx:aria-label="Minimize window"',
+      'src/components/common/UniversalIconPicker/index.tsx:aria-label="Copy icon picker logs"',
+      'src/components/common/UniversalIconPicker/index.tsx:title="Copy icon picker logs"',
+      'src/components/layout/shell/UnifiedTitleBar.tsx:aria-label="Close window"',
+      'src/components/layout/shell/UnifiedTitleBar.tsx:aria-label="Maximize window"',
+      'src/components/layout/shell/UnifiedTitleBar.tsx:aria-label="Minimize window"',
+    ];
+
+    expect(findHardcodedUiTextAttributeSites()).toEqual([...expectedSites].sort());
   });
 
   it('keeps production localStorage writes explicitly classified for cross-window sync', () => {
