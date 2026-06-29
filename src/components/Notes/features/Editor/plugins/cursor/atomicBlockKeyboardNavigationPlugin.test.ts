@@ -1819,6 +1819,74 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     }
   );
 
+  it('backspaces the blank line after a nested blockquote from the next paragraph start and keeps the cursor at the quote end', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const nestedQuoteText = '就是说我们需要做的就是先把他的体验都给做了,然后就是来把他的用户都给抢过来';
+    replaceDocument(view, [
+      schema.nodes.blockquote.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('我还是希望这个阶段的话就是可以完全的取代typora')),
+        schema.nodes.blockquote.create(null, [
+          schema.nodes.paragraph.create(null, schema.text(nestedQuoteText)),
+        ]),
+      ]),
+      schema.nodes.paragraph.create(),
+      schema.nodes.paragraph.create(null, schema.text('需要做的一些事')),
+    ]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(
+      view.state.doc,
+      textPosition(view, '需要做的一些事')
+    )));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('blockquote');
+    expect(view.state.doc.child(1).textContent).toBe('需要做的一些事');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.from).toBe(textPosition(view, nestedQuoteText, nestedQuoteText.length));
+
+    await editor.destroy();
+  });
+
+  it('backspaces a markdown blank-line placeholder after a nested blockquote from the next paragraph start', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const nestedQuoteText = 'nested quote placeholder sentinel';
+    replaceDocument(view, [
+      schema.nodes.blockquote.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('outer quote placeholder sentinel')),
+        schema.nodes.blockquote.create(null, [
+          schema.nodes.paragraph.create(null, schema.text(nestedQuoteText)),
+        ]),
+      ]),
+      createMarkdownBlankLinePlaceholderNode(view),
+      schema.nodes.paragraph.create(null, schema.text('after placeholder sentinel')),
+    ]);
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(
+      view.state.doc,
+      textPosition(view, 'after placeholder sentinel')
+    )));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('blockquote');
+    expect(view.state.doc.child(1).textContent).toBe('after placeholder sentinel');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.from).toBe(textPosition(view, nestedQuoteText, nestedQuoteText.length));
+
+    await editor.destroy();
+  });
+
   it.each([
     {
       name: 'callout',
