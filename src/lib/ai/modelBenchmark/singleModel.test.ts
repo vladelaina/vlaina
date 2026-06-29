@@ -291,6 +291,56 @@ describe('checkModelHealth', () => {
     });
   });
 
+  it('falls back to the Anthropic endpoint for Claude health checks after 403 endpoint mismatch responses', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({
+          error: { message: '模型 claude-sonnet-4-6 不支持 /v1/chat/completions 接口' },
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-6')
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.example.com/v1/chat/completions');
+    expect(fetchSpy.mock.calls[1][0]).toBe('https://api.example.com/v1/messages');
+  });
+
+  it('does not fall back to Anthropic for ordinary 403 Claude health check failures', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: 'Forbidden request. Check model access.' } }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'openai' },
+      createModel('claude-sonnet-4-6')
+    );
+
+    expect(result).toMatchObject({
+      status: 'error',
+      endpoint: 'chat',
+      error: 'Forbidden request. Check model access.',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to OpenAI for Claude health checks after provider Anthropic endpoint-shaped failures', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(

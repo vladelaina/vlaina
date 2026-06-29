@@ -499,7 +499,6 @@ describe('refreshManagedProviderInBackground', () => {
           providerId: 'vlaina-managed',
         }),
       ], 'v2'));
-    fetchManagedModelsVersionMock.mockResolvedValue('v2');
 
     actions.refreshManagedProviderInBackground();
     await vi.runAllTimersAsync();
@@ -548,8 +547,28 @@ describe('refreshManagedProviderInBackground', () => {
     expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['fresh-model']);
   });
 
-  it('deduplicates forced refresh attempts inside the short foreground cooldown', async () => {
-    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+  it('coalesces concurrent forced refresh attempts but does not cooldown later foreground refreshes', async () => {
+    let resolveFirst!: (value: ReturnType<typeof buildCatalog>) => void;
+    const firstCatalog = new Promise<ReturnType<typeof buildCatalog>>((resolve) => {
+      resolveFirst = resolve;
+    });
+    fetchManagedModelsMock
+      .mockReturnValueOnce(firstCatalog)
+      .mockResolvedValueOnce(buildCatalog([
+        buildModel({
+          id: 'vlaina-managed::fresh-model',
+          apiModelId: 'fresh-model',
+          name: 'Fresh Model',
+          providerId: 'vlaina-managed',
+        }),
+      ]));
+
+    actions.refreshManagedProviderInBackground({ force: true });
+    actions.refreshManagedProviderInBackground({ force: true });
+    await Promise.resolve();
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+
+    resolveFirst(buildCatalog([
       buildModel({
         id: 'vlaina-managed::new-model',
         apiModelId: 'new-model',
@@ -557,38 +576,78 @@ describe('refreshManagedProviderInBackground', () => {
         providerId: 'vlaina-managed',
       }),
     ]));
-
-    actions.refreshManagedProviderInBackground({ force: true });
+    await firstCatalog;
     await vi.runAllTimersAsync();
-    fetchManagedModelsMock.mockClear();
-
-    actions.refreshManagedProviderInBackground({ force: true });
-    await vi.runAllTimersAsync();
-
-    expect(fetchManagedModelsMock).not.toHaveBeenCalled();
-  });
-
-  it('skips full forced refresh when the remote catalog version is unchanged', async () => {
-    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
-      buildModel({
-        id: 'vlaina-managed::old-model',
-        apiModelId: 'old-model',
-        name: 'Old Model',
-        providerId: 'vlaina-managed',
-      }),
-    ], 'v1'));
-
-    actions.refreshManagedProviderInBackground();
-    await vi.runAllTimersAsync();
-    fetchManagedModelsMock.mockClear();
-    vi.setSystemTime(managedRefreshTestNow + 20 * 1000);
-    fetchManagedModelsVersionMock.mockResolvedValue('v1');
 
     actions.refreshManagedProviderInBackground({ force: true });
     await vi.runAllTimersAsync();
 
     expect(fetchManagedModelsVersionMock).toHaveBeenCalledTimes(1);
-    expect(fetchManagedModelsMock).not.toHaveBeenCalled();
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(2);
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['fresh-model']);
+  });
+
+  it('skips the full catalog for foreground refreshes when the lightweight version is unchanged', async () => {
+    fetchManagedModelsMock
+      .mockResolvedValueOnce(buildCatalog([
+        buildModel({
+          id: 'vlaina-managed::old-model',
+          apiModelId: 'old-model',
+          name: 'Old Model',
+          providerId: 'vlaina-managed',
+        }),
+      ], 'v1'))
+      .mockResolvedValueOnce(buildCatalog([
+        buildModel({
+          id: 'vlaina-managed::updated-model',
+          apiModelId: 'updated-model',
+          name: 'Updated Model',
+          providerId: 'vlaina-managed',
+        }),
+      ], 'v1'));
+    fetchManagedModelsVersionMock.mockResolvedValue('v1');
+
+    actions.refreshManagedProviderInBackground();
+    await vi.runAllTimersAsync();
+
+    actions.refreshManagedProviderInBackground({ force: true });
+    await vi.runAllTimersAsync();
+
+    expect(fetchManagedModelsVersionMock).toHaveBeenCalledTimes(1);
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['old-model']);
+  });
+
+  it('falls back to a full foreground catalog refresh when the unchanged version is too old', async () => {
+    fetchManagedModelsMock
+      .mockResolvedValueOnce(buildCatalog([
+        buildModel({
+          id: 'vlaina-managed::old-model',
+          apiModelId: 'old-model',
+          name: 'Old Model',
+          providerId: 'vlaina-managed',
+        }),
+      ], 'v1'))
+      .mockResolvedValueOnce(buildCatalog([
+        buildModel({
+          id: 'vlaina-managed::updated-model',
+          apiModelId: 'updated-model',
+          name: 'Updated Model',
+          providerId: 'vlaina-managed',
+        }),
+      ], 'v1'));
+    fetchManagedModelsVersionMock.mockResolvedValue('v1');
+
+    actions.refreshManagedProviderInBackground();
+    await vi.runAllTimersAsync();
+    vi.setSystemTime(managedRefreshTestNow + 70 * 1000);
+
+    actions.refreshManagedProviderInBackground({ force: true });
+    await vi.runAllTimersAsync();
+
+    expect(fetchManagedModelsVersionMock).toHaveBeenCalledTimes(1);
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(2);
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['updated-model']);
   });
 
   it('throttles repeated startup syncs after the first catalog refresh', async () => {

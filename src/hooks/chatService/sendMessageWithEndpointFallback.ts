@@ -260,6 +260,9 @@ export async function sendMessageWithEndpointFallback({
     if (options?.webSearchEnabled) {
       throw openAIError;
     }
+    if (!isLikelyAnthropicModel(model)) {
+      throw openAIError;
+    }
     if (!shouldTryAnthropicEndpointDuringDiscovery(openAIError)) {
       throw openAIError;
     }

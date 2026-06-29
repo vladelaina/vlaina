@@ -172,6 +172,78 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
   });
 
+  it('falls back to Anthropic for verified OpenAI Claude models on 403 endpoint mismatch messages', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          type: AIErrorType.SERVER_ERROR,
+          message: '模型 claude-sonnet-4-6 不支持 /v1/chat/completions 接口',
+          statusCode: 403,
+        })
+        .mockResolvedValueOnce('anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel({
+        id: 'provider-1::claude-sonnet-4-6',
+        apiModelId: 'claude-sonnet-4-6',
+        name: 'Claude Sonnet 4.6',
+      }),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledWith('provider-1::claude-sonnet-4-6', {
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
+  it('does not treat ordinary 403 provider rejections as endpoint fallback signals', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const forbiddenError = {
+      type: AIErrorType.SERVER_ERROR,
+      message: 'Forbidden request. Check account balance or model access.',
+      statusCode: 403,
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(forbiddenError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        updateModel,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toBe(forbiddenError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
   it('uses a verified model endpoint type ahead of the provider endpoint type', async () => {
     const updateProvider = vi.fn();
     const updateModel = vi.fn();
@@ -693,6 +765,51 @@ describe('sendMessageWithEndpointFallback', () => {
     });
   });
 
+  it('records endpoint discovery on the concrete provider model when the same Claude id exists in multiple providers', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          type: AIErrorType.SERVER_ERROR,
+          message: '模型 claude-sonnet-4-6 不支持 /v1/chat/completions 接口',
+          statusCode: 403,
+        })
+        .mockResolvedValueOnce('provider 2 anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel({
+        id: 'provider-2::claude-sonnet-4-6',
+        providerId: 'provider-2',
+        apiModelId: 'claude-sonnet-4-6',
+        name: 'Claude Sonnet 4.6',
+      }),
+      provider: buildProvider({
+        id: 'provider-2',
+        endpointType: 'openai',
+        endpointTypeCheckedAt: 1,
+      }),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      updateModel,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('provider 2 anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).toHaveBeenCalledTimes(1);
+    expect(updateModel).toHaveBeenCalledWith('provider-2::claude-sonnet-4-6', {
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
   it('does not hide first-run OpenAI-compatible rate limits behind Anthropic discovery', async () => {
     const updateProvider = vi.fn();
     const updateModel = vi.fn();
@@ -718,6 +835,38 @@ describe('sendMessageWithEndpointFallback', () => {
         retryDelayMs: 0,
       }),
     ).rejects.toBe(rateLimitError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  it('does not probe Anthropic during first-run discovery for non-Claude models', async () => {
+    const updateProvider = vi.fn();
+    const updateModel = vi.fn();
+    const openAIError = {
+      type: AIErrorType.SERVER_ERROR,
+      message: 'OpenAI-compatible chat failed',
+      statusCode: 400,
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(openAIError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildOpenAIModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        updateModel,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toBe(openAIError);
 
     expect(client.sendMessage).toHaveBeenCalledTimes(1);
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
