@@ -85,26 +85,7 @@ describe('typecheck quality gate', () => {
   });
 
   it('keeps production hard-coded UI text attributes explicitly classified for i18n follow-up', () => {
-    const expectedSites = [
-      'src/components/Chat/features/Input/components/ChatAttachmentPreviewList.tsx:aria-label="Remove attachment"',
-      'src/components/Chat/features/Input/components/ChatAttachmentPreviewList.tsx:aria-label="Remove attachment"',
-      'src/components/Chat/features/Messages/components/MessageToolbar.tsx:aria-label="Branch conversation"',
-      'src/components/Chat/features/Messages/components/MessageToolbar.tsx:aria-label="Copy message"',
-      'src/components/Chat/features/Messages/components/MessageToolbar.tsx:aria-label="Regenerate response"',
-      'src/components/Chat/features/Messages/components/MessageVersionNavigator.tsx:aria-label="Next message version"',
-      'src/components/Chat/features/Messages/components/MessageVersionNavigator.tsx:aria-label="Previous message version"',
-      'src/components/Chat/features/Messages/components/UserMessage.tsx:aria-label="Copy message"',
-      'src/components/Chat/features/Messages/components/UserMessage.tsx:aria-label="Edit message"',
-      'src/components/Notes/features/Editor/MarkdownEditor.tsx:aria-label="Markdown source editor"',
-      'src/components/common/ErrorBoundary.tsx:aria-label="Close window"',
-      'src/components/common/ErrorBoundary.tsx:aria-label="Maximize window"',
-      'src/components/common/ErrorBoundary.tsx:aria-label="Minimize window"',
-      'src/components/common/UniversalIconPicker/index.tsx:aria-label="Copy icon picker logs"',
-      'src/components/common/UniversalIconPicker/index.tsx:title="Copy icon picker logs"',
-      'src/components/layout/shell/UnifiedTitleBar.tsx:aria-label="Close window"',
-      'src/components/layout/shell/UnifiedTitleBar.tsx:aria-label="Maximize window"',
-      'src/components/layout/shell/UnifiedTitleBar.tsx:aria-label="Minimize window"',
-    ];
+    const expectedSites: string[] = [];
 
     expect(findHardcodedUiTextAttributeSites()).toEqual([...expectedSites].sort());
   });
