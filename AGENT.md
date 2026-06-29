@@ -30,6 +30,7 @@ When editing existing code:
 - Don't "improve" adjacent code, comments, or formatting.
 - Keep code, comments, test names, test fixture text, and non-user-facing strings in English.
 - User-facing copy may use the product's target language, but internal diagnostics and tests stay English.
+- Do not add automatic client-side diagnostic or telemetry uploads unless the user explicitly asks.
 - Use fake or randomized test emails, IPs, URLs, and tokens; never real personal or service values.
 - Do not add native hover tooltip text such as `title` attributes by default; only add them when explicitly requested.
 - Don't refactor things that aren't broken.
