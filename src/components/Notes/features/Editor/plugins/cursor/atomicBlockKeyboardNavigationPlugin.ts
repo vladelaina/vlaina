@@ -102,6 +102,10 @@ function isEmptyParagraphNode(node: ProseNode | null | undefined): boolean {
   return Boolean(node && node.type.name === 'paragraph' && node.content.size === 0);
 }
 
+function isStructuralGapDeleteNode(node: ProseNode | null | undefined): boolean {
+  return isEmptyParagraphNode(node) || isMarkdownBlankLinePlaceholderNode(node);
+}
+
 function getTrackedEmptyGap(state: EditorState): TopLevelBlock | null {
   const pluginState = atomicBlockKeyboardNavigationPluginKey.getState(state);
   if (pluginState?.pos === null || pluginState?.pos === undefined) {
@@ -634,6 +638,52 @@ function handleEmptyParagraphNearStructuralBlockDelete(
   return true;
 }
 
+function handleBackspaceAtParagraphStartAfterStructuralGap(
+  view: EditorView,
+  event: KeyboardEvent
+): boolean {
+  if (getPlainDeleteDirection(event) !== -1) {
+    return false;
+  }
+
+  const { selection, doc } = view.state;
+  if (!(selection instanceof TextSelection) || !selection.empty) {
+    return false;
+  }
+
+  const { $from } = selection;
+  if ($from.depth !== 1 || !$from.parent.isTextblock || $from.parentOffset !== 0) {
+    return false;
+  }
+
+  const currentBlockFrom = $from.before(1);
+  const gapBlock = findTopLevelBlockBefore(doc, currentBlockFrom);
+  if (!gapBlock || !isStructuralGapDeleteNode(gapBlock.node)) {
+    return false;
+  }
+
+  const structuralBlock = findTopLevelBlockBefore(doc, gapBlock.from);
+  if (
+    !structuralBlock ||
+    !STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES.has(structuralBlock.node.type.name)
+  ) {
+    return false;
+  }
+
+  const range: AdjacentEmptyParagraphDeleteRange = {
+    from: gapBlock.from,
+    to: gapBlock.to,
+    searchDir: -1,
+    blockFrom: structuralBlock.from,
+    blockTo: structuralBlock.to,
+    blockName: structuralBlock.node.type.name,
+  };
+
+  event.preventDefault();
+  dispatchDeleteEmptyParagraphNearStructuralBlock(view, range, -1);
+  return true;
+}
+
 function handleDocumentBoundaryAtomicBlockDelete(view: EditorView, event: KeyboardEvent): boolean {
   if (getPlainDeleteDirection(event) === null) {
     return false;
@@ -1128,6 +1178,10 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
         }
 
         if (handleEmptyParagraphNearStructuralBlockDelete(view, event)) {
+          return true;
+        }
+
+        if (handleBackspaceAtParagraphStartAfterStructuralGap(view, event)) {
           return true;
         }
 
