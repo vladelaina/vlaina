@@ -72,7 +72,6 @@ const NOTE_PATH_GUARD_ERROR_KEYS: ErrorMessageKeyPattern[] = [
   [/^note file is too (?:large|complex) to update metadata\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^note file is too large to open\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^current note is too large to reload from disk\.?$/i, 'notes.openMarkdownFileFailed'],
-  [/^selected file path must be absolute\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^(?:target folder|restore target) must stay inside the current vault\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^path must stay inside the current vault\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^path must not be inside an internal notes folder\.?$/i, 'notes.openMarkdownFileFailed'],
@@ -112,7 +111,7 @@ export function normalizeUserFacingErrorMessage(
     }
   }
 
-  if (fallbackKey) {
+  if (!message && fallbackKey) {
     return translate(fallbackKey, fallbackValues);
   }
 

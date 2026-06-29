@@ -30,5 +30,9 @@ describe('normalizeUserFacingErrorMessage', () => {
     useUIStore.setState({ languagePreference: 'zh-CN' });
 
     expect(normalizeUserFacingErrorMessage('EACCES: permission denied')).toBe('EACCES: permission denied');
+    expect(normalizeUserFacingErrorMessage('Disk write failed', 'asset.uploadFailed')).toBe('Disk write failed');
+    expect(normalizeUserFacingErrorMessage('Selected file path must be absolute', 'notes.openMarkdownFileFailed')).toBe(
+      'Selected file path must be absolute'
+    );
   });
 });
