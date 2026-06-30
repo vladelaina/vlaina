@@ -48,7 +48,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
           <div
             className={cn(
               'h-full rounded-full transition-all',
-              budgetError && !isRefreshingBudget ? 'bg-[var(--vlaina-border)]' : 'bg-[#60fe73]'
+              budgetError && !isRefreshingBudget ? 'bg-[var(--vlaina-border)]' : 'bg-[var(--vlaina-color-quota-fill)]'
             )}
             style={{ width: progressWidth }}
           />
