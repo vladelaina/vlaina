@@ -16,6 +16,7 @@ import {
 
 type ShortPromptAnchorSample = {
   assistantText: string;
+  clientHeight: number;
   messageCount: number;
   scrollHeight: number;
   scrollTop: number;
@@ -106,6 +107,7 @@ async function startShortPromptAnchorProbe(page: import('@playwright/test').Page
 
       samples.push({
         assistantText: assistantMessage?.textContent ?? '',
+        clientHeight: scrollRoot.clientHeight,
         messageCount: messages.length,
         scrollHeight: scrollRoot.scrollHeight,
         scrollTop: scrollRoot.scrollTop,
@@ -181,10 +183,29 @@ async function scrollChatToTop(page: import('@playwright/test').Page): Promise<v
   await page.waitForTimeout(120);
 }
 
+function expectShortPromptAnchoredNearComposer(samples: ShortPromptAnchorSample[]): void {
+  const visibleUserSamples = samples.filter((sample) => sample.userTopOffset !== null);
+  const settledSamples = visibleUserSamples.slice(Math.max(0, visibleUserSamples.length - 12));
+  const splitSamples = settledSamples.filter((sample) =>
+    sample.userTopOffset !== null &&
+    sample.userBottomOffset !== null &&
+    (
+      sample.userTopOffset < -1 ||
+      sample.userBottomOffset <= 1 ||
+      sample.userBottomOffset > sample.clientHeight + 1
+    )
+  );
+  const bottomOffsets = settledSamples.map((sample) => sample.userBottomOffset ?? 0);
+
+  expect(visibleUserSamples.length).toBeGreaterThan(0);
+  expect(splitSamples).toEqual([]);
+  expect(Math.min(...bottomOffsets)).toBeGreaterThan(settledSamples[0]!.clientHeight * 0.55);
+}
+
 test.describe('chat short prompt anchoring', () => {
   test.setTimeout(120_000);
 
-  test('keeps a first short sent prompt pinned as a single row at the top while awaiting response', async () => {
+  test('keeps a first short sent prompt visible near the composer while awaiting response', async () => {
     const provider = await createDelayedProviderServer();
     const { app, userDataRoot } = await launchIsolatedElectron('chat-short-prompt-anchor');
 
@@ -216,30 +237,14 @@ test.describe('chat short prompt anchoring', () => {
       const samples = await page.evaluate(() =>
         (window as any).__vlainaShortPromptAnchorProbe.stop() as ShortPromptAnchorSample[]
       );
-      const visibleUserSamples = samples.filter((sample) => sample.userTopOffset !== null);
-      const settledSamples = visibleUserSamples.slice(Math.max(0, visibleUserSamples.length - 12));
-      const splitSamples = settledSamples.filter((sample) =>
-        sample.userTopOffset !== null &&
-        sample.userBottomOffset !== null &&
-        (sample.userTopOffset < -1 || sample.userBottomOffset <= 1)
-      );
-      const topOffsets = settledSamples.map((sample) => sample.userTopOffset ?? 0);
-
-      console.info('[chat-short-prompt-anchor]', {
-        firstVisible: visibleUserSamples[0],
-        lastSamples: settledSamples,
-      });
-
-      expect(visibleUserSamples.length).toBeGreaterThan(0);
-      expect(splitSamples).toEqual([]);
-      expect(Math.max(...topOffsets.map((offset) => Math.abs(offset)))).toBeLessThanOrEqual(2);
+      expectShortPromptAnchoredNearComposer(samples);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();
     }
   });
 
-  test('keeps a short sent prompt pinned at the top after a long measured conversation', async () => {
+  test('keeps a short sent prompt near the composer after a long measured conversation', async () => {
     const provider = await createDelayedProviderServer();
     const { app, userDataRoot } = await launchIsolatedElectron('chat-short-prompt-anchor-history');
 
@@ -280,23 +285,7 @@ test.describe('chat short prompt anchoring', () => {
       const samples = await page.evaluate(() =>
         (window as any).__vlainaShortPromptAnchorProbe.stop() as ShortPromptAnchorSample[]
       );
-      const visibleUserSamples = samples.filter((sample) => sample.userTopOffset !== null);
-      const settledSamples = visibleUserSamples.slice(Math.max(0, visibleUserSamples.length - 12));
-      const splitSamples = settledSamples.filter((sample) =>
-        sample.userTopOffset !== null &&
-        sample.userBottomOffset !== null &&
-        (sample.userTopOffset < -1 || sample.userBottomOffset <= 1)
-      );
-      const topOffsets = settledSamples.map((sample) => sample.userTopOffset ?? 0);
-
-      console.info('[chat-short-prompt-anchor-history]', {
-        firstVisible: visibleUserSamples[0],
-        lastSamples: settledSamples,
-      });
-
-      expect(visibleUserSamples.length).toBeGreaterThan(0);
-      expect(splitSamples).toEqual([]);
-      expect(Math.max(...topOffsets.map((offset) => Math.abs(offset)))).toBeLessThanOrEqual(2);
+      expectShortPromptAnchoredNearComposer(samples);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();
@@ -344,23 +333,7 @@ test.describe('chat short prompt anchoring', () => {
       const samples = await page.evaluate(() =>
         (window as any).__vlainaShortPromptAnchorProbe.stop() as ShortPromptAnchorSample[]
       );
-      const visibleUserSamples = samples.filter((sample) => sample.userTopOffset !== null);
-      const settledSamples = visibleUserSamples.slice(Math.max(0, visibleUserSamples.length - 12));
-      const splitSamples = settledSamples.filter((sample) =>
-        sample.userTopOffset !== null &&
-        sample.userBottomOffset !== null &&
-        (sample.userTopOffset < -1 || sample.userBottomOffset <= 1)
-      );
-      const topOffsets = settledSamples.map((sample) => sample.userTopOffset ?? 0);
-
-      console.info('[chat-short-prompt-anchor-detached-history]', {
-        firstVisible: visibleUserSamples[0],
-        lastSamples: settledSamples,
-      });
-
-      expect(visibleUserSamples.length).toBeGreaterThan(0);
-      expect(splitSamples).toEqual([]);
-      expect(Math.max(...topOffsets.map((offset) => Math.abs(offset)))).toBeLessThanOrEqual(2);
+      expectShortPromptAnchoredNearComposer(samples);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();

@@ -11,6 +11,7 @@ import {
   buildChatMessageFrameLayout,
   CHAT_MESSAGE_LOADING_GAP,
   CHAT_MESSAGE_LIST_GAP,
+  CHAT_MESSAGE_LIST_TOP_PADDING,
 } from "@/components/Chat/features/Layout/chatMessageFrames";
 import { normalizeChatContainerWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
 import { isEditableShortcutTarget } from "@/lib/shortcuts/editableGuards";
@@ -29,6 +30,7 @@ interface MessageAutoscrollBehavior {
   handleNewUserMessage: () => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
   spacerHeight: number;
+  currentTurnTopSpacerHeight: number;
 }
 
 const NEAR_BOTTOM_THRESHOLD = 96;
@@ -37,6 +39,7 @@ const STREAMING_EXTRA_SPACER_RATIO = 0.08;
 const CURRENT_TURN_ANCHOR_MAX_ATTEMPTS = 8;
 const ACTIVE_OUTPUT_OVERFLOW_THRESHOLD = 1;
 const LONG_USER_MESSAGE_VISIBLE_HEIGHT = 96;
+const SHORT_USER_MESSAGE_ANCHOR_BOTTOM_RATIO = 0.64;
 
 function hasUsableScrollContainer(container: HTMLElement | null): container is HTMLElement {
   return !!container && container.clientHeight > 0 && container.clientWidth > 0;
@@ -77,6 +80,13 @@ function computeSpacerHeight(
   return Math.max(0, Math.round(unclampedBaseHeight + extraSpaceForAssistant));
 }
 
+function resolveShortUserMessageAnchorTop(containerHeight: number, targetMessageHeight: number): number {
+  return Math.max(
+    0,
+    Math.round(containerHeight * SHORT_USER_MESSAGE_ANCHOR_BOTTOM_RATIO - targetMessageHeight),
+  );
+}
+
 export const useMessageAutoscroll = ({
   active = true,
   messages,
@@ -113,6 +123,8 @@ export const useMessageAutoscroll = ({
   const initialScrollPendingRef = useRef(!!chatId);
   const [spacerHeight, setSpacerHeight] = useState(0);
   const spacerHeightRef = useRef(0);
+  const [currentTurnTopSpacerHeight, setCurrentTurnTopSpacerHeight] = useState(0);
+  const currentTurnTopSpacerHeightRef = useRef(0);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
   activeRef.current = active;
 
@@ -187,15 +199,34 @@ export const useMessageAutoscroll = ({
       return false;
     }
 
+    const layoutWidth = normalizeChatContainerWidth(container.clientWidth);
+    const estimatedLayout = buildChatMessageFrameLayout(messages, {
+      cacheKey: chatId,
+      containerWidth: layoutWidth,
+      isSessionActive: isStreamingRef.current,
+    });
+    const targetFrame = estimatedLayout.items[lastUserIndex];
+    if (!targetFrame) {
+      return false;
+    }
+    const isLongEstimatedUserMessage = targetFrame.height > container.clientHeight;
+    const desiredTopOffset = isLongEstimatedUserMessage
+      ? 0
+      : resolveShortUserMessageAnchorTop(container.clientHeight, targetFrame.height);
+    const desiredTopSpacerHeight = isLongEstimatedUserMessage
+      ? 0
+      : Math.max(0, desiredTopOffset - targetFrame.top);
+    const isTopSpacerReady = Math.abs(currentTurnTopSpacerHeightRef.current - desiredTopSpacerHeight) <= 1;
+
     const row = container.querySelector<HTMLElement>(`[data-message-index="${lastUserIndex}"]`);
     if (row) {
       const containerRect = container.getBoundingClientRect();
       const rowRect = row.getBoundingClientRect();
       const nextScrollTop = rowRect.height > container.clientHeight
         ? container.scrollTop + rowRect.bottom - containerRect.top - LONG_USER_MESSAGE_VISIBLE_HEIGHT
-        : container.scrollTop + rowRect.top - containerRect.top;
+        : container.scrollTop + rowRect.top - containerRect.top - desiredTopOffset;
       const actualScrollTop = setProgrammaticScrollTop(container, nextScrollTop);
-      return Math.abs(actualScrollTop - nextScrollTop) <= 1 ? 'rendered' : 'estimated';
+      return Math.abs(actualScrollTop - nextScrollTop) <= 1 && isTopSpacerReady ? 'rendered' : 'estimated';
     }
 
     const containerRect = container.getBoundingClientRect();
@@ -217,19 +248,9 @@ export const useMessageAutoscroll = ({
       }
     }
 
-    const layoutWidth = normalizeChatContainerWidth(container.clientWidth);
-    const estimatedLayout = buildChatMessageFrameLayout(messages, {
-      cacheKey: chatId,
-      containerWidth: layoutWidth,
-      isSessionActive: isStreamingRef.current,
-    });
-    const targetFrame = estimatedLayout.items[lastUserIndex];
-    if (!targetFrame) {
-      return false;
-    }
     const targetEstimatedScrollTop = targetFrame.height > container.clientHeight
       ? targetFrame.bottom - LONG_USER_MESSAGE_VISIBLE_HEIGHT
-      : targetFrame.top;
+      : targetFrame.top + desiredTopSpacerHeight - desiredTopOffset;
 
     if (previousRenderedRow) {
       const previousFrame = estimatedLayout.items[previousRenderedIndex];
@@ -240,7 +261,7 @@ export const useMessageAutoscroll = ({
         CHAT_MESSAGE_LIST_GAP,
         targetEstimatedScrollTop - previousEstimatedBottom,
       );
-      const requestedScrollTop = previousBottom + estimatedDistanceToTarget;
+      const requestedScrollTop = previousBottom + estimatedDistanceToTarget - desiredTopOffset;
       setProgrammaticScrollTop(container, requestedScrollTop);
       return 'estimated';
     }
@@ -334,7 +355,7 @@ export const useMessageAutoscroll = ({
     const isLongUserMessage = userRect.height > container.clientHeight;
     const restoreOffset = isLongUserMessage
       ? userBottomOffset - LONG_USER_MESSAGE_VISIBLE_HEIGHT
-      : userTopOffset;
+      : userTopOffset - resolveShortUserMessageAnchorTop(container.clientHeight, userRect.height);
     if (Math.abs(restoreOffset) > 1 && outputFitsInViewport) {
       setProgrammaticScrollTop(container, container.scrollTop + restoreOffset);
     }
@@ -376,19 +397,32 @@ export const useMessageAutoscroll = ({
     const lastUserIndex = getLastUserMessageIndex();
 
     if (lastUserIndex < 0) {
+      currentTurnTopSpacerHeightRef.current = 0;
+      setCurrentTurnTopSpacerHeight(0);
       setSpacerHeight(0);
       return;
     }
 
     if (!isStreaming && !isCurrentTurnAnchoredRef.current) {
+      currentTurnTopSpacerHeightRef.current = 0;
+      setCurrentTurnTopSpacerHeight(0);
       setSpacerHeight(0);
       return;
     }
 
     let targetMessageHeight = 0;
+    let targetMessageTop = CHAT_MESSAGE_LIST_TOP_PADDING;
     let contentHeightAfterTarget = 0;
 
     if (estimateMessageHeight) {
+      for (let index = 0; index < lastUserIndex; index += 1) {
+        targetMessageTop += estimateMessageHeight(
+          messages[index]!,
+          false,
+          layoutWidth,
+        );
+        targetMessageTop += CHAT_MESSAGE_LIST_GAP;
+      }
       targetMessageHeight = estimateMessageHeight(
         messages[lastUserIndex]!,
         false,
@@ -414,11 +448,14 @@ export const useMessageAutoscroll = ({
       });
       const targetFrame = estimatedLayout.items[lastUserIndex];
       if (!targetFrame) {
+        currentTurnTopSpacerHeightRef.current = 0;
+        setCurrentTurnTopSpacerHeight(0);
         setSpacerHeight(0);
         return;
       }
 
       targetMessageHeight = targetFrame.height;
+      targetMessageTop = targetFrame.top;
       if (estimatedLayout.items.length > lastUserIndex + 1) {
         const lastFrame = estimatedLayout.items[estimatedLayout.items.length - 1]!;
         contentHeightAfterTarget = lastFrame.bottom - targetFrame.bottom;
@@ -430,6 +467,13 @@ export const useMessageAutoscroll = ({
     }
 
     const isLongUserMessage = targetMessageHeight > containerHeight;
+    const nextTopSpacerHeight = isCurrentTurnAnchoredRef.current && !isLongUserMessage
+      ? Math.max(0, resolveShortUserMessageAnchorTop(containerHeight, targetMessageHeight) - targetMessageTop)
+      : 0;
+    currentTurnTopSpacerHeightRef.current = nextTopSpacerHeight;
+    setCurrentTurnTopSpacerHeight((current) => (
+      current === nextTopSpacerHeight ? current : nextTopSpacerHeight
+    ));
     const targetVisibleHeight = isCurrentTurnAnchoredRef.current && isLongUserMessage
       ? LONG_USER_MESSAGE_VISIBLE_HEIGHT
       : targetMessageHeight;
@@ -461,6 +505,10 @@ export const useMessageAutoscroll = ({
   }, [spacerHeight]);
 
   useLayoutEffect(() => {
+    currentTurnTopSpacerHeightRef.current = currentTurnTopSpacerHeight;
+  }, [currentTurnTopSpacerHeight]);
+
+  useLayoutEffect(() => {
     if (prevChatIdRef.current === chatId) {
       return;
     }
@@ -483,6 +531,8 @@ export const useMessageAutoscroll = ({
     isCurrentTurnAnchoredRef.current = false;
     userDetachedFromCurrentTurnRef.current = false;
     initialScrollPendingRef.current = !!chatId;
+    currentTurnTopSpacerHeightRef.current = 0;
+    setCurrentTurnTopSpacerHeight(0);
     setSpacerHeight(0);
     setShouldScrollToBottom(!!chatId);
   }, [chatId]);
@@ -924,7 +974,8 @@ export const useMessageAutoscroll = ({
       handleNewUserMessage,
       containerRef,
       spacerHeight: renderedSpacerHeight,
+      currentTurnTopSpacerHeight,
     }),
-    [handleNewUserMessage, renderedSpacerHeight],
+    [currentTurnTopSpacerHeight, handleNewUserMessage, renderedSpacerHeight],
   );
 };

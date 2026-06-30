@@ -66,6 +66,7 @@ interface MessageListProps {
   isLayoutCentered?: boolean;
   useOverlayScrollbar?: boolean;
   spacerHeight: number;
+  currentTurnTopSpacerHeight?: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onFork?: (id: string) => void;
@@ -101,6 +102,7 @@ export const MessageList = memo(function MessageList({
   isLayoutCentered,
   useOverlayScrollbar = false,
   spacerHeight,
+  currentTurnTopSpacerHeight = 0,
   containerRef,
   onCopy,
   onFork,
@@ -554,9 +556,24 @@ export const MessageList = memo(function MessageList({
     [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, measuredHeights, renderedMessages]
   );
 
+  const positionedFrameLayout = useMemo(() => {
+    if (currentTurnTopSpacerHeight <= 0) {
+      return frameLayout;
+    }
+
+    return {
+      endOffset: frameLayout.endOffset + currentTurnTopSpacerHeight,
+      items: frameLayout.items.map((frame) => ({
+        ...frame,
+        bottom: frame.bottom + currentTurnTopSpacerHeight,
+        top: frame.top + currentTurnTopSpacerHeight,
+      })),
+    };
+  }, [currentTurnTopSpacerHeight, frameLayout]);
+
   const trailingLayout = useMemo(
-    () => buildTrailingChatLayout(frameLayout, showLoading, spacerHeight),
-    [frameLayout, showLoading, spacerHeight]
+    () => buildTrailingChatLayout(positionedFrameLayout, showLoading, spacerHeight),
+    [positionedFrameLayout, showLoading, spacerHeight]
   );
 
   const visibleRange = useMemo(() => {
@@ -571,17 +588,17 @@ export const MessageList = memo(function MessageList({
       viewportHeight,
     });
 
-    return resolveVisibleChatMessageRange(frameLayout.items, {
+    return resolveVisibleChatMessageRange(positionedFrameLayout.items, {
       anchorTail: shouldAnchorTail,
       overscan,
       scrollTop,
       viewportHeight,
     });
   }, [
-    frameLayout.items,
     isSessionActive,
     isScrollActive,
     isTailDetached,
+    positionedFrameLayout.items,
     scrollTop,
     showLoading,
     spacerHeight,
@@ -590,8 +607,8 @@ export const MessageList = memo(function MessageList({
   ]);
 
   const visibleFrames = useMemo(
-    () => frameLayout.items.slice(visibleRange.start, visibleRange.end),
-    [frameLayout.items, visibleRange.end, visibleRange.start]
+    () => positionedFrameLayout.items.slice(visibleRange.start, visibleRange.end),
+    [positionedFrameLayout.items, visibleRange.end, visibleRange.start]
   );
 
   const content = (

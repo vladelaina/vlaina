@@ -10,31 +10,22 @@ import {
   waitForChatSession,
 } from './notesE2E';
 
-const CHAT_SEARCH_INPUT_SELECTOR = '[data-sidebar-surface="true"] input[type="text"]';
+function getChatSidebarSurface(page: Page) {
+  return page
+    .locator('[data-sidebar-surface="true"]')
+    .filter({ has: page.locator(CHAT_SESSION_ROW_SELECTOR) })
+    .first();
+}
 
 async function fillChatSidebarSearch(page: Page, query: string): Promise<void> {
-  const input = page.locator(CHAT_SEARCH_INPUT_SELECTOR).first();
+  const input = getChatSidebarSurface(page).locator('input[type="text"]').first();
   await expect(input).toBeVisible({ timeout: 10_000 });
   await input.fill(query);
 }
 
-async function getSearchAndFocusState(page: Page) {
-  return page.evaluate((searchInputSelector) => {
-    const searchInput = document.querySelector<HTMLInputElement>(searchInputSelector);
-    const active = document.activeElement;
-    return {
-      hasSearchInput: Boolean(searchInput),
-      searchInputVisible: searchInput
-        ? getComputedStyle(searchInput).visibility !== 'hidden' &&
-          searchInput.getBoundingClientRect().width > 0 &&
-          searchInput.getBoundingClientRect().height > 0
-        : false,
-      searchValue: searchInput?.value ?? null,
-      activeTagName: active instanceof HTMLElement ? active.tagName : null,
-      activeText: active instanceof HTMLElement ? active.textContent?.trim().slice(0, 80) ?? '' : '',
-      activeMatchesSearchInput: active === searchInput,
-    };
-  }, CHAT_SEARCH_INPUT_SELECTOR);
+async function getSearchValue(page: Page) {
+  const input = getChatSidebarSurface(page).locator('input[type="text"]').first();
+  return input.inputValue();
 }
 
 test.describe('chat sidebar search Escape behavior', () => {
@@ -82,13 +73,10 @@ test.describe('chat sidebar search Escape behavior', () => {
       });
 
       await composer.focus();
+      await expect(composer).toBeFocused({ timeout: 10_000 });
 
-      console.info('[chat-sidebar-search-escape-before-close]', await getSearchAndFocusState(page));
-
-      await page.keyboard.press('Escape');
-      await expect.poll(() => getSearchAndFocusState(page), { timeout: 10_000 }).toMatchObject({
-        searchValue: '',
-      });
+      await composer.press('Escape');
+      await expect.poll(() => getSearchValue(page), { timeout: 10_000 }).toBe('');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

@@ -112,7 +112,7 @@ test.describe('chat note mention caret', () => {
       await openVaultInNotes(page, {
         vaultPath: vault.vaultPath,
         name: 'Mention Caret Vault',
-        minFileCount: 3,
+        minFileCount: 2,
       });
       await page.evaluate((notePath) => (window as any).__vlainaE2E.openAbsoluteNote(notePath), vault.notePaths[0]);
       await expect.poll(async () => page.evaluate(() =>

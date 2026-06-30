@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
+import { SIDEBAR_CLOSE_SEARCH_EVENT, type SidebarSearchScope } from '@/components/layout/sidebar/sidebarEvents';
 import { useSidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { useSidebarSearchShortcut } from '@/hooks/useSidebarSearchShortcut';
 import type { ChatSession } from '@/lib/ai/types';
@@ -34,6 +35,24 @@ export function useChatSidebarSearch({
   } = useSidebarSearchState('chat');
 
   useSidebarSearchShortcut(toggleSearch, enabled, 'chat');
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    const handleCloseSearch = (event: Event) => {
+      const eventScope = (event as CustomEvent<{ scope?: SidebarSearchScope }>).detail?.scope;
+      if (eventScope !== 'chat') {
+        return;
+      }
+      closeSearch();
+    };
+
+    window.addEventListener(SIDEBAR_CLOSE_SEARCH_EVENT, handleCloseSearch);
+    return () => window.removeEventListener(SIDEBAR_CLOSE_SEARCH_EVENT, handleCloseSearch);
+  }, [closeSearch, enabled]);
+
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const previousQueryRef = useRef('');
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(0);

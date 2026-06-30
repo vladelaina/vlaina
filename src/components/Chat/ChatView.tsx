@@ -178,7 +178,7 @@ export function ChatView({
   const { showInChatArea, showInTitleBar } = useTemporaryTogglePresentation();
   const showEmbeddedTemporaryToggle = isEmbedded && (showInChatArea || showInTitleBar);
 
-  const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
+  const { containerRef, currentTurnTopSpacerHeight, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       active,
       messages,
       isStreaming: isSessionActive,
@@ -592,6 +592,7 @@ export function ChatView({
           showLoading={showLoading}
           isLayoutCentered={isEmpty}
           useOverlayScrollbar
+          currentTurnTopSpacerHeight={currentTurnTopSpacerHeight}
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           onCopy={copyToClipboard}

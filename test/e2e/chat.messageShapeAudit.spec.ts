@@ -28,13 +28,16 @@ type MessageShapeCase = {
 };
 
 type LatestTurnLayoutSample = {
-  assistantContent: string;
   clientHeight: number;
   composerValue: string;
   generating: boolean;
+  latestAssistantAfterUserContent: string;
+  latestAssistantAfterUserRendered: boolean;
   lastUserContent: string;
+  messageCount: number;
   scrollHeight: number;
   scrollTop: number;
+  userHeight: number | null;
   userBottomOffset: number | null;
   userRendered: boolean;
   userTopOffset: number | null;
@@ -156,9 +159,10 @@ async function createMessageShapeProviderServer(): Promise<{
 
       const chunks = buildAssistantResponse(lastUserText).match(/[\s\S]{1,28}/g) ?? [''];
       let index = 0;
-      const timer = setInterval(() => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const sendNextChunk = () => {
         if (index >= chunks.length) {
-          clearInterval(timer);
+          timer = null;
           response.write('data: [DONE]\n\n');
           response.end();
           return;
@@ -166,10 +170,18 @@ async function createMessageShapeProviderServer(): Promise<{
 
         response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: chunks[index] } }] })}\n\n`);
         index += 1;
-      }, 8);
+        timer = setTimeout(sendNextChunk, 8);
+      };
+      timer = setTimeout(sendNextChunk, 300);
 
-      response.on('close', () => clearInterval(timer));
-      request.on('aborted', () => clearInterval(timer));
+      const clearTimer = () => {
+        if (timer !== null) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+      response.on('close', clearTimer);
+      request.on('aborted', clearTimer);
     });
   });
 
@@ -333,24 +345,35 @@ async function readLatestTurnLayout(page: Page, sessionId: string): Promise<Late
     const state = (window as any).__vlainaE2E.getChatState();
     const messages = state.messages[sessionId] ?? [];
     const lastUserIndex = messages.findLastIndex((message: { role: string }) => message.role === 'user');
-    const lastAssistantIndex = messages.findLastIndex((message: { role: string }) => message.role === 'assistant');
+    const latestAssistantAfterUserIndex = lastUserIndex >= 0
+      ? messages.findLastIndex((message: { role: string }, index: number) =>
+        index > lastUserIndex && message.role === 'assistant')
+      : -1;
     const scrollRoot = document.querySelector<HTMLElement>(scrollableSelector);
     const textarea = document.querySelector<HTMLTextAreaElement>(textareaSelector);
     const userRow = lastUserIndex >= 0
       ? document.querySelector<HTMLElement>(`[data-message-index="${lastUserIndex}"]`)
       : null;
+    const assistantAfterUserRow = latestAssistantAfterUserIndex >= 0
+      ? document.querySelector<HTMLElement>(`[data-message-index="${latestAssistantAfterUserIndex}"]`)
+      : null;
     const scrollRect = scrollRoot?.getBoundingClientRect() ?? null;
     const userRect = userRow?.getBoundingClientRect() ?? null;
 
     return {
-      assistantContent: lastAssistantIndex >= 0 ? messages[lastAssistantIndex]?.content ?? '' : '',
       clientHeight: scrollRoot?.clientHeight ?? 0,
       composerValue: textarea?.value ?? '',
       generating: state.generating === true,
+      latestAssistantAfterUserContent: latestAssistantAfterUserIndex >= 0
+        ? messages[latestAssistantAfterUserIndex]?.content ?? ''
+        : '',
+      latestAssistantAfterUserRendered: Boolean(assistantAfterUserRow),
       lastUserContent: lastUserIndex >= 0 ? messages[lastUserIndex]?.content ?? '' : '',
+      messageCount: messages.length,
       scrollHeight: scrollRoot?.scrollHeight ?? 0,
       scrollTop: scrollRoot?.scrollTop ?? 0,
       userBottomOffset: userRect && scrollRect ? userRect.bottom - scrollRect.top : null,
+      userHeight: userRect?.height ?? null,
       userRendered: Boolean(userRow),
       userTopOffset: userRect && scrollRect ? userRect.top - scrollRect.top : null,
     };
@@ -359,6 +382,22 @@ async function readLatestTurnLayout(page: Page, sessionId: string): Promise<Late
     sessionId,
     textareaSelector: CHAT_COMPOSER_TEXTAREA_SELECTOR,
   });
+}
+
+function expectLatestUserVisible(sample: LatestTurnLayoutSample, id: string): void {
+  expect(sample.scrollHeight, id).toBeGreaterThan(0);
+  expect(sample.userRendered, id).toBe(true);
+  expect(sample.userHeight, id).not.toBeNull();
+  expect(sample.userBottomOffset ?? 0, id).toBeGreaterThan(24);
+  expect(sample.userBottomOffset ?? 0, id).toBeLessThanOrEqual(sample.clientHeight + 1);
+
+  if ((sample.userHeight ?? 0) < sample.clientHeight) {
+    expect(sample.userTopOffset ?? Number.NaN, id).toBeGreaterThanOrEqual(-1);
+    expect(sample.userBottomOffset ?? 0, id).toBeGreaterThan(sample.clientHeight * 0.5);
+    return;
+  }
+
+  expect(sample.userBottomOffset ?? 0, id).toBeGreaterThan(80);
 }
 
 test.describe('chat message shape audit', () => {
@@ -397,6 +436,18 @@ test.describe('chat message shape audit', () => {
         } else {
           await sendPrompt(page, auditCase.prompt);
         }
+        await expect.poll(async () => readLatestTurnLayout(page, fixture.sessionIds[0]!), {
+          timeout: 10_000,
+        }).toMatchObject({
+          composerValue: '',
+          generating: true,
+          latestAssistantAfterUserContent: '',
+          lastUserContent: auditCase.prompt,
+          userRendered: true,
+        });
+
+        const sendingSample = await readLatestTurnLayout(page, fixture.sessionIds[0]!);
+        expectLatestUserVisible(sendingSample, `${auditCase.id}:sending`);
         await expect(page.locator(`${CHAT_MESSAGE_SELECTOR}[data-role="assistant"]`, {
           hasText: auditCase.responseSentinel,
         })).toBeVisible({ timeout: 30_000 });
@@ -404,22 +455,16 @@ test.describe('chat message shape audit', () => {
         await expect.poll(async () => readLatestTurnLayout(page, fixture.sessionIds[0]!), {
           timeout: 30_000,
         }).toMatchObject({
-          assistantContent: expect.stringContaining(auditCase.responseSentinel),
           composerValue: '',
           generating: false,
+          latestAssistantAfterUserContent: expect.stringContaining(auditCase.responseSentinel),
+          latestAssistantAfterUserRendered: true,
           lastUserContent: auditCase.prompt,
           userRendered: true,
         });
 
         const sample = await readLatestTurnLayout(page, fixture.sessionIds[0]!);
-        console.info('[chat-message-shape-audit]', {
-          id: auditCase.id,
-          sample,
-        });
-        expect(sample.scrollHeight).toBeGreaterThan(0);
-        expect(sample.userTopOffset ?? Number.NaN).toBeGreaterThanOrEqual(-1);
-        expect(sample.userBottomOffset ?? 0).toBeGreaterThan(24);
-        expect(sample.userBottomOffset ?? 0).toBeLessThanOrEqual(sample.clientHeight + 1);
+        expectLatestUserVisible(sample, `${auditCase.id}:completed`);
       }
 
       const prompts = provider.requests().map((request) => request.lastUserText);

@@ -40,6 +40,7 @@ import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { dispatchSidebarCloseSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 
 interface ChatInputProps {
   active?: boolean;
@@ -638,6 +639,16 @@ export const ChatInput = memo(function ChatInput({
 
       if (handleMentionKeyDown(e)) {
         return;
+      }
+
+      if (
+        e.key === 'Escape' &&
+        !e.shiftKey &&
+        !e.altKey &&
+        !e.ctrlKey &&
+        !e.metaKey
+      ) {
+        dispatchSidebarCloseSearchEvent('chat');
       }
 
       if (
