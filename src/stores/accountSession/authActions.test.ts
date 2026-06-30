@@ -255,7 +255,7 @@ describe('accountSession auth actions', () => {
       usedPercent: 25,
       remainingPercent: 75,
       status: 'normal',
-    }, 'account.checkStatus.sessionBudget');
+    });
     expect(mocks.refreshBudget).not.toHaveBeenCalled();
     expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
     expect(mocks.refreshAvatar).toHaveBeenCalledWith(
@@ -414,7 +414,7 @@ describe('accountSession auth actions', () => {
       usedPercent: 10,
       remainingPercent: Number.NaN,
       status: 'active',
-    }, 'account.checkStatus.sessionBudget');
+    });
     expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
     expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
   });
