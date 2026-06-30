@@ -7,11 +7,8 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
   selectMarkdownImportedThemeId,
 } from '@/stores/unified/settings/markdownSettings';
-import { useManagedAIStore } from '@/stores/useManagedAIStore';
-import {
-  createManagedQuotaExhaustedBudgetSnapshot,
-  isManagedBudgetExhausted,
-} from '@/lib/ai/managedQuota';
+import { applyManagedQuotaExhaustedSnapshot, useManagedAIStore } from '@/stores/useManagedAIStore';
+import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
 
 const DEV_OVERLAY_BUTTON_CLASS =
   'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)] disabled:opacity-[var(--vlaina-opacity-50)]';
@@ -78,7 +75,6 @@ export function DevMainOverlay({
   const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
   const setMarkdownImportedThemeId = useUnifiedStore((state) => state.setMarkdownImportedThemeId);
   const managedBudget = useManagedAIStore((state) => state.budget);
-  const applyManagedBudgetSnapshot = useManagedAIStore((state) => state.applyBudgetSnapshot);
   const clearManagedBudget = useManagedAIStore((state) => state.clearBudget);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
   const [shouldPreviewErrorScreen, setShouldPreviewErrorScreen] = useState(false);
@@ -154,7 +150,7 @@ export function DevMainOverlay({
             clearManagedBudget();
             return;
           }
-          applyManagedBudgetSnapshot(createManagedQuotaExhaustedBudgetSnapshot());
+          applyManagedQuotaExhaustedSnapshot();
         }}
       />
       <DevOverlayButton

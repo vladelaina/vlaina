@@ -5,7 +5,7 @@ import { accountCommands } from '@/lib/account/desktopCommands';
 import { normalizeManagedBudgetPayload } from '@/lib/ai/managed/normalizers';
 import { webAccountCommands, handleAuthCallback as parseAuthCallback } from '@/lib/account/webCommands';
 import { isOauthAccountProvider, normalizeAccountProvider } from '@/lib/account/provider';
-import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { clearManagedBudgetUnlessQuotaExhausted, useManagedAIStore } from '@/stores/useManagedAIStore';
 import { normalizeExternalHref } from '@/lib/navigation/externalLinks';
 import { getEffectiveAppLanguage } from '@/lib/i18n/languages';
 import { useUIStore } from '@/stores/uiSlice';
@@ -293,7 +293,7 @@ export function createCheckStatus(set: Set, get: Get): (options?: { force?: bool
         }
 
         if (!connected) {
-          useManagedAIStore.getState().clearBudget();
+          clearManagedBudgetUnlessQuotaExhausted();
         }
 
         set({

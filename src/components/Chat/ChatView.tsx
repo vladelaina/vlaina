@@ -107,10 +107,29 @@ export function ChatView({
     const provider = providers.find((item) => item.id === model.providerId);
     return provider?.enabled === false ? undefined : model;
   }, [models, providers, selectedModelId]);
+  const isSelectedManagedModel = Boolean(selectedModel && isManagedProviderId(selectedModel.providerId));
+  const [hasStickyManagedQuotaExhaustion, setHasStickyManagedQuotaExhaustion] = useState(false);
+  useEffect(() => {
+    if (!isSelectedManagedModel) {
+      setHasStickyManagedQuotaExhaustion(false);
+      return;
+    }
+    if (isManagedBudgetExhausted(managedBudget)) {
+      setHasStickyManagedQuotaExhaustion(true);
+      return;
+    }
+    if (
+      managedBudget &&
+      typeof managedBudget.remainingPercent === 'number' &&
+      Number.isFinite(managedBudget.remainingPercent) &&
+      managedBudget.remainingPercent > 0
+    ) {
+      setHasStickyManagedQuotaExhaustion(false);
+    }
+  }, [isSelectedManagedModel, managedBudget]);
   const isSelectedManagedQuotaExhausted = Boolean(
-    selectedModel &&
-    isManagedProviderId(selectedModel.providerId) &&
-    isManagedBudgetExhausted(managedBudget)
+    isSelectedManagedModel &&
+    (isManagedBudgetExhausted(managedBudget) || hasStickyManagedQuotaExhaustion)
   );
   
   useEffect(() => {
@@ -159,7 +178,7 @@ export function ChatView({
   const { showInChatArea, showInTitleBar } = useTemporaryTogglePresentation();
   const showEmbeddedTemporaryToggle = isEmbedded && (showInChatArea || showInTitleBar);
 
-  const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
+  const { containerRef, currentTurnTopSpacerHeight, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       active,
       messages,
       isStreaming: isSessionActive,
@@ -573,6 +592,7 @@ export function ChatView({
           showLoading={showLoading}
           isLayoutCentered={isEmpty}
           useOverlayScrollbar
+          currentTurnTopSpacerHeight={currentTurnTopSpacerHeight}
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           onCopy={copyToClipboard}

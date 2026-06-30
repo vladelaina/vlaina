@@ -38,8 +38,8 @@ function isEditableTargetOutsideSearchInput(
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'));
 }
 
-function hasEscapeBlockingLayer() {
-  return Boolean(document.querySelector(ESCAPE_BLOCKING_LAYER_SELECTOR));
+function isWithinEscapeBlockingLayer(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest(ESCAPE_BLOCKING_LAYER_SELECTOR));
 }
 
 export function useSidebarSearchControls({
@@ -99,34 +99,36 @@ export function useSidebarSearchControls({
     }
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled || !isOpen) {
-      return;
-    }
-
-    const interactionScope = interactionScopeRef?.current ?? scrollRootRef.current;
-    if (!interactionScope) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key !== 'Escape' ||
-        event.shiftKey ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.defaultPrevented
+        event.key !== 'Escape'
       ) {
         return;
       }
 
       const target = event.target;
       const activeElement = document.activeElement;
-      const targetWithinScope = target instanceof Node && interactionScope.contains(target);
-      const activeWithinScope = activeElement instanceof Node && interactionScope.contains(activeElement);
+      const interactionScope = interactionScopeRef?.current ?? scrollRootRef.current;
+      const targetWithinScope = Boolean(
+        interactionScope &&
+        target instanceof Node &&
+        interactionScope.contains(target),
+      );
+      const activeWithinScope = Boolean(
+        interactionScope &&
+        activeElement instanceof Node &&
+        interactionScope.contains(activeElement),
+      );
 
-      if (!targetWithinScope && !activeWithinScope && hasEscapeBlockingLayer()) {
+      if (
+        isWithinEscapeBlockingLayer(target) ||
+        isWithinEscapeBlockingLayer(activeElement)
+      ) {
         return;
       }
 

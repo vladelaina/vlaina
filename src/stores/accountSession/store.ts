@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
-import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { clearManagedBudgetUnlessQuotaExhausted, useManagedAIStore } from '@/stores/useManagedAIStore';
 import {
   createCheckStatus,
   createCancelConnect,
@@ -94,7 +94,7 @@ function registerAccountPersistenceListener(): void {
     invalidateAccountSessionAuthState();
     const identity = loadPersistedUser();
     if (identity.isConnected !== true) {
-      useManagedAIStore.getState().clearBudget();
+      clearManagedBudgetUnlessQuotaExhausted();
     }
 
     useAccountSessionStore.setState({
@@ -113,7 +113,7 @@ function registerAccountPersistenceListener(): void {
 function applyPersistedAccountIdentity(identity: Partial<AccountSessionStore>): void {
   invalidateAccountSessionAuthState();
   if (identity.isConnected !== true) {
-    useManagedAIStore.getState().clearBudget();
+    clearManagedBudgetUnlessQuotaExhausted();
   }
 
   useAccountSessionStore.setState({

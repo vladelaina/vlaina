@@ -40,6 +40,7 @@ import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { dispatchSidebarCloseSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 
 interface ChatInputProps {
   active?: boolean;
@@ -249,7 +250,7 @@ export const ChatInput = memo(function ChatInput({
       clearAttachments();
       clearNoteMentions();
     },
-    canSubmit: hasSelectedModel && !isQuotaSendBlocked,
+    canSubmit: hasSelectedModel,
     focusTrigger,
   });
 
@@ -641,6 +642,16 @@ export const ChatInput = memo(function ChatInput({
       }
 
       if (
+        e.key === 'Escape' &&
+        !e.shiftKey &&
+        !e.altKey &&
+        !e.ctrlKey &&
+        !e.metaKey
+      ) {
+        dispatchSidebarCloseSearchEvent('chat');
+      }
+
+      if (
         handleHistoryKeyDown({
           key: e.key,
           selectionStart,
@@ -667,7 +678,7 @@ export const ChatInput = memo(function ChatInput({
   const canSend =
     (!!message.trim() || attachments.length > 0 || noteMentions.length > 0) &&
     hasSelectedModel;
-  const canSubmit = canSend && !isLoading && !isQuotaSendBlocked;
+  const canSubmit = canSend && !isLoading;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       discardRemovedAttachmentUndoStack();
