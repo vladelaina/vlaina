@@ -1,7 +1,8 @@
 import { useEffect, useState, type RefObject } from 'react';
 import {
-  resolveBodyLineNumberLabels,
-  type BodyLineNumberLabel,
+  resolveBodyLineNumberLabelLayout,
+  syncBodyLineNumberLabelSelection,
+  type BodyLineNumberLabelLayout,
 } from '../utils/bodyLineNumberLayout';
 
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
@@ -9,6 +10,10 @@ const BLOCK_DRAG_ACTIVE_CLASS = 'editor-block-drag-active';
 const DEFERRED_BLOCK_INTERACTION_REFRESH_RETRY_MS = 80;
 const POINTER_INTERACTION_REFRESH_FALLBACK_MS = 10_000;
 const MAX_OBSERVED_EDITOR_CHILD_RESIZE_TARGETS = 5000;
+const EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT: BodyLineNumberLabelLayout = {
+  labels: [],
+  targets: [],
+};
 
 interface BodyLineNumberGutterProps {
   markdown: string;
@@ -17,12 +22,12 @@ interface BodyLineNumberGutterProps {
 }
 
 export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineNumberGutterProps) {
-  const [labels, setLabels] = useState<BodyLineNumberLabel[]>([]);
+  const [layout, setLayout] = useState<BodyLineNumberLabelLayout>(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
 
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) {
-      setLabels([]);
+      setLayout(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
       return;
     }
 
@@ -39,6 +44,10 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       return editorRoot?.classList.contains(BLOCK_SELECTION_PENDING_CLASS) === true
         || resolvedShell.ownerDocument.body.classList.contains(BLOCK_DRAG_ACTIVE_CLASS)
         || pointerInteractionActive;
+    }
+
+    function syncDeferredBlockSelectionState() {
+      setLayout((currentLayout) => syncBodyLineNumberLabelSelection(editorRoot, currentLayout));
     }
 
     function clearDeferredBlockInteractionRefresh() {
@@ -94,6 +103,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       pointerInteractionActive = false;
       clearPointerInteractionFallback();
       if (needsRefreshAfterDeferredBlockInteraction) {
+        syncDeferredBlockSelectionState();
         scheduleRefreshAfterDeferredBlockInteraction();
       }
     }
@@ -106,12 +116,13 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       frameId = requestAnimationFrame(() => {
         frameId = null;
         if (shouldDeferRefreshForBlockInteraction()) {
+          syncDeferredBlockSelectionState();
           scheduleRefreshAfterDeferredBlockInteraction();
           return;
         }
         needsRefreshAfterDeferredBlockInteraction = false;
         clearDeferredBlockInteractionRefresh();
-        setLabels(resolveBodyLineNumberLabels(resolvedShell, markdown));
+        setLayout(resolveBodyLineNumberLabelLayout(resolvedShell, markdown));
       });
     }
 
@@ -213,7 +224,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
 
   return (
     <div className="body-line-number-gutter" aria-hidden="true">
-      {labels.map((label, index) => (
+      {layout.labels.map((label, index) => (
         <span
           key={`${label.lineNumber}-${index}`}
           className={

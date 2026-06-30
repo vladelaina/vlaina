@@ -7,6 +7,8 @@ const BODY_LINE_NUMBER_LABEL_WIDTH = 40;
 const BODY_LINE_NUMBER_LABEL_GAP = 18;
 const MAX_BODY_LINE_NUMBER_TEXT_ANCHOR_SCAN_NODES = 256;
 const MAX_BODY_LINE_NUMBER_TABLE_CELL_ANCHOR_SCAN_ELEMENTS = 128;
+const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const HIDDEN_DEFINITION_TEXT_PATTERN = /^(?:\[[^\]\n]+]:\s+\S|\*\[[^\]\n]+]:\s+\S)/;
 const SELF_CLOSING_RAW_MEDIA_HTML_TEXT_PATTERN = /^<(?:video|audio)\b[^>]*\/>$/i;
 
@@ -20,6 +22,11 @@ export interface BodyLineNumberLabel {
   top: number;
   left: number;
   selected?: boolean;
+}
+
+export interface BodyLineNumberLabelLayout {
+  labels: BodyLineNumberLabel[];
+  targets: HTMLElement[];
 }
 
 function isFrontmatterBlock(element: HTMLElement): boolean {
@@ -156,10 +163,18 @@ function collectSelectedBlockDescendantTargets(editorRoot: HTMLElement): WeakSet
   return selectedDescendantTargets;
 }
 
-function isInsideSelectedBlock(target: HTMLElement, selectedDescendantTargets: WeakSet<HTMLElement>): boolean {
+function shouldCollectSelectedBlockDescendantTargets(editorRoot: HTMLElement): boolean {
+  return editorRoot.classList.contains(BLOCK_SELECTION_ACTIVE_CLASS)
+    || editorRoot.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
+}
+
+function isInsideSelectedBlock(
+  target: HTMLElement,
+  selectedDescendantTargets: WeakSet<HTMLElement> | null,
+): boolean {
   return target.classList.contains('editor-block-selected')
     || target.closest('.editor-block-selected') !== null
-    || selectedDescendantTargets.has(target);
+    || selectedDescendantTargets?.has(target) === true;
 }
 
 interface BodyLineNumberAnchorOptions {
@@ -343,18 +358,26 @@ function resolveBodyLineNumberAnchorLeft(shellRect: DOMRect, editorRect: DOMRect
   );
 }
 
-export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string): BodyLineNumberLabel[] {
+export function resolveBodyLineNumberLabelLayout(shell: HTMLElement, markdown: string): BodyLineNumberLabelLayout {
   const editorRoot = shell.querySelector<HTMLElement>('.ProseMirror');
-  if (!editorRoot) return [];
+  if (!editorRoot) {
+    return {
+      labels: [],
+      targets: [],
+    };
+  }
 
   const bodyLineNumbers = getMarkdownBodyLineNumbers(markdown);
   const targets = collectBodyLineNumberTargets(editorRoot);
-  const selectedDescendantTargets = collectSelectedBlockDescendantTargets(editorRoot);
+  const selectedDescendantTargets = shouldCollectSelectedBlockDescendantTargets(editorRoot)
+    ? collectSelectedBlockDescendantTargets(editorRoot)
+    : null;
   const shellRect = shell.getBoundingClientRect();
   const editorRect = editorRoot.getBoundingClientRect();
   const labelCount = Math.min(bodyLineNumbers.length, targets.length);
   const usePreciseTextAnchors = labelCount <= MAX_BODY_LINE_NUMBER_PRECISE_TEXT_ANCHOR_TARGETS;
   const labels: BodyLineNumberLabel[] = [];
+  const labelTargets: HTMLElement[] = [];
 
   for (let index = 0; index < labelCount; index += 1) {
     const target = targets[index];
@@ -369,7 +392,60 @@ export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string
       left: resolveBodyLineNumberAnchorLeft(shellRect, editorRect),
       ...(selected ? { selected: true } : {}),
     });
+    labelTargets.push(target);
   }
 
-  return labels;
+  return {
+    labels,
+    targets: labelTargets,
+  };
+}
+
+export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string): BodyLineNumberLabel[] {
+  return resolveBodyLineNumberLabelLayout(shell, markdown).labels;
+}
+
+export function syncBodyLineNumberLabelSelection(
+  editorRoot: HTMLElement | null,
+  layout: BodyLineNumberLabelLayout,
+): BodyLineNumberLabelLayout {
+  if (!editorRoot || layout.labels.length === 0 || layout.targets.length === 0) {
+    return layout;
+  }
+
+  const selectedDescendantTargets = shouldCollectSelectedBlockDescendantTargets(editorRoot)
+    ? collectSelectedBlockDescendantTargets(editorRoot)
+    : null;
+  let changed = false;
+  const labels = layout.labels.map((label, index) => {
+    const target = layout.targets[index];
+    const selected = target instanceof HTMLElement
+      && editorRoot.contains(target)
+      && isInsideSelectedBlock(target, selectedDescendantTargets);
+
+    if (selected === (label.selected === true)) {
+      return label;
+    }
+
+    changed = true;
+    if (selected) {
+      return {
+        ...label,
+        selected: true,
+      };
+    }
+
+    return {
+      lineNumber: label.lineNumber,
+      top: label.top,
+      left: label.left,
+    };
+  });
+
+  return changed
+    ? {
+        ...layout,
+        labels,
+      }
+    : layout;
 }

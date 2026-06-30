@@ -471,6 +471,18 @@ test.describe('notes block selection performance', () => {
         minScrollTop: 80,
         minSelectedDomCount: 20,
       });
+      const midDragLineNumberSelection = await page.evaluate(() => {
+        const selectedLabels = Array.from(
+          document.querySelectorAll<HTMLElement>('.body-line-number.body-line-number-selected')
+        );
+        const firstSelectedLabel = selectedLabels[0] ?? null;
+        const style = firstSelectedLabel ? getComputedStyle(firstSelectedLabel) : null;
+        return {
+          count: selectedLabels.length,
+          color: style?.color ?? null,
+          textFillColor: style?.getPropertyValue('-webkit-text-fill-color') ?? null,
+        };
+      });
       await page.mouse.up();
       await waitForEditorAnimationFrame(page);
 
@@ -488,6 +500,7 @@ test.describe('notes block selection performance', () => {
       console.info('[notes-block-selection-body-line-numbers-drag-performance]', {
         ...metrics,
         autoScrollReached,
+        midDragLineNumberSelection,
         dragMs: Date.now() - dragStartedAt,
         frameProbe,
       });
@@ -495,6 +508,9 @@ test.describe('notes block selection performance', () => {
       expect(metrics.lineNumberCount).toBeGreaterThan(200);
       expect(metrics.selectableCount).toBeGreaterThanOrEqual(900);
       expect(autoScrollReached).toBe(true);
+      expect(midDragLineNumberSelection.count).toBeGreaterThan(0);
+      expect(midDragLineNumberSelection.color).toBe('rgb(255, 255, 255)');
+      expect(midDragLineNumberSelection.textFillColor).toBe('rgb(255, 255, 255)');
       expect(metrics.scrollTop).toBeGreaterThan(80);
       expect(metrics.selectedDomCount).toBeGreaterThan(20);
       expect(frameProbe.p95FrameMs).toBeLessThan(100);
