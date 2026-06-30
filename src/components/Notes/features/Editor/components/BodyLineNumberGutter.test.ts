@@ -613,7 +613,7 @@ describe('BodyLineNumberGutter', () => {
     ]);
   });
 
-  it('aligns table labels before each visible table row', () => {
+  it('aligns table labels with the regular body line number column', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const tableBlock = document.createElement('div');
@@ -670,9 +670,9 @@ describe('BodyLineNumberGutter', () => {
       );
 
       expect(labels).toEqual([
-        { lineNumber: 1, left: 2, top: 32 },
-        { lineNumber: 3, left: 2, top: 68 },
-        { lineNumber: 4, left: 2, top: 104 },
+        { lineNumber: 1, left: 38, top: 32 },
+        { lineNumber: 3, left: 38, top: 68 },
+        { lineNumber: 4, left: 38, top: 104 },
       ]);
     } finally {
       restoreCreateRange.mockRestore();
@@ -717,7 +717,7 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
-  it('hides labels for selected blocks without shifting body line numbers', () => {
+  it('keeps labels for selected blocks without shifting body line numbers', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const first = document.createElement('p');
@@ -739,11 +739,12 @@ describe('BodyLineNumberGutter', () => {
 
     expect(labels).toEqual([
       { lineNumber: 1, left: 38, top: 32 },
+      { lineNumber: 2, left: 38, top: 64, selected: true },
       { lineNumber: 3, left: 38, top: 96 },
     ]);
   });
 
-  it('hides list item labels when a selected child paragraph carries the block selection class', () => {
+  it('marks list item labels when a selected child paragraph carries the block selection class', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const list = document.createElement('ul');
@@ -772,12 +773,76 @@ describe('BodyLineNumberGutter', () => {
     try {
       const labels = resolveBodyLineNumberLabels(shell, '- First\n- Second');
 
-      expect(labels).toEqual([{ lineNumber: 1, left: 38, top: 32 }]);
+      expect(labels).toEqual([
+        { lineNumber: 1, left: 38, top: 32 },
+        { lineNumber: 2, left: 38, top: 64, selected: true },
+      ]);
       expect(firstQuerySelectorSpy).not.toHaveBeenCalled();
       expect(secondQuerySelectorSpy).not.toHaveBeenCalled();
     } finally {
       firstQuerySelectorSpy.mockRestore();
       secondQuerySelectorSpy.mockRestore();
+    }
+  });
+
+  it('renders selected body line numbers with the selected class', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    class TestResizeObserver {
+      constructor(_callback: ResizeObserverCallback) {}
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    class TestMutationObserver {
+      constructor(_callback: MutationCallback) {}
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+
+    editorRoot.className = 'ProseMirror';
+    paragraph.className = 'editor-block-selected';
+    paragraph.textContent = 'Body';
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(paragraph);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(paragraph, { left: 106, top: 40, height: 24 });
+
+    try {
+      const { container } = render(createElement(BodyLineNumberGutter, {
+        markdown: 'Body',
+        revision: 1,
+        shellRef,
+      }));
+
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+
+      const lineNumber = container.querySelector<HTMLElement>('.body-line-number');
+      expect(lineNumber?.textContent).toBe('1');
+      expect(lineNumber?.classList.contains('body-line-number-selected')).toBe(true);
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
     }
   });
 

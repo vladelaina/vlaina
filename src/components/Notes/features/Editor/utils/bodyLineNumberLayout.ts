@@ -19,6 +19,7 @@ export interface BodyLineNumberLabel {
   lineNumber: number;
   top: number;
   left: number;
+  selected?: boolean;
 }
 
 function isFrontmatterBlock(element: HTMLElement): boolean {
@@ -335,28 +336,10 @@ function resolveBodyLineNumberAnchorTop(shellRect: DOMRect, target: HTMLElement,
   return targetRect.top - shellRect.top + targetRect.height / 2;
 }
 
-function resolveTableContentLeft(target: HTMLElement): number | null {
-  if (!isTableLineNumberTarget(target)) return null;
-
-  const tableRoot = target.classList.contains('milkdown-table-block')
-    ? target
-    : target.closest<HTMLElement>('.milkdown-table-block')
-      ?? (target.tagName.toLowerCase() === 'table' ? target : target.closest<HTMLElement>('table'));
-  if (!tableRoot) return null;
-
-  const tableAnchor = tableRoot.querySelector<HTMLElement>('.table-wrapper, .table-scroll, table')
-    ?? (tableRoot.tagName.toLowerCase() === 'table' ? tableRoot : null);
-  if (!tableAnchor) return null;
-
-  return getVisibleRect(tableAnchor)?.left ?? null;
-}
-
-function resolveBodyLineNumberAnchorLeft(shellRect: DOMRect, editorRect: DOMRect, target: HTMLElement): number {
-  const tableContentLeft = resolveTableContentLeft(target);
-  const anchorLeft = tableContentLeft === null ? editorRect.left : Math.min(editorRect.left, tableContentLeft);
+function resolveBodyLineNumberAnchorLeft(shellRect: DOMRect, editorRect: DOMRect): number {
   return Math.max(
     0,
-    anchorLeft - shellRect.left - BODY_LINE_NUMBER_LABEL_GAP - BODY_LINE_NUMBER_LABEL_WIDTH
+    editorRect.left - shellRect.left - BODY_LINE_NUMBER_LABEL_GAP - BODY_LINE_NUMBER_LABEL_WIDTH
   );
 }
 
@@ -375,14 +358,16 @@ export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string
 
   for (let index = 0; index < labelCount; index += 1) {
     const target = targets[index];
-    if (!target || isInsideSelectedBlock(target, selectedDescendantTargets)) {
+    if (!target) {
       continue;
     }
 
+    const selected = isInsideSelectedBlock(target, selectedDescendantTargets);
     labels.push({
       lineNumber: bodyLineNumbers[index],
       top: resolveBodyLineNumberAnchorTop(shellRect, target, usePreciseTextAnchors),
-      left: resolveBodyLineNumberAnchorLeft(shellRect, editorRect, target),
+      left: resolveBodyLineNumberAnchorLeft(shellRect, editorRect),
+      ...(selected ? { selected: true } : {}),
     });
   }
 

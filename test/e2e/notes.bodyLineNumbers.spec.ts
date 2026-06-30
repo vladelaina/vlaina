@@ -409,9 +409,8 @@ test.describe('notes body line numbers', () => {
         const tableLabels = labels.slice(firstTableIndex, firstTableIndex + tableRows.length);
         if (tableLabels.length !== tableRows.length) throw new Error('Missing table row line number labels');
 
-        const tableAnchorRect = (
-          tableBlock.querySelector<HTMLElement>('.table-wrapper, .table-scroll, table') ?? tableBlock
-        ).getBoundingClientRect();
+        const bodyColumnLeft = labels[0]?.getBoundingClientRect().left;
+        if (bodyColumnLeft === undefined) throw new Error('Missing ordinary body line number label');
         const rowAudits = tableRows.map((row, index) => {
           const label = tableLabels[index];
           const labelRect = label.getBoundingClientRect();
@@ -421,7 +420,7 @@ test.describe('notes body line numbers', () => {
 
           return {
             labelText: label.textContent?.trim() ?? '',
-            labelToTableGap: tableAnchorRect.left - labelRect.right,
+            horizontalDelta: Math.abs(labelRect.left - bodyColumnLeft),
             verticalDelta: Math.abs(labelCenterY - firstCellCenterY),
             rowCenterVerticalDelta: Math.abs(labelCenterY - (rowRect.top + rowRect.height / 2)),
           };
@@ -430,7 +429,7 @@ test.describe('notes body line numbers', () => {
         return {
           allLabelTexts: labels.map((label) => label.textContent?.trim() ?? ''),
           tableLabelTexts: tableLabels.map((label) => label.textContent?.trim() ?? ''),
-          minLabelToTableGap: Math.min(...rowAudits.map((audit) => audit.labelToTableGap)),
+          maxHorizontalDelta: Math.max(...rowAudits.map((audit) => audit.horizontalDelta)),
           maxVerticalDelta: Math.max(...rowAudits.map((audit) => audit.verticalDelta)),
           maxRowCenterVerticalDelta: Math.max(...rowAudits.map((audit) => audit.rowCenterVerticalDelta)),
           tableRowCount: tableRows.length,
@@ -440,9 +439,92 @@ test.describe('notes body line numbers', () => {
       expect(tableDiagnostics.tableRowCount).toBe(5);
       expect(tableDiagnostics.tableLabelTexts).toEqual(['3', '5', '6', '7', '8']);
       expect(tableDiagnostics.allLabelTexts).not.toContain('4');
-      expect(tableDiagnostics.minLabelToTableGap).toBeGreaterThanOrEqual(10);
+      expect(tableDiagnostics.maxHorizontalDelta).toBeLessThanOrEqual(1);
       expect(tableDiagnostics.maxVerticalDelta).toBeLessThanOrEqual(3);
       expect(tableDiagnostics.maxRowCenterVerticalDelta).toBeLessThanOrEqual(16);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps paragraph, math, and table body line numbers in one column', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-body-line-numbers-horizontal-alignment');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await page.evaluate(() => (window as any).__vlainaE2E.setMarkdownBodyLineNumbers(true));
+
+      await openMarkdownFixture(page, {
+        filename: 'body-line-numbers-horizontal-alignment.md',
+        content: [
+          'Plain paragraph alignment sentinel.',
+          '',
+          '$$',
+          'E = mc^2',
+          '$$',
+          '',
+          '| Column A | Column B |',
+          '| --- | --- |',
+          '| Row alpha | Row beta |',
+        ].join('\n'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Plain paragraph alignment sentinel');
+      await expect(page.locator(`${EDITOR_SELECTOR} [data-type="math-block"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .milkdown-table-block, ${EDITOR_SELECTOR} table`).first()).toBeVisible();
+      await expect.poll(
+        async () => page.evaluate(() => document.querySelectorAll('.body-line-number').length),
+        { timeout: 30_000 },
+      ).toBeGreaterThanOrEqual(3);
+      await waitForEditorAnimationFrame(page);
+
+      const alignment = await page.evaluate(() => {
+        const labels = Array.from(document.querySelectorAll<HTMLElement>('.body-line-number'));
+        const paragraph = Array.from(document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror p'))
+          .find((element) => element.textContent?.includes('Plain paragraph alignment sentinel'));
+        const mathBlock = document.querySelector<HTMLElement>('.milkdown .ProseMirror [data-type="math-block"]');
+        const tableRow = document.querySelector<HTMLElement>('.milkdown .ProseMirror .milkdown-table-block tr, .milkdown .ProseMirror table tr');
+        if (!paragraph || !mathBlock || !tableRow) {
+          throw new Error('Missing paragraph, math block, or table row for body line number alignment audit');
+        }
+
+        function centerY(element: HTMLElement): number {
+          const rect = element.getBoundingClientRect();
+          return rect.top + rect.height / 2;
+        }
+
+        function nearestLabel(element: HTMLElement) {
+          const targetCenterY = centerY(element);
+          let nearest: { text: string; left: number; right: number; delta: number } | null = null;
+          for (const label of labels) {
+            const rect = label.getBoundingClientRect();
+            const delta = Math.abs(rect.top + rect.height / 2 - targetCenterY);
+            if (!nearest || delta < nearest.delta) {
+              nearest = {
+                text: label.textContent?.trim() ?? '',
+                left: rect.left,
+                right: rect.right,
+                delta,
+              };
+            }
+          }
+          if (!nearest) throw new Error('Missing body line number label');
+          return nearest;
+        }
+
+        return {
+          paragraph: nearestLabel(paragraph),
+          math: nearestLabel(mathBlock),
+          table: nearestLabel(tableRow),
+        };
+      });
+
+      expect(Math.abs(alignment.math.left - alignment.paragraph.left), JSON.stringify(alignment, null, 2))
+        .toBeLessThanOrEqual(1);
+      expect(Math.abs(alignment.table.left - alignment.paragraph.left), JSON.stringify(alignment, null, 2))
+        .toBeLessThanOrEqual(1);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
@@ -684,9 +766,13 @@ test.describe('notes body line numbers', () => {
                 height: rect.height,
               };
             });
+            const bodyColumnLeft = labelRects[0]?.left ?? 0;
             const targetCenters = targets.map((target) => firstTextCenterY(target));
             const verticalDeltas = labelRects.map((label, index) =>
               Math.abs(label.centerY - (targetCenters[index] ?? Number.POSITIVE_INFINITY))
+            );
+            const horizontalDeltas = labelRects.map((label) =>
+              Math.abs(label.left - bodyColumnLeft)
             );
             const deltaSummaries = verticalDeltas.map((delta, index) => ({
               delta,
@@ -702,13 +788,28 @@ test.describe('notes body line numbers', () => {
                   }
                 : null,
             })).sort((a, b) => b.delta - a.delta).slice(0, 5);
+            const horizontalSummaries = horizontalDeltas.map((delta, index) => ({
+              delta,
+              label: labelRects[index]?.text ?? null,
+              left: labelRects[index]?.left ?? null,
+              target: targets[index]
+                ? {
+                    tagName: targets[index].tagName,
+                    className: targets[index].className,
+                    datasetType: targets[index].dataset.type ?? null,
+                    text: (targets[index].textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 120),
+                  }
+                : null,
+            })).sort((a, b) => b.delta - a.delta).slice(0, 5);
 
             return {
               targetCount: targets.length,
               labelCount: labels.length,
               labelTexts,
               maxVerticalDelta: verticalDeltas.length > 0 ? Math.max(...verticalDeltas) : 0,
+              maxHorizontalDelta: horizontalDeltas.length > 0 ? Math.max(...horizontalDeltas) : 0,
               deltaSummaries,
+              horizontalSummaries,
               invisibleLabels: labelRects.filter((rect) => rect.width <= 0 || rect.height <= 0).map((rect) => rect.text),
               targetSummaries: targets.map((target, index) => ({
                 index,
@@ -727,6 +828,8 @@ test.describe('notes body line numbers', () => {
           expect(audit.invisibleLabels, `${syntaxCase.label}: labels should be visible`).toEqual([]);
           expect(audit.maxVerticalDelta, `${syntaxCase.label}: labels should align to target first text line\n${JSON.stringify(audit.deltaSummaries, null, 2)}`)
             .toBeLessThanOrEqual(4);
+          expect(audit.maxHorizontalDelta, `${syntaxCase.label}: labels should stay in one body line number column\n${JSON.stringify(audit.horizontalSummaries, null, 2)}`)
+            .toBeLessThanOrEqual(1);
         });
       }
     } finally {

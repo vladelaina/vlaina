@@ -177,6 +177,11 @@ describe("editor style theme compatibility", () => {
     expect(coreCss).toContain(
       '.milkdown-editor.markdown-body-line-numbers .body-line-number'
     );
+    expect(coreCss).toContain(
+      '.milkdown-editor.markdown-body-line-numbers .body-line-number.body-line-number-selected'
+    );
+    expect(coreCss).toContain('color: var(--vlaina-color-white);');
+    expect(coreCss).toContain('-webkit-text-fill-color: var(--vlaina-color-white);');
     expect(coreCss).not.toContain('.milkdown-editor .body-line-number-gutter');
     expect(coreCss).not.toContain('.milkdown-editor .body-line-number {');
   });

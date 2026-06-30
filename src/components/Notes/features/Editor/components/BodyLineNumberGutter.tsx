@@ -216,7 +216,11 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       {labels.map((label, index) => (
         <span
           key={`${label.lineNumber}-${index}`}
-          className="body-line-number"
+          className={
+            label.selected
+              ? 'body-line-number body-line-number-selected'
+              : 'body-line-number'
+          }
           style={{
             left: label.left,
             top: label.top,
