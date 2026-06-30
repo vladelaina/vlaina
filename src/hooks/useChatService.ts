@@ -13,16 +13,13 @@ import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useAccountSessionStore } from '@/stores/accountSession';
-import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { applyManagedQuotaExhaustedSnapshot, useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { buildErrorTag } from '@/lib/ai/errorTag';
 import { AIErrorType } from '@/lib/ai/types';
-import {
-  createManagedQuotaExhaustedBudgetSnapshot,
-  isManagedBudgetExhausted,
-} from '@/lib/ai/managedQuota';
+import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
 import {
   isTemporarySession,
   isTemporarySessionId,
@@ -123,7 +120,7 @@ function buildChatErrorPayload(error: unknown, managed = true) {
 
   const normalized = getUserFacingAIError(error);
   if (normalized.type === AIErrorType.QUOTA_EXHAUSTED) {
-    useManagedAIStore.getState().applyBudgetSnapshot(createManagedQuotaExhaustedBudgetSnapshot());
+    applyManagedQuotaExhaustedSnapshot();
   }
   if (normalized.type === AIErrorType.AUTH_ERROR) {
     dispatchAccountAuthInvalidated();
@@ -198,8 +195,22 @@ function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
   return isManagedBudgetExhausted(budget);
 }
 
+async function shouldBlockManagedRequestAfterBudgetRefresh(providerId: string): Promise<boolean> {
+  if (!shouldBlockManagedRequestForKnownBudget(providerId)) {
+    return false;
+  }
+
+  try {
+    await useManagedAIStore.getState().refreshBudget();
+  } catch {
+    // Keep the known exhausted state below when the refresh fails.
+  }
+
+  return isManagedBudgetExhausted(useManagedAIStore.getState().budget);
+}
+
 function markManagedQuotaExhausted(): void {
-  useManagedAIStore.getState().applyBudgetSnapshot(createManagedQuotaExhaustedBudgetSnapshot());
+  applyManagedQuotaExhaustedSnapshot();
 }
 
 function isManagedQuotaError(error: unknown): boolean {
@@ -549,7 +560,7 @@ export function useChatService() {
         requestManagedAccountSignIn(currentSessionId);
         return false;
       }
-      if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+      if (await shouldBlockManagedRequestAfterBudgetRefresh(provider.id)) {
         markManagedQuotaExhausted();
         setError(null);
         return false;
@@ -896,7 +907,7 @@ export function useChatService() {
         requestManagedAccountSignIn(sessionId);
         return;
       }
-      if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+      if (await shouldBlockManagedRequestAfterBudgetRefresh(provider.id)) {
         markManagedQuotaExhausted();
         setError(null);
         return;
@@ -1117,7 +1128,7 @@ export function useChatService() {
         requestManagedAccountSignIn(sessionId);
         return;
       }
-      if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+      if (await shouldBlockManagedRequestAfterBudgetRefresh(provider.id)) {
         markManagedQuotaExhausted();
         setError(null);
         return;

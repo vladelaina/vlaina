@@ -14,6 +14,7 @@ interface ManagedQuotaNoticeProps {
 
 export function ManagedQuotaNotice({ className }: ManagedQuotaNoticeProps) {
   const { t } = useI18n();
+
   const handleUpgradeClick = useCallback(() => {
     void openExternalHref('https://vlaina.com/r/spark_continue');
   }, []);

@@ -4,7 +4,10 @@ import {
   getManagedServiceErrorMessage,
   type ManagedBudgetStatus,
 } from '@/lib/ai/managedService'
-import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota'
+import {
+  createManagedQuotaExhaustedBudgetSnapshot,
+  isManagedBudgetExhausted,
+} from '@/lib/ai/managedQuota'
 import { normalizeManagedBudgetPayload } from '@/lib/ai/managed/normalizers'
 
 interface ManagedAIState {
@@ -73,6 +76,7 @@ function publishBudgetSnapshot(budget: ManagedBudgetStatus, syncedAt: number): v
   try {
     localStorage.setItem(BUDGET_SYNC_STORAGE_KEY, JSON.stringify({ budget, syncedAt }))
   } catch {
+    // Best effort cross-window sync only.
   }
 }
 
@@ -84,6 +88,7 @@ function clearPublishedBudgetSnapshot(): void {
   try {
     localStorage.removeItem(BUDGET_SYNC_STORAGE_KEY)
   } catch {
+    // Best effort cross-window sync only.
   }
 }
 
@@ -213,6 +218,18 @@ export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
   },
 }))
 
+export function applyManagedQuotaExhaustedSnapshot(): void {
+  useManagedAIStore.getState().applyBudgetSnapshot(createManagedQuotaExhaustedBudgetSnapshot())
+}
+
+export function clearManagedBudgetUnlessQuotaExhausted(): void {
+  const managedAIState = useManagedAIStore.getState()
+  if (isManagedBudgetExhausted(managedAIState.budget)) {
+    return
+  }
+  managedAIState.clearBudget()
+}
+
 let managedBudgetStorageListenerRegistered = false
 
 function registerManagedBudgetStorageListener(): void {
@@ -226,6 +243,9 @@ function registerManagedBudgetStorageListener(): void {
     }
 
     if (!event.newValue) {
+      if (isManagedBudgetExhausted(useManagedAIStore.getState().budget)) {
+        return
+      }
       budgetMutationVersion += 1
       budgetRefreshPromise = null
       useManagedAIStore.setState({

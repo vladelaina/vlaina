@@ -249,7 +249,7 @@ export const ChatInput = memo(function ChatInput({
       clearAttachments();
       clearNoteMentions();
     },
-    canSubmit: hasSelectedModel && !isQuotaSendBlocked,
+    canSubmit: hasSelectedModel,
     focusTrigger,
   });
 
@@ -667,7 +667,7 @@ export const ChatInput = memo(function ChatInput({
   const canSend =
     (!!message.trim() || attachments.length > 0 || noteMentions.length > 0) &&
     hasSelectedModel;
-  const canSubmit = canSend && !isLoading && !isQuotaSendBlocked;
+  const canSubmit = canSend && !isLoading;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       discardRemovedAttachmentUndoStack();

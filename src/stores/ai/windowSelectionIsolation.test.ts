@@ -110,6 +110,7 @@ vi.mock('@/lib/ai/requestManager', () => ({
 }));
 
 vi.mock('@/stores/useManagedAIStore', () => ({
+  clearManagedBudgetUnlessQuotaExhausted: vi.fn(),
   useManagedAIStore: mocked.useManagedAIStore,
 }));
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useUnifiedStore } from './unified/useUnifiedStore'
 import { useAccountSessionStore } from './accountSession'
-import { useManagedAIStore } from './useManagedAIStore'
+import { clearManagedBudgetUnlessQuotaExhausted } from './useManagedAIStore'
 import {
   isManagedServiceRecoverableError,
 } from '@/lib/ai/managedService'
@@ -174,7 +174,7 @@ export function useAIStoreRuntimeEffects(): void {
         if (cancelled) return;
 
         if (!accountConnected) {
-          useManagedAIStore.getState().clearBudget();
+          clearManagedBudgetUnlessQuotaExhausted();
         }
       } catch (error) {
         if (!isManagedServiceRecoverableError(error)) {
@@ -191,7 +191,7 @@ export function useAIStoreRuntimeEffects(): void {
     if (!loaded || accountConnected) {
       return;
     }
-    useManagedAIStore.getState().clearBudget();
+    clearManagedBudgetUnlessQuotaExhausted();
   }, [loaded, accountConnected]);
 }
 
@@ -293,7 +293,7 @@ export function startAIStoreRuntimeEffects(): void {
 
     const accountConnected = useAccountSessionStore.getState().isConnected;
     if (!accountConnected) {
-      useManagedAIStore.getState().clearBudget();
+      clearManagedBudgetUnlessQuotaExhausted();
     }
 
     void managedProviderSync.syncFromStartup({
@@ -301,7 +301,7 @@ export function startAIStoreRuntimeEffects(): void {
       suppressPersist: suppressStartupAIPersist,
     }).then(() => {
       if (!useAccountSessionStore.getState().isConnected) {
-        useManagedAIStore.getState().clearBudget();
+        clearManagedBudgetUnlessQuotaExhausted();
       }
     }).catch((error) => {
       if (!isManagedServiceRecoverableError(error)) {
