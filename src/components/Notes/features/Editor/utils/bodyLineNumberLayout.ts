@@ -9,6 +9,7 @@ const MAX_BODY_LINE_NUMBER_TEXT_ANCHOR_SCAN_NODES = 256;
 const MAX_BODY_LINE_NUMBER_TABLE_CELL_ANCHOR_SCAN_ELEMENTS = 128;
 const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
+const MAX_INCREMENTAL_BODY_LINE_NUMBER_SELECTION_SYNC_ELEMENTS = 64;
 const HIDDEN_DEFINITION_TEXT_PATTERN = /^(?:\[[^\]\n]+]:\s+\S|\*\[[^\]\n]+]:\s+\S)/;
 const SELF_CLOSING_RAW_MEDIA_HTML_TEXT_PATTERN = /^<(?:video|audio)\b[^>]*\/>$/i;
 
@@ -175,6 +176,12 @@ function isInsideSelectedBlock(
   return target.classList.contains('editor-block-selected')
     || target.closest('.editor-block-selected') !== null
     || selectedDescendantTargets?.has(target) === true;
+}
+
+function isInsideSelectedBlockFromCurrentDom(target: HTMLElement): boolean {
+  return target.classList.contains('editor-block-selected')
+    || target.closest('.editor-block-selected') !== null
+    || target.querySelector('.editor-block-selected') !== null;
 }
 
 interface BodyLineNumberAnchorOptions {
@@ -405,23 +412,83 @@ export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string
   return resolveBodyLineNumberLabelLayout(shell, markdown).labels;
 }
 
+interface SyncBodyLineNumberLabelSelectionOptions {
+  changedElements?: readonly Element[];
+}
+
+function collectIncrementalSelectionSyncIndexes(
+  editorRoot: HTMLElement,
+  targets: readonly HTMLElement[],
+  changedElements: readonly Element[] | undefined,
+): Set<number> | null {
+  if (!changedElements || changedElements.length === 0) {
+    return null;
+  }
+  if (changedElements.length > MAX_INCREMENTAL_BODY_LINE_NUMBER_SELECTION_SYNC_ELEMENTS) {
+    return null;
+  }
+
+  const relevantChangedElements: HTMLElement[] = [];
+  for (const element of changedElements) {
+    if (!(element instanceof HTMLElement) || !editorRoot.contains(element) || element === editorRoot) {
+      return null;
+    }
+    relevantChangedElements.push(element);
+  }
+
+  const indexes = new Set<number>();
+  for (let index = 0; index < targets.length; index += 1) {
+    const target = targets[index];
+    if (!target || !editorRoot.contains(target)) {
+      continue;
+    }
+
+    for (const element of relevantChangedElements) {
+      if (target === element || target.contains(element) || element.contains(target)) {
+        indexes.add(index);
+        break;
+      }
+    }
+  }
+
+  return indexes;
+}
+
 export function syncBodyLineNumberLabelSelection(
   editorRoot: HTMLElement | null,
   layout: BodyLineNumberLabelLayout,
+  options: SyncBodyLineNumberLabelSelectionOptions = {},
 ): BodyLineNumberLabelLayout {
   if (!editorRoot || layout.labels.length === 0 || layout.targets.length === 0) {
     return layout;
   }
 
-  const selectedDescendantTargets = shouldCollectSelectedBlockDescendantTargets(editorRoot)
+  const incrementalSyncIndexes = collectIncrementalSelectionSyncIndexes(
+    editorRoot,
+    layout.targets,
+    options.changedElements,
+  );
+  if (incrementalSyncIndexes && incrementalSyncIndexes.size === 0) {
+    return layout;
+  }
+
+  const selectedDescendantTargets = incrementalSyncIndexes === null && shouldCollectSelectedBlockDescendantTargets(editorRoot)
     ? collectSelectedBlockDescendantTargets(editorRoot)
     : null;
   let changed = false;
   const labels = layout.labels.map((label, index) => {
+    if (incrementalSyncIndexes && !incrementalSyncIndexes.has(index)) {
+      return label;
+    }
+
     const target = layout.targets[index];
     const selected = target instanceof HTMLElement
       && editorRoot.contains(target)
-      && isInsideSelectedBlock(target, selectedDescendantTargets);
+      && (
+        incrementalSyncIndexes
+          ? isInsideSelectedBlockFromCurrentDom(target)
+          : isInsideSelectedBlock(target, selectedDescendantTargets)
+      );
 
     if (selected === (label.selected === true)) {
       return label;

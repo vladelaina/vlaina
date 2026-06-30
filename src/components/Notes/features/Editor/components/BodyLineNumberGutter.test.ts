@@ -918,20 +918,25 @@ describe('BodyLineNumberGutter', () => {
 
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
-    const paragraph = document.createElement('p');
+    const firstParagraph = document.createElement('p');
+    const secondParagraph = document.createElement('p');
     const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
 
     editorRoot.className = 'ProseMirror';
-    paragraph.textContent = 'Body';
+    firstParagraph.textContent = 'First';
+    secondParagraph.textContent = 'Second';
     shell.appendChild(editorRoot);
-    editorRoot.appendChild(paragraph);
+    editorRoot.append(firstParagraph, secondParagraph);
     setRect(shell, { left: 10, top: 20 });
     setRect(editorRoot, { left: 106, top: 20 });
-    setRect(paragraph, { left: 106, top: 40, height: 24 });
+    setRect(firstParagraph, { left: 106, top: 40, height: 24 });
+    setRect(secondParagraph, { left: 106, top: 72, height: 24 });
+    const createTreeWalker = document.createTreeWalker.bind(document);
+    let createTreeWalkerSpy: ReturnType<typeof vi.spyOn> | null = null;
 
     try {
       const { container } = render(createElement(BodyLineNumberGutter, {
-        markdown: 'Body',
+        markdown: 'First\n\nSecond',
         revision: 1,
         shellRef,
       }));
@@ -940,25 +945,68 @@ describe('BodyLineNumberGutter', () => {
         vi.advanceTimersByTime(0);
       });
 
-      const lineNumber = container.querySelector<HTMLElement>('.body-line-number');
-      expect(lineNumber?.classList.contains('body-line-number-selected')).toBe(false);
+      const lineNumbers = () => Array.from(container.querySelectorAll<HTMLElement>('.body-line-number'));
+      expect(lineNumbers().map((lineNumber) =>
+        lineNumber.classList.contains('body-line-number-selected')
+      )).toEqual([false, false]);
 
-      paragraph.getBoundingClientRect = () => {
+      createTreeWalkerSpy = vi.spyOn(document, 'createTreeWalker').mockImplementation((
+        root: Node,
+        whatToShow?: number,
+        filter?: NodeFilter | null,
+      ) => {
+        if (root === editorRoot && whatToShow === NodeFilter.SHOW_ELEMENT) {
+          throw new Error('Incremental line number selection sync should not scan the whole editor');
+        }
+        return createTreeWalker(root, whatToShow, filter);
+      });
+
+      firstParagraph.getBoundingClientRect = () => {
+        throw new Error('Deferred line number selection sync should not measure block layout');
+      };
+      secondParagraph.getBoundingClientRect = () => {
         throw new Error('Deferred line number selection sync should not measure block layout');
       };
 
       window.dispatchEvent(new Event('pointerdown'));
       editorRoot.classList.add('editor-block-selection-pending');
-      paragraph.classList.add('editor-block-selected');
+      firstParagraph.classList.add('editor-block-selected');
+      mutationCallback([{
+        attributeName: 'class',
+        target: firstParagraph,
+        type: 'attributes',
+      } as unknown as MutationRecord], {} as MutationObserver);
+      secondParagraph.classList.add('editor-block-selected');
 
       act(() => {
-        mutationCallback([{ target: paragraph } as unknown as MutationRecord], {} as MutationObserver);
+        mutationCallback([{
+          attributeName: 'class',
+          target: secondParagraph,
+          type: 'attributes',
+        } as unknown as MutationRecord], {} as MutationObserver);
         vi.advanceTimersByTime(0);
       });
 
-      expect(lineNumber?.classList.contains('body-line-number-selected')).toBe(true);
-      expect(lineNumber?.style.top).toBe('32px');
+      expect(lineNumbers().map((lineNumber) =>
+        lineNumber.classList.contains('body-line-number-selected')
+      )).toEqual([true, true]);
+      expect(lineNumbers().map((lineNumber) => lineNumber.style.top)).toEqual(['32px', '64px']);
+
+      firstParagraph.classList.remove('editor-block-selected');
+      act(() => {
+        mutationCallback([{
+          attributeName: 'class',
+          target: firstParagraph,
+          type: 'attributes',
+        } as unknown as MutationRecord], {} as MutationObserver);
+        vi.advanceTimersByTime(0);
+      });
+
+      expect(lineNumbers().map((lineNumber) =>
+        lineNumber.classList.contains('body-line-number-selected')
+      )).toEqual([false, true]);
     } finally {
+      createTreeWalkerSpy?.mockRestore();
       act(() => {
         window.dispatchEvent(new Event('pointerup'));
       });
