@@ -134,7 +134,7 @@ describe('ManagedQuotaMeter', () => {
     const meter = screen.getByLabelText('Managed AI quota remaining 42%');
     expect(meter).not.toHaveAttribute('title');
     expect(screen.getByText('42%')).toHaveAttribute('aria-hidden', 'true');
-    expect(meter.querySelector('.bg-\\[\\#60fe73\\]')).toBeInTheDocument();
+    expect(meter.querySelector('.bg-\\[var\\(--vlaina-color-quota-fill\\)\\]')).toBeInTheDocument();
   });
 
   it('keeps the previous budget visible while a refresh is in flight', () => {

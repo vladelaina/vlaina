@@ -184,7 +184,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               }
             }}
             className={cn(
-              'absolute -bottom-1 -right-1.5 z-[var(--vlaina-z-10)] inline-flex cursor-pointer select-none items-center rounded-[var(--vlaina-radius-8px)] px-1.5 py-[var(--vlaina-space-3px)] text-[var(--vlaina-font-8)] font-semibold normal-case tracking-normal leading-none shadow-[var(--vlaina-shadow-badge)]',
+              'absolute -bottom-1 -right-1.5 z-[var(--vlaina-z-10)] inline-flex cursor-pointer select-none items-center rounded-[var(--vlaina-radius-pill)] px-2 py-[var(--vlaina-space-3px)] [font-size:var(--vlaina-font-10)] font-semibold normal-case tracking-normal leading-none',
               membershipPillClassName
             )}
           >
