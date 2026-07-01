@@ -117,7 +117,6 @@ describe('typecheck quality gate', () => {
       'src/components/Notes/features/Editor/plugins/floating-toolbar/components/ai-dropdown/usageRanking.ts:window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));',
 
       // Navigation/history caches that do not drive live cross-window state.
-      'src/AppContent.tsx:window.localStorage.setItem(key, String(value));',
       'src/stores/notes/storage.ts:localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));',
 
       // Future-facing shortcut customization storage. There is no editing UI yet; adding one should revisit sync.
@@ -128,6 +127,11 @@ describe('typecheck quality gate', () => {
       'src/lib/account/webSession.ts:localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);',
       'src/lib/ai/sessionMutationLock.ts:localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));',
       'src/lib/ai/sessionMutationLock.ts:localStorage.removeItem(getLockKey(sessionId));',
+
+      // Desktop update cache/check throttle, with cache change events for update UI listeners.
+      'src/lib/desktop/updateStatus.ts:window.localStorage.removeItem(UPDATE_INFO_CACHE_KEY);',
+      'src/lib/desktop/updateStatus.ts:window.localStorage.setItem(UPDATE_INFO_CACHE_KEY, JSON.stringify(updateInfo));',
+      'src/lib/desktop/updateStatus.ts:window.localStorage.setItem(UPDATE_LAST_AUTO_CHECK_KEY, String(value));',
 
       // E2E-only bridge activation persistence, guarded behind import.meta.env.DEV.
       "src/lib/e2e/syncE2EBridge.ts:window.localStorage.setItem(E2E_LOCAL_STORAGE_KEY, '1');",

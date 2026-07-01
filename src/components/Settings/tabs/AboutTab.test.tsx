@@ -1,7 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
-import { UPDATE_INFO_CACHE_KEY, writeCachedDesktopUpdateInfo } from '@/lib/desktop/updateStatus';
+import {
+  clearCachedDesktopUpdateInfo,
+  readCachedDesktopUpdateInfo,
+  writeCachedDesktopUpdateInfo,
+} from '@/lib/desktop/updateStatus';
 import { AboutTab } from './AboutTab';
 
 const { electronBridgeMock, openExternalHrefMock } = vi.hoisted(() => ({
@@ -61,7 +65,7 @@ vi.mock('qrcode', () => ({
 describe('AboutTab community QR pills', () => {
   afterEach(() => {
     cleanup();
-    localStorage.clear();
+    clearCachedDesktopUpdateInfo();
     electronBridgeMock.current = undefined;
     vi.clearAllMocks();
   });
@@ -133,7 +137,7 @@ describe('AboutTab community QR pills', () => {
   });
 
   it('opens the platform-specific update package URL returned by the desktop updater', async () => {
-    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.17/vlaina-0.1.17-linux-x86_64.AppImage';
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v99.99.99/vlaina-99.99.99-linux-x86_64.AppImage';
     electronBridgeMock.current = {
       app: {
         getVersion: vi.fn().mockResolvedValue('0.1.16'),
@@ -141,11 +145,11 @@ describe('AboutTab community QR pills', () => {
       update: {
         check: vi.fn().mockResolvedValue({
           currentVersion: '0.1.16',
-          latestVersion: '0.1.17',
+          latestVersion: '99.99.99',
           updateAvailable: true,
           downloadUrl,
-          releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.17',
-          platformAssetName: 'vlaina-0.1.17-linux-x86_64.AppImage',
+          releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v99.99.99',
+          platformAssetName: 'vlaina-99.99.99-linux-x86_64.AppImage',
           hasPlatformAsset: true,
           releaseNotes: 'Release notes',
           publishedAt: '2026-06-26T00:00:00.000Z',
@@ -346,7 +350,7 @@ describe('AboutTab community QR pills', () => {
       expect(deleteDownloaded).toHaveBeenCalledWith(expect.objectContaining(cachedUpdateInfo));
     });
     await waitFor(() => {
-      expect(localStorage.getItem(UPDATE_INFO_CACHE_KEY)).toBeNull();
+      expect(readCachedDesktopUpdateInfo()).toBeNull();
     });
   });
 });

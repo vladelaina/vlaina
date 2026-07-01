@@ -120,7 +120,7 @@ function setScrollMetrics(
 describe('SettingsModal', () => {
   afterEach(() => {
     cleanup();
-    localStorage.clear();
+    clearCachedDesktopUpdateInfo();
     vi.clearAllMocks();
   });
 
