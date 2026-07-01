@@ -1,5 +1,10 @@
-import { readdir, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { constants } from 'node:fs';
+import { access, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const appToChromiumLocaleAliases = new Map([
   ['en', ['en-US', 'en-GB']],
@@ -26,7 +31,37 @@ async function getChromiumLocalesToKeep(projectDir) {
   return locales;
 }
 
+async function stripLinuxUnneededSymbols(appOutDir) {
+  if (process.platform !== 'linux') {
+    return;
+  }
+
+  const vulkanLibraryPath = path.join(appOutDir, 'libvulkan.so.1');
+  try {
+    await access(vulkanLibraryPath, constants.F_OK);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return;
+    }
+    throw error;
+  }
+
+  try {
+    await execFileAsync('strip', ['--strip-unneeded', vulkanLibraryPath]);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return;
+    }
+    throw error;
+  }
+}
+
 export default async function afterPack({ appOutDir, electronPlatformName, packager }) {
+  if (electronPlatformName === 'linux') {
+    await stripLinuxUnneededSymbols(appOutDir);
+    return;
+  }
+
   if (electronPlatformName !== 'win32') {
     return;
   }
