@@ -19,9 +19,25 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
     useAccountSessionStore();
   const { t } = useI18n();
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const openFocusTimeoutRef = React.useRef<number | null>(null);
   const closeFocusTimeoutRef = React.useRef<number | null>(null);
   const closeFocusRequestedRef = React.useRef(false);
   const wasOpenRef = React.useRef(open);
+
+  const focusEmailInputAfterOpen = React.useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (openFocusTimeoutRef.current !== null) {
+      window.clearTimeout(openFocusTimeoutRef.current);
+    }
+    openFocusTimeoutRef.current = window.setTimeout(() => {
+      openFocusTimeoutRef.current = null;
+      const dialogElement = closeButtonRef.current?.closest('[role="dialog"]');
+      const emailInput = dialogElement?.querySelector<HTMLInputElement>('input[autocomplete="email"]:not(:disabled)');
+      emailInput?.focus();
+    }, 0);
+  }, []);
 
   const focusComposerAfterClose = React.useCallback(() => {
     if (typeof window === 'undefined') {
@@ -39,6 +55,9 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
 
   React.useEffect(() => {
     return () => {
+      if (openFocusTimeoutRef.current !== null) {
+        window.clearTimeout(openFocusTimeoutRef.current);
+      }
       if (closeFocusTimeoutRef.current !== null) {
         window.clearTimeout(closeFocusTimeoutRef.current);
       }
@@ -47,6 +66,10 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
 
   React.useEffect(() => {
     if (!open) {
+      if (openFocusTimeoutRef.current !== null) {
+        window.clearTimeout(openFocusTimeoutRef.current);
+        openFocusTimeoutRef.current = null;
+      }
       return;
     }
     closeFocusRequestedRef.current = false;
@@ -88,7 +111,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          closeButtonRef.current?.focus();
+          focusEmailInputAfterOpen();
         }}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
