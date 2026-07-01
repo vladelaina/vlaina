@@ -7,10 +7,13 @@ import {
   type HTMLAttributes,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { cn } from '@/lib/utils';
+import { normalizeWheelDelta } from '@/lib/scroll/wheelScroll';
 
 const MIN_THUMB_HEIGHT = 36;
+const SCROLL_EPSILON_PX = 1;
 const scrollbarThumbIdleColor = 'bg-[var(--vlaina-color-scrollbar-thumb)]';
 const scrollbarThumbActiveColor = 'bg-[var(--vlaina-color-scrollbar-thumb-hover)]';
 const scrollbarThumbHoverColor = 'hover:bg-[var(--vlaina-color-scrollbar-thumb-hover)]';
@@ -292,10 +295,11 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     });
 
     resizeObserver.observe(viewport);
-    const firstChild = viewport.firstElementChild;
-    if (firstChild instanceof HTMLElement) {
-      resizeObserver.observe(firstChild);
-    }
+    Array.from(viewport.children).forEach((child) => {
+      if (child instanceof HTMLElement) {
+        resizeObserver.observe(child);
+      }
+    });
 
     return () => {
       resizeObserver.disconnect();
@@ -325,6 +329,36 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     setIsDragging(true);
   }, [updateMetrics]);
 
+  const handleWrapperWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+    const viewport = viewportRef.current;
+    const target = event.target;
+    if (
+      !viewport ||
+      event.defaultPrevented ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.deltaY === 0 ||
+      (target instanceof Node && viewport.contains(target))
+    ) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(viewport.scrollHeight - viewport.clientHeight, 0);
+    if (maxScrollTop <= 0) {
+      return;
+    }
+
+    const deltaY = normalizeWheelDelta(event.deltaY, event.deltaMode, viewport.clientHeight);
+    const nextScrollTop = clamp(viewport.scrollTop + deltaY, 0, maxScrollTop);
+    if (Math.abs(nextScrollTop - viewport.scrollTop) < SCROLL_EPSILON_PX) {
+      return;
+    }
+
+    event.preventDefault();
+    viewport.scrollTop = nextScrollTop;
+    updateMetrics({ forceRenderPosition: true });
+  }, [updateMetrics]);
+
   const isVisible = metrics.canScroll && (isHovered || isDragging);
   const isScrollbarExpanded = isScrollbarHovered || isDragging;
 
@@ -342,6 +376,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
         setIsScrollbarHovered(false);
         onMouseLeave?.(event);
       }}
+      onWheel={handleWrapperWheel}
     >
       <div
         ref={setViewportRef}

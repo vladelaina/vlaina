@@ -5,13 +5,17 @@ import { OverlayScrollArea } from './overlay-scroll-area';
 class ResizeObserverMock {
   static instances: ResizeObserverMock[] = [];
   callback: ResizeObserverCallback;
+  observed: Element[] = [];
 
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
     ResizeObserverMock.instances.push(this);
   }
 
-  observe() {}
+  observe(element: Element) {
+    this.observed.push(element);
+  }
+
   disconnect() {}
 }
 
@@ -204,6 +208,47 @@ describe('OverlayScrollArea', () => {
     expect(thumb?.className).toContain('w-2');
     expect(thumb?.className).toContain('right-[var(--vlaina-scrollbar-thumb-offset)]');
     expect(thumb?.className).toContain('bg-[var(--vlaina-color-scrollbar-thumb-hover)]');
+  });
+
+  it('routes wheel events from the overlay scrollbar rail to the viewport', () => {
+    render(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea scrollbarVariant="compact">
+          <div style={{ height: 480 }}>content</div>
+        </OverlayScrollArea>
+      </div>
+    );
+
+    const viewport = screen.getByText('content').parentElement as HTMLDivElement;
+    setViewportMetrics(viewport, { clientHeight: 120, scrollHeight: 480, scrollTop: 0 });
+    fireEvent.mouseEnter(viewport.parentElement as HTMLDivElement);
+
+    const rail = viewport.parentElement?.querySelector('[data-overlay-scrollbar-rail="true"]') as HTMLDivElement | null;
+    expect(rail).not.toBeNull();
+
+    fireEvent.wheel(rail!, { deltaY: 3, deltaMode: WheelEvent.DOM_DELTA_LINE });
+
+    expect(viewport.scrollTop).toBe(48);
+  });
+
+  it('observes every direct viewport child for late content growth', () => {
+    render(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea>
+          <div>fixed header</div>
+          <div>growing list</div>
+        </OverlayScrollArea>
+      </div>
+    );
+
+    const viewport = screen.getByText('fixed header').parentElement as HTMLDivElement;
+    const header = screen.getByText('fixed header');
+    const list = screen.getByText('growing list');
+    const observer = ResizeObserverMock.instances[0];
+
+    expect(observer.observed).toContain(viewport);
+    expect(observer.observed).toContain(header);
+    expect(observer.observed).toContain(list);
   });
 
   it('coalesces resize observer metric updates into one animation frame', () => {
