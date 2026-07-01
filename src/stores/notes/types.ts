@@ -81,6 +81,7 @@ export interface RecentlyClosedTabState {
 
 export interface OpenNoteOptions {
   updateNavigationHistory?: boolean;
+  restoredFromWorkspace?: boolean;
 }
 
 export interface DraftNoteEntry {
@@ -111,6 +112,7 @@ export interface NotesState {
   currentNote: CurrentNoteState | null;
   currentNoteRevision: number;
   currentNoteDiskRevision: number;
+  workspaceRestoredNote: { path: string; revision: number } | null;
   notesPath: string;
   isDirty: boolean;
   isLoading: boolean;

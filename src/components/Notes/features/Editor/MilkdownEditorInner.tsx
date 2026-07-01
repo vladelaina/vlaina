@@ -84,12 +84,14 @@ import {
 interface MilkdownEditorInnerProps {
   active?: boolean;
   showBodyLineNumbers?: boolean;
+  preserveStartupEditorPosition?: boolean;
   onEditorViewReady?: () => void;
 }
 
 export function MilkdownEditorRuntime({
   active = true,
   showBodyLineNumbers = false,
+  preserveStartupEditorPosition = false,
   onEditorViewReady,
 }: MilkdownEditorInnerProps) {
   return (
@@ -97,6 +99,7 @@ export function MilkdownEditorRuntime({
       <MilkdownEditorInner
         active={active}
         showBodyLineNumbers={showBodyLineNumbers}
+        preserveStartupEditorPosition={preserveStartupEditorPosition}
         onEditorViewReady={onEditorViewReady}
       />
     </MilkdownProvider>
@@ -439,6 +442,7 @@ export function isEditorMarkdownEquivalentToNoteContent(
 export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   active = true,
   showBodyLineNumbers = false,
+  preserveStartupEditorPosition = false,
   onEditorViewReady,
 }: MilkdownEditorInnerProps) {
   const updateContent = useNotesStore(s => s.updateContent);
@@ -653,10 +657,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
       setCurrentEditorView(view);
       setCurrentEditorBlockSelectionClearer(() => clearBlockSelection(view));
-      try {
-        normalizeInitialEditorSelection(view);
-      } catch {
-        // Keep editor activation alive even if a plugin rejects the startup selection normalization.
+      if (!preserveStartupEditorPosition) {
+        try {
+          normalizeInitialEditorSelection(view);
+        } catch {
+          // Keep editor activation alive even if a plugin rejects the startup selection normalization.
+        }
       }
       setActivatedRevision((revision) => revision + 1);
 
@@ -713,6 +719,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [
     cleanupActivatedEditor,
     createUserInputMarker,
+    preserveStartupEditorPosition,
   ]);
 
   const { get } = useEditor((root) => {
@@ -1022,7 +1029,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
   useEffect(() => {
     if (!active || !get || hasAutoFocused.current || hasScheduledAutoFocus.current) return;
-    if (isNewlyCreated || shouldKeepFocusOnEmptyDraftTitle) {
+    if (preserveStartupEditorPosition || isNewlyCreated || shouldKeepFocusOnEmptyDraftTitle) {
       return;
     }
 
@@ -1047,11 +1054,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     focusEditorBody,
     get,
     isNewlyCreated,
+    preserveStartupEditorPosition,
     shouldKeepFocusOnEmptyDraftTitle,
   ]);
 
   useEffect(() => {
-    if (!active || !shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
+    if (!active || preserveStartupEditorPosition || !shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
     const frame = requestAnimationFrame(() => {
       if (!shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
       const focused = focusEditorBody();
@@ -1063,7 +1071,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [active, currentNotePath, focusEditorBody, shouldFocusEmptyDraftBody]);
+  }, [active, currentNotePath, focusEditorBody, preserveStartupEditorPosition, shouldFocusEmptyDraftBody]);
 
   return (
     <div

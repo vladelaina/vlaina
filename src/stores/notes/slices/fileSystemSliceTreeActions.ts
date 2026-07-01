@@ -267,7 +267,7 @@ export function createFileSystemTreeActions(
                 getCurrentVaultPath() === basePath &&
                 await storage.exists(fullPath)
               ) {
-                await get().openNote(relativePath);
+                await get().openNote(relativePath, false, { restoredFromWorkspace: true });
                 break;
               }
             } catch {

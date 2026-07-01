@@ -5,6 +5,7 @@ export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
   currentNoteRevision: NotesStore['currentNoteRevision'];
   currentNoteDiskRevision: NotesStore['currentNoteDiskRevision'];
+  workspaceRestoredNote: NotesStore['workspaceRestoredNote'];
   isDirty: NotesStore['isDirty'];
   isLoading: NotesStore['isLoading'];
   error: NotesStore['error'];

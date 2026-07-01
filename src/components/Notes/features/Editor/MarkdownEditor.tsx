@@ -105,6 +105,8 @@ export function MarkdownEditor({
   const [isSourceMode, setIsSourceMode] = useState(false);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const currentNoteRevision = useNotesStore(s => s.currentNoteRevision);
+  const workspaceRestoredNote = useNotesStore(s => s.workspaceRestoredNote);
   const showBodyLineNumbers = useUnifiedStore(selectMarkdownBodyLineNumbersEnabled);
   const saveNote = useNotesStore(s => s.saveNote);
   const notesPath = useNotesStore(s => s.notesPath);
@@ -154,6 +156,12 @@ export function MarkdownEditor({
   );
   const isSidebarSearchJumpPending =
     Boolean(currentNotePath && pendingSidebarSearchNavigationPath === currentNotePath);
+  const shouldPreserveStartupEditorPosition =
+    Boolean(
+      currentNotePath &&
+      workspaceRestoredNote?.path === currentNotePath &&
+      workspaceRestoredNote.revision === currentNoteRevision
+    );
 
   const coverController = useNoteCoverController(currentNotePath);
   const coverUrl = coverController.cover.url;
@@ -645,6 +653,7 @@ export function MarkdownEditor({
                     <MilkdownEditorRuntime
                       active={active}
                       showBodyLineNumbers={showBodyLineNumbers}
+                      preserveStartupEditorPosition={shouldPreserveStartupEditorPosition}
                       onEditorViewReady={handleEditorViewReady}
                     />
                   </ErrorBoundary>
@@ -663,6 +672,7 @@ export function MarkdownEditor({
                 <MilkdownEditorRuntime
                   active={false}
                   showBodyLineNumbers={false}
+                  preserveStartupEditorPosition={false}
                 />
               </Suspense>
             </div>

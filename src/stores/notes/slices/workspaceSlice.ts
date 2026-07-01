@@ -156,6 +156,7 @@ function openDraftNoteFromMemory(
   set({
     currentNote: { path, content },
     currentNoteRevision: currentNoteRevision + 1,
+    workspaceRestoredNote: null,
     isDirty: existingTab?.isDirty ?? true,
     openTabs: updatedTabs,
     isNewlyCreated: false,
@@ -281,6 +282,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   currentNote: null,
   currentNoteRevision: 0,
   currentNoteDiskRevision: 0,
+  workspaceRestoredNote: null,
   isDirty: false,
   isLoading: false,
   error: null,
@@ -408,9 +410,13 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         : null;
 
       updateDisplayName(set, path, tabName);
+      const nextCurrentNoteRevision = latestState.currentNoteRevision + 1;
       set({
         currentNote: { path, content: latestOpenedContent.content },
-        currentNoteRevision: latestState.currentNoteRevision + 1,
+        currentNoteRevision: nextCurrentNoteRevision,
+        workspaceRestoredNote: options?.restoredFromWorkspace
+          ? { path, revision: nextCurrentNoteRevision }
+          : null,
         isDirty: latestExistingTab?.isDirty ?? false,
         error: preservedDirtySaveError,
         recentNotes: updatedRecent,
@@ -541,9 +547,13 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         : null;
 
       updateDisplayName(set, normalizedAbsolutePath, tabName);
+      const nextCurrentNoteRevision = latestState.currentNoteRevision + 1;
       set({
         currentNote: { path: normalizedAbsolutePath, content: latestOpenedContent.content },
-        currentNoteRevision: latestState.currentNoteRevision + 1,
+        currentNoteRevision: nextCurrentNoteRevision,
+        workspaceRestoredNote: options?.restoredFromWorkspace
+          ? { path: normalizedAbsolutePath, revision: nextCurrentNoteRevision }
+          : null,
         isDirty: latestExistingTab?.isDirty ?? false,
         error: preservedDirtySaveError,
         openTabs: updatedTabs,
