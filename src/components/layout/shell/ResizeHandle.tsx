@@ -6,6 +6,7 @@ interface ResizeHandleProps {
   onMouseDown: MouseEventHandler<HTMLDivElement>;
   isDragging: boolean;
   positionStyle: CSSProperties;
+  position?: 'fixed' | 'absolute';
   zIndexClassName?: string;
   className?: string;
 }
@@ -14,6 +15,7 @@ export function ResizeHandle({
   onMouseDown,
   isDragging,
   positionStyle,
+  position = 'fixed',
   zIndexClassName = 'z-[var(--vlaina-z-30)]',
   className,
 }: ResizeHandleProps) {
@@ -21,7 +23,8 @@ export function ResizeHandle({
     <div
       onMouseDown={onMouseDown}
       className={cn(
-        'fixed top-0 bottom-0 cursor-col-resize bg-transparent transition-colors touch-none group flex items-center justify-center',
+        position === 'fixed' ? 'fixed' : 'absolute',
+        'top-0 bottom-0 cursor-col-resize bg-transparent transition-colors touch-none group flex items-center justify-center',
         zIndexClassName,
         isDragging ? 'delay-[var(--vlaina-duration-0)]' : 'delay-[var(--vlaina-duration-150)]',
         className,

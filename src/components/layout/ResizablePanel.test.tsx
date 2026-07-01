@@ -29,6 +29,23 @@ describe('ResizablePanel', () => {
     expect(container.querySelector('aside')).toHaveStyle({ width: '500px' });
   });
 
+  it('clamps persisted width to the dynamic panel limit', () => {
+    localStorage.setItem('panel-width', '760');
+
+    const { container } = render(
+      <ResizablePanel
+        storageKey="panel-width"
+        minWidth={300}
+        maxWidth={760}
+        getMaxWidth={() => 360}
+      >
+        content
+      </ResizablePanel>
+    );
+
+    expect(container.querySelector('aside')).toHaveStyle({ width: '360px' });
+  });
+
   it('updates width when another window changes the persisted storage key', () => {
     const onWidthChange = vi.fn();
     const { container } = render(
@@ -120,6 +137,29 @@ describe('ResizablePanel', () => {
 
     expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
     expect(panel).toHaveStyle({ width: '360px' });
+
+    fireEvent.mouseUp(document);
+  });
+
+  it('clamps drag width to the dynamic panel limit', () => {
+    const { container } = render(
+      <ResizablePanel
+        defaultWidth={320}
+        minWidth={300}
+        maxWidth={500}
+        getMaxWidth={() => 350}
+      >
+        content
+      </ResizablePanel>
+    );
+
+    const panel = container.querySelector('aside')!;
+    const handle = container.querySelector<HTMLElement>('.cursor-col-resize')!;
+
+    fireEvent.mouseDown(handle, { clientX: 500 });
+    fireEvent.mouseMove(document, { clientX: 420 });
+
+    expect(panel).toHaveStyle({ width: '350px' });
 
     fireEvent.mouseUp(document);
   });
