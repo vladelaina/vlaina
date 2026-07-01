@@ -15,24 +15,24 @@ export const LoginPrompt: React.FC<LoginPromptProps> = ({ onOpenDialog }) => {
   const signInLabel = isConnecting ? t('account.continueSignIn') : t('account.signIn');
 
   return (
-    <div className="p-2 pb-0">
+    <div className="px-2 pb-1 pt-2">
       <button
         type="button"
         onClick={onOpenDialog}
         style={{ boxShadow: themeStyleResetTokens.boxShadowNone }}
         className={cn(
-          'group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-transparent px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium !shadow-[var(--vlaina-shadow-none)] transition-colors hover:!bg-transparent hover:!text-[var(--vlaina-color-brand-pink)] hover:!shadow-[var(--vlaina-shadow-none)] active:scale-[var(--vlaina-scale-985)]',
+          'group inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-transparent px-3 py-2 text-[var(--vlaina-font-base)] font-medium !shadow-[var(--vlaina-shadow-none)] transition-colors hover:!bg-transparent hover:!text-[var(--vlaina-color-brand-pink)] hover:!shadow-[var(--vlaina-shadow-none)] active:scale-[var(--vlaina-scale-985)]',
           'text-[var(--vlaina-color-brand-pink)]'
         )}
       >
-        <span>ヾ(๑╹ヮ╹๑)ﾉ {signInLabel}</span>
+        <span className="min-w-0 truncate">ヾ(๑╹ヮ╹๑)ﾉ {signInLabel}</span>
         <Icon
           name="nav.arrowRight"
           size="sm"
-          className="text-[var(--vlaina-color-brand-pink)] transition-transform duration-[var(--vlaina-duration-200)] ease-out group-hover:translate-x-1"
+          className="shrink-0 text-[var(--vlaina-color-brand-pink)] transition-transform duration-[var(--vlaina-duration-200)] ease-out group-hover:translate-x-1"
         />
       </button>
-      <div className="mx-2 mt-2 h-[var(--vlaina-size-1px)] bg-[var(--vlaina-border)] opacity-[var(--vlaina-opacity-40)]" />
+      <div className="mx-2 mt-2.5 h-[var(--vlaina-size-1px)] bg-[var(--vlaina-border)] opacity-[var(--vlaina-opacity-40)]" />
     </div>
   );
 };

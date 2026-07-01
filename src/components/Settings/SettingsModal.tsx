@@ -24,12 +24,8 @@ import {
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import type { CommunitySettings } from './tabs/aboutCommunitySettings';
 import { themeBackdropTokens, themeMotionTokens } from '@/styles/themeTokens';
-import {
-  getDesktopUpdateIndicatorVersion,
-  readCachedDesktopUpdateInfo,
-  UPDATE_INFO_CHANGED_EVENT,
-} from '@/lib/desktop/updateStatus';
 import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
+import { DesktopUpdateBadge, useDesktopUpdateIndicatorVersion } from '@/components/desktop/DesktopUpdateIndicator';
 
 interface SettingsModalProps {
   open: boolean;
@@ -66,9 +62,7 @@ const sidebarGroups: SidebarGroup[] = [
 export function SettingsModal({ open, communitySettings, requestedTab, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
   const [isAppearanceFontPreviewing, setIsAppearanceFontPreviewing] = useState(false);
-  const [updateIndicatorVersion, setUpdateIndicatorVersion] = useState(() =>
-    getDesktopUpdateIndicatorVersion(readCachedDesktopUpdateInfo())
-  );
+  const updateIndicatorVersion = useDesktopUpdateIndicatorVersion();
   const { t } = useI18n();
 
   const handleClose = useCallback(() => {
@@ -116,18 +110,6 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
     if (activeTab === 'appearance') return;
     setIsAppearanceFontPreviewing(false);
   }, [activeTab]);
-
-  useEffect(() => {
-    const applyUpdateIndicator = () => {
-      setUpdateIndicatorVersion(getDesktopUpdateIndicatorVersion(readCachedDesktopUpdateInfo()));
-    };
-
-    applyUpdateIndicator();
-    window.addEventListener(UPDATE_INFO_CHANGED_EVENT, applyUpdateIndicator);
-    return () => {
-      window.removeEventListener(UPDATE_INFO_CHANGED_EVENT, applyUpdateIndicator);
-    };
-  }, []);
 
   return (
     <AnimatePresence>
@@ -224,11 +206,14 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                               const isActive = activeTab === item.id;
                               const label = item.label ?? (item.labelKey ? t(item.labelKey) : '');
                               const showUpdateIndicator = item.id === 'about' && Boolean(updateIndicatorVersion);
+                              const updateIndicatorLabel = showUpdateIndicator
+                                ? t('settings.updateIndicator')
+                                : '';
                               return (
                                 <div key={item.id} className="group/chat-sidebar-row flex items-center max-[900px]:shrink-0">
                                   <button
                                     type="button"
-                                    aria-label={showUpdateIndicator ? `${label} v${updateIndicatorVersion}` : undefined}
+                                    aria-label={showUpdateIndicator ? `${label} ${updateIndicatorLabel}` : undefined}
                                     data-settings-tab={item.id}
                                     data-active={isActive ? 'true' : undefined}
                                     onClick={() => setActiveTab(item.id)}
@@ -255,18 +240,10 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                                       {label}
                                     </span>
                                     {showUpdateIndicator ? (
-                                      <span
-                                        data-settings-update-indicator="about"
-                                        className={cn(
-                                          "ml-auto inline-flex h-5 max-w-[6.75rem] shrink-0 items-center rounded-[var(--vlaina-radius-pill)] px-2 text-[var(--vlaina-font-10)] font-bold leading-none tabular-nums shadow-[var(--vlaina-shadow-selection-soft)] max-[900px]:ml-0",
-                                          isActive
-                                            ? "bg-[var(--vlaina-sidebar-row-selected-text)] text-[var(--vlaina-sidebar-row-selected-bg)]"
-                                            : "bg-[var(--vlaina-accent)] text-white"
-                                        )}
-                                        title={`v${updateIndicatorVersion}`}
-                                      >
-                                        <span className="truncate">v{updateIndicatorVersion}</span>
-                                      </span>
+                                      <DesktopUpdateBadge
+                                        version={updateIndicatorVersion}
+                                        className="ml-auto max-w-[7.5rem] max-[900px]:ml-0"
+                                      />
                                     ) : null}
                                   </button>
                                 </div>

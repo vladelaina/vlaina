@@ -559,6 +559,7 @@
   "shortcut.action.link": "超連結",
   "shortcut.action.clearFormatting": "清除格式",
   "shortcut.action.actualSize": "實際大小",
+  "settings.updateIndicator": "更新",
   "settings.about.updateAction": "更新",
   "settings.about.updateToastAvailable": "vlaina {version} 可用。開啟設定 > 關於進行更新。",
   "sidebar.deleteItemTitle": "刪除{itemType}",
