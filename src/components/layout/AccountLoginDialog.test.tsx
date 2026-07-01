@@ -37,6 +37,14 @@ describe('AccountLoginDialog', () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
+  it('focuses the email input after opening', async () => {
+    render(<AccountLoginDialog open onOpenChange={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(document.querySelector('input[autocomplete="email"]'));
+    });
+  });
+
   it('focuses the chat composer after closing', async () => {
     const onOpenChange = vi.fn();
 

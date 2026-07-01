@@ -31,6 +31,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
   const [isOpen, setIsOpen] = React.useState(false);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = React.useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = React.useState(false);
+  const skipPopoverCloseAutoFocusRef = React.useRef(false);
 
   const handleLogout = useCallback(async () => {
     setIsLogoutConfirmOpen(true);
@@ -43,9 +44,12 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
   }, [signOut]);
 
   const handleSwitchAccount = useCallback(() => {
+    if (isOpen) {
+      skipPopoverCloseAutoFocusRef.current = true;
+    }
     setIsOpen(false);
     setIsLoginDialogOpen(true);
-  }, []);
+  }, [isOpen]);
 
   const handleOpenSettings = useCallback(() => {
     if (onOpenSettings) {
@@ -61,9 +65,12 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
   const displayAvatar = isConnected ? userAvatar : null;
 
   const handleOpenLoginDialog = useCallback(() => {
+    if (isOpen) {
+      skipPopoverCloseAutoFocusRef.current = true;
+    }
     setIsOpen(false);
     setIsLoginDialogOpen(true);
-  }, []);
+  }, [isOpen]);
 
   React.useEffect(() => {
     window.addEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, handleOpenLoginDialog);
@@ -129,6 +136,13 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
             )}
             sideOffset={8}
             align="start"
+            onCloseAutoFocus={(event) => {
+              if (!skipPopoverCloseAutoFocusRef.current) {
+                return;
+              }
+              skipPopoverCloseAutoFocusRef.current = false;
+              event.preventDefault();
+            }}
           >
             <div className="flex flex-col">
               {!isConnected ? (
