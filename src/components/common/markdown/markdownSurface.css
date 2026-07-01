@@ -540,6 +540,12 @@
   max-width: 100%;
   height: auto;
   margin: 0 auto;
+  overflow: visible;
+}
+
+.markdown-surface .mermaid-block svg text.journey-section,
+.markdown-surface .mermaid-block svg .venn-area text.label {
+  fill: var(--vlaina-text-primary) !important;
 }
 
 .markdown-surface .mermaid-block[data-mermaid-diagram='gantt'] svg {

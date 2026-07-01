@@ -42,6 +42,9 @@ describe('mermaidRenderer', () => {
       flowchart: {
         htmlLabels: false,
       },
+      quadrantChart: {
+        quadrantTextTopPadding: 18,
+      },
       theme: 'base',
       themeVariables: expect.objectContaining({
         background: '#FFFFFF',

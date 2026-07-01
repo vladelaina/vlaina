@@ -1,8 +1,20 @@
-import { themeColorTokens } from '@/styles/themeTokens';
+import { themeColorTokens, themeMermaidTokens } from '@/styles/themeTokens';
+
+const MERMAID_COLOR_SCALE_LABEL_COUNT = 12;
 
 export function createDefaultMermaidThemeConfig() {
+  const scaleLabelVariables = Object.fromEntries(
+    Array.from({ length: MERMAID_COLOR_SCALE_LABEL_COUNT }, (_value, index) => [
+      `cScaleLabel${index}`,
+      themeColorTokens.mermaidText,
+    ])
+  );
+
   return {
     theme: 'base',
+    quadrantChart: {
+      quadrantTextTopPadding: themeMermaidTokens.quadrantTextTopPaddingPx,
+    },
     themeVariables: {
       background: themeColorTokens.mermaidSurface,
       primaryColor: themeColorTokens.mermaidSurface,
@@ -18,6 +30,12 @@ export function createDefaultMermaidThemeConfig() {
       clusterBkg: themeColorTokens.mermaidSurfaceTertiary,
       clusterBorder: themeColorTokens.mermaidBorder,
       edgeLabelBackground: themeColorTokens.mermaidSurface,
+      scaleLabelColor: themeColorTokens.mermaidText,
+      ...scaleLabelVariables,
+      quadrantPointFill: themeColorTokens.mermaidBorder,
+      quadrantPointTextFill: themeColorTokens.mermaidText,
+      vennSetTextColor: themeColorTokens.mermaidText,
+      vennTitleTextColor: themeColorTokens.mermaidText,
     },
   };
 }
