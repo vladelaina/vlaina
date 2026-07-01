@@ -40,6 +40,7 @@ const CURRENT_TURN_ANCHOR_MAX_ATTEMPTS = 8;
 const ACTIVE_OUTPUT_OVERFLOW_THRESHOLD = 1;
 const LONG_USER_MESSAGE_VISIBLE_HEIGHT = 96;
 const SHORT_USER_MESSAGE_ANCHOR_BOTTOM_RATIO = 0.64;
+type CurrentTurnAnchorMode = "near-composer" | "top";
 
 function hasUsableScrollContainer(container: HTMLElement | null): container is HTMLElement {
   return !!container && container.clientHeight > 0 && container.clientWidth > 0;
@@ -80,7 +81,15 @@ function computeSpacerHeight(
   return Math.max(0, Math.round(unclampedBaseHeight + extraSpaceForAssistant));
 }
 
-function resolveShortUserMessageAnchorTop(containerHeight: number, targetMessageHeight: number): number {
+function resolveShortUserMessageAnchorTop(
+  containerHeight: number,
+  targetMessageHeight: number,
+  anchorMode: CurrentTurnAnchorMode = "near-composer",
+): number {
+  if (anchorMode === "top") {
+    return CHAT_MESSAGE_LIST_TOP_PADDING;
+  }
+
   return Math.max(
     0,
     Math.round(containerHeight * SHORT_USER_MESSAGE_ANCHOR_BOTTOM_RATIO - targetMessageHeight),
@@ -112,6 +121,7 @@ export const useMessageAutoscroll = ({
   const pendingScrollMessageCountRef = useRef<number | null>(null);
   const pendingChatCreationAnchorRef = useRef(false);
   const isCurrentTurnAnchoredRef = useRef(false);
+  const currentTurnAnchorModeRef = useRef<CurrentTurnAnchorMode>("near-composer");
   const userDetachedFromCurrentTurnRef = useRef(false);
   const isAutoFollowRef = useRef(true);
   const programmaticScrollTopRef = useRef<number | null>(null);
@@ -212,7 +222,11 @@ export const useMessageAutoscroll = ({
     const isLongEstimatedUserMessage = targetFrame.height > container.clientHeight;
     const desiredTopOffset = isLongEstimatedUserMessage
       ? 0
-      : resolveShortUserMessageAnchorTop(container.clientHeight, targetFrame.height);
+      : resolveShortUserMessageAnchorTop(
+        container.clientHeight,
+        targetFrame.height,
+        currentTurnAnchorModeRef.current,
+      );
     const desiredTopSpacerHeight = isLongEstimatedUserMessage
       ? 0
       : Math.max(0, desiredTopOffset - targetFrame.top);
@@ -355,7 +369,11 @@ export const useMessageAutoscroll = ({
     const isLongUserMessage = userRect.height > container.clientHeight;
     const restoreOffset = isLongUserMessage
       ? userBottomOffset - LONG_USER_MESSAGE_VISIBLE_HEIGHT
-      : userTopOffset - resolveShortUserMessageAnchorTop(container.clientHeight, userRect.height);
+      : userTopOffset - resolveShortUserMessageAnchorTop(
+        container.clientHeight,
+        userRect.height,
+        currentTurnAnchorModeRef.current,
+      );
     if (Math.abs(restoreOffset) > 1 && outputFitsInViewport) {
       setProgrammaticScrollTop(container, container.scrollTop + restoreOffset);
     }
@@ -468,7 +486,14 @@ export const useMessageAutoscroll = ({
 
     const isLongUserMessage = targetMessageHeight > containerHeight;
     const nextTopSpacerHeight = isCurrentTurnAnchoredRef.current && !isLongUserMessage
-      ? Math.max(0, resolveShortUserMessageAnchorTop(containerHeight, targetMessageHeight) - targetMessageTop)
+      ? Math.max(
+        0,
+        resolveShortUserMessageAnchorTop(
+          containerHeight,
+          targetMessageHeight,
+          currentTurnAnchorModeRef.current,
+        ) - targetMessageTop,
+      )
       : 0;
     currentTurnTopSpacerHeightRef.current = nextTopSpacerHeight;
     setCurrentTurnTopSpacerHeight((current) => (
@@ -529,6 +554,7 @@ export const useMessageAutoscroll = ({
     pendingScrollToCurrentTurnRef.current = false;
     pendingScrollMessageCountRef.current = null;
     isCurrentTurnAnchoredRef.current = false;
+    currentTurnAnchorModeRef.current = "near-composer";
     userDetachedFromCurrentTurnRef.current = false;
     initialScrollPendingRef.current = !!chatId;
     currentTurnTopSpacerHeightRef.current = 0;
@@ -576,6 +602,7 @@ export const useMessageAutoscroll = ({
     pendingScrollMessageCountRef.current = messages.length;
     pendingChatCreationAnchorRef.current = chatId === null;
     isCurrentTurnAnchoredRef.current = true;
+    currentTurnAnchorModeRef.current = messages.length === 0 ? "top" : "near-composer";
     userDetachedFromCurrentTurnRef.current = false;
     isAutoFollowRef.current = true;
   }, [chatId, messages.length]);
@@ -955,6 +982,7 @@ export const useMessageAutoscroll = ({
       pendingScrollMessageCountRef.current = null;
       pendingChatCreationAnchorRef.current = false;
       isCurrentTurnAnchoredRef.current = false;
+      currentTurnAnchorModeRef.current = "near-composer";
       userDetachedFromCurrentTurnRef.current = false;
       messagesRef.current = [];
     };

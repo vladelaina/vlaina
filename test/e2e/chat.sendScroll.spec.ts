@@ -144,7 +144,12 @@ async function scrollChatToTop(page: Page): Promise<void> {
   await page.waitForTimeout(120);
 }
 
-async function expectShortPromptNearComposerBeforeAssistant(page: Page): Promise<void> {
+type ShortPromptPlacement = 'near-composer' | 'near-top';
+
+async function expectShortPromptPositionBeforeAssistant(
+  page: Page,
+  placement: ShortPromptPlacement,
+): Promise<void> {
   await expect(page.locator(`${CHAT_MESSAGE_SELECTOR}[data-role="user"]`, { hasText: /^hi$/ })).toBeVisible({
     timeout: 10_000,
   });
@@ -157,12 +162,17 @@ async function expectShortPromptNearComposerBeforeAssistant(page: Page): Promise
   expect(geometry!.userText).toContain('hi');
   expect(geometry!.userTop).toBeGreaterThanOrEqual(geometry!.rootTop - 1);
   expect(geometry!.userBottom).toBeLessThanOrEqual(geometry!.rootBottom + 1);
+  if (placement === 'near-top') {
+    expect(geometry!.userTopOffset, JSON.stringify(geometry, null, 2))
+      .toBeLessThan(geometry!.rootClientHeight * 0.25);
+    return;
+  }
   expect(geometry!.userBottomOffset, JSON.stringify(geometry, null, 2))
     .toBeGreaterThan(geometry!.rootClientHeight * 0.55);
 }
 
 test.describe('chat send scroll anchoring', () => {
-  test('keeps a newly sent short user message visible near the composer while waiting for the assistant', async () => {
+  test('moves the first short user message near the top while waiting for the assistant', async () => {
     const provider = await createDelayedStreamingProvider();
     const { app, userDataRoot } = await launchIsolatedElectron('chat-send-scroll');
 
@@ -182,7 +192,7 @@ test.describe('chat send scroll anchoring', () => {
       await textarea.fill('hi');
       await textarea.press('Enter');
 
-      await expectShortPromptNearComposerBeforeAssistant(page);
+      await expectShortPromptPositionBeforeAssistant(page, 'near-top');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();
@@ -219,7 +229,7 @@ test.describe('chat send scroll anchoring', () => {
       await textarea.fill('hi');
       await textarea.press('Enter');
 
-      await expectShortPromptNearComposerBeforeAssistant(page);
+      await expectShortPromptPositionBeforeAssistant(page, 'near-composer');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();

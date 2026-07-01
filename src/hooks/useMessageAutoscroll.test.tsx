@@ -810,7 +810,7 @@ describe('useMessageAutoscroll', () => {
       chatId: string | null;
       messages: ChatMessage[];
     }) {
-      const { containerRef, handleNewUserMessage } = useMessageAutoscroll({
+      const { containerRef, currentTurnTopSpacerHeight, handleNewUserMessage } = useMessageAutoscroll({
         messages,
         isStreaming: true,
         chatId,
@@ -818,7 +818,11 @@ describe('useMessageAutoscroll', () => {
       });
 
       return (
-        <div data-testid="scrollable-first-chat" ref={containerRef}>
+        <div
+          data-current-turn-top-spacer={currentTurnTopSpacerHeight}
+          data-testid="scrollable-first-chat"
+          ref={containerRef}
+        >
           <button type="button" onClick={handleNewUserMessage}>send</button>
           <div data-message-index="0" data-testid="first-user-row" />
         </div>
@@ -879,7 +883,8 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness chatId="chat-1" messages={messages} />);
     });
 
-    expect(scrollTop).toBe(925);
+    expect(scrollTop).toBe(1208);
+    expect(scrollable.dataset.currentTurnTopSpacer).toBe('0');
     requestAnimationFrameSpy.mockRestore();
   });
 
