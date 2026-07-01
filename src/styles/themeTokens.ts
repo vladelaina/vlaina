@@ -606,6 +606,7 @@ export const themeMermaidTokens = {
   labelFirstLineBaseDyEm: 0.35,
   labelLineOffsetEm: 0.6,
   labelNextLineDy: '1.2em',
+  quadrantTextTopPaddingPx: 18,
 } as const;
 
 export const themeLazyLoadTokens = {
