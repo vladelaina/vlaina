@@ -98,6 +98,13 @@ When creating commits:
 - Match the type to the change, such as `fix`, `feat`, `refactor`, `test`, `docs`, `chore`.
 - Example: `🐛fix(shortcuts): block background shortcuts while dialogs are focused`
 
+For explicit commit-only requests, prioritize speed:
+- Avoid explanatory status updates.
+- Avoid broad diff inspection unless needed to prevent committing unrelated work.
+- Do not run tests, type checks, or extra investigation unless there are unresolved conflicts or unknown changed files.
+- If the current task's changed files are known, stage only those files and commit immediately.
+- Report only the commit hash and message after committing.
+
 ## 7. Merge Conflicts
 
 **Prefer the latest side, but still reason through the merge.**
