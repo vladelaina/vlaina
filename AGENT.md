@@ -81,9 +81,8 @@ Verification:
 
 ## 5. Keep Files Concise
 
-**Target a maximum of 300 lines per file.**
-Test files may be longer when the extra length is meaningful coverage, but keep them under 500 lines.
-If a non-test file exceeds 300 lines, or a test file exceeds 500 lines, propose a logical split into smaller modules.
+**Target a maximum of 300 lines per non-test file.**
+If a non-test file exceeds 300 lines, propose a logical split into smaller modules.
 
 ## 6. Commit Messages
 

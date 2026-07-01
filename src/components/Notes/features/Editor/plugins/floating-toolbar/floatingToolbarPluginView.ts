@@ -582,17 +582,34 @@ export function createFloatingToolbarPluginView(
       lastScrollTop === currentScrollTop &&
       lastSelectionSignature === selectionSignature &&
       lastContainerWidth === containerWidth;
-    const finalX = shouldFreezePreviewToolbarPosition && lastToolbarX !== null
-      ? lastToolbarX
-      : shouldFreezeX && lastToolbarX !== null
+    const shouldFreezeHoveredToolbarPosition =
+      interactionState.isPointerInsideToolbar &&
+      pluginState.subMenu !== 'aiReview' &&
+      lastToolbarX !== null &&
+      lastToolbarY !== null &&
+      lastToolbarPlacement !== null &&
+      lastSelectionSignature === selectionSignature &&
+      lastContainerWidth === containerWidth;
+    const finalX =
+      shouldFreezeHoveredToolbarPosition && lastToolbarX !== null
         ? lastToolbarX
-        : clamped.clampedX;
-    const finalY = shouldFreezePreviewToolbarPosition && lastToolbarY !== null
-      ? lastToolbarY
-      : containerPosition.y;
-    const finalPlacement = shouldFreezePreviewToolbarPosition && lastToolbarPlacement !== null
-      ? lastToolbarPlacement
-      : nextPosition.placement;
+        : shouldFreezePreviewToolbarPosition && lastToolbarX !== null
+          ? lastToolbarX
+          : shouldFreezeX && lastToolbarX !== null
+            ? lastToolbarX
+            : clamped.clampedX;
+    const finalY =
+      shouldFreezeHoveredToolbarPosition && lastToolbarY !== null
+        ? lastToolbarY
+        : shouldFreezePreviewToolbarPosition && lastToolbarY !== null
+          ? lastToolbarY
+          : containerPosition.y;
+    const finalPlacement =
+      shouldFreezeHoveredToolbarPosition && lastToolbarPlacement !== null
+        ? lastToolbarPlacement
+        : shouldFreezePreviewToolbarPosition && lastToolbarPlacement !== null
+          ? lastToolbarPlacement
+          : nextPosition.placement;
 
     return {
       containerWidth,
@@ -1025,6 +1042,7 @@ export function createFloatingToolbarPluginView(
     }
 
     if (!editorView.state.selection.empty) {
+      scheduleToolbarUpdate();
       return;
     }
 
