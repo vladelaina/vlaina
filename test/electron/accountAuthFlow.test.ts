@@ -392,6 +392,20 @@ describe('desktop account auth flow', () => {
     });
   });
 
+  it('does not retry desktop email verification network failures because codes are one-time use', async () => {
+    const { handlers } = registerHarness();
+    mocks.fetchDesktopJson.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(
+      handlers.get('desktop:account:verify-email-code')?.({}, 'vla@example.com', '123456')
+    ).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining('Failed to fetch'),
+    });
+
+    expect(mocks.fetchDesktopJson).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects invalid desktop email verification payloads before network access', async () => {
     const { handlers } = registerHarness();
 

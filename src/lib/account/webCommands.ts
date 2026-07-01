@@ -533,18 +533,16 @@ export const webAccountCommands = {
     }
 
     try {
-      const { data } = await retryTransientAccountNetworkError(() =>
-        fetchAccountJson<WebAuthResult>(`${API_BASE}/auth/email/verify-code`, {
-          method: 'POST',
-          cache: 'no-store',
-          credentials: 'include',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email: normalizedEmail, code: normalizedCode, target: 'web' }),
-        })
-      );
+      const { data } = await fetchAccountJson<WebAuthResult>(`${API_BASE}/auth/email/verify-code`, {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: normalizedEmail, code: normalizedCode, target: 'web' }),
+      });
       const result = normalizeWebAuthResult(data, 'email');
       persistConnectedWebAccount(result);
       return result;

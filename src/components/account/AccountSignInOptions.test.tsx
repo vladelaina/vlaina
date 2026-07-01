@@ -312,6 +312,46 @@ describe('AccountSignInOptions', () => {
     await screen.findByRole('button', { name: 'user@example.com' });
   });
 
+  it('does not send duplicate verification requests while the same code is in flight', async () => {
+    let resolveVerify!: (value: boolean) => void;
+    const onEmailCodeVerify = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveVerify = resolve;
+        })
+    );
+    render(
+      <AccountEmailCodeCard
+        onEmailCodeRequest={vi.fn().mockResolvedValue(true)}
+        onEmailCodeVerify={onEmailCodeVerify}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/email address/i), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }));
+
+    const codeInput = await waitFor(() => {
+      const input = document.querySelector('input[autocomplete="one-time-code"]');
+      expect(input).toBeTruthy();
+      return input as HTMLInputElement;
+    });
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+
+    const form = codeInput.closest('form');
+    expect(form).toBeTruthy();
+    fireEvent.submit(form!);
+    fireEvent.submit(form!);
+
+    expect(onEmailCodeVerify).toHaveBeenCalledTimes(1);
+
+    resolveVerify(true);
+    await waitFor(() => {
+      expect(onEmailCodeVerify).toHaveBeenCalledWith('user@example.com', '123456');
+    });
+  });
+
   it('opens the privacy policy from the sign-in agreement', () => {
     render(<AccountSignInOptions {...buildProps()} />);
 

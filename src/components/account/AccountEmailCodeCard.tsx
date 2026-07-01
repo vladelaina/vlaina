@@ -25,6 +25,7 @@ export function AccountEmailCodeCard({
   const emailInputRef = useRef<HTMLInputElement | null>(null);
   const codeInputRef = useRef<HTMLInputElement | null>(null);
   const requestCodePromiseRef = useRef<{ email: string; promise: Promise<boolean> } | null>(null);
+  const verifyCodePromiseRef = useRef<{ email: string; code: string; promise: Promise<boolean> } | null>(null);
 
   const returnToEmailStep = () => {
     setStep('email');
@@ -68,29 +69,45 @@ export function AccountEmailCodeCard({
       return;
     }
     setIsLoading(true);
-    const requestPromise = onEmailCodeRequest(email);
-    requestCodePromiseRef.current = { email: normalizedEmail, promise: requestPromise };
+    let requestPromise: Promise<boolean> | null = null;
     try {
+      requestPromise = onEmailCodeRequest(email);
+      requestCodePromiseRef.current = { email: normalizedEmail, promise: requestPromise };
       const success = await requestPromise;
       if (success) {
         setStep('code');
       }
     } finally {
-      if (requestCodePromiseRef.current?.promise === requestPromise) {
+      if (!requestPromise || requestCodePromiseRef.current?.promise === requestPromise) {
         requestCodePromiseRef.current = null;
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isVerificationCodeComplete || isLoading) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = code.trim();
+    if (
+      verifyCodePromiseRef.current?.email === normalizedEmail &&
+      verifyCodePromiseRef.current.code === normalizedCode
+    ) {
+      await verifyCodePromiseRef.current.promise;
+      return;
+    }
     setIsLoading(true);
+    let verifyPromise: Promise<boolean> | null = null;
     try {
-      await onEmailCodeVerify(email, code);
+      verifyPromise = onEmailCodeVerify(email, code);
+      verifyCodePromiseRef.current = { email: normalizedEmail, code: normalizedCode, promise: verifyPromise };
+      await verifyPromise;
     } finally {
-      setIsLoading(false);
+      if (!verifyPromise || verifyCodePromiseRef.current?.promise === verifyPromise) {
+        verifyCodePromiseRef.current = null;
+        setIsLoading(false);
+      }
     }
   };
 

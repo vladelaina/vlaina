@@ -531,22 +531,21 @@ export function createDesktopAccountService({ apiBaseUrl }) {
 
       let data;
       try {
-        ({ data } = await retryTransientAccountNetworkError(() =>
-          withAccountRequestTimeout((signal) =>
-            fetchDesktopJson(`${apiBaseUrl}/auth/email/verify-code`, {
-              method: 'POST',
-              signal,
-              headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                email: normalizedEmail,
-                code: normalizedCode,
-                target: 'desktop',
-              }),
-            }))
-        ));
+        ({ data } = await withAccountRequestTimeout((signal) =>
+          fetchDesktopJson(`${apiBaseUrl}/auth/email/verify-code`, {
+            method: 'POST',
+            signal,
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: normalizedEmail,
+              code: normalizedCode,
+              target: 'desktop',
+            }),
+          }))
+        );
       } catch (error) {
         return accountErrorResult(getErrorMessage(error));
       }

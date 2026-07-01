@@ -222,6 +222,18 @@ describe('webAccountCommands', () => {
     });
   });
 
+  it('does not retry email verification network failures because codes are one-time use', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.verifyEmailCode('octocat@example.com', '123456')).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining('Failed to fetch'),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects invalid email verification payloads before network access', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
