@@ -98,3 +98,5 @@ linux:
     - AppImage
     - deb
     - tar.gz
+appImage:
+  compression: xz
