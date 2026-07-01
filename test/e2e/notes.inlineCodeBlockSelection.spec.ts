@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  EDITOR_SELECTOR,
   cleanupIsolatedElectron,
   getOpenBridgePages,
   launchIsolatedElectron,
   openMarkdownFixture,
+  waitForEditorAnimationFrame,
 } from './notesE2E';
 
 type InlineCodeSelectionGeometry = {
@@ -277,6 +279,103 @@ test.describe('notes inline mark block selection', () => {
         'above-highlight-center',
       );
       expectSampleMatchesColor(multi.samples, 'rgb(255, 255, 255)', 'highlight-top-center');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+});
+
+test.describe('notes inline code typing', () => {
+  test('exits inline code after typing the closing backtick', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-inline-code-exit-typing');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'inline-code-exit-typing.md',
+        content: '',
+      });
+
+      const focused = await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditorAtEnd());
+      expect(focused).toBe(true);
+
+      await page.keyboard.type('`code` tail', { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('code tail');
+      await waitForEditorAnimationFrame(page);
+
+      const typingState = await page.evaluate(() => {
+        const bridge = (window as any).__vlainaE2E;
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const inlineCodes = Array.from(editor?.querySelectorAll<HTMLElement>('code:not(pre code)') ?? [])
+          .map((element) => element.textContent ?? '');
+        return {
+          codeHasInlineMark: bridge.editorTextHasMark('code', 'inlineCode'),
+          tailHasInlineMark: bridge.editorTextHasMark('tail', 'inlineCode'),
+          inlineCodes,
+        };
+      });
+
+      expect(typingState.codeHasInlineMark).toBe(true);
+      expect(typingState.tailHasInlineMark).toBe(false);
+      expect(typingState.inlineCodes).toEqual(['code']);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.flushCurrentEditorMarkdown());
+      await expect.poll(async () => page.evaluate(() => (
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      )), { timeout: 10_000 }).toContain('`code` tail');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps typing after an existing inline code boundary outside the code mark', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-inline-code-boundary-typing');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await openMarkdownFixture(page, {
+        filename: 'inline-code-boundary-typing.md',
+        content: 'Prefix `code`',
+      });
+
+      const selected = await page.evaluate(() =>
+        (window as any).__vlainaE2E.selectEditorTextByText('code'));
+      expect(selected.selected).toBe(true);
+      expect(selected.to).not.toBeNull();
+
+      const collapsed = await page.evaluate((pos) =>
+        (window as any).__vlainaE2E.setEditorSelectionRange(pos), selected.to);
+      expect(collapsed?.empty).toBe(true);
+      expect(collapsed?.from).toBe(selected.to);
+
+      await page.keyboard.type(' tail', { delay: 0 });
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Prefix code tail');
+      await waitForEditorAnimationFrame(page);
+
+      const typingState = await page.evaluate(() => {
+        const bridge = (window as any).__vlainaE2E;
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const inlineCodes = Array.from(editor?.querySelectorAll<HTMLElement>('code:not(pre code)') ?? [])
+          .map((element) => element.textContent ?? '');
+        return {
+          codeHasInlineMark: bridge.editorTextHasMark('code', 'inlineCode'),
+          tailHasInlineMark: bridge.editorTextHasMark('tail', 'inlineCode'),
+          inlineCodes,
+        };
+      });
+
+      expect(typingState.codeHasInlineMark).toBe(true);
+      expect(typingState.tailHasInlineMark).toBe(false);
+      expect(typingState.inlineCodes).toEqual(['code']);
+
+      await page.evaluate(() => (window as any).__vlainaE2E.flushCurrentEditorMarkdown());
+      await expect.poll(async () => page.evaluate(() => (
+        String((window as any).__vlainaE2E.getNotesState().currentNote?.content ?? '')
+      )), { timeout: 10_000 }).toContain('Prefix `code` tail');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
