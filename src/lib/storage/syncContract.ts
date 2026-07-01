@@ -300,9 +300,9 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     scope: 'window-preference',
     persistence: ['localStorage'],
     mergePolicy: 'last-writer-wins',
-    storageKeys: ['vlaina:update:lastAutoCheckAt'],
+    storageKeys: ['vlaina:update:lastAutoCheckAt', 'vlaina:update:lastResult'],
     crossWindow: false,
-    notes: 'Update check timestamp is a local throttle and does not represent shared user data.',
+    notes: 'Desktop update check timestamp and cached result are local startup/About UI state, not shared user data.',
   },
   {
     id: 'editor.ai-menu-usage',
