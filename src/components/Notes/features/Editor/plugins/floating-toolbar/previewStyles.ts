@@ -272,12 +272,31 @@ function restorePreviewScrollSnapshot(snapshot: PreviewScrollSnapshot | null): v
     return;
   }
 
+  let lastRestoredScrollLeft: number | null = null;
+  let lastRestoredScrollTop: number | null = null;
+  let cancelledByExternalScroll = false;
+
   const restore = () => {
-    if (!snapshot.element.isConnected) {
+    if (!snapshot.element.isConnected || cancelledByExternalScroll) {
       return;
     }
+    if (
+      lastRestoredScrollLeft !== null &&
+      lastRestoredScrollTop !== null &&
+      (
+        Math.abs(snapshot.element.scrollLeft - lastRestoredScrollLeft) > 1 ||
+        Math.abs(snapshot.element.scrollTop - lastRestoredScrollTop) > 1
+      )
+    ) {
+      // A later user scroll should win over the preview guard's delayed restore callbacks.
+      cancelledByExternalScroll = true;
+      return;
+    }
+
     snapshot.element.scrollLeft = snapshot.scrollLeft;
     snapshot.element.scrollTop = snapshot.scrollTop;
+    lastRestoredScrollLeft = snapshot.element.scrollLeft;
+    lastRestoredScrollTop = snapshot.element.scrollTop;
   };
   const ownerWindow = snapshot.element.ownerDocument.defaultView;
   const releaseGuard = () => {

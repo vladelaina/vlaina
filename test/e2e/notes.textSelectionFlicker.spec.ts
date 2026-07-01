@@ -38,6 +38,14 @@ type SelectionBluePixelMetrics = {
   width: number;
 };
 
+type ToolbarPositionFrame = {
+  rectTop: number;
+  rectBottom: number;
+  scrollTop: number;
+  styleTop: string;
+  visible: boolean;
+};
+
 async function getTextDragPoints(page: Page, text: string) {
   return page.evaluate(({ editorSelector, text }) => {
     const editor = document.querySelector<HTMLElement>(editorSelector);
@@ -392,6 +400,100 @@ async function selectTextByMouseDrag(page: Page, text: string): Promise<void> {
   });
 }
 
+async function getVisibleToolbarActionCenter(
+  page: Page,
+  action: string,
+): Promise<{
+  x: number;
+  y: number;
+}> {
+  return page.evaluate((targetAction) => {
+    const toolbar = document.querySelector<HTMLElement>('.floating-toolbar.visible');
+    const actionElement = toolbar?.querySelector<HTMLElement>(`[data-action="${targetAction}"]`);
+    const target = actionElement ?? toolbar;
+    if (!target) {
+      throw new Error(`Visible toolbar action not found: ${targetAction}`);
+    }
+
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      throw new Error(`Visible toolbar action has no rect: ${targetAction}`);
+    }
+
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  }, action);
+}
+
+async function collectToolbarPositionFrames(page: Page, durationMs: number): Promise<ToolbarPositionFrame[]> {
+  return page.evaluate((sampleDurationMs) => new Promise<ToolbarPositionFrame[]>((resolve) => {
+    const frames: ToolbarPositionFrame[] = [];
+    const startedAt = performance.now();
+
+    const collect = () => {
+      const toolbar = document.querySelector<HTMLElement>('.floating-toolbar');
+      const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+      const scrollRoot = editor?.closest<HTMLElement>('[data-note-scroll-root="true"]') ?? null;
+      const rect = toolbar?.getBoundingClientRect();
+      frames.push({
+        rectTop: rect ? Math.round(rect.top * 10) / 10 : Number.NaN,
+        rectBottom: rect ? Math.round(rect.bottom * 10) / 10 : Number.NaN,
+        scrollTop: scrollRoot ? Math.round(scrollRoot.scrollTop * 10) / 10 : Number.NaN,
+        styleTop: toolbar?.style.top ?? '',
+        visible: Boolean(toolbar?.classList.contains('visible')),
+      });
+
+      if (performance.now() - startedAt >= sampleDurationMs) {
+        resolve(frames);
+        return;
+      }
+
+      requestAnimationFrame(collect);
+    };
+
+    requestAnimationFrame(collect);
+  }), durationMs);
+}
+
+function getToolbarTopJump(frames: ToolbarPositionFrame[]): number {
+  const tops = frames
+    .filter((frame) => frame.visible && Number.isFinite(frame.rectTop))
+    .map((frame) => frame.rectTop);
+  if (tops.length === 0) {
+    return 0;
+  }
+
+  return Math.max(...tops) - Math.min(...tops);
+}
+
+function createScrollableSelectionToolbarMarkdown(): {
+  content: string;
+  target: string;
+} {
+  const target = 'Scrollable toolbar hover target sentinel text stays selected while the note is repositioned.';
+  const paragraphs = ['# Toolbar Hover Scroll Stability', ''];
+
+  for (let index = 0; index < 35; index += 1) {
+    paragraphs.push(`Prelude paragraph ${index} adds enough height before the target selection for a real note scroll.`);
+    paragraphs.push('');
+  }
+
+  paragraphs.push(`${target} Additional words keep the selected line wide enough for stable toolbar placement.`);
+  paragraphs.push('');
+
+  for (let index = 0; index < 45; index += 1) {
+    paragraphs.push(`Trailing paragraph ${index} keeps the note scrollable after the target selection.`);
+    paragraphs.push('');
+  }
+
+  return {
+    content: paragraphs.join('\n'),
+    target,
+  };
+}
+
 async function getNoteBodyBlankClickPoint(
   page: Page,
   text: string,
@@ -736,6 +838,51 @@ test.describe('notes text selection stability', () => {
 
       const finalSummary = await page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary());
       expect(finalSummary?.selectedText).toContain('Ordinary selectable paragraph alpha sentinel');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps the selection toolbar stable while hovering it and scrolling the note', async () => {
+    const { content, target } = createScrollableSelectionToolbarMarkdown();
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-selection-toolbar-hover-scroll-stability');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'selection-toolbar-hover-scroll-stability.md',
+        content,
+      });
+
+      await scrollParagraphTextIntoSelectionView(page, target);
+      const selected = await page.evaluate((targetText) =>
+        (window as any).__vlainaE2E.selectEditorTextByText(targetText), target);
+      expect(selected.selected).toBe(true);
+      await expect(page.locator('.floating-toolbar.visible')).toBeVisible({ timeout: 5_000 });
+
+      const point = await getVisibleToolbarActionCenter(page, 'bold');
+      await page.mouse.move(point.x, point.y);
+      await waitForEditorAnimationFrame(page);
+      await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const scrollRoot = editor?.closest<HTMLElement>('[data-note-scroll-root="true"]');
+        if (scrollRoot) {
+          scrollRoot.scrollTop += 96;
+        }
+      });
+      const frames = await collectToolbarPositionFrames(page, 450);
+      const topJump = getToolbarTopJump(frames);
+
+      expect(
+        topJump,
+        JSON.stringify({
+          topJump,
+          frames: frames.slice(0, 6).concat(frames.slice(-6)),
+        }, null, 2),
+      ).toBeLessThanOrEqual(3);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
