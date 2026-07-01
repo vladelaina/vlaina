@@ -104,7 +104,7 @@ For explicit commit-only requests, use the fast path:
 - Do not provide explanatory progress updates.
 - If `git status --short` shows only files from the current task, run `git add . && git commit -m "<message>"`.
 - If unrelated files are present, run `git add <known current-task files...> && git commit -m "<message>"`.
-- After the commit command succeeds, stop. Do not run more commands and do not summarize the commit; the user can see the command output.
+- After issuing the commit command, stop. Do not poll, verify success or failure, run more commands, or summarize the commit; the user can see the command output.
 
 ## 7. Merge Conflicts
 
