@@ -24,6 +24,7 @@ type ShortPromptAnchorSample = {
   userText: string;
   userTopOffset: number | null;
 };
+type ShortPromptPlacement = 'near-composer' | 'near-top';
 
 async function createDelayedProviderServer(): Promise<{
   close: () => Promise<void>;
@@ -183,7 +184,10 @@ async function scrollChatToTop(page: import('@playwright/test').Page): Promise<v
   await page.waitForTimeout(120);
 }
 
-function expectShortPromptAnchoredNearComposer(samples: ShortPromptAnchorSample[]): void {
+function expectShortPromptAnchored(
+  samples: ShortPromptAnchorSample[],
+  placement: ShortPromptPlacement,
+): void {
   const visibleUserSamples = samples.filter((sample) => sample.userTopOffset !== null);
   const settledSamples = visibleUserSamples.slice(Math.max(0, visibleUserSamples.length - 12));
   const splitSamples = settledSamples.filter((sample) =>
@@ -195,17 +199,22 @@ function expectShortPromptAnchoredNearComposer(samples: ShortPromptAnchorSample[
       sample.userBottomOffset > sample.clientHeight + 1
     )
   );
-  const bottomOffsets = settledSamples.map((sample) => sample.userBottomOffset ?? 0);
 
   expect(visibleUserSamples.length).toBeGreaterThan(0);
   expect(splitSamples).toEqual([]);
+  if (placement === 'near-top') {
+    const topOffsets = settledSamples.map((sample) => sample.userTopOffset ?? Number.POSITIVE_INFINITY);
+    expect(Math.max(...topOffsets)).toBeLessThan(settledSamples[0]!.clientHeight * 0.25);
+    return;
+  }
+  const bottomOffsets = settledSamples.map((sample) => sample.userBottomOffset ?? 0);
   expect(Math.min(...bottomOffsets)).toBeGreaterThan(settledSamples[0]!.clientHeight * 0.55);
 }
 
 test.describe('chat short prompt anchoring', () => {
   test.setTimeout(120_000);
 
-  test('keeps a first short sent prompt visible near the composer while awaiting response', async () => {
+  test('keeps a first short sent prompt anchored near the top while awaiting response', async () => {
     const provider = await createDelayedProviderServer();
     const { app, userDataRoot } = await launchIsolatedElectron('chat-short-prompt-anchor');
 
@@ -237,7 +246,7 @@ test.describe('chat short prompt anchoring', () => {
       const samples = await page.evaluate(() =>
         (window as any).__vlainaShortPromptAnchorProbe.stop() as ShortPromptAnchorSample[]
       );
-      expectShortPromptAnchoredNearComposer(samples);
+      expectShortPromptAnchored(samples, 'near-top');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();
@@ -285,7 +294,7 @@ test.describe('chat short prompt anchoring', () => {
       const samples = await page.evaluate(() =>
         (window as any).__vlainaShortPromptAnchorProbe.stop() as ShortPromptAnchorSample[]
       );
-      expectShortPromptAnchoredNearComposer(samples);
+      expectShortPromptAnchored(samples, 'near-composer');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();
@@ -333,7 +342,7 @@ test.describe('chat short prompt anchoring', () => {
       const samples = await page.evaluate(() =>
         (window as any).__vlainaShortPromptAnchorProbe.stop() as ShortPromptAnchorSample[]
       );
-      expectShortPromptAnchoredNearComposer(samples);
+      expectShortPromptAnchored(samples, 'near-composer');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();
