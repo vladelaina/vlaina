@@ -5,6 +5,26 @@ compression: normal
 beforeBuild: scripts/electron-builder-before-build.mjs
 afterPack: scripts/electron-builder-after-pack.mjs
 removePackageScripts: true
+electronLanguages:
+  - en-US
+  - en-GB
+  - zh-CN
+  - zh_CN
+  - zh-TW
+  - zh_TW
+  - ja
+  - ko
+  - fr
+  - de
+  - es
+  - pt-BR
+  - pt_BR
+  - it
+  - ru
+  - tr
+  - vi
+  - id
+  - th
 directories:
   output: release
   buildResources: build
@@ -19,6 +39,7 @@ files:
   - "!dist/_redirects"
   - "!dist/**/*.map"
   - "!electron/**/*.map"
+  - "!electron/**/*.md"
   - "!**/__tests__/**"
   - "!**/test/**"
   - "!**/tests/**"
@@ -62,7 +83,7 @@ win:
 nsis:
   artifactName: ${productName}-${version}-windows-${arch}-setup.${ext}
   oneClick: false
-  useZip: true
+  useZip: false
   allowToChangeInstallationDirectory: true
   differentialPackage: false
   include: scripts/windows-installer.nsh
