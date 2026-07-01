@@ -97,12 +97,13 @@ When creating commits:
 - Match the type to the change, such as `fix`, `feat`, `refactor`, `test`, `docs`, `chore`.
 - Example: `🐛fix(shortcuts): block background shortcuts while dialogs are focused`
 
-For explicit commit-only requests, prioritize speed:
-- Avoid explanatory status updates.
-- Avoid broad diff inspection unless needed to prevent committing unrelated work.
-- Do not run tests, type checks, or extra investigation unless there are unresolved conflicts or unknown changed files.
-- If the current task's changed files are known, stage only those files and commit immediately.
-- Report only the commit hash and message after committing.
+For explicit commit-only requests, use the fast path:
+- Run at most one pre-commit command: `git status --short`.
+- Do not run `git diff`, `git diff --stat`, `git diff --cached`, `git log`, tests, type checks, or extra investigation.
+- Do not provide explanatory progress updates.
+- If `git status --short` shows only files from the current task, run `git add . && git commit -m "<message>"`.
+- If unrelated files are present, run `git add <known current-task files...> && git commit -m "<message>"`.
+- After issuing the commit command, stop. Do not poll, verify success or failure, run more commands, or summarize the commit; the user can see the command output.
 
 ## 7. Merge Conflicts
 
