@@ -559,6 +559,7 @@
   "shortcut.action.link": "링크",
   "shortcut.action.clearFormatting": "서식 지우기",
   "shortcut.action.actualSize": "실제 크기",
+  "settings.updateIndicator": "업데이트",
   "settings.about.updateAction": "업데이트",
   "settings.about.updateToastAvailable": "vlaina {version} 버전을 사용할 수 있습니다. 설정 > 정보에서 업데이트하세요.",
   "sidebar.deleteItemTitle": "{itemType} 삭제",

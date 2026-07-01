@@ -82,6 +82,8 @@ vi.mock('@/lib/i18n', () => ({
       'settings.tabs.appearance': 'Appearance',
       'settings.tabs.language': 'Language',
       'settings.tabs.about': 'About',
+      'settings.updateIndicator': 'Update',
+      'settings.about.updateAction': 'Update',
     }[key] ?? key),
   }),
 }));
@@ -120,16 +122,16 @@ describe('SettingsModal update indicator', () => {
       />,
     );
 
-    const aboutTab = screen.getByRole('button', { name: /About v99\.99\.99/ });
+    const aboutTab = screen.getByRole('button', { name: /About Update/ });
     expect(aboutTab).toHaveAttribute('data-settings-tab', 'about');
-    expect(document.querySelector('[data-settings-update-indicator="about"]')).toHaveTextContent('v99.99.99');
+    expect(document.querySelector('[data-desktop-update-indicator="badge"]')).toHaveTextContent('Update');
 
     act(() => {
       clearCachedDesktopUpdateInfo();
     });
 
     await waitFor(() => {
-      expect(document.querySelector('[data-settings-update-indicator="about"]')).toBeNull();
+      expect(document.querySelector('[data-desktop-update-indicator="badge"]')).toBeNull();
     });
   });
 });

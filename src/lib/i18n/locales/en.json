@@ -559,6 +559,7 @@
   "shortcut.action.link": "Link",
   "shortcut.action.clearFormatting": "Clear formatting",
   "shortcut.action.actualSize": "Actual size",
+  "settings.updateIndicator": "Update",
   "settings.about.updateAction": "Update",
   "settings.about.updateToastAvailable": "vlaina {version} is available. Open Settings > About to update.",
   "sidebar.deleteItemTitle": "Delete {itemType}",
