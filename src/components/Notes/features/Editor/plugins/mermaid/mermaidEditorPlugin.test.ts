@@ -3,6 +3,8 @@ import { createClosedMermaidEditorState } from './mermaidEditorState';
 import {
   findMermaidEditorTargetElement,
   getMermaidAnchorViewportPosition,
+  isMermaidScrollbarPointerDown,
+  isSelectedScrollableMermaidElement,
   resolveMermaidAnchorElement,
 } from './mermaidEditorOpenInteraction';
 import { resolveMermaidEditorOpenState } from './mermaidEditorOpenResolver';
@@ -60,6 +62,50 @@ describe('mermaidEditorPlugin', () => {
     editor.append(mermaid, math);
 
     expect(findMermaidEditorTargetElement({ dom: editor }, math)).toBeNull();
+  });
+
+  it('treats clicks in the horizontal scrollbar band as scrollbar interaction', () => {
+    const wrapper = document.createElement('div');
+    wrapper.setAttribute('data-type', 'mermaid');
+    Object.defineProperty(wrapper, 'clientWidth', { value: 300 });
+    Object.defineProperty(wrapper, 'scrollWidth', { value: 900 });
+    Object.defineProperty(wrapper, 'clientHeight', { value: 120 });
+    Object.defineProperty(wrapper, 'offsetHeight', { value: 120 });
+    Object.defineProperty(wrapper, 'getBoundingClientRect', {
+      value: () => ({
+        left: 10,
+        right: 310,
+        top: 20,
+        bottom: 140,
+        width: 300,
+        height: 120,
+        x: 10,
+        y: 20,
+        toJSON: () => ({}),
+      }),
+    });
+    wrapper.style.overflowX = 'auto';
+
+    expect(isMermaidScrollbarPointerDown({
+      event: new MouseEvent('mousedown', { clientX: 120, clientY: 136 }),
+      mermaidElement: wrapper,
+    })).toBe(true);
+    expect(isMermaidScrollbarPointerDown({
+      event: new MouseEvent('mousedown', { clientX: 120, clientY: 90 }),
+      mermaidElement: wrapper,
+    })).toBe(false);
+  });
+
+  it('detects selected scrollable mermaid blocks so scrollbar clicks do not open the editor', () => {
+    const wrapper = document.createElement('div');
+    wrapper.setAttribute('data-type', 'mermaid');
+    wrapper.className = 'mermaid-block editor-block-selected';
+    Object.defineProperty(wrapper, 'clientWidth', { value: 300 });
+    Object.defineProperty(wrapper, 'scrollWidth', { value: 900 });
+
+    expect(isSelectedScrollableMermaidElement(wrapper)).toBe(true);
+    wrapper.classList.remove('editor-block-selected');
+    expect(isSelectedScrollableMermaidElement(wrapper)).toBe(false);
   });
 
   it('resolves an open state for an existing mermaid node', () => {

@@ -1433,7 +1433,7 @@ test.describe("notes block selection regressions", () => {
     }
   });
 
-  test('paints selected atomic rich blocks without horizontal scrollbars', async () => {
+  test('paints selected atomic rich blocks with expected selection overflow', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-html-block-selection-paint');
 
     try {
