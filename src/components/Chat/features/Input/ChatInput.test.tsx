@@ -68,8 +68,8 @@ describe('ChatInput', () => {
     });
   });
 
-  it('keeps the composer editable while managed quota only blocks sending', () => {
-    const onSend = vi.fn();
+  it('keeps the composer editable and lets submit retry quota refresh while managed quota is shown', async () => {
+    const onSend = vi.fn(async () => false);
 
     renderChatInput({
       onSend,
@@ -84,12 +84,15 @@ describe('ChatInput', () => {
     expect(screen.getByRole('button', { name: 'chat.openActions' })).not.toBeDisabled();
 
     const sendButton = screen.getByRole('button', { name: 'common.send' });
-    expect(sendButton).toBeDisabled();
-    expect(sendButton).toHaveClass('opacity-[var(--vlaina-opacity-45)]');
+    expect(sendButton).not.toBeDisabled();
     expect(sendButton).not.toHaveClass('opacity-[var(--vlaina-opacity-60)]');
 
-    fireEvent.click(sendButton);
-    expect(onSend).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(sendButton);
+      await Promise.resolve();
+    });
+    expect(onSend).toHaveBeenCalledWith('still editable', [], []);
+    expect(textarea.value).toBe('still editable');
   });
 
   it('renders the managed quota notice as part of an expanded composer frame', () => {

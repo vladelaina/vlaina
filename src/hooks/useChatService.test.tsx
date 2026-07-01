@@ -78,6 +78,12 @@ vi.mock('@/stores/accountSession', () => ({
 }));
 
 vi.mock('@/stores/useManagedAIStore', () => ({
+  applyManagedQuotaExhaustedSnapshot: () => mocked.managedAIState.applyBudgetSnapshot({
+    active: false,
+    usedPercent: 100,
+    remainingPercent: 0,
+    status: 'exhausted',
+  }),
   useManagedAIStore: mocked.useManagedAIStore,
 }));
 
@@ -369,6 +375,35 @@ describe('useChatService session context isolation', () => {
       remainingPercent: 0,
       status: 'exhausted',
     }));
+    expect(mocked.managedAIState.refreshBudget).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes exhausted managed quota before sending and continues when quota recovered', async () => {
+    seedManagedConnectedState();
+    mocked.managedAIState.budget = {
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+      usedPercent: 100,
+    };
+    mocked.managedAIState.refreshBudget.mockImplementationOnce(async () => {
+      mocked.managedAIState.budget = {
+        active: true,
+        remainingPercent: 20,
+        status: 'normal',
+        usedPercent: 80,
+      };
+    });
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('please help after top up', [], [])).toBe(true);
+    });
+
+    expect(mocked.managedAIState.refreshBudget).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('keeps blocking managed sends from an exhausted budget snapshot until budget changes', async () => {

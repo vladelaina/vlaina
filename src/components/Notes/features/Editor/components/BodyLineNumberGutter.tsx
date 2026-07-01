@@ -1,7 +1,8 @@
 import { useEffect, useState, type RefObject } from 'react';
 import {
-  resolveBodyLineNumberLabels,
-  type BodyLineNumberLabel,
+  resolveBodyLineNumberLabelLayout,
+  syncBodyLineNumberLabelSelection,
+  type BodyLineNumberLabelLayout,
 } from '../utils/bodyLineNumberLayout';
 
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
@@ -9,6 +10,11 @@ const BLOCK_DRAG_ACTIVE_CLASS = 'editor-block-drag-active';
 const DEFERRED_BLOCK_INTERACTION_REFRESH_RETRY_MS = 80;
 const POINTER_INTERACTION_REFRESH_FALLBACK_MS = 10_000;
 const MAX_OBSERVED_EDITOR_CHILD_RESIZE_TARGETS = 5000;
+const MAX_INCREMENTAL_SELECTION_SYNC_MUTATION_RECORDS = 64;
+const EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT: BodyLineNumberLabelLayout = {
+  labels: [],
+  targets: [],
+};
 
 interface BodyLineNumberGutterProps {
   markdown: string;
@@ -17,12 +23,12 @@ interface BodyLineNumberGutterProps {
 }
 
 export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineNumberGutterProps) {
-  const [labels, setLabels] = useState<BodyLineNumberLabel[]>([]);
+  const [layout, setLayout] = useState<BodyLineNumberLabelLayout>(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
 
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) {
-      setLabels([]);
+      setLayout(EMPTY_BODY_LINE_NUMBER_LABEL_LAYOUT);
       return;
     }
 
@@ -32,6 +38,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
     let pointerInteractionFallbackTimerId: number | null = null;
     let needsRefreshAfterDeferredBlockInteraction = false;
     let pointerInteractionActive = false;
+    let pendingDeferredSelectionSyncElements: Element[] | null = [];
     const editorRoot = resolvedShell.querySelector<HTMLElement>('.ProseMirror');
     const observedResizeTargets = new Set<Element>();
 
@@ -39,6 +46,34 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       return editorRoot?.classList.contains(BLOCK_SELECTION_PENDING_CLASS) === true
         || resolvedShell.ownerDocument.body.classList.contains(BLOCK_DRAG_ACTIVE_CLASS)
         || pointerInteractionActive;
+    }
+
+    function syncDeferredBlockSelectionState(changedElements?: readonly Element[]) {
+      setLayout((currentLayout) => syncBodyLineNumberLabelSelection(editorRoot, currentLayout, { changedElements }));
+    }
+
+    function queueDeferredSelectionSyncElements(changedElements?: readonly Element[]) {
+      if (!changedElements) {
+        pendingDeferredSelectionSyncElements = null;
+        return;
+      }
+      if (pendingDeferredSelectionSyncElements === null) {
+        return;
+      }
+      if (
+        pendingDeferredSelectionSyncElements.length + changedElements.length
+        > MAX_INCREMENTAL_SELECTION_SYNC_MUTATION_RECORDS
+      ) {
+        pendingDeferredSelectionSyncElements = null;
+        return;
+      }
+      pendingDeferredSelectionSyncElements.push(...changedElements);
+    }
+
+    function consumeDeferredSelectionSyncElements() {
+      const changedElements = pendingDeferredSelectionSyncElements;
+      pendingDeferredSelectionSyncElements = [];
+      return changedElements ?? undefined;
     }
 
     function clearDeferredBlockInteractionRefresh() {
@@ -94,11 +129,13 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       pointerInteractionActive = false;
       clearPointerInteractionFallback();
       if (needsRefreshAfterDeferredBlockInteraction) {
+        syncDeferredBlockSelectionState();
         scheduleRefreshAfterDeferredBlockInteraction();
       }
     }
 
-    function refresh() {
+    function refresh(selectionSyncElements?: readonly Element[]) {
+      queueDeferredSelectionSyncElements(selectionSyncElements);
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
@@ -106,13 +143,19 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       frameId = requestAnimationFrame(() => {
         frameId = null;
         if (shouldDeferRefreshForBlockInteraction()) {
+          syncDeferredBlockSelectionState(consumeDeferredSelectionSyncElements());
           scheduleRefreshAfterDeferredBlockInteraction();
           return;
         }
+        pendingDeferredSelectionSyncElements = [];
         needsRefreshAfterDeferredBlockInteraction = false;
         clearDeferredBlockInteractionRefresh();
-        setLabels(resolveBodyLineNumberLabels(resolvedShell, markdown));
+        setLayout(resolveBodyLineNumberLabelLayout(resolvedShell, markdown));
       });
+    }
+
+    function handleWindowResize() {
+      refresh();
     }
 
     const resizeObserver = new ResizeObserver(() => {
@@ -135,6 +178,26 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       }
 
       return false;
+    }
+
+    function collectIncrementalSelectionSyncMutationElements(records: MutationRecord[]) {
+      if (records.length === 0 || records.length > MAX_INCREMENTAL_SELECTION_SYNC_MUTATION_RECORDS) {
+        return undefined;
+      }
+
+      const elements: Element[] = [];
+      for (const record of records) {
+        if (
+          record.type !== 'attributes'
+          || record.attributeName !== 'class'
+          || !(record.target instanceof Element)
+        ) {
+          return undefined;
+        }
+        elements.push(record.target);
+      }
+
+      return elements;
     }
 
     function syncObservedResizeTargets() {
@@ -174,7 +237,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
         return;
       }
       syncObservedResizeTargets();
-      refresh();
+      refresh(collectIncrementalSelectionSyncMutationElements(records));
     });
     if (editorRoot) {
       mutationObserver.observe(editorRoot, {
@@ -185,7 +248,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       });
     }
 
-    window.addEventListener('resize', refresh);
+    window.addEventListener('resize', handleWindowResize);
     window.addEventListener('pointerdown', handlePointerInteractionStart, true);
     window.addEventListener('pointerup', handlePointerInteractionEnd, true);
     window.addEventListener('pointercancel', handlePointerInteractionEnd, true);
@@ -201,7 +264,7 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
       clearPointerInteractionFallback();
       resizeObserver.disconnect();
       mutationObserver.disconnect();
-      window.removeEventListener('resize', refresh);
+      window.removeEventListener('resize', handleWindowResize);
       window.removeEventListener('pointerdown', handlePointerInteractionStart, true);
       window.removeEventListener('pointerup', handlePointerInteractionEnd, true);
       window.removeEventListener('pointercancel', handlePointerInteractionEnd, true);
@@ -213,10 +276,14 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
 
   return (
     <div className="body-line-number-gutter" aria-hidden="true">
-      {labels.map((label, index) => (
+      {layout.labels.map((label, index) => (
         <span
           key={`${label.lineNumber}-${index}`}
-          className="body-line-number"
+          className={
+            label.selected
+              ? 'body-line-number body-line-number-selected'
+              : 'body-line-number'
+          }
           style={{
             left: label.left,
             top: label.top,

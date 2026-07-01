@@ -8,6 +8,11 @@ import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities';
 import { APP_LANGUAGES, type AppLanguage, useI18n } from '@/lib/i18n';
 import { parseMarkdownAndHtmlImageTokens } from '@/lib/markdown/markdownImageTokens';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
+import { isManagedProviderId } from '@/lib/ai/managedService';
+import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
+import { applyManagedQuotaExhaustedSnapshot, useManagedAIStore } from '@/stores/useManagedAIStore';
+import { getUserFacingAIError } from '@/lib/ai/errors';
+import { AIErrorType } from '@/lib/ai/types';
 
 const AUTO_TITLE_TIMEOUT_MS = 12_000;
 export const MAX_AUTO_TITLE_CHARS = 80;
@@ -83,6 +88,7 @@ export function useAutoTitle() {
 
       autoTitleInFlightSessionIds.add(sessionId);
 
+      let isManagedRequest = false;
       try {
           const provider = providers.find(p => p.id === providerId);
           if (!provider) return;
@@ -95,6 +101,12 @@ export function useAutoTitle() {
 
           if (isStandaloneImageGenerationModel(model)) {
             updateSessionAutoTitleIfCurrent(sessionId, imageTitle, titleSource);
+            return;
+          }
+          const isManaged = isManagedProviderId(provider.id);
+          isManagedRequest = isManaged;
+          if (isManaged && isManagedBudgetExhausted(useManagedAIStore.getState().budget)) {
+            applyManagedQuotaExhaustedSnapshot();
             return;
           }
 
@@ -121,6 +133,9 @@ export function useAutoTitle() {
           const cleanTitle = normalizeAutoTitleResponse(title, imageTitle);
           updateSessionAutoTitleIfCurrent(sessionId, cleanTitle, titleSource);
       } catch (error) {
+        if (isManagedRequest && getUserFacingAIError(error).type === AIErrorType.QUOTA_EXHAUSTED) {
+          applyManagedQuotaExhaustedSnapshot();
+        }
         if (import.meta.env.DEV) {
         }
       } finally {

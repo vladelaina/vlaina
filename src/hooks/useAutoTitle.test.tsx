@@ -16,6 +16,22 @@ const mocked = vi.hoisted(() => ({
   })),
   scanGlobalIcons: vi.fn(async () => []),
   sendMessageWithEndpointFallback: vi.fn(),
+  managedAIState: {
+    budget: null as null | {
+      active: boolean;
+      usedPercent: number;
+      remainingPercent: number;
+      status: string;
+    },
+    applyBudgetSnapshot: vi.fn((budget: {
+      active: boolean;
+      usedPercent: number;
+      remainingPercent: number;
+      status: string;
+    }) => {
+      mocked.managedAIState.budget = budget;
+    }),
+  },
 }));
 
 vi.mock('@/lib/storage/unifiedStorage', () => ({
@@ -29,6 +45,18 @@ vi.mock('@/lib/storage/assetStorage', () => ({
 
 vi.mock('./chatService/sendMessageWithEndpointFallback', () => ({
   sendMessageWithEndpointFallback: mocked.sendMessageWithEndpointFallback,
+}));
+
+vi.mock('@/stores/useManagedAIStore', () => ({
+  applyManagedQuotaExhaustedSnapshot: () => mocked.managedAIState.applyBudgetSnapshot({
+    active: false,
+    usedPercent: 100,
+    remainingPercent: 0,
+    status: 'exhausted',
+  }),
+  useManagedAIStore: {
+    getState: () => mocked.managedAIState,
+  },
 }));
 
 const provider: Provider = {
@@ -49,6 +77,28 @@ const model: AIModel = {
   apiModelId: 'model-1',
   name: 'Model',
   providerId: provider.id,
+  enabled: true,
+  createdAt: 1,
+};
+
+const managedProvider: Provider = {
+  id: 'vlaina-managed',
+  name: 'vlaina',
+  type: 'newapi',
+  endpointType: 'openai',
+  endpointTypeCheckedAt: 1,
+  apiHost: 'https://api.vlaina.com/v1',
+  apiKey: '',
+  enabled: true,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
+const managedModel: AIModel = {
+  id: 'vlaina-managed::model-1',
+  apiModelId: 'model-1',
+  name: 'Managed Model',
+  providerId: managedProvider.id,
   enabled: true,
   createdAt: 1,
 };
@@ -103,9 +153,30 @@ function seedStore() {
   });
 }
 
+function switchSessionToManagedModel() {
+  const state = useUnifiedStore.getState();
+  const ai = state.data.ai!;
+  state.updateAIData({
+    providers: [managedProvider],
+    models: [managedModel],
+    selectedModelId: managedModel.id,
+    sessions: ai.sessions.map((session) => (
+      session.id === 'session-1' ? { ...session, modelId: managedModel.id } : session
+    )),
+    messages: {
+      ...ai.messages,
+      'session-1': (ai.messages['session-1'] || []).map((message) => ({
+        ...message,
+        modelId: managedModel.id,
+      })),
+    },
+  });
+}
+
 describe('useAutoTitle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocked.managedAIState.budget = null;
     useUIStore.setState({ languagePreference: 'system' });
     seedStore();
   });
@@ -234,6 +305,47 @@ describe('useAutoTitle', () => {
     });
 
     expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe('A'.repeat(MAX_AUTO_TITLE_CHARS));
+  });
+
+  it('does not send managed auto-title requests when managed quota is already exhausted', async () => {
+    switchSessionToManagedModel();
+    mocked.managedAIState.budget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+    const { result } = renderHook(() => useAutoTitle());
+
+    await act(async () => {
+      await result.current.generateAutoTitle('session-1', managedProvider.id, managedModel.id);
+    });
+
+    expect(mocked.sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(mocked.managedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
+  });
+
+  it('marks managed quota exhausted when auto-title receives a managed quota error', async () => {
+    switchSessionToManagedModel();
+    mocked.sendMessageWithEndpointFallback.mockRejectedValueOnce(Object.assign(
+      new Error('MANAGED_QUOTA_EXHAUSTED'),
+      { errorCode: 'points_exhausted', statusCode: 403 },
+    ));
+    const { result } = renderHook(() => useAutoTitle());
+
+    await act(async () => {
+      await result.current.generateAutoTitle('session-1', managedProvider.id, managedModel.id);
+    });
+
+    expect(mocked.managedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
   });
 
   it.each(imageTitleCases)('uses the %s image title for standalone image generation models', async (languagePreference, expectedTitle) => {

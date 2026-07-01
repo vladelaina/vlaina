@@ -50,14 +50,17 @@ function SidebarSearchControlsHarness({
   }, [scrollRootRef, scrollTop]);
 
   return (
-    <div ref={interactionScopeRef} data-testid="interaction-scope">
-      <input ref={inputRef} aria-label="search-input" />
-      <button type="button" data-testid="scope-button">
-        result
-      </button>
-      <textarea aria-label="rename-input" />
-      <div ref={scrollRootRef} data-testid="scroll-root" />
-    </div>
+    <>
+      <div ref={interactionScopeRef} data-testid="interaction-scope">
+        <input ref={inputRef} aria-label="search-input" />
+        <button type="button" data-testid="scope-button">
+          result
+        </button>
+        <textarea aria-label="rename-input" />
+        <div ref={scrollRootRef} data-testid="scroll-root" />
+      </div>
+      <textarea aria-label="outside-editor" />
+    </>
   );
 }
 
@@ -238,11 +241,73 @@ describe('useSidebarSearchControls', () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it('does not steal Escape from an open dialog outside the sidebar', () => {
+  it('closes the open search drawer on Escape from an editable target outside the sidebar', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query="alpha"
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const outsideEditor = screen.getByLabelText('outside-editor');
+    const keyEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Escape',
+    });
+
+    act(() => {
+      outsideEditor.dispatchEvent(keyEvent);
+    });
+
+    expect(keyEvent.defaultPrevented).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('closes the open search drawer on Escape even if another handler already prevented default', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query="alpha"
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const outsideEditor = screen.getByLabelText('outside-editor');
+    const keyEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Escape',
+    });
+    keyEvent.preventDefault();
+
+    act(() => {
+      outsideEditor.dispatchEvent(keyEvent);
+    });
+
+    expect(keyEvent.defaultPrevented).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('does not steal Escape from a focused dialog outside the sidebar', () => {
     const onOpen = vi.fn();
     const onClose = vi.fn();
     const dialog = document.createElement('div');
+    const dialogButton = document.createElement('button');
     dialog.setAttribute('role', 'dialog');
+    dialogButton.type = 'button';
+    dialog.appendChild(dialogButton);
     document.body.appendChild(dialog);
 
     try {
@@ -255,6 +320,7 @@ describe('useSidebarSearchControls', () => {
         />,
       );
 
+      dialogButton.focus();
       const keyEvent = new KeyboardEvent('keydown', {
         bubbles: true,
         cancelable: true,
@@ -262,7 +328,7 @@ describe('useSidebarSearchControls', () => {
       });
 
       act(() => {
-        document.body.dispatchEvent(keyEvent);
+        dialogButton.dispatchEvent(keyEvent);
       });
 
       expect(keyEvent.defaultPrevented).toBe(false);

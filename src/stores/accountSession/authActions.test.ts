@@ -68,6 +68,7 @@ const mocks = vi.hoisted(() => ({
   refreshBudget: vi.fn().mockResolvedValue(undefined),
   refreshBudgetIfStale: vi.fn().mockResolvedValue(undefined),
   clearBudget: vi.fn(),
+  managedBudget: null as { active: boolean; usedPercent: number; remainingPercent: number; status: string } | null,
   getEffectiveAppLanguage: vi.fn(() => 'zh-CN'),
   useUIStoreGetState: vi.fn(() => ({ languagePreference: 'zh-CN' })),
 }));
@@ -112,12 +113,23 @@ vi.mock('@/lib/ai/managed/normalizers', () => ({
 }));
 
 vi.mock('@/stores/useManagedAIStore', () => ({
+  clearManagedBudgetUnlessQuotaExhausted: () => {
+    const budget = mocks.managedBudget;
+    if (
+      budget &&
+      (budget.active === false || budget.status === 'exhausted' || budget.remainingPercent <= 0)
+    ) {
+      return;
+    }
+    mocks.clearBudget();
+  },
   useManagedAIStore: {
     getState: vi.fn(() => ({
       applyBudgetSnapshot: mocks.applyBudgetSnapshot,
       refreshBudget: mocks.refreshBudget,
       refreshBudgetIfStale: mocks.refreshBudgetIfStale,
       clearBudget: mocks.clearBudget,
+      budget: mocks.managedBudget,
     })),
   },
 }));
@@ -169,6 +181,7 @@ describe('accountSession auth actions', () => {
     mocks.refreshBudget.mockClear();
     mocks.refreshBudgetIfStale.mockClear();
     mocks.clearBudget.mockClear();
+    mocks.managedBudget = null;
     mocks.getEffectiveAppLanguage.mockClear();
     mocks.getEffectiveAppLanguage.mockReturnValue('zh-CN');
     mocks.useUIStoreGetState.mockClear();
@@ -559,6 +572,34 @@ describe('accountSession auth actions', () => {
     await createCheckStatus(set as never, get as never)();
 
     expect(mocks.clearBudget).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshBudget).not.toHaveBeenCalled();
+    expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
+  });
+
+  it('preserves an exhausted budget when a disconnected focus probe has no current account', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: false,
+      provider: null,
+      username: null,
+      primaryEmail: null,
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+    });
+    mocks.managedBudget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnected: false, error: null }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(mocks.clearBudget).not.toHaveBeenCalled();
     expect(mocks.refreshBudget).not.toHaveBeenCalled();
     expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
   });

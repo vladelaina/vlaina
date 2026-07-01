@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchManagedBudget } from '@/lib/ai/managedService';
-import { useManagedAIStore } from './useManagedAIStore';
+import {
+  applyManagedQuotaExhaustedSnapshot,
+  clearManagedBudgetUnlessQuotaExhausted,
+  useManagedAIStore,
+} from './useManagedAIStore';
 
 vi.mock('@/lib/ai/managedService', async () => {
   const actual = await vi.importActual<typeof import('@/lib/ai/managedService')>('@/lib/ai/managedService');
@@ -21,6 +25,57 @@ afterEach(() => {
 });
 
 describe('useManagedAIStore', () => {
+  it('applies the shared exhausted budget snapshot', () => {
+    applyManagedQuotaExhaustedSnapshot();
+
+    expect(useManagedAIStore.getState().budget).toEqual(expect.objectContaining({
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
+  });
+
+  it('keeps an exhausted budget when clearing non-authoritative state', () => {
+    const exhaustedBudget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: exhaustedBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    clearManagedBudgetUnlessQuotaExhausted();
+
+    expect(useManagedAIStore.getState().budget).toBe(exhaustedBudget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
+  it('clears a non-exhausted budget from non-authoritative state', () => {
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: {
+        active: true,
+        usedPercent: 20,
+        remainingPercent: 80,
+        status: 'active',
+      },
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    clearManagedBudgetUnlessQuotaExhausted();
+
+    expect(useManagedAIStore.getState().budget).toBeNull();
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBeNull();
+  });
+
   it('does not clear an exhausted budget with a non-exhausted snapshot that lacks remaining quota', () => {
     const exhaustedBudget = {
       active: false,
@@ -391,5 +446,29 @@ describe('useManagedAIStore', () => {
 
     expect(useManagedAIStore.getState().budget).toBeNull();
     expect(useManagedAIStore.getState().lastBudgetSyncAt).toBeNull();
+  });
+
+  it('preserves an exhausted budget when another window clears the shared snapshot', () => {
+    const exhaustedBudget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: exhaustedBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: null,
+    }));
+
+    expect(useManagedAIStore.getState().budget).toBe(exhaustedBudget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
   });
 });

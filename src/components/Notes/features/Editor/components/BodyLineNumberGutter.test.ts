@@ -613,7 +613,7 @@ describe('BodyLineNumberGutter', () => {
     ]);
   });
 
-  it('aligns table labels before each visible table row', () => {
+  it('aligns table labels with the regular body line number column', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const tableBlock = document.createElement('div');
@@ -670,9 +670,9 @@ describe('BodyLineNumberGutter', () => {
       );
 
       expect(labels).toEqual([
-        { lineNumber: 1, left: 2, top: 32 },
-        { lineNumber: 3, left: 2, top: 68 },
-        { lineNumber: 4, left: 2, top: 104 },
+        { lineNumber: 1, left: 38, top: 32 },
+        { lineNumber: 3, left: 38, top: 68 },
+        { lineNumber: 4, left: 38, top: 104 },
       ]);
     } finally {
       restoreCreateRange.mockRestore();
@@ -717,14 +717,54 @@ describe('BodyLineNumberGutter', () => {
     }
   });
 
-  it('hides labels for selected blocks without shifting body line numbers', () => {
+  it('skips selected descendant scans while block selection is inactive', () => {
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const paragraphCount = MAX_BODY_LINE_NUMBER_PRECISE_TEXT_ANCHOR_TARGETS + 1;
+    const markdownLines: string[] = [];
+    const createTreeWalker = document.createTreeWalker.bind(document);
+
+    editorRoot.className = 'ProseMirror';
+    shell.appendChild(editorRoot);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    const createTreeWalkerSpy = vi.spyOn(document, 'createTreeWalker').mockImplementation((
+      root: Node,
+      whatToShow?: number,
+      filter?: NodeFilter | null,
+    ) => {
+      if (root === editorRoot && whatToShow === NodeFilter.SHOW_ELEMENT) {
+        throw new Error('Inactive body line number refresh should not scan selected descendants');
+      }
+      return createTreeWalker(root, whatToShow, filter);
+    });
+
+    for (let index = 0; index < paragraphCount; index += 1) {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = `Line ${index}`;
+      editorRoot.appendChild(paragraph);
+      setRect(paragraph, { left: 106, top: 40 + index * 24, height: 24 });
+      markdownLines.push(`- Line ${index}`);
+    }
+
+    try {
+      expect(resolveBodyLineNumberLabels(shell, markdownLines.join('\n'))).toHaveLength(paragraphCount);
+      expect(createTreeWalkerSpy.mock.calls.some(([root, whatToShow]) =>
+        root === editorRoot && whatToShow === NodeFilter.SHOW_ELEMENT
+      )).toBe(false);
+    } finally {
+      createTreeWalkerSpy.mockRestore();
+    }
+  });
+
+  it('keeps labels for selected blocks without shifting body line numbers', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const first = document.createElement('p');
     const selected = document.createElement('p');
     const third = document.createElement('p');
 
-    editorRoot.className = 'ProseMirror';
+    editorRoot.className = 'ProseMirror editor-block-selection-active';
     selected.className = 'editor-block-selected';
     shell.appendChild(editorRoot);
     editorRoot.append(first, selected, third);
@@ -739,11 +779,12 @@ describe('BodyLineNumberGutter', () => {
 
     expect(labels).toEqual([
       { lineNumber: 1, left: 38, top: 32 },
+      { lineNumber: 2, left: 38, top: 64, selected: true },
       { lineNumber: 3, left: 38, top: 96 },
     ]);
   });
 
-  it('hides list item labels when a selected child paragraph carries the block selection class', () => {
+  it('marks list item labels when a selected child paragraph carries the block selection class', () => {
     const shell = document.createElement('div');
     const editorRoot = document.createElement('div');
     const list = document.createElement('ul');
@@ -751,7 +792,7 @@ describe('BodyLineNumberGutter', () => {
     const second = document.createElement('li');
     const selectedParagraph = document.createElement('p');
 
-    editorRoot.className = 'ProseMirror';
+    editorRoot.className = 'ProseMirror editor-block-selection-active';
     selectedParagraph.className = 'editor-block-selected';
     second.appendChild(selectedParagraph);
     list.append(first, second);
@@ -772,12 +813,206 @@ describe('BodyLineNumberGutter', () => {
     try {
       const labels = resolveBodyLineNumberLabels(shell, '- First\n- Second');
 
-      expect(labels).toEqual([{ lineNumber: 1, left: 38, top: 32 }]);
+      expect(labels).toEqual([
+        { lineNumber: 1, left: 38, top: 32 },
+        { lineNumber: 2, left: 38, top: 64, selected: true },
+      ]);
       expect(firstQuerySelectorSpy).not.toHaveBeenCalled();
       expect(secondQuerySelectorSpy).not.toHaveBeenCalled();
     } finally {
       firstQuerySelectorSpy.mockRestore();
       secondQuerySelectorSpy.mockRestore();
+    }
+  });
+
+  it('renders selected body line numbers with the selected class', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    class TestResizeObserver {
+      constructor(_callback: ResizeObserverCallback) {}
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    class TestMutationObserver {
+      constructor(_callback: MutationCallback) {}
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+
+    editorRoot.className = 'ProseMirror editor-block-selection-active';
+    paragraph.className = 'editor-block-selected';
+    paragraph.textContent = 'Body';
+    shell.appendChild(editorRoot);
+    editorRoot.appendChild(paragraph);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(paragraph, { left: 106, top: 40, height: 24 });
+
+    try {
+      const { container } = render(createElement(BodyLineNumberGutter, {
+        markdown: 'Body',
+        revision: 1,
+        shellRef,
+      }));
+
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+
+      const lineNumber = container.querySelector<HTMLElement>('.body-line-number');
+      expect(lineNumber?.textContent).toBe('1');
+      expect(lineNumber?.classList.contains('body-line-number-selected')).toBe(true);
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('syncs selected line numbers while pointer drag defers layout refreshes', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      window.clearTimeout(id);
+    });
+
+    class TestResizeObserver {
+      constructor(_callback: ResizeObserverCallback) {}
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    let mutationCallback: MutationCallback = () => {};
+    class TestMutationObserver {
+      constructor(callback: MutationCallback) {
+        mutationCallback = callback;
+      }
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    vi.stubGlobal('MutationObserver', TestMutationObserver);
+
+    const shell = document.createElement('div');
+    const editorRoot = document.createElement('div');
+    const firstParagraph = document.createElement('p');
+    const secondParagraph = document.createElement('p');
+    const shellRef = { current: shell } as RefObject<HTMLDivElement | null>;
+
+    editorRoot.className = 'ProseMirror';
+    firstParagraph.textContent = 'First';
+    secondParagraph.textContent = 'Second';
+    shell.appendChild(editorRoot);
+    editorRoot.append(firstParagraph, secondParagraph);
+    setRect(shell, { left: 10, top: 20 });
+    setRect(editorRoot, { left: 106, top: 20 });
+    setRect(firstParagraph, { left: 106, top: 40, height: 24 });
+    setRect(secondParagraph, { left: 106, top: 72, height: 24 });
+    const createTreeWalker = document.createTreeWalker.bind(document);
+    let createTreeWalkerSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+    try {
+      const { container } = render(createElement(BodyLineNumberGutter, {
+        markdown: 'First\n\nSecond',
+        revision: 1,
+        shellRef,
+      }));
+
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+
+      const lineNumbers = () => Array.from(container.querySelectorAll<HTMLElement>('.body-line-number'));
+      expect(lineNumbers().map((lineNumber) =>
+        lineNumber.classList.contains('body-line-number-selected')
+      )).toEqual([false, false]);
+
+      createTreeWalkerSpy = vi.spyOn(document, 'createTreeWalker').mockImplementation((
+        root: Node,
+        whatToShow?: number,
+        filter?: NodeFilter | null,
+      ) => {
+        if (root === editorRoot && whatToShow === NodeFilter.SHOW_ELEMENT) {
+          throw new Error('Incremental line number selection sync should not scan the whole editor');
+        }
+        return createTreeWalker(root, whatToShow, filter);
+      });
+
+      firstParagraph.getBoundingClientRect = () => {
+        throw new Error('Deferred line number selection sync should not measure block layout');
+      };
+      secondParagraph.getBoundingClientRect = () => {
+        throw new Error('Deferred line number selection sync should not measure block layout');
+      };
+
+      window.dispatchEvent(new Event('pointerdown'));
+      editorRoot.classList.add('editor-block-selection-pending');
+      firstParagraph.classList.add('editor-block-selected');
+      mutationCallback([{
+        attributeName: 'class',
+        target: firstParagraph,
+        type: 'attributes',
+      } as unknown as MutationRecord], {} as MutationObserver);
+      secondParagraph.classList.add('editor-block-selected');
+
+      act(() => {
+        mutationCallback([{
+          attributeName: 'class',
+          target: secondParagraph,
+          type: 'attributes',
+        } as unknown as MutationRecord], {} as MutationObserver);
+        vi.advanceTimersByTime(0);
+      });
+
+      expect(lineNumbers().map((lineNumber) =>
+        lineNumber.classList.contains('body-line-number-selected')
+      )).toEqual([true, true]);
+      expect(lineNumbers().map((lineNumber) => lineNumber.style.top)).toEqual(['32px', '64px']);
+
+      firstParagraph.classList.remove('editor-block-selected');
+      act(() => {
+        mutationCallback([{
+          attributeName: 'class',
+          target: firstParagraph,
+          type: 'attributes',
+        } as unknown as MutationRecord], {} as MutationObserver);
+        vi.advanceTimersByTime(0);
+      });
+
+      expect(lineNumbers().map((lineNumber) =>
+        lineNumber.classList.contains('body-line-number-selected')
+      )).toEqual([false, true]);
+    } finally {
+      createTreeWalkerSpy?.mockRestore();
+      act(() => {
+        window.dispatchEvent(new Event('pointerup'));
+      });
+      cleanup();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
     }
   });
 

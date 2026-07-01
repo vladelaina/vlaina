@@ -16,6 +16,7 @@ import { useChatAttachments } from './hooks/useChatAttachments';
 import { ChatAttachmentPreviewList } from './components/ChatAttachmentPreviewList';
 import { ChatComposerField } from './components/ChatComposerField';
 import { ChatInputActions } from './components/ChatInputActions';
+import { ManagedQuotaNotice, managedQuotaNoticeFrameClass } from './components/ManagedQuotaNotice';
 import { NoteMentionPicker } from './components/NoteMentionPicker';
 import { useChatHistoryNavigation } from './hooks/useChatHistoryNavigation';
 import { useNoteMentions } from './hooks/useNoteMentions';
@@ -34,12 +35,12 @@ import {
 } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { getCurrentVaultPath, useNotesStore } from '@/stores/notes/useNotesStore';
 import { shouldMarkPastedTextMultiline } from './chatPasteText';
-import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { dispatchSidebarCloseSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 
 interface ChatInputProps {
   active?: boolean;
@@ -64,10 +65,6 @@ interface RecalledChatInputDraft {
   noteMentions?: NoteMentionReference[];
 }
 
-const managedQuotaNoticeFrameClass =
-  'overflow-hidden rounded-[var(--vlaina-radius-26px)] bg-[var(--vlaina-color-accent-soft)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]';
-const managedQuotaNoticeSurfaceClass =
-  'flex min-h-[var(--vlaina-size-32px)] flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-6 pb-2.5 pt-1.5 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)]';
 const CHAT_DROP_REGION_SELECTOR = '[data-chat-view-mode],[data-notes-chat-panel="true"],[data-chat-input="true"]';
 
 interface UndoShortcutEvent {
@@ -253,7 +250,7 @@ export const ChatInput = memo(function ChatInput({
       clearAttachments();
       clearNoteMentions();
     },
-    canSubmit: hasSelectedModel && !isQuotaSendBlocked,
+    canSubmit: hasSelectedModel,
     focusTrigger,
   });
 
@@ -645,6 +642,16 @@ export const ChatInput = memo(function ChatInput({
       }
 
       if (
+        e.key === 'Escape' &&
+        !e.shiftKey &&
+        !e.altKey &&
+        !e.ctrlKey &&
+        !e.metaKey
+      ) {
+        dispatchSidebarCloseSearchEvent('chat');
+      }
+
+      if (
         handleHistoryKeyDown({
           key: e.key,
           selectionStart,
@@ -671,7 +678,7 @@ export const ChatInput = memo(function ChatInput({
   const canSend =
     (!!message.trim() || attachments.length > 0 || noteMentions.length > 0) &&
     hasSelectedModel;
-  const canSubmit = canSend && !isLoading && !isQuotaSendBlocked;
+  const canSubmit = canSend && !isLoading;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       discardRemovedAttachmentUndoStack();
@@ -687,10 +694,6 @@ export const ChatInput = memo(function ChatInput({
       handleMessageChange,
     ]
   );
-
-  const handleUpgradeClick = useCallback(() => {
-    void openExternalHref('https://vlaina.com/r/spark_continue');
-  }, []);
 
   const restoreRecalledDraft = useCallback((draft: RecalledChatInputDraft | string | null | void): boolean => {
     const recalledDraft = typeof draft === 'string'
@@ -880,22 +883,7 @@ export const ChatInput = memo(function ChatInput({
             />
           </div>
         </div>
-        {isQuotaSendBlocked && (
-          <div
-            data-managed-quota-banner="true"
-            className={managedQuotaNoticeSurfaceClass}
-          >
-            <span>{t('chat.freeRepliesExhausted')}</span>
-            <button
-              type="button"
-              onClick={handleUpgradeClick}
-              data-no-focus-input="true"
-              className="cursor-pointer font-bold text-[var(--vlaina-accent)] underline decoration-[var(--vlaina-accent)]/45 underline-offset-4 transition-colors hover:text-[var(--vlaina-accent-hover)]"
-            >
-              {t('chat.upgradeVlaina')}
-            </button>
-          </div>
-        )}
+        {isQuotaSendBlocked && <ManagedQuotaNotice />}
       </div>
     </>
   );

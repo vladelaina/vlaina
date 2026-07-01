@@ -17,6 +17,43 @@ const mockGetSerializedSelectionContext = vi.fn(() => ({
   afterContext: '',
 }));
 const mockHasSelectedBlocks = vi.fn(() => false);
+const mockManagedAIState = {
+  budget: null as null | {
+    active: boolean;
+    usedPercent: number;
+    remainingPercent: number;
+    status: string;
+  },
+  applyBudgetSnapshot: vi.fn((budget: {
+    active: boolean;
+    usedPercent: number;
+    remainingPercent: number;
+    status: string;
+  }) => {
+    mockManagedAIState.budget = budget;
+  }),
+};
+const mockAIState = {
+  selectedModelId: 'model-1',
+  models: [{
+    id: 'model-1',
+    apiModelId: 'model-1',
+    name: 'Model 1',
+    providerId: 'provider-1',
+    enabled: true,
+    createdAt: 1,
+  }],
+  providers: [{
+    id: 'provider-1',
+    name: 'Provider 1',
+    type: 'newapi',
+    apiHost: 'https://example.invalid',
+    apiKey: 'test-key',
+    enabled: true,
+    createdAt: 1,
+    updatedAt: 1,
+  }],
+};
 
 vi.mock('@/stores/useToastStore', () => ({
   useToastStore: {
@@ -30,29 +67,21 @@ vi.mock('@/stores/unified/useUnifiedStore', () => ({
   useUnifiedStore: {
     getState: () => ({
       data: {
-        ai: {
-          selectedModelId: 'model-1',
-          models: [{
-            id: 'model-1',
-            apiModelId: 'model-1',
-            name: 'Model 1',
-            providerId: 'provider-1',
-            enabled: true,
-            createdAt: 1,
-          }],
-          providers: [{
-            id: 'provider-1',
-            name: 'Provider 1',
-            type: 'newapi',
-            apiHost: 'https://example.invalid',
-            apiKey: 'test-key',
-            enabled: true,
-            createdAt: 1,
-            updatedAt: 1,
-          }],
-        },
+        ai: mockAIState,
       },
     }),
+  },
+}));
+
+vi.mock('@/stores/useManagedAIStore', () => ({
+  applyManagedQuotaExhaustedSnapshot: () => mockManagedAIState.applyBudgetSnapshot({
+    active: false,
+    usedPercent: 100,
+    remainingPercent: 0,
+    status: 'exhausted',
+  }),
+  useManagedAIStore: {
+    getState: () => mockManagedAIState,
   },
 }));
 
@@ -99,6 +128,27 @@ describe('selectionRequest', () => {
     });
     mockHasSelectedBlocks.mockClear();
     mockHasSelectedBlocks.mockReturnValue(false);
+    mockManagedAIState.budget = null;
+    mockManagedAIState.applyBudgetSnapshot.mockClear();
+    mockAIState.selectedModelId = 'model-1';
+    mockAIState.models = [{
+      id: 'model-1',
+      apiModelId: 'model-1',
+      name: 'Model 1',
+      providerId: 'provider-1',
+      enabled: true,
+      createdAt: 1,
+    }];
+    mockAIState.providers = [{
+      id: 'provider-1',
+      name: 'Provider 1',
+      type: 'newapi',
+      apiHost: 'https://example.invalid',
+      apiKey: 'test-key',
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+    }];
   });
 
   it('does not serialize or send oversized text selections', async () => {
@@ -186,6 +236,97 @@ describe('selectionRequest', () => {
       beforeContext: 'b'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS),
       afterContext: 'a'.repeat(MAX_EDITOR_AI_CONTEXT_CHARS),
     });
+  });
+
+  it('does not send managed editor AI requests when managed quota is already exhausted', async () => {
+    mockAIState.selectedModelId = 'vlaina-managed::model-1';
+    mockAIState.models = [{
+      id: 'vlaina-managed::model-1',
+      apiModelId: 'model-1',
+      name: 'Model 1',
+      providerId: 'vlaina-managed',
+      enabled: true,
+      createdAt: 1,
+    }];
+    mockAIState.providers = [{
+      id: 'vlaina-managed',
+      name: 'vlaina',
+      type: 'newapi',
+      apiHost: 'https://api.vlaina.com/v1',
+      apiKey: '',
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+    }];
+    mockManagedAIState.budget = {
+      active: false,
+      usedPercent: 100,
+      remainingPercent: 0,
+      status: 'exhausted',
+    };
+
+    const result = await createAiSelectionSuggestionResult(
+      createView(1, 14) as never,
+      'Edit the selected text.',
+      undefined,
+      undefined,
+      { suppressToast: true }
+    );
+
+    expect(result).toMatchObject({
+      suggestion: null,
+      errorType: 'QUOTA_EXHAUSTED',
+    });
+    expect(mockSendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(mockManagedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
+  });
+
+  it('marks managed quota exhausted when editor AI receives a quota error', async () => {
+    mockAIState.selectedModelId = 'vlaina-managed::model-1';
+    mockAIState.models = [{
+      id: 'vlaina-managed::model-1',
+      apiModelId: 'model-1',
+      name: 'Model 1',
+      providerId: 'vlaina-managed',
+      enabled: true,
+      createdAt: 1,
+    }];
+    mockAIState.providers = [{
+      id: 'vlaina-managed',
+      name: 'vlaina',
+      type: 'newapi',
+      apiHost: 'https://api.vlaina.com/v1',
+      apiKey: '',
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+    }];
+    mockSendMessageWithEndpointFallback.mockRejectedValueOnce(Object.assign(
+      new Error('MANAGED_QUOTA_EXHAUSTED'),
+      { errorCode: 'points_exhausted', statusCode: 403 },
+    ));
+
+    const result = await createAiSelectionSuggestionResult(
+      createView(1, 14) as never,
+      'Edit the selected text.',
+      undefined,
+      undefined,
+      { suppressToast: true }
+    );
+
+    expect(result).toMatchObject({
+      suggestion: null,
+      errorType: 'QUOTA_EXHAUSTED',
+    });
+    expect(mockManagedAIState.applyBudgetSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      active: false,
+      remainingPercent: 0,
+      status: 'exhausted',
+    }));
   });
 
   it('bounds legacy retry context before sending and storing the next suggestion', async () => {

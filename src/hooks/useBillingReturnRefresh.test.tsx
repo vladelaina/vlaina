@@ -21,6 +21,7 @@ vi.mock('@/stores/accountSession', () => ({
 }))
 
 vi.mock('@/stores/useManagedAIStore', () => ({
+  clearManagedBudgetUnlessQuotaExhausted: () => mocks.clearBudget(),
   useManagedAIStore: {
     getState: () => ({
       clearBudget: mocks.clearBudget,

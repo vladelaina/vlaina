@@ -188,6 +188,32 @@ describe('UserIdentityCard', () => {
     expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/account_plan');
   });
 
+  it('renders the membership badge as a compact borderless pill', () => {
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        isLoading: false,
+        provider: 'google',
+        username: 'alice',
+        primaryEmail: 'alice@example.com',
+        membershipTier: 'pro',
+        membershipName: 'Pro',
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    const badge = screen.getByRole('button', { name: 'Pro' });
+    expect(badge.className).not.toMatch(/\bborder\b/);
+    expect(badge.className).not.toMatch(/\bshadow/);
+    expect(badge).toHaveClass('rounded-[var(--vlaina-radius-pill)]');
+    expect(badge).toHaveClass('bg-[var(--vlaina-color-membership-pro-bg)]');
+    expect(badge).toHaveClass('[font-size:var(--vlaina-font-10)]');
+    expect(badge).toHaveClass('px-2');
+    expect(badge).toHaveClass('py-[var(--vlaina-space-3px)]');
+  });
+
   it('renders ultra membership as a loaded membership state', () => {
     act(() => {
       useAccountSessionStore.setState({

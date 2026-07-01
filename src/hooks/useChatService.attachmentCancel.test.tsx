@@ -55,6 +55,7 @@ vi.mock('@/stores/accountSession', () => ({
 }));
 
 vi.mock('@/stores/useManagedAIStore', () => ({
+  applyManagedQuotaExhaustedSnapshot: vi.fn(),
   useManagedAIStore: mocked.useManagedAIStore,
 }));
 

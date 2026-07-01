@@ -7,6 +7,9 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { sendMessageWithEndpointFallback } from '@/hooks/chatService/sendMessageWithEndpointFallback';
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { isManagedProviderId } from '@/lib/ai/managedService';
+import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
+import { applyManagedQuotaExhaustedSnapshot, useManagedAIStore } from '@/stores/useManagedAIStore';
+import { AIErrorType } from '@/lib/ai/types';
 import { parseStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 import { hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
 import {
@@ -151,6 +154,17 @@ async function requestAiEdit(
   }
 
   const { model, provider } = resolved;
+  const isManaged = isManagedProviderId(provider.id);
+  if (isManaged && isManagedBudgetExhausted(useManagedAIStore.getState().budget)) {
+    applyManagedQuotaExhaustedSnapshot();
+    return {
+      suggestedText: null,
+      errorMessage: translate('chat.freeRepliesExhausted'),
+      errorType: AIErrorType.QUOTA_EXHAUSTED,
+      errorCode: 'quota_exhausted',
+    };
+  }
+
   const history: ChatMessage[] = [createSystemMessage(EDITOR_AI_SYSTEM_PROMPT, model.id)];
   const message = buildEditorAiUserMessage(trimmedInstruction, selectedText, context);
 
@@ -188,8 +202,10 @@ async function requestAiEdit(
       error instanceof Error && error.message.trim().length > 0
         ? error.message
         : translate('editor.ai.editFailed');
-    const isManaged = isManagedProviderId(provider.id);
     const normalized = isManaged ? getUserFacingAIError(error) : null;
+    if (normalized?.type === AIErrorType.QUOTA_EXHAUSTED) {
+      applyManagedQuotaExhaustedSnapshot();
+    }
     const message = normalized?.message || fallbackMessage;
     if (!options?.suppressToast) {
       useToastStore.getState().addToast(message, 'error', 4000);
