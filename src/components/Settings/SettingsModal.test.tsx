@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearCachedDesktopUpdateInfo, writeCachedDesktopUpdateInfo } from '@/lib/desktop/updateStatus';
 import { SettingsModal } from './SettingsModal';
@@ -92,7 +92,30 @@ const communitySettings = {
   wechatQrCodeText: '',
 };
 
-describe('SettingsModal update indicator', () => {
+function setScrollMetrics(
+  element: HTMLElement,
+  metrics: { clientHeight: number; scrollHeight: number; scrollTop?: number },
+) {
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    get: () => metrics.clientHeight,
+  });
+  Object.defineProperty(element, 'scrollHeight', {
+    configurable: true,
+    get: () => metrics.scrollHeight,
+  });
+
+  let currentScrollTop = metrics.scrollTop ?? 0;
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    get: () => currentScrollTop,
+    set: (value: number) => {
+      currentScrollTop = value;
+    },
+  });
+}
+
+describe('SettingsModal', () => {
   afterEach(() => {
     cleanup();
     localStorage.clear();
@@ -131,5 +154,41 @@ describe('SettingsModal update indicator', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-settings-update-indicator="about"]')).toBeNull();
     });
+  });
+
+  it('handles wheel scrolling on the settings content root', () => {
+    render(
+      <SettingsModal
+        open
+        communitySettings={communitySettings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const scrollRoot = document.querySelector('[data-settings-scroll-root="content"]') as HTMLElement | null;
+    expect(scrollRoot).not.toBeNull();
+
+    setScrollMetrics(scrollRoot!, { clientHeight: 200, scrollHeight: 800, scrollTop: 0 });
+    fireEvent.wheel(scrollRoot!, { deltaY: 160 });
+
+    expect(scrollRoot!.scrollTop).toBe(160);
+  });
+
+  it('handles wheel scrolling on the settings sidebar root', () => {
+    render(
+      <SettingsModal
+        open
+        communitySettings={communitySettings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const scrollRoot = document.querySelector('[data-settings-scroll-root="sidebar"]') as HTMLElement | null;
+    expect(scrollRoot).not.toBeNull();
+
+    setScrollMetrics(scrollRoot!, { clientHeight: 120, scrollHeight: 360, scrollTop: 10 });
+    fireEvent.wheel(scrollRoot!, { deltaY: 80 });
+
+    expect(scrollRoot!.scrollTop).toBe(90);
   });
 });

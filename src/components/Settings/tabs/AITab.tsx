@@ -11,6 +11,7 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { themeMotionTokens } from '@/styles/themeTokens';
+import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 
 interface ProviderCardDraft {
   name?: string;
@@ -609,7 +610,11 @@ export function AITab() {
         onConfirm={confirmDeleteCustomProvider}
       />
 
-      <div className="h-full min-h-0 overflow-y-auto px-6 py-6 max-[900px]:px-4 max-[900px]:py-5">
+      <div
+        className="h-full min-h-0 overflow-y-auto px-6 py-6 max-[900px]:px-4 max-[900px]:py-5"
+        data-settings-scroll-root="ai"
+        onWheel={handleScrollableWheel}
+      >
         <AIBehaviorSettings />
 
         <section className="mx-auto max-w-5xl">

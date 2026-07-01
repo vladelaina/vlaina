@@ -29,6 +29,7 @@ import {
   readCachedDesktopUpdateInfo,
   UPDATE_INFO_CHANGED_EVENT,
 } from '@/lib/desktop/updateStatus';
+import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 
 interface SettingsModalProps {
   open: boolean;
@@ -211,7 +212,11 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
               )}>
                 <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10 max-[900px]:px-3 max-[900px]:pb-3 max-[900px]:pt-12">
                   <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                    <div className="flex-1 overflow-y-auto app-scrollbar max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:scrollbar-hidden">
+                    <div
+                      className="flex-1 overflow-y-auto app-scrollbar max-[900px]:overflow-x-auto max-[900px]:overflow-y-hidden max-[900px]:scrollbar-hidden"
+                      data-settings-scroll-root="sidebar"
+                      onWheel={handleScrollableWheel}
+                    >
                       {sidebarGroups.map((group) => (
                         <div key={group.titleKey} className="mb-8 last:mb-0 max-[900px]:mb-0">
                           <div className="space-y-[var(--vlaina-space-y-6px)] max-[900px]:flex max-[900px]:gap-2 max-[900px]:space-y-0">
@@ -282,7 +287,11 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
                   ? "bg-transparent backdrop-blur-[var(--vlaina-backdrop-blur-none)]"
                   : "bg-[var(--vlaina-color-setting-content)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]",
               )}>
-                <div className="flex-1 overflow-y-auto w-full app-scrollbar">
+                <div
+                  className="flex-1 overflow-y-auto w-full app-scrollbar"
+                  data-settings-scroll-root="content"
+                  onWheel={handleScrollableWheel}
+                >
                   <div className={cn(
                     "w-full mx-auto",
                     activeTab === 'ai' 

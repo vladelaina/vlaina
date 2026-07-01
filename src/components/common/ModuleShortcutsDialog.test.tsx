@@ -27,6 +27,29 @@ const sections = [
   },
 ];
 
+function setScrollMetrics(
+  element: HTMLElement,
+  metrics: { clientHeight: number; scrollHeight: number; scrollTop?: number },
+) {
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    get: () => metrics.clientHeight,
+  });
+  Object.defineProperty(element, 'scrollHeight', {
+    configurable: true,
+    get: () => metrics.scrollHeight,
+  });
+
+  let currentScrollTop = metrics.scrollTop ?? 0;
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    get: () => currentScrollTop,
+    set: (value: number) => {
+      currentScrollTop = value;
+    },
+  });
+}
+
 describe('ModuleShortcutsDialog', () => {
   it('filters shortcuts with the search field and shows an empty state', () => {
     render(
@@ -99,5 +122,25 @@ describe('ModuleShortcutsDialog', () => {
 
     fireEvent.change(searchInput, { target: { value: '+' } });
     expect(screen.getByText('No results')).toBeInTheDocument();
+  });
+
+  it('handles wheel scrolling on the shortcuts list', () => {
+    render(
+      <ModuleShortcutsDialog
+        module="chat"
+        open
+        onOpenChange={vi.fn()}
+        title="Shortcuts"
+        sections={sections}
+      />,
+    );
+
+    const scrollRoot = document.querySelector('[data-module-shortcuts-scroll-root="true"]') as HTMLElement | null;
+    expect(scrollRoot).not.toBeNull();
+
+    setScrollMetrics(scrollRoot!, { clientHeight: 180, scrollHeight: 600, scrollTop: 30 });
+    fireEvent.wheel(scrollRoot!, { deltaY: 120 });
+
+    expect(scrollRoot!.scrollTop).toBe(150);
   });
 });

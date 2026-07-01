@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { ModuleShortcutId, ModuleShortcutSection, getModuleShortcutPreset } from '@/lib/shortcuts/moduleShortcuts';
 import { useDialogWindowDrag } from '@/hooks/useDialogWindowDrag';
 import { useI18n } from '@/lib/i18n';
+import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeBackdropTokens, themeIconTokens } from '@/styles/themeTokens';
 
@@ -235,7 +236,11 @@ export function ModuleShortcutsDialog({
           </DialogClose>
         </div>
 
-        <div className="max-h-[var(--vlaina-size-65vh)] overflow-y-auto space-y-3 pr-1">
+        <div
+          className="max-h-[var(--vlaina-size-65vh)] overflow-y-auto space-y-3 pr-1"
+          data-module-shortcuts-scroll-root="true"
+          onWheel={handleScrollableWheel}
+        >
           {filteredSections.length > 0 ? filteredSections.map((section) => (
             <section key={section.title} className="rounded-[var(--vlaina-radius-16px)]">
               <h3 className="px-3 pb-2 text-[var(--vlaina-font-11)] font-semibold uppercase tracking-[var(--vlaina-tracking-label-xl)] text-[var(--vlaina-color-text-soft)]">

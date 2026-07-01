@@ -5,6 +5,7 @@ import { Command as CommandPrimitive } from "cmdk"
 import { Icon } from "@/components/ui/icons"
 
 import { cn } from "@/lib/utils"
+import { handleScrollableWheel } from "@/lib/scroll/wheelScroll"
 import {
   Dialog,
   DialogContent,
@@ -88,6 +89,7 @@ function CommandInput({
 
 function CommandList({
   className,
+  onWheel,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.List>) {
   return (
@@ -97,6 +99,10 @@ function CommandList({
         "max-h-[var(--vlaina-size-300px)] scroll-py-1 overflow-x-hidden overflow-y-auto",
         className
       )}
+      onWheel={(event) => {
+        onWheel?.(event)
+        handleScrollableWheel(event)
+      }}
       {...props}
     />
   )

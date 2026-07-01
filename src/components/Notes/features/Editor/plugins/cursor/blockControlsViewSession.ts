@@ -19,6 +19,7 @@ import { setBlockDraggingVisualState } from './blockDragVisualState';
 import { getListItemRangeEnd } from './blockUnitResolver';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
+import { normalizeWheelDelta } from '@/lib/scroll/wheelScroll';
 import {
   MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS,
   canInsertTextIntoComposerValue,
@@ -49,21 +50,12 @@ import { createVerticalEdgeAutoScroll, type VerticalEdgeAutoScrollHandle } from 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const MIN_DROP_DISTANCE_PX = 4;
 const HANDLE_VERTICAL_GAP_PX = 24;
-const WHEEL_DELTA_MODE_LINE = 1;
-const WHEEL_DELTA_MODE_PAGE = 2;
-const WHEEL_LINE_HEIGHT_PX = 16;
 const NOTES_BLOCK_DROP_TARGET_SELECTOR = '[data-notes-block-drop-target="true"]';
 const NOTES_TAB_PATH_SELECTOR = '[data-notes-tab-path]';
 const NOTES_FILE_TREE_FILE_PATH_SELECTOR = '[data-file-tree-kind="file"][data-file-tree-path]';
 const BLOCK_DRAG_TAB_OPEN_DELAY_MS = 280;
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 const LIST_CONTAINER_NODE_NAMES = new Set(['bullet_list', 'ordered_list']);
-
-function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number): number {
-  if (deltaMode === WHEEL_DELTA_MODE_LINE) return delta * WHEEL_LINE_HEIGHT_PX;
-  if (deltaMode === WHEEL_DELTA_MODE_PAGE) return delta * pageSize;
-  return delta;
-}
 
 function serializeDraggedRangesForComposer(view: EditorView, ranges: BlockRange[]): string {
   if (ranges.some((range) => range.to - range.from > MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS)) {

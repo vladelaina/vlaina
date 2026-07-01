@@ -1,0 +1,155 @@
+import type { WheelEvent as ReactWheelEvent } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { handleScrollableWheel, normalizeWheelDelta } from './wheelScroll';
+
+function setScrollMetrics(
+  element: HTMLElement,
+  metrics: { clientHeight: number; scrollHeight: number; scrollTop?: number },
+) {
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    get: () => metrics.clientHeight,
+  });
+  Object.defineProperty(element, 'scrollHeight', {
+    configurable: true,
+    get: () => metrics.scrollHeight,
+  });
+
+  let currentScrollTop = metrics.scrollTop ?? 0;
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    get: () => currentScrollTop,
+    set: (value: number) => {
+      currentScrollTop = value;
+    },
+  });
+}
+
+function createWheelEvent({
+  root,
+  target = root,
+  deltaY = 120,
+  deltaMode = 0,
+  ctrlKey = false,
+  metaKey = false,
+  defaultPrevented = false,
+}: {
+  root: HTMLElement;
+  target?: EventTarget;
+  deltaY?: number;
+  deltaMode?: number;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  defaultPrevented?: boolean;
+}) {
+  const event = {
+    currentTarget: root,
+    target,
+    deltaY,
+    deltaMode,
+    ctrlKey,
+    metaKey,
+    defaultPrevented,
+    preventDefault: vi.fn(),
+  } as unknown as ReactWheelEvent<HTMLElement> & { preventDefault: ReturnType<typeof vi.fn> };
+
+  event.preventDefault.mockImplementation(() => {
+    Object.defineProperty(event, 'defaultPrevented', {
+      configurable: true,
+      value: true,
+    });
+  });
+
+  return event;
+}
+
+describe('scroll wheel handling', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+  });
+
+  it('normalizes wheel deltas from Windows line and page modes', () => {
+    expect(normalizeWheelDelta(3, 1, 240)).toBe(48);
+    expect(normalizeWheelDelta(1, 2, 240)).toBe(240);
+    expect(normalizeWheelDelta(120, 0, 240)).toBe(120);
+  });
+
+  it('scrolls the root directly for ordinary wheel events', () => {
+    const root = document.createElement('div');
+    const child = document.createElement('div');
+    root.append(child);
+    document.body.append(root);
+    setScrollMetrics(root, { clientHeight: 200, scrollHeight: 800, scrollTop: 20 });
+
+    const event = createWheelEvent({ root, target: child, deltaY: 120 });
+    handleScrollableWheel(event);
+
+    expect(root.scrollTop).toBe(140);
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps manual scrolling to the root scroll range', () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    setScrollMetrics(root, { clientHeight: 200, scrollHeight: 800, scrollTop: 560 });
+
+    const event = createWheelEvent({ root, deltaY: 120 });
+    handleScrollableWheel(event);
+
+    expect(root.scrollTop).toBe(600);
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a nested scrollable element consume wheel movement while it can scroll', () => {
+    const root = document.createElement('div');
+    const nested = document.createElement('div');
+    const child = document.createElement('div');
+    nested.style.overflowY = 'auto';
+    nested.append(child);
+    root.append(nested);
+    document.body.append(root);
+    setScrollMetrics(root, { clientHeight: 200, scrollHeight: 800, scrollTop: 0 });
+    setScrollMetrics(nested, { clientHeight: 100, scrollHeight: 400, scrollTop: 0 });
+
+    const event = createWheelEvent({ root, target: child, deltaY: 120 });
+    handleScrollableWheel(event);
+
+    expect(root.scrollTop).toBe(0);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('scrolls the root when a nested scrollable is already at the wheel boundary', () => {
+    const root = document.createElement('div');
+    const nested = document.createElement('div');
+    const child = document.createElement('div');
+    nested.style.overflowY = 'auto';
+    nested.append(child);
+    root.append(nested);
+    document.body.append(root);
+    setScrollMetrics(root, { clientHeight: 200, scrollHeight: 800, scrollTop: 0 });
+    setScrollMetrics(nested, { clientHeight: 100, scrollHeight: 400, scrollTop: 300 });
+
+    const event = createWheelEvent({ root, target: child, deltaY: 120 });
+    handleScrollableWheel(event);
+
+    expect(root.scrollTop).toBe(120);
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not intercept Ctrl or Meta wheel shortcuts', () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    setScrollMetrics(root, { clientHeight: 200, scrollHeight: 800, scrollTop: 20 });
+
+    const ctrlEvent = createWheelEvent({ root, ctrlKey: true, deltaY: 120 });
+    handleScrollableWheel(ctrlEvent);
+    expect(root.scrollTop).toBe(20);
+    expect(ctrlEvent.preventDefault).not.toHaveBeenCalled();
+
+    const metaEvent = createWheelEvent({ root, metaKey: true, deltaY: 120 });
+    handleScrollableWheel(metaEvent);
+    expect(root.scrollTop).toBe(20);
+    expect(metaEvent.preventDefault).not.toHaveBeenCalled();
+  });
+});

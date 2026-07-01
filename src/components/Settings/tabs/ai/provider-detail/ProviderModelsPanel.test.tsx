@@ -90,6 +90,29 @@ function buildProps(overrides: Partial<ComponentProps<typeof ProviderModelsPanel
   };
 }
 
+function setScrollMetrics(
+  element: HTMLElement,
+  metrics: { clientHeight: number; scrollHeight: number; scrollTop?: number },
+) {
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    get: () => metrics.clientHeight,
+  });
+  Object.defineProperty(element, 'scrollHeight', {
+    configurable: true,
+    get: () => metrics.scrollHeight,
+  });
+
+  let currentScrollTop = metrics.scrollTop ?? 0;
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    get: () => currentScrollTop,
+    set: (value: number) => {
+      currentScrollTop = value;
+    },
+  });
+}
+
 describe('ProviderModelsPanel', () => {
   it('shows empty states when an active query matches nothing', () => {
     render(
@@ -159,6 +182,27 @@ describe('ProviderModelsPanel', () => {
 
     expect(onAddAllVisible).toHaveBeenCalledWith(['gpt-4o-mini']);
     expect(onQuickAddModelIdChange).toHaveBeenCalledWith('');
+  });
+
+  it('handles wheel scrolling on quick add suggestions', () => {
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          quickAddModelId: 'g',
+          sortedFetchedModels: ['gpt-4o', 'gpt-4o-mini', 'gemini-pro', 'grok-beta'],
+          filteredFetchedModels: ['gpt-4o', 'gpt-4o-mini', 'gemini-pro', 'grok-beta'],
+        })}
+      />,
+    );
+
+    fireEvent.focus(screen.getByPlaceholderText('Add a model ID'));
+    const scrollRoot = document.querySelector('[data-settings-scroll-root="ai-model-suggestions"]') as HTMLElement | null;
+    expect(scrollRoot).not.toBeNull();
+
+    setScrollMetrics(scrollRoot!, { clientHeight: 100, scrollHeight: 360, scrollTop: 0 });
+    fireEvent.wheel(scrollRoot!, { deltaY: 90 });
+
+    expect(scrollRoot!.scrollTop).toBe(90);
   });
 
   it('adds all visible available models from the available header', () => {

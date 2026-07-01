@@ -10,6 +10,7 @@ import { useI18n } from '@/lib/i18n';
 import { rankByFuzzySearch } from './fuzzyModelSearch';
 import { providerInputClassName, providerInputShellClassName } from './providerInputStyles';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 
 interface ProviderQuickAddProps {
   value: string;
@@ -153,7 +154,11 @@ export function ProviderQuickAdd({
         />
         {showSuggestions ? (
           <div className="absolute left-0 right-0 top-[var(--vlaina-offset-dropdown-below-input)] z-[var(--vlaina-z-20)] overflow-hidden rounded-[var(--vlaina-radius-22px)] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-floating-panel)]">
-            <div className="max-h-64 overflow-y-auto p-1.5">
+            <div
+              className="max-h-64 overflow-y-auto p-1.5"
+              data-settings-scroll-root="ai-model-suggestions"
+              onWheel={handleScrollableWheel}
+            >
               {suggestions.map((modelId, index) => (
                 <button
                   key={modelId}
