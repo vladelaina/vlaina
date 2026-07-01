@@ -219,6 +219,13 @@ export function NotesView({
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
   }, [setLayoutPanelDragging]);
+  const getDockedChatPanelMaxWidth = useCallback((): number => {
+    const container = notesViewRef.current;
+    const containerWidth = container?.clientWidth || window.innerWidth;
+    const availableWidth = Math.max(0, containerWidth - FLOATING_CHAT_VIEWPORT_MARGIN_PX);
+
+    return availableWidth || 760;
+  }, []);
   const scheduleChatPanelCaretRefresh = useCallback(() => {
     if (chatPanelCaretRefreshFrameRef.current !== null) {
       return;
@@ -726,6 +733,7 @@ export function NotesView({
             defaultWidth={320}
             minWidth={320}
             maxWidth={760}
+            getMaxWidth={getDockedChatPanelMaxWidth}
             storageKey="vlaina_notes_chat_panel_width_v2"
             onWidthChange={scheduleChatPanelCaretRefresh}
             onDragStateChange={handleChatPanelDragStateChange}

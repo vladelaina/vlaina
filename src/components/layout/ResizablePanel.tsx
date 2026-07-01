@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useResizableDivider } from './shell/useResizableDivider';
-import { RESIZE_HANDLE_HALF_WIDTH } from './shell/ResizeDividerVisual';
 import { ResizeHandle } from './shell/ResizeHandle';
 
 const MAX_STORED_PANEL_WIDTH_CHARS = 16;
@@ -12,6 +11,7 @@ interface ResizablePanelProps {
   defaultWidth?: number;
   minWidth?: number;
   maxWidth?: number;
+  getMaxWidth?: () => number;
   storageKey?: string;
   className?: string;
   onWidthChange?: (width: number) => void;
@@ -20,6 +20,15 @@ interface ResizablePanelProps {
 
 function clampPanelWidth(width: number, minWidth: number, maxWidth: number): number {
   return Math.max(minWidth, Math.min(maxWidth, width));
+}
+
+function resolvePanelMaxWidth(
+  minWidth: number,
+  maxWidth: number,
+  getMaxWidth: (() => number) | undefined,
+): number {
+  const dynamicMaxWidth = getMaxWidth?.() ?? maxWidth;
+  return Math.max(minWidth, Math.min(maxWidth, dynamicMaxWidth));
 }
 
 function parseStoredPanelWidth(value: string | null, minWidth: number, maxWidth: number): number | null {
@@ -45,31 +54,36 @@ export function ResizablePanel({
   defaultWidth = 320,
   minWidth = 280,
   maxWidth = 800,
+  getMaxWidth,
   storageKey,
   className,
   onWidthChange,
   onDragStateChange,
 }: ResizablePanelProps) {
   const [width, setWidth] = useState(() => {
+    const effectiveMaxWidth = resolvePanelMaxWidth(minWidth, maxWidth, getMaxWidth);
     if (storageKey) {
       try {
-        const saved = parseStoredPanelWidth(localStorage.getItem(storageKey), minWidth, maxWidth);
+        const saved = parseStoredPanelWidth(localStorage.getItem(storageKey), minWidth, effectiveMaxWidth);
         if (saved !== null) return saved;
       } catch (e) {
       }
     }
-    return clampPanelWidth(defaultWidth, minWidth, maxWidth);
+    return clampPanelWidth(defaultWidth, minWidth, effectiveMaxWidth);
   });
 
   const handleWidthChange = useCallback((nextWidth: number) => {
-    setWidth(nextWidth);
-    onWidthChange?.(nextWidth);
-  }, [onWidthChange]);
+    const effectiveMaxWidth = resolvePanelMaxWidth(minWidth, maxWidth, getMaxWidth);
+    const clampedWidth = clampPanelWidth(nextWidth, minWidth, effectiveMaxWidth);
+    setWidth(clampedWidth);
+    onWidthChange?.(clampedWidth);
+  }, [getMaxWidth, maxWidth, minWidth, onWidthChange]);
 
   const { isDragging, handleDragStart } = useResizableDivider({
     width,
     minWidth,
     maxWidth,
+    getMaxWidth,
     defaultWidth,
     onWidthChange: handleWidthChange,
     onDragStateChange,
@@ -77,6 +91,15 @@ export function ResizablePanel({
     liveUpdateMode: 'sync',
     useOverlay: true,
   });
+
+  useLayoutEffect(() => {
+    const effectiveMaxWidth = resolvePanelMaxWidth(minWidth, maxWidth, getMaxWidth);
+    const clampedWidth = clampPanelWidth(width, minWidth, effectiveMaxWidth);
+    if (clampedWidth !== width) {
+      setWidth(clampedWidth);
+      onWidthChange?.(clampedWidth);
+    }
+  }, [getMaxWidth, maxWidth, minWidth, onWidthChange, width]);
 
   useEffect(() => {
     if (storageKey && !isDragging) {
@@ -97,7 +120,8 @@ export function ResizablePanel({
         return;
       }
 
-      const nextWidth = parseStoredPanelWidth(event.newValue, minWidth, maxWidth);
+      const effectiveMaxWidth = resolvePanelMaxWidth(minWidth, maxWidth, getMaxWidth);
+      const nextWidth = parseStoredPanelWidth(event.newValue, minWidth, effectiveMaxWidth);
       if (nextWidth === null) {
         return;
       }
@@ -108,7 +132,7 @@ export function ResizablePanel({
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
-  }, [maxWidth, minWidth, onWidthChange, storageKey]);
+  }, [getMaxWidth, maxWidth, minWidth, onWidthChange, storageKey]);
 
   return (
     <aside
@@ -123,9 +147,10 @@ export function ResizablePanel({
       <ResizeHandle
         onMouseDown={handleDragStart}
         isDragging={isDragging}
+        position="absolute"
         zIndexClassName="z-[var(--vlaina-z-100)]"
         positionStyle={{
-          right: width - RESIZE_HANDLE_HALF_WIDTH,
+          left: 0,
         }}
       />
       {children}

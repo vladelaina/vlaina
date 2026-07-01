@@ -11,6 +11,7 @@ interface UseResizableDividerOptions {
   width: number;
   minWidth: number;
   maxWidth: number;
+  getMaxWidth?: () => number;
   defaultWidth: number;
   onWidthChange: (width: number) => void;
   onWidthCommit?: (width: number) => void;
@@ -26,10 +27,20 @@ function clampWidth(width: number, minWidth: number, maxWidth: number): number {
   return Math.max(minWidth, Math.min(maxWidth, width));
 }
 
+function resolveMaxWidth(
+  minWidth: number,
+  maxWidth: number,
+  getMaxWidth: (() => number) | undefined,
+): number {
+  const dynamicMaxWidth = getMaxWidth?.() ?? maxWidth;
+  return Math.max(minWidth, Math.min(maxWidth, dynamicMaxWidth));
+}
+
 export function useResizableDivider({
   width,
   minWidth,
   maxWidth,
+  getMaxWidth,
   defaultWidth,
   onWidthChange,
   onWidthCommit,
@@ -53,20 +64,21 @@ export function useResizableDivider({
     let nextWidth = direction === 'reverse'
       ? startValue - delta
       : startValue + delta;
+    const effectiveMaxWidth = resolveMaxWidth(minWidth, maxWidth, getMaxWidth);
 
     if (snap) {
       const { threshold, resistance } = snap;
       if (nextWidth < minWidth + threshold) {
         const overMin = minWidth - nextWidth;
         if (overMin > 0) nextWidth = minWidth - (overMin * resistance);
-      } else if (nextWidth > maxWidth - threshold) {
-        const overMax = nextWidth - maxWidth;
-        if (overMax > 0) nextWidth = maxWidth + (overMax * resistance);
+      } else if (nextWidth > effectiveMaxWidth - threshold) {
+        const overMax = nextWidth - effectiveMaxWidth;
+        if (overMax > 0) nextWidth = effectiveMaxWidth + (overMax * resistance);
       }
     }
 
-    return clampWidth(nextWidth, minWidth, maxWidth);
-  }, [direction, maxWidth, minWidth, snap]);
+    return clampWidth(nextWidth, minWidth, effectiveMaxWidth);
+  }, [direction, getMaxWidth, maxWidth, minWidth, snap]);
 
   const {
     isDragging,
@@ -74,7 +86,7 @@ export function useResizableDivider({
     resetToDefaultValue,
   } = useResizeDragSession<number>({
     value: width,
-    defaultValue: clampWidth(defaultWidth, minWidth, maxWidth),
+    defaultValue: clampWidth(defaultWidth, minWidth, resolveMaxWidth(minWidth, maxWidth, getMaxWidth)),
     onValueChange: onWidthChange,
     onValueCommit: onWidthCommit,
     onDragStateChange,
