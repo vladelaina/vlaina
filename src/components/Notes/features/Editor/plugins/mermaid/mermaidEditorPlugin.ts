@@ -4,6 +4,7 @@ import { shouldSuppressPreviewEditorOpen } from '../shared/previewContextMenuSup
 import {
   findMermaidEditorTargetElement,
   isMermaidScrollbarPointerDown,
+  isSelectedScrollableMermaidElement,
   resolveMermaidEditorPointerOpen,
 } from './mermaidEditorOpenInteraction';
 import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
@@ -44,6 +45,23 @@ export const mermaidEditorPlugin = $prose(() => {
     },
     props: {
       handleDOMEvents: {
+        click(view, event) {
+          const mermaidElement = findMermaidEditorTargetElement(view, event.target);
+          if (
+            mermaidElement &&
+            event instanceof MouseEvent &&
+            (
+              isMermaidScrollbarPointerDown({ event, mermaidElement }) ||
+              isSelectedScrollableMermaidElement(mermaidElement)
+            )
+          ) {
+            event.preventDefault();
+            suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
+            return true;
+          }
+
+          return false;
+        },
         mousedown(view, event) {
           const mermaidElement = findMermaidEditorTargetElement(view, event.target);
 
@@ -61,6 +79,11 @@ export const mermaidEditorPlugin = $prose(() => {
             return false;
           }
 
+          if (mermaidElement && isSelectedScrollableMermaidElement(mermaidElement)) {
+            suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
+            return false;
+          }
+
           const openRequest = resolveMermaidEditorPointerOpen({
             view: view as never,
             target: event.target,
@@ -70,6 +93,7 @@ export const mermaidEditorPlugin = $prose(() => {
           }
 
           if (isMermaidScrollbarPointerDown({ event, mermaidElement: openRequest.mermaidElement })) {
+            suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
             return false;
           }
 
@@ -77,6 +101,23 @@ export const mermaidEditorPlugin = $prose(() => {
           suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
           view.dispatch(view.state.tr.setMeta(mermaidEditorPluginKey, openRequest.meta));
           return true;
+        },
+        mouseup(view, event) {
+          const mermaidElement = findMermaidEditorTargetElement(view, event.target);
+          if (
+            mermaidElement &&
+            event instanceof MouseEvent &&
+            (
+              isMermaidScrollbarPointerDown({ event, mermaidElement }) ||
+              isSelectedScrollableMermaidElement(mermaidElement)
+            )
+          ) {
+            event.preventDefault();
+            suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
+            return true;
+          }
+
+          return false;
         },
       },
       handleClick(view, _pos, event) {
@@ -100,6 +141,11 @@ export const mermaidEditorPlugin = $prose(() => {
           return false;
         }
 
+        if (isSelectedScrollableMermaidElement(mermaidElement)) {
+          event.preventDefault();
+          return true;
+        }
+
         if (isMermaidScrollbarPointerDown({ event, mermaidElement })) {
           return false;
         }
@@ -117,12 +163,39 @@ export const mermaidEditorPlugin = $prose(() => {
       },
     },
     view(editorView) {
-      return createMermaidEditorViewSession({
+      const documentRef = editorView.dom.ownerDocument;
+      const suppressSelectedScrollableMermaidOpen = (event: MouseEvent) => {
+        const mermaidElement = findMermaidEditorTargetElement(editorView, event.target);
+        if (!mermaidElement || !isSelectedScrollableMermaidElement(mermaidElement)) {
+          return;
+        }
+
+        suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
+        if (event.type !== 'mousedown') {
+          event.preventDefault();
+        }
+        event.stopPropagation();
+      };
+      documentRef.addEventListener('mousedown', suppressSelectedScrollableMermaidOpen, true);
+      documentRef.addEventListener('mouseup', suppressSelectedScrollableMermaidOpen, true);
+      documentRef.addEventListener('click', suppressSelectedScrollableMermaidOpen, true);
+
+      const session = createMermaidEditorViewSession({
         editorView,
         onOutsideCloseIntent() {
           suppressOpenUntil = getSuppressDeadline() + 120;
         },
       });
+
+      return {
+        update: session.update,
+        destroy() {
+          documentRef.removeEventListener('mousedown', suppressSelectedScrollableMermaidOpen, true);
+          documentRef.removeEventListener('mouseup', suppressSelectedScrollableMermaidOpen, true);
+          documentRef.removeEventListener('click', suppressSelectedScrollableMermaidOpen, true);
+          session.destroy();
+        },
+      };
     },
   });
 });

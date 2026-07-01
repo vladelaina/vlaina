@@ -79,6 +79,31 @@ body.editor-block-drag-active .milkdown .ProseMirror :is(
   box-shadow: none !important;
 }
 
+.milkdown .ProseMirror .mermaid-block[data-type='mermaid'].mermaid-block.mermaid-block.mermaid-block:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike
+) {
+  background: var(--vlaina-block-selection-color) !important;
+  background-color: var(--vlaina-block-selection-color) !important;
+  box-shadow: var(--vlaina-block-selection-shadow) !important;
+}
+
+.milkdown .ProseMirror .mermaid-block[data-type='mermaid'][data-mermaid-diagram='gantt'].mermaid-block:is(
+  .editor-block-selected,
+  .editor-block-drag-source,
+  .ProseMirror-selectednode,
+  .editor-block-selected-textlike,
+  .editor-block-drag-source-textlike,
+  .editor-native-selected-textlike
+) {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
@@ -122,8 +147,7 @@ body.editor-block-drag-active .milkdown .ProseMirror :is(
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .toc-block,
-  .mermaid-block
+  .toc-block
 ):is(
   .editor-block-selected,
   .editor-block-drag-source,
@@ -135,8 +159,7 @@ body.editor-block-drag-active .milkdown .ProseMirror :is(
 .milkdown .ProseMirror :is(
   [data-type='math-block'].math-block-wrapper,
   [data-type='html-block'].md-htmlblock-container:not(.md-htmlblock-literal-text):not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .toc-block,
-  .mermaid-block
+  .toc-block
 ):is(
   .editor-block-selected,
   .editor-block-drag-source,
@@ -170,8 +193,10 @@ body.editor-block-drag-active .milkdown .ProseMirror :is(
   .editor-block-selected-textlike,
   .editor-block-drag-source-textlike,
   .editor-native-selected-textlike
-) :is(text, tspan, .nodeLabel, .label, .edgeLabel) {
-  fill: var(--vlaina-editor-block-selection-fg) !important;
+) :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {
+  color: var(--vlaina-mermaid-text) !important;
+  -webkit-text-fill-color: var(--vlaina-mermaid-text) !important;
+  fill: var(--vlaina-mermaid-text) !important;
 }
 
 .milkdown .ProseMirror.editor-atomic-block-keyboard-selected :is(

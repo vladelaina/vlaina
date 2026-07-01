@@ -169,17 +169,21 @@
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .mermaid-block
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ).ProseMirror-selectednode,
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .mermaid-block
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ).ProseMirror-selectednode * {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror .mermaid-block.ProseMirror-selectednode :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {
+  color: var(--vlaina-mermaid-text) !important;
+  -webkit-text-fill-color: var(--vlaina-mermaid-text) !important;
+  fill: var(--vlaina-mermaid-text) !important;
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-atomic-block-keyboard-selected :is(

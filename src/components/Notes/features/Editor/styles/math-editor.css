@@ -260,14 +260,12 @@
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .mermaid-block
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
-  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->']),
-  .mermaid-block
+  [data-type='html-block']:not([data-value='<!--vlaina-markdown-blank-line-->']):not([data-value='<!--vlaina-markdown-tight-heading-->'])
 ):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) * {
   color: var(--vlaina-editor-block-selection-fg) !important;
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
@@ -297,8 +295,10 @@
 
 .milkdown .ProseMirror :is(
   .mermaid-block
-):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel) {
-  fill: var(--vlaina-editor-block-selection-fg) !important;
+):is(.editor-block-selected, .editor-block-drag-source, .ProseMirror-selectednode):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .nodeLabel *, .label, .label *, .edgeLabel, .edgeLabel *) {
+  color: var(--vlaina-mermaid-text) !important;
+  -webkit-text-fill-color: var(--vlaina-mermaid-text) !important;
+  fill: var(--vlaina-mermaid-text) !important;
 }
 
 .milkdown [data-type='math-block'].math-block-wrapper {

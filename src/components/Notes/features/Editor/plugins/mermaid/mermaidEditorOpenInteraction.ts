@@ -3,6 +3,7 @@ import type { MermaidEditorState } from './types';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 const MERMAID_NODE_SELECTOR = '[data-type="mermaid"]';
+const MERMAID_SCROLLBAR_HIT_AREA_PX = 18;
 
 interface MermaidEditorPluginViewLike {
   state: {
@@ -72,22 +73,29 @@ export function isMermaidScrollbarPointerDown(args: {
   }
 
   const overflowX = window.getComputedStyle(mermaidElement).overflowX;
-  const scrollbarHeight = mermaidElement.offsetHeight - mermaidElement.clientHeight;
+  const measuredScrollbarHeight = mermaidElement.offsetHeight - mermaidElement.clientHeight;
   const hasHorizontalScrollbar =
     (overflowX === 'auto' || overflowX === 'scroll') &&
-    mermaidElement.scrollWidth > mermaidElement.clientWidth &&
-    scrollbarHeight > 0;
+    mermaidElement.scrollWidth > mermaidElement.clientWidth;
 
   if (!hasHorizontalScrollbar) {
     return false;
   }
 
   const rect = mermaidElement.getBoundingClientRect();
+  const scrollbarHitArea = Math.max(measuredScrollbarHeight, MERMAID_SCROLLBAR_HIT_AREA_PX);
   return (
     event.clientX >= rect.left &&
     event.clientX <= rect.right &&
-    event.clientY >= rect.bottom - scrollbarHeight &&
+    event.clientY >= rect.bottom - scrollbarHitArea &&
     event.clientY <= rect.bottom
+  );
+}
+
+export function isSelectedScrollableMermaidElement(mermaidElement: HTMLElement) {
+  return (
+    mermaidElement.classList.contains('editor-block-selected') &&
+    mermaidElement.scrollWidth > mermaidElement.clientWidth
   );
 }
 

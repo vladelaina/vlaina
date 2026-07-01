@@ -439,6 +439,7 @@
   --vlaina-height-prosemirror-min: calc(100vh - var(--vlaina-size-250px));
   --vlaina-height-prosemirror-bottom-padding: var(--vlaina-size-50vh);
   --vlaina-height-math-block-intrinsic: auto var(--vlaina-size-96px);
+  --vlaina-mermaid-text: #27272A;
   --vlaina-markdown-font-size: var(--vlaina-size-17px);
   --vlaina-collapse-gutter-base: var(--vlaina-size-22px);
   --vlaina-collapse-marker-gap: var(--vlaina-size-24px);
