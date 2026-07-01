@@ -112,6 +112,24 @@ describe('AboutTab community QR pills', () => {
     expect(openExternalHref).toHaveBeenCalledWith('mailto:hi@vlaina.com');
   });
 
+  it('opens Discord and Slack through vlaina redirect links', () => {
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Discord' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Slack' }));
+
+    expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/discord');
+    expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/slack');
+  });
+
   it('opens the platform-specific update package URL returned by the desktop updater', async () => {
     const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.17/vlaina-0.1.17-linux-x86_64.AppImage';
     electronBridgeMock.current = {
