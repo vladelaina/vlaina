@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { UPDATE_INFO_CACHE_KEY, writeCachedDesktopUpdateInfo } from '@/lib/desktop/updateStatus';
 import { AboutTab } from './AboutTab';
 
 const { electronBridgeMock, openExternalHrefMock } = vi.hoisted(() => ({
@@ -60,6 +61,7 @@ vi.mock('qrcode', () => ({
 describe('AboutTab community QR pills', () => {
   afterEach(() => {
     cleanup();
+    localStorage.clear();
     electronBridgeMock.current = undefined;
     vi.clearAllMocks();
   });
@@ -164,7 +166,7 @@ describe('AboutTab community QR pills', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
 
     const updateButton = await screen.findByRole('button', { name: 'Update' });
-    expect(updateButton).toHaveAttribute('title', 'vlaina-0.1.17-linux-x86_64.AppImage');
+    expect(updateButton).not.toHaveAttribute('title');
     expect(updateButton.className).toContain('bg-[var(--vlaina-sidebar-row-selected-bg)]');
     expect(updateButton.className).toContain('text-[var(--vlaina-sidebar-row-selected-text)]');
     expect(updateButton.className).toContain('shadow-[var(--vlaina-shadow-selection-soft)]');
@@ -174,6 +176,177 @@ describe('AboutTab community QR pills', () => {
 
     await waitFor(() => {
       expect(openExternalHrefMock).toHaveBeenCalledWith(downloadUrl);
+    });
+  });
+
+  it('restores an available update from the cached desktop updater result', async () => {
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
+    writeCachedDesktopUpdateInfo({
+      currentVersion: '0.1.16',
+      latestVersion: '0.1.18',
+      updateAvailable: true,
+      downloadUrl,
+      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.18',
+      platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      platformAssetSha256: 'a'.repeat(64),
+      hasPlatformAsset: true,
+      releaseNotes: 'Release notes',
+      publishedAt: '2026-06-27T00:00:00.000Z',
+    });
+
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    expect(await screen.findByText('v0.1.18 available')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+
+    await waitFor(() => {
+      expect(openExternalHrefMock).toHaveBeenCalledWith(downloadUrl);
+    });
+  });
+
+  it('opens the downloaded installer when the update package is already cached', async () => {
+    const openDownloaded = vi.fn().mockResolvedValue(undefined);
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
+    const downloadedFilePath = '/tmp/vlaina/update-downloads/0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
+    electronBridgeMock.current = {
+      update: {
+        openDownloaded,
+      },
+    };
+    writeCachedDesktopUpdateInfo({
+      currentVersion: '0.1.16',
+      latestVersion: '0.1.18',
+      updateAvailable: true,
+      downloadUrl,
+      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.18',
+      platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      platformAssetSha256: 'a'.repeat(64),
+      hasPlatformAsset: true,
+      releaseNotes: 'Release notes',
+      publishedAt: '2026-06-27T00:00:00.000Z',
+      downloadState: 'downloaded',
+      downloadedFilePath,
+      downloadedFileName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      downloadedAt: '2026-06-27T00:00:00.000Z',
+    });
+
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Update' }));
+
+    await waitFor(() => {
+      expect(openDownloaded).toHaveBeenCalledWith(expect.objectContaining({
+        latestVersion: '0.1.18',
+        platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+        platformAssetSha256: 'a'.repeat(64),
+        downloadedFilePath,
+      }));
+    });
+    expect(openExternalHrefMock).not.toHaveBeenCalledWith(downloadUrl);
+  });
+
+  it('falls back to the GitHub download URL while the background update is still downloading', async () => {
+    const openDownloaded = vi.fn().mockResolvedValue(undefined);
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
+    electronBridgeMock.current = {
+      app: {
+        getVersion: vi.fn().mockResolvedValue('0.1.16'),
+      },
+      update: {
+        openDownloaded,
+      },
+    };
+    writeCachedDesktopUpdateInfo({
+      currentVersion: '0.1.16',
+      latestVersion: '0.1.18',
+      updateAvailable: true,
+      downloadUrl,
+      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.18',
+      platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      hasPlatformAsset: true,
+      releaseNotes: 'Release notes',
+      publishedAt: '2026-06-27T00:00:00.000Z',
+      downloadState: 'downloading',
+    });
+
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Update' }));
+
+    await waitFor(() => {
+      expect(openExternalHrefMock).toHaveBeenCalledWith(downloadUrl);
+    });
+    expect(openDownloaded).not.toHaveBeenCalled();
+  });
+
+  it('clears a cached auto-downloaded update when the current app version is already current', async () => {
+    const deleteDownloaded = vi.fn().mockResolvedValue(undefined);
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.17/vlaina-0.1.17-linux-x86_64.AppImage';
+    const downloadedFilePath = '/tmp/vlaina/update-downloads/0.1.17/vlaina-0.1.17-linux-x86_64.AppImage';
+    electronBridgeMock.current = {
+      app: {
+        getVersion: vi.fn().mockResolvedValue('0.1.17'),
+      },
+      update: {
+        deleteDownloaded,
+      },
+    };
+    const cachedUpdateInfo = {
+      currentVersion: '0.1.16',
+      latestVersion: '0.1.17',
+      updateAvailable: true,
+      downloadUrl,
+      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.17',
+      platformAssetName: 'vlaina-0.1.17-linux-x86_64.AppImage',
+      hasPlatformAsset: true,
+      releaseNotes: 'Release notes',
+      publishedAt: '2026-06-27T00:00:00.000Z',
+      downloadState: 'downloaded' as const,
+      downloadedFilePath,
+      downloadedFileName: 'vlaina-0.1.17-linux-x86_64.AppImage',
+      downloadedAt: '2026-06-27T00:00:00.000Z',
+    };
+    writeCachedDesktopUpdateInfo(cachedUpdateInfo);
+
+    render(
+      <AboutTab
+        community={{
+          qqGroupNumber: '123456',
+          qqQrCodeText: 'qq-code',
+          wechatQrCodeText: 'wechat-code',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(deleteDownloaded).toHaveBeenCalledWith(expect.objectContaining(cachedUpdateInfo));
+    });
+    await waitFor(() => {
+      expect(localStorage.getItem(UPDATE_INFO_CACHE_KEY)).toBeNull();
     });
   });
 });

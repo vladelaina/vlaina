@@ -106,6 +106,20 @@ function releaseAssetPartsIncludeAny(parts, aliases) {
   return aliases.some((alias) => parts.includes(alias));
 }
 
+function normalizeAssetSha256(value) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim().toLowerCase().replace(/^sha256:/, '');
+  return /^[a-f0-9]{64}$/.test(normalized) ? normalized : '';
+}
+
+function isRetryableUpdateManifestStatus(status) {
+  return status === 429 || status === 502 || status === 503 || status === 504;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function normalizeReleaseAssets(rawAssets) {
   if (!Array.isArray(rawAssets)) {
     return [];
@@ -132,6 +146,9 @@ export function normalizeReleaseAssets(rawAssets) {
         return {
           name,
           downloadUrl: normalizeHttpUrl(downloadUrl, 'Release asset URL'),
+          sha256: normalizeAssetSha256(
+            asset.sha256 ?? asset.checksum ?? asset.digest
+          ),
         };
       } catch {
         return null;
@@ -199,6 +216,7 @@ export function selectCurrentPlatformAsset(assets, {
       return {
         name: match.name,
         downloadUrl: match.downloadUrl,
+        sha256: match.sha256 ?? '',
       };
     }
   }
@@ -242,6 +260,7 @@ export function normalizeUpdateManifest(payload, {
     downloadUrl: platformAsset?.downloadUrl ?? releaseUrl,
     releaseUrl,
     platformAssetName: platformAsset?.name ?? '',
+    platformAssetSha256: platformAsset?.sha256 ?? '',
     hasPlatformAsset: Boolean(platformAsset),
     releaseNotes,
     publishedAt,
@@ -256,6 +275,7 @@ export async function fetchUpdateManifest({
   readJsonResponse,
   timeoutMs = 8000,
   allowLocalManifestUrl = false,
+  retryDelaysMs = [],
 }) {
   if (typeof readJsonResponse !== 'function') {
     throw new Error('Update manifest JSON reader must be provided.');
@@ -264,28 +284,40 @@ export async function fetchUpdateManifest({
   const normalizedManifestUrl = normalizeHttpUrl(manifestUrl, 'Update manifest URL', {
     allowLocalNetwork: allowLocalManifestUrl,
   });
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    const response = await fetchImpl(normalizedManifestUrl, {
-      cache: 'no-store',
-      signal: controller.signal,
-      headers: {
-        accept: 'application/json',
-        'user-agent': `vlaina/${appVersion} desktop-updater`,
-      },
-    });
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!response.ok) {
-      throw new Error(`Update manifest request failed: HTTP ${response.status}`);
+    try {
+      const response = await fetchImpl(normalizedManifestUrl, {
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: {
+          accept: 'application/json',
+          'user-agent': `vlaina/${appVersion} desktop-updater`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Update manifest request failed: HTTP ${response.status}`, {
+          cause: { retryable: isRetryableUpdateManifestStatus(response.status) },
+        });
+      }
+
+      return normalizeUpdateManifest(await readJsonResponse(response, {
+        signal: controller.signal,
+        tooLargeMessage: 'Update manifest response body is too large.',
+      }), { defaultDownloadUrl });
+    } catch (error) {
+      const retryDelayMs = retryDelaysMs[attempt];
+      const retryable = error?.cause?.retryable === true || error?.name === 'AbortError' || error instanceof TypeError;
+      if (retryDelayMs == null || !retryable) {
+        throw error;
+      }
+      await delay(retryDelayMs);
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return normalizeUpdateManifest(await readJsonResponse(response, {
-      signal: controller.signal,
-      tooLargeMessage: 'Update manifest response body is too large.',
-    }), { defaultDownloadUrl });
-  } finally {
-    clearTimeout(timeout);
   }
 }

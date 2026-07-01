@@ -22,6 +22,8 @@ import {
   summarizeUrlForLog,
 } from './externalUrlPolicy.mjs';
 import { compareVersions, fetchUpdateManifest as fetchDesktopUpdateManifest } from './updateManifest.mjs';
+import { deleteDownloadedUpdate, downloadUpdateAsset, normalizeDownloadedUpdateForOpen } from './updateDownload.mjs';
+import { resolveDesktopUpdatePolicy } from './updatePolicy.mjs';
 
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, session, shell } = electron;
 
@@ -36,12 +38,13 @@ const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').tr
 const managedApiBaseUrl = `${apiBaseUrl}/v1`;
 const updateManifestUrl = (
   process.env.APP_UPDATE_MANIFEST_URL
-  ?? 'https://api.github.com/repos/vladelaina/vlaina/releases/latest'
+  ?? 'https://vlaina.com/api/update/latest'
 ).trim();
 const defaultDownloadUrl = (
   process.env.APP_DOWNLOAD_URL
-  ?? 'https://github.com/vladelaina/vlaina/releases/latest'
+  ?? 'https://vlaina.com/download'
 ).trim();
+const desktopUpdatePolicy = resolveDesktopUpdatePolicy();
 const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'logo.png');
 const trayIconSize = process.platform === 'darwin' ? 18 : 16;
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
@@ -52,7 +55,9 @@ let tray = null;
 let trayQuitRequested = false;
 let trayLanguage = 'en';
 let pendingOpenMarkdownPath = null;
+let updateDownloadJob = null;
 const readOnlyNetworkRetryDelaysMs = [300];
+const updateManifestRetryDelaysMs = [300, 1000];
 const readOnlyFastFailureRetryWindowMs = 2000;
 const managedReadOnlyRequestTimeoutMs = 15_000;
 const desktopAccountRequestTimeoutMs = 15_000;
@@ -638,6 +643,7 @@ async function fetchUpdateManifest() {
     appVersion: app.getVersion(),
     readJsonResponse: readBoundedJsonResponse,
     allowLocalManifestUrl: !app.isPackaged,
+    retryDelaysMs: updateManifestRetryDelaysMs,
   });
 }
 
@@ -1093,13 +1099,99 @@ ipcMain.on('desktop:app:report-renderer-error', (event, payload) => {
 
 handleIpc('desktop:update:check', async () => {
   const currentVersion = app.getVersion();
+  if (!desktopUpdatePolicy.checkEnabled) {
+    return {
+      currentVersion,
+      latestVersion: currentVersion,
+      updateAvailable: false,
+      downloadUrl: '',
+      releaseUrl: '',
+      platformAssetName: '',
+      platformAssetSha256: '',
+      hasPlatformAsset: false,
+      releaseNotes: '',
+      publishedAt: '',
+      updatePolicy: desktopUpdatePolicy,
+    };
+  }
+
   const manifest = await fetchUpdateManifest();
 
   return {
     currentVersion,
     ...manifest,
     updateAvailable: compareVersions(manifest.latestVersion, currentVersion) > 0,
+    updatePolicy: desktopUpdatePolicy,
   };
+});
+
+handleIpc('desktop:update:get-policy', async () => desktopUpdatePolicy);
+
+handleIpc('desktop:update:download', async (_event, updateInfo) => {
+  if (!desktopUpdatePolicy.backgroundDownloadEnabled) {
+    throw new Error('Background update downloads are disabled for this distribution.');
+  }
+  if (!updateInfo?.hasPlatformAsset) {
+    throw new Error('No platform update asset is available.');
+  }
+  if (!updateInfo?.platformAssetSha256) {
+    throw new Error('Update asset SHA-256 is required.');
+  }
+  if (compareVersions(updateInfo.latestVersion, app.getVersion()) <= 0) {
+    throw new Error('Update version is not newer than the current app version.');
+  }
+
+  const downloadKey = [
+    updateInfo?.latestVersion,
+    updateInfo?.platformAssetName,
+    updateInfo?.platformAssetSha256,
+    updateInfo?.downloadUrl,
+  ].join('\n');
+
+  if (updateDownloadJob) {
+    if (updateDownloadJob.key === downloadKey) {
+      return await updateDownloadJob.promise;
+    }
+    updateDownloadJob.controller.abort();
+    await updateDownloadJob.promise.catch(() => {
+    });
+  }
+
+  const controller = new AbortController();
+  const promise = downloadUpdateAsset({
+    app,
+    updateInfo,
+    fetchImpl: fetchWithElectronSession,
+    signal: controller.signal,
+  });
+  updateDownloadJob = { key: downloadKey, promise, controller };
+
+  try {
+    return await promise;
+  } finally {
+    if (updateDownloadJob?.promise === promise) {
+      updateDownloadJob = null;
+    }
+  }
+});
+
+handleIpc('desktop:update:open-downloaded', async (_event, updateInfo) => {
+  if (!desktopUpdatePolicy.localInstallerEnabled) {
+    throw new Error('Opening downloaded update installers is disabled for this distribution.');
+  }
+
+  const normalizedPath = await normalizeDownloadedUpdateForOpen(app, updateInfo);
+  const result = await shell.openPath(normalizedPath);
+  if (result) {
+    throw new Error(result);
+  }
+});
+
+handleIpc('desktop:update:delete-downloaded', async (_event, updateInfoOrFilePath) => {
+  if (!desktopUpdatePolicy.cleanupDownloadedUpdatesEnabled) {
+    return;
+  }
+  deleteDownloadedUpdate(app, updateInfoOrFilePath);
 });
 
 desktopAccountService.registerAccountIpc({ handleIpc });

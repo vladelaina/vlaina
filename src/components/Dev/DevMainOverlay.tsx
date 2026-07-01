@@ -9,6 +9,13 @@ import {
 } from '@/stores/unified/settings/markdownSettings';
 import { applyManagedQuotaExhaustedSnapshot, useManagedAIStore } from '@/stores/useManagedAIStore';
 import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
+import {
+  clearCachedDesktopUpdateInfo,
+  createSimulatedDesktopUpdateInfo,
+  readCachedDesktopUpdateInfo,
+  UPDATE_INFO_CHANGED_EVENT,
+  writeCachedDesktopUpdateInfo,
+} from '@/lib/desktop/updateStatus';
 
 const DEV_OVERLAY_BUTTON_CLASS =
   'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)] disabled:opacity-[var(--vlaina-opacity-50)]';
@@ -77,6 +84,9 @@ export function DevMainOverlay({
   const managedBudget = useManagedAIStore((state) => state.budget);
   const clearManagedBudget = useManagedAIStore((state) => state.clearBudget);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
+  const [isSimulatedUpdateActive, setIsSimulatedUpdateActive] = useState(() =>
+    readCachedDesktopUpdateInfo()?.simulated === true
+  );
   const [shouldPreviewErrorScreen, setShouldPreviewErrorScreen] = useState(false);
 
   useEffect(() => {
@@ -85,6 +95,17 @@ export function DevMainOverlay({
       document.documentElement.removeAttribute('data-vlaina-dev-platform-preview');
     };
   }, [devPlatformPreview]);
+
+  useEffect(() => {
+    const syncSimulatedUpdateState = () => {
+      setIsSimulatedUpdateActive(readCachedDesktopUpdateInfo()?.simulated === true);
+    };
+
+    window.addEventListener(UPDATE_INFO_CHANGED_EVENT, syncSimulatedUpdateState);
+    return () => {
+      window.removeEventListener(UPDATE_INFO_CHANGED_EVENT, syncSimulatedUpdateState);
+    };
+  }, []);
 
   const handleMarkdownThemeCycle = useCallback(async () => {
     if (isThemeSwitching) return;
@@ -124,6 +145,9 @@ export function DevMainOverlay({
   const managedQuotaSwitchLabel = isManagedQuotaExhausted
     ? 'Clear managed quota exhaustion'
     : 'Simulate managed quota exhaustion';
+  const updateSimulationSwitchLabel = isSimulatedUpdateActive
+    ? 'Clear simulated update'
+    : 'Simulate update available';
 
   if (shouldPreviewErrorScreen) {
     return <DevErrorScreenPreviewCrash />;
@@ -131,6 +155,17 @@ export function DevMainOverlay({
 
   return (
     <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
+      <DevOverlayButton
+        iconName={isSimulatedUpdateActive ? 'common.checkCircle' : 'common.download'}
+        label={updateSimulationSwitchLabel}
+        onClick={() => {
+          if (isSimulatedUpdateActive) {
+            clearCachedDesktopUpdateInfo();
+            return;
+          }
+          writeCachedDesktopUpdateInfo(createSimulatedDesktopUpdateInfo());
+        }}
+      />
       <DevOverlayButton
         iconName="common.error"
         label="Preview error screen"

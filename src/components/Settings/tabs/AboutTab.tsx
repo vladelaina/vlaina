@@ -9,6 +9,16 @@ import { cn } from '@/lib/utils';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import { useI18n, type AppLanguage, type MessageKey, type MessageValues } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
+import {
+  canOpenDesktopUpdateExternalDownload,
+  canOpenDesktopUpdateLocalInstaller,
+  type DesktopUpdateInfo,
+  isDesktopUpdateNewerThanCurrent,
+  readCachedDesktopUpdateInfo,
+  UPDATE_INFO_CHANGED_EVENT,
+  writeCachedDesktopUpdateInfo,
+} from '@/lib/desktop/updateStatus';
+import { clearStaleDesktopUpdateDownload, startDesktopUpdateDownload } from '@/lib/desktop/updateDownload';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { FeedbackTab } from './FeedbackTab';
 import { themeColorTokens, themeIconTokens, themeQrTokens } from '@/styles/themeTokens';
@@ -20,17 +30,7 @@ import {
 type UpdateStatus = 'idle' | 'checking' | 'current' | 'available' | 'error';
 type CommunityQrPillId = 'qq' | 'wechat';
 
-interface UpdateInfo {
-  currentVersion: string;
-  latestVersion: string;
-  updateAvailable: boolean;
-  downloadUrl: string;
-  releaseUrl: string;
-  platformAssetName: string;
-  hasPlatformAsset: boolean;
-  releaseNotes: string;
-  publishedAt: string;
-}
+type UpdateInfo = DesktopUpdateInfo;
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
 const officialWebsiteUrl = 'https://vlaina.com';
@@ -44,6 +44,18 @@ const appLogoUrl = `${import.meta.env.BASE_URL}logo.png`;
 const communityPillClassName =
   'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[var(--vlaina-font-xs)] font-semibold text-[var(--vlaina-sidebar-notes-text)] transition-all duration-[var(--vlaina-duration-200)]';
 const richTokenPattern = /(\{appSite\}|\{catimeSite\}|\{authorSite\}|\{clockTopic\})/g;
+
+function readInitialUpdateState(): { status: UpdateStatus; updateInfo: UpdateInfo | null } {
+  const cachedUpdateInfo = readCachedDesktopUpdateInfo();
+  if (!cachedUpdateInfo || !isDesktopUpdateNewerThanCurrent(cachedUpdateInfo)) {
+    return { status: 'idle', updateInfo: null };
+  }
+
+  return {
+    status: cachedUpdateInfo.updateAvailable ? 'available' : 'current',
+    updateInfo: cachedUpdateInfo,
+  };
+}
 
 const cnyEquivalentByLanguage: Record<AppLanguage, { currency: string; amount: number; locale: string }> = {
   en: { currency: 'USD', amount: 441, locale: 'en-US' },
@@ -414,8 +426,8 @@ function DeveloperNotePanel() {
 export function AboutTab({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
   const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
-  const [status, setStatus] = useState<UpdateStatus>('idle');
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [status, setStatus] = useState<UpdateStatus>(() => readInitialUpdateState().status);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(() => readInitialUpdateState().updateInfo);
   const [currentVersion, setCurrentVersion] = useState('');
 
   useEffect(() => {
@@ -426,10 +438,32 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
 
     void bridge.app.getVersion().then((version) => {
       setCurrentVersion(version);
+      const cachedUpdateInfo = readCachedDesktopUpdateInfo();
+      if (cachedUpdateInfo && bridge.update) {
+        void clearStaleDesktopUpdateDownload(bridge.update, cachedUpdateInfo, version);
+      }
     }).catch(() => {
       setCurrentVersion('');
     });
   }, []);
+
+  useEffect(() => {
+    const applyCachedUpdateInfo = () => {
+      const cachedUpdateInfo = readCachedDesktopUpdateInfo();
+      const freshUpdateInfo = cachedUpdateInfo && isDesktopUpdateNewerThanCurrent(cachedUpdateInfo, currentVersion || APP_VERSION)
+        ? cachedUpdateInfo
+        : null;
+      setUpdateInfo(freshUpdateInfo);
+      setStatus(freshUpdateInfo
+        ? freshUpdateInfo.updateAvailable ? 'available' : 'current'
+        : 'idle');
+    };
+
+    window.addEventListener(UPDATE_INFO_CHANGED_EVENT, applyCachedUpdateInfo);
+    return () => {
+      window.removeEventListener(UPDATE_INFO_CHANGED_EVENT, applyCachedUpdateInfo);
+    };
+  }, [currentVersion]);
 
   const checkForUpdates = useCallback(async () => {
     const bridge = getElectronBridge();
@@ -442,19 +476,50 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
 
     try {
       const nextInfo = await bridge.update.check();
-      setUpdateInfo(nextInfo);
-      setStatus(nextInfo.updateAvailable ? 'available' : 'current');
+      const freshUpdateInfo = await clearStaleDesktopUpdateDownload(
+        bridge.update,
+        nextInfo,
+        currentVersion || nextInfo.currentVersion || APP_VERSION
+      );
+      if (!freshUpdateInfo) {
+        setUpdateInfo(null);
+        setStatus('current');
+        return;
+      }
+      setUpdateInfo(freshUpdateInfo);
+      setStatus('available');
+      writeCachedDesktopUpdateInfo(freshUpdateInfo);
+      startDesktopUpdateDownload(bridge.update, freshUpdateInfo);
     } catch (error) {
-      setStatus('error');
+      setStatus((previousStatus) => previousStatus === 'available' && updateInfo ? 'available' : 'error');
     }
-  }, [t]);
+  }, [currentVersion, updateInfo]);
 
   const hasUpdate = status === 'available' && Boolean(updateInfo);
 
   const openUpdateDownload = useCallback(() => {
     if (!hasUpdate || !updateInfo?.downloadUrl) return;
-    void openExternalHref(updateInfo.downloadUrl);
-  }, [hasUpdate, updateInfo?.downloadUrl]);
+    if (
+      canOpenDesktopUpdateLocalInstaller(updateInfo) &&
+      updateInfo.downloadState === 'downloaded' &&
+      updateInfo.platformAssetSha256 &&
+      updateInfo.downloadedFilePath
+    ) {
+      const bridge = getElectronBridge();
+      if (bridge?.update?.openDownloaded) {
+        void bridge.update.openDownloaded(updateInfo)
+          .catch(() => {
+            if (canOpenDesktopUpdateExternalDownload(updateInfo)) {
+              void openExternalHref(updateInfo.downloadUrl);
+            }
+          });
+        return;
+      }
+    }
+    if (canOpenDesktopUpdateExternalDownload(updateInfo)) {
+      void openExternalHref(updateInfo.downloadUrl);
+    }
+  }, [hasUpdate, updateInfo]);
 
   const statusLabel = (() => {
     if (status === 'checking') return t('common.checking');
@@ -507,7 +572,6 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
               <button
                 type="button"
                 onClick={openUpdateDownload}
-                title={updateInfo?.platformAssetName || undefined}
                 className={settingsSelectedActionButtonClassName}
               >
                 <ExternalLink size={themeIconTokens.sizeSidebar} />

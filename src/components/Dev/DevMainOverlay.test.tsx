@@ -128,6 +128,7 @@ describe('DevMainOverlay', () => {
 
   afterEach(() => {
     cleanup();
+    localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -202,6 +203,22 @@ describe('DevMainOverlay', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Preview macOS titlebar' }));
 
     expect(mocks.toggleDevPlatformPreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggles the simulated desktop update cache', () => {
+    render(<DevMainOverlay effectiveAppViewMode="notes" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate update available' }));
+
+    expect(JSON.parse(localStorage.getItem('vlaina:update:lastResult') ?? '{}')).toMatchObject({
+      latestVersion: '99.99.99',
+      updateAvailable: true,
+      simulated: true,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear simulated update' }));
+
+    expect(localStorage.getItem('vlaina:update:lastResult')).toBeNull();
   });
 
   it('hides the Lab shortcut while already in the Lab view', () => {
