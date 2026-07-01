@@ -195,7 +195,190 @@ jobs:
           enableCrossOsArchive: true
 
   package:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch'
+    name: Package ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    needs: release-context
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025-vs2026
+            label: windows-x64
+            platform: windows
+            arch: x64
+            target: --win --x64
+          - os: windows-2025-vs2026
+            label: windows-arm64
+            platform: windows
+            arch: arm64
+            target: --win --arm64
+          - os: macos-15-intel
+            label: macos-x64
+            platform: macos
+            arch: x64
+            target: --mac --x64
+          - os: macos-15
+            label: macos-arm64
+            platform: macos
+            arch: arm64
+            target: --mac --arm64
+          - os: ubuntu-24.04
+            label: linux-x64
+            platform: linux
+            arch: x64
+            target: --linux --x64
+          - os: ubuntu-24.04-arm
+            label: linux-arm64
+            platform: linux
+            arch: arm64
+            target: --linux --arm64
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pnpm
+        run: corepack enable pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Sync package version from tag
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        run: node scripts/sync-version-from-tag.mjs "${{ needs.release-context.outputs.tag }}"
+
+      - name: Install ImageMagick on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      - name: Install ImageMagick on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command magick -ErrorAction SilentlyContinue)) {
+            choco install imagemagick -y --no-progress
+          }
+
+      - name: Generate desktop icons
+        run: pnpm run prepare:desktop-assets
+
+      - name: Build renderer
+        run: pnpm exec vite build
+
+      - name: Restore Electron build caches
+        uses: actions/cache@v5
+        with:
+          path: |
+            .cache/electron
+            .cache/electron-builder
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            electron-builder-${{ runner.os }}-
+
+      - name: Package Electron app
+        if: runner.os != 'macOS'
+        env:
+          ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
+
+      - name: Package Electron app
+        if: runner.os == 'macOS'
+        env:
+          ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never; then
+              exit 0
+            fi
+
+            if [[ "$attempt" == "3" ]]; then
+              exit 1
+            fi
+
+            echo "macOS packaging failed on attempt $attempt; cleaning up mounted DMG volumes before retry."
+            while read -r device; do
+              if [[ -n "$device" ]]; then
+                hdiutil detach -force "$device" || true
+              fi
+            done < <(hdiutil info | awk '/\/Volumes\/vlaina/{print $1}')
+            rm -rf release
+            sleep 10
+          done
+
+      - name: Upload Windows NSIS installer
+        if: success() && matrix.platform == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-windows-nsis-${{ matrix.arch }}-run-${{ github.run_number }}
+          path: release/*-windows-${{ matrix.arch }}-setup.exe
+          if-no-files-found: error
+
+      - name: Upload Windows portable app
+        if: success() && matrix.platform == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-windows-portable-${{ matrix.arch }}-run-${{ github.run_number }}
+          path: release/*-windows-${{ matrix.arch }}-portable.exe
+          if-no-files-found: error
+
+      - name: Upload macOS DMG
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-macos-dmg-${{ matrix.arch }}-run-${{ github.run_number }}
+          path: release/*-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+
+      - name: Upload macOS ZIP
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-macos-zip-${{ matrix.arch }}-run-${{ github.run_number }}
+          path: release/*-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+      - name: Upload Linux AppImage
+        if: success() && matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-linux-appimage-${{ matrix.arch }}-run-${{ github.run_number }}
+          path: release/*.AppImage
+          if-no-files-found: error
+
+      - name: Upload Linux DEB
+        if: success() && matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-linux-deb-${{ matrix.arch }}-run-${{ github.run_number }}
+          path: release/*.deb
+          if-no-files-found: error
+
+      - name: Upload Linux tar.gz
+        if: success() && matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-linux-tar-gz-${{ matrix.arch }}-run-${{ github.run_number }}
+          path: release/*.tar.gz
+          if-no-files-found: error
+
+  package-release:
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     name: Package ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -385,7 +568,7 @@ jobs:
     timeout-minutes: 15
     needs:
       - checks
-      - package
+      - package-release
       - release-context
     concurrency:
       group: publish-release-assets-${{ needs.release-context.outputs.tag }}
