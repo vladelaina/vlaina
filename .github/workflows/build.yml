@@ -199,7 +199,9 @@ jobs:
     name: Package ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    needs: release-context
+    needs:
+      - checks
+      - release-context
 
     strategy:
       fail-fast: false

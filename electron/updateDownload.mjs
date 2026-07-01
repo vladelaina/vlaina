@@ -216,7 +216,7 @@ async function calculateFileSha256(filePath) {
     const stream = fs.createReadStream(filePath);
     stream.on('data', (chunk) => hash.update(chunk));
     stream.on('error', reject);
-    stream.on('end', resolve);
+    stream.on('close', resolve);
   });
   return hash.digest('hex');
 }
