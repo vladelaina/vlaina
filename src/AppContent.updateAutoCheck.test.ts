@@ -5,12 +5,15 @@ describe('runDesktopUpdateAutoCheck', () => {
   it('notifies and records the check time when an update is available', async () => {
     const notifyUpdateAvailable = vi.fn();
     const markCheckedAt = vi.fn();
+    const recordUpdateInfo = vi.fn();
+    const updateInfo = {
+      latestVersion: '1.2.3',
+      updateAvailable: true,
+    };
 
     await runDesktopUpdateAutoCheck({
-      checkForUpdates: vi.fn().mockResolvedValue({
-        latestVersion: '1.2.3',
-        updateAvailable: true,
-      }),
+      checkForUpdates: vi.fn().mockResolvedValue(updateInfo),
+      recordUpdateInfo,
       notifyUpdateAvailable,
       markCheckedAt,
       getNow: () => 12345,
@@ -20,6 +23,7 @@ describe('runDesktopUpdateAutoCheck', () => {
       latestVersion: '1.2.3',
       updateAvailable: true,
     });
+    expect(recordUpdateInfo).toHaveBeenCalledWith(updateInfo);
     expect(markCheckedAt).toHaveBeenCalledWith(12345);
   });
 

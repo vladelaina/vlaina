@@ -413,6 +413,18 @@ const desktopApi = {
     check() {
       return ipcRenderer.invoke('desktop:update:check');
     },
+    getPolicy() {
+      return ipcRenderer.invoke('desktop:update:get-policy');
+    },
+    download(updateInfo) {
+      return ipcRenderer.invoke('desktop:update:download', updateInfo);
+    },
+    openDownloaded(updateInfo) {
+      return ipcRenderer.invoke('desktop:update:open-downloaded', updateInfo);
+    },
+    deleteDownloaded(updateInfoOrFilePath) {
+      return ipcRenderer.invoke('desktop:update:delete-downloaded', updateInfoOrFilePath);
+    },
   },
   export: {
     htmlToPdf(html, options) {

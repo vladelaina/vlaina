@@ -30,6 +30,7 @@ describe('electron update manifest helpers', () => {
         {
           name: 'vlaina-1.2.3-x86_64.AppImage',
           browser_download_url: 'https://github.com/vladelaina/vlaina/releases/download/v1.2.3/x86_64.AppImage',
+          digest: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         },
       ],
     }, {
@@ -41,6 +42,7 @@ describe('electron update manifest helpers', () => {
       downloadUrl: 'https://github.com/vladelaina/vlaina/releases/download/v1.2.3/x86_64.AppImage',
       releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v1.2.3',
       platformAssetName: 'vlaina-1.2.3-x86_64.AppImage',
+      platformAssetSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       hasPlatformAsset: true,
       releaseNotes: 'Release notes',
       publishedAt: '2026-06-24T00:00:00.000Z',
@@ -113,6 +115,7 @@ describe('electron update manifest helpers', () => {
       expect(manifest).toMatchObject({
         latestVersion: '0.1.16',
         platformAssetName: expectedAssetName,
+        platformAssetSha256: '',
         hasPlatformAsset: true,
         downloadUrl: `https://github.com/vladelaina/vlaina/releases/download/v0.1.16/${expectedAssetName}`,
       });
@@ -143,6 +146,24 @@ describe('electron update manifest helpers', () => {
       platform: 'linux',
       arch: 'x64',
     }).downloadUrl).toBe('https://example.com/app.AppImage');
+  });
+
+  it('normalizes platform asset sha256 values from supported manifest fields', () => {
+    expect(normalizeUpdateManifest({
+      version: '1.2.3',
+      downloadUrl: 'https://example.com/releases/latest',
+      assets: [
+        {
+          name: 'vlaina-1.2.3-x64.AppImage',
+          downloadUrl: 'https://example.com/app.AppImage',
+          sha256: 'SHA256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+        },
+      ],
+    }, {
+      defaultDownloadUrl: 'https://example.com/releases/latest',
+      platform: 'linux',
+      arch: 'x64',
+    }).platformAssetSha256).toBe('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
   });
 
   it('fetches the manifest with bounded JSON parsing and updater headers', async () => {
@@ -219,5 +240,34 @@ describe('electron update manifest helpers', () => {
       readJsonResponse: vi.fn(),
       timeoutMs: 1000,
     })).rejects.toThrow('Update manifest request failed: HTTP 503');
+  });
+
+  it('retries transient update manifest failures before returning a release', async () => {
+    const firstResponse = { ok: false, status: 502 };
+    const secondResponse = { ok: true, status: 200 };
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(firstResponse)
+      .mockResolvedValueOnce(secondResponse);
+    const readJsonResponse = vi.fn().mockResolvedValue({
+      version: '1.2.3',
+      downloadUrl: 'https://example.com/releases/latest',
+    });
+
+    await expect(fetchUpdateManifest({
+      manifestUrl: 'https://example.com/update.json',
+      defaultDownloadUrl: 'https://example.com/releases/latest',
+      appVersion: '1.0.0',
+      fetchImpl,
+      readJsonResponse,
+      timeoutMs: 1000,
+      retryDelaysMs: [0],
+    })).resolves.toMatchObject({
+      latestVersion: '1.2.3',
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(readJsonResponse).toHaveBeenCalledWith(secondResponse, expect.objectContaining({
+      tooLargeMessage: 'Update manifest response body is too large.',
+    }));
   });
 });

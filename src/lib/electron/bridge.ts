@@ -105,18 +105,40 @@ export interface ElectronAppApi {
   }>;
 }
 
+export interface ElectronUpdatePolicy {
+  distribution: 'direct' | 'microsoft-store';
+  checkEnabled: boolean;
+  backgroundDownloadEnabled: boolean;
+  localInstallerEnabled: boolean;
+  externalDownloadEnabled: boolean;
+  cleanupDownloadedUpdatesEnabled: boolean;
+}
+
+export interface ElectronUpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  downloadUrl: string;
+  releaseUrl: string;
+  platformAssetName: string;
+  platformAssetSha256?: string;
+  hasPlatformAsset: boolean;
+  releaseNotes: string;
+  publishedAt: string;
+  updatePolicy?: ElectronUpdatePolicy;
+}
+
 export interface ElectronUpdateApi {
-  check(): Promise<{
-    currentVersion: string;
-    latestVersion: string;
-    updateAvailable: boolean;
-    downloadUrl: string;
-    releaseUrl: string;
-    platformAssetName: string;
-    hasPlatformAsset: boolean;
-    releaseNotes: string;
-    publishedAt: string;
+  check(): Promise<ElectronUpdateInfo>;
+  getPolicy(): Promise<ElectronUpdatePolicy>;
+  download(updateInfo: ElectronUpdateInfo): Promise<{
+    filePath: string;
+    fileName: string;
+    downloadedAt: string;
+    sizeBytes: number;
   }>;
+  openDownloaded(updateInfo: ElectronUpdateInfo): Promise<void>;
+  deleteDownloaded(updateInfoOrFilePath: ElectronUpdateInfo | string): Promise<void>;
 }
 
 export interface ElectronExportApi {

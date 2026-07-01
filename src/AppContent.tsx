@@ -13,6 +13,15 @@ import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
 import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
 import {
+  clearCachedDesktopUpdateInfo,
+  normalizeDesktopUpdateInfo,
+  readCachedDesktopUpdateInfo,
+  readStoredUpdateCheckTimestamp,
+  writeCachedDesktopUpdateInfo,
+  writeStoredUpdateCheckTimestamp,
+} from '@/lib/desktop/updateStatus';
+import { clearStaleDesktopUpdateDownload, startDesktopUpdateDownload } from '@/lib/desktop/updateDownload';
+import {
   type CommunitySettings,
   getCachedCommunitySettings,
   loadCommunitySettings,
@@ -32,7 +41,6 @@ import {
 
 const UPDATE_AUTO_CHECK_DELAY_MS = 2500;
 const UPDATE_AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
-const UPDATE_LAST_AUTO_CHECK_KEY = 'vlaina:update:lastAutoCheckAt';
 const E2E_LOCAL_STORAGE_KEY = 'vlaina:e2e:enabled';
 
 interface DesktopUpdateAutoCheckInfo {
@@ -42,6 +50,7 @@ interface DesktopUpdateAutoCheckInfo {
 
 interface DesktopUpdateAutoCheckOptions {
   checkForUpdates: () => Promise<DesktopUpdateAutoCheckInfo>;
+  recordUpdateInfo?: (updateInfo: DesktopUpdateAutoCheckInfo) => void;
   notifyUpdateAvailable: (updateInfo: DesktopUpdateAutoCheckInfo) => void;
   markCheckedAt: (timestamp: number) => void;
   getNow?: () => number;
@@ -50,6 +59,7 @@ interface DesktopUpdateAutoCheckOptions {
 
 export async function runDesktopUpdateAutoCheck({
   checkForUpdates,
+  recordUpdateInfo = () => {},
   notifyUpdateAvailable,
   markCheckedAt,
   getNow = Date.now,
@@ -58,28 +68,13 @@ export async function runDesktopUpdateAutoCheck({
   const updateInfo = await checkForUpdates();
   if (isCancelled()) return;
 
+  recordUpdateInfo(updateInfo);
+
   if (updateInfo.updateAvailable) {
     notifyUpdateAvailable(updateInfo);
   }
 
   markCheckedAt(getNow());
-}
-
-function readStoredTimestamp(key: string) {
-  try {
-    const value = Number.parseInt(window.localStorage.getItem(key) ?? '', 10);
-    return Number.isFinite(value) ? value : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function writeStoredTimestamp(key: string, value: number) {
-  try {
-    window.localStorage.setItem(key, String(value));
-  } catch {
-    // Update checks are best effort; storage failures should not affect startup.
-  }
 }
 
 function shouldInstallSyncE2EBridge() {
@@ -246,34 +241,85 @@ export function AppContent() {
     const bridge = getElectronBridge();
     if (!bridge?.update) return;
 
-    const lastCheckedAt = readStoredTimestamp(UPDATE_LAST_AUTO_CHECK_KEY);
-    if (lastCheckedAt > 0 && Date.now() - lastCheckedAt < UPDATE_AUTO_CHECK_INTERVAL_MS) {
-      return;
-    }
-
     let cancelled = false;
-    const timeoutId = window.setTimeout(() => {
-      void runDesktopUpdateAutoCheck({
-        checkForUpdates: () => bridge.update!.check(),
-        notifyUpdateAvailable: (updateInfo) => {
-          useToastStore.getState().addToast(
-            translate('settings.about.updateToastAvailable', { version: updateInfo.latestVersion || APP_VERSION }),
-            'info',
-            8000,
-          );
-        },
-        markCheckedAt: (timestamp) => {
-          writeStoredTimestamp(UPDATE_LAST_AUTO_CHECK_KEY, timestamp);
-        },
-        isCancelled: () => cancelled,
+    let timeoutId: number | undefined;
+
+    void Promise.resolve(
+      typeof bridge.update.getPolicy === 'function'
+        ? bridge.update.getPolicy().catch(() => ({
+          checkEnabled: true,
+          backgroundDownloadEnabled: true,
+        }))
+        : {
+          checkEnabled: true,
+          backgroundDownloadEnabled: true,
+        }
+    )
+      .then((updatePolicy) => {
+        if (cancelled) return;
+
+        const cachedUpdateInfo = readCachedDesktopUpdateInfo();
+        if (cachedUpdateInfo && !updatePolicy.checkEnabled) {
+          void bridge.update!.deleteDownloaded?.(cachedUpdateInfo).catch(() => {
+          });
+          clearCachedDesktopUpdateInfo();
+          return;
+        }
+
+        if (cachedUpdateInfo) {
+          void clearStaleDesktopUpdateDownload(bridge.update!, cachedUpdateInfo, APP_VERSION)
+            .then((freshUpdateInfo) => {
+              if (freshUpdateInfo && !cancelled && updatePolicy.backgroundDownloadEnabled !== false) {
+                startDesktopUpdateDownload(bridge.update!, freshUpdateInfo);
+              }
+            });
+        }
+
+        if (!updatePolicy.checkEnabled) return;
+
+        const lastCheckedAt = readStoredUpdateCheckTimestamp();
+        if (lastCheckedAt > 0 && Date.now() - lastCheckedAt < UPDATE_AUTO_CHECK_INTERVAL_MS) {
+          return;
+        }
+
+        timeoutId = window.setTimeout(() => {
+          void runDesktopUpdateAutoCheck({
+            checkForUpdates: () => bridge.update!.check(),
+            recordUpdateInfo: (updateInfo) => {
+              const normalizedInfo = normalizeDesktopUpdateInfo(updateInfo);
+              if (normalizedInfo) {
+                void clearStaleDesktopUpdateDownload(bridge.update!, normalizedInfo, APP_VERSION)
+                  .then((freshUpdateInfo) => {
+                    if (!freshUpdateInfo || cancelled) return;
+                    writeCachedDesktopUpdateInfo(freshUpdateInfo);
+                    startDesktopUpdateDownload(bridge.update!, freshUpdateInfo);
+                  });
+              }
+            },
+            notifyUpdateAvailable: (updateInfo) => {
+              useToastStore.getState().addToast(
+                translate('settings.about.updateToastAvailable', { version: updateInfo.latestVersion || APP_VERSION }),
+                'info',
+                8000,
+              );
+            },
+            markCheckedAt: (timestamp) => {
+              writeStoredUpdateCheckTimestamp(timestamp);
+            },
+            isCancelled: () => cancelled,
+          })
+            .catch(() => {
+            });
+        }, UPDATE_AUTO_CHECK_DELAY_MS);
       })
-        .catch(() => {
-        });
-    }, UPDATE_AUTO_CHECK_DELAY_MS);
+      .catch(() => {
+      });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
     };
   }, []);
 
