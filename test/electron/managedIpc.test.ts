@@ -382,6 +382,10 @@ describe('managed ipc stream bridge', () => {
         tool_calls: expect.any(Array),
       }],
     });
+    expect(fetchWithStoredSession.mock.calls[0][1].headers).toMatchObject({
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+    });
   });
 
   it('rejects unsafe stream request ids before starting a request', async () => {
