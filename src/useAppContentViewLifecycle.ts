@@ -2,20 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppViewMode } from '@/stores/uiSlice';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import {
-  preloadChatSidebarModule,
   preloadChatViewModule,
-  preloadModelSelectorModule,
-  preloadNotesSidebarModule,
-  preloadNotesTabRowModule,
   preloadNotesViewModule,
-  preloadSettingsModule,
-  preloadTemporaryChatToggleModule,
 } from './AppContentModules';
 
-const SETTINGS_PRELOAD_DELAY_MS = import.meta.env.DEV ? 120000 : 10000;
-const SETTINGS_PRELOAD_IDLE_TIMEOUT_MS = 4000;
-const SECONDARY_VIEW_PRELOAD_DELAY_MS = import.meta.env.DEV ? 120000 : 8000;
-const SECONDARY_VIEW_PRELOAD_IDLE_TIMEOUT_MS = 3000;
 const CENTER_CHROME_RENDER_DELAY_MS = 0;
 const VISIBLE_SIDEBAR_RENDER_DELAY_MS = import.meta.env.DEV ? 750 : 120;
 export const INITIAL_UNIFIED_VIEW_WAIT_TIMEOUT_MS = import.meta.env.DEV ? null : 3000;
@@ -178,89 +168,6 @@ export function useAppContentViewLifecycle({
       return new Set([...views, effectiveAppViewMode]);
     });
   }, [effectiveAppViewMode, shouldRenderDeferredChrome]);
-
-  useEffect(() => {
-    if (!activeViewReady || !primaryContentReady) return;
-    if (effectiveAppViewMode !== 'notes' && effectiveAppViewMode !== 'chat') return;
-
-    void preloadNotesViewModule();
-    void preloadChatViewModule();
-    void preloadNotesSidebarModule();
-    void preloadChatSidebarModule();
-    void preloadNotesTabRowModule();
-    void preloadModelSelectorModule();
-
-    setMountedAppViews((views) => {
-      if (views.has('notes') && views.has('chat')) return views;
-      return new Set([...views, 'notes', 'chat']);
-    });
-    setRenderedSidebarAppViews((views) => {
-      if (views.has('notes') && views.has('chat')) return views;
-      return new Set([...views, 'notes', 'chat']);
-    });
-  }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
-
-  useEffect(() => {
-    if (!activeViewReady || !primaryContentReady) return;
-
-    const preload = () => {
-      void preloadSettingsModule();
-    };
-
-    let idleId: number | null = null;
-    const timeoutId = window.setTimeout(() => {
-      if ('requestIdleCallback' in window) {
-        idleId = window.requestIdleCallback(preload, { timeout: SETTINGS_PRELOAD_IDLE_TIMEOUT_MS });
-        return;
-      }
-      preload();
-    }, SETTINGS_PRELOAD_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      if (idleId !== null) {
-        window.cancelIdleCallback(idleId);
-      }
-    };
-  }, [activeViewReady, primaryContentReady]);
-
-  useEffect(() => {
-    if (!activeViewReady || !primaryContentReady || !shouldRenderDeferredChrome) return;
-
-    const preloadSecondaryView = () => {
-      if (effectiveAppViewMode === 'notes') {
-        void preloadChatViewModule();
-        void preloadChatSidebarModule();
-        void preloadTemporaryChatToggleModule();
-        void preloadModelSelectorModule();
-        return;
-      }
-
-      if (effectiveAppViewMode === 'chat') {
-        void preloadNotesViewModule();
-        void preloadNotesSidebarModule();
-        void preloadNotesTabRowModule();
-      }
-    };
-
-    let idleId: number | null = null;
-    const timeoutId = window.setTimeout(() => {
-      if ('requestIdleCallback' in window) {
-        idleId = window.requestIdleCallback(preloadSecondaryView, {
-          timeout: SECONDARY_VIEW_PRELOAD_IDLE_TIMEOUT_MS,
-        });
-        return;
-      }
-      preloadSecondaryView();
-    }, SECONDARY_VIEW_PRELOAD_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      if (idleId !== null) {
-        window.cancelIdleCallback(idleId);
-      }
-    };
-  }, [activeViewReady, effectiveAppViewMode, primaryContentReady, shouldRenderDeferredChrome]);
 
   return {
     handleActiveViewReady,

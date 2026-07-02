@@ -33,6 +33,7 @@ import {
   runWithSessionMutationLock,
   runWithSessionMutationLocks,
 } from '@/lib/ai/sessionMutationLock'
+import { limitLoadedChatSessionMessages } from './sessionMessageCache'
 import { parseMarkdownAndHtmlImageTokens, type ImageToken } from '@/components/Chat/common/messageImageTokens'
 import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy'
 import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
@@ -1021,11 +1022,21 @@ export function createSessionActions() {
           useAIUIStore.getState().setError(translate('chat.error.sessionLoadFailed'));
           return
         }
+        const latestUIState = useAIUIStore.getState()
+        const protectedSessionIds = [
+          sessionId,
+          latestUIState.currentSessionId,
+          ...Object.keys(latestUIState.generatingSessions),
+        ]
         freshState.updateAIData({
-          messages: {
-            ...freshAI.messages,
-            [sessionId]: loadedMessages || []
-          }
+          messages: limitLoadedChatSessionMessages(
+            {
+              ...freshAI.messages,
+              [sessionId]: loadedMessages || []
+            },
+            freshAI.sessions,
+            protectedSessionIds,
+          )
         }, true)
       }
       persistLastChatSessionIdForCurrentWindow(sessionId)

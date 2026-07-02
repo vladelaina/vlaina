@@ -5,7 +5,7 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { resolveUserMessageBubbleWidth } from '@/components/Chat/features/Layout/chatUserBubbleWidth';
-import { ChatImageViewer } from '@/components/Chat/features/Markdown/components/ChatImageViewer';
+import { LazyChatImageViewer } from '@/components/Chat/features/Markdown/components/LazyChatImageViewer';
 import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { UserMessageEditor } from './UserMessageEditor';
 import {
@@ -165,7 +165,7 @@ function UserMessageInner({
               </div>
             )}
             {activeImage && (
-              <ChatImageViewer
+              <LazyChatImageViewer
                 open={!!activeImage}
                 src={activeImage.src}
                 alt={t('chat.attachment')}

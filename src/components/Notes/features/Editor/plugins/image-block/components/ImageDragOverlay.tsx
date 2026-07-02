@@ -1,7 +1,12 @@
-import { ImageCropper } from './ImageCropper';
+import { lazy, Suspense } from 'react';
 import { themeRadiusTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import type { CropperViewportState } from '../types';
 import type { CropParams } from '../utils/imageSourceFragment';
+
+const LazyImageCropper = lazy(async () => {
+    const mod = await import('./ImageCropper');
+    return { default: mod.ImageCropper };
+});
 
 interface ImageDragOverlayProps {
     isDragging: boolean;
@@ -40,16 +45,28 @@ export function ImageDragOverlay({
                 backgroundColor: 'var(--vlaina-bg-primary)',
             }}
         >
-            <ImageCropper
-                imageSrc={resolvedSrc}
-                initialCropParams={cropParams}
-                overrideState={overrideState}
-                containerSize={dragSize}
-                onSave={() => {}}
-                onCancel={() => {}}
-                isSaving={false}
-                isActive={false}
-            />
+            <Suspense
+                fallback={(
+                    <img
+                        src={resolvedSrc}
+                        alt=""
+                        draggable={false}
+                        className="block h-full w-full select-none object-contain"
+                        referrerPolicy="no-referrer"
+                    />
+                )}
+            >
+                <LazyImageCropper
+                    imageSrc={resolvedSrc}
+                    initialCropParams={cropParams}
+                    overrideState={overrideState}
+                    containerSize={dragSize}
+                    onSave={() => {}}
+                    onCancel={() => {}}
+                    isSaving={false}
+                    isActive={false}
+                />
+            </Suspense>
         </div>
     );
 }

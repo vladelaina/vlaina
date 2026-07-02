@@ -1,1 +1,1 @@
-export { chatHighlighter, markdownHighlighter } from '@/components/common/code-block';
+export { chatHighlighter, markdownHighlighter } from '@/components/common/code-block/highlighter';

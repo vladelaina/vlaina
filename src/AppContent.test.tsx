@@ -329,8 +329,8 @@ describe('AppContent view switching chrome readiness', () => {
 
     expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'true');
-    expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
-    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(screen.queryByTestId('chat-sidebar')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
     expect(await screen.findByTestId('notes-tab-row', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(mocks.notesSidebarMounts).toBe(1);
 
@@ -355,29 +355,28 @@ describe('AppContent view switching chrome readiness', () => {
     expect(mocks.notesSidebarUnmounts).toBe(0);
   });
 
-  it('prewarms notes sidebar and view while chat is the initial active view', async () => {
+  it('mounts the inactive initial view only after switching to it', async () => {
     mocks.appViewMode = 'chat';
     const { rerender } = render(<AppContent />);
 
     expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
-    expect(await screen.findByTestId('notes-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
-    expect(mocks.notesSidebarMounts).toBe(1);
+    expect(screen.queryByTestId('notes-sidebar')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('notes-view')).not.toBeInTheDocument();
+    expect(mocks.notesSidebarMounts).toBe(0);
 
     mocks.appViewMode = 'notes';
     rerender(<AppContent />);
 
-    expect(screen.getByTestId('notes-sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'true');
-    expect(screen.getByTestId('notes-view')).toHaveAttribute('data-active', 'true');
+    expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
+    expect(await screen.findByTestId('notes-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
     expect(mocks.notesSidebarMounts).toBe(1);
   });
 
-  it('keeps inactive prewarmed sidebars mounted but out of layout', async () => {
+  it('keeps inactive visited sidebars mounted but out of layout', async () => {
     const { rerender } = render(<AppContent />);
 
-    expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
-    expect(screen.getByTestId('chat-sidebar').parentElement).toHaveClass('hidden');
+    expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
+    expect(screen.queryByTestId('chat-sidebar')).not.toBeInTheDocument();
 
     mocks.appViewMode = 'chat';
     rerender(<AppContent />);

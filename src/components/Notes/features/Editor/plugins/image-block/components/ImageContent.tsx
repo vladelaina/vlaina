@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { ImageCropper } from './ImageCropper';
 import { getCropViewStyles } from '../utils/cropGeometry';
 import type { CropParams } from '../utils/imageSourceFragment';
 import type { CropArea, LoadedMediaSize, CropperViewportState, ResizeDirection } from '../types';
+
+const LazyImageCropper = lazy(async () => {
+    const mod = await import('./ImageCropper');
+    return { default: mod.ImageCropper };
+});
 
 const LOADED_IMAGE_SRC_CACHE_LIMIT = 300;
 const loadedImageSrcs = new Set<string>();
@@ -197,20 +201,36 @@ export const ImageContent = ({
     }
 
     return (
-        <ImageCropper
-            imageSrc={resolvedSrc!}
-            sourceSrc={sourceSrc}
-            sourceAlt={sourceAlt}
-            initialCropParams={cropParams}
-            containerSize={containerSize}
-            onSave={onSave}
-            onCancel={onCancel}
-            isSaving={isSaving}
-            isActive={isActive}
-            onResizeStart={onResizeStart}
-            onMediaLoaded={onMediaLoaded}
-            onStateChange={onStateChange}
-        />
+        <Suspense
+            fallback={(
+                <div
+                    data-image-selection-surface="true"
+                    className="relative h-full w-full overflow-hidden rounded-md bg-[var(--vlaina-color-editor-image-surface)]"
+                >
+                    <img
+                        {...imageThemeAttrs}
+                        src={resolvedSrc}
+                        draggable={false}
+                        className="block h-full w-full select-none object-contain"
+                    />
+                </div>
+            )}
+        >
+            <LazyImageCropper
+                imageSrc={resolvedSrc!}
+                sourceSrc={sourceSrc}
+                sourceAlt={sourceAlt}
+                initialCropParams={cropParams}
+                containerSize={containerSize}
+                onSave={onSave}
+                onCancel={onCancel}
+                isSaving={isSaving}
+                isActive={isActive}
+                onResizeStart={onResizeStart}
+                onMediaLoaded={onMediaLoaded}
+                onStateChange={onStateChange}
+            />
+        </Suspense>
     );
 };
 
