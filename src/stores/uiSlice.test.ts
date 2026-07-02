@@ -309,8 +309,8 @@ describe('uiSlice', () => {
     useUIStore.getState().setFontSize(8);
     expect(useUIStore.getState().fontSize).toBe(14);
 
-    useUIStore.getState().setFontSize(40);
-    expect(useUIStore.getState().fontSize).toBe(28);
+    useUIStore.getState().setFontSize(160);
+    expect(useUIStore.getState().fontSize).toBe(120);
   });
 
   it('previews appearance font size through UI state without persisting it', () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { desktopWindow } from '@/lib/desktop/window';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { dispatchEditorFindOpenEvent } from '@/components/Notes/features/Editor/find/editorFindEvents';
@@ -16,6 +16,8 @@ import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/side
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { isOpenSettingsBinding } from '@/lib/shortcuts';
+
+const FONT_SIZE_WHEEL_COMMIT_DELAY_MS = 180;
 
 function resolveSidebarSearchScope(target: EventTarget | null, appViewMode: string): 'notes' | 'chat' {
   if (target instanceof Element && target.closest('[data-chat-view-mode]')) {
@@ -40,9 +42,23 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     notesSidebarView,
     setNotesSidebarView,
     fontSize,
+    setFontSizePreview,
     setFontSize,
     resetFontSize,
   } = useAppUIStore();
+  const pendingFontSizeCommitTimerRef = useRef<number | null>(null);
+  const pendingFontSizeCommitRef = useRef(fontSize);
+  const cancelScheduledFontSizeCommit = useCallback(() => {
+    if (pendingFontSizeCommitTimerRef.current === null) return;
+    window.clearTimeout(pendingFontSizeCommitTimerRef.current);
+    pendingFontSizeCommitTimerRef.current = null;
+  }, []);
+  const flushScheduledFontSizeCommit = useCallback(() => {
+    if (pendingFontSizeCommitTimerRef.current === null) return;
+    window.clearTimeout(pendingFontSizeCommitTimerRef.current);
+    pendingFontSizeCommitTimerRef.current = null;
+    setFontSize(pendingFontSizeCommitRef.current);
+  }, [setFontSize]);
   const createNote = useNotesStore((state) => state.createNote);
   const currentNotePath = useNotesStore((state) => state.currentNote?.path);
   const saveNote = useNotesStore((state) => state.saveNote);
@@ -94,6 +110,23 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
   }), [builtinHandlers, extraHandlers]);
 
   useEffect(() => {
+    return () => {
+      flushScheduledFontSizeCommit();
+    };
+  }, [flushScheduledFontSizeCommit]);
+
+  useEffect(() => {
+    const scheduleFontSizeCommit = (next: number) => {
+      pendingFontSizeCommitRef.current = next;
+      if (pendingFontSizeCommitTimerRef.current !== null) {
+        window.clearTimeout(pendingFontSizeCommitTimerRef.current);
+      }
+      pendingFontSizeCommitTimerRef.current = window.setTimeout(() => {
+        pendingFontSizeCommitTimerRef.current = null;
+        setFontSize(pendingFontSizeCommitRef.current);
+      }, FONT_SIZE_WHEEL_COMMIT_DELAY_MS);
+    };
+
     const handleWheel = (e: WheelEvent) => {
       if (e.defaultPrevented) {
         return;
@@ -104,7 +137,8 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
 
       e.preventDefault();
       const currentFontSize = useAppUIStore.getState().fontSize;
-      setFontSize(currentFontSize + (e.deltaY < 0 ? 1 : -1));
+      setFontSizePreview(currentFontSize + (e.deltaY < 0 ? 1 : -1));
+      scheduleFontSizeCommit(useAppUIStore.getState().fontSize);
     };
 
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -135,18 +169,21 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey) {
         if (e.key === '9') {
           e.preventDefault();
+          cancelScheduledFontSizeCommit();
           resetFontSize();
           return;
         }
 
         if (e.key === '=' || e.key === '+') {
           e.preventDefault();
+          cancelScheduledFontSizeCommit();
           setFontSize(fontSize + 1);
           return;
         }
 
         if (e.key === '-' || e.key === '_') {
           e.preventDefault();
+          cancelScheduledFontSizeCommit();
           setFontSize(fontSize - 1);
           return;
         }
@@ -211,5 +248,15 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [scope, appViewMode, handlers, restoreLastDeletedItem, fontSize, resetFontSize, setFontSize]);
+  }, [
+    scope,
+    appViewMode,
+    handlers,
+    restoreLastDeletedItem,
+    fontSize,
+    resetFontSize,
+    setFontSize,
+    setFontSizePreview,
+    cancelScheduledFontSizeCommit,
+  ]);
 }

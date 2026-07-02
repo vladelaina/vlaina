@@ -19,7 +19,7 @@ import {
 import type { DesktopPlatformPreview } from '@/lib/desktop/platform';
 export const UI_FONT_SIZE_DEFAULT = 17;
 export const UI_FONT_SIZE_MIN = 14;
-export const UI_FONT_SIZE_MAX = 28;
+export const UI_FONT_SIZE_MAX = 120;
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
