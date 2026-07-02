@@ -52,13 +52,16 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
   }, [isOpen]);
 
   const handleOpenSettings = useCallback(() => {
+    if (isOpen) {
+      skipPopoverCloseAutoFocusRef.current = true;
+    }
     if (onOpenSettings) {
       onOpenSettings();
     } else {
       window.dispatchEvent(new Event('open-settings'));
     }
     setIsOpen(false);
-  }, [onOpenSettings]);
+  }, [isOpen, onOpenSettings]);
 
   const userAvatar = useUserAvatar();
   const displayName = isConnected ? username || primaryEmail || 'vlaina' : 'vlaina';

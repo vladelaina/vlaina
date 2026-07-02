@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { OPEN_SETTINGS_EVENT } from '@/components/Settings/settingsEvents';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { isMacOS } from '@/lib/desktop/platform';
@@ -15,6 +16,7 @@ const WorkspaceSwitcher = lazy(async () => {
 
 interface SidebarUserHeaderProps {
     toggleSidebar: () => void;
+    interactionSuppressed?: boolean;
 }
 
 function WorkspaceSwitcherFallback() {
@@ -27,15 +29,39 @@ function WorkspaceSwitcherFallback() {
     );
 }
 
-export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
+export function SidebarUserHeader({ toggleSidebar, interactionSuppressed = false }: SidebarUserHeaderProps) {
     const { t } = useI18n();
     const headerRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
     const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
     const shouldReserveMacTrafficLightSpace = isMacOS(devPlatformPreview);
 
+    const clearHeaderInteraction = useCallback(() => {
+        setIsHovered(false);
+
+        const activeElement = document.activeElement;
+        if (activeElement instanceof HTMLElement && headerRef.current?.contains(activeElement)) {
+            activeElement.blur();
+        }
+    }, []);
+
+    const handleOpenSettings = useCallback(() => {
+        clearHeaderInteraction();
+        window.dispatchEvent(new Event(OPEN_SETTINGS_EVENT));
+    }, [clearHeaderInteraction]);
+
+    useEffect(() => {
+        if (!interactionSuppressed) return;
+        clearHeaderInteraction();
+    }, [clearHeaderInteraction, interactionSuppressed]);
+
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
+            if (interactionSuppressed) {
+                setIsHovered(false);
+                return;
+            }
+
             const rect = headerRef.current?.getBoundingClientRect();
             if (!rect) return;
 
@@ -47,15 +73,24 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
             );
         };
 
-        const handleMouseLeaveWindow = () => setIsHovered(false);
+        const handleMouseLeaveWindow = () => clearHeaderInteraction();
+        const handleMouseOutWindow = (event: MouseEvent) => {
+            if (event.relatedTarget === null) {
+                clearHeaderInteraction();
+            }
+        };
 
         window.addEventListener('mousemove', handleMouseMove, true);
         window.addEventListener('mouseleave', handleMouseLeaveWindow);
+        window.addEventListener('mouseout', handleMouseOutWindow, true);
+        window.addEventListener('blur', handleMouseLeaveWindow);
         return () => {
             window.removeEventListener('mousemove', handleMouseMove, true);
             window.removeEventListener('mouseleave', handleMouseLeaveWindow);
+            window.removeEventListener('mouseout', handleMouseOutWindow, true);
+            window.removeEventListener('blur', handleMouseLeaveWindow);
         };
-    }, []);
+    }, [clearHeaderInteraction, interactionSuppressed]);
 
     return (
         <div
@@ -64,7 +99,8 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                 'app-drag-region sidebar-user-header group/sidebar-user-header relative flex h-10 w-full items-center pr-3',
                 shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-3'
             )}
-            data-hovered={isHovered ? 'true' : undefined}
+            data-hovered={!interactionSuppressed && isHovered ? 'true' : undefined}
+            data-interaction-suppressed={interactionSuppressed ? 'true' : undefined}
         >
             <div
                 className={cn(
@@ -72,7 +108,10 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                 )}
             >
                 <Suspense fallback={<WorkspaceSwitcherFallback />}>
-                    <WorkspaceSwitcher className="h-full w-[var(--vlaina-width-minus-titlebar-actions)] min-w-0 justify-start" />
+                    <WorkspaceSwitcher
+                        className="h-full w-[var(--vlaina-width-minus-titlebar-actions)] min-w-0 justify-start"
+                        onOpenSettings={handleOpenSettings}
+                    />
                 </Suspense>
                 <div
                     className="app-drag-region h-full min-w-12 flex-1 cursor-grab active:cursor-grabbing"
