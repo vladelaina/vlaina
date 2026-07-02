@@ -1,5 +1,4 @@
 import { getStorageAdapter } from '@/lib/storage/adapter';
-import { detectMarkdownThemePlatform } from '../platformDetection';
 import {
   isMarkdownThemePlatform,
   isSafeImportedMarkdownThemeId,
@@ -23,6 +22,18 @@ import { readThemeIndex, writeThemeIndex } from './themeIndex';
 
 const importedThemeCssUtf8Encoder = new TextEncoder();
 
+async function resolveMarkdownThemePlatform(
+  platform: MarkdownThemePlatform | undefined,
+  css: string
+): Promise<MarkdownThemePlatform> {
+  if (platform) {
+    return platform;
+  }
+
+  const { detectMarkdownThemePlatform } = await import('../platformDetection');
+  return detectMarkdownThemePlatform(css);
+}
+
 export async function upsertImportedMarkdownThemeCss({
   name,
   platform,
@@ -43,7 +54,7 @@ export async function upsertImportedMarkdownThemeCss({
   metadata: ImportedMarkdownThemeMetadata;
   themes: ImportedMarkdownThemeMetadata[];
 }> {
-  const detectedPlatform = platform ?? detectMarkdownThemePlatform(css);
+  const detectedPlatform = await resolveMarkdownThemePlatform(platform, css);
   if (!isMarkdownThemePlatform(detectedPlatform)) {
     throw new Error('Unsupported markdown theme platform.');
   }
