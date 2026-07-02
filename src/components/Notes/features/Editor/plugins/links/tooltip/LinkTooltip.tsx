@@ -11,6 +11,7 @@ export interface LinkTooltipProps extends UseLinkStateProps {
 
 const LinkTooltip = (props: LinkTooltipProps) => {
     const skipNextMouseDownRef = useRef(false);
+    const isEditorComposingRef = useRef(false);
     const {
         mode, setMode,
         isAutolink,
@@ -53,6 +54,11 @@ const LinkTooltip = (props: LinkTooltipProps) => {
             }
 
             if (mode === 'edit') {
+                if (isEditorComposingRef.current) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
                 const didSave = handleSaveEdit(true);
                 if (!didSave) {
                     event.preventDefault();
@@ -85,6 +91,9 @@ const LinkTooltip = (props: LinkTooltipProps) => {
                 autoFocus={autoFocus}
                 initialText={props.initialText || ''}
                 invalidUrlAttempt={invalidUrlAttempt}
+                onCompositionChange={(isComposing) => {
+                    isEditorComposingRef.current = isComposing;
+                }}
             />
         );
     }

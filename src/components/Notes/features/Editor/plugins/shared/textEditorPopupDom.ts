@@ -19,6 +19,8 @@ export interface MountTextEditorPopupArgs {
   onResizeRequest?: () => void;
   onCancel: () => void;
   onSave: () => void;
+  onCompositionStart?: () => void;
+  onCompositionEnd?: () => void;
 }
 
 const POPUP_VIEWPORT_MARGIN = 12;
@@ -103,11 +105,27 @@ export function resizeTextEditorPopupTextareaToContent(args: {
 }
 
 export function mountTextEditorPopup(args: MountTextEditorPopupArgs): TextEditorPopupElements {
-  const { container, value, placeholder, onInput, onResizeRequest, onCancel, onSave } = args;
+  const {
+    container,
+    value,
+    placeholder,
+    onInput,
+    onResizeRequest,
+    onCancel,
+    onSave,
+    onCompositionStart,
+    onCompositionEnd,
+  } = args;
   const elements = createTextEditorPopupElements(placeholder);
   const { card, textarea, cancelButton, saveButton } = elements;
 
   textarea.value = value;
+  textarea.addEventListener('compositionstart', () => {
+    onCompositionStart?.();
+  });
+  textarea.addEventListener('compositionend', () => {
+    onCompositionEnd?.();
+  });
   textarea.addEventListener('input', () => {
     if (onResizeRequest) {
       onResizeRequest();

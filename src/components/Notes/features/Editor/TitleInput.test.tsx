@@ -216,6 +216,36 @@ describe('TitleInput', () => {
     expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
   });
 
+  it('does not commit a composing title on blur', async () => {
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'nihao' } });
+    await act(async () => {
+      fireEvent.blur(input);
+    });
+
+    expect(notesState.renameNote).not.toHaveBeenCalled();
+    expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
+  });
+
+  it('does not save a composing draft title on blur', async () => {
+    render(<TitleInput notePath="draft:test" initialTitle="Draft title" />);
+
+    const input = screen.getByDisplayValue('Draft title') as HTMLTextAreaElement;
+
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'nihao' } });
+    await act(async () => {
+      fireEvent.blur(input);
+    });
+
+    expect(notesState.updateDraftNoteName).not.toHaveBeenCalled();
+    expect(notesState.saveNote).not.toHaveBeenCalled();
+  });
+
   it('keeps a cleared existing title empty on blur so the Untitled placeholder remains visible', async () => {
     render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 

@@ -42,6 +42,7 @@ export function renderUrlRailEditor(
   `;
 
   const input = editor.querySelector('.link-editor-rail-input') as HTMLInputElement;
+  let isComposing = false;
 
   if (autoFocus) {
     requestAnimationFrame(() => {
@@ -80,8 +81,15 @@ export function renderUrlRailEditor(
     onSubmit(nextValue);
   };
 
+  input.addEventListener('compositionstart', () => {
+    isComposing = true;
+  });
+  input.addEventListener('compositionend', () => {
+    isComposing = false;
+  });
+
   input.addEventListener('keydown', (event) => {
-    if (event.isComposing) {
+    if (event.isComposing || isComposing) {
       return;
     }
 
