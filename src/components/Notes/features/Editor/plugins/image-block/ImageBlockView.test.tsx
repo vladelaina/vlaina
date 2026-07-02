@@ -144,17 +144,17 @@ describe('ImageBlockView', () => {
         expect(screen.getByTestId('notes-image-content').closest('[data-image-selection-wrapper="true"]')).not.toBeNull();
     });
 
-    it('opens the shared image viewer with the original remote resource and cached preview when clicked', () => {
+    it('opens the shared image viewer with the original remote resource and cached preview when clicked', async () => {
         renderImageBlock();
 
         fireEvent.click(screen.getByTestId('notes-image-content'));
 
-        const viewer = screen.getByTestId('notes-image-viewer');
+        const viewer = await screen.findByTestId('notes-image-viewer');
         expect(viewer).toHaveAttribute('data-src', 'https://example.com/image.jpg');
         expect(viewer).toHaveAttribute('data-preview-src', 'blob:resolved-image');
     });
 
-    it('opens the shared image viewer with the resolved blob resource for local note images', () => {
+    it('opens the shared image viewer with the resolved blob resource for local note images', async () => {
         renderImageBlock({
             nodeSrc: 'assets/local.png#w=72%25',
             baseSrc: 'assets/local.png#w=72%25',
@@ -164,7 +164,7 @@ describe('ImageBlockView', () => {
 
         fireEvent.click(screen.getByTestId('notes-image-content'));
 
-        const viewer = screen.getByTestId('notes-image-viewer');
+        const viewer = await screen.findByTestId('notes-image-viewer');
         expect(viewer).toHaveAttribute('data-src', 'blob:local-image');
         expect(viewer).toHaveAttribute('data-preview-src', 'blob:local-image');
     });

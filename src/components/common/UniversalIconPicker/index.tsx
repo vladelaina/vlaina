@@ -1,11 +1,10 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { lazy, Suspense, useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { isInsideMenuLayer } from '@/components/layout/sidebar/context-menu/shared';
 import { EmojiTab } from './EmojiTab';
-import { UploadTab, type CustomIcon } from './UploadTab';
 import {
   TabType,
   ACTIVE_TAB_KEY,
@@ -21,12 +20,18 @@ import {
 } from './constants';
 import { useI18n } from '@/lib/i18n';
 import { hasIconImageScheme, hasIconSymbolScheme, isIconImageValue } from './iconImageValue';
+import type { CustomIcon } from './UploadTab';
 import {
   describeIconPickerDebugTarget,
   getIconPickerDebugLogText,
   isIconPickerDebugEnabled,
   logIconPickerDebug,
 } from './debugLog';
+
+const LazyUploadTab = lazy(async () => {
+  const mod = await import('./UploadTab');
+  return { default: mod.UploadTab };
+});
 
 export interface UniversalIconPickerProps {
   onSelect: (emoji: string) => void;
@@ -453,16 +458,18 @@ export function UniversalIconPicker({
             allowLegacyImageScheme={allowLegacyImageScheme}
           />
         ) : (
-          <UploadTab
-            onSelect={handleUploadSelect}
-            onPreview={onPreview}
-            onClose={onClose}
-            customIcons={customIcons}
-            onUploadFile={onUploadFile}
-            onDeleteCustomIcon={onDeleteCustomIcon}
-            imageLoader={imageLoader}
-            allowLegacyImageScheme={allowLegacyImageScheme}
-          />
+          <Suspense fallback={<div className="h-[var(--vlaina-size-320px)]" />}>
+            <LazyUploadTab
+              onSelect={handleUploadSelect}
+              onPreview={onPreview}
+              onClose={onClose}
+              customIcons={customIcons}
+              onUploadFile={onUploadFile}
+              onDeleteCustomIcon={onDeleteCustomIcon}
+              imageLoader={imageLoader}
+              allowLegacyImageScheme={allowLegacyImageScheme}
+            />
+          </Suspense>
         )}
       </div>
     </div>

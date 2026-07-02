@@ -5,8 +5,7 @@ import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { copyImageSourceToClipboard } from '@/components/Chat/common/messageClipboard';
 import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload';
-import { ChatImageViewer } from './components/ChatImageViewer';
-import { ReadOnlyCodeBlock } from '@/components/common/code-block';
+import { LazyChatImageViewer } from './components/LazyChatImageViewer';
 import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { normalizeChatMessageImageSource } from '@/lib/ai/chatImageSourcePolicy';
 import { ReadOnlyMermaidBlock } from '@/components/common/markdown/ReadOnlyMermaidBlock';
@@ -19,6 +18,11 @@ import { resolveCompactedChatImageSrc } from './chatInlineImageTokens';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 import { useToastStore } from '@/stores/useToastStore';
+
+const ReadOnlyCodeBlock = React.lazy(async () => {
+  const mod = await import('@/components/common/code-block');
+  return { default: mod.ReadOnlyCodeBlock };
+});
 
 type ImageGalleryItem = { id: string; src: string };
 
@@ -132,6 +136,22 @@ function resolvePreCodePayload(children: React.ReactNode): {
     className: undefined,
     content: children,
   };
+}
+
+function ReadOnlyCodeBlockFallback({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <pre className={cn('my-4 overflow-x-auto rounded-2xl p-4', className)}>
+      <code className="font-mono text-sm leading-relaxed">
+        {children}
+      </code>
+    </pre>
+  );
 }
 
 async function copyImageOrUrl(src: string): Promise<boolean> {
@@ -268,15 +288,17 @@ function MarkdownImage({
           </button>
         </span>
       </span>
-      <ChatImageViewer
-        open={isViewerOpen}
-        src={src}
-        alt={alt}
-        gallery={gallery}
-        currentImageId={currentImageId}
-        previewSrc={resolvedImageSrc}
-        onOpenChange={setIsViewerOpen}
-      />
+      {isViewerOpen ? (
+        <LazyChatImageViewer
+          open={isViewerOpen}
+          src={src}
+          alt={alt}
+          gallery={gallery}
+          currentImageId={currentImageId}
+          previewSrc={resolvedImageSrc}
+          onOpenChange={setIsViewerOpen}
+        />
+      ) : null}
     </span>
   );
 }
@@ -343,15 +365,23 @@ export function createMarkdownComponents({
       codeBlockRenderIndex += 1;
 
       return (
-        <ReadOnlyCodeBlock
-          className={className}
-          blockId={blockId}
-          copied={copiedCodeBlockId === blockId}
-          onCopy={onCopyCodeBlock}
-          {...props}
+        <React.Suspense
+          fallback={(
+            <ReadOnlyCodeBlockFallback className={className}>
+              {content}
+            </ReadOnlyCodeBlockFallback>
+          )}
         >
-          {content}
-        </ReadOnlyCodeBlock>
+          <ReadOnlyCodeBlock
+            className={className}
+            blockId={blockId}
+            copied={copiedCodeBlockId === blockId}
+            onCopy={onCopyCodeBlock}
+            {...props}
+          >
+            {content}
+          </ReadOnlyCodeBlock>
+        </React.Suspense>
       );
     },
     p({ children, ...props }: MarkdownParagraphProps) {

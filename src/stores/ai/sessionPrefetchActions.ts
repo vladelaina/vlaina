@@ -2,6 +2,8 @@ import { loadSessionJson } from '@/lib/storage/chatStorage';
 import { isTemporarySessionId } from '@/lib/ai/temporaryChat';
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
+import { useAIUIStore } from './chatState';
+import { limitLoadedChatSessionMessages } from './sessionMessageCache';
 
 interface PendingSessionPrefetch {
   promise: Promise<void>;
@@ -87,12 +89,22 @@ export function createSessionPrefetchActions() {
         if (!ai?.sessions.some((session) => session.id === sessionId) || sessionId in ai.messages) {
           return;
         }
+        const uiState = useAIUIStore.getState();
+        const protectedSessionIds = [
+          sessionId,
+          uiState.currentSessionId,
+          ...Object.keys(uiState.generatingSessions),
+        ];
 
         freshState.updateAIData({
-          messages: {
-            ...ai.messages,
-            [sessionId]: loadedMessages || [],
-          },
+          messages: limitLoadedChatSessionMessages(
+            {
+              ...ai.messages,
+              [sessionId]: loadedMessages || [],
+            },
+            ai.sessions,
+            protectedSessionIds,
+          ),
         }, true);
       }).catch(() => {
         // Hover prefetch should never surface as a user-visible chat error.

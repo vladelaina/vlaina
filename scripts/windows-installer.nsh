@@ -1,5 +1,18 @@
 !include WordFunc.nsh
 
+!ifndef BUILD_UNINSTALLER
+  Var vlainaAssistedUpgrade
+
+  !macro _vlainaIsUpdated _a _b _t _f
+    ${StdUtils.TestParameter} $R9 "updated"
+    StrCmp "$R9" "true" `${_t}` 0
+    StrCmp "$vlainaAssistedUpgrade" "1" `${_t}` `${_f}`
+  !macroend
+
+  !undef isUpdated
+  !define isUpdated `"" vlainaIsUpdated ""`
+!endif
+
 !macro parseSemverForCompare INPUT OUT_BASE OUT_HAS_PRERELEASE TEMP_INDEX TEMP_CHAR
   StrCpy ${OUT_BASE} "${INPUT}"
   StrCpy ${OUT_HAS_PRERELEASE} "0"
@@ -62,6 +75,8 @@
 !macroend
 
 !macro customInit
+  StrCpy $vlainaAssistedUpgrade "0"
+
   !insertmacro abortIfInstalledVersionIsNewer HKCU
   !insertmacro abortIfInstalledVersionIsNewer HKLM
 
@@ -74,25 +89,19 @@
         ${if} $hasPerUserInstallation == "1"
         ${andIf} $hasPerMachineInstallation == "0"
         ${andIf} $perUserInstallationFolder != ""
-          # Re-enter through electron-builder's update path so assisted upgrades skip setup choices.
-          ${GetParameters} $R1
-          Exec '"$EXEPATH" --updated /currentuser $R1'
-          Quit
+          # Mark this process as an assisted upgrade so setup choices are skipped without restarting the installer.
+          StrCpy $vlainaAssistedUpgrade "1"
         ${elseif} $hasPerUserInstallation == "0"
         ${andIf} $hasPerMachineInstallation == "1"
         ${andIf} $perMachineInstallationFolder != ""
-          # Re-enter through electron-builder's update path so assisted upgrades skip setup choices.
-          ${GetParameters} $R1
-          Exec '"$EXEPATH" --updated /allusers $R1'
-          Quit
+          # Mark this process as an assisted upgrade so setup choices are skipped without restarting the installer.
+          StrCpy $vlainaAssistedUpgrade "1"
         ${elseif} $hasPerUserInstallation == "1"
         ${andIf} $hasPerMachineInstallation == "1"
         ${andIf} $perUserInstallationFolder != ""
         ${andIf} $perMachineInstallationFolder != ""
           # Keep the install-mode page when both installation scopes exist.
-          ${GetParameters} $R1
-          Exec '"$EXEPATH" --updated $R1'
-          Quit
+          StrCpy $vlainaAssistedUpgrade "1"
         ${endif}
       ${endif}
     !endif

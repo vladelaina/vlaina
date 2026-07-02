@@ -87,10 +87,6 @@ async function ensureZenumlExternalDiagram(mermaid: any): Promise<boolean> {
   return zenumlRegistrationPromise;
 }
 
-export function prewarmMermaidRenderer() {
-  void getMermaid().catch(() => undefined);
-}
-
 function createMermaidRenderConfig() {
   return {
     ...MERMAID_INIT_CONFIG,

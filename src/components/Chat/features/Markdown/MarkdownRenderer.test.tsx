@@ -108,9 +108,10 @@ describe("MarkdownRenderer", () => {
     vi.useRealTimers();
   });
 
-  it("extracts completed think blocks and renders the remaining markdown", () => {
+  it("extracts completed think blocks and renders the remaining markdown", async () => {
     render(<MarkdownRenderer content={"Answer<think>reasoning</think>Done"} />);
 
+    await screen.findByTestId("code-block-code:0");
     expect(screen.getByTestId("thinking-block")).toHaveTextContent("reasoning");
     expect(screen.getByTestId("thinking-block")).toHaveAttribute("data-streaming", "false");
     expect(screen.getByTestId("markdown-children")).toHaveTextContent("AnswerDone");

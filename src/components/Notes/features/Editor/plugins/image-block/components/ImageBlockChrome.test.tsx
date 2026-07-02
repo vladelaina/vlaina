@@ -96,4 +96,16 @@ describe('ImageBlockChrome', () => {
 
     expect(onCaptionSubmit).not.toHaveBeenCalled();
   });
+
+  it('submits the caption when pointer down lands outside the caption editor', () => {
+    const onCaptionSubmit = vi.fn();
+    renderChrome({
+      isEditingCaption: true,
+      onCaptionSubmit,
+    });
+
+    fireEvent.pointerDown(document.body);
+
+    expect(onCaptionSubmit).toHaveBeenCalledTimes(1);
+  });
 });

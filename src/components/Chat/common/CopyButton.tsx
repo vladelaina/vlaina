@@ -1,1 +1,1 @@
-export { CodeBlockCopyButton as default } from '@/components/common/code-block';
+export { CodeBlockCopyButton as default } from '@/components/common/code-block/CodeBlockCopyButton';

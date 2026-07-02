@@ -98,10 +98,10 @@ describe('ImageContent', () => {
     expect(placeholder).toHaveClass('border-dashed');
   });
 
-  it('keeps using the cropper for local resolved images', () => {
+  it('keeps using the cropper for local resolved images', async () => {
     renderImageContent({ resolvedSrc: 'blob:local-image', isRemoteImageSource: false });
 
-    expect(screen.getByTestId('image-cropper')).toBeInTheDocument();
+    expect(await screen.findByTestId('image-cropper')).toBeInTheDocument();
   });
 
   it('renders a static placeholder before deferred images start loading', () => {
@@ -180,7 +180,7 @@ describe('ImageContent', () => {
     expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the cropper when editing saved crop params', () => {
+  it('uses the cropper when editing saved crop params', async () => {
     renderImageContent({
       cropParams: {
         x: 25,
@@ -192,6 +192,6 @@ describe('ImageContent', () => {
       isActive: true,
     });
 
-    expect(screen.getByTestId('image-cropper')).toBeInTheDocument();
+    expect(await screen.findByTestId('image-cropper')).toBeInTheDocument();
   });
 });
