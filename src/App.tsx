@@ -9,17 +9,21 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useNativeCaretOverlay } from '@/hooks/useNativeCaretOverlay';
+import { useWindowResizeLagCompensation } from '@/hooks/useWindowResizeLagCompensation';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { selectMarkdownImportedThemeId } from '@/stores/unified/settings/markdownSettings';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useToastStore } from '@/stores/useToastStore';
+import { desktopWindow } from '@/lib/desktop/window';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { useDocumentLanguage, useI18n } from '@/lib/i18n';
+import { themeColorTokens } from '@/styles/themeTokens';
 import {
   resolveImportedMarkdownThemeColorModePreference,
 } from '@/lib/markdown/theme-compatibility/colorScheme';
 import {
   normalizeColorModePreference,
+  type ResolvedColorMode,
   suppressDocumentThemeTransitions,
   syncDocumentColorModeClass,
 } from '@/lib/theme/colorModeSync';
@@ -35,6 +39,35 @@ const ToastContainer = lazy(async () => {
 });
 
 const ACCOUNT_FOCUS_REFRESH_THROTTLE_MS = 1500;
+const DARK_COLOR_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+
+function readRootThemeColor(name: string, fallback: string) {
+  if (typeof window === 'undefined') return fallback;
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function resolveNativeWindowColorMode(preference: unknown): ResolvedColorMode {
+  const mode = normalizeColorModePreference(preference);
+  if (mode !== 'system') return mode;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light';
+  return window.matchMedia(DARK_COLOR_SCHEME_QUERY).matches ? 'dark' : 'light';
+}
+
+function syncNativeWindowThemeColors(mode: ResolvedColorMode) {
+  const fallbackBackground = mode === 'dark'
+    ? themeColorTokens.windowBackgroundDark
+    : themeColorTokens.windowBackgroundLight;
+  const fallbackSymbol = mode === 'dark'
+    ? themeColorTokens.windowSymbolDark
+    : themeColorTokens.windowSymbolLight;
+
+  void desktopWindow.setThemeColors({
+    backgroundColor: readRootThemeColor('--vlaina-color-surface-main', fallbackBackground),
+    titleBarOverlayColor: readRootThemeColor('--vlaina-color-surface-main', fallbackBackground),
+    titleBarSymbolColor: readRootThemeColor('--vlaina-color-text-sidebar', fallbackSymbol),
+  });
+}
 
 function AppThemeSync() {
   const { setTheme } = useTheme();
@@ -53,9 +86,19 @@ function AppThemeSync() {
     const releaseThemeTransitions = suppressDocumentThemeTransitions();
     const cleanupColorModeSync = syncDocumentColorModeClass(effectiveColorMode);
     setTheme(effectiveColorMode);
+    const syncNativeTheme = () => syncNativeWindowThemeColors(resolveNativeWindowColorMode(effectiveColorMode));
+    syncNativeTheme();
     releaseThemeTransitions();
 
-    return cleanupColorModeSync;
+    const systemColorModeQuery = effectiveColorMode === 'system' && typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(DARK_COLOR_SCHEME_QUERY)
+      : null;
+    systemColorModeQuery?.addEventListener?.('change', syncNativeTheme);
+
+    return () => {
+      cleanupColorModeSync();
+      systemColorModeQuery?.removeEventListener?.('change', syncNativeTheme);
+    };
   }, [colorMode, importedThemeId, importedThemePlatform, setTheme]);
 
   return null;
@@ -77,6 +120,7 @@ function App() {
   useDocumentLanguage(language);
   useBillingReturnRefresh();
   useNativeCaretOverlay();
+  useWindowResizeLagCompensation();
 
   useEffect(() => {
     void getElectronBridge()?.app?.setLanguage?.(language);

@@ -6,6 +6,12 @@ export interface WindowSize {
   height: number;
 }
 
+export interface WindowThemeColors {
+  backgroundColor: string;
+  titleBarOverlayColor: string;
+  titleBarSymbolColor: string;
+}
+
 function getWindowApi() {
   const bridge = getElectronBridge();
   return bridge?.window ?? null;
@@ -46,6 +52,10 @@ export const desktopWindow = {
 
   setSize(size: WindowSize) {
     return getWindowApi()?.setSize(size.width, size.height) ?? Promise.resolve();
+  },
+
+  setThemeColors(colors: WindowThemeColors) {
+    return getWindowApi()?.setThemeColors?.(colors) ?? Promise.resolve(false);
   },
 
   center() {

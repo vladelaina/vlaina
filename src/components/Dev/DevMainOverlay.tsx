@@ -1,7 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Icon, type IconName } from '@/components/ui/icons';
-import { cn, iconButtonStyles } from '@/lib/utils';
+import { useCallback, useEffect, useState } from 'react';
 import { useUIStore, type AppViewMode } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
@@ -16,9 +13,7 @@ import {
   UPDATE_INFO_CHANGED_EVENT,
   writeCachedDesktopUpdateInfo,
 } from '@/lib/desktop/updateStatus';
-
-const DEV_OVERLAY_BUTTON_CLASS =
-  'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)] disabled:opacity-[var(--vlaina-opacity-50)]';
+import { DevOverlayButton } from './DevOverlayButton';
 
 function DevErrorScreenPreviewCrash(): never {
   throw new Error('vlaina dev error screen preview');
@@ -36,42 +31,9 @@ function getNextDevMarkdownThemeId(currentThemeId: string | null, themeIds: stri
     : null;
 }
 
-function DevOverlayButton({
-  disabled = false,
-  iconName,
-  label,
-  onClick,
-}: {
-  disabled?: boolean;
-  iconName: IconName;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip delayDuration={700}>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={onClick}
-          disabled={disabled}
-          aria-label={label}
-          className={cn(DEV_OVERLAY_BUTTON_CLASS, iconButtonStyles)}
-        >
-          <Icon name={iconName} size="md" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={8}>
-        <span className="text-[var(--vlaina-font-xs)]">{label}</span>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 export function DevMainOverlay({
-  children,
   effectiveAppViewMode,
 }: {
-  children?: ReactNode;
   effectiveAppViewMode: AppViewMode;
 }) {
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
@@ -154,7 +116,7 @@ export function DevMainOverlay({
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
+    <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex translate-x-[var(--vlaina-window-resize-compensation-x)] flex-col items-end gap-2">
       <DevOverlayButton
         iconName={isSimulatedUpdateActive ? 'common.checkCircle' : 'common.download'}
         label={updateSimulationSwitchLabel}
@@ -205,7 +167,6 @@ export function DevMainOverlay({
           onClick={() => setAppViewMode('lab')}
         />
       ) : null}
-      {children}
     </div>
   );
 }

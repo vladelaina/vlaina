@@ -285,6 +285,7 @@
   --vlaina-size-132px: 132px;
   --vlaina-size-135px: 135px;
   --vlaina-size-140px: 140px;
+  --vlaina-size-144px: 144px;
   --vlaina-size-150px: 150px;
   --vlaina-size-160px: 160px;
   --vlaina-size-168px: 168px;
@@ -408,6 +409,8 @@
   --vlaina-space-y-6px: 6px;
   --vlaina-shadow-hr-selected: 0 0 0 2px var(--vlaina-accent-light);
   --vlaina-width-minus-titlebar-actions: calc(100% - var(--vlaina-space-525rem));
+  --vlaina-width-window-controls: var(--vlaina-size-144px);
+  --vlaina-window-resize-compensation-x: 0px;
   --vlaina-width-view-mode-thumb: calc((100% - var(--vlaina-space-075rem)) / 2);
   --vlaina-width-sidebar-floating-icon-gap: calc(var(--sidebar-width-icon) + var(--vlaina-space-1rem));
   --vlaina-width-sidebar-floating-icon-container: calc(var(--sidebar-width-icon) + var(--vlaina-space-1rem) + var(--vlaina-size-2px));

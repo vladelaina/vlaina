@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
       setMaximizable: vi.fn().mockResolvedValue(undefined),
       setMinSize: vi.fn().mockResolvedValue(undefined),
       setSize: vi.fn().mockResolvedValue(undefined),
+      setThemeColors: vi.fn().mockResolvedValue(true),
       center: vi.fn().mockResolvedValue(undefined),
       getSize: vi.fn().mockResolvedValue({ width: 1280, height: 720 }),
       getLabel: vi.fn().mockResolvedValue('main'),
@@ -128,6 +129,11 @@ describe('desktop runtime adapters', () => {
     await desktopWindow.minimize();
     await desktopWindow.setMinSize({ width: 800, height: 600 });
     await desktopWindow.setSize({ width: 980, height: 640 });
+    await desktopWindow.setThemeColors({
+      backgroundColor: '#fcfcfc',
+      titleBarOverlayColor: '#fcfcfc',
+      titleBarSymbolColor: '#27262b',
+    });
     await desktopWindow.create({ vaultPath: '/vault', notePath: '/vault/a.md', viewMode: 'notes' });
 
     const size = await desktopWindow.getSize();
@@ -138,6 +144,11 @@ describe('desktop runtime adapters', () => {
     expect(mocks.bridge.window.minimize).toHaveBeenCalledTimes(1);
     expect(mocks.bridge.window.setMinSize).toHaveBeenCalledWith(800, 600);
     expect(mocks.bridge.window.setSize).toHaveBeenCalledWith(980, 640);
+    expect(mocks.bridge.window.setThemeColors).toHaveBeenCalledWith({
+      backgroundColor: '#fcfcfc',
+      titleBarOverlayColor: '#fcfcfc',
+      titleBarSymbolColor: '#27262b',
+    });
     expect(mocks.bridge.window.create).toHaveBeenCalledWith({
       vaultPath: '/vault',
       notePath: '/vault/a.md',
@@ -161,6 +172,11 @@ describe('desktop runtime adapters', () => {
     await expect(desktopWindow.setMaximizable(true)).resolves.toBeUndefined();
     await expect(desktopWindow.setMinSize({ width: 800, height: 600 })).resolves.toBeUndefined();
     await expect(desktopWindow.setSize({ width: 980, height: 640 })).resolves.toBeUndefined();
+    await expect(desktopWindow.setThemeColors({
+      backgroundColor: '#fcfcfc',
+      titleBarOverlayColor: '#fcfcfc',
+      titleBarSymbolColor: '#27262b',
+    })).resolves.toBe(false);
     await expect(desktopWindow.center()).resolves.toBeUndefined();
     await expect(desktopWindow.getSize()).resolves.toEqual({ width: 0, height: 0 });
     await expect(desktopWindow.getLabel()).resolves.toBeNull();

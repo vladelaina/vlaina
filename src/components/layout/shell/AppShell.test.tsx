@@ -5,16 +5,13 @@ import { AppShell } from './AppShell';
 
 const mocks = vi.hoisted(() => ({
   setLayoutPanelDragging: vi.fn(),
-  setWindowResizeActive: vi.fn(),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
   useUIStore: (selector: (state: {
     setLayoutPanelDragging: typeof mocks.setLayoutPanelDragging;
-    setWindowResizeActive: typeof mocks.setWindowResizeActive;
   }) => unknown) => selector({
     setLayoutPanelDragging: mocks.setLayoutPanelDragging,
-    setWindowResizeActive: mocks.setWindowResizeActive,
   }),
 }));
 

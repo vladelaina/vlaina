@@ -43,6 +43,7 @@ const mocks = vi.hoisted(() => {
       setMinSize: vi.fn().mockResolvedValue(undefined),
       getSize: vi.fn().mockResolvedValue({ width: 1280, height: 720 }),
       setSize: vi.fn().mockResolvedValue(undefined),
+      setThemeColors: vi.fn().mockResolvedValue(true),
       center: vi.fn().mockResolvedValue(undefined),
       confirmClose: vi.fn().mockResolvedValue(undefined),
       onCloseRequested: vi.fn((callback: () => void) => {
@@ -363,6 +364,7 @@ describe('App close flow', () => {
     mocks.desktopWindow.setMinSize.mockClear();
     mocks.desktopWindow.getSize.mockClear();
     mocks.desktopWindow.setSize.mockClear();
+    mocks.desktopWindow.setThemeColors.mockClear();
     mocks.desktopWindow.center.mockClear();
     mocks.desktopWindow.confirmClose.mockClear();
     mocks.desktopWindow.onCloseRequested.mockClear();
@@ -462,6 +464,11 @@ describe('App close flow', () => {
       expect(document.documentElement.classList.contains('light')).toBe(false);
     });
     expect(mocks.setTheme).toHaveBeenCalledWith('dark');
+    expect(mocks.desktopWindow.setThemeColors).toHaveBeenCalledWith({
+      backgroundColor: '#050505',
+      titleBarOverlayColor: '#050505',
+      titleBarSymbolColor: '#ededee',
+    });
     expect(mocks.readImportedMarkdownThemeMetadata).not.toHaveBeenCalled();
   });
 

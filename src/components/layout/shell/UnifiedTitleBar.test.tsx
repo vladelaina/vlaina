@@ -77,4 +77,16 @@ describe('UnifiedTitleBar', () => {
 
     expect(screen.getByTestId('macos-traffic-light-preview')).toBeInTheDocument();
   });
+
+  it('compensates right titlebar chrome while Windows resize events lag', () => {
+    render(
+      <UnifiedTitleBar
+        sidebarCollapsed={false}
+        rightSlot={<button type="button">Right action</button>}
+        onToggleSidebar={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Right action').parentElement).toHaveClass('translate-x-[var(--vlaina-window-resize-compensation-x)]');
+  });
 });

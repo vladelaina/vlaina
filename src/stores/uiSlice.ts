@@ -80,8 +80,6 @@ interface UIStore {
   setSidebarWidth: (width: number) => void;
   layoutPanelDragging: boolean;
   setLayoutPanelDragging: (dragging: boolean) => void;
-  windowResizeActive: boolean;
-  setWindowResizeActive: (active: boolean) => void;
   devPlatformPreview: DesktopPlatformPreview;
   setDevPlatformPreview: (platformPreview: DesktopPlatformPreview) => void;
   toggleDevPlatformPreview: () => void;
@@ -434,8 +432,6 @@ export const useUIStore = create<UIStore>()((set) => ({
   },
   layoutPanelDragging: false,
   setLayoutPanelDragging: (dragging) => set({ layoutPanelDragging: dragging }),
-  windowResizeActive: false,
-  setWindowResizeActive: (active) => set({ windowResizeActive: active }),
   devPlatformPreview: 'system',
   setDevPlatformPreview: (platformPreview) =>
     set({ devPlatformPreview: normalizeDevPlatformPreview(platformPreview) }),

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     toggleMaximize: vi.fn().mockResolvedValue(true),
     close: vi.fn().mockResolvedValue(undefined),
   },
+  isElectronRuntime: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/desktop/window', () => ({
@@ -19,11 +20,24 @@ vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span>{name}</span>,
 }));
 
+vi.mock('@/lib/electron/bridge', () => ({
+  isElectronRuntime: () => mocks.isElectronRuntime(),
+}));
+
+function setNavigatorPlatform(platform: string) {
+  Object.defineProperty(window.navigator, 'platform', {
+    value: platform,
+    configurable: true,
+  });
+}
+
 describe('WindowControls', () => {
   beforeEach(() => {
     mocks.windowState.minimize.mockClear();
     mocks.windowState.toggleMaximize.mockClear();
     mocks.windowState.close.mockClear();
+    mocks.isElectronRuntime.mockReturnValue(false);
+    setNavigatorPlatform('Linux x86_64');
     useUIStore.setState({ devPlatformPreview: 'system' });
   });
 
@@ -52,6 +66,18 @@ describe('WindowControls', () => {
 
     render(<WindowControls />);
 
+    expect(screen.queryByText('window.minimize')).toBeNull();
+    expect(screen.queryByText('window.maximize')).toBeNull();
+    expect(screen.queryByText('window.close')).toBeNull();
+  });
+
+  it('uses a native controls spacer on Windows Electron', () => {
+    mocks.isElectronRuntime.mockReturnValue(true);
+    setNavigatorPlatform('Win32');
+
+    const { container } = render(<WindowControls />);
+
+    expect(container.querySelector('[data-window-controls="true"]')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.queryByText('window.minimize')).toBeNull();
     expect(screen.queryByText('window.maximize')).toBeNull();
     expect(screen.queryByText('window.close')).toBeNull();

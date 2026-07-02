@@ -144,7 +144,7 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
       </div>
 
       {rightSlot && (
-        <div className="relative z-[var(--vlaina-z-20)] flex items-center h-full bg-transparent pr-2 app-drag-region">
+        <div className="relative z-[var(--vlaina-z-20)] flex h-full translate-x-[var(--vlaina-window-resize-compensation-x)] items-center bg-transparent pr-2 app-drag-region">
           {rightSlot}
         </div>
       )}

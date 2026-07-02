@@ -942,6 +942,33 @@ test.describe('notes top cover e2e coverage', () => {
     }
   });
 
+  test('keeps the cover cropper live while the viewport resizes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-cover-viewport-resize-live');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openCoverFixture(page, {
+        filename: 'cover-window-resize-live.md',
+        title: 'Cover Window Resize Live E2E',
+      });
+      const before = await waitForCoverReady(page);
+      await expect(page.locator(`${NOTE_COVER_REGION_SELECTOR} img[aria-hidden="true"]`)).toHaveCount(0);
+
+      await page.setViewportSize({ width: 980, height: 760 });
+
+      await expect.poll(async () => page.locator(NOTE_COVER_CROPPER_SELECTOR).evaluate((element) =>
+        Math.round(element.getBoundingClientRect().width)
+      ), { timeout: 10_000 }).not.toBe(before.cropperWidth);
+      await expect(page.locator(`${NOTE_COVER_REGION_SELECTOR} img[aria-hidden="true"]`)).toHaveCount(0);
+      await expect(page.locator(NOTE_COVER_IMAGE_SELECTOR)).toBeVisible();
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('persists cover drag and resize while keeping editor performance bounded', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-cover-performance');
 

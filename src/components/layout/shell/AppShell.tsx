@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { UnifiedSidebarContainer } from './UnifiedSidebarContainer';
@@ -45,7 +45,6 @@ export function AppShell({
   const sidebarWidthScopeRef = useRef<HTMLDivElement>(null);
   const [isSidebarDragging, setIsSidebarDragging] = useState(false);
   const setLayoutPanelDragging = useUIStore((state) => state.setLayoutPanelDragging);
-  const setWindowResizeActive = useUIStore((state) => state.setWindowResizeActive);
 
   const applySidebarWidth = useCallback((width: number) => {
     const sidebarWidthValue = `${width}px`;
@@ -66,37 +65,6 @@ export function AppShell({
   useLayoutEffect(() => {
     applySidebarWidth(sidebarWidth);
   }, [applySidebarWidth, sidebarWidth]);
-
-  useEffect(() => {
-    let settleTimer: number | null = null;
-    let hasActiveResize = false;
-
-    const handleResize = () => {
-      if (!hasActiveResize) {
-        hasActiveResize = true;
-        setWindowResizeActive(true);
-      }
-
-      if (settleTimer !== null) {
-        window.clearTimeout(settleTimer);
-      }
-
-      settleTimer = window.setTimeout(() => {
-        hasActiveResize = false;
-        setWindowResizeActive(false);
-        settleTimer = null;
-      }, 180);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (settleTimer !== null) {
-        window.clearTimeout(settleTimer);
-      }
-      setWindowResizeActive(false);
-    };
-  }, [setWindowResizeActive]);
 
   return (
     <div

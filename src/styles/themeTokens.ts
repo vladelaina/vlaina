@@ -1,6 +1,10 @@
 export const themeColorTokens = {
   white: '#ffffff',
   transparentWhite: '#ffffff00',
+  windowBackgroundLight: '#fcfcfc',
+  windowBackgroundDark: '#050505',
+  windowSymbolLight: '#27262b',
+  windowSymbolDark: '#ededee',
   textPrimary: '#27272A',
   iconDefault: '#6b7280',
   accent: '#1E96EB',

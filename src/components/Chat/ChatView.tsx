@@ -575,10 +575,12 @@ export function ChatView({
       </AnimatePresence>
 
       {!isEmbedded && showInChatArea && (
-        <div className={cn(
-          "absolute right-4 z-[var(--vlaina-z-30)] pointer-events-auto",
-          "top-3"
-        )}>
+        <div
+          className={cn(
+            "absolute right-4 z-[var(--vlaina-z-30)] translate-x-[var(--vlaina-window-resize-compensation-x)] pointer-events-auto",
+            "top-3"
+          )}
+        >
           <TemporaryChatToggle />
         </div>
       )}
