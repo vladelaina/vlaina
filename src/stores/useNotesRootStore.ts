@@ -3,13 +3,13 @@ import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import {
   findStarredEntryByPath,
   getStarredEntryAbsolutePath,
-  normalizeStarredVaultPath,
+  normalizeStarredNotesRootPath,
   saveStarredRegistry,
 } from '@/stores/notes/starred';
-import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
+import { moveNotesRootSystemStore } from '@/stores/notes/systemStoragePaths';
 import {
   flushPendingDeletedItemsToSystemTrash,
-  flushStalePendingTrashForVault,
+  flushStalePendingTrashForNotesRoot,
 } from '@/stores/notes/utils/fs/trashOperations';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
@@ -18,57 +18,57 @@ import { saveAutoSaveableDrafts } from '@/stores/notes/autoSaveableDrafts';
 import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import type { MetadataFile, NotesStore } from '@/stores/notes/types';
-import { setCurrentVaultPath, useNotesStore } from './useNotesStore';
-import { ensureVaultConfig, normalizeVaultPath } from './vaultConfig';
+import { setCurrentNotesRootPath, useNotesStore } from './useNotesStore';
+import { ensureNotesRootConfig, normalizeNotesRootPath } from './notesRootConfig';
 import {
-  VAULTS_STORAGE_KEY,
+  NOTES_ROOTS_STORAGE_KEY,
   initializeWindowLabel,
   isNativeFilesystemPath,
-  loadPersistedVaultState,
-  normalizeRecentVaults,
-  normalizeVaultInfo,
-  isOversizedRecentVaultsStorageValue,
-  parseRecentVaultsStorageValue,
-  persistVaultState,
-  queryVaultOpenInOtherWindow,
-  closeCurrentVaultAction,
-  removeRecentVaultAction,
-  resolveRenamedVaultPath,
-  setWindowVaultPath,
+  loadPersistedNotesRootState,
+  normalizeRecentNotesRoots,
+  normalizeNotesRootInfo,
+  isOversizedRecentNotesRootsStorageValue,
+  parseRecentNotesRootsStorageValue,
+  persistNotesRootState,
+  queryNotesRootOpenInOtherWindow,
+  closeCurrentNotesRootAction,
+  removeRecentNotesRootAction,
+  resolveRenamedNotesRootPath,
+  setWindowNotesRootPath,
   setupBroadcastChannel,
-  syncCurrentVaultExternalPathAction,
-  upsertRecentVault,
+  syncCurrentNotesRootExternalPathAction,
+  upsertRecentNotesRoot,
   waitForUiRelease,
-} from './vaultStoreSupport';
+} from './notesRootStoreSupport';
 
-export interface VaultInfo {
+export interface NotesRootInfo {
   id: string;
   name: string;
   path: string;
   lastOpened: number;
 }
 
-interface VaultState {
-  currentVault: VaultInfo | null;
-  recentVaults: VaultInfo[];
+interface NotesRootState {
+  currentNotesRoot: NotesRootInfo | null;
+  recentNotesRoots: NotesRootInfo[];
   isLoading: boolean;
   hasInitialized: boolean;
   error: string | null;
 }
 
-interface VaultActions {
+interface NotesRootActions {
   initialize: () => Promise<void>;
-  openVault: (path: string, name?: string, options?: { preserveSidebarTree?: boolean }) => Promise<boolean>;
-  createVault: (name: string, path: string) => Promise<boolean>;
-  renameCurrentVault: (name: string) => Promise<boolean>;
-  syncCurrentVaultExternalPath: (path: string) => void;
+  openNotesRoot: (path: string, name?: string, options?: { preserveSidebarTree?: boolean }) => Promise<boolean>;
+  createNotesRoot: (name: string, path: string) => Promise<boolean>;
+  renameCurrentNotesRoot: (name: string) => Promise<boolean>;
+  syncCurrentNotesRootExternalPath: (path: string) => void;
   removeFromRecent: (id: string) => Promise<boolean>;
-  closeVault: () => Promise<boolean>;
+  closeNotesRoot: () => Promise<boolean>;
   clearError: () => void;
-  checkVaultOpenInOtherWindow: (path: string) => Promise<string | null>;
+  checkNotesRootOpenInOtherWindow: (path: string) => Promise<string | null>;
 }
 
-type VaultStore = VaultState & VaultActions;
+type NotesRootStore = NotesRootState & NotesRootActions;
 
 type PreservedDraftWorkspace = Pick<
   NotesStore,
@@ -131,7 +131,7 @@ function hasUnsavedDraftTabs(): boolean {
   return false;
 }
 
-async function prepareNotesForVaultExit(
+async function prepareNotesForNotesRootExit(
   options: { blockUnsavedDrafts?: boolean } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const savedAutoSaveableDrafts = await saveAutoSaveableDrafts();
@@ -152,13 +152,13 @@ async function prepareNotesForVaultExit(
   }
 
   if (options.blockUnsavedDrafts !== false && hasUnsavedDraftTabs()) {
-    return { ok: false, error: 'Save or discard draft notes before switching vaults' };
+    return { ok: false, error: 'Save or discard draft notes before opening another folder' };
   }
 
   return { ok: true };
 }
 
-function collectDraftWorkspaceForVaultTransition(): PreservedDraftWorkspace {
+function collectDraftWorkspaceForNotesRootTransition(): PreservedDraftWorkspace {
   const state = useNotesStore.getState();
   const candidateDraftPaths = new Set(Object.keys(state.draftNotes));
   state.openTabs.forEach((tab) => {
@@ -234,8 +234,8 @@ function isExternalAbsoluteNotePath(path: string | null | undefined, notesPath: 
     return false;
   }
 
-  const normalizedPath = normalizeVaultPath(path);
-  const normalizedNotesPath = normalizeVaultPath(notesPath);
+  const normalizedPath = normalizeNotesRootPath(path);
+  const normalizedNotesPath = normalizeNotesRootPath(notesPath);
   if (normalizedNotesPath === '/') {
     return false;
   }
@@ -247,7 +247,7 @@ function isExternalAbsoluteNotePath(path: string | null | undefined, notesPath: 
   );
 }
 
-function collectExternalWorkspaceForVaultClose(): PreservedExternalWorkspace {
+function collectExternalWorkspaceForNotesRootClose(): PreservedExternalWorkspace {
   const state = useNotesStore.getState();
   const preservedPathByOriginalPath = new Map<string, string>();
   const addPreservedPath = (path: string | null | undefined) => {
@@ -319,7 +319,7 @@ function collectExternalWorkspaceForVaultClose(): PreservedExternalWorkspace {
   };
 }
 
-function resetNotesWorkspaceForVaultTransition(
+function resetNotesWorkspaceForNotesRootTransition(
   notesPath = '',
   options: {
     preserveDrafts?: boolean;
@@ -328,10 +328,10 @@ function resetNotesWorkspaceForVaultTransition(
   } = {},
 ) {
   const preservedDraftWorkspace = options.preserveDrafts
-    ? collectDraftWorkspaceForVaultTransition()
+    ? collectDraftWorkspaceForNotesRootTransition()
     : null;
   const preservedExternalWorkspace = !preservedDraftWorkspace && options.preserveExternalNotes
-    ? collectExternalWorkspaceForVaultClose()
+    ? collectExternalWorkspaceForNotesRootClose()
     : null;
   const preservedWorkspace = preservedDraftWorkspace ?? preservedExternalWorkspace;
 
@@ -377,12 +377,12 @@ function resetNotesWorkspaceForVaultTransition(
     isLoadingAssets: false,
     uploadProgress: null,
   });
-  void flushStalePendingTrashForVault(notesPath).catch(() => undefined);
+  void flushStalePendingTrashForNotesRoot(notesPath).catch(() => undefined);
 }
 
-export const useVaultStore = create<VaultStore>()((set, get) => ({
-  currentVault: null,
-  recentVaults: [],
+export const useNotesRootStore = create<NotesRootStore>()((set, get) => ({
+  currentNotesRoot: null,
+  recentNotesRoots: [],
   isLoading: false,
   hasInitialized: false,
   error: null,
@@ -392,82 +392,82 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
     try {
       const storage = getStorageAdapter();
-      const persistedVaultState = await loadPersistedVaultState();
-      const savedVaults = persistedVaultState.recentVaults;
-      const currentVaultId = persistedVaultState.currentVaultId;
+      const persistedNotesRootState = await loadPersistedNotesRootState();
+      const savedNotesRoots = persistedNotesRootState.recentNotesRoots;
+      const currentNotesRootId = persistedNotesRootState.currentNotesRootId;
       const isWebPlatform = storage.platform === 'web';
       const launchContext = readWindowLaunchContext();
-      const requestedVaultPath = launchContext.vaultPath
-        ? normalizeVaultPath(launchContext.vaultPath)
+      const requestedNotesRootPath = launchContext.notesRootPath
+        ? normalizeNotesRootPath(launchContext.notesRootPath)
         : null;
 
       await initializeWindowLabel();
 
       const existChecks = await Promise.all(
-        savedVaults.map(async (vault) => {
-          if (isWebPlatform && isNativeFilesystemPath(vault.path)) {
-            return { vault, exists: false };
+        savedNotesRoots.map(async (notesRoot) => {
+          if (isWebPlatform && isNativeFilesystemPath(notesRoot.path)) {
+            return { notesRoot, exists: false };
           }
-          return { vault, exists: await storage.exists(vault.path) };
+          return { notesRoot, exists: await storage.exists(notesRoot.path) };
         })
       );
-      let recentVaults = normalizeRecentVaults(
-        existChecks.filter((candidate) => candidate.exists).map((candidate) => candidate.vault)
+      let recentNotesRoots = normalizeRecentNotesRoots(
+        existChecks.filter((candidate) => candidate.exists).map((candidate) => candidate.notesRoot)
       );
 
-      if (recentVaults.length !== savedVaults.length) {
-        persistVaultState(recentVaults, currentVaultId);
+      if (recentNotesRoots.length !== savedNotesRoots.length) {
+        persistNotesRootState(recentNotesRoots, currentNotesRootId);
       }
 
-      let currentVault: VaultInfo | null = null;
-      if (requestedVaultPath) {
-        const requestedVaultExists =
-          !isWebPlatform || !isNativeFilesystemPath(requestedVaultPath)
-            ? await storage.exists(requestedVaultPath)
+      let currentNotesRoot: NotesRootInfo | null = null;
+      if (requestedNotesRootPath) {
+        const requestedNotesRootExists =
+          !isWebPlatform || !isNativeFilesystemPath(requestedNotesRootPath)
+            ? await storage.exists(requestedNotesRootPath)
             : false;
 
-        if (requestedVaultExists) {
-          await ensureVaultConfig(requestedVaultPath);
-          const nextVaultState = upsertRecentVault(recentVaults, requestedVaultPath);
-          recentVaults = nextVaultState.recentVaults;
-          currentVault = nextVaultState.vault;
-          persistVaultState(recentVaults, currentVault.id);
-          setWindowVaultPath(currentVault.path);
-          setCurrentVaultPath(currentVault.path);
+        if (requestedNotesRootExists) {
+          await ensureNotesRootConfig(requestedNotesRootPath);
+          const nextNotesRootState = upsertRecentNotesRoot(recentNotesRoots, requestedNotesRootPath);
+          recentNotesRoots = nextNotesRootState.recentNotesRoots;
+          currentNotesRoot = nextNotesRootState.notesRoot;
+          persistNotesRootState(recentNotesRoots, currentNotesRoot.id);
+          setWindowNotesRootPath(currentNotesRoot.path);
+          setCurrentNotesRootPath(currentNotesRoot.path);
         }
-      } else if (currentVaultId && !launchContext.isNewWindow) {
-        currentVault = recentVaults.find((vault) => vault.id === currentVaultId) || null;
-        if (currentVault) {
-          await ensureVaultConfig(currentVault.path);
-          setWindowVaultPath(currentVault.path);
-          setCurrentVaultPath(currentVault.path);
+      } else if (currentNotesRootId && !launchContext.isNewWindow) {
+        currentNotesRoot = recentNotesRoots.find((notesRoot) => notesRoot.id === currentNotesRootId) || null;
+        if (currentNotesRoot) {
+          await ensureNotesRootConfig(currentNotesRoot.path);
+          setWindowNotesRootPath(currentNotesRoot.path);
+          setCurrentNotesRootPath(currentNotesRoot.path);
         } else {
-          persistVaultState(recentVaults, null);
+          persistNotesRootState(recentNotesRoots, null);
         }
       }
 
       setupBroadcastChannel();
 
-      const runtimeVault = get().currentVault;
-      if (runtimeVault) {
-        const normalizedRuntimeVault = normalizeVaultInfo(runtimeVault);
+      const runtimeNotesRoot = get().currentNotesRoot;
+      if (runtimeNotesRoot) {
+        const normalizedRuntimeNotesRoot = normalizeNotesRootInfo(runtimeNotesRoot);
         set({
-          recentVaults: normalizeRecentVaults([
-            ...(normalizedRuntimeVault ? [normalizedRuntimeVault] : []),
-            ...get().recentVaults,
-            ...recentVaults,
+          recentNotesRoots: normalizeRecentNotesRoots([
+            ...(normalizedRuntimeNotesRoot ? [normalizedRuntimeNotesRoot] : []),
+            ...get().recentNotesRoots,
+            ...recentNotesRoots,
           ]),
-          currentVault: normalizedRuntimeVault,
+          currentNotesRoot: normalizedRuntimeNotesRoot,
           isLoading: false,
           hasInitialized: true,
         });
         return;
       }
 
-      set({ recentVaults, currentVault, isLoading: false, hasInitialized: true });
+      set({ recentNotesRoots, currentNotesRoot, isLoading: false, hasInitialized: true });
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : 'Failed to initialize vaults',
+        error: error instanceof Error ? error.message : 'Failed to initialize opened folders',
         isLoading: false,
         hasInitialized: true,
       });
@@ -475,15 +475,15 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     }
   },
 
-  checkVaultOpenInOtherWindow: async (path: string): Promise<string | null> => {
-    return queryVaultOpenInOtherWindow(path);
+  checkNotesRootOpenInOtherWindow: async (path: string): Promise<string | null> => {
+    return queryNotesRootOpenInOtherWindow(path);
   },
 
-  openVault: async (path: string, name?: string, options: { preserveSidebarTree?: boolean } = {}) => {
+  openNotesRoot: async (path: string, name?: string, options: { preserveSidebarTree?: boolean } = {}) => {
     set({ isLoading: true, error: null });
 
     try {
-      const prepared = await prepareNotesForVaultExit({ blockUnsavedDrafts: false });
+      const prepared = await prepareNotesForNotesRootExit({ blockUnsavedDrafts: false });
       if (!prepared.ok) {
         set({ error: prepared.error, isLoading: false });
         return false;
@@ -496,212 +496,212 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         return false;
       }
 
-      const normalizedPath = normalizeVaultPath(path);
+      const normalizedPath = normalizeNotesRootPath(path);
       const pathExists = await storage.exists(normalizedPath);
       if (!pathExists) {
         set({ error: 'Folder does not exist or cannot be accessed', isLoading: false });
         return false;
       }
 
-      await ensureVaultConfig(normalizedPath);
+      await ensureNotesRootConfig(normalizedPath);
 
-      const nextVaultState = upsertRecentVault(
-        normalizeRecentVaults(get().recentVaults),
+      const nextNotesRootState = upsertRecentNotesRoot(
+        normalizeRecentNotesRoots(get().recentNotesRoots),
         normalizedPath,
         name
       );
-      const vault = nextVaultState.vault;
-      const updatedRecent = nextVaultState.recentVaults;
+      const notesRoot = nextNotesRootState.notesRoot;
+      const updatedRecent = nextNotesRootState.recentNotesRoots;
 
-      persistVaultState(updatedRecent, vault.id);
+      persistNotesRootState(updatedRecent, notesRoot.id);
 
-      const previousVault = get().currentVault;
-      const previousVaultPath = previousVault?.path ? normalizeVaultPath(previousVault.path) : '';
-      if (previousVaultPath !== vault.path) {
-        resetNotesWorkspaceForVaultTransition(vault.path, {
+      const previousNotesRoot = get().currentNotesRoot;
+      const previousNotesRootPath = previousNotesRoot?.path ? normalizeNotesRootPath(previousNotesRoot.path) : '';
+      if (previousNotesRootPath !== notesRoot.path) {
+        resetNotesWorkspaceForNotesRootTransition(notesRoot.path, {
           preserveDrafts: true,
           preserveSidebarTree: options.preserveSidebarTree ?? true,
         });
       }
 
       set({
-        currentVault: vault,
-        recentVaults: updatedRecent,
+        currentNotesRoot: notesRoot,
+        recentNotesRoots: updatedRecent,
         isLoading: false,
       });
 
-      setWindowVaultPath(vault.path);
-      setCurrentVaultPath(vault.path);
-      if (previousVaultPath === vault.path) {
-        useNotesStore.setState({ notesPath: vault.path });
+      setWindowNotesRootPath(notesRoot.path);
+      setCurrentNotesRootPath(notesRoot.path);
+      if (previousNotesRootPath === notesRoot.path) {
+        useNotesStore.setState({ notesPath: notesRoot.path });
       }
 
       return true;
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : 'Failed to open vault',
+        error: error instanceof Error ? error.message : 'Failed to open folder',
         isLoading: false,
       });
       return false;
     }
   },
 
-  createVault: async (name: string, path: string) => {
+  createNotesRoot: async (name: string, path: string) => {
     set({ isLoading: true, error: null });
 
     try {
-      const prepared = await prepareNotesForVaultExit();
+      const prepared = await prepareNotesForNotesRootExit();
       if (!prepared.ok) {
         set({ error: prepared.error, isLoading: false });
         return false;
       }
 
       const storage = getStorageAdapter();
-      const normalizedPath = normalizeVaultPath(path);
+      const normalizedPath = normalizeNotesRootPath(path);
       const pathExists = await storage.exists(normalizedPath);
       if (!pathExists) {
         await storage.mkdir(normalizedPath, true);
       }
 
-      await ensureVaultConfig(normalizedPath);
+      await ensureNotesRootConfig(normalizedPath);
 
-      return await get().openVault(normalizedPath, name);
+      return await get().openNotesRoot(normalizedPath, name);
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : 'Failed to create vault',
+        error: error instanceof Error ? error.message : 'Failed to create folder',
         isLoading: false,
       });
       return false;
     }
   },
 
-  renameCurrentVault: async (name: string) => {
-    const { currentVault, recentVaults } = get();
-    if (!currentVault) {
+  renameCurrentNotesRoot: async (name: string) => {
+    const { currentNotesRoot, recentNotesRoots } = get();
+    if (!currentNotesRoot) {
       return false;
     }
 
     try {
       const storage = getStorageAdapter();
       const notesState = useNotesStore.getState();
-      const normalizedCurrentVault = normalizeVaultInfo(currentVault);
-      const normalizedRecentVaults = normalizeRecentVaults(recentVaults);
+      const normalizedCurrentNotesRoot = normalizeNotesRootInfo(currentNotesRoot);
+      const normalizedRecentNotesRoots = normalizeRecentNotesRoots(recentNotesRoots);
       const trimmedName = name.trim();
       if (!trimmedName) {
         return false;
       }
 
-      const prepared = await prepareNotesForVaultExit();
+      const prepared = await prepareNotesForNotesRootExit();
       if (!prepared.ok) {
         set({ error: prepared.error });
         return false;
       }
 
-      const { name: nextName, path: nextPath } = await resolveRenamedVaultPath(
-        normalizedCurrentVault.path,
+      const { name: nextName, path: nextPath } = await resolveRenamedNotesRootPath(
+        normalizedCurrentNotesRoot.path,
         trimmedName
       );
 
-      if (nextPath === normalizedCurrentVault.path && nextName === normalizedCurrentVault.name) {
+      if (nextPath === normalizedCurrentNotesRoot.path && nextName === normalizedCurrentNotesRoot.name) {
         return true;
       }
 
       const resumeExternalSync = await suspendExternalSync();
-      const previousVault = normalizedCurrentVault;
+      const previousNotesRoot = normalizedCurrentNotesRoot;
 
       try {
-        set({ currentVault: null });
-        resetNotesWorkspaceForVaultTransition();
+        set({ currentNotesRoot: null });
+        resetNotesWorkspaceForNotesRootTransition();
         await waitForUiRelease();
 
-        markExpectedExternalChange(normalizedCurrentVault.path, true);
+        markExpectedExternalChange(normalizedCurrentNotesRoot.path, true);
         markExpectedExternalChange(nextPath, true);
-        await storage.rename(normalizedCurrentVault.path, nextPath);
-        await moveVaultSystemStore(normalizedCurrentVault.path, nextPath);
+        await storage.rename(normalizedCurrentNotesRoot.path, nextPath);
+        await moveNotesRootSystemStore(normalizedCurrentNotesRoot.path, nextPath);
 
-        const nextVault = normalizeVaultInfo({
-          ...normalizedCurrentVault,
+        const nextNotesRoot = normalizeNotesRootInfo({
+          ...normalizedCurrentNotesRoot,
           name: nextName,
           path: nextPath,
           lastOpened: Date.now(),
         });
-        const nextRecentVaults = normalizeRecentVaults([
-          nextVault,
-          ...normalizedRecentVaults.filter(
-            (vault) => vault.id !== normalizedCurrentVault.id && vault.path !== nextPath
+        const nextRecentNotesRoots = normalizeRecentNotesRoots([
+          nextNotesRoot,
+          ...normalizedRecentNotesRoots.filter(
+            (notesRoot) => notesRoot.id !== normalizedCurrentNotesRoot.id && notesRoot.path !== nextPath
           ),
         ]);
 
-        persistVaultState(nextRecentVaults, nextVault.id);
+        persistNotesRootState(nextRecentNotesRoots, nextNotesRoot.id);
 
-        const normalizedCurrentVaultPath = normalizeStarredVaultPath(normalizedCurrentVault.path);
+        const normalizedCurrentNotesRootPath = normalizeStarredNotesRootPath(normalizedCurrentNotesRoot.path);
         const nextStarredEntries = notesState.starredEntries.map((entry) =>
-          normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath
-            ? { ...entry, vaultPath: nextPath }
+          normalizeStarredNotesRootPath(entry.notesRootPath) === normalizedCurrentNotesRootPath
+            ? { ...entry, notesRootPath: nextPath }
             : entry
         );
         useNotesStore.setState({
           starredEntries: nextStarredEntries,
         });
         saveStarredRegistry(nextStarredEntries);
-        setWindowVaultPath(nextPath);
-        setCurrentVaultPath(nextPath);
+        setWindowNotesRootPath(nextPath);
+        setCurrentNotesRootPath(nextPath);
         set({
-          currentVault: nextVault,
-          recentVaults: nextRecentVaults,
+          currentNotesRoot: nextNotesRoot,
+          recentNotesRoots: nextRecentNotesRoots,
           error: null,
         });
 
-        const reopened = await get().openVault(nextPath, nextName);
+        const reopened = await get().openNotesRoot(nextPath, nextName);
         if (!reopened) {
-          throw new Error('Vault rename succeeded but reopening the renamed vault failed');
+          throw new Error('NotesRoot rename succeeded but reopening the renamed notesRoot failed');
         }
 
         return true;
       } catch (error) {
-        await get().openVault(previousVault.path, previousVault.name);
+        await get().openNotesRoot(previousNotesRoot.path, previousNotesRoot.name);
         throw error;
       } finally {
         resumeExternalSync();
       }
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to rename vault' });
+      set({ error: error instanceof Error ? error.message : 'Failed to rename folder' });
       return false;
     }
   },
 
-  syncCurrentVaultExternalPath: (path: string) => {
-    const { currentVault, recentVaults } = get();
-    syncCurrentVaultExternalPathAction({ path, currentVault, recentVaults, set });
+  syncCurrentNotesRootExternalPath: (path: string) => {
+    const { currentNotesRoot, recentNotesRoots } = get();
+    syncCurrentNotesRootExternalPathAction({ path, currentNotesRoot, recentNotesRoots, set });
   },
 
   removeFromRecent: async (id: string) => {
-    const { recentVaults, currentVault } = get();
-    if (currentVault?.id === id) {
-      const prepared = await prepareNotesForVaultExit();
+    const { recentNotesRoots, currentNotesRoot } = get();
+    if (currentNotesRoot?.id === id) {
+      const prepared = await prepareNotesForNotesRootExit();
       if (!prepared.ok) {
         set({ error: prepared.error });
         return false;
       }
     }
 
-    removeRecentVaultAction({ id, recentVaults, currentVault, set });
-    if (currentVault?.id === id) {
-      resetNotesWorkspaceForVaultTransition('', { preserveExternalNotes: true });
+    removeRecentNotesRootAction({ id, recentNotesRoots, currentNotesRoot, set });
+    if (currentNotesRoot?.id === id) {
+      resetNotesWorkspaceForNotesRootTransition('', { preserveExternalNotes: true });
     }
     set({ error: null });
     return true;
   },
 
-  closeVault: async () => {
-    const prepared = await prepareNotesForVaultExit();
+  closeNotesRoot: async () => {
+    const prepared = await prepareNotesForNotesRootExit();
     if (!prepared.ok) {
       set({ error: prepared.error });
       return false;
     }
 
-    closeCurrentVaultAction(set, get().recentVaults);
-    resetNotesWorkspaceForVaultTransition('', { preserveExternalNotes: true });
+    closeCurrentNotesRootAction(set, get().recentNotesRoots);
+    resetNotesWorkspaceForNotesRootTransition('', { preserveExternalNotes: true });
     set({ error: null });
     return true;
   },
@@ -711,35 +711,35 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
   },
 }));
 
-let vaultStorageListenerRegistered = false;
+let notesRootStorageListenerRegistered = false;
 
-function registerVaultStorageListener(): void {
-  if (vaultStorageListenerRegistered || typeof window === 'undefined') {
+function registerNotesRootStorageListener(): void {
+  if (notesRootStorageListenerRegistered || typeof window === 'undefined') {
     return;
   }
 
   window.addEventListener('storage', (event) => {
-    if (event.key !== VAULTS_STORAGE_KEY) {
+    if (event.key !== NOTES_ROOTS_STORAGE_KEY) {
       return;
     }
 
-    if (isOversizedRecentVaultsStorageValue(event.newValue)) {
+    if (isOversizedRecentNotesRootsStorageValue(event.newValue)) {
       return;
     }
 
-    const recentVaults = parseRecentVaultsStorageValue(event.newValue);
-    const currentVault = useVaultStore.getState().currentVault;
-    const refreshedCurrentVault = currentVault
-      ? recentVaults.find((vault) => vault.id === currentVault.id) ?? currentVault
+    const recentNotesRoots = parseRecentNotesRootsStorageValue(event.newValue);
+    const currentNotesRoot = useNotesRootStore.getState().currentNotesRoot;
+    const refreshedCurrentNotesRoot = currentNotesRoot
+      ? recentNotesRoots.find((notesRoot) => notesRoot.id === currentNotesRoot.id) ?? currentNotesRoot
       : null;
 
-    useVaultStore.setState({
-      recentVaults,
-      currentVault: refreshedCurrentVault,
+    useNotesRootStore.setState({
+      recentNotesRoots,
+      currentNotesRoot: refreshedCurrentNotesRoot,
     });
   });
 
-  vaultStorageListenerRegistered = true;
+  notesRootStorageListenerRegistered = true;
 }
 
-registerVaultStorageListener();
+registerNotesRootStorageListener();

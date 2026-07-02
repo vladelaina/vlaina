@@ -1,14 +1,14 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   createChatFixture,
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
   getOpenBridgePages,
   launchIsolatedElectron,
   openMarkdownFixture,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 const SOURCE_EDITOR_SELECTOR = '[data-note-source-editor="true"]';
@@ -403,15 +403,15 @@ test.describe('notes source mode layout', () => {
         ],
       });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'source-mode-interaction-audit',
         files: [
           { filename: 'alpha-source-audit.md', content: sourceModeInteractionMarkdown('Alpha') },
           { filename: 'beta-source-audit.md', content: sourceModeInteractionMarkdown('Beta') },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Source Mode Interaction Audit',
         minFileCount: 2,
       });
@@ -557,15 +557,15 @@ test.describe('notes source mode layout', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1360, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'source-terminal-blank-lines-audit',
         files: [
           { filename: 'alpha-source-terminal-blank-lines.md', content: alphaInitial },
           { filename: 'beta-source-terminal-blank-lines.md', content: 'Beta source switch sentinel' },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Source Terminal Blank Lines Audit',
         minFileCount: 2,
       });

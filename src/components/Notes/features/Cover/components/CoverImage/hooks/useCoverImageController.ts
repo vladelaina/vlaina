@@ -24,7 +24,7 @@ export function useCoverImageController({
   scale,
   readOnly,
   onUpdate,
-  vaultPath,
+  notesRootPath,
   currentNotePath,
   pickerOpen,
   onPickerOpenChange,
@@ -67,7 +67,7 @@ export function useCoverImageController({
   } = useCoverSelectionFlow({
     url,
     coverHeight,
-    vaultPath,
+    notesRootPath,
     currentNotePath,
     onUpdate,
     setShowPicker,
@@ -270,7 +270,7 @@ export function useCoverImageController({
   return {
     url,
     readOnly,
-    vaultPath,
+    notesRootPath,
     currentNotePath,
     phase,
     showPicker,

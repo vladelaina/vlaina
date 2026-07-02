@@ -1,19 +1,19 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { ensureSystemDirectory, getVaultSystemStorePath } from './notes/systemStoragePaths';
+import { ensureSystemDirectory, getNotesRootSystemStorePath } from './notes/systemStoragePaths';
 
 const CONFIG_FILE_NAME = 'config.json';
-const MAX_VAULT_CONFIG_BYTES = 64 * 1024;
+const MAX_NOTES_ROOT_CONFIG_BYTES = 64 * 1024;
 const utf8Encoder = new TextEncoder();
 
-function createVaultConfig(vaultPath: string) {
+function createNotesRootConfig(notesRootPath: string) {
   return {
     version: 1,
     created: Date.now(),
-    vaultPath,
+    notesRootPath,
   };
 }
 
-export function normalizeVaultPath(path: string): string {
+export function normalizeNotesRootPath(path: string): string {
   const withForwardSlashes = path.replace(/\\/g, '/');
 
   if (withForwardSlashes === '/' || /^[a-zA-Z]:\/$/.test(withForwardSlashes)) {
@@ -24,17 +24,17 @@ export function normalizeVaultPath(path: string): string {
   return normalized || withForwardSlashes;
 }
 
-export async function ensureVaultConfig(vaultPath: string): Promise<void> {
+export async function ensureNotesRootConfig(notesRootPath: string): Promise<void> {
   const storage = getStorageAdapter();
-  const normalizedVaultPath = normalizeVaultPath(vaultPath);
-  const storePath = await getVaultSystemStorePath(normalizedVaultPath);
+  const normalizedNotesRootPath = normalizeNotesRootPath(notesRootPath);
+  const storePath = await getNotesRootSystemStorePath(normalizedNotesRootPath);
   await ensureSystemDirectory(storePath);
 
   const configFilePath = await joinPath(storePath, CONFIG_FILE_NAME);
   if (!(await storage.exists(configFilePath))) {
     await storage.writeFile(
       configFilePath,
-      JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
+      JSON.stringify(createNotesRootConfig(normalizedNotesRootPath), null, 2)
     );
     return;
   }
@@ -47,21 +47,21 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
       (typeof fileInfo?.size === 'number' && (
         !Number.isFinite(fileInfo.size) ||
         fileInfo.size < 0 ||
-        fileInfo.size > MAX_VAULT_CONFIG_BYTES
+        fileInfo.size > MAX_NOTES_ROOT_CONFIG_BYTES
       ))
     ) {
       await storage.writeFile(
         configFilePath,
-        JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
+        JSON.stringify(createNotesRootConfig(normalizedNotesRootPath), null, 2)
       );
       return;
     }
 
-    const content = await storage.readFile(configFilePath, MAX_VAULT_CONFIG_BYTES);
-    if (utf8Encoder.encode(content).length > MAX_VAULT_CONFIG_BYTES) {
+    const content = await storage.readFile(configFilePath, MAX_NOTES_ROOT_CONFIG_BYTES);
+    if (utf8Encoder.encode(content).length > MAX_NOTES_ROOT_CONFIG_BYTES) {
       await storage.writeFile(
         configFilePath,
-        JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
+        JSON.stringify(createNotesRootConfig(normalizedNotesRootPath), null, 2)
       );
       return;
     }
@@ -70,21 +70,21 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       await storage.writeFile(
         configFilePath,
-        JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
+        JSON.stringify(createNotesRootConfig(normalizedNotesRootPath), null, 2)
       );
       return;
     }
 
-    if (parsed.vaultPath !== normalizedVaultPath) {
+    if (parsed.notesRootPath !== normalizedNotesRootPath) {
       await storage.writeFile(
         configFilePath,
-        JSON.stringify({ ...parsed, vaultPath: normalizedVaultPath }, null, 2)
+        JSON.stringify({ ...parsed, notesRootPath: normalizedNotesRootPath }, null, 2)
       );
     }
   } catch {
     await storage.writeFile(
       configFilePath,
-      JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
+      JSON.stringify(createNotesRootConfig(normalizedNotesRootPath), null, 2)
     );
   }
 }

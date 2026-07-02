@@ -14,7 +14,7 @@ import {
 } from '../storage';
 import {
   findStarredEntryByPath,
-  loadStarredForVault,
+  loadStarredForNotesRoot,
   removeStarredEntryById,
   toggleStarredEntry,
 } from '../starred';
@@ -37,10 +37,10 @@ import {
 } from '../utils/fs/rootFolderState';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
-  hasUnsafeVaultPathSegment,
-  normalizeVaultRelativePath,
-  resolveVaultRelativeFullPath,
-} from '../utils/fs/vaultPathContainment';
+  hasUnsafeNotesRootPathSegment,
+  normalizeNotesRootRelativePath,
+  resolveNotesRootRelativeFullPath,
+} from '../utils/fs/notesRootPathContainment';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import {
   extractNoteTags,
@@ -105,7 +105,7 @@ function getKnownMarkdownModifiedAt(
 }
 
 function hasUnsafeNotePathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path, {
+  return hasUnsafeNotesRootPathSegment(path, {
     allowNavigationSegments: true,
   });
 }
@@ -115,7 +115,7 @@ function isSafeStoredNotePath(path: string): boolean {
     return false;
   }
 
-  return isAbsolutePath(path) || normalizeVaultRelativePath(path) != null;
+  return isAbsolutePath(path) || normalizeNotesRootRelativePath(path) != null;
 }
 
 function isSearchableMarkdownContent(content: string): boolean {
@@ -149,7 +149,7 @@ function isMetadataUpdateSourceContentWithinReadLimit(content: string): boolean 
 }
 
 function getNoteContentScanNodePriority(node: FileTreeNode): number {
-  const normalizedPath = normalizeVaultRelativePath(node.path, { allowEmpty: node.isFolder });
+  const normalizedPath = normalizeNotesRootRelativePath(node.path, { allowEmpty: node.isFolder });
   if (!normalizedPath || hasInternalNotePathSegment(normalizedPath)) {
     return 3;
   }
@@ -215,7 +215,7 @@ function collectNoteContentScanPaths(
     const node = stack.pop()!;
     visitedNodes += 1;
     if (node.isFolder) {
-      const folderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
+      const folderPath = normalizeNotesRootRelativePath(node.path, { allowEmpty: true });
       if (folderPath === null || hasInternalNotePathSegment(folderPath)) {
         continue;
       }
@@ -227,7 +227,7 @@ function collectNoteContentScanPaths(
       continue;
     }
 
-    const relativePath = normalizeVaultRelativePath(node.path);
+    const relativePath = normalizeNotesRootRelativePath(node.path);
     if (
       relativePath &&
       !hasInternalNotePathSegment(relativePath) &&
@@ -274,8 +274,8 @@ export interface FeatureSlice {
   noteMetadata: MetadataFile | null;
   noteIconSize: number;
 
-  loadStarred: (vaultPath: string) => Promise<void>;
-  loadMetadata: (vaultPath: string) => Promise<void>;
+  loadStarred: (notesRootPath: string) => Promise<void>;
+  loadMetadata: (notesRootPath: string) => Promise<void>;
   scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<void>;
   cancelNoteContentScan: () => void;
   pruneNoteContentsCacheToOpenNotes: () => void;
@@ -299,7 +299,7 @@ export interface FeatureSlice {
 }
 
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => {
-  const isActiveVaultRequest = (vaultPath: string) => get().notesPath === vaultPath;
+  const isActiveNotesRootRequest = (notesRootPath: string) => get().notesPath === notesRootPath;
   let noteContentScanController: AbortController | null = null;
   let noteContentScanGeneration = 0;
 
@@ -361,15 +361,15 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   const writeNoteContent = async (
     path: string,
     content: string,
-    vaultPath: string,
+    notesRootPath: string,
   ) => {
     const fullPath = isAbsolutePath(path)
       ? path
-      : vaultPath
-        ? (await resolveVaultRelativeFullPath(vaultPath, path)).fullPath
+      : notesRootPath
+        ? (await resolveNotesRootRelativeFullPath(notesRootPath, path)).fullPath
         : null;
 
-    if (!fullPath || !isActiveVaultRequest(vaultPath)) {
+    if (!fullPath || !isActiveNotesRootRequest(notesRootPath)) {
       return {
         content,
         modifiedAt: getCachedNoteModifiedAt(get().noteContentsCache, path),
@@ -379,7 +379,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     }
 
     const result = await saveNoteDocument({
-      notesPath: vaultPath,
+      notesPath: notesRootPath,
       currentNote: { path, content },
       cache: get().noteContentsCache,
     });
@@ -425,13 +425,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     updates: Partial<NoteMetadataEntry>
   ) => {
     const state = get();
-    const vaultPathAtStart = state.notesPath;
+    const notesRootPathAtStart = state.notesPath;
     const isDraftMetadataTarget = isDraftNotePath(path);
     if (!isDraftMetadataTarget && !isSupportedMarkdownPath(path)) {
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
     }
-    if (hasInternalNotePathSegment(path) || (vaultPathAtStart && hasInternalNotePathSegment(vaultPathAtStart))) {
+    if (hasInternalNotePathSegment(path) || (notesRootPathAtStart && hasInternalNotePathSegment(notesRootPathAtStart))) {
       set({ error: 'Path must not be inside an internal notes folder.' });
       return;
     }
@@ -439,12 +439,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       set({ error: 'Selected file path contains unsupported characters' });
       return;
     }
-    if (!isDraftMetadataTarget && !isAbsolutePath(path) && normalizeVaultRelativePath(path) == null) {
-      set({ error: 'Path must stay inside the current vault.' });
+    if (!isDraftMetadataTarget && !isAbsolutePath(path) && normalizeNotesRootRelativePath(path) == null) {
+      set({ error: 'Path must stay inside the opened folder.' });
       return;
     }
 
-    if (!vaultPathAtStart) {
+    if (!notesRootPathAtStart) {
       if (isAbsolutePath(path)) {
         let latestState = state;
         let metadataBase = latestState.noteMetadata ?? createEmptyMetadataFile();
@@ -551,8 +551,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       try {
         fullPath = isAbsolutePath(path)
           ? path
-          : vaultPathAtStart
-            ? (await resolveVaultRelativeFullPath(vaultPathAtStart, path)).fullPath
+          : notesRootPathAtStart
+            ? (await resolveNotesRootRelativeFullPath(notesRootPathAtStart, path)).fullPath
             : null;
       } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
@@ -570,7 +570,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         return;
       }
       sourceContent = await storage.readFile(fullPath, MAX_METADATA_UPDATE_NOTE_BYTES);
-      if (!isActiveVaultRequest(vaultPathAtStart)) {
+      if (!isActiveNotesRootRequest(notesRootPathAtStart)) {
         return;
       }
       latestState = get();
@@ -612,7 +612,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       : latestState.rootFolder;
     const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
-    if (!isActiveVaultRequest(vaultPathAtStart)) {
+    if (!isActiveNotesRootRequest(notesRootPathAtStart)) {
       return;
     }
 
@@ -631,9 +631,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     if (isDraftNote) {
       const draftNote = latestState.draftNotes[path];
       const canImplicitlySaveDraft =
-        Boolean(isCurrentNote && vaultPathAtStart) &&
+        Boolean(isCurrentNote && notesRootPathAtStart) &&
         Boolean(draftNote) &&
-        (draftNote.originNotesPath === undefined || draftNote.originNotesPath === vaultPathAtStart);
+        (draftNote.originNotesPath === undefined || draftNote.originNotesPath === notesRootPathAtStart);
       if (canImplicitlySaveDraft) {
         await get().saveNote({ explicit: false });
       }
@@ -646,8 +646,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     }
 
     try {
-      const result = await writeNoteContent(path, content, vaultPathAtStart);
-      if (!isActiveVaultRequest(vaultPathAtStart)) {
+      const result = await writeNoteContent(path, content, notesRootPathAtStart);
+      if (!isActiveNotesRootRequest(notesRootPathAtStart)) {
         return;
       }
       applyCompletedMetadataWrite(path, result.content, result.modifiedAt, result.size, content, result.metadata ?? metadata);
@@ -676,13 +676,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     noteMetadata: null,
     noteIconSize: loadGlobalNoteIconSize(),
 
-    loadStarred: async (vaultPath: string) => {
-      await loadStarredForVault(set, get, vaultPath);
+    loadStarred: async (notesRootPath: string) => {
+      await loadStarredForNotesRoot(set, get, notesRootPath);
     },
 
-    loadMetadata: async (vaultPath: string) => {
-      const metadata = await loadNoteMetadata(vaultPath);
-      if (!isActiveVaultRequest(vaultPath)) {
+    loadMetadata: async (notesRootPath: string) => {
+      const metadata = await loadNoteMetadata(notesRootPath);
+      if (!isActiveNotesRootRequest(notesRootPath)) {
         return;
       }
       set({
@@ -819,7 +819,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           });
         }
 
-        if (!isActiveVaultRequest(notesPath) || !isScanActive()) {
+        if (!isActiveNotesRootRequest(notesPath) || !isScanActive()) {
           return;
         }
 

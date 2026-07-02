@@ -30,7 +30,7 @@ const hoisted = vi.hoisted(() => ({
     count: number;
     paths: Array<{ path: string; query: string; contentMatchOrdinal: number | null }>;
   }>,
-  currentVault: null as { path: string; name: string } | null,
+  currentNotesRoot: null as { path: string; name: string } | null,
   uiState: {
     sidebarCollapsed: false,
     notesPreviewTitle: null as { path: string; title: string } | null,
@@ -55,9 +55,9 @@ vi.mock('@/stores/useNotesStore', () => ({
   }),
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector: (state: any) => unknown) => selector({
-    currentVault: hoisted.currentVault,
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector: (state: any) => unknown) => selector({
+    currentNotesRoot: hoisted.currentNotesRoot,
   }),
 }));
 
@@ -283,7 +283,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.draftNotes = {};
     hoisted.noteContentsCache = new Map();
     hoisted.notesPath = '';
-    hoisted.currentVault = null;
+    hoisted.currentNotesRoot = null;
     hoisted.uiState.sidebarCollapsed = false;
     hoisted.uiState.notesPreviewTitle = null;
     hoisted.openNote.mockClear();
@@ -510,10 +510,10 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.scheduleSidebarItemIntoView).not.toHaveBeenCalled();
   });
 
-  it('shows an empty file tree hint when the vault has no files', () => {
+  it('shows an empty file tree hint when the notesRoot has no files', () => {
     const { getByTestId } = render(
       <SidebarContent
-        rootFolder={{ id: 'root', path: '', name: 'Vault', isFolder: true, expanded: true, children: [] }}
+        rootFolder={{ id: 'root', path: '', name: 'NotesRoot', isFolder: true, expanded: true, children: [] }}
         isLoading={false}
         currentNotePath={null}
         createNote={vi.fn(async () => undefined)}
@@ -600,9 +600,9 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(queryByTestId('hover-empty-hint')).toBeNull();
   });
 
-  it('does not show the open hint while a vault root is still loading', () => {
-    hoisted.currentVault = { path: '/vault', name: 'Vault' };
-    hoisted.notesPath = '/vault';
+  it('does not show the open hint while a notesRoot root is still loading', () => {
+    hoisted.currentNotesRoot = { path: '/notesRoot', name: 'NotesRoot' };
+    hoisted.notesPath = '/notesRoot';
 
     const { queryByTestId, getByTestId } = render(
       <SidebarContent
@@ -619,8 +619,8 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(getByTestId('root-folder-row')).toBeTruthy();
   });
 
-  it('shows the open hint when a remembered vault exists but no notes target is open', () => {
-    hoisted.currentVault = { path: '/vault', name: 'Vault' };
+  it('shows the open hint when a remembered notesRoot exists but no notes target is open', () => {
+    hoisted.currentNotesRoot = { path: '/notesRoot', name: 'NotesRoot' };
     hoisted.notesPath = '';
 
     const { getByTestId } = render(

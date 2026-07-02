@@ -47,11 +47,11 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
       expanded: true,
       children: [],
     },
-    rootFolderPath: '/vault',
+    rootFolderPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -131,9 +131,9 @@ describe('workspace disk sync internal paths', () => {
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
   });
 
-  it('does not sync current notes when the active vault is internal', async () => {
+  it('does not sync current notes when the active notesRoot is internal', async () => {
     const store = createNotesStore({
-      notesPath: '/vault/.vlaina',
+      notesPath: '/notesRoot/.vlaina',
       currentNote: { path: 'docs/alpha.md', content: '# alpha' },
       openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
@@ -149,9 +149,9 @@ describe('workspace disk sync internal paths', () => {
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
   });
 
-  it('does not sync current notes when the active vault is a case-variant internal path', async () => {
+  it('does not sync current notes when the active notesRoot is a case-variant internal path', async () => {
     const store = createNotesStore({
-      notesPath: '/vault/.VLAINA',
+      notesPath: '/notesRoot/.VLAINA',
       currentNote: { path: 'docs/alpha.md', content: '# alpha' },
       openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
@@ -177,7 +177,7 @@ describe('workspace disk sync internal paths', () => {
     const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
 
     expect(result).toBe('reloaded');
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_NOTE_DISK_SYNC_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/.notes/alpha.md', MAX_NOTE_DISK_SYNC_BYTES);
     expect(store.getState().currentNote).toEqual({ path: '.notes/alpha.md', content: '# updated' });
     expect(store.getState().error).toBeNull();
   });

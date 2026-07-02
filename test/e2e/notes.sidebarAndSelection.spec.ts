@@ -10,12 +10,12 @@ import {
   cleanupIsolatedElectron,
   clearSelectedNoteBlocks,
   collectEditorDomMetrics,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getBlankAreaDragTarget,
   getOpenBridgePages,
   launchIsolatedElectron,
   measureRepeatedBlockScan,
-  openVaultInNotes,
+  openNotesRootInNotes,
   selectNoteBlocksByText,
   setAppViewMode,
 } from './notesE2E';
@@ -96,7 +96,7 @@ test.describe('notes sidebar and block selection interaction', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'sidebar-dark-right-click-blank-line',
         files: [
           { filename: 'alpha-trailing-blank.md', content: createTrailingBlankLineMarkdown('Alpha') },
@@ -104,9 +104,9 @@ test.describe('notes sidebar and block selection interaction', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Sidebar Dark Right Click Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Sidebar Dark Right Click NotesRoot',
         minFileCount: 2,
       });
 
@@ -214,7 +214,7 @@ test.describe('notes sidebar and block selection interaction', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'sidebar-selection',
         files: [
           { filename: 'alpha-sidebar.md', content: createSidebarMarkdown('Alpha') },
@@ -223,9 +223,9 @@ test.describe('notes sidebar and block selection interaction', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Sidebar Selection Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Sidebar Selection NotesRoot',
         minFileCount: 2,
       });
 

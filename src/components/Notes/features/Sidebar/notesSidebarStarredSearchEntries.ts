@@ -3,7 +3,7 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import {
   getStarredEntryAbsolutePath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
+  normalizeStarredNotesRootPath,
 } from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { NotesSidebarSearchEntry } from './notesSidebarSearchResults';
@@ -18,11 +18,11 @@ function getParentPreview(path: string): string {
 
 export function collectStarredSearchEntries(
   starredEntries: StarredEntry[],
-  currentVaultPath: string | null | undefined,
+  currentNotesRootPath: string | null | undefined,
   existingTreePaths: Set<string>,
 ): NotesSidebarSearchEntry[] {
-  const normalizedCurrentVaultPath = currentVaultPath
-    ? normalizeStarredVaultPath(currentVaultPath)
+  const normalizedCurrentNotesRootPath = currentNotesRootPath
+    ? normalizeStarredNotesRootPath(currentNotesRootPath)
     : '';
   const entries: NotesSidebarSearchEntry[] = [];
   const seenOpenPaths = new Set<string>();
@@ -36,14 +36,14 @@ export function collectStarredSearchEntries(
       continue;
     }
 
-    const isCurrentVaultEntry =
-      normalizedCurrentVaultPath !== '' &&
-      normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath;
-    if (isCurrentVaultEntry && existingTreePaths.has(relativePath)) {
+    const isCurrentNotesRootEntry =
+      normalizedCurrentNotesRootPath !== '' &&
+      normalizeStarredNotesRootPath(entry.notesRootPath) === normalizedCurrentNotesRootPath;
+    if (isCurrentNotesRootEntry && existingTreePaths.has(relativePath)) {
       continue;
     }
 
-    const entryPath = isCurrentVaultEntry
+    const entryPath = isCurrentNotesRootEntry
       ? relativePath
       : getStarredEntryAbsolutePath({ ...entry, relativePath });
     if (!entryPath || seenOpenPaths.has(entryPath)) {
@@ -56,7 +56,7 @@ export function collectStarredSearchEntries(
       openPath: entryPath,
       name: getNoteTitleFromPath(relativePath),
       preview: getParentPreview(entryPath),
-      isExternal: !isCurrentVaultEntry,
+      isExternal: !isCurrentNotesRootEntry,
       contentSearchable: false,
     });
   }

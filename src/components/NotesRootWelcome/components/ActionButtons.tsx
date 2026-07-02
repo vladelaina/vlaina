@@ -10,20 +10,20 @@ export function ActionButtons({ onCreateNew, onOpenLocal }: ActionButtonsProps) 
   const { t } = useI18n();
 
   return (
-    <div className="vault-actions">
+    <div className="notes-root-actions">
       <button 
-        className="vault-action-btn vault-action-btn--primary"
+        className="notes-root-action-btn notes-root-action-btn--primary"
         onClick={onCreateNew}
       >
         <Icon name="common.add" size="md" />
-        {t('vault.createNew')}
+        {t('notesRoot.createNew')}
       </button>
       <button 
-        className="vault-action-btn vault-action-btn--secondary"
+        className="notes-root-action-btn notes-root-action-btn--secondary"
         onClick={onOpenLocal}
       >
         <Icon name="file.folderOpen" size="md" />
-        {t('vault.openLocal')}
+        {t('notesRoot.openLocal')}
       </button>
     </div>
   );

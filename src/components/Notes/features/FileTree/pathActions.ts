@@ -1,14 +1,14 @@
 import { openPathInFileManager, revealItemInFolder } from '@/lib/desktop/shell';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { desktopWindow } from '@/lib/desktop/window';
-import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { resolveNotesRootRelativeFullPath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 
 async function resolveAbsoluteTreeItemPath(notesPath: string, itemPath: string) {
   if (!notesPath) {
     throw new Error('Notes path is not available');
   }
 
-  const { fullPath } = await resolveVaultRelativeFullPath(notesPath, itemPath, { allowEmpty: true });
+  const { fullPath } = await resolveNotesRootRelativeFullPath(notesPath, itemPath, { allowEmpty: true });
   return fullPath;
 }
 
@@ -37,7 +37,7 @@ export async function openTreeItemInNewWindow(
 ) {
   await resolveAbsoluteTreeItemPath(notesPath, itemPath);
   await desktopWindow.create({
-    vaultPath: notesPath,
+    notesRootPath: notesPath,
     notePath: itemKind === 'file' ? itemPath : null,
     folderPath: itemKind === 'folder' ? itemPath : null,
     viewMode: 'notes',

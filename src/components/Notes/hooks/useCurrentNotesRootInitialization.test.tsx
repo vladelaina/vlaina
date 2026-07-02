@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCurrentVaultInitialization } from './useCurrentVaultInitialization';
+import { useCurrentNotesRootInitialization } from './useCurrentNotesRootInitialization';
 
 vi.mock('@/lib/desktop/window', () => ({
   desktopWindow: {
@@ -9,10 +9,10 @@ vi.mock('@/lib/desktop/window', () => ({
 }));
 
 const baseProps = {
-  currentVaultPath: '/vault',
+  currentNotesRootPath: '/notesRoot',
   launchNotePath: null,
   pendingStarredNavigation: null,
-  pendingOpenMarkdownTargetVaultPath: null,
+  pendingOpenMarkdownTargetNotesRootPath: null,
   loadStarred: vi.fn().mockResolvedValue(undefined),
   loadAssets: vi.fn().mockResolvedValue(undefined),
   loadFileTree: vi.fn().mockResolvedValue(undefined),
@@ -22,7 +22,7 @@ const baseProps = {
   cancelNoteContentScan: vi.fn(),
 };
 
-describe('useCurrentVaultInitialization', () => {
+describe('useCurrentNotesRootInitialization', () => {
   beforeEach(() => {
     baseProps.loadStarred.mockClear();
     baseProps.loadAssets.mockClear();
@@ -33,10 +33,10 @@ describe('useCurrentVaultInitialization', () => {
     baseProps.cancelNoteContentScan.mockClear();
   });
 
-  it('skips workspace restore while opening a pending markdown target vault', async () => {
-    renderHook(() => useCurrentVaultInitialization({
+  it('skips workspace restore while opening a pending markdown target notesRoot', async () => {
+    renderHook(() => useCurrentNotesRootInitialization({
       ...baseProps,
-      pendingOpenMarkdownTargetVaultPath: '/vault',
+      pendingOpenMarkdownTargetNotesRootPath: '/notesRoot',
     }));
 
     await waitFor(() => {
@@ -44,8 +44,8 @@ describe('useCurrentVaultInitialization', () => {
     });
   });
 
-  it('keeps workspace restore enabled for ordinary vault initialization', async () => {
-    renderHook(() => useCurrentVaultInitialization(baseProps));
+  it('keeps workspace restore enabled for ordinary notesRoot initialization', async () => {
+    renderHook(() => useCurrentNotesRootInitialization(baseProps));
 
     await waitFor(() => {
       expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
@@ -55,16 +55,16 @@ describe('useCurrentVaultInitialization', () => {
   it('does not wait for starred loading before starting the file tree load', async () => {
     baseProps.loadStarred.mockImplementationOnce(() => new Promise<void>(() => undefined));
 
-    renderHook(() => useCurrentVaultInitialization(baseProps));
+    renderHook(() => useCurrentNotesRootInitialization(baseProps));
 
     await waitFor(() => {
-      expect(baseProps.loadStarred).toHaveBeenCalledWith('/vault');
+      expect(baseProps.loadStarred).toHaveBeenCalledWith('/notesRoot');
       expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
     });
   });
 
-  it('does not preload assets during vault initialization', async () => {
-    renderHook(() => useCurrentVaultInitialization(baseProps));
+  it('does not preload assets during notesRoot initialization', async () => {
+    renderHook(() => useCurrentNotesRootInitialization(baseProps));
 
     await waitFor(() => {
       expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
@@ -73,24 +73,24 @@ describe('useCurrentVaultInitialization', () => {
     expect(baseProps.loadAssets).not.toHaveBeenCalled();
   });
 
-  it('does not reload the vault when a consumed starred navigation is cleared', async () => {
+  it('does not reload the notesRoot when a consumed starred navigation is cleared', async () => {
     const { rerender } = renderHook(
-      ({ currentVaultPath, pendingStarredNavigation }) => useCurrentVaultInitialization({
+      ({ currentNotesRootPath, pendingStarredNavigation }) => useCurrentNotesRootInitialization({
         ...baseProps,
-        currentVaultPath,
+        currentNotesRootPath,
         pendingStarredNavigation,
       }),
       {
         initialProps: {
-          currentVaultPath: '/vault' as string | null,
+          currentNotesRootPath: '/notesRoot' as string | null,
           pendingStarredNavigation: {
-            vaultPath: '/vault',
+            notesRootPath: '/notesRoot',
             skipWorkspaceRestore: true,
           },
         } as {
-          currentVaultPath: string | null;
+          currentNotesRootPath: string | null;
           pendingStarredNavigation: {
-            vaultPath: string;
+            notesRootPath: string;
             skipWorkspaceRestore?: boolean;
           } | null;
         },
@@ -102,7 +102,7 @@ describe('useCurrentVaultInitialization', () => {
     });
     expect(baseProps.loadFileTree).toHaveBeenCalledTimes(1);
 
-    rerender({ currentVaultPath: '/vault', pendingStarredNavigation: null });
+    rerender({ currentNotesRootPath: '/notesRoot', pendingStarredNavigation: null });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(baseProps.loadFileTree).toHaveBeenCalledTimes(1);
@@ -110,8 +110,8 @@ describe('useCurrentVaultInitialization', () => {
     expect(baseProps.clearRemoteImageMemoryCache).not.toHaveBeenCalled();
     expect(baseProps.cancelNoteContentScan).not.toHaveBeenCalled();
 
-    rerender({ currentVaultPath: null, pendingStarredNavigation: null });
-    rerender({ currentVaultPath: '/vault', pendingStarredNavigation: null });
+    rerender({ currentNotesRootPath: null, pendingStarredNavigation: null });
+    rerender({ currentNotesRootPath: '/notesRoot', pendingStarredNavigation: null });
 
     await waitFor(() => {
       expect(baseProps.loadFileTree).toHaveBeenCalledTimes(2);
@@ -119,8 +119,8 @@ describe('useCurrentVaultInitialization', () => {
     expect(baseProps.loadFileTree).toHaveBeenLastCalledWith(false);
   });
 
-  it('releases transient caches and cancels content scans when the vault effect is cleaned up', async () => {
-    const { unmount } = renderHook(() => useCurrentVaultInitialization(baseProps));
+  it('releases transient caches and cancels content scans when the notesRoot effect is cleaned up', async () => {
+    const { unmount } = renderHook(() => useCurrentNotesRootInitialization(baseProps));
 
     await waitFor(() => {
       expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
@@ -133,14 +133,14 @@ describe('useCurrentVaultInitialization', () => {
     expect(baseProps.clearRemoteImageMemoryCache).toHaveBeenCalledTimes(1);
   });
 
-  it('reports initialization while vault loading is in flight', async () => {
+  it('reports initialization while notesRoot loading is in flight', async () => {
     let resolveLoadFileTree: () => void = () => undefined;
     const onInitializingChange = vi.fn();
     baseProps.loadFileTree.mockImplementationOnce(() => new Promise<void>((resolve) => {
       resolveLoadFileTree = resolve;
     }));
 
-    renderHook(() => useCurrentVaultInitialization({
+    renderHook(() => useCurrentNotesRootInitialization({
       ...baseProps,
       onInitializingChange,
     }));

@@ -5,7 +5,7 @@ import { findNode } from '../../fileTreeUtils';
 import { resolveUniqueMovedPath, resolveUniqueRenamedPath } from './pathOperations';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { emitNotesExternalPathRename } from '../../document/externalPathBroadcast';
-import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from './vaultPathContainment';
+import { normalizeNotesRootRelativePath, resolveNotesRootRelativeFullPath } from './notesRootPathContainment';
 import type { FileOperationContext, MoveItemResult, RenameNoteResult } from './operationTypes';
 
 export async function renameNoteImpl(
@@ -14,7 +14,7 @@ export async function renameNoteImpl(
     newName: string
 ): Promise<RenameNoteResult | null> {
     const storage = getStorageAdapter();
-    const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
+    const { relativePath: safePath, fullPath } = await resolveNotesRootRelativeFullPath(notesPath, path);
     assertValidFileName(newName);
     const sanitizedName = sanitizeFileName(newName);
     const {
@@ -42,15 +42,15 @@ export async function moveItemImpl(
     currentStore: FileOperationContext
 ): Promise<MoveItemResult> {
     const storage = getStorageAdapter();
-    const normalizedSourcePath = normalizeVaultRelativePath(normalizeNotePathKey(sourcePath) ?? sourcePath);
-    const normalizedTargetFolderPath = normalizeVaultRelativePath(
+    const normalizedSourcePath = normalizeNotesRootRelativePath(normalizeNotePathKey(sourcePath) ?? sourcePath);
+    const normalizedTargetFolderPath = normalizeNotesRootRelativePath(
         normalizeNotePathKey(targetFolderPath) ?? targetFolderPath,
         { allowEmpty: true },
     );
     if (!normalizedSourcePath || normalizedTargetFolderPath == null) {
-        throw new Error('Path must stay inside the current vault.');
+        throw new Error('Path must stay inside the opened folder.');
     }
-    const sourceFullPath = (await resolveVaultRelativeFullPath(notesPath, normalizedSourcePath)).fullPath;
+    const sourceFullPath = (await resolveNotesRootRelativeFullPath(notesPath, normalizedSourcePath)).fullPath;
     const nodeToMove = currentStore.rootFolder
         ? findNode(currentStore.rootFolder.children, normalizedSourcePath)
         : null;

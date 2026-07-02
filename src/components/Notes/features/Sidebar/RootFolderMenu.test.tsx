@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RootFolderMenu } from './RootFolderMenu';
 
 const hoisted = vi.hoisted(() => ({
-  closeVault: vi.fn(() => Promise.resolve(true)),
+  closeNotesRoot: vi.fn(() => Promise.resolve(true)),
   handleCopyPath: vi.fn(() => Promise.resolve()),
   handleOpenInNewWindow: vi.fn(() => Promise.resolve()),
   handleOpenLocation: vi.fn(() => Promise.resolve()),
@@ -14,9 +14,9 @@ vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span data-icon-name={name} />,
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector: (state: any) => unknown) => selector({
-    closeVault: hoisted.closeVault,
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector: (state: any) => unknown) => selector({
+    closeNotesRoot: hoisted.closeNotesRoot,
   }),
 }));
 
@@ -81,10 +81,10 @@ vi.mock('./context-menu/NotesSidebarContextMenuContent', () => {
 
 function renderMenu({
   onClose = vi.fn(),
-  vaultPath = '/vault',
+  notesRootPath = '/notesRoot',
 }: {
   onClose?: () => void;
-  vaultPath?: string;
+  notesRootPath?: string;
 } = {}) {
   return {
     onClose,
@@ -100,7 +100,7 @@ function renderMenu({
         onStartRename={vi.fn()}
         fileTreeSortMode="name-asc"
         onSelectSortMode={vi.fn()}
-        vaultPath={vaultPath}
+        notesRootPath={notesRootPath}
       />,
     ),
   };
@@ -130,13 +130,13 @@ describe('RootFolderMenu', () => {
     fireEvent.click(getByText('Close Folder'));
 
     await waitFor(() => {
-      expect(hoisted.closeVault).toHaveBeenCalledTimes(1);
+      expect(hoisted.closeNotesRoot).toHaveBeenCalledTimes(1);
     });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('disables closing when no folder is open', () => {
-    const { getByText } = renderMenu({ vaultPath: '' });
+    const { getByText } = renderMenu({ notesRootPath: '' });
 
     expect(getByText('Close Folder')).toBeDisabled();
   });

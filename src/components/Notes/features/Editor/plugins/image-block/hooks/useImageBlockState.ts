@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { resolveEffectiveNotesRootPath } from '@/stores/notes/effectiveNotesRootPath';
 import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { applyImageNodeAttrsAtPos } from '../commands/imageNodeCommands';
 import { useLocalImage } from './useLocalImage';
@@ -24,7 +24,7 @@ export function useImageBlockState({ node, view, getPos, shouldLoadImage = true 
 
     const notesPath = useNotesStore(s => s.notesPath);
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
-    const effectiveNotesPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
+    const effectiveNotesPath = resolveEffectiveNotesRootPath({ notesPath, currentNotePath });
     const { resolvedSrc, isLoading, error: loadError } = useLocalImage(
         nodeState.baseSrc,
         effectiveNotesPath,

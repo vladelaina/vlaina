@@ -48,7 +48,7 @@ const mocked = vi.hoisted(() => {
     flushPendingSessionJsonSaves: vi.fn(async () => {}),
     readWindowLaunchContext: vi.fn(() => ({
       isNewWindow: false,
-      vaultPath: null as string | null,
+      notesRootPath: null as string | null,
       notePath: null as string | null,
       folderPath: null as string | null,
       chatSessionId: null as string | null,
@@ -212,7 +212,7 @@ describe('chat window selection isolation', () => {
     vi.clearAllMocks();
     mocked.readWindowLaunchContext.mockReturnValue({
       isNewWindow: false,
-      vaultPath: null,
+      notesRootPath: null,
       notePath: null,
       folderPath: null,
       chatSessionId: null,
@@ -286,7 +286,7 @@ describe('chat window selection isolation', () => {
   it('initializes a new chat window with a blank local selection only', async () => {
     mocked.readWindowLaunchContext.mockReturnValue({
       isNewWindow: true,
-      vaultPath: null,
+      notesRootPath: null,
       notePath: null,
       folderPath: null,
       chatSessionId: null,
@@ -317,7 +317,7 @@ describe('chat window selection isolation', () => {
   it('initializes a new chat window with the requested chat session locally', async () => {
     mocked.readWindowLaunchContext.mockReturnValue({
       isNewWindow: true,
-      vaultPath: null,
+      notesRootPath: null,
       notePath: null,
       folderPath: null,
       chatSessionId: 'session-2',
@@ -363,7 +363,7 @@ describe('chat window selection isolation', () => {
   it('does not persist last chat selection from a secondary chat window', async () => {
     mocked.readWindowLaunchContext.mockReturnValue({
       isNewWindow: true,
-      vaultPath: null,
+      notesRootPath: null,
       notePath: null,
       folderPath: null,
       chatSessionId: null,

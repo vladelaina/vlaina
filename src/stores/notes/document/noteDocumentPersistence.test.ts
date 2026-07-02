@@ -46,7 +46,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -61,7 +61,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       '# Alpha'
     );
     expect(result.metadata).toEqual({
@@ -75,7 +75,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: Number.NaN, size: 16 });
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Alpha',
@@ -96,7 +96,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Alpha',
@@ -105,8 +105,8 @@ describe('saveNoteDocument', () => {
     });
 
     expect(markExpectedExternalChange).toHaveBeenCalledTimes(2);
-    expect(markExpectedExternalChange).toHaveBeenNthCalledWith(1, '/vault/alpha.md');
-    expect(markExpectedExternalChange).toHaveBeenNthCalledWith(2, '/vault/alpha.md');
+    expect(markExpectedExternalChange).toHaveBeenNthCalledWith(1, '/notesRoot/alpha.md');
+    expect(markExpectedExternalChange).toHaveBeenNthCalledWith(2, '/notesRoot/alpha.md');
 
     vi.useRealTimers();
   });
@@ -118,7 +118,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: ['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'),
@@ -127,7 +127,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       ['# Alpha', '', 'Body'].join('\n')
     );
     expect(result.content).not.toContain('data-vlaina-empty-line');
@@ -142,7 +142,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -177,7 +177,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -216,7 +216,7 @@ describe('saveNoteDocument', () => {
     ].join('\n');
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content,
@@ -224,7 +224,7 @@ describe('saveNoteDocument', () => {
       cache: new Map(),
     });
 
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', content);
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', content);
     expect(result.content).toBe(content);
 
     vi.useRealTimers();
@@ -237,7 +237,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: ['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'),
@@ -246,7 +246,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       [
         'Line one\\',
         'Line two',
@@ -264,7 +264,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: ['1', '2', '', '3', '4'].join('\n'),
@@ -273,7 +273,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       [
         '1',
         '2',
@@ -307,7 +307,7 @@ describe('saveNoteDocument', () => {
     ].join('\n')}${'\n'.repeat(terminalBlankLineCount)}`;
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content,
@@ -315,7 +315,7 @@ describe('saveNoteDocument', () => {
       cache: new Map(),
     });
 
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', content);
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', content);
     expect(result.content).toBe(content);
     expect(result.nextCache.get('alpha.md')?.content).toBe(content);
 
@@ -329,7 +329,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: ['before', '', '', 'after', '', '', '', 'tail'].join('\n'),
@@ -338,7 +338,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       [
         'before',
         '',
@@ -361,7 +361,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '- 1<br />',
@@ -370,7 +370,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       '- 1'
     );
 
@@ -384,7 +384,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: ['8. before', '9. <br />', '<br />', '10. after'].join('\n'),
@@ -393,7 +393,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       [
         '8. before',
         '9.',
@@ -412,7 +412,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: ['1. before', '<br />', '<br />', '<br />', '2. after'].join('\n'),
@@ -421,7 +421,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       [
         '1. before',
         '',
@@ -441,7 +441,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -461,7 +461,7 @@ describe('saveNoteDocument', () => {
       '---',
       '',
     ].join('\n');
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', expected);
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', expected);
     expect(result.content).toBe(expected);
 
     vi.useRealTimers();
@@ -474,7 +474,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '<sup>a < b & c</sup>',
@@ -483,7 +483,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       '<sup>a &lt; b &amp; c</sup>'
     );
 
@@ -497,7 +497,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: 'h\\_i and foo\\_\\_bar',
@@ -506,7 +506,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       'h_i and foo__bar'
     );
 
@@ -520,7 +520,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -539,7 +539,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       [
         '\\==highlight==',
         '',
@@ -561,7 +561,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -580,7 +580,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -608,7 +608,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -633,7 +633,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -648,7 +648,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -671,7 +671,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -680,12 +680,12 @@ describe('saveNoteDocument', () => {
     expect(result.nextCache.get('alpha.md')?.content).toBe(markdown);
   });
 
-  it('rejects loading relative paths that escape the vault', async () => {
+  it('rejects loading relative paths that escape the notesRoot', async () => {
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: '../secret.md',
       cache: new Map(),
-    })).rejects.toThrow('Path must stay inside the current vault.');
+    })).rejects.toThrow('Path must stay inside the opened folder.');
 
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
@@ -694,7 +694,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 11 * 1024 * 1024 });
 
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'huge.md',
       cache: new Map(),
     })).rejects.toThrow('Note file is too large to open.');
@@ -706,7 +706,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: -1 });
 
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'invalid-size.md',
       cache: new Map(),
     })).rejects.toThrow('Note file is too large to open.');
@@ -718,7 +718,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ isDirectory: true, isFile: false, modifiedAt: 123, size: 0 });
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Alpha',
@@ -734,7 +734,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# Alpha');
 
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     })).resolves.toMatchObject({
@@ -743,7 +743,7 @@ describe('saveNoteDocument', () => {
       size: null,
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
   });
 
   it('normalizes invalid modified timestamps when loading markdown', async () => {
@@ -751,7 +751,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# Alpha');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -762,7 +762,7 @@ describe('saveNoteDocument', () => {
 
   it('rejects cached markdown that is too complex for the editor', async () => {
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'many-lines.md',
       cache: new Map([
         ['many-lines.md', {
@@ -780,7 +780,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('x'.repeat(512 * 1024 + 1));
 
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'long-line.md',
       cache: new Map(),
     })).rejects.toThrow('Note file is too complex to open safely.');
@@ -791,7 +791,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue(`${'x\n'.repeat(120_001)}x`);
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local edit',
@@ -811,7 +811,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: Array.from({ length: 120_001 }, () => 'x').join('\n'),
@@ -827,7 +827,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map(),
     });
@@ -841,7 +841,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
     adapter.readFile.mockResolvedValue(cachedContent);
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map([
         ['alpha.md', {
@@ -862,7 +862,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# External');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: '/external/docs/../note.md',
       cache: new Map(),
     });
@@ -881,7 +881,7 @@ describe('saveNoteDocument', () => {
     vi.setSystemTime(1000);
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Fresh', 100, {
         updateBaseline: true,
@@ -904,7 +904,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# Updated after prefetch');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Fresh but expired', 100, {
         updateBaseline: true,
@@ -912,8 +912,8 @@ describe('saveNoteDocument', () => {
       }),
     });
 
-    expect(adapter.stat).toHaveBeenCalledWith('/vault/alpha.md');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.stat).toHaveBeenCalledWith('/notesRoot/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Updated after prefetch');
     expect(result.modifiedAt).toBe(200);
 
@@ -925,7 +925,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# Updated by another window');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map([
         ['alpha.md', {
@@ -935,7 +935,7 @@ describe('saveNoteDocument', () => {
       ]),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Updated by another window');
     expect(result.modifiedAt).toBe(200);
     expect(result.nextCache.get('alpha.md')).toEqual({
@@ -949,7 +949,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# Updated by another window');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached before external edit', 100, {
         updateBaseline: true,
@@ -957,7 +957,7 @@ describe('saveNoteDocument', () => {
       }),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Updated by another window');
     expect(result.modifiedAt).toBe(100);
     expect(result.size).toBe(32);
@@ -969,7 +969,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# Updated by another window');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: new Map([
         ['alpha.md', {
@@ -990,7 +990,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# External edit');
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local edit',
@@ -1006,7 +1006,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# External same timestamp edit');
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local edit',
@@ -1025,7 +1025,7 @@ describe('saveNoteDocument', () => {
     adapter.readFile.mockResolvedValue('# External edit');
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local edit',
@@ -1033,7 +1033,7 @@ describe('saveNoteDocument', () => {
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
@@ -1053,7 +1053,7 @@ describe('saveNoteDocument', () => {
     adapter.writeFile.mockResolvedValue();
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -1086,7 +1086,7 @@ describe('saveNoteDocument', () => {
       '',
       'Local ending',
     ].join('\n');
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', expectedContent);
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', expectedContent);
     expect(result.content).toBe(expectedContent);
     expect(result.modifiedAt).toBe(201);
 
@@ -1102,7 +1102,7 @@ describe('saveNoteDocument', () => {
     cache = setCachedNoteContent(cache, 'alpha.md', '# Local edit', 100);
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local edit',
@@ -1113,15 +1113,15 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
-  it('rejects saving relative paths that escape the vault', async () => {
+  it('rejects saving relative paths that escape the notesRoot', async () => {
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: '../secret.md',
         content: '# Secret',
       },
       cache: new Map(),
-    })).rejects.toThrow('Path must stay inside the current vault.');
+    })).rejects.toThrow('Path must stay inside the opened folder.');
 
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
@@ -1135,7 +1135,7 @@ describe('saveNoteDocument', () => {
     adapter.writeFile.mockResolvedValue();
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: '/external/docs/../note.md',
         content: '# External',
@@ -1163,7 +1163,7 @@ describe('saveNoteDocument', () => {
     adapter.writeFile.mockResolvedValue();
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local edit',
@@ -1172,7 +1172,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       '# Local edit'
     );
     expect(result.modifiedAt).toBe(201);
@@ -1200,7 +1200,7 @@ describe('saveNoteDocument', () => {
     adapter.writeFile.mockResolvedValue();
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -1227,7 +1227,7 @@ describe('saveNoteDocument', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       '# Local edit'
     );
     expect(result.modifiedAt).toBe(201);
@@ -1246,7 +1246,7 @@ describe('saveNoteDocument', () => {
     ].join('\n'));
 
     const result = await saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: [
@@ -1260,7 +1260,7 @@ describe('saveNoteDocument', () => {
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
     });
 
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', '# Loaded');
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', '# Loaded');
     expect(result.modifiedAt).toBe(200);
     expect(result.content).toBe('# Loaded');
     expect(result.nextCache.get('alpha.md')).toEqual({

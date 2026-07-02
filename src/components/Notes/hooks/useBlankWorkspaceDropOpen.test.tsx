@@ -66,12 +66,12 @@ describe('useBlankWorkspaceDropOpen', () => {
   it('isolates rejected empty-path drop dialogs', async () => {
     mocks.messageDialog.mockRejectedValueOnce(new Error('dialog failed'));
     const openMarkdownTarget = vi.fn(async () => undefined);
-    const openVault = vi.fn(async () => true);
+    const openNotesRoot = vi.fn(async () => true);
 
     renderHook(() => useBlankWorkspaceDropOpen({
       enabled: true,
       openMarkdownTarget,
-      openVault,
+      openNotesRoot,
     }));
 
     await act(async () => {
@@ -87,7 +87,7 @@ describe('useBlankWorkspaceDropOpen', () => {
       });
     });
     expect(openMarkdownTarget).not.toHaveBeenCalled();
-    expect(openVault).not.toHaveBeenCalled();
+    expect(openNotesRoot).not.toHaveBeenCalled();
   });
 
   it('rejects relative markdown file drops after stat authorization', async () => {
@@ -96,12 +96,12 @@ describe('useBlankWorkspaceDropOpen', () => {
       isDirectory: false,
     });
     const openMarkdownTarget = vi.fn(async () => undefined);
-    const openVault = vi.fn(async () => true);
+    const openNotesRoot = vi.fn(async () => true);
 
     renderHook(() => useBlankWorkspaceDropOpen({
       enabled: true,
       openMarkdownTarget,
-      openVault,
+      openNotesRoot,
     }));
 
     await act(async () => {
@@ -120,6 +120,6 @@ describe('useBlankWorkspaceDropOpen', () => {
       });
     });
     expect(openMarkdownTarget).not.toHaveBeenCalled();
-    expect(openVault).not.toHaveBeenCalled();
+    expect(openNotesRoot).not.toHaveBeenCalled();
   });
 });

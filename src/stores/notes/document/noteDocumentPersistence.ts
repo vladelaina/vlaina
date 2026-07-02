@@ -16,10 +16,10 @@ import {
   updateNoteMetadataInMarkdown,
 } from '../frontmatter';
 import {
-  hasUnsafeVaultPathSegment,
-  normalizeVaultRelativePath,
-  resolveVaultRelativeFullPath,
-} from '../utils/fs/vaultPathContainment';
+  hasUnsafeNotesRootPathSegment,
+  normalizeNotesRootRelativePath,
+  resolveNotesRootRelativeFullPath,
+} from '../utils/fs/notesRootPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { mergeNonConflictingNoteChanges } from './noteThreeWayMerge';
@@ -73,7 +73,7 @@ async function resolveStoredPath(notesPath: string, path: string): Promise<strin
     return normalizeAbsolutePath(path);
   }
 
-  return (await resolveVaultRelativeFullPath(notesPath, path)).fullPath;
+  return (await resolveNotesRootRelativeFullPath(notesPath, path)).fullPath;
 }
 
 function normalizeStoredNotePath(path: string): string {
@@ -81,11 +81,11 @@ function normalizeStoredNotePath(path: string): string {
     return normalizeAbsolutePath(path);
   }
 
-  return normalizeVaultRelativePath(path) ?? path;
+  return normalizeNotesRootRelativePath(path) ?? path;
 }
 
 function hasUnsafeStoredNotePathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path, {
+  return hasUnsafeNotesRootPathSegment(path, {
     allowNavigationSegments: true,
   });
 }
@@ -103,8 +103,8 @@ function assertStoredNotePathAllowed(path: string): void {
     throw new Error('Selected file path contains unsupported characters');
   }
 
-  if (!isAbsolutePath(path) && normalizeVaultRelativePath(path) == null) {
-    throw new Error('Path must stay inside the current vault.');
+  if (!isAbsolutePath(path) && normalizeNotesRootRelativePath(path) == null) {
+    throw new Error('Path must stay inside the opened folder.');
   }
 }
 

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { NoteTabContent } from './NoteTabContent';
 
 const notesState = {
-  notesPath: '/vault',
+  notesPath: '/notesRoot',
   draftNotes: {},
   error: null,
 };

@@ -20,7 +20,7 @@ vi.mock('@/lib/storage/adapter', () => ({
   getParentPath: (path: string) => {
     const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
     const index = normalized.lastIndexOf('/');
-    return index <= 0 ? '/vault' : normalized.slice(0, index);
+    return index <= 0 ? '/notesRoot' : normalized.slice(0, index);
   },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
@@ -37,8 +37,8 @@ vi.mock('./io/writer', () => ({
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   ensureSystemDirectory: vi.fn(),
-  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
-    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
+  getNotesRootSystemStorePath: (_notesRootPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/notes-roots/notes-root-test/${fileName}`)
   ),
 }));
 
@@ -57,7 +57,7 @@ function createImageFile(name: string): File {
 function createRegularFileEntry(index: number) {
   return {
     name: `asset-${index}.txt`,
-    path: `/vault/assets/asset-${index}.txt`,
+    path: `/notesRoot/assets/asset-${index}.txt`,
     isFile: true,
     isDirectory: false,
   };
@@ -85,7 +85,7 @@ describe('AssetService directory budgets', () => {
       ),
       {
         name: 'late.png',
-        path: '/vault/assets/late.png',
+        path: '/notesRoot/assets/late.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -95,10 +95,10 @@ describe('AssetService directory budgets', () => {
 
     await expect(
       AssetService.list(
-        { vaultPath: '/vault' },
+        { notesRootPath: '/notesRoot' },
         {
-          storageMode: 'vaultSubfolder',
-          imageVaultSubfolderName: 'assets',
+          storageMode: 'notesRootSubfolder',
+          imageNotesRootSubfolderName: 'assets',
           filenameFormat: 'original',
         },
       ),
@@ -117,7 +117,7 @@ describe('AssetService directory budgets', () => {
       ),
       {
         name: 'alpha.png',
-        path: '/vault/assets/alpha.png',
+        path: '/notesRoot/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 6,
@@ -125,17 +125,17 @@ describe('AssetService directory budgets', () => {
       },
     ]);
     mocks.storage.stat.mockImplementation(async (path: string) =>
-      path === '/vault/assets/alpha.png'
+      path === '/notesRoot/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 6, modifiedAt: 1 }
         : null,
     );
 
     const result = await AssetService.upload(
       createImageFile('alpha.png'),
-      { vaultPath: '/vault' },
+      { notesRootPath: '/notesRoot' },
       {
-        storageMode: 'vaultSubfolder',
-        imageVaultSubfolderName: 'assets',
+        storageMode: 'notesRootSubfolder',
+        imageNotesRootSubfolderName: 'assets',
         filenameFormat: 'original',
       },
       [],
@@ -143,6 +143,6 @@ describe('AssetService directory budgets', () => {
 
     expect(result.success).toBe(true);
     expect(result.path).toBe('assets/alpha_1.png');
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/assets/alpha_1.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/assets/alpha_1.png', expect.any(Uint8Array));
   });
 });

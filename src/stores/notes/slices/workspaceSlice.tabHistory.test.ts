@@ -72,7 +72,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     rootFolder: null,
     currentNote: null,
     currentNoteRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -119,7 +119,7 @@ describe('workspaceSlice tab history', () => {
 
   it('records a closed tab and restores it to its original position', async () => {
     storageAdapter.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/beta.md') {
+      if (path === '/notesRoot/beta.md') {
         return '# beta';
       }
       throw new Error(`unexpected path: ${path}`);
@@ -188,10 +188,10 @@ describe('workspaceSlice tab history', () => {
 
   it('skips missing closed tabs and restores the next available one', async () => {
     storageAdapter.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/missing.md') {
+      if (path === '/notesRoot/missing.md') {
         throw new Error('missing');
       }
-      if (path === '/vault/beta.md') {
+      if (path === '/notesRoot/beta.md') {
         return '# beta';
       }
       throw new Error(`unexpected path: ${path}`);
@@ -250,12 +250,12 @@ describe('workspaceSlice tab history', () => {
   it('ignores a stale note open that finishes after a newer open', async () => {
     const alphaResolvers: Array<(content: string) => void> = [];
     storageAdapter.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/alpha.md') {
+      if (path === '/notesRoot/alpha.md') {
         return new Promise<string>((resolve) => {
           alphaResolvers.push(resolve);
         });
       }
-      if (path === '/vault/beta.md') {
+      if (path === '/notesRoot/beta.md') {
         return '# beta';
       }
       throw new Error(`unexpected path: ${path}`);
@@ -283,10 +283,10 @@ describe('workspaceSlice tab history', () => {
 
   it('navigates backward and forward through opened notes without duplicating history', async () => {
     storageAdapter.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/alpha.md') return '# alpha';
-      if (path === '/vault/beta.md') return '# beta';
-      if (path === '/vault/gamma.md') return '# gamma';
-      if (path === '/vault/delta.md') return '# delta';
+      if (path === '/notesRoot/alpha.md') return '# alpha';
+      if (path === '/notesRoot/beta.md') return '# beta';
+      if (path === '/notesRoot/gamma.md') return '# gamma';
+      if (path === '/notesRoot/delta.md') return '# delta';
       throw new Error(`unexpected path: ${path}`);
     });
     const store = createNotesStore();
@@ -319,7 +319,7 @@ describe('workspaceSlice tab history', () => {
 
   it('skips stale draft history entries without showing a markdown file error', async () => {
     storageAdapter.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/alpha.md') return '# alpha';
+      if (path === '/notesRoot/alpha.md') return '# alpha';
       throw new Error(`unexpected path: ${path}`);
     });
     const store = createNotesStore({
@@ -399,16 +399,16 @@ describe('workspaceSlice tab history', () => {
       ]),
     });
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md', true);
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/starred.md', true);
 
     expect(saveNote).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
     expect(store.getState().openTabs).toEqual([
       { path: 'draft:blank', name: '', isDirty: true },
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
     expect(store.getState().noteContentsCache.get('draft:blank')).toEqual({
       content: 'draft text',
@@ -420,18 +420,18 @@ describe('workspaceSlice tab history', () => {
     storageAdapter.readFile.mockResolvedValue('# starred');
     const store = createNotesStore();
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/docs/../starred.md');
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/docs/../starred.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/other-vault/starred.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/other-notesRoot/starred.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
     expect(store.getState().openTabs).toEqual([
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
-    expect(store.getState().noteContentsCache.has('/other-vault/docs/../starred.md')).toBe(false);
-    expect(store.getState().noteContentsCache.get('/other-vault/starred.md')).toEqual({
+    expect(store.getState().noteContentsCache.has('/other-notesRoot/docs/../starred.md')).toBe(false);
+    expect(store.getState().noteContentsCache.get('/other-notesRoot/starred.md')).toEqual({
       content: '# starred',
       modifiedAt: 1,
     });
@@ -471,13 +471,13 @@ describe('workspaceSlice tab history', () => {
       return true;
     });
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md');
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/starred.md');
 
     expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
     expect(saveNote).toHaveBeenCalledTimes(1);
     expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('pending absolute open');
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
   });
@@ -503,20 +503,20 @@ describe('workspaceSlice tab history', () => {
       ]),
     });
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md');
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/starred.md');
 
     expect(saveNote).toHaveBeenCalledTimes(1);
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().openTabs).toEqual([
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
   });
 
-  it('saves a dirty regular tab before opening a vault note in a new tab', async () => {
+  it('saves a dirty regular tab before opening a notesRoot note in a new tab', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({
         isDirty: false,
@@ -606,21 +606,21 @@ describe('workspaceSlice tab history', () => {
       ]),
     });
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md', true);
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/starred.md', true);
 
     expect(saveNote).toHaveBeenCalledTimes(1);
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().openTabs).toEqual([
       { path: 'alpha.md', name: 'alpha', isDirty: false },
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
   });
 
-  it('saves a dirty regular tab before switching to an already open vault tab', async () => {
+  it('saves a dirty regular tab before switching to an already open folder tab', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({
         isDirty: false,
@@ -657,13 +657,13 @@ describe('workspaceSlice tab history', () => {
     ]);
   });
 
-  it('normalizes vault-relative note paths before opening tabs and cache entries', async () => {
+  it('normalizes notes-root-relative note paths before opening tabs and cache entries', async () => {
     storageAdapter.readFile.mockResolvedValue('# alpha');
     const store = createNotesStore();
 
     await store.getState().openNote('docs\\alpha.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({
       path: 'docs/alpha.md',
       content: '# alpha',
@@ -717,7 +717,7 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('Unsaved alpha');
   });
 
-  it('keeps the save failure error when switching to a vault note leaves the previous tab dirty', async () => {
+  it('keeps the save failure error when switching to a notesRoot note leaves the previous tab dirty', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({
         error: 'Disk is read-only',
@@ -769,25 +769,25 @@ describe('workspaceSlice tab history', () => {
       saveNote,
       openTabs: [
         { path: 'alpha.md', name: 'alpha', isDirty: true },
-        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+        { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
       ],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+        ['/other-notesRoot/starred.md', { content: '# starred', modifiedAt: 1 }],
       ]),
     });
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md');
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/starred.md');
 
     expect(saveNote).toHaveBeenCalledTimes(1);
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().openTabs).toEqual([
       { path: 'alpha.md', name: 'alpha', isDirty: false },
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
   });
 
@@ -806,25 +806,25 @@ describe('workspaceSlice tab history', () => {
       saveNote,
       openTabs: [
         { path: 'alpha.md', name: 'alpha', isDirty: true },
-        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+        { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
       ],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+        ['/other-notesRoot/starred.md', { content: '# starred', modifiedAt: 1 }],
       ]),
     });
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md');
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/starred.md');
 
     expect(saveNote).toHaveBeenCalledTimes(1);
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().openTabs).toEqual([
       { path: 'alpha.md', name: 'alpha', isDirty: true },
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
     expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('Unsaved alpha');
   });
@@ -845,23 +845,23 @@ describe('workspaceSlice tab history', () => {
       saveNote,
       openTabs: [
         { path: 'alpha.md', name: 'alpha', isDirty: true },
-        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+        { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
       ],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+        ['/other-notesRoot/starred.md', { content: '# starred', modifiedAt: 1 }],
       ]),
     });
 
-    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md');
+    await store.getState().openNoteByAbsolutePath('/other-notesRoot/starred.md');
 
     expect(store.getState().currentNote).toEqual({
-      path: '/other-vault/starred.md',
+      path: '/other-notesRoot/starred.md',
       content: '# starred',
     });
     expect(store.getState().openTabs).toEqual([
       { path: 'alpha.md', name: 'alpha', isDirty: true },
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
     expect(store.getState().error).toBe('Disk is read-only');
   });
@@ -880,7 +880,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().prefetchNote('beta.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
     expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
     expect(store.getState().recentNotes).toEqual([]);
@@ -890,7 +890,7 @@ describe('workspaceSlice tab history', () => {
     });
   });
 
-  it('normalizes vault-relative note paths before prefetching cache entries', async () => {
+  it('normalizes notes-root-relative note paths before prefetching cache entries', async () => {
     storageAdapter.readFile.mockResolvedValue('# prefetched');
     storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
     const store = createNotesStore({
@@ -903,7 +903,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().prefetchNote('docs\\beta.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/beta.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/docs/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
     expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
     expect(store.getState().noteContentsCache.has('docs\\beta.md')).toBe(false);
@@ -929,7 +929,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().prefetchNote('beta.md');
 
-    expect(storageAdapter.stat).toHaveBeenCalledWith('/vault/beta.md');
+    expect(storageAdapter.stat).toHaveBeenCalledWith('/notesRoot/beta.md');
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
       content: '# beta',
@@ -996,7 +996,7 @@ describe('workspaceSlice tab history', () => {
     await Promise.all([prefetch, open]);
 
     expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
     expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
       content: '# beta',
@@ -1036,7 +1036,7 @@ describe('workspaceSlice tab history', () => {
     await Promise.all([prefetch, open]);
 
     expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
     expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
       content: '# beta',
@@ -1065,17 +1065,17 @@ describe('workspaceSlice tab history', () => {
     const queuedPrefetch = store.getState().prefetchNote('queued\\path.md');
 
     await vi.waitFor(() => {
-      expect(pendingReads.has('/vault/block-a.md')).toBe(true);
-      expect(pendingReads.has('/vault/block-b.md')).toBe(true);
+      expect(pendingReads.has('/notesRoot/block-a.md')).toBe(true);
+      expect(pendingReads.has('/notesRoot/block-b.md')).toBe(true);
     });
 
     store.getState().cancelPrefetchNote('queued\\path.md');
-    pendingReads.get('/vault/block-a.md')?.('# block a');
-    pendingReads.get('/vault/block-b.md')?.('# block b');
+    pendingReads.get('/notesRoot/block-a.md')?.('# block a');
+    pendingReads.get('/notesRoot/block-b.md')?.('# block b');
 
     await Promise.all([firstPrefetch, secondPrefetch, queuedPrefetch]);
 
-    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/vault/queued/path.md');
+    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/notesRoot/queued/path.md');
     expect(store.getState().noteContentsCache.get('queued/path.md')).toBeUndefined();
     expect(store.getState().noteContentsCache.get('block-a.md')).toEqual({
       content: '# block a',
@@ -1110,22 +1110,22 @@ describe('workspaceSlice tab history', () => {
     const queuedPrefetch = store.getState().prefetchNote('queued.md');
 
     await vi.waitFor(() => {
-      expect(pendingReads.get('/vault/block-a.md')).toHaveLength(1);
-      expect(pendingReads.get('/vault/block-b.md')).toHaveLength(1);
+      expect(pendingReads.get('/notesRoot/block-a.md')).toHaveLength(1);
+      expect(pendingReads.get('/notesRoot/block-b.md')).toHaveLength(1);
     });
 
     const openQueued = store.getState().openNote('queued.md');
     await vi.waitFor(() => {
-      expect(pendingReads.get('/vault/queued.md')).toHaveLength(1);
+      expect(pendingReads.get('/notesRoot/queued.md')).toHaveLength(1);
     });
 
-    pendingReads.get('/vault/block-a.md')?.[0]?.('# block a');
-    pendingReads.get('/vault/block-b.md')?.[0]?.('# block b');
+    pendingReads.get('/notesRoot/block-a.md')?.[0]?.('# block a');
+    pendingReads.get('/notesRoot/block-b.md')?.[0]?.('# block b');
     await Promise.all([firstPrefetch, secondPrefetch, queuedPrefetch]);
 
-    expect(storageAdapter.readFile.mock.calls.filter(([path]) => path === '/vault/queued.md')).toHaveLength(1);
+    expect(storageAdapter.readFile.mock.calls.filter(([path]) => path === '/notesRoot/queued.md')).toHaveLength(1);
 
-    pendingReads.get('/vault/queued.md')?.[0]?.('# queued direct open');
+    pendingReads.get('/notesRoot/queued.md')?.[0]?.('# queued direct open');
     await openQueued;
 
     expect(store.getState().currentNote).toEqual({ path: 'queued.md', content: '# queued direct open' });
@@ -1165,7 +1165,7 @@ describe('workspaceSlice tab history', () => {
     await Promise.all(requests.slice(0, MAX_PENDING_NOTE_PREFETCHES));
 
     expect(storageAdapter.readFile).toHaveBeenCalledTimes(MAX_PENDING_NOTE_PREFETCHES);
-    expect(storageAdapter.readFile).not.toHaveBeenCalledWith(`/vault/pending-${MAX_PENDING_NOTE_PREFETCHES}.md`);
+    expect(storageAdapter.readFile).not.toHaveBeenCalledWith(`/notesRoot/pending-${MAX_PENDING_NOTE_PREFETCHES}.md`);
   });
 
   it('switches to an already open tab without saving the dirty draft tab', async () => {
@@ -1247,7 +1247,7 @@ describe('workspaceSlice tab history', () => {
 
     await store.getState().openNote('draft:blank');
 
-    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/vault/draft:blank');
+    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/notesRoot/draft:blank');
     expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: '' });
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().openTabs[0]).toEqual({
@@ -1359,7 +1359,7 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().isDirty).toBe(true);
   });
 
-  it('opens a vault note in a new tab when the current draft is dirty', async () => {
+  it('opens a notesRoot note in a new tab when the current draft is dirty', async () => {
     const saveNote = vi.fn(async () => undefined);
     const store = createNotesStore({
       currentNote: { path: 'draft:blank', content: 'draft text' },
@@ -1429,7 +1429,7 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('pending edit');
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: null,
     }));
   });
@@ -1555,18 +1555,18 @@ describe('workspaceSlice tab history', () => {
 
   it('prompts before closing a dirty draft tab that is not focused', async () => {
     const store = createNotesStore({
-      currentNote: { path: '/other-vault/starred.md', content: '# starred' },
+      currentNote: { path: '/other-notesRoot/starred.md', content: '# starred' },
       isDirty: false,
       openTabs: [
         { path: 'draft:blank', name: '', isDirty: true },
-        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+        { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
       ],
       draftNotes: {
         'draft:blank': { parentPath: null, name: '' },
       },
       noteContentsCache: new Map([
         ['draft:blank', { content: 'draft text', modifiedAt: null }],
-        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+        ['/other-notesRoot/starred.md', { content: '# starred', modifiedAt: 1 }],
       ]),
     });
 
@@ -1575,9 +1575,9 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().pendingDraftDiscardPath).toBe('draft:blank');
     expect(store.getState().openTabs.map((tab) => tab.path)).toEqual([
       'draft:blank',
-      '/other-vault/starred.md',
+      '/other-notesRoot/starred.md',
     ]);
-    expect(store.getState().currentNote?.path).toBe('/other-vault/starred.md');
+    expect(store.getState().currentNote?.path).toBe('/other-notesRoot/starred.md');
   });
 
   it('saves and closes a dirty background regular tab instead of focusing it', async () => {
@@ -1603,7 +1603,7 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().openTabs).toEqual([{ path: 'beta.md', name: 'beta', isDirty: false }]);
     expect(storageAdapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       expect.stringContaining('Unsaved alpha'),
     );
     expect(store.getState().recentlyClosedTabs[0]?.tab).toEqual({
@@ -1640,7 +1640,7 @@ describe('workspaceSlice tab history', () => {
 
     expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(2);
     expect(storageAdapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       expect.stringContaining('New alpha'),
     );
     expect(store.getState().currentNote).toBeNull();
@@ -1746,25 +1746,25 @@ describe('workspaceSlice tab history', () => {
 
   it('restores a discarded dirty draft tab with its unsaved content', async () => {
     const store = createNotesStore({
-      currentNote: { path: '/other-vault/starred.md', content: '# starred' },
+      currentNote: { path: '/other-notesRoot/starred.md', content: '# starred' },
       isDirty: false,
       openTabs: [
         { path: 'draft:blank', name: '', isDirty: true },
-        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+        { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
       ],
       draftNotes: {
         'draft:blank': { parentPath: null, name: '' },
       },
       noteContentsCache: new Map([
         ['draft:blank', { content: 'draft text', modifiedAt: null }],
-        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+        ['/other-notesRoot/starred.md', { content: '# starred', modifiedAt: 1 }],
       ]),
     });
 
     await store.getState().closeTab('draft:blank');
     await store.getState().confirmPendingDraftDiscard();
 
-    expect(store.getState().openTabs.map((tab) => tab.path)).toEqual(['/other-vault/starred.md']);
+    expect(store.getState().openTabs.map((tab) => tab.path)).toEqual(['/other-notesRoot/starred.md']);
     expect(store.getState().draftNotes['draft:blank']).toBeUndefined();
 
     await store.getState().reopenClosedTab();
@@ -1773,7 +1773,7 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().isDirty).toBe(true);
     expect(store.getState().openTabs).toEqual([
       { path: 'draft:blank', name: '', isDirty: true },
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
     ]);
     expect(store.getState().draftNotes['draft:blank']).toEqual({ parentPath: null, name: '' });
   });

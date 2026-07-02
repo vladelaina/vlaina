@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ensureVaultConfig } from './vaultConfig';
+import { ensureNotesRootConfig } from './notesRootConfig';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
@@ -15,7 +15,7 @@ vi.mock('@/lib/storage/adapter', () => ({
   joinPath: (...segments: string[]) => Promise.resolve(segments.filter(Boolean).join('/')),
 }));
 
-describe('vaultConfig', () => {
+describe('notesRootConfig', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(Date, 'now').mockReturnValue(1234);
@@ -31,26 +31,26 @@ describe('vaultConfig', () => {
     vi.restoreAllMocks();
   });
 
-  it('creates vault config in the system store', async () => {
-    await ensureVaultConfig('/vault');
+  it('creates notesRoot config in the system store', async () => {
+    await ensureNotesRootConfig('/notesRoot');
 
-    expect(adapter.mkdir).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-1y3s8he', true);
+    expect(adapter.mkdir).toHaveBeenCalledWith('/app/.vlaina/notes/notes-roots/notes-root-g0ujgn', true);
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
+      JSON.stringify({ version: 1, created: 1234, notesRootPath: '/notesRoot' }, null, 2)
     );
   });
 
-  it('updates stale vaultPath in an existing config', async () => {
+  it('updates stale notesRootPath in an existing config', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: 64 });
-    adapter.readFile.mockResolvedValue(JSON.stringify({ version: 1, created: 100, vaultPath: '/old' }));
+    adapter.readFile.mockResolvedValue(JSON.stringify({ version: 1, created: 100, notesRootPath: '/old' }));
 
-    await ensureVaultConfig('/vault');
+    await ensureNotesRootConfig('/notesRoot');
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 100, vaultPath: '/vault' }, null, 2)
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
+      JSON.stringify({ version: 1, created: 100, notesRootPath: '/notesRoot' }, null, 2)
     );
   });
 
@@ -59,11 +59,11 @@ describe('vaultConfig', () => {
     adapter.stat.mockResolvedValue({ size: 8 });
     adapter.readFile.mockResolvedValue('not-json');
 
-    await ensureVaultConfig('/vault');
+    await ensureNotesRootConfig('/notesRoot');
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
+      JSON.stringify({ version: 1, created: 1234, notesRootPath: '/notesRoot' }, null, 2)
     );
   });
 
@@ -71,12 +71,12 @@ describe('vaultConfig', () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: 100 * 1024 });
 
-    await ensureVaultConfig('/vault');
+    await ensureNotesRootConfig('/notesRoot');
 
     expect(adapter.readFile).not.toHaveBeenCalled();
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
+      JSON.stringify({ version: 1, created: 1234, notesRootPath: '/notesRoot' }, null, 2)
     );
   });
 
@@ -84,29 +84,29 @@ describe('vaultConfig', () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: -1 });
 
-    await ensureVaultConfig('/vault');
+    await ensureNotesRootConfig('/notesRoot');
 
     expect(adapter.readFile).not.toHaveBeenCalled();
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
+      JSON.stringify({ version: 1, created: 1234, notesRootPath: '/notesRoot' }, null, 2)
     );
   });
 
   it('reads existing config content when stat has no size', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({});
-    adapter.readFile.mockResolvedValue(JSON.stringify({ version: 1, created: 100, vaultPath: '/old' }));
+    adapter.readFile.mockResolvedValue(JSON.stringify({ version: 1, created: 100, notesRootPath: '/old' }));
 
-    await ensureVaultConfig('/vault');
+    await ensureNotesRootConfig('/notesRoot');
 
     expect(adapter.readFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
       64 * 1024,
     );
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 100, vaultPath: '/vault' }, null, 2)
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
+      JSON.stringify({ version: 1, created: 100, notesRootPath: '/notesRoot' }, null, 2)
     );
   });
 
@@ -115,15 +115,15 @@ describe('vaultConfig', () => {
     adapter.stat.mockResolvedValue({ size: 64 });
     adapter.readFile.mockResolvedValue('x'.repeat(64 * 1024 + 1));
 
-    await ensureVaultConfig('/vault');
+    await ensureNotesRootConfig('/notesRoot');
 
     expect(adapter.readFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
       64 * 1024,
     );
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1y3s8he/config.json',
-      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+      '/app/.vlaina/notes/notes-roots/notes-root-g0ujgn/config.json',
+      JSON.stringify({ version: 1, created: 1234, notesRootPath: '/notesRoot' }, null, 2)
     );
   });
 });

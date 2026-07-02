@@ -4,10 +4,10 @@ import {
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 const TITLE_INPUT_SELECTOR = '[data-note-title-input="true"]';
@@ -15,7 +15,7 @@ const NEW_NOTE_BUTTON_SELECTOR = '.notes-tab-row-new-note-button';
 const ACTIVE_TAB_SELECTOR = '[data-notes-tab-active="true"]';
 
 test.describe('notes named draft creation', () => {
-  test('keeps a named empty draft after it is materialized into a vault file', async () => {
+  test('keeps a named empty draft after it is materialized into a notesRoot file', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-named-draft');
     const title = 'Named draft from e2e';
     const fileName = `${title}.md`;
@@ -23,7 +23,7 @@ test.describe('notes named draft creation', () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-named-draft',
         files: [
           {
@@ -33,9 +33,9 @@ test.describe('notes named draft creation', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Notes Named Draft Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Notes Named Draft NotesRoot',
         minFileCount: 1,
       });
 
@@ -104,7 +104,7 @@ test.describe('notes named draft creation', () => {
       await expect(page.locator(FILE_TREE_FILE_SELECTOR, { hasText: title })).toHaveCount(1);
       await expect.poll(async () => page.evaluate((absolutePath) =>
         (window as any).__vlainaE2E.readTextFile(absolutePath),
-        path.join(fixture.vaultPath, fileName),
+        path.join(fixture.notesRootPath, fileName),
       ), { timeout: 10_000 }).toBe('');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);

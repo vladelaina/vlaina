@@ -18,42 +18,42 @@ function createInput(overrides: Partial<AutoCreateBlankDraftPolicyInput> = {}): 
     openTabCount: 0,
     hasPresentedNote: false,
     notesLoading: false,
-    vaultStoreHasInitialized: true,
-    vaultInitializing: false,
+    notesRootStoreHasInitialized: true,
+    notesRootInitializing: false,
     openTargetBusy: false,
     hasPendingStarredNavigation: false,
     autoCreateInFlight: false,
     hasPendingLaunchNote: false,
-    currentVaultPath: '/vault',
-    notesPath: '/vault',
+    currentNotesRootPath: '/notesRoot',
+    notesPath: '/notesRoot',
     rootFolder: emptyRoot,
-    rootFolderPath: '/vault',
+    rootFolderPath: '/notesRoot',
     ...overrides,
   };
 }
 
 describe('shouldAutoCreateBlankDraft', () => {
-  it('allows a blank draft for a fully initialized empty vault', () => {
+  it('allows a blank draft for a fully initialized empty notesRoot', () => {
     expect(shouldAutoCreateBlankDraft(createInput())).toEqual({
       shouldCreate: true,
       blockedReasons: [],
     });
   });
 
-  it('waits until the vault store has resolved the persisted vault', () => {
+  it('waits until the notesRoot store has resolved the persisted notesRoot', () => {
     const result = shouldAutoCreateBlankDraft(createInput({
-      currentVaultPath: null,
+      currentNotesRootPath: null,
       notesPath: '',
       rootFolder: null,
       rootFolderPath: null,
-      vaultStoreHasInitialized: false,
+      notesRootStoreHasInitialized: false,
     }));
 
     expect(result.shouldCreate).toBe(false);
-    expect(result.blockedReasons).toContain('vault-store-initializing');
+    expect(result.blockedReasons).toContain('notes-root-store-initializing');
   });
 
-  it('blocks when the current vault tree has existing note files', () => {
+  it('blocks when the opened folder tree has existing note files', () => {
     const result = shouldAutoCreateBlankDraft(createInput({
       rootFolder: {
         ...emptyRoot,
@@ -69,10 +69,10 @@ describe('shouldAutoCreateBlankDraft', () => {
     }));
 
     expect(result.shouldCreate).toBe(false);
-    expect(result.blockedReasons).toContain('vault-has-files');
+    expect(result.blockedReasons).toContain('notes-root-has-files');
   });
 
-  it('allows a blank draft when the current vault tree has folders but no note files', () => {
+  it('allows a blank draft when the opened folder tree has folders but no note files', () => {
     const result = shouldAutoCreateBlankDraft(createInput({
       rootFolder: {
         ...emptyRoot,
@@ -90,7 +90,7 @@ describe('shouldAutoCreateBlankDraft', () => {
     }));
 
     expect(result.shouldCreate).toBe(true);
-    expect(result.blockedReasons).not.toContain('vault-has-files');
+    expect(result.blockedReasons).not.toContain('notes-root-has-files');
   });
 
   it('does not auto-create a blank draft when the file tree scan budget is exhausted', () => {
@@ -109,25 +109,25 @@ describe('shouldAutoCreateBlankDraft', () => {
     }));
 
     expect(result.shouldCreate).toBe(false);
-    expect(result.blockedReasons).toContain('vault-tree-scan-budget');
+    expect(result.blockedReasons).toContain('notes-root-tree-scan-budget');
   });
 
   it('blocks while a previous current note is still being restored', () => {
     const result = shouldAutoCreateBlankDraft(createInput({
-      vaultInitializing: true,
+      notesRootInitializing: true,
     }));
 
     expect(result.shouldCreate).toBe(false);
-    expect(result.blockedReasons).toContain('vault-initializing');
+    expect(result.blockedReasons).toContain('notes-root-initializing');
   });
 
-  it('allows a scratch draft without a selected vault after vault initialization completes', () => {
+  it('allows a scratch draft without a selected folder after notesRoot initialization completes', () => {
     expect(shouldAutoCreateBlankDraft(createInput({
-      currentVaultPath: null,
+      currentNotesRootPath: null,
       notesPath: '',
       rootFolder: null,
       rootFolderPath: null,
-      vaultStoreHasInitialized: true,
+      notesRootStoreHasInitialized: true,
     }))).toEqual({
       shouldCreate: true,
       blockedReasons: [],

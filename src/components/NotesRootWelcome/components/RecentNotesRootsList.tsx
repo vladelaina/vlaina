@@ -1,5 +1,5 @@
 import { Icon } from '@/components/ui/icons';
-import { useVaultStore, type VaultInfo } from '@/stores/useVaultStore';
+import { useNotesRootStore, type NotesRootInfo } from '@/stores/useNotesRootStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useI18n } from '@/lib/i18n';
 
@@ -18,14 +18,14 @@ function formatPath(path: string): string {
   return home;
 }
 
-interface RecentVaultsListProps {
-  vaults: VaultInfo[];
+interface RecentNotesRootsListProps {
+  notesRoots: NotesRootInfo[];
   onOpen: (path: string) => void;
 }
 
-export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
+export function RecentNotesRootsList({ notesRoots, onOpen }: RecentNotesRootsListProps) {
   const { t } = useI18n();
-  const { removeFromRecent } = useVaultStore();
+  const { removeFromRecent } = useNotesRootStore();
 
   const handleRemove = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -33,36 +33,36 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
   };
 
   return (
-    <div className="vault-recent">
-      <h2 className="vault-recent__title">{t('vault.recent')}</h2>
-      <div className="vault-recent__list">
-        {vaults.map((vault) => (
-          <Tooltip key={vault.id}>
+    <div className="notes-root-recent">
+      <h2 className="notes-root-recent__title">{t('notesRoot.recent')}</h2>
+      <div className="notes-root-recent__list">
+        {notesRoots.map((notesRoot) => (
+          <Tooltip key={notesRoot.id}>
             <TooltipTrigger asChild>
               <div
-                className="vault-item"
+                className="notes-root-item"
                 role="button"
                 tabIndex={0}
-                onClick={() => onOpen(vault.path)}
+                onClick={() => onOpen(notesRoot.path)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    onOpen(vault.path);
+                    onOpen(notesRoot.path);
                   }
                 }}
               >
-                <span className="vault-item__name">{vault.name}</span>
-                <span className="vault-item__path">{formatPath(vault.path)}</span>
+                <span className="notes-root-item__name">{notesRoot.name}</span>
+                <span className="notes-root-item__path">{formatPath(notesRoot.path)}</span>
                 <button
-                  className="vault-item__remove"
-                  onClick={(e) => handleRemove(e, vault.id)}
+                  className="notes-root-item__remove"
+                  onClick={(e) => handleRemove(e, notesRoot.id)}
                 >
                   <Icon name="common.close" size="md" />
                 </button>
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={10} showArrow={false}>
-              <p className="max-w-[var(--vlaina-size-300px)] break-all">{vault.path}</p>
+              <p className="max-w-[var(--vlaina-size-300px)] break-all">{notesRoot.path}</p>
             </TooltipContent>
           </Tooltip>
         ))}

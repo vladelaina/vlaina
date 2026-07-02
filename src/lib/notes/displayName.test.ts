@@ -25,6 +25,6 @@ describe('note display name helpers', () => {
   it('preserves UNC roots while normalizing path keys', () => {
     expect(normalizeNotePathKey('\\\\server\\share\\docs\\alpha.md')).toBe('//server/share/docs/alpha.md');
     expect(normalizeNotePathKey('//server/share//docs/')).toBe('//server/share/docs');
-    expect(normalizeNotePathKey('/vault//docs/alpha.md')).toBe('/vault/docs/alpha.md');
+    expect(normalizeNotePathKey('/notesRoot//docs/alpha.md')).toBe('/notesRoot/docs/alpha.md');
   });
 });

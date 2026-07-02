@@ -11,11 +11,11 @@ import {
   cleanupIsolatedElectron,
   collectLayoutSmokeMetrics,
   createChatFixture,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   installReferenceTyporaTheme,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
   setAppViewMode,
   waitForChatSession,
 } from './notesE2E';
@@ -59,7 +59,7 @@ test.describe('app layout smoke', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const notesFixture = await createVaultFilesFixture(page, {
+      const notesFixture = await createNotesRootFilesFixture(page, {
         name: 'layout-smoke',
         files: [
           {
@@ -120,9 +120,9 @@ test.describe('app layout smoke', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: notesFixture.vaultPath,
-        name: 'Layout Smoke Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: notesFixture.notesRootPath,
+        name: 'Layout Smoke NotesRoot',
         minFileCount: 1,
       });
       await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'layout-smoke' }).first().click();

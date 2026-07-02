@@ -1,7 +1,7 @@
 import {
   getStarredEntryAbsolutePath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
+  normalizeStarredNotesRootPath,
 } from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
@@ -9,7 +9,7 @@ import { extractNoteTagOccurrences, extractNoteTags } from '@/lib/notes/tags';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 
 export interface NotesSidebarTagPath {
   path: string;
@@ -81,7 +81,7 @@ function collectNotePaths(
     const node = stack.pop()!;
     visitedNodes += 1;
     if (node.isFolder) {
-      const normalizedFolderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
+      const normalizedFolderPath = normalizeNotesRootRelativePath(node.path, { allowEmpty: true });
       if (normalizedFolderPath === null || hasInternalNotePathSegment(normalizedFolderPath)) {
         continue;
       }
@@ -92,7 +92,7 @@ function collectNotePaths(
       continue;
     }
 
-    const normalizedPath = normalizeVaultRelativePath(node.path);
+    const normalizedPath = normalizeNotesRootRelativePath(node.path);
     if (
       normalizedPath &&
       !hasInternalNotePathSegment(normalizedPath) &&
@@ -104,19 +104,19 @@ function collectNotePaths(
   }
 }
 
-function getCurrentVaultStarredFolders(
+function getCurrentNotesRootStarredFolders(
   starredEntries: readonly StarredEntry[],
-  currentVaultPath: string | null | undefined,
+  currentNotesRootPath: string | null | undefined,
 ): string[] {
-  if (!currentVaultPath) {
+  if (!currentNotesRootPath) {
     return [];
   }
 
-  const normalizedCurrentVaultPath = normalizeStarredVaultPath(currentVaultPath);
+  const normalizedCurrentNotesRootPath = normalizeStarredNotesRootPath(currentNotesRootPath);
   return starredEntries
     .filter((entry) =>
       entry.kind === 'folder' &&
-      normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath
+      normalizeStarredNotesRootPath(entry.notesRootPath) === normalizedCurrentNotesRootPath
     )
     .map((entry) => normalizeStarredRelativePath(entry.relativePath))
     .filter((path): path is string => path !== null);
@@ -125,23 +125,23 @@ function getCurrentVaultStarredFolders(
 export function buildNotesSidebarTagScopeEntries({
   rootFolder,
   starredEntries = [],
-  currentVaultPath = null,
+  currentNotesRootPath = null,
 }: {
   rootFolder: FolderNode | null;
   starredEntries?: readonly StarredEntry[];
-  currentVaultPath?: string | null;
+  currentNotesRootPath?: string | null;
 }): NotesSidebarTagScopeEntry[] {
   const paths = new Set<string>();
 
   if (!rootFolder) {
-    const normalizedCurrentVaultPath = currentVaultPath
-      ? normalizeStarredVaultPath(currentVaultPath)
+    const normalizedCurrentNotesRootPath = currentNotesRootPath
+      ? normalizeStarredNotesRootPath(currentNotesRootPath)
       : null;
     for (const entry of starredEntries) {
       if (
         entry.kind === 'note' &&
-        (!normalizedCurrentVaultPath ||
-          normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath)
+        (!normalizedCurrentNotesRootPath ||
+          normalizeStarredNotesRootPath(entry.notesRootPath) === normalizedCurrentNotesRootPath)
       ) {
         const relativePath = normalizeStarredRelativePath(entry.relativePath);
         if (
@@ -153,7 +153,7 @@ export function buildNotesSidebarTagScopeEntries({
         }
 
         paths.add(
-          normalizedCurrentVaultPath
+          normalizedCurrentNotesRootPath
             ? relativePath
             : getStarredEntryAbsolutePath({ ...entry, relativePath }) ?? relativePath,
         );
@@ -165,7 +165,7 @@ export function buildNotesSidebarTagScopeEntries({
       .map((path) => ({ path }));
   }
 
-  const starredFolders = getCurrentVaultStarredFolders(starredEntries, currentVaultPath);
+  const starredFolders = getCurrentNotesRootStarredFolders(starredEntries, currentNotesRootPath);
   if (starredFolders.length > 0) {
     collectNotePaths(
       rootFolder.children,

@@ -4,14 +4,14 @@ export interface CoverPickerProps {
   onSelect: (assetPath: string) => void;
   onRemove?: () => void;
   onPreview?: (assetPath: string | null) => void;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
 }
 
 export interface AssetGridProps {
   onSelect: (assetPath: string) => void;
   onHover?: (assetPath: string | null) => void;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
   compact?: boolean;
   itemSize?: number;

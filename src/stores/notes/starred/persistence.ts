@@ -13,8 +13,8 @@ import {
   type StarredRegistry,
 } from './registry';
 import {
-  getStarredVaultPathComparisonKey,
-  isValidStarredVaultPath,
+  getStarredNotesRootPathComparisonKey,
+  isValidStarredNotesRootPath,
   normalizeStarredRelativePath,
 } from './pathUtils';
 
@@ -57,9 +57,9 @@ function normalizeDeletedEntryKey(value: unknown): string | null {
     return null;
   }
 
-  const vaultPath = value.slice(prefixLength, separatorIndex);
+  const notesRootPath = value.slice(prefixLength, separatorIndex);
   const relativePath = value.slice(separatorIndex + 2);
-  if (!isValidStarredVaultPath(vaultPath)) {
+  if (!isValidStarredNotesRootPath(notesRootPath)) {
     return null;
   }
 
@@ -71,7 +71,7 @@ function normalizeDeletedEntryKey(value: unknown): string | null {
     return null;
   }
 
-  return `${kind}::${getStarredVaultPathComparisonKey(vaultPath)}::${normalizedRelativePath}`;
+  return `${kind}::${getStarredNotesRootPathComparisonKey(notesRootPath)}::${normalizedRelativePath}`;
 }
 
 function normalizeDeletedEntryKeys(value: unknown): string[] {
@@ -197,17 +197,17 @@ async function writeStarredRegistry(payload: StarredSavePayload): Promise<void> 
 async function isStarredEntryValid(entry: StarredEntry): Promise<boolean> {
   const storage = getStorageAdapter();
 
-  const vaultExists = await storage.exists(entry.vaultPath);
-  if (!vaultExists) {
+  const notesRootExists = await storage.exists(entry.notesRootPath);
+  if (!notesRootExists) {
     return false;
   }
 
-  const vaultInfo = await storage.stat(entry.vaultPath);
-  if (vaultInfo?.isDirectory === false) {
+  const notesRootInfo = await storage.stat(entry.notesRootPath);
+  if (notesRootInfo?.isDirectory === false) {
     return false;
   }
 
-  const fullPath = await joinPath(entry.vaultPath, entry.relativePath);
+  const fullPath = await joinPath(entry.notesRootPath, entry.relativePath);
   const targetExists = await storage.exists(fullPath);
   if (!targetExists) {
     return false;

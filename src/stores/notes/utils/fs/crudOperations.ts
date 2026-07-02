@@ -11,7 +11,7 @@ import { getStorageAdapter } from '@/lib/storage/adapter';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../../frontmatter';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { resolveVaultRelativeFullPath } from './vaultPathContainment';
+import { resolveNotesRootRelativeFullPath } from './notesRootPathContainment';
 
 type CreatedNoteFileInfo = { modifiedAt?: number | null; size?: number | null } | null | undefined;
 
@@ -41,9 +41,9 @@ export async function createNoteImpl(
     );
 
     if (folderPath) {
-        const { fullPath: folderFullPath } = await resolveVaultRelativeFullPath(notesPath, folderPath, {
+        const { fullPath: folderFullPath } = await resolveNotesRootRelativeFullPath(notesPath, folderPath, {
             allowEmpty: true,
-            errorMessage: 'Target folder must stay inside the current vault.',
+            errorMessage: 'Target folder must stay inside the opened folder.',
         });
         await adapter.mkdir(folderFullPath, true);
     }

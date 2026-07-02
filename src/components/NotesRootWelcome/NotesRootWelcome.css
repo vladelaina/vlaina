@@ -1,4 +1,4 @@
-@keyframes vaultWelcomeFadeIn {
+@keyframes notesRootWelcomeFadeIn {
   from {
     opacity: var(--vlaina-opacity-0);
     transform: scale(var(--vlaina-scale-98)) translateY(var(--vlaina-translate-10px));
@@ -12,7 +12,7 @@
   }
 }
 
-@keyframes vaultItemFadeIn {
+@keyframes notesRootItemFadeIn {
   from {
     opacity: var(--vlaina-opacity-0);
     transform: translateY(var(--vlaina-translate-10px));
@@ -24,26 +24,26 @@
   }
 }
 
-.vault-welcome {
+.notes-root-welcome {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: var(--vlaina-size-100vh);
   padding: var(--vlaina-space-40px);
-  animation: vaultWelcomeFadeIn var(--vlaina-duration-800) var(--vlaina-ease-feedback);
+  animation: notesRootWelcomeFadeIn var(--vlaina-duration-800) var(--vlaina-ease-feedback);
   user-select: none;
   background: var(--vlaina-bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.vault-welcome--loading {
+.notes-root-welcome--loading {
   pointer-events: none;
   opacity: var(--vlaina-opacity-70);
   filter: var(--vlaina-filter-grayscale-full);
 }
 
-.vault-welcome__content {
+.notes-root-welcome__content {
   width: 100%;
   max-width: var(--vlaina-size-340px);
   display: flex;
@@ -51,19 +51,19 @@
   align-items: center;
 }
 
-.vault-welcome__main {
+.notes-root-welcome__main {
   display: flex;
   flex-direction: column;
   gap: var(--vlaina-space-24px);
   width: 100%;
 }
 
-.vault-recent {
+.notes-root-recent {
   background: transparent;
   width: 100%;
 }
 
-.vault-recent__title {
+.notes-root-recent__title {
   font-size: var(--vlaina-font-11);
   font-weight: var(--vlaina-font-weight-semibold);
   text-transform: uppercase;
@@ -73,7 +73,7 @@
   opacity: var(--vlaina-opacity-50);
 }
 
-.vault-recent__list {
+.notes-root-recent__list {
   display: flex;
   flex-direction: column;
   gap: var(--vlaina-space-4px);
@@ -85,50 +85,50 @@
   scrollbar-color: var(--vlaina-color-scrollbar-thumb) transparent;
 }
 
-.vault-recent__list::-webkit-scrollbar {
+.notes-root-recent__list::-webkit-scrollbar {
   width: var(--vlaina-size-4px);
 }
 
-.vault-recent__list::-webkit-scrollbar-track {
+.notes-root-recent__list::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.vault-recent__list::-webkit-scrollbar-thumb {
+.notes-root-recent__list::-webkit-scrollbar-thumb {
   background-color: var(--vlaina-color-scrollbar-thumb);
   border-radius: var(--vlaina-radius-4px);
 }
 
-.vault-recent__list::-webkit-scrollbar-thumb:hover {
+.notes-root-recent__list::-webkit-scrollbar-thumb:hover {
   background-color: var(--vlaina-color-scrollbar-thumb-hover);
 }
 
-.vault-item {
+.notes-root-item {
   display: flex;
   align-items: center;
   gap: var(--vlaina-space-14px);
   padding: var(--vlaina-space-10px) var(--vlaina-space-16px);
   border-radius: var(--vlaina-radius-12px);
   cursor: pointer;
-  transition: all var(--vlaina-duration-200) var(--vlaina-ease-vault-snappy);
+  transition: all var(--vlaina-duration-200) var(--vlaina-ease-notes-root-snappy);
   background: transparent;
   border: none;
   width: 100%;
   text-align: left;
   position: relative;
-  animation: vaultItemFadeIn var(--vlaina-duration-500) var(--vlaina-ease-out) both;
-  group: vault-item;
+  animation: notesRootItemFadeIn var(--vlaina-duration-500) var(--vlaina-ease-out) both;
+  group: notes-root-item;
 }
 
-.vault-item:hover {
+.notes-root-item:hover {
   background: var(--vlaina-bg-secondary);
 }
 
-.vault-item:active {
+.notes-root-item:active {
   transform: scale(var(--vlaina-scale-98));
   background: var(--vlaina-bg-tertiary);
 }
 
-.vault-item__name {
+.notes-root-item__name {
   font-size: var(--vlaina-font-sm);
   font-weight: var(--vlaina-font-weight-medium);
   color: var(--vlaina-text-primary);
@@ -139,7 +139,7 @@
   max-width: var(--vlaina-size-55pct);
 }
 
-.vault-item__path {
+.notes-root-item__path {
   font-size: var(--vlaina-font-xs);
   color: var(--vlaina-text-tertiary);
   white-space: nowrap;
@@ -150,7 +150,7 @@
   opacity: var(--vlaina-opacity-50);
   font-feature-settings: "tnum" on;
 }
-.vault-item__remove {
+.notes-root-item__remove {
   padding: var(--vlaina-space-6px);
   border-radius: var(--vlaina-radius-circle);
   background: transparent;
@@ -164,23 +164,23 @@
   margin-left: var(--vlaina-space-4px);
 }
 
-.vault-item:hover .vault-item__remove {
+.notes-root-item:hover .notes-root-item__remove {
   opacity: var(--vlaina-opacity-100);
   transform: scale(var(--vlaina-scale-100));
 }
 
-.vault-item__remove:hover {
+.notes-root-item__remove:hover {
   background: transparent;
   color: var(--vlaina-color-status-danger-fg);
 }
-.vault-actions {
+.notes-root-actions {
   display: flex;
   flex-direction: column;
   gap: var(--vlaina-space-12px);
   width: 100%;
 }
 
-.vault-action-btn {
+.notes-root-action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -190,29 +190,29 @@
   font-size: var(--vlaina-font-sm);
   font-weight: var(--vlaina-font-weight-semibold);
   cursor: pointer;
-  transition: all var(--vlaina-duration-200) var(--vlaina-ease-vault-snappy);
+  transition: all var(--vlaina-duration-200) var(--vlaina-ease-notes-root-snappy);
   border: none;
   height: var(--vlaina-size-44px);
   letter-spacing: var(--vlaina-tracking-tight-sm);
 }
 
-.vault-action-btn--primary {
+.notes-root-action-btn--primary {
   background: var(--vlaina-text-primary);
   color: var(--vlaina-bg-primary);
   box-shadow: var(--vlaina-shadow-raised-soft);
 }
 
-.vault-action-btn--primary:hover {
+.notes-root-action-btn--primary:hover {
   transform: translateY(var(--vlaina-translate--1px));
   box-shadow: var(--vlaina-shadow-floating-panel);
 }
 
-.vault-action-btn--primary:active {
+.notes-root-action-btn--primary:active {
   transform: translateY(var(--vlaina-translate-0));
   box-shadow: var(--vlaina-shadow-panel-soft);
 }
 
-.vault-action-btn--secondary {
+.notes-root-action-btn--secondary {
   background: var(--vlaina-color-panel-muted);
   backdrop-filter: blur(var(--vlaina-blur-sm));
   -webkit-backdrop-filter: blur(var(--vlaina-blur-sm));
@@ -220,12 +220,12 @@
   border: var(--vlaina-border-width-1) solid var(--vlaina-color-menu-border);
 }
 
-.vault-action-btn--secondary:hover {
+.notes-root-action-btn--secondary:hover {
   background: var(--vlaina-hover);
   border-color: var(--vlaina-border);
 }
 
-.vault-welcome__divider {
+.notes-root-welcome__divider {
   display: flex;
   align-items: center;
   width: 100%;
@@ -233,15 +233,15 @@
   opacity: var(--vlaina-opacity-80);
 }
 
-.vault-welcome__divider::before,
-.vault-welcome__divider::after {
+.notes-root-welcome__divider::before,
+.notes-root-welcome__divider::after {
   content: '';
   flex: 1;
   height: var(--vlaina-size-1px);
-  background: var(--vlaina-gradient-vault-divider);
+  background: var(--vlaina-gradient-notes-root-divider);
 }
 
-.vault-welcome__divider span {
+.notes-root-welcome__divider span {
   font-size: var(--vlaina-font-11);
   color: var(--vlaina-text-tertiary);
   padding: 0 var(--vlaina-space-16px);
@@ -251,7 +251,7 @@
   letter-spacing: var(--vlaina-tracking-label-005em);
   font-family: var(--font-sans);
 }
-.vault-cloud {
+.notes-root-cloud {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -260,11 +260,11 @@
   width: 100%;
 }
 
-.vault-cloud__divider {
+.notes-root-cloud__divider {
   display: none;
 }
 
-.vault-cloud__container {
+.notes-root-cloud__container {
   width: 100%;
   padding: 0;
   background: transparent;
@@ -274,17 +274,17 @@
   gap: var(--vlaina-space-12px);
 }
 
-.vault-cloud__header {
+.notes-root-cloud__header {
   display: none;
 }
 
-.vault-cloud__providers {
+.notes-root-cloud__providers {
   display: flex;
   justify-content: center;
   gap: var(--vlaina-space-24px);
 }
 
-.vault-cloud__provider {
+.notes-root-cloud__provider {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -296,10 +296,10 @@
   cursor: pointer;
   opacity: var(--vlaina-opacity-80);
   transform: scale(var(--vlaina-scale-100));
-  transition: all var(--vlaina-duration-250) var(--vlaina-ease-vault-snappy);
+  transition: all var(--vlaina-duration-250) var(--vlaina-ease-notes-root-snappy);
 }
 
-.vault-cloud__provider:hover {
+.notes-root-cloud__provider:hover {
   background: transparent !important;
   border-color: transparent;
   opacity: var(--vlaina-opacity-100);
@@ -307,34 +307,34 @@
   filter: var(--vlaina-filter-icon-hover);
 }
 
-.vault-cloud__provider:active {
+.notes-root-cloud__provider:active {
   transform: scale(var(--vlaina-scale-95));
   opacity: var(--vlaina-opacity-70);
 }
 
-.vault-cloud__icon-img {
+.notes-root-cloud__icon-img {
   width: var(--vlaina-size-24px);
   height: var(--vlaina-size-24px);
   object-fit: contain;
-  transition: transform var(--vlaina-duration-200) var(--vlaina-ease-vault-bounce);
+  transition: transform var(--vlaina-duration-200) var(--vlaina-ease-notes-root-bounce);
   pointer-events: none;
-  transform: scale(var(--vlaina-vault-cloud-icon-base-scale));
+  transform: scale(var(--vlaina-notes-root-cloud-icon-base-scale));
 }
 
-.vault-cloud__icon-img--github {
+.notes-root-cloud__icon-img--github {
   border-radius: var(--vlaina-radius-circle);
 }
 
-.vault-cloud__provider:hover .vault-cloud__icon-img {
-  transform: scale(calc(var(--vlaina-vault-cloud-icon-base-scale) * var(--vlaina-scale-115)));
+.notes-root-cloud__provider:hover .notes-root-cloud__icon-img {
+  transform: scale(calc(var(--vlaina-notes-root-cloud-icon-base-scale) * var(--vlaina-scale-115)));
 }
 
-.vault-cloud__provider--github {
+.notes-root-cloud__provider--github {
   color: var(--vlaina-text-primary);
   opacity: var(--vlaina-opacity-100);
 }
 
-.vault-modal {
+.notes-root-modal {
   width: var(--vlaina-size-90pct);
   max-width: var(--vlaina-size-460px);
   background: var(--vlaina-bg-primary);
@@ -346,7 +346,7 @@
   flex-direction: column;
 }
 
-@keyframes vaultModalSlideUp {
+@keyframes notesRootModalSlideUp {
   from {
     opacity: var(--vlaina-opacity-0);
     transform: scale(var(--vlaina-scale-96)) translateY(var(--vlaina-translate-12px));
@@ -358,7 +358,7 @@
   }
 }
 
-.vault-modal__title {
+.notes-root-modal__title {
   font-size: var(--vlaina-font-h4);
   font-weight: var(--vlaina-font-weight-bold);
   text-align: center;
@@ -368,11 +368,11 @@
   font-family: var(--font-sans);
 }
 
-.vault-modal__field {
+.notes-root-modal__field {
   margin-bottom: var(--vlaina-space-24px);
 }
 
-.vault-modal__label {
+.notes-root-modal__label {
   display: block;
   font-size: var(--vlaina-font-13);
   font-weight: var(--vlaina-font-weight-semibold);
@@ -382,7 +382,7 @@
   letter-spacing: var(--vlaina-tracking-wide-xs);
 }
 
-.vault-modal__input {
+.notes-root-modal__input {
   width: 100%;
   padding: var(--vlaina-space-14px) var(--vlaina-space-18px);
   border-radius: var(--vlaina-radius-14px);
@@ -391,33 +391,33 @@
   color: var(--vlaina-text-primary);
   font-size: var(--vlaina-font-base);
   outline: none;
-  transition: all var(--vlaina-duration-200) var(--vlaina-ease-vault-snappy);
+  transition: all var(--vlaina-duration-200) var(--vlaina-ease-notes-root-snappy);
 }
 
-.vault-modal__input:focus {
+.notes-root-modal__input:focus {
   background: var(--vlaina-bg-primary);
   border-color: var(--vlaina-accent);
   box-shadow: var(--vlaina-shadow-input-focus);
   transform: translateY(var(--vlaina-translate--1px));
 }
 
-.vault-modal__input::placeholder {
+.notes-root-modal__input::placeholder {
   color: var(--vlaina-text-tertiary);
   opacity: var(--vlaina-opacity-60);
   font-weight: var(--vlaina-font-weight-normal);
 }
 
-.vault-modal__path-input {
+.notes-root-modal__path-input {
   display: flex;
   gap: var(--vlaina-space-12px);
 }
 
-.vault-modal__path-input .vault-modal__input {
+.notes-root-modal__path-input .notes-root-modal__input {
   flex: 1;
   background: var(--vlaina-color-input-surface);
 }
 
-.vault-modal__browse-btn {
+.notes-root-modal__browse-btn {
   padding: 0 var(--vlaina-space-18px);
   background: var(--vlaina-bg-secondary);
   color: var(--vlaina-text-primary);
@@ -429,10 +429,10 @@
   transition: all var(--vlaina-duration-200) var(--vlaina-ease-css-default);
 }
 
-.vault-modal__browse-btn:hover {
+.notes-root-modal__browse-btn:hover {
   background: var(--vlaina-hover);
 }
-.vault-modal__error {
+.notes-root-modal__error {
   margin-bottom: var(--vlaina-space-24px);
   padding: var(--vlaina-space-12px);
   border-radius: var(--vlaina-radius-12px);
@@ -442,10 +442,10 @@
   font-weight: var(--vlaina-font-weight-medium);
   text-align: center;
   border: var(--vlaina-border-width-1) solid var(--vlaina-color-status-danger-bg);
-  animation: vaultItemFadeIn var(--vlaina-duration-300) var(--vlaina-ease-css-default);
+  animation: notesRootItemFadeIn var(--vlaina-duration-300) var(--vlaina-ease-css-default);
 }
 
-.vault-modal__actions {
+.notes-root-modal__actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--vlaina-space-16px);
@@ -453,45 +453,45 @@
   padding-top: var(--vlaina-space-24px);
 }
 
-.vault-modal__btn {
+.notes-root-modal__btn {
   padding: 0 var(--vlaina-space-28px);
   border-radius: var(--vlaina-radius-99px);
   height: var(--vlaina-size-48px);
   font-size: var(--vlaina-font-15);
   font-weight: var(--vlaina-font-weight-semibold);
   cursor: pointer;
-  transition: all var(--vlaina-duration-250) var(--vlaina-ease-vault-snappy);
+  transition: all var(--vlaina-duration-250) var(--vlaina-ease-notes-root-snappy);
   border: none;
   letter-spacing: var(--vlaina-tracking-tight-sm);
 }
 
-.vault-modal__btn--cancel {
+.notes-root-modal__btn--cancel {
   background: transparent;
   color: var(--vlaina-text-secondary);
   font-weight: var(--vlaina-font-weight-medium);
 }
 
-.vault-modal__btn--cancel:hover {
+.notes-root-modal__btn--cancel:hover {
   background: var(--vlaina-bg-secondary);
   color: var(--vlaina-text-primary);
 }
 
-.vault-modal__btn--create {
+.notes-root-modal__btn--create {
   background: var(--vlaina-accent);
   color: var(--vlaina-color-white);
   box-shadow: var(--vlaina-shadow-accent-action);
 }
 
-.vault-modal__btn--create:hover:not(:disabled) {
+.notes-root-modal__btn--create:hover:not(:disabled) {
   transform: translateY(var(--vlaina-translate--2px));
   box-shadow: var(--vlaina-shadow-floating-panel);
 }
 
-.vault-modal__btn--create:active {
+.notes-root-modal__btn--create:active {
   transform: scale(var(--vlaina-scale-98));
 }
 
-.vault-modal__btn--create:disabled {
+.notes-root-modal__btn--create:disabled {
   background: var(--vlaina-accent-light);
   color: var(--vlaina-color-white);
   box-shadow: none;

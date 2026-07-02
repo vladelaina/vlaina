@@ -44,11 +44,11 @@ import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import {
-  hasUnsafeVaultPathSegment,
-  isSafeVaultPathSegment,
-  normalizeVaultRelativePath,
-  resolveVaultRelativeFullPath,
-} from '@/stores/notes/utils/fs/vaultPathContainment';
+  hasUnsafeNotesRootPathSegment,
+  isSafeNotesRootPathSegment,
+  normalizeNotesRootRelativePath,
+  resolveNotesRootRelativeFullPath,
+} from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   escapeMarkdownAngleDestination,
@@ -514,28 +514,28 @@ function normalizeAbsoluteMentionPathForCompare(path: string): string {
 }
 
 function hasUnsafeMentionPathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path);
+  return hasUnsafeNotesRootPathSegment(path);
 }
 
 async function getStarredAbsoluteMentionPath(entry: {
   kind: 'note' | 'folder';
-  vaultPath: string;
+  notesRootPath: string;
   relativePath: string;
 }): Promise<string | null> {
-  const vaultPath = normalizeAbsolutePath(entry.vaultPath.trim());
-  const relativePath = normalizeVaultRelativePath(entry.relativePath);
+  const notesRootPath = normalizeAbsolutePath(entry.notesRootPath.trim());
+  const relativePath = normalizeNotesRootRelativePath(entry.relativePath);
   if (
-    !vaultPath ||
-    !isStorageAbsolutePath(vaultPath) ||
-    isInsideInternalFolderMarkdownPath(vaultPath) ||
-    hasUnsafeMentionPathSegment(vaultPath) ||
+    !notesRootPath ||
+    !isStorageAbsolutePath(notesRootPath) ||
+    isInsideInternalFolderMarkdownPath(notesRootPath) ||
+    hasUnsafeMentionPathSegment(notesRootPath) ||
     !relativePath ||
     isInsideInternalFolderMarkdownPath(relativePath) ||
     (entry.kind === 'note' && !isSupportedMarkdownPath(relativePath))
   ) {
     return null;
   }
-  return joinPath(vaultPath, relativePath);
+  return joinPath(notesRootPath, relativePath);
 }
 
 async function resolveStarredAbsoluteMentionPath(
@@ -586,7 +586,7 @@ async function resolveMentionedPath(
   }
 
   try {
-    const { relativePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, mentionPath);
+    const { relativePath, fullPath } = await resolveNotesRootRelativeFullPath(notesPath, mentionPath);
     return { cachePath: relativePath, fullPath };
   } catch {
     return null;
@@ -595,7 +595,7 @@ async function resolveMentionedPath(
 
 function isSafeFolderEntryName(name: string): boolean {
   return (
-    isSafeVaultPathSegment(name) &&
+    isSafeNotesRootPathSegment(name) &&
     !name.startsWith('.') &&
     !hasInternalNotePathSegment(name)
   );
@@ -603,13 +603,13 @@ function isSafeFolderEntryName(name: string): boolean {
 
 function isSafeFolderListingEntryName(name: string): boolean {
   return (
-    isSafeVaultPathSegment(name) &&
+    isSafeNotesRootPathSegment(name) &&
     !hasInternalNotePathSegment(name)
   );
 }
 
 function isSafeFolderMarkdownEntryName(name: string): boolean {
-  return isSafeVaultPathSegment(name);
+  return isSafeNotesRootPathSegment(name);
 }
 
 function shouldHideFolderMarkdownDirectory(name: string): boolean {
@@ -1404,7 +1404,7 @@ export async function normalizeVisionAttachment(
   }
 }
 
-function isCurrentVaultImageAttachmentPath(path: string): boolean {
+function isCurrentNotesRootImageAttachmentPath(path: string): boolean {
   const notesPath = useNotesStore.getState().notesPath?.trim();
   if (!notesPath) {
     return false;
@@ -1419,7 +1419,7 @@ function joinAbsolutePathSync(basePath: string, relativePath: string): string | 
   const normalizedBase = normalizedBasePath === '/' || /^[A-Za-z]:\/$/i.test(normalizedBasePath)
     ? normalizedBasePath
     : normalizedBasePath.replace(/\/+$/g, '');
-  const normalizedRelative = normalizeVaultRelativePath(relativePath);
+  const normalizedRelative = normalizeNotesRootRelativePath(relativePath);
   if (
     !normalizedBase ||
     !isStorageAbsolutePath(normalizedBase) ||
@@ -1451,12 +1451,12 @@ function isStarredFolderImageAttachmentPath(path: string): boolean {
   return starredEntries.some((entry) => {
     if (
       entry.kind !== 'folder' ||
-      isInsideInternalFolderMarkdownPath(entry.vaultPath) ||
+      isInsideInternalFolderMarkdownPath(entry.notesRootPath) ||
       isInsideInternalFolderMarkdownPath(entry.relativePath)
     ) {
       return false;
     }
-    const folderPath = joinAbsolutePathSync(entry.vaultPath, entry.relativePath);
+    const folderPath = joinAbsolutePathSync(entry.notesRootPath, entry.relativePath);
     if (!folderPath) {
       return false;
     }
@@ -1466,7 +1466,7 @@ function isStarredFolderImageAttachmentPath(path: string): boolean {
 }
 
 export function isAllowedChatImageAttachmentPath(path: string): boolean {
-  return isCurrentVaultImageAttachmentPath(path) || isStarredFolderImageAttachmentPath(path);
+  return isCurrentNotesRootImageAttachmentPath(path) || isStarredFolderImageAttachmentPath(path);
 }
 
 function normalizeDirectVisionImageUrl(src: string): string | null {

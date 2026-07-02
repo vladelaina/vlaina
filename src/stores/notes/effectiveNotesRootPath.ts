@@ -1,7 +1,7 @@
 import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
-import { getCurrentVaultPath } from './storage';
+import { getCurrentNotesRootPath } from './storage';
 
-export function resolveEffectiveVaultPath(args: {
+export function resolveEffectiveNotesRootPath(args: {
   notesPath?: string | null;
   currentNotePath?: string | null;
 }): string {
@@ -10,9 +10,9 @@ export function resolveEffectiveVaultPath(args: {
     return notesPath;
   }
 
-  const currentVaultPath = getCurrentVaultPath()?.trim();
-  if (currentVaultPath) {
-    return currentVaultPath;
+  const currentNotesRootPath = getCurrentNotesRootPath()?.trim();
+  if (currentNotesRootPath) {
+    return currentNotesRootPath;
   }
 
   const currentNotePath = args.currentNotePath?.trim();

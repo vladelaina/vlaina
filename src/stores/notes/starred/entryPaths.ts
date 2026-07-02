@@ -5,21 +5,21 @@ import type { StarredEntry, StarredKind } from '../types';
 import { createStarredEntry, getStarredEntryKey } from './registry';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
-  getStarredVaultPathComparisonKey,
-  isValidStarredVaultPath,
+  getStarredNotesRootPathComparisonKey,
+  isValidStarredNotesRootPath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
-  resolveStarredRelativePathForVault,
+  normalizeStarredNotesRootPath,
+  resolveStarredRelativePathForNotesRoot,
 } from './pathUtils';
 
 export interface StarredNoteContext {
-  vaultPath: string;
+  notesRootPath: string;
   relativePath: string;
 }
 
 export function getStarredEntryAbsolutePath(entry: StarredEntry): string | null {
-  const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
-  if (!isValidStarredVaultPath(vaultPath)) {
+  const notesRootPath = normalizeStarredNotesRootPath(entry.notesRootPath);
+  if (!isValidStarredNotesRootPath(notesRootPath)) {
     return null;
   }
 
@@ -28,9 +28,9 @@ export function getStarredEntryAbsolutePath(entry: StarredEntry): string | null 
     return null;
   }
 
-  return vaultPath.endsWith('/')
-    ? `${vaultPath}${relativePath}`
-    : `${vaultPath}/${relativePath}`;
+  return notesRootPath.endsWith('/')
+    ? `${notesRootPath}${relativePath}`
+    : `${notesRootPath}/${relativePath}`;
 }
 
 export function createStarredEntryFromAbsoluteNotePath(path: string): StarredEntry | null {
@@ -44,24 +44,24 @@ export function createStarredEntryFromAbsoluteNotePath(path: string): StarredEnt
     return null;
   }
 
-  const vaultPath = getParentPath(path);
+  const notesRootPath = getParentPath(path);
   const relativePath = getBaseName(path);
-  if (!vaultPath || !relativePath) {
+  if (!notesRootPath || !relativePath) {
     return null;
   }
 
-  return createStarredEntry('note', vaultPath, relativePath);
+  return createStarredEntry('note', notesRootPath, relativePath);
 }
 
 export function getStarredNoteDisplayPath(
   entry: StarredEntry,
-  isCurrentVaultEntry: boolean,
+  isCurrentNotesRootEntry: boolean,
 ): string | undefined {
   if (entry.kind !== 'note') {
     return undefined;
   }
 
-  return isCurrentVaultEntry
+  return isCurrentNotesRootEntry
     ? entry.relativePath
     : getStarredEntryAbsolutePath(entry) ?? undefined;
 }
@@ -70,18 +70,18 @@ export function isStarredEntryForPath(
   entry: StarredEntry,
   kind: StarredKind,
   path: string,
-  currentVaultPath: string,
+  currentNotesRootPath: string,
 ): boolean {
   if (entry.kind !== kind) {
     return false;
   }
 
-  const relativePath = currentVaultPath
-    ? resolveStarredRelativePathForVault(path, currentVaultPath)
+  const relativePath = currentNotesRootPath
+    ? resolveStarredRelativePathForNotesRoot(path, currentNotesRootPath)
     : null;
 
   if (relativePath) {
-    const key = getStarredEntryKey({ kind, vaultPath: currentVaultPath, relativePath });
+    const key = getStarredEntryKey({ kind, notesRootPath: currentNotesRootPath, relativePath });
     if (getStarredEntryKey(entry) === key) {
       return true;
     }
@@ -91,17 +91,17 @@ export function isStarredEntryForPath(
     return false;
   }
 
-  return getStarredVaultPathComparisonKey(getStarredEntryAbsolutePath(entry) ?? '') ===
-    getStarredVaultPathComparisonKey(path);
+  return getStarredNotesRootPathComparisonKey(getStarredEntryAbsolutePath(entry) ?? '') ===
+    getStarredNotesRootPathComparisonKey(path);
 }
 
 export function findStarredEntryByPath(
   entries: StarredEntry[],
   kind: StarredKind,
   path: string,
-  currentVaultPath: string,
+  currentNotesRootPath: string,
 ): StarredEntry | undefined {
-  return entries.find((entry) => isStarredEntryForPath(entry, kind, path, currentVaultPath));
+  return entries.find((entry) => isStarredEntryForPath(entry, kind, path, currentNotesRootPath));
 }
 
 export function resolveStarredNoteContext(
@@ -120,14 +120,14 @@ export function resolveStarredNoteContext(
       continue;
     }
 
-    if (getStarredVaultPathComparisonKey(absoluteNotePath) === getStarredVaultPathComparisonKey(normalizedNote)) {
+    if (getStarredNotesRootPathComparisonKey(absoluteNotePath) === getStarredNotesRootPathComparisonKey(normalizedNote)) {
       const relativePath = normalizeNotePathKey(entry.relativePath);
       if (!relativePath) {
         continue;
       }
 
       return {
-        vaultPath: normalizeStarredVaultPath(entry.vaultPath),
+        notesRootPath: normalizeStarredNotesRootPath(entry.notesRootPath),
         relativePath,
       };
     }

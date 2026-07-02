@@ -1,0 +1,1 @@
+export { NotesRootWelcome } from './NotesRootWelcome';

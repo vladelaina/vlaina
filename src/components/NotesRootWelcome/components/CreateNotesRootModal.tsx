@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { joinPath, isWeb } from '@/lib/storage/adapter';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
@@ -8,14 +8,14 @@ import { useI18n } from '@/lib/i18n';
 import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { themeBackdropTokens, themeDomStyleTokens, themeMotionTokens } from '@/styles/themeTokens';
 
-interface CreateVaultModalProps {
+interface CreateNotesRootModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
+export function CreateNotesRootModal({ isOpen, onClose }: CreateNotesRootModalProps) {
   const { t } = useI18n();
-  const { createVault, isLoading, error, clearError } = useVaultStore();
+  const { createNotesRoot, isLoading, error, clearError } = useNotesRootStore();
   const [name, setName] = useState('');
   const [parentPath, setParentPath] = useState('');
   const pathInputRef = useRef<HTMLInputElement>(null);
@@ -24,7 +24,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   useEffect(() => {
     if (isOpen) {
       setName('');
-      setParentPath(isWebPlatform ? '/vaults' : '');
+      setParentPath(isWebPlatform ? '/notes-roots' : '');
       clearError();
     }
   }, [isOpen, clearError, isWebPlatform]);
@@ -44,7 +44,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
     const selected = await openDialog({
       directory: true,
       multiple: false,
-      title: t('vault.selectParentFolderTitle'),
+      title: t('notesRoot.selectParentFolderTitle'),
     });
 
     if (selected && typeof selected === 'string') {
@@ -61,8 +61,8 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   const handleCreate = async () => {
     if (!name.trim() || !parentPath.trim()) return;
 
-    const vaultPath = await joinPath(parentPath.trim(), name.trim());
-    const success = await createVault(name.trim(), vaultPath);
+    const notesRootPath = await joinPath(parentPath.trim(), name.trim());
+    const success = await createNotesRoot(name.trim(), notesRootPath);
     if (success) {
       onClose();
     }
@@ -84,46 +84,46 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
           <BlurBackdrop
             onClick={onClose}
             overlayClassName="bg-[var(--vlaina-color-backdrop-soft)]"
-            zIndex={themeBackdropTokens.createVaultZIndex}
-            blurPx={themeBackdropTokens.createVaultBlurPx}
-            duration={themeBackdropTokens.createVaultDurationSeconds}
+            zIndex={themeBackdropTokens.createNotesRootZIndex}
+            blurPx={themeBackdropTokens.createNotesRootBlurPx}
+            duration={themeBackdropTokens.createNotesRootDurationSeconds}
           />
           <div
             className="fixed inset-0 z-[var(--vlaina-z-modal-max)] flex items-center justify-center"
             onKeyDown={handleKeyDown}
           >
             <motion.div
-              className="vault-modal"
+              className="notes-root-modal"
               onClick={(e) => e.stopPropagation()}
               initial={{
                 opacity: themeMotionTokens.opacityHidden,
-                scale: themeMotionTokens.vaultModalInitialScale,
-                y: themeMotionTokens.vaultModalY,
+                scale: themeMotionTokens.notesRootModalInitialScale,
+                y: themeMotionTokens.notesRootModalY,
               }}
               animate={{
                 opacity: themeMotionTokens.opacityVisible,
-                scale: themeMotionTokens.vaultModalVisibleScale,
-                y: themeMotionTokens.vaultModalVisibleY,
+                scale: themeMotionTokens.notesRootModalVisibleScale,
+                y: themeMotionTokens.notesRootModalVisibleY,
               }}
               exit={{
                 opacity: themeMotionTokens.opacityHidden,
-                scale: themeMotionTokens.vaultModalInitialScale,
-                y: themeMotionTokens.vaultModalY,
+                scale: themeMotionTokens.notesRootModalInitialScale,
+                y: themeMotionTokens.notesRootModalY,
               }}
               transition={{
-                duration: themeMotionTokens.vaultModalDuration,
-                ease: themeMotionTokens.vaultModalEase,
+                duration: themeMotionTokens.notesRootModalDuration,
+                ease: themeMotionTokens.notesRootModalEase,
               }}
             >
-              <h2 className="vault-modal__title">{t('vault.createNewVault')}</h2>
+              <h2 className="notes-root-modal__title">{t('notesRoot.createNewNotesRoot')}</h2>
 
-              <div className="vault-modal__field">
-                <label className="vault-modal__label">{t('vault.name')}</label>
+              <div className="notes-root-modal__field">
+                <label className="notes-root-modal__label">{t('notesRoot.name')}</label>
                 <input
                   type="text"
                   spellCheck={false}
-                  className="vault-modal__input"
-                  placeholder={t('vault.myNotesPlaceholder')}
+                  className="notes-root-modal__input"
+                  placeholder={t('notesRoot.myNotesPlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => {
@@ -137,17 +137,17 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                 />
               </div>
 
-              <div className="vault-modal__field">
-                <label className="vault-modal__label">
-                  {isWebPlatform ? t('vault.path') : t('vault.parentFolder')}
+              <div className="notes-root-modal__field">
+                <label className="notes-root-modal__label">
+                  {isWebPlatform ? t('notesRoot.path') : t('notesRoot.parentFolder')}
                 </label>
-                <div className="vault-modal__path-input">
+                <div className="notes-root-modal__path-input">
                   <input
                     ref={pathInputRef}
                     type="text"
                     spellCheck={false}
-                    className="vault-modal__input"
-                    placeholder={isWebPlatform ? t('vault.pathPlaceholder') : t('vault.selectFolderPlaceholder')}
+                    className="notes-root-modal__input"
+                    placeholder={isWebPlatform ? t('notesRoot.pathPlaceholder') : t('notesRoot.selectFolderPlaceholder')}
                     value={parentPath}
                     onChange={(e) => setParentPath(e.target.value)}
                     onBlur={(e) => {
@@ -166,31 +166,31 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                     }}
                   />
                   {hasNativeDialogs() && (
-                    <button className="vault-modal__browse-btn" onClick={handleBrowse}>
+                    <button className="notes-root-modal__browse-btn" onClick={handleBrowse}>
                       {t('common.browse')}
                     </button>
                   )}
                 </div>
                 {isWebPlatform && (
-                  <p className="vault-modal__hint">
-                    {t('vault.localStorageHint')}
+                  <p className="notes-root-modal__hint">
+                    {t('notesRoot.localStorageHint')}
                   </p>
                 )}
               </div>
 
-              {error && <div className="vault-modal__error">{normalizeUserFacingErrorMessage(error)}</div>}
+              {error && <div className="notes-root-modal__error">{normalizeUserFacingErrorMessage(error)}</div>}
 
-              <div className="vault-modal__actions">
-                <button className="vault-modal__btn vault-modal__btn--cancel" onClick={onClose}>
+              <div className="notes-root-modal__actions">
+                <button className="notes-root-modal__btn notes-root-modal__btn--cancel" onClick={onClose}>
                   {t('common.cancel')}
                 </button>
 
                 <button
-                  className="vault-modal__btn vault-modal__btn--create"
+                  className="notes-root-modal__btn notes-root-modal__btn--create"
                   onClick={handleCreate}
                   disabled={!canCreate}
                 >
-                  {isLoading ? t('common.creating') : t('vault.createVault')}
+                  {isLoading ? t('common.creating') : t('notesRoot.createNotesRoot')}
                 </button>
               </div>
             </motion.div>

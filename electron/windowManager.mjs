@@ -154,8 +154,8 @@ export function createWindowManager({
 
     params.set('newWindow', 'true');
 
-    if (windowOptions.vaultPath) {
-      params.set('vaultPath', windowOptions.vaultPath);
+    if (windowOptions.notesRootPath) {
+      params.set('notesRootPath', windowOptions.notesRootPath);
     }
 
     if (windowOptions.notePath) {
@@ -232,7 +232,7 @@ export function createWindowManager({
       await window.loadFile(rendererFile, {
         search: new URLSearchParams({
           newWindow: 'true',
-          ...(windowOptions.vaultPath ? { vaultPath: windowOptions.vaultPath } : {}),
+          ...(windowOptions.notesRootPath ? { notesRootPath: windowOptions.notesRootPath } : {}),
           ...(windowOptions.notePath ? { notePath: windowOptions.notePath } : {}),
           ...(windowOptions.folderPath ? { folderPath: windowOptions.folderPath } : {}),
           ...(windowOptions.chatSessionId ? { chatSessionId: windowOptions.chatSessionId } : {}),

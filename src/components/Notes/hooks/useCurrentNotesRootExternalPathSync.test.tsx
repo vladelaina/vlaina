@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCurrentVaultExternalPathSync } from './useCurrentVaultExternalPathSync';
-import { looksLikeVaultRoot } from './currentVaultExternalPathSyncUtils';
+import { useCurrentNotesRootExternalPathSync } from './useCurrentNotesRootExternalPathSync';
+import { looksLikeNotesRootRoot } from './currentNotesRootExternalPathSyncUtils';
 
 type WatchEvent = {
   type: unknown;
@@ -9,10 +9,10 @@ type WatchEvent = {
 };
 
 const hoisted = vi.hoisted(() => ({
-  syncCurrentVaultExternalPath: vi.fn(),
+  syncCurrentNotesRootExternalPath: vi.fn(),
   watchHandler: null as ((event: WatchEvent) => void | Promise<void>) | null,
   watchPaths: {
-    normalizedVaultPath: '/home/user/vault',
+    normalizedNotesRootPath: '/home/user/notesRoot',
     normalizedParentPath: '/home/user',
     watchParentPath: '/home/user',
   },
@@ -28,13 +28,13 @@ vi.mock('@/lib/desktop/watch', () => ({
   watchDesktopPath: hoisted.watchDesktopPath,
 }));
 
-vi.mock('@/stores/vaultConfig', () => ({
-  ensureVaultConfig: vi.fn(async () => undefined),
+vi.mock('@/stores/notesRootConfig', () => ({
+  ensureNotesRootConfig: vi.fn(async () => undefined),
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector: (state: { syncCurrentVaultExternalPath: typeof hoisted.syncCurrentVaultExternalPath }) => unknown) =>
-    selector({ syncCurrentVaultExternalPath: hoisted.syncCurrentVaultExternalPath }),
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector: (state: { syncCurrentNotesRootExternalPath: typeof hoisted.syncCurrentNotesRootExternalPath }) => unknown) =>
+    selector({ syncCurrentNotesRootExternalPath: hoisted.syncCurrentNotesRootExternalPath }),
 }));
 
 vi.mock('@/stores/notes/document/externalSyncControl', () => ({
@@ -47,10 +47,10 @@ vi.mock('@/stores/notes/document/externalChangeRegistry', () => ({
   shouldIgnoreExpectedExternalChange: vi.fn(() => false),
 }));
 
-vi.mock('./currentVaultExternalPathSyncUtils', () => ({
-  getVaultExternalWatchPaths: vi.fn(() => hoisted.watchPaths),
+vi.mock('./currentNotesRootExternalPathSyncUtils', () => ({
+  getNotesRootExternalWatchPaths: vi.fn(() => hoisted.watchPaths),
   isDirectChildPath: vi.fn(() => true),
-  looksLikeVaultRoot: vi.fn(async () => true),
+  looksLikeNotesRootRoot: vi.fn(async () => true),
 }));
 
 vi.mock('./notesExternalSyncUtils', () => ({
@@ -65,20 +65,20 @@ vi.mock('./notesExternalSyncUtils', () => ({
   normalizeFsPath: (path: string) => path.replace(/\\/g, '/'),
 }));
 
-describe('useCurrentVaultExternalPathSync', () => {
+describe('useCurrentNotesRootExternalPathSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.watchHandler = null;
     hoisted.watchPaths = {
-      normalizedVaultPath: '/home/user/vault',
+      normalizedNotesRootPath: '/home/user/notesRoot',
       normalizedParentPath: '/home/user',
       watchParentPath: '/home/user',
     };
     hoisted.renamePaths = null;
   });
 
-  it('watches the vault parent directory non-recursively', async () => {
-    renderHook(() => useCurrentVaultExternalPathSync('/home/user/vault'));
+  it('watches the notesRoot parent directory non-recursively', async () => {
+    renderHook(() => useCurrentNotesRootExternalPathSync('/home/user/notesRoot'));
 
     await act(async () => {
       await Promise.resolve();
@@ -91,71 +91,71 @@ describe('useCurrentVaultExternalPathSync', () => {
     );
   });
 
-  it('syncs a Windows vault rename when watcher paths differ only by case', async () => {
+  it('syncs a Windows notesRoot rename when watcher paths differ only by case', async () => {
     hoisted.watchPaths = {
-      normalizedVaultPath: 'C:/Users/Me/Vault',
+      normalizedNotesRootPath: 'C:/Users/Me/NotesRoot',
       normalizedParentPath: 'C:/Users/Me',
       watchParentPath: 'C:/Users/Me',
     };
     hoisted.renamePaths = {
-      oldPath: 'c:/users/me/vault',
-      newPath: 'c:/users/me/vault-renamed',
+      oldPath: 'c:/users/me/notesRoot',
+      newPath: 'c:/users/me/notes-root-renamed',
     };
 
-    renderHook(() => useCurrentVaultExternalPathSync('C:/Users/Me/Vault'));
+    renderHook(() => useCurrentNotesRootExternalPathSync('C:/Users/Me/NotesRoot'));
 
     await act(async () => {
       await Promise.resolve();
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['c:/users/me/vault', 'c:/users/me/vault-renamed'],
+        paths: ['c:/users/me/notesRoot', 'c:/users/me/notes-root-renamed'],
       });
     });
 
-    expect(hoisted.syncCurrentVaultExternalPath).toHaveBeenCalledWith('c:/users/me/vault-renamed');
+    expect(hoisted.syncCurrentNotesRootExternalPath).toHaveBeenCalledWith('c:/users/me/notes-root-renamed');
   });
 
-  it('ignores candidate vault roots when storage checks fail', async () => {
+  it('ignores candidate notesRoot roots when storage checks fail', async () => {
     hoisted.renamePaths = {
-      oldPath: '/home/user/vault',
-      newPath: '/home/user/vault-renamed',
+      oldPath: '/home/user/notesRoot',
+      newPath: '/home/user/notes-root-renamed',
     };
-    vi.mocked(looksLikeVaultRoot).mockRejectedValueOnce(new Error('stat failed'));
+    vi.mocked(looksLikeNotesRootRoot).mockRejectedValueOnce(new Error('stat failed'));
 
-    renderHook(() => useCurrentVaultExternalPathSync('/home/user/vault'));
+    renderHook(() => useCurrentNotesRootExternalPathSync('/home/user/notesRoot'));
 
     await act(async () => {
       await Promise.resolve();
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['/home/user/vault', '/home/user/vault-renamed'],
+        paths: ['/home/user/notesRoot', '/home/user/notes-root-renamed'],
       });
     });
 
-    expect(hoisted.syncCurrentVaultExternalPath).not.toHaveBeenCalled();
+    expect(hoisted.syncCurrentNotesRootExternalPath).not.toHaveBeenCalled();
   });
 
-  it('matches split Windows vault remove and create events case-insensitively', async () => {
+  it('matches split Windows notesRoot remove and create events case-insensitively', async () => {
     hoisted.watchPaths = {
-      normalizedVaultPath: 'C:/Users/Me/Vault',
+      normalizedNotesRootPath: 'C:/Users/Me/NotesRoot',
       normalizedParentPath: 'C:/Users/Me',
       watchParentPath: 'C:/Users/Me',
     };
 
-    renderHook(() => useCurrentVaultExternalPathSync('C:/Users/Me/Vault'));
+    renderHook(() => useCurrentNotesRootExternalPathSync('C:/Users/Me/NotesRoot'));
 
     await act(async () => {
       await Promise.resolve();
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'folder' } },
-        paths: ['c:/users/me/vault'],
+        paths: ['c:/users/me/notesRoot'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'folder' } },
-        paths: ['c:/users/me/vault-renamed'],
+        paths: ['c:/users/me/notes-root-renamed'],
       });
     });
 
-    expect(hoisted.syncCurrentVaultExternalPath).toHaveBeenCalledWith('c:/users/me/vault-renamed');
+    expect(hoisted.syncCurrentNotesRootExternalPath).toHaveBeenCalledWith('c:/users/me/notes-root-renamed');
   });
 });

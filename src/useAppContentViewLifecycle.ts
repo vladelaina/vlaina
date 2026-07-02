@@ -10,6 +10,7 @@ import {
   preloadNotesViewModule,
   preloadSettingsModule,
   preloadTemporaryChatToggleModule,
+  preloadWhiteboardViewModule,
 } from './AppContentModules';
 
 const SETTINGS_PRELOAD_DELAY_MS = import.meta.env.DEV ? 120000 : 10000;
@@ -20,7 +21,7 @@ const CENTER_CHROME_RENDER_DELAY_MS = 0;
 const VISIBLE_SIDEBAR_RENDER_DELAY_MS = import.meta.env.DEV ? 750 : 120;
 export const INITIAL_UNIFIED_VIEW_WAIT_TIMEOUT_MS = import.meta.env.DEV ? null : 3000;
 
-type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat'>;
+type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'>;
 
 interface UseAppContentViewLifecycleOptions {
   appViewMode: AppViewMode;
@@ -124,6 +125,11 @@ export function useAppContentViewLifecycle({
 
     if (effectiveAppViewMode === 'chat') {
       void preloadChatViewModule();
+      return;
+    }
+
+    if (import.meta.env.DEV && effectiveAppViewMode === 'whiteboard') {
+      void preloadWhiteboardViewModule();
     }
   }, [effectiveAppViewMode, shouldWaitForInitialUnifiedView]);
 

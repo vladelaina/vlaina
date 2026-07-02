@@ -9,7 +9,7 @@ import {
     normalizePublicRemoteMediaUrl,
     sanitizeNoteMediaSrc,
 } from '@/lib/notes/markdown/urlSecurity';
-import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { stripImagePresentationFragment } from '@/lib/markdown/imageResourceSource';
 
 interface ImageSourcePathDeps {
@@ -101,7 +101,7 @@ function hasUnsafeImagePathSegment(path: string | null | undefined): boolean {
         return false;
     }
 
-    return hasUnsafeVaultPathSegment(path, { allowNavigationSegments: true });
+    return hasUnsafeNotesRootPathSegment(path, { allowNavigationSegments: true });
 }
 
 function decodeLocalImagePath(path: string): string {
@@ -181,8 +181,8 @@ export async function resolveImageSourcePathCandidates(
     }
 
     if (notesPath) {
-        const vaultPath = normalizeContainedAssetPath(await deps.joinPath(notesPath, localSrc), notesPath);
-        addNonInternalCandidate(candidates, vaultPath);
+        const notesRootPath = normalizeContainedAssetPath(await deps.joinPath(notesPath, localSrc), notesPath);
+        addNonInternalCandidate(candidates, notesRootPath);
     }
 
     return candidates;

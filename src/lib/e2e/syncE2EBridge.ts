@@ -5,7 +5,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { desktopWindow } from '@/lib/desktop/window';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { TextSelection } from '@milkdown/kit/prose/state';
@@ -18,7 +18,7 @@ import {
 } from '@/lib/markdown/theme-compatibility/importedThemeStorage';
 import { buildScopedModelId } from '@/lib/ai/utils';
 import type { ImportedMarkdownThemeMetadata } from '@/lib/markdown/theme-compatibility/types';
-import { getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
+import { getNotesRootSystemStorePath } from '@/stores/notes/systemStoragePaths';
 import { flushStarredRegistry } from '@/stores/notes/starred';
 import { collectExpandedPaths } from '@/stores/notes/fileTreeUtils';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
@@ -35,7 +35,7 @@ import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
 import type { ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types';
 import type { NotesState, StarredEntry } from '@/stores/notes/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
-import type { VaultInfo } from '@/stores/useVaultStore';
+import type { NotesRootInfo } from '@/stores/useNotesRootStore';
 import {
   enqueueChatE2EMockResponse,
   getChatE2EMockPendingRequestIds,
@@ -150,21 +150,21 @@ export interface E2EBridge {
   setMarkdownImportedThemeId(importedThemeId: string | null): Promise<void>;
   createWindow(options?: { viewMode?: 'notes' | 'chat' | null }): Promise<void>;
   createNotesFixture(input?: { filename?: string; content?: string }): Promise<{
-    vaultPath: string;
+    notesRootPath: string;
     notePath: string;
   }>;
-  createVaultFixture(input?: { name?: string; filename?: string; content?: string }): Promise<{
-    vaultPath: string;
+  createNotesRootFixture(input?: { name?: string; filename?: string; content?: string }): Promise<{
+    notesRootPath: string;
     notePath: string;
   }>;
-  createVaultFilesFixture(input: {
+  createNotesRootFilesFixture(input: {
     name?: string;
     files: Array<{
       filename: string;
       content: string;
     }>;
   }): Promise<{
-    vaultPath: string;
+    notesRootPath: string;
     notePaths: string[];
   }>;
   createChatFixture(input: {
@@ -193,16 +193,16 @@ export interface E2EBridge {
   }>;
   switchChatSession(id: string): Promise<void>;
   setAppViewMode(mode: 'notes' | 'chat'): Promise<void>;
-  initializeVaultStore(): Promise<void>;
-  openVault(path: string, name?: string): Promise<boolean>;
-  getVaultState(): {
-    currentVault: VaultInfo | null;
-    recentVaults: VaultInfo[];
+  initializeNotesRootStore(): Promise<void>;
+  openNotesRoot(path: string, name?: string): Promise<boolean>;
+  getNotesRootState(): {
+    currentNotesRoot: NotesRootInfo | null;
+    recentNotesRoots: NotesRootInfo[];
     error: string | null;
     isLoading: boolean;
   };
-  removeRecentVault(id: string): Promise<boolean>;
-  readVaultConfig(path: string): Promise<unknown>;
+  removeRecentNotesRoot(id: string): Promise<boolean>;
+  readNotesRootConfig(path: string): Promise<unknown>;
   openAbsoluteNote(path: string): Promise<void>;
   openAbsoluteNoteWithTiming(path: string): Promise<{
     totalMs: number;
@@ -302,7 +302,7 @@ export interface E2EBridge {
     NotesState,
     'notesPath' | 'starredEntries' | 'starredNotes' | 'starredFolders' | 'starredLoaded'
   >;
-  loadStarred(vaultPath: string): Promise<void>;
+  loadStarred(notesRootPath: string): Promise<void>;
   toggleStarred(path: string): Promise<void>;
   removeStarredEntry(id: string): Promise<void>;
   updateCurrentNoteContent(content: string): Promise<void>;
@@ -318,7 +318,7 @@ export interface E2EBridge {
     sidebarWidth: number;
     imageStorageMode: string;
     imageSubfolderName: string;
-    imageVaultSubfolderName: string;
+    imageNotesRootSubfolderName: string;
     imageFilenameFormat: string;
     notesChatPanelCollapsed: boolean;
   };
@@ -326,7 +326,7 @@ export interface E2EBridge {
     fontSize?: number;
     languagePreference?: string;
     sidebarWidth?: number;
-    imageStorageMode?: 'vault' | 'vaultSubfolder' | 'currentFolder' | 'subfolder';
+    imageStorageMode?: 'notesRoot' | 'notesRootSubfolder' | 'currentFolder' | 'subfolder';
     imageSubfolderName?: string;
     notesChatPanelCollapsed?: boolean;
   }): Promise<void>;
@@ -1125,48 +1125,48 @@ export function installSyncE2EBridge(): void {
       const storage = getStorageAdapter();
       const basePath = await storage.getBasePath();
       const fixtureRoot = await joinPath(basePath, 'e2e-notes');
-      const vaultPath = await joinPath(
+      const notesRootPath = await joinPath(
         fixtureRoot,
-        `vault-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        `notes-root-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       );
-      await storage.mkdir(vaultPath, true);
+      await storage.mkdir(notesRootPath, true);
 
-      const notePath = await joinPath(vaultPath, input?.filename ?? 'shared.md');
+      const notePath = await joinPath(notesRootPath, input?.filename ?? 'shared.md');
       await storage.writeFile(notePath, input?.content ?? '# Shared\n\nInitial\n', { recursive: true });
-      return { vaultPath, notePath };
+      return { notesRootPath, notePath };
     },
-    createVaultFixture: async (input) => {
+    createNotesRootFixture: async (input) => {
       const storage = getStorageAdapter();
       const basePath = await storage.getBasePath();
-      const fixtureRoot = await joinPath(basePath, 'e2e-vaults');
-      const vaultPath = await joinPath(
+      const fixtureRoot = await joinPath(basePath, 'e2e-notes-roots');
+      const notesRootPath = await joinPath(
         fixtureRoot,
-        `${input?.name ?? 'vault'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        `${input?.name ?? 'notesRoot'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       );
-      await storage.mkdir(vaultPath, true);
+      await storage.mkdir(notesRootPath, true);
 
-      const notePath = await joinPath(vaultPath, input?.filename ?? 'starred.md');
+      const notePath = await joinPath(notesRootPath, input?.filename ?? 'starred.md');
       await storage.writeFile(notePath, input?.content ?? '# Starred\n\nInitial\n', { recursive: true });
-      return { vaultPath, notePath };
+      return { notesRootPath, notePath };
     },
-    createVaultFilesFixture: async (input) => {
+    createNotesRootFilesFixture: async (input) => {
       const storage = getStorageAdapter();
       const basePath = await storage.getBasePath();
-      const fixtureRoot = await joinPath(basePath, 'e2e-vaults');
-      const vaultPath = await joinPath(
+      const fixtureRoot = await joinPath(basePath, 'e2e-notes-roots');
+      const notesRootPath = await joinPath(
         fixtureRoot,
-        `${input.name ?? 'vault-files'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        `${input.name ?? 'notes-root-files'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       );
-      await storage.mkdir(vaultPath, true);
+      await storage.mkdir(notesRootPath, true);
 
       const notePaths: string[] = [];
       for (const file of input.files) {
-        const notePath = await joinPath(vaultPath, file.filename);
+        const notePath = await joinPath(notesRootPath, file.filename);
         await storage.writeFile(notePath, file.content, { recursive: true });
         notePaths.push(notePath);
       }
 
-      return { vaultPath, notePaths };
+      return { notesRootPath, notePaths };
     },
     createChatFixture: async (input) => {
       const chatActions = createChatActions();
@@ -1289,26 +1289,26 @@ export function installSyncE2EBridge(): void {
       useUIStore.getState().setAppViewMode(mode);
       await flushPendingSave();
     },
-    initializeVaultStore: async () => {
-      await useVaultStore.getState().initialize();
+    initializeNotesRootStore: async () => {
+      await useNotesRootStore.getState().initialize();
     },
-    openVault: async (path, name) => {
-      return useVaultStore.getState().openVault(path, name, { preserveSidebarTree: false });
+    openNotesRoot: async (path, name) => {
+      return useNotesRootStore.getState().openNotesRoot(path, name, { preserveSidebarTree: false });
     },
-    getVaultState: () => {
-      const { currentVault, recentVaults, error, isLoading } = useVaultStore.getState();
+    getNotesRootState: () => {
+      const { currentNotesRoot, recentNotesRoots, error, isLoading } = useNotesRootStore.getState();
       return {
-        currentVault: currentVault ? { ...currentVault } : null,
-        recentVaults: recentVaults.map((vault) => ({ ...vault })),
+        currentNotesRoot: currentNotesRoot ? { ...currentNotesRoot } : null,
+        recentNotesRoots: recentNotesRoots.map((notesRoot) => ({ ...notesRoot })),
         error,
         isLoading,
       };
     },
-    removeRecentVault: async (id) => {
-      return useVaultStore.getState().removeFromRecent(id);
+    removeRecentNotesRoot: async (id) => {
+      return useNotesRootStore.getState().removeFromRecent(id);
     },
-    readVaultConfig: async (path) => {
-      const configPath = await getVaultSystemStorePath(path, 'config.json');
+    readNotesRootConfig: async (path) => {
+      const configPath = await getNotesRootSystemStorePath(path, 'config.json');
       return JSON.parse(await getStorageAdapter().readFile(configPath));
     },
     openAbsoluteNote: async (path) => {
@@ -1571,8 +1571,8 @@ export function installSyncE2EBridge(): void {
         starredLoaded,
       };
     },
-    loadStarred: async (vaultPath) => {
-      await useNotesStore.getState().loadStarred(vaultPath);
+    loadStarred: async (notesRootPath) => {
+      await useNotesStore.getState().loadStarred(notesRootPath);
     },
     toggleStarred: async (path) => {
       useNotesStore.getState().toggleStarred(path);
@@ -1610,7 +1610,7 @@ export function installSyncE2EBridge(): void {
         sidebarWidth,
         imageStorageMode,
         imageSubfolderName,
-        imageVaultSubfolderName,
+        imageNotesRootSubfolderName,
         imageFilenameFormat,
         notesChatPanelCollapsed,
       } = useUIStore.getState();
@@ -1620,7 +1620,7 @@ export function installSyncE2EBridge(): void {
         sidebarWidth,
         imageStorageMode,
         imageSubfolderName,
-        imageVaultSubfolderName,
+        imageNotesRootSubfolderName,
         imageFilenameFormat,
         notesChatPanelCollapsed,
       };

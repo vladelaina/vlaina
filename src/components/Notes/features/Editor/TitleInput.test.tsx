@@ -24,7 +24,7 @@ vi.mock('@/stores/useNotesStore', () => ({
     {
       getState: () => ({
         ...notesState,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
       }),
     },
   ),
@@ -96,7 +96,7 @@ describe('TitleInput', () => {
   });
 
   it('does not lock a bogus title height when first measured before layout has width', () => {
-    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 
     const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
     expect(input.style.height).toBe('');
@@ -118,7 +118,7 @@ describe('TitleInput', () => {
     document.addEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, caretRefreshListener);
 
     try {
-      render(<TitleInput notePath="/vault/test.md" initialTitle="Long title" />);
+      render(<TitleInput notePath="/notesRoot/test.md" initialTitle="Long title" />);
 
       const input = screen.getByDisplayValue('Long title') as HTMLTextAreaElement;
       input.focus();
@@ -143,7 +143,7 @@ describe('TitleInput', () => {
     { metaKey: true },
     { altKey: true },
   ])('does not intercept modified ArrowDown in the title input: %o', (eventInit) => {
-    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 
     const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
 
@@ -156,7 +156,7 @@ describe('TitleInput', () => {
   });
 
   it('moves from the title to the first body line end on plain ArrowDown', async () => {
-    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 
     const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
 
@@ -174,7 +174,7 @@ describe('TitleInput', () => {
   });
 
   it('clears the active editor block selection when focusing the title', () => {
-    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 
     const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
     fireEvent.focus(input);
@@ -184,7 +184,7 @@ describe('TitleInput', () => {
 
   it('does not commit or move focus when Enter is pressed during IME composition', () => {
     const onEnter = vi.fn();
-    render(<TitleInput notePath="/vault/test.md" initialTitle="test" onEnter={onEnter} />);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" onEnter={onEnter} />);
 
     const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
 
@@ -201,7 +201,7 @@ describe('TitleInput', () => {
   });
 
   it('does not leave the title input on ArrowDown during IME composition', () => {
-    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 
     const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
 
@@ -217,7 +217,7 @@ describe('TitleInput', () => {
   });
 
   it('keeps a cleared existing title empty on blur so the Untitled placeholder remains visible', async () => {
-    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+    render(<TitleInput notePath="/notesRoot/test.md" initialTitle="test" />);
 
     const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
 

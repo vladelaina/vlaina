@@ -15,7 +15,7 @@ type MockNotesState = {
   starredEntries: Array<{
     id: string;
     kind: 'note' | 'folder';
-    vaultPath: string;
+    notesRootPath: string;
     relativePath: string;
     addedAt: number;
   }>;
@@ -44,7 +44,7 @@ const mocks = vi.hoisted(() => {
     openTabs: [{ path: 'alpha.md', name: 'alpha.md', isDirty: false }],
     draftNotes: {},
     noteMetadata: null,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     starredEntries: [],
     isStarred: () => false,
     toggleStarred: vi.fn(),
@@ -241,7 +241,7 @@ describe('MarkdownEditor source fallback', () => {
     mocks.notesState.openTabs = [{ path: 'alpha.md', name: 'alpha.md', isDirty: false }];
     mocks.notesState.draftNotes = {};
     mocks.notesState.noteMetadata = null;
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.starredEntries = [];
     mocks.notesState.isDirty = false;
     mocks.notesState.toggleStarred.mockClear();
@@ -312,7 +312,7 @@ describe('MarkdownEditor source fallback', () => {
       mocks.notesState.starredEntries = [{
         id: 'starred-alpha',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'alpha.md',
         addedAt: 1,
       }];

@@ -619,7 +619,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     }
   };
 
-  const handleWatchEvent = async (vaultPath: string, event: DesktopWatchEvent) => {
+  const handleWatchEvent = async (notesRootPath: string, event: DesktopWatchEvent) => {
     if (!isActiveNotesPath()) {
       return;
     }
@@ -630,8 +630,8 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       return;
     }
 
-    const { pathDetails, unexpectedPaths } = classifyWatchEventPaths(vaultPath, event.paths);
-    if (pathDetails.every((detail) => detail.ignoredByVaultRules)) {
+    const { pathDetails, unexpectedPaths } = classifyWatchEventPaths(notesRootPath, event.paths);
+    if (pathDetails.every((detail) => detail.ignoredByNotesRootRules)) {
       return;
     }
     const currentNotePath = useNotesStore.getState().currentNote?.path ?? null;
@@ -641,7 +641,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       isMarkdownPath(currentNotePath) &&
       pathDetails.some((detail) =>
         detail.expectedChange &&
-        !detail.ignoredByVaultRules &&
+        !detail.ignoredByNotesRootRules &&
         detail.relativePath === currentNotePath
       );
     if (hasExpectedCurrentNoteChange) {
@@ -662,7 +662,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     const isBlockedRenameEvent = hasBlockedRenameEndpoint(event, pathDetails);
     const renamePaths = isBlockedRenameEvent
       ? null
-      : getRelativeRenameWatchPaths(vaultPath, {
+      : getRelativeRenameWatchPaths(notesRootPath, {
           ...event,
           paths: unexpectedPaths,
         });
@@ -717,7 +717,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       return;
     }
 
-    const relativePaths = getRelevantRelativeWatchPaths(vaultPath, unexpectedPaths);
+    const relativePaths = getRelevantRelativeWatchPaths(notesRootPath, unexpectedPaths);
     if (relativePaths.length === 0) {
       return;
     }

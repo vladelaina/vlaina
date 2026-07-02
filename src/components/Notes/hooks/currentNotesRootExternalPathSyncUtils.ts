@@ -7,7 +7,7 @@ export function isDirectChildPath(parentPath: string, absolutePath: string) {
   return getFsPathComparisonKey(normalizedAbsoluteParentPath) === getFsPathComparisonKey(normalizedParentPath);
 }
 
-export async function looksLikeVaultRoot(path: string) {
+export async function looksLikeNotesRootRoot(path: string) {
   const normalizedPath = normalizeFsPath(path);
   if (!isAbsolutePath(normalizedPath) || hasUnsafeFsPathSegment(normalizedPath)) {
     return false;
@@ -21,20 +21,20 @@ export async function looksLikeVaultRoot(path: string) {
   return info?.isDirectory !== false;
 }
 
-export function getVaultExternalWatchPaths(vaultPath: string): {
-  normalizedVaultPath: string;
+export function getNotesRootExternalWatchPaths(notesRootPath: string): {
+  normalizedNotesRootPath: string;
   watchParentPath: string;
   normalizedParentPath: string;
 } | null {
-  const normalizedVaultPath = normalizeFsPath(vaultPath);
-  const watchParentPath = getParentPath(vaultPath);
+  const normalizedNotesRootPath = normalizeFsPath(notesRootPath);
+  const watchParentPath = getParentPath(notesRootPath);
   const normalizedParentPath = watchParentPath ? normalizeFsPath(watchParentPath) : null;
   if (!watchParentPath || !normalizedParentPath) {
     return null;
   }
 
   return {
-    normalizedVaultPath,
+    normalizedNotesRootPath,
     watchParentPath,
     normalizedParentPath,
   };

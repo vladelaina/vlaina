@@ -53,8 +53,8 @@ describe('NotesTabRow', () => {
     expect(source).toContain('group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)]');
     expect(source).not.toContain('hover:bg-[var(--vlaina-color-control-hover-bg)]');
     expect(source).not.toContain('hover:text-[var(--vlaina-color-control-hover-fg)]');
-    expect(source).toContain('const currentVaultPath = useVaultStore((s) => s.currentVault?.path ?? null);');
-    expect(source).toContain('const hasOpenedFolder = Boolean(currentVaultPath && notesPath === currentVaultPath && rootFolderPath === currentVaultPath);');
+    expect(source).toContain('const currentNotesRootPath = useNotesRootStore((s) => s.currentNotesRoot?.path ?? null);');
+    expect(source).toContain('const hasOpenedFolder = Boolean(currentNotesRootPath && notesPath === currentNotesRootPath && rootFolderPath === currentNotesRootPath);');
     expect(source).toContain('{hasOpenedFolder ? (');
     expect(source).toContain('shouldShowTitleTooltip');
     expect(source).toContain('{shouldShowTitleTooltip ? (');

@@ -19,10 +19,10 @@ describe('externalPathMutationRegistry', () => {
   it('matches Windows absolute paths case-insensitively', () => {
     const revision = getExternalPathMutationRevision();
 
-    markExternalPathRename('C:\\Vault\\Docs');
+    markExternalPathRename('C:\\NotesRoot\\Docs');
 
-    expect(wasPathExternallyMutatedSince('c:/vault/docs/alpha.md', revision)).toBe(true);
-    expect(wasPathExternallyMutatedSince('D:/vault/docs/alpha.md', revision)).toBe(false);
+    expect(wasPathExternallyMutatedSince('c:/notesRoot/docs/alpha.md', revision)).toBe(true);
+    expect(wasPathExternallyMutatedSince('D:/notesRoot/docs/alpha.md', revision)).toBe(false);
   });
 
   it('treats truncated mutation history as a possible mutation', () => {

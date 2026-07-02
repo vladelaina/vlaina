@@ -101,52 +101,52 @@ describe('fileTreeUtils structural sharing', () => {
 
   it('keeps generated folders low priority without hiding their markdown notes', async () => {
     mocks.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return [
-          { name: 'node_modules', path: '/vault/node_modules', isDirectory: true, isFile: false },
-          { name: 'Node_Modules', path: '/vault/Node_Modules', isDirectory: true, isFile: false },
-          { name: 'Dist', path: '/vault/Dist', isDirectory: true, isFile: false },
-          { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
+          { name: 'node_modules', path: '/notesRoot/node_modules', isDirectory: true, isFile: false },
+          { name: 'Node_Modules', path: '/notesRoot/Node_Modules', isDirectory: true, isFile: false },
+          { name: 'Dist', path: '/notesRoot/Dist', isDirectory: true, isFile: false },
+          { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
         ];
       }
 
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
-          { name: 'alpha.md', path: '/vault/docs/alpha.md', isDirectory: false, isFile: true },
+          { name: 'alpha.md', path: '/notesRoot/docs/alpha.md', isDirectory: false, isFile: true },
         ];
       }
 
-      if (path === '/vault/node_modules') {
+      if (path === '/notesRoot/node_modules') {
         return [
-          { name: 'package.md', path: '/vault/node_modules/package.md', isDirectory: false, isFile: true },
+          { name: 'package.md', path: '/notesRoot/node_modules/package.md', isDirectory: false, isFile: true },
         ];
       }
 
-      if (path === '/vault/Node_Modules') {
+      if (path === '/notesRoot/Node_Modules') {
         return [
-          { name: 'package.md', path: '/vault/Node_Modules/package.md', isDirectory: false, isFile: true },
+          { name: 'package.md', path: '/notesRoot/Node_Modules/package.md', isDirectory: false, isFile: true },
         ];
       }
 
-      if (path === '/vault/Dist') {
+      if (path === '/notesRoot/Dist') {
         return [
-          { name: 'bundle.md', path: '/vault/Dist/bundle.md', isDirectory: false, isFile: true },
+          { name: 'bundle.md', path: '/notesRoot/Dist/bundle.md', isDirectory: false, isFile: true },
         ];
       }
 
       return [];
     });
 
-    const tree = await buildFileTree('/vault');
+    const tree = await buildFileTree('/notesRoot');
 
-    expect(mocks.listDir).toHaveBeenCalledWith('/vault/docs', { includeHidden: true });
-    expect(mocks.listDir).toHaveBeenCalledWith('/vault/node_modules', { includeHidden: true });
-    expect(mocks.listDir).toHaveBeenCalledWith('/vault/Node_Modules', { includeHidden: true });
-    expect(mocks.listDir).toHaveBeenCalledWith('/vault/Dist', { includeHidden: true });
-    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/node_modules/.git');
-    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/Node_Modules/.git');
-    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/Dist/.git');
-    expect(mocks.exists).toHaveBeenCalledWith('/vault/docs/.git');
+    expect(mocks.listDir).toHaveBeenCalledWith('/notesRoot/docs', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/notesRoot/node_modules', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/notesRoot/Node_Modules', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/notesRoot/Dist', { includeHidden: true });
+    expect(mocks.exists).not.toHaveBeenCalledWith('/notesRoot/node_modules/.git');
+    expect(mocks.exists).not.toHaveBeenCalledWith('/notesRoot/Node_Modules/.git');
+    expect(mocks.exists).not.toHaveBeenCalledWith('/notesRoot/Dist/.git');
+    expect(mocks.exists).toHaveBeenCalledWith('/notesRoot/docs/.git');
     expect(tree).toEqual([
       {
         id: 'Dist',
@@ -215,10 +215,10 @@ describe('fileTreeUtils structural sharing', () => {
     let activeDetections = 0;
     let maxActiveDetections = 0;
     mocks.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return Array.from({ length: 12 }, (_, index) => ({
           name: `folder-${index}`,
-          path: `/vault/folder-${index}`,
+          path: `/notesRoot/folder-${index}`,
           isDirectory: true,
           isFile: false,
         }));
@@ -234,7 +234,7 @@ describe('fileTreeUtils structural sharing', () => {
       return false;
     });
 
-    const tree = await buildFileTree('/vault');
+    const tree = await buildFileTree('/notesRoot');
 
     expect(tree).toHaveLength(12);
     expect(mocks.exists).toHaveBeenCalledTimes(12);
@@ -244,14 +244,14 @@ describe('fileTreeUtils structural sharing', () => {
 
   it('includes every supported markdown extension in the tree', async () => {
     mocks.listDir.mockResolvedValue([
-      { name: 'alpha.md', path: '/vault/alpha.md', isDirectory: false, isFile: true },
-      { name: 'beta.markdown', path: '/vault/beta.markdown', isDirectory: false, isFile: true },
-      { name: 'gamma.mdown', path: '/vault/gamma.mdown', isDirectory: false, isFile: true },
-      { name: 'delta.mkd', path: '/vault/delta.mkd', isDirectory: false, isFile: true },
-      { name: 'image.png', path: '/vault/image.png', isDirectory: false, isFile: true },
+      { name: 'alpha.md', path: '/notesRoot/alpha.md', isDirectory: false, isFile: true },
+      { name: 'beta.markdown', path: '/notesRoot/beta.markdown', isDirectory: false, isFile: true },
+      { name: 'gamma.mdown', path: '/notesRoot/gamma.mdown', isDirectory: false, isFile: true },
+      { name: 'delta.mkd', path: '/notesRoot/delta.mkd', isDirectory: false, isFile: true },
+      { name: 'image.png', path: '/notesRoot/image.png', isDirectory: false, isFile: true },
     ]);
 
-    await expect(buildFileTree('/vault')).resolves.toEqual([
+    await expect(buildFileTree('/notesRoot')).resolves.toEqual([
       {
         id: 'alpha.md',
         name: 'alpha',
@@ -281,27 +281,27 @@ describe('fileTreeUtils structural sharing', () => {
 
   it('includes user dotfile notes while hiding internal app and git folders', async () => {
     mocks.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return [
-          { name: '.journal.md', path: '/vault/.journal.md', isDirectory: false, isFile: true },
-          { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
-          { name: '.vlaina', path: '/vault/.vlaina', isDirectory: true, isFile: false },
-          { name: '.git', path: '/vault/.git', isDirectory: true, isFile: false },
-          { name: '.VLAINA', path: '/vault/.VLAINA', isDirectory: true, isFile: false },
-          { name: '.GIT', path: '/vault/.GIT', isDirectory: true, isFile: false },
+          { name: '.journal.md', path: '/notesRoot/.journal.md', isDirectory: false, isFile: true },
+          { name: '.notes', path: '/notesRoot/.notes', isDirectory: true, isFile: false },
+          { name: '.vlaina', path: '/notesRoot/.vlaina', isDirectory: true, isFile: false },
+          { name: '.git', path: '/notesRoot/.git', isDirectory: true, isFile: false },
+          { name: '.VLAINA', path: '/notesRoot/.VLAINA', isDirectory: true, isFile: false },
+          { name: '.GIT', path: '/notesRoot/.GIT', isDirectory: true, isFile: false },
         ];
       }
 
-      if (path === '/vault/.notes') {
+      if (path === '/notesRoot/.notes') {
         return [
-          { name: 'alpha.md', path: '/vault/.notes/alpha.md', isDirectory: false, isFile: true },
+          { name: 'alpha.md', path: '/notesRoot/.notes/alpha.md', isDirectory: false, isFile: true },
         ];
       }
 
       return [];
     });
 
-    await expect(buildFileTree('/vault')).resolves.toEqual([
+    await expect(buildFileTree('/notesRoot')).resolves.toEqual([
       {
         id: '.notes',
         name: '.notes',
@@ -324,29 +324,29 @@ describe('fileTreeUtils structural sharing', () => {
         isFolder: false,
       },
     ]);
-    expect(mocks.listDir).toHaveBeenCalledWith('/vault', { includeHidden: true });
-    expect(mocks.listDir).toHaveBeenCalledWith('/vault/.notes', { includeHidden: true });
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.vlaina');
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.git');
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.VLAINA');
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.GIT');
+    expect(mocks.listDir).toHaveBeenCalledWith('/notesRoot', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/notesRoot/.notes', { includeHidden: true });
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/notesRoot/.vlaina');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/notesRoot/.git');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/notesRoot/.VLAINA');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/notesRoot/.GIT');
   });
 
   it('caps root-level file tree entry processing before building nodes', async () => {
     mocks.listDir.mockResolvedValue(
       Array.from({ length: 6000 }, (_, index) => ({
         name: `folder-${String(index).padStart(4, '0')}`,
-        path: `/vault/folder-${String(index).padStart(4, '0')}`,
+        path: `/notesRoot/folder-${String(index).padStart(4, '0')}`,
         isDirectory: true,
         isFile: false,
       })),
     );
 
-    const tree = await buildFileTree('/vault');
+    const tree = await buildFileTree('/notesRoot');
 
     expect(tree).toHaveLength(5000);
     expect(mocks.exists).toHaveBeenCalledTimes(5000);
-    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/folder-5000/.git');
+    expect(mocks.exists).not.toHaveBeenCalledWith('/notesRoot/folder-5000/.git');
     expect(mocks.listDir).toHaveBeenCalledTimes(1);
   });
 
@@ -354,14 +354,14 @@ describe('fileTreeUtils structural sharing', () => {
     mocks.listDir.mockResolvedValue([
       ...Array.from({ length: 10_000 }, (_, index) => ({
         name: `asset-${String(index).padStart(5, '0')}.png`,
-        path: `/vault/asset-${String(index).padStart(5, '0')}.png`,
+        path: `/notesRoot/asset-${String(index).padStart(5, '0')}.png`,
         isDirectory: false,
         isFile: true,
       })),
-      { name: 'late.md', path: '/vault/late.md', isDirectory: false, isFile: true },
+      { name: 'late.md', path: '/notesRoot/late.md', isDirectory: false, isFile: true },
     ]);
 
-    const tree = await buildFileTree('/vault');
+    const tree = await buildFileTree('/notesRoot');
 
     expect(tree).toEqual([
       {
@@ -375,27 +375,27 @@ describe('fileTreeUtils structural sharing', () => {
 
   it('ignores unsafe storage entry names while building the tree', async () => {
     mocks.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return [
-          { name: 'safe.md', path: '/vault/safe.md', isDirectory: false, isFile: true },
-          { name: '../secret.md', path: '/vault/../secret.md', isDirectory: false, isFile: true },
-          { name: 'nested/evil.md', path: '/vault/nested/evil.md', isDirectory: false, isFile: true },
-          { name: 'bad\\evil.md', path: '/vault/bad/evil.md', isDirectory: false, isFile: true },
-          { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
-          { name: '..', path: '/vault/..', isDirectory: true, isFile: false },
+          { name: 'safe.md', path: '/notesRoot/safe.md', isDirectory: false, isFile: true },
+          { name: '../secret.md', path: '/notesRoot/../secret.md', isDirectory: false, isFile: true },
+          { name: 'nested/evil.md', path: '/notesRoot/nested/evil.md', isDirectory: false, isFile: true },
+          { name: 'bad\\evil.md', path: '/notesRoot/bad/evil.md', isDirectory: false, isFile: true },
+          { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
+          { name: '..', path: '/notesRoot/..', isDirectory: true, isFile: false },
         ];
       }
 
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
-          { name: 'inside.md', path: '/vault/docs/inside.md', isDirectory: false, isFile: true },
+          { name: 'inside.md', path: '/notesRoot/docs/inside.md', isDirectory: false, isFile: true },
         ];
       }
 
       return [];
     });
 
-    const tree = await buildFileTree('/vault');
+    const tree = await buildFileTree('/notesRoot');
 
     expect(tree).toEqual([
       {
@@ -420,33 +420,33 @@ describe('fileTreeUtils structural sharing', () => {
         isFolder: false,
       },
     ]);
-    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/..');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/notesRoot/..');
   });
 
   it('keeps readable sibling notes when one nested folder cannot be listed', async () => {
     mocks.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return [
-          { name: 'root.md', path: '/vault/root.md', isDirectory: false, isFile: true },
-          { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
-          { name: 'locked', path: '/vault/locked', isDirectory: true, isFile: false },
+          { name: 'root.md', path: '/notesRoot/root.md', isDirectory: false, isFile: true },
+          { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
+          { name: 'locked', path: '/notesRoot/locked', isDirectory: true, isFile: false },
         ];
       }
 
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
-          { name: 'inside.md', path: '/vault/docs/inside.md', isDirectory: false, isFile: true },
+          { name: 'inside.md', path: '/notesRoot/docs/inside.md', isDirectory: false, isFile: true },
         ];
       }
 
-      if (path === '/vault/locked') {
+      if (path === '/notesRoot/locked') {
         throw new Error('Permission denied');
       }
 
       return [];
     });
 
-    const tree = await buildFileTree('/vault');
+    const tree = await buildFileTree('/notesRoot');
 
     expect(tree).toEqual([
       {
@@ -482,32 +482,32 @@ describe('fileTreeUtils structural sharing', () => {
   });
 
   it('marks git repository folders without exposing the .git directory', async () => {
-    mocks.exists.mockImplementation(async (path: string) => path === '/vault/project/.git');
+    mocks.exists.mockImplementation(async (path: string) => path === '/notesRoot/project/.git');
     mocks.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return [
-          { name: 'project', path: '/vault/project', isDirectory: true, isFile: false },
+          { name: 'project', path: '/notesRoot/project', isDirectory: true, isFile: false },
         ];
       }
 
-      if (path === '/vault/project') {
+      if (path === '/notesRoot/project') {
         return [
-          { name: '.git', path: '/vault/project/.git', isDirectory: true, isFile: false },
-          { name: 'notes', path: '/vault/project/notes', isDirectory: true, isFile: false },
-          { name: 'readme.md', path: '/vault/project/readme.md', isDirectory: false, isFile: true },
+          { name: '.git', path: '/notesRoot/project/.git', isDirectory: true, isFile: false },
+          { name: 'notes', path: '/notesRoot/project/notes', isDirectory: true, isFile: false },
+          { name: 'readme.md', path: '/notesRoot/project/readme.md', isDirectory: false, isFile: true },
         ];
       }
 
-      if (path === '/vault/project/notes') {
+      if (path === '/notesRoot/project/notes') {
         return [
-          { name: 'intro.md', path: '/vault/project/notes/intro.md', isDirectory: false, isFile: true },
+          { name: 'intro.md', path: '/notesRoot/project/notes/intro.md', isDirectory: false, isFile: true },
         ];
       }
 
       return [];
     });
 
-    const tree = await buildFileTree('/vault');
+    const tree = await buildFileTree('/notesRoot');
 
     expect(tree).toEqual([
       {
@@ -545,9 +545,9 @@ describe('fileTreeUtils structural sharing', () => {
   });
 
   it('detects a git repository root path', async () => {
-    mocks.exists.mockImplementation(async (path: string) => path === '/vault/.git');
+    mocks.exists.mockImplementation(async (path: string) => path === '/notesRoot/.git');
 
-    await expect(isGitRepositoryDirectory('/vault')).resolves.toBe(true);
+    await expect(isGitRepositoryDirectory('/notesRoot')).resolves.toBe(true);
     await expect(isGitRepositoryDirectory('/other')).resolves.toBe(false);
   });
 

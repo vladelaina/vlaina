@@ -25,8 +25,8 @@ vi.mock('@/stores/notes/systemStoragePaths', () => ({
       await mocks.storage.mkdir(path, true);
     }
   }),
-  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
-    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
+  getNotesRootSystemStorePath: (_notesRootPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/notes-roots/notes-root-test/${fileName}`)
   ),
 }));
 
@@ -56,27 +56,27 @@ describe('AssetHashIndex', () => {
       },
     }));
 
-    const index = await loadAssetHashIndex('/vault');
+    const index = await loadAssetHashIndex('/notesRoot');
 
     expect(index.entries['image.png']?.hash).toBe('abc');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-test/assets.json', 2 * 1024 * 1024);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/notes-roots/notes-root-test/assets.json', 2 * 1024 * 1024);
   });
 
   it('does not parse hash index content that exceeds the limit after read', async () => {
     mocks.storage.stat.mockResolvedValue({ size: 256 });
     mocks.storage.readFile.mockResolvedValue('x'.repeat(2 * 1024 * 1024 + 1));
 
-    const index = await loadAssetHashIndex('/vault');
+    const index = await loadAssetHashIndex('/notesRoot');
 
     expect(index.entries).toEqual({});
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-test/assets.json', 2 * 1024 * 1024);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/app/.vlaina/notes/notes-roots/notes-root-test/assets.json', 2 * 1024 * 1024);
   });
 
   it('does not read hash index files with invalid known stat sizes', async () => {
     mocks.storage.stat.mockResolvedValue({ size: -1 });
     mocks.storage.readFile.mockRejectedValue(new Error('Invalid stat size should not be read'));
 
-    const index = await loadAssetHashIndex('/vault');
+    const index = await loadAssetHashIndex('/notesRoot');
 
     expect(index.entries).toEqual({});
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
@@ -98,7 +98,7 @@ describe('AssetHashIndex', () => {
       },
     }));
 
-    const index = await loadAssetHashIndex('/vault');
+    const index = await loadAssetHashIndex('/notesRoot');
 
     expect(index.entries['image.png']?.hash).toBe('abc');
   });
@@ -119,7 +119,7 @@ describe('AssetHashIndex', () => {
       },
     }));
 
-    const index = await loadAssetHashIndex('/vault');
+    const index = await loadAssetHashIndex('/notesRoot');
 
     expect(index.entries['image.png']?.modifiedAt).toBeNull();
   });
@@ -148,7 +148,7 @@ describe('AssetHashIndex', () => {
       },
     }));
 
-    const index = await loadAssetHashIndex('/vault');
+    const index = await loadAssetHashIndex('/notesRoot');
 
     expect(Object.keys(index.entries)).toEqual(['image.png']);
   });
@@ -168,7 +168,7 @@ describe('AssetHashIndex', () => {
     }));
     mocks.storage.readFile.mockResolvedValue(JSON.stringify({ version: 1, entries }));
 
-    const index = await loadAssetHashIndex('/vault');
+    const index = await loadAssetHashIndex('/notesRoot');
 
     expect(Object.keys(index.entries)).toHaveLength(5000);
     expect(index.entries['image-4999.png']).toBeDefined();
@@ -176,14 +176,14 @@ describe('AssetHashIndex', () => {
   });
 
   it('creates the parent directory before saving', async () => {
-    await saveAssetHashIndex('/vault', {
+    await saveAssetHashIndex('/notesRoot', {
       version: 1,
       entries: {},
     });
 
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/app/.vlaina/notes/vaults/vault-test', true);
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/app/.vlaina/notes/notes-roots/notes-root-test', true);
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-test/assets.json',
+      '/app/.vlaina/notes/notes-roots/notes-root-test/assets.json',
       expect.any(String),
     );
   });

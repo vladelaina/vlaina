@@ -16,10 +16,11 @@ function registerHarness() {
     setMinimumSize: vi.fn(),
     setSize: vi.fn(),
   };
+  const createWindow = vi.fn();
 
   registerWindowIpc({
     closeApprovedWebContents: new Set(),
-    createWindow: vi.fn(),
+    createWindow,
     getWindowLabel: vi.fn(() => 'main'),
     handleIpc: (name: string, handler: (...args: unknown[]) => unknown) => {
       handlers.set(name, handler);
@@ -27,7 +28,7 @@ function registerHarness() {
     resolveTargetWindow: vi.fn(() => window),
   });
 
-  return { handlers, window };
+  return { createWindow, handlers, window };
 }
 
 describe('window ipc', () => {
@@ -61,6 +62,27 @@ describe('window ipc', () => {
 
     expect(window.setSize).toHaveBeenCalledWith(981, 1);
     expect(window.setMinimumSize).toHaveBeenCalledWith(8192, 299);
+  });
+
+  it('passes notes root launch targets to new windows', () => {
+    const { createWindow, handlers } = registerHarness();
+
+    handlers.get('desktop:window:create')?.({}, {
+      notesRootPath: '/notes-root/docs',
+      notePath: 'readme.md',
+      folderPath: 'docs',
+      chatSessionId: '',
+      viewMode: 'notes',
+    });
+
+    expect(createWindow).toHaveBeenCalledWith({
+      newWindow: true,
+      notesRootPath: '/notes-root/docs',
+      notePath: 'readme.md',
+      folderPath: 'docs',
+      chatSessionId: null,
+      viewMode: 'notes',
+    });
   });
 
   it('restores and shows a labeled window before focusing it', () => {

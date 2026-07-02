@@ -15,7 +15,7 @@ const mocked = vi.hoisted(() => ({
 vi.mock('@/hooks/useTitleSync', () => ({
   useDisplayIcon: () => undefined,
   useDisplayName: (path: string | undefined) =>
-    path === '/vault-b/docs/alpha.md' ? 'Live External' : undefined,
+    path === '/notes-root-b/docs/alpha.md' ? 'Live External' : undefined,
 }));
 
 vi.mock('@/components/ui/icons', () => ({
@@ -33,8 +33,8 @@ vi.mock('@/stores/useNotesStore', () => ({
 }));
 
 vi.mock('../IconPicker/NoteIcon', () => ({
-  NoteIcon: ({ icon, vaultPath }: { icon: string; vaultPath?: string }) => (
-    <span data-vault-path={vaultPath}>{icon}</span>
+  NoteIcon: ({ icon, notesRootPath }: { icon: string; notesRootPath?: string }) => (
+    <span data-notes-root-path={notesRootPath}>{icon}</span>
   ),
 }));
 
@@ -102,11 +102,11 @@ describe('ExternalStarredEntryRow', () => {
         entry={{
           id: 'starred-1',
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         }}
-        isCurrentVaultEntry={false}
+        isCurrentNotesRootEntry={false}
         isActive={false}
         onOpen={vi.fn()}
         onRemove={vi.fn()}
@@ -124,18 +124,18 @@ describe('ExternalStarredEntryRow', () => {
         entry={{
           id: 'starred-1',
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         }}
-        isCurrentVaultEntry={false}
+        isCurrentNotesRootEntry={false}
         isActive={false}
         onOpen={vi.fn()}
         onRemove={vi.fn()}
       />,
     );
 
-    expect(getByText('💡').dataset.vaultPath).toBe('/vault-b');
+    expect(getByText('💡').dataset.notesRootPath).toBe('/notes-root-b');
   });
 
   it('offers the same More submenu for starred notes', async () => {
@@ -144,11 +144,11 @@ describe('ExternalStarredEntryRow', () => {
         entry={{
           id: 'starred-1',
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         }}
-        isCurrentVaultEntry={false}
+        isCurrentNotesRootEntry={false}
         isActive={false}
         onOpen={vi.fn()}
         onRemove={vi.fn()}
@@ -184,11 +184,11 @@ describe('ExternalStarredEntryRow', () => {
         entry={{
           id: 'starred-folder',
           kind: 'folder',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs',
           addedAt: 1,
         }}
-        isCurrentVaultEntry={false}
+        isCurrentNotesRootEntry={false}
         isActive={false}
         onOpen={vi.fn()}
         onRemove={vi.fn()}
@@ -214,11 +214,11 @@ describe('ExternalStarredEntryRow', () => {
         entry={{
           id: 'starred-1',
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         }}
-        isCurrentVaultEntry={false}
+        isCurrentNotesRootEntry={false}
         isActive={false}
         onOpen={onOpen}
         onRemove={vi.fn()}
@@ -230,7 +230,7 @@ describe('ExternalStarredEntryRow', () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it('double-clicks to rename a current-vault starred note without opening it first', async () => {
+  it('double-clicks to rename a current-notesRoot starred note without opening it first', async () => {
     vi.useFakeTimers();
     try {
       const onOpen = vi.fn();
@@ -239,11 +239,11 @@ describe('ExternalStarredEntryRow', () => {
           entry={{
             id: 'starred-1',
             kind: 'note',
-            vaultPath: '/vault-b',
+            notesRootPath: '/notes-root-b',
             relativePath: 'docs/alpha.md',
             addedAt: 1,
           }}
-          isCurrentVaultEntry={true}
+          isCurrentNotesRootEntry={true}
           isActive={false}
           onOpen={onOpen}
           onRemove={vi.fn()}

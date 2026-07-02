@@ -48,7 +48,7 @@ vi.mock('../workspacePersistence', () => ({
 function createNotesStore() {
   return createStore<NotesStore>()((set, get, api) => ({
     ...(createWorkspaceSlice(set, get, api) as NotesStore),
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     rootFolder: null,
     recentNotes: [],
     noteContentsCache: new Map(),
@@ -60,7 +60,7 @@ function createNotesStore() {
     pendingStarredNavigation: null,
     noteMetadata: { version: 2, notes: {} },
     noteIconSize: 60,
-    rootFolderPath: '/vault',
+    rootFolderPath: '/notesRoot',
     fileTreeSortMode: 'name-asc',
   } as NotesStore));
 }
@@ -82,14 +82,14 @@ describe('workspaceSlice security guards', () => {
     expect(store.getState().error).toBe('Only Markdown files can be opened as notes.');
   });
 
-  it('does not open absolute markdown paths through the vault-relative note opener', async () => {
+  it('does not open absolute markdown paths through the notes-root-relative note opener', async () => {
     const store = createNotesStore();
 
     await store.getState().openNote('/etc/secret.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
-    expect(store.getState().error).toBe('Path must stay inside the current vault.');
+    expect(store.getState().error).toBe('Path must stay inside the opened folder.');
   });
 
   it('does not open relative markdown paths through the absolute note opener', async () => {
@@ -102,17 +102,17 @@ describe('workspaceSlice security guards', () => {
     expect(store.getState().error).toBe('Selected file path must be absolute');
   });
 
-  it('does not read vault-relative paths that traverse outside the vault', async () => {
+  it('does not read notes-root-relative paths that traverse outside the notesRoot', async () => {
     const store = createNotesStore();
 
     await store.getState().openNote('../secret.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
-    expect(store.getState().error).toBe('Path must stay inside the current vault.');
+    expect(store.getState().error).toBe('Path must stay inside the opened folder.');
   });
 
-  it('does not open hidden app or git paths through the vault-relative note opener', async () => {
+  it('does not open hidden app or git paths through the notes-root-relative note opener', async () => {
     const store = createNotesStore();
 
     await store.getState().openNote('.vlaina/workspace.md');
@@ -143,25 +143,25 @@ describe('workspaceSlice security guards', () => {
   it('does not open hidden app or git paths through the absolute note opener', async () => {
     const store = createNotesStore();
 
-    await store.getState().openNoteByAbsolutePath('/vault/.vlaina/workspace.md');
+    await store.getState().openNoteByAbsolutePath('/notesRoot/.vlaina/workspace.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
 
-    await store.getState().openNoteByAbsolutePath('/vault/docs/.git/config.md');
+    await store.getState().openNoteByAbsolutePath('/notesRoot/docs/.git/config.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
 
-    await store.getState().openNoteByAbsolutePath('/vault/.VLAINA/workspace.md');
+    await store.getState().openNoteByAbsolutePath('/notesRoot/.VLAINA/workspace.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
 
-    await store.getState().openNoteByAbsolutePath('/vault/docs/.GIT/config.md');
+    await store.getState().openNoteByAbsolutePath('/notesRoot/docs/.GIT/config.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
@@ -171,13 +171,13 @@ describe('workspaceSlice security guards', () => {
   it('does not open absolute markdown paths with unsafe path characters', async () => {
     const store = createNotesStore();
 
-    await store.getState().openNoteByAbsolutePath('/vault/docs/secret\u202Egnp.md');
+    await store.getState().openNoteByAbsolutePath('/notesRoot/docs/secret\u202Egnp.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().error).toBe('Selected file path contains unsupported characters');
 
-    await store.getState().openNoteByAbsolutePath('/vault/docs/secret\u001F.md');
+    await store.getState().openNoteByAbsolutePath('/notesRoot/docs/secret\u001F.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
@@ -189,24 +189,24 @@ describe('workspaceSlice security guards', () => {
     storageAdapter.readFile.mockResolvedValue('# Alpha');
     const store = createNotesStore();
 
-    await store.getState().openNoteByAbsolutePath('C:\\vault\\docs\\alpha.md');
+    await store.getState().openNoteByAbsolutePath('C:\\notesRoot\\docs\\alpha.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('C:\\vault\\docs\\alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('C:\\notesRoot\\docs\\alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({
-      path: 'C:\\vault\\docs\\alpha.md',
+      path: 'C:\\notesRoot\\docs\\alpha.md',
       content: '# Alpha',
     });
     expect(store.getState().error).toBeNull();
   });
 
-  it('opens user dot-folder markdown through the vault-relative note opener', async () => {
+  it('opens user dot-folder markdown through the notes-root-relative note opener', async () => {
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 8 });
     storageAdapter.readFile.mockResolvedValue('# Alpha');
     const store = createNotesStore();
 
     await store.getState().openNote('.notes/alpha.md');
 
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/.notes/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(store.getState().currentNote).toEqual({
       path: '.notes/alpha.md',
       content: '# Alpha',
@@ -230,7 +230,7 @@ describe('workspaceSlice security guards', () => {
 
       await store.getState().openNote(path);
 
-      expect(storageAdapter.readFile).toHaveBeenCalledWith(`/vault/${path}`, MAX_NOTE_DOCUMENT_BYTES);
+      expect(storageAdapter.readFile).toHaveBeenCalledWith(`/notesRoot/${path}`, MAX_NOTE_DOCUMENT_BYTES);
       expect(store.getState().currentNote).toEqual({
         path,
         content: `# ${path}`,
@@ -239,10 +239,10 @@ describe('workspaceSlice security guards', () => {
     }
 
     const absolutePaths = [
-      '/vault/docs/alpha.md',
-      '/vault/docs/beta.markdown',
-      '/vault/docs/gamma.mdown',
-      '/vault/docs/delta.mkd',
+      '/notesRoot/docs/alpha.md',
+      '/notesRoot/docs/beta.markdown',
+      '/notesRoot/docs/gamma.mdown',
+      '/notesRoot/docs/delta.mkd',
     ];
 
     for (const path of absolutePaths) {
@@ -262,8 +262,8 @@ describe('workspaceSlice security guards', () => {
     }
   });
 
-  it('does not adopt absolute notes into invalid vault-relative paths', () => {
-    const absolutePath = '/vault/docs/alpha.md';
+  it('does not adopt absolute notes into invalid notes-root-relative paths', () => {
+    const absolutePath = '/notesRoot/docs/alpha.md';
     const store = createNotesStore();
     store.setState({
       currentNote: { path: absolutePath, content: '# Alpha' },
@@ -279,7 +279,7 @@ describe('workspaceSlice security guards', () => {
       'docs/image.png',
       'docs/secret\u202Egnp.md',
     ]) {
-      expect(store.getState().adoptAbsoluteNoteIntoVault(absolutePath, nextPath)).toBe(false);
+      expect(store.getState().adoptAbsoluteNoteIntoNotesRoot(absolutePath, nextPath)).toBe(false);
     }
 
     expect(store.getState().currentNote).toEqual({ path: absolutePath, content: '# Alpha' });
@@ -289,8 +289,8 @@ describe('workspaceSlice security guards', () => {
     expect(store.getState().displayNames.get(absolutePath)).toBe('Alpha');
   });
 
-  it('adopts absolute notes into normalized vault-relative markdown paths', () => {
-    const absolutePath = '/vault/docs/alpha.markdown';
+  it('adopts absolute notes into normalized notes-root-relative markdown paths', () => {
+    const absolutePath = '/notesRoot/docs/alpha.markdown';
     const store = createNotesStore();
     store.setState({
       currentNote: { path: absolutePath, content: '# Alpha' },
@@ -301,7 +301,7 @@ describe('workspaceSlice security guards', () => {
       displayNames: new Map([[absolutePath, 'Alpha']]),
     });
 
-    expect(store.getState().adoptAbsoluteNoteIntoVault(absolutePath, 'docs\\alpha.markdown')).toBe(true);
+    expect(store.getState().adoptAbsoluteNoteIntoNotesRoot(absolutePath, 'docs\\alpha.markdown')).toBe(true);
 
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.markdown', content: '# Alpha' });
     expect(store.getState().openTabs).toEqual([{ path: 'docs/alpha.markdown', name: 'alpha', isDirty: false }]);

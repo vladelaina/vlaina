@@ -297,7 +297,7 @@ describe('attachmentStorage', () => {
   it('does not delete attachment paths outside the managed attachments directory', async () => {
     await deleteAttachment({
       id: 'a',
-      path: '/vault/images/file.png',
+      path: '/notesRoot/images/file.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'file.png',
@@ -508,17 +508,17 @@ describe('attachmentStorage', () => {
   it('reads explicitly allowed attachment paths when preview data is not inline', async () => {
     await expect(convertToBase64({
       id: 'a',
-      path: '/vault/assets/file.png',
+      path: '/notesRoot/assets/file.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'file.png',
       type: 'image/png',
       size: 2,
     }, {
-      allowPath: (path) => path.startsWith('/vault/'),
+      allowPath: (path) => path.startsWith('/notesRoot/'),
     })).resolves.toBe('data:image/png;base64,SEk=');
 
-    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/vault/assets/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/notesRoot/assets/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
   });
 
   it('does not read untrusted attachment paths when converting to base64', async () => {
@@ -542,14 +542,14 @@ describe('attachmentStorage', () => {
 
     await expect(convertToBase64({
       id: 'a',
-      path: '/vault/assets/huge.png',
+      path: '/notesRoot/assets/huge.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'huge.png',
       type: 'image/png',
       size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
     }, {
-      allowPath: (path) => path.startsWith('/vault/'),
+      allowPath: (path) => path.startsWith('/notesRoot/'),
     })).rejects.toThrow('Cannot convert attachment to Base64');
   });
 
@@ -560,17 +560,17 @@ describe('attachmentStorage', () => {
 
     await expect(convertToBase64({
       id: 'a',
-      path: '/vault/assets/huge.png',
+      path: '/notesRoot/assets/huge.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'huge.png',
       type: 'image/png',
       size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
     }, {
-      allowPath: (path) => path.startsWith('/vault/'),
+      allowPath: (path) => path.startsWith('/notesRoot/'),
     })).rejects.toThrow('Cannot convert attachment to Base64');
 
-    expect(mocks.adapter.stat).toHaveBeenCalledWith('/vault/assets/huge.png');
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/notesRoot/assets/huge.png');
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
@@ -581,42 +581,42 @@ describe('attachmentStorage', () => {
 
     await expect(convertToBase64({
       id: 'a',
-      path: '/vault/assets/invalid.png',
+      path: '/notesRoot/assets/invalid.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'invalid.png',
       type: 'image/png',
       size: 2,
     }, {
-      allowPath: (path) => path.startsWith('/vault/'),
+      allowPath: (path) => path.startsWith('/notesRoot/'),
     })).rejects.toThrow('Cannot convert attachment to Base64');
 
-    expect(mocks.adapter.stat).toHaveBeenCalledWith('/vault/assets/invalid.png');
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/notesRoot/assets/invalid.png');
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('reads allowed attachment paths when stat has no size but bounded read succeeds', async () => {
     mocks.adapter.stat.mockResolvedValueOnce({
       name: 'file.png',
-      path: '/vault/assets/file.png',
+      path: '/notesRoot/assets/file.png',
       isDirectory: false,
       isFile: true,
     });
 
     await expect(convertToBase64({
       id: 'a',
-      path: '/vault/assets/file.png',
+      path: '/notesRoot/assets/file.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
       name: 'file.png',
       type: 'image/png',
       size: 2,
     }, {
-      allowPath: (path) => path.startsWith('/vault/'),
+      allowPath: (path) => path.startsWith('/notesRoot/'),
     })).resolves.toBe('data:image/png;base64,SEk=');
 
-    expect(mocks.adapter.stat).toHaveBeenCalledWith('/vault/assets/file.png');
-    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/vault/assets/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/notesRoot/assets/file.png');
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/notesRoot/assets/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
   });
 
   it('rejects oversized stored attachment URLs before reading them when stat has a size', async () => {

@@ -23,7 +23,7 @@ export const UI_FONT_SIZE_MAX = 28;
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
-const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'vlaina_image_vault_subfolder_name';
+const STORAGE_KEY_IMAGE_NOTES_ROOT_SUBFOLDER_NAME = 'vlaina_image_notesRoot_subfolder_name';
 const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'vlaina_image_filename_format';
 const STORAGE_KEY_LANGUAGE_PREFERENCE = 'vlaina-language-preference';
 const STORAGE_KEY_LAST_APP_VIEW_MODE = 'vlaina_last_app_view_mode';
@@ -32,10 +32,10 @@ const MAX_IMAGE_SUBFOLDER_NAME_CHARS = 128;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F-\u009F\u200E\u200F\u202A-\u202E\u2066-\u2069]/;
 const UI_DECIMAL_STORAGE_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 
-export type AppViewMode = 'notes' | 'chat' | 'lab';
+export type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
 
-export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 'subfolder';
+export type ImageStorageMode = 'notesRoot' | 'notesRootSubfolder' | 'currentFolder' | 'subfolder';
 
 export type ImageFilenameFormat = 'original' | 'timestamp' | 'sequence';
 
@@ -128,8 +128,8 @@ interface UIStore {
   imageSubfolderName: string;
   setImageStorageMode: (mode: ImageStorageMode) => void;
   setImageSubfolderName: (name: string) => void;
-  imageVaultSubfolderName: string;
-  setImageVaultSubfolderName: (name: string) => void;
+  imageNotesRootSubfolderName: string;
+  setImageNotesRootSubfolderName: (name: string) => void;
   imageFilenameFormat: ImageFilenameFormat;
   setImageFilenameFormat: (format: ImageFilenameFormat) => void;
 
@@ -155,7 +155,7 @@ type UIPreferenceState = Pick<
   | 'languagePreference'
   | 'imageStorageMode'
   | 'imageSubfolderName'
-  | 'imageVaultSubfolderName'
+  | 'imageNotesRootSubfolderName'
   | 'imageFilenameFormat'
   | 'notesChatPanelCollapsed'
   | 'notesChatFloatingSize'
@@ -244,7 +244,7 @@ function getStoredPreferenceString(key: string): string | null {
 function loadImageStorageMode(): ImageStorageMode {
   try {
     const saved = loadScalarString(STORAGE_KEY_IMAGE_STORAGE_MODE);
-    if (saved === 'vault' || saved === 'vaultSubfolder' || saved === 'currentFolder' || saved === 'subfolder') {
+    if (saved === 'notesRoot' || saved === 'notesRootSubfolder' || saved === 'currentFolder' || saved === 'subfolder') {
       return saved;
     }
   } catch {
@@ -273,9 +273,9 @@ function loadImageSubfolderName(): string {
   return 'assets';
 }
 
-function loadImageVaultSubfolderName(): string {
+function loadImageNotesRootSubfolderName(): string {
   try {
-    return sanitizeImageSubfolderPreference(loadScalarString(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME)) || 'assets';
+    return sanitizeImageSubfolderPreference(loadScalarString(STORAGE_KEY_IMAGE_NOTES_ROOT_SUBFOLDER_NAME)) || 'assets';
   } catch {
   }
   return 'assets';
@@ -367,14 +367,14 @@ function loadLanguagePreference(): AppLanguagePreference {
 
 function getInitialAppViewMode(): AppViewMode {
   const launchViewMode = readWindowLaunchContext().viewMode;
-  if (!import.meta.env.DEV && launchViewMode === 'lab') {
+  if (!import.meta.env.DEV && (launchViewMode === 'lab' || launchViewMode === 'whiteboard')) {
     return 'notes';
   }
   return launchViewMode ?? loadLastAppViewMode();
 }
 
 function normalizeAppViewMode(mode: AppViewMode): AppViewMode {
-  if (!import.meta.env.DEV && mode === 'lab') {
+  if (!import.meta.env.DEV && (mode === 'lab' || mode === 'whiteboard')) {
     return 'notes';
   }
   return mode;
@@ -393,7 +393,7 @@ function loadUIPreferencesFromStorage(): UIPreferenceState {
     languagePreference: loadLanguagePreference(),
     imageStorageMode: loadImageStorageMode(),
     imageSubfolderName: loadImageSubfolderName(),
-    imageVaultSubfolderName: loadImageVaultSubfolderName(),
+    imageNotesRootSubfolderName: loadImageNotesRootSubfolderName(),
     imageFilenameFormat: loadImageFilenameFormat(),
     notesChatPanelCollapsed: loadNotesChatPanelCollapsed(),
     notesChatFloatingSize: loadNotesChatFloatingSize(),
@@ -413,7 +413,7 @@ export const useUIStore = create<UIStore>()((set) => ({
     return { appViewMode: next };
   }),
   restoreLastAppViewMode: (mode) => set((state) => {
-    if (state.appViewMode === 'lab') return {};
+    if (state.appViewMode === 'lab' || state.appViewMode === 'whiteboard') return {};
     if (state.appViewMode === mode) return {};
     saveString(STORAGE_KEY_LAST_APP_VIEW_MODE, mode);
     return { appViewMode: mode };
@@ -523,10 +523,10 @@ export const useUIStore = create<UIStore>()((set) => ({
     savePreferenceString(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
     set({ imageSubfolderName: sanitized });
   },
-  setImageVaultSubfolderName: (name) => {
+  setImageNotesRootSubfolderName: (name) => {
     const sanitized = sanitizeImageSubfolderPreference(name) ?? 'assets';
-    savePreferenceString(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME, sanitized);
-    set({ imageVaultSubfolderName: sanitized });
+    savePreferenceString(STORAGE_KEY_IMAGE_NOTES_ROOT_SUBFOLDER_NAME, sanitized);
+    set({ imageNotesRootSubfolderName: sanitized });
   },
   setImageFilenameFormat: (format) => {
     savePreferenceString(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);

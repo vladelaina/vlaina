@@ -41,13 +41,13 @@ describe('notes metadata cache validation', () => {
         '# Alpha',
       ].join('\n'));
 
-    await expect(loadNoteMetadata('/vault-no-mtime-cache')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-no-mtime-cache')).resolves.toEqual({
       version: 2,
       notes: {
         'alpha.md': { icon: '💡' },
       },
     });
-    await expect(loadNoteMetadata('/vault-no-mtime-cache')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-no-mtime-cache')).resolves.toEqual({
       version: 2,
       notes: {
         'alpha.md': { icon: '📘' },

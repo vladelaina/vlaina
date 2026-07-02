@@ -23,7 +23,7 @@ vi.mock('@/stores/useNotesStore', () => ({
 }));
 
 vi.mock('@/stores/notes/storage', () => ({
-  getCurrentVaultPath: () => '/active-vault',
+  getCurrentNotesRootPath: () => '/active-notesRoot',
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -41,7 +41,7 @@ describe('useNoteCoverController', () => {
     clearNoteCoverSnapshotCacheForTests();
 
     hoisted.storeRef.state = {
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       noteMetadata: { notes: {} },
       currentNote: null,
       setNoteCover: hoisted.setNoteCover,
@@ -68,7 +68,7 @@ describe('useNoteCoverController', () => {
       height: 222,
       scale: 1.6,
     });
-    expect(result.current.vaultPath).toBe('/vault');
+    expect(result.current.notesRootPath).toBe('/notesRoot');
     expect(result.current.currentNotePath).toBe('a.md');
 
     act(() => {
@@ -216,11 +216,11 @@ describe('useNoteCoverController', () => {
     expect(third).toBe(first);
   });
 
-  it('does not reuse a temporarily missing cover cache across vaults for the same note path', () => {
-    hoisted.storeRef.state.notesPath = '/vault-a';
+  it('does not reuse a temporarily missing cover cache across notes-roots for the same note path', () => {
+    hoisted.storeRef.state.notesPath = '/notes-root-a';
     hoisted.storeRef.state.noteMetadata.notes['covered.md'] = {
       cover: {
-        assetPath: 'assets/vault-a.png',
+        assetPath: 'assets/notes-root-a.png',
         positionX: 30,
         positionY: 40,
         height: 260,
@@ -229,9 +229,9 @@ describe('useNoteCoverController', () => {
     };
 
     const { result, rerender } = renderHook(() => useNoteCoverController('covered.md'));
-    expect(result.current.cover.url).toBe('assets/vault-a.png');
+    expect(result.current.cover.url).toBe('assets/notes-root-a.png');
 
-    hoisted.storeRef.state.notesPath = '/vault-b';
+    hoisted.storeRef.state.notesPath = '/notes-root-b';
     hoisted.storeRef.state.noteMetadata = { notes: {} };
     rerender();
 
@@ -330,12 +330,12 @@ describe('useNoteCoverController', () => {
     });
   });
 
-  it('falls back to the active vault while notesPath is temporarily empty', () => {
+  it('falls back to the active notesRoot while notesPath is temporarily empty', () => {
     hoisted.storeRef.state.notesPath = '';
 
     const { result } = renderHook(() => useNoteCoverController('empty.md'));
 
-    expect(result.current.vaultPath).toBe('/active-vault');
+    expect(result.current.notesRootPath).toBe('/active-notesRoot');
   });
 
   it('opens picker without assigning a cover', () => {

@@ -18,8 +18,8 @@ const mocked = vi.hoisted(() => ({
     starredLoaded: true,
     hasEntries: false,
     entries: [] as Array<{
-      entry: { id: string; kind: 'note' | 'folder'; relativePath: string; vaultPath: string; addedAt: number };
-      isCurrentVaultEntry: boolean;
+      entry: { id: string; kind: 'note' | 'folder'; relativePath: string; notesRootPath: string; addedAt: number };
+      isCurrentNotesRootEntry: boolean;
       isActive: boolean;
       treeNode: { id: string; name: string; path: string; isFolder: boolean; children?: unknown[]; expanded?: boolean } | null;
       onOpen: () => void;
@@ -159,17 +159,17 @@ describe('StarredSection', () => {
     expect(mocked.requestFileTreePointerDragDropTargetUpdate).not.toHaveBeenCalled();
   });
 
-  it('renders current-vault starred files with the starred row instead of a file tree row', async () => {
+  it('renders current-notesRoot starred files with the starred row instead of a file tree row', async () => {
     mocked.starredState.hasEntries = true;
     mocked.starredState.entries = [{
       entry: {
         id: 'starred-file',
         kind: 'note',
         relativePath: 'docs/alpha.md',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         addedAt: 1,
       },
-      isCurrentVaultEntry: true,
+      isCurrentNotesRootEntry: true,
       isActive: false,
       treeNode: {
         id: 'file-alpha',
@@ -186,22 +186,22 @@ describe('StarredSection', () => {
     await waitFor(() => expect(mocked.externalStarredEntryRowProps.length).toBeGreaterThan(0));
     expect(mocked.fileItemProps).toEqual([]);
     expect(mocked.externalStarredEntryRowProps[0]).toEqual(expect.objectContaining({
-      isCurrentVaultEntry: true,
+      isCurrentNotesRootEntry: true,
       isActive: false,
     }));
   });
 
-  it('renders current-vault starred folders with the normal folder row menu action', async () => {
+  it('renders current-notesRoot starred folders with the normal folder row menu action', async () => {
     mocked.starredState.hasEntries = true;
     mocked.starredState.entries = [{
       entry: {
         id: 'starred-folder',
         kind: 'folder',
         relativePath: 'docs',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         addedAt: 1,
       },
-      isCurrentVaultEntry: true,
+      isCurrentNotesRootEntry: true,
       isActive: false,
       treeNode: {
         id: 'folder-docs',

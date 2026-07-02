@@ -4,9 +4,9 @@ export {
   createStarredEntryIfValid,
   dedupeStarredEntries,
   getStarredEntryKey,
-  getVaultStarredPaths,
+  getNotesRootStarredPaths,
   normalizeStarredEntry,
-  remapStarredEntriesForVault,
+  remapStarredEntriesForNotesRoot,
   type StarredRegistry,
 } from './registry';
 export {
@@ -19,17 +19,17 @@ export {
   type StarredNoteContext,
 } from './entryPaths';
 export {
-  getStarredVaultPathComparisonKey,
-  isPathInsideStarredVault,
-  isSameStarredVaultPath,
-  isValidStarredVaultPath,
+  getStarredNotesRootPathComparisonKey,
+  isPathInsideStarredNotesRoot,
+  isSameStarredNotesRootPath,
+  isValidStarredNotesRootPath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
-  resolveStarredRelativePathForVault,
+  normalizeStarredNotesRootPath,
+  resolveStarredRelativePathForNotesRoot,
 } from './pathUtils';
 export { flushStarredRegistry, loadStarredRegistry, saveStarredRegistry } from './persistence';
 export {
-  loadStarredForVault,
+  loadStarredForNotesRoot,
   removeStarredEntryById,
   toggleStarredEntry,
 } from './store';

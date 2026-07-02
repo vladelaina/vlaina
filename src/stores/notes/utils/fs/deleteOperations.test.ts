@@ -56,14 +56,14 @@ describe('deleteOperations', () => {
       id: 'delete-1',
       kind: 'file',
       originalPath: 'docs/remove.md',
-      originalFullPath: '/vault/docs/remove.md',
-      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/remove.md',
+      originalFullPath: '/notesRoot/docs/remove.md',
+      stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/remove.md',
       deletedAt: 1,
     });
   });
 
   it('moves deleted notes through the pending trash helper', async () => {
-    await deleteNoteImpl('/vault', 'docs/remove.md', {
+    await deleteNoteImpl('/notesRoot', 'docs/remove.md', {
       rootFolder: createFolder('', [createFolder('docs', [createFile('docs/remove.md')])]),
       currentNote: null,
       openTabs: [],
@@ -71,35 +71,35 @@ describe('deleteOperations', () => {
       noteMetadata: null,
     });
 
-    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs/remove.md');
+    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/notesRoot/docs/remove.md');
     expect(hoisted.deleteNoteItemToPendingTrash).toHaveBeenCalledWith(
-      '/vault',
+      '/notesRoot',
       'docs/remove.md',
       'file'
     );
   });
 
-  it('rejects note delete paths that escape the vault', async () => {
-    await expect(deleteNoteImpl('/vault', '../secret.md', {
+  it('rejects note delete paths that escape the notesRoot', async () => {
+    await expect(deleteNoteImpl('/notesRoot', '../secret.md', {
       rootFolder: null,
       currentNote: null,
       openTabs: [],
       starredEntries: [],
       noteMetadata: null,
-    })).rejects.toThrow('Path must stay inside the current vault.');
+    })).rejects.toThrow('Path must stay inside the opened folder.');
 
     expect(hoisted.deleteNoteItemToPendingTrash).not.toHaveBeenCalled();
   });
 
   it('rejects note delete paths inside internal folders', async () => {
-    await expect(deleteNoteImpl('/vault', 'docs/.git/config.md', {
+    await expect(deleteNoteImpl('/notesRoot', 'docs/.git/config.md', {
       rootFolder: null,
       currentNote: null,
       openTabs: [],
       starredEntries: [],
       noteMetadata: null,
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
-    await expect(deleteNoteImpl('/vault', 'docs/.GIT/config.md', {
+    await expect(deleteNoteImpl('/notesRoot', 'docs/.GIT/config.md', {
       rootFolder: null,
       currentNote: null,
       openTabs: [],
@@ -112,7 +112,7 @@ describe('deleteOperations', () => {
   });
 
   it('does not auto-open an adjacent file when deleting the current note with no remaining tabs', async () => {
-    const result = await deleteNoteImpl('/vault', 'docs/remove.md', {
+    const result = await deleteNoteImpl('/notesRoot', 'docs/remove.md', {
       rootFolder: createFolder('', [
         createFolder('docs', [
           createFile('docs/remove.md'),
@@ -130,7 +130,7 @@ describe('deleteOperations', () => {
   });
 
   it('opens the remaining tab after deleting the current note', async () => {
-    const result = await deleteNoteImpl('/vault', 'docs/remove.md', {
+    const result = await deleteNoteImpl('/notesRoot', 'docs/remove.md', {
       rootFolder: createFolder('', [
         createFolder('docs', [
           createFile('docs/remove.md'),
@@ -150,7 +150,7 @@ describe('deleteOperations', () => {
   });
 
   it('moves deleted folders through the pending trash helper', async () => {
-    await deleteFolderImpl('/vault', 'docs', {
+    await deleteFolderImpl('/notesRoot', 'docs', {
       rootFolder: createFolder('', [createFolder('docs', [createFile('docs/remove.md')])]),
       currentNote: null,
       openTabs: [],
@@ -158,35 +158,35 @@ describe('deleteOperations', () => {
       noteMetadata: null,
     });
 
-    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs', true);
+    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/notesRoot/docs', true);
     expect(hoisted.deleteNoteItemToPendingTrash).toHaveBeenCalledWith(
-      '/vault',
+      '/notesRoot',
       'docs',
       'folder'
     );
   });
 
-  it('rejects folder delete paths that escape the vault', async () => {
-    await expect(deleteFolderImpl('/vault', '../docs', {
+  it('rejects folder delete paths that escape the notesRoot', async () => {
+    await expect(deleteFolderImpl('/notesRoot', '../docs', {
       rootFolder: null,
       currentNote: null,
       openTabs: [],
       starredEntries: [],
       noteMetadata: null,
-    })).rejects.toThrow('Path must stay inside the current vault.');
+    })).rejects.toThrow('Path must stay inside the opened folder.');
 
     expect(hoisted.deleteNoteItemToPendingTrash).not.toHaveBeenCalled();
   });
 
   it('rejects folder delete paths inside internal folders', async () => {
-    await expect(deleteFolderImpl('/vault', '.vlaina', {
+    await expect(deleteFolderImpl('/notesRoot', '.vlaina', {
       rootFolder: null,
       currentNote: null,
       openTabs: [],
       starredEntries: [],
       noteMetadata: null,
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
-    await expect(deleteFolderImpl('/vault', '.VLAINA', {
+    await expect(deleteFolderImpl('/notesRoot', '.VLAINA', {
       rootFolder: null,
       currentNote: null,
       openTabs: [],
@@ -203,12 +203,12 @@ describe('deleteOperations', () => {
       id: 'delete-1',
       kind: 'folder',
       originalPath: 'docs',
-      originalFullPath: '/vault/docs',
-      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
+      originalFullPath: '/notesRoot/docs',
+      stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/docs',
       deletedAt: 1,
     });
 
-    const result = await deleteFolderImpl('/vault', 'docs', {
+    const result = await deleteFolderImpl('/notesRoot', 'docs', {
       rootFolder: createFolder('', [
         createFolder('docs', [createFile('docs/remove.md')]),
         createFile('Untitled.md'),

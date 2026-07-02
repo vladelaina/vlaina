@@ -56,26 +56,26 @@ export function resolveDraftSaveLocation(
 ): { absolutePath: string; relativePath: string | null } {
   const normalizedSelectedPath = normalizeAbsolutePath(normalizePath(selectedPath, true)).replace(/\\/g, '/');
   const normalizedNotesPath = normalizeAbsolutePath(normalizePath(notesPath, true)).replace(/\\/g, '/');
-  const normalizedVaultRoot = normalizedNotesPath === '/'
+  const normalizedNotesRootRoot = normalizedNotesPath === '/'
     ? '/'
     : normalizedNotesPath.replace(/\/+$/, '');
   const selectedPathKey = getDraftSavePathComparisonKey(normalizedSelectedPath);
-  const vaultRootKey = getDraftSavePathComparisonKey(normalizedVaultRoot);
-  const vaultPrefixKey = vaultRootKey === '/' ? '/' : `${vaultRootKey}/`;
+  const notesRootRootKey = getDraftSavePathComparisonKey(normalizedNotesRootRoot);
+  const notesRootPrefixKey = notesRootRootKey === '/' ? '/' : `${notesRootRootKey}/`;
 
   if (
-    vaultRootKey &&
-    selectedPathKey !== vaultRootKey &&
-    selectedPathKey.startsWith(vaultPrefixKey)
+    notesRootRootKey &&
+    selectedPathKey !== notesRootRootKey &&
+    selectedPathKey.startsWith(notesRootPrefixKey)
   ) {
-    const vaultRelativePath = normalizedSelectedPath.slice(vaultRootKey === '/' ? 1 : normalizedVaultRoot.length + 1);
-    if (hasInternalNotePathSegment(vaultRelativePath)) {
+    const notesRootRelativePath = normalizedSelectedPath.slice(notesRootRootKey === '/' ? 1 : normalizedNotesRootRoot.length + 1);
+    if (hasInternalNotePathSegment(notesRootRelativePath)) {
       throw new Error('Path must not be inside an internal notes folder.');
     }
 
     return {
       absolutePath: selectedPath,
-      relativePath: vaultRelativePath,
+      relativePath: notesRootRelativePath,
     };
   }
 

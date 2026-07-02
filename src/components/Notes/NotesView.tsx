@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
   NOTES_CHAT_FLOATING_DEFAULT_SIZE,
@@ -17,8 +17,8 @@ import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { useNotesViewShortcuts } from './hooks/useNotesViewShortcuts';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
-import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
-import { useCurrentVaultInitialization } from './hooks/useCurrentVaultInitialization';
+import { useCurrentNotesRootExternalPathSync } from './hooks/useCurrentNotesRootExternalPathSync';
+import { useCurrentNotesRootInitialization } from './hooks/useCurrentNotesRootInitialization';
 import { useNotesChatComposerFocus } from './hooks/useNotesChatComposerFocus';
 import { useAbsoluteNoteExternalRenameSync } from './hooks/useAbsoluteNoteExternalRenameSync';
 import { useNotesExternalSync } from './hooks/useNotesExternalSync';
@@ -147,7 +147,7 @@ export function NotesView({
     }, [currentNotePath])
   );
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
-  const adoptAbsoluteNoteIntoVault = useNotesStore(s => s.adoptAbsoluteNoteIntoVault);
+  const adoptAbsoluteNoteIntoNotesRoot = useNotesStore(s => s.adoptAbsoluteNoteIntoNotesRoot);
   const pendingDraftDiscardPath = useNotesStore(s => s.pendingDraftDiscardPath);
   const cancelPendingDraftDiscard = useNotesStore(s => s.cancelPendingDraftDiscard);
   const confirmPendingDraftDiscard = useNotesStore(s => s.confirmPendingDraftDiscard);
@@ -166,9 +166,9 @@ export function NotesView({
     }, [currentNotePath, openTabs])
   );
 
-  const currentVault = useVaultStore((state) => state.currentVault);
-  const openVault = useVaultStore((state) => state.openVault);
-  const vaultStoreHasInitialized = useVaultStore((state) => state.hasInitialized);
+  const currentNotesRoot = useNotesRootStore((state) => state.currentNotesRoot);
+  const openNotesRoot = useNotesRootStore((state) => state.openNotesRoot);
+  const notesRootStoreHasInitialized = useNotesRootStore((state) => state.hasInitialized);
   const chatPanelCollapsed = useUIStore((s) => s.notesChatPanelCollapsed);
   const setChatPanelCollapsed = useUIStore((s) => s.setNotesChatPanelCollapsed);
   const chatFloatingOpen = useUIStore((s) => s.notesChatFloatingOpen);
@@ -180,7 +180,7 @@ export function NotesView({
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
-  const [isVaultInitializing, setIsVaultInitializing] = useState(false);
+  const [isNotesRootInitializing, setIsNotesRootInitializing] = useState(false);
   const [isEmbeddedChatViewReady, setIsEmbeddedChatViewReady] = useState(embeddedChatViewModuleReady);
   const launchContextRef = useRef(readWindowLaunchContext());
   const notesViewRef = useRef<HTMLDivElement>(null);
@@ -191,15 +191,15 @@ export function NotesView({
   const hasPresentedNoteRef = useRef(false);
   const previousActiveRef = useRef(active);
   const lastPresentedNotesErrorRef = useRef<string | null>(null);
-  const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
-  const vaultInitializingRef = useRef(false);
+  const autoCreateNotesRootPathRef = useRef<string | null>(currentNotesRoot?.path ?? null);
+  const notesRootInitializingRef = useRef(false);
   const consumedPendingStarredNavigationKeyRef = useRef<string | null>(null);
   const [canLoadMarkdownEditor, setCanLoadMarkdownEditor] = useState(() => active);
   const [primaryContentReadyPath, setPrimaryContentReadyPath] = useState<string | null>(null);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
-  const handleVaultInitializingChange = useCallback((initializing: boolean) => {
-    vaultInitializingRef.current = initializing;
-    setIsVaultInitializing(initializing);
+  const handleNotesRootInitializingChange = useCallback((initializing: boolean) => {
+    notesRootInitializingRef.current = initializing;
+    setIsNotesRootInitializing(initializing);
   }, []);
   const closeFloatingChat = useCallback(() => {
     setChatFloatingOpen(false);
@@ -295,7 +295,7 @@ export function NotesView({
 
   useEffect(() => {
     onStartupReady?.();
-  }, [currentNotePath, currentVault, isLoading, onStartupReady, openTabs.length]);
+  }, [currentNotePath, currentNotesRoot, isLoading, onStartupReady, openTabs.length]);
 
   useEffect(() => {
     if (!active) {
@@ -389,18 +389,18 @@ export function NotesView({
   const {
     isOpenTargetBusy,
     openMarkdownTarget,
-    pendingOpenMarkdownTargetVaultPath,
+    pendingOpenMarkdownTargetNotesRootPath,
   } = useNotesOpenMarkdownTarget({
     active,
-    currentVaultPath: currentVault?.path ?? null,
+    currentNotesRootPath: currentNotesRoot?.path ?? null,
     notesPath,
     currentNotePath,
     isDirty,
     saveNote,
     openNote,
     openNoteByAbsolutePath,
-    adoptAbsoluteNoteIntoVault,
-    openVault,
+    adoptAbsoluteNoteIntoNotesRoot,
+    openNotesRoot,
   });
 
   useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
@@ -439,29 +439,29 @@ export function NotesView({
     addToast(normalizeUserFacingErrorMessage(notesError), 'error', themeUiFeedbackTokens.errorToastDurationMs);
   }, [active, addToast, notesError]);
 
-  const activeVaultPath = active ? currentVault?.path ?? null : null;
-  useCurrentVaultExternalPathSync(activeVaultPath);
-  useNotesExternalSync(activeVaultPath, active ? notesPath : '');
+  const activeNotesRootPath = active ? currentNotesRoot?.path ?? null : null;
+  useCurrentNotesRootExternalPathSync(activeNotesRootPath);
+  useNotesExternalSync(activeNotesRootPath, active ? notesPath : '');
   useAbsoluteNoteExternalRenameSync(active ? currentNotePath : undefined);
-  useCurrentVaultInitialization({
-    currentVaultPath: currentVault?.path ?? null,
+  useCurrentNotesRootInitialization({
+    currentNotesRootPath: currentNotesRoot?.path ?? null,
     launchNotePath: launchContextRef.current.notePath,
     pendingStarredNavigation,
-    pendingOpenMarkdownTargetVaultPath,
+    pendingOpenMarkdownTargetNotesRootPath,
     loadStarred,
     loadFileTree,
     cleanupAssetTempFiles,
     clearAssetUrlCache,
     clearRemoteImageMemoryCache,
     cancelNoteContentScan,
-    onInitializingChange: handleVaultInitializingChange,
+    onInitializingChange: handleNotesRootInitializingChange,
   });
 
   useEffect(() => {
     if (hasHandledLaunchNoteRef.current) return;
 
     const { folderPath: launchFolderPath, notePath: launchNotePath } = launchContextRef.current;
-    if ((!launchFolderPath && !launchNotePath) || !currentVault || notesPath !== currentVault.path) return;
+    if ((!launchFolderPath && !launchNotePath) || !currentNotesRoot || notesPath !== currentNotesRoot.path) return;
 
     hasHandledLaunchNoteRef.current = true;
     if (launchFolderPath) {
@@ -477,14 +477,14 @@ export function NotesView({
     })
       .catch((_error) => {
       });
-  }, [currentVault, focusSidebarPath, notesPath, openNote, openNoteByAbsolutePath]);
+  }, [currentNotesRoot, focusSidebarPath, notesPath, openNote, openNoteByAbsolutePath]);
 
   useEffect(() => {
-    if (!currentVault || !pendingStarredNavigation) return;
-    if (pendingStarredNavigation.vaultPath !== currentVault.path) return;
-    if (notesPath !== currentVault.path || !rootFolder || rootFolderPath !== currentVault.path) return;
+    if (!currentNotesRoot || !pendingStarredNavigation) return;
+    if (pendingStarredNavigation.notesRootPath !== currentNotesRoot.path) return;
+    if (notesPath !== currentNotesRoot.path || !rootFolder || rootFolderPath !== currentNotesRoot.path) return;
     const pendingNavigationKey = [
-      pendingStarredNavigation.vaultPath,
+      pendingStarredNavigation.notesRootPath,
       pendingStarredNavigation.kind,
       pendingStarredNavigation.relativePath,
       pendingStarredNavigation.openInNewTab ? 'new-tab' : 'same-tab',
@@ -511,7 +511,7 @@ export function NotesView({
 
     void navigateToStarredTarget().catch(() => undefined);
   }, [
-    currentVault,
+    currentNotesRoot,
     pendingStarredNavigation,
     notesPath,
     rootFolder,
@@ -558,7 +558,7 @@ export function NotesView({
   const isBlankWorkspaceDropActive = useBlankWorkspaceDropOpen({
     enabled: blankWorkspaceDropEnabled,
     openMarkdownTarget,
-    openVault,
+    openNotesRoot,
   });
 
   useEffect(() => {
@@ -568,15 +568,15 @@ export function NotesView({
   }, [currentNotePath, openTabs.length]);
 
   useEffect(() => {
-    const vaultPath = currentVault?.path ?? null;
-    if (autoCreateVaultPathRef.current === vaultPath) {
+    const notesRootPath = currentNotesRoot?.path ?? null;
+    if (autoCreateNotesRootPathRef.current === notesRootPath) {
       return;
     }
 
-    autoCreateVaultPathRef.current = vaultPath;
+    autoCreateNotesRootPathRef.current = notesRootPath;
     hasPresentedNoteRef.current = false;
     autoCreateBlankNoteRef.current = false;
-  }, [currentVault?.path]);
+  }, [currentNotesRoot?.path]);
 
   useEffect(() => {
     const launchNoteBlocked = Boolean(launchContextRef.current.notePath && !hasHandledLaunchNoteRef.current);
@@ -586,13 +586,13 @@ export function NotesView({
       openTabCount: openTabs.length,
       hasPresentedNote: hasPresentedNoteRef.current,
       notesLoading: isLoading,
-      vaultStoreHasInitialized,
-      vaultInitializing: isVaultInitializing || vaultInitializingRef.current,
+      notesRootStoreHasInitialized,
+      notesRootInitializing: isNotesRootInitializing || notesRootInitializingRef.current,
       openTargetBusy: isOpenTargetBusy,
       hasPendingStarredNavigation: Boolean(pendingStarredNavigation),
       autoCreateInFlight: autoCreateBlankNoteRef.current,
       hasPendingLaunchNote: launchNoteBlocked,
-      currentVaultPath: currentVault?.path ?? null,
+      currentNotesRootPath: currentNotesRoot?.path ?? null,
       notesPath,
       rootFolder,
       rootFolderPath,
@@ -607,20 +607,20 @@ export function NotesView({
     const timeoutId = window.setTimeout(() => {
       const state = useNotesStore.getState();
       const timerRootFolderCurrent = Boolean(
-        currentVault &&
+        currentNotesRoot &&
         state.rootFolder &&
-        state.rootFolderPath === currentVault.path &&
-        state.notesPath === currentVault.path
+        state.rootFolderPath === currentNotesRoot.path &&
+        state.notesPath === currentNotesRoot.path
       );
       if (state.currentNote || state.openTabs.length > 0) {
         autoCreateBlankNoteRef.current = false;
         return;
       }
-      if (currentVault && !timerRootFolderCurrent) {
+      if (currentNotesRoot && !timerRootFolderCurrent) {
         autoCreateBlankNoteRef.current = false;
         return;
       }
-      if (currentVault && timerRootFolderCurrent && hasFileTreeNoteFiles(state.rootFolder)) {
+      if (currentNotesRoot && timerRootFolderCurrent && hasFileTreeNoteFiles(state.rootFolder)) {
         autoCreateBlankNoteRef.current = false;
         return;
       }
@@ -638,10 +638,10 @@ export function NotesView({
   }, [
     active,
     currentNotePath,
-    currentVault,
+    currentNotesRoot,
     isLoading,
-    vaultStoreHasInitialized,
-    isVaultInitializing,
+    notesRootStoreHasInitialized,
+    isNotesRootInitializing,
     isOpenTargetBusy,
     openTabs.length,
     pendingStarredNavigation,
@@ -652,12 +652,12 @@ export function NotesView({
 
   useNotesSidebarExternalDropImport({
     enabled: active && !acceptsBlankWorkspaceDrop && Boolean(
-      currentVault?.path &&
+      currentNotesRoot?.path &&
       rootFolder &&
-      rootFolderPath === currentVault.path &&
-      notesPath === currentVault.path
+      rootFolderPath === currentNotesRoot.path &&
+      notesPath === currentNotesRoot.path
     ),
-    vaultPath: currentVault?.path ?? '',
+    notesRootPath: currentNotesRoot?.path ?? '',
     loadFileTree,
     revealFolder,
   });

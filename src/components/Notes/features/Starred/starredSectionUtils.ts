@@ -1,21 +1,21 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import type { FileTreeNode, FolderNode, StarredEntry } from '@/stores/notes/types';
-import { isSameStarredVaultPath, normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { isSameStarredNotesRootPath, normalizeStarredNotesRootPath } from '@/stores/notes/starred';
 
 const MAX_STARRED_LOOKUP_TREE_NODES = 20_000;
 
-export function getVaultLabel(
+export function getNotesRootLabel(
   path: string,
-  recentVaults: Array<{ path: string; name: string }>,
+  recentNotesRoots: Array<{ path: string; name: string }>,
 ): string {
-  const normalizedPath = normalizeStarredVaultPath(path);
-  const matchedVault = recentVaults.find(
-    (vault) => isSameStarredVaultPath(vault.path, normalizedPath),
+  const normalizedPath = normalizeStarredNotesRootPath(path);
+  const matchedNotesRoot = recentNotesRoots.find(
+    (notesRoot) => isSameStarredNotesRootPath(notesRoot.path, normalizedPath),
   );
-  if (matchedVault) return matchedVault.name;
+  if (matchedNotesRoot) return matchedNotesRoot.name;
 
   const parts = normalizedPath.split('/').filter(Boolean);
-  return parts[parts.length - 1] || 'Vault';
+  return parts[parts.length - 1] || 'NotesRoot';
 }
 
 function getFolderName(path: string): string {
@@ -37,7 +37,7 @@ export function sortStarredEntries(entries: StarredEntry[]) {
   return [...entries]
     .map((entry, index) => ({ entry, index }))
     .sort((left, right) => {
-      if (isSameStarredVaultPath(left.entry.vaultPath, right.entry.vaultPath)) {
+      if (isSameStarredNotesRootPath(left.entry.notesRootPath, right.entry.notesRootPath)) {
         if (isAncestorStarredPath(left.entry.relativePath, right.entry.relativePath)) {
           return 1;
         }

@@ -8,12 +8,12 @@ import {
   SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
   collectEditorDomMetrics,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
   measureRepeatedBlockScan,
   measureScrollFrames,
-  openVaultInNotes,
+  openNotesRootInNotes,
   scrollNoteToTop,
   startMainThreadFrameProbe,
   stopMainThreadFrameProbe,
@@ -94,7 +94,7 @@ function createSwitchCoverSvg(index: number): string {
 
 type CoverFixture = {
   notePath: string;
-  vaultPath: string;
+  notesRootPath: string;
 };
 
 type CoverFrontmatter = {
@@ -165,7 +165,7 @@ async function openCoverFixture(
       content: COVER_SVG,
     },
   ];
-  const fixture = await createVaultFilesFixture(page, {
+  const fixture = await createNotesRootFilesFixture(page, {
     name: input.filename.replace(/\.md$/i, ''),
     files: [
       {
@@ -181,9 +181,9 @@ async function openCoverFixture(
     ],
   });
 
-  await openVaultInNotes(page, {
-    vaultPath: fixture.vaultPath,
-    name: 'Cover E2E Vault',
+  await openNotesRootInNotes(page, {
+    notesRootPath: fixture.notesRootPath,
+    name: 'Cover E2E NotesRoot',
     minFileCount: 1,
   });
 
@@ -196,7 +196,7 @@ async function openCoverFixture(
   });
 
   return {
-    vaultPath: fixture.vaultPath,
+    notesRootPath: fixture.notesRootPath,
     notePath: fixture.notePaths[0]!,
   };
 }
@@ -887,7 +887,7 @@ test.describe('notes top cover e2e coverage', () => {
         console.info(`[notes-cover-covered-note-switch:pageerror] ${error.message}`);
       });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'cover-covered-note-switch',
         files: [
           {
@@ -913,9 +913,9 @@ test.describe('notes top cover e2e coverage', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Cover Note Switch Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Cover Note Switch NotesRoot',
         minFileCount: 2,
       });
 

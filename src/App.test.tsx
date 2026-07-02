@@ -65,7 +65,7 @@ const mocks = vi.hoisted(() => {
     refreshBudgetIfStale: vi.fn().mockResolvedValue(undefined),
     readImportedMarkdownThemeMetadata: vi.fn(),
     setTheme: vi.fn(),
-    initializeVaultStore: vi.fn().mockResolvedValue(undefined),
+    initializeNotesRootStore: vi.fn().mockResolvedValue(undefined),
     restoreLastAppViewMode: vi.fn(),
     restoreNotesChatFloatingSize: vi.fn(),
     setSidebarWidth: vi.fn(),
@@ -146,15 +146,15 @@ vi.mock('@/stores/useNotesStore', () => ({
   },
 }));
 
-vi.mock('@/stores/useVaultStore', () => {
-  const vaultState = {
-    currentVault: null,
-    initialize: mocks.initializeVaultStore,
+vi.mock('@/stores/useNotesRootStore', () => {
+  const notesRootState = {
+    currentNotesRoot: null,
+    initialize: mocks.initializeNotesRootStore,
   };
 
   return {
-    useVaultStore: (selector?: (state: typeof vaultState) => unknown) =>
-      selector ? selector(vaultState) : vaultState,
+    useNotesRootStore: (selector?: (state: typeof notesRootState) => unknown) =>
+      selector ? selector(notesRootState) : notesRootState,
   };
 });
 
@@ -384,8 +384,8 @@ describe('App close flow', () => {
     mocks.readImportedMarkdownThemeMetadata.mockReset();
     mocks.readImportedMarkdownThemeMetadata.mockResolvedValue(null);
     mocks.setTheme.mockClear();
-    mocks.initializeVaultStore.mockClear();
-    mocks.initializeVaultStore.mockResolvedValue(undefined);
+    mocks.initializeNotesRootStore.mockClear();
+    mocks.initializeNotesRootStore.mockResolvedValue(undefined);
     mocks.restoreLastAppViewMode.mockClear();
     mocks.restoreNotesChatFloatingSize.mockClear();
     mocks.setSidebarWidth.mockClear();
@@ -557,7 +557,7 @@ describe('App close flow', () => {
   });
 
   it('flushes the active notes workspace before closing', async () => {
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'docs/active.md', content: '# active' };
     mocks.notesState.rootFolder = {
       id: '',
@@ -571,7 +571,7 @@ describe('App close flow', () => {
     await renderAndRequestClose();
 
     await waitFor(() => {
-      expect(mocks.saveWorkspaceSnapshot).toHaveBeenCalledWith('/vault', {
+      expect(mocks.saveWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', {
         rootFolder: mocks.notesState.rootFolder,
         currentNotePath: 'docs/active.md',
         fileTreeSortMode: 'name-asc',
@@ -703,7 +703,7 @@ describe('App close flow', () => {
   });
 
   it('flushes auto-saveable drafts when the app is hidden', async () => {
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'draft:alpha', content: 'draft body' };
     mocks.notesState.isDirty = true;
     mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
@@ -787,7 +787,7 @@ describe('App close flow', () => {
   });
 
   it('saves auto-saveable drafts before closing without showing the discard dialog', async () => {
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
     mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
     mocks.notesState.isDirty = true;
@@ -811,7 +811,7 @@ describe('App close flow', () => {
   });
 
   it('saves cached auto-saveable drafts before the clean-window fast close path', async () => {
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'docs/a.md', content: 'clean note' };
     mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: false }];
     mocks.notesState.isDirty = false;
@@ -844,7 +844,7 @@ describe('App close flow', () => {
   });
 
   it('shows a close failure dialog when an auto-saveable draft fails and allows forced close', async () => {
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
     mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
     mocks.notesState.isDirty = true;
@@ -872,7 +872,7 @@ describe('App close flow', () => {
   });
 
   it('shows a close failure dialog when an auto-saveable draft save hangs', async () => {
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
     mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
     mocks.notesState.isDirty = true;
@@ -887,7 +887,7 @@ describe('App close flow', () => {
   });
 
   it('shows a close failure dialog when an auto-saveable draft save rejects', async () => {
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
     mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
     mocks.notesState.isDirty = true;

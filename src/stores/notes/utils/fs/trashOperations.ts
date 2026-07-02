@@ -1,18 +1,18 @@
 import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import { getStorageAdapter, joinPath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
-import { ensureSystemDirectory, getVaultSystemStorePath } from '../../systemStoragePaths';
+import { ensureSystemDirectory, getNotesRootSystemStorePath } from '../../systemStoragePaths';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { assertNonInternalNotePath } from './internalNotePaths';
 import {
-  isSafeVaultPathSegment,
-  normalizeVaultRelativePath,
-  resolveVaultRelativeFullPath,
-} from './vaultPathContainment';
+  isSafeNotesRootPathSegment,
+  normalizeNotesRootRelativePath,
+  resolveNotesRootRelativeFullPath,
+} from './notesRootPathContainment';
 
 const PENDING_TRASH_ROOT = 'trash';
 const INVALID_PENDING_TRASH_STAGING_PATH_ERROR =
-  'Pending trash staging path must stay inside the current vault pending trash.';
+  'Pending trash staging path must stay inside the opened folder pending trash.';
 export const NOTES_DELETE_UNDO_GRACE_PERIOD_MS = 30_000;
 export const MAX_PENDING_TRASH_DIRECTORY_COPY_ENTRIES = 20_000;
 export const MAX_PENDING_TRASH_DIRECTORY_COPY_DEPTH = 200;
@@ -56,15 +56,15 @@ function normalizeContainmentPath(path: string): string {
   return normalizeAbsolutePath(path).replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
-async function assertCurrentVaultPendingTrashStagingPath(
+async function assertCurrentNotesRootPendingTrashStagingPath(
   notesPath: string,
   item: PendingSystemTrashItem,
 ): Promise<void> {
-  if (!isSafeVaultPathSegment(item.id) || !isSafeVaultPathSegment(getBaseName(item.stagingPath))) {
+  if (!isSafeNotesRootPathSegment(item.id) || !isSafeNotesRootPathSegment(getBaseName(item.stagingPath))) {
     throw new Error(INVALID_PENDING_TRASH_STAGING_PATH_ERROR);
   }
 
-  const expectedStagingParentPath = await getVaultSystemStorePath(notesPath, PENDING_TRASH_ROOT, item.id);
+  const expectedStagingParentPath = await getNotesRootSystemStorePath(notesPath, PENDING_TRASH_ROOT, item.id);
   const stagingParentPath = getParentPath(item.stagingPath);
   if (
     !stagingParentPath ||
@@ -94,7 +94,7 @@ async function copyDirectory(sourcePath: string, targetPath: string): Promise<vo
       }
 
       const entry = entries[index];
-      if (!entry || !isSafeVaultPathSegment(entry.name)) {
+      if (!entry || !isSafeNotesRootPathSegment(entry.name)) {
         throw new Error('Pending trash folder copy encountered an unsafe directory entry.');
       }
 
@@ -291,10 +291,10 @@ export async function deleteNoteItemToPendingTrash(
 ): Promise<PendingSystemTrashItem> {
   const id = createDeleteId();
   const { relativePath: safeRelativePath, fullPath: originalFullPath } =
-    await resolveVaultRelativeFullPath(notesPath, relativePath);
+    await resolveNotesRootRelativeFullPath(notesPath, relativePath);
   assertNonInternalNotePath(safeRelativePath);
 
-  const stagingDir = await getVaultSystemStorePath(notesPath, PENDING_TRASH_ROOT, id);
+  const stagingDir = await getNotesRootSystemStorePath(notesPath, PENDING_TRASH_ROOT, id);
   const stagingPath = await joinPath(stagingDir, getBaseName(safeRelativePath));
 
   await ensureSystemDirectory(stagingDir);
@@ -319,12 +319,12 @@ export async function restoreNoteItemFromPendingTrash(
   }
 
   const storage = getStorageAdapter();
-  const safeOriginalPath = normalizeVaultRelativePath(item.originalPath);
+  const safeOriginalPath = normalizeNotesRootRelativePath(item.originalPath);
   if (!safeOriginalPath) {
-    throw new Error('Restore target must stay inside the current vault.');
+    throw new Error('Restore target must stay inside the opened folder.');
   }
   assertNonInternalNotePath(safeOriginalPath, 'Restore target must not be inside an internal notes folder.');
-  await assertCurrentVaultPendingTrashStagingPath(notesPath, item);
+  await assertCurrentNotesRootPendingTrashStagingPath(notesPath, item);
 
   const parentPath = safeOriginalPath.includes('/')
     ? safeOriginalPath.slice(0, safeOriginalPath.lastIndexOf('/'))
@@ -366,20 +366,20 @@ export async function flushPendingDeletedItemsToSystemTrash(
   await Promise.allSettled(items.map((item) => movePendingDeletedItemToSystemTrash(item)));
 }
 
-export async function flushStalePendingTrashForVault(notesPath: string): Promise<void> {
+export async function flushStalePendingTrashForNotesRoot(notesPath: string): Promise<void> {
   if (!notesPath) {
     return;
   }
 
   const storage = getStorageAdapter();
-  const pendingRoot = await getVaultSystemStorePath(notesPath, PENDING_TRASH_ROOT);
+  const pendingRoot = await getNotesRootSystemStorePath(notesPath, PENDING_TRASH_ROOT);
   if (!(await storage.exists(pendingRoot).catch(() => false))) {
     return;
   }
 
   const entries = await storage.listDir(pendingRoot, { includeHidden: true }).catch(() => []);
   for (const entry of entries.slice(0, MAX_STALE_PENDING_TRASH_ROOT_ENTRIES)) {
-    if (!isSafeVaultPathSegment(entry.name)) {
+    if (!isSafeNotesRootPathSegment(entry.name)) {
       continue;
     }
 
@@ -401,7 +401,7 @@ export async function flushStalePendingTrashForVault(notesPath: string): Promise
     let allStagedEntriesMoved = stagedEntries.length <= MAX_STALE_PENDING_TRASH_STAGED_ENTRIES;
     for (const stagedEntry of stagedEntries.slice(0, MAX_STALE_PENDING_TRASH_STAGED_ENTRIES)) {
       if (
-        !isSafeVaultPathSegment(stagedEntry.name) ||
+        !isSafeNotesRootPathSegment(stagedEntry.name) ||
         (!stagedEntry.isFile && !stagedEntry.isDirectory)
       ) {
         allStagedEntriesMoved = false;

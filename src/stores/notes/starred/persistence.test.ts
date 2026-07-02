@@ -53,13 +53,13 @@ vi.mock('@/lib/storage/storageAutoSync', () => ({
 function createEntry(
   id: string,
   kind: 'note' | 'folder',
-  vaultPath: string,
+  notesRootPath: string,
   relativePath: string
 ): StarredEntry {
   return {
     id,
     kind,
-    vaultPath,
+    notesRootPath,
     relativePath,
     addedAt: 1,
   };
@@ -81,8 +81,8 @@ describe('starred persistence', () => {
     adapter.writeFile.mockResolvedValue();
 
     const persistence = await import('./persistence');
-    persistence.saveStarredRegistry([createEntry('1', 'note', 'C:/vault-a', 'first.md')]);
-    persistence.saveStarredRegistry([createEntry('2', 'note', 'C:/vault-a', 'second.md')]);
+    persistence.saveStarredRegistry([createEntry('1', 'note', 'C:/notes-root-a', 'first.md')]);
+    persistence.saveStarredRegistry([createEntry('2', 'note', 'C:/notes-root-a', 'second.md')]);
 
     await vi.advanceTimersByTimeAsync(500);
 
@@ -90,13 +90,13 @@ describe('starred persistence', () => {
     expect(storageAutoSync.emitStorageAutoSyncEvent).toHaveBeenCalledWith({ kind: 'notes-starred' });
     const [, content] = adapter.writeFile.mock.calls[0];
     expect(JSON.parse(content)).toMatchObject({
-      entries: [createEntry('2', 'note', 'C:/vault-a', 'second.md')],
+      entries: [createEntry('2', 'note', 'C:/notes-root-a', 'second.md')],
     });
   });
 
   it('preserves entries added by another window during a stale save', async () => {
-    const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
-    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    const diskEntry = createEntry('disk', 'note', 'C:/notes-root-a', 'disk.md');
+    const localEntry = createEntry('local', 'note', 'C:/notes-root-a', 'local.md');
     adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
@@ -116,8 +116,8 @@ describe('starred persistence', () => {
   });
 
   it('preserves entries from an unknown-size registry during a stale save', async () => {
-    const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
-    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    const diskEntry = createEntry('disk', 'note', 'C:/notes-root-a', 'disk.md');
+    const localEntry = createEntry('local', 'note', 'C:/notes-root-a', 'local.md');
     adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true });
     adapter.readFile.mockResolvedValue(JSON.stringify({
@@ -138,8 +138,8 @@ describe('starred persistence', () => {
   });
 
   it('does not resurrect explicitly removed entries while merging disk state', async () => {
-    const removedEntry = createEntry('removed', 'note', 'C:/vault-a', 'removed.md');
-    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    const removedEntry = createEntry('removed', 'note', 'C:/notes-root-a', 'removed.md');
+    const localEntry = createEntry('local', 'note', 'C:/notes-root-a', 'local.md');
     adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
@@ -157,26 +157,26 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([localEntry]);
-    expect(payload.deletedEntryKeys).toEqual(['note::c:/vault-a::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/notes-root-a::removed.md']);
   });
 
   it('normalizes deleted entry tombstones while merging disk state', async () => {
-    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
-    const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
-    const removedEntry = createEntry('removed', 'note', 'C:/vault-a', 'removed.md');
+    const localEntry = createEntry('local', 'note', 'C:/notes-root-a', 'local.md');
+    const diskEntry = createEntry('disk', 'note', 'C:/notes-root-a', 'disk.md');
+    const removedEntry = createEntry('removed', 'note', 'C:/notes-root-a', 'removed.md');
     adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
       entries: [diskEntry],
       deletedEntryKeys: [
-        'note::C:/vault-a::disk.md',
-        'note::C:/vault-a::disk.md',
-        'folder::C:/vault-a::assets',
+        'note::C:/notes-root-a::disk.md',
+        'note::C:/notes-root-a::disk.md',
+        'folder::C:/notes-root-a::assets',
         'bad-key',
         'note::missing-target',
-        'note::C:/vault-a::evil\u202E.md',
-        'note::C:/vault-a::' + 'a'.repeat(4097),
+        'note::C:/notes-root-a::evil\u202E.md',
+        'note::C:/notes-root-a::' + 'a'.repeat(4097),
       ],
     }));
     adapter.writeFile.mockResolvedValue();
@@ -190,20 +190,20 @@ describe('starred persistence', () => {
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([localEntry]);
     expect(payload.deletedEntryKeys).toEqual([
-      'note::c:/vault-a::removed.md',
-      'note::c:/vault-a::disk.md',
-      'folder::c:/vault-a::assets',
+      'note::c:/notes-root-a::removed.md',
+      'note::c:/notes-root-a::disk.md',
+      'folder::c:/notes-root-a::assets',
     ]);
   });
 
-  it('normalizes deleted entry tombstone vault paths before filtering merged entries', async () => {
-    const diskEntry = createEntry('disk', 'note', 'C:/vault-a/docs/..', 'removed.md');
+  it('normalizes deleted entry tombstone opened folder paths before filtering merged entries', async () => {
+    const diskEntry = createEntry('disk', 'note', 'C:/notes-root-a/docs/..', 'removed.md');
     adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
       entries: [diskEntry],
-      deletedEntryKeys: ['note::C:/vault-a::removed.md'],
+      deletedEntryKeys: ['note::C:/notes-root-a::removed.md'],
     }));
     adapter.writeFile.mockResolvedValue();
 
@@ -215,17 +215,17 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([]);
-    expect(payload.deletedEntryKeys).toEqual(['note::c:/vault-a::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/notes-root-a::removed.md']);
   });
 
   it('matches Windows deleted entry tombstones case-insensitively', async () => {
-    const diskEntry = createEntry('disk', 'note', 'C:/Users/Me/Vault', 'removed.md');
+    const diskEntry = createEntry('disk', 'note', 'C:/Users/Me/NotesRoot', 'removed.md');
     adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       version: 1,
       entries: [diskEntry],
-      deletedEntryKeys: ['note::c:/users/me/vault::removed.md'],
+      deletedEntryKeys: ['note::c:/users/me/notesRoot::removed.md'],
     }));
     adapter.writeFile.mockResolvedValue();
 
@@ -237,11 +237,11 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([]);
-    expect(payload.deletedEntryKeys).toEqual(['note::c:/users/me/vault::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/users/me/notesRoot::removed.md']);
   });
 
   it('bounds deleted entry tombstone scans while merging disk state', async () => {
-    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    const localEntry = createEntry('local', 'note', 'C:/notes-root-a', 'local.md');
     adapter.exists.mockImplementation(async (path: string) => path === '/app/.vlaina/notes/starred.json');
     adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
@@ -249,7 +249,7 @@ describe('starred persistence', () => {
       entries: [],
       deletedEntryKeys: [
         ...Array.from({ length: 20_000 }, () => 'bad-key'),
-        'note::C:/vault-a::late.md',
+        'note::C:/notes-root-a::late.md',
       ],
     }));
     adapter.writeFile.mockResolvedValue();
@@ -266,20 +266,20 @@ describe('starred persistence', () => {
   });
 
   it('filters invalid entries before saving', async () => {
-    const validEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    const validEntry = createEntry('local', 'note', 'C:/notes-root-a', 'local.md');
     adapter.exists.mockResolvedValue(false);
     adapter.writeFile.mockResolvedValue();
 
     const persistence = await import('./persistence');
     persistence.saveStarredRegistry([
       validEntry,
-      createEntry('app-note', 'note', 'C:/vault-a', '.vlaina/workspace.md'),
-      createEntry('git-folder', 'folder', 'C:/vault-a', 'docs/.GIT'),
-      createEntry('image-note', 'note', 'C:/vault-a', 'image.png'),
+      createEntry('app-note', 'note', 'C:/notes-root-a', '.vlaina/workspace.md'),
+      createEntry('git-folder', 'folder', 'C:/notes-root-a', 'docs/.GIT'),
+      createEntry('image-note', 'note', 'C:/notes-root-a', 'image.png'),
     ], {
       deletedEntries: [
-        createEntry('removed', 'note', 'C:/vault-a', 'removed.md'),
-        createEntry('internal-removed', 'note', 'C:/vault-a', '.git/config.md'),
+        createEntry('removed', 'note', 'C:/notes-root-a', 'removed.md'),
+        createEntry('internal-removed', 'note', 'C:/notes-root-a', '.git/config.md'),
       ],
     });
 
@@ -288,26 +288,26 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([validEntry]);
-    expect(payload.deletedEntryKeys).toEqual(['note::c:/vault-a::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/notes-root-a::removed.md']);
   });
 
   it('defers pruning invalid entries until after load', async () => {
-    const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
-    const invalidEntry = createEntry('2', 'note', 'C:/vault-b', 'missing.md');
+    const validEntry = createEntry('1', 'note', 'C:/notes-root-a', 'alive.md');
+    const invalidEntry = createEntry('2', 'note', 'C:/notes-root-b', 'missing.md');
 
     adapter.exists.mockImplementation(async (path: string) => {
-      return path === '/app/.vlaina/notes/starred.json' || path === 'C:/vault-a' || path === 'C:/vault-a/alive.md';
+      return path === '/app/.vlaina/notes/starred.json' || path === 'C:/notes-root-a' || path === 'C:/notes-root-a/alive.md';
     });
     adapter.stat.mockImplementation(async (path: string) => {
       if (path === '/app/.vlaina/notes/starred.json') {
         return { isDirectory: false, isFile: true, size: 200 };
       }
 
-      if (path === 'C:/vault-a') {
+      if (path === 'C:/notes-root-a') {
         return { isDirectory: true, isFile: false };
       }
 
-      if (path === 'C:/vault-a/alive.md') {
+      if (path === 'C:/notes-root-a/alive.md') {
         return { isDirectory: false, isFile: true };
       }
 
@@ -326,7 +326,7 @@ describe('starred persistence', () => {
 
     expect(result.entries).toEqual([validEntry, invalidEntry]);
     expect(adapter.writeFile).not.toHaveBeenCalled();
-    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-b');
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/notes-root-b');
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.waitFor(() => expect(adapter.writeFile).toHaveBeenCalledTimes(1));
@@ -337,16 +337,16 @@ describe('starred persistence', () => {
   });
 
   it('drops non-markdown note entries while preserving folder entries', async () => {
-    const validNote = createEntry('note', 'note', 'C:/vault-a', 'alive.mkd');
-    const staleImageNote = createEntry('image', 'note', 'C:/vault-a', 'image.png');
-    const pngNamedFolder = createEntry('folder', 'folder', 'C:/vault-a', 'assets.png');
+    const validNote = createEntry('note', 'note', 'C:/notes-root-a', 'alive.mkd');
+    const staleImageNote = createEntry('image', 'note', 'C:/notes-root-a', 'image.png');
+    const pngNamedFolder = createEntry('folder', 'folder', 'C:/notes-root-a', 'assets.png');
 
     adapter.exists.mockImplementation(async (path: string) => {
       return (
         path === '/app/.vlaina/notes/starred.json' ||
-        path === 'C:/vault-a' ||
-        path === 'C:/vault-a/alive.mkd' ||
-        path === 'C:/vault-a/assets.png'
+        path === 'C:/notes-root-a' ||
+        path === 'C:/notes-root-a/alive.mkd' ||
+        path === 'C:/notes-root-a/assets.png'
       );
     });
     adapter.stat.mockImplementation(async (path: string) => {
@@ -354,13 +354,13 @@ describe('starred persistence', () => {
         return { isDirectory: false, isFile: true, size: 200 };
       }
 
-      if (path === 'C:/vault-a') {
+      if (path === 'C:/notes-root-a') {
         return { isDirectory: true, isFile: false };
       }
-      if (path === 'C:/vault-a/alive.mkd') {
+      if (path === 'C:/notes-root-a/alive.mkd') {
         return { isDirectory: false, isFile: true };
       }
-      if (path === 'C:/vault-a/assets.png') {
+      if (path === 'C:/notes-root-a/assets.png') {
         return { isDirectory: true, isFile: false };
       }
       return null;
@@ -377,7 +377,7 @@ describe('starred persistence', () => {
     const result = await persistence.loadStarredRegistry();
 
     expect(result.entries).toEqual([validNote, pngNamedFolder]);
-    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-a/image.png');
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/notes-root-a/image.png');
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
@@ -387,7 +387,7 @@ describe('starred persistence', () => {
     adapter.readFile.mockResolvedValue(
       JSON.stringify({
         version: 1,
-        entries: [createEntry('1', 'note', 'C:/vault-a', '../secret.md')],
+        entries: [createEntry('1', 'note', 'C:/notes-root-a', '../secret.md')],
       })
     );
 
@@ -395,27 +395,27 @@ describe('starred persistence', () => {
     const result = await persistence.loadStarredRegistry();
 
     expect(result.entries).toEqual([]);
-    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-a/../secret.md');
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/notes-root-a/../secret.md');
   });
 
   it('does not spend the starred load entry budget on invalid entries before valid markdown entries', async () => {
-    const validEntry = createEntry('valid', 'note', 'C:/vault-a', 'alive.md');
+    const validEntry = createEntry('valid', 'note', 'C:/notes-root-a', 'alive.md');
 
     adapter.exists.mockImplementation(async (path: string) => {
       return (
         path === '/app/.vlaina/notes/starred.json' ||
-        path === 'C:/vault-a' ||
-        path === 'C:/vault-a/alive.md'
+        path === 'C:/notes-root-a' ||
+        path === 'C:/notes-root-a/alive.md'
       );
     });
     adapter.stat.mockImplementation(async (path: string) => {
       if (path === '/app/.vlaina/notes/starred.json') {
         return { isDirectory: false, isFile: true, size: 400_000 };
       }
-      if (path === 'C:/vault-a') {
+      if (path === 'C:/notes-root-a') {
         return { isDirectory: true, isFile: false };
       }
-      if (path === 'C:/vault-a/alive.md') {
+      if (path === 'C:/notes-root-a/alive.md') {
         return { isDirectory: false, isFile: true };
       }
       return null;
@@ -424,7 +424,7 @@ describe('starred persistence', () => {
       version: 1,
       entries: [
         ...Array.from({ length: 5000 }, (_, index) =>
-          createEntry(`image-${index}`, 'note', 'C:/vault-a', `image-${index}.png`)
+          createEntry(`image-${index}`, 'note', 'C:/notes-root-a', `image-${index}.png`)
         ),
         validEntry,
       ],
@@ -434,7 +434,7 @@ describe('starred persistence', () => {
     const result = await persistence.loadStarredRegistry();
 
     expect(result.entries).toEqual([validEntry]);
-    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-a/alive.md');
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/notes-root-a/alive.md');
   });
 
   it('does not parse oversized starred registries', async () => {
@@ -468,22 +468,22 @@ describe('starred persistence', () => {
   });
 
   it('loads starred registries when stat has no size', async () => {
-    const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
+    const validEntry = createEntry('1', 'note', 'C:/notes-root-a', 'alive.md');
     adapter.exists.mockImplementation(async (path: string) => {
       return (
         path === '/app/.vlaina/notes/starred.json' ||
-        path === 'C:/vault-a' ||
-        path === 'C:/vault-a/alive.md'
+        path === 'C:/notes-root-a' ||
+        path === 'C:/notes-root-a/alive.md'
       );
     });
     adapter.stat.mockImplementation(async (path: string) => {
       if (path === '/app/.vlaina/notes/starred.json') {
         return { isDirectory: false, isFile: true };
       }
-      if (path === 'C:/vault-a') {
+      if (path === 'C:/notes-root-a') {
         return { isDirectory: true, isFile: false };
       }
-      if (path === 'C:/vault-a/alive.md') {
+      if (path === 'C:/notes-root-a/alive.md') {
         return { isDirectory: false, isFile: true };
       }
       return null;
@@ -513,13 +513,13 @@ describe('starred persistence', () => {
   });
 
   it('keeps entries when the target still exists but stat metadata is unavailable', async () => {
-    const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
+    const validEntry = createEntry('1', 'note', 'C:/notes-root-a', 'alive.md');
 
     adapter.exists.mockImplementation(async (path: string) => {
       return (
         path === '/app/.vlaina/notes/starred.json' ||
-        path === 'C:/vault-a' ||
-        path === 'C:/vault-a/alive.md'
+        path === 'C:/notes-root-a' ||
+        path === 'C:/notes-root-a/alive.md'
       );
     });
     adapter.readFile.mockResolvedValue(
@@ -542,14 +542,14 @@ describe('starred persistence', () => {
   });
 
   it('does not spend the starred save entry budget on invalid entries before valid markdown entries', async () => {
-    const validEntry = createEntry('valid', 'note', 'C:/vault-a', 'alive.md');
+    const validEntry = createEntry('valid', 'note', 'C:/notes-root-a', 'alive.md');
     adapter.exists.mockResolvedValue(false);
     adapter.writeFile.mockResolvedValue();
 
     const persistence = await import('./persistence');
     persistence.saveStarredRegistry([
       ...Array.from({ length: 5000 }, (_, index) =>
-        createEntry(`image-${index}`, 'note', 'C:/vault-a', `image-${index}.png`)
+        createEntry(`image-${index}`, 'note', 'C:/notes-root-a', `image-${index}.png`)
       ),
       validEntry,
     ]);

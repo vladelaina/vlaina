@@ -29,13 +29,13 @@ describe('desktop dialog ipc', () => {
     const { handlers, dialog, authorizeFsPath } = registerHarness();
     dialog.showOpenDialog.mockResolvedValue({
       canceled: false,
-      filePaths: ['/vault/docs/a.md'],
+      filePaths: ['/notesRoot/docs/a.md'],
     });
 
     await expect(handlers.get('desktop:dialog:open')?.({}, {
       authorizeParentDirectory: true,
       filters: [{ name: 'Markdown', extensions: ['md'] }],
-    })).resolves.toBe('/vault/docs/a.md');
+    })).resolves.toBe('/notesRoot/docs/a.md');
 
     expect(dialog.showOpenDialog).toHaveBeenCalledWith(undefined, {
       title: undefined,
@@ -43,31 +43,31 @@ describe('desktop dialog ipc', () => {
       filters: [{ name: 'Markdown', extensions: ['md'] }],
       properties: ['openFile'],
     });
-    expect(authorizeFsPath).toHaveBeenCalledWith('/vault/docs/a.md', 'file');
-    expect(authorizeFsPath).toHaveBeenCalledWith('/vault/docs', 'root');
-    expect(authorizeFsPath).toHaveBeenCalledWith('/vault', 'watch-root');
+    expect(authorizeFsPath).toHaveBeenCalledWith('/notesRoot/docs/a.md', 'file');
+    expect(authorizeFsPath).toHaveBeenCalledWith('/notesRoot/docs', 'root');
+    expect(authorizeFsPath).toHaveBeenCalledWith('/notesRoot', 'watch-root');
   });
 
   it('authorizes selected folders as roots without file filters', async () => {
     const { handlers, dialog, authorizeFsPath } = registerHarness();
     dialog.showOpenDialog.mockResolvedValue({
       canceled: false,
-      filePaths: ['/vault/empty'],
+      filePaths: ['/notesRoot/empty'],
     });
 
     await expect(handlers.get('desktop:dialog:open')?.({}, {
       directory: true,
-      defaultPath: '/vault',
-    })).resolves.toBe('/vault/empty');
+      defaultPath: '/notesRoot',
+    })).resolves.toBe('/notesRoot/empty');
 
     expect(dialog.showOpenDialog).toHaveBeenCalledWith(undefined, {
       title: undefined,
-      defaultPath: '/vault',
+      defaultPath: '/notesRoot',
       filters: undefined,
       properties: ['openDirectory'],
     });
     expect(authorizeFsPath).toHaveBeenCalledTimes(1);
-    expect(authorizeFsPath).toHaveBeenCalledWith('/vault/empty', 'root');
+    expect(authorizeFsPath).toHaveBeenCalledWith('/notesRoot/empty', 'root');
   });
 
   it('builds zenity arguments for directory and markdown file pickers', () => {
@@ -75,14 +75,14 @@ describe('desktop dialog ipc', () => {
       directory: true,
       multiple: false,
       title: 'Open Folder',
-      defaultPath: '/vault',
+      defaultPath: '/notesRoot',
     })).toEqual([
       '--file-selection',
       '--separator=\n',
       '--title',
       'Open Folder',
       '--filename',
-      '/vault',
+      '/notesRoot',
       '--directory',
     ]);
 
@@ -101,13 +101,13 @@ describe('desktop dialog ipc', () => {
   it('builds kdialog arguments and parses multi-selection output', () => {
     expect(externalDialogTesting.buildExternalOpenDialogArgs({ command: 'kdialog' }, {
       multiple: true,
-      defaultPath: '/vault',
+      defaultPath: '/notesRoot',
       filters: [{ name: 'Images', extensions: ['png', 'jpg'] }],
     })).toEqual([
       '--multiple',
       '--separate-output',
       '--getopenfilename',
-      '/vault',
+      '/notesRoot',
       'Images | *.png *.jpg',
     ]);
 

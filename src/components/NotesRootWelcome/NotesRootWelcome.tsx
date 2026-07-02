@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { desktopWindow } from '@/lib/desktop/window';
 import { cn } from '@/lib/utils';
-import { RecentVaultsList } from './components/RecentVaultsList';
-import './VaultWelcome.css';
+import { RecentNotesRootsList } from './components/RecentNotesRootsList';
+import './NotesRootWelcome.css';
 
-export function VaultWelcome() {
-  const { initialize, recentVaults, openVault, isLoading } =
-    useVaultStore();
+export function NotesRootWelcome() {
+  const { initialize, recentNotesRoots, openNotesRoot, isLoading } =
+    useNotesRootStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export function VaultWelcome() {
   }, []);
 
   const handleOpenRecent = async (path: string) => {
-    await openVault(path);
+    await openNotesRoot(path);
   };
 
   if (!isInitialized) {
@@ -44,11 +44,11 @@ export function VaultWelcome() {
   }
 
   return (
-    <div className={cn('vault-welcome', isLoading && 'vault-welcome--loading')}>
-      <div className="vault-welcome__content">
-        <div className="vault-welcome__main">
-          {recentVaults.length > 0 && (
-            <RecentVaultsList vaults={recentVaults} onOpen={handleOpenRecent} />
+    <div className={cn('notes-root-welcome', isLoading && 'notes-root-welcome--loading')}>
+      <div className="notes-root-welcome__content">
+        <div className="notes-root-welcome__main">
+          {recentNotesRoots.length > 0 && (
+            <RecentNotesRootsList notesRoots={recentNotesRoots} onOpen={handleOpenRecent} />
           )}
         </div>
       </div>

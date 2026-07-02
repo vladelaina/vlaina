@@ -260,7 +260,7 @@ describe('useChatService session context isolation', () => {
     mocked.managedAIState.refreshBudget.mockClear();
     mocked.convertToBase64.mockResolvedValue(TEMPORARY_IMAGE_DATA_URL);
     mocked.deleteAttachment.mockResolvedValue(undefined);
-    useNotesStore.setState({ notesPath: '/vault', starredEntries: [] });
+    useNotesStore.setState({ notesPath: '/notesRoot', starredEntries: [] });
     seedChatState();
   });
 
@@ -1128,7 +1128,7 @@ describe('useChatService session context isolation', () => {
     seedTemporaryChatState();
     vi.mocked(convertToBase64).mockResolvedValueOnce(TEMPORARY_IMAGE_DATA_URL);
     const attachment = createAttachment({
-      path: '/vault/assets/demo.png',
+      path: '/notesRoot/assets/demo.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
     });
@@ -1146,10 +1146,10 @@ describe('useChatService session context isolation', () => {
     const options = vi.mocked(convertToBase64).mock.calls[0]?.[1] as
       | { allowPath?: (path: string) => boolean }
       | undefined;
-    expect(options?.allowPath?.('/vault/assets/demo.png')).toBe(true);
-    expect(options?.allowPath?.('/vault/.notes/demo.png')).toBe(true);
-    expect(options?.allowPath?.('/vault/.vlaina/demo.png')).toBe(false);
-    expect(options?.allowPath?.('/vault/docs/.git/demo.png')).toBe(false);
+    expect(options?.allowPath?.('/notesRoot/assets/demo.png')).toBe(true);
+    expect(options?.allowPath?.('/notesRoot/.notes/demo.png')).toBe(true);
+    expect(options?.allowPath?.('/notesRoot/.vlaina/demo.png')).toBe(false);
+    expect(options?.allowPath?.('/notesRoot/docs/.git/demo.png')).toBe(false);
     expect(options?.allowPath?.('/outside/demo.png')).toBe(false);
     expect(deleteAttachment).toHaveBeenCalledWith(attachment);
   });
@@ -1162,7 +1162,7 @@ describe('useChatService session context isolation', () => {
     });
     vi.mocked(convertToBase64).mockImplementationOnce(async () => pendingConversion);
     const attachment = createAttachment({
-      path: '/vault/assets/demo.png',
+      path: '/notesRoot/assets/demo.png',
       previewUrl: 'attachment://demo.png',
       assetUrl: '',
     });
@@ -1211,7 +1211,7 @@ describe('useChatService session context isolation', () => {
     vi.mocked(convertToBase64).mockResolvedValueOnce(TEMPORARY_IMAGE_DATA_URL);
     vi.mocked(deleteAttachment).mockImplementationOnce(async () => pendingDeletion);
     const attachment = createAttachment({
-      path: '/vault/assets/demo.png',
+      path: '/notesRoot/assets/demo.png',
       previewUrl: 'attachment://demo.png',
       assetUrl: '',
     });
@@ -1265,7 +1265,7 @@ describe('useChatService session context isolation', () => {
       { length: MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY + 2 },
       (_value, index) => createAttachment({
         id: `attachment-${index}`,
-        path: `/vault/assets/demo-${index}.png`,
+        path: `/notesRoot/assets/demo-${index}.png`,
         previewUrl: `attachment://demo-${index}.png`,
         assetUrl: '',
         name: `demo-${index}.png`,

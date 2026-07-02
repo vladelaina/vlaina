@@ -1,7 +1,7 @@
 import { isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
-export const MAX_VAULT_RELATIVE_PATH_CHARS = 64 * 1024;
-const UNSAFE_VAULT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+export const MAX_NOTES_ROOT_RELATIVE_PATH_CHARS = 64 * 1024;
+const UNSAFE_NOTES_ROOT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
@@ -14,22 +14,22 @@ function hasExplicitNonPathScheme(path: string): boolean {
   );
 }
 
-export function isSafeVaultPathSegment(segment: string | undefined): segment is string {
+export function isSafeNotesRootPathSegment(segment: string | undefined): segment is string {
   return (
     !!segment &&
-    segment.length <= MAX_VAULT_RELATIVE_PATH_CHARS &&
+    segment.length <= MAX_NOTES_ROOT_RELATIVE_PATH_CHARS &&
     segment !== '.' &&
     segment !== '..' &&
-    !UNSAFE_VAULT_PATH_CHARS.test(segment) &&
+    !UNSAFE_NOTES_ROOT_PATH_CHARS.test(segment) &&
     !/[\\/]/.test(segment)
   );
 }
 
-export function hasUnsafeVaultPathSegment(
+export function hasUnsafeNotesRootPathSegment(
   path: string,
   options: { allowNavigationSegments?: boolean } = {},
 ): boolean {
-  if (path.length > MAX_VAULT_RELATIVE_PATH_CHARS) {
+  if (path.length > MAX_NOTES_ROOT_RELATIVE_PATH_CHARS) {
     return true;
   }
 
@@ -40,7 +40,7 @@ export function hasUnsafeVaultPathSegment(
     if (options.allowNavigationSegments && (segment === '.' || segment === '..')) {
       continue;
     }
-    if (!isSafeVaultPathSegment(segment)) {
+    if (!isSafeNotesRootPathSegment(segment)) {
       return true;
     }
   }
@@ -48,7 +48,7 @@ export function hasUnsafeVaultPathSegment(
   return false;
 }
 
-export function normalizeVaultRelativePath(
+export function normalizeNotesRootRelativePath(
   path: string | undefined,
   options: { allowEmpty?: boolean } = {},
 ): string | null {
@@ -56,7 +56,7 @@ export function normalizeVaultRelativePath(
     return options.allowEmpty ? '' : null;
   }
 
-  if (path.length > MAX_VAULT_RELATIVE_PATH_CHARS) {
+  if (path.length > MAX_NOTES_ROOT_RELATIVE_PATH_CHARS) {
     return null;
   }
 
@@ -74,7 +74,7 @@ export function normalizeVaultRelativePath(
     if (!part || part === '.') {
       continue;
     }
-    if (part === '..' || UNSAFE_VAULT_PATH_CHARS.test(part)) {
+    if (part === '..' || UNSAFE_NOTES_ROOT_PATH_CHARS.test(part)) {
       return null;
     }
     parts.push(part);
@@ -87,18 +87,18 @@ export function normalizeVaultRelativePath(
   return parts.join('/');
 }
 
-export async function resolveVaultRelativeFullPath(
-  vaultPath: string,
+export async function resolveNotesRootRelativeFullPath(
+  notesRootPath: string,
   path: string,
   options: { allowEmpty?: boolean; errorMessage?: string } = {},
 ): Promise<{ relativePath: string; fullPath: string }> {
-  const relativePath = normalizeVaultRelativePath(path, options);
+  const relativePath = normalizeNotesRootRelativePath(path, options);
   if (relativePath == null) {
-    throw new Error(options.errorMessage ?? 'Path must stay inside the current vault.');
+    throw new Error(options.errorMessage ?? 'Path must stay inside the opened folder.');
   }
 
   return {
     relativePath,
-    fullPath: relativePath ? await joinPath(vaultPath, relativePath) : vaultPath,
+    fullPath: relativePath ? await joinPath(notesRootPath, relativePath) : notesRootPath,
   };
 }

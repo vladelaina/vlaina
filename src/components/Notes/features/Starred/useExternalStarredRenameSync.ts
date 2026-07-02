@@ -2,13 +2,13 @@ import { useEffect, useMemo } from 'react';
 import { watchDesktopPath } from '@/lib/desktop/watch';
 import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import type { StarredEntry } from '@/stores/notes/types';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   getStarredEntryAbsolutePath,
-  isSameStarredVaultPath,
-  normalizeStarredVaultPath,
+  isSameStarredNotesRootPath,
+  normalizeStarredNotesRootPath,
 } from '@/stores/notes/starred';
 import {
   getAbsoluteRenameWatchPaths,
@@ -28,7 +28,7 @@ function isSameFsPath(path: string, otherPath: string) {
 
 function getExternalStarredWatchEntries(
   entries: StarredEntry[],
-  currentVaultPath: string,
+  currentNotesRootPath: string,
 ) {
   const watchedEntries: Array<{ absolutePath: string; watchPath: string }> = [];
 
@@ -37,7 +37,7 @@ function getExternalStarredWatchEntries(
       continue;
     }
 
-    if (isSameStarredVaultPath(entry.vaultPath, currentVaultPath)) {
+    if (isSameStarredNotesRootPath(entry.notesRootPath, currentNotesRootPath)) {
       continue;
     }
 
@@ -66,11 +66,11 @@ function getExternalStarredWatchEntries(
 export function useExternalStarredRenameSync() {
   const starredEntries = useNotesStore((state) => state.starredEntries);
   const applyExternalPathRename = useNotesStore((state) => state.applyExternalPathRename);
-  const currentVault = useVaultStore((state) => state.currentVault);
-  const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
+  const currentNotesRoot = useNotesRootStore((state) => state.currentNotesRoot);
+  const currentNotesRootPath = currentNotesRoot?.path ? normalizeStarredNotesRootPath(currentNotesRoot.path) : '';
   const watchEntries = useMemo(
-    () => getExternalStarredWatchEntries(starredEntries, currentVaultPath),
-    [currentVaultPath, starredEntries],
+    () => getExternalStarredWatchEntries(starredEntries, currentNotesRootPath),
+    [currentNotesRootPath, starredEntries],
   );
 
   useEffect(() => {

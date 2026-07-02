@@ -48,7 +48,7 @@ describe('notes metadata storage', () => {
 
   it('scans markdown frontmatter into the runtime metadata index', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-a') {
+      if (path === '/notes-root-a') {
         return [
           { name: 'alpha.md', isFile: true },
           { name: 'docs', isDirectory: true },
@@ -56,7 +56,7 @@ describe('notes metadata storage', () => {
         ];
       }
 
-      if (path === '/vault-a/docs') {
+      if (path === '/notes-root-a/docs') {
         return [{ name: 'beta.md', isFile: true }];
       }
 
@@ -64,7 +64,7 @@ describe('notes metadata storage', () => {
     });
 
     adapter.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault-a/alpha.md') {
+      if (path === '/notes-root-a/alpha.md') {
         return [
           '---',
           'vlaina_cover: "assets/alpha.webp" x=12 y=24 height=260 scale=1.4',
@@ -88,7 +88,7 @@ describe('notes metadata storage', () => {
       ].join('\n');
     });
 
-    await expect(loadNoteMetadata('/vault-a')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-a')).resolves.toEqual({
       version: 2,
       notes: {
         'alpha.md': {
@@ -120,7 +120,7 @@ describe('notes metadata storage', () => {
     ]);
     adapter.readFile.mockResolvedValue('# Note');
 
-    await expect(loadNoteMetadata('/vault-extensions')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-extensions')).resolves.toEqual({
       version: 2,
       notes: {
         'alpha.md': { updatedAt: 1 },
@@ -129,16 +129,16 @@ describe('notes metadata storage', () => {
         'delta.mkd': { updatedAt: 2 },
       },
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/alpha.md', MAX_METADATA_READ_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/beta.markdown', MAX_METADATA_READ_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/gamma.mdown', MAX_METADATA_READ_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/delta.mkd', MAX_METADATA_READ_BYTES);
-    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-extensions/image.png');
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-extensions/alpha.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-extensions/beta.markdown', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-extensions/gamma.mdown', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-extensions/delta.mkd', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/notes-root-extensions/image.png');
   });
 
   it('scans user dotfile notes while hiding internal app and git folders', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-dot-notes') {
+      if (path === '/notes-root-dot-notes') {
         return [
           { name: '.journal.md', isFile: true },
           { name: '.notes', isDirectory: true },
@@ -149,7 +149,7 @@ describe('notes metadata storage', () => {
         ];
       }
 
-      if (path === '/vault-dot-notes/.notes') {
+      if (path === '/notes-root-dot-notes/.notes') {
         return [{ name: 'alpha.md', isFile: true }];
       }
 
@@ -169,7 +169,7 @@ describe('notes metadata storage', () => {
       ].join('\n');
     });
 
-    await expect(loadNoteMetadata('/vault-dot-notes')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-dot-notes')).resolves.toEqual({
       version: 2,
       notes: {
         '.journal.md': {
@@ -180,17 +180,17 @@ describe('notes metadata storage', () => {
         },
       },
     });
-    expect(adapter.listDir).toHaveBeenCalledWith('/vault-dot-notes', { includeHidden: true });
-    expect(adapter.listDir).toHaveBeenCalledWith('/vault-dot-notes/.notes', { includeHidden: true });
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.vlaina');
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.git');
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.VLAINA');
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.GIT');
+    expect(adapter.listDir).toHaveBeenCalledWith('/notes-root-dot-notes', { includeHidden: true });
+    expect(adapter.listDir).toHaveBeenCalledWith('/notes-root-dot-notes/.notes', { includeHidden: true });
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/notes-root-dot-notes/.vlaina');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/notes-root-dot-notes/.git');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/notes-root-dot-notes/.VLAINA');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/notes-root-dot-notes/.GIT');
   });
 
   it('ignores unsafe storage entry names during metadata scans', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-unsafe') {
+      if (path === '/notes-root-unsafe') {
         return [
           { name: 'alpha.md', isFile: true },
           { name: '../secret.md', isFile: true },
@@ -201,7 +201,7 @@ describe('notes metadata storage', () => {
         ];
       }
 
-      if (path === '/vault-unsafe/docs') {
+      if (path === '/notes-root-unsafe/docs') {
         return [{ name: 'beta.md', isFile: true }];
       }
 
@@ -209,19 +209,19 @@ describe('notes metadata storage', () => {
     });
     adapter.readFile.mockResolvedValue('# Note');
 
-    await expect(loadNoteMetadata('/vault-unsafe')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-unsafe')).resolves.toEqual({
       version: 2,
       notes: {
         'alpha.md': { updatedAt: 1 },
         'docs/beta.md': { updatedAt: 2 },
       },
     });
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-unsafe/..');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/alpha.md', MAX_METADATA_READ_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/docs/beta.md', MAX_METADATA_READ_BYTES);
-    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/../secret.md');
-    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/nested/evil.md');
-    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/bad\\evil.md');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/notes-root-unsafe/..');
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-unsafe/alpha.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-unsafe/docs/beta.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/notes-root-unsafe/../secret.md');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/notes-root-unsafe/nested/evil.md');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/notes-root-unsafe/bad\\evil.md');
   });
 
   it('reuses cached metadata when file stats are unchanged', async () => {
@@ -237,8 +237,8 @@ describe('notes metadata storage', () => {
     ].join('\n'));
     adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 80 });
 
-    await loadNoteMetadata('/vault-cache');
-    await loadNoteMetadata('/vault-cache');
+    await loadNoteMetadata('/notes-root-cache');
+    await loadNoteMetadata('/notes-root-cache');
 
     expect(adapter.readFile).toHaveBeenCalledTimes(1);
   });
@@ -256,8 +256,8 @@ describe('notes metadata storage', () => {
     ].join('\n'));
     adapter.stat.mockResolvedValue({ modifiedAt: Number.POSITIVE_INFINITY, size: 80 });
 
-    await loadNoteMetadata('/vault-invalid-mtime');
-    await loadNoteMetadata('/vault-invalid-mtime');
+    await loadNoteMetadata('/notes-root-invalid-mtime');
+    await loadNoteMetadata('/notes-root-invalid-mtime');
 
     expect(adapter.readFile).toHaveBeenCalledTimes(2);
   });
@@ -269,8 +269,8 @@ describe('notes metadata storage', () => {
     adapter.readFile.mockResolvedValue('# Alpha');
     adapter.stat.mockResolvedValue(null);
 
-    await loadNoteMetadata('/vault-no-stat');
-    await loadNoteMetadata('/vault-no-stat');
+    await loadNoteMetadata('/notes-root-no-stat');
+    await loadNoteMetadata('/notes-root-no-stat');
 
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
@@ -281,7 +281,7 @@ describe('notes metadata storage', () => {
     ]);
     adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 6 * 1024 * 1024 });
 
-    await expect(loadNoteMetadata('/vault-huge')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-huge')).resolves.toEqual({
       version: 2,
       notes: {
         'huge.md': { updatedAt: 7 },
@@ -296,7 +296,7 @@ describe('notes metadata storage', () => {
     ]);
     adapter.stat.mockResolvedValue({ modifiedAt: 7, size: -1 });
 
-    await expect(loadNoteMetadata('/vault-invalid-size')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-invalid-size')).resolves.toEqual({
       version: 2,
       notes: {
         'invalid.md': { updatedAt: 7 },
@@ -312,18 +312,18 @@ describe('notes metadata storage', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 32 });
     adapter.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_METADATA_READ_BYTES / 3) + 1));
 
-    await expect(loadNoteMetadata('/vault-huge-after-read')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-huge-after-read')).resolves.toEqual({
       version: 2,
       notes: {
         'huge.md': { updatedAt: 7 },
       },
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-huge-after-read/huge.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-huge-after-read/huge.md', MAX_METADATA_READ_BYTES);
   });
 
   it('keeps generated folders low priority without hiding markdown metadata', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-heavy') {
+      if (path === '/notes-root-heavy') {
         return [
           { name: 'node_modules', isDirectory: true },
           { name: 'Node_Modules', isDirectory: true },
@@ -332,19 +332,19 @@ describe('notes metadata storage', () => {
         ];
       }
 
-      if (path === '/vault-heavy/docs') {
+      if (path === '/notes-root-heavy/docs') {
         return [{ name: 'alpha.md', isFile: true }];
       }
 
-      if (path === '/vault-heavy/node_modules') {
+      if (path === '/notes-root-heavy/node_modules') {
         return [{ name: 'package.md', isFile: true }];
       }
 
-      if (path === '/vault-heavy/Node_Modules') {
+      if (path === '/notes-root-heavy/Node_Modules') {
         return [{ name: 'package.md', isFile: true }];
       }
 
-      if (path === '/vault-heavy/Dist') {
+      if (path === '/notes-root-heavy/Dist') {
         return [{ name: 'bundle.md', isFile: true }];
       }
 
@@ -358,7 +358,7 @@ describe('notes metadata storage', () => {
       '# Alpha',
     ].join('\n'));
 
-    await expect(loadNoteMetadata('/vault-heavy')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-heavy')).resolves.toEqual({
       version: 2,
       notes: {
         'Dist/bundle.md': {
@@ -375,14 +375,14 @@ describe('notes metadata storage', () => {
         },
       },
     });
-    expect(adapter.listDir).toHaveBeenCalledWith('/vault-heavy/node_modules', { includeHidden: true });
-    expect(adapter.listDir).toHaveBeenCalledWith('/vault-heavy/Node_Modules', { includeHidden: true });
-    expect(adapter.listDir).toHaveBeenCalledWith('/vault-heavy/Dist', { includeHidden: true });
+    expect(adapter.listDir).toHaveBeenCalledWith('/notes-root-heavy/node_modules', { includeHidden: true });
+    expect(adapter.listDir).toHaveBeenCalledWith('/notes-root-heavy/Node_Modules', { includeHidden: true });
+    expect(adapter.listDir).toHaveBeenCalledWith('/notes-root-heavy/Dist', { includeHidden: true });
   });
 
   it('prioritizes markdown and folders before capping non-markdown metadata scanning', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-many-assets') {
+      if (path === '/notes-root-many-assets') {
         return [
           ...Array.from({ length: 10_000 }, (_, index) => ({ name: `asset-${index}.png`, isFile: true })),
           { name: 'late.md', isFile: true },
@@ -390,7 +390,7 @@ describe('notes metadata storage', () => {
         ];
       }
 
-      if (path === '/vault-many-assets/late-folder') {
+      if (path === '/notes-root-many-assets/late-folder') {
         return [{ name: 'nested.md', isFile: true }];
       }
 
@@ -404,7 +404,7 @@ describe('notes metadata storage', () => {
       '# Late',
     ].join('\n'));
 
-    await expect(loadNoteMetadata('/vault-many-assets')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-many-assets')).resolves.toEqual({
       version: 2,
       notes: {
         'late-folder/nested.md': {
@@ -415,13 +415,13 @@ describe('notes metadata storage', () => {
         },
       },
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late.md', MAX_METADATA_READ_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late-folder/nested.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-many-assets/late.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-many-assets/late-folder/nested.md', MAX_METADATA_READ_BYTES);
   });
 
   it('keeps readable sibling metadata when one nested folder cannot be listed', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-partial-failure') {
+      if (path === '/notes-root-partial-failure') {
         return [
           { name: 'root.md', isFile: true },
           { name: 'docs', isDirectory: true },
@@ -429,11 +429,11 @@ describe('notes metadata storage', () => {
         ];
       }
 
-      if (path === '/vault-partial-failure/docs') {
+      if (path === '/notes-root-partial-failure/docs') {
         return [{ name: 'inside.md', isFile: true }];
       }
 
-      if (path === '/vault-partial-failure/locked') {
+      if (path === '/notes-root-partial-failure/locked') {
         throw new Error('Permission denied');
       }
 
@@ -453,7 +453,7 @@ describe('notes metadata storage', () => {
       ].join('\n');
     });
 
-    await expect(loadNoteMetadata('/vault-partial-failure')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-partial-failure')).resolves.toEqual({
       version: 2,
       notes: {
         'root.md': {
@@ -492,19 +492,19 @@ describe('notes metadata storage', () => {
     expect(localStorage.getItem('vlaina-note-icon-size')).toBe('60');
   });
 
-  it('stores workspace state in the system config folder instead of the vault folder', async () => {
-    await saveWorkspaceState('/vault-a', {
+  it('stores workspace state in the system config folder instead of the notesRoot folder', async () => {
+    await saveWorkspaceState('/notes-root-a', {
       currentNotePath: 'alpha.md',
       expandedFolders: ['docs'],
       fileTreeSortMode: 'updated-desc',
     });
 
     expect(adapter.mkdir).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1dwgd8k',
+      '/app/.vlaina/notes/notes-roots/notes-root-1dwgd8k',
       true
     );
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1dwgd8k/workspace.json',
+      '/app/.vlaina/notes/notes-roots/notes-root-1dwgd8k/workspace.json',
       JSON.stringify({
         currentNotePath: 'alpha.md',
         expandedFolders: ['docs'],
@@ -522,14 +522,14 @@ describe('notes metadata storage', () => {
       fileTreeSortMode: 'name-asc',
     }));
 
-    await saveWorkspaceState('/vault-a', {
+    await saveWorkspaceState('/notes-root-a', {
       currentNotePath: 'alpha.md',
       expandedFolders: ['docs'],
       fileTreeSortMode: 'updated-desc',
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/vaults/vault-1dwgd8k/workspace.json',
+      '/app/.vlaina/notes/notes-roots/notes-root-1dwgd8k/workspace.json',
       JSON.stringify({
         currentNotePath: 'alpha.md',
         expandedFolders: ['archive', 'docs'],
@@ -547,7 +547,7 @@ describe('notes metadata storage', () => {
       fileTreeSortMode: 'name-asc',
     }));
 
-    await saveWorkspaceState('/vault-a', {
+    await saveWorkspaceState('/notes-root-a', {
       currentNotePath: 'alpha.md',
       expandedFolders: Array.from({ length: 5000 }, (_, index) => `current-${index}`),
       fileTreeSortMode: 'updated-desc',
@@ -581,7 +581,7 @@ describe('notes metadata storage', () => {
       })
     );
 
-    await expect(loadWorkspaceState('/vault-a')).resolves.toEqual({
+    await expect(loadWorkspaceState('/notes-root-a')).resolves.toEqual({
       currentNotePath: null,
       expandedFolders: ['docs'],
       fileTreeSortMode: undefined,
@@ -597,7 +597,7 @@ describe('notes metadata storage', () => {
       })
     );
 
-    await expect(loadWorkspaceState('/vault-a')).resolves.toEqual({
+    await expect(loadWorkspaceState('/notes-root-a')).resolves.toEqual({
       currentNotePath: null,
       expandedFolders: [],
       fileTreeSortMode: undefined,
@@ -613,7 +613,7 @@ describe('notes metadata storage', () => {
       fileTreeSortMode: 'name-asc',
     }));
 
-    await expect(loadWorkspaceState('/vault-a')).resolves.toEqual({
+    await expect(loadWorkspaceState('/notes-root-a')).resolves.toEqual({
       currentNotePath: 'docs/alpha.md',
       expandedFolders: ['docs'],
       fileTreeSortMode: 'name-asc',
@@ -625,7 +625,7 @@ describe('notes metadata storage', () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: 300 * 1024 });
 
-    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
+    await expect(loadWorkspaceState('/notes-root-a')).resolves.toBeNull();
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
@@ -633,7 +633,7 @@ describe('notes metadata storage', () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: -1 });
 
-    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
+    await expect(loadWorkspaceState('/notes-root-a')).resolves.toBeNull();
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
@@ -642,7 +642,7 @@ describe('notes metadata storage', () => {
     adapter.stat.mockResolvedValue({ size: 128 });
     adapter.readFile.mockResolvedValue('x'.repeat(256 * 1024 + 1));
 
-    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
+    await expect(loadWorkspaceState('/notes-root-a')).resolves.toBeNull();
     expect(adapter.readFile).toHaveBeenCalled();
   });
 

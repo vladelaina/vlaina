@@ -19,7 +19,7 @@ interface LocalImageState {
     error: Error | null;
 }
 
-function canUseVaultlessLocalImageFallback(src: string): boolean {
+function canUseNotesRootlessLocalImageFallback(src: string): boolean {
     const localSrc = getLocalImageSourcePath(src);
     if (!localSrc || hasInternalNoteAssetPathSegment(localSrc)) {
         return false;
@@ -181,7 +181,7 @@ export function useLocalImage(
                     }
 
                     throw lastError ?? new Error(`Failed to load image: ${rawSrc}`);
-                } else if (!notesPath && canUseVaultlessLocalImageFallback(safeBaseSrc)) {
+                } else if (!notesPath && canUseNotesRootlessLocalImageFallback(safeBaseSrc)) {
                     commitResolved(baseSrc);
                 } else if (isMounted) {
                     commitError(new Error(`Failed to resolve image: ${rawSrc}`));

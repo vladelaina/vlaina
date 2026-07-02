@@ -49,51 +49,51 @@ vi.mock('@/lib/storage/adapter', () => ({
   },
 }));
 
-import { isDirectChildPath, looksLikeVaultRoot } from './currentVaultExternalPathSyncUtils';
+import { isDirectChildPath, looksLikeNotesRootRoot } from './currentNotesRootExternalPathSyncUtils';
 
-describe('currentVaultExternalPathSyncUtils', () => {
+describe('currentNotesRootExternalPathSyncUtils', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     adapter.getBasePath.mockResolvedValue('/app');
     adapter.stat.mockResolvedValue({ isDirectory: true });
   });
 
-  it('accepts an existing directory as a vault root candidate', async () => {
+  it('accepts an existing directory as a notesRoot root candidate', async () => {
     adapter.exists.mockResolvedValue(true);
 
-    await expect(looksLikeVaultRoot('C:/vault-new')).resolves.toBe(true);
+    await expect(looksLikeNotesRootRoot('C:/notes-root-new')).resolves.toBe(true);
   });
 
-  it('rejects missing paths as vault root candidates', async () => {
+  it('rejects missing paths as notesRoot root candidates', async () => {
     adapter.exists.mockResolvedValue(false);
 
-    await expect(looksLikeVaultRoot('C:/vault-new')).resolves.toBe(false);
+    await expect(looksLikeNotesRootRoot('C:/notes-root-new')).resolves.toBe(false);
   });
 
-  it('rejects unsafe and relative vault root candidates before probing storage', async () => {
-    await expect(looksLikeVaultRoot('relative/vault')).resolves.toBe(false);
-    await expect(looksLikeVaultRoot('/home/user/unsafe\u202Egnp')).resolves.toBe(false);
+  it('rejects unsafe and relative notesRoot root candidates before probing storage', async () => {
+    await expect(looksLikeNotesRootRoot('relative/notesRoot')).resolves.toBe(false);
+    await expect(looksLikeNotesRootRoot('/home/user/unsafe\u202Egnp')).resolves.toBe(false);
 
     expect(adapter.exists).not.toHaveBeenCalled();
     expect(adapter.stat).not.toHaveBeenCalled();
   });
 
-  it('probes normalized vault root candidates', async () => {
+  it('probes normalized notesRoot root candidates', async () => {
     adapter.exists.mockResolvedValue(true);
 
-    await expect(looksLikeVaultRoot('/home/user/vault/../vault-new')).resolves.toBe(true);
+    await expect(looksLikeNotesRootRoot('/home/user/notesRoot/../notes-root-new')).resolves.toBe(true);
 
-    expect(adapter.exists).toHaveBeenCalledWith('/home/user/vault-new');
-    expect(adapter.stat).toHaveBeenCalledWith('/home/user/vault-new');
+    expect(adapter.exists).toHaveBeenCalledWith('/home/user/notes-root-new');
+    expect(adapter.stat).toHaveBeenCalledWith('/home/user/notes-root-new');
   });
 
   it('matches Windows direct child paths case-insensitively', () => {
-    expect(isDirectChildPath('C:\\Users\\Me', 'c:\\users\\me\\Vault')).toBe(true);
-    expect(isDirectChildPath('C:\\Users\\Me', 'c:\\users\\other\\Vault')).toBe(false);
+    expect(isDirectChildPath('C:\\Users\\Me', 'c:\\users\\me\\NotesRoot')).toBe(true);
+    expect(isDirectChildPath('C:\\Users\\Me', 'c:\\users\\other\\NotesRoot')).toBe(false);
   });
 
   it('normalizes dot segments before matching direct child paths', () => {
-    expect(isDirectChildPath('/home/user', '/home/user/vault/../vault-new')).toBe(true);
-    expect(isDirectChildPath('/home/user', '/home/user/vault/../../other')).toBe(false);
+    expect(isDirectChildPath('/home/user', '/home/user/notesRoot/../notes-root-new')).toBe(true);
+    expect(isDirectChildPath('/home/user', '/home/user/notesRoot/../../other')).toBe(false);
   });
 });

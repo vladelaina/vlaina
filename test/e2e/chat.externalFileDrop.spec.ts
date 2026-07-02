@@ -3,10 +3,10 @@ import {
   CHAT_COMPOSER_TEXTAREA_SELECTOR,
   cleanupIsolatedElectron,
   createChatModelFixture,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 async function dispatchMarkdownFileDropIntoEmbeddedChat(
@@ -22,7 +22,7 @@ async function dispatchMarkdownFileDropIntoEmbeddedChat(
         reason: 'missing-composer',
         transferredPath: null,
         notesPath: null,
-        currentVaultPath: null,
+        currentNotesRootPath: null,
         textareaValue: null,
       };
     }
@@ -65,7 +65,7 @@ async function dispatchMarkdownFileDropIntoEmbeddedChat(
       reason: null,
       transferredPath: (dataTransfer.files[0] as File & { path?: string } | undefined)?.path ?? null,
       notesPath: (window as any).__vlainaE2E.getNotesState().notesPath ?? null,
-      currentVaultPath: (window as any).__vlainaE2E.getVaultState().currentVault?.path ?? null,
+      currentNotesRootPath: (window as any).__vlainaE2E.getNotesRootState().currentNotesRoot?.path ?? null,
       textareaValue: document.querySelector<HTMLTextAreaElement>('[data-notes-chat-panel="true"] [data-chat-input="true"] textarea')?.value ?? null,
     };
   }, input);
@@ -74,7 +74,7 @@ async function dispatchMarkdownFileDropIntoEmbeddedChat(
 test.describe('chat external file drop coverage', () => {
   test.setTimeout(120_000);
 
-  test('adds a note mention when a current-vault markdown file is dropped into embedded chat', async ({}, testInfo) => {
+  test('adds a note mention when a current-notesRoot markdown file is dropped into embedded chat', async ({}, testInfo) => {
     const { app, userDataRoot } = await launchIsolatedElectron(`chat-external-file-drop-${testInfo.workerIndex}`);
 
     try {
@@ -85,16 +85,16 @@ test.describe('chat external file drop coverage', () => {
         apiModelId: 'e2e-external-file-drop-model',
       });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'chat-external-file-drop',
         files: [
           { filename: 'Dragged.md', content: 'Dragged note body.' },
           { filename: 'Anchor.md', content: 'Anchor note body.' },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'External File Drop Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'External File Drop NotesRoot',
         minFileCount: 2,
       });
 

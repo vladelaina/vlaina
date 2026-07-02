@@ -16,7 +16,7 @@ const hoisted = vi.hoisted(() => {
     syncCurrentNoteFromDisk: vi.fn(async () => 'unchanged' as const),
     applyExternalPathRename: vi.fn(async () => undefined),
     applyExternalPathDeletion: vi.fn(async () => undefined),
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: { path: 'docs/current.md' } as { path: string } | null,
     isDirty: false,
     rootFolder: { children: [] as unknown[] } as { children: unknown[] } | null,
@@ -107,7 +107,7 @@ describe('useNotesExternalSync', () => {
     vi.clearAllMocks();
     hoisted.watchHandler = null;
     hoisted.renameBroadcastHandler = null;
-    hoisted.notesState.notesPath = '/vault';
+    hoisted.notesState.notesPath = '/notesRoot';
     hoisted.notesState.currentNote = { path: 'docs/current.md' };
     hoisted.notesState.rootFolder = { children: [] };
     hoisted.notesState.openTabs = [];
@@ -121,10 +121,10 @@ describe('useNotesExternalSync', () => {
   });
 
   it('reconciles the current note without reloading the tree after an external current-note change', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     expect(hoisted.watchDesktopPath).toHaveBeenCalledWith(
-      '/vault',
+      '/notesRoot',
       expect.any(Function),
       { recursive: true }
     );
@@ -132,7 +132,7 @@ describe('useNotesExternalSync', () => {
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: ['/vault/docs/current.md'],
+        paths: ['/notesRoot/docs/current.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -147,12 +147,12 @@ describe('useNotesExternalSync', () => {
 
   it('refreshes current note disk state for expected write events without reloading the tree', async () => {
     vi.mocked(shouldIgnoreExpectedExternalChange).mockReturnValueOnce(true);
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: ['/vault/docs/current.md'],
+        paths: ['/notesRoot/docs/current.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -169,12 +169,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('invalidates non-current note cache and reloads the tree after an external change', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: ['/vault/docs/other.md'],
+        paths: ['/notesRoot/docs/other.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -188,12 +188,12 @@ describe('useNotesExternalSync', () => {
 
   it('isolates rejected scheduled file tree reloads', async () => {
     hoisted.notesState.loadFileTree.mockRejectedValueOnce(new Error('reload failed'));
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: ['/vault/docs/other.md'],
+        paths: ['/notesRoot/docs/other.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -205,12 +205,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('handles user dotfile note changes as normal markdown events', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: ['/vault/.journal.md'],
+        paths: ['/notesRoot/.journal.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -222,12 +222,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('handles user dot-folder note changes as normal markdown events', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: 'modify',
-        paths: ['/vault/.notes/alpha.md'],
+        paths: ['/notesRoot/.notes/alpha.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -252,12 +252,12 @@ describe('useNotesExternalSync', () => {
         },
       ],
     };
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'data', mode: 'any' } },
-        paths: ['/vault/docs'],
+        paths: ['/notesRoot/docs'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -272,8 +272,8 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('ignores watch events outside the active notes path even if the vault path is broader', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/home/user', '/home/user/vault'));
+  it('ignores watch events outside the active notes path even if the opened folder path is broader', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/home/user', '/home/user/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
@@ -317,12 +317,12 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalled();
 
     hook.unmount();
-    hoisted.notesState.notesPath = '/vault';
+    hoisted.notesState.notesPath = '/notesRoot';
   });
 
   it('falls back to polling when native watch startup fails unexpectedly', async () => {
     hoisted.watchDesktopPath.mockRejectedValueOnce(new Error('Permission denied'));
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await Promise.resolve();
@@ -330,7 +330,7 @@ describe('useNotesExternalSync', () => {
     });
 
     expect(hoisted.watchDesktopPath).toHaveBeenCalledWith(
-      '/vault',
+      '/notesRoot',
       expect.any(Function),
       { recursive: true },
     );
@@ -361,7 +361,7 @@ describe('useNotesExternalSync', () => {
       deletions: ['docs/missed-delete.md'],
       hasAdditions: false,
     });
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await Promise.resolve();
@@ -374,19 +374,19 @@ describe('useNotesExternalSync', () => {
       await Promise.resolve();
     });
 
-    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/vault');
+    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/notesRoot');
     expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/missed-delete.md');
 
     hook.unmount();
   });
 
   it('applies external deletions before reloading the tree', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/removed.md'],
+        paths: ['/notesRoot/docs/removed.md'],
       });
       await vi.advanceTimersByTimeAsync(401);
     });
@@ -398,16 +398,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('treats paired remove and create events as an external rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -420,20 +420,20 @@ describe('useNotesExternalSync', () => {
   });
 
   it('deduplicates repeated remove events before pairing an external rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -446,20 +446,20 @@ describe('useNotesExternalSync', () => {
   });
 
   it('deduplicates repeated create events before pairing an external rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -472,16 +472,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('treats paired user dot-folder note events as an external rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/.notes/alpha.md'],
+        paths: ['/notesRoot/.notes/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/.notes/beta.md'],
+        paths: ['/notesRoot/.notes/beta.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -494,16 +494,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('treats a native remove-any event paired with a file create as an external rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'any' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -516,16 +516,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('treats paired create and remove events as an external rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -538,20 +538,20 @@ describe('useNotesExternalSync', () => {
   });
 
   it('pairs a remove event with the unique best pending create instead of the first create', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/archive/new.md'],
+        paths: ['/notesRoot/archive/new.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -570,20 +570,20 @@ describe('useNotesExternalSync', () => {
       deletions: [],
       hasAdditions: true,
     });
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/new.md'],
+        paths: ['/notesRoot/docs/new.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(181);
@@ -597,16 +597,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not treat a Markdown file removed before a created folder as a folder rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'folder' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'any' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await vi.advanceTimersByTimeAsync(401);
     });
@@ -619,16 +619,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not pair a removed Markdown file with a created folder as a rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'folder' } },
-        paths: ['/vault/docs/beta'],
+        paths: ['/notesRoot/docs/beta'],
       });
       await vi.advanceTimersByTimeAsync(401);
     });
@@ -641,16 +641,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not pair a created folder with a removed Markdown file as a rename', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'folder' } },
-        paths: ['/vault/docs/beta'],
+        paths: ['/notesRoot/docs/beta'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await vi.advanceTimersByTimeAsync(401);
     });
@@ -663,12 +663,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('treats a Markdown file renamed to a non-Markdown file as an external deletion', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['/vault/docs/alpha.md', '/vault/docs/alpha.png'],
+        paths: ['/notesRoot/docs/alpha.md', '/notesRoot/docs/alpha.png'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -681,12 +681,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('treats a non-Markdown file renamed to Markdown as an external Markdown addition', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['/vault/docs/alpha.png', '/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.png', '/notesRoot/docs/alpha.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -700,16 +700,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not remap Markdown state when paired remove and create events change a file to non-Markdown', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.png'],
+        paths: ['/notesRoot/docs/alpha.png'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -722,16 +722,16 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not remap Markdown state when paired create and remove events change a file to Markdown', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.md'],
+        paths: ['/notesRoot/docs/alpha.md'],
       });
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/alpha.png'],
+        paths: ['/notesRoot/docs/alpha.png'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -757,12 +757,12 @@ describe('useNotesExternalSync', () => {
         },
       ],
     };
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['/vault/docs/alpha.md', '/vault/docs/beta.png'],
+        paths: ['/notesRoot/docs/alpha.md', '/notesRoot/docs/beta.png'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -775,12 +775,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not pair ignored rename endpoints with note paths', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['/vault/.vlaina/internal.json', '/vault/docs/beta.md'],
+        paths: ['/notesRoot/.vlaina/internal.json', '/notesRoot/docs/beta.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
@@ -794,12 +794,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('reloads the tree for a standalone external create after the rename window expires', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/new.md'],
+        paths: ['/notesRoot/docs/new.md'],
       });
       await vi.advanceTimersByTimeAsync(401);
     });
@@ -812,12 +812,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not reload the tree for a standalone non-Markdown file create after the rename window expires', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/image.png'],
+        paths: ['/notesRoot/docs/image.png'],
       });
       await vi.advanceTimersByTimeAsync(401);
     });
@@ -831,12 +831,12 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not reload the tree for a standalone non-Markdown file remove after the rename window expires', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/image.png'],
+        paths: ['/notesRoot/docs/image.png'],
       });
       await vi.advanceTimersByTimeAsync(401);
     });
@@ -851,12 +851,12 @@ describe('useNotesExternalSync', () => {
 
   it('isolates rejected pending deletion flushes', async () => {
     hoisted.notesState.applyExternalPathDeletion.mockRejectedValueOnce(new Error('delete failed'));
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { remove: { kind: 'file' } },
-        paths: ['/vault/docs/stale.md'],
+        paths: ['/notesRoot/docs/stale.md'],
       });
       await vi.advanceTimersByTimeAsync(181);
     });
@@ -873,12 +873,12 @@ describe('useNotesExternalSync', () => {
       deletions: [],
       hasAdditions: false,
     });
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
-        paths: ['/vault/docs/beta.md'],
+        paths: ['/notesRoot/docs/beta.md'],
       });
       await vi.advanceTimersByTimeAsync(181);
     });
@@ -891,7 +891,7 @@ describe('useNotesExternalSync', () => {
   });
 
   it('applies semantic rename broadcasts from another window', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       hoisted.renameBroadcastHandler?.({
@@ -903,7 +903,7 @@ describe('useNotesExternalSync', () => {
       await Promise.resolve();
     });
 
-    expect(hoisted.subscribeNotesExternalPathRename).toHaveBeenCalledWith('/vault', expect.any(Function));
+    expect(hoisted.subscribeNotesExternalPathRename).toHaveBeenCalledWith('/notesRoot', expect.any(Function));
     expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 
@@ -912,7 +912,7 @@ describe('useNotesExternalSync', () => {
   });
 
   it('does not apply semantic rename broadcasts that move Markdown files to non-Markdown paths', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       hoisted.renameBroadcastHandler?.({
@@ -931,8 +931,8 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('ignores semantic rename broadcasts with paths outside the vault', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+  it('ignores semantic rename broadcasts with paths outside the notesRoot', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       hoisted.renameBroadcastHandler?.({
@@ -950,7 +950,7 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('applies rename events from the persisted vault event file on startup', async () => {
+  it('applies rename events from the persisted notesRoot event file on startup', async () => {
     hoisted.readNotesExternalPathEvents.mockResolvedValueOnce([
       {
         nonce: 'rename-file-event-1',
@@ -958,14 +958,14 @@ describe('useNotesExternalSync', () => {
         newPath: 'docs/beta.md',
       },
     ]);
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/vault', {
+    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/notesRoot', {
       afterStamp: expect.any(Number),
     });
     expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
@@ -974,7 +974,7 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('continues handling note paths after replaying persisted vault events', async () => {
+  it('continues handling note paths after replaying persisted notesRoot events', async () => {
     hoisted.readNotesExternalPathEvents.mockResolvedValueOnce([
       {
         nonce: 'rename-file-event-1',
@@ -982,17 +982,17 @@ describe('useNotesExternalSync', () => {
         newPath: 'docs/beta.md',
       },
     ]);
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'data', mode: 'any' } },
-        paths: ['/vault/docs/other.md'],
+        paths: ['/notesRoot/docs/other.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
 
-    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/vault', {
+    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/notesRoot', {
       afterStamp: expect.any(Number),
     });
     expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
@@ -1002,19 +1002,19 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('continues handling note paths when persisted vault event replay fails', async () => {
+  it('continues handling note paths when persisted notesRoot event replay fails', async () => {
     hoisted.readNotesExternalPathEvents.mockRejectedValueOnce(new Error('event file unavailable'));
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'data', mode: 'any' } },
-        paths: ['/vault/docs/other.md'],
+        paths: ['/notesRoot/docs/other.md'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });
 
-    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/vault', {
+    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/notesRoot', {
       afterStamp: expect.any(Number),
     });
     expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/other.md');
@@ -1025,7 +1025,7 @@ describe('useNotesExternalSync', () => {
 
   it('isolates rejected semantic rename broadcasts', async () => {
     hoisted.notesState.applyExternalPathRename.mockRejectedValueOnce(new Error('rename failed'));
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       hoisted.renameBroadcastHandler?.({
@@ -1052,7 +1052,7 @@ describe('useNotesExternalSync', () => {
       });
     });
 
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     hook.unmount();
 

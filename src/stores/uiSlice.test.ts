@@ -34,7 +34,7 @@ describe('uiSlice', () => {
       universalPreviewIconSize: null,
       imageStorageMode: 'subfolder',
       imageSubfolderName: 'assets',
-      imageVaultSubfolderName: 'assets',
+      imageNotesRootSubfolderName: 'assets',
       imageFilenameFormat: 'original',
       notesChatPanelCollapsed: false,
       notesChatFloatingOpen: false,
@@ -101,6 +101,11 @@ describe('uiSlice', () => {
     expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
     expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
     expect(setLastAppViewMode).toHaveBeenLastCalledWith('chat', true);
+
+    useUIStore.getState().setAppViewMode('whiteboard');
+    expect(useUIStore.getState().appViewMode).toBe('whiteboard');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
+    expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
 
     useUIStore.getState().setAppViewMode('lab');
     expect(useUIStore.getState().appViewMode).toBe('lab');
@@ -235,9 +240,9 @@ describe('uiSlice', () => {
     localStorage.setItem('vlaina_sidebar_width', '360');
     localStorage.setItem('fontSize', '18');
     localStorage.setItem('vlaina-language-preference', 'zh-CN');
-    localStorage.setItem('vlaina_image_storage_mode', 'vaultSubfolder');
+    localStorage.setItem('vlaina_image_storage_mode', 'notesRootSubfolder');
     localStorage.setItem('vlaina_image_subfolder_name', 'inline-assets');
-    localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault-assets');
+    localStorage.setItem('vlaina_image_notesRoot_subfolder_name', 'notes-root-assets');
     localStorage.setItem('vlaina_image_filename_format', 'sequence');
     localStorage.setItem('vlaina_notes_chat_panel_collapsed', 'true');
     localStorage.setItem('vlaina_notes_chat_floating_size', JSON.stringify({ width: 512, height: 720 }));
@@ -249,9 +254,9 @@ describe('uiSlice', () => {
       sidebarWidth: 360,
       fontSize: 18,
       languagePreference: 'zh-CN',
-      imageStorageMode: 'vaultSubfolder',
+      imageStorageMode: 'notesRootSubfolder',
       imageSubfolderName: 'inline-assets',
-      imageVaultSubfolderName: 'vault-assets',
+      imageNotesRootSubfolderName: 'notes-root-assets',
       imageFilenameFormat: 'sequence',
       notesChatPanelCollapsed: true,
       notesChatFloatingSize: { width: 512, height: 720 },
@@ -340,14 +345,14 @@ describe('uiSlice', () => {
     expect(() => {
       useUIStore.getState().toggleSidebar();
       useUIStore.getState().setLanguagePreference('zh-CN');
-      useUIStore.getState().setImageStorageMode('vault');
+      useUIStore.getState().setImageStorageMode('notesRoot');
       useUIStore.getState().queueNotesChatComposerInsert('Selected text');
     }).not.toThrow();
 
     expect(useUIStore.getState()).toMatchObject({
       sidebarCollapsed: true,
       languagePreference: 'zh-CN',
-      imageStorageMode: 'vault',
+      imageStorageMode: 'notesRoot',
       notesChatPanelCollapsed: false,
     });
     expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('Selected text');
@@ -386,55 +391,55 @@ describe('uiSlice', () => {
 
   it('sanitizes image folder names before persisting', () => {
     useUIStore.getState().setImageSubfolderName('assets:/notes*');
-    useUIStore.getState().setImageVaultSubfolderName('vault<>images');
+    useUIStore.getState().setImageNotesRootSubfolderName('notesRoot<>images');
 
     expect(useUIStore.getState().imageSubfolderName).toBe('assetsnotes');
-    expect(useUIStore.getState().imageVaultSubfolderName).toBe('vaultimages');
+    expect(useUIStore.getState().imageNotesRootSubfolderName).toBe('notesRootimages');
   });
 
   it('falls back for unsafe image folder names before persisting', () => {
     useUIStore.getState().setImageSubfolderName('..');
-    useUIStore.getState().setImageVaultSubfolderName('vault\u202Eimages');
+    useUIStore.getState().setImageNotesRootSubfolderName('notesRoot\u202Eimages');
 
     expect(useUIStore.getState().imageSubfolderName).toBe('assets');
-    expect(useUIStore.getState().imageVaultSubfolderName).toBe('assets');
+    expect(useUIStore.getState().imageNotesRootSubfolderName).toBe('assets');
     expect(localStorage.getItem('vlaina_image_subfolder_name')).toBe('assets');
-    expect(localStorage.getItem('vlaina_image_vault_subfolder_name')).toBe('assets');
+    expect(localStorage.getItem('vlaina_image_notesRoot_subfolder_name')).toBe('assets');
   });
 
   it('sanitizes image folder names loaded from storage', () => {
     localStorage.setItem('vlaina_image_subfolder_name', 'assets:/notes*');
-    localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault<>images');
+    localStorage.setItem('vlaina_image_notesRoot_subfolder_name', 'notesRoot<>images');
 
     useUIStore.getState().reloadPreferencesFromStorage();
 
     expect(useUIStore.getState().imageSubfolderName).toBe('assetsnotes');
-    expect(useUIStore.getState().imageVaultSubfolderName).toBe('vaultimages');
+    expect(useUIStore.getState().imageNotesRootSubfolderName).toBe('notesRootimages');
   });
 
   it('falls back for unsafe image folder names loaded from storage', () => {
     localStorage.setItem('vlaina_image_subfolder_name', '.');
-    localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault\u0000images');
+    localStorage.setItem('vlaina_image_notesRoot_subfolder_name', 'notesRoot\u0000images');
 
     useUIStore.getState().reloadPreferencesFromStorage();
 
     expect(useUIStore.getState().imageSubfolderName).toBe('assets');
-    expect(useUIStore.getState().imageVaultSubfolderName).toBe('assets');
+    expect(useUIStore.getState().imageNotesRootSubfolderName).toBe('assets');
   });
 
   it('falls back when image folder names loaded from storage are oversized', () => {
     localStorage.setItem('vlaina_image_subfolder_name', 'a'.repeat(129));
-    localStorage.setItem('vlaina_image_vault_subfolder_name', 'b'.repeat(129));
+    localStorage.setItem('vlaina_image_notesRoot_subfolder_name', 'b'.repeat(129));
 
     useUIStore.getState().reloadPreferencesFromStorage();
 
     expect(useUIStore.getState().imageSubfolderName).toBe('assets');
-    expect(useUIStore.getState().imageVaultSubfolderName).toBe('assets');
+    expect(useUIStore.getState().imageNotesRootSubfolderName).toBe('assets');
   });
 
   it('ignores oversized scalar preferences loaded from storage', () => {
     localStorage.setItem('vlaina_sidebar_width', '9'.repeat(1024));
-    localStorage.setItem('vlaina_image_storage_mode', 'vault'.repeat(128));
+    localStorage.setItem('vlaina_image_storage_mode', 'notesRoot'.repeat(128));
     localStorage.setItem('vlaina_image_filename_format', 'timestamp'.repeat(128));
     localStorage.setItem('vlaina_last_app_view_mode', 'chat'.repeat(128));
 

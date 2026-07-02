@@ -12,12 +12,12 @@ import {
 import {
   dedupeStarredEntries,
   getStarredEntryAbsolutePath,
-  getStarredVaultPathComparisonKey,
-  getVaultStarredPaths,
-  isSameStarredVaultPath,
-  normalizeStarredVaultPath,
-  remapStarredEntriesForVault,
-  resolveStarredRelativePathForVault,
+  getStarredNotesRootPathComparisonKey,
+  getNotesRootStarredPaths,
+  isSameStarredNotesRootPath,
+  normalizeStarredNotesRootPath,
+  remapStarredEntriesForNotesRoot,
+  resolveStarredRelativePathForNotesRoot,
   saveStarredRegistry,
 } from '../starred';
 import { openStoredNotePath } from '../openNotePath';
@@ -55,7 +55,7 @@ import { persistRecentNotes, remapMetadataEntries } from '../storage';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { hasUnsafeVaultPathSegment, normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment, normalizeNotesRootRelativePath } from '../utils/fs/notesRootPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import type { FileTreeNode, StarredEntry } from '../types';
 
@@ -76,13 +76,13 @@ function remapStarredEntriesForAbsoluteRename(
       return [entry];
     }
 
-    const normalizedAbsolutePath = normalizeStarredVaultPath(absolutePath);
+    const normalizedAbsolutePath = normalizeStarredNotesRootPath(absolutePath);
     const nextAbsolutePath = remapStarredAbsolutePathForRename(normalizedAbsolutePath, oldPath, newPath);
     if (nextAbsolutePath === normalizedAbsolutePath) {
       return [entry];
     }
 
-    const relativePath = resolveStarredRelativePathForVault(nextAbsolutePath, entry.vaultPath);
+    const relativePath = resolveStarredRelativePathForNotesRoot(nextAbsolutePath, entry.notesRootPath);
     if (relativePath) {
       changed = true;
       return [{ ...entry, relativePath }];
@@ -98,7 +98,7 @@ function remapStarredEntriesForAbsoluteRename(
     changed = true;
     return [{
       ...entry,
-      vaultPath: normalizeStarredVaultPath(parentPath),
+      notesRootPath: normalizeStarredNotesRootPath(parentPath),
       relativePath: baseName,
     }];
   });
@@ -112,8 +112,8 @@ function remapStarredEntriesForAbsoluteRename(
 }
 
 function isStarredAbsolutePathWithin(path: string, basePath: string): boolean {
-  const pathKey = getStarredVaultPathComparisonKey(path);
-  const baseKey = getStarredVaultPathComparisonKey(basePath);
+  const pathKey = getStarredNotesRootPathComparisonKey(path);
+  const baseKey = getStarredNotesRootPathComparisonKey(basePath);
   const childPrefix = baseKey.endsWith('/') ? baseKey : `${baseKey}/`;
   return pathKey === baseKey || pathKey.startsWith(childPrefix);
 }
@@ -123,10 +123,10 @@ function remapStarredAbsolutePathForRename(path: string, oldPath: string, newPat
     return path;
   }
 
-  const normalizedPath = normalizeStarredVaultPath(path);
-  const normalizedOldPath = normalizeStarredVaultPath(oldPath);
-  const normalizedNewPath = normalizeStarredVaultPath(newPath);
-  if (getStarredVaultPathComparisonKey(normalizedPath) === getStarredVaultPathComparisonKey(normalizedOldPath)) {
+  const normalizedPath = normalizeStarredNotesRootPath(path);
+  const normalizedOldPath = normalizeStarredNotesRootPath(oldPath);
+  const normalizedNewPath = normalizeStarredNotesRootPath(newPath);
+  if (getStarredNotesRootPathComparisonKey(normalizedPath) === getStarredNotesRootPathComparisonKey(normalizedOldPath)) {
     return normalizedNewPath;
   }
 
@@ -140,9 +140,9 @@ function hasPreservedStarredAbsolutePath(
   preservedDeletedPaths: ReadonlySet<string>,
   path: string,
 ): boolean {
-  const pathKey = getStarredVaultPathComparisonKey(path);
+  const pathKey = getStarredNotesRootPathComparisonKey(path);
   for (const preservedPath of preservedDeletedPaths) {
-    if (getStarredVaultPathComparisonKey(preservedPath) === pathKey) {
+    if (getStarredNotesRootPathComparisonKey(preservedPath) === pathKey) {
       return true;
     }
   }
@@ -170,7 +170,7 @@ function pruneStarredEntriesForAbsoluteDeletion(
     return { entries, changed: false };
   }
 
-  const normalizedDeletedPath = normalizeStarredVaultPath(deletedPath);
+  const normalizedDeletedPath = normalizeStarredNotesRootPath(deletedPath);
   let changed = false;
 
   const pruned = entries.filter((entry) => {
@@ -179,7 +179,7 @@ function pruneStarredEntriesForAbsoluteDeletion(
       return true;
     }
 
-    const normalizedAbsolutePath = normalizeStarredVaultPath(absolutePath);
+    const normalizedAbsolutePath = normalizeStarredNotesRootPath(absolutePath);
     if (hasPreservedStarredAbsolutePath(preservedDeletedPaths, normalizedAbsolutePath)) {
       return true;
     }
@@ -225,20 +225,20 @@ function isKnownNoteFilePath(
         return false;
       }
 
-      if (isSameStarredVaultPath(entry.vaultPath, input.notesPath) && entry.relativePath === path) {
+      if (isSameStarredNotesRootPath(entry.notesRootPath, input.notesPath) && entry.relativePath === path) {
         return true;
       }
 
       return isAbsolutePath(path) &&
-        getStarredVaultPathComparisonKey(getStarredEntryAbsolutePath(entry) ?? '') ===
-          getStarredVaultPathComparisonKey(path);
+        getStarredNotesRootPathComparisonKey(getStarredEntryAbsolutePath(entry) ?? '') ===
+          getStarredNotesRootPathComparisonKey(path);
     })
   );
 }
 
 function hasUnsafeExternalPathSegment(path: string): boolean {
   const normalizedPath = isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
-  return hasUnsafeVaultPathSegment(normalizedPath, {
+  return hasUnsafeNotesRootPathSegment(normalizedPath, {
     allowNavigationSegments: true,
   });
 }
@@ -252,7 +252,7 @@ function isAllowedExternalActionPath(path: string): boolean {
     return false;
   }
 
-  return isAbsolutePath(normalizedPath) || normalizeVaultRelativePath(normalizedPath) != null;
+  return isAbsolutePath(normalizedPath) || normalizeNotesRootRelativePath(normalizedPath) != null;
 }
 
 function hasPreservedDeletedDescendant(
@@ -409,17 +409,17 @@ export function createWorkspaceExternalActions(
         return remapPathForExternalRename(path, oldPath, newPath);
       });
 
-      const vaultStarredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
+      const notesRootStarredResult = remapStarredEntriesForNotesRoot(starredEntries, notesPath, (relativePath) => {
         if (relativePath === oldPath) return newPath;
         if (relativePath.startsWith(`${oldPath}/`)) return `${newPath}${relativePath.slice(oldPath.length)}`;
         return relativePath;
       });
       const starredResult = remapStarredEntriesForAbsoluteRename(
-        vaultStarredResult.entries,
+        notesRootStarredResult.entries,
         oldPath,
         newPath,
       );
-      const starredChanged = vaultStarredResult.changed || starredResult.changed;
+      const starredChanged = notesRootStarredResult.changed || starredResult.changed;
 
       if (starredChanged) {
         void Promise.resolve(saveStarredRegistry(starredResult.entries)).catch(() => undefined);
@@ -444,7 +444,7 @@ export function createWorkspaceExternalActions(
             nextMetadata ?? noteMetadata
           )
         : rootFolder;
-      const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+      const starredPaths = getNotesRootStarredPaths(starredResult.entries, notesPath);
       set({
         currentNote: nextCurrentNote,
         openTabs: nextOpenTabs,
@@ -547,7 +547,7 @@ export function createWorkspaceExternalActions(
         return relativePath;
       });
 
-      const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
+      const starredResult = remapStarredEntriesForNotesRoot(starredEntries, notesPath, (relativePath) => {
         if (preservedDeletedPaths.has(relativePath)) return relativePath;
         if (relativePath === path || relativePath.startsWith(`${path}/`)) return null;
         return relativePath;
@@ -574,7 +574,7 @@ export function createWorkspaceExternalActions(
             nextMetadata ?? noteMetadata
           )
         : rootFolder;
-      const starredPaths = getVaultStarredPaths(absoluteStarredResult.entries, notesPath);
+      const starredPaths = getNotesRootStarredPaths(absoluteStarredResult.entries, notesPath);
       const preservedDirtyDeletedCount = dirtyPreservedDeletedPaths.size;
       const deletionConflictError = preservedDirtyDeletedCount > 0
         ? preserveDirtyCurrentNote

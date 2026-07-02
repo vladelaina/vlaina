@@ -83,7 +83,7 @@ function renderImageActions(overrides: ImageActionOverrides = {}) {
             getPos: () => undefined,
             baseSrc: actionOverrides.baseSrc ?? nodeSrc,
             resolvedSrc: actionOverrides.resolvedSrc ?? 'blob:resolved-image',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
             updateNodeAttrs: vi.fn(),
             markImageUserInput: vi.fn(),
@@ -274,7 +274,7 @@ describe('useImageActions', () => {
         }));
         mocks.storage.stat.mockResolvedValue({
             name: '2026-06-24_13-31-00.png',
-            path: '/vault/assets/2026-06-24_13-31-00.png',
+            path: '/notesRoot/assets/2026-06-24_13-31-00.png',
             isDirectory: false,
             isFile: true,
             size: 3,
@@ -295,7 +295,7 @@ describe('useImageActions', () => {
 
         expect(copied).toBe(true);
         expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith(
-            '/vault/assets/2026-06-24_13-31-00.png',
+            '/notesRoot/assets/2026-06-24_13-31-00.png',
             MAX_FETCHED_IMAGE_BYTES,
         );
         expect(fetch).not.toHaveBeenCalled();

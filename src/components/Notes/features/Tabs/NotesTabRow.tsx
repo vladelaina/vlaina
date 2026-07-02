@@ -2,7 +2,7 @@ import React, { memo, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import {
@@ -273,7 +273,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 
 export function NotesTabRow() {
   const { t } = useI18n();
-  const currentVaultPath = useVaultStore((s) => s.currentVault?.path ?? null);
+  const currentNotesRootPath = useNotesRootStore((s) => s.currentNotesRoot?.path ?? null);
   const currentNotePath = useNotesStore((s) => s.currentNote?.path);
   const notesPath = useNotesStore((s) => s.notesPath);
   const rootFolderPath = useNotesStore((s) => s.rootFolderPath);
@@ -286,7 +286,7 @@ export function NotesTabRow() {
   const noteNavigationHistoryIndex = useNotesStore((s) => s.noteNavigationHistoryIndex ?? -1);
   const navigateBackInNoteHistory = useNotesStore((s) => s.navigateBackInNoteHistory);
   const navigateForwardInNoteHistory = useNotesStore((s) => s.navigateForwardInNoteHistory);
-  const hasOpenedFolder = Boolean(currentVaultPath && notesPath === currentVaultPath && rootFolderPath === currentVaultPath);
+  const hasOpenedFolder = Boolean(currentNotesRootPath && notesPath === currentNotesRootPath && rootFolderPath === currentNotesRootPath);
   const hasOpenTabs = openTabs.length > 0;
   const hasNoteNavigationHistory = noteNavigationHistory.length > 1;
   const canNavigateBack = noteNavigationHistoryIndex > 0;

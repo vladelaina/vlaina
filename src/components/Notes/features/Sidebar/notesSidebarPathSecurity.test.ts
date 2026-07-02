@@ -101,40 +101,40 @@ describe('notes sidebar path security', () => {
 
   it('does not expose internal paths from stale starred search entries', () => {
     expect(buildNotesSidebarSearchIndex(null, () => '', {
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'dot-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: '.notes/alpha.md',
           addedAt: 1,
         },
         {
           id: 'internal-current-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'docs/.git/config.md',
           addedAt: 2,
         },
         {
-          id: 'internal-external-vault',
+          id: 'internal-external-notesRoot',
           kind: 'note',
-          vaultPath: '/external/.vlaina',
+          notesRootPath: '/external/.vlaina',
           relativePath: 'workspace.md',
           addedAt: 3,
         },
         {
           id: 'internal-current-note-uppercase',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'docs/.GIT/config.md',
           addedAt: 4,
         },
         {
-          id: 'internal-external-vault-uppercase',
+          id: 'internal-external-notes-root-uppercase',
           kind: 'note',
-          vaultPath: '/external/.VLAINA',
+          notesRootPath: '/external/.VLAINA',
           relativePath: 'workspace.md',
           addedAt: 5,
         },

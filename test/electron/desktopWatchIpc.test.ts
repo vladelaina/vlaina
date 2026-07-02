@@ -26,9 +26,9 @@ describe('desktop watch ipc payload mapping', () => {
   it('maps data changes to modify events without stat calls', async () => {
     const statPath = vi.fn();
 
-    await expect(createDesktopWatchPayload('change', '/vault/a.md', statPath)).resolves.toEqual({
+    await expect(createDesktopWatchPayload('change', '/notesRoot/a.md', statPath)).resolves.toEqual({
       type: { modify: { kind: 'data', mode: 'any' } },
-      paths: ['/vault/a.md'],
+      paths: ['/notesRoot/a.md'],
     });
     expect(statPath).not.toHaveBeenCalled();
   });
@@ -36,9 +36,9 @@ describe('desktop watch ipc payload mapping', () => {
   it('drops unsafe or oversized watch event paths before statting', async () => {
     const statPath = vi.fn();
 
-    await expect(createDesktopWatchPayload('change', `/vault/${'x'.repeat(8193)}.md`, statPath))
+    await expect(createDesktopWatchPayload('change', `/notesRoot/${'x'.repeat(8193)}.md`, statPath))
       .resolves.toBeNull();
-    await expect(createDesktopWatchPayload('rename', '/vault/bad\u202E.md', statPath))
+    await expect(createDesktopWatchPayload('rename', '/notesRoot/bad\u202E.md', statPath))
       .resolves.toBeNull();
     expect(statPath).not.toHaveBeenCalled();
   });
@@ -46,18 +46,18 @@ describe('desktop watch ipc payload mapping', () => {
   it('maps rename events for existing files to create events', async () => {
     const statPath = vi.fn(async () => fileInfo(false));
 
-    await expect(createDesktopWatchPayload('rename', '/vault/new.md', statPath)).resolves.toEqual({
+    await expect(createDesktopWatchPayload('rename', '/notesRoot/new.md', statPath)).resolves.toEqual({
       type: { create: { kind: 'file' } },
-      paths: ['/vault/new.md'],
+      paths: ['/notesRoot/new.md'],
     });
   });
 
   it('maps rename events for existing folders to create events', async () => {
     const statPath = vi.fn(async () => fileInfo(true));
 
-    await expect(createDesktopWatchPayload('rename', '/vault/docs', statPath)).resolves.toEqual({
+    await expect(createDesktopWatchPayload('rename', '/notesRoot/docs', statPath)).resolves.toEqual({
       type: { create: { kind: 'folder' } },
-      paths: ['/vault/docs'],
+      paths: ['/notesRoot/docs'],
     });
   });
 
@@ -66,22 +66,22 @@ describe('desktop watch ipc payload mapping', () => {
       throw new Error('missing');
     });
 
-    await expect(createDesktopWatchPayload('rename', '/vault/old.md', statPath)).resolves.toEqual({
+    await expect(createDesktopWatchPayload('rename', '/notesRoot/old.md', statPath)).resolves.toEqual({
       type: { remove: { kind: 'any' } },
-      paths: ['/vault/old.md'],
+      paths: ['/notesRoot/old.md'],
     });
   });
 
   it('matches synthetic rename notifications to recursive and direct child watchers', () => {
-    expect(isPathCoveredByWatchPath('/vault', '/vault/docs/a.md', true)).toBe(true);
-    expect(isPathCoveredByWatchPath('/vault', '/vault/docs/a.md', false)).toBe(false);
-    expect(isPathCoveredByWatchPath('/vault/docs', '/vault/docs/a.md', false)).toBe(true);
-    expect(isPathCoveredByWatchPath('/vault/docs', '/vault/other/a.md', true)).toBe(false);
+    expect(isPathCoveredByWatchPath('/notesRoot', '/notesRoot/docs/a.md', true)).toBe(true);
+    expect(isPathCoveredByWatchPath('/notesRoot', '/notesRoot/docs/a.md', false)).toBe(false);
+    expect(isPathCoveredByWatchPath('/notesRoot/docs', '/notesRoot/docs/a.md', false)).toBe(true);
+    expect(isPathCoveredByWatchPath('/notesRoot/docs', '/notesRoot/other/a.md', true)).toBe(false);
   });
 
   it('treats a recursive root watcher as covering absolute descendants', () => {
-    expect(isPathCoveredByWatchPath('/', '/vault/docs/a.md', true)).toBe(true);
-    expect(isPathCoveredByWatchPath('/', '/vault/docs/a.md', false)).toBe(false);
+    expect(isPathCoveredByWatchPath('/', '/notesRoot/docs/a.md', true)).toBe(true);
+    expect(isPathCoveredByWatchPath('/', '/notesRoot/docs/a.md', false)).toBe(false);
   });
 
   it('bounds repeated subscribers for one desktop watcher group', async () => {

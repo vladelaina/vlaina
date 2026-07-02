@@ -80,10 +80,10 @@ describe('fileSystemSlice rename actions', () => {
 
   it('renames an absolute starred note and keeps the open editor state in sync', async () => {
     const harness = createSliceHarness();
-    const oldPath = '/vault-b/docs/alpha.md';
-    const newPath = '/vault-b/docs/beta.md';
+    const oldPath = '/notes-root-b/docs/alpha.md';
+    const newPath = '/notes-root-b/docs/beta.md';
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().currentNote = { path: oldPath, content: '# alpha' };
     harness.getState().currentNoteRevision = 4;
     harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: false }];
@@ -99,7 +99,7 @@ describe('fileSystemSlice rename actions', () => {
     harness.getState().starredEntries = [{
       id: 'starred-1',
       kind: 'note',
-      vaultPath: '/vault-b',
+      notesRootPath: '/notes-root-b',
       relativePath: 'docs/alpha.md',
       addedAt: 1,
     }];
@@ -116,25 +116,25 @@ describe('fileSystemSlice rename actions', () => {
     expect(state.noteContentsCache.get(newPath)).toEqual({ content: '# alpha', modifiedAt: 1 });
     expect(state.noteMetadata.notes[newPath]).toEqual({ icon: 'sparkles' });
     expect(state.starredEntries[0]).toMatchObject({
-      vaultPath: '/vault-b',
+      notesRootPath: '/notes-root-b',
       relativePath: 'docs/beta.md',
     });
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
   });
 
-  it('renames a root-vault absolute starred note and keeps the starred entry relative', async () => {
+  it('renames a root-notesRoot absolute starred note and keeps the starred entry relative', async () => {
     const harness = createSliceHarness();
     const oldPath = '/docs/alpha.md';
     const newPath = '/docs/beta.md';
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().currentNote = { path: oldPath, content: '# alpha' };
     harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: false }];
     harness.getState().noteContentsCache = new Map([[oldPath, { content: '# alpha', modifiedAt: 1 }]]);
     harness.getState().starredEntries = [{
       id: 'starred-root',
       kind: 'note',
-      vaultPath: '/',
+      notesRootPath: '/',
       relativePath: 'docs/alpha.md',
       addedAt: 1,
     }];
@@ -144,32 +144,32 @@ describe('fileSystemSlice rename actions', () => {
 
     expect(hoisted.storageAdapter.rename).toHaveBeenCalledWith(oldPath, newPath);
     expect(state.starredEntries[0]).toMatchObject({
-      vaultPath: '/',
+      notesRootPath: '/',
       relativePath: 'docs/beta.md',
     });
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
   });
 
-  it('does not write a stale absolute rename result after the active vault changes', async () => {
+  it('does not write a stale absolute rename result after the active notesRoot changes', async () => {
     let resolveRename: () => void;
     hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {
       resolveRename = () => resolve(undefined);
     }));
     const harness = createSliceHarness();
-    const oldPath = '/vault-b/docs/alpha.md';
+    const oldPath = '/notes-root-b/docs/alpha.md';
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().currentNote = { path: oldPath, content: '# alpha' };
     harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: false }];
     harness.getState().noteContentsCache = new Map([[oldPath, { content: '# alpha', modifiedAt: 1 }]]);
 
     const rename = harness.getState().renameAbsoluteNote(oldPath, 'beta');
     await new Promise((resolve) => setTimeout(resolve, 0));
-    harness.getState().notesPath = '/vault-c';
+    harness.getState().notesPath = '/notes-root-c';
     resolveRename!();
     await rename;
 
-    expect(harness.getState().notesPath).toBe('/vault-c');
+    expect(harness.getState().notesPath).toBe('/notes-root-c');
     expect(harness.getState().currentNote).toEqual({ path: oldPath, content: '# alpha' });
     expect(harness.getState().openTabs).toEqual([{ path: oldPath, name: 'alpha', isDirty: false }]);
   });
@@ -180,10 +180,10 @@ describe('fileSystemSlice rename actions', () => {
       resolveRename = () => resolve(undefined);
     }));
     const harness = createSliceHarness();
-    const oldPath = '/vault-b/docs/alpha.md';
-    const newPath = '/vault-b/docs/beta.md';
+    const oldPath = '/notes-root-b/docs/alpha.md';
+    const newPath = '/notes-root-b/docs/beta.md';
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().currentNote = { path: oldPath, content: '# alpha' };
     harness.getState().currentNoteRevision = 4;
     harness.getState().isDirty = false;
@@ -218,10 +218,10 @@ describe('fileSystemSlice rename actions', () => {
 
   it('flushes pending editor markdown before an absolute rename reads state', async () => {
     const harness = createSliceHarness();
-    const oldPath = '/vault-b/docs/alpha.md';
-    const newPath = '/vault-b/docs/beta.md';
+    const oldPath = '/notes-root-b/docs/alpha.md';
+    const newPath = '/notes-root-b/docs/beta.md';
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().currentNote = { path: oldPath, content: '# alpha' };
     harness.getState().currentNoteRevision = 4;
     harness.getState().isDirty = false;
@@ -254,9 +254,9 @@ describe('fileSystemSlice rename actions', () => {
 
   it('rejects unsupported characters before an absolute rename reaches storage', async () => {
     const harness = createSliceHarness();
-    const oldPath = '/vault-b/docs/alpha.md';
+    const oldPath = '/notes-root-b/docs/alpha.md';
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().currentNote = { path: oldPath, content: '# alpha' };
 
     await harness.getState().renameAbsoluteNote(oldPath, 'bad/name');
@@ -269,31 +269,31 @@ describe('fileSystemSlice rename actions', () => {
   it('rejects absolute renames inside internal folders before reaching storage', async () => {
     const harness = createSliceHarness();
 
-    harness.getState().notesPath = '/vault-a';
-    harness.getState().currentNote = { path: '/vault-b/docs/alpha.md', content: '# alpha' };
+    harness.getState().notesPath = '/notes-root-a';
+    harness.getState().currentNote = { path: '/notes-root-b/docs/alpha.md', content: '# alpha' };
 
-    await harness.getState().renameAbsoluteNote('/vault-b/.vlaina/workspace.md', 'workspace');
-    await harness.getState().renameAbsoluteNote('/vault-b/docs/.git/config.md', 'config');
-    await harness.getState().renameAbsoluteNote('/vault-b/docs/.GIT/config.md', 'config');
-    await harness.getState().renameAbsoluteNote('/vault-b/.VLAINA/workspace.md', 'workspace');
+    await harness.getState().renameAbsoluteNote('/notes-root-b/.vlaina/workspace.md', 'workspace');
+    await harness.getState().renameAbsoluteNote('/notes-root-b/docs/.git/config.md', 'config');
+    await harness.getState().renameAbsoluteNote('/notes-root-b/docs/.GIT/config.md', 'config');
+    await harness.getState().renameAbsoluteNote('/notes-root-b/.VLAINA/workspace.md', 'workspace');
 
     expect(hoisted.storageAdapter.rename).not.toHaveBeenCalled();
     expect(harness.getState().error).toBe('Path must not be inside an internal notes folder.');
-    expect(harness.getState().currentNote).toEqual({ path: '/vault-b/docs/alpha.md', content: '# alpha' });
+    expect(harness.getState().currentNote).toEqual({ path: '/notes-root-b/docs/alpha.md', content: '# alpha' });
   });
 
   it('rejects unsafe absolute rename source paths before reaching storage', async () => {
     const harness = createSliceHarness();
 
-    harness.getState().notesPath = '/vault-a';
-    harness.getState().currentNote = { path: '/vault-b/docs/alpha.md', content: '# alpha' };
+    harness.getState().notesPath = '/notes-root-a';
+    harness.getState().currentNote = { path: '/notes-root-b/docs/alpha.md', content: '# alpha' };
 
-    await harness.getState().renameAbsoluteNote('/vault-b/docs/secret\u202Egnp.md', 'beta');
-    await harness.getState().renameAbsoluteNote('/vault-b/docs/secret\u001F.md', 'beta');
+    await harness.getState().renameAbsoluteNote('/notes-root-b/docs/secret\u202Egnp.md', 'beta');
+    await harness.getState().renameAbsoluteNote('/notes-root-b/docs/secret\u001F.md', 'beta');
 
     expect(hoisted.storageAdapter.rename).not.toHaveBeenCalled();
     expect(harness.getState().error).toBe('Selected file path contains unsupported characters');
-    expect(harness.getState().currentNote).toEqual({ path: '/vault-b/docs/alpha.md', content: '# alpha' });
+    expect(harness.getState().currentNote).toEqual({ path: '/notes-root-b/docs/alpha.md', content: '# alpha' });
   });
 
   it('preserves latest starred entries while a relative note rename is in flight', async () => {
@@ -303,7 +303,7 @@ describe('fileSystemSlice rename actions', () => {
     }));
     const harness = createSliceHarness();
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().rootFolder = {
       id: '',
       name: 'Notes',
@@ -317,7 +317,7 @@ describe('fileSystemSlice rename actions', () => {
     harness.getState().starredEntries = [{
       id: 'old-star',
       kind: 'note',
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       relativePath: 'docs/old.md',
       addedAt: 1,
     }];
@@ -328,7 +328,7 @@ describe('fileSystemSlice rename actions', () => {
     harness.getState().starredEntries = [{
       id: 'new-star',
       kind: 'note',
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       relativePath: 'docs/alpha.md',
       addedAt: 2,
     }];
@@ -340,7 +340,7 @@ describe('fileSystemSlice rename actions', () => {
     expect(state.starredEntries).toEqual([{
       id: 'new-star',
       kind: 'note',
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       relativePath: 'docs/beta.md',
       addedAt: 2,
     }]);
@@ -355,7 +355,7 @@ describe('fileSystemSlice rename actions', () => {
     }));
     const harness = createSliceHarness();
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().rootFolder = {
       id: '',
       name: 'Notes',
@@ -376,7 +376,7 @@ describe('fileSystemSlice rename actions', () => {
     harness.getState().starredEntries = [{
       id: 'old-star',
       kind: 'note',
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       relativePath: 'other.md',
       addedAt: 1,
     }];
@@ -388,14 +388,14 @@ describe('fileSystemSlice rename actions', () => {
       {
         id: 'folder-star',
         kind: 'folder',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'docs',
         addedAt: 2,
       },
       {
         id: 'note-star',
         kind: 'note',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'docs/alpha.md',
         addedAt: 3,
       },
@@ -409,14 +409,14 @@ describe('fileSystemSlice rename actions', () => {
       {
         id: 'folder-star',
         kind: 'folder',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'archive',
         addedAt: 2,
       },
       {
         id: 'note-star',
         kind: 'note',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'archive/alpha.md',
         addedAt: 3,
       },
@@ -432,7 +432,7 @@ describe('fileSystemSlice rename actions', () => {
     }));
     const harness = createSliceHarness();
 
-    harness.getState().notesPath = '/vault-a';
+    harness.getState().notesPath = '/notes-root-a';
     harness.getState().rootFolder = {
       id: '',
       name: 'Notes',
@@ -454,7 +454,7 @@ describe('fileSystemSlice rename actions', () => {
     harness.getState().starredEntries = [{
       id: 'old-star',
       kind: 'note',
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       relativePath: 'old.md',
       addedAt: 1,
     }];
@@ -472,7 +472,7 @@ describe('fileSystemSlice rename actions', () => {
     harness.getState().starredEntries = [{
       id: 'new-star',
       kind: 'note',
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       relativePath: 'alpha.md',
       addedAt: 2,
     }];
@@ -484,7 +484,7 @@ describe('fileSystemSlice rename actions', () => {
     expect(state.starredEntries).toEqual([{
       id: 'new-star',
       kind: 'note',
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       relativePath: 'target/alpha.md',
       addedAt: 2,
     }]);

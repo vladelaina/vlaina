@@ -8,7 +8,7 @@ import {
   cleanupIsolatedElectron,
   clearSelectedNoteBlocks,
   collectEditorDomMetrics,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getBlankAreaDragTarget,
   getOpenBridgePages,
   launchIsolatedElectron,
@@ -611,7 +611,7 @@ test.describe('notes image block interaction', () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
-      const { notePaths } = await createVaultFilesFixture(page, {
+      const { notePaths } = await createNotesRootFilesFixture(page, {
         name: 'stacked-local-images',
         files: [
           {
@@ -700,7 +700,7 @@ test.describe('notes image block interaction', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
-      const { notePaths } = await createVaultFilesFixture(page, {
+      const { notePaths } = await createNotesRootFilesFixture(page, {
         name: 'responsive-image-window-width',
         files: [
           {
@@ -756,7 +756,7 @@ test.describe('notes image block interaction', () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
-      const { notePaths } = await createVaultFilesFixture(page, {
+      const { notePaths } = await createNotesRootFilesFixture(page, {
         name: 'image-boundary-helper-persistence',
         files: [
           {
@@ -812,7 +812,7 @@ test.describe('notes image block interaction', () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
-      const { notePaths } = await createVaultFilesFixture(page, {
+      const { notePaths } = await createNotesRootFilesFixture(page, {
         name: 'image-long-caption-wrap',
         files: [
           {
@@ -907,7 +907,7 @@ test.describe('notes image block interaction', () => {
         '#334155',
         '#be185d',
       ];
-      const { notePaths } = await createVaultFilesFixture(page, {
+      const { notePaths } = await createNotesRootFilesFixture(page, {
         name: 'many-image-interaction-audit',
         files: [
           {

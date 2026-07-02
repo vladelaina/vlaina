@@ -118,7 +118,7 @@ function createImageBlockState(overrides: Record<string, unknown> = {}) {
         isLoading: false,
         loadError: null,
         isImageLoadDeferred: false,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         currentNotePath: 'note.md',
         updateNodeAttrs: vi.fn(),
         markImageUserInput: vi.fn(),

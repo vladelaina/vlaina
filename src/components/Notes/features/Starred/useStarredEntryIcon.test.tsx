@@ -26,7 +26,7 @@ describe('useStarredEntryIcon', () => {
     mocked.stat.mockResolvedValue(null);
   });
 
-  it('loads a starred note icon from its vault markdown frontmatter', async () => {
+  it('loads a starred note icon from its notesRoot markdown frontmatter', async () => {
     mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });
     mocked.readFile.mockResolvedValue('---\nvlaina_icon: "💡"\n---\n# Alpha');
 
@@ -34,7 +34,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-1',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       }, true),
@@ -43,7 +43,7 @@ describe('useStarredEntryIcon', () => {
     await waitFor(() => {
       expect(result.current).toBe('💡');
     });
-    expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/alpha.md', MAX_STARRED_ICON_METADATA_BYTES);
+    expect(mocked.readFile).toHaveBeenCalledWith('/notes-root-b/docs/alpha.md', MAX_STARRED_ICON_METADATA_BYTES);
   });
 
   it('reloads a cached starred note icon when file metadata changes', async () => {
@@ -54,7 +54,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-2',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/beta.md',
         addedAt: 1,
       }, true),
@@ -72,7 +72,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-2',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/beta.md',
         addedAt: 1,
       }, true),
@@ -92,7 +92,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-no-mtime',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/no-mtime.md',
         addedAt: 1,
       }, true),
@@ -110,7 +110,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-no-mtime',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/no-mtime.md',
         addedAt: 1,
       }, true),
@@ -131,7 +131,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-invalid-mtime',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/invalid-mtime.md',
         addedAt: 1,
       }, true),
@@ -149,7 +149,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-invalid-mtime',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/invalid-mtime.md',
         addedAt: 1,
       }, true),
@@ -169,14 +169,14 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-large',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/large.md',
         addedAt: 1,
       }, true),
     );
 
     await waitFor(() => {
-      expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/large.md');
+      expect(mocked.stat).toHaveBeenCalledWith('/notes-root-b/docs/large.md');
     });
     expect(result.current).toBeUndefined();
     expect(mocked.readFile).not.toHaveBeenCalled();
@@ -189,14 +189,14 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-invalid-size',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/invalid-size.md',
         addedAt: 1,
       }, true),
     );
 
     await waitFor(() => {
-      expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/invalid-size.md');
+      expect(mocked.stat).toHaveBeenCalledWith('/notes-root-b/docs/invalid-size.md');
     });
     expect(result.current).toBeUndefined();
     expect(mocked.readFile).not.toHaveBeenCalled();
@@ -215,7 +215,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-large-after-read',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/large-after-read.md',
         addedAt: 1,
       }, true),
@@ -223,7 +223,7 @@ describe('useStarredEntryIcon', () => {
 
     await waitFor(() => {
       expect(mocked.readFile).toHaveBeenCalledWith(
-        '/vault-b/docs/large-after-read.md',
+        '/notes-root-b/docs/large-after-read.md',
         MAX_STARRED_ICON_METADATA_BYTES,
       );
     });
@@ -237,14 +237,14 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-missing-size',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/missing-size.md',
         addedAt: 1,
       }, true),
     );
 
     await waitFor(() => {
-      expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/missing-size.md');
+      expect(mocked.stat).toHaveBeenCalledWith('/notes-root-b/docs/missing-size.md');
     });
     expect(result.current).toBeUndefined();
     expect(mocked.readFile).not.toHaveBeenCalled();
@@ -258,7 +258,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-no-size',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/no-size.md',
         addedAt: 1,
       }, true),
@@ -267,7 +267,7 @@ describe('useStarredEntryIcon', () => {
     await waitFor(() => {
       expect(result.current).toBe('💡');
     });
-    expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/no-size.md', MAX_STARRED_ICON_METADATA_BYTES);
+    expect(mocked.readFile).toHaveBeenCalledWith('/notes-root-b/docs/no-size.md', MAX_STARRED_ICON_METADATA_BYTES);
   });
 
   it('does not read icon metadata from stale internal starred entries', async () => {
@@ -275,7 +275,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-internal',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs/.git/config.md',
         addedAt: 1,
       }, true),
@@ -293,7 +293,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-internal-uppercase',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs/.GIT/config.md',
         addedAt: 1,
       }, true),
@@ -306,12 +306,12 @@ describe('useStarredEntryIcon', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read icon metadata from stale entries with internal vault paths', async () => {
+  it('does not read icon metadata from stale entries with internal opened folder paths', async () => {
     const { result } = renderHook(() =>
       useStarredEntryIcon({
-        id: 'starred-internal-vault',
+        id: 'starred-internal-notesRoot',
         kind: 'note',
-        vaultPath: '/vault/.vlaina',
+        notesRootPath: '/notesRoot/.vlaina',
         relativePath: 'workspace.md',
         addedAt: 1,
       }, true),
@@ -324,12 +324,12 @@ describe('useStarredEntryIcon', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read icon metadata from stale entries with case-variant internal vault paths', async () => {
+  it('does not read icon metadata from stale entries with case-variant internal opened folder paths', async () => {
     const { result } = renderHook(() =>
       useStarredEntryIcon({
-        id: 'starred-internal-vault-uppercase',
+        id: 'starred-internal-notes-root-uppercase',
         kind: 'note',
-        vaultPath: '/vault/.VLAINA',
+        notesRootPath: '/notesRoot/.VLAINA',
         relativePath: 'workspace.md',
         addedAt: 1,
       }, true),
@@ -347,7 +347,7 @@ describe('useStarredEntryIcon', () => {
       useStarredEntryIcon({
         id: 'starred-non-markdown',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs/secret.txt',
         addedAt: 1,
       }, true),
@@ -375,7 +375,7 @@ describe('useStarredEntryIcon', () => {
         useStarredEntryIcon({
           id: `starred-concurrent-${index}`,
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: `docs/concurrent-${index}.md`,
           addedAt: 1,
         }, true),
@@ -417,7 +417,7 @@ describe('useStarredEntryIcon', () => {
         useStarredEntryIcon({
           id: `starred-cancel-${index}`,
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: `docs/cancel-${index}.md`,
           addedAt: 1,
         }, true),

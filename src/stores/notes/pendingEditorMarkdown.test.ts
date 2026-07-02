@@ -359,7 +359,7 @@ describe('flushPendingEditorMarkdown', () => {
       });
     }));
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'beta.md', content: 'Beta content' },
       currentNoteRevision: 4,
       isDirty: false,
@@ -391,7 +391,7 @@ describe('flushPendingEditorMarkdown', () => {
     const state = useNotesStore.getState();
     expect(didSave).toBe(true);
     expect(saveNoteDocument).toHaveBeenCalledWith({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
       cache: expect.any(Map),
     });
@@ -428,7 +428,7 @@ describe('flushPendingEditorMarkdown', () => {
       nextCache: cache,
     }));
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder,
       currentNote: { path: 'alpha.md', content: 'Old alpha' },
       currentNoteRevision: 4,
@@ -474,7 +474,7 @@ describe('flushPendingEditorMarkdown', () => {
 
   it('ignores a stale editor flush after the workspace has been reset', () => {
     useNotesStore.setState({
-      notesPath: '/next-vault',
+      notesPath: '/next-notesRoot',
       currentNote: null,
       currentNoteRevision: 0,
       isDirty: false,
@@ -482,7 +482,7 @@ describe('flushPendingEditorMarkdown', () => {
       noteContentsCache: new Map(),
     });
 
-    const didFlush = flushPendingEditorMarkdown('alpha.md', 'Old vault draft');
+    const didFlush = flushPendingEditorMarkdown('alpha.md', 'Old notesRoot draft');
 
     const state = useNotesStore.getState();
     expect(didFlush).toBe(false);

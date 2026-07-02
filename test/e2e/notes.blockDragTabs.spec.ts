@@ -3,7 +3,7 @@ import {
   BLOCK_CONTROLS_SELECTOR,
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
   openAbsoluteNote,
@@ -105,7 +105,7 @@ test.describe('notes block drag across tabs', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'block-drag-tabs',
         files: [
           { filename: 'source-tab.md', content: SOURCE_INITIAL },
@@ -194,7 +194,7 @@ test.describe('notes block drag across tabs', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'block-drag-outside-window',
         files: [
           { filename: 'source-outside.md', content: SOURCE_INITIAL },

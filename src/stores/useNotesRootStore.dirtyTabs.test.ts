@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
     mkdir: vi.fn(),
     rename: vi.fn(),
   },
-  ensureVaultConfig: vi.fn(),
+  ensureNotesRootConfig: vi.fn(),
   saveAutoSaveableDrafts: vi.fn(),
   saveDirtyRegularOpenTabs: vi.fn(),
 }));
@@ -18,9 +18,9 @@ vi.mock('@/lib/storage/adapter', () => ({
   normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/+$/, ''),
 }));
 
-vi.mock('./vaultConfig', () => ({
-  ensureVaultConfig: mocks.ensureVaultConfig,
-  normalizeVaultPath: (path: string) => path.replace(/\\/g, '/'),
+vi.mock('./notesRootConfig', () => ({
+  ensureNotesRootConfig: mocks.ensureNotesRootConfig,
+  normalizeNotesRootPath: (path: string) => path.replace(/\\/g, '/'),
 }));
 
 vi.mock('@/stores/notes/dirtyOpenTabs', () => ({
@@ -32,7 +32,7 @@ vi.mock('@/stores/notes/autoSaveableDrafts', () => ({
 }));
 
 import { useNotesStore } from './useNotesStore';
-import { useVaultStore } from './useVaultStore';
+import { useNotesRootStore } from './useNotesRootStore';
 
 function createDeferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -44,27 +44,27 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
-describe('useVaultStore dirty note protection', () => {
+describe('useNotesRootStore dirty note protection', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
     mocks.storage.exists.mockResolvedValue(true);
-    mocks.ensureVaultConfig.mockResolvedValue(undefined);
+    mocks.ensureNotesRootConfig.mockResolvedValue(undefined);
     mocks.saveAutoSaveableDrafts.mockResolvedValue(true);
     mocks.saveDirtyRegularOpenTabs.mockResolvedValue(true);
 
-    useVaultStore.setState({
-      currentVault: {
-        id: 'vault-old',
+    useNotesRootStore.setState({
+      currentNotesRoot: {
+        id: 'notes-root-old',
         name: 'old',
-        path: '/vault/old',
+        path: '/notesRoot/old',
         lastOpened: 1,
       },
-      recentVaults: [
+      recentNotesRoots: [
         {
-          id: 'vault-old',
+          id: 'notes-root-old',
           name: 'old',
-          path: '/vault/old',
+          path: '/notesRoot/old',
           lastOpened: 1,
         },
       ],
@@ -74,7 +74,7 @@ describe('useVaultStore dirty note protection', () => {
     });
 
     useNotesStore.setState({
-      notesPath: '/vault/old',
+      notesPath: '/notesRoot/old',
       currentNote: { path: 'current.md', content: 'Current' },
       isDirty: false,
       openTabs: [{ path: 'current.md', name: 'current', isDirty: false }],
@@ -89,33 +89,33 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('saves dirty regular tabs before opening another vault', async () => {
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+  it('saves dirty regular tabs before opening another notesRoot', async () => {
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(true);
     expect(mocks.saveAutoSaveableDrafts).toHaveBeenCalledTimes(1);
     expect(mocks.saveDirtyRegularOpenTabs).toHaveBeenCalledTimes(1);
-    expect(useVaultStore.getState().currentVault).toMatchObject({
+    expect(useNotesRootStore.getState().currentNotesRoot).toMatchObject({
       name: 'next',
-      path: '/vault/next',
+      path: '/notesRoot/next',
     });
-    expect(useNotesStore.getState().notesPath).toBe('/vault/next');
+    expect(useNotesStore.getState().notesPath).toBe('/notesRoot/next');
   });
 
-  it('does not let startup initialization clear a vault opened while initialization is in flight', async () => {
-    localStorage.setItem('vlaina-vaults', JSON.stringify([
+  it('does not let startup initialization clear a notesRoot opened while initialization is in flight', async () => {
+    localStorage.setItem('vlaina-notes-roots', JSON.stringify([
       {
-        id: 'vault-stale',
+        id: 'notes-root-stale',
         name: 'stale',
-        path: '/vault/stale',
+        path: '/notesRoot/stale',
         lastOpened: 1,
       },
     ]));
-    localStorage.setItem('vlaina-current-vault', JSON.stringify('vault-stale'));
+    localStorage.setItem('vlaina-current-notes-root', JSON.stringify('notes-root-stale'));
 
-    useVaultStore.setState({
-      currentVault: null,
-      recentVaults: [],
+    useNotesRootStore.setState({
+      currentNotesRoot: null,
+      recentNotesRoots: [],
       isLoading: false,
       hasInitialized: false,
       error: null,
@@ -135,35 +135,35 @@ describe('useVaultStore dirty note protection', () => {
       noteMetadata: { version: 1, notes: {} },
     });
 
-    const staleVaultExists = createDeferred<boolean>();
+    const staleNotesRootExists = createDeferred<boolean>();
     mocks.storage.exists.mockImplementation(async (path: string) => {
-      if (path === '/vault/stale') {
-        return staleVaultExists.promise;
+      if (path === '/notesRoot/stale') {
+        return staleNotesRootExists.promise;
       }
       return true;
     });
 
-    const initializePromise = useVaultStore.getState().initialize();
+    const initializePromise = useNotesRootStore.getState().initialize();
     await vi.waitFor(() => {
-      expect(mocks.storage.exists).toHaveBeenCalledWith('/vault/stale');
+      expect(mocks.storage.exists).toHaveBeenCalledWith('/notesRoot/stale');
     });
 
-    await expect(useVaultStore.getState().openVault('/vault/from-open-file')).resolves.toBe(true);
-    staleVaultExists.resolve(false);
+    await expect(useNotesRootStore.getState().openNotesRoot('/notesRoot/from-open-file')).resolves.toBe(true);
+    staleNotesRootExists.resolve(false);
     await initializePromise;
 
-    expect(useVaultStore.getState().currentVault).toMatchObject({
+    expect(useNotesRootStore.getState().currentNotesRoot).toMatchObject({
       name: 'from-open-file',
-      path: '/vault/from-open-file',
+      path: '/notesRoot/from-open-file',
     });
-    expect(useVaultStore.getState().recentVaults[0]).toMatchObject({
-      path: '/vault/from-open-file',
+    expect(useNotesRootStore.getState().recentNotesRoots[0]).toMatchObject({
+      path: '/notesRoot/from-open-file',
     });
-    expect(useNotesStore.getState().notesPath).toBe('/vault/from-open-file');
-    expect(useVaultStore.getState().hasInitialized).toBe(true);
+    expect(useNotesStore.getState().notesPath).toBe('/notesRoot/from-open-file');
+    expect(useNotesRootStore.getState().hasInitialized).toBe(true);
   });
 
-  it('clears note workspace state before switching to another vault', async () => {
+  it('clears note workspace state before switching to another notesRoot', async () => {
     useNotesStore.setState({
       rootFolder: {
         id: '',
@@ -173,7 +173,7 @@ describe('useVaultStore dirty note protection', () => {
         expanded: true,
         children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
       },
-      rootFolderPath: '/vault/old',
+      rootFolderPath: '/notesRoot/old',
       recentlyClosedTabs: [{ tab: { path: 'old.md', name: 'old', isDirty: false }, index: 0 }],
       noteNavigationHistory: ['older.md', 'current.md'],
       noteNavigationHistoryIndex: 1,
@@ -181,11 +181,11 @@ describe('useVaultStore dirty note protection', () => {
       displayNames: new Map([['current.md', 'current']]),
     });
 
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(true);
     expect(useNotesStore.getState()).toMatchObject({
-      notesPath: '/vault/next',
+      notesPath: '/notesRoot/next',
       currentNote: null,
       isDirty: false,
       openTabs: [],
@@ -195,7 +195,7 @@ describe('useVaultStore dirty note protection', () => {
       rootFolder: expect.objectContaining({
         children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
       }),
-      rootFolderPath: '/vault/old',
+      rootFolderPath: '/notesRoot/old',
       draftNotes: {},
     });
     expect(useNotesStore.getState().noteContentsCache.size).toBe(0);
@@ -211,16 +211,16 @@ describe('useVaultStore dirty note protection', () => {
       rootFolder: null,
       rootFolderPath: null,
     });
-    useVaultStore.setState({
-      currentVault: null,
-      recentVaults: [],
+    useNotesRootStore.setState({
+      currentNotesRoot: null,
+      recentNotesRoots: [],
     });
 
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(true);
     expect(useNotesStore.getState()).toMatchObject({
-      notesPath: '/vault/next',
+      notesPath: '/notesRoot/next',
       rootFolder: expect.objectContaining({
         id: '',
         name: 'Notes',
@@ -242,47 +242,47 @@ describe('useVaultStore dirty note protection', () => {
       rootFolder: null,
       rootFolderPath: null,
     });
-    useVaultStore.setState({
-      currentVault: null,
-      recentVaults: [],
+    useNotesRootStore.setState({
+      currentNotesRoot: null,
+      recentNotesRoots: [],
     });
 
-    const opened = await useVaultStore.getState().openVault('/vault/next', undefined, {
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next', undefined, {
       preserveSidebarTree: false,
     });
 
     expect(opened).toBe(true);
     expect(useNotesStore.getState()).toMatchObject({
-      notesPath: '/vault/next',
+      notesPath: '/notesRoot/next',
       rootFolder: null,
       rootFolderPath: null,
     });
   });
 
-  it('does not open another vault if dirty regular tabs could not be saved', async () => {
+  it('does not open another notesRoot if dirty regular tabs could not be saved', async () => {
     mocks.saveDirtyRegularOpenTabs.mockResolvedValue(false);
 
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(false);
     expect(mocks.storage.exists).not.toHaveBeenCalled();
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().error).toBe('Failed to save pending note changes');
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().error).toBe('Failed to save pending note changes');
   });
 
-  it('does not open another vault if auto-saveable drafts could not be saved', async () => {
+  it('does not open another notesRoot if auto-saveable drafts could not be saved', async () => {
     mocks.saveAutoSaveableDrafts.mockResolvedValue(false);
 
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(false);
     expect(mocks.saveDirtyRegularOpenTabs).not.toHaveBeenCalled();
     expect(mocks.storage.exists).not.toHaveBeenCalled();
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().error).toBe('Failed to save pending draft changes');
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().error).toBe('Failed to save pending draft changes');
   });
 
-  it('opens another vault while preserving unsaved draft tabs', async () => {
+  it('opens another notesRoot while preserving unsaved draft tabs', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:alpha', content: 'Draft body' },
       isDirty: true,
@@ -292,13 +292,13 @@ describe('useVaultStore dirty note protection', () => {
       noteMetadata: { version: 1, notes: { 'draft:alpha': { icon: 'emoji.sparkles' } } },
     });
 
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(true);
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/next');
-    expect(useVaultStore.getState().error).toBeNull();
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/next');
+    expect(useNotesRootStore.getState().error).toBeNull();
     expect(useNotesStore.getState()).toMatchObject({
-      notesPath: '/vault/next',
+      notesPath: '/notesRoot/next',
       currentNote: { path: 'draft:alpha', content: 'Draft body' },
       isDirty: true,
       openTabs: [{ path: 'draft:alpha', name: '', isDirty: true }],
@@ -306,7 +306,7 @@ describe('useVaultStore dirty note protection', () => {
         'draft:alpha': {
           parentPath: null,
           name: 'Draft title',
-          originNotesPath: '/vault/old',
+          originNotesPath: '/notesRoot/old',
         },
       },
     });
@@ -319,7 +319,7 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('drops an empty startup scratch draft when opening another vault', async () => {
+  it('drops an empty startup scratch draft when opening another notesRoot', async () => {
     useNotesStore.setState({
       notesPath: '',
       currentNote: { path: 'draft:blank', content: '' },
@@ -337,11 +337,11 @@ describe('useVaultStore dirty note protection', () => {
       noteMetadata: { version: 1, notes: {} },
     });
 
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(true);
     expect(useNotesStore.getState()).toMatchObject({
-      notesPath: '/vault/next',
+      notesPath: '/notesRoot/next',
       currentNote: null,
       isDirty: false,
       openTabs: [],
@@ -350,7 +350,7 @@ describe('useVaultStore dirty note protection', () => {
     expect(useNotesStore.getState().noteContentsCache.size).toBe(0);
   });
 
-  it('preserves multiple draft tabs while dropping regular tabs on vault switch', async () => {
+  it('preserves multiple draft tabs while dropping regular tabs on notesRoot switch', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:two', content: 'Two body' },
       currentNoteRevision: 7,
@@ -379,7 +379,7 @@ describe('useVaultStore dirty note protection', () => {
       },
     });
 
-    const opened = await useVaultStore.getState().openVault('/vault/next');
+    const opened = await useNotesRootStore.getState().openNotesRoot('/notesRoot/next');
 
     expect(opened).toBe(true);
     const state = useNotesStore.getState();
@@ -390,8 +390,8 @@ describe('useVaultStore dirty note protection', () => {
       { path: 'draft:two', name: '', isDirty: true },
     ]);
     expect(state.draftNotes).toEqual({
-      'draft:one': { parentPath: null, name: 'One', originNotesPath: '/vault/old' },
-      'draft:two': { parentPath: 'ideas', name: 'Two', originNotesPath: '/vault/old' },
+      'draft:one': { parentPath: null, name: 'One', originNotesPath: '/notesRoot/old' },
+      'draft:two': { parentPath: 'ideas', name: 'Two', originNotesPath: '/notesRoot/old' },
     });
     expect(Array.from(state.noteContentsCache.keys())).toEqual(['draft:one', 'draft:two']);
     expect(state.noteMetadata?.notes).toEqual({
@@ -400,13 +400,13 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('saves dirty regular tabs before closing the current vault', async () => {
-    const closed = await useVaultStore.getState().closeVault();
+  it('saves dirty regular tabs before closing the opened folder', async () => {
+    const closed = await useNotesRootStore.getState().closeNotesRoot();
 
     expect(closed).toBe(true);
     expect(mocks.saveDirtyRegularOpenTabs).toHaveBeenCalledTimes(1);
-    expect(useVaultStore.getState().currentVault).toBeNull();
-    expect(useVaultStore.getState().error).toBeNull();
+    expect(useNotesRootStore.getState().currentNotesRoot).toBeNull();
+    expect(useNotesRootStore.getState().error).toBeNull();
     expect(useNotesStore.getState()).toMatchObject({
       notesPath: '',
       currentNote: null,
@@ -417,15 +417,15 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('closes the vault sidebar without replacing the active external starred note', async () => {
+  it('closes the notesRoot sidebar without replacing the active external starred note', async () => {
     useNotesStore.setState({
-      notesPath: '/vault/old',
-      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      notesPath: '/notesRoot/old',
+      currentNote: { path: '/notesRoot/starred/external.md', content: 'External starred' },
       currentNoteRevision: 9,
       isDirty: false,
       openTabs: [
         { path: 'current.md', name: 'current', isDirty: false },
-        { path: '/vault/starred/external.md', name: 'external', isDirty: false },
+        { path: '/notesRoot/starred/external.md', name: 'external', isDirty: false },
       ],
       rootFolder: {
         id: '',
@@ -435,50 +435,50 @@ describe('useVaultStore dirty note protection', () => {
         expanded: true,
         children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
       },
-      rootFolderPath: '/vault/old',
+      rootFolderPath: '/notesRoot/old',
       noteContentsCache: new Map([
         ['current.md', { content: 'Current', modifiedAt: 1 }],
-        ['/vault/starred/external.md', { content: 'External starred', modifiedAt: 2 }],
+        ['/notesRoot/starred/external.md', { content: 'External starred', modifiedAt: 2 }],
       ]),
       noteMetadata: {
         version: 1,
         notes: {
           'current.md': { icon: 'emoji.file' },
-          '/vault/starred/external.md': { icon: 'emoji.star' },
+          '/notesRoot/starred/external.md': { icon: 'emoji.star' },
         },
       },
       displayNames: new Map([
         ['current.md', 'current'],
-        ['/vault/starred/external.md', 'external'],
+        ['/notesRoot/starred/external.md', 'external'],
       ]),
     });
 
-    const closed = await useVaultStore.getState().closeVault();
+    const closed = await useNotesRootStore.getState().closeNotesRoot();
 
     expect(closed).toBe(true);
-    expect(useVaultStore.getState().currentVault).toBeNull();
+    expect(useNotesRootStore.getState().currentNotesRoot).toBeNull();
     expect(useNotesStore.getState()).toMatchObject({
       notesPath: '',
-      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      currentNote: { path: '/notesRoot/starred/external.md', content: 'External starred' },
       currentNoteRevision: 9,
       isDirty: false,
-      openTabs: [{ path: '/vault/starred/external.md', name: 'external', isDirty: false }],
+      openTabs: [{ path: '/notesRoot/starred/external.md', name: 'external', isDirty: false }],
       rootFolder: null,
       rootFolderPath: null,
       draftNotes: {},
     });
     expect(Array.from(useNotesStore.getState().noteContentsCache.keys())).toEqual([
-      '/vault/starred/external.md',
+      '/notesRoot/starred/external.md',
     ]);
     expect(useNotesStore.getState().noteMetadata?.notes).toEqual({
-      '/vault/starred/external.md': { icon: 'emoji.star' },
+      '/notesRoot/starred/external.md': { icon: 'emoji.star' },
     });
-    expect(useNotesStore.getState().displayNames.get('/vault/starred/external.md')).toBe('external');
+    expect(useNotesStore.getState().displayNames.get('/notesRoot/starred/external.md')).toBe('external');
   });
 
-  it('keeps the active starred vault note open as an external note when closing the vault', async () => {
+  it('keeps the active starred notesRoot note open as an external note when closing the notesRoot', async () => {
     useNotesStore.setState({
-      notesPath: '/vault/old',
+      notesPath: '/notesRoot/old',
       currentNote: { path: 'docs/starred.md', content: 'Starred body' },
       currentNoteRevision: 11,
       isDirty: false,
@@ -490,7 +490,7 @@ describe('useVaultStore dirty note protection', () => {
         {
           id: 'starred-note',
           kind: 'note',
-          vaultPath: '/vault/old',
+          notesRootPath: '/notesRoot/old',
           relativePath: 'docs/starred.md',
           addedAt: 1,
         },
@@ -507,7 +507,7 @@ describe('useVaultStore dirty note protection', () => {
           { id: 'docs/regular.md', name: 'regular', path: 'docs/regular.md', isFolder: false },
         ],
       },
-      rootFolderPath: '/vault/old',
+      rootFolderPath: '/notesRoot/old',
       noteContentsCache: new Map([
         ['docs/starred.md', { content: 'Starred body', modifiedAt: 2 }],
         ['docs/regular.md', { content: 'Regular body', modifiedAt: 3 }],
@@ -525,86 +525,86 @@ describe('useVaultStore dirty note protection', () => {
       ]),
     });
 
-    const closed = await useVaultStore.getState().closeVault();
+    const closed = await useNotesRootStore.getState().closeNotesRoot();
 
     expect(closed).toBe(true);
-    expect(useVaultStore.getState().currentVault).toBeNull();
+    expect(useNotesRootStore.getState().currentNotesRoot).toBeNull();
     expect(useNotesStore.getState()).toMatchObject({
       notesPath: '',
-      currentNote: { path: '/vault/old/docs/starred.md', content: 'Starred body' },
+      currentNote: { path: '/notesRoot/old/docs/starred.md', content: 'Starred body' },
       currentNoteRevision: 11,
       isDirty: false,
       openTabs: [
-        { path: '/vault/old/docs/starred.md', name: 'starred', isDirty: false },
+        { path: '/notesRoot/old/docs/starred.md', name: 'starred', isDirty: false },
       ],
       rootFolder: null,
       rootFolderPath: null,
       draftNotes: {},
     });
     expect(Array.from(useNotesStore.getState().noteContentsCache.keys())).toEqual([
-      '/vault/old/docs/starred.md',
+      '/notesRoot/old/docs/starred.md',
     ]);
     expect(useNotesStore.getState().noteMetadata?.notes).toEqual({
-      '/vault/old/docs/starred.md': { icon: 'emoji.star' },
+      '/notesRoot/old/docs/starred.md': { icon: 'emoji.star' },
     });
-    expect(useNotesStore.getState().displayNames.get('/vault/old/docs/starred.md')).toBe('starred');
+    expect(useNotesStore.getState().displayNames.get('/notesRoot/old/docs/starred.md')).toBe('starred');
   });
 
   it('preserves the active external note even if it is not present in the tab list', async () => {
     useNotesStore.setState({
-      notesPath: '/vault/old',
-      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      notesPath: '/notesRoot/old',
+      currentNote: { path: '/notesRoot/starred/external.md', content: 'External starred' },
       currentNoteRevision: 12,
       isDirty: false,
       openTabs: [{ path: 'current.md', name: 'current', isDirty: false }],
       noteContentsCache: new Map([
         ['current.md', { content: 'Current', modifiedAt: 1 }],
-        ['/vault/starred/external.md', { content: 'External starred', modifiedAt: 2 }],
+        ['/notesRoot/starred/external.md', { content: 'External starred', modifiedAt: 2 }],
       ]),
       noteMetadata: {
         version: 1,
         notes: {
           'current.md': { icon: 'emoji.file' },
-          '/vault/starred/external.md': { icon: 'emoji.star' },
+          '/notesRoot/starred/external.md': { icon: 'emoji.star' },
         },
       },
       displayNames: new Map([
         ['current.md', 'current'],
-        ['/vault/starred/external.md', 'external'],
+        ['/notesRoot/starred/external.md', 'external'],
       ]),
     });
 
-    const closed = await useVaultStore.getState().closeVault();
+    const closed = await useNotesRootStore.getState().closeNotesRoot();
 
     expect(closed).toBe(true);
     expect(useNotesStore.getState()).toMatchObject({
       notesPath: '',
-      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      currentNote: { path: '/notesRoot/starred/external.md', content: 'External starred' },
       currentNoteRevision: 12,
       openTabs: [],
       rootFolder: null,
       rootFolderPath: null,
     });
     expect(Array.from(useNotesStore.getState().noteContentsCache.keys())).toEqual([
-      '/vault/starred/external.md',
+      '/notesRoot/starred/external.md',
     ]);
     expect(useNotesStore.getState().noteMetadata?.notes).toEqual({
-      '/vault/starred/external.md': { icon: 'emoji.star' },
+      '/notesRoot/starred/external.md': { icon: 'emoji.star' },
     });
-    expect(useNotesStore.getState().displayNames.get('/vault/starred/external.md')).toBe('external');
+    expect(useNotesStore.getState().displayNames.get('/notesRoot/starred/external.md')).toBe('external');
   });
 
-  it('does not preserve root-vault absolute notes as external notes when closing the vault', async () => {
-    useVaultStore.setState({
-      currentVault: {
-        id: 'root-vault',
+  it('does not preserve root-notesRoot absolute notes as external notes when closing the notesRoot', async () => {
+    useNotesRootStore.setState({
+      currentNotesRoot: {
+        id: 'root-notesRoot',
         name: 'root',
         path: '/',
         lastOpened: 1,
       },
-      recentVaults: [
+      recentNotesRoots: [
         {
-          id: 'root-vault',
+          id: 'root-notesRoot',
           name: 'root',
           path: '/',
           lastOpened: 1,
@@ -627,7 +627,7 @@ describe('useVaultStore dirty note protection', () => {
       displayNames: new Map([['/docs/alpha.md', 'alpha']]),
     });
 
-    const closed = await useVaultStore.getState().closeVault();
+    const closed = await useNotesRootStore.getState().closeNotesRoot();
 
     expect(closed).toBe(true);
     expect(useNotesStore.getState()).toMatchObject({
@@ -642,13 +642,13 @@ describe('useVaultStore dirty note protection', () => {
     expect(useNotesStore.getState().noteMetadata).toBeNull();
   });
 
-  it('saves dirty regular tabs before removing the current vault from recent vaults', async () => {
-    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+  it('saves dirty regular tabs before removing the opened folder from recent notes-roots', async () => {
+    const removed = await useNotesRootStore.getState().removeFromRecent('notes-root-old');
 
     expect(removed).toBe(true);
     expect(mocks.saveDirtyRegularOpenTabs).toHaveBeenCalledTimes(1);
-    expect(useVaultStore.getState().currentVault).toBeNull();
-    expect(useVaultStore.getState().error).toBeNull();
+    expect(useNotesRootStore.getState().currentNotesRoot).toBeNull();
+    expect(useNotesRootStore.getState().error).toBeNull();
     expect(useNotesStore.getState()).toMatchObject({
       notesPath: '',
       currentNote: null,
@@ -657,7 +657,7 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('does not remove the current vault from recent vaults when dirty regular tabs cannot be saved', async () => {
+  it('does not remove the opened folder from recent notes-roots when dirty regular tabs cannot be saved', async () => {
     mocks.saveDirtyRegularOpenTabs.mockResolvedValue(false);
     useNotesStore.setState({
       currentNote: { path: 'current.md', content: 'Dirty current' },
@@ -666,19 +666,19 @@ describe('useVaultStore dirty note protection', () => {
       noteContentsCache: new Map([['current.md', { content: 'Dirty current', modifiedAt: 1 }]]),
     });
 
-    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+    const removed = await useNotesRootStore.getState().removeFromRecent('notes-root-old');
 
     expect(removed).toBe(false);
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().recentVaults).toEqual([
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().recentNotesRoots).toEqual([
       {
-        id: 'vault-old',
+        id: 'notes-root-old',
         name: 'old',
-        path: '/vault/old',
+        path: '/notesRoot/old',
         lastOpened: 1,
       },
     ]);
-    expect(useVaultStore.getState().error).toBe('Failed to save pending note changes');
+    expect(useNotesRootStore.getState().error).toBe('Failed to save pending note changes');
     expect(useNotesStore.getState().currentNote).toEqual({
       path: 'current.md',
       content: 'Dirty current',
@@ -686,7 +686,7 @@ describe('useVaultStore dirty note protection', () => {
     expect(useNotesStore.getState().isDirty).toBe(true);
   });
 
-  it('does not remove the current vault from recent vaults while draft tabs still have unsaved content', async () => {
+  it('does not remove the opened folder from recent notes-roots while draft tabs still have unsaved content', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:alpha', content: 'Draft body' },
       isDirty: true,
@@ -695,12 +695,12 @@ describe('useVaultStore dirty note protection', () => {
       noteContentsCache: new Map([['draft:alpha', { content: 'Draft body', modifiedAt: null }]]),
     });
 
-    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+    const removed = await useNotesRootStore.getState().removeFromRecent('notes-root-old');
 
     expect(removed).toBe(false);
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().error).toBe(
-      'Save or discard draft notes before switching vaults'
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().error).toBe(
+      'Save or discard draft notes before opening another folder'
     );
     expect(useNotesStore.getState().currentNote).toEqual({
       path: 'draft:alpha',
@@ -711,7 +711,7 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('does not remove the current vault while a cached draft is missing from tabs', async () => {
+  it('does not remove the opened folder while a cached draft is missing from tabs', async () => {
     useNotesStore.setState({
       currentNote: { path: 'current.md', content: 'Current' },
       isDirty: false,
@@ -720,12 +720,12 @@ describe('useVaultStore dirty note protection', () => {
       noteContentsCache: new Map([['draft:cached', { content: 'Cached draft body', modifiedAt: null }]]),
     });
 
-    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+    const removed = await useNotesRootStore.getState().removeFromRecent('notes-root-old');
 
     expect(removed).toBe(false);
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().error).toBe(
-      'Save or discard draft notes before switching vaults'
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().error).toBe(
+      'Save or discard draft notes before opening another folder'
     );
     expect(useNotesStore.getState().draftNotes).toEqual({
       'draft:cached': { parentPath: null, name: '' },
@@ -736,7 +736,7 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('does not create a vault folder while a current draft is missing from tabs', async () => {
+  it('does not create a notesRoot folder while a current draft is missing from tabs', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:orphan', content: 'Current draft body' },
       isDirty: true,
@@ -745,13 +745,13 @@ describe('useVaultStore dirty note protection', () => {
       noteContentsCache: new Map(),
     });
 
-    const created = await useVaultStore.getState().createVault('next', '/vault/next');
+    const created = await useNotesRootStore.getState().createNotesRoot('next', '/notesRoot/next');
 
     expect(created).toBe(false);
     expect(mocks.storage.mkdir).not.toHaveBeenCalled();
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().error).toBe(
-      'Save or discard draft notes before switching vaults'
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().error).toBe(
+      'Save or discard draft notes before opening another folder'
     );
     expect(useNotesStore.getState().currentNote).toEqual({
       path: 'draft:orphan',
@@ -759,34 +759,34 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('removes a non-current recent vault without touching the note workspace', async () => {
-    useVaultStore.setState({
-      recentVaults: [
+  it('removes a non-current recent notesRoot without touching the note workspace', async () => {
+    useNotesRootStore.setState({
+      recentNotesRoots: [
         {
-          id: 'vault-old',
+          id: 'notes-root-old',
           name: 'old',
-          path: '/vault/old',
+          path: '/notesRoot/old',
           lastOpened: 1,
         },
         {
-          id: 'vault-next',
+          id: 'notes-root-next',
           name: 'next',
-          path: '/vault/next',
+          path: '/notesRoot/next',
           lastOpened: 2,
         },
       ],
     });
 
-    const removed = await useVaultStore.getState().removeFromRecent('vault-next');
+    const removed = await useNotesRootStore.getState().removeFromRecent('notes-root-next');
 
     expect(removed).toBe(true);
     expect(mocks.saveDirtyRegularOpenTabs).not.toHaveBeenCalled();
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().recentVaults).toEqual([
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().recentNotesRoots).toEqual([
       {
-        id: 'vault-old',
+        id: 'notes-root-old',
         name: 'old',
-        path: '/vault/old',
+        path: '/notesRoot/old',
         lastOpened: 1,
       },
     ]);
@@ -796,7 +796,7 @@ describe('useVaultStore dirty note protection', () => {
     });
   });
 
-  it('does not create a vault folder while draft tabs still have unsaved content', async () => {
+  it('does not create a notesRoot folder while draft tabs still have unsaved content', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:alpha', content: 'Draft body' },
       isDirty: true,
@@ -805,13 +805,13 @@ describe('useVaultStore dirty note protection', () => {
       noteContentsCache: new Map([['draft:alpha', { content: 'Draft body', modifiedAt: null }]]),
     });
 
-    const created = await useVaultStore.getState().createVault('next', '/vault/next');
+    const created = await useNotesRootStore.getState().createNotesRoot('next', '/notesRoot/next');
 
     expect(created).toBe(false);
     expect(mocks.storage.mkdir).not.toHaveBeenCalled();
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().error).toBe(
-      'Save or discard draft notes before switching vaults'
+    expect(useNotesRootStore.getState().currentNotesRoot?.path).toBe('/notesRoot/old');
+    expect(useNotesRootStore.getState().error).toBe(
+      'Save or discard draft notes before opening another folder'
     );
   });
 });

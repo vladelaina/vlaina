@@ -8,7 +8,7 @@ import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarS
 import { cn } from '@/lib/utils';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
@@ -88,7 +88,7 @@ export function SidebarContent({
   const cancelNoteContentScan = useNotesStore((s) => s.cancelNoteContentScan);
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const starredEntries = useNotesStore((s) => s.starredEntries);
-  const currentVault = useVaultStore((s) => s.currentVault);
+  const currentNotesRoot = useNotesRootStore((s) => s.currentNotesRoot);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const currentDraftPreviewTitle = useUIStore((s) => {
     if (!currentNotePath || s.notesPreviewTitle?.path !== currentNotePath) {
@@ -212,7 +212,7 @@ export function SidebarContent({
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
   const lastRevealedCurrentNotePathRef = useRef<string | null>(null);
-  const hasVaultPendingRoot = Boolean(currentVault && notesPath === currentVault.path && !displayRootFolder);
+  const hasNotesRootPendingRoot = Boolean(currentNotesRoot && notesPath === currentNotesRoot.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
     rootFolder: displayRootFolder,
@@ -225,7 +225,7 @@ export function SidebarContent({
     searchQuery: deferredSearchQuery,
     isSearchOpen: effectiveSearchOpen,
     starredEntries,
-    currentVaultPath: currentVault?.path ?? notesPath,
+    currentNotesRootPath: currentNotesRoot?.path ?? notesPath,
   });
   const { tags } = useNotesSidebarTags({
     rootFolder: displayRootFolder,
@@ -239,14 +239,14 @@ export function SidebarContent({
           : null,
     scanAllNotes,
     starredEntries,
-    currentVaultPath: currentVault?.path ?? notesPath,
+    currentNotesRootPath: currentNotesRoot?.path ?? notesPath,
     active: active && !effectiveSearchOpen,
   });
   const hasLoadedRootFolder = Boolean(displayRootFolder);
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
-  const shouldShowFloatingEmptyHint = !isLoading && !hasVaultPendingRoot && !hasLoadedRootFolder;
+  const shouldShowFloatingEmptyHint = !isLoading && !hasNotesRootPendingRoot && !hasLoadedRootFolder;
   const shouldRenderRootFolderRow = Boolean(
-    displayRootFolder || hasVaultPendingRoot || shouldShowInlineEmptyHint,
+    displayRootFolder || hasNotesRootPendingRoot || shouldShowInlineEmptyHint,
   );
 
   useEffect(() => {

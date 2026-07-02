@@ -1,13 +1,13 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { watchDesktopPath } from '@/lib/desktop/watch';
 import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
-import { ensureVaultConfig } from '@/stores/vaultConfig';
+import { ensureNotesRootConfig } from '@/stores/notesRootConfig';
 import {
   isExternalSyncPaused,
   registerExternalSyncWatcher,
   subscribeExternalSyncPause,
 } from '@/stores/notes/document/externalSyncControl';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import {
   flushExpiredPendingRenames,
   getNextPendingRenameDelay,
@@ -16,10 +16,10 @@ import {
   type PendingRenameEntry,
 } from './notesExternalRenameQueue';
 import {
-  getVaultExternalWatchPaths,
+  getNotesRootExternalWatchPaths,
   isDirectChildPath,
-  looksLikeVaultRoot,
-} from './currentVaultExternalPathSyncUtils';
+  looksLikeNotesRootRoot,
+} from './currentNotesRootExternalPathSyncUtils';
 import {
   isExternalWatchUnavailableError,
 } from './externalWatchErrorUtils';
@@ -40,26 +40,26 @@ function isSameFsPath(path: string | null | undefined, otherPath: string | null 
   return getFsPathComparisonKey(path) === getFsPathComparisonKey(otherPath);
 }
 
-export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
+export function useCurrentNotesRootExternalPathSync(notesRootPath: string | null) {
   const isPaused = useSyncExternalStore(
     subscribeExternalSyncPause,
     isExternalSyncPaused,
     () => false
   );
-  const syncCurrentVaultExternalPath = useVaultStore((state) => state.syncCurrentVaultExternalPath);
+  const syncCurrentNotesRootExternalPath = useNotesRootStore((state) => state.syncCurrentNotesRootExternalPath);
   const pendingRenameTimerRef = useRef<number | null>(null);
   const pendingRenamesRef = useRef<PendingRenameEntry[]>([]);
 
   useEffect(() => {
-    if (!vaultPath || isPaused) {
+    if (!notesRootPath || isPaused) {
       return;
     }
 
-    const watchPaths = getVaultExternalWatchPaths(vaultPath);
+    const watchPaths = getNotesRootExternalWatchPaths(notesRootPath);
     if (!watchPaths) {
       return;
     }
-    const { normalizedVaultPath, normalizedParentPath, watchParentPath } = watchPaths;
+    const { normalizedNotesRootPath, normalizedParentPath, watchParentPath } = watchPaths;
 
     let disposed = false;
     let unwatch: (() => Promise<void>) | null = null;
@@ -85,45 +85,45 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       }, delay);
     };
 
-    const queueVaultRename = (oldPath: string) => {
-      if (!isSameFsPath(oldPath, normalizedVaultPath)) {
+    const queueNotesRootRename = (oldPath: string) => {
+      if (!isSameFsPath(oldPath, normalizedNotesRootPath)) {
         return;
       }
       pendingRenamesRef.current = queuePendingRename(
         pendingRenamesRef.current,
-        normalizedVaultPath,
+        normalizedNotesRootPath,
         Date.now(),
         ROOT_PENDING_RENAME_TTL_MS
       );
       schedulePendingRenameFlush();
     };
 
-    const applyMatchedVaultRename = async (newPath: string) => {
+    const applyMatchedNotesRootRename = async (newPath: string) => {
       if (!isDirectChildPath(normalizedParentPath, newPath)) {
         return false;
       }
 
-      let isVaultRoot = false;
+      let isNotesRootRoot = false;
       try {
-        isVaultRoot = await looksLikeVaultRoot(newPath);
+        isNotesRootRoot = await looksLikeNotesRootRoot(newPath);
       } catch {
         return false;
       }
 
-      if (!isVaultRoot) {
+      if (!isNotesRootRoot) {
         return false;
       }
       if (disposed) {
         return false;
       }
 
-      syncCurrentVaultExternalPath(normalizeFsPath(newPath));
+      syncCurrentNotesRootExternalPath(normalizeFsPath(newPath));
       return true;
     };
 
     const run = async () => {
       try {
-        await ensureVaultConfig(vaultPath);
+        await ensureNotesRootConfig(notesRootPath);
         const stopWatching = await watchDesktopPath(
           watchParentPath,
           async (event) => {
@@ -153,15 +153,15 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
               const oldPath = renamePaths.oldPath ? normalizeFsPath(renamePaths.oldPath) : null;
               const newPath = renamePaths.newPath ? normalizeFsPath(renamePaths.newPath) : null;
 
-              if (isSameFsPath(oldPath, normalizedVaultPath) && newPath) {
-                if (await applyMatchedVaultRename(newPath)) {
+              if (isSameFsPath(oldPath, normalizedNotesRootPath) && newPath) {
+                if (await applyMatchedNotesRootRename(newPath)) {
                   return;
                 }
                 return;
               }
 
-              if (oldPath && isSameFsPath(oldPath, normalizedVaultPath)) {
-                queueVaultRename(oldPath);
+              if (oldPath && isSameFsPath(oldPath, normalizedNotesRootPath)) {
+                queueNotesRootRename(oldPath);
                 return;
               }
               if (newPath) {
@@ -172,8 +172,8 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
                 pendingRenamesRef.current = queue;
                 schedulePendingRenameFlush();
 
-                if (isSameFsPath(matchedOldPath, normalizedVaultPath)) {
-                  if (await applyMatchedVaultRename(newPath)) {
+                if (isSameFsPath(matchedOldPath, normalizedNotesRootPath)) {
+                  if (await applyMatchedNotesRootRename(newPath)) {
                     return;
                   }
                 }
@@ -182,8 +182,8 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
               return;
             }
 
-            if (isRemoveWatchEvent(event) && unexpectedPaths.some((path) => isSameFsPath(path, normalizedVaultPath))) {
-              queueVaultRename(normalizedVaultPath);
+            if (isRemoveWatchEvent(event) && unexpectedPaths.some((path) => isSameFsPath(path, normalizedNotesRootPath))) {
+              queueNotesRootRename(normalizedNotesRootPath);
               return;
             }
 
@@ -197,11 +197,11 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
             pendingRenamesRef.current = queue;
             schedulePendingRenameFlush();
 
-            if (!isSameFsPath(matchedOldPath, normalizedVaultPath)) {
+            if (!isSameFsPath(matchedOldPath, normalizedNotesRootPath)) {
               return;
             }
             for (const candidatePath of unexpectedPaths) {
-              if (await applyMatchedVaultRename(candidatePath)) {
+              if (await applyMatchedNotesRootRename(candidatePath)) {
                 return;
               }
             }
@@ -236,5 +236,5 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       void unwatch?.().catch(() => undefined);
       releaseWatcher?.();
     };
-  }, [isPaused, syncCurrentVaultExternalPath, vaultPath]);
+  }, [isPaused, syncCurrentNotesRootExternalPath, notesRootPath]);
 }

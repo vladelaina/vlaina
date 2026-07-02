@@ -38,7 +38,7 @@ describe('useLocalImage', () => {
     })));
   });
 
-  it('does not try to resolve relative paths while the vault path is temporarily empty', async () => {
+  it('does not try to resolve relative paths while the opened folder path is temporarily empty', async () => {
     const { result } = renderHook(() =>
       useLocalImage('assets/2026-03-31_16-08-49.png', '', undefined)
     );
@@ -52,7 +52,7 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
-  it('does not browser-load unsafe local fallbacks while the vault path is temporarily empty', async () => {
+  it('does not browser-load unsafe local fallbacks while the opened folder path is temporarily empty', async () => {
     const internal = renderHook(() =>
       useLocalImage('.vlaina/assets/secret.png', '', undefined)
     );
@@ -80,33 +80,33 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
-  it('falls back to the vault-root image path when the note-relative path is missing', async () => {
+  it('falls back to the opened-folder image path when the note-relative path is missing', async () => {
     hoisted.exists
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
-    hoisted.loadImageAsBlob.mockResolvedValueOnce('blob:vault-root-image');
+    hoisted.loadImageAsBlob.mockResolvedValueOnce('blob:opened-folder-image');
 
     const { result } = renderHook(() =>
-      useLocalImage('assets/demo.png', '/vault', 'daily/demo.md')
+      useLocalImage('assets/demo.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.resolvedSrc).toBe('blob:vault-root-image');
+    expect(result.current.resolvedSrc).toBe('blob:opened-folder-image');
     expect(result.current.error).toBeNull();
-    expect(hoisted.exists).toHaveBeenNthCalledWith(1, '/vault/daily/assets/demo.png');
-    expect(hoisted.exists).toHaveBeenNthCalledWith(2, '/vault/assets/demo.png');
+    expect(hoisted.exists).toHaveBeenNthCalledWith(1, '/notesRoot/daily/assets/demo.png');
+    expect(hoisted.exists).toHaveBeenNthCalledWith(2, '/notesRoot/assets/demo.png');
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/demo.png');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/assets/demo.png');
   });
 
   it('loads local image files without treating query params as part of the filename', async () => {
     hoisted.loadImageAsBlob.mockResolvedValueOnce('blob:local-image');
 
     const { result } = renderHook(() =>
-      useLocalImage('./assets/demo.png?cache=1#preview', '/vault', 'daily/demo.md')
+      useLocalImage('./assets/demo.png?cache=1#preview', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -115,14 +115,14 @@ describe('useLocalImage', () => {
 
     expect(result.current.resolvedSrc).toBe('blob:local-image');
     expect(result.current.error).toBeNull();
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/daily/assets/demo.png');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/daily/assets/demo.png');
   });
 
   it('loads URL-encoded local image filenames as filesystem paths', async () => {
     hoisted.loadImageAsBlob.mockResolvedValueOnce('blob:local-image');
 
     const { result } = renderHook(() =>
-      useLocalImage('./assets/Pasted%20image%2020251117105052.png', '/vault', 'daily/demo.md')
+      useLocalImage('./assets/Pasted%20image%2020251117105052.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -131,7 +131,7 @@ describe('useLocalImage', () => {
 
     expect(result.current.resolvedSrc).toBe('blob:local-image');
     expect(result.current.error).toBeNull();
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/daily/assets/Pasted image 20251117105052.png');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/daily/assets/Pasted image 20251117105052.png');
   });
 
   it('loads internal img asset refs through contained local paths', async () => {
@@ -141,7 +141,7 @@ describe('useLocalImage', () => {
     hoisted.loadImageAsBlob.mockResolvedValueOnce('blob:internal-image');
 
     const { result } = renderHook(() =>
-      useLocalImage('img:assets/demo.png?cache=1#preview', '/vault', 'daily/demo.md')
+      useLocalImage('img:assets/demo.png?cache=1#preview', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -150,14 +150,14 @@ describe('useLocalImage', () => {
 
     expect(result.current.resolvedSrc).toBe('blob:internal-image');
     expect(result.current.error).toBeNull();
-    expect(hoisted.exists).toHaveBeenNthCalledWith(1, '/vault/daily/assets/demo.png');
-    expect(hoisted.exists).toHaveBeenNthCalledWith(2, '/vault/assets/demo.png');
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/demo.png');
+    expect(hoisted.exists).toHaveBeenNthCalledWith(1, '/notesRoot/daily/assets/demo.png');
+    expect(hoisted.exists).toHaveBeenNthCalledWith(2, '/notesRoot/assets/demo.png');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/assets/demo.png');
   });
 
   it('does not render note-controlled unsupported media schemes', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('asset://localhost/secret.png', '/vault', 'daily/demo.md')
+      useLocalImage('asset://localhost/secret.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -171,7 +171,7 @@ describe('useLocalImage', () => {
 
   it('does not read invalid internal img asset refs', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('img:/vault/assets/demo.png', '/vault', 'daily/demo.md')
+      useLocalImage('img:/notesRoot/assets/demo.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -185,7 +185,7 @@ describe('useLocalImage', () => {
 
   it('does not fall back to browser-loading internal local paths', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('.vlaina/assets/secret.png', '/vault', 'daily/demo.md')
+      useLocalImage('.vlaina/assets/secret.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -199,7 +199,7 @@ describe('useLocalImage', () => {
 
   it('does not read images when the current note path contains unsafe characters', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('assets/demo.png', '/vault', 'daily/unsafe\u202Egnp.md')
+      useLocalImage('assets/demo.png', '/notesRoot', 'daily/unsafe\u202Egnp.md')
     );
 
     await waitFor(() => {
@@ -211,9 +211,9 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
-  it('does not fall back to browser-loading unresolved local paths once a vault is available', async () => {
+  it('does not fall back to browser-loading unresolved local paths once a opened folder is available', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('../../secret.png', '/vault', 'daily/demo.md')
+      useLocalImage('../../secret.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -229,7 +229,7 @@ describe('useLocalImage', () => {
     hoisted.loadImageAsBlob.mockRejectedValueOnce(new Error('Missing image'));
 
     const { result } = renderHook(() =>
-      useLocalImage('./assets/missing.png', '/vault', 'daily/demo.md')
+      useLocalImage('./assets/missing.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -238,12 +238,12 @@ describe('useLocalImage', () => {
 
     expect(result.current.resolvedSrc).toBe('');
     expect(result.current.error?.message).toBe('Missing image');
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/daily/assets/missing.png');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/daily/assets/missing.png');
   });
 
   it('renders safe raster data image sources after normalizing their prefix', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('DATA:IMAGE/WEBP;BASE64,AQI=', '/vault', 'daily/demo.md')
+      useLocalImage('DATA:IMAGE/WEBP;BASE64,AQI=', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -258,7 +258,7 @@ describe('useLocalImage', () => {
 
   it('renders sanitized public remote images without resolving them through local storage', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+      useLocalImage('https://example.com/tracker.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -280,7 +280,7 @@ describe('useLocalImage', () => {
 
   it('normalizes protocol-relative public remote images before fetching', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('//example.com/tracker.png', '/vault', 'daily/demo.md')
+      useLocalImage('//example.com/tracker.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -302,7 +302,7 @@ describe('useLocalImage', () => {
 
   it('does not fetch or read images while loading is deferred', async () => {
     const { result, rerender } = renderHook(
-      ({ enabled }) => useLocalImage('https://example.com/deferred.png', '/vault', 'daily/demo.md', enabled),
+      ({ enabled }) => useLocalImage('https://example.com/deferred.png', '/notesRoot', 'daily/demo.md', enabled),
       { initialProps: { enabled: false } }
     );
 
@@ -326,7 +326,7 @@ describe('useLocalImage', () => {
 
   it('does not read local images while loading is deferred', async () => {
     const { result } = renderHook(() =>
-      useLocalImage('assets/demo.png', '/vault', 'daily/demo.md', false)
+      useLocalImage('assets/demo.png', '/notesRoot', 'daily/demo.md', false)
     );
 
     await waitFor(() => {
@@ -347,7 +347,7 @@ describe('useLocalImage', () => {
       }));
 
     const { result, rerender } = renderHook(
-      ({ src }) => useLocalImage(src, '/vault', 'daily/demo.md'),
+      ({ src }) => useLocalImage(src, '/notesRoot', 'daily/demo.md'),
       { initialProps: { src: './assets/first.png' } }
     );
 
@@ -377,7 +377,7 @@ describe('useLocalImage', () => {
 
   it('reuses a cached remote image blob for repeated remote image opens', async () => {
     const first = renderHook(() =>
-      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+      useLocalImage('https://example.com/tracker.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -385,7 +385,7 @@ describe('useLocalImage', () => {
     });
 
     const second = renderHook(() =>
-      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+      useLocalImage('https://example.com/tracker.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -399,7 +399,7 @@ describe('useLocalImage', () => {
 
   it('returns a cached remote image without a loading frame on remount', async () => {
     const first = renderHook(() =>
-      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+      useLocalImage('https://example.com/tracker.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
@@ -407,7 +407,7 @@ describe('useLocalImage', () => {
     });
 
     const second = renderHook(() =>
-      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+      useLocalImage('https://example.com/tracker.png', '/notesRoot', 'daily/demo.md')
     );
 
     expect(second.result.current.resolvedSrc).toBe('blob:remote-image');
@@ -424,7 +424,7 @@ describe('useLocalImage', () => {
     } as unknown as Response);
 
     const { result } = renderHook(() =>
-      useLocalImage('https://example.com/large.png', '/vault', 'daily/demo.md')
+      useLocalImage('https://example.com/large.png', '/notesRoot', 'daily/demo.md')
     );
 
     await waitFor(() => {
