@@ -1,6 +1,4 @@
 import { getStorageAdapter, type FileInfo } from '@/lib/storage/adapter';
-import { getRelativeMarkdownThemeCssImports } from '../cssUrls/imports';
-import { isStandaloneMarkdownThemeCss } from '../platformDetection';
 import type { ImportedMarkdownThemeMetadata } from '../types';
 import { cachedThemeCssExists, deleteImportedThemeFiles } from './cssAssets';
 import {
@@ -30,6 +28,31 @@ interface SyncableThemeCssEntry {
 }
 
 const importedThemeDirectoryCssUtf8Encoder = new TextEncoder();
+
+interface ThemeCssInspectionModules {
+  getRelativeMarkdownThemeCssImports: typeof import('../cssUrls/imports').getRelativeMarkdownThemeCssImports;
+  isStandaloneMarkdownThemeCss: typeof import('../platformDetection').isStandaloneMarkdownThemeCss;
+}
+
+let themeCssInspectionModulesPromise: Promise<ThemeCssInspectionModules> | null = null;
+
+function loadThemeCssInspectionModules(): Promise<ThemeCssInspectionModules> {
+  themeCssInspectionModulesPromise ??= Promise.all([
+    import('../cssUrls/imports'),
+    import('../platformDetection'),
+  ]).then(([
+    { getRelativeMarkdownThemeCssImports },
+    { isStandaloneMarkdownThemeCss },
+  ]) => ({
+    getRelativeMarkdownThemeCssImports,
+    isStandaloneMarkdownThemeCss,
+  })).catch((error) => {
+    themeCssInspectionModulesPromise = null;
+    throw error;
+  });
+
+  return themeCssInspectionModulesPromise;
+}
 
 export interface ImportedMarkdownThemesDirectorySyncResult {
   directoryPath: string;
@@ -99,6 +122,7 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
   const sourcePaths = new Set(cssEntries.map((entry) => normalizeThemePath(entry.path)));
   const ignoredNonThemeSourcePaths = new Set<string>();
   const syncableCssEntries: SyncableThemeCssEntry[] = [];
+  let themeCssInspectionModules: ThemeCssInspectionModules | null = null;
 
   for (const entry of cssEntries) {
     let css: string;
@@ -122,7 +146,8 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
       continue;
     }
 
-    if (!isStandaloneMarkdownThemeCss(css)) {
+    themeCssInspectionModules ??= await loadThemeCssInspectionModules();
+    if (!themeCssInspectionModules.isStandaloneMarkdownThemeCss(css)) {
       ignoredNonThemeSourcePaths.add(normalizeThemePath(entry.path));
       continue;
     }
@@ -149,7 +174,8 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
   for (const { entry, stat, css } of syncableCssEntries) {
     const existing = findThemeBySourcePath(nextThemes, entry.path);
     const hasCachedCss = existing ? await cachedThemeCssExists(existing) : false;
-    const hasLocalCssImports = getRelativeMarkdownThemeCssImports(css).length > 0;
+    themeCssInspectionModules ??= await loadThemeCssInspectionModules();
+    const hasLocalCssImports = themeCssInspectionModules.getRelativeMarkdownThemeCssImports(css).length > 0;
     if (existing && hasCachedCss && !hasThemeSourceSignatureChanged(existing, stat) && !hasLocalCssImports) {
       continue;
     }

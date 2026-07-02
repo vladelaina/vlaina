@@ -5,8 +5,8 @@ import type { ChatMessage } from "@/lib/ai/types";
 import { useAccountSessionStore } from "@/stores/accountSession";
 import { initialAccountSessionState } from "@/stores/accountSession/state";
 
-vi.mock("@/components/Chat/features/Markdown/MarkdownRenderer", () => ({
-  default: ({
+vi.mock("@/components/Chat/features/Markdown/LazyMarkdownRenderer", () => ({
+  LazyMarkdownRenderer: ({
     content,
     copiedCodeBlockId,
     onCopyCodeBlock,

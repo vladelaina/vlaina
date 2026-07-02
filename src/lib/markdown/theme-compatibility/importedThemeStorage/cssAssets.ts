@@ -3,7 +3,6 @@ import {
 } from '@/lib/storage/adapter';
 import type { ImportedMarkdownThemeMetadata } from '../types';
 import { MAX_IMPORTED_THEME_CSS_BYTES } from './constants';
-import { inlineRelativeThemeCssImports } from './cssImports';
 import { getThemeAssetDirPath, getThemeCssPath } from './paths';
 import { rewriteImportedThemeAssetUrls } from './themeAssets';
 
@@ -39,6 +38,7 @@ export async function sanitizeImportedCss(
   sourcePath?: string | null
 ): Promise<string> {
   const { sanitizeImportedMarkdownThemeCss } = await import('../cssUrls/security');
+  const { inlineRelativeThemeCssImports } = await import('./cssImports');
   const sanitizedBaseCss = sanitizeImportedMarkdownThemeCss(css);
   const cssWithLocalImports = await inlineRelativeThemeCssImports(css, sourcePath);
   const sanitizedWithImports = sanitizeImportedMarkdownThemeCss(cssWithLocalImports);
