@@ -83,6 +83,7 @@ Verification:
 
 **Target a maximum of 300 lines per non-test file.**
 If a non-test file exceeds 300 lines, propose a logical split into smaller modules.
+When splitting files, verify the moved behavior with focused tests; add or update tests if existing coverage is insufficient.
 
 ## 6. Commit Messages
 
