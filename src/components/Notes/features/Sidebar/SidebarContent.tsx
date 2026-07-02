@@ -14,11 +14,11 @@ import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stor
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
+import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 import {
-  NotesSidebarHoverEmptyHint,
-  NotesSidebarPillEmptyHint,
-  NotesSidebarScrollArea,
-} from './NotesSidebarPrimitives';
+  getEmptyWorkspaceRecentVaults,
+  SidebarEmptyWorkspacePanel,
+} from './SidebarEmptyWorkspacePanel';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { type NotesSidebarSearchResult } from './notesSidebarSearchResults';
 import {
@@ -89,6 +89,8 @@ export function SidebarContent({
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentVault = useVaultStore((s) => s.currentVault);
+  const recentVaults = useVaultStore((s) => s.recentVaults);
+  const openVault = useVaultStore((s) => s.openVault);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const currentDraftPreviewTitle = useUIStore((s) => {
     if (!currentNotePath || s.notesPreviewTitle?.path !== currentNotePath) {
@@ -245,9 +247,14 @@ export function SidebarContent({
   const hasLoadedRootFolder = Boolean(displayRootFolder);
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
   const shouldShowFloatingEmptyHint = !isLoading && !hasVaultPendingRoot && !hasLoadedRootFolder;
+  const shouldShowEmptyWorkspacePanel =
+    shouldShowInlineEmptyHint || (shouldShowFloatingEmptyHint && !sidebarCollapsed);
   const shouldRenderRootFolderRow = Boolean(
     displayRootFolder || hasVaultPendingRoot || shouldShowInlineEmptyHint,
   );
+  const recentEmptyWorkspaceVaults = useMemo(() => (
+    getEmptyWorkspaceRecentVaults(recentVaults, currentVault?.path)
+  ), [currentVault?.path, recentVaults]);
 
   useEffect(() => {
     if (!active) {
@@ -548,6 +555,10 @@ export function SidebarContent({
     window.dispatchEvent(new Event('app-open-markdown-target-folder'));
   };
 
+  const handleOpenRecentVault = (path: string) => {
+    void openVault(path).catch(() => undefined);
+  };
+
   return (
     <div
       ref={sidebarRootRef}
@@ -630,12 +641,15 @@ export function SidebarContent({
                   hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[var(--vlaina-size-160px)] items-center',
                 )}
               >
-                {shouldShowInlineEmptyHint ? (
-                  <NotesSidebarPillEmptyHint
-                    actions={[
-                      { label: t('notes.file'), onAction: handleOpenMarkdownFile },
-                      { label: t('notes.folder'), onAction: handleOpenFolder },
-                    ]}
+                {shouldShowEmptyWorkspacePanel ? (
+                  <SidebarEmptyWorkspacePanel
+                    folderLabel={t('notes.folder')}
+                    openFileLabel={t('notes.openFile')}
+                    openFolderLabel={t('notes.openFolder')}
+                    recentVaults={recentEmptyWorkspaceVaults}
+                    onOpenFile={handleOpenMarkdownFile}
+                    onOpenFolder={handleOpenFolder}
+                    onOpenRecentVault={handleOpenRecentVault}
                   />
                 ) : null}
               </div>
@@ -643,18 +657,6 @@ export function SidebarContent({
           )}
         </NotesSidebarScrollArea>
       </SidebarCapsulePanel>
-      {shouldShowFloatingEmptyHint && !sidebarCollapsed ? (
-        <div className="pointer-events-none fixed bottom-5 left-4 z-[var(--vlaina-z-50)] flex w-[var(--vlaina-width-sidebar-content-inner)] justify-center">
-          <NotesSidebarHoverEmptyHint
-            actions={[
-              { label: t('notes.file'), onAction: handleOpenMarkdownFile },
-              { label: t('notes.folder'), onAction: handleOpenFolder },
-            ]}
-            placement="inline"
-            visible
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

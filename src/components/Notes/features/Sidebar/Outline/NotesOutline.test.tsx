@@ -17,9 +17,14 @@ const hoisted = vi.hoisted(() => ({
   uiState: {
     sidebarCollapsed: false,
   },
+  vaultState: {
+    currentVault: null as { path: string; name: string } | null,
+    recentVaults: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
+  },
   jumpToHeading: vi.fn(),
   renameHeading: vi.fn(() => true),
   setNotesSidebarView: vi.fn(),
+  openVault: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('@tanstack/react-virtual', () => ({
@@ -47,6 +52,19 @@ vi.mock('@/lib/i18n', () => ({
 
 vi.mock('@/stores/useNotesStore', () => ({
   useNotesStore: (selector: (state: typeof hoisted.notesState) => unknown) => selector(hoisted.notesState),
+}));
+
+vi.mock('@/stores/useVaultStore', () => ({
+  useVaultStore: (selector: (state: {
+    currentVault: typeof hoisted.vaultState.currentVault;
+    recentVaults: typeof hoisted.vaultState.recentVaults;
+    openVault: typeof hoisted.openVault;
+  }) => unknown) =>
+    selector({
+      currentVault: hoisted.vaultState.currentVault,
+      recentVaults: hoisted.vaultState.recentVaults,
+      openVault: hoisted.openVault,
+    }),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
@@ -87,9 +105,13 @@ describe('NotesOutline', () => {
     hoisted.notesState.starredEntries = [];
     hoisted.notesState.starredLoaded = true;
     hoisted.uiState.sidebarCollapsed = false;
+    hoisted.vaultState.currentVault = null;
+    hoisted.vaultState.recentVaults = [];
     hoisted.jumpToHeading.mockClear();
     hoisted.renameHeading.mockClear();
     hoisted.setNotesSidebarView.mockClear();
+    hoisted.openVault.mockClear();
+    hoisted.openVault.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -132,7 +154,7 @@ describe('NotesOutline', () => {
     expect(screen.queryByRole('button', { name: 'Heading 220' })).toBeNull();
   });
 
-  it('shows open target actions without switching sidebar views when no file or starred entry is available', () => {
+  it('shows the empty workspace panel without outline empty text when no file is open', () => {
     hoisted.outlineState.headings = [];
     const openFileListener = vi.fn();
     window.addEventListener('app-open-markdown-target-file', openFileListener);
@@ -140,8 +162,8 @@ describe('NotesOutline', () => {
     try {
       render(<NotesOutline enabled={false} currentNotePath={null} />);
 
-      expect(screen.getByText('notes.outlineEmpty')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'notes.file' }));
+      expect(screen.queryByText('notes.outlineEmpty')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'notes.openFile' }));
 
       expect(hoisted.setNotesSidebarView).not.toHaveBeenCalled();
       expect(openFileListener).toHaveBeenCalledTimes(1);
@@ -150,23 +172,39 @@ describe('NotesOutline', () => {
     }
   });
 
-  it('keeps the plain outline empty state when starred entries exist', () => {
+  it('shows outline empty only after a file is open', () => {
     hoisted.outlineState.headings = [];
-    hoisted.notesState.starredEntries = [{ id: 'starred-note' }];
 
-    render(<NotesOutline enabled={false} currentNotePath={null} />);
+    render(<NotesOutline enabled currentNotePath="note.md" />);
 
     expect(screen.getByText('notes.outlineEmpty')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'notes.file' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'notes.openFile' })).toBeNull();
   });
 
-  it('hides the open target actions when the sidebar is collapsed', () => {
+  it('hides the empty workspace panel when the sidebar is collapsed and no file is open', () => {
     hoisted.outlineState.headings = [];
     hoisted.uiState.sidebarCollapsed = true;
 
     render(<NotesOutline enabled={false} currentNotePath={null} />);
 
-    expect(screen.getByText('notes.outlineEmpty')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'notes.file' })).toBeNull();
+    expect(screen.queryByText('notes.outlineEmpty')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'notes.openFile' })).toBeNull();
+  });
+
+  it('opens a recent vault from the outline empty workspace panel', () => {
+    hoisted.outlineState.headings = [];
+    hoisted.vaultState.currentVault = { path: '/vaults/current', name: 'Current' };
+    hoisted.vaultState.recentVaults = [
+      { id: 'vault-current', name: 'Current', path: '/vaults/current', lastOpened: 3 },
+      { id: 'vault-alpha', name: 'Alpha', path: '/vaults/alpha', lastOpened: 2 },
+      { id: 'vault-beta', name: 'Beta', path: '/vaults/beta', lastOpened: 1 },
+    ];
+
+    render(<NotesOutline enabled={false} currentNotePath={null} />);
+
+    expect(screen.queryByText('Current')).toBeNull();
+    fireEvent.click(screen.getByText('Alpha'));
+
+    expect(hoisted.openVault).toHaveBeenCalledWith('/vaults/alpha');
   });
 });

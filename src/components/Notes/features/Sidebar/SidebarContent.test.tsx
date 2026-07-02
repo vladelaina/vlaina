@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEventHandler, ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
@@ -31,12 +31,14 @@ const hoisted = vi.hoisted(() => ({
     paths: Array<{ path: string; query: string; contentMatchOrdinal: number | null }>;
   }>,
   currentVault: null as { path: string; name: string } | null,
+  recentVaults: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
   uiState: {
     sidebarCollapsed: false,
     notesPreviewTitle: null as { path: string; title: string } | null,
   },
   openNote: vi.fn(() => Promise.resolve()),
   openNoteByAbsolutePath: vi.fn(() => Promise.resolve()),
+  openVault: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -56,9 +58,24 @@ vi.mock('@/stores/useNotesStore', () => ({
 }));
 
 vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector: (state: any) => unknown) => selector({
-    currentVault: hoisted.currentVault,
-  }),
+  useVaultStore: Object.assign(
+    (selector: (state: any) => unknown) => selector({
+      currentVault: hoisted.currentVault,
+      recentVaults: hoisted.recentVaults,
+      openVault: hoisted.openVault,
+    }),
+    {
+      getState: () => ({
+        currentVault: hoisted.currentVault,
+        recentVaults: hoisted.recentVaults,
+        openVault: hoisted.openVault,
+      }),
+      setState: (partial: { currentVault?: typeof hoisted.currentVault; recentVaults?: typeof hoisted.recentVaults }) => {
+        if ('currentVault' in partial) hoisted.currentVault = partial.currentVault ?? null;
+        if ('recentVaults' in partial) hoisted.recentVaults = partial.recentVaults ?? [];
+      },
+    },
+  ),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
@@ -164,35 +181,42 @@ vi.mock('./NotesTagsSection', () => ({
 }));
 
 vi.mock('./NotesSidebarRow', () => ({
-  NotesSidebarRow: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  NotesSidebarRow: ({
+    children,
+    leading,
+    main,
+    trailing,
+    onClick,
+    onKeyDown,
+    role,
+    tabIndex,
+  }: {
+    children?: ReactNode;
+    leading?: ReactNode;
+    main?: ReactNode;
+    trailing?: ReactNode;
+    onClick?: () => void;
+    onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
+    role?: string;
+    tabIndex?: number;
+  }) => (
+    <div role={role} tabIndex={tabIndex} onClick={onClick} onKeyDown={onKeyDown}>
+      {leading}
+      {main}
+      {trailing}
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock('./NotesSidebarPrimitives', () => ({
   NotesSidebarScrollArea: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  NotesSidebarPillEmptyHint: ({ title, actions }: { title?: string; actions?: Array<{ label: string; onAction: () => void }> }) => (
+  NotesSidebarPillEmptyHint: ({ actions }: { actions?: Array<{ label: string; onAction: () => void }> }) => (
     <div data-testid="pill-empty-hint">
-      {title ? <span>{title}</span> : null}
       {actions?.map((action) => (
-        <button key={action.label} onClick={action.onAction}>{action.label}</button>
-      ))}
-    </div>
-  ),
-  NotesSidebarHoverEmptyHint: ({
-    title,
-    actionLabel,
-    onAction,
-    actions,
-  }: {
-    title?: string;
-    actionLabel?: string;
-    onAction?: () => void;
-    actions?: Array<{ label: string; onAction: () => void }>;
-  }) => (
-    <div data-testid="hover-empty-hint">
-      {title ? <span>{title}</span> : null}
-      {actionLabel ? <button onClick={onAction}>{actionLabel}</button> : null}
-      {actions?.map((action) => (
-        <button key={action.label} onClick={action.onAction}>{action.label}</button>
+        <button key={action.label} type="button" onClick={action.onAction}>
+          {action.label}
+        </button>
       ))}
     </div>
   ),
@@ -284,12 +308,15 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.noteContentsCache = new Map();
     hoisted.notesPath = '';
     hoisted.currentVault = null;
+    hoisted.recentVaults = [];
     hoisted.uiState.sidebarCollapsed = false;
     hoisted.uiState.notesPreviewTitle = null;
     hoisted.openNote.mockClear();
     hoisted.openNote.mockResolvedValue(undefined);
     hoisted.openNoteByAbsolutePath.mockClear();
     hoisted.openNoteByAbsolutePath.mockResolvedValue(undefined);
+    hoisted.openVault.mockClear();
+    hoisted.openVault.mockResolvedValue(true);
     hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockClear();
     hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockReturnValue(false);
     hoisted.suppressNextCurrentNoteSidebarReveal.mockClear();
@@ -327,7 +354,7 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(await screen.findByText('Live Draft')).toBeInTheDocument();
-    expect(screen.queryByTestId('pill-empty-hint')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('empty-workspace-panel')).not.toBeInTheDocument();
   });
 
   it('clears editor highlights when sidebar search is closed', async () => {
@@ -522,7 +549,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByTestId('pill-empty-hint')).toBeInTheDocument();
+    expect(getByTestId('empty-workspace-panel')).toBeInTheDocument();
   });
 
   it('shows the open hint when the notes tree has no entries', () => {
@@ -546,7 +573,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByTestId('pill-empty-hint')).toBeTruthy();
+    expect(getByTestId('empty-workspace-panel')).toBeTruthy();
   });
 
   it('shows the hover empty hint before a root folder exists', () => {
@@ -561,10 +588,10 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByTestId('hover-empty-hint')).toBeTruthy();
+    expect(getByTestId('empty-workspace-panel')).toBeTruthy();
   });
 
-  it('keeps the empty hint at its fixed sidebar bottom position', () => {
+  it('renders the empty panel inside the sidebar blank area before a root folder exists', () => {
     const { getByTestId } = render(
       <SidebarContent
         rootFolder={null}
@@ -576,11 +603,9 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    const hintShell = getByTestId('hover-empty-hint').parentElement;
+    const panel = getByTestId('empty-workspace-panel');
 
-    expect(hintShell).toHaveClass('fixed');
-    expect(hintShell).toHaveClass('bottom-5');
-    expect(hintShell).toHaveClass('left-4');
+    expect(panel.closest('[data-notes-sidebar-blank-drag-root="true"]')).not.toBeNull();
   });
 
   it('hides the empty hint when the sidebar is collapsed', () => {
@@ -597,7 +622,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(queryByTestId('hover-empty-hint')).toBeNull();
+    expect(queryByTestId('empty-workspace-panel')).toBeNull();
   });
 
   it('does not show the open hint while a vault root is still loading', () => {
@@ -615,7 +640,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(queryByTestId('hover-empty-hint')).toBeNull();
+    expect(queryByTestId('empty-workspace-panel')).toBeNull();
     expect(getByTestId('root-folder-row')).toBeTruthy();
   });
 
@@ -634,7 +659,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByTestId('hover-empty-hint')).toBeTruthy();
+    expect(getByTestId('empty-workspace-panel')).toBeTruthy();
   });
 
   it('does not inject a blank in-memory draft into an empty root folder', () => {
@@ -665,7 +690,7 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(queryByText('Untitled')).toBeNull();
-    expect(getByTestId('pill-empty-hint')).toBeTruthy();
+    expect(getByTestId('empty-workspace-panel')).toBeTruthy();
   });
 
   it('shows the current in-memory draft after it has content', () => {
@@ -719,10 +744,10 @@ describe('SidebarContent search highlight cleanup', () => {
         />,
       );
 
-      const hint = getByTestId('hover-empty-hint');
+      const hint = getByTestId('empty-workspace-panel');
       expect(hint).toBeTruthy();
-      fireEvent.click(within(hint).getByRole('button', { name: 'File' }));
-      fireEvent.click(within(hint).getByRole('button', { name: 'Folder' }));
+      fireEvent.click(within(hint).getByRole('button', { name: 'Open File' }));
+      fireEvent.click(within(hint).getByRole('button', { name: 'Open Folder' }));
 
       expect(openFileHandler).toHaveBeenCalledTimes(1);
       expect(openFolderHandler).toHaveBeenCalledTimes(1);
@@ -730,6 +755,56 @@ describe('SidebarContent search highlight cleanup', () => {
       window.removeEventListener('app-open-markdown-target-file', openFileHandler);
       window.removeEventListener('app-open-markdown-target-folder', openFolderHandler);
     }
+  });
+
+  it('opens a recent vault from the empty workspace panel', () => {
+    hoisted.currentVault = { path: '/vaults/alpha', name: 'Alpha Vault' };
+    hoisted.recentVaults = [
+      { id: 'vault-alpha', name: 'Alpha Vault', path: '/vaults/alpha', lastOpened: 2 },
+      { id: 'vault-beta', name: 'Beta Vault', path: '/vaults/beta', lastOpened: 1 },
+    ];
+
+    render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(screen.queryByText('Alpha Vault')).toBeNull();
+    expect(screen.queryByText('/vaults/beta')).toBeNull();
+    fireEvent.click(screen.getByText('Beta Vault'));
+
+    expect(hoisted.openVault).toHaveBeenCalledWith('/vaults/beta');
+  });
+
+  it('limits recent vaults in the empty workspace panel', () => {
+    hoisted.recentVaults = Array.from({ length: 10 }, (_, index) => ({
+      id: `vault-${index + 1}`,
+      name: `Vault ${index + 1}`,
+      path: `/vaults/${index + 1}`,
+      lastOpened: 10 - index,
+    }));
+
+    render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />
+    );
+
+    expect(screen.getByText('Vault 1')).toBeInTheDocument();
+    expect(screen.getByText('Vault 8')).toBeInTheDocument();
+    expect(screen.queryByText('Vault 9')).toBeNull();
+    expect(screen.queryByText('Vault 10')).toBeNull();
   });
 
   it('scans note contents when cached entries do not cover the current file tree', () => {

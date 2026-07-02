@@ -30,7 +30,7 @@ const MAX_VAULT_BROADCAST_REQUEST_ID_CHARS = 128;
 export const MAX_PENDING_VAULT_BROADCAST_QUERIES = 100;
 const UNSAFE_VAULT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
-const MAX_RECENT_VAULTS = 5;
+const MAX_RECENT_VAULTS = 10;
 
 function generateVaultId(): string {
   return `vault-${crypto.randomUUID()}`;

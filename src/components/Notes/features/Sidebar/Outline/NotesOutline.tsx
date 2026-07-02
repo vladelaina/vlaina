@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
-import { useNotesStore } from '@/stores/useNotesStore';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { useUIStore } from '@/stores/uiSlice';
 import {
@@ -15,13 +15,13 @@ import {
   CollapseTriangleAffordance,
   getSidebarCollapseTriangleColorClassName,
 } from '../../common/collapseTrianglePrimitive';
-import {
-  NotesSidebarHoverEmptyHint,
-  NotesSidebarPillEmptyHint,
-  NotesSidebarScrollArea,
-} from '../NotesSidebarPrimitives';
+import { NotesSidebarPillEmptyHint, NotesSidebarScrollArea } from '../NotesSidebarPrimitives';
 import { NotesSidebarRow } from '../NotesSidebarRow';
 import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
+import {
+  getEmptyWorkspaceRecentVaults,
+  SidebarEmptyWorkspacePanel,
+} from '../SidebarEmptyWorkspacePanel';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import {
   SidebarCapsulePanel,
@@ -88,16 +88,21 @@ export function NotesOutline({
 }: NotesOutlineProps) {
   const { t } = useI18n();
   const { headings, activeId, jumpToHeading, renameHeading } = useNotesOutline(enabled);
-  const hasStarredEntries = useNotesStore((s) => s.starredEntries.length > 0);
-  const starredLoaded = useNotesStore((s) => s.starredLoaded);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const currentVault = useVaultStore((s) => s.currentVault);
+  const recentVaults = useVaultStore((s) => s.recentVaults);
+  const openVault = useVaultStore((s) => s.openVault);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
   const [renamingHeadingId, setRenamingHeadingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const hasCurrentFile = Boolean(currentNotePath && !isDraftNotePath(currentNotePath));
-  const shouldShowOpenTargetActions = starredLoaded && !hasStarredEntries && !hasCurrentFile;
+  const shouldShowEmptyWorkspacePanel = headings.length === 0 && !hasCurrentFile && !sidebarCollapsed;
+  const shouldShowOutlineEmpty = hasCurrentFile && headings.length === 0;
+  const recentEmptyWorkspaceVaults = useMemo(() => (
+    getEmptyWorkspaceRecentVaults(recentVaults, currentVault?.path)
+  ), [currentVault?.path, recentVaults]);
 
   useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
@@ -166,6 +171,10 @@ export function NotesOutline({
   const handleOpenFolder = useCallback(() => {
     window.dispatchEvent(new Event('app-open-markdown-target-folder'));
   }, []);
+
+  const handleOpenRecentVault = useCallback((path: string) => {
+    void openVault(path).catch(() => undefined);
+  }, [openVault]);
 
   const renderOutlineRow = useCallback(({ node, hasChildren, isCollapsed }: VisibleOutlineRow) => {
     const isActive = node.id === activeId;
@@ -328,7 +337,17 @@ export function NotesOutline({
               data-notes-sidebar-blank-drag-root="true"
               className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[var(--vlaina-size-160px)] pb-8')}
             >
-              {headings.length === 0 ? (
+              {shouldShowEmptyWorkspacePanel ? (
+                <SidebarEmptyWorkspacePanel
+                  folderLabel={t('notes.folder')}
+                  openFileLabel={t('notes.openFile')}
+                  openFolderLabel={t('notes.openFolder')}
+                  recentVaults={recentEmptyWorkspaceVaults}
+                  onOpenFile={handleOpenMarkdownFile}
+                  onOpenFolder={handleOpenFolder}
+                  onOpenRecentVault={handleOpenRecentVault}
+                />
+              ) : shouldShowOutlineEmpty ? (
                 <NotesSidebarPillEmptyHint
                   title={t('notes.outlineEmpty')}
                 />
@@ -337,18 +356,6 @@ export function NotesOutline({
           </div>
         </NotesSidebarScrollArea>
       </SidebarCapsulePanel>
-      {headings.length === 0 && shouldShowOpenTargetActions && !sidebarCollapsed ? (
-        <div className="pointer-events-none fixed bottom-5 left-4 z-[var(--vlaina-z-50)] flex w-[var(--vlaina-width-sidebar-content-inner)] justify-center">
-          <NotesSidebarHoverEmptyHint
-            actions={[
-              { label: t('notes.file'), onAction: handleOpenMarkdownFile },
-              { label: t('notes.folder'), onAction: handleOpenFolder },
-            ]}
-            placement="inline"
-            visible
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

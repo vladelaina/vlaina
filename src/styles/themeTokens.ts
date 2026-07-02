@@ -234,6 +234,10 @@ export const themeSidebarTokens = {
   width: 'var(--vlaina-width-sidebar-default)',
   mobileWidth: 'var(--vlaina-width-sidebar-mobile)',
   iconWidth: 'var(--vlaina-width-sidebar-icon)',
+  recentVaultPathHintTextLeftOffsetPx: 40,
+  recentVaultPathHintHorizontalPaddingPx: 12,
+  recentVaultPathHintGapPx: 2,
+  recentVaultPathHintEstimatedHeightPx: 34,
 } as const;
 
 export const themeCodeBlockEditorTokens = {
