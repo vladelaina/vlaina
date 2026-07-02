@@ -43,14 +43,16 @@ export function AppShell({
 }: AppShellProps) {
   const titleBarWidthScopeRef = useRef<HTMLDivElement>(null);
   const sidebarWidthScopeRef = useRef<HTMLDivElement>(null);
+  const sidebarPeekWidthScopeRef = useRef<HTMLElement>(null);
   const [isSidebarDragging, setIsSidebarDragging] = useState(false);
+  const [isSidebarPeeking, setIsSidebarPeeking] = useState(false);
   const setLayoutPanelDragging = useUIStore((state) => state.setLayoutPanelDragging);
 
   const applySidebarWidth = useCallback((width: number) => {
     const sidebarWidthValue = `${width}px`;
     const sidebarContentInnerValue = `calc(${sidebarWidthValue} - var(--vlaina-size-32px))`;
 
-    for (const target of [titleBarWidthScopeRef.current, sidebarWidthScopeRef.current]) {
+    for (const target of [titleBarWidthScopeRef.current, sidebarWidthScopeRef.current, sidebarPeekWidthScopeRef.current]) {
       if (!target) continue;
       target.style.setProperty('--vlaina-shell-sidebar-width', sidebarWidthValue);
       target.style.setProperty('--vlaina-width-sidebar-content-inner', sidebarContentInnerValue);
@@ -64,7 +66,13 @@ export function AppShell({
 
   useLayoutEffect(() => {
     applySidebarWidth(sidebarWidth);
-  }, [applySidebarWidth, sidebarWidth]);
+  }, [applySidebarWidth, sidebarCollapsed, sidebarWidth]);
+
+  useLayoutEffect(() => {
+    if (!sidebarCollapsed) {
+      setIsSidebarPeeking(false);
+    }
+  }, [sidebarCollapsed]);
 
   return (
     <div
@@ -88,7 +96,7 @@ export function AppShell({
       
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         
-        {sidebarContent && (
+        {sidebarContent && !sidebarCollapsed && (
           <UnifiedSidebarContainer
             width={sidebarWidth}
             collapsed={sidebarCollapsed}
@@ -101,6 +109,39 @@ export function AppShell({
             {sidebarContent}
           </UnifiedSidebarContainer>
         )}
+
+        {sidebarContent && sidebarCollapsed ? (
+          <div
+            data-shell-sidebar-peek-layer="true"
+            className="pointer-events-none absolute inset-y-0 left-0 z-[var(--vlaina-z-40)]"
+          >
+            <div
+              data-shell-sidebar-peek-hotzone="true"
+              className="pointer-events-auto absolute inset-y-0 left-0 w-3"
+              aria-hidden="true"
+              onMouseEnter={() => setIsSidebarPeeking(true)}
+            />
+            <aside
+              ref={sidebarPeekWidthScopeRef}
+              data-shell-sidebar-peek="true"
+              data-open={isSidebarPeeking ? 'true' : 'false'}
+              aria-hidden={!isSidebarPeeking}
+              className={cn(
+                'absolute inset-y-0 left-0 flex min-h-0 flex-col overflow-hidden select-none transition-[opacity,transform] duration-[var(--vlaina-duration-200)] ease-out',
+                isSidebarPeeking
+                  ? 'translate-x-0 opacity-[var(--vlaina-opacity-100)] pointer-events-auto'
+                  : '-translate-x-full opacity-[var(--vlaina-opacity-0)] pointer-events-none',
+              )}
+              style={{
+                width: 'var(--vlaina-shell-sidebar-width)',
+              }}
+              onMouseEnter={() => setIsSidebarPeeking(true)}
+              onMouseLeave={() => setIsSidebarPeeking(false)}
+            >
+              {sidebarContent}
+            </aside>
+          </div>
+        ) : null}
         
         <main
           className="flex-1 flex flex-col min-w-0 relative app-scrollbar"

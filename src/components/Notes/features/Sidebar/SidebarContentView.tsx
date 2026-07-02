@@ -112,7 +112,7 @@ export function SidebarContentView({
   return (
     <div
       ref={sidebarRootRef}
-      className={cn('group/sidebar-content relative flex h-full min-h-0 flex-col', className)}
+      className={cn('group/sidebar-content relative flex h-full min-h-0 min-w-0 flex-col', className)}
     >
       <SidebarSearchDrawer
         isSearchOpen={effectiveSearchOpen}

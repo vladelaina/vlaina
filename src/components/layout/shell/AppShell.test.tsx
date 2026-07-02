@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { forwardRef, type ReactNode, type Ref } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from './AppShell';
@@ -86,5 +86,39 @@ describe('AppShell', () => {
     expect(sidebar!.style.getPropertyValue('--vlaina-width-sidebar-content-inner')).toBe(
       'calc(320px - var(--vlaina-size-32px))'
     );
+  });
+
+  it('shows collapsed sidebar content from the left-edge peek hotzone', () => {
+    const { container } = render(
+      <AppShell
+        sidebarWidth={300}
+        sidebarCollapsed
+        sidebarContent={<div data-testid="sidebar-content">Sidebar</div>}
+        onSidebarWidthChange={() => {}}
+        onSidebarToggle={() => {}}
+      >
+        <div>Main</div>
+      </AppShell>
+    );
+
+    expect(container.querySelector('[data-testid="sidebar"]')).toBeNull();
+
+    const hotzone = container.querySelector<HTMLElement>('[data-shell-sidebar-peek-hotzone="true"]');
+    const peekSidebar = container.querySelector<HTMLElement>('[data-shell-sidebar-peek="true"]');
+    expect(hotzone).not.toBeNull();
+    expect(peekSidebar).not.toBeNull();
+    expect(peekSidebar).toHaveAttribute('data-open', 'false');
+    expect(peekSidebar).toHaveAttribute('aria-hidden', 'true');
+    expect(peekSidebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('300px');
+
+    fireEvent.mouseEnter(hotzone!);
+
+    expect(peekSidebar).toHaveAttribute('data-open', 'true');
+    expect(peekSidebar).toHaveAttribute('aria-hidden', 'false');
+
+    fireEvent.mouseLeave(peekSidebar!);
+
+    expect(peekSidebar).toHaveAttribute('data-open', 'false');
+    expect(peekSidebar).toHaveAttribute('aria-hidden', 'true');
   });
 });

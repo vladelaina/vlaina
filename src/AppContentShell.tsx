@@ -45,7 +45,7 @@ function ConnectedAppShell({
   effectiveAppViewMode,
   mainOverlay,
   settingsOpen,
-  sidebarContent,
+  renderSidebarContent,
   titleBarCenter,
   titleBarRight,
 }: {
@@ -53,7 +53,7 @@ function ConnectedAppShell({
   effectiveAppViewMode: AppViewMode;
   mainOverlay: ReactNode;
   settingsOpen: boolean;
-  sidebarContent: ReactNode;
+  renderSidebarContent: (isPeeking: boolean) => ReactNode;
   titleBarCenter: ReactNode;
   titleBarRight: ReactNode;
 }) {
@@ -61,6 +61,7 @@ function ConnectedAppShell({
   const sidebarWidth = useUIStore((state) => state.sidebarWidth);
   const setSidebarWidth = useUIStore((state) => state.setSidebarWidth);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const sidebarContent = renderSidebarContent(sidebarCollapsed);
 
   return (
     <AppShell
@@ -111,35 +112,35 @@ export function AppContentShell({
   const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
   const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
 
-  const sidebarContent = shouldRenderSidebar ? effectiveAppViewMode === 'whiteboard' ? (
+  const renderSidebarContent = (isPeeking: boolean) => shouldRenderSidebar ? effectiveAppViewMode === 'whiteboard' ? (
     <Suspense fallback={null}>
       {WhiteboardSidebar ? <WhiteboardSidebar /> : null}
     </Suspense>
   ) : (
-    <div className="grid h-full min-h-0">
+    <div className="grid h-full min-h-0 min-w-0 overflow-hidden">
       {shouldRenderChatSidebar ? (
         <div
           className={cn(
-            'col-start-1 row-start-1 h-full min-h-0',
+            'col-start-1 row-start-1 h-full min-h-0 min-w-0 overflow-hidden',
             !shouldShowChatSidebar && 'pointer-events-none hidden',
           )}
           aria-hidden={!shouldShowChatSidebar}
         >
           <Suspense fallback={null}>
-            <ChatSidebar isPeeking={false} active={shouldShowChatSidebar} />
+            <ChatSidebar isPeeking={isPeeking} active={shouldShowChatSidebar} />
           </Suspense>
         </div>
       ) : null}
       {shouldRenderNotesSidebar ? (
         <div
           className={cn(
-            'col-start-1 row-start-1 h-full min-h-0',
+            'col-start-1 row-start-1 h-full min-h-0 min-w-0 overflow-hidden',
             !shouldShowNotesSidebar && 'pointer-events-none hidden',
           )}
           aria-hidden={!shouldShowNotesSidebar}
         >
           <Suspense fallback={null}>
-            <NotesSidebarWrapper isPeeking={false} active={shouldShowNotesSidebar} />
+            <NotesSidebarWrapper isPeeking={isPeeking} active={shouldShowNotesSidebar} />
           </Suspense>
         </div>
       ) : null}
@@ -232,7 +233,7 @@ export function AppContentShell({
       <ConnectedAppShell
         effectiveAppViewMode={effectiveAppViewMode}
         settingsOpen={settingsOpen}
-        sidebarContent={sidebarContent}
+        renderSidebarContent={renderSidebarContent}
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
         mainOverlay={mainOverlay}

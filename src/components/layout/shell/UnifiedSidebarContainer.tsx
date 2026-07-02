@@ -55,6 +55,7 @@ export function UnifiedSidebarContainer({
       {!collapsed && (
         <>
           <ResizeHandle
+            dataResizeHandleScope="shell-sidebar"
             onMouseDown={handleDragStart}
             isDragging={isDragging}
             positionStyle={{
