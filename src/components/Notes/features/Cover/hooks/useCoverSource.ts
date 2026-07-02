@@ -7,11 +7,11 @@ const COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX = 1280;
 
 interface UseCoverSourceProps {
     url: string | null;
-    vaultPath: string;
+    notesRootPath: string;
     currentNotePath?: string;
 }
 
-export function useCoverSource({ url, vaultPath, currentNotePath }: UseCoverSourceProps) {
+export function useCoverSource({ url, notesRootPath, currentNotePath }: UseCoverSourceProps) {
     const [state, dispatch] = useReducer(coverSourceReducer, initialCoverSourceState);
 
     const prevSrcRef = useRef<string | null>(null);
@@ -67,7 +67,7 @@ export function useCoverSource({ url, vaultPath, currentNotePath }: UseCoverSour
                 const preserveAnimation = shouldPreserveAssetAnimation(url);
                 imageUrl = await resolveCoverAssetUrl({
                     assetPath: url,
-                    vaultPath,
+                    notesRootPath,
                     currentNotePath,
                     thumbnail: !preserveAnimation,
                     thumbnailMaxEdgePx: preserveAnimation ? undefined : COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX,
@@ -91,7 +91,7 @@ export function useCoverSource({ url, vaultPath, currentNotePath }: UseCoverSour
         return () => {
             ignore = true;
         };
-    }, [url, vaultPath, currentNotePath]);
+    }, [url, notesRootPath, currentNotePath]);
 
     const isResolvedSourceStale = Boolean(
         url &&

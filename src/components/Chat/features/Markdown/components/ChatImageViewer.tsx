@@ -21,7 +21,7 @@ import { createStoredAttachmentFromSource } from "@/lib/storage/attachmentStorag
 import { useToastStore } from "@/stores/useToastStore";
 import { themeChatImageViewerTokens, themeCropperTokens, themeStyleResetTokens } from "@/styles/themeTokens";
 
-interface ChatImageViewerProps {
+export interface ChatImageViewerProps {
   open: boolean;
   src: string;
   alt?: string;

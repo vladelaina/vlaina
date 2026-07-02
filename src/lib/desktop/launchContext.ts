@@ -1,8 +1,8 @@
-export type WindowLaunchViewMode = 'notes' | 'chat' | 'lab';
+export type WindowLaunchViewMode = 'notes' | 'chat' | 'whiteboard' | 'lab';
 
 export interface WindowLaunchContext {
   isNewWindow: boolean;
-  vaultPath: string | null;
+  notesRootPath: string | null;
   notePath: string | null;
   folderPath: string | null;
   chatSessionId: string | null;
@@ -10,7 +10,7 @@ export interface WindowLaunchContext {
 }
 
 interface WindowLaunchTarget {
-  vaultPath?: string | null;
+  notesRootPath?: string | null;
   notePath?: string | null;
   folderPath?: string | null;
   chatSessionId?: string | null;
@@ -23,7 +23,11 @@ function normalizeLaunchValue(value: string | null | undefined) {
 }
 
 function normalizeLaunchViewMode(value: string | null | undefined): WindowLaunchViewMode | null {
-  if (value === 'notes' || value === 'chat' || value === 'lab') {
+  if (value === 'notes' || value === 'chat') {
+    return value;
+  }
+
+  if (import.meta.env.DEV && (value === 'whiteboard' || value === 'lab')) {
     return value;
   }
 
@@ -35,7 +39,7 @@ export function readWindowLaunchContext(search: string = window.location.search)
 
   return {
     isNewWindow: params.get('newWindow') === 'true',
-    vaultPath: normalizeLaunchValue(params.get('vaultPath')),
+    notesRootPath: normalizeLaunchValue(params.get('notesRootPath')),
     notePath: normalizeLaunchValue(params.get('notePath')),
     folderPath: normalizeLaunchValue(params.get('folderPath')),
     chatSessionId: normalizeLaunchValue(params.get('chatSessionId')),
@@ -47,9 +51,9 @@ export function buildWindowLaunchSearch(target: WindowLaunchTarget = {}) {
   const params = new URLSearchParams();
   params.set('newWindow', 'true');
 
-  const vaultPath = normalizeLaunchValue(target.vaultPath);
-  if (vaultPath) {
-    params.set('vaultPath', vaultPath);
+  const notesRootPath = normalizeLaunchValue(target.notesRootPath);
+  if (notesRootPath) {
+    params.set('notesRootPath', notesRootPath);
   }
 
   const notePath = normalizeLaunchValue(target.notePath);

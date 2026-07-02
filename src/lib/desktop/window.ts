@@ -79,7 +79,7 @@ export const desktopWindow = {
   },
 
   create(options?: {
-    vaultPath?: string | null;
+    notesRootPath?: string | null;
     notePath?: string | null;
     folderPath?: string | null;
     chatSessionId?: string | null;

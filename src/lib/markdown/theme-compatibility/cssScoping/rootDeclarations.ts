@@ -17,6 +17,10 @@ const ROOT_PAGE_DECORATION_DECLARATION_PATTERN = new RegExp([
   String.raw`^background(?:-color|-image|-position|-repeat|-size|-attachment|-clip|-origin)?$`,
 ].join('|'), 'i');
 
+const TYPORA_ROOT_FONT_SIZE_VARIABLES = new Set([
+  '--v-f-size',
+]);
+
 export function removeImportedPageChromeSelectors(rule: postcss.Rule): boolean {
   const selectors = splitSelectorList(rule.selector);
   const contentSelectors = selectors.filter((selector) => !selectorTargetsImportedPageChrome(selector));
@@ -75,7 +79,9 @@ export function removeImportedRootLayoutDeclarations(
 function isUnsafeImportedTyporaRootDeclaration(declaration: postcss.Declaration): boolean {
   const property = declaration.prop.trim().toLowerCase();
 
+  if (TYPORA_ROOT_FONT_SIZE_VARIABLES.has(property)) return true;
   if (property.startsWith('--')) return false;
+  if (property === 'font-size') return true;
   return ROOT_LAYOUT_DECLARATION_PATTERN.test(property)
     || ROOT_PAGE_DECORATION_DECLARATION_PATTERN.test(property);
 }

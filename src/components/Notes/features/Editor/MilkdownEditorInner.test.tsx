@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
     updateContent: vi.fn(),
     saveNote: vi.fn().mockResolvedValue(undefined),
     isNewlyCreated: false,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
   };
   const editorState = {
     activeEditor: null as any,
@@ -211,7 +211,7 @@ beforeEach(() => {
   mocks.notesState.updateContent.mockClear();
   mocks.notesState.saveNote.mockClear();
   mocks.notesState.isNewlyCreated = false;
-  mocks.notesState.notesPath = '/vault';
+  mocks.notesState.notesPath = '/notesRoot';
   mocks.editorState.activeEditor = null;
   mocks.editorState.serializedMarkdown = '# Small';
   mocks.pendingMarkdownAutosaveState.options = null;

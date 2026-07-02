@@ -4,10 +4,10 @@ import {
   FILE_TREE_FILE_SELECTOR,
   NOTE_SCROLL_ROOT_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
   waitForEditorAnimationFrame,
 } from './notesE2E';
 
@@ -228,7 +228,7 @@ test.describe('notes autosave switch audit', () => {
       await setContentCommitThrottleMs(page, 5_000);
 
       const marker = `autosave switch marker ${Date.now()}`;
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'autosave-switch-audit',
         files: [
           {
@@ -242,8 +242,8 @@ test.describe('notes autosave switch audit', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Autosave Switch Audit',
         minFileCount: 2,
       });
@@ -312,7 +312,7 @@ test.describe('notes autosave switch audit', () => {
       await page.setViewportSize({ width: 1280, height: 860 });
 
       const marker = `autosave sidebar icon marker ${Date.now()}`;
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'autosave-sidebar-icon-stability',
         files: [
           {
@@ -342,8 +342,8 @@ test.describe('notes autosave switch audit', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Autosave Sidebar Icon Stability',
         minFileCount: 2,
       });
@@ -463,7 +463,7 @@ test.describe('notes autosave switch audit', () => {
       await setContentCommitThrottleMs(page, 100);
 
       const firstLineText = '我们的定位  有点';
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'autosave-first-line-delete-caret',
         files: [
           {
@@ -485,8 +485,8 @@ test.describe('notes autosave switch audit', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Autosave First Line Delete Caret',
         minFileCount: 1,
       });
@@ -531,7 +531,7 @@ test.describe('notes autosave switch audit', () => {
 
       const firstLineText = '我们的定位  有点';
       const editedFirstLineText = '我们的定位  有';
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'autosave-first-line-end-backspace-caret',
         files: [
           {
@@ -553,8 +553,8 @@ test.describe('notes autosave switch audit', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Autosave First Line End Backspace Caret',
         minFileCount: 1,
       });
@@ -608,7 +608,7 @@ test.describe('notes autosave switch audit', () => {
       const longBody = Array.from({ length: 120 }, (_, index) =>
         `Paragraph ${index + 1}: overlay scroll autosave audit content.`
       );
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'autosave-overlay-scroll-depth',
         files: [
           {
@@ -630,8 +630,8 @@ test.describe('notes autosave switch audit', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Autosave Overlay Scroll Depth',
         minFileCount: 1,
       });

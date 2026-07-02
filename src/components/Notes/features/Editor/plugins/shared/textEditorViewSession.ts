@@ -107,6 +107,7 @@ export function createTextEditorViewSession<
   let anchorPositionFrame: number | null = null;
   let popupVisibilityFrame: number | null = null;
   let pendingPreviewInputArgs: TextEditorPreviewArgs<TState, TRefs> | null = null;
+  let isComposing = false;
   const scrollRoot = getScrollRoot(editorView);
   const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
   const positionRoot = contentRoot ?? scrollRoot;
@@ -213,6 +214,7 @@ export function createTextEditorViewSession<
     clearEditorElements();
     resetRefs(refs);
     renderedKey = null;
+    isComposing = false;
   };
 
   const getSessionActionArgs = (): TextEditorSessionActionArgs<TState, TRefs> => ({
@@ -244,6 +246,9 @@ export function createTextEditorViewSession<
     }
 
     if (editorElement && !editorElement.contains(event.target as Node)) {
+      if (isComposing) {
+        return;
+      }
       onOutsideCloseIntent();
       clearPendingPreviewInput();
       saveSession(getSessionActionArgs());
@@ -424,8 +429,17 @@ export function createTextEditorViewSession<
         cancelSession(getSessionActionArgs());
       },
       onSave() {
+        if (isComposing) {
+          return;
+        }
         clearPendingPreviewInput();
         saveSession(getSessionActionArgs());
+      },
+      onCompositionStart() {
+        isComposing = true;
+      },
+      onCompositionEnd() {
+        isComposing = false;
       },
     });
 
@@ -488,6 +502,7 @@ export function createTextEditorViewSession<
       focusTextareaTimer = null;
       anchorPositionFrame = null;
       popupVisibilityFrame = null;
+      isComposing = false;
     },
   };
 }

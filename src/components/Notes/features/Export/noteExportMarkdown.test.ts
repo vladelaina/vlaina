@@ -4,7 +4,7 @@ import { MAX_EXPORT_EMBEDDED_IMAGE_BYTES, resolveExportMarkdownAssetSources } fr
 const mocks = vi.hoisted(() => ({
   readBinaryFile: vi.fn(),
   stat: vi.fn(),
-  resolveExistingVaultAssetPath: vi.fn(),
+  resolveExistingNotesRootAssetPath: vi.fn(),
 }));
 
 vi.mock('@/lib/electron/bridge', () => ({
@@ -17,7 +17,7 @@ vi.mock('@/lib/electron/bridge', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveExistingVaultAssetPath: mocks.resolveExistingVaultAssetPath,
+  resolveExistingNotesRootAssetPath: mocks.resolveExistingNotesRootAssetPath,
 }));
 
 describe('resolveExportMarkdownAssetSources', () => {
@@ -26,40 +26,40 @@ describe('resolveExportMarkdownAssetSources', () => {
     mocks.stat.mockReset();
     mocks.stat.mockResolvedValue({
       name: 'demo.png',
-      path: '/vault/docs/assets/demo.png',
+      path: '/notesRoot/docs/assets/demo.png',
       isDirectory: false,
       isFile: true,
       size: 2,
     });
-    mocks.resolveExistingVaultAssetPath.mockReset();
+    mocks.resolveExistingNotesRootAssetPath.mockReset();
   });
 
   it('embeds local note images as data URLs for portable exports', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![demo](img:demo.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](data:image/png;base64,aGk=)');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'demo.png',
       'docs/demo.md',
     );
     expect(mocks.readBinaryFile).toHaveBeenCalledWith(
-      '/vault/docs/assets/demo.png',
+      '/notesRoot/docs/assets/demo.png',
       MAX_EXPORT_EMBEDDED_IMAGE_BYTES,
     );
   });
 
   it('embeds serialized relative note image sources as data URLs', async () => {
-    mocks.resolveExistingVaultAssetPath
-      .mockResolvedValueOnce('/vault/docs/assets/demo.png')
-      .mockResolvedValueOnce('/vault/docs/assets/cover.jpg');
+    mocks.resolveExistingNotesRootAssetPath
+      .mockResolvedValueOnce('/notesRoot/docs/assets/demo.png')
+      .mockResolvedValueOnce('/notesRoot/docs/assets/cover.jpg');
     mocks.readBinaryFile
       .mockResolvedValueOnce(new Uint8Array([104, 105]))
       .mockResolvedValueOnce(new Uint8Array([1, 2]));
@@ -69,7 +69,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '<img src="./assets/demo.png" alt="demo">',
         '![cover](assets/cover.jpg)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -77,15 +77,15 @@ describe('resolveExportMarkdownAssetSources', () => {
       '<img src="data:image/png;base64,aGk=" alt="demo">',
       '![cover](data:image/jpeg;base64,AQI=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
       1,
-      '/vault',
+      '/notesRoot',
       './assets/demo.png',
       'docs/demo.md',
     );
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
       2,
-      '/vault',
+      '/notesRoot',
       'assets/cover.jpg',
       'docs/demo.md',
     );
@@ -98,7 +98,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '![git](docs/.git/secret.png)',
         '![encoded](docs/%252egit/secret.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -107,32 +107,32 @@ describe('resolveExportMarkdownAssetSources', () => {
       '![git](docs/.git/secret.png)',
       '![encoded](docs/%252egit/secret.png)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(mocks.resolveExistingNotesRootAssetPath).not.toHaveBeenCalled();
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('embeds case-insensitive internal note image refs as data URLs', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![demo](IMG:demo.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](data:image/png;base64,aGk=)');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'demo.png',
       'docs/demo.md',
     );
   });
 
   it('embeds supported bmp and avif note images as data URLs', async () => {
-    mocks.resolveExistingVaultAssetPath
-      .mockResolvedValueOnce('/vault/docs/assets/demo.bmp')
-      .mockResolvedValueOnce('/vault/docs/assets/demo.avif');
+    mocks.resolveExistingNotesRootAssetPath
+      .mockResolvedValueOnce('/notesRoot/docs/assets/demo.bmp')
+      .mockResolvedValueOnce('/notesRoot/docs/assets/demo.avif');
     mocks.readBinaryFile
       .mockResolvedValueOnce(new Uint8Array([1, 2]))
       .mockResolvedValueOnce(new Uint8Array([3, 4]));
@@ -142,7 +142,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '![bmp](img:demo.bmp)',
         '![avif](img:demo.avif)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -154,13 +154,13 @@ describe('resolveExportMarkdownAssetSources', () => {
 
   it('does not resolve invalid internal note image refs as local files', async () => {
     const markdown = await resolveExportMarkdownAssetSources(
-      '![demo](img:/vault/demo.png)',
-      '/vault',
+      '![demo](img:/notesRoot/demo.png)',
+      '/notesRoot',
       'docs/demo.md',
     );
 
-    expect(markdown).toBe('![demo](img:/vault/demo.png)');
-    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(markdown).toBe('![demo](img:/notesRoot/demo.png)');
+    expect(mocks.resolveExistingNotesRootAssetPath).not.toHaveBeenCalled();
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
@@ -174,7 +174,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '![user dot](img:.notes/public.png)',
         '![encoded user dot](img:%2enotes/public.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -186,16 +186,16 @@ describe('resolveExportMarkdownAssetSources', () => {
       '![user dot](img:.notes/public.png)',
       '![encoded user dot](img:%2enotes/public.png)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(2);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(2);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
       1,
-      '/vault',
+      '/notesRoot',
       '.notes/public.png',
       'docs/demo.md',
     );
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
       2,
-      '/vault',
+      '/notesRoot',
       '%2enotes/public.png',
       'docs/demo.md',
     );
@@ -203,17 +203,17 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not read resolved export image paths inside internal notes folders', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/secret.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/.vlaina/assets/secret.png');
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![secret](img:assets/secret.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![secret](img:assets/secret.png)');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'assets/secret.png',
       'docs/demo.md',
     );
@@ -222,9 +222,9 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds markdown images with titles and angle-wrapped paths', async () => {
-    mocks.resolveExistingVaultAssetPath
-      .mockResolvedValueOnce('/vault/docs/assets/demo one.jpg')
-      .mockResolvedValueOnce('/vault/docs/assets/demo two.webp');
+    mocks.resolveExistingNotesRootAssetPath
+      .mockResolvedValueOnce('/notesRoot/docs/assets/demo one.jpg')
+      .mockResolvedValueOnce('/notesRoot/docs/assets/demo two.webp');
     mocks.readBinaryFile
       .mockResolvedValueOnce(new Uint8Array([1, 2]))
       .mockResolvedValueOnce(new Uint8Array([3, 4]));
@@ -234,7 +234,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '![one](img:demo-one.jpg "One")',
         '![two](<img:demo two.webp>)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -242,167 +242,167 @@ describe('resolveExportMarkdownAssetSources', () => {
       '![one](data:image/jpeg;base64,AQI= "One")',
       '![two](<data:image/webp;base64,AwQ=>)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
       1,
-      '/vault',
+      '/notesRoot',
       'demo-one.jpg',
       'docs/demo.md',
     );
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
       2,
-      '/vault',
+      '/notesRoot',
       'demo two.webp',
       'docs/demo.md',
     );
   });
 
   it('decodes markdown image target entities for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![demo](img:path/with&amp;entity&#46;png "Entity")',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](data:image/png;base64,aGk= "Entity")');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'path/with&entity.png',
       'docs/demo.md',
     );
   });
 
   it('decodes markdown image target entity prefixes for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![demo](img&colon;demo.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](data:image/png;base64,aGk=)');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'demo.png',
       'docs/demo.md',
     );
   });
 
   it('embeds only real markdown image targets with nested label text', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![outer [nested](img:not-target.png)](img:real.png "Real (1)")',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![outer [nested](img:not-target.png)](data:image/png;base64,aGk= "Real (1)")');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'real.png',
       'docs/demo.md',
     );
   });
 
   it('does not embed html image tags inside markdown image labels as separate assets', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![<img src="img:alt.png">](img:real.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![<img src="img:alt.png">](data:image/png;base64,aGk=)');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'real.png',
       'docs/demo.md',
     );
   });
 
   it('embeds markdown image targets with nested parentheses', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![demo](img:folder/real(1).png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](data:image/png;base64,aGk=)');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'folder/real(1).png',
       'docs/demo.md',
     );
   });
 
   it('embeds markdown image targets with escaped destination parentheses', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       String.raw`![demo](img:folder/real-\).png "Escaped")`,
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](data:image/png;base64,aGk= "Escaped")');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'folder/real-).png',
       'docs/demo.md',
     );
   });
 
   it('embeds angle-wrapped markdown image targets with escaped destination brackets', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       String.raw`![demo](<img:folder/real-\>.png>)`,
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](<data:image/png;base64,aGk=>)');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'folder/real->.png',
       'docs/demo.md',
     );
   });
 
   it('preserves escaped markdown image targets when the local asset is unresolved', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('');
 
     const markdown = await resolveExportMarkdownAssetSources(
       String.raw`![missing](img:folder/missing-\).png "Missing")`,
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe(String.raw`![missing](img:folder/missing-\).png "Missing")`);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'folder/missing-).png',
       'docs/demo.md',
     );
   });
 
   it('does not rewrite markdown image examples inside code fences', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -413,7 +413,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '',
         '![demo](img:demo.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -424,11 +424,11 @@ describe('resolveExportMarkdownAssetSources', () => {
       '',
       '![demo](data:image/png;base64,aGk=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
   });
 
   it('does not rewrite image-like asset refs inside inline code, escapes, comments, or raw text HTML', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -439,7 +439,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '<script>const html = \'<img src="img:demo.png">\';</script>',
         '![demo](img:demo.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -450,11 +450,11 @@ describe('resolveExportMarkdownAssetSources', () => {
       '<script>const html = \'<img src="img:demo.png">\';</script>',
       '![demo](data:image/png;base64,aGk=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
   });
 
   it('does not rewrite image-like asset refs inside raw HTML pre blocks', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -466,7 +466,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '',
         '![demo](img:demo.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -478,11 +478,11 @@ describe('resolveExportMarkdownAssetSources', () => {
       '',
       '![demo](data:image/png;base64,aGk=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
   });
 
   it('does not rewrite image-like asset refs inside raw HTML tags whose contents are dropped', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -493,7 +493,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '',
         '![real](img:demo.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -504,16 +504,16 @@ describe('resolveExportMarkdownAssetSources', () => {
       '',
       '![real](data:image/png;base64,aGk=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
   });
 
   it('still embeds raw HTML image sources outside code blocks', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '<div><img src="img:demo.png" alt="demo"></div>',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -521,7 +521,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not embed markdown image text inside raw HTML blocks', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -533,7 +533,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '',
         '![real](img:demo.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -545,16 +545,16 @@ describe('resolveExportMarkdownAssetSources', () => {
       '',
       '![real](data:image/png;base64,aGk=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'demo.png',
       'docs/demo.md',
     );
   });
 
   it('embeds only real src attributes from raw HTML image tags', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -562,7 +562,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '<img data-src="img:lazy.png" alt="not loaded">',
         '<img src="img:path/with>char.png" alt="quoted">',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -570,62 +570,62 @@ describe('resolveExportMarkdownAssetSources', () => {
       '<img data-src="img:lazy.png" alt="not loaded">',
       '<img src="data:image/png;base64,aGk=" alt="quoted">',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'path/with>char.png',
       'docs/demo.md',
     );
   });
 
   it('decodes raw HTML image src entities for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '<img src="img:path/with&amp;entity.png" alt="quoted">',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('<img src="data:image/png;base64,aGk=" alt="quoted">');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'path/with&entity.png',
       'docs/demo.md',
     );
   });
 
   it('preserves raw HTML image attribute text when the local asset is unresolved', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('');
 
     const markdown = await resolveExportMarkdownAssetSources(
       '<img src=" img:missing.png " alt="missing">',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('<img src=" img:missing.png " alt="missing">');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'missing.png',
       'docs/demo.md',
     );
   });
 
   it('decodes numeric raw HTML image src entities for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '<img src="img:path/with&#x2f;entity&#46;png" alt="quoted">',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('<img src="data:image/png;base64,aGk=" alt="quoted">');
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notesRoot',
       'path/with/entity.png',
       'docs/demo.md',
     );
@@ -637,7 +637,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '<picture><source srcset="img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
         '<video src="img:movie.mp4" poster="img:poster.png"></video>',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -645,30 +645,30 @@ describe('resolveExportMarkdownAssetSources', () => {
       '<picture><source srcset="img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
       '<video src="img:movie.mp4" poster="img:poster.png"></video>',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(mocks.resolveExistingNotesRootAssetPath).not.toHaveBeenCalled();
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('does not rewrite img-like payload text inside raw HTML data URL srcset candidates', async () => {
     const markdown = await resolveExportMarkdownAssetSources(
       '<picture><source srcset="data:image/svg+xml,img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe(
       '<picture><source srcset="data:image/svg+xml,img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
     );
-    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(mocks.resolveExistingNotesRootAssetPath).not.toHaveBeenCalled();
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('keeps unresolved local note images instead of failing the export', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('');
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![missing](img:missing.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -677,12 +677,12 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not inline oversized local note images', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/huge.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/huge.png');
     mocks.stat.mockResolvedValue({ size: 51 * 1024 * 1024 });
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![huge](img:huge.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -691,12 +691,12 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not inline local note images with invalid negative stat sizes', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/invalid.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/invalid.png');
     mocks.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: -1 });
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![invalid](img:invalid.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -705,12 +705,12 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not read local note images when stat is unavailable', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.stat.mockResolvedValue(null);
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![demo](img:demo.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -719,29 +719,29 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('inlines local note images with bounded reads when stat has no size', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.stat.mockResolvedValue({ isFile: true, isDirectory: false });
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![demo](img:demo.png)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
     expect(markdown).toBe('![demo](data:image/png;base64,aGk=)');
     expect(mocks.readBinaryFile).toHaveBeenCalledWith(
-      '/vault/docs/assets/demo.png',
+      '/notesRoot/docs/assets/demo.png',
       MAX_EXPORT_EMBEDDED_IMAGE_BYTES,
     );
   });
 
   it('does not inline non-image local note assets', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/secret.md');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/secret.md');
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![secret](img:secret.md)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -750,11 +750,11 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not inline local SVG note images as executable data URLs', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/icon.svg');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/icon.svg');
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![icon](img:icon.svg)',
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -763,7 +763,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not let user-authored protected text collide with export segment markers', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
     const markerLikeText = '\0vlaina-export-segment-0-0\0';
 
@@ -775,7 +775,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '',
         '![demo](img:demo.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -791,8 +791,8 @@ describe('resolveExportMarkdownAssetSources', () => {
   it('resolves export markdown segments sequentially without changing replacements', async () => {
     let activeReads = 0;
     let maxActiveReads = 0;
-    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
-      `/vault/docs/assets/${assetPath}`,
+    mocks.resolveExistingNotesRootAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/notesRoot/docs/assets/${assetPath}`,
     );
     mocks.readBinaryFile.mockImplementation(async () => {
       activeReads += 1;
@@ -814,7 +814,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '```',
         '![three](img:three.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -833,7 +833,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('reuses resolved data URLs for repeated local note images during one export', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -842,7 +842,7 @@ describe('resolveExportMarkdownAssetSources', () => {
         '<img src="img:demo.png" alt="second">',
         '![third](img:demo.png)',
       ].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -851,14 +851,14 @@ describe('resolveExportMarkdownAssetSources', () => {
       '<img src="data:image/png;base64,aGk=" alt="second">',
       '![third](data:image/png;base64,aGk=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
     expect(mocks.stat).toHaveBeenCalledTimes(1);
     expect(mocks.readBinaryFile).toHaveBeenCalledTimes(1);
   });
 
   it('keeps later image refs unresolved when embedded image budget is exhausted', async () => {
-    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
-      `/vault/docs/assets/${assetPath}`,
+    mocks.resolveExistingNotesRootAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/notesRoot/docs/assets/${assetPath}`,
     );
     mocks.stat
       .mockResolvedValueOnce({ size: MAX_EXPORT_EMBEDDED_IMAGE_BYTES - 1 })
@@ -867,7 +867,7 @@ describe('resolveExportMarkdownAssetSources', () => {
 
     const markdown = await resolveExportMarkdownAssetSources(
       ['![one](img:one.png)', '![two](img:two.png)'].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -879,8 +879,8 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not read unknown-size image refs after the embedded image budget is exhausted', async () => {
-    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
-      `/vault/docs/assets/${assetPath}`,
+    mocks.resolveExistingNotesRootAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/notesRoot/docs/assets/${assetPath}`,
     );
     mocks.stat
       .mockResolvedValueOnce({ isFile: true, isDirectory: false, size: MAX_EXPORT_EMBEDDED_IMAGE_BYTES })
@@ -889,7 +889,7 @@ describe('resolveExportMarkdownAssetSources', () => {
 
     const markdown = await resolveExportMarkdownAssetSources(
       ['![one](img:one.png)', '![two](img:two.png)'].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -901,13 +901,13 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('counts repeated cached data URL insertions against the embedded image budget', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/docs/assets/demo.png');
     mocks.stat.mockResolvedValue({ size: Math.floor(MAX_EXPORT_EMBEDDED_IMAGE_BYTES / 2) + 1 });
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
       ['![one](img:demo.png)', '![two](img:demo.png)'].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -915,14 +915,14 @@ describe('resolveExportMarkdownAssetSources', () => {
       '![one](data:image/png;base64,aGk=)',
       '![two](img:demo.png)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
     expect(mocks.stat).toHaveBeenCalledTimes(1);
     expect(mocks.readBinaryFile).toHaveBeenCalledTimes(1);
   });
 
   it('does not base64 encode images that read larger than the remaining embedded image budget', async () => {
-    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
-      `/vault/docs/assets/${assetPath}`,
+    mocks.resolveExistingNotesRootAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/notesRoot/docs/assets/${assetPath}`,
     );
     mocks.stat
       .mockResolvedValueOnce({ size: MAX_EXPORT_EMBEDDED_IMAGE_BYTES - 2 })
@@ -933,7 +933,7 @@ describe('resolveExportMarkdownAssetSources', () => {
 
     const markdown = await resolveExportMarkdownAssetSources(
       ['![one](img:one.png)', '![two](img:two.png)'].join('\n'),
-      '/vault',
+      '/notesRoot',
       'docs/demo.md',
     );
 
@@ -944,12 +944,12 @@ describe('resolveExportMarkdownAssetSources', () => {
     expect(mocks.readBinaryFile).toHaveBeenCalledTimes(2);
     expect(mocks.readBinaryFile).toHaveBeenNthCalledWith(
       1,
-      '/vault/docs/assets/one.png',
+      '/notesRoot/docs/assets/one.png',
       MAX_EXPORT_EMBEDDED_IMAGE_BYTES,
     );
     expect(mocks.readBinaryFile).toHaveBeenNthCalledWith(
       2,
-      '/vault/docs/assets/two.png',
+      '/notesRoot/docs/assets/two.png',
       2,
     );
   });

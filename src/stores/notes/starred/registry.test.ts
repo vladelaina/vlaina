@@ -4,7 +4,7 @@ import {
   createStarredEntryIfValid,
   dedupeStarredEntries,
   normalizeStarredEntry,
-  remapStarredEntriesForVault,
+  remapStarredEntriesForNotesRoot,
 } from './registry';
 
 describe('starred registry helpers', () => {
@@ -12,7 +12,7 @@ describe('starred registry helpers', () => {
     expect(normalizeStarredEntry({
       id: 'note',
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'docs/alpha.markdown',
       addedAt: 1,
     })).toMatchObject({
@@ -23,7 +23,7 @@ describe('starred registry helpers', () => {
     expect(normalizeStarredEntry({
       id: 'image',
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'docs/image.png',
       addedAt: 1,
     })).toBeNull();
@@ -33,7 +33,7 @@ describe('starred registry helpers', () => {
     expect(normalizeStarredEntry({
       id: 'folder',
       kind: 'folder',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'assets.png',
       addedAt: 1,
     })).toMatchObject({
@@ -42,54 +42,54 @@ describe('starred registry helpers', () => {
     });
   });
 
-  it('normalizes starred vault paths before matching and deduping entries', () => {
+  it('normalizes starred opened folder paths before matching and deduping entries', () => {
     expect(normalizeStarredEntry({
       id: 'note',
       kind: 'note',
-      vaultPath: '/vault/docs/..',
+      notesRootPath: '/notesRoot/docs/..',
       relativePath: './docs/alpha.md',
       addedAt: 1,
     })).toMatchObject({
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'docs/alpha.md',
     });
 
-    const result = remapStarredEntriesForVault([
+    const result = remapStarredEntriesForNotesRoot([
       {
         id: 'normalized',
         kind: 'note',
-        vaultPath: '/vault/docs/..',
+        notesRootPath: '/notesRoot/docs/..',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       },
-    ], '/vault', (relativePath) => relativePath.replace('alpha.md', 'beta.md'));
+    ], '/notesRoot', (relativePath) => relativePath.replace('alpha.md', 'beta.md'));
 
     expect(result).toEqual({
       changed: true,
       entries: [{
         id: 'normalized',
         kind: 'note',
-        vaultPath: '/vault/docs/..',
+        notesRootPath: '/notesRoot/docs/..',
         relativePath: 'docs/beta.md',
         addedAt: 1,
       }],
     });
   });
 
-  it('deduplicates Windows vault paths case-insensitively', () => {
+  it('deduplicates Windows opened folder paths case-insensitively', () => {
     expect(dedupeStarredEntries([
       {
         id: 'upper',
         kind: 'note',
-        vaultPath: 'C:/Users/Me/Vault',
+        notesRootPath: 'C:/Users/Me/NotesRoot',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       },
       {
         id: 'lower',
         kind: 'note',
-        vaultPath: 'c:/users/me/vault',
+        notesRootPath: 'c:/users/me/notesRoot',
         relativePath: 'docs/alpha.md',
         addedAt: 2,
       },
@@ -97,7 +97,7 @@ describe('starred registry helpers', () => {
       {
         id: 'upper',
         kind: 'note',
-        vaultPath: 'C:/Users/Me/Vault',
+        notesRootPath: 'C:/Users/Me/NotesRoot',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       },
@@ -108,96 +108,96 @@ describe('starred registry helpers', () => {
     expect(normalizeStarredEntry({
       id: 'app-note',
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: '.vlaina/workspace.md',
       addedAt: 1,
     })).toBeNull();
     expect(normalizeStarredEntry({
       id: 'git-folder',
       kind: 'folder',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'docs/.git',
       addedAt: 1,
     })).toBeNull();
-    expect(createStarredEntryIfValid('note', '/vault', '.git/config.md')).toBeNull();
-    expect(createStarredEntryIfValid('folder', '/vault', '.vlaina')).toBeNull();
+    expect(createStarredEntryIfValid('note', '/notesRoot', '.git/config.md')).toBeNull();
+    expect(createStarredEntryIfValid('folder', '/notesRoot', '.vlaina')).toBeNull();
     expect(normalizeStarredEntry({
       id: 'app-note-uppercase',
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: '.VLAINA/workspace.md',
       addedAt: 1,
     })).toBeNull();
     expect(normalizeStarredEntry({
       id: 'git-folder-uppercase',
       kind: 'folder',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'docs/.GIT',
       addedAt: 1,
     })).toBeNull();
-    expect(createStarredEntryIfValid('note', '/vault', '.GIT/config.md')).toBeNull();
-    expect(createStarredEntryIfValid('folder', '/vault', '.VLAINA')).toBeNull();
+    expect(createStarredEntryIfValid('note', '/notesRoot', '.GIT/config.md')).toBeNull();
+    expect(createStarredEntryIfValid('folder', '/notesRoot', '.VLAINA')).toBeNull();
   });
 
   it('refuses to create non-markdown note entries', () => {
-    expect(() => createStarredEntry('note', '/vault', 'image.png')).toThrow(
+    expect(() => createStarredEntry('note', '/notesRoot', 'image.png')).toThrow(
       'Starred note path must be a supported Markdown file',
     );
 
-    expect(createStarredEntry('folder', '/vault', 'assets.png')).toMatchObject({
+    expect(createStarredEntry('folder', '/notesRoot', 'assets.png')).toMatchObject({
       kind: 'folder',
       relativePath: 'assets.png',
     });
   });
 
   it('returns null instead of throwing when safely creating invalid note entries', () => {
-    expect(createStarredEntryIfValid('note', '/vault', 'image.png')).toBeNull();
-    expect(createStarredEntryIfValid('note', 'relative-vault', 'docs/alpha.md')).toBeNull();
-    expect(createStarredEntryIfValid('folder', '/vault', 'assets.png')).toMatchObject({
+    expect(createStarredEntryIfValid('note', '/notesRoot', 'image.png')).toBeNull();
+    expect(createStarredEntryIfValid('note', 'relative-notesRoot', 'docs/alpha.md')).toBeNull();
+    expect(createStarredEntryIfValid('folder', '/notesRoot', 'assets.png')).toMatchObject({
       kind: 'folder',
       relativePath: 'assets.png',
     });
   });
 
-  it('rejects starred vault paths with unsafe control or bidi characters', () => {
-    for (const vaultPath of [
-      '/vault\0hidden',
-      '/vault\u001Fhidden',
-      '/vault\u202Ecod.exe',
-      '/vault\u2066hidden',
-      '/vault\uFFFDhidden',
+  it('rejects starred opened folder paths with unsafe control or bidi characters', () => {
+    for (const notesRootPath of [
+      '/notesRoot\0hidden',
+      '/notesRoot\u001Fhidden',
+      '/notesRoot\u202Ecod.exe',
+      '/notesRoot\u2066hidden',
+      '/notesRoot\uFFFDhidden',
     ]) {
       expect(normalizeStarredEntry({
-        id: `entry-${vaultPath.length}`,
+        id: `entry-${notesRootPath.length}`,
         kind: 'note',
-        vaultPath,
+        notesRootPath,
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       })).toBeNull();
-      expect(createStarredEntryIfValid('note', vaultPath, 'docs/alpha.md')).toBeNull();
-      expect(() => createStarredEntry('note', vaultPath, 'docs/alpha.md')).toThrow(
-        'Starred entry vault path must be an absolute path',
+      expect(createStarredEntryIfValid('note', notesRootPath, 'docs/alpha.md')).toBeNull();
+      expect(() => createStarredEntry('note', notesRootPath, 'docs/alpha.md')).toThrow(
+        'Starred entry opened folder path must be an absolute path',
       );
     }
   });
 
   it('drops remapped note entries that stop being markdown files', () => {
-    const result = remapStarredEntriesForVault([
+    const result = remapStarredEntriesForNotesRoot([
       {
         id: 'note',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       },
       {
         id: 'folder',
         kind: 'folder',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs',
         addedAt: 1,
       },
-    ], '/vault', (relativePath, kind) => (
+    ], '/notesRoot', (relativePath, kind) => (
       kind === 'note' ? relativePath.replace(/\.md$/i, '.png') : relativePath
     ));
 
@@ -205,7 +205,7 @@ describe('starred registry helpers', () => {
     expect(result.entries).toEqual([{
       id: 'folder',
       kind: 'folder',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'docs',
       addedAt: 1,
     }]);

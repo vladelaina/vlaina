@@ -19,6 +19,11 @@ export function once<T>(factory: () => Promise<T>): () => Promise<T> {
 export const preloadSettingsModule = once(() => import('@/components/Settings'));
 export const preloadNotesViewModule = once(() => import('@/components/Notes/NotesView'));
 export const preloadChatViewModule = once(() => import('@/components/Chat/ChatView'));
+export const preloadWhiteboardViewModule = import.meta.env.DEV
+  ? once(() => import('@/components/Whiteboard'))
+  : once(async () => {
+    throw new Error('Whiteboard is only available in development builds.');
+  });
 export const preloadNotesSidebarModule = once(() => import('@/components/Notes/features/Sidebar/NotesSidebarWrapper'));
 export const preloadChatSidebarModule = once(() => import('@/components/Chat/features/Sidebar/ChatSidebar'));
 export const preloadTemporaryChatToggleModule = once(() => import('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle'));
@@ -40,6 +45,20 @@ export const ChatView = lazy(async () => {
   const mod = await preloadChatViewModule();
   return { default: mod.ChatView };
 });
+
+export const WhiteboardView = import.meta.env.DEV
+  ? lazy(async () => {
+    const mod = await preloadWhiteboardViewModule();
+    return { default: mod.WhiteboardView };
+  })
+  : null;
+
+export const WhiteboardSidebar = import.meta.env.DEV
+  ? lazy(async () => {
+    const mod = await preloadWhiteboardViewModule();
+    return { default: mod.WhiteboardSidebar };
+  })
+  : null;
 
 export const LabView = import.meta.env.DEV
   ? lazy(async () => {

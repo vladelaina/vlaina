@@ -63,6 +63,35 @@ describe('LinkEditor', () => {
         expect(onSave).toHaveBeenCalledWith(true);
     });
 
+    it('does not submit from the check button while IME composition is active', () => {
+        const onSave = vi.fn();
+        const onCompositionChange = vi.fn();
+
+        render(
+            <LinkEditor
+                {...defaultProps}
+                editUrl="nihao"
+                onSave={onSave}
+                onCompositionChange={onCompositionChange}
+            />
+        );
+
+        const input = screen.getByPlaceholderText('URL...');
+        const button = screen.getByRole('button');
+
+        fireEvent.compositionStart(input);
+        fireEvent.click(button);
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onCompositionChange).toHaveBeenCalledWith(true);
+
+        fireEvent.compositionEnd(input);
+        fireEvent.click(button);
+
+        expect(onSave).toHaveBeenCalledWith(true);
+        expect(onCompositionChange).toHaveBeenCalledWith(false);
+    });
+
     it('keeps focus in the URL textarea and shows validation feedback after an invalid save attempt', () => {
         vi.useFakeTimers();
         const { rerender } = render(

@@ -33,13 +33,13 @@ import {
   useFileTreePointerDragState,
   type FileTreeChatDropDetail,
 } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
-import { getCurrentVaultPath, useNotesStore } from '@/stores/notes/useNotesStore';
+import { getCurrentNotesRootPath, useNotesStore } from '@/stores/notes/useNotesStore';
 import { shouldMarkPastedTextMultiline } from './chatPasteText';
 import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
-import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { normalizeNotesRootRelativePath } from '@/stores/notes/utils/fs/notesRootPathContainment';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { dispatchSidebarCloseSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 
 interface ChatInputProps {
@@ -107,13 +107,13 @@ function compareDroppedPath(path: string): string {
   return /^[A-Za-z]:/.test(path) || path.startsWith('//') ? path.toLowerCase() : path;
 }
 
-function getDroppedVaultRelativePath(absolutePath: string, vaultPath: string): string | null {
-  const containedPath = normalizeContainedAssetPath(absolutePath, vaultPath);
+function getDroppedNotesRootRelativePath(absolutePath: string, notesRootPath: string): string | null {
+  const containedPath = normalizeContainedAssetPath(absolutePath, notesRootPath);
   if (!containedPath) {
     return null;
   }
 
-  const rootPath = normalizeDroppedPathForCompare(vaultPath);
+  const rootPath = normalizeDroppedPathForCompare(notesRootPath);
   const candidatePath = normalizeDroppedPathForCompare(containedPath);
   const rootComparePath = compareDroppedPath(rootPath);
   const candidateComparePath = compareDroppedPath(candidatePath);
@@ -127,18 +127,18 @@ function getDroppedVaultRelativePath(absolutePath: string, vaultPath: string): s
   const relativePath = rootPath === '/'
     ? candidatePath.slice(1)
     : candidatePath.slice(rootPath.length + 1);
-  return normalizeVaultRelativePath(relativePath);
+  return normalizeNotesRootRelativePath(relativePath);
 }
 
 function buildDroppedNoteMentions(
   dataTransfer: DataTransfer | null | undefined,
-  vaultPath: string,
+  notesRootPath: string,
   getDisplayName: (path: string) => string,
 ): NoteMentionReference[] {
   const seenPaths = new Set<string>();
   const mentions: NoteMentionReference[] = [];
   for (const absolutePath of getDroppedExternalPaths(dataTransfer)) {
-    const relativePath = vaultPath ? getDroppedVaultRelativePath(absolutePath, vaultPath) : null;
+    const relativePath = notesRootPath ? getDroppedNotesRootRelativePath(absolutePath, notesRootPath) : null;
     const mentionPath = relativePath ?? absolutePath;
     if (!isSupportedMarkdownPath(mentionPath) || seenPaths.has(mentionPath)) {
       continue;
@@ -200,7 +200,7 @@ export const ChatInput = memo(function ChatInput({
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const notesPath = useNotesStore((state) => state.notesPath);
-  const activeVaultPath = useVaultStore((state) => state.currentVault?.path ?? null);
+  const activeNotesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? null);
   const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
   const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
@@ -524,10 +524,10 @@ export const ChatInput = memo(function ChatInput({
   );
 
   const applyDroppedNoteMentions = useCallback((dataTransfer: DataTransfer | null | undefined) => {
-    const effectiveVaultPath = notesPath || activeVaultPath || getCurrentVaultPath() || '';
+    const effectiveNotesRootPath = notesPath || activeNotesRootPath || getCurrentNotesRootPath() || '';
     const droppedNoteMentions = buildDroppedNoteMentions(
       dataTransfer,
-      effectiveVaultPath,
+      effectiveNotesRootPath,
       getDisplayName,
     );
     if (droppedNoteMentions.length === 0) {
@@ -540,7 +540,7 @@ export const ChatInput = memo(function ChatInput({
     clearHistoryNavigationOnInput();
     return true;
   }, [
-    activeVaultPath,
+    activeNotesRootPath,
     appendNoteMentions,
     clearDragState,
     clearHistoryNavigationOnInput,

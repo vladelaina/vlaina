@@ -19,7 +19,7 @@ const hoisted = vi.hoisted(() => {
     syncCurrentNoteFromDisk: vi.fn(async () => 'unchanged' as const),
     applyExternalPathRename: vi.fn(async () => undefined),
     applyExternalPathDeletion: vi.fn(async () => undefined),
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: { path: 'docs/current.md' } as { path: string } | null,
     isDirty: false,
     rootFolder: { children: [] as unknown[] } as { children: unknown[] } | null,
@@ -91,7 +91,7 @@ describe('useNotesExternalSync queue budgets', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     hoisted.watchHandler = null;
-    hoisted.notesState.notesPath = '/vault';
+    hoisted.notesState.notesPath = '/notesRoot';
     hoisted.notesState.currentNote = { path: 'docs/current.md' };
     hoisted.notesState.rootFolder = { children: [] };
     hoisted.notesState.openTabs = [];
@@ -105,21 +105,21 @@ describe('useNotesExternalSync queue budgets', () => {
   });
 
   it('reconciles and reloads instead of growing pending create queues without bound', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
         paths: Array.from(
           { length: MAX_PENDING_EXTERNAL_PATH_EVENTS + 5 },
-          (_value, index) => `/vault/docs/new-${index}.md`,
+          (_value, index) => `/notesRoot/docs/new-${index}.md`,
         ),
       });
       await vi.advanceTimersByTimeAsync(181);
       await vi.advanceTimersByTimeAsync(221);
     });
 
-    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/vault');
+    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/notesRoot');
     expect(detectExternalTreePathChanges).toHaveBeenCalled();
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 
@@ -127,19 +127,19 @@ describe('useNotesExternalSync queue budgets', () => {
   });
 
   it('reconciles oversized native watch events without normalizing every path', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { create: { kind: 'file' } },
         paths: Array.from(
           { length: MAX_EXTERNAL_WATCH_EVENT_PATHS + 1 },
-          (_value, index) => `/vault/docs/new-${index}.md`,
+          (_value, index) => `/notesRoot/docs/new-${index}.md`,
         ),
       });
     });
 
-    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/vault');
+    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/notesRoot');
     expect(detectExternalTreePathChanges).toHaveBeenCalled();
     expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
 

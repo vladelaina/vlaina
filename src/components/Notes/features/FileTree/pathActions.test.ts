@@ -40,42 +40,42 @@ describe('file tree path actions', () => {
     mocks.writeTextToClipboard.mockResolvedValue(true);
   });
 
-  it('resolves vault-relative paths before copying or revealing', async () => {
-    await copyTreeItemPath('/vault', 'docs/readme.md');
-    await openTreeItemLocation('/vault', 'docs/readme.md');
+  it('resolves notes-root-relative paths before copying or revealing', async () => {
+    await copyTreeItemPath('/notesRoot', 'docs/readme.md');
+    await openTreeItemLocation('/notesRoot', 'docs/readme.md');
 
-    expect(mocks.writeTextToClipboard).toHaveBeenCalledWith('/vault/docs/readme.md');
-    expect(mocks.revealItemInFolder).toHaveBeenCalledWith('/vault/docs/readme.md');
+    expect(mocks.writeTextToClipboard).toHaveBeenCalledWith('/notesRoot/docs/readme.md');
+    expect(mocks.revealItemInFolder).toHaveBeenCalledWith('/notesRoot/docs/readme.md');
   });
 
-  it('allows the vault root path through an empty item path', async () => {
-    await copyTreeItemPath('/vault', '');
-    await openTreeItemLocation('/vault', '', 'folder');
+  it('allows the notesRoot root path through an empty item path', async () => {
+    await copyTreeItemPath('/notesRoot', '');
+    await openTreeItemLocation('/notesRoot', '', 'folder');
 
-    expect(mocks.writeTextToClipboard).toHaveBeenCalledWith('/vault');
-    expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/vault');
+    expect(mocks.writeTextToClipboard).toHaveBeenCalledWith('/notesRoot');
+    expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/notesRoot');
     expect(mocks.revealItemInFolder).not.toHaveBeenCalled();
   });
 
   it('opens folder locations directly instead of revealing them in their parent folder', async () => {
-    await openTreeItemLocation('/vault', 'docs', 'folder');
+    await openTreeItemLocation('/notesRoot', 'docs', 'folder');
 
-    expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/vault/docs');
+    expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/notesRoot/docs');
     expect(mocks.revealItemInFolder).not.toHaveBeenCalled();
   });
 
   it('opens files and folders in a new notes window', async () => {
-    await openTreeItemInNewWindow('/vault', 'docs/readme.md', 'file');
-    await openTreeItemInNewWindow('/vault', 'docs', 'folder');
+    await openTreeItemInNewWindow('/notesRoot', 'docs/readme.md', 'file');
+    await openTreeItemInNewWindow('/notesRoot', 'docs', 'folder');
 
     expect(mocks.createWindow).toHaveBeenNthCalledWith(1, {
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       notePath: 'docs/readme.md',
       folderPath: null,
       viewMode: 'notes',
     });
     expect(mocks.createWindow).toHaveBeenNthCalledWith(2, {
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       notePath: null,
       folderPath: 'docs',
       viewMode: 'notes',
@@ -83,9 +83,9 @@ describe('file tree path actions', () => {
   });
 
   it('rejects absolute and traversing item paths', async () => {
-    await expect(copyTreeItemPath('/vault', '/etc/passwd')).rejects.toThrow('Path must stay inside the current vault.');
-    await expect(openTreeItemLocation('/vault', '../secret.md')).rejects.toThrow('Path must stay inside the current vault.');
-    await expect(openTreeItemInNewWindow('/vault', '../secret.md', 'file')).rejects.toThrow('Path must stay inside the current vault.');
+    await expect(copyTreeItemPath('/notesRoot', '/etc/passwd')).rejects.toThrow('Path must stay inside the opened folder.');
+    await expect(openTreeItemLocation('/notesRoot', '../secret.md')).rejects.toThrow('Path must stay inside the opened folder.');
+    await expect(openTreeItemInNewWindow('/notesRoot', '../secret.md', 'file')).rejects.toThrow('Path must stay inside the opened folder.');
 
     expect(mocks.writeTextToClipboard).not.toHaveBeenCalled();
     expect(mocks.openPathInFileManager).not.toHaveBeenCalled();

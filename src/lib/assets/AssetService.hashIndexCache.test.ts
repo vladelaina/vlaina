@@ -23,7 +23,7 @@ vi.mock('@/lib/storage/adapter', () => ({
   getParentPath: (path: string) => {
     const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
     const index = normalized.lastIndexOf('/');
-    return index <= 0 ? '/vault' : normalized.slice(0, index);
+    return index <= 0 ? '/notesRoot' : normalized.slice(0, index);
   },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
@@ -40,30 +40,30 @@ vi.mock('./io/writer', () => ({
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   ensureSystemDirectory: vi.fn(),
-  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
-    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
+  getNotesRootSystemStorePath: (_notesRootPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/notes-roots/notes-root-test/${fileName}`)
   ),
 }));
 
 describe('AssetService hash index cache validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.mkdir.mockResolvedValue(undefined);
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
       },
     ]);
     mocks.storage.stat.mockImplementation(async (path: string) => {
-      if (path === '/app/.vlaina/notes/vaults/vault-test/assets.json') {
+      if (path === '/app/.vlaina/notes/notes-roots/notes-root-test/assets.json') {
         return { name: 'assets.json', path, isFile: true, isDirectory: false, size: 220 };
       }
-      if (path === '/vault/docs/assets/alpha.png') {
+      if (path === '/notesRoot/docs/assets/alpha.png') {
         return { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5 };
       }
       return { name: path.split('/').pop() ?? '', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 456 };
@@ -90,10 +90,10 @@ describe('AssetService hash index cache validation', () => {
 
   it('does not trust same-size hash index entries when mtime is unavailable', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => {
-      if (path === '/app/.vlaina/notes/vaults/vault-test/assets.json') {
+      if (path === '/app/.vlaina/notes/notes-roots/notes-root-test/assets.json') {
         return { name: 'assets.json', path, isFile: true, isDirectory: false, size: 220 };
       }
-      if (path === '/vault/docs/assets/alpha.png') {
+      if (path === '/notesRoot/docs/assets/alpha.png') {
         return { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5 };
       }
       return {
@@ -115,7 +115,7 @@ describe('AssetService hash index cache validation', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -126,7 +126,7 @@ describe('AssetService hash index cache validation', () => {
 
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(false);
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).toHaveBeenCalled();
     const lastWriteCall = mocks.storage.writeFile.mock.calls[mocks.storage.writeFile.mock.calls.length - 1];
     const savedIndex = JSON.parse(String(lastWriteCall?.[1] ?? '{}'));

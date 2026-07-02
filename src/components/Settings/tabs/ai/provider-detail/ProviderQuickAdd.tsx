@@ -34,6 +34,7 @@ export function ProviderQuickAdd({
   const { t } = useI18n();
   const [isFocused, setIsFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const isComposingRef = useRef(false);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const quickAddIds = useMemo(() => parseQuickAddModelIds(value), [value]);
   const quickAddQuery = useMemo(() => {
@@ -86,6 +87,7 @@ export function ProviderQuickAdd({
   }, [highlightedIndex, showSuggestions]);
 
   const submit = (modelId?: string) => {
+    if (isComposingRef.current) return;
     const nextValue = modelId ? replaceTrailingQuickAddSegment(value, modelId) : value;
     const nextModelIds = parseQuickAddModelIds(nextValue);
     const dedupedModelIds = nextModelIds.filter((id, index) => {
@@ -120,7 +122,18 @@ export function ProviderQuickAdd({
             setHighlightedIndex(0);
             if (error) onSetError('');
           }}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            isComposingRef.current = false;
+          }}
           onKeyDown={(e) => {
+            const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
+            if (native.isComposing || native.keyCode === 229 || isComposingRef.current) {
+              return;
+            }
+
             if (showSuggestions && e.key === 'ArrowDown') {
               e.preventDefault();
               setHighlightedIndex((current) => Math.min(current + 1, suggestions.length - 1));

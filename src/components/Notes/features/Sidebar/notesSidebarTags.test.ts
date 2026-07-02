@@ -179,22 +179,22 @@ describe('notesSidebarTags', () => {
     ]);
   });
 
-  it('keeps current vault starred folders in scope without duplicating notes', () => {
+  it('keeps opened folder starred folders in scope without duplicating notes', () => {
     const entries = buildNotesSidebarTagScopeEntries({
       rootFolder,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'star-folder',
           kind: 'folder',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'projects',
           addedAt: 1,
         },
         {
           id: 'star-external-folder',
           kind: 'folder',
-          vaultPath: '/other',
+          notesRootPath: '/other',
           relativePath: 'external',
           addedAt: 2,
         },
@@ -311,57 +311,57 @@ describe('notesSidebarTags', () => {
     expect(lateChildrenAccessed).toBe(false);
   });
 
-  it('uses current vault starred notes as tag scope when no folder tree is loaded', () => {
+  it('uses opened folder starred notes as tag scope when no folder tree is loaded', () => {
     const entries = buildNotesSidebarTagScopeEntries({
       rootFolder: null,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'star-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'projects/alpha.md',
           addedAt: 1,
         },
         {
           id: 'star-traversal-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: '../secret.md',
           addedAt: 4,
         },
         {
           id: 'star-internal-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: '.git/config.md',
           addedAt: 6,
         },
         {
           id: 'star-dot-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: '.notes/daily.md',
           addedAt: 7,
         },
         {
           id: 'star-folder',
           kind: 'folder',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'projects',
           addedAt: 2,
         },
         {
           id: 'star-external-note',
           kind: 'note',
-          vaultPath: '/other',
+          notesRootPath: '/other',
           relativePath: 'external.md',
           addedAt: 3,
         },
         {
           id: 'star-asset',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'image.png',
           addedAt: 5,
         },
@@ -371,36 +371,36 @@ describe('notesSidebarTags', () => {
     expect(entries.map((entry) => entry.path)).toEqual(['.notes/daily.md', 'projects/alpha.md']);
   });
 
-  it('uses absolute starred note paths as tag scope when no current vault is selected', () => {
+  it('uses absolute starred note paths as tag scope when no opened folder is selected', () => {
     const entries = buildNotesSidebarTagScopeEntries({
       rootFolder: null,
-      currentVaultPath: '',
+      currentNotesRootPath: '',
       starredEntries: [
         {
           id: 'star-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'projects/alpha.md',
           addedAt: 1,
         },
         {
           id: 'star-traversal-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: '../secret.md',
           addedAt: 4,
         },
         {
           id: 'star-other-note',
           kind: 'note',
-          vaultPath: '/other',
+          notesRootPath: '/other',
           relativePath: 'external.md',
           addedAt: 2,
         },
         {
           id: 'star-folder',
           kind: 'folder',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'projects',
           addedAt: 3,
         },
@@ -409,7 +409,7 @@ describe('notesSidebarTags', () => {
 
     expect(entries.map((entry) => entry.path)).toEqual([
       '/other/external.md',
-      '/vault/projects/alpha.md',
+      '/notesRoot/projects/alpha.md',
     ]);
   });
 

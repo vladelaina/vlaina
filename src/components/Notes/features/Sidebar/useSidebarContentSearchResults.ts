@@ -22,7 +22,7 @@ export function useSidebarContentSearchResults({
   searchQuery,
   isSearchOpen,
   starredEntries = EMPTY_STARRED_ENTRIES,
-  currentVaultPath = null,
+  currentNotesRootPath = null,
   noteContentsCacheRevision = 0,
 }: {
   rootFolder: FolderNode | null;
@@ -35,7 +35,7 @@ export function useSidebarContentSearchResults({
   searchQuery: string;
   isSearchOpen: boolean;
   starredEntries?: StarredEntry[];
-  currentVaultPath?: string | null;
+  currentNotesRootPath?: string | null;
 }) {
   const contentScanPromiseRef = useRef<Promise<unknown> | null>(null);
   const contentScanAbortControllerRef = useRef<AbortController | null>(null);
@@ -52,10 +52,10 @@ export function useSidebarContentSearchResults({
 
   const searchIndex = useMemo(
     () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName, {
-      currentVaultPath,
+      currentNotesRootPath,
       starredEntries,
     }),
-    [currentVaultPath, getDisplayName, rootFolder, starredEntries],
+    [currentNotesRootPath, getDisplayName, rootFolder, starredEntries],
   );
   const contentSearchEntries = useMemo(
     () => searchIndex.filter((entry) => entry.contentSearchable !== false),

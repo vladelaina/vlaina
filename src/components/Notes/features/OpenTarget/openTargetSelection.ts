@@ -1,14 +1,14 @@
 import { getBaseName, getParentPath, isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment } from '@/stores/notes/utils/fs/notesRootPathContainment';
 
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const BACKSLASH_ESCAPED_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*\\+:/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 
 export interface ResolvedOpenNoteTarget {
-  vaultPath: string;
+  notesRootPath: string;
   notePath: string;
 }
 
@@ -34,7 +34,7 @@ function hasExplicitNonPathScheme(path: string): boolean {
 }
 
 function hasUnsafeMarkdownSelectionPathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path);
+  return hasUnsafeNotesRootPathSegment(path);
 }
 
 export function isSupportedMarkdownSelection(path: string): boolean {
@@ -72,7 +72,7 @@ export function resolveOpenNoteTarget(absoluteFilePath: string): ResolvedOpenNot
   }
 
   return {
-    vaultPath: parentPath,
+    notesRootPath: parentPath,
     notePath: getBaseName(normalizedFilePath),
   };
 }

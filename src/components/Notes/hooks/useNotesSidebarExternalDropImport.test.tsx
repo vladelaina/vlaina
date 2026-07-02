@@ -5,7 +5,7 @@ import { useNotesSidebarExternalDropImport } from './useNotesSidebarExternalDrop
 
 const mocks = vi.hoisted(() => ({
   notesState: {
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     starredEntries: [],
   },
   importExternalMarkdownEntries: vi.fn(),
@@ -37,15 +37,15 @@ vi.mock('@/stores/useNotesStore', () => ({
 }));
 
 vi.mock('@/stores/notes/starred', () => ({
-  createStarredEntryIfValid: vi.fn((kind: string, vaultPath: string, relativePath: string) => ({
+  createStarredEntryIfValid: vi.fn((kind: string, notesRootPath: string, relativePath: string) => ({
     kind,
-    vaultPath,
+    notesRootPath,
     relativePath,
   })),
-  getStarredEntryKey: vi.fn((entry: { kind: string; vaultPath: string; relativePath: string }) =>
-    `${entry.kind}:${entry.vaultPath}:${entry.relativePath}`
+  getStarredEntryKey: vi.fn((entry: { kind: string; notesRootPath: string; relativePath: string }) =>
+    `${entry.kind}:${entry.notesRootPath}:${entry.relativePath}`
   ),
-  getVaultStarredPaths: vi.fn(() => ({ notes: [], folders: [] })),
+  getNotesRootStarredPaths: vi.fn(() => ({ notes: [], folders: [] })),
   saveStarredRegistry: mocks.saveStarredRegistry,
 }));
 
@@ -93,7 +93,7 @@ describe('useNotesSidebarExternalDropImport', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.starredEntries = [];
     mocks.importExternalMarkdownEntries.mockResolvedValue({
       importedNotePaths: ['alpha.md'],
@@ -121,7 +121,7 @@ describe('useNotesSidebarExternalDropImport', () => {
     const revealFolder = vi.fn();
     renderHook(() => useNotesSidebarExternalDropImport({
       enabled: true,
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       loadFileTree,
       revealFolder,
     }));
@@ -132,7 +132,7 @@ describe('useNotesSidebarExternalDropImport', () => {
     });
 
     await waitFor(() => {
-      expect(importExternalMarkdownEntries).toHaveBeenCalledWith('/vault', '', ['/outside/alpha.md']);
+      expect(importExternalMarkdownEntries).toHaveBeenCalledWith('/notesRoot', '', ['/outside/alpha.md']);
     });
     expect(loadFileTree).toHaveBeenCalledWith(true);
     expect(revealFolder).toHaveBeenCalledWith('');
@@ -153,7 +153,7 @@ describe('useNotesSidebarExternalDropImport', () => {
     const revealFolder = vi.fn();
     renderHook(() => useNotesSidebarExternalDropImport({
       enabled: true,
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       loadFileTree,
       revealFolder,
     }));
@@ -165,7 +165,7 @@ describe('useNotesSidebarExternalDropImport', () => {
     });
 
     await waitFor(() => {
-      expect(importExternalMarkdownEntries).toHaveBeenCalledWith('/vault', '', ['/outside/alpha.md']);
+      expect(importExternalMarkdownEntries).toHaveBeenCalledWith('/notesRoot', '', ['/outside/alpha.md']);
     });
     expect(loadFileTree).not.toHaveBeenCalled();
     expect(revealFolder).not.toHaveBeenCalled();

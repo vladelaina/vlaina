@@ -134,7 +134,7 @@ describe('desktop runtime adapters', () => {
       titleBarOverlayColor: '#fcfcfc',
       titleBarSymbolColor: '#27262b',
     });
-    await desktopWindow.create({ vaultPath: '/vault', notePath: '/vault/a.md', viewMode: 'notes' });
+    await desktopWindow.create({ notesRootPath: '/notesRoot', notePath: '/notesRoot/a.md', viewMode: 'notes' });
 
     const size = await desktopWindow.getSize();
     const label = await desktopWindow.getLabel();
@@ -150,8 +150,8 @@ describe('desktop runtime adapters', () => {
       titleBarSymbolColor: '#27262b',
     });
     expect(mocks.bridge.window.create).toHaveBeenCalledWith({
-      vaultPath: '/vault',
-      notePath: '/vault/a.md',
+      notesRootPath: '/notesRoot',
+      notePath: '/notesRoot/a.md',
       viewMode: 'notes',
     });
     expect(size).toEqual({ width: 1280, height: 720 });

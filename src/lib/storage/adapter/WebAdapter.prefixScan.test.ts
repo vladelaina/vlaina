@@ -100,15 +100,15 @@ describe('WebAdapter prefix listing scans', () => {
     const adapter = new WebAdapter();
     installDatabase(adapter, [
       ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_value, index) =>
-        file(`/vault/asset-${String(index).padStart(5, '0')}.png`, index)
+        file(`/notesRoot/asset-${String(index).padStart(5, '0')}.png`, index)
       ),
-      file('/vault/late.md', 1),
+      file('/notesRoot/late.md', 1),
     ], { cursor: false });
 
-    const entries = await adapter.listDir('/vault', { includeHidden: true });
+    const entries = await adapter.listDir('/notesRoot', { includeHidden: true });
 
     expect(entries).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'late.md', path: '/vault/late.md', isFile: true }),
+      expect.objectContaining({ name: 'late.md', path: '/notesRoot/late.md', isFile: true }),
     ]));
     expect(entries).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'asset-19999.png' }),
@@ -119,15 +119,15 @@ describe('WebAdapter prefix listing scans', () => {
     const adapter = new WebAdapter();
     installDatabase(adapter, [
       ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_value, index) =>
-        file(`/vault/asset-${String(index).padStart(5, '0')}.png`, index)
+        file(`/notesRoot/asset-${String(index).padStart(5, '0')}.png`, index)
       ),
-      file('/vault/late.md', 1),
+      file('/notesRoot/late.md', 1),
     ], { cursor: true });
 
-    const entries = await adapter.listDir('/vault', { includeHidden: true });
+    const entries = await adapter.listDir('/notesRoot', { includeHidden: true });
 
     expect(entries).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'late.md', path: '/vault/late.md', isFile: true }),
+      expect.objectContaining({ name: 'late.md', path: '/notesRoot/late.md', isFile: true }),
     ]));
     expect(entries).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'asset-19999.png' }),

@@ -41,7 +41,7 @@ describe('CommandList', () => {
     vi.restoreAllMocks();
   });
 
-  it('handles wheel scrolling while preserving consumer wheel handlers', () => {
+  it('preserves consumer wheel handlers while leaving vertical scrolling to the browser', () => {
     const onWheel = vi.fn();
 
     render(
@@ -60,6 +60,6 @@ describe('CommandList', () => {
     fireEvent.wheel(scrollRoot!, { deltaY: 70 });
 
     expect(onWheel).toHaveBeenCalledTimes(1);
-    expect(scrollRoot!.scrollTop).toBe(80);
+    expect(scrollRoot!.scrollTop).toBe(10);
   });
 });

@@ -69,8 +69,8 @@ export async function saveDraftNote({
     return true;
   }
 
-  const canAutoSaveDraftIntoCurrentVault = canAutoSaveDraftNote(notesPath, draftNote);
-  const draftSaveLocation = canAutoSaveDraftIntoCurrentVault
+  const canAutoSaveDraftIntoCurrentNotesRoot = canAutoSaveDraftNote(notesPath, draftNote);
+  const draftSaveLocation = canAutoSaveDraftIntoCurrentNotesRoot
     ? await resolveUniquePath(
         notesPath,
         draftNote.parentPath ?? undefined,

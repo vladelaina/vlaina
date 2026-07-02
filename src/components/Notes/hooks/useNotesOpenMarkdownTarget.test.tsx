@@ -5,7 +5,7 @@ import { useNotesOpenMarkdownTarget } from './useNotesOpenMarkdownTarget';
 
 const mocks = vi.hoisted(() => ({
   notesState: {
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: { path: 'daily/today.md', content: '' } as { path: string; content: string } | null,
   },
 }));
@@ -37,20 +37,20 @@ vi.mock('@/lib/i18n', () => ({
 function renderTargetHook(overrides: Partial<Parameters<typeof useNotesOpenMarkdownTarget>[0]> = {}) {
   const props = {
     active: true,
-    currentVaultPath: '/vault',
-    notesPath: '/vault',
+    currentNotesRootPath: '/notesRoot',
+    notesPath: '/notesRoot',
     currentNotePath: 'daily/today.md',
     isDirty: false,
     saveNote: vi.fn(async () => undefined),
     openNote: vi.fn(async (path: string) => {
       mocks.notesState.currentNote = { path, content: '' };
-      mocks.notesState.notesPath = '/vault';
+      mocks.notesState.notesPath = '/notesRoot';
     }),
     openNoteByAbsolutePath: vi.fn(async (path: string) => {
       mocks.notesState.currentNote = { path, content: '' };
     }),
-    adoptAbsoluteNoteIntoVault: vi.fn(() => false),
-    openVault: vi.fn(async () => true),
+    adoptAbsoluteNoteIntoNotesRoot: vi.fn(() => false),
+    openNotesRoot: vi.fn(async () => true),
     ...overrides,
   };
 
@@ -63,21 +63,21 @@ function renderTargetHook(overrides: Partial<Parameters<typeof useNotesOpenMarkd
 describe('useNotesOpenMarkdownTarget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.currentNote = { path: 'daily/today.md', content: '' };
   });
 
-  it('opens absolute markdown targets inside the current vault as vault-relative notes', async () => {
+  it('opens absolute markdown targets inside the opened folder as notes-root-relative notes', async () => {
     const { props, result } = renderTargetHook();
     let opened = false;
 
     await act(async () => {
-      opened = await result.current.openMarkdownTarget('/vault/daily/guide/setup.md');
+      opened = await result.current.openMarkdownTarget('/notesRoot/daily/guide/setup.md');
     });
 
     expect(opened).toBe(true);
     expect(props.openNote).toHaveBeenCalledWith('daily/guide/setup.md');
-    expect(props.openVault).not.toHaveBeenCalled();
+    expect(props.openNotesRoot).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
     expect(messageDialog).not.toHaveBeenCalled();
   });
@@ -89,13 +89,13 @@ describe('useNotesOpenMarkdownTarget', () => {
     let opened = true;
 
     await act(async () => {
-      opened = await result.current.openMarkdownTarget('/vault/daily/image.png');
+      opened = await result.current.openMarkdownTarget('/notesRoot/daily/image.png');
     });
 
     expect(opened).toBe(false);
     expect(props.saveNote).not.toHaveBeenCalled();
     expect(props.openNote).not.toHaveBeenCalled();
-    expect(props.openVault).not.toHaveBeenCalled();
+    expect(props.openNotesRoot).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
     expect(messageDialog).toHaveBeenCalledWith('notes.selectMarkdownFile', {
       title: 'notes.unsupportedFile',
@@ -109,12 +109,12 @@ describe('useNotesOpenMarkdownTarget', () => {
     });
 
     await act(async () => {
-      await result.current.openMarkdownTarget('/vault/daily/secret\u202Egnp.md');
+      await result.current.openMarkdownTarget('/notesRoot/daily/secret\u202Egnp.md');
     });
 
     expect(props.saveNote).not.toHaveBeenCalled();
     expect(props.openNote).not.toHaveBeenCalled();
-    expect(props.openVault).not.toHaveBeenCalled();
+    expect(props.openNotesRoot).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
     expect(messageDialog).toHaveBeenCalledWith('notes.selectMarkdownFile', {
       title: 'notes.unsupportedFile',
@@ -133,7 +133,7 @@ describe('useNotesOpenMarkdownTarget', () => {
 
     expect(props.saveNote).not.toHaveBeenCalled();
     expect(props.openNote).not.toHaveBeenCalled();
-    expect(props.openVault).not.toHaveBeenCalled();
+    expect(props.openNotesRoot).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
     expect(messageDialog).toHaveBeenCalledWith('Selected file path must be absolute', {
       title: 'notes.openFailed',
@@ -141,47 +141,47 @@ describe('useNotesOpenMarkdownTarget', () => {
     });
   });
 
-  it('keeps external markdown targets on the vault-switch path', async () => {
+  it('keeps external markdown targets on the notes-root-switch path', async () => {
     const { props, result } = renderTargetHook();
 
     await act(async () => {
       await result.current.openMarkdownTarget('/external/docs/setup.md');
     });
 
-    expect(props.openVault).toHaveBeenCalledWith('/external/docs', undefined, {
+    expect(props.openNotesRoot).toHaveBeenCalledWith('/external/docs', undefined, {
       preserveSidebarTree: false,
     });
     expect(props.openNote).not.toHaveBeenCalled();
     expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
   });
 
-  it('falls back to opening the selected file when its parent folder cannot be opened as a vault', async () => {
+  it('falls back to opening the selected file when its parent folder cannot be opened as a notesRoot', async () => {
     const { props, result } = renderTargetHook({
-      openVault: vi.fn(async () => false),
+      openNotesRoot: vi.fn(async () => false),
     });
 
     await act(async () => {
       await result.current.openMarkdownTarget('/external/docs/setup.md');
     });
 
-    expect(props.openVault).toHaveBeenCalledWith('/external/docs', undefined, {
+    expect(props.openNotesRoot).toHaveBeenCalledWith('/external/docs', undefined, {
       preserveSidebarTree: false,
     });
     expect(props.openNoteByAbsolutePath).toHaveBeenCalledWith('/external/docs/setup.md');
-    expect(messageDialog).not.toHaveBeenCalledWith('vault.openFailed', expect.anything());
+    expect(messageDialog).not.toHaveBeenCalledWith('notesRoot.openFailed', expect.anything());
   });
 
-  it('reopens the target vault when the vault store is ahead of the notes path', async () => {
+  it('reopens the target notesRoot when the notesRoot store is ahead of the notes path', async () => {
     const { props, result } = renderTargetHook({
-      currentVaultPath: '/external/docs/',
-      notesPath: '/vault',
+      currentNotesRootPath: '/external/docs/',
+      notesPath: '/notesRoot',
     });
 
     await act(async () => {
       await result.current.openMarkdownTarget('/external/docs/setup.md');
     });
 
-    expect(props.openVault).toHaveBeenCalledWith('/external/docs', undefined, {
+    expect(props.openNotesRoot).toHaveBeenCalledWith('/external/docs', undefined, {
       preserveSidebarTree: false,
     });
     expect(props.openNote).not.toHaveBeenCalled();
@@ -191,8 +191,8 @@ describe('useNotesOpenMarkdownTarget', () => {
   it('waits for the target notes path before opening the pending file as a relative note', async () => {
     const props = {
       active: true,
-      currentVaultPath: '/external/docs',
-      notesPath: '/vault',
+      currentNotesRootPath: '/external/docs',
+      notesPath: '/notesRoot',
       currentNotePath: 'daily/today.md',
       isDirty: false,
       saveNote: vi.fn(async () => undefined),
@@ -203,10 +203,10 @@ describe('useNotesOpenMarkdownTarget', () => {
       openNoteByAbsolutePath: vi.fn(async (path: string) => {
         mocks.notesState.currentNote = { path, content: '' };
       }),
-      adoptAbsoluteNoteIntoVault: vi.fn(() => false),
-      openVault: vi.fn(async () => true),
+      adoptAbsoluteNoteIntoNotesRoot: vi.fn(() => false),
+      openNotesRoot: vi.fn(async () => true),
     };
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
 
     const { result, rerender } = renderHook(
       (hookProps: typeof props) => useNotesOpenMarkdownTarget(hookProps),

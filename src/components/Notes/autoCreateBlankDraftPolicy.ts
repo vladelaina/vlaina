@@ -8,13 +8,13 @@ export interface AutoCreateBlankDraftPolicyInput {
   openTabCount: number;
   hasPresentedNote: boolean;
   notesLoading: boolean;
-  vaultStoreHasInitialized: boolean;
-  vaultInitializing: boolean;
+  notesRootStoreHasInitialized: boolean;
+  notesRootInitializing: boolean;
   openTargetBusy: boolean;
   hasPendingStarredNavigation: boolean;
   autoCreateInFlight: boolean;
   hasPendingLaunchNote: boolean;
-  currentVaultPath?: string | null;
+  currentNotesRootPath?: string | null;
   notesPath: string;
   rootFolder: FolderNode | null;
   rootFolderPath: string | null;
@@ -26,16 +26,16 @@ export type AutoCreateBlankDraftBlockReason =
   | 'has-open-tabs'
   | 'already-presented-note'
   | 'notes-loading'
-  | 'vault-store-initializing'
-  | 'vault-initializing'
+  | 'notes-root-store-initializing'
+  | 'notes-root-initializing'
   | 'open-target-busy'
   | 'pending-starred-navigation'
   | 'auto-create-in-flight'
   | 'pending-launch-note'
-  | 'vault-path-mismatch'
-  | 'vault-root-not-loaded'
-  | 'vault-tree-scan-budget'
-  | 'vault-has-files';
+  | 'notes-root-path-mismatch'
+  | 'opened-folder-not-loaded'
+  | 'notes-root-tree-scan-budget'
+  | 'notes-root-has-files';
 
 export interface AutoCreateBlankDraftPolicyResult {
   shouldCreate: boolean;
@@ -72,12 +72,12 @@ export function shouldAutoCreateBlankDraft(
   input: AutoCreateBlankDraftPolicyInput,
 ): AutoCreateBlankDraftPolicyResult {
   const blockedReasons: AutoCreateBlankDraftBlockReason[] = [];
-  const currentVaultPath = input.currentVaultPath ?? null;
+  const currentNotesRootPath = input.currentNotesRootPath ?? null;
   const rootFolderCurrent = Boolean(
-    currentVaultPath &&
+    currentNotesRootPath &&
     input.rootFolder &&
-    input.rootFolderPath === currentVaultPath &&
-    input.notesPath === currentVaultPath,
+    input.rootFolderPath === currentNotesRootPath &&
+    input.notesPath === currentNotesRootPath,
   );
 
   if (!input.active) blockedReasons.push('inactive');
@@ -85,21 +85,21 @@ export function shouldAutoCreateBlankDraft(
   if (input.openTabCount > 0) blockedReasons.push('has-open-tabs');
   if (input.hasPresentedNote) blockedReasons.push('already-presented-note');
   if (input.notesLoading) blockedReasons.push('notes-loading');
-  if (!input.vaultStoreHasInitialized) blockedReasons.push('vault-store-initializing');
-  if (input.vaultInitializing) blockedReasons.push('vault-initializing');
+  if (!input.notesRootStoreHasInitialized) blockedReasons.push('notes-root-store-initializing');
+  if (input.notesRootInitializing) blockedReasons.push('notes-root-initializing');
   if (input.openTargetBusy) blockedReasons.push('open-target-busy');
   if (input.hasPendingStarredNavigation) blockedReasons.push('pending-starred-navigation');
   if (input.autoCreateInFlight) blockedReasons.push('auto-create-in-flight');
   if (input.hasPendingLaunchNote) blockedReasons.push('pending-launch-note');
-  if (currentVaultPath && input.notesPath !== currentVaultPath) blockedReasons.push('vault-path-mismatch');
-  if (currentVaultPath && !rootFolderCurrent) blockedReasons.push('vault-root-not-loaded');
+  if (currentNotesRootPath && input.notesPath !== currentNotesRootPath) blockedReasons.push('notes-root-path-mismatch');
+  if (currentNotesRootPath && !rootFolderCurrent) blockedReasons.push('opened-folder-not-loaded');
   if (rootFolderCurrent) {
     const fileTreeScan = scanFileTreeForNoteFiles(input.rootFolder);
     if (fileTreeScan.hasFiles) {
-      blockedReasons.push('vault-has-files');
+      blockedReasons.push('notes-root-has-files');
     }
     if (fileTreeScan.exhaustedBudget) {
-      blockedReasons.push('vault-tree-scan-budget');
+      blockedReasons.push('notes-root-tree-scan-budget');
     }
   }
 

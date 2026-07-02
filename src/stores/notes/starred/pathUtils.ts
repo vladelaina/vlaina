@@ -2,11 +2,11 @@ import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath } from '../utils/fs/notesRootPathContainment';
 
 const UNSAFE_STARRED_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
-function trimStarredVaultTrailingSlashes(path: string): string {
+function trimStarredNotesRootTrailingSlashes(path: string): string {
   if (path === '/' || /^[A-Za-z]:\/$/.test(path)) {
     return path;
   }
@@ -14,26 +14,26 @@ function trimStarredVaultTrailingSlashes(path: string): string {
   return path.replace(/\/+$/, '');
 }
 
-export function normalizeStarredVaultPath(path: string): string {
-  const normalized = trimStarredVaultTrailingSlashes(
+export function normalizeStarredNotesRootPath(path: string): string {
+  const normalized = trimStarredNotesRootTrailingSlashes(
     normalizeAbsolutePath(path).replace(/\\/g, '/'),
   );
   return normalized || path;
 }
 
-export function getStarredVaultPathComparisonKey(path: string): string {
-  const normalized = normalizeStarredVaultPath(path);
+export function getStarredNotesRootPathComparisonKey(path: string): string {
+  const normalized = normalizeStarredNotesRootPath(path);
   return /^[A-Za-z]:/.test(normalized) || normalized.startsWith('//')
     ? normalized.toLowerCase()
     : normalized;
 }
 
-export function isSameStarredVaultPath(left: string, right: string): boolean {
-  return getStarredVaultPathComparisonKey(left) === getStarredVaultPathComparisonKey(right);
+export function isSameStarredNotesRootPath(left: string, right: string): boolean {
+  return getStarredNotesRootPathComparisonKey(left) === getStarredNotesRootPathComparisonKey(right);
 }
 
-export function isValidStarredVaultPath(path: string): boolean {
-  const normalized = normalizeStarredVaultPath(path);
+export function isValidStarredNotesRootPath(path: string): boolean {
+  const normalized = normalizeStarredNotesRootPath(path);
   return (
     Boolean(normalized) &&
     !UNSAFE_STARRED_PATH_CHARS.test(normalized) &&
@@ -43,7 +43,7 @@ export function isValidStarredVaultPath(path: string): boolean {
 }
 
 export function normalizeStarredRelativePath(path: string): string | null {
-  const normalized = normalizeVaultRelativePath(path);
+  const normalized = normalizeNotesRootRelativePath(path);
   if (!normalized || normalized === '/') {
     return null;
   }
@@ -53,23 +53,23 @@ export function normalizeStarredRelativePath(path: string): string | null {
   return normalized;
 }
 
-export function isPathInsideStarredVault(path: string, vaultPath: string): boolean {
+export function isPathInsideStarredNotesRoot(path: string, notesRootPath: string): boolean {
   const normalizedPath = normalizeNotePathKey(path);
   if (!normalizedPath || !isAbsolutePath(normalizedPath)) {
     return false;
   }
 
-  const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
-  if (!normalizedVaultPath || !isValidStarredVaultPath(normalizedVaultPath)) {
+  const normalizedNotesRootPath = normalizeStarredNotesRootPath(notesRootPath);
+  if (!normalizedNotesRootPath || !isValidStarredNotesRootPath(normalizedNotesRootPath)) {
     return false;
   }
 
-  return normalizeContainedAssetPath(normalizedPath, normalizedVaultPath) != null;
+  return normalizeContainedAssetPath(normalizedPath, normalizedNotesRootPath) != null;
 }
 
-export function resolveStarredRelativePathForVault(
+export function resolveStarredRelativePathForNotesRoot(
   path: string,
-  vaultPath: string,
+  notesRootPath: string,
 ): string | null {
   const normalizedPath = normalizeNotePathKey(path);
   if (!normalizedPath) {
@@ -80,23 +80,23 @@ export function resolveStarredRelativePathForVault(
     return normalizeStarredRelativePath(normalizedPath);
   }
 
-  const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
-  if (!normalizedVaultPath || !isValidStarredVaultPath(normalizedVaultPath)) {
+  const normalizedNotesRootPath = normalizeStarredNotesRootPath(notesRootPath);
+  if (!normalizedNotesRootPath || !isValidStarredNotesRootPath(normalizedNotesRootPath)) {
     return null;
   }
 
-  const containedPath = normalizeContainedAssetPath(normalizedPath, normalizedVaultPath);
+  const containedPath = normalizeContainedAssetPath(normalizedPath, normalizedNotesRootPath);
   if (!containedPath) {
     return null;
   }
 
-  const normalizedAbsolutePath = normalizeStarredVaultPath(containedPath);
-  if (normalizedVaultPath === '/') {
+  const normalizedAbsolutePath = normalizeStarredNotesRootPath(containedPath);
+  if (normalizedNotesRootPath === '/') {
     return normalizeStarredRelativePath(normalizedAbsolutePath.replace(/^\/+/, ''));
   }
 
-  const relativeStart = normalizedVaultPath.endsWith('/')
-    ? normalizedVaultPath.length
-    : normalizedVaultPath.length + 1;
+  const relativeStart = normalizedNotesRootPath.endsWith('/')
+    ? normalizedNotesRootPath.length
+    : normalizedNotesRootPath.length + 1;
   return normalizeStarredRelativePath(normalizedAbsolutePath.slice(relativeStart));
 }

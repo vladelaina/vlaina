@@ -61,7 +61,7 @@ export function buildTyporaWriteBridge(write: string): CssLines {
       important('background', 'transparent'),
       important('color', 'var(--df, var(--text-color, var(--vlaina-text-primary)))'),
       important('font-family', 'var(--typora-content-font)'),
-      important('font-size', 'var(--v-f-size, var(--vlaina-markdown-font-size, 16px))'),
+      important('font-size', 'var(--vlaina-markdown-font-size, 16px)'),
       important('font-weight', 'var(--v-fw-text, normal)'),
       important('line-height', 'var(--typora-body-line-height)'),
       important('overflow-x', 'visible'),

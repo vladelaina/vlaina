@@ -149,7 +149,7 @@ describe('handleEditorImageFiles', () => {
         expect(uploadedFiles).not.toContain(files[MAX_IMAGE_UPLOAD_INPUT_FILES]);
     });
 
-    it('silences transient missing vault upload failures', async () => {
+    it('silences transient missing notesRoot upload failures', async () => {
         const scrollIntoView = vi.fn(function () {
             return tr;
         });
@@ -163,7 +163,7 @@ describe('handleEditorImageFiles', () => {
             success: false,
             path: null,
             isDuplicate: false,
-            error: 'Vault path is unavailable',
+            error: 'Opened folder path is unavailable',
         });
         const addToast = vi.spyOn(useToastStore.getState(), 'addToast');
         const view = {

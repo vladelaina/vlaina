@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUIStore, type ImageFilenameFormat, type ImageStorageMode } from '@/stores/uiSlice';
 import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
@@ -26,13 +26,13 @@ const storageOptions: StorageOption[] = [
         id: 'subfolder',
     },
     {
-        id: 'vaultSubfolder',
+        id: 'notesRootSubfolder',
     },
     {
         id: 'currentFolder',
     },
     {
-        id: 'vault',
+        id: 'notesRoot',
     },
 ];
 
@@ -75,16 +75,16 @@ const imageDropdownItemClassName =
 function getStorageDirectoryPreview(
     mode: ImageStorageMode,
     noteSubfolderName: string,
-    vaultSubfolderName: string,
+    notesRootSubfolderName: string,
     t: (key: MessageKey, values?: Record<string, string | number>) => string
 ) {
     switch (mode) {
-        case 'vaultSubfolder':
-            return t('settings.images.directoryVaultSubfolder', { folder: vaultSubfolderName || 'assets' });
+        case 'notesRootSubfolder':
+            return t('settings.images.directoryNotesRootSubfolder', { folder: notesRootSubfolderName || 'assets' });
         case 'subfolder':
             return t('settings.images.directoryNoteSubfolder', { folder: noteSubfolderName || 'assets' });
-        case 'vault':
-            return t('settings.images.directoryVaultRoot');
+        case 'notesRoot':
+            return t('settings.images.directoryNotesRootRoot');
         case 'currentFolder':
             return t('settings.images.directoryCurrentFolder');
     }
@@ -94,15 +94,15 @@ export function ImagesTab() {
     const { t } = useI18n();
     const imageStorageMode = useUIStore((s) => s.imageStorageMode);
     const imageSubfolderName = useUIStore((s) => s.imageSubfolderName);
-    const imageVaultSubfolderName = useUIStore((s) => s.imageVaultSubfolderName);
+    const imageNotesRootSubfolderName = useUIStore((s) => s.imageNotesRootSubfolderName);
     const setImageStorageMode = useUIStore((s) => s.setImageStorageMode);
     const setImageSubfolderName = useUIStore((s) => s.setImageSubfolderName);
-    const setImageVaultSubfolderName = useUIStore((s) => s.setImageVaultSubfolderName);
+    const setImageNotesRootSubfolderName = useUIStore((s) => s.setImageNotesRootSubfolderName);
     const setImageFilenameFormat = useUIStore((s) => s.setImageFilenameFormat);
     const resetImageStorageLocation = () => {
         setImageStorageMode('subfolder');
         setImageSubfolderName('assets');
-        setImageVaultSubfolderName('assets');
+        setImageNotesRootSubfolderName('assets');
         setImageFilenameFormat('original');
     };
 
@@ -139,13 +139,13 @@ export function ImagesTab() {
                     <StorageFolderNameEditor
                         mode={imageStorageMode}
                         noteSubfolderName={imageSubfolderName}
-                        vaultSubfolderName={imageVaultSubfolderName}
+                        notesRootSubfolderName={imageNotesRootSubfolderName}
                     />
                 </div>
                 <div className="min-w-0">
                     <StorageLocationDropdown
                         noteSubfolderName={imageSubfolderName}
-                        vaultSubfolderName={imageVaultSubfolderName}
+                        notesRootSubfolderName={imageNotesRootSubfolderName}
                     />
                 </div>
             </div>
@@ -170,17 +170,17 @@ export function ImagesTab() {
 function StoragePathInline({
     mode,
     noteSubfolderName,
-    vaultSubfolderName,
+    notesRootSubfolderName,
 }: {
     mode: ImageStorageMode;
     noteSubfolderName: string;
-    vaultSubfolderName: string;
+    notesRootSubfolderName: string;
 }) {
     const { t } = useI18n();
 
     return (
         <span className="block min-w-0 truncate font-mono text-[var(--vlaina-font-11)] leading-5">
-            {getStorageDirectoryPreview(mode, noteSubfolderName, vaultSubfolderName, t)}
+            {getStorageDirectoryPreview(mode, noteSubfolderName, notesRootSubfolderName, t)}
         </span>
     );
 }
@@ -188,32 +188,53 @@ function StoragePathInline({
 function StorageFolderNameEditor({
     mode,
     noteSubfolderName,
-    vaultSubfolderName,
+    notesRootSubfolderName,
 }: {
     mode: ImageStorageMode;
     noteSubfolderName: string;
-    vaultSubfolderName: string;
+    notesRootSubfolderName: string;
 }) {
     const { t } = useI18n();
     const setImageSubfolderName = useUIStore((s) => s.setImageSubfolderName);
-    const setImageVaultSubfolderName = useUIStore((s) => s.setImageVaultSubfolderName);
+    const setImageNotesRootSubfolderName = useUIStore((s) => s.setImageNotesRootSubfolderName);
     const preserveFocusSelectionRef = useRef(false);
+    const isComposingRef = useRef(false);
+    const isNotesRootSubfolder = mode === 'notesRootSubfolder';
+    const folderName = isNotesRootSubfolder ? notesRootSubfolderName : noteSubfolderName;
+    const setFolderName = isNotesRootSubfolder ? setImageNotesRootSubfolderName : setImageSubfolderName;
+    const [draftFolderName, setDraftFolderName] = useState(folderName);
 
-    if (mode !== 'subfolder' && mode !== 'vaultSubfolder') {
+    useEffect(() => {
+        if (!isComposingRef.current) {
+            setDraftFolderName(folderName);
+        }
+    }, [folderName]);
+
+    if (mode !== 'subfolder' && mode !== 'notesRootSubfolder') {
         return null;
     }
-
-    const isVaultSubfolder = mode === 'vaultSubfolder';
-    const folderName = isVaultSubfolder ? vaultSubfolderName : noteSubfolderName;
-    const setFolderName = isVaultSubfolder ? setImageVaultSubfolderName : setImageSubfolderName;
 
     return (
         <div className="inline-flex max-w-full min-w-0 items-center rounded-xl bg-[var(--vlaina-bg-tertiary)] px-2 py-1 font-mono text-[var(--vlaina-font-11)] leading-5 text-[var(--vlaina-sidebar-notes-text-soft)]">
             <input
                 type="text"
-                data-settings-control={isVaultSubfolder ? 'image-vault-subfolder-name' : 'image-subfolder-name'}
-                value={folderName}
-                onChange={(event) => setFolderName(event.target.value)}
+                data-settings-control={isNotesRootSubfolder ? 'image-notes-root-subfolder-name' : 'image-subfolder-name'}
+                value={draftFolderName}
+                onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setDraftFolderName(nextValue);
+                    if (!isComposingRef.current) {
+                        setFolderName(nextValue);
+                    }
+                }}
+                onCompositionStart={() => {
+                    isComposingRef.current = true;
+                }}
+                onCompositionEnd={(event) => {
+                    isComposingRef.current = false;
+                    setDraftFolderName(event.currentTarget.value);
+                    setFolderName(event.currentTarget.value);
+                }}
                 onMouseDown={(event) => {
                     preserveFocusSelectionRef.current = document.activeElement !== event.currentTarget;
                 }}
@@ -227,15 +248,19 @@ function StorageFolderNameEditor({
                 }}
                 onBlur={(event) => {
                     preserveFocusSelectionRef.current = false;
+                    if (isComposingRef.current) {
+                        return;
+                    }
                     if (event.currentTarget.value.trim().length === 0) {
+                        setDraftFolderName('assets');
                         setFolderName('assets');
                     }
                 }}
                 placeholder="assets"
                 spellCheck={false}
-                aria-label={t(isVaultSubfolder ? 'settings.images.folderName' : 'settings.images.subfolderName')}
+                aria-label={t(isNotesRootSubfolder ? 'settings.images.folderName' : 'settings.images.subfolderName')}
                 className="h-5 min-w-12 max-w-24 cursor-text rounded-md border-0 bg-transparent px-1 py-0 font-mono text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] focus:bg-[var(--vlaina-color-setting-field)] focus:ring-1 focus:ring-[var(--vlaina-color-sidebar-focus-ring)]"
-                style={{ width: `${Math.max((folderName || 'assets').length, 6)}ch` }}
+                style={{ width: `${Math.max((draftFolderName || 'assets').length, 6)}ch` }}
             />
         </div>
     );
@@ -243,10 +268,10 @@ function StorageFolderNameEditor({
 
 function StorageLocationDropdown({
     noteSubfolderName,
-    vaultSubfolderName,
+    notesRootSubfolderName,
 }: {
     noteSubfolderName: string;
-    vaultSubfolderName: string;
+    notesRootSubfolderName: string;
 }) {
     const { t } = useI18n();
     const imageStorageMode = useUIStore((s) => s.imageStorageMode);
@@ -265,7 +290,7 @@ function StorageLocationDropdown({
                         <StoragePathInline
                             mode={imageStorageMode}
                             noteSubfolderName={noteSubfolderName}
-                            vaultSubfolderName={vaultSubfolderName}
+                            notesRootSubfolderName={notesRootSubfolderName}
                         />
                     </span>
                     <Icon
@@ -298,7 +323,7 @@ function StorageLocationDropdown({
                                 <StoragePathInline
                                     mode={option.id}
                                     noteSubfolderName={noteSubfolderName}
-                                    vaultSubfolderName={vaultSubfolderName}
+                                    notesRootSubfolderName={notesRootSubfolderName}
                                 />
                             </span>
                             {isSelected && (

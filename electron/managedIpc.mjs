@@ -553,6 +553,7 @@ export function registerManagedIpc({
           signal: controller.signal,
           headers: {
             Accept: 'text/event-stream',
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(sanitizeManagedChatCompletionBody(body)),
         }), controller.signal);

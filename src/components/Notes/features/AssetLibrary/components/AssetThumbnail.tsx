@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
-import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
+import { resolveNotesRootAssetPath } from '@/lib/assets/core/paths';
 import { themeDomStyleTokens, themeLazyLoadTokens } from '@/styles/themeTokens';
 
 const MAX_CONCURRENT_THUMBNAIL_LOADS = 4;
@@ -53,7 +53,7 @@ function enqueueThumbnailLoad(run: () => Promise<void>, priority: number) {
 interface AssetThumbnailProps {
   filename: string;
   size: number;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
   onSelect: () => void;
   isHovered: boolean;
@@ -62,7 +62,7 @@ interface AssetThumbnailProps {
 }
 
 export const AssetThumbnail = memo(function AssetThumbnail({
-  filename, size, vaultPath, currentNotePath, onSelect, isHovered, compact, loadPriority = Number.MAX_SAFE_INTEGER
+  filename, size, notesRootPath, currentNotePath, onSelect, isHovered, compact, loadPriority = Number.MAX_SAFE_INTEGER
 }: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -83,8 +83,8 @@ export const AssetThumbnail = memo(function AssetThumbnail({
 
     const loadThumbnail = async () => {
       try {
-        if (vaultPath) {
-          const fullPath = await resolveVaultAssetPath(vaultPath, filename, currentNotePath);
+        if (notesRootPath) {
+          const fullPath = await resolveNotesRootAssetPath(notesRootPath, filename, currentNotePath);
           const blobUrl = await loadImageThumbnailAsBlob(fullPath);
 
           if (mountIdRef.current === currentMountId) {
@@ -124,7 +124,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
       cancelQueuedLoad?.();
       observer.disconnect();
     };
-  }, [currentNotePath, filename, loadPriority, vaultPath]);
+  }, [currentNotePath, filename, loadPriority, notesRootPath]);
 
   const handleImageError = useCallback(() => {
     setHasError(true);

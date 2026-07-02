@@ -45,7 +45,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -114,7 +114,7 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('💡');
   });
 
-  it('stores active draft metadata in memory when no vault is selected', async () => {
+  it('stores active draft metadata in memory when no notesRoot is selected', async () => {
     const saveNote = vi.fn(async () => undefined);
     const store = createNotesStore({
       notesPath: '',
@@ -150,10 +150,10 @@ describe('featureSlice draft metadata', () => {
     ]);
   });
 
-  it('keeps preserved draft metadata in memory instead of implicitly saving into the new vault', async () => {
+  it('keeps preserved draft metadata in memory instead of implicitly saving into the new notesRoot', async () => {
     const saveNote = vi.fn(async () => undefined);
     const store = createNotesStore({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: { path: 'draft:blank', content: '' },
       openTabs: [{ path: 'draft:blank', name: '', isDirty: false }],
       draftNotes: {
@@ -185,7 +185,7 @@ describe('featureSlice draft metadata', () => {
     ]);
   });
 
-  it('writes metadata for an absolute note opened without a vault', async () => {
+  it('writes metadata for an absolute note opened without a notesRoot', async () => {
     const store = createNotesStore({
       notesPath: '',
       rootFolder: null,
@@ -233,7 +233,7 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteMetadata?.notes[notePath]?.iconSize).toBe(84);
   });
 
-  it('writes metadata for a Windows absolute note opened without a vault', async () => {
+  it('writes metadata for a Windows absolute note opened without a notesRoot', async () => {
     const notePath = 'C:\\notes\\alpha.md';
     const store = createNotesStore({
       notesPath: '',
@@ -259,7 +259,7 @@ describe('featureSlice draft metadata', () => {
     const notePath = 'docs/alpha.md';
     const complexMarkdown = 'x'.repeat(512 * 1024 + 1);
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       noteContentsCache: new Map([[notePath, { content: complexMarkdown, modifiedAt: 1 }]]),
     });
 
@@ -282,7 +282,7 @@ describe('featureSlice draft metadata', () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: complexMarkdown.length });
     mocks.readFile.mockResolvedValue(complexMarkdown);
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
     });
 
     store.getState().setNoteIcon(notePath, '💡');
@@ -290,7 +290,7 @@ describe('featureSlice draft metadata', () => {
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too complex to open safely.');
     });
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_METADATA_UPDATE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_METADATA_UPDATE_NOTE_BYTES);
     expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
     expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
     expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
@@ -301,7 +301,7 @@ describe('featureSlice draft metadata', () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: -1 });
     mocks.readFile.mockResolvedValue('# Alpha');
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
     });
 
     store.getState().setNoteIcon(notePath, '💡');
@@ -315,12 +315,12 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
   });
 
-  it('rejects uncached vault metadata source content that exceeds the read limit after reading', async () => {
+  it('rejects uncached notesRoot metadata source content that exceeds the read limit after reading', async () => {
     const notePath = 'docs/alpha.md';
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
     mocks.readFile.mockResolvedValue('x'.repeat(MAX_METADATA_UPDATE_NOTE_BYTES + 1));
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
     });
 
     store.getState().setNoteIcon(notePath, '💡');
@@ -328,7 +328,7 @@ describe('featureSlice draft metadata', () => {
     await vi.waitFor(() => {
       expect(store.getState().error).toBe('Note file is too large to update metadata.');
     });
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_METADATA_UPDATE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_METADATA_UPDATE_NOTE_BYTES);
     expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
     expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
     expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
@@ -354,7 +354,7 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
   });
 
-  it('merges vault metadata updates with newer disk edits instead of overwriting them', async () => {
+  it('merges notesRoot metadata updates with newer disk edits instead of overwriting them', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     mocks.stat
@@ -363,7 +363,7 @@ describe('featureSlice draft metadata', () => {
     mocks.readFile.mockResolvedValue(['# Alpha', '', 'Disk body'].join('\n'));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: notePath, content: ['# Alpha', '', 'Original body'].join('\n') },
       openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([[
@@ -416,11 +416,11 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.get(notePath)?.content).toContain('vlaina_icon');
   });
 
-  it('keeps a failed vault metadata write dirty so the change is not silently lost', async () => {
+  it('keeps a failed notesRoot metadata write dirty so the change is not silently lost', async () => {
     mocks.safeWriteTextFile.mockRejectedValueOnce(new Error('disk unavailable'));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: notePath, content: '# Alpha' },
       openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
@@ -496,14 +496,14 @@ describe('featureSlice draft metadata', () => {
     });
   });
 
-  it('does not overwrite newer edits when vault metadata write finishes later', async () => {
+  it('does not overwrite newer edits when notesRoot metadata write finishes later', async () => {
     let resolveWrite: (() => void) | undefined;
     mocks.safeWriteTextFile.mockImplementationOnce(() => new Promise<void>((resolve) => {
       resolveWrite = resolve;
     }));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: notePath, content: '# Alpha' },
       openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
@@ -552,7 +552,7 @@ describe('featureSlice draft metadata', () => {
     }));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'docs/beta.md', content: '# Beta' },
       openTabs: [{ path: 'docs/beta.md', name: 'beta', isDirty: false }],
       noteContentsCache: new Map([['docs/beta.md', { content: '# Beta', modifiedAt: 1 }]]),
@@ -601,7 +601,7 @@ describe('featureSlice draft metadata', () => {
     }));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -700,13 +700,13 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteMetadata?.notes[notePath]?.icon).not.toBe('ICON:star:red');
   });
 
-  it('reuses cached note contents during full-vault scans and reads only missing notes', async () => {
+  it('reuses cached note contents during full-notesRoot scans and reads only missing notes', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockResolvedValue('# Beta from disk');
     const alphaPath = 'docs/alpha.md';
     const betaPath = 'docs/beta.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -735,7 +735,7 @@ describe('featureSlice draft metadata', () => {
     await store.getState().scanAllNotes();
 
     expect(mocks.readFile).toHaveBeenCalledTimes(1);
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/beta.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/beta.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(alphaPath)).toEqual({
       content: '# Alpha cached',
       modifiedAt: 2,
@@ -747,12 +747,12 @@ describe('featureSlice draft metadata', () => {
     });
   });
 
-  it('reloads cached full-vault scan content when disk metadata changes', async () => {
+  it('reloads cached full-notesRoot scan content when disk metadata changes', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockResolvedValue('# Alpha from disk');
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -777,7 +777,7 @@ describe('featureSlice draft metadata', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '# Alpha from disk',
       modifiedAt: 2,
@@ -790,7 +790,7 @@ describe('featureSlice draft metadata', () => {
     mocks.readFile.mockResolvedValue('# Alpha from disk');
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -824,7 +824,7 @@ describe('featureSlice draft metadata', () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockResolvedValue('# Unexpected');
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -845,12 +845,12 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.size).toBe(0);
   });
 
-  it('reads full-vault scan notes with bounded reads when stat has no size', async () => {
+  it('reads full-notesRoot scan notes with bounded reads when stat has no size', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
     mocks.readFile.mockResolvedValue('# Alpha');
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -872,19 +872,19 @@ describe('featureSlice draft metadata', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '# Alpha',
       modifiedAt: 2,
     });
   });
 
-  it('does not cache full-vault scan content that exceeds the searchable note limit after read', async () => {
+  it('does not cache full-notesRoot scan content that exceeds the searchable note limit after read', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockResolvedValue('你'.repeat(Math.floor(MAX_SEARCHABLE_NOTE_BYTES / 3) + 1));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -906,14 +906,14 @@ describe('featureSlice draft metadata', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '',
       modifiedAt: 2,
     });
   });
 
-  it('scans deeply nested full-vault notes without recursive traversal', async () => {
+  it('scans deeply nested full-notesRoot notes without recursive traversal', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockResolvedValue('# Deep');
     let current: any = {
@@ -935,21 +935,21 @@ describe('featureSlice draft metadata', () => {
     }
 
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: current,
     });
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/deep.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/deep.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get('deep.md')?.content).toBe('# Deep');
   });
 
-  it('caps full-vault scan paths from oversized folder trees', async () => {
+  it('caps full-notesRoot scan paths from oversized folder trees', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockResolvedValue('# Note');
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -971,7 +971,7 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.size).toBe(5000);
   });
 
-  it('stops full-vault scans before starting later batches after cancellation', async () => {
+  it('stops full-notesRoot scans before starting later batches after cancellation', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     const pendingReads: Array<(content: string) => void> = [];
     mocks.readFile.mockImplementation(() => new Promise<string>((resolve) => {
@@ -979,7 +979,7 @@ describe('featureSlice draft metadata', () => {
     }));
     const notePaths = Array.from({ length: 12 }, (_, index) => `docs/${index}.md`);
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -1017,11 +1017,11 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteContentsCache.size).toBe(0);
   });
 
-  it('does not start a full-vault scan when its signal is already aborted', async () => {
+  it('does not start a full-notesRoot scan when its signal is already aborted', async () => {
     const abortController = new AbortController();
     abortController.abort();
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -1095,14 +1095,14 @@ describe('featureSlice starred path resolution', () => {
     mocks.safeWriteTextFile.mockResolvedValue(undefined);
   });
 
-  it('matches current-vault absolute note paths against relative starred notes', () => {
+  it('matches current-notesRoot absolute note paths against relative starred notes', () => {
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
           id: 'starred-alpha',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         },
@@ -1110,18 +1110,18 @@ describe('featureSlice starred path resolution', () => {
       starredNotes: ['docs/alpha.md'],
     });
 
-    expect(store.getState().isStarred('/vault/docs/alpha.md')).toBe(true);
+    expect(store.getState().isStarred('/notesRoot/docs/alpha.md')).toBe(true);
     expect(store.getState().isStarred('/other/docs/alpha.md')).toBe(false);
   });
 
-  it('matches root-vault absolute note paths against relative starred notes', () => {
+  it('matches root-notesRoot absolute note paths against relative starred notes', () => {
     const store = createNotesStore({
       notesPath: '/',
       starredEntries: [
         {
           id: 'starred-alpha',
           kind: 'note',
-          vaultPath: '/',
+          notesRootPath: '/',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         },
@@ -1132,7 +1132,7 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().isStarred('/docs/alpha.md')).toBe(true);
   });
 
-  it('toggles root-vault absolute note paths as relative starred entries', () => {
+  it('toggles root-notesRoot absolute note paths as relative starred entries', () => {
     const store = createNotesStore({
       notesPath: '/',
       starredEntries: [],
@@ -1143,55 +1143,55 @@ describe('featureSlice starred path resolution', () => {
 
     expect(store.getState().starredEntries[0]).toMatchObject({
       kind: 'note',
-      vaultPath: '/',
+      notesRootPath: '/',
       relativePath: 'docs/alpha.md',
     });
     expect(store.getState().starredNotes).toEqual(['docs/alpha.md']);
   });
 
-  it('toggles current-vault absolute note paths as relative starred entries', () => {
+  it('toggles current-notesRoot absolute note paths as relative starred entries', () => {
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [],
       starredNotes: [],
     });
 
-    store.getState().toggleStarred('/vault/docs/alpha.md');
+    store.getState().toggleStarred('/notesRoot/docs/alpha.md');
 
     expect(store.getState().starredEntries[0]).toMatchObject({
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'docs/alpha.md',
     });
     expect(store.getState().starredNotes).toEqual(['docs/alpha.md']);
 
-    store.getState().toggleStarred('/vault/docs/alpha.md');
+    store.getState().toggleStarred('/notesRoot/docs/alpha.md');
 
     expect(store.getState().starredEntries).toEqual([]);
     expect(store.getState().starredNotes).toEqual([]);
   });
 
-  it('ignores non-markdown note paths when toggling current-vault starred notes', () => {
+  it('ignores non-markdown note paths when toggling current-notesRoot starred notes', () => {
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [],
       starredNotes: [],
     });
 
-    expect(() => store.getState().toggleStarred('/vault/docs/image.png')).not.toThrow();
+    expect(() => store.getState().toggleStarred('/notesRoot/docs/image.png')).not.toThrow();
 
     expect(store.getState().starredEntries).toEqual([]);
     expect(store.getState().starredNotes).toEqual([]);
   });
 
-  it('matches external absolute starred note paths from another vault', () => {
+  it('matches external absolute starred note paths from another notesRoot', () => {
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
           id: 'starred-external',
           kind: 'note',
-          vaultPath: '/other',
+          notesRootPath: '/other',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         },
@@ -1202,14 +1202,14 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().isStarred('/other/docs/alpha.md')).toBe(true);
   });
 
-  it('toggles an external absolute starred note path off without adding it to the current vault', () => {
+  it('toggles an external absolute starred note path off without adding it to the opened folder', () => {
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
           id: 'starred-external',
           kind: 'note',
-          vaultPath: '/other',
+          notesRootPath: '/other',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         },
@@ -1223,14 +1223,14 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().starredNotes).toEqual([]);
   });
 
-  it('toggles an external absolute starred note path off when no vault is open', () => {
+  it('toggles an external absolute starred note path off when no folder is open', () => {
     const store = createNotesStore({
       notesPath: '',
       starredEntries: [
         {
           id: 'starred-external',
           kind: 'note',
-          vaultPath: '/other',
+          notesRootPath: '/other',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         },
@@ -1245,7 +1245,7 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().starredEntries).toEqual([]);
   });
 
-  it('creates external starred entries for absolute notes when no vault is open', () => {
+  it('creates external starred entries for absolute notes when no folder is open', () => {
     const store = createNotesStore({
       notesPath: '',
       starredEntries: [],
@@ -1256,7 +1256,7 @@ describe('featureSlice starred path resolution', () => {
 
     expect(store.getState().starredEntries[0]).toMatchObject({
       kind: 'note',
-      vaultPath: '/other/docs',
+      notesRootPath: '/other/docs',
       relativePath: 'alpha.md',
     });
     expect(store.getState().starredNotes).toEqual([]);
@@ -1264,19 +1264,19 @@ describe('featureSlice starred path resolution', () => {
 
   it('removes duplicate starred entries for the same external absolute note path', () => {
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
           id: 'starred-external-a',
           kind: 'note',
-          vaultPath: '/other/docs',
+          notesRootPath: '/other/docs',
           relativePath: 'alpha.md',
           addedAt: 1,
         },
         {
           id: 'starred-external-b',
           kind: 'note',
-          vaultPath: '/other/docs',
+          notesRootPath: '/other/docs',
           relativePath: 'alpha.md',
           addedAt: 2,
         },
@@ -1289,9 +1289,9 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().starredEntries).toEqual([]);
   });
 
-  it('creates external starred entries for absolute notes outside the current vault', () => {
+  it('creates external starred entries for absolute notes outside the opened folder', () => {
     const store = createNotesStore({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [],
       starredNotes: [],
     });
@@ -1300,7 +1300,7 @@ describe('featureSlice starred path resolution', () => {
 
     expect(store.getState().starredEntries[0]).toMatchObject({
       kind: 'note',
-      vaultPath: '/other/docs',
+      notesRootPath: '/other/docs',
       relativePath: 'alpha.md',
     });
     expect(store.getState().starredNotes).toEqual([]);

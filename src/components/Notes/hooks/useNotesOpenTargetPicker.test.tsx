@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   setNotesSidebarView: vi.fn(),
   authorizePath: vi.fn(async () => ({
     name: 'guide.markdown',
-    path: '/vault/guide.markdown',
+    path: '/notesRoot/guide.markdown',
     isDirectory: false,
     isFile: true,
   })),
@@ -70,7 +70,7 @@ vi.mock('../features/Editor/utils/titleCommitRegistry', () => ({
 function renderPicker(overrides: Partial<Parameters<typeof useNotesOpenTargetPicker>[0]> = {}) {
   const props = {
     active: true,
-    currentVaultPath: '/vault',
+    currentNotesRootPath: '/notesRoot',
     isOpenTargetBusy: false,
     openMarkdownTarget: vi.fn(async () => true),
     openFolderTarget: vi.fn(async () => true),
@@ -89,7 +89,7 @@ describe('useNotesOpenTargetPicker', () => {
     mocks.desktopOpenMarkdownFileCallback = null;
     mocks.authorizePath.mockResolvedValue({
       name: 'guide.markdown',
-      path: '/vault/guide.markdown',
+      path: '/notesRoot/guide.markdown',
       isDirectory: false,
       isFile: true,
     });
@@ -105,7 +105,7 @@ describe('useNotesOpenTargetPicker', () => {
     const { props } = renderPicker();
 
     await act(async () => {
-      await mocks.desktopOpenMarkdownFileCallback?.('/vault/image.png');
+      await mocks.desktopOpenMarkdownFileCallback?.('/notesRoot/image.png');
     });
 
     expect(mocks.setAppViewMode).toHaveBeenCalledWith('notes');
@@ -122,19 +122,19 @@ describe('useNotesOpenTargetPicker', () => {
     const { props } = renderPicker();
 
     await act(async () => {
-      await mocks.desktopOpenMarkdownFileCallback?.('/vault/guide.markdown');
+      await mocks.desktopOpenMarkdownFileCallback?.('/notesRoot/guide.markdown');
     });
 
     expect(onDesktopOpenMarkdownFile).toHaveBeenCalledTimes(1);
-    expect(mocks.authorizePath).toHaveBeenCalledWith('/vault/guide.markdown');
-    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/vault/guide.markdown');
+    expect(mocks.authorizePath).toHaveBeenCalledWith('/notesRoot/guide.markdown');
+    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/notesRoot/guide.markdown');
     expect(messageDialog).not.toHaveBeenCalled();
   });
 
   it('opens the authorized desktop Markdown path when authorization normalizes it', async () => {
     mocks.authorizePath.mockResolvedValueOnce({
       name: 'guide.markdown',
-      path: '/vault/canonical/guide.markdown',
+      path: '/notesRoot/canonical/guide.markdown',
       isDirectory: false,
       isFile: true,
     });
@@ -145,7 +145,7 @@ describe('useNotesOpenTargetPicker', () => {
     });
 
     expect(mocks.authorizePath).toHaveBeenCalledWith('/tmp/link.md');
-    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/vault/canonical/guide.markdown');
+    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/notesRoot/canonical/guide.markdown');
     expect(props.openMarkdownTarget).not.toHaveBeenCalledWith('/tmp/link.md');
     expect(messageDialog).not.toHaveBeenCalled();
   });
@@ -155,7 +155,7 @@ describe('useNotesOpenTargetPicker', () => {
     const { props } = renderPicker();
 
     await act(async () => {
-      await mocks.desktopOpenMarkdownFileCallback?.('/vault/guide.md');
+      await mocks.desktopOpenMarkdownFileCallback?.('/notesRoot/guide.md');
     });
 
     expect(props.openMarkdownTarget).not.toHaveBeenCalled();
@@ -168,17 +168,17 @@ describe('useNotesOpenTargetPicker', () => {
   it('does not open desktop Markdown paths that authorize as directories', async () => {
     mocks.authorizePath.mockResolvedValueOnce({
       name: 'guide.md',
-      path: '/vault/guide.md',
+      path: '/notesRoot/guide.md',
       isDirectory: true,
       isFile: false,
     });
     const { props } = renderPicker();
 
     await act(async () => {
-      await mocks.desktopOpenMarkdownFileCallback?.('/vault/guide.md');
+      await mocks.desktopOpenMarkdownFileCallback?.('/notesRoot/guide.md');
     });
 
-    expect(mocks.authorizePath).toHaveBeenCalledWith('/vault/guide.md');
+    expect(mocks.authorizePath).toHaveBeenCalledWith('/notesRoot/guide.md');
     expect(props.openMarkdownTarget).not.toHaveBeenCalled();
     expect(messageDialog).toHaveBeenCalledWith('notes.openMarkdownFileFailed', {
       title: 'notes.openFailed',
@@ -187,14 +187,14 @@ describe('useNotesOpenTargetPicker', () => {
   });
 
   it('switches to the files sidebar after opening a selected file target', async () => {
-    vi.mocked(openDialog).mockResolvedValueOnce('/vault/guide.md');
+    vi.mocked(openDialog).mockResolvedValueOnce('/notesRoot/guide.md');
     const { props } = renderPicker();
 
     await act(async () => {
       window.dispatchEvent(new Event('app-open-markdown-target-file'));
     });
 
-    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/vault/guide.md');
+    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/notesRoot/guide.md');
     expect(mocks.setNotesSidebarView).toHaveBeenCalledWith('workspace');
     expect(vi.mocked(props.openMarkdownTarget).mock.invocationCallOrder[0]).toBeLessThan(
       mocks.setNotesSidebarView.mock.invocationCallOrder[0],
@@ -202,7 +202,7 @@ describe('useNotesOpenTargetPicker', () => {
   });
 
   it('switches to the files sidebar when opening a folder target', async () => {
-    vi.mocked(openDialog).mockResolvedValueOnce('/vault/projects');
+    vi.mocked(openDialog).mockResolvedValueOnce('/notesRoot/projects');
     const { props } = renderPicker();
 
     await act(async () => {
@@ -210,7 +210,7 @@ describe('useNotesOpenTargetPicker', () => {
     });
 
     expect(mocks.setNotesSidebarView).toHaveBeenCalledWith('workspace');
-    expect(props.openFolderTarget).toHaveBeenCalledWith('/vault/projects');
+    expect(props.openFolderTarget).toHaveBeenCalledWith('/notesRoot/projects');
     expect(vi.mocked(props.openFolderTarget).mock.invocationCallOrder[0]).toBeLessThan(
       mocks.setNotesSidebarView.mock.invocationCallOrder[0],
     );
@@ -229,7 +229,7 @@ describe('useNotesOpenTargetPicker', () => {
   });
 
   it('keeps the current sidebar view when a selected file fails to open', async () => {
-    vi.mocked(openDialog).mockResolvedValueOnce('/vault/guide.md');
+    vi.mocked(openDialog).mockResolvedValueOnce('/notesRoot/guide.md');
     const { props } = renderPicker({
       openMarkdownTarget: vi.fn(async () => false),
     });
@@ -238,7 +238,7 @@ describe('useNotesOpenTargetPicker', () => {
       window.dispatchEvent(new Event('app-open-markdown-target-file'));
     });
 
-    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/vault/guide.md');
+    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/notesRoot/guide.md');
     expect(mocks.setNotesSidebarView).not.toHaveBeenCalled();
   });
 });

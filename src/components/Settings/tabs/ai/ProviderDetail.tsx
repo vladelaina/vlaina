@@ -63,6 +63,7 @@ export function ProviderDetail({
   const [quickAddError, setQuickAddError] = useState('');
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
   const apiKeyCopiedTimerRef = useRef<number | null>(null);
+  const isConnectionComposingRef = useRef(false);
   const latestConnectionDraftRef = useRef({
     providerId: initialProvider?.id || '',
     name: initialProvider?.name || '',
@@ -215,6 +216,9 @@ export function ProviderDetail({
 
   useEffect(() => {
     const flushConnectionDraft = () => {
+      if (isConnectionComposingRef.current) {
+        return;
+      }
       const draft = latestConnectionDraftRef.current;
       if (!draft.providerId || draft.providerId === MANAGED_PROVIDER_ID) {
         return;
@@ -249,6 +253,9 @@ export function ProviderDetail({
     if (sameName && sameApiHost && sameApiKey) return;
 
     const timer = setTimeout(() => {
+      if (isConnectionComposingRef.current) {
+        return;
+      }
       updateProvider(initialProvider.id, {
         name,
         apiKey,
@@ -363,6 +370,9 @@ export function ProviderDetail({
         onApiKeyChange={(nextApiKey) => {
           setApiKey(nextApiKey);
           modelActions.setFetchError('');
+        }}
+        onCompositionChange={(isComposing) => {
+          isConnectionComposingRef.current = isComposing;
         }}
         onToggleApiKey={() => setShowApiKey((prev) => !prev)}
         onCopyApiKey={handleCopyApiKey}

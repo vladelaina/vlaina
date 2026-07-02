@@ -96,4 +96,59 @@ describe('ImageBlockChrome', () => {
 
     expect(onCaptionSubmit).not.toHaveBeenCalled();
   });
+
+  it('does not submit the caption on blur while IME composition is active', () => {
+    const onCaptionSubmit = vi.fn();
+    renderChrome({
+      isEditingCaption: true,
+      onCaptionSubmit,
+    });
+
+    const input = screen.getByDisplayValue('example image');
+    fireEvent.compositionStart(input);
+    fireEvent.blur(input);
+
+    expect(onCaptionSubmit).not.toHaveBeenCalled();
+  });
+
+  it('does not submit the caption from outside pointer down while IME composition is active', () => {
+    const onCaptionSubmit = vi.fn();
+    renderChrome({
+      isEditingCaption: true,
+      onCaptionSubmit,
+    });
+
+    const input = screen.getByDisplayValue('example image');
+    fireEvent.compositionStart(input);
+    fireEvent.pointerDown(document.body);
+
+    expect(onCaptionSubmit).not.toHaveBeenCalled();
+  });
+
+  it('submits the caption again after composition ends', () => {
+    const onCaptionSubmit = vi.fn();
+    renderChrome({
+      isEditingCaption: true,
+      onCaptionSubmit,
+    });
+
+    const input = screen.getByDisplayValue('example image');
+    fireEvent.compositionStart(input);
+    fireEvent.compositionEnd(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onCaptionSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('submits the caption when pointer down lands outside the caption editor', () => {
+    const onCaptionSubmit = vi.fn();
+    renderChrome({
+      isEditingCaption: true,
+      onCaptionSubmit,
+    });
+
+    fireEvent.pointerDown(document.body);
+
+    expect(onCaptionSubmit).toHaveBeenCalledTimes(1);
+  });
 });

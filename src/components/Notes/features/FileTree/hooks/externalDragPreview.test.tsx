@@ -31,7 +31,7 @@ describe('createExternalDragPreview', () => {
       throw new Error('append failed');
     });
 
-    expect(() => createExternalDragPreview(['/vault/demo.md'])).toThrow('append failed');
+    expect(() => createExternalDragPreview(['/notesRoot/demo.md'])).toThrow('append failed');
 
     expect(document.body.style.cursor).toBe('default');
     expect(document.body.childElementCount).toBe(childCountBefore);
@@ -43,7 +43,7 @@ describe('createExternalDragPreview', () => {
     document.body.style.cursor = 'default';
     const childCountBefore = document.body.childElementCount;
 
-    const preview = createExternalDragPreview(['/vault/demo.md']);
+    const preview = createExternalDragPreview(['/notesRoot/demo.md']);
     expect(document.body.childElementCount).toBe(childCountBefore + 1);
 
     preview.dispose();

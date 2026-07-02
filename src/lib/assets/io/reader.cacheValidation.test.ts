@@ -50,8 +50,8 @@ describe('asset image reader cache validation', () => {
       .mockReturnValueOnce('blob:first-url')
       .mockReturnValueOnce('blob:second-url');
 
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:first-url');
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:second-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:first-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:second-url');
 
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-url');
@@ -63,8 +63,8 @@ describe('asset image reader cache validation', () => {
       .mockReturnValueOnce('blob:first-url')
       .mockReturnValueOnce('blob:second-url');
 
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:first-url');
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:second-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:first-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:second-url');
 
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-url');
@@ -77,8 +77,8 @@ describe('asset image reader cache validation', () => {
       .mockReturnValueOnce('blob:first-thumb-url')
       .mockReturnValueOnce('blob:second-thumb-url');
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:first-thumb-url');
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:second-thumb-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg')).resolves.toBe('blob:first-thumb-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg')).resolves.toBe('blob:second-thumb-url');
 
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-thumb-url');
@@ -91,8 +91,8 @@ describe('asset image reader cache validation', () => {
       .mockReturnValueOnce('blob:first-thumb-url')
       .mockReturnValueOnce('blob:second-thumb-url');
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:first-thumb-url');
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:second-thumb-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg')).resolves.toBe('blob:first-thumb-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg')).resolves.toBe('blob:second-thumb-url');
 
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-thumb-url');

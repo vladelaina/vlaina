@@ -72,7 +72,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('reads small authorized files through the filesystem bridge', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'note.md');
     await mkdir(rootPath, { recursive: true });
     await writeFile(filePath, 'hello', 'utf8');
@@ -86,7 +86,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects oversized authorized files before reading them through the filesystem bridge', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'huge.bin');
     await mkdir(rootPath, { recursive: true });
     await writeFile(filePath, '', 'utf8');
@@ -103,7 +103,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('honors caller-provided binary read byte limits', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'note.md');
     await mkdir(rootPath, { recursive: true });
     await writeFile(filePath, 'hello', 'utf8');
@@ -119,7 +119,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('honors caller-provided text read byte limits', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'note.md');
     await mkdir(rootPath, { recursive: true });
     await writeFile(filePath, 'hello', 'utf8');
@@ -133,7 +133,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects invalid binary write payloads through the filesystem bridge', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'note.bin');
     await mkdir(rootPath, { recursive: true });
     await authorizeFsPath(rootPath, 'root');
@@ -148,7 +148,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects oversized binary write payloads before materializing buffers', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'huge.bin');
     await mkdir(rootPath, { recursive: true });
     await authorizeFsPath(rootPath, 'root');
@@ -162,7 +162,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects appending text past the desktop write size limit', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'huge.md');
     await mkdir(rootPath, { recursive: true });
     await writeFile(filePath, '', 'utf8');
@@ -177,7 +177,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects hostile text write payloads without coercion', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const filePath = path.join(rootPath, 'note.md');
     await mkdir(rootPath, { recursive: true });
     await authorizeFsPath(rootPath, 'root');
@@ -194,7 +194,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('rejects oversized copy-file sources before copying through the filesystem bridge', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const sourcePath = path.join(rootPath, 'huge.md');
     const targetPath = path.join(rootPath, 'huge-copy.md');
     await mkdir(rootPath, { recursive: true });
@@ -230,7 +230,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('lists authorized symlinked markdown files as readable files', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const targetPath = path.join(rootPath, 'target.md');
     const linkPath = path.join(rootPath, 'linked.md');
     await mkdir(rootPath, { recursive: true });
@@ -253,7 +253,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('lists authorized symlinked directories as readable directories', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const targetDirPath = path.join(rootPath, 'target-docs');
     const targetPath = path.join(targetDirPath, 'inside.md');
     const linkPath = path.join(rootPath, 'linked-docs');
@@ -286,7 +286,7 @@ describe('desktop filesystem ipc', () => {
   });
 
   it('does not list symlinked files that resolve outside authorized roots as readable files', async () => {
-    const rootPath = path.join(tempDir, 'vault');
+    const rootPath = path.join(tempDir, 'notesRoot');
     const outsidePath = path.join(tempDir, 'outside.md');
     const linkPath = path.join(rootPath, 'outside.md');
     await mkdir(rootPath, { recursive: true });

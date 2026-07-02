@@ -82,7 +82,7 @@ describe('external markdown import depth', () => {
       return [];
     });
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
         const relativePath = folderPath
           ? `${folderPath}/${name}`
           : isDirectory
@@ -90,20 +90,20 @@ describe('external markdown import depth', () => {
             : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
     );
 
-    const result = await importExternalMarkdownEntries('/vault', 'archive', [sourceRoot]);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'archive', [sourceRoot]);
 
     expect(result.importedNotePaths).toEqual([importedRelativeFile]);
     expect(result.importedFolderPaths).toContain(`archive/project/${segments.join('/')}`);
     expect(result.didImport).toBe(true);
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       `${deepestSourceFolder}/deep.md`,
-      `/vault/${importedRelativeFile}`,
+      `/notesRoot/${importedRelativeFile}`,
     );
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith(`${deepestSourceFolder}/too-deep`, expect.anything());
   });

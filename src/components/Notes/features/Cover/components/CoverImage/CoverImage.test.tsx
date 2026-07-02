@@ -23,7 +23,7 @@ describe('CoverImage', () => {
     const shellProps = {
       url: 'assets/cover.png',
       readOnly: false,
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       phase: 'ready' as const,
       showPicker: false,
       previewSrc: null,
@@ -75,7 +75,7 @@ describe('CoverImage', () => {
         scale={1.2}
         readOnly={true}
         onUpdate={vi.fn()}
-        vaultPath="/vault-a"
+        notesRootPath="/notes-root-a"
         currentNotePath="notes/a.md"
         pickerOpen={true}
         onPickerOpenChange={vi.fn()}
@@ -90,7 +90,7 @@ describe('CoverImage', () => {
       scale: 1.2,
       readOnly: true,
       onUpdate: expect.any(Function),
-      vaultPath: '/vault-a',
+      notesRootPath: '/notes-root-a',
       currentNotePath: 'notes/a.md',
       pickerOpen: true,
       onPickerOpenChange: expect.any(Function),

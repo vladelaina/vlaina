@@ -165,35 +165,35 @@ describe('notesSidebarSearchResults', () => {
     expect(buildNotesSidebarSearchIndex(largeRoot, () => '')).toHaveLength(10_000);
   });
 
-  it('adds external starred notes to the search index without duplicating current vault notes', () => {
+  it('adds external starred notes to the search index without duplicating opened folder notes', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '', {
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'star-current',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'projects/alpha.md',
           addedAt: 1,
         },
         {
           id: 'star-external',
           kind: 'note',
-          vaultPath: '/external',
+          notesRootPath: '/external',
           relativePath: 'clips/reference.md',
           addedAt: 2,
         },
         {
           id: 'star-folder',
           kind: 'folder',
-          vaultPath: '/external',
+          notesRootPath: '/external',
           relativePath: 'clips',
           addedAt: 3,
         },
         {
           id: 'star-asset',
           kind: 'note',
-          vaultPath: '/external',
+          notesRootPath: '/external',
           relativePath: 'clips/image.png',
           addedAt: 4,
         },
@@ -227,14 +227,14 @@ describe('notesSidebarSearchResults', () => {
     ]);
   });
 
-  it('keeps external starred notes that share a relative path with the current vault', () => {
+  it('keeps external starred notes that share a relative path with the opened folder', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '', {
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'star-external-same-relative-path',
           kind: 'note',
-          vaultPath: '/other-vault',
+          notesRootPath: '/other-notesRoot',
           relativePath: 'projects/alpha.md',
           addedAt: 1,
         },
@@ -242,10 +242,10 @@ describe('notesSidebarSearchResults', () => {
     });
 
     expect(index).toContainEqual({
-      path: '/other-vault/projects/alpha.md',
-      openPath: '/other-vault/projects/alpha.md',
+      path: '/other-notesRoot/projects/alpha.md',
+      openPath: '/other-notesRoot/projects/alpha.md',
       name: 'alpha',
-      preview: 'other-vault/projects/',
+      preview: 'other-notesRoot/projects/',
       isExternal: true,
       contentSearchable: false,
     });
@@ -253,36 +253,36 @@ describe('notesSidebarSearchResults', () => {
 
   it('deduplicates external starred notes by absolute path', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '', {
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'star-external-1',
           kind: 'note',
-          vaultPath: '/other-vault',
+          notesRootPath: '/other-notesRoot',
           relativePath: 'projects/alpha.md',
           addedAt: 1,
         },
         {
           id: 'star-external-2',
           kind: 'note',
-          vaultPath: '/other-vault',
+          notesRootPath: '/other-notesRoot',
           relativePath: 'projects/alpha.md',
           addedAt: 2,
         },
       ],
     });
 
-    expect(index.filter((entry) => entry.path === '/other-vault/projects/alpha.md')).toHaveLength(1);
+    expect(index.filter((entry) => entry.path === '/other-notesRoot/projects/alpha.md')).toHaveLength(1);
   });
 
-  it('keeps current vault starred notes searchable when the file tree does not contain them yet', () => {
+  it('keeps opened folder starred notes searchable when the file tree does not contain them yet', () => {
     const index = buildNotesSidebarSearchIndex(null, () => '', {
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'star-current-missing-tree',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'inbox/later.md',
           addedAt: 1,
         },

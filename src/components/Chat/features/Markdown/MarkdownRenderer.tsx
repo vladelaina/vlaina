@@ -25,7 +25,7 @@ import { compactLargeDataImageMarkdown, scrubChatInlineDataImageSyntax } from '.
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { MAX_CHAT_MARKDOWN_RENDER_CHARS } from './chatMarkdownRenderLimits';
 
-interface MarkdownRendererProps {
+export interface MarkdownRendererProps {
   content: string;
   imageGallery?: Array<{ id: string; src: string }>;
   getImageGallery?: () => Array<{ id: string; src: string }>;

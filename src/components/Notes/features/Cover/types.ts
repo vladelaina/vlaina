@@ -8,7 +8,7 @@ export interface NoteCoverData {
 
 export interface NoteCoverController {
   cover: NoteCoverData;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
   isPickerOpen: boolean;
   setPickerOpen: (open: boolean) => void;

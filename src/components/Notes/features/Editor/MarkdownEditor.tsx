@@ -45,10 +45,6 @@ import { themeEditorLayoutTokens, themeRenderingTokens } from '@/styles/themeTok
 import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
-const MERMAID_PREWARM_DELAY_MS = import.meta.env.DEV
-  ? themeEditorLayoutTokens.mermaidPrewarmDelayMsDev
-  : themeEditorLayoutTokens.mermaidPrewarmDelayMsProd;
-
 export function canPersistNoteScrollPosition(scrollRoot: HTMLElement | null): scrollRoot is HTMLElement {
   return Boolean(
     scrollRoot
@@ -294,35 +290,6 @@ export function MarkdownEditor({
       handleEditorViewReady();
     }
   }, [handleEditorViewReady, hasActiveNote, isSourceMode]);
-
-  useEffect(() => {
-    if (!hasActiveNote) {
-      return;
-    }
-
-    let idleId: number | null = null;
-    const timeoutId = window.setTimeout(() => {
-      const preload = () => {
-        void import('./plugins/mermaid/mermaidRenderer').then((mod) => {
-          mod.prewarmMermaidRenderer();
-        }).catch(() => undefined);
-      };
-
-      if (typeof window.requestIdleCallback === 'function') {
-        idleId = window.requestIdleCallback(preload, { timeout: themeEditorLayoutTokens.mermaidIdlePrewarmTimeoutMs });
-        return;
-      }
-
-      preload();
-    }, MERMAID_PREWARM_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      if (idleId !== null) {
-        window.cancelIdleCallback?.(idleId);
-      }
-    };
-  }, [hasActiveNote]);
 
   useEffect(() => {
     if (shouldRenderCover && coverSignature) {

@@ -13,7 +13,7 @@ const COMPACT_ITEM_SIZE_PX = themeAssetGridTokens.compactItemSizePx;
 const REGULAR_ITEM_SIZE_PX = themeAssetGridTokens.regularItemSizePx;
 const GRID_MAX_HEIGHT_PX = themeAssetGridTokens.maxHeightPx;
 
-export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compact, itemSize }: AssetGridProps) {
+export function AssetGrid({ onSelect, onHover, notesRootPath, currentNotePath, compact, itemSize }: AssetGridProps) {
   const getAssetList = useNotesStore((state) => state.getAssetList);
   const { hoveredFilename, gridRef } = useAssetHover(onHover);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -133,7 +133,7 @@ export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compa
                 <AssetThumbnail
                   filename={asset.filename}
                   size={asset.size}
-                  vaultPath={vaultPath}
+                  notesRootPath={notesRootPath}
                   currentNotePath={currentNotePath}
                   onSelect={() => handleSelect(asset.filename)}
                   isHovered={hoveredFilename === asset.filename}

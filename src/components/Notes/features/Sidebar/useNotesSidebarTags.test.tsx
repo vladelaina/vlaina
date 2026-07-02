@@ -98,11 +98,11 @@ describe('useNotesSidebarTags', () => {
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
     }));
 
     await waitFor(() => {
-      expect(mocked.stat).toHaveBeenCalledWith('/vault/alpha.md');
+      expect(mocked.stat).toHaveBeenCalledWith('/notesRoot/alpha.md');
     });
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
@@ -116,11 +116,11 @@ describe('useNotesSidebarTags', () => {
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
     }));
 
     await waitFor(() => {
-      expect(mocked.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_TAG_CONTENT_READ_BYTES);
+      expect(mocked.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_TAG_CONTENT_READ_BYTES);
     });
     await waitFor(() => {
       expect(result.current.tags.map((entry) => entry.tag)).toEqual(['topic']);
@@ -135,11 +135,11 @@ describe('useNotesSidebarTags', () => {
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
     }));
 
     await waitFor(() => {
-      expect(mocked.stat).toHaveBeenCalledWith('/vault/alpha.md');
+      expect(mocked.stat).toHaveBeenCalledWith('/notesRoot/alpha.md');
     });
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
@@ -156,7 +156,7 @@ describe('useNotesSidebarTags', () => {
       ),
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
     }));
 
     await waitFor(() => {
@@ -177,11 +177,11 @@ describe('useNotesSidebarTags', () => {
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
     }));
 
     await waitFor(() => {
-      expect(mocked.stat).toHaveBeenCalledWith('/vault/alpha.md');
+      expect(mocked.stat).toHaveBeenCalledWith('/notesRoot/alpha.md');
     });
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
@@ -208,7 +208,7 @@ describe('useNotesSidebarTags', () => {
       rootFolder: unsafeRootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
     }));
 
     await act(async () => {
@@ -226,12 +226,12 @@ describe('useNotesSidebarTags', () => {
       rootFolder: null,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: null,
+      currentNotesRootPath: null,
       starredEntries: [
         {
           id: 'starred-asset',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'asset.png',
           addedAt: 1,
         },
@@ -253,12 +253,12 @@ describe('useNotesSidebarTags', () => {
       rootFolder: null,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: null,
+      currentNotesRootPath: null,
       starredEntries: [
         {
           id: 'starred-unsafe',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'secret\u202Egnp.md',
           addedAt: 1,
         },
@@ -273,14 +273,14 @@ describe('useNotesSidebarTags', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read sidebar tag content from internal vault paths', async () => {
+  it('does not read sidebar tag content from internal opened folder paths', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
 
     renderHook(() => useNotesSidebarTags({
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault/.vlaina',
+      currentNotesRootPath: '/notesRoot/.vlaina',
     }));
 
     await Promise.resolve();
@@ -289,14 +289,14 @@ describe('useNotesSidebarTags', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read sidebar tag content from vault paths with traversal segments', async () => {
+  it('does not read sidebar tag content from opened folder paths with traversal segments', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
 
     renderHook(() => useNotesSidebarTags({
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault/../outside',
+      currentNotesRootPath: '/notesRoot/../outside',
     }));
 
     await act(async () => {
@@ -307,14 +307,14 @@ describe('useNotesSidebarTags', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read sidebar tag content from case-variant internal vault paths', async () => {
+  it('does not read sidebar tag content from case-variant internal opened folder paths', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
 
     renderHook(() => useNotesSidebarTags({
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault/.VLAINA',
+      currentNotesRootPath: '/notesRoot/.VLAINA',
     }));
 
     await Promise.resolve();
@@ -332,11 +332,11 @@ describe('useNotesSidebarTags', () => {
       rootFolder,
       noteContentsCache: new Map(),
       scanAllNotes,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
     }));
 
     await waitFor(() => {
-      expect(mocked.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_TAG_CONTENT_READ_BYTES);
+      expect(mocked.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_TAG_CONTENT_READ_BYTES);
     });
     await waitFor(() => {
       expect(result.current.tags).toEqual([]);
@@ -355,7 +355,7 @@ describe('useNotesSidebarTags', () => {
         noteContentsCache: new Map(),
         noteContentsCacheRevision: revision,
         scanAllNotes,
-        currentVaultPath: '/vault',
+        currentNotesRootPath: '/notesRoot',
       }),
       { initialProps: { revision: 0 } },
     );
@@ -385,7 +385,7 @@ describe('useNotesSidebarTags', () => {
         noteContentsCache: cache,
         noteContentsCacheRevision: 0,
         scanAllNotes,
-        currentVaultPath: '/vault',
+        currentNotesRootPath: '/notesRoot',
       }),
       { initialProps: { cache: new Map<string, { content: string }>() } },
     );
@@ -425,7 +425,7 @@ describe('useNotesSidebarTags', () => {
           rootFolder: root,
           noteContentsCache: new Map(),
           scanAllNotes,
-          currentVaultPath: '/vault',
+          currentNotesRootPath: '/notesRoot',
         }),
         {
           initialProps: {
@@ -479,7 +479,7 @@ describe('useNotesSidebarTags', () => {
         rootFolder,
         noteContentsCache: new Map(),
         scanAllNotes,
-        currentVaultPath: '/vault',
+        currentNotesRootPath: '/notesRoot',
       }));
 
       await act(async () => {
@@ -525,7 +525,7 @@ describe('useNotesSidebarTags', () => {
         ),
         noteContentsCache: new Map(),
         scanAllNotes,
-        currentVaultPath: '/vault',
+        currentNotesRootPath: '/notesRoot',
       }));
 
       await act(async () => {
@@ -542,7 +542,7 @@ describe('useNotesSidebarTags', () => {
     }
   });
 
-  it('does not automatically full-scan tags for large vaults', async () => {
+  it('does not automatically full-scan tags for large notes-roots', async () => {
     vi.useFakeTimers();
     const scanAllNotes = vi.fn(async () => undefined);
 
@@ -556,7 +556,7 @@ describe('useNotesSidebarTags', () => {
         ),
         noteContentsCache: new Map(),
         scanAllNotes,
-        currentVaultPath: '/vault',
+        currentNotesRootPath: '/notesRoot',
       }));
 
       await act(async () => {

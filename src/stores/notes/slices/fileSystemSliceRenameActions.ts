@@ -17,7 +17,7 @@ import {
 } from '../fileTreeUtils';
 import { isInvalidMoveTarget } from '../utils/fs/moveValidation';
 import { resolveUniqueRenamedPath } from '../utils/fs/pathOperations';
-import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { resolveNotesRootRelativeFullPath } from '../utils/fs/notesRootPathContainment';
 import { moveItemImpl, renameNoteImpl } from '../utils/fs/renameOperations';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
@@ -25,15 +25,15 @@ import { emitNotesExternalPathRename } from '../document/externalPathBroadcast';
 import { remapMetadataEntries } from '../storage';
 import {
   getStarredEntryAbsolutePath,
-  getStarredVaultPathComparisonKey,
-  getVaultStarredPaths,
+  getStarredNotesRootPathComparisonKey,
+  getNotesRootStarredPaths,
   normalizeStarredRelativePath,
-  remapStarredEntriesForVault,
+  remapStarredEntriesForNotesRoot,
   saveStarredRegistry,
 } from '../starred';
 import { assertValidFileName } from '../noteUtils';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { hasUnsafeVaultPathSegment } from '../utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment } from '../utils/fs/notesRootPathContainment';
 import {
   remapCurrentNoteForExternalRename,
   remapOpenTabsForExternalRename,
@@ -63,14 +63,14 @@ function remapMetadataForRename(
 function getRemappedStarredState(
   starredEntries: ReturnType<FileSystemSliceGet>['starredEntries'],
   notesPath: string,
-  remapPath: Parameters<typeof remapStarredEntriesForVault>[2],
+  remapPath: Parameters<typeof remapStarredEntriesForNotesRoot>[2],
 ) {
-  const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, remapPath);
+  const starredResult = remapStarredEntriesForNotesRoot(starredEntries, notesPath, remapPath);
   if (starredResult.changed) {
     void Promise.resolve(saveStarredRegistry(starredResult.entries)).catch(() => undefined);
   }
 
-  const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+  const starredPaths = getNotesRootStarredPaths(starredResult.entries, notesPath);
   return {
     entries: starredResult.entries,
     notes: starredPaths.notes,
@@ -238,7 +238,7 @@ export function createFileSystemRenameActions(
         if (hasInternalNotePathSegment(path)) {
           throw new Error('Path must not be inside an internal notes folder.');
         }
-        if (hasUnsafeVaultPathSegment(normalizeAbsolutePath(path))) {
+        if (hasUnsafeNotesRootPathSegment(normalizeAbsolutePath(path))) {
           throw new Error('Selected file path contains unsupported characters');
         }
 
@@ -278,12 +278,12 @@ export function createFileSystemRenameActions(
           const entryAbsolutePath = getStarredEntryAbsolutePath(entry);
           if (
             !entryAbsolutePath ||
-            getStarredVaultPathComparisonKey(entryAbsolutePath) !== getStarredVaultPathComparisonKey(normalizedOldPath)
+            getStarredNotesRootPathComparisonKey(entryAbsolutePath) !== getStarredNotesRootPathComparisonKey(normalizedOldPath)
           ) {
             return entry;
           }
 
-          const nextRelativePath = normalizeStarredRelativePath(relativePath(entry.vaultPath, newPath));
+          const nextRelativePath = normalizeStarredRelativePath(relativePath(entry.notesRootPath, newPath));
           if (!nextRelativePath || nextRelativePath === entry.relativePath) {
             return entry;
           }
@@ -310,7 +310,7 @@ export function createFileSystemRenameActions(
         });
         nextDisplayNames.set(newPath, nextTitle);
 
-        const starredPaths = getVaultStarredPaths(updatedStarredEntries, notesPath);
+        const starredPaths = getNotesRootStarredPaths(updatedStarredEntries, notesPath);
         const nextCurrentNote = latestState.currentNote?.path === normalizedPath
           ? { ...latestState.currentNote, path: newPath }
           : latestState.currentNote;
@@ -353,7 +353,7 @@ export function createFileSystemRenameActions(
 
       try {
         assertValidFileName(newName);
-        const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
+        const { relativePath: safePath, fullPath } = await resolveNotesRootRelativeFullPath(notesPath, path);
         const {
           relativePath: newPath,
           fullPath: newFullPath,

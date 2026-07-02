@@ -26,7 +26,7 @@ describe('buildStoredUserMessageContent image parsing', () => {
   beforeEach(() => {
     mocks.convertToBase64.mockReset();
     mocks.convertToBase64.mockResolvedValue('data:image/png;base64,REMOTE');
-    useNotesStore.setState({ notesPath: '/vault', starredEntries: [] });
+    useNotesStore.setState({ notesPath: '/notesRoot', starredEntries: [] });
   });
 
   it('keeps image markdown examples as text instead of vision attachments', async () => {
@@ -298,10 +298,10 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(JSON.stringify(result)).not.toContain(String.raw`data\:image/`);
   });
 
-  it('converts vault image attachment paths instead of storing them as managed attachment references', async () => {
+  it('converts notesRoot image attachment paths instead of storing them as managed attachment references', async () => {
     const result = await buildMessageImageSources([{
-      id: 'vault-image',
-      path: '/vault/assets/cover.png',
+      id: 'notes-root-image',
+      path: '/notesRoot/assets/cover.png',
       previewUrl: '',
       assetUrl: '',
       name: 'cover.png',
@@ -314,28 +314,28 @@ describe('buildStoredUserMessageContent image parsing', () => {
       imageSources: ['data:image/png;base64,REMOTE'],
     });
     expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
-      path: '/vault/assets/cover.png',
+      path: '/notesRoot/assets/cover.png',
     }), expect.any(Object));
     const options = mocks.convertToBase64.mock.calls[0]?.[1] as
       | { allowPath?: (path: string) => boolean }
       | undefined;
-    expect(options?.allowPath?.('/vault/assets/cover.png')).toBe(true);
-    expect(options?.allowPath?.('/vault/.notes/cover.png')).toBe(true);
-    expect(options?.allowPath?.('/vault/.vlaina/cover.png')).toBe(false);
-    expect(options?.allowPath?.('/vault/docs/.git/cover.png')).toBe(false);
-    expect(options?.allowPath?.('/vault/.VLAINA/cover.png')).toBe(false);
-    expect(options?.allowPath?.('/vault/docs/.GIT/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/notesRoot/assets/cover.png')).toBe(true);
+    expect(options?.allowPath?.('/notesRoot/.notes/cover.png')).toBe(true);
+    expect(options?.allowPath?.('/notesRoot/.vlaina/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/notesRoot/docs/.git/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/notesRoot/.VLAINA/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/notesRoot/docs/.GIT/cover.png')).toBe(false);
     expect(options?.allowPath?.('/outside/cover.png')).toBe(false);
   });
 
   it('allows image attachment paths from starred external folders', async () => {
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
           id: 'external-assets',
           kind: 'folder',
-          vaultPath: '/external',
+          notesRootPath: '/external',
           relativePath: 'assets',
           addedAt: 1,
         },
@@ -364,19 +364,19 @@ describe('buildStoredUserMessageContent image parsing', () => {
 
   it('allows starred external folder image paths rooted at filesystem roots', async () => {
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
           id: 'root-assets',
           kind: 'folder',
-          vaultPath: '/',
+          notesRootPath: '/',
           relativePath: 'assets',
           addedAt: 1,
         },
         {
           id: 'drive-assets',
           kind: 'folder',
-          vaultPath: 'C:/',
+          notesRootPath: 'C:/',
           relativePath: 'Assets',
           addedAt: 2,
         },
@@ -404,19 +404,19 @@ describe('buildStoredUserMessageContent image parsing', () => {
 
   it('rejects image attachment paths from unsafe starred external folder records', async () => {
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
-          id: 'unsafe-vault',
+          id: 'unsafe-notesRoot',
           kind: 'folder',
-          vaultPath: '/external\u202Ecod',
+          notesRootPath: '/external\u202Ecod',
           relativePath: 'assets',
           addedAt: 1,
         },
         {
           id: 'traversal-relative',
           kind: 'folder',
-          vaultPath: '/external',
+          notesRootPath: '/external',
           relativePath: '../assets',
           addedAt: 1,
         },
@@ -442,19 +442,19 @@ describe('buildStoredUserMessageContent image parsing', () => {
 
   it('rejects image attachment paths from starred folders rooted in internal note directories', async () => {
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [
         {
           id: 'internal-assets',
           kind: 'folder',
-          vaultPath: '/external/.vlaina',
+          notesRootPath: '/external/.vlaina',
           relativePath: 'assets',
           addedAt: 1,
         },
         {
           id: 'git-assets',
           kind: 'folder',
-          vaultPath: '/external/docs/.git',
+          notesRootPath: '/external/docs/.git',
           relativePath: 'assets',
           addedAt: 1,
         },
@@ -517,7 +517,7 @@ describe('buildStoredUserMessageContent image parsing', () => {
 
     const attachments = Array.from({ length: 4 }, (_value, index) => ({
       id: `large-${index}`,
-      path: `/vault/assets/large-${index}.png`,
+      path: `/notesRoot/assets/large-${index}.png`,
       previewUrl: '',
       assetUrl: '',
       name: `large-${index}.png`,

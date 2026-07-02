@@ -8,7 +8,7 @@ import { themeRenderingTokens } from '@/styles/themeTokens';
 export function CoverImageShell({
   url,
   readOnly,
-  vaultPath,
+  notesRootPath,
   currentNotePath,
   phase,
   showPicker,
@@ -59,7 +59,7 @@ export function CoverImageShell({
           onClose={onClosePicker}
           onSelect={onSelectCover}
           onPreview={onPreview}
-          vaultPath={vaultPath}
+          notesRootPath={notesRootPath}
           currentNotePath={currentNotePath}
         />
       </div>
@@ -106,7 +106,7 @@ export function CoverImageShell({
         onSelect={onSelectCover}
         onRemove={url ? onRemoveCover : undefined}
         onPreview={onPreview}
-        vaultPath={vaultPath}
+        notesRootPath={notesRootPath}
         currentNotePath={currentNotePath}
       />
     </div>

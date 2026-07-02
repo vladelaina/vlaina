@@ -4,7 +4,7 @@ import { normalizeContainedAssetPath } from './pathContainment';
 describe('normalizeContainedAssetPath', () => {
   it('rejects relative paths that escape before re-entering the root', () => {
     expect(normalizeContainedAssetPath('../assets/secret.png', 'assets')).toBeNull();
-    expect(normalizeContainedAssetPath('../../vault/assets/secret.png', 'vault/assets')).toBeNull();
+    expect(normalizeContainedAssetPath('../../notesRoot/assets/secret.png', 'notesRoot/assets')).toBeNull();
   });
 
   it('preserves safe relative child normalization', () => {

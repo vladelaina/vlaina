@@ -86,11 +86,11 @@ function createFolder(path: string, name: string, children: Array<FolderNode | N
 function createNotesStore(overrides: Partial<NotesStore> = {}) {
   const baseState = {
     rootFolder: createFolder('', 'Notes', []),
-    rootFolderPath: '/vault',
+    rootFolderPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,

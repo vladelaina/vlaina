@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRenderer';
+import { LazyMarkdownRenderer } from '@/components/Chat/features/Markdown/LazyMarkdownRenderer';
 import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
@@ -141,7 +141,7 @@ export function AIMessage({
                 statuses={webSearchStatuses}
                 isWaitingForAnswer={isLoading && stripThinkingContent(contentWithoutError).trim().length === 0}
             />
-            <MarkdownRenderer
+            <LazyMarkdownRenderer
                 content={visibleContent}
                 imageGallery={imageGallery}
                 getImageGallery={getImageGallery}

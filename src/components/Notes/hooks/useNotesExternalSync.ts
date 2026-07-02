@@ -10,7 +10,7 @@ import {
   readNotesExternalPathEvents,
   subscribeNotesExternalPathRename,
 } from '@/stores/notes/document/externalPathBroadcast';
-import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import {
   rememberProcessedRenameEventNonce,
   type PendingRenameEntry,
@@ -38,7 +38,7 @@ function shouldAvoidRecursiveNativeWatch(path: string) {
   );
 }
 
-export function useNotesExternalSync(vaultPath: string | null, notesPath: string) {
+export function useNotesExternalSync(notesRootPath: string | null, notesPath: string) {
   const isPaused = useSyncExternalStore(
     subscribeExternalSyncPause,
     isExternalSyncPaused,
@@ -58,7 +58,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
   const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (!vaultPath || !notesPath || isPaused) {
+    if (!notesRootPath || !notesPath || isPaused) {
       return;
     }
 
@@ -99,8 +99,8 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         }
       }
 
-      const oldPath = normalizeVaultRelativePath(event.oldPath);
-      const newPath = normalizeVaultRelativePath(event.newPath);
+      const oldPath = normalizeNotesRootRelativePath(event.oldPath);
+      const newPath = normalizeNotesRootRelativePath(event.newPath);
       if (!oldPath || !newPath) {
         return;
       }
@@ -249,6 +249,6 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     loadFileTree,
     notesPath,
     syncCurrentNoteFromDisk,
-    vaultPath,
+    notesRootPath,
   ]);
 }

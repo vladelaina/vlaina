@@ -6,31 +6,31 @@ import { useNoteMentions } from './useNoteMentions';
 const hoisted = vi.hoisted(() => {
   const loadFileTree = vi.fn();
   const storeRef: { state: any } = { state: null };
-  const vaultStoreRef: { state: any } = { state: null };
-  let currentVaultPath: string | null = '/vault';
+  const notesRootStoreRef: { state: any } = { state: null };
+  let currentNotesRootPath: string | null = '/notesRoot';
 
   const useNotesStore = ((selector?: (state: any) => any) => {
     return selector ? selector(storeRef.state) : storeRef.state;
   }) as any;
   useNotesStore.getState = () => storeRef.state;
 
-  const useVaultStore = ((selector?: (state: any) => any) => {
-    return selector ? selector(vaultStoreRef.state) : vaultStoreRef.state;
+  const useNotesRootStore = ((selector?: (state: any) => any) => {
+    return selector ? selector(notesRootStoreRef.state) : notesRootStoreRef.state;
   }) as any;
-  useVaultStore.getState = () => vaultStoreRef.state;
+  useNotesRootStore.getState = () => notesRootStoreRef.state;
 
   return {
     loadFileTree,
     storeRef,
     useNotesStore,
-    vaultStoreRef,
-    useVaultStore,
-    getCurrentVaultPath: vi.fn(() => currentVaultPath),
-    setCurrentVaultPath: vi.fn((path: string | null) => {
-      currentVaultPath = path;
+    notesRootStoreRef,
+    useNotesRootStore,
+    getCurrentNotesRootPath: vi.fn(() => currentNotesRootPath),
+    setCurrentNotesRootPath: vi.fn((path: string | null) => {
+      currentNotesRootPath = path;
     }),
-    resetCurrentVaultPath: (path: string | null) => {
-      currentVaultPath = path;
+    resetCurrentNotesRootPath: (path: string | null) => {
+      currentNotesRootPath = path;
     },
   };
 });
@@ -39,13 +39,13 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
   useNotesStore: hoisted.useNotesStore,
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: hoisted.useVaultStore,
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: hoisted.useNotesRootStore,
 }));
 
 vi.mock('@/stores/notes/storage', () => ({
-  getCurrentVaultPath: hoisted.getCurrentVaultPath,
-  setCurrentVaultPath: hoisted.setCurrentVaultPath,
+  getCurrentNotesRootPath: hoisted.getCurrentNotesRootPath,
+  setCurrentNotesRootPath: hoisted.setCurrentNotesRootPath,
 }));
 
 describe('useNoteMentions', () => {
@@ -55,11 +55,11 @@ describe('useNoteMentions', () => {
 
   beforeEach(() => {
     hoisted.loadFileTree.mockReset();
-    hoisted.getCurrentVaultPath.mockClear();
-    hoisted.setCurrentVaultPath.mockClear();
-    hoisted.resetCurrentVaultPath('/vault');
-    hoisted.vaultStoreRef.state = {
-      currentVault: { path: '/vault' },
+    hoisted.getCurrentNotesRootPath.mockClear();
+    hoisted.setCurrentNotesRootPath.mockClear();
+    hoisted.resetCurrentNotesRootPath('/notesRoot');
+    hoisted.notesRootStoreRef.state = {
+      currentNotesRoot: { path: '/notesRoot' },
     };
     hoisted.storeRef.state = {
       rootFolder: {
@@ -78,7 +78,7 @@ describe('useNoteMentions', () => {
         ],
       },
       currentNote: { path: 'Today.md' },
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [],
       isLoading: false,
       loadFileTree: hoisted.loadFileTree,
@@ -179,10 +179,10 @@ describe('useNoteMentions', () => {
     expect(hoisted.loadFileTree).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps a bare mention trigger quiet when no vault is available', () => {
-    hoisted.resetCurrentVaultPath(null);
-    hoisted.vaultStoreRef.state = {
-      currentVault: null,
+  it('keeps a bare mention trigger quiet when no opened folder is available', () => {
+    hoisted.resetCurrentNotesRootPath(null);
+    hoisted.notesRootStoreRef.state = {
+      currentNotesRoot: null,
     };
     hoisted.storeRef.state = {
       ...hoisted.storeRef.state,
@@ -289,7 +289,7 @@ describe('useNoteMentions', () => {
     expect(result.current.showMentionPicker).toBe(true);
   });
 
-  it('includes starred notes from other vaults as mention candidates', () => {
+  it('includes starred notes from other notes-roots as mention candidates', () => {
     hoisted.storeRef.state = {
       ...hoisted.storeRef.state,
       rootFolder: null,
@@ -297,7 +297,7 @@ describe('useNoteMentions', () => {
         {
           id: 'starred-external',
           kind: 'note',
-          vaultPath: '/other-vault',
+          notesRootPath: '/other-notesRoot',
           relativePath: 'refs/External.md',
           addedAt: 1,
         },
@@ -323,11 +323,11 @@ describe('useNoteMentions', () => {
     expect(result.current.showMentionPicker).toBe(true);
     expect(result.current.linkedPageCandidates).toMatchObject([
       {
-        path: '/other-vault/refs/External.md',
+        path: '/other-notesRoot/refs/External.md',
         title: 'External',
         isCurrent: false,
         notePath: 'refs/External.md',
-        vaultPath: '/other-vault',
+        notesRootPath: '/other-notesRoot',
       },
     ]);
   });
@@ -340,21 +340,21 @@ describe('useNoteMentions', () => {
         {
           id: 'starred-dot-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: '.notes/Daily.md',
           addedAt: 1,
         },
         {
           id: 'starred-internal-relative',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: '.git/config.md',
           addedAt: 2,
         },
         {
-          id: 'starred-internal-vault',
+          id: 'starred-internal-notesRoot',
           kind: 'note',
-          vaultPath: '/other-vault/.vlaina',
+          notesRootPath: '/other-notesRoot/.vlaina',
           relativePath: 'workspace.md',
           addedAt: 3,
         },

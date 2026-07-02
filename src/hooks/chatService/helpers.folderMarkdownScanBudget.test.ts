@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   notesState: {
     currentNote: null,
     noteContentsCache: new Map<string, { content: string }>(),
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     rootFolder: null as any,
     starredEntries: [],
     getDisplayName: vi.fn((path: string) => path),
@@ -59,7 +59,7 @@ describe('folder markdown mention scan budgets', () => {
     vi.clearAllMocks();
     mocks.notesState.currentNote = null;
     mocks.notesState.noteContentsCache = new Map();
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.rootFolder = null;
     mocks.notesState.starredEntries = [];
     mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 128 });
@@ -68,18 +68,18 @@ describe('folder markdown mention scan budgets', () => {
 
   it('does not spend disk scan budget on unsupported files before markdown notes', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
           ...Array.from({ length: 600 }, (_value, index) => ({
             name: `a-asset-${String(index).padStart(3, '0')}.png`,
-            path: `/vault/docs/a-asset-${String(index).padStart(3, '0')}.png`,
+            path: `/notesRoot/docs/a-asset-${String(index).padStart(3, '0')}.png`,
             isDirectory: false,
             isFile: true,
             size: 1024,
           })),
           {
             name: 'z-alpha.md',
-            path: '/vault/docs/z-alpha.md',
+            path: '/notesRoot/docs/z-alpha.md',
             isDirectory: false,
             isFile: true,
             size: 128,
@@ -101,20 +101,20 @@ describe('folder markdown mention scan budgets', () => {
         content: '# Alpha',
       },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/z-alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/z-alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('prioritizes markdown notes before applying the folder mention listing scan cap', async () => {
     const entries = Array.from({ length: 5000 }, (_value, index) => ({
       name: `asset-${String(index).padStart(4, '0')}.png`,
-      path: `/vault/docs/asset-${String(index).padStart(4, '0')}.png`,
+      path: `/notesRoot/docs/asset-${String(index).padStart(4, '0')}.png`,
       isDirectory: false,
       isFile: true,
       size: 1024,
     }));
     entries.push({
       name: 'late.md',
-      path: '/vault/docs/late.md',
+      path: '/notesRoot/docs/late.md',
       isDirectory: false,
       isFile: true,
       size: 128,
@@ -134,43 +134,43 @@ describe('folder markdown mention scan budgets', () => {
         content: '# Late',
       },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/late.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('applies the folder mention listing scan cap across nested directories', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
           {
             name: 'a',
-            path: '/vault/docs/a',
+            path: '/notesRoot/docs/a',
             isDirectory: true,
             isFile: false,
           },
           {
             name: 'b',
-            path: '/vault/docs/b',
+            path: '/notesRoot/docs/b',
             isDirectory: true,
             isFile: false,
           },
         ];
       }
 
-      if (path === '/vault/docs/a') {
+      if (path === '/notesRoot/docs/a') {
         return Array.from({ length: 4999 }, (_value, index) => ({
           name: `asset-${String(index).padStart(4, '0')}.png`,
-          path: `/vault/docs/a/asset-${String(index).padStart(4, '0')}.png`,
+          path: `/notesRoot/docs/a/asset-${String(index).padStart(4, '0')}.png`,
           isDirectory: false,
           isFile: true,
           size: 1024,
         }));
       }
 
-      if (path === '/vault/docs/b') {
+      if (path === '/notesRoot/docs/b') {
         return [
           {
             name: 'late.md',
-            path: '/vault/docs/b/late.md',
+            path: '/notesRoot/docs/b/late.md',
             isDirectory: false,
             isFile: true,
             size: 128,
@@ -186,23 +186,23 @@ describe('folder markdown mention scan budgets', () => {
     ]);
 
     expect(notes.slice(1)).toEqual([]);
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/b', { includeHidden: true });
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/b/late.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/notesRoot/docs/b', { includeHidden: true });
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/b/late.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('does not spend folder mention scan budget on sibling folders before markdown notes', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
           ...Array.from({ length: 500 }, (_value, index) => ({
             name: `folder-${String(index).padStart(3, '0')}`,
-            path: `/vault/docs/folder-${String(index).padStart(3, '0')}`,
+            path: `/notesRoot/docs/folder-${String(index).padStart(3, '0')}`,
             isDirectory: true,
             isFile: false,
           })),
           {
             name: 'z-late.md',
-            path: '/vault/docs/z-late.md',
+            path: '/notesRoot/docs/z-late.md',
             isDirectory: false,
             isFile: true,
             size: 128,
@@ -225,23 +225,23 @@ describe('folder markdown mention scan budgets', () => {
         content: '# Late',
       },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/z-late.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/z-late.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('does not spend folder mention note output slots on oversized disk markdown candidates', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
           ...Array.from({ length: 20 }, (_value, index) => ({
             name: `bad-${String(index).padStart(2, '0')}.md`,
-            path: `/vault/docs/bad-${String(index).padStart(2, '0')}.md`,
+            path: `/notesRoot/docs/bad-${String(index).padStart(2, '0')}.md`,
             isDirectory: false,
             isFile: true,
             size: MAX_NOTE_MENTION_READ_BYTES + 1,
           })),
           {
             name: 'valid.md',
-            path: '/vault/docs/valid.md',
+            path: '/notesRoot/docs/valid.md',
             isDirectory: false,
             isFile: true,
             size: 128,
@@ -256,7 +256,7 @@ describe('folder markdown mention scan budgets', () => {
         : { isFile: true, isDirectory: false, size: 128 }
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs/valid.md') return '# Valid';
+      if (path === '/notesRoot/docs/valid.md') return '# Valid';
       throw new Error(`Unexpected read: ${path}`);
     });
 
@@ -312,7 +312,7 @@ describe('folder markdown mention scan budgets', () => {
         : { isFile: true, isDirectory: false, size: 128 }
     ));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs/valid.md') return '# Valid';
+      if (path === '/notesRoot/docs/valid.md') return '# Valid';
       throw new Error(`Unexpected read: ${path}`);
     });
 
@@ -333,71 +333,71 @@ describe('folder markdown mention scan budgets', () => {
 
   it('scans user dot markdown and low-priority generated folders while skipping internal folders', async () => {
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
           {
             name: '.journal.md',
-            path: '/vault/docs/.journal.md',
+            path: '/notesRoot/docs/.journal.md',
             isDirectory: false,
             isFile: true,
             size: 128,
           },
           {
             name: '.notes',
-            path: '/vault/docs/.notes',
+            path: '/notesRoot/docs/.notes',
             isDirectory: true,
             isFile: false,
           },
           {
             name: '.vlaina',
-            path: '/vault/docs/.vlaina',
+            path: '/notesRoot/docs/.vlaina',
             isDirectory: true,
             isFile: false,
           },
           {
             name: '.git',
-            path: '/vault/docs/.git',
+            path: '/notesRoot/docs/.git',
             isDirectory: true,
             isFile: false,
           },
           {
             name: '.VLAINA',
-            path: '/vault/docs/.VLAINA',
+            path: '/notesRoot/docs/.VLAINA',
             isDirectory: true,
             isFile: false,
           },
           {
             name: '.GIT',
-            path: '/vault/docs/.GIT',
+            path: '/notesRoot/docs/.GIT',
             isDirectory: true,
             isFile: false,
           },
           {
             name: 'node_modules',
-            path: '/vault/docs/node_modules',
+            path: '/notesRoot/docs/node_modules',
             isDirectory: true,
             isFile: false,
           },
           {
             name: 'Node_Modules',
-            path: '/vault/docs/Node_Modules',
+            path: '/notesRoot/docs/Node_Modules',
             isDirectory: true,
             isFile: false,
           },
           {
             name: 'Dist',
-            path: '/vault/docs/Dist',
+            path: '/notesRoot/docs/Dist',
             isDirectory: true,
             isFile: false,
           },
         ];
       }
 
-      if (path === '/vault/docs/.notes') {
+      if (path === '/notesRoot/docs/.notes') {
         return [
           {
             name: 'alpha.md',
-            path: '/vault/docs/.notes/alpha.md',
+            path: '/notesRoot/docs/.notes/alpha.md',
             isDirectory: false,
             isFile: true,
             size: 128,
@@ -416,8 +416,8 @@ describe('folder markdown mention scan budgets', () => {
       ];
     });
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs/.journal.md') return '# Journal';
-      if (path === '/vault/docs/.notes/alpha.md') return '# Alpha';
+      if (path === '/notesRoot/docs/.journal.md') return '# Journal';
+      if (path === '/notesRoot/docs/.notes/alpha.md') return '# Alpha';
       return '# Internal';
     });
 
@@ -463,14 +463,14 @@ describe('folder markdown mention scan budgets', () => {
     expect(notes[0]?.content).not.toContain('- .git');
     expect(notes[0]?.content).not.toContain('- .VLAINA');
     expect(notes[0]?.content).not.toContain('- .GIT');
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs', { includeHidden: true });
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/.notes', { includeHidden: true });
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.vlaina');
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.git');
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.VLAINA');
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.GIT');
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/node_modules', { includeHidden: true });
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/Node_Modules', { includeHidden: true });
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/Dist', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/docs', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/docs/.notes', { includeHidden: true });
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/notesRoot/docs/.vlaina');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/notesRoot/docs/.git');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/notesRoot/docs/.VLAINA');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/notesRoot/docs/.GIT');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/docs/node_modules', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/docs/Node_Modules', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/docs/Dist', { includeHidden: true });
   });
 });

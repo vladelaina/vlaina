@@ -33,7 +33,7 @@ describe('note document stat fallback validation', () => {
     adapter.readFile.mockResolvedValue('# Disked');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached', null, {
         updateBaseline: true,
@@ -41,7 +41,7 @@ describe('note document stat fallback validation', () => {
       }),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Disked');
     expect(result.modifiedAt).toBeNull();
     expect(result.size).toBe(8);
@@ -52,14 +52,14 @@ describe('note document stat fallback validation', () => {
     adapter.readFile.mockResolvedValue('# Disked');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached', null, {
         updateBaseline: true,
       }),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Disked');
     expect(result.modifiedAt).toBeNull();
     expect(result.size).toBeNull();
@@ -70,7 +70,7 @@ describe('note document stat fallback validation', () => {
     adapter.readFile.mockResolvedValue('# Disked');
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local',
@@ -81,7 +81,7 @@ describe('note document stat fallback validation', () => {
       }),
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
@@ -90,7 +90,7 @@ describe('note document stat fallback validation', () => {
     adapter.readFile.mockResolvedValue('# Disked');
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'alpha.md',
         content: '# Local',
@@ -100,7 +100,7 @@ describe('note document stat fallback validation', () => {
       }),
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 });

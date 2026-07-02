@@ -7,7 +7,7 @@ import {
 import { collectStarredSearchEntries } from './notesSidebarStarredSearchEntries';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 
 export interface NotesSidebarSearchEntry {
   path: string;
@@ -28,7 +28,7 @@ export interface NotesSidebarSearchResult extends NotesSidebarSearchEntry {
 
 export interface NotesSidebarSearchIndexOptions {
   starredEntries?: StarredEntry[];
-  currentVaultPath?: string | null;
+  currentNotesRootPath?: string | null;
 }
 
 const SEARCH_ENTRY_METADATA = Symbol('notesSidebarSearchEntryMetadata');
@@ -166,7 +166,7 @@ function collectNotesSidebarSearchEntries(
   while (stack.length > 0 && bucket.length < MAX_SEARCH_INDEX_TREE_ENTRIES) {
     const { node, parentPath } = stack.pop()!;
     if (node.isFolder) {
-      const normalizedFolderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
+      const normalizedFolderPath = normalizeNotesRootRelativePath(node.path, { allowEmpty: true });
       if (normalizedFolderPath === null || hasInternalNotePathSegment(normalizedFolderPath)) {
         continue;
       }
@@ -177,7 +177,7 @@ function collectNotesSidebarSearchEntries(
       continue;
     }
 
-    const normalizedPath = normalizeVaultRelativePath(node.path);
+    const normalizedPath = normalizeNotesRootRelativePath(node.path);
     if (
       normalizedPath &&
       !hasInternalNotePathSegment(normalizedPath) &&
@@ -211,7 +211,7 @@ export function buildNotesSidebarSearchIndex(
     ...treeEntries,
     ...collectStarredSearchEntries(
       options.starredEntries,
-      options.currentVaultPath,
+      options.currentNotesRootPath,
       new Set(treeEntries.map((entry) => entry.path)),
     ).map(attachSearchEntryMetadata),
   ]);

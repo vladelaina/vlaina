@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
 import { AppearanceTab } from './AppearanceTab';
@@ -106,7 +106,7 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
 
 vi.mock('@/stores/uiSlice', () => ({
   UI_FONT_SIZE_DEFAULT: 17,
-  UI_FONT_SIZE_MAX: 28,
+  UI_FONT_SIZE_MAX: 120,
   UI_FONT_SIZE_MIN: 14,
   useUIStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
 }));
@@ -257,5 +257,45 @@ describe('AppearanceTab theme entry', () => {
     fireEvent.mouseUp(window);
 
     expect(mocks.uiState.setFontSize).toHaveBeenCalledWith(20);
+  });
+
+  it('previews base font size wheel changes before committing the final value', async () => {
+    const handleParentWheel = vi.fn();
+    const { container } = render(
+      <div onWheel={handleParentWheel}>
+        <AppearanceTab />
+      </div>
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'vlook-fancy' })).toBeInTheDocument();
+    });
+
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
+    expect(slider).not.toBeNull();
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.wheel(slider!, { deltaY: -100 });
+      fireEvent.wheel(slider!, { deltaY: -100 });
+
+      expect(handleParentWheel).not.toHaveBeenCalled();
+      expect(mocks.uiState.setFontSize).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(20);
+      });
+
+      expect(mocks.uiState.setFontSizePreview).toHaveBeenLastCalledWith(19);
+      expect(mocks.uiState.setFontSize).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(mocks.uiState.setFontSize).toHaveBeenCalledTimes(1);
+      expect(mocks.uiState.setFontSize).toHaveBeenCalledWith(19);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

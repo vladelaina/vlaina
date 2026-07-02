@@ -15,13 +15,13 @@ const OPEN_MARKDOWN_TARGET_FOLDER_EVENT = 'app-open-markdown-target-folder';
 
 export function useNotesOpenTargetPicker({
   active,
-  currentVaultPath,
+  currentNotesRootPath,
   isOpenTargetBusy,
   openMarkdownTarget,
   openFolderTarget,
 }: {
   active: boolean;
-  currentVaultPath: string | null;
+  currentNotesRootPath: string | null;
   isOpenTargetBusy: boolean;
   openMarkdownTarget: (selected: string) => Promise<boolean>;
   openFolderTarget: (selected: string) => Promise<boolean>;
@@ -37,8 +37,8 @@ export function useNotesOpenTargetPicker({
     try {
       await flushCurrentTitleCommit();
       selected = getSingleOpenSelection(await openDialog({
-        title: targetKind === 'folder' ? t('vault.openFolder') : t('shortcut.action.openMarkdownFile'),
-        defaultPath: currentVaultPath ?? undefined,
+        title: targetKind === 'folder' ? t('notesRoot.openFolder') : t('shortcut.action.openMarkdownFile'),
+        defaultPath: currentNotesRootPath ?? undefined,
         directory: targetKind === 'folder',
         authorizeParentDirectory: targetKind === 'file',
         filters: targetKind === 'file'
@@ -75,7 +75,7 @@ export function useNotesOpenTargetPicker({
     if (opened) {
       setNotesSidebarView('workspace');
     }
-  }, [currentVaultPath, isOpenTargetBusy, openFolderTarget, openMarkdownTarget, setNotesSidebarView, t]);
+  }, [currentNotesRootPath, isOpenTargetBusy, openFolderTarget, openMarkdownTarget, setNotesSidebarView, t]);
 
   useEffect(() => {
     const handleOpenMarkdownFile = () => {

@@ -1,7 +1,7 @@
 import type { FileTreeNode } from '@/stores/notes/types';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath } from '@/stores/notes/utils/fs/notesRootPathContainment';
 
 const MAX_NAVIGATION_TREE_NODES = 20_000;
 const NAVIGATION_SCAN_PRIORITY_BUCKETS = 2;
@@ -11,7 +11,7 @@ function getNavigableNotePath(entry: FileTreeNode): string | null {
     return null;
   }
 
-  const normalizedPath = normalizeVaultRelativePath(entry.path);
+  const normalizedPath = normalizeNotesRootRelativePath(entry.path);
   if (
     !normalizedPath ||
     hasInternalNotePathSegment(normalizedPath) ||

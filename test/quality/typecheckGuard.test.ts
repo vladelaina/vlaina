@@ -106,7 +106,7 @@ describe('typecheck quality gate', () => {
       'src/stores/uiSlice.ts:localStorage.removeItem(key);',
       'src/stores/useManagedAIStore.ts:localStorage.setItem(BUDGET_SYNC_STORAGE_KEY, JSON.stringify({ budget, syncedAt }))',
       'src/stores/useManagedAIStore.ts:localStorage.removeItem(BUDGET_SYNC_STORAGE_KEY)',
-      'src/stores/vaultStoreSupport.ts:localStorage.setItem(key, JSON.stringify(value));',
+      'src/stores/notesRootStoreSupport.ts:localStorage.setItem(key, JSON.stringify(value));',
 
       // Window-local/layout-local preferences.
       'src/components/layout/ResizablePanel.tsx:localStorage.setItem(storageKey, String(width));',

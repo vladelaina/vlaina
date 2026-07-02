@@ -19,13 +19,39 @@ function updateDownloadIdentity(updateInfo: DesktopUpdateInfo) {
   ].join('\n');
 }
 
+function preserveDownloadedUpdateState(updateInfo: DesktopUpdateInfo) {
+  const cachedUpdateInfo = readCachedDesktopUpdateInfo();
+  if (
+    !cachedUpdateInfo ||
+    cachedUpdateInfo.downloadState !== 'downloaded' ||
+    !cachedUpdateInfo.downloadedFilePath ||
+    updateDownloadIdentity(cachedUpdateInfo) !== updateDownloadIdentity(updateInfo)
+  ) {
+    return updateInfo;
+  }
+
+  const preservedUpdateInfo: DesktopUpdateInfo = {
+    ...updateInfo,
+    downloadState: 'downloaded',
+    downloadedFilePath: cachedUpdateInfo.downloadedFilePath,
+    downloadError: '',
+  };
+  if (cachedUpdateInfo.downloadedFileName) {
+    preservedUpdateInfo.downloadedFileName = cachedUpdateInfo.downloadedFileName;
+  }
+  if (cachedUpdateInfo.downloadedAt) {
+    preservedUpdateInfo.downloadedAt = cachedUpdateInfo.downloadedAt;
+  }
+  return preservedUpdateInfo;
+}
+
 export async function clearStaleDesktopUpdateDownload(
   updateApi: Partial<ElectronUpdateApi>,
   updateInfo: DesktopUpdateInfo,
   currentVersion?: string
 ) {
   if (isDesktopUpdateNewerThanCurrent(updateInfo, currentVersion)) {
-    return updateInfo;
+    return preserveDownloadedUpdateState(updateInfo);
   }
 
   try {

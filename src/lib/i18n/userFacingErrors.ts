@@ -40,12 +40,13 @@ const FILE_NAME_ERROR_KEYS: ErrorMessageKeyPattern[] = [
   [/^file name cannot start or end with a dot\.?$/i, 'notes.fileNameError.dotBoundary'],
 ];
 
-const VAULT_ERROR_KEYS: ErrorMessageKeyPattern[] = [
-  [/^invalid path for web platform\.?$/i, 'vault.openFolderFailed'],
-  [/^folder does not exist or cannot be accessed\.?$/i, 'vault.openFolderFailed'],
-  [/^failed to (?:initialize|open|create|rename) vaults?\.?$/i, 'vault.openFailed'],
-  [/^failed to open (?:the selected )?vault\.?$/i, 'vault.openFailed'],
-  [/^failed to open (?:the selected )?folder\.?$/i, 'vault.openFolderFailed'],
+const NOTES_ROOT_ERROR_KEYS: ErrorMessageKeyPattern[] = [
+  [/^invalid path for web platform\.?$/i, 'notesRoot.openFolderFailed'],
+  [/^folder does not exist or cannot be accessed\.?$/i, 'notesRoot.openFolderFailed'],
+  [/^failed to initialize opened folders\.?$/i, 'notesRoot.openFailed'],
+  [/^failed to (?:open|create|rename) folder\.?$/i, 'notesRoot.openFailed'],
+  [/^failed to open (?:the selected )?notesRoot\.?$/i, 'notesRoot.openFailed'],
+  [/^failed to open (?:the selected )?folder\.?$/i, 'notesRoot.openFolderFailed'],
 ];
 
 const NOTE_OPEN_ERROR_KEYS: ErrorMessageKeyPattern[] = [
@@ -61,7 +62,7 @@ const NOTE_SAVE_AND_MUTATION_ERROR_KEYS: ErrorMessageKeyPattern[] = [
   [/^failed to save (?:note|dirty tab before closing|pending draft changes|pending note changes)\.?$/i, 'storage.saveFailed'],
   [/^failed to save changes securely\.? please try again\.?$/i, 'storage.saveFailed'],
   [/^save the note before closing it\.?$/i, 'storage.saveFailed'],
-  [/^save or discard draft notes before switching vaults\.?$/i, 'notes.saveOrDiscardDraftsBeforeSwitchingVaults'],
+  [/^save or discard draft notes before opening another folder\.?$/i, 'notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder'],
   [/^failed to (?:sync note from disk|load notes|create note|duplicate note|create folder|delete note|delete folder|rename note|rename folder|move item|restore deleted item)\.?$/i, 'notes.openFailed'],
   [/^failed to move deleted item to system trash\.?$/i, 'notes.openFailed'],
   [/^failed to update note metadata\.?$/i, 'notes.openFailed'],
@@ -72,8 +73,8 @@ const NOTE_PATH_GUARD_ERROR_KEYS: ErrorMessageKeyPattern[] = [
   [/^note file is too (?:large|complex) to update metadata\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^note file is too large to open\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^current note is too large to reload from disk\.?$/i, 'notes.openMarkdownFileFailed'],
-  [/^(?:target folder|restore target) must stay inside the current vault\.?$/i, 'notes.openMarkdownFileFailed'],
-  [/^path must stay inside the current vault\.?$/i, 'notes.openMarkdownFileFailed'],
+  [/^(?:target folder|restore target) must stay inside the opened folder\.?$/i, 'notes.openMarkdownFileFailed'],
+  [/^path must stay inside the opened folder\.?$/i, 'notes.openMarkdownFileFailed'],
   [/^path must not be inside an internal notes folder\.?$/i, 'notes.openMarkdownFileFailed'],
 ];
 
@@ -89,7 +90,7 @@ const PATH_ACTION_ERROR_KEYS: ErrorMessageKeyPattern[] = [
 const USER_FACING_ERROR_MESSAGE_KEYS: ErrorMessageKeyPattern[] = [
   ...ASSET_AND_EXPORT_ERROR_KEYS,
   ...FILE_NAME_ERROR_KEYS,
-  ...VAULT_ERROR_KEYS,
+  ...NOTES_ROOT_ERROR_KEYS,
   ...NOTE_OPEN_ERROR_KEYS,
   ...NOTE_SAVE_AND_MUTATION_ERROR_KEYS,
   ...NOTE_PATH_GUARD_ERROR_KEYS,

@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
-import { ChatImageViewer } from '@/components/Chat/features/Markdown/components/ChatImageViewer';
+import { LazyChatImageViewer } from '@/components/Chat/features/Markdown/components/LazyChatImageViewer';
 import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { cn } from '@/lib/utils';
 import { getContainerStyle, computeAspectRatio } from './utils/styleUtils';
@@ -349,14 +349,16 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 </div>
             </div>
 
-            <ChatImageViewer
-                open={isViewerOpen}
-                src={viewerResourceSrc}
-                alt={nodeAlt}
-                previewSrc={resolvedSrc || null}
-                onCopyImage={handleCopy}
-                onOpenChange={setIsViewerOpen}
-            />
+            {isViewerOpen ? (
+                <LazyChatImageViewer
+                    open={isViewerOpen}
+                    src={viewerResourceSrc}
+                    alt={nodeAlt}
+                    previewSrc={resolvedSrc || null}
+                    onCopyImage={handleCopy}
+                    onOpenChange={setIsViewerOpen}
+                />
+            ) : null}
         </>
     );
 };

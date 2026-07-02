@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAssetSlice, MAX_PENDING_ASSET_LOADS } from './assetSlice';
-import { setCurrentVaultPath } from '../storage';
+import { setCurrentNotesRootPath } from '../storage';
 
 const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
@@ -27,7 +27,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 
   state = {
     ...slice,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: { path: 'daily/demo.md', content: '' },
     assetList: [],
     uploadProgress: null,
@@ -41,7 +41,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 
 describe('assetSlice uploadAsset', () => {
   beforeEach(() => {
-    setCurrentVaultPath(null);
+    setCurrentNotesRootPath(null);
     vi.clearAllMocks();
     mocks.upload.mockImplementation(async (_file, _context, _config, _assets, onProgress) => {
       onProgress?.(70);
@@ -53,8 +53,8 @@ describe('assetSlice uploadAsset', () => {
     });
   });
 
-  it('uses the active vault when notesPath has not been written to the notes store yet', async () => {
-    setCurrentVaultPath('/vault');
+  it('uses the active notesRoot when notesPath has not been written to the notes store yet', async () => {
+    setCurrentNotesRootPath('/notesRoot');
     const harness = createSliceHarness({
       notesPath: '',
       currentNote: { path: 'daily/demo.md', content: '' },
@@ -66,7 +66,7 @@ describe('assetSlice uploadAsset', () => {
     expect(mocks.upload).toHaveBeenCalledWith(
       file,
       {
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         currentNotePath: 'daily/demo.md',
       },
       expect.any(Object),
@@ -76,7 +76,7 @@ describe('assetSlice uploadAsset', () => {
     expect(harness.getState().uploadProgress).toBe(70);
   });
 
-  it('falls back to the current absolute note directory when no vault is selected', async () => {
+  it('falls back to the current absolute note directory when no notesRoot is selected', async () => {
     const harness = createSliceHarness({
       notesPath: '',
       currentNote: { path: '/outside/demo.md', content: '' },
@@ -88,7 +88,7 @@ describe('assetSlice uploadAsset', () => {
     expect(mocks.upload).toHaveBeenCalledWith(
       file,
       expect.objectContaining({
-        vaultPath: '/outside',
+        notesRootPath: '/outside',
         currentNotePath: '/outside/demo.md',
       }),
       expect.any(Object),
@@ -106,7 +106,7 @@ describe('assetSlice loadAssets', () => {
 
   it('does not add builtin covers when the picker is scoped to an external note directory', async () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: '/outside/demo.md', content: '' },
     });
 
@@ -117,7 +117,7 @@ describe('assetSlice loadAssets', () => {
       .toEqual([]);
     expect(mocks.list).toHaveBeenCalledWith(
       {
-        vaultPath: '/outside',
+        notesRootPath: '/outside',
         currentNotePath: '/outside/demo.md',
       },
       expect.any(Object),
@@ -213,25 +213,25 @@ describe('assetSlice loadAssets', () => {
       pendingLists.push(resolve);
     }));
     const harness = createSliceHarness({
-      notesPath: '/vault-a',
+      notesPath: '/notes-root-a',
       currentNote: { path: 'daily/start.md', content: '' },
     });
 
     const loads = Array.from({ length: MAX_PENDING_ASSET_LOADS }, (_value, index) => {
       harness.getState().currentNote = { path: `daily/${index}.md`, content: '' };
-      return harness.getState().loadAssets('/vault-a');
+      return harness.getState().loadAssets('/notes-root-a');
     });
 
     expect(mocks.list).toHaveBeenCalledTimes(MAX_PENDING_ASSET_LOADS);
     harness.getState().currentNote = { path: 'daily/overflow.md', content: '' };
-    await harness.getState().loadAssets('/vault-a');
+    await harness.getState().loadAssets('/notes-root-a');
     expect(mocks.list).toHaveBeenCalledTimes(MAX_PENDING_ASSET_LOADS);
 
     pendingLists.forEach((resolve) => resolve([]));
     await Promise.all(loads);
   });
 
-  it('ignores a stale asset refresh after switching vaults', async () => {
+  it('ignores a stale asset refresh after switching notes-roots', async () => {
     let resolveList: (value: Array<{
       filename: string;
       hash: string;
@@ -243,7 +243,7 @@ describe('assetSlice loadAssets', () => {
       resolveList = resolve;
     }));
     const harness = createSliceHarness({
-      notesPath: '/vault-a',
+      notesPath: '/notes-root-a',
       currentNote: { path: 'daily/demo.md', content: '' },
       assetList: [
         {
@@ -256,8 +256,8 @@ describe('assetSlice loadAssets', () => {
       ],
     });
 
-    const load = harness.getState().loadAssets('/vault-a');
-    harness.getState().notesPath = '/vault-b';
+    const load = harness.getState().loadAssets('/notes-root-a');
+    harness.getState().notesPath = '/notes-root-b';
     harness.getState().currentNote = { path: 'daily/other.md', content: '' };
 
     resolveList([

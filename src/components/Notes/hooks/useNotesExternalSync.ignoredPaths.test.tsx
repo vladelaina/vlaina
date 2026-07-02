@@ -14,7 +14,7 @@ const hoisted = vi.hoisted(() => {
     syncCurrentNoteFromDisk: vi.fn(async () => 'unchanged' as const),
     applyExternalPathRename: vi.fn(async () => undefined),
     applyExternalPathDeletion: vi.fn(async () => undefined),
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: { path: 'docs/current.md' } as { path: string } | null,
     rootFolder: { children: [] as unknown[] },
     openTabs: [] as Array<{ path: string }>,
@@ -85,7 +85,7 @@ describe('useNotesExternalSync ignored paths', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     hoisted.watchHandler = null;
-    hoisted.notesState.notesPath = '/vault';
+    hoisted.notesState.notesPath = '/notesRoot';
     hoisted.notesState.currentNote = { path: 'docs/current.md' };
     hoisted.notesState.rootFolder = { children: [] };
     hoisted.notesState.openTabs = [];
@@ -99,12 +99,12 @@ describe('useNotesExternalSync ignored paths', () => {
   });
 
   it('ignores git directory watch events without reloading notes', async () => {
-    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+    const hook = renderHook(() => useNotesExternalSync('/notesRoot', '/notesRoot'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'data', mode: 'any' } },
-        paths: ['/vault/docs/.git/config'],
+        paths: ['/notesRoot/docs/.git/config'],
       });
       await vi.advanceTimersByTimeAsync(221);
     });

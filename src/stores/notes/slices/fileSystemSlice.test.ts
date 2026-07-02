@@ -32,7 +32,7 @@ vi.mock('@/lib/storage/adapter', async (importOriginal) => {
 import { createFileSystemSlice } from './fileSystemSlice';
 import { getWorkspaceRestoreCandidatePaths } from './fileSystemSliceTreeActions';
 import { replaceCurrentTabOrAppend } from './fileSystemSliceHelpers';
-import { setCurrentVaultPath } from '../storage';
+import { setCurrentNotesRootPath } from '../storage';
 
 function createSliceHarness(overrides: Record<string, unknown> = {}) {
   let state: any;
@@ -71,12 +71,12 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 
 describe('createFileSystemSlice draft flows', () => {
   beforeEach(() => {
-    setCurrentVaultPath(null);
+    setCurrentNotesRootPath(null);
     vi.clearAllMocks();
     hoisted.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
   });
 
-  it('creates an unsaved draft note when no vault is selected', async () => {
+  it('creates an unsaved draft note when no notesRoot is selected', async () => {
     const harness = createSliceHarness();
 
     const draftPath = await harness.getState().createNote();
@@ -97,7 +97,7 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.saveNote).not.toHaveBeenCalled();
   });
 
-  it('does not create a draft note when creating a folder without a selected vault', async () => {
+  it('does not create a draft note when creating a folder without a selected folder', async () => {
     const harness = createSliceHarness();
 
     const result = await harness.getState().createFolder('');
@@ -111,7 +111,7 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.displayNames.size).toBe(0);
   });
 
-  it('does not surface a notes error when loading the file tree without a selected vault', async () => {
+  it('does not surface a notes error when loading the file tree without a selected folder', async () => {
     const harness = createSliceHarness({
       isLoading: false,
       error: 'previous error',
@@ -154,7 +154,7 @@ describe('createFileSystemSlice draft flows', () => {
 
   it('flushes pending editor markdown without saving before draft create', async () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'alpha.md', content: 'Old alpha' },
       isDirty: false,
       openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
@@ -188,30 +188,30 @@ describe('createFileSystemSlice draft flows', () => {
     });
   });
 
-  it('can create an in-memory draft even when a vault is selected', async () => {
+  it('can create an in-memory draft even when a notesRoot is selected', async () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
     });
 
     const draftPath = await harness.getState().createNote(undefined, { asDraft: true });
     const state = harness.getState();
 
     expect(draftPath).toMatch(/^draft:/);
-    expect(state.notesPath).toBe('/vault');
+    expect(state.notesPath).toBe('/notesRoot');
     expect(state.currentNote).toEqual({ path: draftPath, content: '' });
     expect(state.openTabs).toEqual([{ path: draftPath, name: '', isDirty: false }]);
     expect(state.draftNotes[draftPath]).toEqual({
       parentPath: null,
       name: '',
-      originNotesPath: '/vault',
-      kind: 'vault',
+      originNotesPath: '/notesRoot',
+      kind: 'notesRoot',
     });
     expect(state.saveNote).not.toHaveBeenCalled();
   });
 
   it('creates an in-memory draft without waiting for a dirty current note save', async () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
       isDirty: true,
       openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
@@ -240,7 +240,7 @@ describe('createFileSystemSlice tree flows', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    setCurrentVaultPath(null);
+    setCurrentNotesRootPath(null);
     hoisted.storageAdapter.exists.mockResolvedValue(false);
     hoisted.storageAdapter.mkdir.mockResolvedValue(undefined);
     hoisted.storageAdapter.listDir.mockResolvedValue([]);
@@ -255,8 +255,8 @@ describe('createFileSystemSlice tree flows', () => {
 
   it('expands folders immediately and defers workspace persistence', () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
-      rootFolderPath: '/vault',
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
       currentNote: { path: 'alpha.md', content: '# alpha' },
       rootFolder: {
         id: '',
@@ -284,7 +284,7 @@ describe('createFileSystemSlice tree flows', () => {
 
     vi.runOnlyPendingTimers();
 
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'alpha.md',
       rootFolder: expect.objectContaining({
         children: [
@@ -299,8 +299,8 @@ describe('createFileSystemSlice tree flows', () => {
 
   it('uses the latest current note when deferred folder persistence flushes', () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
-      rootFolderPath: '/vault',
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
       currentNote: { path: 'alpha.md', content: '# alpha' },
       rootFolder: {
         id: '',
@@ -326,15 +326,15 @@ describe('createFileSystemSlice tree flows', () => {
 
     vi.runOnlyPendingTimers();
 
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'beta.md',
     }));
   });
 
-  it('does not persist a preserved previous-vault tree as the current workspace', () => {
+  it('does not persist a preserved previous-notesRoot tree as the current workspace', () => {
     const harness = createSliceHarness({
-      notesPath: '/vault-next',
-      rootFolderPath: '/vault-old',
+      notesPath: '/notes-root-next',
+      rootFolderPath: '/notes-root-old',
       currentNote: { path: 'alpha.md', content: '# alpha' },
       rootFolder: {
         id: '',
@@ -361,26 +361,26 @@ describe('createFileSystemSlice tree flows', () => {
     expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 
-  it('uses a shallow initial tree when switching from an existing vault tree to a new vault', async () => {
-    setCurrentVaultPath('/vault-new');
-    let newVaultRootListCalls = 0;
+  it('uses a shallow initial tree when switching from an existing notesRoot tree to a new notesRoot', async () => {
+    setCurrentNotesRootPath('/notes-root-new');
+    let newNotesRootRootListCalls = 0;
     hoisted.storageAdapter.exists.mockImplementation(async (path: string) => (
-      path === '/vault-new'
+      path === '/notes-root-new'
     ));
     hoisted.storageAdapter.listDir.mockImplementation((path: string) => {
-      if (path === '/vault-new') {
-        newVaultRootListCalls += 1;
-        if (newVaultRootListCalls === 1) {
+      if (path === '/notes-root-new') {
+        newNotesRootRootListCalls += 1;
+        if (newNotesRootRootListCalls === 1) {
           return Promise.resolve([
             {
               name: 'deep',
-              path: '/vault-new/deep',
+              path: '/notes-root-new/deep',
               isDirectory: true,
               isFile: false,
             },
             {
               name: 'top.md',
-              path: '/vault-new/top.md',
+              path: '/notes-root-new/top.md',
               isDirectory: false,
               isFile: true,
             },
@@ -394,8 +394,8 @@ describe('createFileSystemSlice tree flows', () => {
     });
 
     const harness = createSliceHarness({
-      notesPath: '/vault-old',
-      rootFolderPath: '/vault-old',
+      notesPath: '/notes-root-old',
+      rootFolderPath: '/notes-root-old',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -415,10 +415,10 @@ describe('createFileSystemSlice tree flows', () => {
 
     await harness.getState().loadFileTree();
 
-    expect(newVaultRootListCalls).toBe(1);
-    expect(hoisted.storageAdapter.listDir).toHaveBeenCalledWith('/vault-new', { includeHidden: true });
-    expect(hoisted.storageAdapter.listDir).not.toHaveBeenCalledWith('/vault-new/deep', { includeHidden: true });
-    expect(harness.getState().rootFolderPath).toBe('/vault-new');
+    expect(newNotesRootRootListCalls).toBe(1);
+    expect(hoisted.storageAdapter.listDir).toHaveBeenCalledWith('/notes-root-new', { includeHidden: true });
+    expect(hoisted.storageAdapter.listDir).not.toHaveBeenCalledWith('/notes-root-new/deep', { includeHidden: true });
+    expect(harness.getState().rootFolderPath).toBe('/notes-root-new');
     expect(harness.getState().rootFolder.children).toEqual([
       expect.objectContaining({
         path: 'deep',
@@ -433,48 +433,48 @@ describe('createFileSystemSlice tree flows', () => {
     expect(harness.getState().isLoading).toBe(false);
 
     await vi.advanceTimersByTimeAsync(100);
-    expect(newVaultRootListCalls).toBe(2);
+    expect(newNotesRootRootListCalls).toBe(2);
   });
 
   it('keeps the root folder reference stable when background metadata does not affect name sorting', async () => {
-    setCurrentVaultPath('/vault');
-    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => path === '/vault');
+    setCurrentNotesRootPath('/notesRoot');
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => path === '/notesRoot');
     hoisted.storageAdapter.listDir.mockImplementation(async (path: string) => {
-      if (path !== '/vault') {
+      if (path !== '/notesRoot') {
         return [];
       }
 
       return [
         {
           name: 'alpha.md',
-          path: '/vault/alpha.md',
+          path: '/notesRoot/alpha.md',
           isDirectory: false,
           isFile: true,
         },
         {
           name: 'beta.md',
-          path: '/vault/beta.md',
+          path: '/notesRoot/beta.md',
           isDirectory: false,
           isFile: true,
         },
       ];
     });
     hoisted.storageAdapter.stat.mockImplementation(async (path: string) => {
-      if (path === '/vault/alpha.md') {
+      if (path === '/notesRoot/alpha.md') {
         return { isFile: true, isDirectory: false, createdAt: 1, modifiedAt: 11, size: 7 };
       }
-      if (path === '/vault/beta.md') {
+      if (path === '/notesRoot/beta.md') {
         return { isFile: true, isDirectory: false, createdAt: 2, modifiedAt: 12, size: 6 };
       }
       return null;
     });
     hoisted.storageAdapter.readFile.mockImplementation(async (path: string) => (
-      path === '/vault/alpha.md' ? '# Alpha' : '# Beta'
+      path === '/notesRoot/alpha.md' ? '# Alpha' : '# Beta'
     ));
 
     const harness = createSliceHarness({
-      notesPath: '/vault',
-      rootFolderPath: '/vault',
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
       fileTreeSortMode: 'name-asc',
       noteMetadata: { version: 2, notes: { 'alpha.md': { updatedAt: 1 } } },
       rootFolder: {
@@ -504,23 +504,23 @@ describe('createFileSystemSlice tree flows', () => {
   });
 
   it('keeps the root folder reference stable when the initial background tree matches the shallow tree', async () => {
-    setCurrentVaultPath('/vault-flat');
-    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => path === '/vault-flat');
+    setCurrentNotesRootPath('/notes-root-flat');
+    hoisted.storageAdapter.exists.mockImplementation(async (path: string) => path === '/notes-root-flat');
     hoisted.storageAdapter.listDir.mockImplementation(async (path: string) => {
-      if (path !== '/vault-flat') {
+      if (path !== '/notes-root-flat') {
         return [];
       }
 
       return [
         {
           name: 'alpha.md',
-          path: '/vault-flat/alpha.md',
+          path: '/notes-root-flat/alpha.md',
           isDirectory: false,
           isFile: true,
         },
         {
           name: 'beta.md',
-          path: '/vault-flat/beta.md',
+          path: '/notes-root-flat/beta.md',
           isDirectory: false,
           isFile: true,
         },
@@ -564,8 +564,8 @@ describe('createFileSystemSlice tree flows', () => {
       ],
     };
     const harness = createSliceHarness({
-      notesPath: '/vault',
-      rootFolderPath: '/vault',
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
       rootFolder,
       fileTreeSortMode: 'name-asc',
       noteMetadata: { version: 2, notes: {} },
@@ -584,8 +584,8 @@ describe('createFileSystemSlice tree flows', () => {
 
   it('does not collapse an empty root folder', () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
-      rootFolderPath: '/vault',
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -605,8 +605,8 @@ describe('createFileSystemSlice tree flows', () => {
 
   it('reopens an empty root folder if a stale collapsed state tries to toggle', () => {
     const harness = createSliceHarness({
-      notesPath: '/vault',
-      rootFolderPath: '/vault',
+      notesPath: '/notesRoot',
+      rootFolderPath: '/notesRoot',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -653,12 +653,12 @@ describe('replaceCurrentTabOrAppend', () => {
   it('appends a new tab instead of replacing an external note tab', () => {
     expect(
       replaceCurrentTabOrAppend(
-        [{ path: '/other-vault/starred.md', name: 'starred', isDirty: false }],
-        '/other-vault/starred.md',
+        [{ path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false }],
+        '/other-notesRoot/starred.md',
         { path: 'Untitled.md', name: 'Untitled', isDirty: false },
       ),
     ).toEqual([
-      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      { path: '/other-notesRoot/starred.md', name: 'starred', isDirty: false },
       { path: 'Untitled.md', name: 'Untitled', isDirty: false },
     ]);
   });

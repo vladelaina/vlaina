@@ -4,12 +4,12 @@ import {
   FILE_TREE_FILE_SELECTOR,
   SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
   openAbsoluteNote,
   openMarkdownFixture,
-  openVaultInNotes,
+  openNotesRootInNotes,
   selectNoteBlocksByText,
   waitForEditorAnimationFrame,
 } from './notesE2E';
@@ -568,7 +568,7 @@ test.describe('notes blank line caret interaction', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'blank-line-file-tree-selection',
         files: [
           {
@@ -581,9 +581,9 @@ test.describe('notes blank line caret interaction', () => {
           },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Blank Line Selection Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Blank Line Selection NotesRoot',
         minFileCount: 2,
       });
 
@@ -1027,7 +1027,7 @@ test.describe('notes blank line caret interaction', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'leading-blank-line-stale-selection',
         files: [
           {
@@ -1040,9 +1040,9 @@ test.describe('notes blank line caret interaction', () => {
           },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Leading Blank Line Stale Selection Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Leading Blank Line Stale Selection NotesRoot',
         minFileCount: 2,
       });
 
@@ -1073,7 +1073,7 @@ test.describe('notes blank line caret interaction', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'focused-leading-blank-line-selection',
         files: [
           {
@@ -1086,9 +1086,9 @@ test.describe('notes blank line caret interaction', () => {
           },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Focused Leading Blank Line Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Focused Leading Blank Line NotesRoot',
         minFileCount: 2,
       });
 

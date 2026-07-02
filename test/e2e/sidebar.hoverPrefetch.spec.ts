@@ -9,14 +9,14 @@ import {
   cleanupIsolatedElectron,
   collectEditorDomMetrics,
   createChatFixture,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getChatSessionMessageStatus,
   getNoteContentCacheEntry,
   getOpenBridgePages,
   launchIsolatedElectron,
   measureChatScrollFrames,
   measureScrollFrames,
-  openVaultInNotes,
+  openNotesRootInNotes,
   pruneNoteContentsCacheToOpenNotes,
   setAppViewMode,
   waitForChatSession,
@@ -298,7 +298,7 @@ test.describe('sidebar hover prefetch', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-hover-prefetch',
         files: [
           { filename: 'active-prefetch.md', content: createPrefetchMarkdown('active') },
@@ -308,9 +308,9 @@ test.describe('sidebar hover prefetch', () => {
       const activePath = 'active-prefetch.md';
       const targetPath = 'target-prefetch.md';
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Notes Hover Prefetch Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Notes Hover Prefetch NotesRoot',
         minFileCount: 2,
       });
 
@@ -468,14 +468,14 @@ test.describe('sidebar hover prefetch', () => {
         })),
       ];
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-hover-prefetch-large',
         files,
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Notes Hover Prefetch Large Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Notes Hover Prefetch Large NotesRoot',
         minFileCount: 90,
       });
 

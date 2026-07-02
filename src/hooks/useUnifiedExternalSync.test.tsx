@@ -97,12 +97,12 @@ function resetStores() {
     languagePreference: 'system',
     imageStorageMode: 'subfolder',
     imageSubfolderName: 'assets',
-    imageVaultSubfolderName: 'assets',
+    imageNotesRootSubfolderName: 'assets',
     imageFilenameFormat: 'original',
   });
 
   useNotesStore.setState({
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     loadStarred: vi.fn(async () => undefined),
   });
 }
@@ -331,7 +331,7 @@ describe('useUnifiedExternalSync', () => {
     const reloadFromDisk = vi.fn(async () => undefined);
     const loadStarred = vi.fn(async () => undefined);
     useUnifiedStore.setState({ reloadFromDisk });
-    useNotesStore.setState({ notesPath: '/vault-a', loadStarred });
+    useNotesStore.setState({ notesPath: '/notes-root-a', loadStarred });
 
     const hook = renderHook(() => useUnifiedExternalSync());
 
@@ -345,7 +345,7 @@ describe('useUnifiedExternalSync', () => {
       await Promise.resolve();
     });
 
-    expect(loadStarred).toHaveBeenCalledWith('/vault-a');
+    expect(loadStarred).toHaveBeenCalledWith('/notes-root-a');
     expect(reloadFromDisk).not.toHaveBeenCalled();
     expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
 
@@ -358,7 +358,7 @@ describe('useUnifiedExternalSync', () => {
       throw new Error('starred failed');
     });
     useUnifiedStore.setState({ reloadFromDisk });
-    useNotesStore.setState({ notesPath: '/vault-a', loadStarred });
+    useNotesStore.setState({ notesPath: '/notes-root-a', loadStarred });
 
     const hook = renderHook(() => useUnifiedExternalSync());
 
@@ -373,7 +373,7 @@ describe('useUnifiedExternalSync', () => {
       await Promise.resolve();
     });
 
-    expect(loadStarred).toHaveBeenCalledWith('/vault-a');
+    expect(loadStarred).toHaveBeenCalledWith('/notes-root-a');
     expect(reloadFromDisk).not.toHaveBeenCalled();
     expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
 

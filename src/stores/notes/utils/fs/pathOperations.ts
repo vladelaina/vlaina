@@ -3,7 +3,7 @@ import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import { ensureMarkdownFileName } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
 import { assertNonInternalNotePath } from './internalNotePaths';
-import { normalizeVaultRelativePath } from './vaultPathContainment';
+import { normalizeNotesRootRelativePath } from './notesRootPathContainment';
 
 function normalizeDesiredFileName(name: string, isDirectory: boolean) {
   if (name) {
@@ -23,10 +23,10 @@ async function resolveUniqueTargetPath(
 ) {
   const storage = getStorageAdapter();
   const safeFolderPath = folderPath
-    ? normalizeVaultRelativePath(folderPath, { allowEmpty: true })
+    ? normalizeNotesRootRelativePath(folderPath, { allowEmpty: true })
     : '';
   if (safeFolderPath == null) {
-    throw new Error('Target folder must stay inside the current vault.');
+    throw new Error('Target folder must stay inside the opened folder.');
   }
   if (safeFolderPath) {
     assertNonInternalNotePath(safeFolderPath, 'Target folder must not be inside an internal notes folder.');
@@ -66,9 +66,9 @@ export async function resolveUniqueRenamedPath(
   nextName: string,
   isDirectory: boolean
 ) {
-  const normalizedCurrentPath = normalizeVaultRelativePath(currentPath);
+  const normalizedCurrentPath = normalizeNotesRootRelativePath(currentPath);
   if (!normalizedCurrentPath) {
-    throw new Error('Path must stay inside the current vault.');
+    throw new Error('Path must stay inside the opened folder.');
   }
   assertNonInternalNotePath(normalizedCurrentPath, 'Path must not be inside an internal notes folder.');
 
@@ -83,12 +83,12 @@ export async function resolveUniqueMovedPath(
   targetFolderPath: string | undefined,
   isDirectory: boolean
 ) {
-  const normalizedSourcePath = normalizeVaultRelativePath(sourcePath);
+  const normalizedSourcePath = normalizeNotesRootRelativePath(sourcePath);
   const normalizedTargetFolderPath = targetFolderPath
-    ? normalizeVaultRelativePath(targetFolderPath, { allowEmpty: true })
+    ? normalizeNotesRootRelativePath(targetFolderPath, { allowEmpty: true })
     : '';
   if (!normalizedSourcePath || normalizedTargetFolderPath == null) {
-    throw new Error('Path must stay inside the current vault.');
+    throw new Error('Path must stay inside the opened folder.');
   }
   assertNonInternalNotePath(normalizedSourcePath, 'Path must not be inside an internal notes folder.');
   if (normalizedTargetFolderPath) {

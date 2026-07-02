@@ -153,11 +153,11 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
   const rootFolder = createFolder('', 'Notes', []);
   const baseState = {
     rootFolder,
-    rootFolderPath: '/vault',
+    rootFolderPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -468,7 +468,7 @@ describe('workspace external actions internal paths', () => {
       starredEntries: [{
         id: 'drive-root-note',
         kind: 'note',
-        vaultPath: 'C:/',
+        notesRootPath: 'C:/',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       }],
@@ -479,7 +479,7 @@ describe('workspace external actions internal paths', () => {
     expect(store.getState().starredEntries).toEqual([{
       id: 'drive-root-note',
       kind: 'note',
-      vaultPath: 'D:/docs',
+      notesRootPath: 'D:/docs',
       relativePath: 'alpha.md',
       addedAt: 1,
     }]);

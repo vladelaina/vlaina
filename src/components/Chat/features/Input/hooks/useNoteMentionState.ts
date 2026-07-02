@@ -17,13 +17,13 @@ import {
 } from '@/lib/ai/noteMentions';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { getCurrentVaultPath, setCurrentVaultPath } from '@/stores/notes/storage';
+import { getCurrentNotesRootPath, setCurrentNotesRootPath } from '@/stores/notes/storage';
 import {
   getStarredEntryAbsolutePath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
+  normalizeStarredNotesRootPath,
 } from '@/stores/notes/starred';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { focusVisibleTextareaAt } from '@/lib/ui/composerFocusRegistry';
 import {
   buildMentionPreviewParts,
@@ -150,7 +150,7 @@ export function useNoteMentionState({
   const loadFileTree = useNotesStore((state) => state.loadFileTree);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const getNoteIcon = useNotesStore((state) => state.getNoteIcon);
-  const activeVaultPath = useVaultStore((state) => state.currentVault?.path ?? null);
+  const activeNotesRootPath = useNotesRootStore((state) => state.currentNotesRoot?.path ?? null);
 
   const [mentions, setMentions] = useState<NoteMentionReference[]>([]);
   const [caretIndex, setCaretIndex] = useState(0);
@@ -164,8 +164,8 @@ export function useNoteMentionState({
       collectMentionCandidates(notesRootFolder.children, treeCandidates);
     }
 
-    const currentVaultPath = notesPath || activeVaultPath
-      ? normalizeStarredVaultPath(notesPath || activeVaultPath || '')
+    const currentNotesRootPath = notesPath || activeNotesRootPath
+      ? normalizeStarredNotesRootPath(notesPath || activeNotesRootPath || '')
       : '';
     const candidates: NoteMentionCandidate[] = [];
     const seenPaths = new Set<string>();
@@ -193,13 +193,13 @@ export function useNoteMentionState({
         continue;
       }
 
-      const entryVaultPath = normalizeStarredVaultPath(entry.vaultPath);
-      const isCurrentVaultEntry = !!currentVaultPath && entryVaultPath === currentVaultPath;
+      const entryNotesRootPath = normalizeStarredNotesRootPath(entry.notesRootPath);
+      const isCurrentNotesRootEntry = !!currentNotesRootPath && entryNotesRootPath === currentNotesRootPath;
       const relativePath = normalizeStarredRelativePath(entry.relativePath);
       if (!relativePath) {
         continue;
       }
-      const path = isCurrentVaultEntry
+      const path = isCurrentNotesRootEntry
         ? relativePath
         : getStarredEntryAbsolutePath({ ...entry, relativePath });
       if (!path) {
@@ -217,15 +217,15 @@ export function useNoteMentionState({
         path,
         title: entry.kind === 'folder'
           ? `${relativePath.split('/').filter(Boolean).pop() ?? relativePath}/`
-          : isCurrentVaultEntry
+          : isCurrentNotesRootEntry
             ? getDisplayName(relativePath)
             : getNoteTitleFromPath(relativePath),
         kind: entry.kind,
         isCurrent: path === currentNotePath,
-        icon: entry.kind === 'note' && isCurrentVaultEntry ? getNoteIcon(relativePath) : undefined,
+        icon: entry.kind === 'note' && isCurrentNotesRootEntry ? getNoteIcon(relativePath) : undefined,
         notePath: entry.kind === 'note' ? relativePath : undefined,
-        vaultPath: entryVaultPath,
-        starredEntry: isCurrentVaultEntry ? undefined : entry,
+        notesRootPath: entryNotesRootPath,
+        starredEntry: isCurrentNotesRootEntry ? undefined : entry,
       });
     }
 
@@ -241,7 +241,7 @@ export function useNoteMentionState({
         }
         return a.title.localeCompare(b.title);
       });
-  }, [activeVaultPath, currentNotePath, getDisplayName, getNoteIcon, notesPath, notesRootFolder, starredEntries]);
+  }, [activeNotesRootPath, currentNotePath, getDisplayName, getNoteIcon, notesPath, notesRootFolder, starredEntries]);
 
   const mentionTrigger = useMemo(
     () => getNoteMentionTrigger(value, caretIndex),
@@ -312,12 +312,12 @@ export function useNoteMentionState({
   const mentionTriggerKey = mentionTrigger
     ? `${mentionTrigger.start}:${mentionTrigger.query}`
     : null;
-  const effectiveVaultPath = notesPath || activeVaultPath || getCurrentVaultPath() || '';
+  const effectiveNotesRootPath = notesPath || activeNotesRootPath || getCurrentNotesRootPath() || '';
   const mentionQuery = mentionTrigger?.query.trim() ?? '';
   const mentionPickerStatus: 'loading' | 'empty' | null = mentionTrigger && filteredCandidates.length === 0
     ? (notesRootFolder
         ? (mentionQuery ? 'empty' : null)
-        : !effectiveVaultPath
+        : !effectiveNotesRootPath
           ? (mentionQuery ? 'empty' : null)
         : notesLoading || requestedTreeLoadTriggerRef.current !== mentionTriggerKey
           ? 'loading'
@@ -348,14 +348,14 @@ export function useNoteMentionState({
     if (notesRootFolder || notesLoading) {
       return;
     }
-    if (!effectiveVaultPath) {
+    if (!effectiveNotesRootPath) {
       return;
     }
     if (!mentionTriggerKey || requestedTreeLoadTriggerRef.current === mentionTriggerKey) {
       return;
     }
-    if (getCurrentVaultPath() !== effectiveVaultPath) {
-      setCurrentVaultPath(effectiveVaultPath);
+    if (getCurrentNotesRootPath() !== effectiveNotesRootPath) {
+      setCurrentNotesRootPath(effectiveNotesRootPath);
     }
     requestedTreeLoadTriggerRef.current = mentionTriggerKey;
     try {
@@ -363,7 +363,7 @@ export function useNoteMentionState({
     } catch {
       // Keep mention loading best-effort; the store can retry on the next trigger.
     }
-  }, [effectiveVaultPath, loadFileTree, mentionTrigger, mentionTriggerKey, notesLoading, notesRootFolder]);
+  }, [effectiveNotesRootPath, loadFileTree, mentionTrigger, mentionTriggerKey, notesLoading, notesRootFolder]);
 
   useEffect(() => {
     setMentions((prev) => {

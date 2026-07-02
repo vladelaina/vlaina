@@ -196,7 +196,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="alpha.md"
         currentNoteTitle="Alpha"
         getCurrentNoteContent={() => '# Alpha'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -212,7 +212,7 @@ describe('EditorTopRightToolbar', () => {
     expect(getByTestId('note-export-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
   });
 
-  it('shows the remove-star button for starred external notes outside the current vault', () => {
+  it('shows the remove-star button for starred external notes outside the opened folder', () => {
     const toggleStarred = vi.fn();
     const { getByRole } = render(
       <EditorTopRightToolbar
@@ -220,7 +220,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="/other/docs/alpha.md"
         currentNoteTitle="Alpha"
         getCurrentNoteContent={() => '# Alpha'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred
         toggleStarred={toggleStarred}
         currentNoteMetadata={undefined}
@@ -232,7 +232,7 @@ describe('EditorTopRightToolbar', () => {
     expect(toggleStarred).toHaveBeenCalledWith('/other/docs/alpha.md');
   });
 
-  it('shows the add-star button for unstarred external notes outside the current vault', () => {
+  it('shows the add-star button for unstarred external notes outside the opened folder', () => {
     const toggleStarred = vi.fn();
     const { getByRole } = render(
       <EditorTopRightToolbar
@@ -240,7 +240,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="/other/docs/alpha.md"
         currentNoteTitle="Alpha"
         getCurrentNoteContent={() => '# Alpha'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={toggleStarred}
         currentNoteMetadata={undefined}
@@ -265,7 +265,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="docs/current.md"
         currentNoteTitle="Current"
         getCurrentNoteContent={() => '# Current'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -281,7 +281,7 @@ describe('EditorTopRightToolbar', () => {
         format: 'html',
         markdown: '# Current',
         notePath: 'docs/current.md',
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         title: 'Current',
       });
     });
@@ -297,7 +297,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="docs/current.md"
         currentNoteTitle="Current"
         getCurrentNoteContent={getCurrentNoteContent}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -314,7 +314,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="docs/current.md"
         currentNoteTitle="Current"
         getCurrentNoteContent={() => '# Current'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -340,7 +340,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="docs/current.md"
         currentNoteTitle="Current"
         getCurrentNoteContent={() => '# Current'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -361,7 +361,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="docs/current.md"
         currentNoteTitle="Current"
         getCurrentNoteContent={() => '# Current'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -380,7 +380,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="docs/current.md"
         currentNoteTitle="Current"
         getCurrentNoteContent={() => '# Current'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -406,7 +406,7 @@ describe('EditorTopRightToolbar', () => {
         getCurrentNoteContent={() => '# Current'}
         isSourceMode
         onToggleSourceMode={onToggleSourceMode}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
@@ -435,7 +435,7 @@ describe('EditorTopRightToolbar', () => {
         currentNotePath="docs/current.md"
         currentNoteTitle="Current"
         getCurrentNoteContent={() => '# Current'}
-        notesPath="/vault"
+        notesPath="/notesRoot"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}

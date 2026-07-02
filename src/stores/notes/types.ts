@@ -47,13 +47,13 @@ export type StarredKind = 'note' | 'folder';
 export interface StarredEntry {
   id: string;
   kind: StarredKind;
-  vaultPath: string;
+  notesRootPath: string;
   relativePath: string;
   addedAt: number;
 }
 
 export interface PendingStarredNavigation {
-  vaultPath: string;
+  notesRootPath: string;
   kind: StarredKind;
   relativePath: string;
   openInNewTab?: boolean;
@@ -88,7 +88,7 @@ export interface DraftNoteEntry {
   parentPath: string | null;
   name: string;
   originNotesPath?: string;
-  kind?: 'scratch' | 'vault';
+  kind?: 'scratch' | 'notesRoot';
 }
 
 export interface PendingDeletedItemState extends PendingSystemTrashItem {
@@ -150,7 +150,7 @@ export interface NotesActions {
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean, options?: OpenNoteOptions) => Promise<void>;
   prefetchNote: (path: string) => Promise<void>;
   cancelPrefetchNote: (path: string) => void;
-  adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
+  adoptAbsoluteNoteIntoNotesRoot: (absolutePath: string, nextPath: string) => boolean;
   saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
   syncCurrentNoteFromDisk: (options?: { force?: boolean; expectedExternalChange?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
   invalidateNoteCache: (path: string, options?: { includeDescendants?: boolean }) => void;
@@ -185,8 +185,8 @@ export interface NotesActions {
   pruneNoteContentsCacheToOpenNotes: () => void;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
-  loadStarred: (vaultPath: string) => Promise<void>;
-  loadMetadata: (vaultPath: string) => Promise<void>;
+  loadStarred: (notesRootPath: string) => Promise<void>;
+  loadMetadata: (notesRootPath: string) => Promise<void>;
   toggleStarred: (path: string) => void;
   toggleFolderStarred: (path: string) => void;
   removeStarredEntry: (id: string) => void;
@@ -205,7 +205,7 @@ export interface NotesActions {
   revealFolder: (path: string) => void;
   getNoteCover: (path: string) => NoteCoverMetadata | undefined;
   setNoteCover: (path: string, cover: NoteCoverMetadata | null) => void;
-  loadAssets: (vaultPath: string) => Promise<void>;
+  loadAssets: (notesRootPath: string) => Promise<void>;
   uploadAsset: (file: File, currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;

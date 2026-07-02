@@ -3,10 +3,10 @@ import {
   CHAT_COMPOSER_TEXTAREA_SELECTOR,
   cleanupIsolatedElectron,
   createChatModelFixture,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
   setAppViewMode,
 } from './notesE2E';
 
@@ -101,7 +101,7 @@ test.describe('chat note mention caret', () => {
         apiModelId: 'e2e-mention-model',
       });
 
-      const vault = await createVaultFilesFixture(page, {
+      const notesRoot = await createNotesRootFilesFixture(page, {
         name: 'mention-caret',
         files: [
           { filename: 'Today.md', content: '# Today\n\nCurrent page\n' },
@@ -109,15 +109,15 @@ test.describe('chat note mention caret', () => {
           { filename: 'Projects/Plan.md', content: '# Plan\n\nFolder child\n' },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: vault.vaultPath,
-        name: 'Mention Caret Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: notesRoot.notesRootPath,
+        name: 'Mention Caret NotesRoot',
         minFileCount: 2,
       });
-      await page.evaluate((notePath) => (window as any).__vlainaE2E.openAbsoluteNote(notePath), vault.notePaths[0]);
+      await page.evaluate((notePath) => (window as any).__vlainaE2E.openAbsoluteNote(notePath), notesRoot.notePaths[0]);
       await expect.poll(async () => page.evaluate(() =>
         (window as any).__vlainaE2E.getNotesState().currentNote?.path ?? null
-      ), { timeout: 30_000 }).toBe(vault.notePaths[0]);
+      ), { timeout: 30_000 }).toBe(notesRoot.notePaths[0]);
 
       await setAppViewMode(page, 'chat');
       const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);

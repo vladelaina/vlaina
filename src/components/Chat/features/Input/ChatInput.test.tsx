@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatInput } from './ChatInput';
 import { FILE_TREE_CHAT_DROP_EVENT } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { getDroppedExternalPaths } from '@/components/Notes/hooks/externalDropPayload';
-import { setCurrentVaultPath, useNotesStore } from '@/stores/notes/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { setCurrentNotesRootPath, useNotesStore } from '@/stores/notes/useNotesStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -60,8 +60,8 @@ describe('ChatInput', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getDroppedExternalPathsMock.mockReturnValue([]);
-    setCurrentVaultPath(null);
-    useVaultStore.setState({ currentVault: null });
+    setCurrentNotesRootPath(null);
+    useNotesRootStore.setState({ currentNotesRoot: null });
     useNotesStore.setState({
       notesPath: '',
       getDisplayName: getTestDisplayName,
@@ -128,15 +128,15 @@ describe('ChatInput', () => {
     expect(document.querySelector('[data-mention-preview-token="true"]')).toHaveTextContent('@Source');
   });
 
-  it('adds note mentions when current vault markdown files are dropped into chat', async () => {
+  it('adds note mentions when opened folder markdown files are dropped into chat', async () => {
     getDroppedExternalPathsMock.mockReturnValue([
-      '/vault/docs/Source.md',
-      '/vault/docs/Source.md',
-      '/vault/docs/Skipped.txt',
-      '/other-vault/Outside.txt',
+      '/notesRoot/docs/Source.md',
+      '/notesRoot/docs/Source.md',
+      '/notesRoot/docs/Skipped.txt',
+      '/other-notesRoot/Outside.txt',
     ]);
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       getDisplayName: getTestDisplayName,
     });
     renderChatInput();
@@ -161,7 +161,7 @@ describe('ChatInput', () => {
   it('adds note mentions when external markdown files are dropped into chat', async () => {
     getDroppedExternalPathsMock.mockReturnValue(['/outside/Untitled.md']);
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       getDisplayName: getTestDisplayName,
     });
     renderChatInput();
@@ -183,13 +183,13 @@ describe('ChatInput', () => {
     expect(document.querySelector('[data-mention-preview-token="true"]')).toHaveTextContent('@Untitled');
   });
 
-  it('uses the active vault path when the notes store path is not initialized yet', async () => {
-    getDroppedExternalPathsMock.mockReturnValue(['/vault/docs/Fallback.md']);
-    useVaultStore.setState({
-      currentVault: {
-        id: 'vault',
-        name: 'Vault',
-        path: '/vault',
+  it('uses the active opened folder path when the notes store path is not initialized yet', async () => {
+    getDroppedExternalPathsMock.mockReturnValue(['/notesRoot/docs/Fallback.md']);
+    useNotesRootStore.setState({
+      currentNotesRoot: {
+        id: 'notesRoot',
+        name: 'NotesRoot',
+        path: '/notesRoot',
         lastOpened: Date.now(),
       },
     });

@@ -184,7 +184,7 @@ describe('ProviderModelsPanel', () => {
     expect(onQuickAddModelIdChange).toHaveBeenCalledWith('');
   });
 
-  it('handles wheel scrolling on quick add suggestions', () => {
+  it('leaves wheel scrolling on quick add suggestions to the browser', () => {
     render(
       <ProviderModelsPanel
         {...buildProps({
@@ -202,7 +202,7 @@ describe('ProviderModelsPanel', () => {
     setScrollMetrics(scrollRoot!, { clientHeight: 100, scrollHeight: 360, scrollTop: 0 });
     fireEvent.wheel(scrollRoot!, { deltaY: 90 });
 
-    expect(scrollRoot!.scrollTop).toBe(90);
+    expect(scrollRoot!.scrollTop).toBe(0);
   });
 
   it('adds all visible available models from the available header', () => {

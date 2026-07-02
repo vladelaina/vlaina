@@ -41,11 +41,11 @@ describe('createNoteImpl', () => {
   it('preserves incoming managed frontmatter fields and derives timestamps from file stats', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
-      fullPath: '/vault/alpha.md',
+      fullPath: '/notesRoot/alpha.md',
       fileName: 'alpha.md',
     });
 
-    const result = await createNoteImpl('/vault', undefined, 'alpha', [
+    const result = await createNoteImpl('/notesRoot', undefined, 'alpha', [
       '---',
       'vlaina_cover: "assets/alpha.webp"',
       'vlaina_icon: "🐱" size=84',
@@ -65,7 +65,7 @@ describe('createNoteImpl', () => {
       noteMetadata: null,
     });
 
-    expect(adapter.writeFile).toHaveBeenNthCalledWith(1, '/vault/alpha.md', [
+    expect(adapter.writeFile).toHaveBeenNthCalledWith(1, '/notesRoot/alpha.md', [
       '---',
       'vlaina_cover: "assets/alpha.webp"',
       'vlaina_icon: "🐱" size=84',
@@ -89,12 +89,12 @@ describe('createNoteImpl', () => {
   it('cleans internal editor break markers before creating a note', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
-      fullPath: '/vault/alpha.md',
+      fullPath: '/notesRoot/alpha.md',
       fileName: 'alpha.md',
     });
 
     const result = await createNoteImpl(
-      '/vault',
+      '/notesRoot',
       undefined,
       'alpha',
       ['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'),
@@ -113,7 +113,7 @@ describe('createNoteImpl', () => {
     );
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       ['# Alpha', '', 'Body'].join('\n')
     );
     expect(result.content).not.toContain('data-vlaina-empty-line');
@@ -122,12 +122,12 @@ describe('createNoteImpl', () => {
   it('cleans serialized editor-only markdown artifacts before creating a note', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
-      fullPath: '/vault/alpha.md',
+      fullPath: '/notesRoot/alpha.md',
       fileName: 'alpha.md',
     });
 
     const result = await createNoteImpl(
-      '/vault',
+      '/notesRoot',
       undefined,
       'alpha',
       [
@@ -166,12 +166,12 @@ describe('createNoteImpl', () => {
   it('converts internal user break markers before creating a note', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
-      fullPath: '/vault/alpha.md',
+      fullPath: '/notesRoot/alpha.md',
       fileName: 'alpha.md',
     });
 
     const result = await createNoteImpl(
-      '/vault',
+      '/notesRoot',
       undefined,
       'alpha',
       ['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'),
@@ -190,7 +190,7 @@ describe('createNoteImpl', () => {
     );
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/vault/alpha.md',
+      '/notesRoot/alpha.md',
       [
         'Line one\\',
         'Line two',
@@ -203,11 +203,11 @@ describe('createNoteImpl', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: Number.POSITIVE_INFINITY, size: -1 });
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha.md',
-      fullPath: '/vault/alpha.md',
+      fullPath: '/notesRoot/alpha.md',
       fileName: 'alpha.md',
     });
 
-    const result = await createNoteImpl('/vault', undefined, 'alpha', '# Alpha', {
+    const result = await createNoteImpl('/notesRoot', undefined, 'alpha', '# Alpha', {
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -227,11 +227,11 @@ describe('createNoteImpl', () => {
   it('adds created notes to the normalized result parent in returned tree children', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'archive/alpha.md',
-      fullPath: '/vault/archive/alpha.md',
+      fullPath: '/notesRoot/archive/alpha.md',
       fileName: 'alpha.md',
     });
 
-    const result = await createNoteImpl('/vault', 'archive/.', 'alpha', '# Alpha', {
+    const result = await createNoteImpl('/notesRoot', 'archive/.', 'alpha', '# Alpha', {
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -251,7 +251,7 @@ describe('createNoteImpl', () => {
       noteMetadata: null,
     });
 
-    expect(adapter.mkdir).toHaveBeenCalledWith('/vault/archive', true);
+    expect(adapter.mkdir).toHaveBeenCalledWith('/notesRoot/archive', true);
     expect(result.newChildren).toEqual([
       expect.objectContaining({
         path: 'archive',

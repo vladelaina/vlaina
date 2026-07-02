@@ -41,7 +41,7 @@ vi.mock('@/stores/notes/document/externalChangeRegistry', () => ({
 
 function mockResolvedImportPaths() {
   mocks.resolveUniquePath.mockImplementation(
-    async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+    async (_notesRootPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
       const relativePath = folderPath
         ? `${folderPath}/${name}`
         : isDirectory
@@ -49,7 +49,7 @@ function mockResolvedImportPaths() {
           : name;
       return {
         relativePath,
-        fullPath: `/vault/${relativePath}`,
+        fullPath: `/notesRoot/${relativePath}`,
         fileName: name,
       };
     },
@@ -96,7 +96,7 @@ describe('importExternalMarkdownEntries dotfiles', () => {
     });
     mockResolvedImportPaths();
 
-    const result = await importExternalMarkdownEntries('/vault', 'archive', ['/outside/docs']);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'archive', ['/outside/docs']);
 
     expect(result).toEqual({
       importedNotePaths: ['archive/docs/.journal.md', 'archive/docs/.notes/alpha.md'],
@@ -109,11 +109,11 @@ describe('importExternalMarkdownEntries dotfiles', () => {
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/docs/.git');
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/docs/.journal.md',
-      '/vault/archive/docs/.journal.md',
+      '/notesRoot/archive/docs/.journal.md',
     );
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/docs/.notes/alpha.md',
-      '/vault/archive/docs/.notes/alpha.md',
+      '/notesRoot/archive/docs/.notes/alpha.md',
     );
   });
 
@@ -128,7 +128,7 @@ describe('importExternalMarkdownEntries dotfiles', () => {
     ]);
     mockResolvedImportPaths();
 
-    const result = await importExternalMarkdownEntries('/vault', 'archive', ['/outside/.notes']);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'archive', ['/outside/.notes']);
 
     expect(result).toEqual({
       importedNotePaths: ['archive/.notes/alpha.md'],
@@ -138,7 +138,7 @@ describe('importExternalMarkdownEntries dotfiles', () => {
     expect(mocks.storage.listDir).toHaveBeenCalledWith('/outside/.notes', { includeHidden: true });
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/.notes/alpha.md',
-      '/vault/archive/.notes/alpha.md',
+      '/notesRoot/archive/.notes/alpha.md',
     );
   });
 
@@ -148,7 +148,7 @@ describe('importExternalMarkdownEntries dotfiles', () => {
       isDirectory: true,
     });
 
-    const result = await importExternalMarkdownEntries('/vault', 'archive', [
+    const result = await importExternalMarkdownEntries('/notesRoot', 'archive', [
       '/outside/.vlaina',
       '/outside/.git',
       '/outside/.VLAINA',
