@@ -265,6 +265,54 @@ describe('useChatComposer', () => {
     expect(result.current.message).toBe('next message');
   });
 
+  it('does not send a button-triggered composing draft before composition ends', () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        rafCallbacks.push(callback);
+        return rafCallbacks.length;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
+    const onSend = vi.fn();
+
+    try {
+      const { result } = renderHook(() =>
+        useChatComposer({
+          onSend,
+          attachments: [],
+          getNoteMentions: () => [],
+          onAfterSend: vi.fn(),
+        }),
+      );
+      const textarea = document.createElement('textarea');
+      result.current.textareaRef.current = textarea;
+
+      act(() => {
+        result.current.handleCompositionStart();
+        result.current.handleMessageChange('nihon');
+        result.current.handleSend();
+      });
+
+      expect(onSend).not.toHaveBeenCalled();
+
+      textarea.value = '日本';
+      act(() => {
+        result.current.handleCompositionEnd();
+      });
+      act(() => {
+        rafCallbacks[0]?.(0);
+      });
+
+      expect(onSend).toHaveBeenCalledWith('日本', [], []);
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+      cancelAnimationFrameSpy.mockRestore();
+    }
+  });
+
   it('syncs textarea height right after Shift+Enter inserts a newline', () => {
     const rafCallbacks: FrameRequestCallback[] = [];
     const requestAnimationFrameSpy = vi

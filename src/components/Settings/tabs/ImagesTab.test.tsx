@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -97,5 +97,22 @@ describe('ImagesTab dropdown styling', () => {
       .toContain('rounded-full');
     expect(document.querySelector('[data-settings-image-filename-format="original"]')?.className)
       .toContain('rounded-full');
+  });
+
+  it('does not persist a composing image subfolder name', () => {
+    render(<ImagesTab />);
+
+    const input = screen.getByLabelText('Subfolder name');
+
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'nihon' } });
+    fireEvent.change(input, { target: { value: '日本' } });
+
+    expect(mocks.uiState.setImageSubfolderName).not.toHaveBeenCalled();
+
+    fireEvent.compositionEnd(input);
+
+    expect(mocks.uiState.setImageSubfolderName).toHaveBeenCalledWith('日本');
+    expect(mocks.uiState.setImageSubfolderName).not.toHaveBeenCalledWith('nihon');
   });
 });

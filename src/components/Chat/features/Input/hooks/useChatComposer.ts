@@ -42,6 +42,7 @@ export function useChatComposer({
   const [message, setMessage] = useState('');
   const messageRef = useRef(message);
   const [isComposing, setIsComposing] = useState(false);
+  const isComposingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerRootRef = useRef<HTMLDivElement>(null);
   const submitAfterCompositionRef = useRef(false);
@@ -172,6 +173,10 @@ export function useChatComposer({
 
   const handleSend = useCallback(
     (overrideMessage?: string) => {
+      if (isComposingRef.current) {
+        submitAfterCompositionRef.current = true;
+        return;
+      }
       if (!canSubmit || isSubmittingRef.current) {
         submitAfterCompositionRef.current = false;
         return;
@@ -224,6 +229,7 @@ export function useChatComposer({
   );
 
   const handleCompositionEnd = useCallback(() => {
+    isComposingRef.current = false;
     setIsComposing(false);
     if (!submitAfterCompositionRef.current) {
       return;
@@ -277,7 +283,10 @@ export function useChatComposer({
     handleMessageChange,
     handleSend,
     handleKeyDown,
-    handleCompositionStart: () => setIsComposing(true),
+    handleCompositionStart: () => {
+      isComposingRef.current = true;
+      setIsComposing(true);
+    },
     handleCompositionEnd,
   };
 }

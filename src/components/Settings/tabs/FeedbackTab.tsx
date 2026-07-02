@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Send } from 'lucide-react';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { useI18n } from '@/lib/i18n';
@@ -65,6 +65,7 @@ function normalizeFeedbackError(error: unknown, t: ReturnType<typeof useI18n>['t
 export function FeedbackTab({ compact = false }: { compact?: boolean }) {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const isComposingRef = useRef(false);
   const addToast = useToastStore((state) => state.addToast);
   const { t } = useI18n();
 
@@ -72,6 +73,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
   const canSubmit = trimmedMessage.length > 0 && !submitting;
 
   const handleSubmit = async () => {
+    if (isComposingRef.current) return;
     if (!canSubmit) return;
 
     setSubmitting(true);
@@ -95,6 +97,12 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value.slice(0, MAX_FEEDBACK_LENGTH + 200))}
+              onCompositionStart={() => {
+                isComposingRef.current = true;
+              }}
+              onCompositionEnd={() => {
+                isComposingRef.current = false;
+              }}
               placeholder={t('settings.feedback.placeholder')}
               className={cn(
                 compact ? 'min-h-[var(--vlaina-size-150px)]' : 'min-h-[var(--vlaina-size-220px)]',

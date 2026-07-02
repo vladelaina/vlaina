@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUIStore, type ImageFilenameFormat, type ImageStorageMode } from '@/stores/uiSlice';
 import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
@@ -198,22 +198,43 @@ function StorageFolderNameEditor({
     const setImageSubfolderName = useUIStore((s) => s.setImageSubfolderName);
     const setImageNotesRootSubfolderName = useUIStore((s) => s.setImageNotesRootSubfolderName);
     const preserveFocusSelectionRef = useRef(false);
+    const isComposingRef = useRef(false);
+    const isNotesRootSubfolder = mode === 'notesRootSubfolder';
+    const folderName = isNotesRootSubfolder ? notesRootSubfolderName : noteSubfolderName;
+    const setFolderName = isNotesRootSubfolder ? setImageNotesRootSubfolderName : setImageSubfolderName;
+    const [draftFolderName, setDraftFolderName] = useState(folderName);
+
+    useEffect(() => {
+        if (!isComposingRef.current) {
+            setDraftFolderName(folderName);
+        }
+    }, [folderName]);
 
     if (mode !== 'subfolder' && mode !== 'notesRootSubfolder') {
         return null;
     }
-
-    const isNotesRootSubfolder = mode === 'notesRootSubfolder';
-    const folderName = isNotesRootSubfolder ? notesRootSubfolderName : noteSubfolderName;
-    const setFolderName = isNotesRootSubfolder ? setImageNotesRootSubfolderName : setImageSubfolderName;
 
     return (
         <div className="inline-flex max-w-full min-w-0 items-center rounded-xl bg-[var(--vlaina-bg-tertiary)] px-2 py-1 font-mono text-[var(--vlaina-font-11)] leading-5 text-[var(--vlaina-sidebar-notes-text-soft)]">
             <input
                 type="text"
                 data-settings-control={isNotesRootSubfolder ? 'image-notes-root-subfolder-name' : 'image-subfolder-name'}
-                value={folderName}
-                onChange={(event) => setFolderName(event.target.value)}
+                value={draftFolderName}
+                onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setDraftFolderName(nextValue);
+                    if (!isComposingRef.current) {
+                        setFolderName(nextValue);
+                    }
+                }}
+                onCompositionStart={() => {
+                    isComposingRef.current = true;
+                }}
+                onCompositionEnd={(event) => {
+                    isComposingRef.current = false;
+                    setDraftFolderName(event.currentTarget.value);
+                    setFolderName(event.currentTarget.value);
+                }}
                 onMouseDown={(event) => {
                     preserveFocusSelectionRef.current = document.activeElement !== event.currentTarget;
                 }}
@@ -227,7 +248,11 @@ function StorageFolderNameEditor({
                 }}
                 onBlur={(event) => {
                     preserveFocusSelectionRef.current = false;
+                    if (isComposingRef.current) {
+                        return;
+                    }
                     if (event.currentTarget.value.trim().length === 0) {
+                        setDraftFolderName('assets');
                         setFolderName('assets');
                     }
                 }}
@@ -235,7 +260,7 @@ function StorageFolderNameEditor({
                 spellCheck={false}
                 aria-label={t(isNotesRootSubfolder ? 'settings.images.folderName' : 'settings.images.subfolderName')}
                 className="h-5 min-w-12 max-w-24 cursor-text rounded-md border-0 bg-transparent px-1 py-0 font-mono text-[var(--vlaina-font-11)] leading-4 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] focus:bg-[var(--vlaina-color-setting-field)] focus:ring-1 focus:ring-[var(--vlaina-color-sidebar-focus-ring)]"
-                style={{ width: `${Math.max((folderName || 'assets').length, 6)}ch` }}
+                style={{ width: `${Math.max((draftFolderName || 'assets').length, 6)}ch` }}
             />
         </div>
     );
