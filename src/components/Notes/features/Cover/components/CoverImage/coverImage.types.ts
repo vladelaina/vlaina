@@ -9,7 +9,7 @@ export interface CoverImageProps {
   scale?: number;
   readOnly?: boolean;
   onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
   pickerOpen?: boolean;
   onPickerOpenChange?: (open: boolean) => void;
@@ -18,7 +18,7 @@ export interface CoverImageProps {
 export interface CoverImageControllerModel {
   url: string | null;
   readOnly: boolean;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
   phase: CoverFlowPhase;
   showPicker: boolean;

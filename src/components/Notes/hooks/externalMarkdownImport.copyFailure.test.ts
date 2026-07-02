@@ -67,7 +67,7 @@ describe('importExternalMarkdownEntries copy failures', () => {
       }
     });
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
         const relativePath = folderPath
           ? `${folderPath}/${name}`
           : isDirectory
@@ -75,13 +75,13 @@ describe('importExternalMarkdownEntries copy failures', () => {
             : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
     );
 
-    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/docs']);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'imports', ['/outside/docs']);
 
     expect(result).toEqual({
       importedNotePaths: ['imports/docs/alpha.md'],
@@ -90,13 +90,13 @@ describe('importExternalMarkdownEntries copy failures', () => {
     });
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/docs/locked.md',
-      '/vault/imports/docs/locked.md',
+      '/notesRoot/imports/docs/locked.md',
     );
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/docs/alpha.md',
-      '/vault/imports/docs/alpha.md',
+      '/notesRoot/imports/docs/alpha.md',
     );
-    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/imports/docs/locked.md');
-    expect(mocks.storage.deleteDir).not.toHaveBeenCalledWith('/vault/imports/docs', true);
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/notesRoot/imports/docs/locked.md');
+    expect(mocks.storage.deleteDir).not.toHaveBeenCalledWith('/notesRoot/imports/docs', true);
   });
 });

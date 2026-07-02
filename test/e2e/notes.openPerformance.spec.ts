@@ -29,22 +29,22 @@ function createLongMarkdown(blockCount: number): string {
   return blocks.join('\n');
 }
 
-function getVaultStorageKey(vaultPath: string): string {
-  const normalized = vaultPath.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '') || vaultPath;
+function getNotesRootStorageKey(notesRootPath: string): string {
+  const normalized = notesRootPath.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '') || notesRootPath;
   let hash = 2166136261;
   for (let index = 0; index < normalized.length; index += 1) {
     hash ^= normalized.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  return `vault-${(hash >>> 0).toString(36)}`;
+  return `notes-root-${(hash >>> 0).toString(36)}`;
 }
 
-async function writeVaultWorkspace(
+async function writeNotesRootWorkspace(
   userDataDir: string,
-  vaultPath: string,
+  notesRootPath: string,
   workspace: { currentNotePath: string | null; expandedFolders?: string[] },
 ): Promise<void> {
-  const workspaceDir = path.join(userDataDir, '.vlaina', 'notes', 'vaults', getVaultStorageKey(vaultPath));
+  const workspaceDir = path.join(userDataDir, '.vlaina', 'notes', 'notes-roots', getNotesRootStorageKey(notesRootPath));
   await fs.mkdir(workspaceDir, { recursive: true });
   await fs.writeFile(
     path.join(workspaceDir, 'workspace.json'),
@@ -57,19 +57,19 @@ async function writeVaultWorkspace(
   );
 }
 
-async function createManyFileVaultFixture(
+async function createManyFileNotesRootFixture(
   rootPath: string,
   fileCount: number,
-): Promise<{ vaultPath: string; restoreRelativePath: string; restoreAbsolutePath: string }> {
-  const vaultPath = path.join(rootPath, `large-vault-${Date.now().toString(36)}`);
+): Promise<{ notesRootPath: string; restoreRelativePath: string; restoreAbsolutePath: string }> {
+  const notesRootPath = path.join(rootPath, `large-notes-root-${Date.now().toString(36)}`);
   const directoryCount = 60;
   const restoreRelativePath = 'section-00/note-00000.md';
-  await fs.mkdir(vaultPath, { recursive: true });
+  await fs.mkdir(notesRootPath, { recursive: true });
 
   for (let directoryIndex = 0; directoryIndex < directoryCount; directoryIndex += 1) {
-    await fs.mkdir(path.join(vaultPath, `section-${String(directoryIndex).padStart(2, '0')}`), { recursive: true });
+    await fs.mkdir(path.join(notesRootPath, `section-${String(directoryIndex).padStart(2, '0')}`), { recursive: true });
   }
-  await fs.mkdir(path.join(vaultPath, 'section-00', 'nested-expanded'), { recursive: true });
+  await fs.mkdir(path.join(notesRootPath, 'section-00', 'nested-expanded'), { recursive: true });
 
   const writes: Promise<void>[] = [];
   for (let index = 0; index < fileCount; index += 1) {
@@ -81,12 +81,12 @@ async function createManyFileVaultFixture(
       `updatedAt: ${1_700_100_000_000 + index}`,
       '---',
       '',
-      `# Large Vault Note ${index}`,
+      `# Large Notes Root Note ${index}`,
       '',
       'Startup should not wait for every note metadata read before showing the file tree.',
       '',
     ].join('\n');
-    writes.push(fs.writeFile(path.join(vaultPath, directory, filename), content, 'utf8'));
+    writes.push(fs.writeFile(path.join(notesRootPath, directory, filename), content, 'utf8'));
 
     if (writes.length >= 128) {
       await Promise.all(writes.splice(0));
@@ -95,9 +95,9 @@ async function createManyFileVaultFixture(
   await Promise.all(writes);
 
   return {
-    vaultPath,
+    notesRootPath,
     restoreRelativePath,
-    restoreAbsolutePath: path.join(vaultPath, restoreRelativePath),
+    restoreAbsolutePath: path.join(notesRootPath, restoreRelativePath),
   };
 }
 
@@ -276,33 +276,33 @@ async function measureLongNoteOpenAndDrag(page: Page, notePath: string, contentC
 test.describe('notes long markdown open performance', () => {
   test.setTimeout(120_000);
 
-  test('shows a large vault file tree before full metadata indexing finishes', async () => {
-    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-vault-open');
+  test('shows a large notes root file tree before full metadata indexing finishes', async () => {
+    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-notes-root-open');
 
     try {
-      const fixture = await createManyFileVaultFixture(userDataDir, 1800);
+      const fixture = await createManyFileNotesRootFixture(userDataDir, 1800);
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
       await setAppViewMode(page, 'notes');
       const openStartedAt = Date.now();
       await page.evaluate(
-        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
-        { path: fixture.vaultPath, name: 'Large Vault Performance' },
+        ({ path: notesRootToOpen, name }) => (window as any).__vlainaE2E.openNotesRoot(notesRootToOpen, name),
+        { path: fixture.notesRootPath, name: 'Large Notes Root Performance' },
       );
 
-      await expect.poll(async () => page.evaluate((expectedVaultPath) => {
-        const vaultState = (window as any).__vlainaE2E.getVaultState();
+      await expect.poll(async () => page.evaluate((expectedNotesRootPath) => {
+        const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
         const treeMetrics = (window as any).__vlainaE2E.getNotesTreeMetrics();
         return {
-          currentVaultPath: vaultState.currentVault?.path ?? null,
+          currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
           rootVisible: Boolean(document.querySelector('[data-file-tree-primary="true"]')),
           visibleFolderCount: document.querySelectorAll('[data-file-tree-kind="folder"]').length,
           isLoading: treeMetrics.isLoading,
-          expectedVaultPath,
+          expectedNotesRootPath,
         };
-      }, fixture.vaultPath), { timeout: 30_000 }).toMatchObject({
-        currentVaultPath: fixture.vaultPath,
+      }, fixture.notesRootPath), { timeout: 30_000 }).toMatchObject({
+        currentNotesRootPath: fixture.notesRootPath,
         rootVisible: true,
         visibleFolderCount: expect.any(Number),
       });
@@ -315,7 +315,7 @@ test.describe('notes long markdown open performance', () => {
         (window as any).__vlainaE2E.getNotesTreeMetrics().files
       )), { timeout: 30_000 }).toBe(1800);
       const treeMetrics = await page.evaluate(() => (window as any).__vlainaE2E.getNotesTreeMetrics());
-      console.info('[notes-large-vault-open-performance]', {
+      console.info('[notes-large-notes-root-open-performance]', {
         firstTreeVisibleMs,
         ...treeMetrics,
       });
@@ -327,41 +327,41 @@ test.describe('notes long markdown open performance', () => {
     }
   });
 
-  test('shows a large vault file tree quickly after switching from another vault', async () => {
-    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-vault-switch');
+  test('shows a large notes root file tree quickly after switching from another notes root', async () => {
+    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-notes-root-switch');
 
     try {
-      const previousVaultPath = path.join(userDataDir, `previous-vault-${Date.now().toString(36)}`);
-      await fs.mkdir(previousVaultPath, { recursive: true });
-      await fs.writeFile(path.join(previousVaultPath, 'previous.md'), '# Previous vault\n', 'utf8');
-      const fixture = await createManyFileVaultFixture(userDataDir, 1800);
+      const previousNotesRootPath = path.join(userDataDir, `previous-notes-root-${Date.now().toString(36)}`);
+      await fs.mkdir(previousNotesRootPath, { recursive: true });
+      await fs.writeFile(path.join(previousNotesRootPath, 'previous.md'), '# Previous notes root\n', 'utf8');
+      const fixture = await createManyFileNotesRootFixture(userDataDir, 1800);
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
       await setAppViewMode(page, 'notes');
       await page.evaluate(
-        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
-        { path: previousVaultPath, name: 'Previous Vault' },
+        ({ path: notesRootToOpen, name }) => (window as any).__vlainaE2E.openNotesRoot(notesRootToOpen, name),
+        { path: previousNotesRootPath, name: 'Previous Notes Root' },
       );
-      await expect.poll(async () => page.evaluate((expectedVaultPath) => (
-        (window as any).__vlainaE2E.getNotesTreeMetrics().rootFolderPath === expectedVaultPath
-      ), previousVaultPath), { timeout: 30_000 }).toBe(true);
+      await expect.poll(async () => page.evaluate((expectedNotesRootPath) => (
+        (window as any).__vlainaE2E.getNotesTreeMetrics().rootFolderPath === expectedNotesRootPath
+      ), previousNotesRootPath), { timeout: 30_000 }).toBe(true);
 
       const openStartedAt = Date.now();
       await page.evaluate(
-        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
-        { path: fixture.vaultPath, name: 'Large Vault Switch Performance' },
+        ({ path: notesRootToOpen, name }) => (window as any).__vlainaE2E.openNotesRoot(notesRootToOpen, name),
+        { path: fixture.notesRootPath, name: 'Large Notes Root Switch Performance' },
       );
 
-      await expect.poll(async () => page.evaluate((expectedVaultPath) => {
+      await expect.poll(async () => page.evaluate((expectedNotesRootPath) => {
         const treeMetrics = (window as any).__vlainaE2E.getNotesTreeMetrics();
         return {
           rootFolderPath: treeMetrics.rootFolderPath,
           rootVisible: Boolean(document.querySelector('[data-file-tree-primary="true"]')),
           visibleFolderCount: document.querySelectorAll('[data-file-tree-kind="folder"]').length,
         };
-      }, fixture.vaultPath), { timeout: 30_000 }).toMatchObject({
-        rootFolderPath: fixture.vaultPath,
+      }, fixture.notesRootPath), { timeout: 30_000 }).toMatchObject({
+        rootFolderPath: fixture.notesRootPath,
         rootVisible: true,
         visibleFolderCount: expect.any(Number),
       });
@@ -374,7 +374,7 @@ test.describe('notes long markdown open performance', () => {
         (window as any).__vlainaE2E.getNotesTreeMetrics().files
       )), { timeout: 30_000 }).toBe(1800);
       const treeMetrics = await page.evaluate(() => (window as any).__vlainaE2E.getNotesTreeMetrics());
-      console.info('[notes-large-vault-switch-performance]', {
+      console.info('[notes-large-notes-root-switch-performance]', {
         firstTreeVisibleMs,
         ...treeMetrics,
       });
@@ -386,12 +386,12 @@ test.describe('notes long markdown open performance', () => {
     }
   });
 
-  test('restores note content in a large vault before full metadata indexing finishes', async () => {
-    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-vault-restore-note');
+  test('restores note content in a large notes root before full metadata indexing finishes', async () => {
+    const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-large-notes-root-restore-note');
 
     try {
-      const fixture = await createManyFileVaultFixture(userDataDir, 1800);
-      await writeVaultWorkspace(userDataDir, fixture.vaultPath, {
+      const fixture = await createManyFileNotesRootFixture(userDataDir, 1800);
+      await writeNotesRootWorkspace(userDataDir, fixture.notesRootPath, {
         currentNotePath: fixture.restoreRelativePath,
         expandedFolders: ['section-00', 'section-00/nested-expanded'],
       });
@@ -401,11 +401,11 @@ test.describe('notes long markdown open performance', () => {
       await setAppViewMode(page, 'notes');
       const openStartedAt = Date.now();
       await page.evaluate(
-        ({ path: vaultToOpen, name }) => (window as any).__vlainaE2E.openVault(vaultToOpen, name),
-        { path: fixture.vaultPath, name: 'Large Vault Restore Note Performance' },
+        ({ path: notesRootToOpen, name }) => (window as any).__vlainaE2E.openNotesRoot(notesRootToOpen, name),
+        { path: fixture.notesRootPath, name: 'Large Notes Root Restore Note Performance' },
       );
 
-      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Large Vault Note 0', {
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Large Notes Root Note 0', {
         timeout: 30_000,
       });
       const editorVisibleMs = Date.now() - openStartedAt;
@@ -413,7 +413,7 @@ test.describe('notes long markdown open performance', () => {
         notes: (window as any).__vlainaE2E.getNotesState(),
         tree: (window as any).__vlainaE2E.getNotesTreeMetrics(),
       }));
-      console.info('[notes-large-vault-restore-note-performance]', {
+      console.info('[notes-large-notes-root-restore-note-performance]', {
         editorVisibleMs,
         currentNotePath: state.notes.currentNote?.path ?? null,
         ...state.tree,

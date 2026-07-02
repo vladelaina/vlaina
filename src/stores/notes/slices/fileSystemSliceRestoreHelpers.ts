@@ -3,7 +3,7 @@ import { buildFileTree } from '../fileTreeUtils';
 import { createEmptyMetadataFile, remapMetadataEntries } from '../storage';
 import {
   getStarredEntryKey,
-  getVaultStarredPaths,
+  getNotesRootStarredPaths,
 } from '../starred';
 import type { FileTreeNode, MetadataFile, StarredEntry } from '../types';
 
@@ -66,7 +66,7 @@ export function restoreDeletedStarredEntries({
   restoredPath: string;
 }) {
   if (deletedEntries.length === 0) {
-    const starredPaths = getVaultStarredPaths(currentEntries, notesPath);
+    const starredPaths = getNotesRootStarredPaths(currentEntries, notesPath);
     return {
       entries: currentEntries,
       notes: starredPaths.notes,
@@ -83,7 +83,7 @@ export function restoreDeletedStarredEntries({
     }))
     .filter((entry) => !existingKeys.has(getStarredEntryKey(entry)));
   const entries = [...currentEntries, ...restoredEntries];
-  const starredPaths = getVaultStarredPaths(entries, notesPath);
+  const starredPaths = getNotesRootStarredPaths(entries, notesPath);
 
   return {
     entries,

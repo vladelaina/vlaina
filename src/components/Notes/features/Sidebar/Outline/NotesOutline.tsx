@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { useUIStore } from '@/stores/uiSlice';
 import {
@@ -19,7 +19,7 @@ import { NotesSidebarPillEmptyHint, NotesSidebarScrollArea } from '../NotesSideb
 import { NotesSidebarRow } from '../NotesSidebarRow';
 import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
 import {
-  getEmptyWorkspaceRecentVaults,
+  getEmptyWorkspaceRecentNotesRoots,
   SidebarEmptyWorkspacePanel,
 } from '../SidebarEmptyWorkspacePanel';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
@@ -89,9 +89,9 @@ export function NotesOutline({
   const { t } = useI18n();
   const { headings, activeId, jumpToHeading, renameHeading } = useNotesOutline(enabled);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
-  const currentVault = useVaultStore((s) => s.currentVault);
-  const recentVaults = useVaultStore((s) => s.recentVaults);
-  const openVault = useVaultStore((s) => s.openVault);
+  const currentNotesRoot = useNotesRootStore((s) => s.currentNotesRoot);
+  const recentNotesRoots = useNotesRootStore((s) => s.recentNotesRoots);
+  const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
   const [renamingHeadingId, setRenamingHeadingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -100,9 +100,9 @@ export function NotesOutline({
   const hasCurrentFile = Boolean(currentNotePath && !isDraftNotePath(currentNotePath));
   const shouldShowEmptyWorkspacePanel = headings.length === 0 && !hasCurrentFile && !sidebarCollapsed;
   const shouldShowOutlineEmpty = hasCurrentFile && headings.length === 0;
-  const recentEmptyWorkspaceVaults = useMemo(() => (
-    getEmptyWorkspaceRecentVaults(recentVaults, currentVault?.path)
-  ), [currentVault?.path, recentVaults]);
+  const recentEmptyWorkspaceNotesRoots = useMemo(() => (
+    getEmptyWorkspaceRecentNotesRoots(recentNotesRoots, currentNotesRoot?.path)
+  ), [currentNotesRoot?.path, recentNotesRoots]);
 
   useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
@@ -172,9 +172,9 @@ export function NotesOutline({
     window.dispatchEvent(new Event('app-open-markdown-target-folder'));
   }, []);
 
-  const handleOpenRecentVault = useCallback((path: string) => {
-    void openVault(path).catch(() => undefined);
-  }, [openVault]);
+  const handleOpenRecentNotesRoot = useCallback((path: string) => {
+    void openNotesRoot(path).catch(() => undefined);
+  }, [openNotesRoot]);
 
   const renderOutlineRow = useCallback(({ node, hasChildren, isCollapsed }: VisibleOutlineRow) => {
     const isActive = node.id === activeId;
@@ -342,10 +342,10 @@ export function NotesOutline({
                   folderLabel={t('notes.folder')}
                   openFileLabel={t('notes.openFile')}
                   openFolderLabel={t('notes.openFolder')}
-                  recentVaults={recentEmptyWorkspaceVaults}
+                  recentNotesRoots={recentEmptyWorkspaceNotesRoots}
                   onOpenFile={handleOpenMarkdownFile}
                   onOpenFolder={handleOpenFolder}
-                  onOpenRecentVault={handleOpenRecentVault}
+                  onOpenRecentNotesRoot={handleOpenRecentNotesRoot}
                 />
               ) : shouldShowOutlineEmpty ? (
                 <NotesSidebarPillEmptyHint

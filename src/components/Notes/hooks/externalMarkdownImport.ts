@@ -3,17 +3,17 @@ import { getBaseName, getParentPath, getStorageAdapter, isAbsolutePath, joinPath
 import type { StarredKind } from '@/stores/notes/types';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import {
-  isPathInsideStarredVault,
-  isValidStarredVaultPath,
+  isPathInsideStarredNotesRoot,
+  isValidStarredNotesRootPath,
   normalizeStarredRelativePath,
-  resolveStarredRelativePathForVault,
+  resolveStarredRelativePathForNotesRoot,
 } from '@/stores/notes/starred';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
 import {
-  hasUnsafeVaultPathSegment,
-  isSafeVaultPathSegment,
-} from '@/stores/notes/utils/fs/vaultPathContainment';
+  hasUnsafeNotesRootPathSegment,
+  isSafeNotesRootPathSegment,
+} from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
 const MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES = 2000;
@@ -42,7 +42,7 @@ interface ExternalMarkdownImportResult {
 
 export interface ExternalMarkdownStarredTarget {
   kind: StarredKind;
-  vaultPath: string;
+  notesRootPath: string;
   relativePath: string;
 }
 
@@ -169,7 +169,7 @@ function getExternalMarkdownDirectoryEntryPriority(entry: {
   isDirectory?: boolean;
   isFile?: boolean;
 }) {
-  if (!isSafeVaultPathSegment(entry.name)) {
+  if (!isSafeNotesRootPathSegment(entry.name)) {
     return 3;
   }
   if (entry.isFile && isSupportedMarkdownSelection(entry.name)) {
@@ -205,7 +205,7 @@ function hasUnsafeExternalMarkdownPathSegment(path: string) {
   const pathWithoutDrive = /^[A-Za-z]:(?:\/|$)/.test(normalizedPath)
     ? normalizedPath.slice(2)
     : normalizedPath;
-  return hasUnsafeVaultPathSegment(pathWithoutDrive);
+  return hasUnsafeNotesRootPathSegment(pathWithoutDrive);
 }
 
 function isAllowedExternalMarkdownPath(path: string) {
@@ -243,16 +243,16 @@ async function statExternalMarkdownPath(absolutePath: string) {
   return getStorageAdapter().stat(absolutePath);
 }
 
-function getExistingVaultRelativePath(vaultPath: string, absolutePath: string) {
-  return resolveStarredRelativePathForVault(absolutePath, vaultPath);
+function getExistingNotesRootRelativePath(notesRootPath: string, absolutePath: string) {
+  return resolveStarredRelativePathForNotesRoot(absolutePath, notesRootPath);
 }
 
 function createExternalStarredTarget(
   info: { isDirectory?: boolean; isFile?: boolean },
-  vaultPath: string,
+  notesRootPath: string,
   relativePath: string,
 ): ExternalMarkdownStarredTarget | null {
-  if (!isValidStarredVaultPath(vaultPath)) {
+  if (!isValidStarredNotesRootPath(notesRootPath)) {
     return null;
   }
 
@@ -263,14 +263,14 @@ function createExternalStarredTarget(
 
   return {
     kind: info.isDirectory ? 'folder' : 'note',
-    vaultPath,
+    notesRootPath,
     relativePath: normalizedRelativePath,
   };
 }
 
 async function importExternalMarkdownFile(
   sourcePath: string,
-  vaultPath: string,
+  notesRootPath: string,
   targetFolderPath: string | undefined,
   preparedImport: PreparedExternalMarkdownFileImport,
 ) {
@@ -278,7 +278,7 @@ async function importExternalMarkdownFile(
   let resolvedPath: Awaited<ReturnType<typeof resolveUniquePath>>;
   try {
     resolvedPath = await resolveUniquePath(
-      vaultPath,
+      notesRootPath,
       targetFolderPath,
       getBaseName(sourcePath),
       false,
@@ -359,7 +359,7 @@ async function prepareImportableExternalMarkdownFile(
 
 async function importExternalMarkdownDirectory(
   sourcePath: string,
-  vaultPath: string,
+  notesRootPath: string,
   targetFolderPath: string | undefined,
   importedNotePaths: string[],
   importedFolderPaths: string[],
@@ -376,7 +376,7 @@ async function importExternalMarkdownDirectory(
   let resolvedPath: Awaited<ReturnType<typeof resolveUniquePath>>;
   try {
     resolvedPath = await resolveUniquePath(
-      vaultPath,
+      notesRootPath,
       targetFolderPath,
       getBaseName(sourcePath),
       true,
@@ -410,7 +410,7 @@ async function importExternalMarkdownDirectory(
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
     }
-    if (!isSafeVaultPathSegment(entry.name)) {
+    if (!isSafeNotesRootPathSegment(entry.name)) {
       continue;
     }
 
@@ -429,7 +429,7 @@ async function importExternalMarkdownDirectory(
       budget.visitedEntries += 1;
       copiedMarkdownCount += await importExternalMarkdownDirectory(
         sourceEntryPath,
-        vaultPath,
+        notesRootPath,
         relativePath,
         importedNotePaths,
         importedFolderPaths,
@@ -452,7 +452,7 @@ async function importExternalMarkdownDirectory(
       continue;
     }
 
-    const importedPath = await importExternalMarkdownFile(sourceEntryPath, vaultPath, relativePath, preparedImport);
+    const importedPath = await importExternalMarkdownFile(sourceEntryPath, notesRootPath, relativePath, preparedImport);
     if (importedPath) {
       importedNotePaths.push(importedPath);
       copiedMarkdownCount += 1;
@@ -469,7 +469,7 @@ async function importExternalMarkdownDirectory(
 }
 
 export async function importExternalMarkdownEntries(
-  vaultPath: string,
+  notesRootPath: string,
   targetFolderPath: string,
   absolutePaths: string[],
 ): Promise<ExternalMarkdownImportResult> {
@@ -511,7 +511,7 @@ export async function importExternalMarkdownEntries(
       budget.visitedEntries += 1;
       await importExternalMarkdownDirectory(
         sourcePath,
-        vaultPath,
+        notesRootPath,
         targetFolderPath || undefined,
         importedNotePaths,
         importedFolderPaths,
@@ -535,7 +535,7 @@ export async function importExternalMarkdownEntries(
 
     const importedPath = await importExternalMarkdownFile(
       sourcePath,
-      vaultPath,
+      notesRootPath,
       targetFolderPath || undefined,
       preparedImport,
     );
@@ -552,7 +552,7 @@ export async function importExternalMarkdownEntries(
 }
 
 export async function resolveExternalMarkdownEntriesForStarred(
-  vaultPath: string,
+  notesRootPath: string,
   absolutePaths: string[],
 ): Promise<ExternalMarkdownStarredTarget[]> {
   const targets: ExternalMarkdownStarredTarget[] = [];
@@ -584,13 +584,13 @@ export async function resolveExternalMarkdownEntriesForStarred(
       continue;
     }
 
-    const existingRelativePath = getExistingVaultRelativePath(vaultPath, sourcePath);
+    const existingRelativePath = getExistingNotesRootRelativePath(notesRootPath, sourcePath);
 
     if (existingRelativePath) {
       if (info?.isDirectory) {
         targets.push({
           kind: 'folder',
-          vaultPath,
+          notesRootPath,
           relativePath: existingRelativePath,
         });
         continue;
@@ -599,14 +599,14 @@ export async function resolveExternalMarkdownEntriesForStarred(
       if (info?.isFile && isSupportedMarkdownSelection(sourcePath)) {
         targets.push({
           kind: 'note',
-          vaultPath,
+          notesRootPath,
           relativePath: existingRelativePath,
         });
         continue;
       }
     }
 
-    if (isPathInsideStarredVault(sourcePath, vaultPath)) {
+    if (isPathInsideStarredNotesRoot(sourcePath, notesRootPath)) {
       continue;
     }
 

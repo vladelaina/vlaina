@@ -10,7 +10,7 @@ export interface NoteMentionCandidate {
   isCurrent: boolean;
   icon?: string;
   notePath?: string;
-  vaultPath?: string;
+  notesRootPath?: string;
   starredEntry?: StarredEntry;
 }
 

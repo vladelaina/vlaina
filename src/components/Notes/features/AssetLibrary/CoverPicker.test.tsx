@@ -78,7 +78,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="note.md"
       />,
     );
@@ -105,7 +105,7 @@ describe('CoverPicker', () => {
           onSelect={vi.fn()}
           onRemove={onRemove}
           onPreview={onPreview}
-          vaultPath="/vault"
+          notesRootPath="/notesRoot"
           currentNotePath="note.md"
         />
       </div>,
@@ -134,7 +134,7 @@ describe('CoverPicker', () => {
         onClose={vi.fn()}
         onSelect={vi.fn()}
         onPreview={onPreview}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="note.md"
       />,
     );
@@ -164,7 +164,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -176,13 +176,13 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="nested/two.md"
       />,
     );
 
     await waitFor(() => expect(hoisted.loadAssets).toHaveBeenCalledTimes(2));
-    expect(hoisted.loadAssets).toHaveBeenLastCalledWith('/vault');
+    expect(hoisted.loadAssets).toHaveBeenLastCalledWith('/notesRoot');
   });
 
   it('shows a stable loading state instead of stale assets while the library refreshes', async () => {
@@ -197,7 +197,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -221,7 +221,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -234,7 +234,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -243,7 +243,7 @@ describe('CoverPicker', () => {
     expect(hoisted.loadAssets).toHaveBeenCalledTimes(1);
   });
 
-  it('does not enter library loading when opened without a vault path', () => {
+  it('does not enter library loading when opened without a opened folder path', () => {
     hoisted.assetList = [];
 
     render(
@@ -251,7 +251,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath=""
+        notesRootPath=""
         currentNotePath="one.md"
       />,
     );
@@ -269,7 +269,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -289,7 +289,7 @@ describe('CoverPicker', () => {
         onClose={vi.fn()}
         onSelect={vi.fn()}
         onRemove={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -310,7 +310,7 @@ describe('CoverPicker', () => {
         onClose={vi.fn()}
         onSelect={vi.fn()}
         onRemove={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -331,7 +331,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );
@@ -351,7 +351,7 @@ describe('CoverPicker', () => {
         isOpen
         onClose={vi.fn()}
         onSelect={vi.fn()}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
         currentNotePath="one.md"
       />,
     );

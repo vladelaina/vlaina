@@ -1,6 +1,6 @@
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment } from '@/stores/notes/utils/fs/notesRootPathContainment';
 
 export interface NoteMentionReference {
   path: string;
@@ -40,7 +40,7 @@ export function isPotentiallyLoadableNoteMentionReference(
       !WINDOWS_DRIVE_MENTION_PATH_PATTERN.test(path)
     ) ||
     BACKSLASH_ESCAPED_MENTION_SCHEME_PATTERN.test(path) ||
-    hasUnsafeVaultPathSegment(path) ||
+    hasUnsafeNotesRootPathSegment(path) ||
     hasInternalNotePathSegment(path)
   ) {
     return false;

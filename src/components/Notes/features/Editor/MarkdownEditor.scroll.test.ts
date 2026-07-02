@@ -12,26 +12,26 @@ describe('note scroll position storage', () => {
     window.localStorage.removeItem(NOTE_SCROLL_POSITION_STORAGE_KEY);
   });
 
-  it('persists and loads scroll positions by vault and note path', () => {
-    persistNoteScrollPosition('/vault-a', 'docs/alpha.md', 320.4);
-    persistNoteScrollPosition('/vault-b', 'docs/alpha.md', 48);
+  it('persists and loads scroll positions by notesRoot and note path', () => {
+    persistNoteScrollPosition('/notes-root-a', 'docs/alpha.md', 320.4);
+    persistNoteScrollPosition('/notes-root-b', 'docs/alpha.md', 48);
 
-    expect(loadPersistedNoteScrollPosition('/vault-a', 'docs/alpha.md')).toBe(320);
-    expect(loadPersistedNoteScrollPosition('/vault-b', 'docs/alpha.md')).toBe(48);
-    expect(loadPersistedNoteScrollPosition('/vault-a', 'docs/missing.md')).toBeNull();
+    expect(loadPersistedNoteScrollPosition('/notes-root-a', 'docs/alpha.md')).toBe(320);
+    expect(loadPersistedNoteScrollPosition('/notes-root-b', 'docs/alpha.md')).toBe(48);
+    expect(loadPersistedNoteScrollPosition('/notes-root-a', 'docs/missing.md')).toBeNull();
   });
 
   it('persists absolute markdown file scroll positions', () => {
-    persistNoteScrollPosition('/vault-a', '/external/notes/alpha.md', 128);
+    persistNoteScrollPosition('/notes-root-a', '/external/notes/alpha.md', 128);
 
-    expect(loadPersistedNoteScrollPosition('/vault-a', '/external/notes/alpha.md')).toBe(128);
-    expect(loadPersistedNoteScrollPosition('/vault-b', '/external/notes/alpha.md')).toBe(128);
+    expect(loadPersistedNoteScrollPosition('/notes-root-a', '/external/notes/alpha.md')).toBe(128);
+    expect(loadPersistedNoteScrollPosition('/notes-root-b', '/external/notes/alpha.md')).toBe(128);
   });
 
   it('ignores draft note scroll positions', () => {
-    persistNoteScrollPosition('/vault-a', 'draft:local', 128);
+    persistNoteScrollPosition('/notes-root-a', 'draft:local', 128);
 
-    expect(loadPersistedNoteScrollPosition('/vault-a', 'draft:local')).toBeNull();
+    expect(loadPersistedNoteScrollPosition('/notes-root-a', 'draft:local')).toBeNull();
     expect(window.localStorage.getItem(NOTE_SCROLL_POSITION_STORAGE_KEY)).toBeNull();
   });
 });

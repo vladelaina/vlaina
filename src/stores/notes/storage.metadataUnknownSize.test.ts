@@ -45,13 +45,13 @@ describe('notes metadata unknown-size files', () => {
   it('reads markdown metadata when file stat omits size', async () => {
     adapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 7 });
 
-    await expect(loadNoteMetadata('/vault-unknown-size')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-unknown-size')).resolves.toEqual({
       version: 2,
       notes: {
         'alpha.md': { icon: '💡', updatedAt: 7 },
       },
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unknown-size/alpha.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-unknown-size/alpha.md', MAX_METADATA_READ_BYTES);
   });
 
   it('reads workspace state with bounded reads when stat omits size', async () => {
@@ -62,7 +62,7 @@ describe('notes metadata unknown-size files', () => {
       expandedFolders: ['docs'],
     }));
 
-    const state = await loadWorkspaceState('/vault-workspace-unknown-size');
+    const state = await loadWorkspaceState('/notes-root-workspace-unknown-size');
 
     expect(adapter.readFile).toHaveBeenCalledWith(
       expect.stringContaining('/workspace.json'),

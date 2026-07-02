@@ -244,12 +244,12 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
   });
 
   it('syncs a Windows absolute note renamed to a non-Markdown path with case-varied events', async () => {
-    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('C:/Users/Me/Vault/current.md'));
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('C:/Users/Me/NotesRoot/current.md'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['c:/users/me/vault/current.md', 'c:/users/me/vault/current.png'],
+        paths: ['c:/users/me/notesRoot/current.md', 'c:/users/me/notesRoot/current.png'],
       });
     });
 
@@ -344,18 +344,18 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
   });
 
   it('keeps Windows absolute note folder rename sync with case-varied events', async () => {
-    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('C:/Users/Me/Vault/docs/current.md'));
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('C:/Users/Me/NotesRoot/docs/current.md'));
 
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
-        paths: ['c:/users/me/vault/docs', 'c:/users/me/vault/archive'],
+        paths: ['c:/users/me/notesRoot/docs', 'c:/users/me/notesRoot/archive'],
       });
     });
 
     expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith(
-      'c:/users/me/vault/docs',
-      'c:/users/me/vault/archive',
+      'c:/users/me/notesRoot/docs',
+      'c:/users/me/notesRoot/archive',
     );
     expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
 

@@ -45,7 +45,7 @@ describe('notesSidebarTags scope budgets', () => {
     expect(buildNotesSidebarTagScopeEntries({ rootFolder: largeRoot })).toHaveLength(10_000);
   });
 
-  it('prioritizes current vault starred folders before capping large tag scopes', () => {
+  it('prioritizes opened folder starred folders before capping large tag scopes', () => {
     const largeRoot: FolderNode = {
       id: 'root-large-starred',
       name: 'Notes',
@@ -79,12 +79,12 @@ describe('notesSidebarTags scope budgets', () => {
 
     const entries = buildNotesSidebarTagScopeEntries({
       rootFolder: largeRoot,
-      currentVaultPath: '/vault',
+      currentNotesRootPath: '/notesRoot',
       starredEntries: [
         {
           id: 'starred-folder',
           kind: 'folder',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'starred',
           addedAt: 1,
         },

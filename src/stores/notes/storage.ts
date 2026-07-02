@@ -8,16 +8,16 @@ import {
 } from './constants';
 import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from './types';
 import { normalizeNoteMetadataEntry, readNoteMetadataFromMarkdown } from './frontmatter';
-import { ensureSystemDirectory, getVaultSystemStorePath } from './systemStoragePaths';
+import { ensureSystemDirectory, getNotesRootSystemStorePath } from './systemStoragePaths';
 import { normalizeRecentNotePaths, normalizeWorkspaceState } from './persistenceValidation';
-import { isSafeVaultPathSegment, MAX_VAULT_RELATIVE_PATH_CHARS } from './utils/fs/vaultPathContainment';
+import { isSafeNotesRootPathSegment, MAX_NOTES_ROOT_RELATIVE_PATH_CHARS } from './utils/fs/notesRootPathContainment';
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 export type { MetadataFile, NoteMetadataEntry };
 
 const CURRENT_METADATA_VERSION = 2;
 const DEFAULT_NOTE_ICON_SIZE = 60;
-const MAX_METADATA_CACHE_VAULTS = 8;
+const MAX_METADATA_CACHE_NOTES_ROOTS = 8;
 const MAX_METADATA_SCAN_ENTRIES = 5000;
 const MAX_METADATA_DIRECTORY_SCAN_ENTRIES = 10_000;
 const MAX_METADATA_SCAN_DEPTH = 24;
@@ -45,18 +45,18 @@ interface MetadataScanBudget {
   visitedEntries: number;
 }
 
-const metadataCacheByVault = new Map<string, Map<string, CachedMetadataEntry>>();
+const metadataCacheByNotesRoot = new Map<string, Map<string, CachedMetadataEntry>>();
 
-function setMetadataVaultCache(vaultPath: string, cache: Map<string, CachedMetadataEntry>) {
-  metadataCacheByVault.delete(vaultPath);
-  metadataCacheByVault.set(vaultPath, cache);
+function setMetadataNotesRootCache(notesRootPath: string, cache: Map<string, CachedMetadataEntry>) {
+  metadataCacheByNotesRoot.delete(notesRootPath);
+  metadataCacheByNotesRoot.set(notesRootPath, cache);
 
-  while (metadataCacheByVault.size > MAX_METADATA_CACHE_VAULTS) {
-    const oldestVaultPath = metadataCacheByVault.keys().next().value;
-    if (oldestVaultPath === undefined) {
+  while (metadataCacheByNotesRoot.size > MAX_METADATA_CACHE_NOTES_ROOTS) {
+    const oldestNotesRootPath = metadataCacheByNotesRoot.keys().next().value;
+    if (oldestNotesRootPath === undefined) {
       return;
     }
-    metadataCacheByVault.delete(oldestVaultPath);
+    metadataCacheByNotesRoot.delete(oldestNotesRootPath);
   }
 }
 
@@ -170,7 +170,7 @@ function shouldHideMetadataDirectory(name: string) {
 }
 
 function getMetadataScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
-  if (!isSafeVaultPathSegment(entry.name)) {
+  if (!isSafeNotesRootPathSegment(entry.name)) {
     return 3;
   }
 
@@ -332,12 +332,12 @@ async function collectMarkdownPaths(
     }
     budget.scannedEntries += 1;
 
-    if (!isSafeVaultPathSegment(entry.name)) {
+    if (!isSafeNotesRootPathSegment(entry.name)) {
       continue;
     }
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-    if (entryPath.length > MAX_VAULT_RELATIVE_PATH_CHARS) {
+    if (entryPath.length > MAX_NOTES_ROOT_RELATIVE_PATH_CHARS) {
       continue;
     }
 
@@ -368,13 +368,13 @@ async function collectMarkdownPaths(
   return collected;
 }
 
-export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile> {
+export async function loadNoteMetadata(notesRootPath: string): Promise<MetadataFile> {
   try {
     const storage = getStorageAdapter();
-    const notePaths = await collectMarkdownPaths(vaultPath);
+    const notePaths = await collectMarkdownPaths(notesRootPath);
     const notes: MetadataFile['notes'] = {};
-    const vaultCache = metadataCacheByVault.get(vaultPath) ?? new Map<string, CachedMetadataEntry>();
-    setMetadataVaultCache(vaultPath, vaultCache);
+    const notesRootCache = metadataCacheByNotesRoot.get(notesRootPath) ?? new Map<string, CachedMetadataEntry>();
+    setMetadataNotesRootCache(notesRootPath, notesRootCache);
     const nextCache = new Map<string, CachedMetadataEntry>();
 
     const BATCH_SIZE = 10;
@@ -382,7 +382,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
       const batch = notePaths.slice(index, index + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(async (relativePath) => {
-          const fullPath = await joinPath(vaultPath, relativePath);
+          const fullPath = await joinPath(notesRootPath, relativePath);
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const createdAt = getKnownReadableCreatedAt(fileInfo);
           const modifiedAt = getKnownReadableModifiedAt(fileInfo);
@@ -395,7 +395,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           }
 
           const canUseCache = modifiedAt !== null;
-          const cached = vaultCache.get(relativePath);
+          const cached = notesRootCache.get(relativePath);
           if (
             canUseCache &&
             cached &&
@@ -445,7 +445,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
       }
     }
 
-    setMetadataVaultCache(vaultPath, nextCache);
+    setMetadataNotesRootCache(notesRootPath, nextCache);
 
     return {
       version: CURRENT_METADATA_VERSION,
@@ -516,21 +516,21 @@ export function remapMetadataEntries(
   };
 }
 
-let currentVaultPath: string | null = null;
+let currentNotesRootPath: string | null = null;
 
-export function setCurrentVaultPath(path: string | null): void {
-  currentVaultPath = path;
+export function setCurrentNotesRootPath(path: string | null): void {
+  currentNotesRootPath = path;
 }
 
-export function getCurrentVaultPath(): string | null {
-  return currentVaultPath;
+export function getCurrentNotesRootPath(): string | null {
+  return currentNotesRootPath;
 }
 
 export async function getNotesBasePath(): Promise<string> {
-  if (!currentVaultPath) {
-    throw new Error('No vault selected');
+  if (!currentNotesRootPath) {
+    throw new Error('No opened folder selected');
   }
-  return currentVaultPath;
+  return currentNotesRootPath;
 }
 
 export async function ensureNotesFolder(basePath: string): Promise<void> {
@@ -547,10 +547,10 @@ export interface WorkspaceState {
   fileTreeSortMode?: FileTreeSortMode;
 }
 
-export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceState | null> {
+export async function loadWorkspaceState(notesRootPath: string): Promise<WorkspaceState | null> {
   try {
     const storage = getStorageAdapter();
-    const wsPath = await getVaultSystemStorePath(vaultPath, WORKSPACE_FILE);
+    const wsPath = await getNotesRootSystemStorePath(notesRootPath, WORKSPACE_FILE);
 
     if (!(await storage.exists(wsPath))) {
       return null;
@@ -571,13 +571,13 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
   }
 }
 
-export async function saveWorkspaceState(vaultPath: string, state: WorkspaceState): Promise<void> {
+export async function saveWorkspaceState(notesRootPath: string, state: WorkspaceState): Promise<void> {
   try {
-    const storePath = await getVaultSystemStorePath(vaultPath);
+    const storePath = await getNotesRootSystemStorePath(notesRootPath);
     await ensureSystemDirectory(storePath);
 
     const wsPath = await joinPath(storePath, WORKSPACE_FILE);
-    const existingState = await loadWorkspaceState(vaultPath);
+    const existingState = await loadWorkspaceState(notesRootPath);
     const normalizedState = normalizeWorkspaceState(state);
     const mergedState = normalizedState && existingState
       ? {

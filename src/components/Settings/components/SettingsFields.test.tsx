@@ -26,7 +26,7 @@ function setScrollMetrics(
 }
 
 describe('SettingsFields', () => {
-  it('handles wheel scrolling inside settings textareas', () => {
+  it('preserves textarea wheel handlers while leaving vertical scrolling to the browser', () => {
     const onWheel = vi.fn();
 
     render(
@@ -44,6 +44,6 @@ describe('SettingsFields', () => {
     fireEvent.wheel(textarea, { deltaY: 60 });
 
     expect(onWheel).toHaveBeenCalledTimes(1);
-    expect(textarea.scrollTop).toBe(80);
+    expect(textarea.scrollTop).toBe(20);
   });
 });

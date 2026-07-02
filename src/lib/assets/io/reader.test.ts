@@ -59,22 +59,22 @@ describe('asset image reader cache', () => {
   });
 
   it('revokes cached blob URLs when invalidating a single path', async () => {
-    await loadImageAsBlob('/vault/assets/cover.png');
+    await loadImageAsBlob('/notesRoot/assets/cover.png');
 
-    expect(getCachedBlobUrl('/vault/assets/cover.png')).toBe('blob:test-url');
+    expect(getCachedBlobUrl('/notesRoot/assets/cover.png')).toBe('blob:test-url');
 
-    invalidateImageCache('/vault/assets/cover.png');
+    invalidateImageCache('/notesRoot/assets/cover.png');
 
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
-    expect(getCachedBlobUrl('/vault/assets/cover.png')).toBeUndefined();
+    expect(getCachedBlobUrl('/notesRoot/assets/cover.png')).toBeUndefined();
   });
 
   it('reads full image blobs when file metadata has no size but bounded read succeeds', async () => {
     hoisted.stat.mockResolvedValueOnce(null);
 
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:test-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:test-url');
 
-    expect(hoisted.readBinaryFile).toHaveBeenCalledWith('/vault/assets/cover.png', expect.any(Number));
+    expect(hoisted.readBinaryFile).toHaveBeenCalledWith('/notesRoot/assets/cover.png', expect.any(Number));
   });
 
   it('reloads and revokes a cached blob URL when file metadata changes', async () => {
@@ -86,9 +86,9 @@ describe('asset image reader cache', () => {
       .mockReturnValueOnce('blob:first-url')
       .mockReturnValueOnce('blob:second-url');
 
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:first-url');
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:first-url');
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:second-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:first-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:first-url');
+    await expect(loadImageAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:second-url');
 
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-url');
@@ -101,7 +101,7 @@ describe('asset image reader cache', () => {
     }));
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:late-full-url');
 
-    const load = loadImageAsBlob('/vault/assets/cover.png');
+    const load = loadImageAsBlob('/notesRoot/assets/cover.png');
 
     await vi.waitFor(() => {
       expect(resolveRead).toBeDefined();
@@ -112,7 +112,7 @@ describe('asset image reader cache', () => {
 
     await expect(load).rejects.toThrow('Image cache was invalidated while loading.');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:late-full-url');
-    expect(getCachedBlobUrl('/vault/assets/cover.png')).toBeUndefined();
+    expect(getCachedBlobUrl('/notesRoot/assets/cover.png')).toBeUndefined();
   });
 
   it('does not cancel unrelated image loads when invalidating a single path', async () => {
@@ -122,18 +122,18 @@ describe('asset image reader cache', () => {
     }));
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:other-url');
 
-    const load = loadImageAsBlob('/vault/assets/other.png');
+    const load = loadImageAsBlob('/notesRoot/assets/other.png');
 
     await vi.waitFor(() => {
       expect(resolveRead).toBeDefined();
     });
 
-    invalidateImageCache('/vault/assets/cover.png');
+    invalidateImageCache('/notesRoot/assets/cover.png');
     resolveRead?.(new Uint8Array([1, 2, 3]));
 
     await expect(load).resolves.toBe('blob:other-url');
     expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:other-url');
-    expect(getCachedBlobUrl('/vault/assets/other.png')).toBe('blob:other-url');
+    expect(getCachedBlobUrl('/notesRoot/assets/other.png')).toBe('blob:other-url');
   });
 
   it('bounds concurrent full image blob reads for different files', async () => {
@@ -143,13 +143,13 @@ describe('asset image reader cache', () => {
     }));
 
     const loads = Array.from({ length: MAX_PENDING_BLOB_URL_LOADS }, (_value, index) =>
-      loadImageAsBlob(`/vault/assets/pending-${index}.png`)
+      loadImageAsBlob(`/notesRoot/assets/pending-${index}.png`)
     );
 
     await vi.waitFor(() => {
       expect(pendingReads).toHaveLength(MAX_PENDING_BLOB_URL_LOADS);
     });
-    await expect(loadImageAsBlob('/vault/assets/overflow.png')).rejects.toThrow(
+    await expect(loadImageAsBlob('/notesRoot/assets/overflow.png')).rejects.toThrow(
       'Too many image asset previews are loading.',
     );
 
@@ -158,7 +158,7 @@ describe('asset image reader cache', () => {
   });
 
   it('rejects non-image paths without reading them', async () => {
-    await expect(loadImageAsBlob('/vault/assets/secret.md')).rejects.toThrow(
+    await expect(loadImageAsBlob('/notesRoot/assets/secret.md')).rejects.toThrow(
       'Only image files can be loaded as note assets.',
     );
 
@@ -168,7 +168,7 @@ describe('asset image reader cache', () => {
   it('rejects oversized image files before reading them when stat has a size', async () => {
     hoisted.stat.mockResolvedValueOnce({ modifiedAt: 1, size: 51 * 1024 * 1024 });
 
-    await expect(loadImageAsBlob('/vault/assets/huge.png')).rejects.toThrow(
+    await expect(loadImageAsBlob('/notesRoot/assets/huge.png')).rejects.toThrow(
       'Image asset is too large to preview.',
     );
 
@@ -178,7 +178,7 @@ describe('asset image reader cache', () => {
   it('rejects image files with invalid known stat sizes before reading them', async () => {
     hoisted.stat.mockResolvedValueOnce({ modifiedAt: 1, size: -1 });
 
-    await expect(loadImageAsBlob('/vault/assets/invalid.png')).rejects.toThrow(
+    await expect(loadImageAsBlob('/notesRoot/assets/invalid.png')).rejects.toThrow(
       'Image asset is too large to preview.',
     );
 
@@ -209,7 +209,7 @@ describe('asset image reader cache', () => {
       return 'blob:sanitized-svg';
     });
 
-    await expect(loadImageAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:sanitized-svg');
+    await expect(loadImageAsBlob('/notesRoot/assets/icon.svg')).resolves.toBe('blob:sanitized-svg');
     const blobText = await blobTextPromise;
 
     expect(blobText).toContain('<svg');
@@ -234,7 +234,7 @@ describe('asset image reader cache', () => {
     hoisted.stat.mockResolvedValueOnce(null);
     hoisted.readBinaryFile.mockResolvedValueOnce(encodeTextBytes(svg));
 
-    const dataUrl = await loadImageAsBase64('/vault/assets/icon.svg');
+    const dataUrl = await loadImageAsBase64('/notesRoot/assets/icon.svg');
     const encoded = dataUrl.slice(dataUrl.indexOf(',') + 1);
     const decoded = atob(encoded);
 
@@ -265,7 +265,7 @@ describe('asset image reader cache', () => {
       });
       hoisted.readBinaryFile.mockResolvedValueOnce(new Uint8Array([1]));
 
-      await expect(loadImageAsBase64('/vault/assets/cover.png')).rejects.toThrow(
+      await expect(loadImageAsBase64('/notesRoot/assets/cover.png')).rejects.toThrow(
         'Image base64 conversion was aborted',
       );
     } finally {
@@ -303,8 +303,8 @@ describe('asset image reader cache', () => {
       return originalCreateElement(tagName, options);
     });
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:thumb-url');
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:thumb-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:thumb-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:thumb-url');
 
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:source-url');
@@ -339,7 +339,7 @@ describe('asset image reader cache', () => {
 
     vi.stubGlobal('Worker', ThumbnailWorker);
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:worker-thumb-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png')).resolves.toBe('blob:worker-thumb-url');
 
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(terminate).toHaveBeenCalledTimes(1);
@@ -352,11 +352,11 @@ describe('asset image reader cache', () => {
     hoisted.readBinaryFile.mockResolvedValueOnce(new Uint8Array([9, 8, 7]));
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:persistent-thumb-url');
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     })).resolves.toBe('blob:persistent-thumb-url');
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     })).resolves.toBe('blob:persistent-thumb-url');
@@ -367,7 +367,7 @@ describe('asset image reader cache', () => {
     expect(existsPath).toContain('/app-data/.vlaina/app/cache/thumbnails/');
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
     expect(readPath).toContain('/app-data/.vlaina/app/cache/thumbnails/');
-    expect(readPath).not.toBe('/vault/assets/cover.png');
+    expect(readPath).not.toBe('/notesRoot/assets/cover.png');
   });
 
   it('persists generated electron worker thumbnails in the background', async () => {
@@ -405,7 +405,7 @@ describe('asset image reader cache', () => {
 
     vi.stubGlobal('Worker', ThumbnailWorker);
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     })).resolves.toBe('blob:worker-thumb-url');
@@ -458,7 +458,7 @@ describe('asset image reader cache', () => {
 
     vi.stubGlobal('Worker', ThumbnailWorker);
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     })).resolves.toBe('blob:worker-thumb-url');
@@ -474,7 +474,7 @@ describe('asset image reader cache', () => {
     vi.stubGlobal('Worker', undefined);
     const createElementSpy = vi.spyOn(document, 'createElement');
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     })).resolves.toBe('blob:original-thumbnail-url');
@@ -513,11 +513,11 @@ describe('asset image reader cache', () => {
       return originalCreateElement(tagName, options);
     });
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     })).resolves.toBe('blob:original-thumbnail-url');
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: true,
     })).resolves.toBe('blob:resized-thumbnail-url');
@@ -554,7 +554,7 @@ describe('asset image reader cache', () => {
       tagName === 'canvas' ? canvas : originalCreateElement(tagName, options)
     ));
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/cover.png', {
       maxEdgePx: 999_999,
       allowMainThreadFallback: true,
     })).resolves.toBe('blob:thumb-url');
@@ -567,9 +567,9 @@ describe('asset image reader cache', () => {
   it('reads thumbnails when file metadata has no size but bounded read succeeds', async () => {
     hoisted.stat.mockResolvedValueOnce(null);
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:test-url');
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg')).resolves.toBe('blob:test-url');
 
-    expect(hoisted.readBinaryFile).toHaveBeenCalledWith('/vault/assets/icon.svg', expect.any(Number));
+    expect(hoisted.readBinaryFile).toHaveBeenCalledWith('/notesRoot/assets/icon.svg', expect.any(Number));
   });
 
   it('does not fall back to a full image load when a thumbnail load finishes after clearing', async () => {
@@ -579,7 +579,7 @@ describe('asset image reader cache', () => {
     }));
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:late-thumb-url');
 
-    const load = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
+    const load = loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg');
 
     await vi.waitFor(() => {
       expect(resolveRead).toBeDefined();
@@ -601,8 +601,8 @@ describe('asset image reader cache', () => {
     }));
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:coalesced-svg-url');
 
-    const firstLoad = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
-    const secondLoad = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
+    const firstLoad = loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg');
+    const secondLoad = loadImageThumbnailAsBlob('/notesRoot/assets/icon.svg');
 
     await vi.waitFor(() => {
       expect(resolveRead).toBeDefined();
@@ -628,13 +628,13 @@ describe('asset image reader cache', () => {
     }));
 
     const loads = Array.from({ length: MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS }, (_value, index) =>
-      loadImageThumbnailAsBlob(`/vault/assets/pending-${index}.svg`)
+      loadImageThumbnailAsBlob(`/notesRoot/assets/pending-${index}.svg`)
     );
 
     await vi.waitFor(() => {
       expect(pendingReads).toHaveLength(MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS);
     });
-    await expect(loadImageThumbnailAsBlob('/vault/assets/overflow.svg')).rejects.toThrow(
+    await expect(loadImageThumbnailAsBlob('/notesRoot/assets/overflow.svg')).rejects.toThrow(
       'Too many image asset previews are loading.',
     );
 

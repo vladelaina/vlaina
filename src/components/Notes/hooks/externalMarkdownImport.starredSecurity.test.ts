@@ -51,33 +51,33 @@ describe('resolveExternalMarkdownEntriesForStarred security', () => {
     mocks.markExpectedExternalChange.mockReset();
   });
 
-  it('does not expose hidden app or git paths from the current vault as starred targets', async () => {
+  it('does not expose hidden app or git paths from the opened folder as starred targets', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path.endsWith('/.vlaina') || path.endsWith('/.git'),
       isFile: path.endsWith('.md'),
     }));
 
-    const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
-      '/vault/.vlaina/workspace.md',
-      '/vault/docs/.git/config.md',
-      '/vault/.vlaina',
-      '/vault/.git',
-      '/vault/.VLAINA/workspace.md',
-      '/vault/docs/.GIT/config.md',
-      '/vault/.VLAINA',
-      '/vault/.GIT',
+    const result = await resolveExternalMarkdownEntriesForStarred('/notesRoot', [
+      '/notesRoot/.vlaina/workspace.md',
+      '/notesRoot/docs/.git/config.md',
+      '/notesRoot/.vlaina',
+      '/notesRoot/.git',
+      '/notesRoot/.VLAINA/workspace.md',
+      '/notesRoot/docs/.GIT/config.md',
+      '/notesRoot/.VLAINA',
+      '/notesRoot/.GIT',
     ]);
 
     expect(result).toEqual([]);
   });
 
-  it('allows user dot folders and dotfile markdown outside the current vault', async () => {
+  it('allows user dot folders and dotfile markdown outside the opened folder', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/.notes',
       isFile: path === '/outside/.journal.md',
     }));
 
-    const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
+    const result = await resolveExternalMarkdownEntriesForStarred('/notesRoot', [
       '/outside/.notes',
       '/outside/.journal.md',
     ]);
@@ -85,12 +85,12 @@ describe('resolveExternalMarkdownEntriesForStarred security', () => {
     expect(result).toEqual([
       {
         kind: 'note',
-        vaultPath: '/outside',
+        notesRootPath: '/outside',
         relativePath: '.journal.md',
       },
       {
         kind: 'folder',
-        vaultPath: '/outside',
+        notesRootPath: '/outside',
         relativePath: '.notes',
       },
     ]);
@@ -102,7 +102,7 @@ describe('resolveExternalMarkdownEntriesForStarred security', () => {
       isFile: path.endsWith('/alpha.md'),
     }));
 
-    const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
+    const result = await resolveExternalMarkdownEntriesForStarred('/notesRoot', [
       '/outside\u202Ecod/docs',
       '/outside\u202Ecod/alpha.md',
       '/outside\u001Fcontrol/docs',

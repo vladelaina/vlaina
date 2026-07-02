@@ -5,7 +5,7 @@ import { messageDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
 import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { hasUnsafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
@@ -19,7 +19,7 @@ const CHAT_INPUT_DROP_TARGET_SELECTOR = '[data-chat-input="true"]';
 interface UseBlankWorkspaceDropOpenOptions {
   enabled: boolean;
   openMarkdownTarget: (absolutePath: string) => Promise<unknown>;
-  openVault: (path: string) => Promise<boolean>;
+  openNotesRoot: (path: string) => Promise<boolean>;
 }
 
 function isOverNotesSidebar(event: DragEvent) {
@@ -58,12 +58,12 @@ function getAuthorizedDroppedPath(info: FileInfo | null, fallbackPath: string) {
   return info?.path?.trim() || fallbackPath;
 }
 
-function normalizeSafeDroppedVaultPath(path: string): string | null {
+function normalizeSafeDroppedNotesRootPath(path: string): string | null {
   const normalizedPath = normalizeAbsolutePath(path.trim());
   if (
     !isAbsolutePath(normalizedPath) ||
     hasInternalNotePathSegment(normalizedPath) ||
-    hasUnsafeVaultPathSegment(normalizedPath)
+    hasUnsafeNotesRootPathSegment(normalizedPath)
   ) {
     return null;
   }
@@ -72,7 +72,7 @@ function normalizeSafeDroppedVaultPath(path: string): string | null {
 }
 
 function normalizeSafeDroppedMarkdownPath(path: string): string | null {
-  const normalizedPath = normalizeSafeDroppedVaultPath(path);
+  const normalizedPath = normalizeSafeDroppedNotesRootPath(path);
   return normalizedPath && isSupportedMarkdownSelection(normalizedPath)
     ? normalizedPath
     : null;
@@ -81,7 +81,7 @@ function normalizeSafeDroppedMarkdownPath(path: string): string | null {
 export function useBlankWorkspaceDropOpen({
   enabled,
   openMarkdownTarget,
-  openVault,
+  openNotesRoot,
 }: UseBlankWorkspaceDropOpenOptions) {
   const { t } = useI18n();
   const [isDragActive, setIsDragActive] = useState(false);
@@ -181,8 +181,8 @@ export function useBlankWorkspaceDropOpen({
           }
 
           if (info?.isDirectory) {
-            const authorizedVaultPath = normalizeSafeDroppedVaultPath(authorizedPath);
-            if (!authorizedVaultPath) {
+            const authorizedNotesRootPath = normalizeSafeDroppedNotesRootPath(authorizedPath);
+            if (!authorizedNotesRootPath) {
               await messageDialog(t('notes.dropFolderOrMarkdown'), {
                 title: t('notes.unsupportedDrop'),
                 kind: 'warning',
@@ -190,7 +190,7 @@ export function useBlankWorkspaceDropOpen({
               return;
             }
 
-            const opened = await openVault(authorizedVaultPath);
+            const opened = await openNotesRoot(authorizedNotesRootPath);
             if (!opened && !cancelled) {
               await messageDialog(t('notes.openDroppedFolderFailed'), {
                 title: t('notes.openFailed'),
@@ -237,7 +237,7 @@ export function useBlankWorkspaceDropOpen({
       window.removeEventListener('dragleave', handleDragLeave, true);
       window.removeEventListener('drop', handleDrop, true);
     };
-  }, [enabled, openMarkdownTarget, openVault, t]);
+  }, [enabled, openMarkdownTarget, openNotesRoot, t]);
 
   return isDragActive;
 }

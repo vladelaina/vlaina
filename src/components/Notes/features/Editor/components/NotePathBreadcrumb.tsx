@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useDisplayName } from '@/hooks/useTitleSync';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getCachedDesktopHomePath, getDesktopHomePath } from '@/lib/desktop/homePath';
@@ -53,7 +53,7 @@ function compressHomePath(path: string, homePath: string | null): string {
 function resolveDisplayPath(
   notePath: string,
   notesPath: string | undefined,
-  vaultName: string,
+  notesRootName: string,
   homePath: string | null
 ): BreadcrumbDisplayPath {
   const normalizedNote = toRelativePath(notePath);
@@ -88,7 +88,7 @@ function resolveDisplayPath(
 
   if (!notesPath) {
     return {
-      rootLabel: vaultName,
+      rootLabel: notesRootName,
       rootPath: '',
       displayPath: normalizedNote,
       isAbsolute: false,
@@ -97,18 +97,18 @@ function resolveDisplayPath(
 
   const normalizedBase = toRelativePath(notesPath).replace(/\/+$/, '');
   if (normalizedNote === normalizedBase) {
-    return { rootLabel: vaultName, rootPath: '', displayPath: '', isAbsolute: false };
+    return { rootLabel: notesRootName, rootPath: '', displayPath: '', isAbsolute: false };
   }
   if (normalizedNote.startsWith(`${normalizedBase}/`)) {
     return {
-      rootLabel: vaultName,
+      rootLabel: notesRootName,
       rootPath: '',
       displayPath: normalizedNote.slice(normalizedBase.length + 1),
       isAbsolute: false,
     };
   }
   return {
-    rootLabel: vaultName,
+    rootLabel: notesRootName,
     rootPath: '',
     displayPath: normalizedNote,
     isAbsolute: false,
@@ -169,8 +169,8 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const setPendingStarredNavigation = useNotesStore((s) => s.setPendingStarredNavigation);
   const { t } = useI18n();
-  const vaultName = useVaultStore((s) => s.currentVault?.name) ?? t('app.viewNotes');
-  const openVault = useVaultStore((s) => s.openVault);
+  const notesRootName = useNotesRootStore((s) => s.currentNotesRoot?.name) ?? t('app.viewNotes');
+  const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const [homePath, setHomePath] = useState(() => getCachedDesktopHomePath());
   const displayName = useDisplayName(notePath);
   const draftNote = getDraftNoteEntry(draftNotes, notePath);
@@ -197,8 +197,8 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   }, [notePath]);
 
   const displayInfo = useMemo(
-    () => resolveDisplayPath(breadcrumbPath, notesPath, vaultName, homePath),
-    [breadcrumbPath, homePath, notesPath, vaultName]
+    () => resolveDisplayPath(breadcrumbPath, notesPath, notesRootName, homePath),
+    [breadcrumbPath, homePath, notesPath, notesRootName]
   );
   const displayPath = displayInfo.displayPath;
   const folderSegments = useMemo(
@@ -220,18 +220,18 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const openAbsoluteDirectoryInSidebar = async (targetPath: string) => {
     setNotesSidebarView('workspace');
 
-    const navigationVaultPath = starredNoteContext?.vaultPath ?? targetPath;
+    const navigationNotesRootPath = starredNoteContext?.notesRootPath ?? targetPath;
     const relativeNotePath = starredNoteContext?.relativePath ?? resolveNotePathWithinDirectory(notePath, targetPath);
     if (relativeNotePath) {
       setPendingStarredNavigation({
-        vaultPath: navigationVaultPath,
+        notesRootPath: navigationNotesRootPath,
         kind: 'note',
         relativePath: relativeNotePath,
         skipWorkspaceRestore: true,
       });
     }
 
-    const opened = await openVault(navigationVaultPath);
+    const opened = await openNotesRoot(navigationNotesRootPath);
     if (!opened && relativeNotePath) {
       setPendingStarredNavigation(null);
     }

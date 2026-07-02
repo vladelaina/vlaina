@@ -67,13 +67,13 @@ export const SidebarNoteFileIcon = memo(function SidebarNoteFileIcon({
   metricKey,
   notePath,
   size = NOTES_SIDEBAR_ICON_SIZE,
-  vaultPath,
+  notesRootPath,
 }: {
   icon?: string | null;
   metricKey?: string;
   notePath: string;
   size?: number | string;
-  vaultPath?: string;
+  notesRootPath?: string;
 }) {
   const resolvedMetricKey = metricKey ?? notePath;
   useSidebarFileIconE2EMetrics(resolvedMetricKey);
@@ -89,7 +89,7 @@ export const SidebarNoteFileIcon = memo(function SidebarNoteFileIcon({
       }}
     >
       {icon ? (
-        <NoteIcon icon={icon} notePath={notePath} vaultPath={vaultPath} size={size} />
+        <NoteIcon icon={icon} notePath={notePath} notesRootPath={notesRootPath} size={size} />
       ) : (
         <Icon name="file.text" size={size} className="text-[var(--vlaina-sidebar-notes-file-icon)]" />
       )}
@@ -101,12 +101,12 @@ export const SidebarLiveNoteFileIcon = memo(function SidebarLiveNoteFileIcon({
   metricKey,
   notePath,
   size = NOTES_SIDEBAR_ICON_SIZE,
-  vaultPath,
+  notesRootPath,
 }: {
   metricKey?: string;
   notePath: string;
   size?: number | string;
-  vaultPath?: string;
+  notesRootPath?: string;
 }) {
   const icon = useDisplayIcon(notePath);
 
@@ -116,7 +116,7 @@ export const SidebarLiveNoteFileIcon = memo(function SidebarLiveNoteFileIcon({
       metricKey={metricKey}
       notePath={notePath}
       size={size}
-      vaultPath={vaultPath}
+      notesRootPath={notesRootPath}
     />
   );
 });

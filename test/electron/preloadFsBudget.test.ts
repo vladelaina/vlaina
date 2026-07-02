@@ -186,7 +186,7 @@ describe('preload filesystem budgets', () => {
       throw new Error('watch callback failed');
     });
 
-    const unwatch = await fs.watch('/tmp/vault', callback, { recursive: true });
+    const unwatch = await fs.watch('/tmp/notesRoot', callback, { recursive: true });
     const handler = ipcRenderer.on.mock.calls.find(
       ([channel]) => channel === 'desktop:fs:watch:watch-safe-id',
     )?.[1];
@@ -194,9 +194,9 @@ describe('preload filesystem budgets', () => {
       throw new Error('watch handler was not registered.');
     }
 
-    expect(handler({}, { paths: ['/tmp/vault/a.md'] })).toBeUndefined();
+    expect(handler({}, { paths: ['/tmp/notesRoot/a.md'] })).toBeUndefined();
     await Promise.resolve();
-    expect(callback).toHaveBeenCalledWith({ paths: ['/tmp/vault/a.md'] });
+    expect(callback).toHaveBeenCalledWith({ paths: ['/tmp/notesRoot/a.md'] });
 
     await unwatch();
     expect(ipcRenderer.removeListener).toHaveBeenCalledWith('desktop:fs:watch:watch-safe-id', handler);

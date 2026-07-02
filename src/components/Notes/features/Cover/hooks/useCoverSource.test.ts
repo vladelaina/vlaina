@@ -6,7 +6,7 @@ import { clearCoverAssetUrlResolveCacheForTests } from '../utils/resolveCoverAss
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
   loadImageThumbnailAsBlob: vi.fn(),
-  resolveVaultAssetPath: vi.fn(),
+  resolveNotesRootAssetPath: vi.fn(),
   loadImageWithDimensions: vi.fn(),
 }));
 
@@ -16,8 +16,8 @@ vi.mock('@/lib/assets/io/reader', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
-  resolveExistingVaultAssetPath: hoisted.resolveVaultAssetPath,
+  resolveNotesRootAssetPath: hoisted.resolveNotesRootAssetPath,
+  resolveExistingNotesRootAssetPath: hoisted.resolveNotesRootAssetPath,
 }));
 
 vi.mock('../utils/coverDimensionCache', () => ({
@@ -29,17 +29,17 @@ describe('useCoverSource', () => {
     clearCoverAssetUrlResolveCacheForTests();
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
-    hoisted.resolveVaultAssetPath.mockReset();
+    hoisted.resolveNotesRootAssetPath.mockReset();
     hoisted.loadImageWithDimensions.mockReset();
 
     hoisted.loadImageWithDimensions.mockResolvedValue({ width: 1000, height: 500 });
   });
 
   it('marks removed built-in cover aliases as errors', async () => {
-    hoisted.resolveVaultAssetPath.mockRejectedValue(new Error('missing'));
+    hoisted.resolveNotesRootAssetPath.mockRejectedValue(new Error('missing'));
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: '@monet/1', vaultPath: '/vault-a' })
+      useCoverSource({ url: '@monet/1', notesRootPath: '/notes-root-a' })
     );
 
     await waitFor(() => {
@@ -48,20 +48,20 @@ describe('useCoverSource', () => {
     expect(result.current.resolvedSrc).toBeNull();
   });
 
-  it('resolves local covers through vault-relative paths', async () => {
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
+  it('resolves local covers through notes-root-relative paths', async () => {
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'assets/a.png', vaultPath: '/vault-a' })
+      useCoverSource({ url: 'assets/a.png', notesRootPath: '/notes-root-a' })
     );
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('blob:cover-a');
     });
 
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.png', undefined);
-    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledWith('/vault/assets/a.png', {
+    expect(hoisted.resolveNotesRootAssetPath).toHaveBeenCalledWith('/notes-root-a', 'assets/a.png', undefined);
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledWith('/notesRoot/assets/a.png', {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     });
@@ -69,27 +69,27 @@ describe('useCoverSource', () => {
   });
 
   it('preserves animated local covers by loading the original blob', async () => {
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/animated.gif');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/animated.gif');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:animated-cover');
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'assets/animated.gif', vaultPath: '/vault-a' })
+      useCoverSource({ url: 'assets/animated.gif', notesRootPath: '/notes-root-a' })
     );
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toMatch(/^blob:animated-cover#vlaina-replay=/);
     });
 
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/animated.gif');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/notesRoot/assets/animated.gif');
     expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
     expect(result.current.isError).toBe(false);
   });
 
   it('marks error when local resolution fails', async () => {
-    hoisted.resolveVaultAssetPath.mockRejectedValue(new Error('resolve failed'));
+    hoisted.resolveNotesRootAssetPath.mockRejectedValue(new Error('resolve failed'));
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'assets/missing.png', vaultPath: '/vault-a' })
+      useCoverSource({ url: 'assets/missing.png', notesRootPath: '/notes-root-a' })
     );
 
     await waitFor(() => {
@@ -98,36 +98,36 @@ describe('useCoverSource', () => {
     expect(result.current.resolvedSrc).toBeNull();
   });
 
-  it('re-resolves when vaultPath changes for the same url', async () => {
-    hoisted.resolveVaultAssetPath
-      .mockResolvedValueOnce('/vault-a/a.png')
-      .mockResolvedValueOnce('/vault-b/a.png');
+  it('re-resolves when notesRootPath changes for the same url', async () => {
+    hoisted.resolveNotesRootAssetPath
+      .mockResolvedValueOnce('/notes-root-a/a.png')
+      .mockResolvedValueOnce('/notes-root-b/a.png');
     hoisted.loadImageThumbnailAsBlob
-      .mockResolvedValueOnce('blob:a-vault-a')
-      .mockResolvedValueOnce('blob:a-vault-b');
+      .mockResolvedValueOnce('blob:a-notes-root-a')
+      .mockResolvedValueOnce('blob:a-notes-root-b');
 
     const { result, rerender } = renderHook(
-      ({ vaultPath }) => useCoverSource({ url: 'assets/a.png', vaultPath }),
-      { initialProps: { vaultPath: '/vault-a' } }
+      ({ notesRootPath }) => useCoverSource({ url: 'assets/a.png', notesRootPath }),
+      { initialProps: { notesRootPath: '/notes-root-a' } }
     );
 
     await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('blob:a-vault-a');
+      expect(result.current.resolvedSrc).toBe('blob:a-notes-root-a');
     });
 
-    rerender({ vaultPath: '/vault-b' });
+    rerender({ notesRootPath: '/notes-root-b' });
 
     await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('blob:a-vault-b');
+      expect(result.current.resolvedSrc).toBe('blob:a-notes-root-b');
     });
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenNthCalledWith(1, '/vault-a', 'assets/a.png', undefined);
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenNthCalledWith(2, '/vault-b', 'assets/a.png', undefined);
+    expect(hoisted.resolveNotesRootAssetPath).toHaveBeenNthCalledWith(1, '/notes-root-a', 'assets/a.png', undefined);
+    expect(hoisted.resolveNotesRootAssetPath).toHaveBeenNthCalledWith(2, '/notes-root-b', 'assets/a.png', undefined);
   });
 
   it('keeps image-ready setter stable across url changes', async () => {
-    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
-      if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
-      return '/vault/assets/b.png';
+    hoisted.resolveNotesRootAssetPath.mockImplementation(async (_notesRootPath: string, assetPath: string) => {
+      if (assetPath === 'assets/a.png') return '/notesRoot/assets/a.png';
+      return '/notesRoot/assets/b.png';
     });
     hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
@@ -135,7 +135,7 @@ describe('useCoverSource', () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      ({ url }) => useCoverSource({ url, notesRootPath: '/notes-root-a' }),
       { initialProps: { url: 'assets/a.png' as string | null } }
     );
 
@@ -156,13 +156,13 @@ describe('useCoverSource', () => {
   });
 
   it('keeps previous source while switching to a new cover', async () => {
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageThumbnailAsBlob
       .mockResolvedValueOnce('blob:cover-a')
       .mockImplementationOnce(() => new Promise<string>(() => {}));
 
     const { result, rerender } = renderHook(
-      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      ({ url }) => useCoverSource({ url, notesRootPath: '/notes-root-a' }),
       { initialProps: { url: 'assets/a.png' as string | null } }
     );
 
@@ -179,11 +179,11 @@ describe('useCoverSource', () => {
   });
 
   it('clears committing state when preview starts', async () => {
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'assets/a.png', vaultPath: '/vault-a' })
+      useCoverSource({ url: 'assets/a.png', notesRootPath: '/notes-root-a' })
     );
 
     await waitFor(() => {
@@ -203,10 +203,10 @@ describe('useCoverSource', () => {
   });
 
   it('clears committing state after new cover resolves', async () => {
-    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
-      if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
-      if (assetPath === 'assets/b.png') return '/vault/assets/b.png';
-      return '/vault/assets/unknown.png';
+    hoisted.resolveNotesRootAssetPath.mockImplementation(async (_notesRootPath: string, assetPath: string) => {
+      if (assetPath === 'assets/a.png') return '/notesRoot/assets/a.png';
+      if (assetPath === 'assets/b.png') return '/notesRoot/assets/b.png';
+      return '/notesRoot/assets/unknown.png';
     });
     hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
@@ -215,7 +215,7 @@ describe('useCoverSource', () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      ({ url }) => useCoverSource({ url, notesRootPath: '/notes-root-a' }),
       { initialProps: { url: 'assets/a.png' as string | null } }
     );
 
@@ -237,9 +237,9 @@ describe('useCoverSource', () => {
   });
 
   it('resolves each switched url only once', async () => {
-    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
-      if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
-      return '/vault/assets/b.png';
+    hoisted.resolveNotesRootAssetPath.mockImplementation(async (_notesRootPath: string, assetPath: string) => {
+      if (assetPath === 'assets/a.png') return '/notesRoot/assets/a.png';
+      return '/notesRoot/assets/b.png';
     });
     hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
@@ -247,7 +247,7 @@ describe('useCoverSource', () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      ({ url }) => useCoverSource({ url, notesRootPath: '/notes-root-a' }),
       { initialProps: { url: 'assets/a.png' as string | null } }
     );
 
@@ -261,19 +261,19 @@ describe('useCoverSource', () => {
       expect(result.current.resolvedSrc).toBe('blob:cover-b');
     });
 
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledTimes(2);
+    expect(hoisted.resolveNotesRootAssetPath).toHaveBeenCalledTimes(2);
     expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(2);
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(2);
   });
 
   it('resolves note-relative paths against the current note', async () => {
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/daily/assets/a.png');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/daily/assets/a.png');
     hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:daily-cover');
 
     const { result } = renderHook(() =>
       useCoverSource({
         url: './assets/a.png',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         currentNotePath: 'daily/2026-04-15.md',
       })
     );
@@ -282,8 +282,8 @@ describe('useCoverSource', () => {
       expect(result.current.resolvedSrc).toBe('blob:daily-cover');
     });
 
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith(
-      '/vault-a',
+    expect(hoisted.resolveNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notes-root-a',
       './assets/a.png',
       'daily/2026-04-15.md'
     );

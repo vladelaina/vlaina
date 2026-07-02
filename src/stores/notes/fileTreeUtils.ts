@@ -2,7 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
-import { isSafeVaultPathSegment, MAX_VAULT_RELATIVE_PATH_CHARS } from './utils/fs/vaultPathContainment';
+import { isSafeNotesRootPathSegment, MAX_NOTES_ROOT_RELATIVE_PATH_CHARS } from './utils/fs/notesRootPathContainment';
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 const MAX_FILE_TREE_ENTRIES = 5000;
@@ -54,7 +54,7 @@ function shouldHideDirectory(name: string) {
 }
 
 function getFileTreeScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
-  if (!isSafeVaultPathSegment(entry.name)) {
+  if (!isSafeNotesRootPathSegment(entry.name)) {
     return 3;
   }
 
@@ -197,10 +197,10 @@ export async function buildFileTreeLevel(
       budget.scannedEntries += 1;
     }
 
-    if (!isSafeVaultPathSegment(entry.name)) continue;
+    if (!isSafeNotesRootPathSegment(entry.name)) continue;
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-    if (entryPath.length > MAX_VAULT_RELATIVE_PATH_CHARS) continue;
+    if (entryPath.length > MAX_NOTES_ROOT_RELATIVE_PATH_CHARS) continue;
 
     const isDir = entry.isDirectory === true;
     const isMarkdownFile = entry.isFile === true && isSupportedMarkdownPath(entry.name);

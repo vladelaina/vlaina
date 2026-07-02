@@ -2,16 +2,16 @@ import { useMemo } from 'react';
 import { joinPath } from '@/lib/storage/adapter';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
-import { getStarredEntryAbsolutePath, isSameStarredVaultPath, normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { getStarredEntryAbsolutePath, isSameStarredNotesRootPath, normalizeStarredNotesRootPath } from '@/stores/notes/starred';
 import { flushCurrentTitleCommit } from '../Editor/utils/titleCommitRegistry';
 import { suppressNextCurrentNoteSidebarReveal } from '../common/sidebarScrollIntoView';
 import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
 
 export interface StarredSectionEntryViewModel {
   entry: StarredEntry;
-  isCurrentVaultEntry: boolean;
+  isCurrentNotesRootEntry: boolean;
   isActive: boolean;
   treeNode: FileTreeNode | null;
   onOpen: (openInNewTab?: boolean) => void;
@@ -27,22 +27,22 @@ export function useStarredSectionEntries() {
   const openNote = useNotesStore((state) => state.openNote);
   const openNoteByAbsolutePath = useNotesStore((state) => state.openNoteByAbsolutePath);
   const removeStarredEntry = useNotesStore((state) => state.removeStarredEntry);
-  const currentVault = useVaultStore((state) => state.currentVault);
+  const currentNotesRoot = useNotesRootStore((state) => state.currentNotesRoot);
 
-  const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
+  const currentNotesRootPath = currentNotesRoot?.path ? normalizeStarredNotesRootPath(currentNotesRoot.path) : '';
   const sortedStarredEntries = useMemo(() => sortStarredEntries(starredEntries), [starredEntries]);
-  const currentVaultRootFolder =
-    rootFolderPath && currentVaultPath && isSameStarredVaultPath(rootFolderPath, currentVaultPath)
+  const currentNotesRootRootFolder =
+    rootFolderPath && currentNotesRootPath && isSameStarredNotesRootPath(rootFolderPath, currentNotesRootPath)
       ? rootFolder
       : null;
-  const nodeLookup = useMemo(() => buildNodeLookup(currentVaultRootFolder), [currentVaultRootFolder]);
+  const nodeLookup = useMemo(() => buildNodeLookup(currentNotesRootRootFolder), [currentNotesRootRootFolder]);
 
   const entries = useMemo<StarredSectionEntryViewModel[]>(
     () =>
       sortedStarredEntries.map((entry) => {
-        const isCurrentVaultEntry =
-          isSameStarredVaultPath(entry.vaultPath, currentVaultPath);
-        const treeNode = isCurrentVaultEntry
+        const isCurrentNotesRootEntry =
+          isSameStarredNotesRootPath(entry.notesRootPath, currentNotesRootPath);
+        const treeNode = isCurrentNotesRootEntry
           ? nodeLookup.get(entry.relativePath) ?? null
           : null;
         const normalizedCurrentNotePath = normalizeNotePathKey(currentNotePath);
@@ -50,13 +50,13 @@ export function useStarredSectionEntries() {
         const isActive =
           entry.kind === 'note' &&
           normalizedCurrentNotePath != null &&
-          (isCurrentVaultEntry
+          (isCurrentNotesRootEntry
             ? normalizedCurrentNotePath === entryRelativePath
             : normalizedCurrentNotePath === getStarredEntryAbsolutePath(entry));
 
         return {
           entry,
-          isCurrentVaultEntry,
+          isCurrentNotesRootEntry,
           isActive,
           treeNode,
           onOpen: (openInNewTab = false) => {
@@ -71,11 +71,11 @@ export function useStarredSectionEntries() {
               }
 
               const shouldOpenInNewTab = openInNewTab;
-              const isLatestCurrentVaultEntry =
-                isSameStarredVaultPath(latestEntry.vaultPath, currentVaultPath);
+              const isLatestCurrentNotesRootEntry =
+                isSameStarredNotesRootPath(latestEntry.notesRootPath, currentNotesRootPath);
 
-              if (!isLatestCurrentVaultEntry) {
-                const absolutePath = await joinPath(latestEntry.vaultPath, latestEntry.relativePath);
+              if (!isLatestCurrentNotesRootEntry) {
+                const absolutePath = await joinPath(latestEntry.notesRootPath, latestEntry.relativePath);
                 await openNoteByAbsolutePath(absolutePath, shouldOpenInNewTab);
                 return;
               }
@@ -94,7 +94,7 @@ export function useStarredSectionEntries() {
       }),
     [
       currentNotePath,
-      currentVaultPath,
+      currentNotesRootPath,
       nodeLookup,
       openNote,
       openNoteByAbsolutePath,

@@ -46,7 +46,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -87,7 +87,7 @@ describe('workspace note open state races', () => {
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 11 });
   });
 
-  it('does not overwrite a vault tab that becomes dirty while it is opening', async () => {
+  it('does not overwrite a notesRoot tab that becomes dirty while it is opening', async () => {
     let resolveRead: ((content: string) => void) | undefined;
     storageAdapter.readFile.mockImplementationOnce(() => new Promise((resolve) => {
       resolveRead = resolve;

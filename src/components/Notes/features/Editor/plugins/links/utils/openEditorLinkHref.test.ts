@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
     dispatchOpenMarkdownTargetEvent: vi.fn(),
     openExternalHref: vi.fn(),
     notesState: {
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         currentNote: { path: 'daily/today.md' },
     },
 }));
@@ -34,7 +34,7 @@ vi.mock('@/lib/navigation/externalLinks', () => ({
 describe('openEditorLinkHref', () => {
     beforeEach(() => {
         mocks.notesState = {
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNote: { path: 'daily/today.md' },
         };
         mocks.dispatchOpenMarkdownTargetEvent.mockClear();
@@ -50,40 +50,40 @@ describe('openEditorLinkHref', () => {
 
     it('resolves markdown paths relative to the current note folder', async () => {
         await expect(resolveEditorMarkdownLinkTarget('guide/setup.md'))
-            .resolves.toBe('/vault/daily/guide/setup.md');
+            .resolves.toBe('/notesRoot/daily/guide/setup.md');
     });
 
     it('resolves supported markdown extension variants', async () => {
         await expect(resolveEditorMarkdownLinkTarget('guide/setup.markdown'))
-            .resolves.toBe('/vault/daily/guide/setup.markdown');
+            .resolves.toBe('/notesRoot/daily/guide/setup.markdown');
         await expect(resolveEditorMarkdownLinkTarget('guide/setup.mdown'))
-            .resolves.toBe('/vault/daily/guide/setup.mdown');
+            .resolves.toBe('/notesRoot/daily/guide/setup.mdown');
         await expect(resolveEditorMarkdownLinkTarget('guide/setup.mkd'))
-            .resolves.toBe('/vault/daily/guide/setup.mkd');
+            .resolves.toBe('/notesRoot/daily/guide/setup.mkd');
     });
 
     it('resolves percent-encoded markdown paths relative to the current note folder', async () => {
         await expect(resolveEditorMarkdownLinkTarget('guide%20setup.md'))
-            .resolves.toBe('/vault/daily/guide setup.md');
+            .resolves.toBe('/notesRoot/daily/guide setup.md');
         await expect(resolveEditorMarkdownLinkTarget('guide%2Fsetup.md'))
-            .resolves.toBe('/vault/daily/guide/setup.md');
+            .resolves.toBe('/notesRoot/daily/guide/setup.md');
     });
 
     it('keeps literal percent text in markdown link paths', async () => {
         await expect(resolveEditorMarkdownLinkTarget('guide%ZZ.md'))
-            .resolves.toBe('/vault/daily/guide%ZZ.md');
+            .resolves.toBe('/notesRoot/daily/guide%ZZ.md');
     });
 
-    it('resolves root-relative markdown paths inside the current vault', async () => {
+    it('resolves root-relative markdown paths inside the opened folder', async () => {
         await expect(resolveEditorMarkdownLinkTarget('/docs/setup.md#install'))
-            .resolves.toBe('/vault/docs/setup.md');
+            .resolves.toBe('/notesRoot/docs/setup.md');
     });
 
-    it('allows user dot-folder markdown links inside the current vault', async () => {
+    it('allows user dot-folder markdown links inside the opened folder', async () => {
         await expect(resolveEditorMarkdownLinkTarget('/.notes/setup.md'))
-            .resolves.toBe('/vault/.notes/setup.md');
+            .resolves.toBe('/notesRoot/.notes/setup.md');
         await expect(resolveEditorMarkdownLinkTarget('../.journal.md'))
-            .resolves.toBe('/vault/.journal.md');
+            .resolves.toBe('/notesRoot/.journal.md');
     });
 
     it('rejects links into internal notes folders', async () => {
@@ -101,12 +101,12 @@ describe('openEditorLinkHref', () => {
             .resolves.toBeNull();
     });
 
-    it('rejects relative markdown paths that escape the current vault', async () => {
+    it('rejects relative markdown paths that escape the opened folder', async () => {
         await expect(resolveEditorMarkdownLinkTarget('../../secret.md'))
             .resolves.toBeNull();
     });
 
-    it('rejects encoded markdown paths that escape the current vault', async () => {
+    it('rejects encoded markdown paths that escape the opened folder', async () => {
         await expect(resolveEditorMarkdownLinkTarget('%2e%2e%2f%2e%2e%2fsecret.md'))
             .resolves.toBeNull();
     });
@@ -123,11 +123,11 @@ describe('openEditorLinkHref', () => {
             .resolves.toBeNull();
     });
 
-    it('keeps absolute current-note relative links contained by the vault', async () => {
-        mocks.notesState.currentNote = { path: '/vault/daily/today.md' };
+    it('keeps absolute current-note relative links contained by the notesRoot', async () => {
+        mocks.notesState.currentNote = { path: '/notesRoot/daily/today.md' };
 
         await expect(resolveEditorMarkdownLinkTarget('../guide/setup.md'))
-            .resolves.toBe('/vault/guide/setup.md');
+            .resolves.toBe('/notesRoot/guide/setup.md');
         await expect(resolveEditorMarkdownLinkTarget('../../secret.md'))
             .resolves.toBeNull();
     });
@@ -144,7 +144,7 @@ describe('openEditorLinkHref', () => {
     it('dispatches the markdown open event for resolved note links', async () => {
         await openEditorLinkHref('./guide/setup.md#install');
 
-        expect(mocks.dispatchOpenMarkdownTargetEvent).toHaveBeenCalledWith('/vault/daily/guide/setup.md');
+        expect(mocks.dispatchOpenMarkdownTargetEvent).toHaveBeenCalledWith('/notesRoot/daily/guide/setup.md');
         expect(mocks.openExternalHref).not.toHaveBeenCalled();
     });
 

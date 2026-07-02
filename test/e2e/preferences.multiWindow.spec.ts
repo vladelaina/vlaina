@@ -23,7 +23,7 @@ test.describe('multi-window preference and cache sync', () => {
           fontSize: 22,
           languagePreference: 'zh-CN',
           sidebarWidth: 384,
-          imageStorageMode: 'vaultSubfolder',
+          imageStorageMode: 'notesRootSubfolder',
           imageSubfolderName: 'synced-assets',
           notesChatPanelCollapsed: false,
         })
@@ -33,7 +33,7 @@ test.describe('multi-window preference and cache sync', () => {
         fontSize: 22,
         languagePreference: 'zh-CN',
         sidebarWidth: 384,
-        imageStorageMode: 'vaultSubfolder',
+        imageStorageMode: 'notesRootSubfolder',
         imageSubfolderName: 'synced-assets',
         notesChatPanelCollapsed: false,
       });

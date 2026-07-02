@@ -5,9 +5,9 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
-  hasUnsafeVaultPathSegment,
-  normalizeVaultRelativePath,
-} from '@/stores/notes/utils/fs/vaultPathContainment';
+  hasUnsafeNotesRootPathSegment,
+  normalizeNotesRootRelativePath,
+} from '@/stores/notes/utils/fs/notesRootPathContainment';
 
 export function normalizeFsPath(path: string): string {
   const normalizedPath = isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
@@ -19,39 +19,39 @@ export function getFsPathComparisonKey(path: string): string {
 }
 
 export function hasUnsafeFsPathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path);
+  return hasUnsafeNotesRootPathSegment(path);
 }
 
-export function isInsideVault(vaultPath: string, absolutePath: string): boolean {
-  const normalizedVaultPath = normalizeFsPath(vaultPath);
+export function isInsideNotesRoot(notesRootPath: string, absolutePath: string): boolean {
+  const normalizedNotesRootPath = normalizeFsPath(notesRootPath);
   const normalizedAbsolutePath = normalizeFsPath(absolutePath);
-  return normalizeContainedAssetPath(normalizedAbsolutePath, normalizedVaultPath) !== null;
+  return normalizeContainedAssetPath(normalizedAbsolutePath, normalizedNotesRootPath) !== null;
 }
 
-export function toVaultRelativePath(vaultPath: string, absolutePath: string): string | null {
-  const normalizedVaultPath = normalizeFsPath(vaultPath);
+export function toNotesRootRelativePath(notesRootPath: string, absolutePath: string): string | null {
+  const normalizedNotesRootPath = normalizeFsPath(notesRootPath);
   const normalizedAbsolutePath = normalizeFsPath(absolutePath);
-  const containedAbsolutePath = normalizeContainedAssetPath(normalizedAbsolutePath, normalizedVaultPath);
+  const containedAbsolutePath = normalizeContainedAssetPath(normalizedAbsolutePath, normalizedNotesRootPath);
   if (!containedAbsolutePath) {
     return null;
   }
 
-  const vaultPathKey = getFsPathComparisonKey(normalizedVaultPath);
+  const notesRootPathKey = getFsPathComparisonKey(normalizedNotesRootPath);
   const absolutePathKey = getFsPathComparisonKey(containedAbsolutePath);
 
-  if (absolutePathKey === vaultPathKey) {
+  if (absolutePathKey === notesRootPathKey) {
     return '';
   }
 
-  const relativePath = normalizedVaultPath === '/'
+  const relativePath = normalizedNotesRootPath === '/'
     ? containedAbsolutePath.replace(/^\/+/, '')
-    : containedAbsolutePath.slice(normalizedVaultPath.length + 1);
+    : containedAbsolutePath.slice(normalizedNotesRootPath.length + 1);
 
-  if (normalizedVaultPath === '/') {
-    return normalizeVaultRelativePath(relativePath, { allowEmpty: true });
+  if (normalizedNotesRootPath === '/') {
+    return normalizeNotesRootRelativePath(relativePath, { allowEmpty: true });
   }
 
-  return normalizeVaultRelativePath(relativePath, { allowEmpty: true });
+  return normalizeNotesRootRelativePath(relativePath, { allowEmpty: true });
 }
 
 export function isIgnoredWatchPath(relativePath: string): boolean {
@@ -70,8 +70,8 @@ export function isMarkdownPath(relativePath: string): boolean {
   return isSupportedMarkdownPath(relativePath);
 }
 
-function toRelevantRelativePath(vaultPath: string, absolutePath: string): string | null {
-  const relativePath = toVaultRelativePath(vaultPath, absolutePath);
+function toRelevantRelativePath(notesRootPath: string, absolutePath: string): string | null {
+  const relativePath = toNotesRootRelativePath(notesRootPath, absolutePath);
   if (relativePath == null || isIgnoredWatchPath(relativePath)) {
     return null;
   }
@@ -79,9 +79,9 @@ function toRelevantRelativePath(vaultPath: string, absolutePath: string): string
   return relativePath;
 }
 
-export function getRelevantRelativeWatchPaths(vaultPath: string, absolutePaths: string[]): string[] {
+export function getRelevantRelativeWatchPaths(notesRootPath: string, absolutePaths: string[]): string[] {
   return absolutePaths
-    .map((absolutePath) => toRelevantRelativePath(vaultPath, absolutePath))
+    .map((absolutePath) => toRelevantRelativePath(notesRootPath, absolutePath))
     .filter((relativePath): relativePath is string => relativePath != null);
 }
 
@@ -131,7 +131,7 @@ export function getAbsoluteRenameWatchPaths(
 }
 
 export function getRelativeRenameWatchPaths(
-  vaultPath: string,
+  notesRootPath: string,
   event: Pick<DesktopWatchEvent, 'type' | 'paths'>
 ): { oldPath: string | null; newPath: string | null } | null {
   const absolutePaths = getAbsoluteRenameWatchPaths(event);
@@ -140,10 +140,10 @@ export function getRelativeRenameWatchPaths(
   }
 
   const oldPath = absolutePaths.oldPath
-    ? toRelevantRelativePath(vaultPath, absolutePaths.oldPath)
+    ? toRelevantRelativePath(notesRootPath, absolutePaths.oldPath)
     : null;
   const newPath = absolutePaths.newPath
-    ? toRelevantRelativePath(vaultPath, absolutePaths.newPath)
+    ? toRelevantRelativePath(notesRootPath, absolutePaths.newPath)
     : null;
 
   if (!oldPath && !newPath) {

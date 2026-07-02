@@ -1,11 +1,11 @@
 import { loadImageAsBlob, loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
-import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
+import { resolveExistingNotesRootAssetPath } from '@/lib/assets/core/paths';
 import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
 interface ResolveCoverAssetUrlOptions {
   assetPath: string;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
   thumbnail?: boolean;
   thumbnailMaxEdgePx?: number;
@@ -102,14 +102,14 @@ function applyAnimatedReplayToken(url: string, assetPath: string, replayAnimated
 
 function getCoverResolveKey({
   assetPath,
-  vaultPath,
+  notesRootPath,
   currentNotePath,
   thumbnail,
   thumbnailMaxEdgePx,
 }: ResolveCoverAssetUrlOptions) {
   return [
     thumbnail ? `thumb:${thumbnailMaxEdgePx ?? ''}` : 'full',
-    vaultPath,
+    notesRootPath,
     currentNotePath ?? '',
     assetPath,
   ].join('\0');
@@ -146,7 +146,7 @@ function setCompletedCoverAssetUrlResolve(resolveKey: string, url: string, now: 
 
 export async function resolveCoverAssetUrl({
   assetPath,
-  vaultPath,
+  notesRootPath,
   currentNotePath,
   thumbnail,
   thumbnailMaxEdgePx,
@@ -154,7 +154,7 @@ export async function resolveCoverAssetUrl({
 }: ResolveCoverAssetUrlOptions): Promise<string> {
   const resolveKey = getCoverResolveKey({
     assetPath,
-    vaultPath,
+    notesRootPath,
     currentNotePath,
     thumbnail,
     thumbnailMaxEdgePx,
@@ -179,7 +179,7 @@ export async function resolveCoverAssetUrl({
 
   const resolvePromise = resolveCoverAssetUrlUncached({
     assetPath,
-    vaultPath,
+    notesRootPath,
     currentNotePath,
     thumbnail,
     thumbnailMaxEdgePx,
@@ -201,7 +201,7 @@ export async function resolveCoverAssetUrl({
 
 async function resolveCoverAssetUrlUncached({
   assetPath,
-  vaultPath,
+  notesRootPath,
   currentNotePath,
   thumbnail,
   thumbnailMaxEdgePx,
@@ -217,11 +217,11 @@ async function resolveCoverAssetUrlUncached({
     throw new Error('remote-cover-unsupported');
   }
 
-  if (!vaultPath) {
-    throw new Error('vault-path-required');
+  if (!notesRootPath) {
+    throw new Error('notes-root-path-required');
   }
 
-  const fullPath = await resolveExistingVaultAssetPath(vaultPath, safeAssetPath, currentNotePath);
+  const fullPath = await resolveExistingNotesRootAssetPath(notesRootPath, safeAssetPath, currentNotePath);
   if (!fullPath) {
     throw new Error('cover-path-unsupported');
   }

@@ -36,7 +36,7 @@ describe('external path broadcast persistence', () => {
   it('does not read missing event files after stat returns null', async () => {
     adapter.stat.mockResolvedValue(null);
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([]);
 
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
@@ -44,7 +44,7 @@ describe('external path broadcast persistence', () => {
   it('ignores oversized event files before reading them', async () => {
     adapter.stat.mockResolvedValue({ size: 300 * 1024 });
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([]);
 
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
@@ -52,7 +52,7 @@ describe('external path broadcast persistence', () => {
   it('ignores event files with invalid known stat sizes before reading them', async () => {
     adapter.stat.mockResolvedValue({ size: -1 });
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([]);
 
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
@@ -65,13 +65,13 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n1',
         stamp: 1,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'docs/b.md',
       },
     ]));
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([
       expect.objectContaining({
         nonce: 'n1',
         oldPath: 'docs/a.md',
@@ -89,7 +89,7 @@ describe('external path broadcast persistence', () => {
     adapter.stat.mockResolvedValue({ size: 256 });
     adapter.readFile.mockResolvedValue('x'.repeat(256 * 1024 + 1));
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([]);
 
     expect(adapter.readFile).toHaveBeenCalled();
   });
@@ -102,7 +102,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n1',
         stamp: 1,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'docs/b.md',
       },
@@ -111,7 +111,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n2',
         stamp: Number.POSITIVE_INFINITY,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/c.md',
         newPath: 'docs/d.md',
       },
@@ -120,13 +120,13 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n3',
         stamp: 2,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: '/tmp/a.md',
         newPath: 'docs/e.md',
       },
     ]));
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([
       expect.objectContaining({
         nonce: 'n1',
         oldPath: 'docs/a.md',
@@ -143,7 +143,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'internal-new',
         stamp: 1,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'docs/.git/config.md',
       },
@@ -152,7 +152,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'internal-old',
         stamp: 2,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: '.VLAINA/workspace.md',
         newPath: 'docs/b.md',
       },
@@ -161,13 +161,13 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'user-dot-folder',
         stamp: 3,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: '.notes/a.md',
         newPath: '.notes/b.md',
       },
     ]));
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([
       expect.objectContaining({
         nonce: 'user-dot-folder',
         oldPath: '.notes/a.md',
@@ -184,7 +184,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'url-new',
         stamp: 1,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'http://example.test/b.md',
       },
@@ -193,7 +193,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'url-old',
         stamp: 2,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'https\\://example.test/a.md',
         newPath: 'docs/b.md',
       },
@@ -202,13 +202,13 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'valid',
         stamp: 3,
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/c.md',
         newPath: 'docs/d.md',
       },
     ]));
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([
       expect.objectContaining({
         nonce: 'valid',
         oldPath: 'docs/c.md',
@@ -257,15 +257,15 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n1',
         stamp: 1,
-        notesPath: '/vault//',
+        notesPath: '/notesRoot//',
         oldPath: './docs//a.md',
         newPath: 'docs\\b.md',
       },
     ]));
 
-    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+    await expect(readNotesExternalPathEvents('/notesRoot')).resolves.toEqual([
       expect.objectContaining({
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'docs/b.md',
       }),
@@ -280,7 +280,7 @@ describe('external path broadcast persistence', () => {
     });
 
     expect(() => {
-      const unsubscribe = subscribeNotesExternalPathRename('/vault', vi.fn());
+      const unsubscribe = subscribeNotesExternalPathRename('/notesRoot', vi.fn());
       unsubscribe();
     }).not.toThrow();
   });
@@ -295,7 +295,7 @@ describe('external path broadcast persistence', () => {
     });
 
     expect(() => emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: 'docs/a.md',
       newPath: 'docs/b.md',
     })).not.toThrow();
@@ -305,7 +305,7 @@ describe('external path broadcast persistence', () => {
 
   it('does not persist overlong emitted rename events', () => {
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: 'docs/a.md',
       newPath: `${'x'.repeat(4097)}.md`,
     });
@@ -316,17 +316,17 @@ describe('external path broadcast persistence', () => {
 
   it('does not persist unsafe emitted rename events', () => {
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: '/tmp/a.md',
       newPath: 'docs/b.md',
     });
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: 'docs/a.md',
       newPath: 'docs//a.md',
     });
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: 'docs/a.md',
       newPath: `docs/b\u0000.md`,
     });
@@ -337,12 +337,12 @@ describe('external path broadcast persistence', () => {
 
   it('does not persist emitted rename events with URL-like paths', () => {
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: 'docs/a.md',
       newPath: 'http://example.test/b.md',
     });
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: 'https\\://example.test/a.md',
       newPath: 'docs/b.md',
     });
@@ -374,12 +374,12 @@ describe('external path broadcast persistence', () => {
 
   it('does not persist emitted rename events for internal note folders', () => {
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: 'docs/a.md',
       newPath: 'docs/.git/config.md',
     });
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: '.VLAINA/workspace.md',
       newPath: 'docs/b.md',
     });
@@ -390,7 +390,7 @@ describe('external path broadcast persistence', () => {
 
   it('persists emitted rename events for user dot folders', () => {
     emitNotesExternalPathRename({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       oldPath: '.notes/a.md',
       newPath: '.notes/b.md',
     });
@@ -403,8 +403,8 @@ describe('external path broadcast persistence', () => {
       throw new Error('listener failed');
     });
     const second = vi.fn();
-    const unsubscribeFirst = subscribeNotesExternalPathRename('/vault', first);
-    const unsubscribeSecond = subscribeNotesExternalPathRename('/vault', second);
+    const unsubscribeFirst = subscribeNotesExternalPathRename('/notesRoot', first);
+    const unsubscribeSecond = subscribeNotesExternalPathRename('/notesRoot', second);
 
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'vlaina-notes-external-path-event',
@@ -413,7 +413,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n1',
         stamp: Date.now(),
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'docs/b.md',
       }),
@@ -427,7 +427,7 @@ describe('external path broadcast persistence', () => {
 
   it('ignores unsafe storage rename events before notifying listeners', () => {
     const listener = vi.fn();
-    const unsubscribe = subscribeNotesExternalPathRename('/vault', listener);
+    const unsubscribe = subscribeNotesExternalPathRename('/notesRoot', listener);
 
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'vlaina-notes-external-path-event',
@@ -436,7 +436,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n1',
         stamp: Date.now(),
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: '../secret.md',
         newPath: 'docs/b.md',
       }),
@@ -448,7 +448,7 @@ describe('external path broadcast persistence', () => {
 
   it('ignores URL-like storage rename events before notifying listeners', () => {
     const listener = vi.fn();
-    const unsubscribe = subscribeNotesExternalPathRename('/vault', listener);
+    const unsubscribe = subscribeNotesExternalPathRename('/notesRoot', listener);
 
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'vlaina-notes-external-path-event',
@@ -457,7 +457,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n1',
         stamp: Date.now(),
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'http://example.test/b.md',
       }),
@@ -469,7 +469,7 @@ describe('external path broadcast persistence', () => {
 
   it('ignores internal storage rename events before notifying listeners', () => {
     const listener = vi.fn();
-    const unsubscribe = subscribeNotesExternalPathRename('/vault', listener);
+    const unsubscribe = subscribeNotesExternalPathRename('/notesRoot', listener);
 
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'vlaina-notes-external-path-event',
@@ -478,7 +478,7 @@ describe('external path broadcast persistence', () => {
         sourceId: 'other-window',
         nonce: 'n1',
         stamp: Date.now(),
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         oldPath: 'docs/a.md',
         newPath: 'docs/.GIT/config.md',
       }),

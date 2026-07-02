@@ -4,7 +4,7 @@ import { sortFileTree } from './fileTreeSorting';
 import { findNode } from './fileTreeUtils';
 import type { FileTreeNode } from './types';
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath } from './utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath } from './utils/fs/notesRootPathContainment';
 
 function buildMissingPathChain(pathSegments: string[], fullPath: string, parentPath: string): FileTreeNode {
   let current: FileTreeNode = {
@@ -39,7 +39,7 @@ function buildMissingPathChain(pathSegments: string[], fullPath: string, parentP
 }
 
 export function ensureFileNodeInTree(nodes: FileTreeNode[], path: string): FileTreeNode[] {
-  const normalizedPath = normalizeVaultRelativePath(path);
+  const normalizedPath = normalizeNotesRootRelativePath(path);
   if (!normalizedPath || hasInternalNotePathSegment(normalizedPath) || !isSupportedMarkdownPath(normalizedPath)) {
     return nodes;
   }

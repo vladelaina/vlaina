@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
@@ -94,14 +94,14 @@ export function AppContent() {
   const unifiedLoaded = useUnifiedStore((state) => state.loaded);
   const lastConfiguredAppViewMode = useUnifiedStore((state) => state.data.settings.ui?.lastAppViewMode);
   const configuredNotesChatFloatingSize = useUnifiedStore((state) => state.data.settings.ui?.notesChatFloatingSize);
-  const initialize = useVaultStore((state) => state.initialize);
+  const initialize = useNotesRootStore((state) => state.initialize);
   const launchViewModeRef = useRef(readWindowLaunchContext().viewMode);
   const [initialUnifiedViewWaitDone, setInitialUnifiedViewWaitDone] = useState(Boolean(launchViewModeRef.current));
   const shouldWaitForInitialUnifiedView = !initialUnifiedViewWaitDone && !unifiedLoaded;
   const initialUnifiedAppViewMode =
     !launchViewModeRef.current &&
     unifiedLoaded &&
-    appViewMode !== 'lab' &&
+    (appViewMode === 'notes' || appViewMode === 'chat') &&
     (lastConfiguredAppViewMode === 'notes' || lastConfiguredAppViewMode === 'chat') &&
     appViewMode !== lastConfiguredAppViewMode
       ? lastConfiguredAppViewMode

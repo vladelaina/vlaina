@@ -77,7 +77,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     },
     currentNote: null,
     currentNoteRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -113,7 +113,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
 describe('workspace document actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.chooseDraftSavePath.mockResolvedValue('/vault/Untitled.md');
+    mocks.chooseDraftSavePath.mockResolvedValue('/notesRoot/Untitled.md');
     mocks.saveNoteDocument.mockResolvedValue({
       content: 'draft text',
       metadata: { updatedAt: 1 },
@@ -144,7 +144,7 @@ describe('workspace document actions', () => {
 
     expect(store.getState().error).toBe('snapshot failed');
     expect(store.getState().isDirty).toBe(true);
-    expect(store.getState().openTabs).toEqual([{ path: '/vault/Untitled.md', name: 'Untitled', isDirty: true }]);
+    expect(store.getState().openTabs).toEqual([{ path: '/notesRoot/Untitled.md', name: 'Untitled', isDirty: true }]);
   });
 
   it('remaps draft navigation history to the saved markdown path', async () => {
@@ -436,7 +436,7 @@ describe('workspace document actions', () => {
 
     expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(2);
     expect(mocks.saveNoteDocument).toHaveBeenNthCalledWith(2, {
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: '/external/starred.md', content: 'Second edit' },
       cache: expect.any(Map),
     });
@@ -486,7 +486,7 @@ describe('workspace document actions', () => {
     expect(store.getState().draftNotes['draft:blank']).toEqual({ parentPath: null, name: '' });
   });
 
-  it('dispatches an open target after saving a draft outside the current vault', async () => {
+  it('dispatches an open target after saving a draft outside the opened folder', async () => {
     mocks.chooseDraftSavePath.mockResolvedValue('/home/vladelaina/sdf.md');
     mocks.saveNoteDocument.mockResolvedValue({
       content: 'draft text',
@@ -515,7 +515,7 @@ describe('workspace document actions', () => {
     expect(mocks.dispatchOpenMarkdownTargetEvent).toHaveBeenCalledWith('/home/vladelaina/sdf.md');
   });
 
-  it('materializes a draft into the active vault without opening a save dialog', async () => {
+  it('materializes a draft into the active notesRoot without opening a save dialog', async () => {
     mocks.saveNoteDocument.mockResolvedValue({
       content: 'draft text',
       metadata: { updatedAt: 1 },
@@ -540,7 +540,7 @@ describe('workspace document actions', () => {
 
     expect(mocks.chooseDraftSavePath).not.toHaveBeenCalled();
     expect(mocks.saveNoteDocument).toHaveBeenCalledWith({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'Draft title.md', content: 'draft text' },
       cache: expect.any(Map),
     });
@@ -580,7 +580,7 @@ describe('workspace document actions', () => {
     const firstSave = store.getState().saveNote({ explicit: false });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(mocks.saveNoteDocument).toHaveBeenCalledWith({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'Draft title.md', content: 'First edit' },
       cache: expect.any(Map),
     });
@@ -626,7 +626,7 @@ describe('workspace document actions', () => {
 
     expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(2);
     expect(mocks.saveNoteDocument).toHaveBeenNthCalledWith(2, {
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'Draft title.md', content: 'Second edit' },
       cache: expect.any(Map),
     });
@@ -703,7 +703,7 @@ describe('workspace document actions', () => {
   });
 
   it('prompts for a save location when a preserved draft came from another workspace', async () => {
-    mocks.chooseDraftSavePath.mockResolvedValue('/vault-next/Chosen.md');
+    mocks.chooseDraftSavePath.mockResolvedValue('/notes-root-next/Chosen.md');
     mocks.saveNoteDocument.mockResolvedValue({
       content: 'draft text',
       metadata: { updatedAt: 1 },
@@ -714,7 +714,7 @@ describe('workspace document actions', () => {
       ]),
     });
     const store = createNotesStore({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: { path: 'draft:blank', content: 'draft text' },
       isDirty: true,
       openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
@@ -730,13 +730,13 @@ describe('workspace document actions', () => {
 
     await store.getState().saveNote({ explicit: true });
 
-    expect(mocks.chooseDraftSavePath).toHaveBeenCalledWith('/vault-next', {
+    expect(mocks.chooseDraftSavePath).toHaveBeenCalledWith('/notes-root-next', {
       parentPath: null,
       name: '',
       originNotesPath: '',
     });
     expect(mocks.saveNoteDocument).toHaveBeenCalledWith({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: { path: 'Chosen.md', content: 'draft text' },
       cache: expect.any(Map),
     });
@@ -746,7 +746,7 @@ describe('workspace document actions', () => {
   it('keeps a preserved draft untouched when the explicit save dialog is cancelled', async () => {
     mocks.chooseDraftSavePath.mockResolvedValue(null);
     const store = createNotesStore({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: { path: 'draft:blank', content: 'draft text' },
       isDirty: true,
       openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
@@ -763,7 +763,7 @@ describe('workspace document actions', () => {
 
     await store.getState().saveNote({ explicit: true });
 
-    expect(mocks.chooseDraftSavePath).toHaveBeenCalledWith('/vault-next', {
+    expect(mocks.chooseDraftSavePath).toHaveBeenCalledWith('/notes-root-next', {
       parentPath: null,
       name: 'Draft title',
       originNotesPath: '',
@@ -781,7 +781,7 @@ describe('workspace document actions', () => {
   });
 
   it('saves a preserved draft to an existing relative file chosen by the user', async () => {
-    mocks.chooseDraftSavePath.mockResolvedValue('/vault-next/Untitled.md');
+    mocks.chooseDraftSavePath.mockResolvedValue('/notes-root-next/Untitled.md');
     mocks.saveNoteDocument.mockResolvedValue({
       content: 'draft text',
       metadata: { icon: '💾', updatedAt: 1 },
@@ -792,7 +792,7 @@ describe('workspace document actions', () => {
       ]),
     });
     const store = createNotesStore({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       rootFolder: {
         id: '',
         name: 'Notes',
@@ -824,7 +824,7 @@ describe('workspace document actions', () => {
     await store.getState().saveNote({ explicit: true });
 
     expect(mocks.saveNoteDocument).toHaveBeenCalledWith({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: { path: 'Untitled.md', content: 'draft text' },
       cache: expect.any(Map),
     });
@@ -850,7 +850,7 @@ describe('workspace document actions', () => {
 
   it('does not implicitly save a preserved draft into a newly opened workspace', async () => {
     const store = createNotesStore({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: { path: 'draft:blank', content: 'draft text' },
       isDirty: true,
       openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
@@ -872,7 +872,7 @@ describe('workspace document actions', () => {
     expect(store.getState().isDirty).toBe(true);
   });
 
-  it('ignores a stale save that finishes after the workspace switches vaults', async () => {
+  it('ignores a stale save that finishes after the workspace switches notes-roots', async () => {
     let resolveSave: (value: {
       content: string;
       metadata: Record<string, unknown>;
@@ -883,29 +883,29 @@ describe('workspace document actions', () => {
       resolveSave = resolve;
     }));
     const store = createNotesStore({
-      currentNote: { path: 'current.md', content: 'Old vault content' },
+      currentNote: { path: 'current.md', content: 'Old notesRoot content' },
       isDirty: true,
       openTabs: [{ path: 'current.md', name: 'current', isDirty: true }],
-      noteContentsCache: new Map([['current.md', { content: 'Old vault content', modifiedAt: 1 }]]),
+      noteContentsCache: new Map([['current.md', { content: 'Old notesRoot content', modifiedAt: 1 }]]),
     });
 
     const save = store.getState().saveNote();
     store.setState({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: null,
       isDirty: false,
       openTabs: [],
       noteContentsCache: new Map(),
     });
     resolveSave!({
-      content: 'Saved old vault content',
+      content: 'Saved old notesRoot content',
       metadata: { updatedAt: 2 },
       modifiedAt: 2,
-      nextCache: new Map([['current.md', { content: 'Saved old vault content', modifiedAt: 2 }]]),
+      nextCache: new Map([['current.md', { content: 'Saved old notesRoot content', modifiedAt: 2 }]]),
     });
     await save;
 
-    expect(store.getState().notesPath).toBe('/vault-next');
+    expect(store.getState().notesPath).toBe('/notes-root-next');
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().openTabs).toEqual([]);
     expect(store.getState().noteContentsCache.size).toBe(0);

@@ -35,7 +35,7 @@ describe('i18n messages', () => {
       'settings.about.github',
       'settings.about.discord',
       'settings.about.slack',
-      'vault.pathPlaceholder',
+      'notesRoot.pathPlaceholder',
       'icon.emoji',
     ]);
 
@@ -188,7 +188,7 @@ describe('i18n messages', () => {
       'notes.addToStarred',
       'notes.export',
       'notes.exported',
-      'notes.saveOrDiscardDraftsBeforeSwitchingVaults',
+      'notes.saveOrDiscardDraftsBeforeOpeningAnotherFolder',
       'notes.copyPathFailed',
       'notes.openFileLocationFailed',
       'notes.openFolderLocationFailed',

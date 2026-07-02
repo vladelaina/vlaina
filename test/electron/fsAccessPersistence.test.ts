@@ -93,7 +93,7 @@ describe('desktop filesystem authorization persistence', () => {
     });
     mocks.readFile.mockRejectedValue(new Error('oversized file must not be read'));
 
-    await expect(assertAuthorizedFsPath('/tmp/saved-vault/note.md')).rejects.toThrow(
+    await expect(assertAuthorizedFsPath('/tmp/saved-notesRoot/note.md')).rejects.toThrow(
       'File path is not authorized for desktop access',
     );
   });
@@ -110,7 +110,7 @@ describe('desktop filesystem authorization persistence', () => {
     });
     mocks.readFile.mockResolvedValue('x'.repeat(512 * 1024 + 1));
 
-    await expect(assertAuthorizedFsPath('/tmp/saved-vault/note.md')).rejects.toThrow(
+    await expect(assertAuthorizedFsPath('/tmp/saved-notesRoot/note.md')).rejects.toThrow(
       'File path is not authorized for desktop access',
     );
 

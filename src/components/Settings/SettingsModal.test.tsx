@@ -158,7 +158,7 @@ describe('SettingsModal', () => {
     });
   });
 
-  it('handles wheel scrolling on the settings content root', () => {
+  it('leaves wheel scrolling on the settings content root to the browser', () => {
     render(
       <SettingsModal
         open
@@ -173,10 +173,10 @@ describe('SettingsModal', () => {
     setScrollMetrics(scrollRoot!, { clientHeight: 200, scrollHeight: 800, scrollTop: 0 });
     fireEvent.wheel(scrollRoot!, { deltaY: 160 });
 
-    expect(scrollRoot!.scrollTop).toBe(160);
+    expect(scrollRoot!.scrollTop).toBe(0);
   });
 
-  it('handles wheel scrolling on the settings sidebar root', () => {
+  it('leaves wheel scrolling on the settings sidebar root to the browser', () => {
     render(
       <SettingsModal
         open
@@ -191,6 +191,6 @@ describe('SettingsModal', () => {
     setScrollMetrics(scrollRoot!, { clientHeight: 120, scrollHeight: 360, scrollTop: 10 });
     fireEvent.wheel(scrollRoot!, { deltaY: 80 });
 
-    expect(scrollRoot!.scrollTop).toBe(90);
+    expect(scrollRoot!.scrollTop).toBe(10);
   });
 });

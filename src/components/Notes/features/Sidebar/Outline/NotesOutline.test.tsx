@@ -17,14 +17,14 @@ const hoisted = vi.hoisted(() => ({
   uiState: {
     sidebarCollapsed: false,
   },
-  vaultState: {
-    currentVault: null as { path: string; name: string } | null,
-    recentVaults: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
+  notesRootState: {
+    currentNotesRoot: null as { path: string; name: string } | null,
+    recentNotesRoots: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
   },
   jumpToHeading: vi.fn(),
   renameHeading: vi.fn(() => true),
   setNotesSidebarView: vi.fn(),
-  openVault: vi.fn(() => Promise.resolve(true)),
+  openNotesRoot: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('@tanstack/react-virtual', () => ({
@@ -54,16 +54,16 @@ vi.mock('@/stores/useNotesStore', () => ({
   useNotesStore: (selector: (state: typeof hoisted.notesState) => unknown) => selector(hoisted.notesState),
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector: (state: {
-    currentVault: typeof hoisted.vaultState.currentVault;
-    recentVaults: typeof hoisted.vaultState.recentVaults;
-    openVault: typeof hoisted.openVault;
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector: (state: {
+    currentNotesRoot: typeof hoisted.notesRootState.currentNotesRoot;
+    recentNotesRoots: typeof hoisted.notesRootState.recentNotesRoots;
+    openNotesRoot: typeof hoisted.openNotesRoot;
   }) => unknown) =>
     selector({
-      currentVault: hoisted.vaultState.currentVault,
-      recentVaults: hoisted.vaultState.recentVaults,
-      openVault: hoisted.openVault,
+      currentNotesRoot: hoisted.notesRootState.currentNotesRoot,
+      recentNotesRoots: hoisted.notesRootState.recentNotesRoots,
+      openNotesRoot: hoisted.openNotesRoot,
     }),
 }));
 
@@ -105,13 +105,13 @@ describe('NotesOutline', () => {
     hoisted.notesState.starredEntries = [];
     hoisted.notesState.starredLoaded = true;
     hoisted.uiState.sidebarCollapsed = false;
-    hoisted.vaultState.currentVault = null;
-    hoisted.vaultState.recentVaults = [];
+    hoisted.notesRootState.currentNotesRoot = null;
+    hoisted.notesRootState.recentNotesRoots = [];
     hoisted.jumpToHeading.mockClear();
     hoisted.renameHeading.mockClear();
     hoisted.setNotesSidebarView.mockClear();
-    hoisted.openVault.mockClear();
-    hoisted.openVault.mockResolvedValue(true);
+    hoisted.openNotesRoot.mockClear();
+    hoisted.openNotesRoot.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -191,13 +191,13 @@ describe('NotesOutline', () => {
     expect(screen.queryByRole('button', { name: 'notes.openFile' })).toBeNull();
   });
 
-  it('opens a recent vault from the outline empty workspace panel', () => {
+  it('opens a recent notes root from the outline empty workspace panel', () => {
     hoisted.outlineState.headings = [];
-    hoisted.vaultState.currentVault = { path: '/vaults/current', name: 'Current' };
-    hoisted.vaultState.recentVaults = [
-      { id: 'vault-current', name: 'Current', path: '/vaults/current', lastOpened: 3 },
-      { id: 'vault-alpha', name: 'Alpha', path: '/vaults/alpha', lastOpened: 2 },
-      { id: 'vault-beta', name: 'Beta', path: '/vaults/beta', lastOpened: 1 },
+    hoisted.notesRootState.currentNotesRoot = { path: '/notes-roots/current', name: 'Current' };
+    hoisted.notesRootState.recentNotesRoots = [
+      { id: 'notes-root-current', name: 'Current', path: '/notes-roots/current', lastOpened: 3 },
+      { id: 'notes-root-alpha', name: 'Alpha', path: '/notes-roots/alpha', lastOpened: 2 },
+      { id: 'notes-root-beta', name: 'Beta', path: '/notes-roots/beta', lastOpened: 1 },
     ];
 
     render(<NotesOutline enabled={false} currentNotePath={null} />);
@@ -205,6 +205,6 @@ describe('NotesOutline', () => {
     expect(screen.queryByText('Current')).toBeNull();
     fireEvent.click(screen.getByText('Alpha'));
 
-    expect(hoisted.openVault).toHaveBeenCalledWith('/vaults/alpha');
+    expect(hoisted.openNotesRoot).toHaveBeenCalledWith('/notes-roots/alpha');
   });
 });

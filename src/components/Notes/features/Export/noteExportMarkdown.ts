@@ -1,6 +1,6 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
-import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
+import { resolveExistingNotesRootAssetPath } from '@/lib/assets/core/paths';
 import { mapMarkdownOutsideProtectedSegments } from '@/lib/notes/markdown/markdownProtectedBlocks';
 import { getNoteInternalImageAssetPath, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import {
@@ -111,7 +111,7 @@ async function resolveAssetUrl(
   }
 
   try {
-    const absolutePath = await resolveExistingVaultAssetPath(notesPath, assetPath, notePath);
+    const absolutePath = await resolveExistingNotesRootAssetPath(notesPath, assetPath, notePath);
     if (!absolutePath) {
       return { url: fallbackSrc, embeddedBytes: 0 };
     }

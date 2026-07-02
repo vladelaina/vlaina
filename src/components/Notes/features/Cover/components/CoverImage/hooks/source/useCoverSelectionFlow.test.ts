@@ -8,7 +8,7 @@ import {
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
   loadImageThumbnailAsBlob: vi.fn(),
-  resolveVaultAssetPath: vi.fn(),
+  resolveNotesRootAssetPath: vi.fn(),
   loadImageWithDimensions: vi.fn(),
 }));
 
@@ -18,8 +18,8 @@ vi.mock('@/lib/assets/io/reader', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
-  resolveExistingVaultAssetPath: hoisted.resolveVaultAssetPath,
+  resolveNotesRootAssetPath: hoisted.resolveNotesRootAssetPath,
+  resolveExistingNotesRootAssetPath: hoisted.resolveNotesRootAssetPath,
 }));
 
 vi.mock('../../../../utils/coverConstants', () => ({
@@ -35,10 +35,10 @@ describe('useCoverSelectionFlow', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
-    hoisted.resolveVaultAssetPath.mockReset();
+    hoisted.resolveNotesRootAssetPath.mockReset();
     hoisted.loadImageWithDimensions.mockReset();
 
-    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => `/vault/${assetPath}`);
+    hoisted.resolveNotesRootAssetPath.mockImplementation(async (_notesRootPath: string, assetPath: string) => `/notesRoot/${assetPath}`);
     hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => `blob:${fullPath.split('/').pop()}`);
     hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => `thumb:${fullPath.split('/').pop()}`);
     hoisted.loadImageWithDimensions.mockResolvedValue({ width: 1200, height: 800 });
@@ -52,7 +52,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: null,
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -88,7 +88,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: 'covers/monet-2.png',
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -124,7 +124,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: 'covers/monet-2.png',
         coverHeight: 320,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -164,7 +164,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: 'covers/monet-2.png',
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -186,14 +186,14 @@ describe('useCoverSelectionFlow', () => {
     const onUpdate = vi.fn();
     const setShowPicker = vi.fn();
 
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
       useCoverSelectionFlow({
         url: null,
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -210,7 +210,7 @@ describe('useCoverSelectionFlow', () => {
       expect(result.current.previewSrc).toBe('blob:cover-a');
     });
 
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(hoisted.resolveNotesRootAssetPath).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(1);
@@ -228,7 +228,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: null,
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -261,7 +261,7 @@ describe('useCoverSelectionFlow', () => {
     const setShowPicker = vi.fn();
     let resolvePreview: ((value: { width: number; height: number } | null) => void) | null = null;
 
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/b.png');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/b.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-b');
     hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
       resolvePreview = resolve;
@@ -271,7 +271,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: 'covers/a.png',
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -298,7 +298,7 @@ describe('useCoverSelectionFlow', () => {
     const setShowPicker = vi.fn();
     let resolvePreview: ((value: { width: number; height: number } | null) => void) | null = null;
 
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/b.png');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/b.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-b');
     hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
       resolvePreview = resolve;
@@ -308,7 +308,7 @@ describe('useCoverSelectionFlow', () => {
       useCoverSelectionFlow({
         url: 'covers/a.png',
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         onUpdate,
         setShowPicker,
       })
@@ -334,14 +334,14 @@ describe('useCoverSelectionFlow', () => {
     const onUpdate = vi.fn();
     const setShowPicker = vi.fn();
 
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/daily/assets/b.png');
+    hoisted.resolveNotesRootAssetPath.mockResolvedValue('/notesRoot/daily/assets/b.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:relative-cover');
 
     const { result } = renderHook(() =>
       useCoverSelectionFlow({
         url: null,
         coverHeight: 240,
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         currentNotePath: 'daily/2026-04-15.md',
         onUpdate,
         setShowPicker,
@@ -355,8 +355,8 @@ describe('useCoverSelectionFlow', () => {
     await waitFor(() => {
       expect(result.current.previewSrc).toBe('blob:relative-cover');
     });
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith(
-      '/vault-a',
+    expect(hoisted.resolveNotesRootAssetPath).toHaveBeenCalledWith(
+      '/notes-root-a',
       './assets/b.png',
       'daily/2026-04-15.md'
     );

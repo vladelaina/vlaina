@@ -27,7 +27,7 @@ vi.mock('@/lib/storage/adapter', () => ({
   getParentPath: (path: string) => {
     const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
     const index = normalized.lastIndexOf('/');
-    return index <= 0 ? '/vault' : normalized.slice(0, index);
+    return index <= 0 ? '/notesRoot' : normalized.slice(0, index);
   },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
@@ -44,8 +44,8 @@ vi.mock('./io/writer', () => ({
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   ensureSystemDirectory: vi.fn(),
-  getVaultSystemStorePath: (_vaultPath: string, fileName: string) => (
-    Promise.resolve(`/app/.vlaina/notes/vaults/vault-test/${fileName}`)
+  getNotesRootSystemStorePath: (_notesRootPath: string, fileName: string) => (
+    Promise.resolve(`/app/.vlaina/notes/notes-roots/notes-root-test/${fileName}`)
   ),
 }));
 
@@ -104,43 +104,43 @@ describe('AssetService', () => {
     } as unknown as File;
   }
 
-  it('keeps vault subfolder uploads inside the vault when the configured folder traverses upward', async () => {
+  it('keeps notesRoot subfolder uploads inside the notesRoot when the configured folder traverses upward', async () => {
     const file = createImageFile('alpha.png');
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
-        storageMode: 'vaultSubfolder',
-        imageVaultSubfolderName: '../outside',
+        storageMode: 'notesRootSubfolder',
+        imageNotesRootSubfolderName: '../outside',
         filenameFormat: 'original',
       },
       [],
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/assets', true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/notesRoot/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('assets/alpha.png');
   });
 
-  it('falls back when a vault upload subfolder points into an internal notes directory', async () => {
+  it('falls back when a notesRoot upload subfolder points into an internal notes directory', async () => {
     const file = createImageFile('alpha.png');
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
-        storageMode: 'vaultSubfolder',
-        imageVaultSubfolderName: '.vlaina/assets',
+        storageMode: 'notesRootSubfolder',
+        imageNotesRootSubfolderName: '.vlaina/assets',
         filenameFormat: 'original',
       },
       [],
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/assets', true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/notesRoot/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('assets/alpha.png');
   });
 
@@ -149,7 +149,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: '../outside',
@@ -159,8 +159,8 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/docs/assets', true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/notesRoot/docs/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/alpha.png');
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
   });
@@ -170,7 +170,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: '.git/assets',
@@ -180,8 +180,8 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/docs/assets', true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/notesRoot/docs/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/alpha.png');
   });
 
@@ -190,7 +190,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets/\u202Egnp',
@@ -200,8 +200,8 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/docs/assets', true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/notesRoot/docs/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/alpha.png');
   });
 
@@ -210,7 +210,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: '.notes/assets',
@@ -220,8 +220,8 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/docs/.notes/assets', true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/.notes/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/notesRoot/docs/.notes/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/.notes/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('./.notes/assets/alpha.png');
   });
 
@@ -230,7 +230,7 @@ describe('AssetService', () => {
 
     await expect(AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: '.vlaina/workspace.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: '.vlaina/workspace.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -248,7 +248,7 @@ describe('AssetService', () => {
 
     await expect(AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/unsafe\u202Egnp.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/unsafe\u202Egnp.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -266,7 +266,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -276,7 +276,7 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/image.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/image.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/image.png');
     expect(result.entry?.mimeType).toBe('image/png');
   });
@@ -286,7 +286,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -296,7 +296,7 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/image.jpg', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/image.jpg', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/image.jpg');
     expect(result.entry?.mimeType).toBe('image/jpeg');
   });
@@ -306,7 +306,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -316,7 +316,7 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/spoofed.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/spoofed.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/spoofed.png');
     expect(result.entry?.mimeType).toBe('image/png');
   });
@@ -335,7 +335,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -345,7 +345,7 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.writeAssetAtomic.mock.calls[0]?.[0]).toBe('/vault/docs/assets/diagram.svg');
+    expect(mocks.writeAssetAtomic.mock.calls[0]?.[0]).toBe('/notesRoot/docs/assets/diagram.svg');
     const bytes = mocks.writeAssetAtomic.mock.calls[0]?.[1] as Uint8Array;
     const output = new TextDecoder().decode(bytes);
     expect(output).toContain('<svg');
@@ -364,7 +364,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -390,7 +390,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -405,12 +405,12 @@ describe('AssetService', () => {
     expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
-  it('stores note-subfolder uploads beside an absolute external note even when a vault is open', async () => {
+  it('stores note-subfolder uploads beside an absolute external note even when a folder is open', async () => {
     const file = createImageFile('external.png');
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: '/outside/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: '/outside/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -425,12 +425,12 @@ describe('AssetService', () => {
     expect(result.path).toBe('./assets/external.png');
   });
 
-  it('stores current-folder uploads beside an absolute external note even when a vault is open', async () => {
+  it('stores current-folder uploads beside an absolute external note even when a folder is open', async () => {
     const file = createImageFile('external.png');
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: '/outside/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: '/outside/current.md' },
       {
         storageMode: 'currentFolder',
         filenameFormat: 'original',
@@ -449,16 +449,16 @@ describe('AssetService', () => {
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
     mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5]));
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/docs/assets/alpha.png'
+      path === '/notesRoot/docs/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null
     ));
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -468,7 +468,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -480,7 +480,7 @@ describe('AssetService', () => {
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(true);
     expect(result.path).toBe('./assets/alpha.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
@@ -489,16 +489,16 @@ describe('AssetService', () => {
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
     mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5]));
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/docs/assets/alpha.png'
+      path === '/notesRoot/docs/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null
     ));
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
       },
@@ -506,7 +506,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -518,8 +518,8 @@ describe('AssetService', () => {
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(true);
     expect(result.path).toBe('./assets/alpha.png');
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png');
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
@@ -527,11 +527,11 @@ describe('AssetService', () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
       },
@@ -539,7 +539,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -553,7 +553,7 @@ describe('AssetService', () => {
     expect(result.path).toBe('./assets/alpha_1.png');
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
     expect(mocks.storage.readBinaryFile).not.toHaveBeenCalled();
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
   it('caps upload target directory scanning before normalizing existing asset entries', async () => {
@@ -563,14 +563,14 @@ describe('AssetService', () => {
       get name() {
         throw new Error('unscanned upload directory entry name was read');
       },
-      path: '/vault/docs/assets/image-5000.png',
+      path: '/notesRoot/docs/assets/image-5000.png',
       isFile: true,
       isDirectory: false,
     };
     mocks.storage.listDir.mockResolvedValue([
       ...Array.from({ length: 5000 }, (_, index) => ({
         name: `image-${String(index).padStart(4, '0')}.png`,
-        path: `/vault/docs/assets/image-${String(index).padStart(4, '0')}.png`,
+        path: `/notesRoot/docs/assets/image-${String(index).padStart(4, '0')}.png`,
         isFile: true,
         isDirectory: false,
       })),
@@ -579,7 +579,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -589,23 +589,23 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', expect.any(Uint8Array));
   });
 
   it('skips unreadable duplicate candidates instead of failing the upload', async () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('new-hash');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.readBinaryFile.mockRejectedValue(new Error('Permission denied'));
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/docs/assets/alpha.png'
+      path === '/notesRoot/docs/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null
     ));
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -615,7 +615,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -627,24 +627,24 @@ describe('AssetService', () => {
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(false);
     expect(result.path).toBe('./assets/alpha_1.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', MAX_ASSET_SIZE);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
   it('skips duplicate candidates whose bytes do not match trusted size metadata', async () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('new-hash');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5, 6]));
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/docs/assets/alpha.png'
+      path === '/notesRoot/docs/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null
     ));
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -654,7 +654,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -666,26 +666,26 @@ describe('AssetService', () => {
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(false);
     expect(result.path).toBe('./assets/alpha_1.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.computeBufferHash).not.toHaveBeenCalled();
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
   it('continues uploading when the duplicate hash index cannot be saved', async () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('new-hash');
     mocks.computeBufferHash.mockResolvedValue('existing-hash');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.writeFile.mockRejectedValue(new Error('Index unavailable'));
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/docs/assets/alpha.png'
+      path === '/notesRoot/docs/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null
     ));
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -695,7 +695,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -708,7 +708,7 @@ describe('AssetService', () => {
     expect(result.isDuplicate).toBe(false);
     expect(result.path).toBe('./assets/alpha_1.png');
     expect(mocks.storage.writeFile).toHaveBeenCalled();
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
   it('returns duplicate uploads even when saving the duplicate hash index fails', async () => {
@@ -716,17 +716,17 @@ describe('AssetService', () => {
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
     mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5]));
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.writeFile.mockRejectedValue(new Error('Index unavailable'));
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/docs/assets/alpha.png'
+      path === '/notesRoot/docs/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null
     ));
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -736,7 +736,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -755,11 +755,11 @@ describe('AssetService', () => {
   it('uses a fresh hash index entry without reading an existing same-size file', async () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('same-hash');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/app/.vlaina/notes/vaults/vault-test/assets.json'
+      path === '/app/.vlaina/notes/notes-roots/notes-root-test/assets.json'
         ? { name: 'assets.json', path, isFile: true, isDirectory: false, size: 220 }
-        : path === '/vault/docs/assets/alpha.png'
+        : path === '/notesRoot/docs/assets/alpha.png'
           ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 5, modifiedAt: 123 }
         : null
     ));
@@ -779,7 +779,7 @@ describe('AssetService', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -789,7 +789,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -807,11 +807,11 @@ describe('AssetService', () => {
 
   it('does not hash existing images with different names during duplicate checks', async () => {
     const file = createImageFile('alpha.png');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'same-content-different-name.png',
-        path: '/vault/docs/assets/same-content-different-name.png',
+        path: '/notesRoot/docs/assets/same-content-different-name.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -821,7 +821,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -834,16 +834,16 @@ describe('AssetService', () => {
     expect(result.isDuplicate).toBe(false);
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
     expect(mocks.storage.readBinaryFile).not.toHaveBeenCalled();
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', expect.any(Uint8Array));
   });
 
   it('does not hash existing files with different sizes during duplicate checks', async () => {
     const file = createImageFile('alpha.png');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 500,
@@ -853,7 +853,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -866,21 +866,21 @@ describe('AssetService', () => {
     expect(result.isDuplicate).toBe(false);
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
     expect(mocks.storage.readBinaryFile).not.toHaveBeenCalled();
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
   it('rechecks same-name candidate size with stat before reading duplicate bytes', async () => {
     const file = createImageFile('alpha.png');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.stat.mockImplementation(async (path: string) => (
-      path === '/vault/docs/assets/alpha.png'
+      path === '/notesRoot/docs/assets/alpha.png'
         ? { name: 'alpha.png', path, isFile: true, isDirectory: false, size: 100 * 1024 * 1024, modifiedAt: 456 }
         : null
     ));
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/docs/assets/alpha.png',
+        path: '/notesRoot/docs/assets/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -890,7 +890,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -901,19 +901,19 @@ describe('AssetService', () => {
 
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(false);
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png');
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
     expect(mocks.storage.readBinaryFile).not.toHaveBeenCalled();
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
   it('ignores unsafe directory entries during duplicate checks', async () => {
     const file = createImageFile('alpha.png');
-    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/notesRoot/docs/assets');
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'alpha.png',
-        path: '/vault/outside/alpha.png',
+        path: '/notesRoot/outside/alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -921,7 +921,7 @@ describe('AssetService', () => {
       },
       {
         name: '../alpha.png',
-        path: '/vault/docs/assets/../alpha.png',
+        path: '/notesRoot/docs/assets/../alpha.png',
         isFile: true,
         isDirectory: false,
         size: 5,
@@ -931,7 +931,7 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       file,
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -945,7 +945,7 @@ describe('AssetService', () => {
     expect(result.path).toBe('./assets/alpha.png');
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
     expect(mocks.storage.readBinaryFile).not.toHaveBeenCalled();
-    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/notesRoot/docs/assets/alpha.png', expect.any(Uint8Array));
   });
 
   it('lists images from the configured note subfolder with stored cover paths', async () => {
@@ -953,7 +953,7 @@ describe('AssetService', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.jpg',
-        path: '/vault/docs/assets/cover.jpg',
+        path: '/notesRoot/docs/assets/cover.jpg',
         isFile: true,
         isDirectory: false,
         size: 123,
@@ -961,7 +961,7 @@ describe('AssetService', () => {
       },
       {
         name: 'notes.txt',
-        path: '/vault/docs/assets/notes.txt',
+        path: '/notesRoot/docs/assets/notes.txt',
         isFile: true,
         isDirectory: false,
         size: 10,
@@ -969,7 +969,7 @@ describe('AssetService', () => {
     ]);
 
     const assets = await AssetService.list(
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -977,7 +977,7 @@ describe('AssetService', () => {
       },
     );
 
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/assets');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/docs/assets');
     expect(assets).toEqual([
       {
         filename: './assets/cover.jpg',
@@ -994,7 +994,7 @@ describe('AssetService', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/docs/assets/cover.png',
+        path: '/notesRoot/docs/assets/cover.png',
         isFile: true,
         isDirectory: false,
         size: -1,
@@ -1003,7 +1003,7 @@ describe('AssetService', () => {
     ]);
 
     const assets = await AssetService.list(
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -1027,20 +1027,20 @@ describe('AssetService', () => {
     mocks.storage.listDir.mockResolvedValue([
       ...Array.from({ length: MAX_ASSET_LIST_DIRECTORY_ENTRIES }, (_, index) => ({
         name: `image-${String(index).padStart(4, '0')}.png`,
-        path: `/vault/docs/assets/image-${String(index).padStart(4, '0')}.png`,
+        path: `/notesRoot/docs/assets/image-${String(index).padStart(4, '0')}.png`,
         isFile: true,
         isDirectory: false,
       })),
       {
         name: 'image-5000.png',
-        path: '/vault/docs/assets/image-5000.png',
+        path: '/notesRoot/docs/assets/image-5000.png',
         isFile: true,
         isDirectory: false,
       },
     ]);
 
     const assets = await AssetService.list(
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',
@@ -1057,7 +1057,7 @@ describe('AssetService', () => {
     mocks.storage.listDir.mockResolvedValue(
       Array.from({ length: 24 }, (_value, index) => ({
         name: 'alpha.png',
-        path: `/vault/assets/alpha-${index}.png`,
+        path: `/notesRoot/assets/alpha-${index}.png`,
         isFile: true,
         isDirectory: false,
       }))
@@ -1065,7 +1065,7 @@ describe('AssetService', () => {
     let activeStats = 0;
     let maxActiveStats = 0;
     mocks.storage.stat.mockImplementation(async (path: string) => {
-      if (!path.includes('/vault/assets/alpha-')) {
+      if (!path.includes('/notesRoot/assets/alpha-')) {
         return { size: 5, modifiedAt: 1 };
       }
       activeStats += 1;
@@ -1077,10 +1077,10 @@ describe('AssetService', () => {
 
     const result = await AssetService.upload(
       createImageFile('alpha.png'),
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
-        storageMode: 'vaultSubfolder',
-        imageVaultSubfolderName: 'assets',
+        storageMode: 'notesRootSubfolder',
+        imageNotesRootSubfolderName: 'assets',
         filenameFormat: 'timestamp',
       },
       [],
@@ -1095,7 +1095,7 @@ describe('AssetService', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.jpg',
-        path: '/vault/docs/assets/cover.jpg',
+        path: '/notesRoot/docs/assets/cover.jpg',
         isFile: true,
         isDirectory: false,
         size: 123,
@@ -1103,21 +1103,21 @@ describe('AssetService', () => {
       },
       {
         name: '../secret.jpg',
-        path: '/vault/docs/secret.jpg',
+        path: '/notesRoot/docs/secret.jpg',
         isFile: true,
         isDirectory: false,
         size: 10,
       },
       {
         name: 'escape.jpg',
-        path: '/vault/docs/assets/../escape.jpg',
+        path: '/notesRoot/docs/assets/../escape.jpg',
         isFile: true,
         isDirectory: false,
         size: 10,
       },
       {
         name: 'cover\u202Egnp.jpg',
-        path: '/vault/docs/assets/cover\u202Egnp.jpg',
+        path: '/notesRoot/docs/assets/cover\u202Egnp.jpg',
         isFile: true,
         isDirectory: false,
         size: 10,
@@ -1125,7 +1125,7 @@ describe('AssetService', () => {
     ]);
 
     const assets = await AssetService.list(
-      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      { notesRootPath: '/notesRoot', currentNotePath: 'docs/current.md' },
       {
         storageMode: 'subfolder',
         subfolderName: 'assets',

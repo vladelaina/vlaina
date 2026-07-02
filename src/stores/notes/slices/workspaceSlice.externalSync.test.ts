@@ -123,7 +123,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
   const baseState = {
     rootFolder,
     currentNote: null,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -188,51 +188,51 @@ describe('workspaceSlice external sync', () => {
 
   it('remaps absolute note state for Windows case-varied rename events', async () => {
     const store = createNotesStore({
-      currentNote: { path: 'C:/Vault/Docs/Alpha.md', content: '# alpha' },
-      openTabs: [{ path: 'C:/Vault/Docs/Alpha.md', name: 'Alpha', isDirty: false }],
-      recentNotes: ['C:/Vault/Docs/Alpha.md'],
-      displayNames: new Map([['C:/Vault/Docs/Alpha.md', 'Alpha']]),
+      currentNote: { path: 'C:/NotesRoot/Docs/Alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'C:/NotesRoot/Docs/Alpha.md', name: 'Alpha', isDirty: false }],
+      recentNotes: ['C:/NotesRoot/Docs/Alpha.md'],
+      displayNames: new Map([['C:/NotesRoot/Docs/Alpha.md', 'Alpha']]),
       noteContentsCache: new Map([
-        ['C:/Vault/Docs/Alpha.md', { content: '# alpha', modifiedAt: 1 }],
+        ['C:/NotesRoot/Docs/Alpha.md', { content: '# alpha', modifiedAt: 1 }],
       ]),
       noteMetadata: {
         version: 2,
         notes: {
-          'C:/Vault/Docs/Alpha.md': { createdAt: 1 },
+          'C:/NotesRoot/Docs/Alpha.md': { createdAt: 1 },
         },
       },
       recentlyClosedTabs: [
         {
-          tab: { path: 'C:/Vault/Docs/Alpha.md', name: 'Alpha', isDirty: false },
+          tab: { path: 'C:/NotesRoot/Docs/Alpha.md', name: 'Alpha', isDirty: false },
           index: 0,
         },
       ],
     });
 
     await store.getState().applyExternalPathRename(
-      'c:/vault/docs/alpha.md',
-      'D:/Vault/Docs/Beta.md',
+      'c:/notesRoot/docs/alpha.md',
+      'D:/NotesRoot/Docs/Beta.md',
     );
 
     expect(store.getState().currentNote).toEqual({
-      path: 'D:/Vault/Docs/Beta.md',
+      path: 'D:/NotesRoot/Docs/Beta.md',
       content: '# alpha',
     });
     expect(store.getState().openTabs).toEqual([
-      { path: 'D:/Vault/Docs/Beta.md', name: 'Beta', isDirty: false },
+      { path: 'D:/NotesRoot/Docs/Beta.md', name: 'Beta', isDirty: false },
     ]);
-    expect(store.getState().recentNotes).toEqual(['D:/Vault/Docs/Beta.md']);
-    expect(store.getState().displayNames.get('D:/Vault/Docs/Beta.md')).toBe('Beta');
-    expect(store.getState().noteContentsCache.get('D:/Vault/Docs/Beta.md')).toEqual({
+    expect(store.getState().recentNotes).toEqual(['D:/NotesRoot/Docs/Beta.md']);
+    expect(store.getState().displayNames.get('D:/NotesRoot/Docs/Beta.md')).toBe('Beta');
+    expect(store.getState().noteContentsCache.get('D:/NotesRoot/Docs/Beta.md')).toEqual({
       content: '# alpha',
       modifiedAt: 1,
     });
-    expect(store.getState().noteContentsCache.has('C:/Vault/Docs/Alpha.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('C:/NotesRoot/Docs/Alpha.md')).toBe(false);
     expect(store.getState().noteMetadata?.notes).toEqual({
-      'D:/Vault/Docs/Beta.md': { createdAt: 1 },
+      'D:/NotesRoot/Docs/Beta.md': { createdAt: 1 },
     });
     expect(store.getState().recentlyClosedTabs[0]?.tab).toEqual({
-      path: 'D:/Vault/Docs/Beta.md',
+      path: 'D:/NotesRoot/Docs/Beta.md',
       name: 'Beta',
       isDirty: false,
     });
@@ -418,7 +418,7 @@ describe('workspaceSlice external sync', () => {
         {
           id: 'starred-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         },
@@ -432,7 +432,7 @@ describe('workspaceSlice external sync', () => {
       {
         id: 'starred-note',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs/beta.md',
         addedAt: 1,
       },
@@ -441,13 +441,13 @@ describe('workspaceSlice external sync', () => {
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
   });
 
-  it('remaps external absolute starred notes when their file is renamed outside the current vault', async () => {
+  it('remaps external absolute starred notes when their file is renamed outside the opened folder', async () => {
     const store = createNotesStore({
       starredEntries: [
         {
           id: 'external-starred-note',
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/alpha.md',
           addedAt: 1,
         },
@@ -455,15 +455,15 @@ describe('workspaceSlice external sync', () => {
     });
 
     await store.getState().applyExternalPathRename(
-      '/vault-b/docs/alpha.md',
-      '/vault-b/docs/beta.md',
+      '/notes-root-b/docs/alpha.md',
+      '/notes-root-b/docs/beta.md',
     );
 
     expect(store.getState().starredEntries).toEqual([
       {
         id: 'external-starred-note',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/beta.md',
         addedAt: 1,
       },
@@ -484,7 +484,7 @@ describe('workspaceSlice external sync', () => {
         {
           id: 'starred-child-note',
           kind: 'note',
-          vaultPath: '/vault',
+          notesRootPath: '/notesRoot',
           relativePath: 'docs/guide/intro.md',
           addedAt: 1,
         },
@@ -499,11 +499,11 @@ describe('workspaceSlice external sync', () => {
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
   });
 
-  it('removes external absolute starred notes when their file is deleted outside the current vault', async () => {
+  it('removes external absolute starred notes when their file is deleted outside the opened folder', async () => {
     const keepEntry = {
       id: 'external-keep',
       kind: 'note' as const,
-      vaultPath: '/vault-b',
+      notesRootPath: '/notes-root-b',
       relativePath: 'docs/keep.md',
       addedAt: 1,
     };
@@ -513,24 +513,24 @@ describe('workspaceSlice external sync', () => {
         {
           id: 'external-remove',
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/remove.md',
           addedAt: 1,
         },
       ],
     });
 
-    await store.getState().applyExternalPathDeletion('/vault-b/docs/remove.md');
+    await store.getState().applyExternalPathDeletion('/notes-root-b/docs/remove.md');
 
     expect(store.getState().starredEntries).toEqual([keepEntry]);
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith([keepEntry]);
   });
 
-  it('removes external absolute starred child entries when their folder is deleted outside the current vault', async () => {
+  it('removes external absolute starred child entries when their folder is deleted outside the opened folder', async () => {
     const keepEntry = {
       id: 'external-keep',
       kind: 'note' as const,
-      vaultPath: '/vault-b',
+      notesRootPath: '/notes-root-b',
       relativePath: 'outside.md',
       addedAt: 1,
     };
@@ -540,21 +540,21 @@ describe('workspaceSlice external sync', () => {
         {
           id: 'external-child-note',
           kind: 'note',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/remove.md',
           addedAt: 1,
         },
         {
           id: 'external-child-folder',
           kind: 'folder',
-          vaultPath: '/vault-b',
+          notesRootPath: '/notes-root-b',
           relativePath: 'docs/assets',
           addedAt: 1,
         },
       ],
     });
 
-    await store.getState().applyExternalPathDeletion('/vault-b/docs');
+    await store.getState().applyExternalPathDeletion('/notes-root-b/docs');
 
     expect(store.getState().starredEntries).toEqual([keepEntry]);
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith([keepEntry]);
@@ -562,46 +562,46 @@ describe('workspaceSlice external sync', () => {
 
   it('prunes absolute note state for Windows case-varied folder deletions', async () => {
     const store = createNotesStore({
-      currentNote: { path: 'C:/Vault/Keep.md', content: '# keep' },
+      currentNote: { path: 'C:/NotesRoot/Keep.md', content: '# keep' },
       openTabs: [
-        { path: 'C:/Vault/Keep.md', name: 'Keep', isDirty: false },
-        { path: 'C:/Vault/Docs/Remove.md', name: 'Remove', isDirty: false },
+        { path: 'C:/NotesRoot/Keep.md', name: 'Keep', isDirty: false },
+        { path: 'C:/NotesRoot/Docs/Remove.md', name: 'Remove', isDirty: false },
       ],
-      recentNotes: ['C:/Vault/Keep.md', 'C:/Vault/Docs/Remove.md'],
+      recentNotes: ['C:/NotesRoot/Keep.md', 'C:/NotesRoot/Docs/Remove.md'],
       displayNames: new Map([
-        ['C:/Vault/Keep.md', 'Keep'],
-        ['C:/Vault/Docs/Remove.md', 'Remove'],
+        ['C:/NotesRoot/Keep.md', 'Keep'],
+        ['C:/NotesRoot/Docs/Remove.md', 'Remove'],
       ]),
       noteContentsCache: new Map([
-        ['C:/Vault/Keep.md', { content: '# keep', modifiedAt: 1 }],
-        ['C:/Vault/Docs/Remove.md', { content: '# remove', modifiedAt: 1 }],
+        ['C:/NotesRoot/Keep.md', { content: '# keep', modifiedAt: 1 }],
+        ['C:/NotesRoot/Docs/Remove.md', { content: '# remove', modifiedAt: 1 }],
       ]),
       noteMetadata: {
         version: 2,
         notes: {
-          'C:/Vault/Keep.md': { createdAt: 1 },
-          'C:/Vault/Docs/Remove.md': { createdAt: 2 },
+          'C:/NotesRoot/Keep.md': { createdAt: 1 },
+          'C:/NotesRoot/Docs/Remove.md': { createdAt: 2 },
         },
       },
       recentlyClosedTabs: [
         {
-          tab: { path: 'C:/Vault/Docs/Remove.md', name: 'Remove', isDirty: false },
+          tab: { path: 'C:/NotesRoot/Docs/Remove.md', name: 'Remove', isDirty: false },
           index: 1,
         },
       ],
     });
 
-    await store.getState().applyExternalPathDeletion('c:/vault/docs');
+    await store.getState().applyExternalPathDeletion('c:/notesRoot/docs');
 
-    expect(store.getState().currentNote).toEqual({ path: 'C:/Vault/Keep.md', content: '# keep' });
+    expect(store.getState().currentNote).toEqual({ path: 'C:/NotesRoot/Keep.md', content: '# keep' });
     expect(store.getState().openTabs).toEqual([
-      { path: 'C:/Vault/Keep.md', name: 'Keep', isDirty: false },
+      { path: 'C:/NotesRoot/Keep.md', name: 'Keep', isDirty: false },
     ]);
-    expect(store.getState().recentNotes).toEqual(['C:/Vault/Keep.md']);
-    expect(store.getState().displayNames.has('C:/Vault/Docs/Remove.md')).toBe(false);
-    expect(store.getState().noteContentsCache.has('C:/Vault/Docs/Remove.md')).toBe(false);
+    expect(store.getState().recentNotes).toEqual(['C:/NotesRoot/Keep.md']);
+    expect(store.getState().displayNames.has('C:/NotesRoot/Docs/Remove.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('C:/NotesRoot/Docs/Remove.md')).toBe(false);
     expect(store.getState().noteMetadata?.notes).toEqual({
-      'C:/Vault/Keep.md': { createdAt: 1 },
+      'C:/NotesRoot/Keep.md': { createdAt: 1 },
     });
     expect(store.getState().recentlyClosedTabs).toEqual([]);
   });
@@ -950,7 +950,7 @@ describe('workspaceSlice external sync', () => {
     const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
 
     expect(result).toBe('ignored');
-    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_DISK_SYNC_BYTES);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_NOTE_DISK_SYNC_BYTES);
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
     expect(store.getState().currentNoteDiskRevision).toBe(0);
     expect(store.getState().error).toBe('Current note is too large to reload from disk.');
@@ -991,7 +991,7 @@ describe('workspaceSlice external sync', () => {
       noteContentsCache: new Map([['docs/alpha.md', { content: '# saved', modifiedAt: 1 }]]),
     });
 
-    markExpectedExternalChange('/vault/docs/alpha.md');
+    markExpectedExternalChange('/notesRoot/docs/alpha.md');
     const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
 
     expect(result).toBe('ignored');
@@ -999,10 +999,10 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# saved' });
     expect(store.getState().currentNoteDiskRevision).toBe(3);
     expect(store.getState().noteContentsCache.get('docs/alpha.md')?.modifiedAt).toBe(2);
-    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
-    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
-    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
-    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(false);
+    shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md');
+    expect(shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md')).toBe(false);
   });
 
   it('reloads a clean current note when a later external write arrives before the self-write marker expires', async () => {
@@ -1017,7 +1017,7 @@ describe('workspaceSlice external sync', () => {
       noteContentsCache: new Map([['docs/alpha.md', { content: '# saved', modifiedAt: 1 }]]),
     });
 
-    markExpectedExternalChange('/vault/docs/alpha.md');
+    markExpectedExternalChange('/notesRoot/docs/alpha.md');
     const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
 
     expect(result).toBe('reloaded');
@@ -1026,10 +1026,10 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().currentNoteDiskRevision).toBe(4);
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().error).toBeNull();
-    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
-    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
-    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
-    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(false);
+    shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md');
+    expect(shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md')).toBe(false);
   });
 
   it('flushes pending editor markdown before deciding whether disk sync can reload', async () => {
@@ -1076,7 +1076,7 @@ describe('workspaceSlice external sync', () => {
   it('does not report a dirty conflict for an expected save write', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
-    markExpectedExternalChange('/vault/docs/alpha.md');
+    markExpectedExternalChange('/notesRoot/docs/alpha.md');
 
     const store = createNotesStore({
       currentNote: { path: 'docs/alpha.md', content: '# local edit' },
@@ -1099,10 +1099,10 @@ describe('workspaceSlice external sync', () => {
       content: '# local edit',
       modifiedAt: 2,
     });
-    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
-    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
-    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
-    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(false);
+    expect(shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/notesRoot/docs/alpha.md')).toBe(false);
   });
 
   it('preserves local edits made while disk sync is reading the file', async () => {
@@ -1221,7 +1221,7 @@ describe('workspaceSlice external sync', () => {
     );
   });
 
-  it('ignores a stale disk sync after the workspace switches vaults', async () => {
+  it('ignores a stale disk sync after the workspace switches notes-roots', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     let resolveStat: (info: { isFile: true; modifiedAt: number; size: number }) => void;
     storageAdapter.stat.mockImplementation(() => new Promise((resolve) => {
@@ -1238,7 +1238,7 @@ describe('workspaceSlice external sync', () => {
     const sync = store.getState().syncCurrentNoteFromDisk({ force: true });
     await new Promise((resolve) => setTimeout(resolve, 0));
     store.setState({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: null,
       openTabs: [],
       noteContentsCache: new Map(),
@@ -1248,7 +1248,7 @@ describe('workspaceSlice external sync', () => {
 
     expect(result).toBe('ignored');
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
-    expect(store.getState().notesPath).toBe('/vault-next');
+    expect(store.getState().notesPath).toBe('/notes-root-next');
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().openTabs).toEqual([]);
     expect(store.getState().noteContentsCache.size).toBe(0);

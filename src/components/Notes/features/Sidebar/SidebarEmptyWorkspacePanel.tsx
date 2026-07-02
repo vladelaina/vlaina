@@ -8,7 +8,7 @@ import {
   getSidebarLabelClass,
   getSidebarSoftTextClass,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
-import type { VaultInfo } from '@/stores/useVaultStore';
+import type { NotesRootInfo } from '@/stores/useNotesRootStore';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import { NotesSidebarPillEmptyHint } from './NotesSidebarPrimitives';
 
@@ -16,40 +16,40 @@ interface SidebarEmptyWorkspacePanelProps {
   folderLabel: string;
   openFileLabel: string;
   openFolderLabel: string;
-  recentVaults: VaultInfo[];
+  recentNotesRoots: NotesRootInfo[];
   onOpenFile: () => void;
   onOpenFolder: () => void;
-  onOpenRecentVault: (path: string) => void;
+  onOpenRecentNotesRoot: (path: string) => void;
 }
 
-interface ActiveRecentVaultHint {
+interface ActiveRecentNotesRootHint {
   path: string;
   left: number;
   top: number;
   placement: 'top' | 'bottom';
 }
 
-export const EMPTY_WORKSPACE_RECENT_VAULT_DISPLAY_LIMIT = 8;
+export const EMPTY_WORKSPACE_RECENT_NOTES_ROOT_DISPLAY_LIMIT = 8;
 
-export function getEmptyWorkspaceRecentVaults(
-  recentVaults: VaultInfo[],
-  currentVaultPath: string | null | undefined,
+export function getEmptyWorkspaceRecentNotesRoots(
+  recentNotesRoots: NotesRootInfo[],
+  currentNotesRootPath: string | null | undefined,
 ) {
-  return recentVaults
-    .filter((vault) => vault.path !== currentVaultPath)
-    .slice(0, EMPTY_WORKSPACE_RECENT_VAULT_DISPLAY_LIMIT);
+  return recentNotesRoots
+    .filter((notesRoot) => notesRoot.path !== currentNotesRootPath)
+    .slice(0, EMPTY_WORKSPACE_RECENT_NOTES_ROOT_DISPLAY_LIMIT);
 }
 
 export function SidebarEmptyWorkspacePanel({
   folderLabel,
   openFileLabel,
   openFolderLabel,
-  recentVaults,
+  recentNotesRoots,
   onOpenFile,
   onOpenFolder,
-  onOpenRecentVault,
+  onOpenRecentNotesRoot,
 }: SidebarEmptyWorkspacePanelProps) {
-  const [activeRecentVaultHint, setActiveRecentVaultHint] = useState<ActiveRecentVaultHint | null>(null);
+  const [activeRecentNotesRootHint, setActiveRecentNotesRootHint] = useState<ActiveRecentNotesRootHint | null>(null);
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLDivElement>, action: () => void) => {
     if (event.key !== 'Enter' && event.key !== ' ') {
@@ -61,23 +61,23 @@ export function SidebarEmptyWorkspacePanel({
     action();
   };
 
-  const showRecentVaultHint = (vault: VaultInfo, element: HTMLElement) => {
+  const showRecentNotesRootHint = (notesRoot: NotesRootInfo, element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     const hasRoomBelow =
       window.innerHeight - rect.bottom >=
-      themeSidebarTokens.recentVaultPathHintEstimatedHeightPx + themeSidebarTokens.recentVaultPathHintGapPx;
+      themeSidebarTokens.recentNotesRootPathHintEstimatedHeightPx + themeSidebarTokens.recentNotesRootPathHintGapPx;
 
-    setActiveRecentVaultHint({
-      path: vault.path,
+    setActiveRecentNotesRootHint({
+      path: notesRoot.path,
       left:
         rect.left +
-        themeSidebarTokens.recentVaultPathHintTextLeftOffsetPx -
-        themeSidebarTokens.recentVaultPathHintHorizontalPaddingPx,
+        themeSidebarTokens.recentNotesRootPathHintTextLeftOffsetPx -
+        themeSidebarTokens.recentNotesRootPathHintHorizontalPaddingPx,
       top: hasRoomBelow
-        ? rect.bottom + themeSidebarTokens.recentVaultPathHintGapPx
+        ? rect.bottom + themeSidebarTokens.recentNotesRootPathHintGapPx
         : rect.top -
-          themeSidebarTokens.recentVaultPathHintEstimatedHeightPx -
-          themeSidebarTokens.recentVaultPathHintGapPx,
+          themeSidebarTokens.recentNotesRootPathHintEstimatedHeightPx -
+          themeSidebarTokens.recentNotesRootPathHintGapPx,
       placement: hasRoomBelow ? 'bottom' : 'top',
     });
   };
@@ -90,19 +90,19 @@ export function SidebarEmptyWorkspacePanel({
           { label: openFolderLabel, onAction: onOpenFolder },
         ]}
       />
-      {recentVaults.length > 0 ? (
+      {recentNotesRoots.length > 0 ? (
         <div className="flex min-w-0 flex-col">
-          {recentVaults.map((vault) => (
+          {recentNotesRoots.map((notesRoot) => (
             <div
-              key={vault.id}
+              key={notesRoot.id}
               className="min-w-0"
-              onMouseEnter={(event) => showRecentVaultHint(vault, event.currentTarget)}
-              onMouseLeave={() => setActiveRecentVaultHint(null)}
-              onFocus={(event) => showRecentVaultHint(vault, event.currentTarget)}
+              onMouseEnter={(event) => showRecentNotesRootHint(notesRoot, event.currentTarget)}
+              onMouseLeave={() => setActiveRecentNotesRootHint(null)}
+              onFocus={(event) => showRecentNotesRootHint(notesRoot, event.currentTarget)}
               onBlur={(event) => {
                 const nextTarget = event.relatedTarget;
                 if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
-                  setActiveRecentVaultHint(null);
+                  setActiveRecentNotesRootHint(null);
                 }
               }}
             >
@@ -118,7 +118,7 @@ export function SidebarEmptyWorkspacePanel({
                 }
                 main={(
                   <span className={`block truncate ${getSidebarLabelClass('notes')}`}>
-                    {vault.name || folderLabel}
+                    {notesRoot.name || folderLabel}
                   </span>
                 )}
                 trailing={
@@ -128,21 +128,21 @@ export function SidebarEmptyWorkspacePanel({
                     className={`${getSidebarSoftTextClass('notes')} group-hover/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)] group-focus-within/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)]`}
                   />
                 }
-                onClick={() => onOpenRecentVault(vault.path)}
-                onKeyDown={(event) => handleRowKeyDown(event, () => onOpenRecentVault(vault.path))}
+                onClick={() => onOpenRecentNotesRoot(notesRoot.path)}
+                onKeyDown={(event) => handleRowKeyDown(event, () => onOpenRecentNotesRoot(notesRoot.path))}
               />
             </div>
           ))}
         </div>
       ) : null}
-      {activeRecentVaultHint
+      {activeRecentNotesRootHint
         ? createPortal(
             <div
               className="pointer-events-none fixed z-[var(--vlaina-z-max)]"
-              data-recent-vault-path-hint={activeRecentVaultHint.placement}
+              data-recent-notes-root-path-hint={activeRecentNotesRootHint.placement}
               style={{
-                left: activeRecentVaultHint.left,
-                top: activeRecentVaultHint.top,
+                left: activeRecentNotesRootHint.left,
+                top: activeRecentNotesRootHint.top,
               }}
             >
               <span
@@ -151,7 +151,7 @@ export function SidebarEmptyWorkspacePanel({
                   chatComposerPillSurfaceClass,
                 )}
               >
-                <span className="break-all">{activeRecentVaultHint.path}</span>
+                <span className="break-all">{activeRecentNotesRootHint.path}</span>
               </span>
             </div>,
             document.body,

@@ -56,7 +56,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 
   state = {
     ...slice,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     rootFolder: {
       id: '',
       name: 'Notes',
@@ -93,7 +93,7 @@ describe('fileSystemSlice create state races', () => {
     hoisted.storageAdapter.copyFile.mockResolvedValue(undefined);
     hoisted.storageAdapter.stat.mockResolvedValue({
       name: 'alpha 1.md',
-      path: '/vault/docs/alpha 1.md',
+      path: '/notesRoot/docs/alpha 1.md',
       isDirectory: false,
       isFile: true,
       size: 12,
@@ -190,7 +190,7 @@ describe('fileSystemSlice create state races', () => {
     let resolveMkdir: () => void;
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha',
-      fullPath: '/vault/alpha',
+      fullPath: '/notesRoot/alpha',
       fileName: 'alpha',
     });
     hoisted.storageAdapter.mkdir.mockImplementation(() => new Promise<void>((resolve) => {
@@ -227,7 +227,7 @@ describe('fileSystemSlice create state races', () => {
       'alpha',
       'beta',
     ]);
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       fileTreeSortMode: 'name-asc',
     }));
   });
@@ -235,7 +235,7 @@ describe('fileSystemSlice create state races', () => {
   it('duplicates a note to a unique sibling path without opening the copied markdown', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'docs/alpha 1.md',
-      fullPath: '/vault/docs/alpha 1.md',
+      fullPath: '/notesRoot/docs/alpha 1.md',
       fileName: 'alpha 1.md',
     });
     const harness = createSliceHarness({
@@ -274,12 +274,12 @@ describe('fileSystemSlice create state races', () => {
 
     expect(duplicatePath).toBe('docs/alpha 1.md');
     expect(harness.getState().saveNote).toHaveBeenCalledTimes(1);
-    expect(hoisted.resolveUniquePath).toHaveBeenCalledWith('/vault', 'docs', 'alpha.md', false);
+    expect(hoisted.resolveUniquePath).toHaveBeenCalledWith('/notesRoot', 'docs', 'alpha.md', false);
     expect(hoisted.storageAdapter.copyFile).toHaveBeenCalledWith(
-      '/vault/docs/alpha.md',
-      '/vault/docs/alpha 1.md',
+      '/notesRoot/docs/alpha.md',
+      '/notesRoot/docs/alpha 1.md',
     );
-    expect(hoisted.storageAdapter.stat).toHaveBeenCalledWith('/vault/docs/alpha 1.md');
+    expect(hoisted.storageAdapter.stat).toHaveBeenCalledWith('/notesRoot/docs/alpha 1.md');
     expect(hoisted.storageAdapter.readFile).not.toHaveBeenCalled();
     expect(state.currentNote).toEqual({ path: 'docs/alpha.md', content: '# Alpha edited' });
     expect(state.currentNoteRevision).toBe(3);
@@ -297,7 +297,7 @@ describe('fileSystemSlice create state races', () => {
     });
     expect(state.isNewlyCreated).toBe(false);
     expect(state.error).toBeNull();
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'docs/alpha.md',
     }));
   });
@@ -305,7 +305,7 @@ describe('fileSystemSlice create state races', () => {
   it('keeps a dirty draft tab when duplicating a saved note', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha 1.md',
-      fullPath: '/vault/alpha 1.md',
+      fullPath: '/notesRoot/alpha 1.md',
       fileName: 'alpha 1.md',
     });
     const harness = createSliceHarness({
@@ -351,12 +351,12 @@ describe('fileSystemSlice create state races', () => {
   it('adds oversized duplicates to the tree without opening them', async () => {
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'huge 1.md',
-      fullPath: '/vault/huge 1.md',
+      fullPath: '/notesRoot/huge 1.md',
       fileName: 'huge 1.md',
     });
     hoisted.storageAdapter.stat.mockResolvedValue({
       name: 'huge 1.md',
-      path: '/vault/huge 1.md',
+      path: '/notesRoot/huge 1.md',
       isDirectory: false,
       isFile: true,
       size: 11 * 1024 * 1024,
@@ -391,7 +391,7 @@ describe('fileSystemSlice create state races', () => {
     await expect(harness.getState().duplicateNote('huge.md')).resolves.toBe('huge 1.md');
     const state = harness.getState();
 
-    expect(hoisted.storageAdapter.copyFile).toHaveBeenCalledWith('/vault/huge.md', '/vault/huge 1.md');
+    expect(hoisted.storageAdapter.copyFile).toHaveBeenCalledWith('/notesRoot/huge.md', '/notesRoot/huge 1.md');
     expect(hoisted.storageAdapter.readFile).not.toHaveBeenCalled();
     expect(state.currentNote).toEqual({ path: 'current.md', content: '# Current' });
     expect(state.currentNoteRevision).toBe(2);
@@ -407,16 +407,16 @@ describe('fileSystemSlice create state races', () => {
       updatedAt: 9,
     });
     expect(state.error).toBeNull();
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'current.md',
     }));
   });
 
-  it('skips duplicate state updates if the active vault changes while file info is loading', async () => {
+  it('skips duplicate state updates if the active notesRoot changes while file info is loading', async () => {
     let resolveStat: (value: Record<string, unknown>) => void;
     hoisted.resolveUniquePath.mockResolvedValue({
       relativePath: 'alpha 1.md',
-      fullPath: '/vault/alpha 1.md',
+      fullPath: '/notesRoot/alpha 1.md',
       fileName: 'alpha 1.md',
     });
     hoisted.storageAdapter.stat.mockImplementation(() => new Promise((resolve) => {
@@ -447,7 +447,7 @@ describe('fileSystemSlice create state races', () => {
     harness.getState().notesPath = '/other';
     resolveStat!({
       name: 'alpha 1.md',
-      path: '/vault/alpha 1.md',
+      path: '/notesRoot/alpha 1.md',
       isDirectory: false,
       isFile: true,
       size: 12,
@@ -458,7 +458,7 @@ describe('fileSystemSlice create state races', () => {
     await expect(duplication).resolves.toBe('alpha 1.md');
     const state = harness.getState();
 
-    expect(hoisted.storageAdapter.copyFile).toHaveBeenCalledWith('/vault/alpha.md', '/vault/alpha 1.md');
+    expect(hoisted.storageAdapter.copyFile).toHaveBeenCalledWith('/notesRoot/alpha.md', '/notesRoot/alpha 1.md');
     expect(state.rootFolder.children).toEqual([
       expect.objectContaining({ path: 'alpha.md', name: 'alpha' }),
     ]);

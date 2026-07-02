@@ -52,7 +52,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -179,7 +179,7 @@ describe('workspace draft save state races', () => {
     await save;
 
     expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'beta.md',
     }));
   });

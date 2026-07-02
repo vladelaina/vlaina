@@ -258,7 +258,7 @@ describe('fileTreePointerDragState', () => {
 
     vi.spyOn(useNotesStore, 'getState').mockReturnValue({
       moveItem: moveItemMock,
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [],
     } as unknown as ReturnType<typeof useNotesStore.getState>);
     vi.spyOn(useNotesStore, 'setState').mockImplementation(setStateMock);
@@ -593,11 +593,11 @@ describe('fileTreePointerDragState', () => {
   it('does not duplicate an already starred note when dropped on the starred target', async () => {
     vi.spyOn(useNotesStore, 'getState').mockReturnValue({
       moveItem: moveItemMock,
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [{
         id: 'starred-existing',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'Source.md',
         addedAt: 1,
       }],

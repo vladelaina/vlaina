@@ -3,10 +3,10 @@ import {
   EDITOR_SELECTOR,
   NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 const TAGS_ROOT_SELECTOR = '[data-notes-sidebar-tags-root="true"]';
@@ -271,13 +271,13 @@ test.describe('notes tags sidebar', () => {
         }
       });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-tags-keep-scroll',
         files: createKeepScrollFixtureFiles(),
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Tags Keep Scroll Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Tags Keep Scroll NotesRoot',
         minFileCount: 80,
       });
 
@@ -328,13 +328,13 @@ test.describe('notes tags sidebar', () => {
         }
       });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-tags-sidebar-stress',
         files: createStressFixtureFiles(),
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Tags Sidebar Stress Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Tags Sidebar Stress NotesRoot',
         minFileCount: 70,
       });
 
@@ -419,13 +419,13 @@ test.describe('notes tags sidebar', () => {
         }
       });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-tags-high-cardinality',
         files: createHighCardinalityTagFixtureFiles(),
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Tags High Cardinality Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Tags High Cardinality NotesRoot',
         minFileCount: 1,
       });
 

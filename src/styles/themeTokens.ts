@@ -211,6 +211,27 @@ export const themeAssetGridTokens = {
   minResolvedItemSizePx: 48,
 } as const;
 
+export const themeWhiteboardTokens = {
+  stageWidthPx: 2400,
+  stageHeightPx: 1600,
+  initialPanX: 120,
+  initialPanY: 72,
+  defaultZoom: 1,
+  minZoom: 0.55,
+  maxZoom: 1.65,
+  zoomStep: 0.12,
+  gridSizePx: 24,
+  gridStrongSizePx: 120,
+  noteWidthPx: 220,
+  noteHeightPx: 148,
+  shapeWidthPx: 196,
+  shapeHeightPx: 118,
+  minElementWidthPx: 96,
+  minElementHeightPx: 64,
+  resizeHandlePx: 16,
+  connectorStrokeWidthPx: 2.5,
+} as const;
+
 export const themeBackdropTokens = {
   zIndex: 100,
   blurPx: 6,
@@ -225,19 +246,19 @@ export const themeBackdropTokens = {
   accountDialogZIndex: 1000,
   accountDialogBlurPx: 8,
   accountDialogDurationSeconds: 0.05,
-  createVaultZIndex: 9999,
-  createVaultBlurPx: 8,
-  createVaultDurationSeconds: 0.3,
+  createNotesRootZIndex: 9999,
+  createNotesRootBlurPx: 8,
+  createNotesRootDurationSeconds: 0.3,
 } as const;
 
 export const themeSidebarTokens = {
   width: 'var(--vlaina-width-sidebar-default)',
   mobileWidth: 'var(--vlaina-width-sidebar-mobile)',
   iconWidth: 'var(--vlaina-width-sidebar-icon)',
-  recentVaultPathHintTextLeftOffsetPx: 40,
-  recentVaultPathHintHorizontalPaddingPx: 12,
-  recentVaultPathHintGapPx: 2,
-  recentVaultPathHintEstimatedHeightPx: 34,
+  recentNotesRootPathHintTextLeftOffsetPx: 40,
+  recentNotesRootPathHintHorizontalPaddingPx: 12,
+  recentNotesRootPathHintGapPx: 2,
+  recentNotesRootPathHintEstimatedHeightPx: 34,
 } as const;
 
 export const themeCodeBlockEditorTokens = {
@@ -285,7 +306,7 @@ export const themeMotionTokens = {
   opacityDeleting: 0.4,
   opacityPreview: 0.92,
   standardEase: [0.22, 1, 0.36, 1],
-  vaultModalEase: [0.19, 1, 0.22, 1],
+  notesRootModalEase: [0.19, 1, 0.22, 1],
   chatEmbeddedOverlayDuration: 0.16,
   chatEmbeddedSidebarHiddenX: '-100%',
   chatEmbeddedSidebarVisibleX: 0,
@@ -296,11 +317,11 @@ export const themeMotionTokens = {
   chatUserEditInitialX: 12,
   chatUserEditVisibleX: 0,
   chatUserEditDuration: 0.14,
-  vaultModalInitialScale: 0.96,
-  vaultModalVisibleScale: 1,
-  vaultModalY: 12,
-  vaultModalVisibleY: 0,
-  vaultModalDuration: 0.4,
+  notesRootModalInitialScale: 0.96,
+  notesRootModalVisibleScale: 1,
+  notesRootModalY: 12,
+  notesRootModalVisibleY: 0,
+  notesRootModalDuration: 0.4,
   noteFindInitialScale: 0.98,
   noteFindVisibleScale: 1,
   noteFindInitialY: -10,

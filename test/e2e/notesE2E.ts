@@ -161,7 +161,7 @@ export async function openMarkdownFixture(
   }
 ): Promise<{
   notePath: string;
-  vaultPath: string;
+  notesRootPath: string;
   storeOpenMs: number;
   openActionWallMs: number;
 }> {
@@ -175,7 +175,7 @@ export async function openMarkdownFixture(
           ? input.filename
           : input.filename.replace(/\.md$/i, `-${attempt}.md`),
       };
-      const { notePath, vaultPath } = await page.evaluate((fixture) =>
+      const { notePath, notesRootPath } = await page.evaluate((fixture) =>
         (window as any).__vlainaE2E.createNotesFixture(fixture), fixtureInput);
 
       const openStartedAt = Date.now();
@@ -212,7 +212,7 @@ export async function openMarkdownFixture(
 
       return {
         notePath,
-        vaultPath,
+        notesRootPath,
         storeOpenMs: Math.round(openTiming.totalMs),
         openActionWallMs,
       };
@@ -304,38 +304,38 @@ export async function setAppViewMode(page: Page, mode: 'notes' | 'chat'): Promis
   }
 }
 
-export async function createVaultFilesFixture(
+export async function createNotesRootFilesFixture(
   page: Page,
   input: {
     name?: string;
     files: Array<{ filename: string; content: string }>;
   },
-): Promise<{ vaultPath: string; notePaths: string[] }> {
-  return page.evaluate((fixture) => (window as any).__vlainaE2E.createVaultFilesFixture(fixture), input);
+): Promise<{ notesRootPath: string; notePaths: string[] }> {
+  return page.evaluate((fixture) => (window as any).__vlainaE2E.createNotesRootFilesFixture(fixture), input);
 }
 
-export async function openVaultInNotes(
+export async function openNotesRootInNotes(
   page: Page,
   input: {
-    vaultPath: string;
+    notesRootPath: string;
     name?: string;
     minFileCount?: number;
   },
 ): Promise<void> {
   await setAppViewMode(page, 'notes');
   await page.evaluate(
-    ({ vaultPath, name }) => (window as any).__vlainaE2E.openVault(vaultPath, name),
-    { vaultPath: input.vaultPath, name: input.name },
+    ({ notesRootPath, name }) => (window as any).__vlainaE2E.openNotesRoot(notesRootPath, name),
+    { notesRootPath: input.notesRootPath, name: input.name },
   );
   await expect.poll(async () => page.evaluate(() => {
-    const vaultState = (window as any).__vlainaE2E.getVaultState();
+    const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
     return {
-      currentVaultPath: vaultState.currentVault?.path ?? null,
+      currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
       fileCount: document.querySelectorAll('[data-file-tree-kind="file"]').length,
       hasFileTree: Boolean(document.querySelector('[data-file-tree-primary="true"]')),
     };
   }), { timeout: 30_000 }).toMatchObject({
-    currentVaultPath: input.vaultPath,
+    currentNotesRootPath: input.notesRootPath,
     fileCount: expect.any(Number),
   });
   await expect.poll(async () => page.locator(FILE_TREE_FILE_SELECTOR).count(), { timeout: 30_000 })

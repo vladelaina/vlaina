@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   setAppViewMode: vi.fn(),
   restoreLastAppViewMode: vi.fn(),
   restoreNotesChatFloatingSize: vi.fn(),
-  initializeVault: vi.fn(),
+  initializeNotesRoot: vi.fn(),
   loadUnified: vi.fn().mockResolvedValue(undefined),
   colorMode: 'system' as 'system' | 'light' | 'dark',
   importedMarkdownThemeId: null as string | null,
@@ -234,9 +234,9 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
   return { useUnifiedStore };
 });
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector: (state: { initialize: typeof mocks.initializeVault }) => unknown) =>
-    selector({ initialize: mocks.initializeVault }),
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector: (state: { initialize: typeof mocks.initializeNotesRoot }) => unknown) =>
+    selector({ initialize: mocks.initializeNotesRoot }),
 }));
 
 vi.mock('@/stores/useToastStore', () => ({

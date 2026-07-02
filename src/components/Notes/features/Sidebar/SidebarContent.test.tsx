@@ -30,15 +30,15 @@ const hoisted = vi.hoisted(() => ({
     count: number;
     paths: Array<{ path: string; query: string; contentMatchOrdinal: number | null }>;
   }>,
-  currentVault: null as { path: string; name: string } | null,
-  recentVaults: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
+  currentNotesRoot: null as { path: string; name: string } | null,
+  recentNotesRoots: [] as Array<{ id: string; name: string; path: string; lastOpened: number }>,
   uiState: {
     sidebarCollapsed: false,
     notesPreviewTitle: null as { path: string; title: string } | null,
   },
   openNote: vi.fn(() => Promise.resolve()),
   openNoteByAbsolutePath: vi.fn(() => Promise.resolve()),
-  openVault: vi.fn(() => Promise.resolve(true)),
+  openNotesRoot: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -57,25 +57,12 @@ vi.mock('@/stores/useNotesStore', () => ({
   }),
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: Object.assign(
-    (selector: (state: any) => unknown) => selector({
-      currentVault: hoisted.currentVault,
-      recentVaults: hoisted.recentVaults,
-      openVault: hoisted.openVault,
-    }),
-    {
-      getState: () => ({
-        currentVault: hoisted.currentVault,
-        recentVaults: hoisted.recentVaults,
-        openVault: hoisted.openVault,
-      }),
-      setState: (partial: { currentVault?: typeof hoisted.currentVault; recentVaults?: typeof hoisted.recentVaults }) => {
-        if ('currentVault' in partial) hoisted.currentVault = partial.currentVault ?? null;
-        if ('recentVaults' in partial) hoisted.recentVaults = partial.recentVaults ?? [];
-      },
-    },
-  ),
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector: (state: any) => unknown) => selector({
+    currentNotesRoot: hoisted.currentNotesRoot,
+    recentNotesRoots: hoisted.recentNotesRoots,
+    openNotesRoot: hoisted.openNotesRoot,
+  }),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
@@ -307,16 +294,16 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.draftNotes = {};
     hoisted.noteContentsCache = new Map();
     hoisted.notesPath = '';
-    hoisted.currentVault = null;
-    hoisted.recentVaults = [];
+    hoisted.currentNotesRoot = null;
+    hoisted.recentNotesRoots = [];
     hoisted.uiState.sidebarCollapsed = false;
     hoisted.uiState.notesPreviewTitle = null;
     hoisted.openNote.mockClear();
     hoisted.openNote.mockResolvedValue(undefined);
     hoisted.openNoteByAbsolutePath.mockClear();
     hoisted.openNoteByAbsolutePath.mockResolvedValue(undefined);
-    hoisted.openVault.mockClear();
-    hoisted.openVault.mockResolvedValue(true);
+    hoisted.openNotesRoot.mockClear();
+    hoisted.openNotesRoot.mockResolvedValue(true);
     hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockClear();
     hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockReturnValue(false);
     hoisted.suppressNextCurrentNoteSidebarReveal.mockClear();
@@ -537,10 +524,10 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.scheduleSidebarItemIntoView).not.toHaveBeenCalled();
   });
 
-  it('shows an empty file tree hint when the vault has no files', () => {
+  it('shows an empty file tree hint when the notesRoot has no files', () => {
     const { getByTestId } = render(
       <SidebarContent
-        rootFolder={{ id: 'root', path: '', name: 'Vault', isFolder: true, expanded: true, children: [] }}
+        rootFolder={{ id: 'root', path: '', name: 'NotesRoot', isFolder: true, expanded: true, children: [] }}
         isLoading={false}
         currentNotePath={null}
         createNote={vi.fn(async () => undefined)}
@@ -625,9 +612,9 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(queryByTestId('empty-workspace-panel')).toBeNull();
   });
 
-  it('does not show the open hint while a vault root is still loading', () => {
-    hoisted.currentVault = { path: '/vault', name: 'Vault' };
-    hoisted.notesPath = '/vault';
+  it('does not show the open hint while a notesRoot root is still loading', () => {
+    hoisted.currentNotesRoot = { path: '/notesRoot', name: 'NotesRoot' };
+    hoisted.notesPath = '/notesRoot';
 
     const { queryByTestId, getByTestId } = render(
       <SidebarContent
@@ -644,8 +631,8 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(getByTestId('root-folder-row')).toBeTruthy();
   });
 
-  it('shows the open hint when a remembered vault exists but no notes target is open', () => {
-    hoisted.currentVault = { path: '/vault', name: 'Vault' };
+  it('shows the open hint when a remembered notesRoot exists but no notes target is open', () => {
+    hoisted.currentNotesRoot = { path: '/notesRoot', name: 'NotesRoot' };
     hoisted.notesPath = '';
 
     const { getByTestId } = render(
@@ -757,11 +744,11 @@ describe('SidebarContent search highlight cleanup', () => {
     }
   });
 
-  it('opens a recent vault from the empty workspace panel', () => {
-    hoisted.currentVault = { path: '/vaults/alpha', name: 'Alpha Vault' };
-    hoisted.recentVaults = [
-      { id: 'vault-alpha', name: 'Alpha Vault', path: '/vaults/alpha', lastOpened: 2 },
-      { id: 'vault-beta', name: 'Beta Vault', path: '/vaults/beta', lastOpened: 1 },
+  it('opens a recent notes root from the empty workspace panel', () => {
+    hoisted.currentNotesRoot = { path: '/notes-roots/alpha', name: 'Alpha' };
+    hoisted.recentNotesRoots = [
+      { id: 'notes-root-alpha', name: 'Alpha', path: '/notes-roots/alpha', lastOpened: 2 },
+      { id: 'notes-root-beta', name: 'Beta', path: '/notes-roots/beta', lastOpened: 1 },
     ];
 
     render(
@@ -775,18 +762,18 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(screen.queryByText('Alpha Vault')).toBeNull();
-    expect(screen.queryByText('/vaults/beta')).toBeNull();
-    fireEvent.click(screen.getByText('Beta Vault'));
+    expect(screen.queryByText('Alpha')).toBeNull();
+    expect(screen.queryByText('/notes-roots/beta')).toBeNull();
+    fireEvent.click(screen.getByText('Beta'));
 
-    expect(hoisted.openVault).toHaveBeenCalledWith('/vaults/beta');
+    expect(hoisted.openNotesRoot).toHaveBeenCalledWith('/notes-roots/beta');
   });
 
-  it('limits recent vaults in the empty workspace panel', () => {
-    hoisted.recentVaults = Array.from({ length: 10 }, (_, index) => ({
-      id: `vault-${index + 1}`,
-      name: `Vault ${index + 1}`,
-      path: `/vaults/${index + 1}`,
+  it('limits recent notes roots in the empty workspace panel', () => {
+    hoisted.recentNotesRoots = Array.from({ length: 10 }, (_, index) => ({
+      id: `notes-root-${index + 1}`,
+      name: `Notes Root ${index + 1}`,
+      path: `/notes-roots/${index + 1}`,
       lastOpened: 10 - index,
     }));
 
@@ -801,10 +788,10 @@ describe('SidebarContent search highlight cleanup', () => {
       />
     );
 
-    expect(screen.getByText('Vault 1')).toBeInTheDocument();
-    expect(screen.getByText('Vault 8')).toBeInTheDocument();
-    expect(screen.queryByText('Vault 9')).toBeNull();
-    expect(screen.queryByText('Vault 10')).toBeNull();
+    expect(screen.getByText('Notes Root 1')).toBeInTheDocument();
+    expect(screen.getByText('Notes Root 8')).toBeInTheDocument();
+    expect(screen.queryByText('Notes Root 9')).toBeNull();
+    expect(screen.queryByText('Notes Root 10')).toBeNull();
   });
 
   it('scans note contents when cached entries do not cover the current file tree', () => {

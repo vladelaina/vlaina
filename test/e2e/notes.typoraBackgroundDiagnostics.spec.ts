@@ -3,11 +3,11 @@ import {
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   installReferenceTyporaTheme,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 test.describe('Typora imported theme backgrounds', () => {
@@ -21,7 +21,7 @@ test.describe('Typora imported theme backgrounds', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'typora-background-image',
         files: [{
           filename: 'typora-background-image.md',
@@ -37,8 +37,8 @@ test.describe('Typora imported theme backgrounds', () => {
         }],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Typora Background Image',
         minFileCount: 1,
       });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UPDATE_INFO_CACHE_KEY, type DesktopUpdateInfo } from './updateStatus';
-import { startDesktopUpdateDownload } from './updateDownload';
+import { clearStaleDesktopUpdateDownload, startDesktopUpdateDownload } from './updateDownload';
 
 function createUpdateInfo(overrides: Partial<DesktopUpdateInfo> = {}): DesktopUpdateInfo {
   return {
@@ -60,5 +60,56 @@ describe('desktop update background download policy', () => {
 
     expect(updateApi.download).not.toHaveBeenCalled();
     expect(localStorage.getItem(UPDATE_INFO_CACHE_KEY)).toBeNull();
+  });
+
+  it('preserves downloaded installer metadata for the same update asset after a fresh check', async () => {
+    const updateApi = {
+      deleteDownloaded: vi.fn(),
+    };
+    const cachedUpdateInfo = createUpdateInfo({
+      downloadState: 'downloaded',
+      downloadedAt: '2026-06-01T00:00:00.000Z',
+      downloadedFileName: 'vlaina-0.1.17-windows-x64-setup.exe',
+      downloadedFilePath: 'C:\\Users\\tester\\AppData\\Roaming\\vlaina\\update-downloads\\0.1.17\\vlaina-0.1.17-windows-x64-setup.exe',
+      platformAssetName: 'vlaina-0.1.17-windows-x64-setup.exe',
+      platformAssetSha256: 'a'.repeat(64),
+    });
+    localStorage.setItem(UPDATE_INFO_CACHE_KEY, JSON.stringify(cachedUpdateInfo));
+
+    const freshUpdateInfo = createUpdateInfo({
+      platformAssetName: 'vlaina-0.1.17-windows-x64-setup.exe',
+      platformAssetSha256: 'a'.repeat(64),
+      releaseNotes: 'Fresh release notes.',
+    });
+
+    await expect(clearStaleDesktopUpdateDownload(updateApi, freshUpdateInfo, '0.1.16')).resolves.toMatchObject({
+      releaseNotes: 'Fresh release notes.',
+      downloadState: 'downloaded',
+      downloadedAt: cachedUpdateInfo.downloadedAt,
+      downloadedFileName: cachedUpdateInfo.downloadedFileName,
+      downloadedFilePath: cachedUpdateInfo.downloadedFilePath,
+    });
+    expect(updateApi.deleteDownloaded).not.toHaveBeenCalled();
+  });
+
+  it('does not preserve downloaded installer metadata when the update asset changes', async () => {
+    const updateApi = {
+      deleteDownloaded: vi.fn(),
+    };
+    localStorage.setItem(UPDATE_INFO_CACHE_KEY, JSON.stringify(createUpdateInfo({
+      downloadState: 'downloaded',
+      downloadedFileName: 'vlaina-0.1.17-windows-x64-setup.exe',
+      downloadedFilePath: 'C:\\Users\\tester\\AppData\\Roaming\\vlaina\\update-downloads\\0.1.17\\vlaina-0.1.17-windows-x64-setup.exe',
+      platformAssetName: 'vlaina-0.1.17-windows-x64-setup.exe',
+      platformAssetSha256: 'a'.repeat(64),
+    })));
+
+    const freshUpdateInfo = createUpdateInfo({
+      platformAssetName: 'vlaina-0.1.17-windows-arm64-setup.exe',
+      platformAssetSha256: 'b'.repeat(64),
+    });
+
+    await expect(clearStaleDesktopUpdateDownload(updateApi, freshUpdateInfo, '0.1.16')).resolves.toBe(freshUpdateInfo);
+    expect(updateApi.deleteDownloaded).not.toHaveBeenCalled();
   });
 });

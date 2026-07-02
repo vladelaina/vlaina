@@ -51,11 +51,11 @@ vi.mock('@/lib/storage/adapter', () => ({
 function createNotesStore(overrides: Partial<NotesStore> = {}) {
   const baseState = {
     rootFolder: null,
-    rootFolderPath: '/vault',
+    rootFolderPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -118,7 +118,7 @@ describe('workspaceSlice external mutation races', () => {
 
     const open = store.getState().openNote('beta.md');
     await vi.waitFor(() => {
-      expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
+      expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     });
 
     await store.getState().applyExternalPathDeletion('beta.md');
@@ -150,7 +150,7 @@ describe('workspaceSlice external mutation races', () => {
 
     const prefetch = store.getState().prefetchNote('beta.md');
     await vi.waitFor(() => {
-      expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md', MAX_NOTE_DOCUMENT_BYTES);
+      expect(storageAdapter.readFile).toHaveBeenCalledWith('/notesRoot/beta.md', MAX_NOTE_DOCUMENT_BYTES);
     });
 
     await store.getState().applyExternalPathRename('beta.md', 'gamma.md');

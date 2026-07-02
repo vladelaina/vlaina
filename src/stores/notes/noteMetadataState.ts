@@ -1,5 +1,5 @@
 import { setNoteEntry } from './storage';
-import { isVaultNotePath } from './notePathState';
+import { isNotesRootNotePath } from './notePathState';
 import type { MetadataFile, NoteMetadataEntry } from './types';
 
 const EMPTY_METADATA_VERSION = 1;
@@ -27,7 +27,7 @@ export function getNoteMetadataEntry(
 }
 
 export function shouldPersistNoteMetadata(path: string, notesPath: string): boolean {
-  return Boolean(notesPath && isVaultNotePath(path));
+  return Boolean(notesPath && isNotesRootNotePath(path));
 }
 
 export function persistNoteMetadataIfNeeded(

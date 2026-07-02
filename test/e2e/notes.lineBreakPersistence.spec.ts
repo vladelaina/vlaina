@@ -2,12 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
   openAbsoluteNote,
   openMarkdownFixture,
-  openVaultInNotes,
+  openNotesRootInNotes,
   waitForEditorAnimationFrame,
 } from './notesE2E';
 
@@ -306,15 +306,15 @@ test.describe('notes line break persistence', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'terminal-blank-lines-persistence-audit',
         files: [
           { filename: 'alpha-terminal-blank-lines.md', content: alphaContent },
           { filename: 'beta-terminal-blank-lines.md', content: 'Beta switch sentinel' },
         ],
       });
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Terminal Blank Lines Persistence Audit',
         minFileCount: 2,
       });

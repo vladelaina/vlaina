@@ -4,10 +4,10 @@ import {
   FILE_TREE_FILE_SELECTOR,
   NOTE_COVER_REGION_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 const COVER_SVG = [
@@ -114,8 +114,8 @@ test.describe('notes no-cover open layout stability', () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
-      const fixture = await createVaultFilesFixture(page, {
-        name: 'No Cover Layout Vault',
+      const fixture = await createNotesRootFilesFixture(page, {
+        name: 'No Cover Layout NotesRoot',
         files: [
           {
             filename: 'covered.md',
@@ -146,9 +146,9 @@ test.describe('notes no-cover open layout stability', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'No Cover Layout Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'No Cover Layout NotesRoot',
         minFileCount: 2,
       });
 

@@ -68,7 +68,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 
   state = {
     ...slice,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     isDirty: false,
@@ -140,8 +140,8 @@ function trashedItem(path: string, kind: 'file' | 'folder') {
     id: `delete-${path}`,
     kind,
     originalPath: path,
-    originalFullPath: `/vault/${path}`,
-    stagingPath: `/app/.vlaina/notes/vaults/vault-test/trash/delete-${path}/${path.split('/').pop() ?? path}`,
+    originalFullPath: `/notesRoot/${path}`,
+    stagingPath: `/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-${path}/${path.split('/').pop() ?? path}`,
     deletedAt: 1,
   };
 }
@@ -200,7 +200,7 @@ describe('fileSystemSlice dirty tab deletion', () => {
     await harness.getState().deleteNote('beta.md');
 
     expect(hoisted.saveNoteDocument).toHaveBeenCalledWith({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'beta.md', content: '# unsaved beta' },
       cache: expect.any(Map),
     });
@@ -266,7 +266,7 @@ describe('fileSystemSlice dirty tab deletion', () => {
     await harness.getState().deleteFolder('docs');
 
     expect(hoisted.saveNoteDocument).toHaveBeenCalledWith({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: { path: 'docs/beta.md', content: '# unsaved beta' },
       cache: expect.any(Map),
     });

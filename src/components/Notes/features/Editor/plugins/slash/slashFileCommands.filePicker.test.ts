@@ -67,7 +67,7 @@ describe('insertImageFromFilePicker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.handleEditorImageFiles.mockResolvedValue(true);
-    mocks.openDialog.mockResolvedValue('/vault/assets/no-size.png');
+    mocks.openDialog.mockResolvedValue('/notesRoot/assets/no-size.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3]));
     mocks.stat.mockResolvedValue({ isFile: true });
   });
@@ -77,7 +77,7 @@ describe('insertImageFromFilePicker', () => {
 
     await insertImageFromFilePicker(ctx as never);
 
-    expect(mocks.readBinaryFile).toHaveBeenCalledWith('/vault/assets/no-size.png', MAX_PICKED_IMAGE_BYTES);
+    expect(mocks.readBinaryFile).toHaveBeenCalledWith('/notesRoot/assets/no-size.png', MAX_PICKED_IMAGE_BYTES);
     expect(mocks.handleEditorImageFiles).toHaveBeenCalledTimes(1);
     const [[files, handledView]] = mocks.handleEditorImageFiles.mock.calls;
     expect(handledView).toBe(view);

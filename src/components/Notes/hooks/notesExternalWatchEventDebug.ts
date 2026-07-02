@@ -2,29 +2,29 @@ import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/exte
 import {
   isIgnoredWatchPath,
   normalizeFsPath,
-  toVaultRelativePath,
+  toNotesRootRelativePath,
 } from './notesExternalSyncUtils';
 
-export function classifyWatchEventPaths(vaultPath: string, paths: string[]) {
+export function classifyWatchEventPaths(notesRootPath: string, paths: string[]) {
   const pathDetails = paths.map((path) => {
     const normalizedPath = normalizeFsPath(path);
-    const relativePath = toVaultRelativePath(vaultPath, normalizedPath);
-    const ignoredByVaultRules = relativePath != null && isIgnoredWatchPath(relativePath);
+    const relativePath = toNotesRootRelativePath(notesRootPath, normalizedPath);
+    const ignoredByNotesRootRules = relativePath != null && isIgnoredWatchPath(relativePath);
     const expectedChange =
       relativePath != null &&
-      !ignoredByVaultRules &&
+      !ignoredByNotesRootRules &&
       shouldIgnoreExpectedExternalChange(normalizedPath);
     return {
       path,
       normalizedPath,
       relativePath,
-      insideVault: relativePath != null,
-      ignoredByVaultRules,
+      insideNotesRoot: relativePath != null,
+      ignoredByNotesRootRules,
       expectedChange,
     };
   });
   const unexpectedPaths = pathDetails.map((detail) =>
-    detail.expectedChange || detail.ignoredByVaultRules ? '' : detail.normalizedPath
+    detail.expectedChange || detail.ignoredByNotesRootRules ? '' : detail.normalizedPath
   );
 
   return {
@@ -48,7 +48,7 @@ export function hasBlockedRenameEndpoint(
 
   const isBlockedEndpoint = (index: number) => {
     const detail = pathDetails[index];
-    return !!detail && (detail.expectedChange || detail.ignoredByVaultRules);
+    return !!detail && (detail.expectedChange || detail.ignoredByNotesRootRules);
   };
 
   if ('mode' in modify && (modify.mode === 'from' || modify.mode === 'to')) {

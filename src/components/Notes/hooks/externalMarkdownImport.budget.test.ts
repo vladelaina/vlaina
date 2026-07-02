@@ -66,7 +66,7 @@ describe('importExternalMarkdownEntries budget', () => {
       { name: 'alpha.md', isFile: true, isDirectory: false },
     ]);
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
         const relativePath = folderPath
           ? `${folderPath}/${name}`
           : isDirectory
@@ -74,13 +74,13 @@ describe('importExternalMarkdownEntries budget', () => {
             : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
     );
 
-    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/docs']);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'imports', ['/outside/docs']);
 
     expect(result).toEqual({
       importedNotePaths: ['imports/docs/alpha.md'],
@@ -90,7 +90,7 @@ describe('importExternalMarkdownEntries budget', () => {
     expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/docs/alpha.md',
-      '/vault/imports/docs/alpha.md',
+      '/notesRoot/imports/docs/alpha.md',
     );
   });
 
@@ -101,11 +101,11 @@ describe('importExternalMarkdownEntries budget', () => {
       size: path.endsWith('.md') ? 1024 : undefined,
     }));
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string) => {
         const relativePath = folderPath ? `${folderPath}/${name}` : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
@@ -115,7 +115,7 @@ describe('importExternalMarkdownEntries budget', () => {
       ...Array.from({ length: 2000 }, (_, index) => `/outside/image-${index}.png`),
       '/outside/alpha.md',
     ];
-    const result = await importExternalMarkdownEntries('/vault', 'imports', paths);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'imports', paths);
 
     expect(result).toEqual({
       importedNotePaths: ['imports/alpha.md'],
@@ -125,7 +125,7 @@ describe('importExternalMarkdownEntries budget', () => {
     expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/alpha.md',
-      '/vault/imports/alpha.md',
+      '/notesRoot/imports/alpha.md',
     );
   });
 
@@ -136,11 +136,11 @@ describe('importExternalMarkdownEntries budget', () => {
       size: path.endsWith('.md') ? 1024 : undefined,
     }));
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string) => {
         const relativePath = folderPath ? `${folderPath}/${name}` : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
@@ -150,7 +150,7 @@ describe('importExternalMarkdownEntries budget', () => {
       ...Array.from({ length: 10_050 }, (_, index) => `/outside/image-${index}.png`),
       '/outside/alpha.md',
     ];
-    const result = await importExternalMarkdownEntries('/vault', 'imports', paths);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'imports', paths);
 
     expect(result).toEqual({
       importedNotePaths: ['imports/alpha.md'],
@@ -161,7 +161,7 @@ describe('importExternalMarkdownEntries budget', () => {
     expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/alpha.md',
-      '/vault/imports/alpha.md',
+      '/notesRoot/imports/alpha.md',
     );
   });
 
@@ -172,11 +172,11 @@ describe('importExternalMarkdownEntries budget', () => {
       size: path.endsWith('.md') ? 1024 : undefined,
     }));
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string) => {
         const relativePath = folderPath ? `${folderPath}/${name}` : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
@@ -186,7 +186,7 @@ describe('importExternalMarkdownEntries budget', () => {
       ...Array.from({ length: 20_050 }, (_, index) => `/outside/image-${index}.png`),
       '/outside/alpha.md',
     ];
-    const result = await importExternalMarkdownEntries('/vault', 'imports', paths);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'imports', paths);
 
     expect(result.importedNotePaths).toEqual(['imports/alpha.md']);
     expect(mocks.storage.stat).toHaveBeenCalledWith('/outside/alpha.md');
@@ -208,7 +208,7 @@ describe('importExternalMarkdownEntries budget', () => {
       { name: 'alpha.md', isFile: true, isDirectory: false },
     ]);
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
         const relativePath = folderPath
           ? `${folderPath}/${name}`
           : isDirectory
@@ -216,13 +216,13 @@ describe('importExternalMarkdownEntries budget', () => {
             : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
     );
 
-    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/docs']);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'imports', ['/outside/docs']);
 
     expect(result).toEqual({
       importedNotePaths: ['imports/docs/alpha.md'],
@@ -232,9 +232,9 @@ describe('importExternalMarkdownEntries budget', () => {
     expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
     expect(mocks.storage.copyFile).toHaveBeenCalledWith(
       '/outside/docs/alpha.md',
-      '/vault/imports/docs/alpha.md',
+      '/notesRoot/imports/docs/alpha.md',
     );
-    expect(mocks.storage.deleteDir).not.toHaveBeenCalledWith('/vault/imports/docs', true);
+    expect(mocks.storage.deleteDir).not.toHaveBeenCalledWith('/notesRoot/imports/docs', true);
   });
 
   it('keeps generated folder names low priority case-insensitively before recursing', async () => {
@@ -263,7 +263,7 @@ describe('importExternalMarkdownEntries budget', () => {
       ];
     });
     mocks.resolveUniquePath.mockImplementation(
-      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+      async (_notesRootPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
         const relativePath = folderPath
           ? `${folderPath}/${name}`
           : isDirectory
@@ -271,13 +271,13 @@ describe('importExternalMarkdownEntries budget', () => {
             : name;
         return {
           relativePath,
-          fullPath: `/vault/${relativePath}`,
+          fullPath: `/notesRoot/${relativePath}`,
           fileName: name,
         };
       },
     );
 
-    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/project']);
+    const result = await importExternalMarkdownEntries('/notesRoot', 'imports', ['/outside/project']);
 
     expect(result).toEqual({
       importedNotePaths: [

@@ -4,7 +4,7 @@ import { isDraftNotePath } from './draftNote';
 import type { FileTreeSortMode } from './types';
 import type { WorkspaceState } from './storage';
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath } from './utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath } from './utils/fs/notesRootPathContainment';
 
 const MAX_WORKSPACE_EXPANDED_FOLDERS = 5000;
 export const MAX_RECENT_NOTE_PATH_SCAN_ITEMS = 10_000;
@@ -21,7 +21,7 @@ function normalizeRecentNotePath(value: unknown): string | null {
     return null;
   }
 
-  const normalizedPath = normalizeVaultRelativePath(value);
+  const normalizedPath = normalizeNotesRootRelativePath(value);
   if (
     !normalizedPath ||
     hasInternalNotePathSegment(normalizedPath) ||
@@ -80,7 +80,7 @@ function normalizeExpandedFolders(value: unknown): string[] {
       continue;
     }
 
-    const normalizedPath = normalizeVaultRelativePath(item);
+    const normalizedPath = normalizeNotesRootRelativePath(item);
     if (!normalizedPath || hasInternalNotePathSegment(normalizedPath) || seen.has(normalizedPath)) {
       continue;
     }

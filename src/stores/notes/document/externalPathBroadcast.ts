@@ -1,8 +1,8 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
-import { ensureSystemDirectory, getVaultSystemStorePath } from '../systemStoragePaths';
-import { hasUnsafeVaultPathSegment, normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
+import { ensureSystemDirectory, getNotesRootSystemStorePath } from '../systemStoragePaths';
+import { hasUnsafeNotesRootPathSegment, normalizeNotesRootRelativePath } from '../utils/fs/notesRootPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 
 export interface NotesExternalPathRenameEvent {
@@ -91,7 +91,7 @@ function normalizeExternalRenamePath(path: string, notesPath: string): string | 
     return null;
   }
 
-  const normalizedPath = normalizeVaultRelativePath(path);
+  const normalizedPath = normalizeNotesRootRelativePath(path);
   if (normalizedPath) {
     return hasInternalNotePathSegment(normalizedPath) ? null : normalizedPath;
   }
@@ -104,7 +104,7 @@ function normalizeExternalRenamePath(path: string, notesPath: string): string | 
     !isAbsolutePath(normalizedNotesPath) ||
     !isAbsolutePath(normalizedAbsolutePath) ||
     hasInternalNotePathSegment(normalizedAbsolutePath) ||
-    hasUnsafeVaultPathSegment(normalizedAbsolutePath)
+    hasUnsafeNotesRootPathSegment(normalizedAbsolutePath)
   ) {
     return null;
   }
@@ -307,14 +307,14 @@ export async function readNotesExternalPathEvents(
 }
 
 async function getNotesExternalPathEventsPath(notesPath: string) {
-  return getVaultSystemStorePath(notesPath, EVENT_FILE_NAME);
+  return getNotesRootSystemStorePath(notesPath, EVENT_FILE_NAME);
 }
 
 async function appendNotesExternalPathEvent(event: NotesExternalPathRenameEvent) {
   try {
     const storage = getStorageAdapter();
     const eventPath = await getNotesExternalPathEventsPath(event.notesPath);
-    await ensureSystemDirectory(await getVaultSystemStorePath(event.notesPath));
+    await ensureSystemDirectory(await getNotesRootSystemStorePath(event.notesPath));
     const previousEvents = await readStoredEvents(eventPath);
     const nextEvents = [...previousEvents, event].slice(-MAX_STORED_EVENTS);
     await storage.writeFile(eventPath, JSON.stringify(nextEvents), { recursive: true });

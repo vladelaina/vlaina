@@ -104,7 +104,7 @@ function createMessage(id: string, role: ChatMessage['role'], content: string): 
 function createDiskImageAttachment(): Attachment {
   return {
     id: 'attachment-1',
-    path: '/vault/assets/demo.png',
+    path: '/notesRoot/assets/demo.png',
     previewUrl: '',
     assetUrl: '',
     name: 'demo.png',
@@ -164,7 +164,7 @@ describe('useChatService attachment cancellation', () => {
     vi.clearAllMocks();
     mocked.convertToBase64.mockResolvedValue(IMAGE_DATA_URL);
     mocked.deleteAttachment.mockResolvedValue(undefined);
-    useNotesStore.setState({ notesPath: '/vault', starredEntries: [] });
+    useNotesStore.setState({ notesPath: '/notesRoot', starredEntries: [] });
     seedChatState();
   });
 

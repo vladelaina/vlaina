@@ -16,7 +16,7 @@ export function CoverPicker({
   onSelect,
   onRemove,
   onPreview,
-  vaultPath,
+  notesRootPath,
   currentNotePath,
 }: CoverPickerProps) {
   const { t } = useI18n();
@@ -28,9 +28,9 @@ export function CoverPicker({
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
   const [isUploading, setIsUploading] = useState(false);
   const [isPickerAssetRefreshPending, setIsPickerAssetRefreshPending] = useState(
-    () => isOpen && Boolean(vaultPath)
+    () => isOpen && Boolean(notesRootPath)
   );
-  const assetRefreshScope = `${vaultPath}\0${currentNotePath ?? ''}`;
+  const assetRefreshScope = `${notesRootPath}\0${currentNotePath ?? ''}`;
 
   const uploadingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -41,7 +41,7 @@ export function CoverPicker({
   const latestPreviewAssetRef = useRef<string | null>(null);
   const showHeaderControls = hasAssets || Boolean(onRemove);
   const isUnrefreshedAssetScope =
-    isOpen && Boolean(vaultPath) && requestedAssetScopeRef.current !== assetRefreshScope;
+    isOpen && Boolean(notesRootPath) && requestedAssetScopeRef.current !== assetRefreshScope;
   const shouldShowLibraryLoading = activeTab === 'library' && (
     isPickerAssetRefreshPending ||
     isUnrefreshedAssetScope ||
@@ -74,11 +74,11 @@ export function CoverPicker({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && vaultPath) {
+    if (isOpen && notesRootPath) {
       let cancelled = false;
       requestedAssetScopeRef.current = assetRefreshScope;
       setIsPickerAssetRefreshPending(true);
-      void Promise.resolve(loadAssets(vaultPath))
+      void Promise.resolve(loadAssets(notesRootPath))
         .catch(() => undefined)
         .finally(() => {
           if (!cancelled && mountedRef.current) {
@@ -101,7 +101,7 @@ export function CoverPicker({
       }, themeLazyLoadTokens.coverPickerResetAfterCloseDelayMs);
       return () => clearTimeout(timer);
     }
-  }, [assetRefreshScope, isOpen, vaultPath, loadAssets]);
+  }, [assetRefreshScope, isOpen, notesRootPath, loadAssets]);
 
   const handleAssetSelect = useCallback((assetPath: string) => {
     if (previewTimerRef.current) {
@@ -266,7 +266,7 @@ export function CoverPicker({
             <AssetGrid
               onSelect={handleAssetSelect}
               onHover={handleAssetHover}
-              vaultPath={vaultPath}
+              notesRootPath={notesRootPath}
               currentNotePath={currentNotePath}
               compact
             />

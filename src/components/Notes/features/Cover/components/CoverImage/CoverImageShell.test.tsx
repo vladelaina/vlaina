@@ -55,7 +55,7 @@ function buildShellProps(overrides?: Partial<ComponentProps<typeof CoverImageShe
   return {
     url: null,
     readOnly: false,
-    vaultPath: '/vault-a',
+    notesRootPath: '/notes-root-a',
     phase: 'idle',
     showPicker: false,
     previewSrc: null,

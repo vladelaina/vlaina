@@ -10,7 +10,7 @@ describe('autoSaveableDrafts', () => {
   beforeEach(() => {
     setPendingEditorMarkdownFlusher(null);
     useNotesStore.setState({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: null,
       isDirty: false,
       openTabs: [],
@@ -20,21 +20,21 @@ describe('autoSaveableDrafts', () => {
     });
   });
 
-  it('separates drafts that can autosave into the current vault from drafts that need confirmation', () => {
+  it('separates drafts that can autosave into the opened folder from drafts that need confirmation', () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:auto', content: 'Auto body' },
       draftNotes: {
         'draft:auto': { parentPath: null, name: 'Auto' },
-        'draft:other-vault': { parentPath: null, name: 'Other', originNotesPath: '/other' },
+        'draft:other-notesRoot': { parentPath: null, name: 'Other', originNotesPath: '/other' },
       },
       noteContentsCache: new Map([
         ['draft:auto', { content: 'Auto body', modifiedAt: null }],
-        ['draft:other-vault', { content: 'Other body', modifiedAt: null }],
+        ['draft:other-notesRoot', { content: 'Other body', modifiedAt: null }],
       ]),
     });
 
     expect(getAutoSaveableDraftPaths()).toEqual(['draft:auto']);
-    expect(getDiscardableDraftPaths()).toEqual(['draft:other-vault']);
+    expect(getDiscardableDraftPaths()).toEqual(['draft:other-notesRoot']);
   });
 
   it('flushes pending editor markdown before saving auto-saveable drafts', async () => {

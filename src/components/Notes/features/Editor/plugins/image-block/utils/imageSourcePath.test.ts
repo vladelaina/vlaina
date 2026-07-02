@@ -35,27 +35,27 @@ describe('imageSourcePath', () => {
     it('resolves local sources with query params against the image file path', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: './assets/demo.png?cache=1#preview',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toEqual(['/vault/daily/assets/demo.png']);
+        }, deps)).resolves.toEqual(['/notesRoot/daily/assets/demo.png']);
     });
 
     it('decodes URL-encoded local filesystem paths before resolving', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: './assets/Pasted%20image%2020251117105052.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toEqual(['/vault/daily/assets/Pasted image 20251117105052.png']);
+        }, deps)).resolves.toEqual(['/notesRoot/daily/assets/Pasted image 20251117105052.png']);
     });
 
     it('resolves internal img asset refs through the same contained local path rules', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'img:assets/demo.png?cache=1#preview',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([
-            '/vault/daily/assets/demo.png',
-            '/vault/assets/demo.png',
+            '/notesRoot/daily/assets/demo.png',
+            '/notesRoot/assets/demo.png',
         ]);
     });
 
@@ -72,146 +72,146 @@ describe('imageSourcePath', () => {
     it('resolves note-relative sources against the current note directory', async () => {
         await expect(resolveImageSourcePath({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toBe('/vault/daily/assets/demo.png');
+        }, deps)).resolves.toBe('/notesRoot/daily/assets/demo.png');
     });
 
-    it('keeps a vault-root fallback for bare sources in nested notes', async () => {
+    it('keeps a opened-folder fallback for bare sources in nested notes', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([
-            '/vault/daily/assets/demo.png',
-            '/vault/assets/demo.png',
+            '/notesRoot/daily/assets/demo.png',
+            '/notesRoot/assets/demo.png',
         ]);
     });
 
-    it('does not add a vault fallback for explicit relative segments', async () => {
+    it('does not add a notesRoot fallback for explicit relative segments', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: './assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toEqual(['/vault/daily/assets/demo.png']);
+        }, deps)).resolves.toEqual(['/notesRoot/daily/assets/demo.png']);
     });
 
     it('treats Windows-style explicit relative image paths as note-relative only', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '.\\assets\\demo.png?cache=1#preview',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toEqual(['/vault/daily/assets/demo.png']);
+        }, deps)).resolves.toEqual(['/notesRoot/daily/assets/demo.png']);
     });
 
     it('resolves explicit relative segments against the current note directory', async () => {
         await expect(resolveImageSourcePath({
             rawSrc: '../assets/demo.png#preview',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toBe('/vault/assets/demo.png');
+        }, deps)).resolves.toBe('/notesRoot/assets/demo.png');
     });
 
     it('resolves Windows-style parent image paths against the current note directory', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '..\\assets\\demo.png#preview',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toEqual(['/vault/assets/demo.png']);
+        }, deps)).resolves.toEqual(['/notesRoot/assets/demo.png']);
     });
 
-    it('rejects relative segments that escape the vault path', async () => {
+    it('rejects relative segments that escape the opened folder path', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '../../secret.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
     });
 
-    it('rejects internal vault image path segments while allowing user dot folders', async () => {
+    it('rejects internal notesRoot image path segments while allowing user dot folders', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '.vlaina/assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '%2evlaina/assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'docs/.git/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'docs/%2egit/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'docs/%252egit/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'docs%2f.git%2fdemo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'docs/.GIT/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: './.git/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: './docs/%2egit/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '.notes/assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([
-            '/vault/daily/.notes/assets/demo.png',
-            '/vault/.notes/assets/demo.png',
+            '/notesRoot/daily/.notes/assets/demo.png',
+            '/notesRoot/.notes/assets/demo.png',
         ]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '%2enotes/assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toEqual([
-            '/vault/daily/.notes/assets/demo.png',
-            '/vault/.notes/assets/demo.png',
+            '/notesRoot/daily/.notes/assets/demo.png',
+            '/notesRoot/.notes/assets/demo.png',
         ]);
     });
 
     it('does not resolve images from internal current note paths', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: '.vlaina/workspace.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'docs/.git/config.md',
         }, deps)).resolves.toEqual([]);
     });
@@ -219,13 +219,13 @@ describe('imageSourcePath', () => {
     it('does not resolve images from unsafe current note paths', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'daily/unsafe\u202Egnp.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: '/tmp/shared/unsafe\0.md',
         }, deps)).resolves.toEqual([]);
     });
@@ -238,76 +238,76 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toEqual([]);
     });
 
-    it('resolves explicit relative images beside an absolute external note even when a vault is open', async () => {
+    it('resolves explicit relative images beside an absolute external note even when a folder is open', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: './assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: '/tmp/shared/note.md',
         }, deps)).resolves.toEqual(['/tmp/shared/assets/demo.png']);
     });
 
-    it('does not force absolute external note images to stay inside the open vault', async () => {
+    it('does not force absolute external note images to stay inside the open folder', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: '/tmp/shared/note.md',
         }, deps)).resolves.toEqual([
             '/tmp/shared/assets/demo.png',
-            '/vault/assets/demo.png',
+            '/notesRoot/assets/demo.png',
         ]);
     });
 
-    it('rejects relative segments that escape an absolute external note directory when a vault is open', async () => {
+    it('rejects relative segments that escape an absolute external note directory when a folder is open', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '../secret.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: '/tmp/shared/note.md',
         }, deps)).resolves.toEqual([]);
     });
 
-    it('keeps vault containment for absolute note paths that are still inside the vault', async () => {
+    it('keeps opened-folder containment for absolute note paths that are still inside the notesRoot', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '../assets/demo.png',
-            notesPath: '/vault',
-            currentNotePath: '/vault/daily/note.md',
-        }, deps)).resolves.toEqual(['/vault/assets/demo.png']);
+            notesPath: '/notesRoot',
+            currentNotePath: '/notesRoot/daily/note.md',
+        }, deps)).resolves.toEqual(['/notesRoot/assets/demo.png']);
     });
 
-    it('falls back to the vault path when no current note path is available', async () => {
+    it('falls back to the opened folder path when no current note path is available', async () => {
         await expect(resolveImageSourcePath({
             rawSrc: 'assets/demo.png',
-            notesPath: '/vault',
-        }, deps)).resolves.toBe('/vault/assets/demo.png');
+            notesPath: '/notesRoot',
+        }, deps)).resolves.toBe('/notesRoot/assets/demo.png');
     });
 
     it('keeps virtual sources untouched and rejects absolute file paths from note content', async () => {
         await expect(resolveImageSourcePath({
             rawSrc: 'https://example.com/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toBe('https://example.com/demo.png');
 
         await expect(resolveImageSourcePath({
             rawSrc: 'DATA:IMAGE/PNG;BASE64,abc',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toBe('data:image/png;base64,abc');
 
         await expect(resolveImageSourcePath({
-            rawSrc: '/vault/assets/demo.png',
-            notesPath: '/vault',
+            rawSrc: '/notesRoot/assets/demo.png',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toBeNull();
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'C:\\Users\\me\\secret.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
-            rawSrc: 'img:/vault/assets/demo.png',
-            notesPath: '/vault',
+            rawSrc: 'img:/notesRoot/assets/demo.png',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
     });
@@ -315,31 +315,31 @@ describe('imageSourcePath', () => {
     it('rejects unsafe media sources when path resolution is called directly', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'javascript:demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'http://127.0.0.1:3000/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'data:image/svg+xml;base64,PHN2Zz4=',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/\u202Ecod.exe.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
 
         await expect(resolveImageSourcePathCandidates({
             rawSrc: 'assets/%E2%80%AEcod.exe.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
     });
@@ -347,7 +347,7 @@ describe('imageSourcePath', () => {
     it('normalizes protocol-relative public image URLs', async () => {
         await expect(resolveImageSourcePath({
             rawSrc: '//example.com/demo.png',
-            notesPath: '/vault',
+            notesPath: '/notesRoot',
             currentNotePath: 'note.md',
         }, deps)).resolves.toBe('https://example.com/demo.png');
     });

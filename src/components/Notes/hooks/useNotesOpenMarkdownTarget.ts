@@ -3,7 +3,7 @@ import { messageDialog } from '@/lib/storage/dialog';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { normalizeVaultPath } from '@/stores/vaultConfig';
+import { normalizeNotesRootPath } from '@/stores/notesRootConfig';
 import {
   isSupportedMarkdownSelection,
   resolveOpenNoteTarget,
@@ -13,42 +13,42 @@ import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitReg
 import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
 import { useI18n } from '@/lib/i18n';
 import { normalizeUserFacingErrorMessage } from '@/lib/i18n/userFacingErrors';
-import { toVaultRelativePath } from './notesExternalSyncUtils';
+import { toNotesRootRelativePath } from './notesExternalSyncUtils';
 
 export function useNotesOpenMarkdownTarget({
   active,
-  currentVaultPath,
+  currentNotesRootPath,
   notesPath,
   currentNotePath,
   isDirty,
   saveNote,
   openNote,
   openNoteByAbsolutePath,
-  adoptAbsoluteNoteIntoVault,
-  openVault,
+  adoptAbsoluteNoteIntoNotesRoot,
+  openNotesRoot,
 }: {
   active: boolean;
-  currentVaultPath: string | null;
+  currentNotesRootPath: string | null;
   notesPath: string;
   currentNotePath: string | undefined;
   isDirty: boolean;
   saveNote: () => Promise<void>;
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string) => Promise<void>;
-  adoptAbsoluteNoteIntoVault: (absolutePath: string, notePath: string) => boolean;
-  openVault: (path: string, name?: string, options?: { preserveSidebarTree?: boolean }) => Promise<boolean>;
+  adoptAbsoluteNoteIntoNotesRoot: (absolutePath: string, notePath: string) => boolean;
+  openNotesRoot: (path: string, name?: string, options?: { preserveSidebarTree?: boolean }) => Promise<boolean>;
 }) {
   const { t } = useI18n();
   const [isOpenTargetBusy, setIsOpenTargetBusy] = useState(false);
   const [pendingShortcutNoteTarget, setPendingShortcutNoteTarget] = useState<{
-    vaultPath: string;
+    notesRootPath: string;
     notePath: string;
     absolutePath: string;
     startedAt: number;
   } | null>(null);
 
   const openShortcutNoteTarget = useCallback(async (target: {
-    vaultPath: string;
+    notesRootPath: string;
     notePath: string;
     absolutePath: string;
   }) => {
@@ -56,12 +56,12 @@ export function useNotesOpenMarkdownTarget({
     const activeNotesPath = store.notesPath;
     const currentPath = store.currentNote?.path;
 
-    if (activeNotesPath === target.vaultPath && currentPath === target.absolutePath) {
-      const adopted = adoptAbsoluteNoteIntoVault(target.absolutePath, target.notePath);
+    if (activeNotesPath === target.notesRootPath && currentPath === target.absolutePath) {
+      const adopted = adoptAbsoluteNoteIntoNotesRoot(target.absolutePath, target.notePath);
       if (adopted) return true;
     }
 
-    if (activeNotesPath === target.vaultPath) {
+    if (activeNotesPath === target.notesRootPath) {
       await openNote(target.notePath);
       const openedPath = useNotesStore.getState().currentNote?.path;
       if (openedPath === target.notePath) return true;
@@ -70,12 +70,12 @@ export function useNotesOpenMarkdownTarget({
     await openNoteByAbsolutePath(target.absolutePath);
     const openedPath = useNotesStore.getState().currentNote?.path;
     return openedPath === target.absolutePath || openedPath === target.notePath;
-  }, [adoptAbsoluteNoteIntoVault, openNote, openNoteByAbsolutePath]);
+  }, [adoptAbsoluteNoteIntoNotesRoot, openNote, openNoteByAbsolutePath]);
 
   useEffect(() => {
-    if (!pendingShortcutNoteTarget || !currentVaultPath) return;
-    if (currentVaultPath !== pendingShortcutNoteTarget.vaultPath) return;
-    if (normalizeVaultPath(notesPath) !== pendingShortcutNoteTarget.vaultPath) return;
+    if (!pendingShortcutNoteTarget || !currentNotesRootPath) return;
+    if (currentNotesRootPath !== pendingShortcutNoteTarget.notesRootPath) return;
+    if (normalizeNotesRootPath(notesPath) !== pendingShortcutNoteTarget.notesRootPath) return;
 
     let cancelled = false;
 
@@ -103,7 +103,7 @@ export function useNotesOpenMarkdownTarget({
     return () => {
       cancelled = true;
     };
-  }, [currentVaultPath, notesPath, openShortcutNoteTarget, pendingShortcutNoteTarget, t]);
+  }, [currentNotesRootPath, notesPath, openShortcutNoteTarget, pendingShortcutNoteTarget, t]);
 
   const saveCurrentNoteIfNeeded = useCallback(async () => {
     if (!isDirty) return true;
@@ -142,19 +142,19 @@ export function useNotesOpenMarkdownTarget({
       }
 
       const targetNotePath = target.notePath;
-      const normalizedTargetVaultPath = normalizeVaultPath(target.vaultPath);
-      const normalizedCurrentVaultPath = currentVaultPath ? normalizeVaultPath(currentVaultPath) : null;
-      const normalizedNotesPath = notesPath ? normalizeVaultPath(notesPath) : '';
-      const currentVaultRelativePath = normalizedCurrentVaultPath && normalizedNotesPath === normalizedCurrentVaultPath
-        ? toVaultRelativePath(normalizedNotesPath, selected)
+      const normalizedTargetNotesRootPath = normalizeNotesRootPath(target.notesRootPath);
+      const normalizedCurrentNotesRootPath = currentNotesRootPath ? normalizeNotesRootPath(currentNotesRootPath) : null;
+      const normalizedNotesPath = notesPath ? normalizeNotesRootPath(notesPath) : '';
+      const currentNotesRootRelativePath = normalizedCurrentNotesRootPath && normalizedNotesPath === normalizedCurrentNotesRootPath
+        ? toNotesRootRelativePath(normalizedNotesPath, selected)
         : null;
 
-      if (currentVaultRelativePath && isSupportedMarkdownSelection(currentVaultRelativePath)) {
-        const currentVaultPathForTarget = normalizedCurrentVaultPath;
-        if (!currentVaultPathForTarget) return false;
+      if (currentNotesRootRelativePath && isSupportedMarkdownSelection(currentNotesRootRelativePath)) {
+        const currentNotesRootPathForTarget = normalizedCurrentNotesRootPath;
+        if (!currentNotesRootPathForTarget) return false;
         const opened = await openShortcutNoteTarget({
-          vaultPath: currentVaultPathForTarget,
-          notePath: currentVaultRelativePath,
+          notesRootPath: currentNotesRootPathForTarget,
+          notePath: currentNotesRootRelativePath,
           absolutePath: selected,
         });
         if (!opened) {
@@ -166,9 +166,9 @@ export function useNotesOpenMarkdownTarget({
         return opened;
       }
 
-      if (normalizedCurrentVaultPath === normalizedTargetVaultPath && normalizedNotesPath === normalizedTargetVaultPath) {
+      if (normalizedCurrentNotesRootPath === normalizedTargetNotesRootPath && normalizedNotesPath === normalizedTargetNotesRootPath) {
         const opened = await openShortcutNoteTarget({
-          vaultPath: normalizedTargetVaultPath,
+          notesRootPath: normalizedTargetNotesRootPath,
           notePath: targetNotePath,
           absolutePath: selected,
         });
@@ -182,19 +182,19 @@ export function useNotesOpenMarkdownTarget({
       }
 
       setPendingShortcutNoteTarget({
-        vaultPath: normalizedTargetVaultPath,
+        notesRootPath: normalizedTargetNotesRootPath,
         notePath: targetNotePath,
         absolutePath: selected,
         startedAt: performance.now(),
       });
 
-      const openedVault = await openVault(normalizedTargetVaultPath, undefined, {
+      const openedNotesRoot = await openNotesRoot(normalizedTargetNotesRootPath, undefined, {
         preserveSidebarTree: false,
       });
-      if (!openedVault) {
+      if (!openedNotesRoot) {
         setPendingShortcutNoteTarget(null);
         const opened = await openShortcutNoteTarget({
-          vaultPath: normalizedTargetVaultPath,
+          notesRootPath: normalizedTargetNotesRootPath,
           notePath: targetNotePath,
           absolutePath: selected,
         });
@@ -217,7 +217,7 @@ export function useNotesOpenMarkdownTarget({
     } finally {
       setIsOpenTargetBusy(false);
     }
-  }, [currentVaultPath, notesPath, openShortcutNoteTarget, openVault, saveCurrentNoteIfNeeded, t]);
+  }, [currentNotesRootPath, notesPath, openShortcutNoteTarget, openNotesRoot, saveCurrentNoteIfNeeded, t]);
 
   const openFolderTarget = useCallback(async (selected: string) => {
     setIsOpenTargetBusy(true);
@@ -229,16 +229,16 @@ export function useNotesOpenMarkdownTarget({
         return false;
       }
 
-      const openedVault = await openVault(selected);
-      if (!openedVault) {
-        await messageDialog(t('vault.openFolderFailed'), {
+      const openedNotesRoot = await openNotesRoot(selected);
+      if (!openedNotesRoot) {
+        await messageDialog(t('notesRoot.openFolderFailed'), {
           title: t('notes.openFailed'),
           kind: 'error',
         });
       }
-      return openedVault;
+      return openedNotesRoot;
     } catch (error) {
-      await messageDialog(normalizeUserFacingErrorMessage(error, 'vault.openFolderFailed'), {
+      await messageDialog(normalizeUserFacingErrorMessage(error, 'notesRoot.openFolderFailed'), {
         title: t('notes.openFailed'),
         kind: 'error',
       });
@@ -246,11 +246,11 @@ export function useNotesOpenMarkdownTarget({
     } finally {
       setIsOpenTargetBusy(false);
     }
-  }, [openVault, saveCurrentNoteIfNeeded, t]);
+  }, [openNotesRoot, saveCurrentNoteIfNeeded, t]);
 
   useNotesOpenTargetPicker({
     active,
-    currentVaultPath,
+    currentNotesRootPath,
     isOpenTargetBusy,
     openMarkdownTarget,
     openFolderTarget,
@@ -265,7 +265,7 @@ export function useNotesOpenMarkdownTarget({
   return {
     isOpenTargetBusy,
     openMarkdownTarget,
-    pendingOpenMarkdownTargetVaultPath: pendingShortcutNoteTarget?.vaultPath ?? null,
+    pendingOpenMarkdownTargetNotesRootPath: pendingShortcutNoteTarget?.notesRootPath ?? null,
     openStoredNotePath,
   };
 }

@@ -27,7 +27,7 @@ describe('loadNoteDocument cache validation', () => {
     adapter.stat.mockResolvedValue(null);
 
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached', 100, {
         updateBaseline: true,
@@ -43,7 +43,7 @@ describe('loadNoteDocument cache validation', () => {
     adapter.readFile.mockResolvedValue('# Disked');
 
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached', 200, {
         updateBaseline: true,
@@ -51,7 +51,7 @@ describe('loadNoteDocument cache validation', () => {
       }),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Disked');
     expect(result.modifiedAt).toBe(100);
     expect(result.nextCache.get('alpha.md')?.content).toBe('# Disked');
@@ -59,7 +59,7 @@ describe('loadNoteDocument cache validation', () => {
 
   it('keeps dirty cached markdown when stale content is explicitly allowed', async () => {
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'alpha.md',
       cache: setCachedNoteContent(new Map(), 'alpha.md', '# Unsaved', 100, {
         updateBaseline: true,
@@ -75,7 +75,7 @@ describe('loadNoteDocument cache validation', () => {
 
   it('uses normalized relative note paths for cache lookup', async () => {
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: './docs//alpha.md',
       cache: setCachedNoteContent(new Map(), 'docs/alpha.md', '# Cached', 100, {
         updateBaseline: true,

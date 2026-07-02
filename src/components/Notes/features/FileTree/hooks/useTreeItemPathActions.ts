@@ -26,7 +26,7 @@ function getRawErrorMessage(error: unknown): string {
 
 function getPathActionErrorMessage(error: unknown, fallbackMessage: string): string {
   const message = getRawErrorMessage(error);
-  if (/^path must stay inside the current vault\.?$/i.test(message)) {
+  if (/^path must stay inside the opened folder\.?$/i.test(message)) {
     return message;
   }
   return normalizeUserFacingErrorMessage(error) || fallbackMessage;

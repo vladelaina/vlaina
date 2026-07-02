@@ -100,13 +100,13 @@ describe('exportNote', () => {
         '# Exported',
       ].join('\n'),
       notePath: 'Exported.md',
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       title: 'Exported',
     });
 
     expect(mocks.resolveExportMarkdownAssetSources).toHaveBeenCalledWith(
       '# Exported',
-      '/vault',
+      '/notesRoot',
       'Exported.md',
     );
     expect(mocks.renderNoteExportHtml).toHaveBeenCalledWith('# Exported', 'Exported');
@@ -123,7 +123,7 @@ describe('exportNote', () => {
       format: 'html',
       markdown: 'x'.repeat(2 * 1024 * 1024 + 1),
       notePath: 'Huge.md',
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       title: 'Huge',
     })).rejects.toThrow('Note is too large to export safely.');
 
@@ -139,7 +139,7 @@ describe('exportNote', () => {
       format: 'png',
       markdown: '# Exported',
       notePath: 'Exported.md',
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       title: 'Exported',
     });
 
@@ -156,7 +156,7 @@ describe('exportNote', () => {
       format: 'png',
       markdown: '# Exported',
       notePath: 'Exported.md',
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       title: 'Exported',
     })).rejects.toThrow('Unexpected PNG export MIME type.');
 
@@ -173,7 +173,7 @@ describe('exportNote', () => {
       format: 'png',
       markdown: '# Exported',
       notePath: 'Exported.md',
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       title: 'Exported',
     })).rejects.toThrow('PNG export output is too large.');
 
@@ -191,7 +191,7 @@ describe('exportNote', () => {
       format: 'docx',
       markdown: '# Exported',
       notePath: 'Exported.md',
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       title: 'Exported',
     })).rejects.toThrow('Note export output is too large.');
 
@@ -223,7 +223,7 @@ describe('exportNote', () => {
         format: 'html',
         markdown: '# Exported',
         notePath: 'Exported.md',
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         title: 'Exported',
       })).rejects.toThrow('append failed');
 

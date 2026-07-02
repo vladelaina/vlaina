@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import {
-  isValidStarredVaultPath,
+  isValidStarredNotesRootPath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
+  normalizeStarredNotesRootPath,
 } from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
@@ -104,15 +104,15 @@ function getStarredIconPathContext(entry: StarredEntry) {
     return null;
   }
 
-  const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
-  if (!isValidStarredVaultPath(vaultPath)) {
+  const notesRootPath = normalizeStarredNotesRootPath(entry.notesRootPath);
+  if (!isValidStarredNotesRootPath(notesRootPath)) {
     return null;
   }
 
   return {
-    vaultPath,
+    notesRootPath,
     relativePath,
-    cacheKey: `${vaultPath}/${relativePath}`,
+    cacheKey: `${notesRootPath}/${relativePath}`,
   };
 }
 
@@ -191,7 +191,7 @@ function isStarredIconMetadataWithinReadLimit(content: string): boolean {
 export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
   const pathContext = useMemo(
     () => getStarredIconPathContext(entry),
-    [entry.relativePath, entry.vaultPath],
+    [entry.relativePath, entry.notesRootPath],
   );
   const [icon, setIcon] = useState<string | undefined>(() => {
     const cached = pathContext ? starredIconCache.get(pathContext.cacheKey) : null;
@@ -214,7 +214,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
     void (async () => {
       try {
         await scheduleStarredIconTask(async () => {
-          const fullPath = await joinPath(pathContext.vaultPath, pathContext.relativePath);
+          const fullPath = await joinPath(pathContext.notesRootPath, pathContext.relativePath);
           const storage = getStorageAdapter();
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const modifiedAt = getKnownStarredIconModifiedAt(fileInfo);

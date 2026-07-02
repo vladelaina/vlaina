@@ -62,7 +62,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 
   state = {
     ...slice,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     isDirty: true,
@@ -99,8 +99,8 @@ function createPendingDeletedItem(overrides: Record<string, unknown> = {}) {
     id: 'delete-1',
     kind: 'file' as const,
     originalPath: 'alpha.md',
-    originalFullPath: '/vault/alpha.md',
-    stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+    originalFullPath: '/notesRoot/alpha.md',
+    stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
     deletedAt: 1,
     previousCurrentNote: null,
     previousIsDirty: false,
@@ -155,8 +155,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -174,14 +174,14 @@ describe('createFileSystemSlice deletion flows', () => {
 
     const state = harness.getState();
     expect(state.openNote).toHaveBeenCalledWith('beta.md');
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'beta.md',
     }));
     expect(state.currentNote).toEqual({ path: 'alpha.md', content: 'alpha' });
     expect(state.isDirty).toBe(false);
     expect(state.pendingDeletedItems).toEqual([expect.objectContaining({
       originalPath: 'alpha.md',
-      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+      stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
       previousCurrentNote: { path: 'alpha.md', content: 'alpha' },
       deletedStarredEntries: [],
       deletedMetadata: null,
@@ -206,8 +206,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -246,8 +246,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -279,12 +279,12 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(state.rootFolder.children).toEqual([
       { id: 'Untitled.md', name: 'Untitled', path: 'Untitled.md', isFolder: false },
     ]);
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: null,
     }));
   });
 
-  it('does not write stale deletion state after the active vault changes', async () => {
+  it('does not write stale deletion state after the active notesRoot changes', async () => {
     let resolveDelete: (value: Record<string, unknown>) => void;
     hoisted.deleteNoteImpl.mockImplementation(() => new Promise((resolve) => {
       resolveDelete = resolve;
@@ -297,7 +297,7 @@ describe('createFileSystemSlice deletion flows', () => {
 
     const deletion = harness.getState().deleteNote('alpha.md');
     harness.setState({
-      notesPath: '/vault-next',
+      notesPath: '/notes-root-next',
       currentNote: null,
       openTabs: [],
       pendingDeletedItems: [],
@@ -314,14 +314,14 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
     await deletion;
 
-    expect(harness.getState().notesPath).toBe('/vault-next');
+    expect(harness.getState().notesPath).toBe('/notes-root-next');
     expect(harness.getState().currentNote).toBeNull();
     expect(harness.getState().openTabs).toEqual([]);
     expect(harness.getState().pendingDeletedItems).toEqual([]);
@@ -372,8 +372,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'beta.md',
-        originalFullPath: '/vault/beta.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/beta.md',
+        originalFullPath: '/notesRoot/beta.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/beta.md',
         deletedAt: 1,
       },
     });
@@ -421,8 +421,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
       },
     });
@@ -437,7 +437,7 @@ describe('createFileSystemSlice deletion flows', () => {
       modifiedAt: 2,
     });
     expect(state.openNote).not.toHaveBeenCalled();
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'alpha.md',
     }));
   });
@@ -472,8 +472,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'folder',
         originalPath: 'docs',
-        originalFullPath: '/vault/docs',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
+        originalFullPath: '/notesRoot/docs',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/docs',
         deletedAt: 1,
       },
     });
@@ -490,7 +490,7 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(state.openNote).not.toHaveBeenCalled();
     expect(state.currentNote).toBeNull();
     expect(state.isDirty).toBe(false);
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: null,
     }));
   });
@@ -527,8 +527,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'folder',
         originalPath: 'docs',
-        originalFullPath: '/vault/docs',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
+        originalFullPath: '/notesRoot/docs',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/docs',
         deletedAt: 1,
       },
     });
@@ -543,7 +543,7 @@ describe('createFileSystemSlice deletion flows', () => {
       modifiedAt: 2,
     });
     expect(state.openNote).not.toHaveBeenCalled();
-    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       currentNotePath: 'docs/alpha.md',
     }));
   });
@@ -551,7 +551,7 @@ describe('createFileSystemSlice deletion flows', () => {
   it('restores the last pending deleted file and opens it', async () => {
     hoisted.restoreNoteItemFromPendingTrash.mockResolvedValue({
       restoredPath: 'alpha.md',
-      restoredFullPath: '/vault/alpha.md',
+      restoredFullPath: '/notesRoot/alpha.md',
     });
 
     const harness = createSliceHarness({
@@ -567,8 +567,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,
@@ -581,9 +581,9 @@ describe('createFileSystemSlice deletion flows', () => {
 
     const state = harness.getState();
     expect(hoisted.cancelPendingSystemTrash).toHaveBeenCalledWith('delete-1');
-    expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenCalledWith('/vault', expect.objectContaining({
+    expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenCalledWith('/notesRoot', expect.objectContaining({
       originalPath: 'alpha.md',
-      stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+      stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
     }));
     expect(state.loadFileTree).not.toHaveBeenCalled();
     expect(state.rootFolder.children).toEqual([{
@@ -600,11 +600,11 @@ describe('createFileSystemSlice deletion flows', () => {
     hoisted.restoreNoteItemFromPendingTrash
       .mockResolvedValueOnce({
         restoredPath: 'beta.md',
-        restoredFullPath: '/vault/beta.md',
+        restoredFullPath: '/notesRoot/beta.md',
       })
       .mockResolvedValueOnce({
         restoredPath: 'alpha.md',
-        restoredFullPath: '/vault/alpha.md',
+        restoredFullPath: '/notesRoot/alpha.md',
       });
 
     const harness = createSliceHarness({
@@ -621,8 +621,8 @@ describe('createFileSystemSlice deletion flows', () => {
         createPendingDeletedItem({
           id: 'delete-2',
           originalPath: 'beta.md',
-          originalFullPath: '/vault/beta.md',
-          stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-2/beta.md',
+          originalFullPath: '/notesRoot/beta.md',
+          stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-2/beta.md',
           deletedAt: 2,
         }),
       ],
@@ -637,12 +637,12 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(harness.getState().pendingDeletedItems).toEqual([]);
     expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenNthCalledWith(
       1,
-      '/vault',
+      '/notesRoot',
       expect.objectContaining({ originalPath: 'beta.md' }),
     );
     expect(hoisted.restoreNoteItemFromPendingTrash).toHaveBeenNthCalledWith(
       2,
-      '/vault',
+      '/notesRoot',
       expect.objectContaining({ originalPath: 'alpha.md' }),
     );
   });
@@ -667,15 +667,15 @@ describe('createFileSystemSlice deletion flows', () => {
           createPendingDeletedItem({
             id: 'delete-2',
             originalPath: 'beta.md',
-            originalFullPath: '/vault/beta.md',
-            stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-2/beta.md',
+            originalFullPath: '/notesRoot/beta.md',
+            stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-2/beta.md',
             deletedAt: 2,
           }),
         ],
       });
       return {
         restoredPath: 'alpha.md',
-        restoredFullPath: '/vault/alpha.md',
+        restoredFullPath: '/notesRoot/alpha.md',
       };
     });
 
@@ -710,7 +710,7 @@ describe('createFileSystemSlice deletion flows', () => {
   it('restores a pending deleted folder without reloading the whole file tree', async () => {
     hoisted.restoreNoteItemFromPendingTrash.mockResolvedValue({
       restoredPath: 'docs',
-      restoredFullPath: '/vault/docs',
+      restoredFullPath: '/notesRoot/docs',
     });
 
     const harness = createSliceHarness({
@@ -726,8 +726,8 @@ describe('createFileSystemSlice deletion flows', () => {
         createPendingDeletedItem({
           kind: 'folder',
           originalPath: 'docs',
-          originalFullPath: '/vault/docs',
-          stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/docs',
+          originalFullPath: '/notesRoot/docs',
+          stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/docs',
         }),
       ],
     });
@@ -749,13 +749,13 @@ describe('createFileSystemSlice deletion flows', () => {
   it('restores deleted starred and metadata state with the restored path', async () => {
     hoisted.restoreNoteItemFromPendingTrash.mockResolvedValue({
       restoredPath: 'alpha 1.md',
-      restoredFullPath: '/vault/alpha 1.md',
+      restoredFullPath: '/notesRoot/alpha 1.md',
     });
 
     const deletedStarredEntry = {
       id: 'star-1',
       kind: 'note' as const,
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'alpha.md',
       addedAt: 10,
     };
@@ -816,8 +816,8 @@ describe('createFileSystemSlice deletion flows', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,

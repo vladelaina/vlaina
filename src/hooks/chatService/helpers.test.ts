@@ -40,12 +40,12 @@ const mocks = vi.hoisted(() => ({
   notesState: {
     currentNote: null as { path: string; content: string } | null,
     noteContentsCache: new Map<string, { content: string; modifiedAt?: number | null; size?: number | null }>(),
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     rootFolder: null as null | { children: unknown[] },
     starredEntries: [] as Array<{
       id: string;
       kind: 'note' | 'folder';
-      vaultPath: string;
+      notesRootPath: string;
       relativePath: string;
       addedAt: number;
     }>,
@@ -151,7 +151,7 @@ describe('chat service helpers', () => {
     mocks.storage.readFile.mockReset();
     mocks.notesState.currentNote = null;
     mocks.notesState.noteContentsCache = new Map();
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.rootFolder = null;
     mocks.notesState.starredEntries = [];
     mocks.notesState.getDisplayName.mockClear();
@@ -208,8 +208,8 @@ describe('chat service helpers', () => {
       }),
     );
     const folderAttachments = [
-      createAttachment({ id: 'folder-0', path: '/vault/assets/folder-0.png', name: 'folder-0.png' }),
-      createAttachment({ id: 'folder-1', path: '/vault/assets/folder-1.png', name: 'folder-1.png' }),
+      createAttachment({ id: 'folder-0', path: '/notesRoot/assets/folder-0.png', name: 'folder-0.png' }),
+      createAttachment({ id: 'folder-1', path: '/notesRoot/assets/folder-1.png', name: 'folder-1.png' }),
     ];
 
     const limited = limitChatMessageImageAttachments([
@@ -511,7 +511,7 @@ describe('loadMentionedNotes', () => {
     mocks.flushCurrentPendingEditorMarkdown.mockReset();
     mocks.notesState.currentNote = null;
     mocks.notesState.noteContentsCache = new Map();
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.rootFolder = null;
     mocks.notesState.starredEntries = [];
     mocks.notesState.getDisplayName.mockReset();
@@ -617,7 +617,7 @@ describe('loadMentionedNotes', () => {
       'docs/c.md',
     ]);
     expect(mocks.storage.readFile).toHaveBeenCalledTimes(3);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/d.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('drops unloadable note mentions before accepting them as message references', () => {
@@ -664,8 +664,8 @@ describe('loadMentionedNotes', () => {
       'docs/alpha.md',
       'docs/beta.md',
     ]);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/not-note.txt', MAX_NOTE_MENTION_READ_BYTES);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/delta.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/not-note.txt', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/delta.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('bounds note mention metadata before loading references', async () => {
@@ -699,7 +699,7 @@ describe('loadMentionedNotes', () => {
     expect(notes).toHaveLength(3);
     expect(notes[0]?.path).toBe('docs/alpha.md');
     expect(notes[0]?.title).toHaveLength(MAX_NOTE_MENTION_TITLE_CHARS);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/beyond-scan.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/beyond-scan.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('limits concurrent folder markdown note reads', async () => {
@@ -777,21 +777,21 @@ describe('loadMentionedNotes', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'a.md',
-        path: '/vault/docs/a.md',
+        path: '/notesRoot/docs/a.md',
         isDirectory: false,
         isFile: true,
         size: 32,
       },
       {
         name: 'cover.png',
-        path: '/vault/docs/cover.png',
+        path: '/notesRoot/docs/cover.png',
         isDirectory: false,
         isFile: true,
         size: 4096,
       },
       {
         name: 'nested',
-        path: '/vault/docs/nested',
+        path: '/notesRoot/docs/nested',
         isDirectory: true,
         isFile: false,
       },
@@ -856,18 +856,18 @@ describe('loadMentionedNotes', () => {
   it('scans a mentioned folder for markdown notes when the file tree is unavailable', async () => {
     mocks.notesState.rootFolder = null;
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
           { name: 'alpha.markdown', path: '/outside/ignored.markdown', isDirectory: false, isFile: true, size: 32 },
           { name: 'nested', path: '/outside/ignored', isDirectory: true, isFile: false },
-          { name: 'skip.txt', path: '/vault/docs/skip.txt', isDirectory: false, isFile: true, size: 16 },
+          { name: 'skip.txt', path: '/notesRoot/docs/skip.txt', isDirectory: false, isFile: true, size: 16 },
         ];
       }
-      if (path === '/vault/docs/nested') {
+      if (path === '/notesRoot/docs/nested') {
         return [
-          { name: 'beta.mdown', path: '/vault/docs/nested/beta.mdown', isDirectory: false, isFile: true },
-          { name: 'gamma.mkd', path: '/vault/docs/nested/gamma.mkd', isDirectory: false, isFile: true },
-          { name: 'huge.md', path: '/vault/docs/nested/huge.md', isDirectory: false, isFile: true },
+          { name: 'beta.mdown', path: '/notesRoot/docs/nested/beta.mdown', isDirectory: false, isFile: true },
+          { name: 'gamma.mkd', path: '/notesRoot/docs/nested/gamma.mkd', isDirectory: false, isFile: true },
+          { name: 'huge.md', path: '/notesRoot/docs/nested/huge.md', isDirectory: false, isFile: true },
         ];
       }
       return [];
@@ -878,9 +878,9 @@ describe('loadMentionedNotes', () => {
       size: path.endsWith('/huge.md') ? 600 * 1024 : 64,
     }));
     mocks.storage.readFile.mockImplementation(async (path: string) => {
-      if (path === '/vault/docs/alpha.markdown') return '# Alpha';
-      if (path === '/vault/docs/nested/beta.mdown') return '# Beta';
-      if (path === '/vault/docs/nested/gamma.mkd') return '# Gamma';
+      if (path === '/notesRoot/docs/alpha.markdown') return '# Alpha';
+      if (path === '/notesRoot/docs/nested/beta.mdown') return '# Beta';
+      if (path === '/notesRoot/docs/nested/gamma.mkd') return '# Gamma';
       return '# Unexpected';
     });
 
@@ -899,7 +899,7 @@ describe('loadMentionedNotes', () => {
       { path: 'docs/nested/gamma.mkd', title: 'Docs/nested/gamma', kind: 'note', content: '# Gamma' },
     ]);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/outside/ignored.markdown', MAX_NOTE_MENTION_READ_BYTES);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/nested/huge.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/nested/huge.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('prioritizes markdown entries before applying the folder mention scan cap', async () => {
@@ -907,14 +907,14 @@ describe('loadMentionedNotes', () => {
     mocks.storage.listDir.mockResolvedValue([
       ...Array.from({ length: 5000 }, (_value, index) => ({
         name: `asset-${String(index).padStart(4, '0')}.txt`,
-        path: `/vault/docs/asset-${String(index).padStart(4, '0')}.txt`,
+        path: `/notesRoot/docs/asset-${String(index).padStart(4, '0')}.txt`,
         isDirectory: false,
         isFile: true,
         size: 16,
       })),
       {
         name: 'late.mdown',
-        path: '/vault/docs/late.mdown',
+        path: '/notesRoot/docs/late.mdown',
         isDirectory: false,
         isFile: true,
         size: 32,
@@ -928,7 +928,7 @@ describe('loadMentionedNotes', () => {
     ]);
 
     expect(notes.map((note) => note.path)).toContain('docs/late.mdown');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.mdown', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/late.mdown', MAX_NOTE_MENTION_READ_BYTES);
     expect(mocks.storage.readFile).toHaveBeenCalledTimes(1);
   });
 
@@ -937,7 +937,7 @@ describe('loadMentionedNotes', () => {
     mocks.notesState.starredEntries = [{
       id: 'external-folder',
       kind: 'folder',
-      vaultPath: '/external',
+      notesRootPath: '/external',
       relativePath: 'docs',
       addedAt: 1,
     }];
@@ -975,7 +975,7 @@ describe('loadMentionedNotes', () => {
     ]);
 
     expect(notes).toEqual([]);
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/docs/alpha.md');
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
@@ -990,7 +990,7 @@ describe('loadMentionedNotes', () => {
     expect(notes).toEqual([
       { path: 'docs/alpha.md', title: 'Alpha', content: '# Alpha' },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('does not read note mention files with invalid known stat sizes', async () => {
@@ -1014,7 +1014,7 @@ describe('loadMentionedNotes', () => {
     ]);
 
     expect(notes).toEqual([]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('does not load oversized current or cached note mention content', async () => {
@@ -1089,7 +1089,7 @@ describe('loadMentionedNotes', () => {
     expect(notes).toEqual([
       { path: 'docs/alpha.md', title: 'Alpha', content: '# New!' },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('includes a directory listing for folder mentions without markdown notes', async () => {
@@ -1106,18 +1106,18 @@ describe('loadMentionedNotes', () => {
       ],
     };
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/assets') {
+      if (path === '/notesRoot/assets') {
         return [
           {
             name: 'cover.png',
-            path: '/vault/assets/cover.png',
+            path: '/notesRoot/assets/cover.png',
             isDirectory: false,
             isFile: true,
             size: 2048,
           },
           {
             name: 'icons',
-            path: '/vault/assets/icons',
+            path: '/notesRoot/assets/icons',
             isDirectory: true,
             isFile: false,
           },
@@ -1131,7 +1131,7 @@ describe('loadMentionedNotes', () => {
       { path: 'assets', title: 'assets/', kind: 'folder' },
     ]);
 
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets', { includeHidden: true });
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/assets', { includeHidden: true });
     expect(notes).toHaveLength(1);
     expect(notes[0]).toMatchObject({
       path: 'assets',
@@ -1148,14 +1148,14 @@ describe('loadMentionedNotes', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.md',
-        path: '/vault/assets/cover.md',
+        path: '/notesRoot/assets/cover.md',
         isDirectory: false,
         isFile: true,
         size: 12,
       },
       {
         name: 'cover\n## Injected.md',
-        path: '/vault/assets/cover.md',
+        path: '/notesRoot/assets/cover.md',
         isDirectory: false,
         isFile: true,
         size: 12,
@@ -1175,25 +1175,25 @@ describe('loadMentionedNotes', () => {
   it('skips folder listing and scan entries with unsafe path characters', async () => {
     mocks.notesState.rootFolder = null;
     mocks.storage.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault/assets') {
+      if (path === '/notesRoot/assets') {
         return [
           {
             name: 'alpha.md',
-            path: '/vault/assets/alpha.md',
+            path: '/notesRoot/assets/alpha.md',
             isDirectory: false,
             isFile: true,
             size: 12,
           },
           {
             name: 'secret\u202Egnp.md',
-            path: '/vault/assets/secret.md',
+            path: '/notesRoot/assets/secret.md',
             isDirectory: false,
             isFile: true,
             size: 12,
           },
           {
             name: 'broken\uFFFD.md',
-            path: '/vault/assets/broken.md',
+            path: '/notesRoot/assets/broken.md',
             isDirectory: false,
             isFile: true,
             size: 12,
@@ -1212,9 +1212,9 @@ describe('loadMentionedNotes', () => {
     expect(notes.map((note) => note.path)).toEqual(['assets', 'assets/alpha.md']);
     expect(notes[0]?.content).not.toContain('secret');
     expect(notes[0]?.content).not.toContain('broken');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/assets/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/secret\u202Egnp.md', MAX_NOTE_MENTION_READ_BYTES);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/broken\uFFFD.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/assets/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/assets/secret\u202Egnp.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/notesRoot/assets/broken\uFFFD.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 });
 
@@ -1222,7 +1222,7 @@ describe('loadMentionedFolderImageAttachments', () => {
   beforeEach(() => {
     mocks.storage.listDir.mockReset();
     mocks.storage.stat.mockReset();
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.rootFolder = null;
   });
 
@@ -1230,21 +1230,21 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         isDirectory: false,
         isFile: true,
         size: 2048,
       },
       {
         name: 'diagram.webp',
-        path: '/vault/assets/diagram.webp',
+        path: '/notesRoot/assets/diagram.webp',
         isDirectory: false,
         isFile: true,
         size: 4096,
       },
       {
         name: 'readme.md',
-        path: '/vault/assets/readme.md',
+        path: '/notesRoot/assets/readme.md',
         isDirectory: false,
         isFile: true,
         size: 128,
@@ -1255,11 +1255,11 @@ describe('loadMentionedFolderImageAttachments', () => {
       { path: 'assets', title: 'assets/', kind: 'folder' },
     ]);
 
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/assets');
     expect(attachments).toEqual([
       {
-        id: 'folder-image:/vault/assets/cover.png',
-        path: '/vault/assets/cover.png',
+        id: 'folder-image:/notesRoot/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         previewUrl: '',
         assetUrl: '',
         name: 'cover.png',
@@ -1267,8 +1267,8 @@ describe('loadMentionedFolderImageAttachments', () => {
         size: 2048,
       },
       {
-        id: 'folder-image:/vault/assets/diagram.webp',
-        path: '/vault/assets/diagram.webp',
+        id: 'folder-image:/notesRoot/assets/diagram.webp',
+        path: '/notesRoot/assets/diagram.webp',
         previewUrl: '',
         assetUrl: '',
         name: 'diagram.webp',
@@ -1282,7 +1282,7 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         isDirectory: false,
         isFile: true,
         size: 2048,
@@ -1298,14 +1298,14 @@ describe('loadMentionedFolderImageAttachments', () => {
     ]);
 
     expect(mocks.storage.listDir).toHaveBeenCalledTimes(3);
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-a');
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-b');
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-c');
-    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/assets-d');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/assets-a');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/assets-b');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/notesRoot/assets-c');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/notesRoot/assets-d');
     expect(attachments.map((attachment) => attachment.path)).toEqual([
-      '/vault/assets-a/cover.png',
-      '/vault/assets-b/cover.png',
-      '/vault/assets-c/cover.png',
+      '/notesRoot/assets-a/cover.png',
+      '/notesRoot/assets-b/cover.png',
+      '/notesRoot/assets-c/cover.png',
     ]);
   });
 
@@ -1313,21 +1313,21 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: '.hidden.png',
-        path: '/vault/assets/.hidden.png',
+        path: '/notesRoot/assets/.hidden.png',
         isDirectory: false,
         isFile: true,
         size: 1024,
       },
       {
         name: 'huge.jpg',
-        path: '/vault/assets/huge.jpg',
+        path: '/notesRoot/assets/huge.jpg',
         isDirectory: false,
         isFile: true,
         size: 9 * 1024 * 1024,
       },
       {
         name: 'small.jpg',
-        path: '/vault/assets/small.jpg',
+        path: '/notesRoot/assets/small.jpg',
         isDirectory: false,
         isFile: true,
         size: 1024,
@@ -1346,21 +1346,21 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         isDirectory: false,
         isFile: true,
         size: 2048,
       },
       {
         name: 'secret\u202Egnp.png',
-        path: '/vault/assets/secret.png',
+        path: '/notesRoot/assets/secret.png',
         isDirectory: false,
         isFile: true,
         size: 2048,
       },
       {
         name: 'broken\uFFFD.webp',
-        path: '/vault/assets/broken.webp',
+        path: '/notesRoot/assets/broken.webp',
         isDirectory: false,
         isFile: true,
         size: 2048,
@@ -1373,8 +1373,8 @@ describe('loadMentionedFolderImageAttachments', () => {
 
     expect(attachments).toEqual([
       {
-        id: 'folder-image:/vault/assets/cover.png',
-        path: '/vault/assets/cover.png',
+        id: 'folder-image:/notesRoot/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         previewUrl: '',
         assetUrl: '',
         name: 'cover.png',
@@ -1387,14 +1387,14 @@ describe('loadMentionedFolderImageAttachments', () => {
   it('prioritizes folder images before applying the image attachment scan cap', async () => {
     const entries = Array.from({ length: 5000 }, (_value, index) => ({
       name: `doc-${String(index).padStart(4, '0')}.txt`,
-      path: `/vault/assets/doc-${String(index).padStart(4, '0')}.txt`,
+      path: `/notesRoot/assets/doc-${String(index).padStart(4, '0')}.txt`,
       isDirectory: false,
       isFile: true,
       size: 1024,
     }));
     entries.push({
       name: 'late.png',
-      path: '/vault/assets/late.png',
+      path: '/notesRoot/assets/late.png',
       isDirectory: false,
       isFile: true,
       size: 2048,
@@ -1407,8 +1407,8 @@ describe('loadMentionedFolderImageAttachments', () => {
 
     expect(attachments).toEqual([
       {
-        id: 'folder-image:/vault/assets/late.png',
-        path: '/vault/assets/late.png',
+        id: 'folder-image:/notesRoot/assets/late.png',
+        path: '/notesRoot/assets/late.png',
         previewUrl: '',
         assetUrl: '',
         name: 'late.png',
@@ -1423,14 +1423,14 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         isDirectory: false,
         isFile: true,
       },
     ]);
     mocks.storage.stat.mockResolvedValue({
       name: 'cover.png',
-      path: '/vault/assets/cover.png',
+      path: '/notesRoot/assets/cover.png',
       isDirectory: false,
       isFile: true,
       size: 4096,
@@ -1440,9 +1440,9 @@ describe('loadMentionedFolderImageAttachments', () => {
       { path: 'assets', title: 'assets/', kind: 'folder' },
     ]);
 
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/assets/cover.png');
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/assets/cover.png');
     expect(attachments[0]).toMatchObject({
-      path: '/vault/assets/cover.png',
+      path: '/notesRoot/assets/cover.png',
       name: 'cover.png',
       size: 4096,
     });
@@ -1452,14 +1452,14 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         isDirectory: false,
         isFile: true,
       },
     ]);
     mocks.storage.stat.mockResolvedValue({
       name: 'cover.png',
-      path: '/vault/assets/cover.png',
+      path: '/notesRoot/assets/cover.png',
       isDirectory: true,
       isFile: false,
       size: 4096,
@@ -1469,7 +1469,7 @@ describe('loadMentionedFolderImageAttachments', () => {
       { path: 'assets', title: 'assets/', kind: 'folder' },
     ]);
 
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/assets/cover.png');
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/assets/cover.png');
     expect(attachments).toEqual([]);
   });
 
@@ -1477,7 +1477,7 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         isDirectory: false,
         isFile: true,
       },
@@ -1488,11 +1488,11 @@ describe('loadMentionedFolderImageAttachments', () => {
       { path: 'assets', title: 'assets/', kind: 'folder' },
     ]);
 
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/assets/cover.png');
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/assets/cover.png');
     expect(attachments).toEqual([
       {
-        id: 'folder-image:/vault/assets/cover.png',
-        path: '/vault/assets/cover.png',
+        id: 'folder-image:/notesRoot/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         previewUrl: '',
         assetUrl: '',
         name: 'cover.png',
@@ -1517,8 +1517,8 @@ describe('loadMentionedFolderImageAttachments', () => {
       { path: 'assets', title: 'assets/', kind: 'folder' },
     ]);
 
-    expect(attachments[0]?.path).toBe('/vault/assets/cover.png');
-    expect(attachments[0]?.id).toBe('folder-image:/vault/assets/cover.png');
+    expect(attachments[0]?.path).toBe('/notesRoot/assets/cover.png');
+    expect(attachments[0]?.id).toBe('folder-image:/notesRoot/assets/cover.png');
   });
 
   it('does not attach images for note mentions', async () => {
@@ -1546,7 +1546,7 @@ describe('loadMentionedFolderImageAttachments', () => {
     mocks.storage.listDir.mockResolvedValue([
       {
         name: 'cover.png',
-        path: '/vault/assets/cover.png',
+        path: '/notesRoot/assets/cover.png',
         isDirectory: false,
         isFile: true,
         size: 2048,

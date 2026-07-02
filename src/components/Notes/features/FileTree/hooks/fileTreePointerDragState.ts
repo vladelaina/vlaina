@@ -4,7 +4,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import {
   createStarredEntryIfValid,
   getStarredEntryKey,
-  getVaultStarredPaths,
+  getNotesRootStarredPaths,
   saveStarredRegistry,
 } from '@/stores/notes/starred';
 import type { StarredKind } from '@/stores/notes/types';
@@ -433,7 +433,7 @@ function ensureStarredPath(kind: StarredKind, relativePath: string) {
   }
 
   const updatedEntries = [...starredEntries, nextEntry];
-  const starredPaths = getVaultStarredPaths(updatedEntries, notesPath);
+  const starredPaths = getNotesRootStarredPaths(updatedEntries, notesPath);
   useNotesStore.setState({
     starredEntries: updatedEntries,
     starredNotes: starredPaths.notes,

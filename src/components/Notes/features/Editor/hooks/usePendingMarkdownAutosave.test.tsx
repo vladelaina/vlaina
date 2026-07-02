@@ -56,7 +56,7 @@ describe('usePendingMarkdownAutosave', () => {
       isDirty: false,
       openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
     });
   });
 

@@ -140,9 +140,9 @@ export function registerWindowIpc({
   });
 
   handleIpc('desktop:window:create', (_event, windowOptions) => {
-    const vaultPath =
-      typeof windowOptions?.vaultPath === 'string' && windowOptions.vaultPath.trim()
-        ? windowOptions.vaultPath
+    const notesRootPath =
+      typeof windowOptions?.notesRootPath === 'string' && windowOptions.notesRootPath.trim()
+        ? windowOptions.notesRootPath
         : null;
     const notePath =
       typeof windowOptions?.notePath === 'string' && windowOptions.notePath.trim()
@@ -163,7 +163,7 @@ export function registerWindowIpc({
 
     createWindow({
       newWindow: true,
-      vaultPath,
+      notesRootPath,
       notePath,
       folderPath,
       chatSessionId,

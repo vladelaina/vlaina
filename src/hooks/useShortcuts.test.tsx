@@ -296,8 +296,8 @@ describe('useShortcuts', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,
@@ -331,8 +331,8 @@ describe('useShortcuts', () => {
         id: 'delete-1',
         kind: 'file',
         originalPath: 'alpha.md',
-        originalFullPath: '/vault/alpha.md',
-        stagingPath: '/app/.vlaina/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        originalFullPath: '/notesRoot/alpha.md',
+        stagingPath: '/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-1/alpha.md',
         deletedAt: 1,
         previousCurrentNote: null,
         previousIsDirty: false,
@@ -418,43 +418,62 @@ describe('useShortcuts', () => {
 
     renderHook(() => useShortcuts());
 
-    const zoomInEvent = new WheelEvent('wheel', {
-      ctrlKey: true,
-      deltaY: -80,
-      bubbles: true,
-      cancelable: true,
-    });
-    act(() => {
-      window.dispatchEvent(zoomInEvent);
-    });
+    vi.useFakeTimers();
+    try {
+      const zoomInEvent = new WheelEvent('wheel', {
+        ctrlKey: true,
+        deltaY: -80,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        window.dispatchEvent(zoomInEvent);
+      });
 
-    expect(zoomInEvent.defaultPrevented).toBe(true);
-    expect(useUIStore.getState().fontSize).toBe(18);
+      expect(zoomInEvent.defaultPrevented).toBe(true);
+      expect(useUIStore.getState().fontSize).toBe(18);
+      expect(localStorage.getItem('fontSize')).toBeNull();
 
-    const zoomOutEvent = new WheelEvent('wheel', {
-      ctrlKey: true,
-      deltaY: 80,
-      bubbles: true,
-      cancelable: true,
-    });
-    act(() => {
-      window.dispatchEvent(zoomOutEvent);
-    });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
 
-    expect(zoomOutEvent.defaultPrevented).toBe(true);
-    expect(useUIStore.getState().fontSize).toBe(17);
+      expect(localStorage.getItem('fontSize')).toBe('18');
 
-    const normalWheelEvent = new WheelEvent('wheel', {
-      deltaY: -80,
-      bubbles: true,
-      cancelable: true,
-    });
-    act(() => {
-      window.dispatchEvent(normalWheelEvent);
-    });
+      const zoomOutEvent = new WheelEvent('wheel', {
+        ctrlKey: true,
+        deltaY: 80,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        window.dispatchEvent(zoomOutEvent);
+      });
 
-    expect(normalWheelEvent.defaultPrevented).toBe(false);
-    expect(useUIStore.getState().fontSize).toBe(17);
+      expect(zoomOutEvent.defaultPrevented).toBe(true);
+      expect(useUIStore.getState().fontSize).toBe(17);
+      expect(localStorage.getItem('fontSize')).toBe('18');
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(localStorage.getItem('fontSize')).toBe('17');
+
+      const normalWheelEvent = new WheelEvent('wheel', {
+        deltaY: -80,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        window.dispatchEvent(normalWheelEvent);
+      });
+
+      expect(normalWheelEvent.defaultPrevented).toBe(false);
+      expect(useUIStore.getState().fontSize).toBe(17);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('creates a notes draft with Ctrl+Shift+T and leaves Ctrl+T free', async () => {

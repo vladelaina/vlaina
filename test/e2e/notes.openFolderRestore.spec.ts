@@ -4,32 +4,32 @@ import path from 'node:path';
 import {
   closeElectron,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
   getOpenBridgePages,
   launchIsolatedElectron,
   NOTE_SCROLL_ROOT_SELECTOR,
-  openVaultInNotes,
+  openNotesRootInNotes,
   setAppViewMode,
 } from './notesE2E';
 
-function getVaultStorageKey(vaultPath: string): string {
-  const normalized = vaultPath.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '') || vaultPath;
+function getNotesRootStorageKey(notesRootPath: string): string {
+  const normalized = notesRootPath.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '') || notesRootPath;
   let hash = 2166136261;
   for (let index = 0; index < normalized.length; index += 1) {
     hash ^= normalized.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  return `vault-${(hash >>> 0).toString(36)}`;
+  return `notes-root-${(hash >>> 0).toString(36)}`;
 }
 
-async function writeVaultWorkspace(
+async function writeNotesRootWorkspace(
   userDataDir: string,
-  vaultPath: string,
+  notesRootPath: string,
   currentNotePath: string,
 ): Promise<void> {
-  const workspaceDir = path.join(userDataDir, '.vlaina', 'notes', 'vaults', getVaultStorageKey(vaultPath));
+  const workspaceDir = path.join(userDataDir, '.vlaina', 'notes', 'notes-roots', getNotesRootStorageKey(notesRootPath));
   await fs.mkdir(workspaceDir, { recursive: true });
   await fs.writeFile(
     path.join(workspaceDir, 'workspace.json'),
@@ -55,7 +55,7 @@ function createLongRestoreMarkdown(): string {
 }
 
 test.describe('notes open folder restore', () => {
-  test('does not keep the startup blank draft when opening a populated vault without a saved workspace note', async () => {
+  test('does not keep the startup blank draft when opening a populated notes root without a saved workspace note', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-open-folder-populated-no-restore');
 
     try {
@@ -74,7 +74,7 @@ test.describe('notes open folder restore', () => {
         openTabPaths: [expect.stringMatching(/^draft:/)],
       });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'populated-no-restore',
         files: [
           {
@@ -84,23 +84,23 @@ test.describe('notes open folder restore', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Populated No Restore',
         minFileCount: 1,
       });
 
       await expect.poll(async () => page.evaluate(() => {
         const notesState = (window as any).__vlainaE2E.getNotesState();
-        const vaultState = (window as any).__vlainaE2E.getVaultState();
+        const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
         return {
-          currentVaultPath: vaultState.currentVault?.path ?? null,
+          currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
           currentNotePath: notesState.currentNote?.path ?? null,
           openTabPaths: notesState.openTabs.map((tab: { path: string }) => tab.path),
           fileRows: document.querySelectorAll('[data-file-tree-kind="file"]').length,
         };
       }), { timeout: 30_000 }).toMatchObject({
-        currentVaultPath: fixture.vaultPath,
+        currentNotesRootPath: fixture.notesRootPath,
         currentNotePath: null,
         openTabPaths: [],
         fileRows: 1,
@@ -110,7 +110,7 @@ test.describe('notes open folder restore', () => {
     }
   });
 
-  test('restores the saved current note when reopening a populated vault', async () => {
+  test('restores the saved current note when reopening a populated notes root', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('notes-open-folder-restore-last-note');
 
     try {
@@ -118,7 +118,7 @@ test.describe('notes open folder restore', () => {
       const [page] = await getOpenBridgePages(app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const firstVault = await createVaultFilesFixture(page, {
+      const firstNotesRoot = await createNotesRootFilesFixture(page, {
         name: 'restore-last-note-a',
         files: [
           {
@@ -127,18 +127,18 @@ test.describe('notes open folder restore', () => {
           },
         ],
       });
-      const secondVault = await createVaultFilesFixture(page, {
+      const secondNotesRoot = await createNotesRootFilesFixture(page, {
         name: 'restore-last-note-b',
         files: [
           {
             filename: 'beta.md',
-            content: '# Beta\n\nSecond vault sentinel.\n',
+            content: '# Beta\n\nSecond notes root sentinel.\n',
           },
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: firstVault.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: firstNotesRoot.notesRootPath,
         name: 'Restore Last Note A',
         minFileCount: 1,
       });
@@ -147,27 +147,27 @@ test.describe('notes open folder restore', () => {
         timeout: 30_000,
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: secondVault.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: secondNotesRoot.notesRootPath,
         name: 'Restore Last Note B',
         minFileCount: 1,
       });
       await expect.poll(async () => page.evaluate(() => {
         const notesState = (window as any).__vlainaE2E.getNotesState();
-        const vaultState = (window as any).__vlainaE2E.getVaultState();
+        const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
         return {
-          currentVaultPath: vaultState.currentVault?.path ?? null,
+          currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
           currentNotePath: notesState.currentNote?.path ?? null,
           openTabPaths: notesState.openTabs.map((tab: { path: string }) => tab.path),
         };
       }), { timeout: 30_000 }).toMatchObject({
-        currentVaultPath: secondVault.vaultPath,
+        currentNotesRootPath: secondNotesRoot.notesRootPath,
         currentNotePath: null,
         openTabPaths: [],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: firstVault.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: firstNotesRoot.notesRootPath,
         name: 'Restore Last Note A',
         minFileCount: 1,
       });
@@ -176,14 +176,14 @@ test.describe('notes open folder restore', () => {
       });
       await expect.poll(async () => page.evaluate(() => {
         const notesState = (window as any).__vlainaE2E.getNotesState();
-        const vaultState = (window as any).__vlainaE2E.getVaultState();
+        const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
         return {
-          currentVaultPath: vaultState.currentVault?.path ?? null,
+          currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
           currentNotePath: notesState.currentNote?.path ?? null,
           openTabPaths: notesState.openTabs.map((tab: { path: string }) => tab.path),
         };
       }), { timeout: 30_000 }).toMatchObject({
-        currentVaultPath: firstVault.vaultPath,
+        currentNotesRootPath: firstNotesRoot.notesRootPath,
         currentNotePath: 'alpha.md',
         openTabPaths: ['alpha.md'],
       });
@@ -202,7 +202,7 @@ test.describe('notes open folder restore', () => {
       const [page] = await getOpenBridgePages(first.app, 1);
       await page.setViewportSize({ width: 1280, height: 860 });
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'restore-scroll-focus',
         files: [
           {
@@ -212,8 +212,8 @@ test.describe('notes open folder restore', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
         name: 'Restore Scroll Focus',
         minFileCount: 1,
       });
@@ -222,7 +222,7 @@ test.describe('notes open folder restore', () => {
         timeout: 30_000,
       });
 
-      const savedScroll = await page.evaluate(({ scrollSelector, storageKey, vaultPath, notePath }) => {
+      const savedScroll = await page.evaluate(({ scrollSelector, storageKey, notesRootPath, notePath }) => {
         const scrollRoot = document.querySelector<HTMLElement>(scrollSelector);
         if (!scrollRoot) {
           throw new Error('Missing note scroll root');
@@ -233,7 +233,7 @@ test.describe('notes open folder restore', () => {
         scrollRoot.scrollTop = scrollTop;
         scrollRoot.dispatchEvent(new Event('scroll', { bubbles: true }));
 
-        const identity = JSON.stringify([vaultPath, notePath]);
+        const identity = JSON.stringify([notesRootPath, notePath]);
         const positions = JSON.parse(window.localStorage.getItem(storageKey) || '{}');
         positions[identity] = { scrollTop, updatedAt: Date.now() };
         window.localStorage.setItem(storageKey, JSON.stringify(positions));
@@ -243,12 +243,12 @@ test.describe('notes open folder restore', () => {
         notePath,
         scrollSelector: NOTE_SCROLL_ROOT_SELECTOR,
         storageKey: 'vlaina-note-scroll-positions',
-        vaultPath: fixture.vaultPath,
+        notesRootPath: fixture.notesRootPath,
       });
       expect(savedScroll.maxScrollTop).toBeGreaterThan(700);
       expect(savedScroll.scrollTop).toBeGreaterThan(400);
 
-      await writeVaultWorkspace(first.userDataDir, fixture.vaultPath, notePath);
+      await writeNotesRootWorkspace(first.userDataDir, fixture.notesRootPath, notePath);
       await closeElectron(first.app);
 
       second = await launchIsolatedElectron('notes-open-folder-restore-scroll-b', {
@@ -271,9 +271,9 @@ test.describe('notes open folder restore', () => {
         const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
         const activeElement = document.activeElement;
         const notesState = (window as any).__vlainaE2E.getNotesState();
-        const vaultState = (window as any).__vlainaE2E.getVaultState();
+        const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
         return {
-          currentVaultPath: vaultState.currentVault?.path ?? null,
+          currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
           currentNotePath: notesState.currentNote?.path ?? null,
           editorContainsFocus: Boolean(
             editor && activeElement instanceof Node && editor.contains(activeElement)
@@ -283,7 +283,7 @@ test.describe('notes open folder restore', () => {
       }, NOTE_SCROLL_ROOT_SELECTOR);
 
       expect(restoredState).toMatchObject({
-        currentVaultPath: fixture.vaultPath,
+        currentNotesRootPath: fixture.notesRootPath,
         currentNotePath: notePath,
         editorContainsFocus: false,
       });

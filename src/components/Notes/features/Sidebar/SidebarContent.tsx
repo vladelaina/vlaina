@@ -8,7 +8,7 @@ import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarS
 import { cn } from '@/lib/utils';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
@@ -16,7 +16,7 @@ import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
 import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 import {
-  getEmptyWorkspaceRecentVaults,
+  getEmptyWorkspaceRecentNotesRoots,
   SidebarEmptyWorkspacePanel,
 } from './SidebarEmptyWorkspacePanel';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
@@ -88,9 +88,9 @@ export function SidebarContent({
   const cancelNoteContentScan = useNotesStore((s) => s.cancelNoteContentScan);
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const starredEntries = useNotesStore((s) => s.starredEntries);
-  const currentVault = useVaultStore((s) => s.currentVault);
-  const recentVaults = useVaultStore((s) => s.recentVaults);
-  const openVault = useVaultStore((s) => s.openVault);
+  const currentNotesRoot = useNotesRootStore((s) => s.currentNotesRoot);
+  const recentNotesRoots = useNotesRootStore((s) => s.recentNotesRoots);
+  const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const currentDraftPreviewTitle = useUIStore((s) => {
     if (!currentNotePath || s.notesPreviewTitle?.path !== currentNotePath) {
@@ -214,7 +214,7 @@ export function SidebarContent({
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
   const lastRevealedCurrentNotePathRef = useRef<string | null>(null);
-  const hasVaultPendingRoot = Boolean(currentVault && notesPath === currentVault.path && !displayRootFolder);
+  const hasNotesRootPendingRoot = Boolean(currentNotesRoot && notesPath === currentNotesRoot.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
     rootFolder: displayRootFolder,
@@ -227,7 +227,7 @@ export function SidebarContent({
     searchQuery: deferredSearchQuery,
     isSearchOpen: effectiveSearchOpen,
     starredEntries,
-    currentVaultPath: currentVault?.path ?? notesPath,
+    currentNotesRootPath: currentNotesRoot?.path ?? notesPath,
   });
   const { tags } = useNotesSidebarTags({
     rootFolder: displayRootFolder,
@@ -241,20 +241,20 @@ export function SidebarContent({
           : null,
     scanAllNotes,
     starredEntries,
-    currentVaultPath: currentVault?.path ?? notesPath,
+    currentNotesRootPath: currentNotesRoot?.path ?? notesPath,
     active: active && !effectiveSearchOpen,
   });
   const hasLoadedRootFolder = Boolean(displayRootFolder);
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
-  const shouldShowFloatingEmptyHint = !isLoading && !hasVaultPendingRoot && !hasLoadedRootFolder;
+  const shouldShowFloatingEmptyHint = !isLoading && !hasNotesRootPendingRoot && !hasLoadedRootFolder;
   const shouldShowEmptyWorkspacePanel =
     shouldShowInlineEmptyHint || (shouldShowFloatingEmptyHint && !sidebarCollapsed);
   const shouldRenderRootFolderRow = Boolean(
-    displayRootFolder || hasVaultPendingRoot || shouldShowInlineEmptyHint,
+    displayRootFolder || hasNotesRootPendingRoot || shouldShowInlineEmptyHint,
   );
-  const recentEmptyWorkspaceVaults = useMemo(() => (
-    getEmptyWorkspaceRecentVaults(recentVaults, currentVault?.path)
-  ), [currentVault?.path, recentVaults]);
+  const recentEmptyWorkspaceNotesRoots = useMemo(() => (
+    getEmptyWorkspaceRecentNotesRoots(recentNotesRoots, currentNotesRoot?.path)
+  ), [currentNotesRoot?.path, recentNotesRoots]);
 
   useEffect(() => {
     if (!active) {
@@ -555,8 +555,8 @@ export function SidebarContent({
     window.dispatchEvent(new Event('app-open-markdown-target-folder'));
   };
 
-  const handleOpenRecentVault = (path: string) => {
-    void openVault(path).catch(() => undefined);
+  const handleOpenRecentNotesRoot = (path: string) => {
+    void openNotesRoot(path).catch(() => undefined);
   };
 
   return (
@@ -646,10 +646,10 @@ export function SidebarContent({
                     folderLabel={t('notes.folder')}
                     openFileLabel={t('notes.openFile')}
                     openFolderLabel={t('notes.openFolder')}
-                    recentVaults={recentEmptyWorkspaceVaults}
+                    recentNotesRoots={recentEmptyWorkspaceNotesRoots}
                     onOpenFile={handleOpenMarkdownFile}
                     onOpenFolder={handleOpenFolder}
-                    onOpenRecentVault={handleOpenRecentVault}
+                    onOpenRecentNotesRoot={handleOpenRecentNotesRoot}
                   />
                 ) : null}
               </div>

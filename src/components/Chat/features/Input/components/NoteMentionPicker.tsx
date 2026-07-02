@@ -46,7 +46,7 @@ function NoteMentionCandidateIcon({ candidate }: { candidate: NoteMentionCandida
       <NoteIcon
         icon={candidate.icon}
         notePath={candidate.notePath ?? candidate.path}
-        vaultPath={candidate.vaultPath}
+        notesRootPath={candidate.notesRootPath}
         size={NOTES_SIDEBAR_ICON_SIZE}
       />
     );
@@ -88,7 +88,7 @@ function StarredNoteMentionIcon({
     <NoteIcon
       icon={starredIcon}
       notePath={candidate.notePath ?? candidate.path}
-      vaultPath={candidate.vaultPath}
+      notesRootPath={candidate.notesRootPath}
       size={NOTES_SIDEBAR_ICON_SIZE}
     />
   );
