@@ -241,6 +241,21 @@ describe('window manager reveal timing', () => {
     expect(window.loadURL).toHaveBeenCalledWith('http://localhost:3000/?newWindow=true&viewMode=chat');
   });
 
+  it('passes notes root launch targets through the renderer URL', () => {
+    const { handlers } = createIpcHarness();
+
+    handlers.get('desktop:window:create')?.({}, {
+      notesRootPath: '/notes-root/docs',
+      notePath: 'readme.md',
+      viewMode: 'notes',
+    });
+
+    const window = hoisted.windows[0];
+    expect(window.loadURL).toHaveBeenCalledWith(
+      'http://localhost:3000/?newWindow=true&notesRootPath=%2Fnotes-root%2Fdocs&notePath=readme.md&viewMode=notes',
+    );
+  });
+
   it('labels user-created windows as secondary even when no main window exists yet', () => {
     const { handlers } = createIpcHarness();
 

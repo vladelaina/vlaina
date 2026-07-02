@@ -47,22 +47,22 @@ describe('note document internal paths', () => {
 
   it('does not load hidden app or git note documents', async () => {
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: '.vlaina/workspace.md',
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'docs/.git/config.md',
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: '.VLAINA/workspace.md',
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'docs/.GIT/config.md',
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
@@ -73,7 +73,7 @@ describe('note document internal paths', () => {
 
   it('does not load non-markdown note documents', async () => {
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'docs/secret.txt',
       cache: new Map(),
     })).rejects.toThrow('Only Markdown files can be opened as notes.');
@@ -84,7 +84,7 @@ describe('note document internal paths', () => {
 
   it('does not return cached markdown for hidden app or git note documents', async () => {
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: '.vlaina/workspace.md',
       cache: new Map([
         ['.vlaina/workspace.md', { content: '# Cached', modifiedAt: 1 }],
@@ -92,7 +92,7 @@ describe('note document internal paths', () => {
       allowStaleCachedContent: true,
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: '.VLAINA/workspace.md',
       cache: new Map([
         ['.VLAINA/workspace.md', { content: '# Cached', modifiedAt: 1 }],
@@ -106,12 +106,12 @@ describe('note document internal paths', () => {
 
   it('does not load markdown documents with unsafe path characters', async () => {
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'docs/secret\u202Egnp.md',
       cache: new Map(),
     })).rejects.toThrow('Selected file path contains unsupported characters');
     await expect(loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: 'docs/secret\u001F.md',
       cache: new Map([
         ['docs/secret\u001F.md', { content: '# Cached', modifiedAt: 1 }],
@@ -125,7 +125,7 @@ describe('note document internal paths', () => {
 
   it('does not save hidden app or git note documents', async () => {
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'docs/.git/config.md',
         content: '# Config',
@@ -133,7 +133,7 @@ describe('note document internal paths', () => {
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: '.VLAINA/workspace.md',
         content: '# Config',
@@ -141,7 +141,7 @@ describe('note document internal paths', () => {
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'docs/.GIT/config.md',
         content: '# Config',
@@ -156,7 +156,7 @@ describe('note document internal paths', () => {
 
   it('does not save markdown documents with unsafe path characters', async () => {
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'docs/secret\u202Egnp.md',
         content: '# Secret',
@@ -171,7 +171,7 @@ describe('note document internal paths', () => {
 
   it('does not save non-markdown note documents', async () => {
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
         path: 'docs/secret.txt',
         content: '# Secret',
@@ -186,26 +186,26 @@ describe('note document internal paths', () => {
 
   it('allows user dot-folder note documents', async () => {
     const result = await loadNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       path: '.notes/alpha.md',
       cache: new Map(),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/.notes/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Alpha');
   });
 
   it('allows Windows absolute note documents without treating the drive prefix as unsafe', async () => {
     await expect(loadNoteDocument({
-      notesPath: '/vault',
-      path: 'C:\\vault\\docs\\alpha.md',
+      notesPath: '/notesRoot',
+      path: 'C:\\notesRoot\\docs\\alpha.md',
       cache: new Map(),
     })).resolves.toMatchObject({ content: '# Alpha' });
 
     await expect(saveNoteDocument({
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       currentNote: {
-        path: 'C:\\vault\\docs\\alpha.md',
+        path: 'C:\\notesRoot\\docs\\alpha.md',
         content: '# Alpha',
       },
       cache: new Map(),
@@ -213,9 +213,9 @@ describe('note document internal paths', () => {
       content: expect.stringContaining('# Alpha'),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('C:\\vault\\docs\\alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('C:\\notesRoot\\docs\\alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      'C:\\vault\\docs\\alpha.md',
+      'C:\\notesRoot\\docs\\alpha.md',
       expect.stringContaining('# Alpha')
     );
   });
@@ -223,22 +223,22 @@ describe('note document internal paths', () => {
   it('loads every supported markdown extension', async () => {
     for (const path of ['alpha.md', 'beta.markdown', 'gamma.mdown', 'delta.mkd']) {
       await expect(loadNoteDocument({
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         path,
         cache: new Map(),
       })).resolves.toMatchObject({ content: '# Alpha' });
     }
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/beta.markdown', MAX_NOTE_DOCUMENT_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/gamma.mdown', MAX_NOTE_DOCUMENT_BYTES);
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/delta.mkd', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/beta.markdown', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/gamma.mdown', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notesRoot/delta.mkd', MAX_NOTE_DOCUMENT_BYTES);
   });
 
   it('saves every supported markdown extension', async () => {
     for (const path of ['alpha.md', 'beta.markdown', 'gamma.mdown', 'delta.mkd']) {
       await expect(saveNoteDocument({
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         currentNote: {
           path,
           content: '# Alpha',
@@ -249,9 +249,9 @@ describe('note document internal paths', () => {
       });
     }
 
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', expect.any(String));
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/beta.markdown', expect.any(String));
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/gamma.mdown', expect.any(String));
-    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/delta.mkd', expect.any(String));
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/alpha.md', expect.any(String));
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/beta.markdown', expect.any(String));
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/gamma.mdown', expect.any(String));
+    expect(adapter.writeFile).toHaveBeenCalledWith('/notesRoot/delta.mkd', expect.any(String));
   });
 });

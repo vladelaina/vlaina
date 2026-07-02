@@ -5,10 +5,10 @@ import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdo
 import { assertEditorSafeMarkdownContent } from '@/stores/notes/document/noteDocumentPersistence';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
-  hasUnsafeVaultPathSegment,
-  normalizeVaultRelativePath,
-  resolveVaultRelativeFullPath,
-} from '@/stores/notes/utils/fs/vaultPathContainment';
+  hasUnsafeNotesRootPathSegment,
+  normalizeNotesRootRelativePath,
+  resolveNotesRootRelativeFullPath,
+} from '@/stores/notes/utils/fs/notesRootPathContainment';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FolderNode } from '@/stores/useNotesStore';
 import {
@@ -31,22 +31,22 @@ const tagContentUtf8Encoder = new TextEncoder();
 type SidebarTagContentCacheEntry = {
   content: string;
   revision: number;
-  vaultPath: string | null;
+  notesRootPath: string | null;
 };
 type SidebarTagContentCache = Map<string, SidebarTagContentCacheEntry>;
 type SidebarTagDirectReadBudget = {
   contentChars: number;
   revision: number;
   scopeKey: string;
-  vaultPath: string | null;
+  notesRootPath: string | null;
 };
 
 function isFreshSidebarTagContentEntry(
   entry: SidebarTagContentCacheEntry | undefined,
   revision: number,
-  vaultPath: string | null,
+  notesRootPath: string | null,
 ) {
-  return entry?.revision === revision && entry.vaultPath === vaultPath;
+  return entry?.revision === revision && entry.notesRootPath === notesRootPath;
 }
 
 function getSidebarTagScopeBudgetKey(entries: readonly NotesSidebarTagScopeEntry[]): string {
@@ -56,10 +56,10 @@ function getSidebarTagScopeBudgetKey(entries: readonly NotesSidebarTagScopeEntry
 }
 
 function hasUnsafeSidebarTagPathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path);
+  return hasUnsafeNotesRootPathSegment(path);
 }
 
-function isAllowedSidebarTagContentPath(path: string, currentVaultPath: string | null): boolean {
+function isAllowedSidebarTagContentPath(path: string, currentNotesRootPath: string | null): boolean {
   if (!isSupportedMarkdownPath(path)) {
     return false;
   }
@@ -67,15 +67,15 @@ function isAllowedSidebarTagContentPath(path: string, currentVaultPath: string |
   if (
     hasInternalNotePathSegment(path) ||
     hasUnsafeSidebarTagPathSegment(path) ||
-    (currentVaultPath && (
-      hasInternalNotePathSegment(currentVaultPath) ||
-      hasUnsafeSidebarTagPathSegment(currentVaultPath)
+    (currentNotesRootPath && (
+      hasInternalNotePathSegment(currentNotesRootPath) ||
+      hasUnsafeSidebarTagPathSegment(currentNotesRootPath)
     ))
   ) {
     return false;
   }
 
-  return isAbsolutePath(path) || normalizeVaultRelativePath(path) !== null;
+  return isAbsolutePath(path) || normalizeNotesRootRelativePath(path) !== null;
 }
 
 function isSidebarTagContentWithinReadLimit(content: string): boolean {
@@ -85,16 +85,16 @@ function isSidebarTagContentWithinReadLimit(content: string): boolean {
   );
 }
 
-async function readSidebarTagContent(path: string, currentVaultPath: string | null): Promise<string> {
-  if (!isAllowedSidebarTagContentPath(path, currentVaultPath)) {
+async function readSidebarTagContent(path: string, currentNotesRootPath: string | null): Promise<string> {
+  if (!isAllowedSidebarTagContentPath(path, currentNotesRootPath)) {
     return '';
   }
 
   const storage = getStorageAdapter();
   const fullPath = isAbsolutePath(path)
     ? path
-    : currentVaultPath
-      ? await resolveVaultRelativeFullPath(currentVaultPath, path)
+    : currentNotesRootPath
+      ? await resolveNotesRootRelativeFullPath(currentNotesRootPath, path)
           .then((result) => result.fullPath)
           .catch(() => null)
       : null;
@@ -133,7 +133,7 @@ export function useNotesSidebarTags({
   liveNoteContent,
   scanAllNotes,
   starredEntries = [],
-  currentVaultPath = null,
+  currentNotesRootPath = null,
   active = true,
 }: {
   rootFolder: FolderNode | null;
@@ -142,7 +142,7 @@ export function useNotesSidebarTags({
   liveNoteContent?: { path: string; content: string } | null;
   scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<unknown>;
   starredEntries?: StarredEntry[];
-  currentVaultPath?: string | null;
+  currentNotesRootPath?: string | null;
   active?: boolean;
 }) {
   const scanPromiseRef = useRef<Promise<unknown> | null>(null);
@@ -157,22 +157,22 @@ export function useNotesSidebarTags({
   const [sidebarTagContentCache, setSidebarTagContentCache] = useState<SidebarTagContentCache>(
     () => new Map(),
   );
-  const isInternalTagVaultPath = currentVaultPath
-    ? hasInternalNotePathSegment(currentVaultPath)
+  const isInternalTagNotesRootPath = currentNotesRootPath
+    ? hasInternalNotePathSegment(currentNotesRootPath)
     : false;
   const scopeEntries = useMemo(
     () => {
-      if (isInternalTagVaultPath) {
+      if (isInternalTagNotesRootPath) {
         return [];
       }
 
       return buildNotesSidebarTagScopeEntries({
         rootFolder,
         starredEntries,
-        currentVaultPath,
+        currentNotesRootPath,
       });
     },
-    [currentVaultPath, isInternalTagVaultPath, rootFolder, starredEntries],
+    [currentNotesRootPath, isInternalTagNotesRootPath, rootFolder, starredEntries],
   );
   const scopeBudgetKey = useMemo(
     () => getSidebarTagScopeBudgetKey(scopeEntries),
@@ -191,7 +191,7 @@ export function useNotesSidebarTags({
                 isFreshSidebarTagContentEntry(
                   sidebarTagContentCache.get(path),
                   noteContentsCacheRevision,
-                  currentVaultPath,
+                  currentNotesRootPath,
                 )
                   ? sidebarTagContentCache.get(path)?.content
                   : undefined
@@ -205,7 +205,7 @@ export function useNotesSidebarTags({
       liveNoteContent?.path,
       noteContentsCache,
       noteContentsCacheRevision,
-      currentVaultPath,
+      currentNotesRootPath,
       scopeEntries,
       sidebarTagContentCache,
     ],
@@ -235,10 +235,10 @@ export function useNotesSidebarTags({
         !isFreshSidebarTagContentEntry(
           sidebarTagContentCache.get(entry.path),
           noteContentsCacheRevision,
-          currentVaultPath,
+          currentNotesRootPath,
         ),
     ),
-    [currentVaultPath, liveNoteContent?.path, noteContentsCache, noteContentsCacheRevision, scopeEntries, sidebarTagContentCache],
+    [currentNotesRootPath, liveNoteContent?.path, noteContentsCache, noteContentsCacheRevision, scopeEntries, sidebarTagContentCache],
   );
 
   const isTagIndexReady = scopeEntries.length > 0 && !missingIndexedContent;
@@ -251,7 +251,7 @@ export function useNotesSidebarTags({
       for (const [path, entry] of current) {
         if (
           scopedPaths.has(path) &&
-          isFreshSidebarTagContentEntry(entry, noteContentsCacheRevision, currentVaultPath)
+          isFreshSidebarTagContentEntry(entry, noteContentsCacheRevision, currentNotesRootPath)
         ) {
           next.set(path, entry);
         } else {
@@ -260,7 +260,7 @@ export function useNotesSidebarTags({
       }
       return changed ? next : current;
     });
-  }, [currentVaultPath, noteContentsCacheRevision, scopeEntries]);
+  }, [currentNotesRootPath, noteContentsCacheRevision, scopeEntries]);
 
   useEffect(() => {
     if (noteContentsCache.size === 0 || scopeEntries.length === 0) {
@@ -281,7 +281,7 @@ export function useNotesSidebarTags({
         if (
           currentEntry?.content === cachedContent &&
           currentEntry.revision === noteContentsCacheRevision &&
-          currentEntry.vaultPath === currentVaultPath
+          currentEntry.notesRootPath === currentNotesRootPath
         ) {
           continue;
         }
@@ -289,14 +289,14 @@ export function useNotesSidebarTags({
         next.set(entry.path, {
           content: cachedContent,
           revision: noteContentsCacheRevision,
-          vaultPath: currentVaultPath,
+          notesRootPath: currentNotesRootPath,
         });
         changed = true;
       }
 
       return changed ? next : current;
     });
-  }, [currentVaultPath, noteContentsCache, noteContentsCacheRevision, scopeEntries]);
+  }, [currentNotesRootPath, noteContentsCache, noteContentsCacheRevision, scopeEntries]);
 
   useEffect(() => {
     if (!active || scopeEntries.length === 0 || !missingIndexedContent) {
@@ -311,7 +311,7 @@ export function useNotesSidebarTags({
         !isFreshSidebarTagContentEntry(
           sidebarTagContentCache.get(path),
           noteContentsCacheRevision,
-          currentVaultPath,
+          currentNotesRootPath,
         )
       );
     if (missingPaths.length === 0 || missingPaths.length > MAX_TAG_DIRECT_READ_MISSING_PATHS) {
@@ -323,13 +323,13 @@ export function useNotesSidebarTags({
       !directReadBudget ||
       directReadBudget.scopeKey !== scopeBudgetKey ||
       directReadBudget.revision !== noteContentsCacheRevision ||
-      directReadBudget.vaultPath !== currentVaultPath
+      directReadBudget.notesRootPath !== currentNotesRootPath
     ) {
       directReadBudget = {
         contentChars: 0,
         revision: noteContentsCacheRevision,
         scopeKey: scopeBudgetKey,
-        vaultPath: currentVaultPath,
+        notesRootPath: currentNotesRootPath,
       };
       directReadBudgetRef.current = directReadBudget;
     }
@@ -363,7 +363,7 @@ export function useNotesSidebarTags({
         const results = await Promise.all(
           batch.map(async (path) => ({
             path,
-            content: await readSidebarTagContent(path, currentVaultPath),
+            content: await readSidebarTagContent(path, currentNotesRootPath),
           })),
         );
         if (cancelled) {
@@ -385,7 +385,7 @@ export function useNotesSidebarTags({
           loaded.set(result.path, {
             content: result.content,
             revision: noteContentsCacheRevision,
-            vaultPath: currentVaultPath,
+            notesRootPath: currentNotesRootPath,
           });
         }
       }
@@ -408,7 +408,7 @@ export function useNotesSidebarTags({
     };
   }, [
     active,
-    currentVaultPath,
+    currentNotesRootPath,
     liveNoteContent?.path,
     missingIndexedContent,
     noteContentsCache,

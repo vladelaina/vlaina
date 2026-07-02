@@ -61,7 +61,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 
   state = {
     ...slice,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     isDirty: false,
@@ -95,7 +95,7 @@ function deletionResult(path: string, kind: 'file' | 'folder') {
     updatedStarredEntries: [{
       id: 'stale-star',
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'stale.md',
       addedAt: 1,
     }],
@@ -113,8 +113,8 @@ function deletionResult(path: string, kind: 'file' | 'folder') {
       id: `delete-${path}`,
       kind,
       originalPath: path,
-      originalFullPath: `/vault/${path}`,
-      stagingPath: `/app/.vlaina/notes/vaults/vault-test/trash/delete-${path}/${path.split('/').pop() ?? path}`,
+      originalFullPath: `/notesRoot/${path}`,
+      stagingPath: `/app/.vlaina/notes/notes-roots/notes-root-test/trash/delete-${path}/${path.split('/').pop() ?? path}`,
       deletedAt: 1,
     },
   };
@@ -153,7 +153,7 @@ describe('fileSystemSlice deletion state races', () => {
       starredEntries: [{
         id: 'old-star',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'old.md',
         addedAt: 1,
       }],
@@ -172,14 +172,14 @@ describe('fileSystemSlice deletion state races', () => {
       {
         id: 'deleted-star',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'alpha.md',
         addedAt: 2,
       },
       {
         id: 'keep-star',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'keep.md',
         addedAt: 3,
       },
@@ -199,7 +199,7 @@ describe('fileSystemSlice deletion state races', () => {
     expect(state.starredEntries).toEqual([{
       id: 'keep-star',
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'keep.md',
       addedAt: 3,
     }]);
@@ -240,7 +240,7 @@ describe('fileSystemSlice deletion state races', () => {
       starredEntries: [{
         id: 'old-star',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'old.md',
         addedAt: 1,
       }],
@@ -259,21 +259,21 @@ describe('fileSystemSlice deletion state races', () => {
       {
         id: 'folder-star',
         kind: 'folder',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs',
         addedAt: 2,
       },
       {
         id: 'note-star',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'docs/alpha.md',
         addedAt: 3,
       },
       {
         id: 'keep-star',
         kind: 'note',
-        vaultPath: '/vault',
+        notesRootPath: '/notesRoot',
         relativePath: 'keep.md',
         addedAt: 4,
       },
@@ -293,7 +293,7 @@ describe('fileSystemSlice deletion state races', () => {
     expect(state.starredEntries).toEqual([{
       id: 'keep-star',
       kind: 'note',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       relativePath: 'keep.md',
       addedAt: 4,
     }]);

@@ -35,7 +35,7 @@ test.describe('notes desktop open-file launch', () => {
   async function expectOpenedMarkdownFile(
     page: Awaited<ReturnType<typeof getOpenBridgePages>>[number],
     input: {
-      vaultPath: string;
+      notesRootPath: string;
       notePath: string;
       noteName: string;
       sentinel: string;
@@ -48,15 +48,15 @@ test.describe('notes desktop open-file launch', () => {
     });
 
     await expect.poll(async () => page.evaluate(() => {
-      const vaultState = (window as any).__vlainaE2E.getVaultState();
+      const notesRootState = (window as any).__vlainaE2E.getNotesRootState();
       const notesState = (window as any).__vlainaE2E.getNotesState();
       return {
-        currentVaultPath: vaultState.currentVault?.path ?? null,
+        currentNotesRootPath: notesRootState.currentNotesRoot?.path ?? null,
         currentNotePath: notesState.currentNote?.path ?? null,
         fileRows: document.querySelectorAll('[data-file-tree-kind="file"]').length,
       };
     }), { timeout: 30_000 }).toMatchObject({
-      currentVaultPath: input.vaultPath,
+      currentNotesRootPath: input.notesRootPath,
       currentNotePath: input.noteName,
       fileRows: 1,
     });
@@ -66,9 +66,9 @@ test.describe('notes desktop open-file launch', () => {
 
   test('opens a startup markdown file with its parent folder loaded in the sidebar', async () => {
     const externalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vlaina-open-file-launch-'));
-    const vaultPath = path.join(externalRoot, 'docs');
-    const notePath = path.join(vaultPath, 'launch-note.md');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const notesRootPath = path.join(externalRoot, 'docs');
+    const notePath = path.join(notesRootPath, 'launch-note.md');
+    await fs.mkdir(notesRootPath, { recursive: true });
     await fs.writeFile(notePath, '# Launch Note\n\nStartup open-file sentinel.\n', 'utf8');
 
     const { app, userDataRoot } = await launchIsolatedElectron('notes-open-file-launch', {
@@ -79,7 +79,7 @@ test.describe('notes desktop open-file launch', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
       await expectOpenedMarkdownFile(page, {
-        vaultPath,
+        notesRootPath,
         notePath: 'launch-note',
         noteName: 'launch-note.md',
         sentinel: 'Startup open-file sentinel',
@@ -92,9 +92,9 @@ test.describe('notes desktop open-file launch', () => {
 
   test('opens a second-instance markdown file with its parent folder loaded in the sidebar', async () => {
     const externalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vlaina-open-file-second-'));
-    const vaultPath = path.join(externalRoot, 'docs');
-    const notePath = path.join(vaultPath, 'second-instance-note.md');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const notesRootPath = path.join(externalRoot, 'docs');
+    const notePath = path.join(notesRootPath, 'second-instance-note.md');
+    await fs.mkdir(notesRootPath, { recursive: true });
     await fs.writeFile(notePath, '# Second Instance Note\n\nForwarded open-file sentinel.\n', 'utf8');
 
     const { app, userDataRoot, userDataDir } = await launchIsolatedElectron('notes-open-file-second-instance');
@@ -125,7 +125,7 @@ test.describe('notes desktop open-file launch', () => {
       });
 
       await expectOpenedMarkdownFile(page, {
-        vaultPath,
+        notesRootPath,
         notePath: 'second-instance-note',
         noteName: 'second-instance-note.md',
         sentinel: 'Forwarded open-file sentinel',
@@ -142,9 +142,9 @@ test.describe('notes desktop open-file launch', () => {
 
   test('opens an authorized renderer markdown target with its parent folder loaded in the sidebar', async () => {
     const externalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vlaina-open-file-renderer-'));
-    const vaultPath = path.join(externalRoot, 'docs');
-    const notePath = path.join(vaultPath, 'renderer-target-note.md');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const notesRootPath = path.join(externalRoot, 'docs');
+    const notePath = path.join(notesRootPath, 'renderer-target-note.md');
+    await fs.mkdir(notesRootPath, { recursive: true });
     await fs.writeFile(notePath, '# Renderer Target Note\n\nRenderer target sentinel.\n', 'utf8');
 
     const { app, userDataRoot } = await launchIsolatedElectron('notes-open-file-renderer-target');
@@ -161,7 +161,7 @@ test.describe('notes desktop open-file launch', () => {
       }, notePath);
 
       await expectOpenedMarkdownFile(page, {
-        vaultPath,
+        notesRootPath,
         notePath: 'renderer-target-note',
         noteName: 'renderer-target-note.md',
         sentinel: 'Renderer target sentinel',
@@ -174,9 +174,9 @@ test.describe('notes desktop open-file launch', () => {
 
   test('opens the same markdown file consistently across isolated dev profiles', async () => {
     const externalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vlaina-open-file-consistent-'));
-    const vaultPath = path.join(externalRoot, 'docs');
-    const notePath = path.join(vaultPath, 'consistent-note.md');
-    await fs.mkdir(vaultPath, { recursive: true });
+    const notesRootPath = path.join(externalRoot, 'docs');
+    const notePath = path.join(notesRootPath, 'consistent-note.md');
+    await fs.mkdir(notesRootPath, { recursive: true });
     await fs.writeFile(notePath, '# Consistent Note\n\nConsistent isolated profile sentinel.\n', 'utf8');
 
     const first = await launchIsolatedElectron('notes-open-file-consistent-a', {
@@ -195,13 +195,13 @@ test.describe('notes desktop open-file launch', () => {
 
       await Promise.all([
         expectOpenedMarkdownFile(firstPage, {
-          vaultPath,
+          notesRootPath,
           notePath: 'consistent-note',
           noteName: 'consistent-note.md',
           sentinel: 'Consistent isolated profile sentinel',
         }),
         expectOpenedMarkdownFile(secondPage, {
-          vaultPath,
+          notesRootPath,
           notePath: 'consistent-note',
           noteName: 'consistent-note.md',
           sentinel: 'Consistent isolated profile sentinel',

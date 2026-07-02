@@ -2,10 +2,10 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   FILE_TREE_FILE_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 const FILE_TREE_PATH_SELECTOR = (path: string) => `[data-file-tree-path="${path}"]`;
@@ -106,7 +106,7 @@ test.describe('notes sidebar drag and drop', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-sidebar-drag-drop-root',
         files: [
           { filename: 'root-anchor.md', content: '# Root Anchor\n' },
@@ -115,9 +115,9 @@ test.describe('notes sidebar drag and drop', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Sidebar Drag Drop Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Sidebar Drag Drop NotesRoot',
         minFileCount: 1,
       });
 

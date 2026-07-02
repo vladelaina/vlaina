@@ -1,5 +1,5 @@
 import { getStorageAdapter, getParentPath } from '@/lib/storage/adapter';
-import { ensureSystemDirectory, getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
+import { ensureSystemDirectory, getNotesRootSystemStorePath } from '@/stores/notes/systemStoragePaths';
 
 const ASSET_HASH_INDEX_FILE = 'assets.json';
 const ASSET_HASH_INDEX_VERSION = 1;
@@ -98,14 +98,14 @@ function normalizeIndex(value: unknown): AssetHashIndexFile {
   };
 }
 
-async function getIndexPath(vaultPath: string): Promise<string> {
-  return getVaultSystemStorePath(vaultPath, ASSET_HASH_INDEX_FILE);
+async function getIndexPath(notesRootPath: string): Promise<string> {
+  return getNotesRootSystemStorePath(notesRootPath, ASSET_HASH_INDEX_FILE);
 }
 
-export async function loadAssetHashIndex(vaultPath: string): Promise<AssetHashIndexFile> {
+export async function loadAssetHashIndex(notesRootPath: string): Promise<AssetHashIndexFile> {
   try {
     const storage = getStorageAdapter();
-    const indexPath = await getIndexPath(vaultPath);
+    const indexPath = await getIndexPath(notesRootPath);
     const info = await storage.stat(indexPath).catch(() => null);
     if (
       info?.isDirectory === true ||
@@ -130,9 +130,9 @@ export async function loadAssetHashIndex(vaultPath: string): Promise<AssetHashIn
   }
 }
 
-export async function saveAssetHashIndex(vaultPath: string, index: AssetHashIndexFile): Promise<void> {
+export async function saveAssetHashIndex(notesRootPath: string, index: AssetHashIndexFile): Promise<void> {
   const storage = getStorageAdapter();
-  const indexPath = await getIndexPath(vaultPath);
+  const indexPath = await getIndexPath(notesRootPath);
   const parentPath = getParentPath(indexPath);
   if (parentPath) {
     await ensureSystemDirectory(parentPath);

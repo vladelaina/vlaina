@@ -1,9 +1,9 @@
 import type { NotesStore, StarredKind } from '../types';
-import { createStarredEntryIfValid, getVaultStarredPaths } from './registry';
+import { createStarredEntryIfValid, getNotesRootStarredPaths } from './registry';
 import { loadStarredRegistry, saveStarredRegistry } from './persistence';
 import { createStarredEntryFromAbsoluteNotePath, findStarredEntryByPath, isStarredEntryForPath } from './entryPaths';
 import {
-  resolveStarredRelativePathForVault,
+  resolveStarredRelativePathForNotesRoot,
 } from './pathUtils';
 
 let starredLoadRequestId = 0;
@@ -11,9 +11,9 @@ let starredLoadRequestId = 0;
 function applyStarredState(
   set: (partial: Partial<NotesStore>) => void,
   entries: NotesStore['starredEntries'],
-  vaultPath: string
+  notesRootPath: string
 ) {
-  const starredPaths = getVaultStarredPaths(entries, vaultPath);
+  const starredPaths = getNotesRootStarredPaths(entries, notesRootPath);
   set({
     starredEntries: entries,
     starredNotes: starredPaths.notes,
@@ -21,20 +21,20 @@ function applyStarredState(
   });
 }
 
-export async function loadStarredForVault(
+export async function loadStarredForNotesRoot(
   set: (partial: Partial<NotesStore>) => void,
   get: () => NotesStore,
-  vaultPath: string
+  notesRootPath: string
 ): Promise<void> {
   const requestId = ++starredLoadRequestId;
-  applyStarredState(set, get().starredEntries, vaultPath);
+  applyStarredState(set, get().starredEntries, notesRootPath);
   set({ starredLoaded: false });
   const data = await loadStarredRegistry();
   if (requestId !== starredLoadRequestId) {
     return;
   }
 
-  applyStarredState(set, data.entries, vaultPath);
+  applyStarredState(set, data.entries, notesRootPath);
   set({ starredLoaded: true });
 }
 
@@ -61,7 +61,7 @@ export function toggleStarredEntry(
     return;
   }
 
-  const relativePath = notesPath ? resolveStarredRelativePathForVault(path, notesPath) : null;
+  const relativePath = notesPath ? resolveStarredRelativePathForNotesRoot(path, notesPath) : null;
   const nextEntry = relativePath
     ? createStarredEntryIfValid(kind, notesPath, relativePath)
     : kind === 'note'

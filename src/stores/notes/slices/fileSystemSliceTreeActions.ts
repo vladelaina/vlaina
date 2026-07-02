@@ -15,14 +15,14 @@ import { isDraftNotePath } from '../draftNote';
 import {
   ensureNotesFolder,
   createEmptyMetadataFile,
-  getCurrentVaultPath,
+  getCurrentNotesRootPath,
   getNotesBasePath,
   loadNoteMetadata,
   loadWorkspaceState,
 } from '../storage';
-import { getVaultStarredPaths } from '../starred';
+import { getNotesRootStarredPaths } from '../starred';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { normalizeNotesRootRelativePath, resolveNotesRootRelativeFullPath } from '../utils/fs/notesRootPathContainment';
 import {
   areRootFoldersEquivalent,
   buildSortedRootFolder,
@@ -87,7 +87,7 @@ export function getWorkspaceRestoreCandidatePaths({
   const normalizedCandidates: string[] = [];
 
   for (const candidate of candidates) {
-    const normalizedPath = normalizeVaultRelativePath(candidate);
+    const normalizedPath = normalizeNotesRootRelativePath(candidate);
     if (
       !normalizedPath ||
       hasInternalNotePathSegment(normalizedPath) ||
@@ -105,8 +105,8 @@ export function getWorkspaceRestoreCandidatePaths({
   return normalizedCandidates;
 }
 
-function isNoVaultSelectedError(error: unknown): boolean {
-  return error instanceof Error && error.message === 'No vault selected';
+function isNoNotesRootSelectedError(error: unknown): boolean {
+  return error instanceof Error && error.message === 'No opened folder selected';
 }
 
 export function invalidatePendingFileTreeLoads() {
@@ -177,7 +177,7 @@ export function createFileSystemTreeActions(
           mode: fileTreeSortMode,
           metadata: initialMetadata,
         });
-        if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+        if (requestId !== latestLoadFileTreeRequestId || getCurrentNotesRootPath() !== basePath) {
           return;
         }
 
@@ -192,14 +192,14 @@ export function createFileSystemTreeActions(
 
           if (!shouldPreserveCurrentNoteInTree) {
             try {
-              const { fullPath } = await resolveVaultRelativeFullPath(basePath, currentNote.path);
+              const { fullPath } = await resolveNotesRootRelativeFullPath(basePath, currentNote.path);
               shouldPreserveCurrentNoteInTree = await storage.exists(fullPath);
             } catch {
               shouldPreserveCurrentNoteInTree = false;
             }
           }
 
-          if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+          if (requestId !== latestLoadFileTreeRequestId || getCurrentNotesRootPath() !== basePath) {
             return;
           }
 
@@ -211,7 +211,7 @@ export function createFileSystemTreeActions(
           }
         }
 
-        const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
+        const starredPaths = getNotesRootStarredPaths(get().starredEntries, basePath);
 
         const currentExpandedPaths = get().rootFolder && get().rootFolderPath === basePath
           ? collectExpandedPaths(get().rootFolder?.children ?? [])
@@ -222,7 +222,7 @@ export function createFileSystemTreeActions(
               ? restoreExpandedState(children, new Set(workspace.expandedFolders))
               : children);
 
-        if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+        if (requestId !== latestLoadFileTreeRequestId || getCurrentNotesRootPath() !== basePath) {
           return;
         }
 
@@ -261,10 +261,10 @@ export function createFileSystemTreeActions(
         if (!skipRestore && restoreCandidatePaths.length > 0 && !hasActiveNoteOrTabs) {
           for (const candidatePath of restoreCandidatePaths) {
             try {
-              const { relativePath, fullPath } = await resolveVaultRelativeFullPath(basePath, candidatePath);
+              const { relativePath, fullPath } = await resolveNotesRootRelativeFullPath(basePath, candidatePath);
               if (
                 requestId === latestLoadFileTreeRequestId &&
-                getCurrentVaultPath() === basePath &&
+                getCurrentNotesRootPath() === basePath &&
                 await storage.exists(fullPath)
               ) {
                 await get().openNote(relativePath, false, { restoredFromWorkspace: true });
@@ -282,7 +282,7 @@ export function createFileSystemTreeActions(
 
           if (shouldBuildShallowInitialTree) {
             const fullChildren = await buildFileTree(basePath);
-            if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+            if (requestId !== latestLoadFileTreeRequestId || getCurrentNotesRootPath() !== basePath) {
               return;
             }
 
@@ -336,7 +336,7 @@ export function createFileSystemTreeActions(
 
           const metadataStateBeforeBackgroundLoad = get().noteMetadata;
           const metadata = await loadNoteMetadata(basePath);
-          if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+          if (requestId !== latestLoadFileTreeRequestId || getCurrentNotesRootPath() !== basePath) {
             return;
           }
           if (get().noteMetadata !== metadataStateBeforeBackgroundLoad) {
@@ -370,12 +370,12 @@ export function createFileSystemTreeActions(
           });
         });
 
-        if (requestId === latestLoadFileTreeRequestId && getCurrentVaultPath() === basePath) {
+        if (requestId === latestLoadFileTreeRequestId && getCurrentNotesRootPath() === basePath) {
           set({ isLoading: false });
         }
       } catch (error) {
         if (requestId === latestLoadFileTreeRequestId) {
-          if (isNoVaultSelectedError(error)) {
+          if (isNoNotesRootSelectedError(error)) {
             set({ error: null, isLoading: false });
             return;
           }

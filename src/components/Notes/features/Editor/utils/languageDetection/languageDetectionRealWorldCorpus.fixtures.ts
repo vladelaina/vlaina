@@ -321,7 +321,7 @@ val active = users.filter(_.enabled)`,
     name: 'solidity contract',
     expected: 'solidity',
     sample: `pragma solidity ^0.8.20;
-contract Vault {
+contract NotesRoot {
   mapping(address => uint256) public balances;
 }`,
   },

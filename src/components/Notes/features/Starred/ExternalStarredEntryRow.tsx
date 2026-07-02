@@ -32,7 +32,7 @@ const STARRED_ROW_CLICK_DELAY_MS = 180;
 
 interface ExternalStarredEntryRowProps {
   entry: StarredEntry;
-  isCurrentVaultEntry: boolean;
+  isCurrentNotesRootEntry: boolean;
   isActive: boolean;
   onOpen: (openInNewTab?: boolean) => void;
   onRemove: () => void;
@@ -40,13 +40,13 @@ interface ExternalStarredEntryRowProps {
 
 export function ExternalStarredEntryRow({
   entry,
-  isCurrentVaultEntry,
+  isCurrentNotesRootEntry,
   isActive,
   onOpen,
   onRemove,
 }: ExternalStarredEntryRowProps) {
   const { t } = useI18n();
-  const displayPath = getStarredNoteDisplayPath(entry, isCurrentVaultEntry);
+  const displayPath = getStarredNoteDisplayPath(entry, isCurrentNotesRootEntry);
   const liveTitle = useDisplayName(displayPath);
   const liveIcon = useDisplayIcon(displayPath);
   const starredIcon = useStarredEntryIcon(entry, !liveIcon);
@@ -62,7 +62,7 @@ export function ExternalStarredEntryRow({
   const canOpen = entry.kind === 'note';
   const canRename = entry.kind === 'note';
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
-    notesPath: entry.vaultPath,
+    notesPath: entry.notesRootPath,
     itemPath: entry.relativePath,
     openLocationErrorMessage: entry.kind === 'folder'
       ? t('notes.openFolderLocationFailed')
@@ -111,18 +111,18 @@ export function ExternalStarredEntryRow({
   const submitRename = useCallback(async () => {
     const trimmedValue = renameValue.trim();
     if (trimmedValue && trimmedValue !== title) {
-      if (isCurrentVaultEntry) {
+      if (isCurrentNotesRootEntry) {
         await renameNote(entry.relativePath, trimmedValue);
       } else {
-        const absolutePath = await joinPath(entry.vaultPath, entry.relativePath);
+        const absolutePath = await joinPath(entry.notesRootPath, entry.relativePath);
         await renameAbsoluteNote(absolutePath, trimmedValue);
       }
     }
     setIsRenaming(false);
   }, [
     entry.relativePath,
-    entry.vaultPath,
-    isCurrentVaultEntry,
+    entry.notesRootPath,
+    isCurrentNotesRootEntry,
     renameAbsoluteNote,
     renameNote,
     renameValue,
@@ -210,13 +210,13 @@ export function ExternalStarredEntryRow({
         data-starred-entry-id={entry.id}
         data-starred-entry-kind={entry.kind}
         data-starred-entry-path={entry.relativePath}
-        data-starred-entry-vault-path={entry.vaultPath}
+        data-starred-entry-notes-root-path={entry.notesRootPath}
         leading={
           entry.kind === 'note' ? (
             <SidebarNoteFileIcon
               icon={displayIcon}
               notePath={entry.relativePath}
-              vaultPath={entry.vaultPath}
+              notesRootPath={entry.notesRootPath}
               size={themeIconTokens.sizeRow}
             />
           ) : (

@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => {
     isNewlyCreated: false,
     noteMetadata: { notes: {} },
     draftNotes: {},
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     assetList: [
       {
         filename: 'assets/logo.png',
@@ -65,7 +65,7 @@ describe('NoteHeader', () => {
     mocks.notesState.noteMetadata = { notes: {} };
     mocks.notesState.noteIconSize = 60;
     mocks.notesState.draftNotes = {};
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     clearDisplayIconSnapshotCacheForTests();
     mocks.loadAssets.mockReset();
     mocks.loadAssets.mockResolvedValue(undefined);
@@ -92,7 +92,7 @@ describe('NoteHeader', () => {
     ]);
 
     await mocks.heroProps.onIconPickerOpen();
-    expect(mocks.loadAssets).toHaveBeenCalledWith('/vault');
+    expect(mocks.loadAssets).toHaveBeenCalledWith('/notesRoot');
 
     const file = new File(['logo'], 'logo.png', { type: 'image/png' });
     await expect(mocks.heroProps.onUploadFile(file)).resolves.toEqual({
@@ -104,7 +104,7 @@ describe('NoteHeader', () => {
     await expect(mocks.heroProps.imageLoader('assets/logo.png')).resolves.toBe('blob:logo');
     expect(mocks.resolveCoverAssetUrl).toHaveBeenCalledWith({
       assetPath: 'assets/logo.png',
-      vaultPath: '/vault',
+      notesRootPath: '/notesRoot',
       currentNotePath: 'notes/demo.md',
       replayAnimated: true,
     });

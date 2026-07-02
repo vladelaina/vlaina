@@ -11,31 +11,31 @@ import { useNoteMentions } from './useNoteMentions';
 const hoisted = vi.hoisted(() => {
   const loadFileTree = vi.fn();
   const storeRef: { state: any } = { state: null };
-  const vaultStoreRef: { state: any } = { state: null };
-  let currentVaultPath: string | null = '/vault';
+  const notesRootStoreRef: { state: any } = { state: null };
+  let currentNotesRootPath: string | null = '/notesRoot';
 
   const useNotesStore = ((selector?: (state: any) => any) => {
     return selector ? selector(storeRef.state) : storeRef.state;
   }) as any;
   useNotesStore.getState = () => storeRef.state;
 
-  const useVaultStore = ((selector?: (state: any) => any) => {
-    return selector ? selector(vaultStoreRef.state) : vaultStoreRef.state;
+  const useNotesRootStore = ((selector?: (state: any) => any) => {
+    return selector ? selector(notesRootStoreRef.state) : notesRootStoreRef.state;
   }) as any;
-  useVaultStore.getState = () => vaultStoreRef.state;
+  useNotesRootStore.getState = () => notesRootStoreRef.state;
 
   return {
     loadFileTree,
     storeRef,
     useNotesStore,
-    vaultStoreRef,
-    useVaultStore,
-    getCurrentVaultPath: vi.fn(() => currentVaultPath),
-    setCurrentVaultPath: vi.fn((path: string | null) => {
-      currentVaultPath = path;
+    notesRootStoreRef,
+    useNotesRootStore,
+    getCurrentNotesRootPath: vi.fn(() => currentNotesRootPath),
+    setCurrentNotesRootPath: vi.fn((path: string | null) => {
+      currentNotesRootPath = path;
     }),
-    resetCurrentVaultPath: (path: string | null) => {
-      currentVaultPath = path;
+    resetCurrentNotesRootPath: (path: string | null) => {
+      currentNotesRootPath = path;
     },
   };
 });
@@ -44,13 +44,13 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
   useNotesStore: hoisted.useNotesStore,
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: hoisted.useVaultStore,
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: hoisted.useNotesRootStore,
 }));
 
 vi.mock('@/stores/notes/storage', () => ({
-  getCurrentVaultPath: hoisted.getCurrentVaultPath,
-  setCurrentVaultPath: hoisted.setCurrentVaultPath,
+  getCurrentNotesRootPath: hoisted.getCurrentNotesRootPath,
+  setCurrentNotesRootPath: hoisted.setCurrentNotesRootPath,
 }));
 
 function renderMentions(initialMessage: string) {
@@ -74,11 +74,11 @@ describe('useNoteMentions folder candidates', () => {
 
   beforeEach(() => {
     hoisted.loadFileTree.mockReset();
-    hoisted.getCurrentVaultPath.mockClear();
-    hoisted.setCurrentVaultPath.mockClear();
-    hoisted.resetCurrentVaultPath('/vault');
-    hoisted.vaultStoreRef.state = {
-      currentVault: { path: '/vault' },
+    hoisted.getCurrentNotesRootPath.mockClear();
+    hoisted.setCurrentNotesRootPath.mockClear();
+    hoisted.resetCurrentNotesRootPath('/notesRoot');
+    hoisted.notesRootStoreRef.state = {
+      currentNotesRoot: { path: '/notesRoot' },
     };
     hoisted.storeRef.state = {
       rootFolder: {
@@ -97,7 +97,7 @@ describe('useNoteMentions folder candidates', () => {
         ],
       },
       currentNote: { path: 'Today.md' },
-      notesPath: '/vault',
+      notesPath: '/notesRoot',
       starredEntries: [],
       isLoading: false,
       loadFileTree: hoisted.loadFileTree,

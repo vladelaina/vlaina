@@ -9,7 +9,7 @@ import { resolveCoverFlowPhase } from './coverSelectionPhase';
 interface UseCoverSelectionFlowOptions {
   url: string | null;
   coverHeight: number;
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
   onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
   setShowPicker: (open: boolean) => void;
@@ -20,7 +20,7 @@ export const MAX_PENDING_COVER_PREVIEW_REQUESTS = 50;
 export function useCoverSelectionFlow({
   url,
   coverHeight,
-  vaultPath,
+  notesRootPath,
   currentNotePath,
   onUpdate,
   setShowPicker,
@@ -37,7 +37,7 @@ export function useCoverSelectionFlow({
     beginSelectionCommit,
     endSelectionCommit,
     prevSrcRef,
-  } = useCoverSource({ url, vaultPath, currentNotePath });
+  } = useCoverSource({ url, notesRootPath, currentNotePath });
 
   const phase = useMemo(() => resolveCoverFlowPhase({
     url,
@@ -86,7 +86,7 @@ export function useCoverSelectionFlow({
     setPreviewSrc,
     setShowPicker,
     url,
-    vaultPath,
+    notesRootPath,
   ]);
 
   const handlePreview = useCallback(async (assetPath: string | null) => {
@@ -99,7 +99,7 @@ export function useCoverSelectionFlow({
     }
 
     try {
-      const requestKey = `${vaultPath}::${assetPath}`;
+      const requestKey = `${notesRootPath}::${assetPath}`;
       let request = previewRequestRef.current.get(requestKey);
       if (!request) {
         if (previewRequestRef.current.size >= MAX_PENDING_COVER_PREVIEW_REQUESTS) {
@@ -110,7 +110,7 @@ export function useCoverSelectionFlow({
           try {
             const imageUrl = await resolveCoverAssetUrl({
               assetPath,
-              vaultPath,
+              notesRootPath,
               currentNotePath,
             });
             const dimensions = await loadImageWithDimensions(imageUrl);
@@ -137,7 +137,7 @@ export function useCoverSelectionFlow({
     } catch {
       if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
     }
-  }, [currentNotePath, endSelectionCommit, isSelectionCommitting, resolvedSrc, setPreviewSrc, url, vaultPath]);
+  }, [currentNotePath, endSelectionCommit, isSelectionCommitting, resolvedSrc, setPreviewSrc, url, notesRootPath]);
 
   const handlePickerClose = useCallback(() => {
     lastPreviewPathRef.current = null;

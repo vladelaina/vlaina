@@ -6,7 +6,7 @@ import {
   NOTE_IMAGE_BLOCK_SELECTOR,
   NOTE_SCROLL_ROOT_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
   openAbsoluteNote,
@@ -1393,7 +1393,7 @@ test.describe('notes floating toolbar coverage', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-floating-toolbar-catalog-image-spacing',
         files: [
           {

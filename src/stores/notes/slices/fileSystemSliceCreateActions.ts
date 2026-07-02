@@ -6,7 +6,7 @@ import { addNodeToTree } from '../fileTreeUtils';
 import {
   createEmptyMetadataFile,
   ensureNotesFolder,
-  getCurrentVaultPath,
+  getCurrentNotesRootPath,
   getNotesBasePath,
   addToRecentNotes,
   mergeNoteMetadataWithFileInfo,
@@ -14,7 +14,7 @@ import {
 } from '../storage';
 import { createNoteImpl } from '../utils/fs/crudOperations';
 import { getParentPath, resolveUniquePath } from '../utils/fs/pathOperations';
-import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { resolveNotesRootRelativeFullPath } from '../utils/fs/notesRootPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { setCachedNoteContent } from '../document/noteContentCache';
@@ -158,7 +158,7 @@ export function createFileSystemCreateActions(
           const { draftPath, nextState } = createBlankDraftState({
             folderPath,
             originNotesPath: notesPath || '',
-            kind: notesPath ? 'vault' : 'scratch',
+            kind: notesPath ? 'notesRoot' : 'scratch',
             openTabs,
             currentNote,
             currentNoteRevision,
@@ -195,8 +195,8 @@ export function createFileSystemCreateActions(
         notesPathForError = notesPath;
 
         if (!notesPath) {
-          const currentVaultPath = getCurrentVaultPath();
-          if (!currentVaultPath) {
+          const currentNotesRootPath = getCurrentNotesRootPath();
+          if (!currentNotesRootPath) {
             const { draftPath, nextState } = createBlankDraftState({
               folderPath,
               originNotesPath: '',
@@ -222,7 +222,7 @@ export function createFileSystemCreateActions(
             return draftPath;
           }
 
-          notesPath = currentVaultPath;
+          notesPath = currentNotesRootPath;
           notesPathForError = notesPath;
           await ensureNotesFolder(notesPath);
           set({ notesPath });
@@ -282,12 +282,12 @@ export function createFileSystemCreateActions(
         notesPathForError = notesPath;
 
         if (!notesPath) {
-          const currentVaultPath = getCurrentVaultPath();
-          if (!currentVaultPath) {
+          const currentNotesRootPath = getCurrentNotesRootPath();
+          if (!currentNotesRootPath) {
             throw new Error('Notes path is not available');
           }
 
-          notesPath = currentVaultPath;
+          notesPath = currentNotesRootPath;
           notesPathForError = notesPath;
           await ensureNotesFolder(notesPath);
           set({ notesPath });
@@ -295,7 +295,7 @@ export function createFileSystemCreateActions(
 
         const storage = getStorageAdapter();
         const { relativePath: sourcePath, fullPath: sourceFullPath } =
-          await resolveVaultRelativeFullPath(notesPath, path);
+          await resolveNotesRootRelativeFullPath(notesPath, path);
         if (!isSupportedMarkdownPath(sourcePath)) {
           throw new Error('Only Markdown files can be duplicated as notes.');
         }
@@ -438,12 +438,12 @@ export function createFileSystemCreateActions(
 
       try {
         if (!notesPath) {
-          const currentVaultPath = getCurrentVaultPath();
-          if (!currentVaultPath) {
+          const currentNotesRootPath = getCurrentNotesRootPath();
+          if (!currentNotesRootPath) {
             return null;
           }
 
-          notesPath = currentVaultPath;
+          notesPath = currentNotesRootPath;
           await ensureNotesFolder(notesPath);
           set({ notesPath });
         }

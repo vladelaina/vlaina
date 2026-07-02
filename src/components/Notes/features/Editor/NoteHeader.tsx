@@ -13,7 +13,7 @@ import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { getStableDisplayIconSnapshot } from '@/hooks/useTitleSync';
 import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { resolveEffectiveNotesRootPath } from '@/stores/notes/effectiveNotesRootPath';
 import type { CustomIcon } from '@/lib/storage/unifiedStorage';
 
 interface NoteHeaderProps {
@@ -68,7 +68,7 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
     const iconSize = metadataIconSize ?? fallbackMetadata?.iconSize ?? defaultIconSize;
 
     const notesPath = useNotesStore(s => s.notesPath);
-    const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
+    const notesRootPath = resolveEffectiveNotesRootPath({ notesPath, currentNotePath });
     const assetList = useNotesStore(s => s.assetList);
     const loadAssets = useNotesStore(s => s.loadAssets);
     const uploadAsset = useNotesStore(s => s.uploadAsset);
@@ -84,9 +84,9 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
     }), [assetList]);
 
     const handleIconPickerOpen = useCallback(() => {
-        if (!vaultPath) return undefined;
-        return loadAssets(vaultPath);
-    }, [loadAssets, vaultPath]);
+        if (!notesRootPath) return undefined;
+        return loadAssets(notesRootPath);
+    }, [loadAssets, notesRootPath]);
 
     const uploadNoteIcon = useCallback(async (file: File) => {
         const result = await uploadAsset(file, currentNotePath);
@@ -99,11 +99,11 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
     const imageLoader = useCallback(async (src: string) => {
         return resolveCoverAssetUrl({
             assetPath: src,
-            vaultPath,
+            notesRootPath,
             currentNotePath,
             replayAnimated: true,
         });
-    }, [currentNotePath, vaultPath]);
+    }, [currentNotePath, notesRootPath]);
 
 
     const noteName = useNotesStore(

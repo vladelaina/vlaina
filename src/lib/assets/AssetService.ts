@@ -6,7 +6,7 @@ import { writeAssetAtomic } from './io/writer';
 import { normalizeContainedAssetPath } from './core/pathContainment';
 import { hasInternalNoteAssetPathSegment } from './core/internalAssetPaths';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
-import { hasUnsafeVaultPathSegment, isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment, isSafeNotesRootPathSegment } from '@/stores/notes/utils/fs/notesRootPathContainment';
 import {
   getAssetHashIndexEntry,
   loadAssetHashIndex,
@@ -15,14 +15,14 @@ import {
 } from './AssetHashIndex';
 
 export interface AssetContext {
-  vaultPath: string;
+  notesRootPath: string;
   currentNotePath?: string;
 }
 
 export interface AssetConfig {
-  storageMode: 'vault' | 'vaultSubfolder' | 'currentFolder' | 'subfolder';
+  storageMode: 'notesRoot' | 'notesRootSubfolder' | 'currentFolder' | 'subfolder';
   subfolderName?: string;
-  imageVaultSubfolderName?: string;
+  imageNotesRootSubfolderName?: string;
   filenameFormat: 'original' | 'timestamp' | 'sequence';
 }
 
@@ -72,11 +72,11 @@ function isIndexedAssetFresh(
 }
 
 async function saveAssetHashIndexBestEffort(
-  vaultPath: string,
+  notesRootPath: string,
   index: Parameters<typeof saveAssetHashIndex>[1],
 ) {
   try {
-    await saveAssetHashIndex(vaultPath, index);
+    await saveAssetHashIndex(notesRootPath, index);
   } catch {
   }
 }
@@ -280,7 +280,7 @@ function normalizeSafeSubfolderName(name: string | undefined, fallback: string):
   const parts = normalized.split('/').filter(Boolean);
   if (
     parts.length === 0 ||
-    parts.some((part) => !isSafeVaultPathSegment(part)) ||
+    parts.some((part) => !isSafeNotesRootPathSegment(part)) ||
     hasInternalNoteAssetPathSegment(parts.join('/'))
   ) {
     return fallback;
@@ -290,7 +290,7 @@ function normalizeSafeSubfolderName(name: string | undefined, fallback: string):
 }
 
 function hasUnsafeCurrentNotePathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path, {
+  return hasUnsafeNotesRootPathSegment(path, {
     allowNavigationSegments: true,
   });
 }
@@ -304,7 +304,7 @@ async function resolveContainedTargetDir(rootPath: string, subfolderName: string
   return candidate;
 }
 
-async function resolveCurrentNoteDir(vaultPath: string, currentNotePath: string): Promise<string> {
+async function resolveCurrentNoteDir(notesRootPath: string, currentNotePath: string): Promise<string> {
   if (hasInternalNoteAssetPathSegment(currentNotePath)) {
     throw new Error('Current note path must not be inside an internal notes folder.');
   }
@@ -313,15 +313,15 @@ async function resolveCurrentNoteDir(vaultPath: string, currentNotePath: string)
   }
 
   if (isAbsolutePath(currentNotePath)) {
-    return getParentPath(currentNotePath) || vaultPath;
+    return getParentPath(currentNotePath) || notesRootPath;
   }
 
-  const absoluteNotePath = normalizeContainedAssetPath(await joinPath(vaultPath, currentNotePath), vaultPath);
+  const absoluteNotePath = normalizeContainedAssetPath(await joinPath(notesRootPath, currentNotePath), notesRootPath);
   if (!absoluteNotePath) {
-    throw new Error('Current note path must stay inside the current vault.');
+    throw new Error('Current note path must stay inside the opened folder.');
   }
 
-  return getParentPath(absoluteNotePath) || vaultPath;
+  return getParentPath(absoluteNotePath) || notesRootPath;
 }
 
 export class AssetService {
@@ -435,7 +435,7 @@ export class AssetService {
       fileHash = uploadMimeType === 'image/svg+xml'
         ? await computeBufferHash(await readPreparedUploadBytes())
         : await computeFileHash(file);
-      let hashIndex = await loadAssetHashIndex(context.vaultPath);
+      let hashIndex = await loadAssetHashIndex(context.notesRootPath);
       let hashIndexChanged = false;
 
       for (const candidate of sameSizeCandidates) {
@@ -481,7 +481,7 @@ export class AssetService {
         hashIndexChanged = true;
 
         if (candidateHash === fileHash) {
-          await saveAssetHashIndexBestEffort(context.vaultPath, hashIndex);
+          await saveAssetHashIndexBestEffort(context.notesRootPath, hashIndex);
           onProgress?.(100);
           return {
             success: true,
@@ -500,7 +500,7 @@ export class AssetService {
       }
 
       if (hashIndexChanged) {
-        await saveAssetHashIndexBestEffort(context.vaultPath, hashIndex);
+        await saveAssetHashIndexBestEffort(context.notesRootPath, hashIndex);
       }
     }
 
@@ -545,7 +545,7 @@ export class AssetService {
     };
 
     if (fileHash) {
-      const hashIndex = await loadAssetHashIndex(context.vaultPath);
+      const hashIndex = await loadAssetHashIndex(context.notesRootPath);
       setAssetHashIndexEntry(hashIndex, {
         filename: storedFilename,
         hash: fileHash,
@@ -554,7 +554,7 @@ export class AssetService {
         mimeType: newEntry.mimeType,
         updatedAt: newEntry.uploadedAt,
       });
-      await saveAssetHashIndexBestEffort(context.vaultPath, hashIndex);
+      await saveAssetHashIndexBestEffort(context.notesRootPath, hashIndex);
     }
 
     onProgress?.(100);
@@ -572,26 +572,26 @@ export class AssetService {
     context: AssetContext, 
     config: AssetConfig
   ): Promise<{ targetDir: string; storedPathPrefix: string }> {
-    const { vaultPath, currentNotePath } = context;
+    const { notesRootPath, currentNotePath } = context;
 
     switch (config.storageMode) {
-      case 'vault':
+      case 'notesRoot':
       default:
         return {
-          targetDir: vaultPath,
+          targetDir: notesRootPath,
           storedPathPrefix: ''
         };
 
-      case 'vaultSubfolder':
-        const vaultSubfolderName = normalizeSafeSubfolderName(config.imageVaultSubfolderName, 'assets');
+      case 'notesRootSubfolder':
+        const notesRootSubfolderName = normalizeSafeSubfolderName(config.imageNotesRootSubfolderName, 'assets');
         return {
-          targetDir: await resolveContainedTargetDir(vaultPath, vaultSubfolderName),
-          storedPathPrefix: `${vaultSubfolderName}/`
+          targetDir: await resolveContainedTargetDir(notesRootPath, notesRootSubfolderName),
+          storedPathPrefix: `${notesRootSubfolderName}/`
         };
 
       case 'currentFolder':
         if (currentNotePath) {
-          const currentDir = await resolveCurrentNoteDir(vaultPath, currentNotePath);
+          const currentDir = await resolveCurrentNoteDir(notesRootPath, currentNotePath);
 
           return {
             targetDir: currentDir,
@@ -599,14 +599,14 @@ export class AssetService {
           };
         } else {
            return {
-             targetDir: vaultPath,
+             targetDir: notesRootPath,
              storedPathPrefix: ''
            };
         }
 
       case 'subfolder':
         if (currentNotePath) {
-          const noteDir = await resolveCurrentNoteDir(vaultPath, currentNotePath);
+          const noteDir = await resolveCurrentNoteDir(notesRootPath, currentNotePath);
           const subfolderName = normalizeSafeSubfolderName(config.subfolderName, 'assets');
 
           return {
@@ -615,7 +615,7 @@ export class AssetService {
           };
         } else {
            return {
-             targetDir: vaultPath,
+             targetDir: notesRootPath,
              storedPathPrefix: ''
            };
         }

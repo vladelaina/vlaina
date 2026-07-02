@@ -40,11 +40,11 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
       expanded: true,
       children: [],
     },
-    rootFolderPath: '/vault',
+    rootFolderPath: '/notesRoot',
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -88,7 +88,7 @@ describe('featureSlice internal note paths', () => {
     mocks.safeWriteTextFile.mockResolvedValue(undefined);
   });
 
-  it('skips internal folders and files during full-vault scans but keeps user dot notes', async () => {
+  it('skips internal folders and files during full-notesRoot scans but keeps user dot notes', async () => {
     const store = createNotesStore({
       rootFolder: {
         id: '',
@@ -145,12 +145,12 @@ describe('featureSlice internal note paths', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/.journal.md', MAX_SEARCHABLE_NOTE_BYTES);
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
-    expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/.vlaina/workspace.md');
-    expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/docs/.git/config.md');
-    expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/.VLAINA/workspace.md');
-    expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/docs/.GIT/config.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/.journal.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).toHaveBeenCalledWith('/notesRoot/.notes/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
+    expect(mocks.readFile).not.toHaveBeenCalledWith('/notesRoot/.vlaina/workspace.md');
+    expect(mocks.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/.git/config.md');
+    expect(mocks.readFile).not.toHaveBeenCalledWith('/notesRoot/.VLAINA/workspace.md');
+    expect(mocks.readFile).not.toHaveBeenCalledWith('/notesRoot/docs/.GIT/config.md');
     expect(store.getState().noteContentsCache.has('.journal.md')).toBe(true);
     expect(store.getState().noteContentsCache.has('.notes/alpha.md')).toBe(true);
     expect(store.getState().noteContentsCache.has('.vlaina/workspace.md')).toBe(false);
@@ -195,7 +195,7 @@ describe('featureSlice internal note paths', () => {
 
     store.getState().setNoteIcon('../secret.md', 'sparkles');
 
-    expect(store.getState().error).toBe('Path must stay inside the current vault.');
+    expect(store.getState().error).toBe('Path must stay inside the opened folder.');
     expect(mocks.stat).not.toHaveBeenCalled();
     expect(mocks.readFile).not.toHaveBeenCalled();
     expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();

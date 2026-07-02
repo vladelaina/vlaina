@@ -6,10 +6,10 @@ import { pathToFileURL } from 'node:url';
 import {
   FILE_TREE_FILE_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   getOpenBridgePages,
   launchIsolatedElectron,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 test.describe('notes open file location', () => {
@@ -64,7 +64,7 @@ test.describe('notes open file location', () => {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
 
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'open-file-location',
         files: [
           { filename: 'target.md', content: '# Target\n\nOpen location sentinel.\n' },
@@ -77,9 +77,9 @@ test.describe('notes open file location', () => {
       }
       const expectedFileUrlArgument = `arg=['${pathToFileURL(expectedNotePath).toString()}']`;
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Open File Location Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Open File Location NotesRoot',
         minFileCount: 2,
       });
 

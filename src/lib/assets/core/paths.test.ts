@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  resolveExistingVaultAssetPath,
-  resolveVaultAssetPath,
-  resolveVaultAssetPathCandidates,
+  resolveExistingNotesRootAssetPath,
+  resolveNotesRootAssetPath,
+  resolveNotesRootAssetPathCandidates,
 } from './paths';
 
 const hoisted = vi.hoisted(() => ({
@@ -36,23 +36,23 @@ describe('asset path resolution', () => {
   });
 
   it('keeps legacy resolution as note-relative first', async () => {
-    await expect(resolveVaultAssetPath('/vault', 'assets/a.png', 'daily/note.md'))
-      .resolves.toBe('/vault/daily/assets/a.png');
+    await expect(resolveNotesRootAssetPath('/notesRoot', 'assets/a.png', 'daily/note.md'))
+      .resolves.toBe('/notesRoot/daily/assets/a.png');
   });
 
   it('resolves asset paths with query and fragment against the local file path', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png?cache=1#preview', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/a.png?cache=1#preview', 'daily/note.md'))
       .resolves.toEqual([
-        '/vault/daily/assets/a.png',
-        '/vault/assets/a.png',
+        '/notesRoot/daily/assets/a.png',
+        '/notesRoot/assets/a.png',
       ]);
   });
 
-  it('offers a vault-root fallback for bare asset paths in nested notes', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', 'daily/note.md'))
+  it('offers a opened-folder fallback for bare asset paths in nested notes', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/a.png', 'daily/note.md'))
       .resolves.toEqual([
-        '/vault/daily/assets/a.png',
-        '/vault/assets/a.png',
+        '/notesRoot/daily/assets/a.png',
+        '/notesRoot/assets/a.png',
       ]);
   });
 
@@ -61,144 +61,144 @@ describe('asset path resolution', () => {
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
 
-    await expect(resolveExistingVaultAssetPath('/vault', 'assets/a.png', 'daily/note.md'))
-      .resolves.toBe('/vault/assets/a.png');
+    await expect(resolveExistingNotesRootAssetPath('/notesRoot', 'assets/a.png', 'daily/note.md'))
+      .resolves.toBe('/notesRoot/assets/a.png');
   });
 
   it('does not add a fallback for explicit note-relative paths', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', './assets/a.png', 'daily/note.md'))
-      .resolves.toEqual(['/vault/daily/assets/a.png']);
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', './assets/a.png', 'daily/note.md'))
+      .resolves.toEqual(['/notesRoot/daily/assets/a.png']);
   });
 
-  it('keeps parent traversal inside the vault root', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', '../assets/a.png', 'daily/note.md'))
-      .resolves.toEqual(['/vault/assets/a.png']);
+  it('keeps parent traversal inside the notesRoot root', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '../assets/a.png', 'daily/note.md'))
+      .resolves.toEqual(['/notesRoot/assets/a.png']);
   });
 
-  it('rejects parent traversal outside the vault root', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', '../../secret.png', 'daily/note.md'))
+  it('rejects parent traversal outside the notesRoot root', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '../../secret.png', 'daily/note.md'))
       .resolves.toEqual([]);
   });
 
-  it('rejects internal vault asset path segments while allowing user dot folders', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', '.vlaina/assets/a.png', 'daily/note.md'))
+  it('rejects internal notesRoot asset path segments while allowing user dot folders', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '.vlaina/assets/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', '%2evlaina/assets/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '%2evlaina/assets/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/.git/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'docs/.git/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/%2egit/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'docs/%2egit/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/%252egit/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'docs/%252egit/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'docs%2f.git%2fa.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'docs%2f.git%2fa.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/.GIT/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'docs/.GIT/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', './.git/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', './.git/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', './docs/%2egit/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', './docs/%2egit/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', '.notes/assets/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '.notes/assets/a.png', 'daily/note.md'))
       .resolves.toEqual([
-        '/vault/daily/.notes/assets/a.png',
-        '/vault/.notes/assets/a.png',
+        '/notesRoot/daily/.notes/assets/a.png',
+        '/notesRoot/.notes/assets/a.png',
       ]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', '%2enotes/assets/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '%2enotes/assets/a.png', 'daily/note.md'))
       .resolves.toEqual([
-        '/vault/daily/%2enotes/assets/a.png',
-        '/vault/%2enotes/assets/a.png',
+        '/notesRoot/daily/%2enotes/assets/a.png',
+        '/notesRoot/%2enotes/assets/a.png',
       ]);
   });
 
   it('does not resolve assets from internal current note paths', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', '.vlaina/workspace.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/a.png', '.vlaina/workspace.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', 'docs/.git/config.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/a.png', 'docs/.git/config.md'))
       .resolves.toEqual([]);
   });
 
   it('does not resolve assets from unsafe current note paths', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', 'daily/unsafe\u202Egnp.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/a.png', 'daily/unsafe\u202Egnp.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', '/tmp/shared/unsafe\0.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/a.png', '/tmp/shared/unsafe\0.md'))
       .resolves.toEqual([]);
   });
 
   it('rejects absolute asset paths from note metadata', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', '/etc/passwd', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '/etc/passwd', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'C:\\Users\\me\\secret.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'C:\\Users\\me\\secret.png', 'daily/note.md'))
       .resolves.toEqual([]);
   });
 
   it('rejects unsafe non-local asset paths before resolving candidates', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', 'https://example.com/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'https://example.com/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', String.raw`https\://example.com/a.png`, 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', String.raw`https\://example.com/a.png`, 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', String.raw`img\:assets/a.png`, 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', String.raw`img\:assets/a.png`, 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', String.raw`data\:image/png;base64,aGk=`, 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', String.raw`data\:image/png;base64,aGk=`, 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', '//example.com/a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '//example.com/a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', '\\\\server\\share\\a.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '\\\\server\\share\\a.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/\u202Ecod.exe.png', 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/\u202Ecod.exe.png', 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', `${'a'.repeat(16 * 1024)}.png`, 'daily/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', `${'a'.repeat(16 * 1024)}.png`, 'daily/note.md'))
       .resolves.toEqual([]);
 
-    await expect(resolveVaultAssetPathCandidates('/vault', `assets/a.png?${'x'.repeat(16 * 1024)}`, 'daily/note.md'))
-      .resolves.toEqual([]);
-  });
-
-  it('rejects windows parent traversal outside the vault root', async () => {
-    await expect(resolveVaultAssetPathCandidates('C:\\vault', '..\\..\\secret.png', 'daily\\note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', `assets/a.png?${'x'.repeat(16 * 1024)}`, 'daily/note.md'))
       .resolves.toEqual([]);
   });
 
-  it('resolves explicit relative assets beside an absolute external note even when a vault path is provided', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', './assets/a.png', '/outside/note.md'))
+  it('rejects windows parent traversal outside the notesRoot root', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('C:\\notesRoot', '..\\..\\secret.png', 'daily\\note.md'))
+      .resolves.toEqual([]);
+  });
+
+  it('resolves explicit relative assets beside an absolute external note even when a opened folder path is provided', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', './assets/a.png', '/outside/note.md'))
       .resolves.toEqual(['/outside/assets/a.png']);
   });
 
-  it('keeps a vault fallback for bare assets from an absolute external note', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', '/outside/note.md'))
+  it('keeps a notesRoot fallback for bare assets from an absolute external note', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', 'assets/a.png', '/outside/note.md'))
       .resolves.toEqual([
         '/outside/assets/a.png',
-        '/vault/assets/a.png',
+        '/notesRoot/assets/a.png',
       ]);
   });
 
   it('rejects explicit relative assets that escape an absolute external note directory', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', '../secret.png', '/outside/note.md'))
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '../secret.png', '/outside/note.md'))
       .resolves.toEqual([]);
   });
 
-  it('keeps vault containment for absolute note paths that are still inside the vault', async () => {
-    await expect(resolveVaultAssetPathCandidates('/vault', '../assets/a.png', '/vault/daily/note.md'))
-      .resolves.toEqual(['/vault/assets/a.png']);
+  it('keeps opened-folder containment for absolute note paths that are still inside the notesRoot', async () => {
+    await expect(resolveNotesRootAssetPathCandidates('/notesRoot', '../assets/a.png', '/notesRoot/daily/note.md'))
+      .resolves.toEqual(['/notesRoot/assets/a.png']);
   });
 });

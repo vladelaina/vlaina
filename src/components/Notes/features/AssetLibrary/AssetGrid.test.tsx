@@ -75,7 +75,7 @@ describe('AssetGrid', () => {
       <AssetGrid
         onSelect={onSelect}
         onHover={() => {}}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
       />,
     );
 
@@ -97,7 +97,7 @@ describe('AssetGrid', () => {
       <AssetGrid
         onSelect={() => {}}
         onHover={() => {}}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
       />,
     );
 
@@ -111,7 +111,7 @@ describe('AssetGrid', () => {
       <AssetGrid
         onSelect={() => {}}
         onHover={() => {}}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
       />,
     );
 
@@ -131,7 +131,7 @@ describe('AssetGrid', () => {
       <AssetGrid
         onSelect={() => {}}
         onHover={() => {}}
-        vaultPath="/vault"
+        notesRootPath="/notesRoot"
       />,
     );
 

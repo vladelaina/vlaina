@@ -17,9 +17,11 @@ import {
   SettingsModal,
   StartupViewFallback,
   TemporaryChatToggle,
+  WhiteboardSidebar,
+  WhiteboardView,
 } from './AppContentModules';
 
-type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat'>;
+type ReadyAppViewMode = Extract<AppViewMode, 'notes' | 'chat' | 'whiteboard'>;
 
 interface AppContentShellProps {
   communitySettings: CommunitySettings;
@@ -97,15 +99,23 @@ export function AppContentShell({
   shouldRenderDeferredChrome,
   shouldWaitForInitialUnifiedView,
 }: AppContentShellProps) {
-  const shouldRenderSidebar = effectiveAppViewMode === 'chat' || effectiveAppViewMode === 'notes';
+  const shouldRenderSidebar =
+    effectiveAppViewMode === 'chat' ||
+    effectiveAppViewMode === 'notes' ||
+    (import.meta.env.DEV && effectiveAppViewMode === 'whiteboard');
   const shouldMountNotes = mountedAppViews.has('notes');
   const shouldMountChat = mountedAppViews.has('chat');
+  const shouldMountWhiteboard = import.meta.env.DEV && mountedAppViews.has('whiteboard');
   const shouldRenderNotesSidebar = renderedSidebarAppViews.has('notes');
   const shouldRenderChatSidebar = renderedSidebarAppViews.has('chat');
   const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
   const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
 
-  const sidebarContent = shouldRenderSidebar ? (
+  const sidebarContent = shouldRenderSidebar ? effectiveAppViewMode === 'whiteboard' ? (
+    <Suspense fallback={null}>
+      {WhiteboardSidebar ? <WhiteboardSidebar /> : null}
+    </Suspense>
+  ) : (
     <div className="grid h-full min-h-0">
       {shouldRenderChatSidebar ? (
         <div
@@ -181,6 +191,19 @@ export function AppContentShell({
               onStartupReady={() => onActiveViewReady('chat')}
               onPrimaryContentReady={() => onPrimaryContentReady('chat')}
             />
+          </Suspense>
+        </div>
+      ) : null}
+      {shouldMountWhiteboard ? (
+        <div className={cn('h-full', effectiveAppViewMode !== 'whiteboard' && 'hidden')} aria-hidden={effectiveAppViewMode !== 'whiteboard'}>
+          <Suspense fallback={<StartupViewFallback onReady={onStartupFallbackReady} />}>
+            {WhiteboardView ? (
+              <WhiteboardView
+                active={effectiveAppViewMode === 'whiteboard'}
+                onStartupReady={() => onActiveViewReady('whiteboard')}
+                onPrimaryContentReady={() => onPrimaryContentReady('whiteboard')}
+              />
+            ) : null}
           </Suspense>
         </div>
       ) : null}

@@ -100,8 +100,8 @@ describe('desktop filesystem symlink boundary', () => {
   });
 
   it('loads saved symlink roots with their real filesystem access key', async () => {
-    const realRoot = path.join(tempDir, 'real-vault');
-    const linkedRoot = path.join(tempDir, 'linked-vault');
+    const realRoot = path.join(tempDir, 'real-notes-root');
+    const linkedRoot = path.join(tempDir, 'linked-notes-root');
     await mkdir(realRoot, { recursive: true });
     await symlink(realRoot, linkedRoot, 'dir');
     await writeFile(path.join(realRoot, 'note.md'), '# note', 'utf8');
@@ -128,18 +128,18 @@ describe('desktop filesystem symlink boundary', () => {
     ).resolves.toBe(path.join(isolatedUserDataPath, '.vlaina', 'notes', 'state.json'));
   });
 
-  it('keeps isolated dev userData vault metadata writable through generic fs access', async () => {
+  it('keeps isolated dev userData notes root metadata writable through generic fs access', async () => {
     const isolatedUserDataPath = path.join(tempDir, 'electron-user-data-3000');
     process.env.VLAINA_USER_DATA_DIR = isolatedUserDataPath;
     hoisted.userDataPath = isolatedUserDataPath;
-    await mkdir(path.join(isolatedUserDataPath, '.vlaina', 'notes', 'vaults'), { recursive: true });
+    await mkdir(path.join(isolatedUserDataPath, '.vlaina', 'notes', 'notes-roots'), { recursive: true });
 
     const configPath = path.join(
       isolatedUserDataPath,
       '.vlaina',
       'notes',
-      'vaults',
-      'vault-test',
+      'notes-roots',
+      'notes-root-test',
       'config.json',
     );
 
@@ -153,8 +153,8 @@ describe('desktop filesystem symlink boundary', () => {
       'electron-user-data-3999',
       '.vlaina',
       'notes',
-      'vaults',
-      'vault-test',
+      'notes-roots',
+      'notes-root-test',
       'config.json',
     );
 

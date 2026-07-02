@@ -42,7 +42,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     currentNote: null,
     currentNoteRevision: 0,
     currentNoteDiskRevision: 0,
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     isDirty: false,
     isLoading: false,
     error: null,
@@ -180,7 +180,7 @@ describe('featureSlice metadata dirty background tabs', () => {
     ]);
   });
 
-  it('keeps vault metadata changes in memory for a dirty background tab', async () => {
+  it('keeps notesRoot metadata changes in memory for a dirty background tab', async () => {
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
       currentNote: { path: 'docs/beta.md', content: '# Beta' },

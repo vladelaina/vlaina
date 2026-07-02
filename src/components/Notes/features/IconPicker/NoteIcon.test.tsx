@@ -7,7 +7,7 @@ const mocked = vi.hoisted(() => ({
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: (selector: (state: { notesPath: string }) => unknown) => selector({ notesPath: '/vault' }),
+  useNotesStore: (selector: (state: { notesPath: string }) => unknown) => selector({ notesPath: '/notesRoot' }),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
@@ -26,19 +26,19 @@ describe('NoteIcon', () => {
     vi.clearAllMocks();
   });
 
-  it('resolves note icon image paths against the vault', async () => {
-    mocked.resolveCoverAssetUrl.mockResolvedValue('blob:vault-icon');
+  it('resolves note icon image paths against the notesRoot', async () => {
+    mocked.resolveCoverAssetUrl.mockResolvedValue('blob:notes-root-icon');
 
-    render(<NoteIcon icon="assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
+    render(<NoteIcon icon="assets/icons/demo.png" notePath="/notesRoot/demo.md" size={20} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:vault-icon');
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:notes-root-icon');
     });
 
     expect(mocked.resolveCoverAssetUrl).toHaveBeenCalledWith({
       assetPath: 'assets/icons/demo.png',
-      vaultPath: '/vault',
-      currentNotePath: '/vault/demo.md',
+      notesRootPath: '/notesRoot',
+      currentNotePath: '/notesRoot/demo.md',
       replayAnimated: true,
     });
   });
@@ -47,7 +47,7 @@ describe('NoteIcon', () => {
     mocked.resolveCoverAssetUrl.mockResolvedValue('blob:stable-sidebar-icon');
 
     const firstRender = render(
-      <NoteIcon icon="assets/icons/stable-sidebar.png" notePath="/vault/stable.md" size={20} />
+      <NoteIcon icon="assets/icons/stable-sidebar.png" notePath="/notesRoot/stable.md" size={20} />
     );
 
     await waitFor(() => {
@@ -56,7 +56,7 @@ describe('NoteIcon', () => {
 
     firstRender.unmount();
 
-    render(<NoteIcon icon="assets/icons/stable-sidebar.png" notePath="/vault/stable.md" size={20} />);
+    render(<NoteIcon icon="assets/icons/stable-sidebar.png" notePath="/notesRoot/stable.md" size={20} />);
 
     await waitFor(() => {
       expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:stable-sidebar-icon');
@@ -68,7 +68,7 @@ describe('NoteIcon', () => {
   it('does not render a note icon image when the shared asset resolver rejects', async () => {
     mocked.resolveCoverAssetUrl.mockRejectedValue(new Error('cover-path-unsupported'));
 
-    render(<NoteIcon icon="assets/icons/missing.png" notePath="/vault/demo.md" size={20} />);
+    render(<NoteIcon icon="assets/icons/missing.png" notePath="/notesRoot/demo.md" size={20} />);
 
     await waitFor(() => {
       expect(mocked.resolveCoverAssetUrl).toHaveBeenCalled();
@@ -80,7 +80,7 @@ describe('NoteIcon', () => {
   it('does not render legacy img-scheme note icon images', async () => {
     mocked.resolveCoverAssetUrl.mockRejectedValue(new Error('cover-path-unsupported'));
 
-    render(<NoteIcon icon="img:assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
+    render(<NoteIcon icon="img:assets/icons/demo.png" notePath="/notesRoot/demo.md" size={20} />);
 
     expect(mocked.resolveCoverAssetUrl).not.toHaveBeenCalled();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();

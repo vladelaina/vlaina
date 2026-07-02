@@ -165,13 +165,13 @@ test.describe('settings modal interaction coverage', () => {
       );
 
       await page.locator('[data-settings-control="image-storage-location"]').click();
-      await page.locator('[data-settings-image-storage-mode="vaultSubfolder"]').click();
-      const vaultSubfolderNameInput = page.locator('[data-settings-control="image-vault-subfolder-name"]');
-      await expect(vaultSubfolderNameInput).toBeVisible({
+      await page.locator('[data-settings-image-storage-mode="notesRootSubfolder"]').click();
+      const notesRootSubfolderNameInput = page.locator('[data-settings-control="image-notes-root-subfolder-name"]');
+      await expect(notesRootSubfolderNameInput).toBeVisible({
         timeout: 10_000,
       });
-      await vaultSubfolderNameInput.click();
-      await expect.poll(async () => vaultSubfolderNameInput.evaluate((element) => {
+      await notesRootSubfolderNameInput.click();
+      await expect.poll(async () => notesRootSubfolderNameInput.evaluate((element) => {
         const input = element as HTMLInputElement;
         return {
           value: input.value,
@@ -184,15 +184,15 @@ test.describe('settings modal interaction coverage', () => {
         selectionEnd: 'assets'.length,
       });
       await page.keyboard.press('Backspace');
-      await expect(vaultSubfolderNameInput).toHaveValue('');
+      await expect(notesRootSubfolderNameInput).toHaveValue('');
       await page.keyboard.press('Tab');
-      await expect(vaultSubfolderNameInput).toHaveValue('assets');
-      await vaultSubfolderNameInput.fill('e2e-vault-assets');
+      await expect(notesRootSubfolderNameInput).toHaveValue('assets');
+      await notesRootSubfolderNameInput.fill('e2e-notes-root-assets');
       await page.locator('[data-settings-control="image-filename-format"]').click();
       await page.locator('[data-settings-image-filename-format="sequence"]').click();
       await expect.poll(() => getUIState(page), { timeout: 10_000 }).toMatchObject({
-        imageStorageMode: 'vaultSubfolder',
-        imageVaultSubfolderName: 'e2e-vault-assets',
+        imageStorageMode: 'notesRootSubfolder',
+        imageNotesRootSubfolderName: 'e2e-notes-root-assets',
         imageFilenameFormat: 'sequence',
       });
 

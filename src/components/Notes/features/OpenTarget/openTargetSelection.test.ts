@@ -110,119 +110,119 @@ import {
 describe('openTargetSelection', () => {
   it('normalizes single dialog selections', () => {
     expect(getSingleOpenSelection(null)).toBeNull();
-    expect(getSingleOpenSelection('/vault/docs/a.md')).toBe('/vault/docs/a.md');
-    expect(getSingleOpenSelection(['/vault/docs/a.md', '/vault/docs/b.md'])).toBe('/vault/docs/a.md');
+    expect(getSingleOpenSelection('/notesRoot/docs/a.md')).toBe('/notesRoot/docs/a.md');
+    expect(getSingleOpenSelection(['/notesRoot/docs/a.md', '/notesRoot/docs/b.md'])).toBe('/notesRoot/docs/a.md');
   });
 
   it('accepts supported Markdown extensions', () => {
-    expect(isSupportedMarkdownSelection('/vault/docs/README.MD')).toBe(true);
-    expect(isSupportedMarkdownSelection('/vault/docs/note.markdown')).toBe(true);
-    expect(isSupportedMarkdownSelection('/vault/docs/note.mdown')).toBe(true);
-    expect(isSupportedMarkdownSelection('/vault/docs/note.mkd')).toBe(true);
-    expect(isSupportedMarkdownSelection('/vault/.notes/alpha.md')).toBe(true);
-    expect(isSupportedMarkdownSelection('C:\\vault\\docs\\alpha.md')).toBe(true);
-    expect(isSupportedMarkdownSelection('/vault/docs/data.txt')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/.vlaina/workspace.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/docs/.git/config.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/.VLAINA/workspace.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/docs/.GIT/config.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/docs/../.git/config.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/.notes/../.vlaina/workspace.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/README.MD')).toBe(true);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/note.markdown')).toBe(true);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/note.mdown')).toBe(true);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/note.mkd')).toBe(true);
+    expect(isSupportedMarkdownSelection('/notesRoot/.notes/alpha.md')).toBe(true);
+    expect(isSupportedMarkdownSelection('C:\\notesRoot\\docs\\alpha.md')).toBe(true);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/data.txt')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/.vlaina/workspace.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/.git/config.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/.VLAINA/workspace.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/.GIT/config.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/../.git/config.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/.notes/../.vlaina/workspace.md')).toBe(false);
   });
 
   it('rejects explicit URL schemes before treating selections as files', () => {
     expect(isSupportedMarkdownSelection('https://example.com/docs/readme.md')).toBe(false);
     expect(isSupportedMarkdownSelection('http://127.0.0.1/private.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('file:///vault/docs/readme.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('file:///notesRoot/docs/readme.md')).toBe(false);
     expect(isSupportedMarkdownSelection('asset://localhost/readme.md')).toBe(false);
     expect(isSupportedMarkdownSelection(String.raw`https\://example.com/docs/readme.md`)).toBe(false);
-    expect(isSupportedMarkdownSelection(String.raw`file\:///vault/docs/readme.md`)).toBe(false);
+    expect(isSupportedMarkdownSelection(String.raw`file\:///notesRoot/docs/readme.md`)).toBe(false);
   });
 
   it('rejects markdown selections with unsafe path characters', () => {
-    expect(isSupportedMarkdownSelection('/vault/docs/secret\0.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/docs/secret\u001F.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/docs/secret\u202Egnp.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/docs/secret\uFFFD.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/docs\u202E/alpha.md')).toBe(false);
-    expect(isSupportedMarkdownSelection('/vault/.notes/alpha.md')).toBe(true);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/secret\0.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/secret\u001F.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/secret\u202Egnp.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs/secret\uFFFD.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/docs\u202E/alpha.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/notesRoot/.notes/alpha.md')).toBe(true);
   });
 
-  it('uses the selected file parent folder as the opened vault', () => {
-    expect(resolveOpenNoteTarget('/vault/projects/docs/a.md')).toEqual({
-      vaultPath: '/vault/projects/docs',
+  it('uses the selected file parent folder as the opened notesRoot', () => {
+    expect(resolveOpenNoteTarget('/notesRoot/projects/docs/a.md')).toEqual({
+      notesRootPath: '/notesRoot/projects/docs',
       notePath: 'a.md',
     });
   });
 
   it('rejects non-Markdown open targets even when called directly', () => {
-    expect(() => resolveOpenNoteTarget('/vault/docs/image.png')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/docs/image.png')).toThrow(
       'Selected file path must be a supported Markdown file',
     );
   });
 
   it('resolves user dot folder markdown open targets', () => {
-    expect(resolveOpenNoteTarget('/vault/.notes/daily.md')).toEqual({
-      vaultPath: '/vault/.notes',
+    expect(resolveOpenNoteTarget('/notesRoot/.notes/daily.md')).toEqual({
+      notesRootPath: '/notesRoot/.notes',
       notePath: 'daily.md',
     });
   });
 
-  it('falls back to the parent folder when opening a file at the vault root', () => {
-    expect(resolveOpenNoteTarget('/vault/docs/a.md')).toEqual({
-      vaultPath: '/vault/docs',
+  it('falls back to the parent folder when opening a file at the notesRoot root', () => {
+    expect(resolveOpenNoteTarget('/notesRoot/docs/a.md')).toEqual({
+      notesRootPath: '/notesRoot/docs',
       notePath: 'a.md',
     });
   });
 
   it('resolves Windows paths using the selected file parent folder', () => {
-    expect(resolveOpenNoteTarget('C:\\vault\\docs\\a.md')).toEqual({
-      vaultPath: 'C:\\vault\\docs',
+    expect(resolveOpenNoteTarget('C:\\notesRoot\\docs\\a.md')).toEqual({
+      notesRootPath: 'C:\\notesRoot\\docs',
       notePath: 'a.md',
     });
   });
 
   it('normalizes dot segments before resolving the selected file parent folder', () => {
-    expect(resolveOpenNoteTarget('/vault/docs/../alpha.md')).toEqual({
-      vaultPath: '/vault',
+    expect(resolveOpenNoteTarget('/notesRoot/docs/../alpha.md')).toEqual({
+      notesRootPath: '/notesRoot',
       notePath: 'alpha.md',
     });
-    expect(resolveOpenNoteTarget('C:\\vault\\docs\\..\\alpha.md')).toEqual({
-      vaultPath: 'C:\\vault',
+    expect(resolveOpenNoteTarget('C:\\notesRoot\\docs\\..\\alpha.md')).toEqual({
+      notesRootPath: 'C:\\notesRoot',
       notePath: 'alpha.md',
     });
   });
 
   it('resolves UNC paths after normalizing dot segments', () => {
     expect(resolveOpenNoteTarget('\\\\server\\share\\docs\\..\\alpha.md')).toEqual({
-      vaultPath: '\\\\server\\share',
+      notesRootPath: '\\\\server\\share',
       notePath: 'alpha.md',
     });
   });
 
   it('rejects markdown files inside hidden app and git folders', () => {
-    expect(() => resolveOpenNoteTarget('/vault/.vlaina/workspace.md')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/.vlaina/workspace.md')).toThrow(
       'Selected file path must not be inside an internal notes folder',
     );
-    expect(() => resolveOpenNoteTarget('/vault/docs/.git/config.md')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/docs/.git/config.md')).toThrow(
       'Selected file path must not be inside an internal notes folder',
     );
-    expect(() => resolveOpenNoteTarget('/vault/.VLAINA/workspace.md')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/.VLAINA/workspace.md')).toThrow(
       'Selected file path must not be inside an internal notes folder',
     );
-    expect(() => resolveOpenNoteTarget('/vault/docs/.GIT/config.md')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/docs/.GIT/config.md')).toThrow(
       'Selected file path must not be inside an internal notes folder',
     );
   });
 
   it('rejects markdown open targets with unsafe path characters', () => {
-    expect(() => resolveOpenNoteTarget('/vault/docs/secret\0.md')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/docs/secret\0.md')).toThrow(
       'Selected file path contains unsupported characters',
     );
-    expect(() => resolveOpenNoteTarget('/vault/docs/secret\u202Egnp.md')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/docs/secret\u202Egnp.md')).toThrow(
       'Selected file path contains unsupported characters',
     );
-    expect(() => resolveOpenNoteTarget('/vault/docs/secret\uFFFD.md')).toThrow(
+    expect(() => resolveOpenNoteTarget('/notesRoot/docs/secret\uFFFD.md')).toThrow(
       'Selected file path contains unsupported characters',
     );
   });

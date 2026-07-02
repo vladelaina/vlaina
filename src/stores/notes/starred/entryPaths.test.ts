@@ -11,22 +11,22 @@ import {
 function createEntry(
   id: string,
   kind: StarredEntry['kind'],
-  vaultPath: string,
+  notesRootPath: string,
   relativePath: string,
 ): StarredEntry {
   return {
     id,
     kind,
-    vaultPath,
+    notesRootPath,
     relativePath,
     addedAt: 1,
   };
 }
 
 describe('starred entry path helpers', () => {
-  it('resolves entry absolute paths for normal and root vaults', () => {
-    expect(getStarredEntryAbsolutePath(createEntry('a', 'note', '/vault', 'docs/alpha.md')))
-      .toBe('/vault/docs/alpha.md');
+  it('resolves entry absolute paths for normal and root notes-roots', () => {
+    expect(getStarredEntryAbsolutePath(createEntry('a', 'note', '/notesRoot', 'docs/alpha.md')))
+      .toBe('/notesRoot/docs/alpha.md');
     expect(getStarredEntryAbsolutePath(createEntry('b', 'note', '/', 'docs/alpha.md')))
       .toBe('/docs/alpha.md');
     expect(getStarredEntryAbsolutePath(createEntry('c', 'note', 'C:/', 'docs/alpha.md')))
@@ -43,7 +43,7 @@ describe('starred entry path helpers', () => {
 
     expect(entry).toMatchObject({
       kind: 'note',
-      vaultPath: '/other/docs',
+      notesRootPath: '/other/docs',
       relativePath: 'alpha.md',
     });
   });
@@ -57,27 +57,27 @@ describe('starred entry path helpers', () => {
     expect(createStarredEntryFromAbsoluteNotePath('/other/.vlaina/workspace.md')).toBeNull();
     expect(createStarredEntryFromAbsoluteNotePath('/other/docs/.GIT/config.md')).toBeNull();
     expect(createStarredEntryFromAbsoluteNotePath('/other/.VLAINA/workspace.md')).toBeNull();
-    expect(getStarredEntryAbsolutePath(createEntry('git', 'note', '/vault/.git', 'config.md')))
+    expect(getStarredEntryAbsolutePath(createEntry('git', 'note', '/notesRoot/.git', 'config.md')))
       .toBeNull();
-    expect(getStarredEntryAbsolutePath(createEntry('git-uppercase', 'note', '/vault/.GIT', 'config.md')))
+    expect(getStarredEntryAbsolutePath(createEntry('git-uppercase', 'note', '/notesRoot/.GIT', 'config.md')))
       .toBeNull();
-    expect(getStarredEntryAbsolutePath(createEntry('app', 'note', '/vault', '.vlaina/workspace.md')))
+    expect(getStarredEntryAbsolutePath(createEntry('app', 'note', '/notesRoot', '.vlaina/workspace.md')))
       .toBeNull();
-    expect(getStarredEntryAbsolutePath(createEntry('app-uppercase', 'note', '/vault', '.VLAINA/workspace.md')))
+    expect(getStarredEntryAbsolutePath(createEntry('app-uppercase', 'note', '/notesRoot', '.VLAINA/workspace.md')))
       .toBeNull();
   });
 
-  it('matches absolute paths against current-vault and external starred notes', () => {
+  it('matches absolute paths against current-notesRoot and external starred notes', () => {
     const entries = [
-      createEntry('current', 'note', '/vault', 'docs/current.md'),
+      createEntry('current', 'note', '/notesRoot', 'docs/current.md'),
       createEntry('external', 'note', '/other/docs', 'alpha.md'),
     ];
 
-    expect(findStarredEntryByPath(entries, 'note', '/vault/docs/current.md', '/vault')?.id)
+    expect(findStarredEntryByPath(entries, 'note', '/notesRoot/docs/current.md', '/notesRoot')?.id)
       .toBe('current');
-    expect(findStarredEntryByPath(entries, 'note', '/other/docs/alpha.md', '/vault')?.id)
+    expect(findStarredEntryByPath(entries, 'note', '/other/docs/alpha.md', '/notesRoot')?.id)
       .toBe('external');
-    expect(findStarredEntryByPath(entries, 'folder', '/other/docs/alpha.md', '/vault'))
+    expect(findStarredEntryByPath(entries, 'folder', '/other/docs/alpha.md', '/notesRoot'))
       .toBeUndefined();
   });
 
@@ -88,13 +88,13 @@ describe('starred entry path helpers', () => {
     ];
 
     expect(resolveStarredNoteContext('/other/docs/alpha.md', entries)).toEqual({
-      vaultPath: '/other/docs',
+      notesRootPath: '/other/docs',
       relativePath: 'alpha.md',
     });
     expect(resolveStarredNoteContext('/other/docs', entries)).toBeNull();
   });
 
-  it('uses relative display paths for current-vault notes and absolute paths for external notes', () => {
+  it('uses relative display paths for current-notesRoot notes and absolute paths for external notes', () => {
     const entry = createEntry('external', 'note', '/other/docs', 'alpha.md');
 
     expect(getStarredNoteDisplayPath(entry, true)).toBe('alpha.md');

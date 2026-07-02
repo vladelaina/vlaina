@@ -8,7 +8,7 @@ const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
   stat: vi.fn(async (): Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number; size?: number } | null> => null),
   noteIcon: vi.fn(({ icon }: { icon: string }) => <span data-testid="note-icon">{icon}</span>),
-  notesPath: '/vault',
+  notesPath: '/notesRoot',
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -72,7 +72,7 @@ describe('NotesTagsSection', () => {
     mocked.stat.mockReset();
     mocked.noteIcon.mockClear();
     mocked.stat.mockResolvedValue(null);
-    mocked.notesPath = '/vault';
+    mocked.notesPath = '/notesRoot';
   });
 
   it('does not parse tag note icon metadata that exceeds the limit after read', async () => {
@@ -101,7 +101,7 @@ describe('NotesTagsSection', () => {
     fireEvent.click(await screen.findByText('topic'));
 
     await waitFor(() => {
-      expect(mocked.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
+      expect(mocked.readFile).toHaveBeenCalledWith('/notesRoot/docs/alpha.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
     });
     expect(mocked.noteIcon).not.toHaveBeenCalled();
     expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
@@ -130,7 +130,7 @@ describe('NotesTagsSection', () => {
     await waitFor(() => {
       expect(screen.getByTestId('note-icon')).toHaveTextContent('💡');
     });
-    expect(mocked.readFile).toHaveBeenCalledWith('/vault/docs/no-size-icon.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
+    expect(mocked.readFile).toHaveBeenCalledWith('/notesRoot/docs/no-size-icon.md', MAX_TAG_NOTE_ICON_METADATA_BYTES);
   });
 
   it('does not read tag note icon metadata when stat reports an invalid negative size', async () => {
@@ -213,7 +213,7 @@ describe('NotesTagsSection', () => {
           {
             tag: 'topic',
             count: 1,
-            paths: [{ path: '/vault/secret\u202Egnp.md', query: '#topic', contentMatchOrdinal: 0 }],
+            paths: [{ path: '/notesRoot/secret\u202Egnp.md', query: '#topic', contentMatchOrdinal: 0 }],
           },
         ]}
         getDisplayName={(path) => path}
@@ -278,8 +278,8 @@ describe('NotesTagsSection', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read tag note icon metadata from internal vault paths', async () => {
-    mocked.notesPath = '/vault/.vlaina';
+  it('does not read tag note icon metadata from internal opened folder paths', async () => {
+    mocked.notesPath = '/notesRoot/.vlaina';
 
     render(
       <NotesTagsSection
@@ -304,8 +304,8 @@ describe('NotesTagsSection', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read tag note icon metadata from case-variant internal vault paths', async () => {
-    mocked.notesPath = '/vault/.VLAINA';
+  it('does not read tag note icon metadata from case-variant internal opened folder paths', async () => {
+    mocked.notesPath = '/notesRoot/.VLAINA';
 
     render(
       <NotesTagsSection

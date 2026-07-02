@@ -3,47 +3,47 @@ import {
   getAbsoluteRenameWatchPaths,
   getRelevantRelativeWatchPaths,
   getRelativeRenameWatchPaths,
-  isInsideVault,
+  isInsideNotesRoot,
   isCreateWatchEvent,
   isIgnoredWatchPath,
   isMarkdownPath,
   isRemoveWatchEvent,
   normalizeFsPath,
-  toVaultRelativePath,
+  toNotesRootRelativePath,
 } from './notesExternalSyncUtils';
 
 describe('notesExternalSyncUtils', () => {
   it('parses absolute rename paths from a paired rename event', () => {
     const renamePaths = getAbsoluteRenameWatchPaths({
       type: { modify: { kind: 'rename', mode: 'both' } },
-      paths: ['C:\\vault\\docs', 'C:\\vault\\archive'],
+      paths: ['C:\\notesRoot\\docs', 'C:\\notesRoot\\archive'],
     });
 
     expect(renamePaths).toEqual({
-      oldPath: 'C:/vault/docs',
-      newPath: 'C:/vault/archive',
+      oldPath: 'C:/notesRoot/docs',
+      newPath: 'C:/notesRoot/archive',
     });
   });
 
   it('normalizes dot segments in absolute rename paths', () => {
-    expect(normalizeFsPath('/vault/docs/../alpha.md')).toBe('/vault/alpha.md');
+    expect(normalizeFsPath('/notesRoot/docs/../alpha.md')).toBe('/notesRoot/alpha.md');
     expect(normalizeFsPath('docs/../alpha.md')).toBe('docs/../alpha.md');
 
     const renamePaths = getAbsoluteRenameWatchPaths({
       type: { modify: { kind: 'rename', mode: 'both' } },
-      paths: ['/vault/docs/../alpha.md', '/vault/archive/./alpha.md'],
+      paths: ['/notesRoot/docs/../alpha.md', '/notesRoot/archive/./alpha.md'],
     });
 
     expect(renamePaths).toEqual({
-      oldPath: '/vault/alpha.md',
-      newPath: '/vault/archive/alpha.md',
+      oldPath: '/notesRoot/alpha.md',
+      newPath: '/notesRoot/archive/alpha.md',
     });
   });
 
-  it('converts rename paths to vault-relative paths', () => {
-    const renamePaths = getRelativeRenameWatchPaths('C:\\vault', {
+  it('converts rename paths to notes-root-relative paths', () => {
+    const renamePaths = getRelativeRenameWatchPaths('C:\\notesRoot', {
       type: { modify: { kind: 'rename', mode: 'both' } },
-      paths: ['C:\\vault\\docs', 'C:\\vault\\archive'],
+      paths: ['C:\\notesRoot\\docs', 'C:\\notesRoot\\archive'],
     });
 
     expect(renamePaths).toEqual({
@@ -52,32 +52,32 @@ describe('notesExternalSyncUtils', () => {
     });
   });
 
-  it('converts root-vault absolute paths to relative paths', () => {
-    expect(isInsideVault('/', '/docs/alpha.md')).toBe(true);
-    expect(toVaultRelativePath('/', '/docs/alpha.md')).toBe('docs/alpha.md');
-    expect(toVaultRelativePath('/', '/')).toBe('');
+  it('converts root-notesRoot absolute paths to relative paths', () => {
+    expect(isInsideNotesRoot('/', '/docs/alpha.md')).toBe(true);
+    expect(toNotesRootRelativePath('/', '/docs/alpha.md')).toBe('docs/alpha.md');
+    expect(toNotesRootRelativePath('/', '/')).toBe('');
   });
 
-  it('rejects dot-segment absolute paths that normalize outside the vault', () => {
-    expect(isInsideVault('/vault', '/vault/docs/../alpha.md')).toBe(true);
-    expect(toVaultRelativePath('/vault', '/vault/docs/../alpha.md')).toBe('alpha.md');
-    expect(isInsideVault('/vault', '/vault/../secret.md')).toBe(false);
-    expect(toVaultRelativePath('/vault', '/vault/../secret.md')).toBeNull();
+  it('rejects dot-segment absolute paths that normalize outside the notesRoot', () => {
+    expect(isInsideNotesRoot('/notesRoot', '/notesRoot/docs/../alpha.md')).toBe(true);
+    expect(toNotesRootRelativePath('/notesRoot', '/notesRoot/docs/../alpha.md')).toBe('alpha.md');
+    expect(isInsideNotesRoot('/notesRoot', '/notesRoot/../secret.md')).toBe(false);
+    expect(toNotesRootRelativePath('/notesRoot', '/notesRoot/../secret.md')).toBeNull();
   });
 
-  it('matches Windows vault watch paths case-insensitively', () => {
-    expect(isInsideVault('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\Docs\\Alpha.md')).toBe(true);
-    expect(toVaultRelativePath('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\Docs\\Alpha.md')).toBe('Docs/Alpha.md');
-    expect(isInsideVault('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\..\\secret.md')).toBe(false);
-    expect(toVaultRelativePath('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\..\\secret.md')).toBeNull();
-    expect(toVaultRelativePath('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vaulted\\Alpha.md')).toBeNull();
+  it('matches Windows notesRoot watch paths case-insensitively', () => {
+    expect(isInsideNotesRoot('C:\\Users\\Me\\NotesRoot', 'c:\\users\\me\\notesRoot\\Docs\\Alpha.md')).toBe(true);
+    expect(toNotesRootRelativePath('C:\\Users\\Me\\NotesRoot', 'c:\\users\\me\\notesRoot\\Docs\\Alpha.md')).toBe('Docs/Alpha.md');
+    expect(isInsideNotesRoot('C:\\Users\\Me\\NotesRoot', 'c:\\users\\me\\notesRoot\\..\\secret.md')).toBe(false);
+    expect(toNotesRootRelativePath('C:\\Users\\Me\\NotesRoot', 'c:\\users\\me\\notesRoot\\..\\secret.md')).toBeNull();
+    expect(toNotesRootRelativePath('C:\\Users\\Me\\NotesRoot', 'c:\\users\\me\\notesRooted\\Alpha.md')).toBeNull();
   });
 
-  it('preserves UNC roots while matching vault watch paths', () => {
-    expect(isInsideVault('\\\\SERVER\\Share', '\\\\server\\share\\Docs\\Alpha.md')).toBe(true);
-    expect(toVaultRelativePath('\\\\SERVER\\Share', '\\\\server\\share\\Docs\\Alpha.md')).toBe('Docs/Alpha.md');
-    expect(isInsideVault('\\\\server\\share', '/server/share/Docs/Alpha.md')).toBe(false);
-    expect(toVaultRelativePath('\\\\server\\share', '/server/share/Docs/Alpha.md')).toBeNull();
+  it('preserves UNC roots while matching notesRoot watch paths', () => {
+    expect(isInsideNotesRoot('\\\\SERVER\\Share', '\\\\server\\share\\Docs\\Alpha.md')).toBe(true);
+    expect(toNotesRootRelativePath('\\\\SERVER\\Share', '\\\\server\\share\\Docs\\Alpha.md')).toBe('Docs/Alpha.md');
+    expect(isInsideNotesRoot('\\\\server\\share', '/server/share/Docs/Alpha.md')).toBe(false);
+    expect(toNotesRootRelativePath('\\\\server\\share', '/server/share/Docs/Alpha.md')).toBeNull();
   });
 
   it('detects create and remove watch events', () => {
@@ -102,41 +102,41 @@ describe('notesExternalSyncUtils', () => {
     expect(isIgnoredWatchPath('docs/.GIT/config')).toBe(true);
     expect(isIgnoredWatchPath('docs/cache.tmp')).toBe(true);
     expect(isIgnoredWatchPath('.notes/alpha.md')).toBe(false);
-    expect(getRelevantRelativeWatchPaths('/vault', [
-      '/vault/.vlaina/internal.json',
-      '/vault/docs/.git/config',
-      '/vault/.VLAINA/workspace.json',
-      '/vault/docs/.GIT/config',
-      '/vault/.notes/alpha.md',
+    expect(getRelevantRelativeWatchPaths('/notesRoot', [
+      '/notesRoot/.vlaina/internal.json',
+      '/notesRoot/docs/.git/config',
+      '/notesRoot/.VLAINA/workspace.json',
+      '/notesRoot/docs/.GIT/config',
+      '/notesRoot/.notes/alpha.md',
     ])).toEqual(['.notes/alpha.md']);
   });
 
   it('rejects unsafe characters when converting watch paths', () => {
-    expect(toVaultRelativePath('/vault', '/vault/docs/secret\0.md')).toBeNull();
-    expect(toVaultRelativePath('/vault', '/vault/docs/secret\u202Egnp.md')).toBeNull();
-    expect(toVaultRelativePath('/vault', '/vault/docs/secret\uFFFD.md')).toBeNull();
-    expect(toVaultRelativePath('/vault', '/vault/.notes/alpha.md')).toBe('.notes/alpha.md');
+    expect(toNotesRootRelativePath('/notesRoot', '/notesRoot/docs/secret\0.md')).toBeNull();
+    expect(toNotesRootRelativePath('/notesRoot', '/notesRoot/docs/secret\u202Egnp.md')).toBeNull();
+    expect(toNotesRootRelativePath('/notesRoot', '/notesRoot/docs/secret\uFFFD.md')).toBeNull();
+    expect(toNotesRootRelativePath('/notesRoot', '/notesRoot/.notes/alpha.md')).toBe('.notes/alpha.md');
 
-    expect(getRelevantRelativeWatchPaths('/vault', [
-      '/vault/.notes/alpha.md',
-      '/vault/docs/secret\0.md',
-      '/vault/docs/secret\u202Egnp.md',
-      '/vault/docs/secret\uFFFD.md',
+    expect(getRelevantRelativeWatchPaths('/notesRoot', [
+      '/notesRoot/.notes/alpha.md',
+      '/notesRoot/docs/secret\0.md',
+      '/notesRoot/docs/secret\u202Egnp.md',
+      '/notesRoot/docs/secret\uFFFD.md',
     ])).toEqual(['.notes/alpha.md']);
   });
 
   it('drops unsafe rename watch endpoints', () => {
-    expect(getRelativeRenameWatchPaths('/vault', {
+    expect(getRelativeRenameWatchPaths('/notesRoot', {
       type: { modify: { kind: 'rename', mode: 'both' } },
-      paths: ['/vault/docs/secret\u202Egnp.md', '/vault/docs/alpha.md'],
+      paths: ['/notesRoot/docs/secret\u202Egnp.md', '/notesRoot/docs/alpha.md'],
     })).toEqual({
       oldPath: null,
       newPath: 'docs/alpha.md',
     });
 
-    expect(getRelativeRenameWatchPaths('/vault', {
+    expect(getRelativeRenameWatchPaths('/notesRoot', {
       type: { modify: { kind: 'rename', mode: 'both' } },
-      paths: ['/vault/docs/secret\u202Egnp.md', '/vault/docs/secret\uFFFD.md'],
+      paths: ['/notesRoot/docs/secret\u202Egnp.md', '/notesRoot/docs/secret\uFFFD.md'],
     })).toBeNull();
   });
 });

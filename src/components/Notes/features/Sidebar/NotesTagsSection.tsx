@@ -13,13 +13,13 @@ import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
-import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { resolveEffectiveNotesRootPath } from '@/stores/notes/effectiveNotesRootPath';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
-  hasUnsafeVaultPathSegment,
-  normalizeVaultRelativePath,
-  resolveVaultRelativeFullPath,
-} from '@/stores/notes/utils/fs/vaultPathContainment';
+  hasUnsafeNotesRootPathSegment,
+  normalizeNotesRootRelativePath,
+  resolveNotesRootRelativeFullPath,
+} from '@/stores/notes/utils/fs/notesRootPathContainment';
 import { themeIconTokens } from '@/styles/themeTokens';
 import { cn } from '@/lib/utils';
 import { SidebarNoteFileIcon } from './SidebarNoteFileIcon';
@@ -169,34 +169,34 @@ function getKnownTagNoteIconModifiedAt(fileInfo: { modifiedAt?: number | null } 
     : null;
 }
 
-function isAllowedTagNoteIconMetadataPath(path: string, vaultPath: string | null): boolean {
+function isAllowedTagNoteIconMetadataPath(path: string, notesRootPath: string | null): boolean {
   if (!isSupportedMarkdownPath(path)) {
     return false;
   }
 
   if (
     hasInternalNotePathSegment(path) ||
-    hasUnsafeVaultPathSegment(path) ||
-    (vaultPath && (
-      hasInternalNotePathSegment(vaultPath) ||
-      hasUnsafeVaultPathSegment(vaultPath)
+    hasUnsafeNotesRootPathSegment(path) ||
+    (notesRootPath && (
+      hasInternalNotePathSegment(notesRootPath) ||
+      hasUnsafeNotesRootPathSegment(notesRootPath)
     ))
   ) {
     return false;
   }
 
-  return isAbsolutePath(path) || normalizeVaultRelativePath(path) !== null;
+  return isAbsolutePath(path) || normalizeNotesRootRelativePath(path) !== null;
 }
 
-async function readTagNoteIconFromStorage(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
-  if (!isAllowedTagNoteIconMetadataPath(path, vaultPath)) {
+async function readTagNoteIconFromStorage(path: string, notesRootPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
+  if (!isAllowedTagNoteIconMetadataPath(path, notesRootPath)) {
     return { modifiedAt: null, size: null, icon: null };
   }
 
   const fullPath = isAbsolutePath(path)
     ? path
-    : vaultPath
-      ? await resolveVaultRelativeFullPath(vaultPath, path)
+    : notesRootPath
+      ? await resolveNotesRootRelativeFullPath(notesRootPath, path)
           .then((result) => result.fullPath)
           .catch(() => null)
       : null;
@@ -239,12 +239,12 @@ async function readTagNoteIconFromStorage(path: string, vaultPath: string | null
 
 async function readTagNoteIcon(
   path: string,
-  vaultPath: string | null,
+  notesRootPath: string | null,
   cacheKey: string,
   signal?: AbortSignal,
 ): Promise<TagNoteIconCacheEntry> {
   return scheduleTagNoteIconMetadataRead(
-    () => readTagNoteIconFromStorage(path, vaultPath, cacheKey),
+    () => readTagNoteIconFromStorage(path, notesRootPath, cacheKey),
     signal,
   );
 }
@@ -402,8 +402,8 @@ const NotesTagFileRow = memo(function NotesTagFileRow({
   const storeIcon = useDisplayIcon(path);
   const displayName = useDisplayName(path);
   const notesPath = useNotesStore((state) => state.notesPath);
-  const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath: path });
-  const cacheKey = useMemo(() => `${vaultPath}\u001f${path}`, [vaultPath, path]);
+  const notesRootPath = resolveEffectiveNotesRootPath({ notesPath, currentNotePath: path });
+  const cacheKey = useMemo(() => `${notesRootPath}\u001f${path}`, [notesRootPath, path]);
   const [fallbackIcon, setFallbackIcon] = useState<string | undefined>(() =>
     tagNoteIconCache.get(cacheKey)?.icon ?? undefined
   );
@@ -416,7 +416,7 @@ const NotesTagFileRow = memo(function NotesTagFileRow({
 
     let cancelled = false;
     const abortController = new AbortController();
-    void readTagNoteIcon(path, vaultPath || null, cacheKey, abortController.signal)
+    void readTagNoteIcon(path, notesRootPath || null, cacheKey, abortController.signal)
       .then((entry) => {
         if (cancelled || abortController.signal.aborted) {
           return;
@@ -442,7 +442,7 @@ const NotesTagFileRow = memo(function NotesTagFileRow({
       cancelled = true;
       abortController.abort();
     };
-  }, [cacheKey, path, storeIcon, vaultPath]);
+  }, [cacheKey, path, storeIcon, notesRootPath]);
 
   return (
     <NotesSidebarRow

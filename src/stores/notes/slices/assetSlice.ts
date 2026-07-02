@@ -4,7 +4,7 @@ import { AssetEntry, UploadResult } from '@/lib/assets/types';
 import { AssetService } from '@/lib/assets/AssetService';
 import { useUIStore } from '@/stores/uiSlice';
 import { clearImageCache } from '@/lib/assets';
-import { resolveEffectiveVaultPath } from '../effectiveVaultPath';
+import { resolveEffectiveNotesRootPath } from '../effectiveNotesRootPath';
 
 let uploadProgressResetTimer: ReturnType<typeof setTimeout> | null = null;
 export const MAX_PENDING_ASSET_LOADS = 50;
@@ -19,22 +19,22 @@ function clearUploadProgressResetTimer() {
   uploadProgressResetTimer = null;
 }
 
-function isActiveUploadVault(state: NotesStore, vaultPath: string) {
-  return resolveEffectiveVaultPath({
+function isActiveUploadNotesRoot(state: NotesStore, notesRootPath: string) {
+  return resolveEffectiveNotesRootPath({
     notesPath: state.notesPath,
     currentNotePath: state.currentNote?.path,
-  }) === vaultPath;
+  }) === notesRootPath;
 }
 
 function isActiveAssetLoadScope(
   state: NotesStore,
-  vaultPath: string,
+  notesRootPath: string,
   loadKey: string,
 ) {
   const currentConfig = getAssetConfig();
-  const currentLoadKey = getLoadAssetsKey(vaultPath, state.currentNote?.path, currentConfig);
+  const currentLoadKey = getLoadAssetsKey(notesRootPath, state.currentNote?.path, currentConfig);
 
-  return currentLoadKey === loadKey && isActiveUploadVault(state, vaultPath);
+  return currentLoadKey === loadKey && isActiveUploadNotesRoot(state, notesRootPath);
 }
 
 function combineAndSortAssets(userAssets: AssetEntry[]): AssetEntry[] {
@@ -46,18 +46,18 @@ function getAssetConfig() {
   return {
     storageMode: uiState.imageStorageMode,
     subfolderName: uiState.imageSubfolderName,
-    imageVaultSubfolderName: uiState.imageVaultSubfolderName,
+    imageNotesRootSubfolderName: uiState.imageNotesRootSubfolderName,
     filenameFormat: uiState.imageFilenameFormat,
   };
 }
 
-function getLoadAssetsKey(vaultPath: string, currentNotePath: string | undefined, config: ReturnType<typeof getAssetConfig>) {
+function getLoadAssetsKey(notesRootPath: string, currentNotePath: string | undefined, config: ReturnType<typeof getAssetConfig>) {
   return JSON.stringify({
-    vaultPath,
+    notesRootPath,
     currentNotePath: currentNotePath ?? '',
     storageMode: config.storageMode,
     subfolderName: config.subfolderName,
-    imageVaultSubfolderName: config.imageVaultSubfolderName,
+    imageNotesRootSubfolderName: config.imageNotesRootSubfolderName,
     filenameFormat: config.filenameFormat,
   });
 }
@@ -67,7 +67,7 @@ export interface AssetSlice {
   isLoadingAssets: boolean;
   uploadProgress: number | null;
 
-  loadAssets: (vaultPath: string) => Promise<void>;
+  loadAssets: (notesRootPath: string) => Promise<void>;
   uploadAsset: (file: File, currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
@@ -80,10 +80,10 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   isLoadingAssets: false,
   uploadProgress: null,
 
-  loadAssets: async (vaultPath: string) => {
+  loadAssets: async (notesRootPath: string) => {
     const currentNotePath = get().currentNote?.path;
     const config = getAssetConfig();
-    const loadKey = getLoadAssetsKey(vaultPath, currentNotePath, config);
+    const loadKey = getLoadAssetsKey(notesRootPath, currentNotePath, config);
     const existingLoad = loadAssetsInFlight.get(loadKey);
     if (existingLoad) {
       await existingLoad;
@@ -100,7 +100,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
       try {
       const context = {
-        vaultPath,
+        notesRootPath,
         currentNotePath,
       };
 
@@ -112,7 +112,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
       assets = combineAndSortAssets(assets);
 
-      if (!isActiveAssetLoadScope(get(), vaultPath, loadKey)) {
+      if (!isActiveAssetLoadScope(get(), notesRootPath, loadKey)) {
         set({ isLoadingAssets: false });
         return;
       }
@@ -137,18 +137,18 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const { notesPath, assetList } = get();
     const config = getAssetConfig();
 
-    const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
-    if (!vaultPath) {
+    const notesRootPath = resolveEffectiveNotesRootPath({ notesPath, currentNotePath });
+    if (!notesRootPath) {
       return {
         success: false,
         path: null,
         isDuplicate: false,
-        error: 'Vault path is unavailable',
+        error: 'Opened folder path is unavailable',
       };
     }
 
     const context = {
-      vaultPath,
+      notesRootPath,
       currentNotePath,
     };
 
@@ -162,13 +162,13 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         config,
         assetList,
         (progress) => {
-          if (isActiveUploadVault(get(), vaultPath)) {
+          if (isActiveUploadNotesRoot(get(), notesRootPath)) {
             set({ uploadProgress: progress });
           }
         }
       );
 
-      if (!isActiveUploadVault(get(), vaultPath)) {
+      if (!isActiveUploadNotesRoot(get(), notesRootPath)) {
         return result;
       }
 
@@ -183,7 +183,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
       uploadProgressResetTimer = setTimeout(() => {
         uploadProgressResetTimer = null;
-        if (isActiveUploadVault(get(), vaultPath)) {
+        if (isActiveUploadNotesRoot(get(), notesRootPath)) {
           set({ uploadProgress: null });
         }
       }, 500);
@@ -191,7 +191,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     } catch (error) {
       clearUploadProgressResetTimer();
-      if (isActiveUploadVault(get(), vaultPath)) {
+      if (isActiveUploadNotesRoot(get(), notesRootPath)) {
         set({ uploadProgress: null });
       }
       return {

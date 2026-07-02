@@ -1,11 +1,11 @@
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import type { StarredEntry, StarredKind } from '../types';
 import {
-  getStarredVaultPathComparisonKey,
-  isSameStarredVaultPath,
-  isValidStarredVaultPath,
+  getStarredNotesRootPathComparisonKey,
+  isSameStarredNotesRootPath,
+  isValidStarredNotesRootPath,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
+  normalizeStarredNotesRootPath,
 } from './pathUtils';
 
 export const CURRENT_STARRED_VERSION = 1;
@@ -28,11 +28,11 @@ export function normalizeStarredEntry(value: unknown): StarredEntry | null {
     return null;
   }
 
-  if (typeof candidate.vaultPath !== 'string' || typeof candidate.relativePath !== 'string') {
+  if (typeof candidate.notesRootPath !== 'string' || typeof candidate.relativePath !== 'string') {
     return null;
   }
 
-  if (!isValidStarredVaultPath(candidate.vaultPath)) {
+  if (!isValidStarredNotesRootPath(candidate.notesRootPath)) {
     return null;
   }
 
@@ -45,7 +45,7 @@ export function normalizeStarredEntry(value: unknown): StarredEntry | null {
   return {
     id: candidate.id,
     kind: candidate.kind,
-    vaultPath: normalizeStarredVaultPath(candidate.vaultPath),
+    notesRootPath: normalizeStarredNotesRootPath(candidate.notesRootPath),
     relativePath,
     addedAt:
       typeof candidate.addedAt === 'number' && Number.isFinite(candidate.addedAt)
@@ -56,11 +56,11 @@ export function normalizeStarredEntry(value: unknown): StarredEntry | null {
 
 export function createStarredEntry(
   kind: StarredKind,
-  vaultPath: string,
+  notesRootPath: string,
   relativePath: string
 ): StarredEntry {
-  if (!isValidStarredVaultPath(vaultPath)) {
-    throw new Error('Starred entry vault path must be an absolute path');
+  if (!isValidStarredNotesRootPath(notesRootPath)) {
+    throw new Error('Starred entry opened folder path must be an absolute path');
   }
 
   const normalizedPath = normalizeStarredRelativePath(relativePath);
@@ -74,7 +74,7 @@ export function createStarredEntry(
   return {
     id: `starred-${crypto.randomUUID()}`,
     kind,
-    vaultPath: normalizeStarredVaultPath(vaultPath),
+    notesRootPath: normalizeStarredNotesRootPath(notesRootPath),
     relativePath: normalizedPath,
     addedAt: Date.now(),
   };
@@ -82,10 +82,10 @@ export function createStarredEntry(
 
 export function createStarredEntryIfValid(
   kind: StarredKind,
-  vaultPath: string,
+  notesRootPath: string,
   relativePath: string
 ): StarredEntry | null {
-  if (!isValidStarredVaultPath(vaultPath)) {
+  if (!isValidStarredNotesRootPath(notesRootPath)) {
     return null;
   }
 
@@ -100,16 +100,16 @@ export function createStarredEntryIfValid(
   return {
     id: `starred-${crypto.randomUUID()}`,
     kind,
-    vaultPath: normalizeStarredVaultPath(vaultPath),
+    notesRootPath: normalizeStarredNotesRootPath(notesRootPath),
     relativePath: normalizedPath,
     addedAt: Date.now(),
   };
 }
 
 export function getStarredEntryKey(
-  entry: Pick<StarredEntry, 'kind' | 'vaultPath' | 'relativePath'>
+  entry: Pick<StarredEntry, 'kind' | 'notesRootPath' | 'relativePath'>
 ): string {
-  return `${entry.kind}::${getStarredVaultPathComparisonKey(entry.vaultPath)}::${entry.relativePath}`;
+  return `${entry.kind}::${getStarredNotesRootPathComparisonKey(entry.notesRootPath)}::${entry.relativePath}`;
 }
 
 export function dedupeStarredEntries(entries: StarredEntry[]): StarredEntry[] {
@@ -126,7 +126,7 @@ export function dedupeStarredEntries(entries: StarredEntry[]): StarredEntry[] {
   return deduped;
 }
 
-export function getVaultStarredPaths(entries: StarredEntry[], vaultPath: string): {
+export function getNotesRootStarredPaths(entries: StarredEntry[], notesRootPath: string): {
   notes: string[];
   folders: string[];
 } {
@@ -134,7 +134,7 @@ export function getVaultStarredPaths(entries: StarredEntry[], vaultPath: string)
   const folders: string[] = [];
 
   for (const entry of entries) {
-    if (!isSameStarredVaultPath(entry.vaultPath, vaultPath)) continue;
+    if (!isSameStarredNotesRootPath(entry.notesRootPath, notesRootPath)) continue;
     if (entry.kind === 'folder') {
       folders.push(entry.relativePath);
       continue;
@@ -145,15 +145,15 @@ export function getVaultStarredPaths(entries: StarredEntry[], vaultPath: string)
   return { notes, folders };
 }
 
-export function remapStarredEntriesForVault(
+export function remapStarredEntriesForNotesRoot(
   entries: StarredEntry[],
-  vaultPath: string,
+  notesRootPath: string,
   remapPath: (relativePath: string, kind: StarredKind) => string | null
 ): { entries: StarredEntry[]; changed: boolean } {
   let changed = false;
 
   const remapped = entries.flatMap((entry) => {
-    if (!isSameStarredVaultPath(entry.vaultPath, vaultPath)) {
+    if (!isSameStarredNotesRootPath(entry.notesRootPath, notesRootPath)) {
       return [entry];
     }
 

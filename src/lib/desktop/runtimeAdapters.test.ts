@@ -128,7 +128,7 @@ describe('desktop runtime adapters', () => {
     await desktopWindow.minimize();
     await desktopWindow.setMinSize({ width: 800, height: 600 });
     await desktopWindow.setSize({ width: 980, height: 640 });
-    await desktopWindow.create({ vaultPath: '/vault', notePath: '/vault/a.md', viewMode: 'notes' });
+    await desktopWindow.create({ notesRootPath: '/notesRoot', notePath: '/notesRoot/a.md', viewMode: 'notes' });
 
     const size = await desktopWindow.getSize();
     const label = await desktopWindow.getLabel();
@@ -139,8 +139,8 @@ describe('desktop runtime adapters', () => {
     expect(mocks.bridge.window.setMinSize).toHaveBeenCalledWith(800, 600);
     expect(mocks.bridge.window.setSize).toHaveBeenCalledWith(980, 640);
     expect(mocks.bridge.window.create).toHaveBeenCalledWith({
-      vaultPath: '/vault',
-      notePath: '/vault/a.md',
+      notesRootPath: '/notesRoot',
+      notePath: '/notesRoot/a.md',
       viewMode: 'notes',
     });
     expect(size).toEqual({ width: 1280, height: 720 });

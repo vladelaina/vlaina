@@ -4,8 +4,8 @@ import { RootFolderRow } from './RootFolderRow';
 
 const hoisted = vi.hoisted(() => ({
   notesPath: '',
-  currentVault: { path: '/vault', name: 'Vault' } as { path: string; name: string } | null,
-  renameCurrentVault: vi.fn(() => Promise.resolve(true)),
+  currentNotesRoot: { path: '/notesRoot', name: 'NotesRoot' } as { path: string; name: string } | null,
+  renameCurrentNotesRoot: vi.fn(() => Promise.resolve(true)),
   setFileTreeSortMode: vi.fn(),
   toggleFolder: vi.fn(),
 }));
@@ -23,10 +23,10 @@ vi.mock('@/stores/useNotesStore', () => ({
   }),
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector: (state: any) => unknown) => selector({
-    currentVault: hoisted.currentVault,
-    renameCurrentVault: hoisted.renameCurrentVault,
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector: (state: any) => unknown) => selector({
+    currentNotesRoot: hoisted.currentNotesRoot,
+    renameCurrentNotesRoot: hoisted.renameCurrentNotesRoot,
   }),
 }));
 
@@ -63,7 +63,7 @@ describe('RootFolderRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.notesPath = '';
-    hoisted.currentVault = { path: '/vault', name: 'Vault' };
+    hoisted.currentNotesRoot = { path: '/notesRoot', name: 'NotesRoot' };
   });
 
   it('does not show a root loading shell when no notes target is open', () => {
@@ -79,8 +79,8 @@ describe('RootFolderRow', () => {
     expect(container.querySelector('[data-notes-sidebar-root-loading-shell="true"]')).toBeNull();
   });
 
-  it('shows a root loading shell while the active vault root is loading', () => {
-    hoisted.notesPath = '/vault';
+  it('shows a root loading shell while the active notesRoot root is loading', () => {
+    hoisted.notesPath = '/notesRoot';
 
     const { container } = render(
       <RootFolderRow

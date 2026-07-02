@@ -2,7 +2,7 @@ import { removeNodeFromTree } from '../../fileTreeUtils';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { assertNonInternalNotePath } from './internalNotePaths';
 import { deleteNoteItemToPendingTrash } from './trashOperations';
-import { resolveVaultRelativeFullPath } from './vaultPathContainment';
+import { resolveNotesRootRelativeFullPath } from './notesRootPathContainment';
 import type {
   DeleteOperationResult,
   FileOperationContext,
@@ -15,7 +15,7 @@ export async function deleteNoteImpl(
   path: string,
   currentStore: FileOperationContext,
 ): Promise<DeleteOperationResult> {
-  const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
+  const { relativePath: safePath, fullPath } = await resolveNotesRootRelativeFullPath(notesPath, path);
   assertNonInternalNotePath(safePath);
   markExpectedExternalChange(fullPath);
   const trashedItem = await deleteNoteItemToPendingTrash(notesPath, safePath, 'file');
@@ -46,7 +46,7 @@ export async function deleteFolderImpl(
   path: string,
   currentStore: FileOperationContext,
 ): Promise<DeleteOperationResult> {
-  const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
+  const { relativePath: safePath, fullPath } = await resolveNotesRootRelativeFullPath(notesPath, path);
   assertNonInternalNotePath(safePath);
   markExpectedExternalChange(fullPath, true);
   const trashedItem = await deleteNoteItemToPendingTrash(notesPath, safePath, 'folder');

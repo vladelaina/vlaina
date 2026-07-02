@@ -41,7 +41,7 @@ import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { hasUnsafeVaultPathSegment, normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
+import { hasUnsafeNotesRootPathSegment, normalizeNotesRootRelativePath } from '../utils/fs/notesRootPathContainment';
 
 interface PendingNotePrefetch {
   promise: Promise<void>;
@@ -102,7 +102,7 @@ function isInternalWorkspaceNotePath(path: string): boolean {
 }
 
 function hasUnsafeWorkspaceNotePathSegment(path: string): boolean {
-  return hasUnsafeVaultPathSegment(path);
+  return hasUnsafeNotesRootPathSegment(path);
 }
 
 function openDraftNoteFromMemory(
@@ -304,9 +304,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         set({ error: 'Only Markdown files can be opened as notes.' });
         return;
       }
-      const normalizedPath = normalizeVaultRelativePath(path);
+      const normalizedPath = normalizeNotesRootRelativePath(path);
       if (normalizedPath == null) {
-        set({ error: 'Path must stay inside the current vault.' });
+        set({ error: 'Path must stay inside the opened folder.' });
         return;
       }
       if (isInternalWorkspaceNotePath(normalizedPath)) {
@@ -583,7 +583,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (!isSupportedMarkdownPath(path)) {
       return;
     }
-    const normalizedPath = normalizeVaultRelativePath(path);
+    const normalizedPath = normalizeNotesRootRelativePath(path);
     if (normalizedPath == null) {
       return;
     }
@@ -689,7 +689,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       return;
     }
 
-    const normalizedPath = normalizeVaultRelativePath(path);
+    const normalizedPath = normalizeNotesRootRelativePath(path);
     if (normalizedPath == null) {
       return;
     }
@@ -703,7 +703,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     cancelledNotePrefetches.add(prefetchKey);
   },
 
-  adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {
+  adoptAbsoluteNoteIntoNotesRoot: (absolutePath: string, nextPath: string) => {
     const {
       currentNote,
       openTabs,
@@ -721,7 +721,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (!isSupportedMarkdownPath(nextPath)) {
       return false;
     }
-    const normalizedNextPath = normalizeVaultRelativePath(nextPath);
+    const normalizedNextPath = normalizeNotesRootRelativePath(nextPath);
     if (normalizedNextPath == null || isInternalWorkspaceNotePath(normalizedNextPath)) {
       return false;
     }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { resolveEffectiveNotesRootPath } from '@/stores/notes/effectiveNotesRootPath';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import type { NoteCoverMetadata, NotesStore } from '@/stores/notes/types';
@@ -221,7 +221,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
 
   return {
     cover,
-    vaultPath: resolveEffectiveVaultPath({ notesPath, currentNotePath }),
+    notesRootPath: resolveEffectiveNotesRootPath({ notesPath, currentNotePath }),
     currentNotePath,
     isPickerOpen,
     setPickerOpen: setExclusivePickerOpen,

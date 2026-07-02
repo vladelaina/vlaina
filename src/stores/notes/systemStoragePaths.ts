@@ -2,7 +2,7 @@ import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getPaths } from '@/lib/storage/paths';
 
-function hashVaultPath(path: string): string {
+function hashNotesRootPath(path: string): string {
   let hash = 2166136261;
   for (let index = 0; index < path.length; index += 1) {
     hash ^= path.charCodeAt(index);
@@ -11,9 +11,9 @@ function hashVaultPath(path: string): string {
   return (hash >>> 0).toString(36);
 }
 
-export function getVaultStorageKey(vaultPath: string): string {
-  const normalized = normalizeNotePathKey(vaultPath) ?? vaultPath.replace(/\\/g, '/');
-  return `vault-${hashVaultPath(normalized)}`;
+export function getNotesRootStorageKey(notesRootPath: string): string {
+  const normalized = normalizeNotePathKey(notesRootPath) ?? notesRootPath.replace(/\\/g, '/');
+  return `notes-root-${hashNotesRootPath(normalized)}`;
 }
 
 export async function getNotesSystemStorePath(...segments: string[]): Promise<string> {
@@ -21,11 +21,11 @@ export async function getNotesSystemStorePath(...segments: string[]): Promise<st
   return joinPath(notes, ...segments);
 }
 
-export async function getVaultSystemStorePath(
-  vaultPath: string,
+export async function getNotesRootSystemStorePath(
+  notesRootPath: string,
   ...segments: string[]
 ): Promise<string> {
-  return getNotesSystemStorePath('vaults', getVaultStorageKey(vaultPath), ...segments);
+  return getNotesSystemStorePath('notes-roots', getNotesRootStorageKey(notesRootPath), ...segments);
 }
 
 export async function ensureSystemDirectory(path: string): Promise<void> {
@@ -35,14 +35,14 @@ export async function ensureSystemDirectory(path: string): Promise<void> {
   }
 }
 
-export async function moveVaultSystemStore(
-  previousVaultPath: string,
-  nextVaultPath: string
+export async function moveNotesRootSystemStore(
+  previousNotesRootPath: string,
+  nextNotesRootPath: string
 ): Promise<void> {
   try {
     const storage = getStorageAdapter();
-    const previousPath = await getVaultSystemStorePath(previousVaultPath);
-    const nextPath = await getVaultSystemStorePath(nextVaultPath);
+    const previousPath = await getNotesRootSystemStorePath(previousNotesRootPath);
+    const nextPath = await getNotesRootSystemStorePath(nextNotesRootPath);
 
     if (
       previousPath === nextPath ||
@@ -52,7 +52,7 @@ export async function moveVaultSystemStore(
       return;
     }
 
-    await ensureSystemDirectory(await getNotesSystemStorePath('vaults'));
+    await ensureSystemDirectory(await getNotesSystemStorePath('notes-roots'));
     await storage.rename(previousPath, nextPath);
   } catch (error) {
   }

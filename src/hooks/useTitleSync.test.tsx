@@ -174,10 +174,10 @@ describe('useDisplayIcon', () => {
     expect(result.current).toBeUndefined();
   });
 
-  it('does not reuse a temporarily missing icon cache across vaults for the same note path', () => {
+  it('does not reuse a temporarily missing icon cache across notes-roots for the same note path', () => {
     act(() => {
       useNotesStore.setState({
-        notesPath: '/vault-a',
+        notesPath: '/notes-root-a',
         noteMetadata: {
           version: 2,
           notes: {
@@ -192,7 +192,7 @@ describe('useDisplayIcon', () => {
 
     act(() => {
       useNotesStore.setState({
-        notesPath: '/vault-b',
+        notesPath: '/notes-root-b',
         noteMetadata: {
           version: 2,
           notes: {},

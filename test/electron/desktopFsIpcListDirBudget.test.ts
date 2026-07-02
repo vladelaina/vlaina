@@ -156,7 +156,7 @@ describe('desktop filesystem list directory budget', () => {
     ]));
     const { handlers } = registerHarness();
 
-    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot');
 
     expect(entries).toHaveLength(20_000);
     expect(entries).not.toEqual(
@@ -175,7 +175,7 @@ describe('desktop filesystem list directory budget', () => {
     ]));
     const { handlers } = registerHarness();
 
-    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot');
 
     expect(entries).toHaveLength(20_000);
     expect(entries).toEqual(
@@ -199,7 +199,7 @@ describe('desktop filesystem list directory budget', () => {
     ]));
     const { handlers } = registerHarness();
 
-    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot');
 
     expect(entries).toHaveLength(20_000);
     expect(entries).toEqual(
@@ -224,7 +224,7 @@ describe('desktop filesystem list directory budget', () => {
     ]));
     const { handlers } = registerHarness();
 
-    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot');
 
     expect(entries).toHaveLength(20_000);
     expect(entries).toEqual(
@@ -248,7 +248,7 @@ describe('desktop filesystem list directory budget', () => {
     ]));
     const { handlers } = registerHarness();
 
-    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot');
 
     expect(entries).toHaveLength(20_000);
     expect(entries).toEqual(
@@ -272,7 +272,7 @@ describe('desktop filesystem list directory budget', () => {
     ]));
     const { handlers } = registerHarness();
 
-    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot');
 
     expect(entries).toHaveLength(20_000);
     expect(entries).toEqual(
@@ -297,7 +297,7 @@ describe('desktop filesystem list directory budget', () => {
     mocks.opendir.mockResolvedValueOnce(directoryHandle);
     const { handlers } = registerHarness();
 
-    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/vault');
+    const entries = await handlers.get('desktop:fs:list-dir')?.({}, '/notesRoot');
 
     expect(entries).toHaveLength(20_000);
     expect(directoryHandle.yieldedCount).toBe(40_000);

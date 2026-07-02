@@ -60,41 +60,41 @@ describe('draft note save', () => {
     });
   });
 
-  it('keeps user dot folders usable when resolving draft save locations inside the vault', () => {
-    expect(resolveDraftSaveLocation('/vault/.notes/alpha.md', '/vault')).toEqual({
-      absolutePath: '/vault/.notes/alpha.md',
+  it('keeps user dot folders usable when resolving draft save locations inside the notesRoot', () => {
+    expect(resolveDraftSaveLocation('/notesRoot/.notes/alpha.md', '/notesRoot')).toEqual({
+      absolutePath: '/notesRoot/.notes/alpha.md',
       relativePath: '.notes/alpha.md',
     });
   });
 
-  it('normalizes selected paths before deciding whether they are inside the vault', () => {
-    expect(resolveDraftSaveLocation('/vault/docs/../alpha.md', '/vault')).toEqual({
-      absolutePath: '/vault/docs/../alpha.md',
+  it('normalizes selected paths before deciding whether they are inside the notesRoot', () => {
+    expect(resolveDraftSaveLocation('/notesRoot/docs/../alpha.md', '/notesRoot')).toEqual({
+      absolutePath: '/notesRoot/docs/../alpha.md',
       relativePath: 'alpha.md',
     });
-    expect(resolveDraftSaveLocation('/vault/../secret.md', '/vault')).toEqual({
-      absolutePath: '/vault/../secret.md',
+    expect(resolveDraftSaveLocation('/notesRoot/../secret.md', '/notesRoot')).toEqual({
+      absolutePath: '/notesRoot/../secret.md',
       relativePath: null,
     });
   });
 
-  it('resolves root vault and Windows case variants as vault-relative save locations', () => {
+  it('resolves root notesRoot and Windows case variants as notes-root-relative save locations', () => {
     expect(resolveDraftSaveLocation('/alpha.md', '/')).toEqual({
       absolutePath: '/alpha.md',
       relativePath: 'alpha.md',
     });
-    expect(resolveDraftSaveLocation('c:/Vault/docs/alpha.md', 'C:/Vault')).toEqual({
-      absolutePath: 'c:/Vault/docs/alpha.md',
+    expect(resolveDraftSaveLocation('c:/NotesRoot/docs/alpha.md', 'C:/NotesRoot')).toEqual({
+      absolutePath: 'c:/NotesRoot/docs/alpha.md',
       relativePath: 'docs/alpha.md',
     });
   });
 
-  it('rejects internal folders when resolving draft save locations inside the vault', () => {
-    expect(() => resolveDraftSaveLocation('/vault/.vlaina/secret.md', '/vault'))
+  it('rejects internal folders when resolving draft save locations inside the notesRoot', () => {
+    expect(() => resolveDraftSaveLocation('/notesRoot/.vlaina/secret.md', '/notesRoot'))
       .toThrow('Path must not be inside an internal notes folder.');
-    expect(() => resolveDraftSaveLocation('/vault/docs/.git/config.md', '/vault'))
+    expect(() => resolveDraftSaveLocation('/notesRoot/docs/.git/config.md', '/notesRoot'))
       .toThrow('Path must not be inside an internal notes folder.');
-    expect(() => resolveDraftSaveLocation('/vault/docs/.GIT/config.md', '/vault'))
+    expect(() => resolveDraftSaveLocation('/notesRoot/docs/.GIT/config.md', '/notesRoot'))
       .toThrow('Path must not be inside an internal notes folder.');
   });
 });

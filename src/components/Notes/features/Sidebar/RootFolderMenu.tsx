@@ -1,6 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { type FileTreeSortMode } from '@/stores/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { cn } from '@/lib/utils';
 import { NotesSidebarContextMenu } from './NotesSidebarContextMenu';
 import {
@@ -26,7 +26,7 @@ interface RootFolderMenuProps {
   onStartRename: () => void;
   fileTreeSortMode: FileTreeSortMode;
   onSelectSortMode: (mode: FileTreeSortMode) => void;
-  vaultPath: string;
+  notesRootPath: string;
 }
 
 const sortOptionIconNameByMode: Record<FileTreeSortMode, Parameters<typeof Icon>[0]['name']> = {
@@ -47,7 +47,7 @@ export function RootFolderMenu({
   onStartRename,
   fileTreeSortMode,
   onSelectSortMode,
-  vaultPath,
+  notesRootPath,
 }: RootFolderMenuProps) {
   const { t } = useI18n();
   const sortLabelByMode: Record<FileTreeSortMode, string> = {
@@ -57,9 +57,9 @@ export function RootFolderMenu({
     'created-desc': t('sidebar.recentlyCreated'),
   };
   const currentSortLabel = sortLabelByMode[fileTreeSortMode] ?? getFileTreeSortLabel(fileTreeSortMode);
-  const closeVault = useVaultStore((state) => state.closeVault);
+  const closeNotesRoot = useNotesRootStore((state) => state.closeNotesRoot);
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
-    notesPath: vaultPath,
+    notesPath: notesRootPath,
     itemPath: '',
     openLocationErrorMessage: t('notes.openFolderLocationFailed'),
   });
@@ -138,7 +138,7 @@ export function RootFolderMenu({
             onClose();
             await handleCopyPath();
           },
-          disabled: !vaultPath,
+          disabled: !notesRootPath,
         },
         {
           key: 'open-new-window',
@@ -148,7 +148,7 @@ export function RootFolderMenu({
             onClose();
             await handleOpenInNewWindow('folder');
           },
-          disabled: !vaultPath,
+          disabled: !notesRootPath,
         },
         {
           key: 'open-folder-location',
@@ -158,7 +158,7 @@ export function RootFolderMenu({
             onClose();
             await handleOpenLocation('folder');
           },
-          disabled: !vaultPath,
+          disabled: !notesRootPath,
         },
       ],
     },
@@ -167,11 +167,11 @@ export function RootFolderMenu({
       icon: <Icon name="common.close" size="md" />,
       label: t('sidebar.closeFolder'),
       onClick: async () => {
-        if (!vaultPath) return;
+        if (!notesRootPath) return;
         onClose();
-        await closeVault();
+        await closeNotesRoot();
       },
-      disabled: !vaultPath,
+      disabled: !notesRootPath,
     },
   ];
 

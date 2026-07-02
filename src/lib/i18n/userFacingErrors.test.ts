@@ -10,14 +10,14 @@ describe('normalizeUserFacingErrorMessage', () => {
     expect(normalizeUserFacingErrorMessage('Only Markdown files can be opened as notes.')).toBe(
       '请选择一个 Markdown 文件。'
     );
-    expect(normalizeUserFacingErrorMessage('Target folder must stay inside the current vault.')).toBe(
+    expect(normalizeUserFacingErrorMessage('Target folder must stay inside the opened folder.')).toBe(
       '无法打开所选 Markdown 文件。'
     );
-    expect(normalizeUserFacingErrorMessage('Save or discard draft notes before switching vaults')).toBe(
-      '切换库前请先保存或丢弃草稿笔记。'
+    expect(normalizeUserFacingErrorMessage('Save or discard draft notes before opening another folder')).toBe(
+      '打开其他文件夹前请先保存或丢弃草稿笔记。'
     );
     expect(normalizeUserFacingErrorMessage('Failed to open folder location.')).toBe('无法打开文件夹位置。');
-    expect(normalizeUserFacingErrorMessage('Failed to open vault')).toBe('无法打开所选库。');
+    expect(normalizeUserFacingErrorMessage('Failed to open folder')).toBe('无法打开所选文件夹。');
   });
 
   it('uses a localized fallback when the error is empty', () => {

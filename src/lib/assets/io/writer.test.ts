@@ -44,40 +44,40 @@ describe('atomicWrite', () => {
   });
 
   it('uses a unique temp file for each atomic write to the same target', async () => {
-    await writeAssetAtomic('/vault/assets/image.png', new Uint8Array([1]));
-    await writeAssetAtomic('/vault/assets/image.png', new Uint8Array([2]));
+    await writeAssetAtomic('/notesRoot/assets/image.png', new Uint8Array([1]));
+    await writeAssetAtomic('/notesRoot/assets/image.png', new Uint8Array([2]));
 
     const firstTempPath = mocks.storage.writeBinaryFile.mock.calls[0]?.[0];
     const secondTempPath = mocks.storage.writeBinaryFile.mock.calls[1]?.[0];
 
     expect(firstTempPath).not.toBe(secondTempPath);
-    expect(firstTempPath).toMatch(/\/vault\/assets\/image\.png\..+\.tmp$/);
-    expect(secondTempPath).toMatch(/\/vault\/assets\/image\.png\..+\.tmp$/);
-    expect(mocks.storage.rename).toHaveBeenNthCalledWith(1, firstTempPath, '/vault/assets/image.png');
-    expect(mocks.storage.rename).toHaveBeenNthCalledWith(2, secondTempPath, '/vault/assets/image.png');
+    expect(firstTempPath).toMatch(/\/notesRoot\/assets\/image\.png\..+\.tmp$/);
+    expect(secondTempPath).toMatch(/\/notesRoot\/assets\/image\.png\..+\.tmp$/);
+    expect(mocks.storage.rename).toHaveBeenNthCalledWith(1, firstTempPath, '/notesRoot/assets/image.png');
+    expect(mocks.storage.rename).toHaveBeenNthCalledWith(2, secondTempPath, '/notesRoot/assets/image.png');
   });
 
   describe('Property 7: Temp File Cleanup', () => {
     it('cleans temp files directly inside the asset directory', async () => {
       mocks.storage.listDir.mockResolvedValue([
-        { name: 'image.png.tmp', path: '/vault/assets/image.png.tmp', isFile: true, isDirectory: false },
-        { name: 'image.png', path: '/vault/assets/image.png', isFile: true, isDirectory: false },
+        { name: 'image.png.tmp', path: '/notesRoot/assets/image.png.tmp', isFile: true, isDirectory: false },
+        { name: 'image.png', path: '/notesRoot/assets/image.png', isFile: true, isDirectory: false },
       ]);
 
-      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(1);
+      await expect(cleanupTempFiles('/notesRoot/assets')).resolves.toBe(1);
 
-      expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/assets/image.png.tmp');
+      expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/notesRoot/assets/image.png.tmp');
     });
 
     it('does not clean unsafe temp directory entries', async () => {
       mocks.storage.listDir.mockResolvedValue([
-        { name: '../secret.tmp', path: '/vault/secret.tmp', isFile: true, isDirectory: false },
-        { name: 'escape.tmp', path: '/vault/assets/../escape.tmp', isFile: true, isDirectory: false },
-        { name: 'nested.tmp', path: '/vault/assets/nested/nested.tmp', isFile: true, isDirectory: false },
-        { name: 'dir.tmp', path: '/vault/assets/dir.tmp', isFile: false, isDirectory: true },
+        { name: '../secret.tmp', path: '/notesRoot/secret.tmp', isFile: true, isDirectory: false },
+        { name: 'escape.tmp', path: '/notesRoot/assets/../escape.tmp', isFile: true, isDirectory: false },
+        { name: 'nested.tmp', path: '/notesRoot/assets/nested/nested.tmp', isFile: true, isDirectory: false },
+        { name: 'dir.tmp', path: '/notesRoot/assets/dir.tmp', isFile: false, isDirectory: true },
       ]);
 
-      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(0);
+      await expect(cleanupTempFiles('/notesRoot/assets')).resolves.toBe(0);
 
       expect(mocks.storage.deleteFile).not.toHaveBeenCalled();
     });
@@ -86,43 +86,43 @@ describe('atomicWrite', () => {
       mocks.storage.listDir.mockResolvedValue([
         ...Array.from({ length: MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES }, (_value, index) => ({
           name: `asset-${index}.png`,
-          path: `/vault/assets/asset-${index}.png`,
+          path: `/notesRoot/assets/asset-${index}.png`,
           isFile: true,
           isDirectory: false,
         })),
         {
           name: 'late.tmp',
-          path: '/vault/assets/late.tmp',
+          path: '/notesRoot/assets/late.tmp',
           isFile: true,
           isDirectory: false,
         },
       ]);
 
-      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(1);
+      await expect(cleanupTempFiles('/notesRoot/assets')).resolves.toBe(1);
 
-      expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/assets/late.tmp');
+      expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/notesRoot/assets/late.tmp');
     });
 
     it('bounds the number of temp file candidates scanned during cleanup', async () => {
       mocks.storage.listDir.mockResolvedValue([
         ...Array.from({ length: MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES }, (_value, index) => ({
           name: `asset-${index}.png.tmp`,
-          path: `/vault/assets/asset-${index}.png.tmp`,
+          path: `/notesRoot/assets/asset-${index}.png.tmp`,
           isFile: true,
           isDirectory: false,
         })),
         {
           name: 'late.tmp',
-          path: '/vault/assets/late.tmp',
+          path: '/notesRoot/assets/late.tmp',
           isFile: true,
           isDirectory: false,
         },
       ]);
 
-      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES);
+      await expect(cleanupTempFiles('/notesRoot/assets')).resolves.toBe(MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES);
 
       expect(mocks.storage.deleteFile).toHaveBeenCalledTimes(MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES);
-      expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith('/vault/assets/late.tmp');
+      expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith('/notesRoot/assets/late.tmp');
     });
 
     describe('isTempFile', () => {

@@ -21,7 +21,7 @@ export interface WorkspaceSlice {
   openNoteByAbsolutePath: NotesStore['openNoteByAbsolutePath'];
   prefetchNote: NotesStore['prefetchNote'];
   cancelPrefetchNote: NotesStore['cancelPrefetchNote'];
-  adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
+  adoptAbsoluteNoteIntoNotesRoot: (absolutePath: string, nextPath: string) => boolean;
   saveNote: NotesStore['saveNote'];
   syncCurrentNoteFromDisk: NotesStore['syncCurrentNoteFromDisk'];
   invalidateNoteCache: NotesStore['invalidateNoteCache'];

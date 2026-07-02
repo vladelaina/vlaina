@@ -1,7 +1,7 @@
 export { 
   useNotesStore, 
-  setCurrentVaultPath, 
-  getCurrentVaultPath, 
+  setCurrentNotesRootPath, 
+  getCurrentNotesRootPath, 
   sortFileTree 
 } from './notes';
 

@@ -77,8 +77,8 @@ export function StarredSection({
           <span>{t('notes.starred')}</span>
         </div>
       ) : (
-        entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
-          if (isCurrentVaultEntry && treeNode?.isFolder) {
+        entryViewModels.map(({ entry, isCurrentNotesRootEntry, isActive, treeNode, onOpen, onRemove }) => {
+          if (isCurrentNotesRootEntry && treeNode?.isFolder) {
             return (
               <Suspense key={entry.id} fallback={null}>
                 <FolderItem
@@ -94,7 +94,7 @@ export function StarredSection({
             <ExternalStarredEntryRow
               key={entry.id}
               entry={entry}
-              isCurrentVaultEntry={isCurrentVaultEntry}
+              isCurrentNotesRootEntry={isCurrentNotesRootEntry}
               isActive={isActive}
               onOpen={onOpen}
               onRemove={onRemove}

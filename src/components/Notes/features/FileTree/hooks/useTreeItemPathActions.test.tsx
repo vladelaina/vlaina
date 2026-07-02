@@ -54,7 +54,7 @@ describe('useTreeItemPathActions', () => {
   it('passes folder location requests through to the path action', async () => {
     const { result } = renderHook(() =>
       useTreeItemPathActions({
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         itemPath: 'docs',
       }),
     );
@@ -63,15 +63,15 @@ describe('useTreeItemPathActions', () => {
       await result.current.handleOpenLocation('folder');
     });
 
-    expect(mocks.openTreeItemLocation).toHaveBeenCalledWith('/vault', 'docs', 'folder');
+    expect(mocks.openTreeItemLocation).toHaveBeenCalledWith('/notesRoot', 'docs', 'folder');
   });
 
   it('still reports real path action failures', async () => {
-    mocks.copyTreeItemPath.mockRejectedValueOnce(new Error('Path must stay inside the current vault.'));
+    mocks.copyTreeItemPath.mockRejectedValueOnce(new Error('Path must stay inside the opened folder.'));
 
     const { result } = renderHook(() =>
       useTreeItemPathActions({
-        notesPath: '/vault',
+        notesPath: '/notesRoot',
         itemPath: '../secret.md',
       }),
     );
@@ -80,6 +80,6 @@ describe('useTreeItemPathActions', () => {
       await result.current.handleCopyPath();
     });
 
-    expect(mocks.addToast).toHaveBeenCalledWith('Path must stay inside the current vault.', 'error');
+    expect(mocks.addToast).toHaveBeenCalledWith('Path must stay inside the opened folder.', 'error');
   });
 });

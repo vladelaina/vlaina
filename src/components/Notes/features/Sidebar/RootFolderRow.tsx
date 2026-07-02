@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { type FolderNode } from '@/stores/useNotesStore';
@@ -57,8 +57,8 @@ export function RootFolderRow({
   active = true,
 }: RootFolderRowProps) {
   const { t } = useI18n();
-  const currentVault = useVaultStore((state) => state.currentVault);
-  const renameCurrentVault = useVaultStore((state) => state.renameCurrentVault);
+  const currentNotesRoot = useNotesRootStore((state) => state.currentNotesRoot);
+  const renameCurrentNotesRoot = useNotesRootStore((state) => state.renameCurrentNotesRoot);
   const notesPath = useNotesStore((state) => state.notesPath);
   const fileTreeSortMode = useNotesStore((state) => state.fileTreeSortMode);
   const setFileTreeSortMode = useNotesStore((state) => state.setFileTreeSortMode);
@@ -85,8 +85,8 @@ export function RootFolderRow({
   const autoExpandTimeoutRef = useRef<number | null>(null);
 
   const rootFolderTitle = rootFolder?.name === 'Notes' ? t('app.viewNotes') : rootFolder?.name;
-  const title = currentVault?.name || rootFolderTitle || t('app.viewNotes');
-  const vaultPath = currentVault?.path ?? '';
+  const title = currentNotesRoot?.name || rootFolderTitle || t('app.viewNotes');
+  const notesRootPath = currentNotesRoot?.path ?? '';
   const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
   const expanded = rootFolder?.expanded ?? true;
   const displayExpanded = !hasChildren || expanded;
@@ -103,7 +103,7 @@ export function RootFolderRow({
   const useVirtualFileTree = Boolean(
     scrollRootRef && shouldVirtualizeFileTree(visibleFileTreeRowCount),
   );
-  const isRootTreePending = Boolean(currentVault && notesPath === currentVault.path && !rootFolder);
+  const isRootTreePending = Boolean(currentNotesRoot && notesPath === currentNotesRoot.path && !rootFolder);
   const isRootBusy = isLoading || isRootTreePending;
   const setExpanded = (value: boolean | ((value: boolean) => boolean)) => {
     if (!hasChildren) {
@@ -283,7 +283,7 @@ export function RootFolderRow({
   const handleRenameSubmit = async () => {
     const trimmedValue = renameValue.trim();
     if (trimmedValue && trimmedValue !== title) {
-      await renameCurrentVault(trimmedValue);
+      await renameCurrentNotesRoot(trimmedValue);
     }
     setIsRenaming(false);
   };
@@ -396,7 +396,7 @@ export function RootFolderRow({
         onStartRename={() => setIsRenaming(true)}
         fileTreeSortMode={fileTreeSortMode}
         onSelectSortMode={setFileTreeSortMode}
-        vaultPath={vaultPath}
+        notesRootPath={notesRootPath}
       />
 
       {expanded && shouldRenderChildren && rootFolder.children.length > 0 ? (

@@ -1,6 +1,6 @@
 export type SyncPersistence =
   | 'split-files'
-  | 'vault-files'
+  | 'notes-root-files'
   | 'localStorage'
   | 'sessionStorage'
   | 'broadcast'
@@ -56,7 +56,7 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     id: 'notes.documents',
     owner: 'notes',
     scope: 'document',
-    persistence: ['vault-files', 'broadcast', 'localStorage'],
+    persistence: ['notes-root-files', 'broadcast', 'localStorage'],
     mergePolicy: 'three-way-merge',
     storageKeys: ['vlaina-notes-external-path-event'],
     broadcastChannels: ['vlaina-notes-external-path'],
@@ -97,7 +97,7 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     id: 'notes.workspace',
     owner: 'notes',
     scope: 'shared-config',
-    persistence: ['vault-files'],
+    persistence: ['notes-root-files'],
     mergePolicy: 'field-patch',
     crossWindow: true,
     notes: 'Workspace snapshots are restore points; expanded folders merge while current note remains last-writer-wins.',
@@ -106,10 +106,10 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     id: 'notes.assets',
     owner: 'notes',
     scope: 'shared-cache',
-    persistence: ['vault-files'],
+    persistence: ['notes-root-files'],
     mergePolicy: 'reload-from-source',
     crossWindow: true,
-    notes: 'Asset library reloads from the active vault or absolute note scope and ignores stale refreshes.',
+    notes: 'Asset library reloads from the active notesRoot or absolute note scope and ignores stale refreshes.',
   },
   {
     id: 'unified.main',
@@ -185,7 +185,7 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
       'vlaina_sidebar_width',
       'vlaina_image_storage_mode',
       'vlaina_image_subfolder_name',
-      'vlaina_image_vault_subfolder_name',
+      'vlaina_image_notesRoot_subfolder_name',
       'vlaina_image_filename_format',
       'vlaina-language-preference',
       'vlaina_last_app_view_mode',
@@ -214,24 +214,24 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     notes: 'Icon picker listens for storage updates, sanitizes recent icons and skin tone, and shares the debug logging toggle.',
   },
   {
-    id: 'vault.recent',
-    owner: 'vault',
+    id: 'notesRoot.recent',
+    owner: 'notesRoot',
     scope: 'shared-config',
     persistence: ['localStorage', 'split-files', 'broadcast'],
     mergePolicy: 'tombstone-wins',
-    storageKeys: ['vlaina-vaults', 'vlaina-current-vault'],
-    broadcastChannels: ['vlaina-vault'],
+    storageKeys: ['vlaina-notes-roots', 'vlaina-current-notes-root'],
+    broadcastChannels: ['vlaina-notes-root'],
     crossWindow: true,
-    notes: 'Recent/current vault state merges file and localStorage data; external root rename flushes active note before sync.',
+    notes: 'Recent/opened folder state merges file and localStorage data; external root rename flushes active note before sync.',
   },
   {
-    id: 'vault.config',
-    owner: 'vault',
+    id: 'notesRoot.config',
+    owner: 'notesRoot',
     scope: 'shared-config',
-    persistence: ['vault-files'],
+    persistence: ['notes-root-files'],
     mergePolicy: 'reload-from-source',
     crossWindow: true,
-    notes: 'Vault config is repaired on load, including oversized or invalid files.',
+    notes: 'NotesRoot config is repaired on load, including oversized or invalid files.',
   },
   {
     id: 'managed-ai.budget',

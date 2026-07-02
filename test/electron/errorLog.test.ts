@@ -49,7 +49,7 @@ describe('error log service', () => {
         pathname: '/C:/Program Files/vlaina/resources/app.asar/dist/index.html',
         hash: '',
         search: '?notePath=C:/Users/example/private-note.md',
-        searchKeys: ['vaultPath', 'notePath'],
+        searchKeys: ['notesRootPath', 'notePath'],
       },
       document: {
         title: 'vlaina',
@@ -93,7 +93,7 @@ describe('error log service', () => {
       isDev: false,
       isProd: true,
       location: {
-        searchKeys: ['vaultPath', 'notePath'],
+        searchKeys: ['notesRootPath', 'notePath'],
       },
       document: {
         title: 'vlaina',

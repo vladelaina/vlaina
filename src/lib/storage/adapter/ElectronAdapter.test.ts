@@ -116,24 +116,24 @@ describe('ElectronAdapter', () => {
 
   it('filters hidden entries by default and walks directories recursively when requested', async () => {
     mocks.bridge.fs.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return [
-          { name: '.hidden', path: '/vault/.hidden', isDirectory: false, isFile: true },
-          { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
-          { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
-          { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+          { name: '.hidden', path: '/notesRoot/.hidden', isDirectory: false, isFile: true },
+          { name: '.notes', path: '/notesRoot/.notes', isDirectory: true, isFile: false },
+          { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
+          { name: 'a.md', path: '/notesRoot/a.md', isDirectory: false, isFile: true },
         ];
       }
 
-      if (path === '/vault/.notes') {
+      if (path === '/notesRoot/.notes') {
         return [
-          { name: 'hidden-note.md', path: '/vault/.notes/hidden-note.md', isDirectory: false, isFile: true },
+          { name: 'hidden-note.md', path: '/notesRoot/.notes/hidden-note.md', isDirectory: false, isFile: true },
         ];
       }
 
-      if (path === '/vault/docs') {
+      if (path === '/notesRoot/docs') {
         return [
-          { name: 'b.md', path: '/vault/docs/b.md', isDirectory: false, isFile: true },
+          { name: 'b.md', path: '/notesRoot/docs/b.md', isDirectory: false, isFile: true },
         ];
       }
 
@@ -142,31 +142,31 @@ describe('ElectronAdapter', () => {
 
     const adapter = new ElectronAdapter();
 
-    await expect(adapter.listDir('/vault')).resolves.toEqual([
-      { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
-      { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+    await expect(adapter.listDir('/notesRoot')).resolves.toEqual([
+      { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
+      { name: 'a.md', path: '/notesRoot/a.md', isDirectory: false, isFile: true },
     ]);
 
-    await expect(adapter.listDir('/vault', { includeHidden: true })).resolves.toEqual([
-      { name: '.hidden', path: '/vault/.hidden', isDirectory: false, isFile: true },
-      { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
-      { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
-      { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+    await expect(adapter.listDir('/notesRoot', { includeHidden: true })).resolves.toEqual([
+      { name: '.hidden', path: '/notesRoot/.hidden', isDirectory: false, isFile: true },
+      { name: '.notes', path: '/notesRoot/.notes', isDirectory: true, isFile: false },
+      { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
+      { name: 'a.md', path: '/notesRoot/a.md', isDirectory: false, isFile: true },
     ]);
 
-    await expect(adapter.listDir('/vault', { recursive: true })).resolves.toEqual([
-      { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
-      { name: 'b.md', path: '/vault/docs/b.md', isDirectory: false, isFile: true },
-      { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+    await expect(adapter.listDir('/notesRoot', { recursive: true })).resolves.toEqual([
+      { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
+      { name: 'b.md', path: '/notesRoot/docs/b.md', isDirectory: false, isFile: true },
+      { name: 'a.md', path: '/notesRoot/a.md', isDirectory: false, isFile: true },
     ]);
 
-    await expect(adapter.listDir('/vault', { recursive: true, includeHidden: true })).resolves.toEqual([
-      { name: '.hidden', path: '/vault/.hidden', isDirectory: false, isFile: true },
-      { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
-      { name: 'hidden-note.md', path: '/vault/.notes/hidden-note.md', isDirectory: false, isFile: true },
-      { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
-      { name: 'b.md', path: '/vault/docs/b.md', isDirectory: false, isFile: true },
-      { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+    await expect(adapter.listDir('/notesRoot', { recursive: true, includeHidden: true })).resolves.toEqual([
+      { name: '.hidden', path: '/notesRoot/.hidden', isDirectory: false, isFile: true },
+      { name: '.notes', path: '/notesRoot/.notes', isDirectory: true, isFile: false },
+      { name: 'hidden-note.md', path: '/notesRoot/.notes/hidden-note.md', isDirectory: false, isFile: true },
+      { name: 'docs', path: '/notesRoot/docs', isDirectory: true, isFile: false },
+      { name: 'b.md', path: '/notesRoot/docs/b.md', isDirectory: false, isFile: true },
+      { name: 'a.md', path: '/notesRoot/a.md', isDirectory: false, isFile: true },
     ]);
   });
 
@@ -174,16 +174,16 @@ describe('ElectronAdapter', () => {
     let activeChildCalls = 0;
     let maxActiveChildCalls = 0;
     mocks.bridge.fs.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return Array.from({ length: 4 }, (_, index) => ({
           name: `dir-${index}`,
-          path: `/vault/dir-${index}`,
+          path: `/notesRoot/dir-${index}`,
           isDirectory: true,
           isFile: false,
         }));
       }
 
-      if (path.startsWith('/vault/dir-')) {
+      if (path.startsWith('/notesRoot/dir-')) {
         activeChildCalls += 1;
         maxActiveChildCalls = Math.max(maxActiveChildCalls, activeChildCalls);
         await new Promise((resolve) => setTimeout(resolve, 0));
@@ -203,16 +203,16 @@ describe('ElectronAdapter', () => {
 
     const adapter = new ElectronAdapter();
 
-    await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(8);
+    await expect(adapter.listDir('/notesRoot', { recursive: true })).resolves.toHaveLength(8);
     expect(maxActiveChildCalls).toBe(1);
   });
 
   it('stops recursive directory walking at the scan entry limit', async () => {
     mocks.bridge.fs.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault') {
+      if (path === '/notesRoot') {
         return Array.from({ length: MAX_ELECTRON_RECURSIVE_LIST_ENTRIES + 1 }, (_, index) => ({
           name: `dir-${index}`,
-          path: `/vault/dir-${index}`,
+          path: `/notesRoot/dir-${index}`,
           isDirectory: true,
           isFile: false,
         }));
@@ -230,7 +230,7 @@ describe('ElectronAdapter', () => {
 
     const adapter = new ElectronAdapter();
 
-    await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(
+    await expect(adapter.listDir('/notesRoot', { recursive: true })).resolves.toHaveLength(
       MAX_ELECTRON_RECURSIVE_LIST_ENTRIES,
     );
     expect(mocks.bridge.fs.listDir).toHaveBeenCalledTimes(1);

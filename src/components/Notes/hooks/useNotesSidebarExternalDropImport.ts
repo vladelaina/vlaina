@@ -4,7 +4,7 @@ import { useI18n } from '@/lib/i18n';
 import {
   createStarredEntryIfValid,
   getStarredEntryKey,
-  getVaultStarredPaths,
+  getNotesRootStarredPaths,
   saveStarredRegistry,
 } from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
@@ -31,7 +31,7 @@ import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/s
 
 interface UseNotesSidebarExternalDropImportOptions {
   enabled: boolean;
-  vaultPath: string;
+  notesRootPath: string;
   loadFileTree: (skipRestore?: boolean) => Promise<void>;
   revealFolder: (path: string) => void;
 }
@@ -59,22 +59,22 @@ function getSidebarDropState(event: DragEvent) {
   };
 }
 
-function isActiveVaultPath(vaultPath: string) {
-  return useNotesStore.getState().notesPath === vaultPath;
+function isActiveNotesRootPath(notesRootPath: string) {
+  return useNotesStore.getState().notesPath === notesRootPath;
 }
 
 function ensureExternalDropStarredTargets(
-  vaultPath: string,
+  notesRootPath: string,
   targets: ExternalMarkdownStarredTarget[]
 ) {
   const state = useNotesStore.getState();
   const { notesPath, starredEntries } = state;
-  if (!notesPath || notesPath !== vaultPath || targets.length === 0) return;
+  if (!notesPath || notesPath !== notesRootPath || targets.length === 0) return;
 
   let updatedEntries: StarredEntry[] = starredEntries;
 
-  for (const { kind, vaultPath: targetVaultPath, relativePath } of targets) {
-    const entry = createStarredEntryIfValid(kind, targetVaultPath, relativePath);
+  for (const { kind, notesRootPath: targetNotesRootPath, relativePath } of targets) {
+    const entry = createStarredEntryIfValid(kind, targetNotesRootPath, relativePath);
     if (!entry) {
       continue;
     }
@@ -89,7 +89,7 @@ function ensureExternalDropStarredTargets(
     return;
   }
 
-  const starredPaths = getVaultStarredPaths(updatedEntries, notesPath);
+  const starredPaths = getNotesRootStarredPaths(updatedEntries, notesPath);
   useNotesStore.setState({
     starredEntries: updatedEntries,
     starredNotes: starredPaths.notes,
@@ -100,13 +100,13 @@ function ensureExternalDropStarredTargets(
 
 export function useNotesSidebarExternalDropImport({
   enabled,
-  vaultPath,
+  notesRootPath,
   loadFileTree,
   revealFolder,
 }: UseNotesSidebarExternalDropImportOptions) {
   const { t } = useI18n();
   useEffect(() => {
-    if (!enabled || !vaultPath) {
+    if (!enabled || !notesRootPath) {
       clearExternalFileTreeDropTarget();
       return;
     }
@@ -180,9 +180,9 @@ export function useNotesSidebarExternalDropImport({
 
       void (async () => {
         if (isOverStarred) {
-          const starredTargets = await resolveExternalMarkdownEntriesForStarred(vaultPath, paths);
+          const starredTargets = await resolveExternalMarkdownEntriesForStarred(notesRootPath, paths);
 
-          if (cancelled || !isActiveVaultPath(vaultPath)) {
+          if (cancelled || !isActiveNotesRootPath(notesRootPath)) {
             return;
           }
 
@@ -197,19 +197,19 @@ export function useNotesSidebarExternalDropImport({
             return;
           }
 
-          ensureExternalDropStarredTargets(vaultPath, starredTargets);
+          ensureExternalDropStarredTargets(notesRootPath, starredTargets);
           return;
         }
 
-        const result = await importExternalMarkdownEntries(vaultPath, importTargetPath, paths);
+        const result = await importExternalMarkdownEntries(notesRootPath, importTargetPath, paths);
 
-        if (cancelled || !isActiveVaultPath(vaultPath)) {
+        if (cancelled || !isActiveNotesRootPath(notesRootPath)) {
           return;
         }
 
         if (result.importedNotePaths.length === 0 && result.importedFolderPaths.length === 0) {
           await messageDialog(
-            t('notes.onlyMarkdownCanBeDroppedIntoVault'),
+            t('notes.onlyMarkdownCanBeDroppedIntoOpenedFolder'),
             {
               title: t('notes.unsupportedDrop'),
               kind: 'warning',
@@ -220,7 +220,7 @@ export function useNotesSidebarExternalDropImport({
 
         if (result.didImport) {
           await loadFileTree(true);
-          if (cancelled || !isActiveVaultPath(vaultPath)) {
+          if (cancelled || !isActiveNotesRootPath(notesRootPath)) {
             return;
           }
         }
@@ -247,5 +247,5 @@ export function useNotesSidebarExternalDropImport({
       window.removeEventListener('dragleave', handleDragLeave);
       window.removeEventListener('drop', handleDrop);
     };
-  }, [enabled, loadFileTree, revealFolder, vaultPath, t]);
+  }, [enabled, loadFileTree, revealFolder, notesRootPath, t]);
 }

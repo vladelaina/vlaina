@@ -15,7 +15,7 @@ import {
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { isDraftNotePath } from '../draftNote';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { resolveNotesRootRelativeFullPath } from '../utils/fs/notesRootPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
@@ -115,7 +115,7 @@ export function createWorkspaceDiskSyncAction(
         const storage = getStorageAdapter();
         const fullPath = isAbsolutePath(currentNote.path)
           ? currentNote.path
-          : (await resolveVaultRelativeFullPath(notesPath, currentNote.path)).fullPath;
+          : (await resolveNotesRootRelativeFullPath(notesPath, currentNote.path)).fullPath;
         const exists = await storage.exists(fullPath);
         const fileInfo = await storage.stat(fullPath);
         const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);

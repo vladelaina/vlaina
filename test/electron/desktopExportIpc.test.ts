@@ -127,13 +127,13 @@ describe('desktop export ipc', () => {
       };
       const spawnDetached = vi.fn();
 
-      await revealItemInFolder('/vault/docs/readme.md', {
+      await revealItemInFolder('/notesRoot/docs/readme.md', {
         platform,
         shellImpl,
         spawnDetached,
       });
 
-      expect(shellImpl.showItemInFolder).toHaveBeenCalledWith('/vault/docs/readme.md');
+      expect(shellImpl.showItemInFolder).toHaveBeenCalledWith('/notesRoot/docs/readme.md');
       expect(spawnDetached).not.toHaveBeenCalled();
     },
   );
@@ -149,7 +149,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await revealItemInFolder('/vault/docs/readme.md', {
+    await revealItemInFolder('/notesRoot/docs/readme.md', {
       platform: 'linux',
       shellImpl,
       spawnDetached,
@@ -171,7 +171,7 @@ describe('desktop export ipc', () => {
         '/org/freedesktop/FileManager1',
         '--method',
         'org.freedesktop.FileManager1.ShowItems',
-        "['file:///vault/docs/readme.md']",
+        "['file:///notesRoot/docs/readme.md']",
         '',
       ],
       {
@@ -182,7 +182,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
       '/usr/bin/nautilus',
-      ['--select', '/vault/docs/readme.md'],
+      ['--select', '/notesRoot/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -210,14 +210,14 @@ describe('desktop export ipc', () => {
       envPath: '/usr/bin',
       exists: (candidatePath: string) => candidatePath === '/usr/bin/nautilus',
     } as const;
-    await revealItemInFolder('/vault/docs/readme.md', options);
-    await revealItemInFolder('/vault/docs/readme.md', options);
+    await revealItemInFolder('/notesRoot/docs/readme.md', options);
+    await revealItemInFolder('/notesRoot/docs/readme.md', options);
 
     expect(spawnDetached).toHaveBeenCalledTimes(2);
     expect(spawnDetached).toHaveBeenNthCalledWith(
       1,
       '/usr/bin/nautilus',
-      ['--select', '/vault/docs/readme.md'],
+      ['--select', '/notesRoot/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -226,7 +226,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
       '/usr/bin/nautilus',
-      ['--select', '/vault/docs/readme.md'],
+      ['--select', '/notesRoot/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -258,7 +258,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await revealItemInFolder('/vault/docs/readme.md', {
+    await revealItemInFolder('/notesRoot/docs/readme.md', {
       platform: 'linux',
       shellImpl,
       spawnDetached,
@@ -272,7 +272,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       1,
       '/usr/bin/nautilus',
-      ['--select', '/vault/docs/readme.md'],
+      ['--select', '/notesRoot/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -281,7 +281,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
       '/usr/bin/nautilus',
-      ['--new-window', '/vault/docs'],
+      ['--new-window', '/notesRoot/docs'],
       {
         detached: true,
         stdio: 'ignore',
@@ -321,7 +321,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await revealItemInFolder('/vault/docs/readme.md', {
+    await revealItemInFolder('/notesRoot/docs/readme.md', {
       platform: 'linux',
       shellImpl,
       spawnDetached,
@@ -336,7 +336,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       1,
       '/usr/bin/nautilus',
-      ['--select', '/vault/docs/readme.md'],
+      ['--select', '/notesRoot/docs/readme.md'],
       {
         detached: true,
         stdio: 'ignore',
@@ -345,7 +345,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       2,
       '/usr/bin/nautilus',
-      ['--new-window', '/vault/docs'],
+      ['--new-window', '/notesRoot/docs'],
       {
         detached: true,
         stdio: 'ignore',
@@ -354,7 +354,7 @@ describe('desktop export ipc', () => {
     expect(spawnDetached).toHaveBeenNthCalledWith(
       3,
       'xdg-open',
-      ['/vault/docs'],
+      ['/notesRoot/docs'],
       {
         detached: true,
         stdio: 'ignore',
@@ -374,7 +374,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await revealItemInFolder('/vault/docs/readme.md', {
+    await revealItemInFolder('/notesRoot/docs/readme.md', {
       platform: 'linux',
       shellImpl,
       spawnDetached,
@@ -382,7 +382,7 @@ describe('desktop export ipc', () => {
       exists: () => false,
     });
 
-    expect(spawnDetached).toHaveBeenCalledWith('xdg-open', ['/vault/docs'], {
+    expect(spawnDetached).toHaveBeenCalledWith('xdg-open', ['/notesRoot/docs'], {
       detached: true,
       stdio: 'ignore',
     });
@@ -390,10 +390,10 @@ describe('desktop export ipc', () => {
   });
 
   it('detects attempts to move a directory into its own child path', () => {
-    expect(isPathInsideDirectory('/vault/docs', '/vault/docs/nested')).toBe(true);
-    expect(isPathInsideDirectory('/vault/docs', '/vault/docs')).toBe(false);
-    expect(isPathInsideDirectory('/vault/docs', '/vault/docs-archive')).toBe(false);
-    expect(isPathInsideDirectory('/vault/docs', '/vault/other')).toBe(false);
+    expect(isPathInsideDirectory('/notesRoot/docs', '/notesRoot/docs/nested')).toBe(true);
+    expect(isPathInsideDirectory('/notesRoot/docs', '/notesRoot/docs')).toBe(false);
+    expect(isPathInsideDirectory('/notesRoot/docs', '/notesRoot/docs-archive')).toBe(false);
+    expect(isPathInsideDirectory('/notesRoot/docs', '/notesRoot/other')).toBe(false);
   });
 
   it('writes data URL images to the native clipboard', async () => {
@@ -428,7 +428,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await openPathInFileManager('/vault/.vlaina/app/themes', {
+    await openPathInFileManager('/notesRoot/.vlaina/app/themes', {
       platform: 'linux',
       shellImpl,
       spawnDetached,
@@ -436,7 +436,7 @@ describe('desktop export ipc', () => {
       exists: (candidatePath: string) => candidatePath === '/usr/bin/nautilus',
     });
 
-    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/nautilus', ['--new-window', '/vault/.vlaina/app/themes'], {
+    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/nautilus', ['--new-window', '/notesRoot/.vlaina/app/themes'], {
       detached: true,
       stdio: 'ignore',
     });
@@ -455,7 +455,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await openPathInFileManager('/vault', {
+    await openPathInFileManager('/notesRoot', {
       platform: 'linux',
       shellImpl,
       spawnDetached,
@@ -463,7 +463,7 @@ describe('desktop export ipc', () => {
       exists: (candidatePath: string) => candidatePath === '/usr/bin/dolphin',
     });
 
-    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/dolphin', ['--new-window', '/vault'], {
+    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/dolphin', ['--new-window', '/notesRoot'], {
       detached: true,
       stdio: 'ignore',
     });
@@ -476,13 +476,13 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await openPathInFileManager('/vault/.vlaina/app/themes', {
+    await openPathInFileManager('/notesRoot/.vlaina/app/themes', {
       platform: 'darwin',
       shellImpl,
       spawnDetached: vi.fn(),
     });
 
-    expect(shellImpl.openPath).toHaveBeenCalledWith('/vault/.vlaina/app/themes');
+    expect(shellImpl.openPath).toHaveBeenCalledWith('/notesRoot/.vlaina/app/themes');
   });
 
   it('surfaces native shell open path errors outside Linux', async () => {
@@ -491,7 +491,7 @@ describe('desktop export ipc', () => {
       showItemInFolder: vi.fn(),
     };
 
-    await expect(openPathInFileManager('/vault/.vlaina/app/themes', {
+    await expect(openPathInFileManager('/notesRoot/.vlaina/app/themes', {
       platform: 'darwin',
       shellImpl,
       spawnDetached: vi.fn(),

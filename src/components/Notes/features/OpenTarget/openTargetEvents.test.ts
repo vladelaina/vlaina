@@ -17,12 +17,12 @@ describe('openTargetEvents', () => {
     const listener = vi.fn();
 
     window.dispatchEvent(new CustomEvent('app-open-markdown-target', {
-      detail: '/vault/early.md',
+      detail: '/notesRoot/early.md',
     }));
 
     const unsubscribe = subscribeOpenMarkdownTargetEvent(listener);
 
-    expect(listener).toHaveBeenCalledWith('/vault/early.md');
+    expect(listener).toHaveBeenCalledWith('/notesRoot/early.md');
     unsubscribe();
   });
 
@@ -34,10 +34,10 @@ describe('openTargetEvents', () => {
     const listener = vi.fn();
     const unsubscribe = subscribeOpenMarkdownTargetEvent(listener);
 
-    dispatchOpenMarkdownTargetEvent('/vault/live.md');
+    dispatchOpenMarkdownTargetEvent('/notesRoot/live.md');
 
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener).toHaveBeenCalledWith('/vault/live.md');
+    expect(listener).toHaveBeenCalledWith('/notesRoot/live.md');
     unsubscribe();
   });
 });

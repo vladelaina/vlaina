@@ -9,7 +9,7 @@ import { loadGlobalNoteIconSize, loadRecentNotes } from './storage';
 
 export * from './types';
 export { sortFileTree } from './fileTreeSorting';
-export { setCurrentVaultPath, getCurrentVaultPath } from './storage';
+export { setCurrentNotesRootPath, getCurrentNotesRootPath } from './storage';
 
 export const useNotesStore = create<NotesStore>()((...a) => ({
   ...createFileSystemSlice(...a),

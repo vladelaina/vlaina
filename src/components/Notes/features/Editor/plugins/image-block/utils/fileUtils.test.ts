@@ -41,15 +41,15 @@ describe('image block file utils', () => {
     });
 
     it('does not move local image files to trash when markdown image refs are removed', async () => {
-        const moved = await moveImageToTrash('assets/demo.png', '/vault', undefined);
+        const moved = await moveImageToTrash('assets/demo.png', '/notesRoot', undefined);
 
         expect(moved).toBe(false);
         expect(adapter.exists).not.toHaveBeenCalled();
     });
 
     it('leaves unsafe media sources untouched when markdown image refs are removed', async () => {
-        await expect(moveImageToTrash('javascript:demo.png', '/vault', 'note.md')).resolves.toBe(false);
-        await expect(moveImageToTrash('http://127.0.0.1:3000/demo.png', '/vault', 'note.md')).resolves.toBe(false);
+        await expect(moveImageToTrash('javascript:demo.png', '/notesRoot', 'note.md')).resolves.toBe(false);
+        await expect(moveImageToTrash('http://127.0.0.1:3000/demo.png', '/notesRoot', 'note.md')).resolves.toBe(false);
 
         expect(adapter.exists).not.toHaveBeenCalled();
     });
@@ -58,7 +58,7 @@ describe('image block file utils', () => {
         const fetchMock = vi.fn();
         vi.stubGlobal('fetch', fetchMock);
 
-        await ensureImageFileExists('docs/secret.md', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('docs/secret.md', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         expect(fetchMock).not.toHaveBeenCalled();
         expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
@@ -68,8 +68,8 @@ describe('image block file utils', () => {
         const fetchMock = vi.fn();
         vi.stubGlobal('fetch', fetchMock);
 
-        await ensureImageFileExists('javascript:demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
-        await ensureImageFileExists('http://127.0.0.1:3000/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('javascript:demo.png', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
+        await ensureImageFileExists('http://127.0.0.1:3000/demo.png', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         expect(fetchMock).not.toHaveBeenCalled();
         expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe('image block file utils', () => {
             }),
         })));
 
-        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
     });
@@ -103,7 +103,7 @@ describe('image block file utils', () => {
             }),
         })));
 
-        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         expect(arrayBuffer).not.toHaveBeenCalled();
         expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
@@ -126,7 +126,7 @@ describe('image block file utils', () => {
             blob: vi.fn(),
         })));
 
-        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         expect(cancel).toHaveBeenCalledTimes(1);
         expect(reader.releaseLock).toHaveBeenCalledTimes(1);
@@ -142,7 +142,7 @@ describe('image block file utils', () => {
             }),
         })));
 
-        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
     });
@@ -160,10 +160,10 @@ describe('image block file utils', () => {
             }),
         })));
 
-        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         expect(adapter.writeBinaryFile).toHaveBeenCalledWith(
-            '/vault/assets/demo.png',
+            '/notesRoot/assets/demo.png',
             new Uint8Array([1, 2]),
             { recursive: true },
         );
@@ -191,7 +191,7 @@ describe('image block file utils', () => {
             }),
         })));
 
-        await ensureImageFileExists('assets/demo.svg', 'blob:http://localhost/demo', '/vault', 'note.md');
+        await ensureImageFileExists('assets/demo.svg', 'blob:http://localhost/demo', '/notesRoot', 'note.md');
 
         const bytes = adapter.writeBinaryFile.mock.calls[0]?.[1] as Uint8Array;
         const output = new TextDecoder().decode(bytes);

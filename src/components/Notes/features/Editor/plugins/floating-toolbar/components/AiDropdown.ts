@@ -49,6 +49,7 @@ export function createAiDropdownController(): AiDropdownController {
     const nextHeight = Math.min(naturalHeight, availableHeight);
 
     dropdown.style.setProperty('--vlaina-toolbar-ai-dropdown-panel-max-height', `${nextHeight}px`);
+    syncScrollableState(dropdown);
     scheduleScrollableStateSync(dropdown);
   };
 
@@ -60,30 +61,6 @@ export function createAiDropdownController(): AiDropdownController {
     frameId = requestAnimationFrame(() => {
       frameId = 0;
       syncScrollableHeight(dropdown);
-    });
-  };
-
-  const bindWheelScroll = (element: HTMLElement) => {
-    const handleWheel = (event: WheelEvent) => {
-      if (element.scrollHeight <= element.clientHeight) {
-        return;
-      }
-
-      const nextScrollTop = element.scrollTop + event.deltaY;
-      const maxScrollTop = element.scrollHeight - element.clientHeight;
-      const clampedScrollTop = Math.max(0, Math.min(nextScrollTop, maxScrollTop));
-      if (clampedScrollTop === element.scrollTop) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      element.scrollTop = clampedScrollTop;
-    };
-
-    element.addEventListener('wheel', handleWheel, { passive: false });
-    cleanupCallbacks.push(() => {
-      element.removeEventListener('wheel', handleWheel);
     });
   };
 
@@ -112,7 +89,6 @@ export function createAiDropdownController(): AiDropdownController {
 
     container.appendChild(dropdown);
     syncScrollableHeight(dropdown);
-    dropdown.querySelectorAll<HTMLElement>('.ai-dropdown-root, .ai-dropdown-children').forEach(bindWheelScroll);
     bindAiDropdownInteractions(dropdown, view);
 
     const handleViewportChange = () => {

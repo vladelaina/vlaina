@@ -23,7 +23,7 @@ type MockNotesState = {
   starredEntries: Array<{
     id: string;
     kind: 'note' | 'folder';
-    vaultPath: string;
+    notesRootPath: string;
     relativePath: string;
     addedAt: number;
   }>;
@@ -63,18 +63,18 @@ const mocked = vi.hoisted(() => {
     setPendingStarredNavigation: vi.fn(),
   };
 
-  const vaultState = {
-    currentVault: { path: '/vault-a' } as { path: string } | null,
-    recentVaults: [
-      { path: '/vault-a', name: 'Vault A' },
-      { path: '/vault-b', name: 'Vault B' },
+  const notesRootState = {
+    currentNotesRoot: { path: '/notes-root-a' } as { path: string } | null,
+    recentNotesRoots: [
+      { path: '/notes-root-a', name: 'NotesRoot A' },
+      { path: '/notes-root-b', name: 'NotesRoot B' },
     ],
-    openVault: vi.fn(async () => true),
+    openNotesRoot: vi.fn(async () => true),
   };
 
   return {
     notesState,
-    vaultState,
+    notesRootState,
     suppressNextCurrentNoteSidebarReveal: vi.fn(),
   };
 });
@@ -87,9 +87,9 @@ vi.mock('@/stores/useNotesStore', () => ({
   ),
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector?: (state: typeof mocked.vaultState) => unknown) =>
-    selector ? selector(mocked.vaultState) : mocked.vaultState,
+vi.mock('@/stores/useNotesRootStore', () => ({
+  useNotesRootStore: (selector?: (state: typeof mocked.notesRootState) => unknown) =>
+    selector ? selector(mocked.notesRootState) : mocked.notesRootState,
 }));
 
 vi.mock('../common/sidebarScrollIntoView', () => ({
@@ -117,21 +117,21 @@ describe('useStarredSectionEntries', () => {
     mocked.notesState.removeStarredEntry.mockReset();
     mocked.notesState.setPendingStarredNavigation.mockReset();
     mocked.suppressNextCurrentNoteSidebarReveal.mockReset();
-    mocked.vaultState.currentVault = { path: '/vault-a' };
-    mocked.vaultState.recentVaults = [
-      { path: '/vault-a', name: 'Vault A' },
-      { path: '/vault-b', name: 'Vault B' },
+    mocked.notesRootState.currentNotesRoot = { path: '/notes-root-a' };
+    mocked.notesRootState.recentNotesRoots = [
+      { path: '/notes-root-a', name: 'NotesRoot A' },
+      { path: '/notes-root-b', name: 'NotesRoot B' },
     ];
-    mocked.vaultState.openVault.mockReset();
-    mocked.vaultState.openVault.mockResolvedValue(true);
+    mocked.notesRootState.openNotesRoot.mockReset();
+    mocked.notesRootState.openNotesRoot.mockResolvedValue(true);
   });
 
-  it('opens a current-vault note without setting pending starred navigation', async () => {
+  it('opens a current-notesRoot note without setting pending starred navigation', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'note-1',
         kind: 'note',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       },
@@ -145,15 +145,15 @@ describe('useStarredSectionEntries', () => {
 
     expect(mocked.notesState.openNote).toHaveBeenCalledWith('docs/alpha.md', true);
     expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
-    expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
+    expect(mocked.notesRootState.openNotesRoot).not.toHaveBeenCalled();
   });
 
-  it('does not open a current-vault starred folder', async () => {
+  it('does not open a current-notesRoot starred folder', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'folder-1',
         kind: 'folder',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'docs',
         addedAt: 1,
       },
@@ -175,7 +175,7 @@ describe('useStarredSectionEntries', () => {
         },
       ],
     };
-    mocked.notesState.rootFolderPath = '/vault-a';
+    mocked.notesState.rootFolderPath = '/notes-root-a';
 
     const { result } = renderHook(() => useStarredSectionEntries());
 
@@ -189,12 +189,12 @@ describe('useStarredSectionEntries', () => {
     expect(mocked.notesState.openNote).not.toHaveBeenCalled();
   });
 
-  it('opens a cross-vault starred note without switching to the target vault', async () => {
+  it('opens a cross-notesRoot starred note without switching to the target notesRoot', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'note-2',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/beta.md',
         addedAt: 1,
       },
@@ -207,25 +207,25 @@ describe('useStarredSectionEntries', () => {
     });
 
     expect(mocked.notesState.openNoteByAbsolutePath).toHaveBeenCalledWith(
-      '/vault-b/docs/beta.md',
+      '/notes-root-b/docs/beta.md',
       false,
     );
     expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
-    expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
+    expect(mocked.notesRootState.openNotesRoot).not.toHaveBeenCalled();
     expect(mocked.notesState.openNote).not.toHaveBeenCalled();
   });
 
-  it('does not resolve current-vault tree nodes from a preserved previous-vault tree', () => {
+  it('does not resolve current-notesRoot tree nodes from a preserved previous-notesRoot tree', () => {
     mocked.notesState.starredEntries = [
       {
         id: 'note-1',
         kind: 'note',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'docs/alpha.md',
         addedAt: 1,
       },
     ];
-    mocked.notesState.rootFolderPath = '/vault-old';
+    mocked.notesState.rootFolderPath = '/notes-root-old';
     mocked.notesState.rootFolder = {
       id: '',
       name: 'Old notes',
@@ -247,13 +247,13 @@ describe('useStarredSectionEntries', () => {
     expect(result.current.entries[0]?.treeNode).toBeNull();
   });
 
-  it('marks an opened cross-vault starred note as active', () => {
-    mocked.notesState.currentNote = { path: '/vault-b/docs/beta.md', content: '# beta' };
+  it('marks an opened cross-notesRoot starred note as active', () => {
+    mocked.notesState.currentNote = { path: '/notes-root-b/docs/beta.md', content: '# beta' };
     mocked.notesState.starredEntries = [
       {
         id: 'note-2',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/beta.md',
         addedAt: 1,
       },
@@ -271,7 +271,7 @@ describe('useStarredSectionEntries', () => {
       {
         id: 'note-3',
         kind: 'note',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'docs/gamma.md',
         addedAt: 1,
       },
@@ -284,7 +284,7 @@ describe('useStarredSectionEntries', () => {
     });
 
     expect(mocked.notesState.openNoteByAbsolutePath).toHaveBeenCalledWith(
-      '/vault-b/docs/gamma.md',
+      '/notes-root-b/docs/gamma.md',
       false,
     );
   });
@@ -294,7 +294,7 @@ describe('useStarredSectionEntries', () => {
       {
         id: 'note-4',
         kind: 'note',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'docs/old.md',
         addedAt: 1,
       },
@@ -304,7 +304,7 @@ describe('useStarredSectionEntries', () => {
         {
           id: 'note-4',
           kind: 'note',
-          vaultPath: '/vault-a',
+          notesRootPath: '/notes-root-a',
           relativePath: 'docs/new.md',
           addedAt: 1,
         },
@@ -328,7 +328,7 @@ describe('useStarredSectionEntries', () => {
       {
         id: 'note-5',
         kind: 'note',
-        vaultPath: '/vault-a',
+        notesRootPath: '/notes-root-a',
         relativePath: 'docs/broken.md',
         addedAt: 1,
       },
@@ -345,17 +345,17 @@ describe('useStarredSectionEntries', () => {
     expect(mocked.notesState.openNote).toHaveBeenCalledWith('docs/broken.md', false);
   });
 
-  it('does not open a cross-vault starred folder', async () => {
+  it('does not open a cross-notesRoot starred folder', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'folder-2',
         kind: 'folder',
-        vaultPath: '/vault-b',
+        notesRootPath: '/notes-root-b',
         relativePath: 'archive',
         addedAt: 1,
       },
     ];
-    mocked.vaultState.openVault.mockResolvedValue(false);
+    mocked.notesRootState.openNotesRoot.mockResolvedValue(false);
 
     const { result } = renderHook(() => useStarredSectionEntries());
 
@@ -364,6 +364,6 @@ describe('useStarredSectionEntries', () => {
     });
 
     expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
-    expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
+    expect(mocked.notesRootState.openNotesRoot).not.toHaveBeenCalled();
   });
 });

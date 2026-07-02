@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n } from '@/lib/i18n';
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { themeIconTokens } from '@/styles/themeTokens';
 
-type SwitchableAppViewMode = 'notes' | 'chat';
+type SwitchableAppViewMode = 'notes' | 'chat' | 'whiteboard';
 
 export function AppViewModeSwitch() {
   const { t } = useI18n();
@@ -27,20 +27,26 @@ export function AppViewModeSwitch() {
     setAppViewMode(viewMode);
   }, [setAppViewMode]);
 
-  if (appViewMode !== 'notes' && appViewMode !== 'chat') return null;
-
   const options = [
     {
       key: 'notes' as const,
       label: t('app.viewNotes'),
       icon: <Icon name="file.text" size={themeIconTokens.sizeCompact} />,
     },
+    ...(import.meta.env.DEV ? [{
+      key: 'whiteboard' as const,
+      label: t('app.viewWhiteboard'),
+      icon: <Icon name="editor.diagram" size={themeIconTokens.sizeCompact} />,
+    }] : []),
     {
       key: 'chat' as const,
       label: t('app.viewChat'),
       icon: <Icon name="common.shootingStar" size={themeIconTokens.sizeCompact} />,
     },
   ];
+  if (!options.some((option) => option.key === appViewMode)) return null;
+
+  const selectedIndex = Math.max(0, options.findIndex((option) => option.key === visualAppViewMode));
 
   return (
     <div
@@ -50,14 +56,16 @@ export function AppViewModeSwitch() {
         'relative mb-1.5 flex h-11 w-full shrink-0 items-center rounded-[var(--vlaina-radius-22px)] p-1.5',
         chatComposerPillSurfaceClass,
       )}
-      style={{ minWidth: APP_VIEW_MODE_SWITCH_MIN_WIDTH }}
+      style={{
+        minWidth: APP_VIEW_MODE_SWITCH_MIN_WIDTH,
+        '--vlaina-app-view-mode-option-count': String(options.length),
+        '--vlaina-width-view-mode-thumb': 'calc((100% - var(--vlaina-space-075rem)) / var(--vlaina-app-view-mode-option-count))',
+      } as CSSProperties}
     >
       <span
         aria-hidden="true"
-        className={cn(
-          'absolute inset-y-1.5 left-1.5 w-[var(--vlaina-width-view-mode-thumb)] rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-out',
-          visualAppViewMode === 'chat' && 'translate-x-full',
-        )}
+        className="absolute inset-y-1.5 left-1.5 w-[var(--vlaina-width-view-mode-thumb)] rounded-full bg-[var(--vlaina-sidebar-row-selected-bg)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-out"
+        style={{ transform: `translateX(${selectedIndex * 100}%)` }}
       />
       {options.map((option) => {
         const selected = visualAppViewMode === option.key;
@@ -77,7 +85,7 @@ export function AppViewModeSwitch() {
               'relative z-[var(--vlaina-z-10)] flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-3 text-[length:var(--vlaina-font-15)] font-medium leading-none',
             )}
             style={{
-              color: highlighted ? 'var(--vlaina-accent)' : 'var(--vlaina-sidebar-notes-text)',
+              color: highlighted ? 'var(--vlaina-sidebar-row-selected-text)' : 'var(--vlaina-sidebar-notes-text)',
             }}
           >
             <span className="flex size-[var(--vlaina-size-18px)] shrink-0 items-center justify-center leading-none">

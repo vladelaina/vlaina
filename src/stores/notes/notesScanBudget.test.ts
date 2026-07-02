@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildFileTree, findNode } from './fileTreeUtils';
 import { loadNoteMetadata } from './storage';
-import { MAX_VAULT_RELATIVE_PATH_CHARS } from './utils/fs/vaultPathContainment';
+import { MAX_NOTES_ROOT_RELATIVE_PATH_CHARS } from './utils/fs/notesRootPathContainment';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
@@ -32,19 +32,19 @@ describe('notes scan budgets', () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 6000 }, (_, index) => ({
         name: `image-${index}.png`,
-        path: `/vault/image-${index}.png`,
+        path: `/notesRoot/image-${index}.png`,
         isDirectory: false,
         isFile: true,
       })),
       {
         name: 'alpha.md',
-        path: '/vault/alpha.md',
+        path: '/notesRoot/alpha.md',
         isDirectory: false,
         isFile: true,
       },
     ]);
 
-    await expect(buildFileTree('/vault')).resolves.toEqual([
+    await expect(buildFileTree('/notesRoot')).resolves.toEqual([
       {
         id: 'alpha.md',
         name: 'alpha',
@@ -58,19 +58,19 @@ describe('notes scan budgets', () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 10_000 }, (_, index) => ({
         name: `image-${index}.png`,
-        path: `/vault/image-${index}.png`,
+        path: `/notesRoot/image-${index}.png`,
         isDirectory: false,
         isFile: true,
       })),
       {
         name: 'late.md',
-        path: '/vault/late.md',
+        path: '/notesRoot/late.md',
         isDirectory: false,
         isFile: true,
       },
     ]);
 
-    await expect(buildFileTree('/vault')).resolves.toEqual([
+    await expect(buildFileTree('/notesRoot')).resolves.toEqual([
       {
         id: 'late.md',
         name: 'late',
@@ -84,19 +84,19 @@ describe('notes scan budgets', () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 5000 }, (_, index) => ({
         name: `folder-${String(index).padStart(4, '0')}`,
-        path: `/vault-folders/folder-${String(index).padStart(4, '0')}`,
+        path: `/notes-root-folders/folder-${String(index).padStart(4, '0')}`,
         isDirectory: true,
         isFile: false,
       })),
       {
         name: 'late.md',
-        path: '/vault-folders/late.md',
+        path: '/notes-root-folders/late.md',
         isDirectory: false,
         isFile: true,
       },
     ]);
 
-    const tree = await buildFileTree('/vault-folders');
+    const tree = await buildFileTree('/notes-root-folders');
 
     expect(findNode(tree, 'late.md')).toEqual({
       id: 'late.md',
@@ -110,19 +110,19 @@ describe('notes scan budgets', () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 10_000 }, (_, index) => ({
         name: `../unsafe-${String(index).padStart(4, '0')}`,
-        path: `/vault-unsafe/../unsafe-${String(index).padStart(4, '0')}`,
+        path: `/notes-root-unsafe/../unsafe-${String(index).padStart(4, '0')}`,
         isDirectory: true,
         isFile: false,
       })),
       {
         name: 'late.md',
-        path: '/vault-unsafe/late.md',
+        path: '/notes-root-unsafe/late.md',
         isDirectory: false,
         isFile: true,
       },
     ]);
 
-    const tree = await buildFileTree('/vault-unsafe');
+    const tree = await buildFileTree('/notes-root-unsafe');
 
     expect(findNode(tree, 'late.md')).toEqual({
       id: 'late.md',
@@ -132,33 +132,33 @@ describe('notes scan budgets', () => {
     });
   });
 
-  it('does not include markdown files whose nested relative path exceeds the vault path limit', async () => {
-    const longFolder = 'd'.repeat(MAX_VAULT_RELATIVE_PATH_CHARS - 2);
+  it('does not include markdown files whose nested relative path exceeds the opened folder path limit', async () => {
+    const longFolder = 'd'.repeat(MAX_NOTES_ROOT_RELATIVE_PATH_CHARS - 2);
     const overlongPath = `${longFolder}/a.md`;
 
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-overlong-tree') {
+      if (path === '/notes-root-overlong-tree') {
         return [
           {
             name: longFolder,
-            path: `/vault-overlong-tree/${longFolder}`,
+            path: `/notes-root-overlong-tree/${longFolder}`,
             isDirectory: true,
             isFile: false,
           },
           {
             name: 'safe.md',
-            path: '/vault-overlong-tree/safe.md',
+            path: '/notes-root-overlong-tree/safe.md',
             isDirectory: false,
             isFile: true,
           },
         ];
       }
 
-      if (path === `/vault-overlong-tree/${longFolder}`) {
+      if (path === `/notes-root-overlong-tree/${longFolder}`) {
         return [
           {
             name: 'a.md',
-            path: `/vault-overlong-tree/${overlongPath}`,
+            path: `/notes-root-overlong-tree/${overlongPath}`,
             isDirectory: false,
             isFile: true,
           },
@@ -168,7 +168,7 @@ describe('notes scan budgets', () => {
       return [];
     });
 
-    const tree = await buildFileTree('/vault-overlong-tree');
+    const tree = await buildFileTree('/notes-root-overlong-tree');
 
     expect(findNode(tree, 'safe.md')).toEqual({
       id: 'safe.md',
@@ -181,37 +181,37 @@ describe('notes scan budgets', () => {
 
   it('prioritizes regular folders before low-priority generated folders during recursive scans', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-recursive') {
+      if (path === '/notes-root-recursive') {
         return [
           {
             name: 'Dist',
-            path: '/vault-recursive/Dist',
+            path: '/notes-root-recursive/Dist',
             isDirectory: true,
             isFile: false,
           },
           {
             name: 'docs',
-            path: '/vault-recursive/docs',
+            path: '/notes-root-recursive/docs',
             isDirectory: true,
             isFile: false,
           },
         ];
       }
 
-      if (path === '/vault-recursive/Dist') {
+      if (path === '/notes-root-recursive/Dist') {
         return Array.from({ length: 5000 }, (_, index) => ({
           name: `generated-${String(index).padStart(4, '0')}.md`,
-          path: `/vault-recursive/Dist/generated-${String(index).padStart(4, '0')}.md`,
+          path: `/notes-root-recursive/Dist/generated-${String(index).padStart(4, '0')}.md`,
           isDirectory: false,
           isFile: true,
         }));
       }
 
-      if (path === '/vault-recursive/docs') {
+      if (path === '/notes-root-recursive/docs') {
         return [
           {
             name: 'alpha.md',
-            path: '/vault-recursive/docs/alpha.md',
+            path: '/notes-root-recursive/docs/alpha.md',
             isDirectory: false,
             isFile: true,
           },
@@ -221,7 +221,7 @@ describe('notes scan budgets', () => {
       return [];
     });
 
-    const tree = await buildFileTree('/vault-recursive');
+    const tree = await buildFileTree('/notes-root-recursive');
 
     expect(findNode(tree, 'docs/alpha.md')).toEqual({
       id: 'docs/alpha.md',
@@ -252,7 +252,7 @@ describe('notes scan budgets', () => {
       '# Alpha',
     ].join('\n'));
 
-    await expect(loadNoteMetadata('/vault-budget')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-budget')).resolves.toEqual({
       version: 2,
       notes: {
         'alpha.md': {
@@ -283,7 +283,7 @@ describe('notes scan budgets', () => {
       '# Late',
     ].join('\n'));
 
-    await expect(loadNoteMetadata('/vault-late-budget')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-late-budget')).resolves.toEqual({
       version: 2,
       notes: {
         'late.md': {
@@ -295,7 +295,7 @@ describe('notes scan budgets', () => {
 
   it('does not spend metadata entry budget on sibling folders before markdown notes', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-metadata-folders') {
+      if (path === '/notes-root-metadata-folders') {
         return [
           ...Array.from({ length: 5000 }, (_, index) => ({
             name: `folder-${String(index).padStart(4, '0')}`,
@@ -320,7 +320,7 @@ describe('notes scan budgets', () => {
       '# Late',
     ].join('\n'));
 
-    await expect(loadNoteMetadata('/vault-metadata-folders')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-metadata-folders')).resolves.toEqual({
       version: 2,
       notes: {
         'late.md': {
@@ -330,12 +330,12 @@ describe('notes scan budgets', () => {
     });
   });
 
-  it('does not read metadata for markdown files whose nested relative path exceeds the vault path limit', async () => {
-    const longFolder = 'd'.repeat(MAX_VAULT_RELATIVE_PATH_CHARS - 2);
+  it('does not read metadata for markdown files whose nested relative path exceeds the opened folder path limit', async () => {
+    const longFolder = 'd'.repeat(MAX_NOTES_ROOT_RELATIVE_PATH_CHARS - 2);
     const overlongPath = `${longFolder}/a.md`;
 
     adapter.listDir.mockImplementation(async (path: string) => {
-      if (path === '/vault-overlong-metadata') {
+      if (path === '/notes-root-overlong-metadata') {
         return [
           {
             name: longFolder,
@@ -350,7 +350,7 @@ describe('notes scan budgets', () => {
         ];
       }
 
-      if (path === `/vault-overlong-metadata/${longFolder}`) {
+      if (path === `/notes-root-overlong-metadata/${longFolder}`) {
         return [
           {
             name: 'a.md',
@@ -364,7 +364,7 @@ describe('notes scan budgets', () => {
     });
     adapter.readFile.mockResolvedValue('# Safe');
 
-    await expect(loadNoteMetadata('/vault-overlong-metadata')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-overlong-metadata')).resolves.toEqual({
       version: 2,
       notes: {
         'safe.md': {
@@ -372,15 +372,15 @@ describe('notes scan budgets', () => {
         },
       },
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-overlong-metadata/safe.md', 5 * 1024 * 1024);
-    expect(adapter.readFile).not.toHaveBeenCalledWith(`/vault-overlong-metadata/${overlongPath}`, 5 * 1024 * 1024);
+    expect(adapter.readFile).toHaveBeenCalledWith('/notes-root-overlong-metadata/safe.md', 5 * 1024 * 1024);
+    expect(adapter.readFile).not.toHaveBeenCalledWith(`/notes-root-overlong-metadata/${overlongPath}`, 5 * 1024 * 1024);
   });
 
   it('reads metadata for markdown files at the maximum scanned folder depth', async () => {
     const segments = Array.from({ length: 24 }, (_, index) => `level-${index}`);
     const deepRelativePath = `${segments.join('/')}/deep.md`;
     adapter.listDir.mockImplementation(async (path: string) => {
-      const relative = path.replace(/^\/vault-depth\/?/, '');
+      const relative = path.replace(/^\/notes-root-depth\/?/, '');
       const depth = relative ? relative.split('/').filter(Boolean).length : 0;
       if (depth < segments.length) {
         return [{
@@ -403,7 +403,7 @@ describe('notes scan budgets', () => {
       '# Deep',
     ].join('\n'));
 
-    await expect(loadNoteMetadata('/vault-depth')).resolves.toEqual({
+    await expect(loadNoteMetadata('/notes-root-depth')).resolves.toEqual({
       version: 2,
       notes: {
         [deepRelativePath]: {

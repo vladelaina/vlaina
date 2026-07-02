@@ -48,21 +48,21 @@ function addNonInternalCandidate(candidates: string[], candidate: string | null)
   candidates.push(candidate);
 }
 
-export async function resolveVaultAssetPath(
-  vaultPath: string,
+export async function resolveNotesRootAssetPath(
+  notesRootPath: string,
   assetPath: string,
   currentNotePath?: string,
 ): Promise<string> {
-  const candidates = await resolveVaultAssetPathCandidates(vaultPath, assetPath, currentNotePath);
+  const candidates = await resolveNotesRootAssetPathCandidates(notesRootPath, assetPath, currentNotePath);
   return candidates[0] ?? '';
 }
 
-export async function resolveExistingVaultAssetPath(
-  vaultPath: string,
+export async function resolveExistingNotesRootAssetPath(
+  notesRootPath: string,
   assetPath: string,
   currentNotePath?: string,
 ): Promise<string> {
-  const candidates = await resolveVaultAssetPathCandidates(vaultPath, assetPath, currentNotePath);
+  const candidates = await resolveNotesRootAssetPathCandidates(notesRootPath, assetPath, currentNotePath);
   if (candidates.length <= 1) {
     return candidates[0] ?? '';
   }
@@ -77,8 +77,8 @@ export async function resolveExistingVaultAssetPath(
   return candidates[0] ?? '';
 }
 
-export async function resolveVaultAssetPathCandidates(
-  vaultPath: string,
+export async function resolveNotesRootAssetPathCandidates(
+  notesRootPath: string,
   assetPath: string,
   currentNotePath?: string,
 ): Promise<string[]> {
@@ -98,22 +98,22 @@ export async function resolveVaultAssetPathCandidates(
     ? getParentPath(
         isAbsolutePath(currentNotePath)
           ? currentNotePath
-          : await joinPath(vaultPath, currentNotePath)
+          : await joinPath(notesRootPath, currentNotePath)
       )
     : null;
   const isAbsoluteExternalNote = Boolean(
     currentNotePath
     && isAbsolutePath(currentNotePath)
     && currentNoteDir
-    && !normalizeContainedAssetPath(currentNotePath, vaultPath)
+    && !normalizeContainedAssetPath(currentNotePath, notesRootPath)
   );
   const currentNoteAssetRoot = isAbsoluteExternalNote && currentNoteDir
     ? currentNoteDir
-    : vaultPath;
+    : notesRootPath;
 
   if (localAssetPath.startsWith('./') || localAssetPath.startsWith('../')) {
     const candidate = normalizeContainedAssetPath(
-      await joinPath(currentNoteDir ?? vaultPath, localAssetPath),
+      await joinPath(currentNoteDir ?? notesRootPath, localAssetPath),
       currentNoteAssetRoot,
     );
     return candidate && !hasInternalNoteAssetUrlPathSegment(candidate) ? [candidate] : [];
@@ -129,8 +129,8 @@ export async function resolveVaultAssetPathCandidates(
     addNonInternalCandidate(candidates, noteRelativeCandidate);
   }
 
-  const vaultAssetPath = normalizeContainedAssetPath(await joinPath(vaultPath, localAssetPath), vaultPath);
-  addNonInternalCandidate(candidates, vaultAssetPath);
+  const notesRootAssetPath = normalizeContainedAssetPath(await joinPath(notesRootPath, localAssetPath), notesRootPath);
+  addNonInternalCandidate(candidates, notesRootAssetPath);
 
   return candidates;
 }

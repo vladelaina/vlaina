@@ -13,12 +13,12 @@ const mocks = vi.hoisted(() => ({
   notesState: {
     currentNote: null,
     noteContentsCache: new Map<string, { content: string }>(),
-    notesPath: '/vault',
+    notesPath: '/notesRoot',
     rootFolder: null,
     starredEntries: [] as Array<{
       id: string;
       kind: 'note' | 'folder';
-      vaultPath: string;
+      notesRootPath: string;
       relativePath: string;
       addedAt: number;
     }>,
@@ -98,12 +98,12 @@ describe('chat mention path security', () => {
     mocks.storage.readFile.mockReset();
     mocks.notesState.currentNote = null;
     mocks.notesState.noteContentsCache = new Map();
-    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.notesPath = '/notesRoot';
     mocks.notesState.rootFolder = null;
     mocks.notesState.starredEntries = [];
   });
 
-  it('does not read relative note mentions outside the active vault', async () => {
+  it('does not read relative note mentions outside the active notesRoot', async () => {
     const notes = await loadMentionedNotes([
       { path: '../secret.md', title: 'Secret' },
     ]);
@@ -130,7 +130,7 @@ describe('chat mention path security', () => {
     mocks.notesState.starredEntries = [{
       id: 'unsafe-external',
       kind: 'note',
-      vaultPath: '/external\u202Ecod',
+      notesRootPath: '/external\u202Ecod',
       relativePath: 'alpha.md',
       addedAt: 1,
     }];
@@ -146,7 +146,7 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read non-markdown note mentions inside the active vault', async () => {
+  it('does not read non-markdown note mentions inside the active notesRoot', async () => {
     const notes = await loadMentionedNotes([
       { path: 'docs/secret.txt', title: 'Secret' },
     ]);
@@ -164,14 +164,14 @@ describe('chat mention path security', () => {
       { path: '.notes/alpha.md', title: 'Alpha' },
     ]);
 
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/.notes/alpha.md');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/.notes/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/.notes/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
     expect(notes).toEqual([
       { path: '.notes/alpha.md', title: 'Alpha', content: '# Alpha' },
     ]);
   });
 
-  it('does not list relative folder mentions outside the active vault', async () => {
+  it('does not list relative folder mentions outside the active notesRoot', async () => {
     const notes = await loadMentionedNotes([
       { path: '../secret-folder', title: 'Secret Folder', kind: 'folder' },
     ]);
@@ -198,7 +198,7 @@ describe('chat mention path security', () => {
     mocks.notesState.starredEntries = [{
       id: 'external-secret',
       kind: 'note',
-      vaultPath: '/external/docs',
+      notesRootPath: '/external/docs',
       relativePath: 'secret.txt',
       addedAt: 1,
     }];
@@ -217,28 +217,28 @@ describe('chat mention path security', () => {
       {
         id: 'app-note',
         kind: 'note',
-        vaultPath: '/external',
+        notesRootPath: '/external',
         relativePath: '.vlaina/workspace.md',
         addedAt: 1,
       },
       {
         id: 'git-note',
         kind: 'note',
-        vaultPath: '/external',
+        notesRootPath: '/external',
         relativePath: 'docs/.git/config.md',
         addedAt: 1,
       },
       {
         id: 'app-note-uppercase',
         kind: 'note',
-        vaultPath: '/external',
+        notesRootPath: '/external',
         relativePath: '.VLAINA/workspace.md',
         addedAt: 1,
       },
       {
         id: 'git-note-uppercase',
         kind: 'note',
-        vaultPath: '/external',
+        notesRootPath: '/external',
         relativePath: 'docs/.GIT/config.md',
         addedAt: 1,
       },
@@ -256,19 +256,19 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read starred absolute note mentions when the starred vault root is internal', async () => {
+  it('does not read starred absolute note mentions when the starred notesRoot root is internal', async () => {
     mocks.notesState.starredEntries = [
       {
         id: 'app-root-note',
         kind: 'note',
-        vaultPath: '/external/.vlaina',
+        notesRootPath: '/external/.vlaina',
         relativePath: 'workspace.md',
         addedAt: 1,
       },
       {
         id: 'git-root-note',
         kind: 'note',
-        vaultPath: '/external/docs/.git',
+        notesRootPath: '/external/docs/.git',
         relativePath: 'config.md',
         addedAt: 1,
       },
@@ -294,7 +294,7 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
-  it('does not read URL-like note mentions as vault-relative paths', async () => {
+  it('does not read URL-like note mentions as notes-root-relative paths', async () => {
     const notes = await loadMentionedNotes([
       { path: 'https://example.com/secret.md', title: 'Remote' },
       { path: 'file:///etc/passwd.md', title: 'File URL' },
@@ -309,7 +309,7 @@ describe('chat mention path security', () => {
     mocks.notesState.starredEntries = [{
       id: 'external',
       kind: 'note',
-      vaultPath: '/external-vault/docs',
+      notesRootPath: '/external-notesRoot/docs',
       relativePath: 'alpha.md',
       addedAt: 1,
     }];
@@ -317,13 +317,13 @@ describe('chat mention path security', () => {
     mocks.storage.readFile.mockResolvedValue('# Alpha');
 
     const notes = await loadMentionedNotes([
-      { path: '/external-vault/docs/alpha.md', title: 'Alpha' },
+      { path: '/external-notesRoot/docs/alpha.md', title: 'Alpha' },
     ]);
 
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/external-vault/docs/alpha.md');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/external-vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/external-notesRoot/docs/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/external-notesRoot/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
     expect(notes).toEqual([
-      { path: '/external-vault/docs/alpha.md', title: 'Alpha', content: '# Alpha' },
+      { path: '/external-notesRoot/docs/alpha.md', title: 'Alpha', content: '# Alpha' },
     ]);
   });
 
@@ -335,8 +335,8 @@ describe('chat mention path security', () => {
       { path: 'docs/huge.md', title: 'Huge' },
     ]);
 
-    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/huge.md');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/huge.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/notesRoot/docs/huge.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/notesRoot/docs/huge.md', MAX_NOTE_MENTION_READ_BYTES);
     expect(notes).toEqual([]);
   });
 
@@ -344,7 +344,7 @@ describe('chat mention path security', () => {
     mocks.notesState.starredEntries = [{
       id: 'external-unc',
       kind: 'note',
-      vaultPath: '\\\\SERVER\\Share',
+      notesRootPath: '\\\\SERVER\\Share',
       relativePath: 'Docs/Alpha.md',
       addedAt: 1,
     }];
@@ -369,7 +369,7 @@ describe('chat mention path security', () => {
     mocks.notesState.starredEntries = [{
       id: 'external-folder-unc',
       kind: 'folder',
-      vaultPath: '\\\\SERVER\\Share',
+      notesRootPath: '\\\\SERVER\\Share',
       relativePath: 'Assets',
       addedAt: 1,
     }];
@@ -401,11 +401,11 @@ describe('chat mention path security', () => {
     ]);
   });
 
-  it('does not load starred folder images when the starred vault root is internal', async () => {
+  it('does not load starred folder images when the starred notesRoot root is internal', async () => {
     mocks.notesState.starredEntries = [{
       id: 'internal-folder',
       kind: 'folder',
-      vaultPath: '/external/.vlaina',
+      notesRootPath: '/external/.vlaina',
       relativePath: 'assets',
       addedAt: 1,
     }];
@@ -422,7 +422,7 @@ describe('chat mention path security', () => {
     mocks.notesState.starredEntries = [{
       id: 'unsafe-folder',
       kind: 'folder',
-      vaultPath: '/external\u202Ecod',
+      notesRootPath: '/external\u202Ecod',
       relativePath: 'assets',
       addedAt: 1,
     }];

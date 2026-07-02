@@ -4,7 +4,7 @@ import { AssetThumbnail } from './AssetThumbnail';
 
 const hoisted = vi.hoisted(() => ({
   loadImageThumbnailAsBlob: vi.fn(),
-  resolveVaultAssetPath: vi.fn(),
+  resolveNotesRootAssetPath: vi.fn(),
 }));
 
 vi.mock('@/lib/assets/io/reader', () => ({
@@ -12,7 +12,7 @@ vi.mock('@/lib/assets/io/reader', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
+  resolveNotesRootAssetPath: hoisted.resolveNotesRootAssetPath,
 }));
 
 type PendingThumbnailLoad = {
@@ -26,7 +26,7 @@ function renderThumbnail(filename: string, loadPriority: number) {
       key={filename}
       filename={filename}
       size={10}
-      vaultPath="/vault"
+      notesRootPath="/notesRoot"
       currentNotePath="note.md"
       onSelect={() => {}}
       isHovered={false}
@@ -39,8 +39,8 @@ function renderThumbnail(filename: string, loadPriority: number) {
 describe('AssetThumbnail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hoisted.resolveVaultAssetPath.mockImplementation(
-      async (_vaultPath: string, filename: string) => `/vault/assets/${filename}`,
+    hoisted.resolveNotesRootAssetPath.mockImplementation(
+      async (_notesRootPath: string, filename: string) => `/notesRoot/assets/${filename}`,
     );
   });
 
@@ -60,10 +60,10 @@ describe('AssetThumbnail', () => {
 
     await waitFor(() => expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(4));
     expect(pendingLoads.map((load) => load.path)).toEqual([
-      '/vault/assets/cover-0.png',
-      '/vault/assets/cover-1.png',
-      '/vault/assets/cover-2.png',
-      '/vault/assets/cover-3.png',
+      '/notesRoot/assets/cover-0.png',
+      '/notesRoot/assets/cover-1.png',
+      '/notesRoot/assets/cover-2.png',
+      '/notesRoot/assets/cover-3.png',
     ]);
 
     await act(async () => {
@@ -72,7 +72,7 @@ describe('AssetThumbnail', () => {
     });
 
     await waitFor(() => expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(5));
-    expect(pendingLoads[4]?.path).toBe('/vault/assets/cover-4.png');
+    expect(pendingLoads[4]?.path).toBe('/notesRoot/assets/cover-4.png');
 
     await act(async () => {
       pendingLoads.slice(1).forEach((load, index) => load.resolve(`blob:cover-${index + 1}`));

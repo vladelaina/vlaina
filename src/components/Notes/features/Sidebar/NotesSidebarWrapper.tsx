@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
+import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { NotesSidebarSurface } from './NotesSidebarPrimitives';
 
 const NotesSidebarPanel = lazy(async () => {
@@ -26,20 +26,20 @@ export function NotesSidebarWrapper({
   const createFolder = useNotesStore(s => s.createFolder);
   const starredLoaded = useNotesStore(s => s.starredLoaded);
   const loadStarred = useNotesStore(s => s.loadStarred);
-  const currentVault = useVaultStore((s) => s.currentVault);
+  const currentNotesRoot = useNotesRootStore((s) => s.currentNotesRoot);
 
   useEffect(() => {
-    if (currentVault || starredLoaded) {
+    if (currentNotesRoot || starredLoaded) {
       return;
     }
 
     void loadStarred('').catch(() => undefined);
-  }, [currentVault, loadStarred, starredLoaded]);
+  }, [currentNotesRoot, loadStarred, starredLoaded]);
 
-  const isCurrentVaultRootPending = Boolean(
-    currentVault &&
-    notesPath === currentVault.path &&
-    (!rootFolder || rootFolderPath !== currentVault.path),
+  const isCurrentNotesRootRootPending = Boolean(
+    currentNotesRoot &&
+    notesPath === currentNotesRoot.path &&
+    (!rootFolder || rootFolderPath !== currentNotesRoot.path),
   );
 
   if (!loadContent) {
@@ -50,7 +50,7 @@ export function NotesSidebarWrapper({
     <Suspense fallback={null}>
       <NotesSidebarPanel
         rootFolder={rootFolder}
-        isLoading={isLoading || isCurrentVaultRootPending}
+        isLoading={isLoading || isCurrentNotesRootRootPending}
         currentNotePath={currentNotePath}
         createNote={(folderPath?: string) => createNote(folderPath, { asDraft: true })}
         createFolder={(path: string) => createFolder(path)}

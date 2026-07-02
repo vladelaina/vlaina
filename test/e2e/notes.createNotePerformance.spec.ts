@@ -3,10 +3,10 @@ import {
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
   cleanupIsolatedElectron,
-  createVaultFilesFixture,
+  createNotesRootFilesFixture,
   launchIsolatedElectron,
   getOpenBridgePages,
-  openVaultInNotes,
+  openNotesRootInNotes,
 } from './notesE2E';
 
 const SIDEBAR_MENU_LAYER_SELECTOR = '[data-sidebar-context-menu-layer="true"]';
@@ -35,7 +35,7 @@ test.describe('notes create note performance', () => {
     try {
       await app.firstWindow();
       const [page] = await getOpenBridgePages(app, 1);
-      const fixture = await createVaultFilesFixture(page, {
+      const fixture = await createNotesRootFilesFixture(page, {
         name: 'notes-create-note-performance',
         files: [
           {
@@ -45,9 +45,9 @@ test.describe('notes create note performance', () => {
         ],
       });
 
-      await openVaultInNotes(page, {
-        vaultPath: fixture.vaultPath,
-        name: 'Notes Create Performance Vault',
+      await openNotesRootInNotes(page, {
+        notesRootPath: fixture.notesRootPath,
+        name: 'Notes Create Performance NotesRoot',
         minFileCount: 1,
       });
       await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'alpha-create-performance' }).first().click();

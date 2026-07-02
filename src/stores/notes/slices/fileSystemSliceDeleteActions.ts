@@ -1,5 +1,5 @@
 import { addNodeToTree, removeNodeFromTree } from '../fileTreeUtils';
-import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../starred';
+import { getNotesRootStarredPaths, remapStarredEntriesForNotesRoot, saveStarredRegistry } from '../starred';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { deleteFolderImpl, deleteNoteImpl } from '../utils/fs/deleteOperations';
 import {
@@ -85,7 +85,7 @@ function getStarredStateAfterDeletion(
   deletedPath: string,
   kind: 'file' | 'folder',
 ) {
-  const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, entryKind) => {
+  const starredResult = remapStarredEntriesForNotesRoot(starredEntries, notesPath, (relativePath, entryKind) => {
     if (kind === 'file') {
       return entryKind === 'note' && relativePath === deletedPath ? null : relativePath;
     }
@@ -95,7 +95,7 @@ function getStarredStateAfterDeletion(
     void Promise.resolve(saveStarredRegistry(starredResult.entries)).catch(() => undefined);
   }
 
-  const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+  const starredPaths = getNotesRootStarredPaths(starredResult.entries, notesPath);
   return {
     entries: starredResult.entries,
     notes: starredPaths.notes,

@@ -19,16 +19,16 @@ describe('openStoredNotePath', () => {
     const openNote = vi.fn(async () => undefined);
     const openNoteByAbsolutePath = vi.fn(async () => undefined);
 
-    await openStoredNotePath('C:\\vault\\docs\\a.md', {
+    await openStoredNotePath('C:\\notesRoot\\docs\\a.md', {
       openNote,
       openNoteByAbsolutePath,
     });
 
     expect(openNote).not.toHaveBeenCalled();
-    expect(openNoteByAbsolutePath).toHaveBeenCalledWith('C:\\vault\\docs\\a.md', undefined);
+    expect(openNoteByAbsolutePath).toHaveBeenCalledWith('C:\\notesRoot\\docs\\a.md', undefined);
   });
 
-  it('routes relative vault paths through openNote', async () => {
+  it('routes relative opened folder paths through openNote', async () => {
     const openNote = vi.fn(async () => undefined);
     const openNoteByAbsolutePath = vi.fn(async () => undefined);
 
@@ -45,7 +45,7 @@ describe('openStoredNotePath', () => {
     const openNote = vi.fn(async () => undefined);
     const openNoteByAbsolutePath = vi.fn(async () => undefined);
 
-    await openStoredNotePath('/vault/docs/a.md', {
+    await openStoredNotePath('/notesRoot/docs/a.md', {
       openNote,
       openNoteByAbsolutePath,
     }, {
@@ -53,6 +53,6 @@ describe('openStoredNotePath', () => {
     });
 
     expect(openNote).not.toHaveBeenCalled();
-    expect(openNoteByAbsolutePath).toHaveBeenCalledWith('/vault/docs/a.md', true);
+    expect(openNoteByAbsolutePath).toHaveBeenCalledWith('/notesRoot/docs/a.md', true);
   });
 });

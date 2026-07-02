@@ -1,9 +1,9 @@
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { getDraftNoteEntry, isDraftNotePath } from './draftNote';
-import { resolveStarredRelativePathForVault } from './starred';
+import { resolveStarredRelativePathForNotesRoot } from './starred';
 import type { DraftNoteEntry } from './types';
 
-export type NotePathKind = 'draft' | 'vault' | 'external' | 'none';
+export type NotePathKind = 'draft' | 'notesRoot' | 'external' | 'none';
 
 export function getNotePathKind(path: string | null | undefined): NotePathKind {
   if (!path) {
@@ -14,18 +14,18 @@ export function getNotePathKind(path: string | null | undefined): NotePathKind {
     return 'draft';
   }
 
-  return isAbsolutePath(path) ? 'external' : 'vault';
+  return isAbsolutePath(path) ? 'external' : 'notesRoot';
 }
 
-export function isVaultNotePath(path: string | null | undefined): path is string {
-  return getNotePathKind(path) === 'vault';
+export function isNotesRootNotePath(path: string | null | undefined): path is string {
+  return getNotePathKind(path) === 'notesRoot';
 }
 
 export function canStarNotePath(
   path: string | null | undefined,
   notesPath?: string,
 ): path is string {
-  if (isVaultNotePath(path)) {
+  if (isNotesRootNotePath(path)) {
     return true;
   }
 
@@ -33,11 +33,11 @@ export function canStarNotePath(
     return true;
   }
 
-  return Boolean(path && notesPath && resolveStarredRelativePathForVault(path, notesPath));
+  return Boolean(path && notesPath && resolveStarredRelativePathForNotesRoot(path, notesPath));
 }
 
-export function getVaultNoteParentPath(path: string | null | undefined): string | undefined {
-  if (!isVaultNotePath(path) || !path.includes('/')) {
+export function getNotesRootNoteParentPath(path: string | null | undefined): string | undefined {
+  if (!isNotesRootNotePath(path) || !path.includes('/')) {
     return undefined;
   }
 
@@ -53,5 +53,5 @@ export function resolveSiblingNoteParentPath(
     return draftNote.parentPath ?? undefined;
   }
 
-  return getVaultNoteParentPath(currentPath);
+  return getNotesRootNoteParentPath(currentPath);
 }
