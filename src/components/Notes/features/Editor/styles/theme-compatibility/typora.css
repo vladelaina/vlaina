@@ -60,7 +60,7 @@
   min-width: 0;
   background: transparent;
   color: var(--df, var(--text-color, inherit));
-  font-size: var(--v-f-size, var(--vlaina-markdown-font-size));
+  font-size: var(--vlaina-markdown-font-size);
   box-sizing: border-box;
 }
 
