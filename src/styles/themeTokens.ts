@@ -507,9 +507,6 @@ export const themeEditorLayoutTokens = {
   autoCreateBlankDraftDelayMs: 0,
   autoSaveDebounceMs: 800,
   editorInitFallbackDelayMs: 30000,
-  mermaidPrewarmDelayMsDev: 45000,
-  mermaidPrewarmDelayMsProd: 5000,
-  mermaidIdlePrewarmTimeoutMs: 3000,
   scrollRestoreTimeoutFallbackDelayMs: 160,
   restoreScrollFallbackDelayMs: 80,
 } as const;

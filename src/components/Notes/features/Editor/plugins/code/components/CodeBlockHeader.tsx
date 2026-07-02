@@ -1,5 +1,5 @@
 import React from 'react';
-import { CodeBlockHeader as SharedCodeBlockHeader } from '@/components/common/code-block';
+import { CodeBlockHeader as SharedCodeBlockHeader } from '@/components/common/code-block/CodeBlockHeader';
 import { LanguageSelector } from './LanguageSelector';
 
 interface CodeBlockHeaderProps {

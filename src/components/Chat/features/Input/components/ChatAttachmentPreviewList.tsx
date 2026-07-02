@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { LocalImage } from '@/components/Chat/common/LocalImage';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
-import { ChatImageViewer } from '@/components/Chat/features/Markdown/components/ChatImageViewer';
+import { LazyChatImageViewer } from '@/components/Chat/features/Markdown/components/LazyChatImageViewer';
 import {
   chatComposerFileAttachmentIconClass,
   chatComposerFileAttachmentLabelClass,
@@ -90,7 +90,7 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
         </div>
       </div>
       {activeImage && (
-        <ChatImageViewer
+        <LazyChatImageViewer
           open={!!activeImage}
           src={activeImage.src}
           alt={t('common.preview')}

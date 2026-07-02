@@ -1,1 +1,1 @@
-export { ReadOnlyCodeBlock as CodeBlock } from '@/components/common/code-block';
+export { ReadOnlyCodeBlock as CodeBlock } from '@/components/common/code-block/ReadOnlyCodeBlock';

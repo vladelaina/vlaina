@@ -28,6 +28,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     onEditStart
 }) => {
     const { t } = useI18n();
+    const rootRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -44,6 +45,23 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
             };
         }
     }, [isEditing]);
+
+    useEffect(() => {
+        if (!isEditing) return;
+
+        const handleDocumentPointerDown = (event: PointerEvent) => {
+            const target = event.target;
+            if (target instanceof Node && rootRef.current?.contains(target)) {
+                return;
+            }
+            onSubmit();
+        };
+
+        document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+        return () => {
+            document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
+        };
+    }, [isEditing, onSubmit]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         e.stopPropagation();
@@ -80,6 +98,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                 ? "opacity-[var(--vlaina-opacity-100)] scale-[var(--vlaina-scale-100)] translate-y-0"
                 : "opacity-[var(--vlaina-opacity-0)] scale-[var(--vlaina-scale-95)] translate-y-2 pointer-events-none"
         )}
+            ref={rootRef}
             data-no-editor-drag-box="true"
         >
             {isEditing ? (
