@@ -25,7 +25,7 @@ export const LoginPrompt: React.FC<LoginPromptProps> = ({ onOpenDialog }) => {
           'text-[var(--vlaina-color-brand-pink)]'
         )}
       >
-        <span className="min-w-0 truncate">ヾ(๑╹ヮ╹๑)ﾉ {signInLabel}</span>
+        <span className="min-w-0 truncate">{signInLabel}</span>
         <Icon
           name="nav.arrowRight"
           size="sm"

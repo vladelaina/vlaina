@@ -12,6 +12,7 @@ describe('LoginPrompt', () => {
 
     expect(source).toContain('hover:!text-[var(--vlaina-color-brand-pink)]');
     expect(source).toContain('hover:!bg-transparent');
+    expect(source).not.toContain('ヾ(๑╹ヮ╹๑)ﾉ {signInLabel}');
     expect(source).not.toContain('getSidebarIdleRowSurfaceClass');
     expect(source).not.toContain('hover:text-[var(--vlaina-sidebar-row-selected-text)]');
   });
