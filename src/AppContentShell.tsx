@@ -42,6 +42,7 @@ function ConnectedAppShell({
   children,
   effectiveAppViewMode,
   mainOverlay,
+  settingsOpen,
   sidebarContent,
   titleBarCenter,
   titleBarRight,
@@ -49,6 +50,7 @@ function ConnectedAppShell({
   children: ReactNode;
   effectiveAppViewMode: AppViewMode;
   mainOverlay: ReactNode;
+  settingsOpen: boolean;
   sidebarContent: ReactNode;
   titleBarCenter: ReactNode;
   titleBarRight: ReactNode;
@@ -66,7 +68,7 @@ function ConnectedAppShell({
       onSidebarToggle={toggleSidebar}
       sidebarContent={sidebarContent}
       titleBarLeft={
-        <SidebarUserHeader toggleSidebar={toggleSidebar} />
+        <SidebarUserHeader toggleSidebar={toggleSidebar} interactionSuppressed={settingsOpen} />
       }
       titleBarCenter={titleBarCenter}
       titleBarRight={titleBarRight}
@@ -206,6 +208,7 @@ export function AppContentShell({
 
       <ConnectedAppShell
         effectiveAppViewMode={effectiveAppViewMode}
+        settingsOpen={settingsOpen}
         sidebarContent={sidebarContent}
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
