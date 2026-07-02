@@ -1,10 +1,17 @@
-import { cleanup, render } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import LinkTooltip from './LinkTooltip';
 
+const linkEditorMockState = vi.hoisted(() => ({
+    lastProps: null as { onCompositionChange?: (isComposing: boolean) => void } | null,
+}));
+
 vi.mock('./components/LinkEditor', () => ({
-    LinkEditor: () => <div data-testid="link-editor" />,
+    LinkEditor: (props: { onCompositionChange?: (isComposing: boolean) => void }) => {
+        linkEditorMockState.lastProps = props;
+        return <div data-testid="link-editor" />;
+    },
 }));
 
 vi.mock('./components/LinkViewer', () => ({
@@ -60,6 +67,7 @@ function dispatchStoppedEditorMouseDown() {
 describe('LinkTooltip', () => {
     afterEach(() => {
         cleanup();
+        linkEditorMockState.lastProps = null;
         document.body.replaceChildren();
     });
 
@@ -112,6 +120,34 @@ describe('LinkTooltip', () => {
         }));
 
         expect(onEdit).toHaveBeenCalledTimes(1);
+        expect(onEdit).toHaveBeenCalledWith('Link target', '', true);
+    });
+
+    it('does not save the editing tooltip from an outside click while IME composition is active', () => {
+        const { onEdit } = renderInTooltipContainer();
+        const editorBlank = document.createElement('div');
+        document.body.append(editorBlank);
+
+        act(() => {
+            linkEditorMockState.lastProps?.onCompositionChange?.(true);
+        });
+
+        editorBlank.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        expect(onEdit).not.toHaveBeenCalled();
+
+        act(() => {
+            linkEditorMockState.lastProps?.onCompositionChange?.(false);
+        });
+
+        editorBlank.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+        }));
+
         expect(onEdit).toHaveBeenCalledWith('Link target', '', true);
     });
 

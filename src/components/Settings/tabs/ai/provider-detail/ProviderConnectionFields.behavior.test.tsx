@@ -187,6 +187,18 @@ describe('ProviderConnectionFields channel name input', () => {
     expect(input.selectionStart).toBe(4);
     expect(input.selectionEnd).toBe(4);
   });
+
+  it('reports composition state changes for provider text fields', () => {
+    const onCompositionChange = vi.fn();
+    renderFields({ onCompositionChange });
+    const nameInput = screen.getByDisplayValue('Channel 1');
+
+    fireEvent.compositionStart(nameInput);
+    fireEvent.compositionEnd(nameInput);
+
+    expect(onCompositionChange).toHaveBeenNthCalledWith(1, true);
+    expect(onCompositionChange).toHaveBeenNthCalledWith(2, false);
+  });
 });
 
 describe('ProviderConnectionFields base URL input', () => {

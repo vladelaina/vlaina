@@ -24,6 +24,7 @@ export function SidebarInlineRenameInput({
   ...props
 }: SidebarInlineRenameInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isComposingRef = useRef(false);
 
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -67,8 +68,23 @@ export function SidebarInlineRenameInput({
       wrap="soft"
       value={value}
       onChange={(event) => onValueChange(event.target.value.replace(/[\r\n]+/g, ' '))}
-      onBlur={() => void Promise.resolve(onSubmit()).catch(() => undefined)}
+      onCompositionStart={() => {
+        isComposingRef.current = true;
+      }}
+      onCompositionEnd={() => {
+        isComposingRef.current = false;
+      }}
+      onBlur={() => {
+        if (isComposingRef.current) {
+          return;
+        }
+        void Promise.resolve(onSubmit()).catch(() => undefined);
+      }}
       onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing || isComposingRef.current) {
+          return;
+        }
+
         if (event.key === 'Enter') {
           event.preventDefault();
           void Promise.resolve(onSubmit()).catch(() => undefined);

@@ -19,6 +19,7 @@ export function CreateNotesRootModal({ isOpen, onClose }: CreateNotesRootModalPr
   const [name, setName] = useState('');
   const [parentPath, setParentPath] = useState('');
   const pathInputRef = useRef<HTMLInputElement>(null);
+  const isComposingRef = useRef(false);
   const isWebPlatform = isWeb();
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function CreateNotesRootModal({ isOpen, onClose }: CreateNotesRootModalPr
   };
 
   const handleCreate = async () => {
+    if (isComposingRef.current) return;
     if (!name.trim() || !parentPath.trim()) return;
 
     const notesRootPath = await joinPath(parentPath.trim(), name.trim());
@@ -69,6 +71,11 @@ export function CreateNotesRootModal({ isOpen, onClose }: CreateNotesRootModalPr
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
+    if (native.isComposing || native.keyCode === 229 || isComposingRef.current) {
+      return;
+    }
+
     if (e.key === 'Escape') {
       onClose();
     } else if (e.key === 'Enter' && name.trim() && parentPath.trim()) {
@@ -126,6 +133,12 @@ export function CreateNotesRootModal({ isOpen, onClose }: CreateNotesRootModalPr
                   placeholder={t('notesRoot.myNotesPlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onCompositionStart={() => {
+                    isComposingRef.current = true;
+                  }}
+                  onCompositionEnd={() => {
+                    isComposingRef.current = false;
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Tab' && !e.shiftKey && !parentPath && hasNativeDialogs()) {
                       e.preventDefault();
@@ -150,6 +163,12 @@ export function CreateNotesRootModal({ isOpen, onClose }: CreateNotesRootModalPr
                     placeholder={isWebPlatform ? t('notesRoot.pathPlaceholder') : t('notesRoot.selectFolderPlaceholder')}
                     value={parentPath}
                     onChange={(e) => setParentPath(e.target.value)}
+                    onCompositionStart={() => {
+                      isComposingRef.current = true;
+                    }}
+                    onCompositionEnd={() => {
+                      isComposingRef.current = false;
+                    }}
                     onBlur={(e) => {
                       const target = e.target;
                       requestAnimationFrame(() => {

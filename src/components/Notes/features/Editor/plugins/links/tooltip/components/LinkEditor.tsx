@@ -33,6 +33,7 @@ interface LinkEditorProps {
     autoFocus: boolean;
     initialText: string;
     invalidUrlAttempt: number;
+    onCompositionChange?: (isComposing: boolean) => void;
 }
 
 export const LinkEditor = ({
@@ -43,10 +44,12 @@ export const LinkEditor = ({
     isNewLink,
     autoFocus,
     invalidUrlAttempt,
+    onCompositionChange,
 }: LinkEditorProps) => {
     const { t } = useI18n();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const isComposingRef = useRef(false);
     const { maxWidth, minWidth } = useLinkTooltipContentWidth(containerRef);
     const [editorWidth, setEditorWidth] = useState(LINK_TOOLTIP_MIN_WIDTH);
     const [hasValidationError, setHasValidationError] = useState(false);
@@ -141,7 +144,7 @@ export const LinkEditor = ({
     }, [invalidUrlAttempt]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.nativeEvent.isComposing) return;
+        if (e.nativeEvent.isComposing || isComposingRef.current) return;
 
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -152,6 +155,23 @@ export const LinkEditor = ({
             e.stopPropagation();
             onCancel();
         }
+    };
+
+    const handleCompositionStart = () => {
+        isComposingRef.current = true;
+        onCompositionChange?.(true);
+    };
+
+    const handleCompositionEnd = () => {
+        isComposingRef.current = false;
+        onCompositionChange?.(false);
+    };
+
+    const handleSaveClick = () => {
+        if (isComposingRef.current) {
+            return;
+        }
+        onSave(true);
     };
 
     return (
@@ -186,6 +206,8 @@ export const LinkEditor = ({
                         }
                         setEditUrl(e.target.value);
                     }}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
                     onKeyDown={handleKeyDown}
                     rows={1}
                     maxLength={MAX_LINK_TOOLTIP_URL_CHARS}
@@ -221,7 +243,7 @@ export const LinkEditor = ({
                             e.preventDefault();
                             e.stopPropagation();
                         }}
-                        onClick={() => onSave(true)}
+                        onClick={handleSaveClick}
                         className="toolbar-btn link-tooltip-action-btn active shrink-0"
                     >
                         <Icon size="md" name="common.check" />
