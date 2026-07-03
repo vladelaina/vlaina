@@ -162,4 +162,34 @@ describe('useChatStreamBlocks', () => {
     const unrevealedBirths = births.filter((birth) => 1016 - birth < CHAT_STREAM_FADE_MS);
     expect(unrevealedBirths).toHaveLength(MAX_UNREVEALED_CHAT_STREAM_CHARS);
   });
+
+  it('keeps active stream timing stable and completes prior active text when appending', () => {
+    const nowSpy = vi.spyOn(performance, 'now');
+    nowSpy.mockReturnValue(1000);
+    const { rerender, result } = renderHook(
+      ({ content }) => useChatStreamBlocks(content, true),
+      { initialProps: { content: 'abcdef' } },
+    );
+
+    nowSpy.mockReturnValue(1040);
+    rerender({ content: 'abcdefghijkl' });
+    const firstAppendBlock = result.current.at(-1)!;
+    const firstAppendBirths = firstAppendBlock.births.slice();
+    expect(firstAppendBlock.nowMs).toBe(1040);
+
+    nowSpy.mockReturnValue(1050);
+    rerender({ content: 'abcdefghijkl' });
+    expect(result.current.at(-1)!.nowMs).toBe(1040);
+    expect(result.current.at(-1)!.births).toEqual(firstAppendBirths);
+
+    nowSpy.mockReturnValue(1060);
+    rerender({ content: 'abcdefghijklmnopqr' });
+    const secondAppendBlock = result.current.at(-1)!;
+    const previousAppendBirths = secondAppendBlock.births.slice(6, 12);
+    const latestAppendBirths = secondAppendBlock.births.slice(12);
+
+    expect(previousAppendBirths.every((birth) => 1060 - birth >= CHAT_STREAM_FADE_MS)).toBe(true);
+    expect(latestAppendBirths.some((birth) => 1060 - birth < CHAT_STREAM_FADE_MS)).toBe(true);
+    expect(secondAppendBlock.nowMs).toBe(1060);
+  });
 });

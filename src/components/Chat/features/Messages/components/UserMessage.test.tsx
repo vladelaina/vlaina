@@ -53,8 +53,7 @@ vi.mock('@/lib/navigation/externalLinks', () => ({
 
 import { UserMessage } from './UserMessage';
 
-function createMessage(): ChatMessage {
-  const content = 'Draft the launch checklist';
+function createMessage(content = 'Draft the launch checklist'): ChatMessage {
   const timestamp = Date.now();
   return {
     id: 'u1',
@@ -153,6 +152,63 @@ describe('UserMessage', () => {
     );
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('collapses visually wrapped first user messages while waiting for an assistant response', () => {
+    const getComputedStyleSpy = vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      lineHeight: '24px',
+    } as CSSStyleDeclaration);
+    const scrollHeightSpy = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(240);
+
+    try {
+      const { container } = render(
+        <UserMessage
+          message={createMessage('这是一段没有换行但是会在窄气泡里视觉换行的长中文内容。'.repeat(30))}
+          containerWidth={220}
+          isAwaitingResponse
+          onEdit={vi.fn()}
+        />,
+      );
+
+      expect(container.querySelector('[data-chat-long-user-message]'))
+        .toHaveAttribute('data-chat-long-user-message', 'collapsed');
+      expect(screen.getByLabelText('Expand')).toHaveAttribute('aria-expanded', 'false');
+    } finally {
+      getComputedStyleSpy.mockRestore();
+      scrollHeightSpy.mockRestore();
+    }
+  });
+
+  it('keeps 8-line user messages expanded without a long-message toggle', () => {
+    const content = Array.from({ length: 8 }, (_value, index) => `line ${index + 1}`).join('\n');
+    const { container } = render(<UserMessage message={createMessage(content)} containerWidth={880} onEdit={vi.fn()} />);
+
+    expect(container.querySelector('[data-chat-long-user-message]')).toBeNull();
+    expect(screen.queryByLabelText('Expand')).not.toBeInTheDocument();
+    expect(container.textContent).toContain('line 8');
+  });
+
+  it('collapses user messages longer than 8 lines and allows them to be expanded', () => {
+    const content = Array.from({ length: 9 }, (_value, index) => `line ${index + 1}`).join('\n');
+    const { container } = render(<UserMessage message={createMessage(content)} containerWidth={880} onEdit={vi.fn()} />);
+    const bubble = container.querySelector('[data-chat-long-user-message]');
+
+    expect(bubble).toHaveAttribute('data-chat-long-user-message', 'collapsed');
+    expect(container.textContent).toContain('line 8');
+    expect(container.textContent).not.toContain('line 9');
+
+    const expandButton = screen.getByLabelText('Expand');
+    expect(expandButton).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(expandButton);
+
+    expect(bubble).toHaveAttribute('data-chat-long-user-message', 'expanded');
+    expect(container.textContent).toContain('line 9');
+    const collapseButton = screen.getByLabelText('Collapse');
+    expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(collapseButton);
+
+    expect(bubble).toHaveAttribute('data-chat-long-user-message', 'collapsed');
+    expect(container.textContent).not.toContain('line 9');
   });
 
   it('uses the shared compact version navigator for editable prompt versions', () => {

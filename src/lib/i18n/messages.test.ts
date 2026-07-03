@@ -141,6 +141,8 @@ describe('i18n messages', () => {
       'chat.temporaryChatOn',
       'chat.copyMessage',
       'chat.editMessage',
+      'chat.expandMessage',
+      'chat.collapseMessage',
       'chat.regenerateResponse',
       'chat.branchConversation',
       'chat.previousMessageVersion',

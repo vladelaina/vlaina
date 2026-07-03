@@ -15,18 +15,16 @@ import {
 import { useUIStore } from '@/stores/uiSlice';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 import { useI18n } from '@/lib/i18n';
+import { COLLAPSED_USER_MESSAGE_VISIBLE_LINES, getLongUserMessagePreviewText, useHasVisualUserMessageOverflow } from './userMessageCollapse';
 
-const userMessageActionButtonClass =
-  cn(
-    'flex h-7 w-7 items-center justify-center',
-    iconButtonStyles,
-    chatComposerGhostIconButtonClass,
-    'text-[var(--vlaina-sidebar-chat-text)]',
-  );
+const userMessageActionButtonClass = cn(
+  'flex h-7 w-7 items-center justify-center',
+  iconButtonStyles,
+  chatComposerGhostIconButtonClass,
+  'text-[var(--vlaina-sidebar-chat-text)]',
+);
 
-function isSwitchableUserVersion(version: ChatMessage['versions'][number]): boolean {
-  return version.kind === 'original' || version.kind === 'edit';
-}
+function isSwitchableUserVersion(version: ChatMessage['versions'][number]): boolean { return version.kind === 'original' || version.kind === 'edit'; }
 
 interface UserMessageProps {
   message: ChatMessage;
@@ -55,7 +53,9 @@ function UserMessageInner({
 
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isLongMessageExpanded, setIsLongMessageExpanded] = useState(false);
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
+  const textContentRef = useRef<HTMLDivElement | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const versions = message.versions;
@@ -67,12 +67,12 @@ function UserMessageInner({
   const hasMultipleVersions = switchableVersionIndexes.length > 1 && currentSwitchableIndex >= 0;
 
   useEffect(() => {
-    return () => {
-      if (copiedTimerRef.current !== null) {
-        clearTimeout(copiedTimerRef.current);
-      }
-    };
+    return () => { if (copiedTimerRef.current !== null) clearTimeout(copiedTimerRef.current); };
   }, []);
+
+  useEffect(() => {
+    setIsLongMessageExpanded(false);
+  }, [content]);
 
   const textBubbleWidth = useMemo(
     () => resolveUserMessageBubbleWidth(parsedContent.text, containerWidth, fontSize),
@@ -86,6 +86,23 @@ function UserMessageInner({
     }),
     [textBubbleWidth],
   );
+  const hasVisualOverflow = useHasVisualUserMessageOverflow({
+    fontSize,
+    text: parsedContent.text,
+    textBubbleWidth,
+    textContentRef,
+  });
+  const collapsedText = useMemo(
+    () => getLongUserMessagePreviewText(parsedContent.text),
+    [parsedContent.text],
+  );
+  const isLongMessage = collapsedText !== null || hasVisualOverflow;
+  const isCollapsedLongMessage = isLongMessage && !isLongMessageExpanded;
+  const visibleText = isLongMessage && !isLongMessageExpanded ? collapsedText : parsedContent.text;
+  const collapsedTextStyle = isCollapsedLongMessage ? {
+    maxHeight: `calc(${COLLAPSED_USER_MESSAGE_VISIBLE_LINES} * (var(--vlaina-markdown-font-size, var(--vlaina-size-17px)) + var(--vlaina-size-8px)))`,
+    overflow: 'hidden',
+  } : undefined;
   const imageGallery = useMemo(
     () => parsedContent.imageSources.map((src, index) => ({
       id: `${message.id}:${index}`,
@@ -183,11 +200,31 @@ function UserMessageInner({
                 data-no-focus-input="true"
                 data-chat-selection-surface="true"
                 data-chat-selection-start="true"
+                data-chat-long-user-message={isLongMessage ? (isLongMessageExpanded ? 'expanded' : 'collapsed') : undefined}
                 data-vlaina-markdown-font-size-surface="true"
                 className="inline-block max-w-[var(--vlaina-size-90pct)] select-text rounded-3xl bg-[var(--vlaina-accent)] px-4 py-1.5 text-left text-[var(--vlaina-color-white)]"
                 style={textBubbleStyle}
               >
-                <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
+                <div
+                  ref={textContentRef}
+                  className="whitespace-pre-wrap break-words"
+                  style={collapsedTextStyle}
+                >
+                  {visibleText ?? parsedContent.text}
+                </div>
+                {isLongMessage && (
+                  <button
+                    type="button"
+                    aria-expanded={isLongMessageExpanded}
+                    aria-label={t(isLongMessageExpanded ? 'chat.collapseMessage' : 'chat.expandMessage')}
+                    data-chat-long-user-message-toggle="true"
+                    onClick={() => setIsLongMessageExpanded((expanded) => !expanded)}
+                    className="mt-2 inline-flex items-center gap-1 rounded-full bg-[var(--vlaina-color-white)]/15 px-3 py-1 text-[length:var(--vlaina-font-12)] font-medium text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-color-white)]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-white)]/70"
+                  >
+                    <Icon name={isLongMessageExpanded ? 'nav.chevronUp' : 'nav.chevronDown'} size="sm" />
+                    {t(isLongMessageExpanded ? 'chat.collapseMessage' : 'chat.expandMessage')}
+                  </button>
+                )}
               </div>
             )}
           </div>

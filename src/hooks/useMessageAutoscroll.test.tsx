@@ -168,7 +168,7 @@ describe('useMessageAutoscroll', () => {
     expect(result.current.spacerHeight).toBe(0);
   });
 
-  it('reserves spacer from the visible tail for an anchored overlong user message', () => {
+  it('does not reserve trailing spacer for an anchored overlong user message', () => {
     const container = createScrollContainer();
     const userMessage = createMessage('u1', 'user');
     const { result, rerender } = renderHook(
@@ -198,7 +198,7 @@ describe('useMessageAutoscroll', () => {
       rerender({ messages: [userMessage] });
     });
 
-    expect(result.current.spacerHeight).toBe(448);
+    expect(result.current.spacerHeight).toBe(0);
   });
 
   it('keeps the current turn spacer after a short anchored response finishes', () => {
@@ -283,7 +283,7 @@ describe('useMessageAutoscroll', () => {
     expect(result.current.spacerHeight).toBeGreaterThan(0);
   });
 
-  it('positions the current user message lower in the viewport after sending', () => {
+  it('positions the current user message near the top after sending', () => {
     const requestAnimationFrameSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation((callback: FrameRequestCallback) => {
@@ -328,12 +328,12 @@ describe('useMessageAutoscroll', () => {
       rerender({ messages: nextMessages });
     });
 
-    expect(container.scrollTop).toBe(0);
-    expect(result.current.currentTurnTopSpacerHeight).toBeGreaterThan(0);
+    expect(container.scrollTop).toBe(160);
+    expect(result.current.currentTurnTopSpacerHeight).toBe(0);
     requestAnimationFrameSpy.mockRestore();
   });
 
-  it('uses the rendered current user row as the short-message anchor', () => {
+  it('uses the rendered current user row as the top anchor', () => {
     const requestAnimationFrameSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation((callback: FrameRequestCallback) => {
@@ -417,7 +417,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(895);
+    expect(scrollTop).toBe(1208);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -501,7 +501,7 @@ describe('useMessageAutoscroll', () => {
       toJSON: () => ({}),
     });
 
-    const expectedScrollTop = 552;
+    const expectedScrollTop = 1178;
 
     act(() => {
       rtlScreen.getByRole('button', { name: 'send' }).click();
@@ -516,7 +516,7 @@ describe('useMessageAutoscroll', () => {
     requestAnimationFrameSpy.mockRestore();
   });
 
-  it('shows only the tail of an overlong current user message after sending', () => {
+  it('keeps the top of an overlong current user message visible after sending', () => {
     const requestAnimationFrameSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation((callback: FrameRequestCallback) => {
@@ -600,7 +600,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(1944);
+    expect(scrollTop).toBe(1248);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -690,17 +690,17 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(815);
+    expect(scrollTop).toBe(1080);
     expect(queuedFrames.length).toBeGreaterThan(0);
 
     maxScrollTop = 1300;
     act(() => {
-      while (queuedFrames.length > 0 && scrollTop !== 895) {
+      while (queuedFrames.length > 0 && scrollTop !== 1208) {
         queuedFrames.shift()?.(0);
       }
     });
 
-    expect(scrollTop).toBe(815);
+    expect(scrollTop).toBe(1208);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -789,7 +789,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(895);
+    expect(scrollTop).toBe(1208);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -1080,7 +1080,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} showTarget={false} />);
     });
 
-    expect(scrollTop).toBe(957);
+    expect(scrollTop).toBe(1240);
     expect(queuedFrames.length).toBeGreaterThan(0);
     requestAnimationFrameSpy.mockRestore();
   });
@@ -1184,7 +1184,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(1125);
+    expect(scrollTop).toBe(1408);
 
     act(() => {
       scrollable.dispatchEvent(new Event('scroll'));
@@ -1202,7 +1202,7 @@ describe('useMessageAutoscroll', () => {
       );
     });
 
-    expect(scrollTop).toBe(1385);
+    expect(scrollTop).toBe(1668);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -1307,7 +1307,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(900);
+    expect(scrollTop).toBe(1168);
 
     act(() => {
       scrollTop = 1320;
@@ -1318,7 +1318,7 @@ describe('useMessageAutoscroll', () => {
     requestAnimationFrameSpy.mockRestore();
   });
 
-  it('uses the visible tail of an overlong user message when clamping trailing empty space', () => {
+  it('follows visible assistant output after anchoring an overlong user message', () => {
     const requestAnimationFrameSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation((callback: FrameRequestCallback) => {
@@ -1420,20 +1420,20 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(1736);
+    expect(scrollTop).toBe(1340);
 
     act(() => {
       scrollable.dispatchEvent(new Event('scroll'));
     });
 
-    expect(scrollTop).toBe(1736);
+    expect(scrollTop).toBe(1340);
 
     act(() => {
       scrollTop = 1750;
       scrollable.dispatchEvent(new Event('scroll'));
     });
 
-    expect(scrollTop).toBe(1736);
+    expect(scrollTop).toBe(1340);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -1535,7 +1535,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(1045);
+    expect(scrollTop).toBe(1328);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -1637,7 +1637,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness messages={messages} />);
     });
 
-    expect(scrollTop).toBe(965);
+    expect(scrollTop).toBe(1248);
     requestAnimationFrameSpy.mockRestore();
   });
 
@@ -1853,7 +1853,7 @@ describe('useMessageAutoscroll', () => {
       view.rerender(<TestHarness isStreaming={false} messages={messages} />);
     });
 
-    expect(scrollTop).toBe(127);
+    expect(scrollTop).toBe(287);
     requestAnimationFrameSpy.mockRestore();
   });
 

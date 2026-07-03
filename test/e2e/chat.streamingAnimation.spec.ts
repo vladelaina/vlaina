@@ -43,6 +43,11 @@ const STREAM_RESPONSE = [
   'Final paragraph: the stream should finish cleanly, remove live animation wrappers, and keep the completed answer readable without a late flicker. E2E_STREAM_DONE',
 ].join('\n');
 
+const STREAM_REPLAY_PROBE_RESPONSE = Array.from(
+  { length: 160 },
+  (_value, index) => String.fromCodePoint(0x4e00 + index),
+).join('');
+
 type StreamProbeMetrics = {
   activeChangedTextSamples: number;
   activeFrameCount: number;
@@ -66,11 +71,19 @@ type StreamProbeMetrics = {
   textReversals: number;
 };
 
-async function createStreamingProviderServer(content: string): Promise<{
+async function createStreamingProviderServer(
+  content: string,
+  options: {
+    chunkDelayMs?: number;
+    chunkSize?: number;
+  } = {},
+): Promise<{
   close: () => Promise<void>;
   requests: () => Array<{ body: string; url: string }>;
   url: string;
 }> {
+  const chunkDelayMs = options.chunkDelayMs ?? STREAM_CHUNK_DELAY_MS;
+  const chunkSize = options.chunkSize ?? STREAM_CHUNK_SIZE;
   const requests: Array<{ body: string; url: string }> = [];
   const server = http.createServer((request, response) => {
     response.setHeader('Access-Control-Allow-Origin', '*');
@@ -111,10 +124,10 @@ async function createStreamingProviderServer(content: string): Promise<{
           return;
         }
 
-        const chunk = content.slice(offset, offset + STREAM_CHUNK_SIZE);
-        offset += STREAM_CHUNK_SIZE;
+        const chunk = content.slice(offset, offset + chunkSize);
+        offset += chunkSize;
         response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`);
-      }, STREAM_CHUNK_DELAY_MS);
+      }, chunkDelayMs);
 
       response.on('close', () => {
         clearInterval(timer);
@@ -149,6 +162,112 @@ async function createStreamingProviderServer(content: string): Promise<{
 
 test.describe('chat streaming animation', () => {
   test.setTimeout(120_000);
+
+  test('does not restart stream character animations for already rendered text', async () => {
+    const provider = await createStreamingProviderServer(STREAM_REPLAY_PROBE_RESPONSE, {
+      chunkDelayMs: 80,
+      chunkSize: 8,
+    });
+    const { app, userDataRoot } = await launchIsolatedElectron('chat-streaming-animation-replay');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await createChatModelFixture(page, {
+        apiHost: provider.url,
+        apiModelId: 'e2e-stream-animation-replay-model',
+        providerName: 'E2E Streaming Animation Replay Provider',
+      });
+      await setAppViewMode(page, 'chat');
+      await expect(page.locator(CHAT_VIEW_SELECTOR)).toBeVisible({ timeout: 30_000 });
+
+      await page.evaluate(() => {
+        let animationFrameId = 0;
+        const activeCounts = new Map<string, number>();
+        const completedChars = new Set<string>();
+        const duplicateActivations = new Map<string, number>();
+        const activeStyleChanges = new Map<string, number>();
+        const previousActiveStyle = new Map<string, string>();
+        const previouslyActive = new Set<string>();
+
+        const tick = () => {
+          const activeChars = new Set<string>();
+          const nextActiveStyle = new Map<string, string>();
+          document.querySelectorAll<HTMLElement>('.chat-stream-char').forEach((element) => {
+            const char = element.textContent ?? '';
+            if (!char) {
+              return;
+            }
+            activeChars.add(char);
+            activeCounts.set(char, (activeCounts.get(char) ?? 0) + 1);
+            const style = element.getAttribute('style') ?? '';
+            nextActiveStyle.set(char, style);
+            const previousStyle = previousActiveStyle.get(char);
+            if (previousStyle !== undefined && previousStyle !== style) {
+              activeStyleChanges.set(char, (activeStyleChanges.get(char) ?? 0) + 1);
+            }
+            if (completedChars.has(char)) {
+              duplicateActivations.set(char, (duplicateActivations.get(char) ?? 0) + 1);
+            }
+          });
+
+          previouslyActive.forEach((char) => {
+            if (!activeChars.has(char)) {
+              completedChars.add(char);
+            }
+          });
+          previouslyActive.clear();
+          previousActiveStyle.clear();
+          activeChars.forEach((char) => previouslyActive.add(char));
+          nextActiveStyle.forEach((style, char) => previousActiveStyle.set(char, style));
+          animationFrameId = requestAnimationFrame(tick);
+        };
+
+        animationFrameId = requestAnimationFrame(tick);
+
+        (window as any).__vlainaChatStreamReplayProbe = {
+          read: () => ({
+            activeSamples: Array.from(activeCounts.entries())
+              .filter(([, count]) => count > 1)
+              .map(([char, count]) => ({ char, count })),
+            activeStyleChanges: Array.from(activeStyleChanges.entries())
+              .map(([char, count]) => ({ char, count })),
+            duplicateActivations: Array.from(duplicateActivations.entries())
+              .map(([char, count]) => ({ char, count })),
+            sampledChars: Array.from(activeCounts.keys()),
+          }),
+          stop: () => cancelAnimationFrame(animationFrameId),
+        };
+      });
+
+      const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);
+      await expect(textarea).toBeVisible({ timeout: 30_000 });
+      await textarea.fill('Run the streaming animation replay probe.');
+      await textarea.press('Enter');
+
+      await expect(page.locator(`${CHAT_MESSAGE_SELECTOR}[data-role="assistant"]`, {
+        hasText: STREAM_REPLAY_PROBE_RESPONSE.slice(-8),
+      })).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator('.chat-stream-char')).toHaveCount(0, { timeout: 10_000 });
+
+      const probe = await page.evaluate(() =>
+        (window as any).__vlainaChatStreamReplayProbe.read() as {
+          activeSamples: Array<{ char: string; count: number }>;
+          activeStyleChanges: Array<{ char: string; count: number }>;
+          duplicateActivations: Array<{ char: string; count: number }>;
+          sampledChars: string[];
+        }
+      );
+      await page.evaluate(() => (window as any).__vlainaChatStreamReplayProbe.stop());
+
+      expect(probe.sampledChars.length).toBeGreaterThan(0);
+      expect(probe.duplicateActivations, JSON.stringify(probe, null, 2)).toEqual([]);
+      expect(probe.activeStyleChanges, JSON.stringify(probe, null, 2)).toEqual([]);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+      await provider.close();
+    }
+  });
 
   test('keeps streamed markdown animation bounded with a local provider stream', async () => {
     const provider = await createStreamingProviderServer(STREAM_RESPONSE);
