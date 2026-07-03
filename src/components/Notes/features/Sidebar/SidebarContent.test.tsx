@@ -733,8 +733,8 @@ describe('SidebarContent search highlight cleanup', () => {
 
       const hint = getByTestId('empty-workspace-panel');
       expect(hint).toBeTruthy();
-      fireEvent.click(within(hint).getByRole('button', { name: 'Open File' }));
-      fireEvent.click(within(hint).getByRole('button', { name: 'Open Folder' }));
+      fireEvent.click(within(hint).getByRole('button', { name: 'File' }));
+      fireEvent.click(within(hint).getByRole('button', { name: 'Folder' }));
 
       expect(openFileHandler).toHaveBeenCalledTimes(1);
       expect(openFolderHandler).toHaveBeenCalledTimes(1);

@@ -87,13 +87,13 @@ export function NotesOutline({
             ) : null}
             <div
               data-notes-sidebar-blank-drag-root="true"
-              className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[var(--vlaina-size-160px)] pb-8')}
+              className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[var(--vlaina-size-160px)]')}
             >
               {shouldShowEmptyWorkspacePanel ? (
                 <SidebarEmptyWorkspacePanel
                   folderLabel={t('notes.folder')}
-                  openFileLabel={t('notes.openFile')}
-                  openFolderLabel={t('notes.openFolder')}
+                  openFileLabel={t('notes.file')}
+                  openFolderLabel={t('notes.folder')}
                   recentNotesRoots={recentEmptyWorkspaceNotesRoots}
                   onOpenFile={handleOpenMarkdownFile}
                   onOpenFolder={handleOpenFolder}

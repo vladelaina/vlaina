@@ -163,7 +163,7 @@ describe('NotesOutline', () => {
       render(<NotesOutline enabled={false} currentNotePath={null} />);
 
       expect(screen.queryByText('notes.outlineEmpty')).toBeNull();
-      fireEvent.click(screen.getByRole('button', { name: 'notes.openFile' }));
+      fireEvent.click(screen.getByRole('button', { name: 'notes.file' }));
 
       expect(hoisted.setNotesSidebarView).not.toHaveBeenCalled();
       expect(openFileListener).toHaveBeenCalledTimes(1);
@@ -172,13 +172,24 @@ describe('NotesOutline', () => {
     }
   });
 
+  it('keeps the empty workspace panel vertically aligned with the files view', () => {
+    hoisted.outlineState.headings = [];
+
+    const { container } = render(<NotesOutline enabled={false} currentNotePath={null} />);
+    const blankRoot = container.querySelector('[data-notes-sidebar-blank-drag-root="true"]');
+
+    expect(screen.getByTestId('empty-workspace-panel')).toBeInTheDocument();
+    expect(blankRoot).toHaveClass('min-h-[var(--vlaina-size-160px)]');
+    expect(blankRoot).not.toHaveClass('pb-8');
+  });
+
   it('shows outline empty only after a file is open', () => {
     hoisted.outlineState.headings = [];
 
     render(<NotesOutline enabled currentNotePath="note.md" />);
 
     expect(screen.getByText('notes.outlineEmpty')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'notes.openFile' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'notes.file' })).toBeNull();
   });
 
   it('hides the empty workspace panel when the sidebar is collapsed and no file is open', () => {
@@ -188,7 +199,7 @@ describe('NotesOutline', () => {
     render(<NotesOutline enabled={false} currentNotePath={null} />);
 
     expect(screen.queryByText('notes.outlineEmpty')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'notes.openFile' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'notes.file' })).toBeNull();
   });
 
   it('opens a recent notes root from the outline empty workspace panel', () => {
