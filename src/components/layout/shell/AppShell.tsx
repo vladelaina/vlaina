@@ -44,6 +44,7 @@ export function AppShell({
   const titleBarWidthScopeRef = useRef<HTMLDivElement>(null);
   const sidebarWidthScopeRef = useRef<HTMLDivElement>(null);
   const [isSidebarDragging, setIsSidebarDragging] = useState(false);
+  const [isSidebarPeeking, setIsSidebarPeeking] = useState(false);
   const setLayoutPanelDragging = useUIStore((state) => state.setLayoutPanelDragging);
 
   const applySidebarWidth = useCallback((width: number) => {
@@ -64,7 +65,13 @@ export function AppShell({
 
   useLayoutEffect(() => {
     applySidebarWidth(sidebarWidth);
-  }, [applySidebarWidth, sidebarWidth]);
+  }, [applySidebarWidth, sidebarCollapsed, sidebarWidth]);
+
+  useLayoutEffect(() => {
+    if (!sidebarCollapsed) {
+      setIsSidebarPeeking(false);
+    }
+  }, [sidebarCollapsed]);
 
   return (
     <div
@@ -88,10 +95,26 @@ export function AppShell({
       
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         
-        {sidebarContent && (
+        {sidebarContent && sidebarCollapsed ? (
+          <div
+            data-shell-sidebar-peek-layer="true"
+            className="pointer-events-none absolute inset-y-0 left-0 z-[var(--vlaina-z-40)]"
+          >
+            <div
+              data-shell-sidebar-peek-hotzone="true"
+              className="pointer-events-auto absolute inset-y-0 left-0 w-3"
+              aria-hidden="true"
+              onMouseEnter={() => setIsSidebarPeeking(true)}
+            />
+          </div>
+        ) : null}
+
+        {sidebarContent ? (
           <UnifiedSidebarContainer
             width={sidebarWidth}
             collapsed={sidebarCollapsed}
+            peeking={isSidebarPeeking}
+            onPeekChange={setIsSidebarPeeking}
             onWidthChange={onSidebarWidthChange}
             onLiveWidthChange={applySidebarWidth}
             onDragStateChange={handleSidebarDragStateChange}
@@ -100,7 +123,7 @@ export function AppShell({
           >
             {sidebarContent}
           </UnifiedSidebarContainer>
-        )}
+        ) : null}
         
         <main
           className="flex-1 flex flex-col min-w-0 relative app-scrollbar"

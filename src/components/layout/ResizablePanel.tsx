@@ -139,7 +139,7 @@ export function ResizablePanel({
       className={cn(
         "relative flex flex-col bg-[var(--vlaina-color-setting-content)] backdrop-blur-[var(--vlaina-backdrop-blur-md)] overflow-hidden",
         isDragging && "will-change-[width]",
-        !isDragging && "transition-[width] duration-[var(--vlaina-duration-300)] ease-in-out",
+        !isDragging && "transition-[width] duration-[var(--vlaina-duration-100)] ease-out",
         className
       )}
       style={{ width }}

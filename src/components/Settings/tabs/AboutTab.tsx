@@ -43,6 +43,11 @@ const supportEmailHref = `mailto:${supportEmail}`;
 const appLogoUrl = `${import.meta.env.BASE_URL}logo.png`;
 const communityPillClassName =
   'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[var(--vlaina-font-xs)] font-semibold text-[var(--vlaina-sidebar-notes-text)] transition-all duration-[var(--vlaina-duration-200)]';
+const aboutHeroBadgeClassName =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-[var(--vlaina-radius-pill)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] px-4 py-2 font-mono text-[var(--vlaina-font-xs)] font-extrabold tracking-[var(--vlaina-tracking-widest-default)] text-[var(--vlaina-color-text-strong)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-all duration-[var(--vlaina-duration-200)] hover:border-[var(--vlaina-color-accent-border-hover)] max-[640px]:px-3';
+const aboutHeroRuleClassName = 'h-px w-[var(--vlaina-size-48px)] opacity-[var(--vlaina-opacity-30)] max-[640px]:hidden';
+const aboutHeroLogoRadiusClassName =
+  'rounded-[var(--vlaina-radius-36px)] max-[640px]:rounded-[var(--vlaina-radius-28px)]';
 const richTokenPattern = /(\{appSite\}|\{catimeSite\}|\{authorSite\}|\{clockTopic\})/g;
 
 function readInitialUpdateState(): { status: UpdateStatus; updateInfo: UpdateInfo | null } {
@@ -223,6 +228,67 @@ function WebsitePill() {
       <Globe size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-accent)]" />
       <span>{officialWebsiteLabel}</span>
     </button>
+  );
+}
+
+function AboutHero({ version }: { version: string }) {
+  const { t } = useI18n();
+  const openWebsite = useCallback(() => void openExternalHref(officialWebsiteUrl), []);
+
+  return (
+    <div className="flex min-w-0 flex-col items-center justify-center py-6 text-center">
+      <div className="grid w-full max-w-[var(--vlaina-size-500px)] grid-cols-[1fr_var(--vlaina-size-48px)_auto_var(--vlaina-size-48px)_1fr] items-center gap-4 max-[640px]:grid-cols-[1fr_auto_1fr] max-[640px]:gap-2">
+        <div className="flex min-w-0 justify-end">
+          <button
+            type="button"
+            onClick={openWebsite}
+            aria-label={t('settings.about.openWebsite')}
+            className={cn(
+              aboutHeroBadgeClassName,
+              'cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]'
+            )}
+          >
+            <span>vlaina</span>
+          </button>
+        </div>
+
+        <div className={cn(aboutHeroRuleClassName, 'bg-gradient-to-r from-transparent to-[var(--vlaina-color-accent)]')} />
+
+        <button
+          type="button"
+          onClick={openWebsite}
+          aria-label={t('settings.about.openWebsite')}
+          className={cn(
+            'group relative shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]',
+            aboutHeroLogoRadiusClassName
+          )}
+        >
+          <div
+            className={cn(
+              'absolute -inset-[var(--vlaina-size-4px)] animate-[vlaina-about-logo-aura_var(--vlaina-duration-about-logo-aura)_var(--vlaina-ease-in-out)_infinite] bg-gradient-to-tr from-[var(--vlaina-color-accent)] to-[var(--vlaina-color-brand-pink)] blur-[var(--vlaina-blur-md)] motion-reduce:animate-none motion-reduce:opacity-[var(--vlaina-opacity-30)]',
+              aboutHeroLogoRadiusClassName
+            )}
+          />
+          <img
+            src={appLogoUrl}
+            alt="vlaina"
+            className={cn(
+              'relative h-[var(--vlaina-size-160px)] w-[var(--vlaina-size-160px)] shrink-0 object-contain shadow-[var(--vlaina-shadow-about-logo)] transition-all duration-[var(--vlaina-duration-300)] group-hover:scale-[var(--vlaina-scale-105)] max-[640px]:h-[var(--vlaina-size-112px)] max-[640px]:w-[var(--vlaina-size-112px)]',
+              aboutHeroLogoRadiusClassName
+            )}
+            draggable={false}
+          />
+        </button>
+
+        <div className={cn(aboutHeroRuleClassName, 'bg-gradient-to-l from-transparent to-[var(--vlaina-color-brand-pink)]')} />
+
+        <div className="flex min-w-0 justify-start">
+          <span className={cn(aboutHeroBadgeClassName, 'select-none')}>
+            <span>v{version}</span>
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -531,25 +597,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
 
   return (
     <div className="space-y-8" data-settings-tab-panel="about">
-      <div className="flex min-w-0 items-center gap-7 py-2 max-[640px]:gap-4">
-        <img
-          src={appLogoUrl}
-          alt="vlaina"
-          className="h-32 w-32 shrink-0 rounded-[var(--vlaina-radius-28px)] object-contain max-[640px]:h-20 max-[640px]:w-20 max-[640px]:rounded-[var(--vlaina-radius-20px)]"
-          draggable={false}
-        />
-        <div className="min-w-0 pt-1">
-          <a
-            {...getExternalLinkProps(officialWebsiteUrl)}
-            className="inline-block max-w-full truncate text-[var(--vlaina-font-h4)] font-semibold leading-7 text-[var(--vlaina-accent)]"
-          >
-            vlaina
-          </a>
-          <div className="mt-1 truncate text-[var(--vlaina-font-13)] font-normal leading-5 text-[var(--vlaina-sidebar-notes-text-soft)] tabular-nums">
-            {currentVersion || APP_VERSION}
-          </div>
-        </div>
-      </div>
+      <AboutHero version={currentVersion || APP_VERSION} />
 
       <div>
         <SettingsSectionHeader>{t('settings.about.updates')}</SettingsSectionHeader>

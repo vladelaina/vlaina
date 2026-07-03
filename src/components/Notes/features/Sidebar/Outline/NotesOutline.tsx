@@ -64,7 +64,7 @@ export function NotesOutline({
   }, [openNotesRoot]);
 
   return (
-    <div ref={sidebarRootRef} className={cn('flex h-full min-h-0 flex-col', className)}>
+    <div ref={sidebarRootRef} className={cn('flex h-full min-h-0 min-w-0 flex-col', className)}>
       <SidebarCapsulePanel>
         <NotesSidebarTopActions />
         <NotesSidebarScrollArea

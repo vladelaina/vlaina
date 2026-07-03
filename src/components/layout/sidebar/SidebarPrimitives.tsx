@@ -49,8 +49,9 @@ export function SidebarCapsulePanel({
 }: SidebarCapsulePanelProps) {
   return (
     <div
+      data-sidebar-capsule-panel="true"
       className={cn(
-        'mx-2 mb-2 flex min-h-0 flex-1 flex-col rounded-[var(--vlaina-radius-22px)] p-1',
+        'mx-2 mb-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[var(--vlaina-radius-22px)] p-1',
         chatComposerPillSurfaceClass,
         className,
       )}
@@ -65,7 +66,7 @@ export const SidebarSurface = forwardRef<HTMLDivElement, SidebarSurfaceProps>(
       <div
         ref={ref}
         data-sidebar-surface="true"
-        className={cn('flex h-full min-h-0 flex-col', isPeeking && 'opacity-[var(--vlaina-opacity-95)]', className)}
+        className={cn('flex h-full min-h-0 min-w-0 flex-col', isPeeking && 'opacity-[var(--vlaina-opacity-95)]', className)}
         {...props}
       />
     );

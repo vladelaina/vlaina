@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
@@ -230,5 +230,13 @@ describe('UserIdentityCard', () => {
     render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
 
     expect(screen.getByText('Ultra')).toBeInTheDocument();
+  });
+
+  it('keeps the account menu entrance snappy', () => {
+    const { container } = render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    fireEvent.click(screen.getAllByRole('button')[0]);
+
+    expect(container.querySelector('.animate-in')).toHaveClass('duration-[var(--vlaina-duration-75)]');
   });
 });
