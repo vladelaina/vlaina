@@ -882,7 +882,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'international news today' }],
+        messages: [{ role: 'user', content: 'international news background' }],
       },
       client,
       requestJson,
@@ -895,6 +895,83 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(requestJson.mock.calls[0][0].tools).toHaveLength(3);
     expect(requestJson.mock.calls[0][0].tool_choice).toBeUndefined();
     expect(final).toContain('Model answered without using search.');
+  });
+
+  it('answers JSON tool-loop capability questions locally', async () => {
+    const requestJson = vi.fn();
+    const client = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+    const onChunk = vi.fn();
+
+    const final = await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: '你可以联网搜索不' }],
+      },
+      client,
+      requestJson,
+      onChunk,
+    });
+
+    expect(final).toBe('可以，当前聊天已开启联网搜索。');
+    expect(onChunk).toHaveBeenCalledWith('可以，当前聊天已开启联网搜索。');
+    expect(client.webSearch).not.toHaveBeenCalled();
+    expect(requestJson).not.toHaveBeenCalled();
+  });
+
+  it('prefetches explicit streaming tool-loop searches locally', async () => {
+    const request = vi.fn().mockResolvedValueOnce(streamResponse([
+      { choices: [{ delta: { content: 'Answer from prefetched context.' } }] },
+    ]));
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'catime',
+        results: [{
+          title: 'Catime',
+          url: 'https://cati.me/',
+          snippet: 'Catime source.',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async () => [{
+        url: 'https://cati.me/',
+        ok: true,
+        page: {
+          title: 'Catime',
+          summary: '',
+          siteName: 'cati.me',
+          finalUrl: 'https://cati.me/',
+          content: 'Readable Catime source content.',
+          charCount: 31,
+        },
+      }]),
+    };
+
+    const final = await runOpenAIWebSearchToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: '搜一下catime' }],
+      },
+      client,
+      request,
+      onChunk: vi.fn(),
+    });
+
+    expect(final).toContain('Answer from prefetched context.');
+    expect(final).toContain('https://cati.me/');
+    expect(client.webSearch).toHaveBeenCalledWith('catime', { limit: 5 });
+    expect(client.readWebPages).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0][0].tools).toBeUndefined();
+    expect(JSON.stringify(request.mock.calls[0][0].messages)).toContain('Readable Catime source content.');
   });
 
   it('forces a page read in the streaming tool loop before the final answer', async () => {
@@ -2300,7 +2377,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: '帮我看看 Codex 最新版本' }],
+        messages: [{ role: 'user', content: '帮我看看 Codex 版本信息' }],
       },
       client,
       requestJson,
@@ -2381,7 +2458,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: false,
-        messages: [{ role: 'user', content: 'search sample app' }],
+        messages: [{ role: 'user', content: 'sample app overview' }],
       },
       client,
       requestJson,
@@ -2483,7 +2560,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: false,
-        messages: [{ role: 'user', content: '你搜一下catime' }],
+        messages: [{ role: 'user', content: 'catime info' }],
       },
       client,
       requestJson,
@@ -2548,7 +2625,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: false,
-        messages: [{ role: 'user', content: '你搜一下catime' }],
+        messages: [{ role: 'user', content: 'catime info' }],
       },
       client,
       requestJson,
@@ -2609,7 +2686,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: false,
-        messages: [{ role: 'user', content: '帮我搜一下catime' }],
+        messages: [{ role: 'user', content: 'catime' }],
       },
       client,
       requestJson,
@@ -2643,7 +2720,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: false,
-        messages: [{ role: 'user', content: 'search sample app' }],
+        messages: [{ role: 'user', content: 'sample app overview' }],
       },
       client,
       requestJson,

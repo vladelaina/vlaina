@@ -8,6 +8,7 @@ import { formatBatchPagesForModel, formatSearchResultsForModel } from './format'
 import { consumeOpenAIStreamWithTools } from './openAIStreamWithTools';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
+import { buildWebSearchCapabilityAnswer, classifyWebSearchIntent } from './intent';
 import {
   appendWebSearchSystemInstruction,
   canParseOpenAIToolArguments,
@@ -221,6 +222,23 @@ function finishNoResultSearchLocally({
   emitApiTranscript(onApiTranscript, signal, [buildFinalAssistantTranscriptMessage(content)]);
   emitChunk(onChunk, signal, finalContent);
   return finalContent;
+}
+
+function finishWebSearchCapabilityLocally({
+  body,
+  onChunk,
+  onApiTranscript,
+  signal,
+}: {
+  body: ChatCompletionRequest;
+  onChunk: (chunk: string) => void;
+  onApiTranscript?: (messages: OpenAIWireMessage[]) => void;
+  signal?: AbortSignal;
+}): string {
+  const content = buildWebSearchCapabilityAnswer(getLatestUserText(body));
+  emitApiTranscript(onApiTranscript, signal, [buildFinalAssistantTranscriptMessage(content)]);
+  emitChunk(onChunk, signal, content);
+  return content;
 }
 
 function normalizeToolNameForLoop(name: string): string {
@@ -517,10 +535,11 @@ function buildTextProtocolDecisionMessage(): OpenAIWireMessage {
   return {
     role: 'system',
     content: [
-      'Web search is optional.',
-      'Answer directly unless fresh/verifiable info is needed.',
-      'If search is needed, output only:',
-      '<web_search_request>{"query":"short search query","reason":"why search is needed"}</web_search_request>',
+      'Web search is available.',
+      'If only asked about web access, answer yes.',
+      'Search for explicit search requests or fresh/verifiable info.',
+      'To search, output only:',
+      '<web_search_request>{"query":"short query","reason":"why"}</web_search_request>',
     ].join('\n'),
   };
 }
@@ -1133,38 +1152,55 @@ export async function runOpenAIWebSearchTextProtocolRequest({
   signal,
 }: StreamingTextProtocolOptions): Promise<string> {
   throwIfAborted(signal);
-  addChatDebugLog('web-search-text-protocol', 'stream decision request started', {
-    messages: body.messages.length,
-    latestUserText: getLatestUserText(body).slice(0, 240),
-  });
-  const decisionMessages = [
-    buildTextProtocolDecisionMessage(),
-    ...body.messages as OpenAIWireMessage[],
-  ];
-  const decisionResponse = await request({
-    ...withoutTools(body),
-    messages: decisionMessages as ChatCompletionRequest['messages'],
-  });
-  const decision = await consumeOpenAIStreamWithTools(decisionResponse, () => {}, { signal });
-  throwIfAborted(signal);
-  const searchRequest = resolveTextProtocolSearchRequest(
-    decision.assistantContent || decision.content,
-    getLatestUserText(body),
-  );
+  const latestUserText = getLatestUserText(body);
+  const localIntent = classifyWebSearchIntent(latestUserText);
+  if (localIntent.action === 'answer-capability') {
+    return finishWebSearchCapabilityLocally({ body, onChunk, onApiTranscript, signal });
+  }
 
-  if (!searchRequest) {
-    const directContent = containsTextProtocolSearchRequest(decision.assistantContent || decision.content)
-      ? stripTextProtocolDecisionContent(decision.content)
-      : decision.content;
-    throwIfMissingVisibleAnswer(directContent);
-    addChatDebugLog('web-search-text-protocol', 'stream decision answered directly', {
-      visibleChars: stripThinkingContent(directContent).length,
+  let searchRequest: { query: string; reason?: string } | null = localIntent.action === 'prefetch'
+    ? { query: localIntent.query, reason: localIntent.reason }
+    : null;
+
+  if (searchRequest) {
+    addChatDebugLog('web-search-text-protocol', 'stream local intent requested search', {
+      query: searchRequest.query,
+      reason: searchRequest.reason ?? '',
     });
-    emitChunk(onChunk, signal, directContent);
-    emitApiTranscript(onApiTranscript, signal, [
-      buildFinalAssistantTranscriptMessage(decision.assistantContent || directContent, decision.reasoningContent),
-    ]);
-    return directContent;
+  } else {
+    addChatDebugLog('web-search-text-protocol', 'stream decision request started', {
+      messages: body.messages.length,
+      latestUserText: latestUserText.slice(0, 240),
+    });
+    const decisionMessages = [
+      buildTextProtocolDecisionMessage(),
+      ...body.messages as OpenAIWireMessage[],
+    ];
+    const decisionResponse = await request({
+      ...withoutTools(body),
+      messages: decisionMessages as ChatCompletionRequest['messages'],
+    });
+    const decision = await consumeOpenAIStreamWithTools(decisionResponse, () => {}, { signal });
+    throwIfAborted(signal);
+    searchRequest = resolveTextProtocolSearchRequest(
+      decision.assistantContent || decision.content,
+      latestUserText,
+    );
+
+    if (!searchRequest) {
+      const directContent = containsTextProtocolSearchRequest(decision.assistantContent || decision.content)
+        ? stripTextProtocolDecisionContent(decision.content)
+        : decision.content;
+      throwIfMissingVisibleAnswer(directContent);
+      addChatDebugLog('web-search-text-protocol', 'stream decision answered directly', {
+        visibleChars: stripThinkingContent(directContent).length,
+      });
+      emitChunk(onChunk, signal, directContent);
+      emitApiTranscript(onApiTranscript, signal, [
+        buildFinalAssistantTranscriptMessage(decision.assistantContent || directContent, decision.reasoningContent),
+      ]);
+      return directContent;
+    }
   }
 
   addChatDebugLog('web-search-text-protocol', 'stream decision requested search', {
@@ -1215,36 +1251,53 @@ export async function runOpenAIWebSearchJsonTextProtocolRequest({
   signal,
 }: JsonTextProtocolOptions): Promise<string> {
   throwIfAborted(signal);
-  addChatDebugLog('web-search-text-protocol', 'json decision request started', {
-    messages: body.messages.length,
-    latestUserText: getLatestUserText(body).slice(0, 240),
-  });
-  const decisionMessages = [
-    buildTextProtocolDecisionMessage(),
-    ...body.messages as OpenAIWireMessage[],
-  ];
-  const decisionPayload = await requestJson({
-    ...withoutTools(body),
-    stream: false,
-    messages: decisionMessages as ChatCompletionRequest['messages'],
-  });
-  throwIfAborted(signal);
-  const decision = extractOpenAIMessageFromJson(decisionPayload);
-  const searchRequest = resolveTextProtocolSearchRequest(decision.content, getLatestUserText(body));
+  const latestUserText = getLatestUserText(body);
+  const localIntent = classifyWebSearchIntent(latestUserText);
+  if (localIntent.action === 'answer-capability') {
+    return finishWebSearchCapabilityLocally({ body, onChunk, onApiTranscript, signal });
+  }
 
-  if (!searchRequest) {
-    const directContent = containsTextProtocolSearchRequest(decision.content)
-      ? stripTextProtocolDecisionContent(decision.content)
-      : decision.content;
-    throwIfMissingVisibleAnswer(directContent);
-    addChatDebugLog('web-search-text-protocol', 'json decision answered directly', {
-      visibleChars: stripThinkingContent(directContent).length,
+  let searchRequest: { query: string; reason?: string } | null = localIntent.action === 'prefetch'
+    ? { query: localIntent.query, reason: localIntent.reason }
+    : null;
+
+  if (searchRequest) {
+    addChatDebugLog('web-search-text-protocol', 'json local intent requested search', {
+      query: searchRequest.query,
+      reason: searchRequest.reason ?? '',
     });
-    emitChunk(onChunk, signal, directContent);
-    emitApiTranscript(onApiTranscript, signal, [
-      buildFinalAssistantTranscriptMessage(directContent, decision.reasoningContent),
-    ]);
-    return directContent;
+  } else {
+    addChatDebugLog('web-search-text-protocol', 'json decision request started', {
+      messages: body.messages.length,
+      latestUserText: latestUserText.slice(0, 240),
+    });
+    const decisionMessages = [
+      buildTextProtocolDecisionMessage(),
+      ...body.messages as OpenAIWireMessage[],
+    ];
+    const decisionPayload = await requestJson({
+      ...withoutTools(body),
+      stream: false,
+      messages: decisionMessages as ChatCompletionRequest['messages'],
+    });
+    throwIfAborted(signal);
+    const decision = extractOpenAIMessageFromJson(decisionPayload);
+    searchRequest = resolveTextProtocolSearchRequest(decision.content, latestUserText);
+
+    if (!searchRequest) {
+      const directContent = containsTextProtocolSearchRequest(decision.content)
+        ? stripTextProtocolDecisionContent(decision.content)
+        : decision.content;
+      throwIfMissingVisibleAnswer(directContent);
+      addChatDebugLog('web-search-text-protocol', 'json decision answered directly', {
+        visibleChars: stripThinkingContent(directContent).length,
+      });
+      emitChunk(onChunk, signal, directContent);
+      emitApiTranscript(onApiTranscript, signal, [
+        buildFinalAssistantTranscriptMessage(directContent, decision.reasoningContent),
+      ]);
+      return directContent;
+    }
   }
 
   addChatDebugLog('web-search-text-protocol', 'json decision requested search', {
@@ -1290,34 +1343,51 @@ export async function runOpenAIWebSearchTextProtocolTextRequest({
   signal,
 }: TextRequestProtocolOptions): Promise<string> {
   throwIfAborted(signal);
-  addChatDebugLog('web-search-text-protocol', 'text decision request started', {
-    messages: body.messages.length,
-    latestUserText: getLatestUserText(body).slice(0, 240),
-  });
-  const decisionMessages = [
-    buildTextProtocolDecisionMessage(),
-    ...body.messages as OpenAIWireMessage[],
-  ];
-  const decisionContent = await requestText({
-    ...withoutTools(body),
-    messages: decisionMessages as ChatCompletionRequest['messages'],
-  }, () => {});
-  throwIfAborted(signal);
-  const searchRequest = resolveTextProtocolSearchRequest(decisionContent, getLatestUserText(body));
+  const latestUserText = getLatestUserText(body);
+  const localIntent = classifyWebSearchIntent(latestUserText);
+  if (localIntent.action === 'answer-capability') {
+    return finishWebSearchCapabilityLocally({ body, onChunk, onApiTranscript, signal });
+  }
 
-  if (!searchRequest) {
-    const directContent = containsTextProtocolSearchRequest(decisionContent)
-      ? stripTextProtocolDecisionContent(decisionContent)
-      : decisionContent;
-    throwIfMissingVisibleAnswer(directContent);
-    addChatDebugLog('web-search-text-protocol', 'text decision answered directly', {
-      visibleChars: stripThinkingContent(directContent).length,
+  let searchRequest: { query: string; reason?: string } | null = localIntent.action === 'prefetch'
+    ? { query: localIntent.query, reason: localIntent.reason }
+    : null;
+
+  if (searchRequest) {
+    addChatDebugLog('web-search-text-protocol', 'text local intent requested search', {
+      query: searchRequest.query,
+      reason: searchRequest.reason ?? '',
     });
-    emitChunk(onChunk, signal, directContent);
-    emitApiTranscript(onApiTranscript, signal, [
-      buildFinalAssistantTranscriptMessage(stripThinkingContent(directContent)),
-    ]);
-    return directContent;
+  } else {
+    addChatDebugLog('web-search-text-protocol', 'text decision request started', {
+      messages: body.messages.length,
+      latestUserText: latestUserText.slice(0, 240),
+    });
+    const decisionMessages = [
+      buildTextProtocolDecisionMessage(),
+      ...body.messages as OpenAIWireMessage[],
+    ];
+    const decisionContent = await requestText({
+      ...withoutTools(body),
+      messages: decisionMessages as ChatCompletionRequest['messages'],
+    }, () => {});
+    throwIfAborted(signal);
+    searchRequest = resolveTextProtocolSearchRequest(decisionContent, latestUserText);
+
+    if (!searchRequest) {
+      const directContent = containsTextProtocolSearchRequest(decisionContent)
+        ? stripTextProtocolDecisionContent(decisionContent)
+        : decisionContent;
+      throwIfMissingVisibleAnswer(directContent);
+      addChatDebugLog('web-search-text-protocol', 'text decision answered directly', {
+        visibleChars: stripThinkingContent(directContent).length,
+      });
+      emitChunk(onChunk, signal, directContent);
+      emitApiTranscript(onApiTranscript, signal, [
+        buildFinalAssistantTranscriptMessage(stripThinkingContent(directContent)),
+      ]);
+      return directContent;
+    }
   }
 
   addChatDebugLog('web-search-text-protocol', 'text decision requested search', {
@@ -1362,6 +1432,49 @@ export async function runOpenAIWebSearchToolLoop({
   onApiTranscript,
   signal,
 }: ToolLoopOptions): Promise<string> {
+  throwIfAborted(signal);
+  const localIntent = classifyWebSearchIntent(getLatestUserText(body));
+  if (localIntent.action === 'answer-capability') {
+    return finishWebSearchCapabilityLocally({ body, onChunk, onApiTranscript, signal });
+  }
+  if (localIntent.action === 'prefetch') {
+    addChatDebugLog('web-search-loop', 'stream local intent requested search', {
+      query: localIntent.query,
+      reason: localIntent.reason,
+    });
+    const {
+      messages: prefetchMessages,
+      statusHistory: prefetchStatusHistory,
+      sourceUrls: prefetchSourceUrls,
+    } = await buildTextProtocolSearchMessages({
+      body,
+      query: localIntent.query,
+      client,
+      onStatus,
+      signal,
+    });
+    let latestPrefetchContent = '';
+    const emitPrefetchContent = (content: string) => {
+      latestPrefetchContent = content;
+      emitChunk(onChunk, signal, withStatusPrefix(prefetchStatusHistory, latestPrefetchContent));
+    };
+    emitChunk(onChunk, signal, withStatusPrefix(prefetchStatusHistory, latestPrefetchContent));
+    const answerResponse = await request({
+      ...withoutTools(body),
+      messages: prefetchMessages as ChatCompletionRequest['messages'],
+    });
+    const answer = await consumeOpenAIStreamWithTools(answerResponse, emitPrefetchContent, { signal });
+    throwIfAborted(signal);
+    const finalApiContent = withSourceLinks(answer.assistantContent || answer.content, prefetchSourceUrls);
+    throwIfMissingVisibleAnswer(finalApiContent);
+    const finalContent = withStatusPrefix(prefetchStatusHistory, finalApiContent);
+    emitChunk(onChunk, signal, finalContent);
+    emitApiTranscript(onApiTranscript, signal, [
+      buildFinalAssistantTranscriptMessage(finalApiContent, answer.reasoningContent),
+    ]);
+    return finalContent;
+  }
+
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
@@ -1588,6 +1701,45 @@ export async function runOpenAIWebSearchJsonToolLoop({
   signal,
   autoReadAfterSearch,
 }: JsonToolLoopOptions): Promise<string> {
+  throwIfAborted(signal);
+  const localIntent = classifyWebSearchIntent(getLatestUserText(body));
+  if (localIntent.action === 'answer-capability') {
+    return finishWebSearchCapabilityLocally({ body, onChunk, onApiTranscript, signal });
+  }
+  if (localIntent.action === 'prefetch') {
+    addChatDebugLog('web-search-loop', 'json local intent requested search', {
+      query: localIntent.query,
+      reason: localIntent.reason,
+    });
+    const {
+      messages: prefetchMessages,
+      statusHistory: prefetchStatusHistory,
+      sourceUrls: prefetchSourceUrls,
+    } = await buildTextProtocolSearchMessages({
+      body,
+      query: localIntent.query,
+      client,
+      onStatus,
+      signal,
+    });
+    emitChunk(onChunk, signal, withStatusPrefix(prefetchStatusHistory, ''));
+    const answerPayload = await requestJson({
+      ...withoutTools(body),
+      stream: false,
+      messages: prefetchMessages as ChatCompletionRequest['messages'],
+    });
+    throwIfAborted(signal);
+    const answer = extractOpenAIMessageFromJson(answerPayload);
+    const finalApiContent = withSourceLinks(answer.content, prefetchSourceUrls);
+    throwIfMissingVisibleAnswer(finalApiContent);
+    const finalContent = withStatusPrefix(prefetchStatusHistory, finalApiContent);
+    emitChunk(onChunk, signal, finalContent);
+    emitApiTranscript(onApiTranscript, signal, [
+      buildFinalAssistantTranscriptMessage(finalApiContent, answer.reasoningContent),
+    ]);
+    return finalContent;
+  }
+
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
