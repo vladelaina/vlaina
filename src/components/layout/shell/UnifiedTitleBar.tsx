@@ -95,6 +95,7 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
         <div className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-transparent ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}>
           <button
             type="button"
+            aria-label={translate('shortcut.action.toggleSidebar')}
             onClick={onToggleSidebar}
             className={cn(
               "app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",

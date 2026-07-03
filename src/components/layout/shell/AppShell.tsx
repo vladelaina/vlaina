@@ -43,7 +43,6 @@ export function AppShell({
 }: AppShellProps) {
   const titleBarWidthScopeRef = useRef<HTMLDivElement>(null);
   const sidebarWidthScopeRef = useRef<HTMLDivElement>(null);
-  const sidebarPeekWidthScopeRef = useRef<HTMLElement>(null);
   const [isSidebarDragging, setIsSidebarDragging] = useState(false);
   const [isSidebarPeeking, setIsSidebarPeeking] = useState(false);
   const setLayoutPanelDragging = useUIStore((state) => state.setLayoutPanelDragging);
@@ -52,7 +51,7 @@ export function AppShell({
     const sidebarWidthValue = `${width}px`;
     const sidebarContentInnerValue = `calc(${sidebarWidthValue} - var(--vlaina-size-32px))`;
 
-    for (const target of [titleBarWidthScopeRef.current, sidebarWidthScopeRef.current, sidebarPeekWidthScopeRef.current]) {
+    for (const target of [titleBarWidthScopeRef.current, sidebarWidthScopeRef.current]) {
       if (!target) continue;
       target.style.setProperty('--vlaina-shell-sidebar-width', sidebarWidthValue);
       target.style.setProperty('--vlaina-width-sidebar-content-inner', sidebarContentInnerValue);
@@ -96,20 +95,6 @@ export function AppShell({
       
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         
-        {sidebarContent && !sidebarCollapsed && (
-          <UnifiedSidebarContainer
-            width={sidebarWidth}
-            collapsed={sidebarCollapsed}
-            onWidthChange={onSidebarWidthChange}
-            onLiveWidthChange={applySidebarWidth}
-            onDragStateChange={handleSidebarDragStateChange}
-            widthScopeRef={sidebarWidthScopeRef}
-            backgroundColor={backgroundColor}
-          >
-            {sidebarContent}
-          </UnifiedSidebarContainer>
-        )}
-
         {sidebarContent && sidebarCollapsed ? (
           <div
             data-shell-sidebar-peek-layer="true"
@@ -121,26 +106,23 @@ export function AppShell({
               aria-hidden="true"
               onMouseEnter={() => setIsSidebarPeeking(true)}
             />
-            <aside
-              ref={sidebarPeekWidthScopeRef}
-              data-shell-sidebar-peek="true"
-              data-open={isSidebarPeeking ? 'true' : 'false'}
-              aria-hidden={!isSidebarPeeking}
-              className={cn(
-                'absolute inset-y-0 left-0 flex min-h-0 flex-col overflow-hidden select-none transition-[opacity,transform] duration-[var(--vlaina-duration-200)] ease-out',
-                isSidebarPeeking
-                  ? 'translate-x-0 opacity-[var(--vlaina-opacity-100)] pointer-events-auto'
-                  : '-translate-x-full opacity-[var(--vlaina-opacity-0)] pointer-events-none',
-              )}
-              style={{
-                width: 'var(--vlaina-shell-sidebar-width)',
-              }}
-              onMouseEnter={() => setIsSidebarPeeking(true)}
-              onMouseLeave={() => setIsSidebarPeeking(false)}
-            >
-              {sidebarContent}
-            </aside>
           </div>
+        ) : null}
+
+        {sidebarContent ? (
+          <UnifiedSidebarContainer
+            width={sidebarWidth}
+            collapsed={sidebarCollapsed}
+            peeking={isSidebarPeeking}
+            onPeekChange={setIsSidebarPeeking}
+            onWidthChange={onSidebarWidthChange}
+            onLiveWidthChange={applySidebarWidth}
+            onDragStateChange={handleSidebarDragStateChange}
+            widthScopeRef={sidebarWidthScopeRef}
+            backgroundColor={backgroundColor}
+          >
+            {sidebarContent}
+          </UnifiedSidebarContainer>
         ) : null}
         
         <main

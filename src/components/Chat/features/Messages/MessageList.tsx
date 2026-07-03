@@ -681,7 +681,7 @@ export const MessageList = memo(function MessageList({
         data-chat-scrollable="true"
         style={{ overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
         className={cn(
-          'transition-opacity duration-[var(--vlaina-duration-500)]',
+          'transition-opacity duration-[var(--vlaina-duration-150)]',
           isEmpty ? 'pointer-events-none opacity-[var(--vlaina-opacity-0)]' : 'opacity-[var(--vlaina-opacity-100)]',
           isLayoutCentered && 'hidden',
         )}
@@ -698,7 +698,7 @@ export const MessageList = memo(function MessageList({
         data-chat-scrollable="true"
         style={{ overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
         className={cn(
-          'flex-1 overflow-x-hidden overflow-y-auto transition-opacity duration-[var(--vlaina-duration-500)]',
+          'flex-1 overflow-x-hidden overflow-y-auto transition-opacity duration-[var(--vlaina-duration-150)]',
           isEmpty ? 'pointer-events-none opacity-[var(--vlaina-opacity-0)]' : 'opacity-[var(--vlaina-opacity-100)]',
           isLayoutCentered && 'hidden',
         )}

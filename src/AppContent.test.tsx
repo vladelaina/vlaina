@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
+  settingsModuleImports: 0,
   fontSize: 17,
   notesSidebarMounts: 0,
   notesSidebarUnmounts: 0,
@@ -126,9 +127,12 @@ vi.mock('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle', () =
   TitleBarTemporaryChatToggle: () => <div data-testid="temporary-chat-toggle" />,
 }));
 
-vi.mock('@/components/Settings', () => ({
-  SettingsModal: () => null,
-}));
+vi.mock('@/components/Settings', () => {
+  mocks.settingsModuleImports += 1;
+  return {
+    SettingsModal: () => null,
+  };
+});
 
 vi.mock('@/components/Settings/tabs/aboutCommunitySettings', () => ({
   getCachedCommunitySettings: vi.fn(() => ({
@@ -317,11 +321,20 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.importedMarkdownThemeId = null;
     mocks.notesChatFloatingSize = { width: 420, height: 680 };
     mocks.fontSize = 17;
+    mocks.settingsModuleImports = 0;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;
     document.documentElement.style.removeProperty('font-size');
     document.documentElement.style.removeProperty('--vlaina-markdown-font-size');
     document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.remove();
+  });
+
+  it('preloads the settings module after unified data is loaded', async () => {
+    render(<AppContent />);
+
+    await waitFor(() => {
+      expect(mocks.settingsModuleImports).toBeGreaterThanOrEqual(1);
+    });
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {

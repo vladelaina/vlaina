@@ -141,6 +141,18 @@ describe('ResizablePanel', () => {
     fireEvent.mouseUp(document);
   });
 
+  it('keeps the settled width transition snappy', () => {
+    const { container } = render(
+      <ResizablePanel defaultWidth={320} minWidth={300} maxWidth={500}>
+        content
+      </ResizablePanel>
+    );
+
+    const panel = container.querySelector('aside')!;
+
+    expect(panel.className).toContain('duration-[var(--vlaina-duration-100)]');
+  });
+
   it('clamps drag width to the dynamic panel limit', () => {
     const { container } = render(
       <ResizablePanel

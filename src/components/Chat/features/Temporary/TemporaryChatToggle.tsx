@@ -95,7 +95,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
   };
 
   return (
-    <Tooltip delayDuration={700}>
+    <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"

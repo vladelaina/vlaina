@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { cn } from '@/lib/utils';
+import { themeBackdropTokens } from '@/styles/themeTokens';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export function ConfirmDialog({
             overlayClassName="bg-[var(--vlaina-color-drop-overlay)]"
             zIndex={120}
             blurPx={6}
-            duration={0.2}
+            duration={themeBackdropTokens.durationSeconds}
           />
         </DialogPrimitive.Overlay>
         <div className="fixed inset-0 z-[var(--vlaina-z-121)] flex items-center justify-center p-4">
@@ -99,7 +100,7 @@ export function ConfirmDialog({
               confirmRef.current?.focus();
             }}
             onKeyDown={handleKeyDown}
-            className="w-full max-w-[var(--vlaina-size-360px)] rounded-[var(--vlaina-radius-34px)] border border-transparent bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-raised-soft)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+            className="w-full max-w-[var(--vlaina-size-360px)] rounded-[var(--vlaina-radius-34px)] border border-transparent bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-raised-soft)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-[var(--vlaina-duration-75)]"
           >
             <div className="px-7 py-7">
               <DialogTitle className="text-[var(--vlaina-font-24)] leading-8 font-semibold tracking-[var(--vlaina-tracking-tight-display)] text-[var(--vlaina-color-text-strong)]">

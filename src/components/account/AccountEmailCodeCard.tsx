@@ -148,7 +148,7 @@ export function AccountEmailCodeCard({
   }
 
   return (
-    <form noValidate onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-[var(--vlaina-duration-500)]">
+    <form noValidate onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-[var(--vlaina-duration-100)]">
       <div className="space-y-2">
         <button
           type="button"

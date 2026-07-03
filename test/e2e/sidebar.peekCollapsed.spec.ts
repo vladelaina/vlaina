@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import {
   EDITOR_SELECTOR,
   FILE_TREE_FILE_SELECTOR,
@@ -9,7 +9,73 @@ import {
   openNotesRootInNotes,
 } from './notesE2E';
 
+async function getMaxMotionDurationMs(locator: Locator) {
+  return locator.evaluate((element: HTMLElement) => {
+    const parseCssTimeMs = (value: string) =>
+      value
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => {
+          if (part.endsWith('ms')) return Number.parseFloat(part);
+          if (part.endsWith('s')) return Number.parseFloat(part) * 1000;
+          return Number.parseFloat(part) || 0;
+        });
+
+    const style = window.getComputedStyle(element);
+    return Math.max(
+      0,
+      ...parseCssTimeMs(style.transitionDuration),
+      ...parseCssTimeMs(style.animationDuration),
+    );
+  });
+}
+
 test.describe('collapsed sidebar peek', () => {
+  test('keeps the current sidebar mounted when manually collapsing and expanding', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('sidebar-manual-toggle-mounted');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1100, height: 760 });
+
+      await expect(page.locator('.sidebar-user-header')).toBeVisible({ timeout: 30_000 });
+      const sidebar = page.locator('[data-shell-sidebar-width-scope="true"] > aside').first();
+      await sidebar.evaluate((element) => {
+        (element as HTMLElement & { __vlainaSidebarMountedMarker?: boolean }).__vlainaSidebarMountedMarker = true;
+      });
+
+      await page.locator('.sidebar-user-header').hover();
+      await page.locator('.sidebar-user-header-collapse').click();
+
+      await expect(sidebar).toHaveAttribute('data-shell-sidebar-peek', 'true');
+      await expect(sidebar).toHaveAttribute('data-open', 'false');
+      await expect.poll(() => getMaxMotionDurationMs(sidebar), {
+        message: 'collapsed sidebar should keep the faster manual toggle duration',
+      }).toBeLessThanOrEqual(110);
+      await expect.poll(() => sidebar.evaluate((element) =>
+        Boolean((element as HTMLElement & { __vlainaSidebarMountedMarker?: boolean }).__vlainaSidebarMountedMarker)
+      )).toBe(true);
+      await expect.poll(() => page.evaluate(() => {
+        const activeElement = document.activeElement;
+        return Boolean(activeElement?.closest('[data-shell-sidebar-peek="true"]'));
+      })).toBe(false);
+
+      await page.getByRole('button', { name: /Toggle sidebar|切换侧边栏/i }).click();
+
+      await expect(sidebar).not.toHaveAttribute('data-shell-sidebar-peek', 'true');
+      await expect.poll(() => getMaxMotionDurationMs(sidebar), {
+        message: 'expanded sidebar should keep the faster manual toggle duration',
+      }).toBeLessThanOrEqual(110);
+      await expect.poll(() => sidebar.evaluate((element) =>
+        Boolean((element as HTMLElement & { __vlainaSidebarMountedMarker?: boolean }).__vlainaSidebarMountedMarker)
+      )).toBe(true);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
   test('keeps the expanded sidebar capsule intact at minimum resized width', async () => {
     const { app, userDataRoot } = await launchIsolatedElectron('sidebar-min-width-capsule');
 
