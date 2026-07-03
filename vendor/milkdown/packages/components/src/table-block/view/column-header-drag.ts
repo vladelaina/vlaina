@@ -50,6 +50,8 @@ export function useColumnHeaderDrag({
   const canUseWindow = typeof window !== 'undefined'
   let pointerListenersBound = false
   let menuListenersBound = false
+  let pendingClickHighlightIndex: number | null = null
+  let pendingClickHighlightTimer: number | null = null
 
   const resetPressSession = () => {
     pressSession = null
@@ -60,6 +62,17 @@ export function useColumnHeaderDrag({
     dragSession = null
     releaseTableDragCursor()
     syncGlobalListeners()
+  }
+
+  const clearPendingClickHighlightTimer = () => {
+    if (!canUseWindow || pendingClickHighlightTimer == null) return
+    window.clearTimeout(pendingClickHighlightTimer)
+    pendingClickHighlightTimer = null
+  }
+
+  const clearPendingClickHighlight = () => {
+    clearPendingClickHighlightTimer()
+    pendingClickHighlightIndex = null
   }
 
   const bindPointerListeners = () => {
@@ -134,8 +147,22 @@ export function useColumnHeaderDrag({
     contentWrapperRef,
     getPressSession: () => pressSession,
     getDragSession: () => dragSession,
+    getPendingClickHighlightIndex: () => pendingClickHighlightIndex,
     syncGlobalListeners,
   })
+
+  const startPendingClickHighlight = (index: number) => {
+    clearPendingClickHighlightTimer()
+    pendingClickHighlightIndex = index
+    if (!canUseWindow) return
+
+    pendingClickHighlightTimer = window.setTimeout(() => {
+      pendingClickHighlightTimer = null
+      if (pendingClickHighlightIndex !== index) return
+      pendingClickHighlightIndex = null
+      syncControls()
+    }, 160)
+  }
 
   const getTargetIndexFromPointer = (clientX: number) => {
     const content = contentWrapperRef.value
@@ -146,6 +173,7 @@ export function useColumnHeaderDrag({
   }
 
   const beginDrag = (session: PressSession) => {
+    clearPendingClickHighlight()
     clearMenu()
     const nextTargetIndex = getTargetIndexFromPointer(session.currentX)
     dragSession = {
@@ -234,8 +262,10 @@ export function useColumnHeaderDrag({
     rememberPointerPosition(event.clientX, event.clientY)
 
     if (pressSession && event.pointerId === pressSession.pointerId) {
+      const index = pressSession.index
       resetPressSession()
       activeColIndex.value = null
+      startPendingClickHighlight(index)
       syncHoverFromPointer(event.clientX, event.clientY)
       syncControls()
       return
@@ -287,7 +317,9 @@ export function useColumnHeaderDrag({
     rememberFocusedControl(index)
     event.preventDefault()
     event.stopPropagation()
-    view.focus()
+    if (event.currentTarget instanceof HTMLElement) {
+      event.currentTarget.focus()
+    }
     clearHoverClearTimer()
     clearMenu()
 
@@ -306,6 +338,7 @@ export function useColumnHeaderDrag({
   const onControlClick = (index: number, event: MouseEvent) => {
     if (suppressNextClick) {
       suppressNextClick = false
+      clearPendingClickHighlight()
       event.preventDefault()
       event.stopPropagation()
       return
@@ -316,6 +349,7 @@ export function useColumnHeaderDrag({
 
     event.preventDefault()
     event.stopPropagation()
+    clearPendingClickHighlight()
     openMenu(index)
   }
 
@@ -415,6 +449,7 @@ export function useColumnHeaderDrag({
   onBeforeUnmount(() => {
     unbindPointerListeners()
     unbindMenuListeners()
+    clearPendingClickHighlight()
     pressSession = null
     dragSession = null
     suppressNextClick = false

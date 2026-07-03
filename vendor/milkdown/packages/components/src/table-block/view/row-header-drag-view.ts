@@ -31,6 +31,7 @@ type UseRowHeaderDragViewStateOptions = {
   contentWrapperRef: Ref<HTMLElement | undefined>
   getPressSession: () => PressSession | null
   getDragSession: () => DragSession | null
+  getPendingClickHighlightIndex: () => number | null
   syncGlobalListeners: () => void
 }
 
@@ -39,6 +40,7 @@ export function useRowHeaderDragViewState({
   contentWrapperRef,
   getPressSession,
   getDragSession,
+  getPendingClickHighlightIndex,
   syncGlobalListeners,
 }: UseRowHeaderDragViewStateOptions) {
   const controls = ref<RowHeaderControl[]>([])
@@ -128,9 +130,14 @@ export function useRowHeaderDragViewState({
       }
     }
 
+    const sourceIndex =
+      dragSession?.from ??
+      pressSession?.index ??
+      menuState.value?.index ??
+      getPendingClickHighlightIndex()
+
     if (dragSession) {
       const target = nextControls[dragSession.to]
-      const source = nextControls[dragSession.from]
       const contentRect = content.getBoundingClientRect()
       const nextIndicator =
         target == null
@@ -145,19 +152,19 @@ export function useRowHeaderDragViewState({
       if (!areRowIndicatorsEqual(dragIndicator.value, nextIndicator)) {
         dragIndicator.value = nextIndicator
       }
+    } else {
+      if (dragIndicator.value != null) dragIndicator.value = null
+    }
 
-      const nextHighlight =
-        source == null
-          ? null
-          : resolveRowHighlight({
-              sourceIndex: dragSession.from,
-              controls: nextControls,
-            })
+    if (sourceIndex != null) {
+      const nextHighlight = resolveRowHighlight({
+        sourceIndex,
+        controls: nextControls,
+      })
       if (!areRowHighlightsEqual(dragSourceHighlight.value, nextHighlight)) {
         dragSourceHighlight.value = nextHighlight
       }
     } else {
-      if (dragIndicator.value != null) dragIndicator.value = null
       if (dragSourceHighlight.value != null) dragSourceHighlight.value = null
     }
 
@@ -227,6 +234,7 @@ export function useRowHeaderDragViewState({
       activeRowIndex.value = null
     }
     syncGlobalListeners()
+    syncControls()
   }
 
   const closeMenu = ({

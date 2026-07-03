@@ -82,12 +82,12 @@ function runTableCommand(
   view: EditorView,
   command: typeof addRowAfter | typeof deleteRow,
 ): boolean {
-  const handledCommand = command(view.state, view.dispatch);
-  if (handledCommand) {
-    markEditorUserInput(view);
-    view.focus();
-  }
-  return handledCommand;
+  if (!command(view.state)) return false;
+
+  markEditorUserInput(view);
+  command(view.state, view.dispatch);
+  view.focus();
+  return true;
 }
 
 function createMathBlock(view: EditorView): boolean {
@@ -175,12 +175,12 @@ function setListIndent(view: EditorView, direction: 'in' | 'out'): boolean {
   if (!listItemType) return false;
 
   const command = direction === 'in' ? sinkListItem(listItemType) : liftListItem(listItemType);
-  const handledCommand = command(view.state, view.dispatch);
-  if (handledCommand) {
-    markEditorUserInput(view);
-    view.focus();
-  }
-  return handledCommand;
+  if (!command(view.state)) return false;
+
+  markEditorUserInput(view);
+  command(view.state, view.dispatch);
+  view.focus();
+  return true;
 }
 
 function clearFormatting(view: EditorView): boolean {

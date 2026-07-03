@@ -204,6 +204,7 @@ function createHarness() {
 
   return {
     api,
+    view,
     moveCol,
     insertColLeft,
     insertColRight,
@@ -289,7 +290,7 @@ describe('column header drag', () => {
   });
 
   it('opens the column menu on click without moving the column and closes it on outside pointerdown', () => {
-    const { api, moveCol } = createHarness();
+    const { api, moveCol, view } = createHarness();
 
     api.onControlPointerDown(
       1,
@@ -307,6 +308,7 @@ describe('column header drag', () => {
     api.onControlClick(1, createMouseEvent());
 
     expect(moveCol).not.toHaveBeenCalled();
+    expect(view.focus).not.toHaveBeenCalled();
     expect(api.menuState.value?.index).toBe(1);
 
     dispatchWindowPointerEvent('pointerdown', {
@@ -315,6 +317,47 @@ describe('column header drag', () => {
     });
 
     expect(api.menuState.value).toBeNull();
+  });
+
+  it('keeps the column highlighted while opening the menu by click', () => {
+    const { api } = createHarness();
+    const expectedHighlight = {
+      left: 120,
+      top: 20,
+      width: 100,
+      height: 120,
+    };
+
+    api.onControlPointerDown(
+      1,
+      createControlPointerEvent({
+        pointerId: 9,
+        clientX: 230,
+        clientY: 108,
+      }),
+    );
+
+    expect(api.dragSourceHighlight.value).toMatchObject(expectedHighlight);
+
+    dispatchWindowPointerEvent('pointerup', {
+      pointerId: 9,
+      clientX: 230,
+      clientY: 108,
+    });
+
+    expect(api.dragSourceHighlight.value).toMatchObject(expectedHighlight);
+
+    api.onControlClick(1, createMouseEvent());
+
+    expect(api.menuState.value?.index).toBe(1);
+    expect(api.dragSourceHighlight.value).toMatchObject(expectedHighlight);
+
+    dispatchWindowPointerEvent('pointerdown', {
+      clientX: 12,
+      clientY: 12,
+    });
+
+    expect(api.dragSourceHighlight.value).toBeNull();
   });
 
   it('moves the column after dragging past the threshold and suppresses the follow-up click', () => {
