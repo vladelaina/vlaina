@@ -37,8 +37,8 @@ const NEAR_BOTTOM_THRESHOLD = 96;
 const STREAMING_REATTACH_BOTTOM_THRESHOLD = 8;
 const STREAMING_EXTRA_SPACER_RATIO = 0.08;
 const CURRENT_TURN_ANCHOR_MAX_ATTEMPTS = 8;
+const CURRENT_TURN_REANCHOR_TOLERANCE = 16;
 const ACTIVE_OUTPUT_OVERFLOW_THRESHOLD = 1;
-const LONG_USER_MESSAGE_VISIBLE_HEIGHT = 96;
 const SHORT_USER_MESSAGE_ANCHOR_BOTTOM_RATIO = 0.64;
 type CurrentTurnAnchorMode = "near-composer" | "top";
 
@@ -94,6 +94,17 @@ function resolveShortUserMessageAnchorTop(
     0,
     Math.round(containerHeight * SHORT_USER_MESSAGE_ANCHOR_BOTTOM_RATIO - targetMessageHeight),
   );
+}
+
+function resolveUserMessageAnchorTop(
+  containerHeight: number,
+  targetMessageHeight: number,
+  anchorMode: CurrentTurnAnchorMode = "near-composer",
+): number {
+  if (targetMessageHeight > containerHeight) {
+    return CHAT_MESSAGE_LIST_TOP_PADDING;
+  }
+  return resolveShortUserMessageAnchorTop(containerHeight, targetMessageHeight, anchorMode);
 }
 
 export const useMessageAutoscroll = ({
@@ -219,26 +230,24 @@ export const useMessageAutoscroll = ({
     if (!targetFrame) {
       return false;
     }
-    const isLongEstimatedUserMessage = targetFrame.height > container.clientHeight;
-    const desiredTopOffset = isLongEstimatedUserMessage
-      ? 0
-      : resolveShortUserMessageAnchorTop(
-        container.clientHeight,
-        targetFrame.height,
-        currentTurnAnchorModeRef.current,
-      );
-    const desiredTopSpacerHeight = isLongEstimatedUserMessage
-      ? 0
-      : Math.max(0, desiredTopOffset - targetFrame.top);
+    const desiredTopOffset = resolveUserMessageAnchorTop(
+      container.clientHeight,
+      targetFrame.height,
+      currentTurnAnchorModeRef.current,
+    );
+    const desiredTopSpacerHeight = Math.max(0, desiredTopOffset - targetFrame.top);
     const isTopSpacerReady = Math.abs(currentTurnTopSpacerHeightRef.current - desiredTopSpacerHeight) <= 1;
 
     const row = container.querySelector<HTMLElement>(`[data-message-index="${lastUserIndex}"]`);
     if (row) {
       const containerRect = container.getBoundingClientRect();
       const rowRect = row.getBoundingClientRect();
-      const nextScrollTop = rowRect.height > container.clientHeight
-        ? container.scrollTop + rowRect.bottom - containerRect.top - LONG_USER_MESSAGE_VISIBLE_HEIGHT
-        : container.scrollTop + rowRect.top - containerRect.top - desiredTopOffset;
+      const renderedDesiredTopOffset = resolveUserMessageAnchorTop(
+        container.clientHeight,
+        rowRect.height,
+        currentTurnAnchorModeRef.current,
+      );
+      const nextScrollTop = container.scrollTop + rowRect.top - containerRect.top - renderedDesiredTopOffset;
       const actualScrollTop = setProgrammaticScrollTop(container, nextScrollTop);
       return Math.abs(actualScrollTop - nextScrollTop) <= 1 && isTopSpacerReady ? 'rendered' : 'estimated';
     }
@@ -262,9 +271,7 @@ export const useMessageAutoscroll = ({
       }
     }
 
-    const targetEstimatedScrollTop = targetFrame.height > container.clientHeight
-      ? targetFrame.bottom - LONG_USER_MESSAGE_VISIBLE_HEIGHT
-      : targetFrame.top + desiredTopSpacerHeight - desiredTopOffset;
+    const targetEstimatedScrollTop = targetFrame.top + desiredTopSpacerHeight - desiredTopOffset;
 
     if (previousRenderedRow) {
       const previousFrame = estimatedLayout.items[previousRenderedIndex];
@@ -363,17 +370,13 @@ export const useMessageAutoscroll = ({
     const userRect = userRow.getBoundingClientRect();
     const lastRect = lastRow.getBoundingClientRect();
     const userTopOffset = userRect.top - containerRect.top;
-    const userBottomOffset = userRect.bottom - containerRect.top;
     const outputBottomOffset = lastRect.bottom - containerRect.top;
     const outputFitsInViewport = outputBottomOffset <= container.clientHeight + 1;
-    const isLongUserMessage = userRect.height > container.clientHeight;
-    const restoreOffset = isLongUserMessage
-      ? userBottomOffset - LONG_USER_MESSAGE_VISIBLE_HEIGHT
-      : userTopOffset - resolveShortUserMessageAnchorTop(
-        container.clientHeight,
-        userRect.height,
-        currentTurnAnchorModeRef.current,
-      );
+    const restoreOffset = userTopOffset - resolveUserMessageAnchorTop(
+      container.clientHeight,
+      userRect.height,
+      currentTurnAnchorModeRef.current,
+    );
     if (Math.abs(restoreOffset) > 1 && outputFitsInViewport) {
       setProgrammaticScrollTop(container, container.scrollTop + restoreOffset);
     }
@@ -484,13 +487,19 @@ export const useMessageAutoscroll = ({
       contentHeightAfterTarget += CHAT_MESSAGE_LOADING_GAP + (estimateLoadingHeight?.() ?? 0);
     }
 
-    const isLongUserMessage = targetMessageHeight > containerHeight;
-    const nextTopSpacerHeight = isCurrentTurnAnchoredRef.current && !isLongUserMessage
+    let targetVisibleHeight = targetMessageHeight;
+    const renderedTargetRow = container.querySelector<HTMLElement>(`[data-message-index="${lastUserIndex}"]`);
+    const renderedTargetHeight = renderedTargetRow?.getBoundingClientRect().height ?? 0;
+    if (renderedTargetHeight > 0) {
+      targetVisibleHeight = renderedTargetHeight;
+    }
+
+    const nextTopSpacerHeight = isCurrentTurnAnchoredRef.current
       ? Math.max(
         0,
-        resolveShortUserMessageAnchorTop(
+        resolveUserMessageAnchorTop(
           containerHeight,
-          targetMessageHeight,
+          targetVisibleHeight,
           currentTurnAnchorModeRef.current,
         ) - targetMessageTop,
       )
@@ -499,9 +508,6 @@ export const useMessageAutoscroll = ({
     setCurrentTurnTopSpacerHeight((current) => (
       current === nextTopSpacerHeight ? current : nextTopSpacerHeight
     ));
-    const targetVisibleHeight = isCurrentTurnAnchoredRef.current && isLongUserMessage
-      ? LONG_USER_MESSAGE_VISIBLE_HEIGHT
-      : targetMessageHeight;
     const nextSpacerHeight = computeSpacerHeight(
       containerHeight,
       targetMessageHeight,
@@ -602,7 +608,7 @@ export const useMessageAutoscroll = ({
     pendingScrollMessageCountRef.current = messages.length;
     pendingChatCreationAnchorRef.current = chatId === null;
     isCurrentTurnAnchoredRef.current = true;
-    currentTurnAnchorModeRef.current = messages.length === 0 ? "top" : "near-composer";
+    currentTurnAnchorModeRef.current = "top";
     userDetachedFromCurrentTurnRef.current = false;
     isAutoFollowRef.current = true;
   }, [chatId, messages.length]);
@@ -679,6 +685,53 @@ export const useMessageAutoscroll = ({
   }, [active, messages, setProgrammaticScrollTop, shouldScrollToBottom]);
 
   useLayoutEffect(() => {
+    if (
+      !active ||
+      !isStreaming ||
+      spacerHeight <= 0 ||
+      !isCurrentTurnAnchoredRef.current ||
+      userDetachedFromCurrentTurnRef.current ||
+      hasVisibleAssistantOutput ||
+      !containerRef.current
+    ) {
+      return;
+    }
+
+    const container = containerRef.current;
+    const lastUserIndex = getLastUserMessageIndex();
+    const row = lastUserIndex >= 0
+      ? container.querySelector<HTMLElement>(`[data-message-index="${lastUserIndex}"]`)
+      : null;
+    if (!row) {
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const targetTopOffset = resolveUserMessageAnchorTop(
+      container.clientHeight,
+      rowRect.height,
+      currentTurnAnchorModeRef.current,
+    );
+    if (Math.abs(rowRect.top - containerRect.top - targetTopOffset) <= CURRENT_TURN_REANCHOR_TOLERANCE) {
+      return;
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      scrollCurrentTurnIntoView();
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [
+    active,
+    getLastUserMessageIndex,
+    hasVisibleAssistantOutput,
+    isStreaming,
+    scrollCurrentTurnIntoView,
+    spacerHeight,
+  ]);
+
+  useLayoutEffect(() => {
     updateSpacerHeight();
   }, [active, messages, updateSpacerHeight]);
 
@@ -737,6 +790,17 @@ export const useMessageAutoscroll = ({
     const resizeObserver = new ResizeObserver(() => {
       scheduleSpacerHeightUpdate();
       if (isStreamingRef.current) {
+        if (
+          isCurrentTurnAnchoredRef.current &&
+          !userDetachedFromCurrentTurnRef.current &&
+          !hasVisibleAssistantOutput
+        ) {
+          requestAnimationFrame(() => {
+            updateSpacerHeightRef.current();
+            scrollCurrentTurnIntoView();
+          });
+          return;
+        }
         scrollActiveOutputIfNeededRef.current();
       }
     });
@@ -744,7 +808,15 @@ export const useMessageAutoscroll = ({
     resizeObserver.observe(content);
     contentResizeObserverRef.current = resizeObserver;
     observedContentRef.current = content;
-  }, [active, cancelScheduledSpacerHeightUpdate, messages.length, scheduleSpacerHeightUpdate, spacerHeight]);
+  }, [
+    active,
+    cancelScheduledSpacerHeightUpdate,
+    hasVisibleAssistantOutput,
+    messages.length,
+    scheduleSpacerHeightUpdate,
+    scrollCurrentTurnIntoView,
+    spacerHeight,
+  ]);
 
   useLayoutEffect(() => {
     if (
@@ -821,26 +893,14 @@ export const useMessageAutoscroll = ({
           const containerRect = container.getBoundingClientRect();
           const userRect = userRow.getBoundingClientRect();
           const lastRect = lastRow.getBoundingClientRect();
-          const isLongUserMessage = userRect.height > container.clientHeight;
           const currentUserTopOffset = userRect.top - containerRect.top;
-          const currentUserBottomOffset = userRect.bottom - containerRect.top;
           const outputBottomOffset = lastRect.bottom - containerRect.top;
           const currentUserTop = currentUserTopOffset + currentScrollTop;
-          const currentUserBottom = currentUserBottomOffset + currentScrollTop;
-          const userTailScrollTop = currentUserBottom - LONG_USER_MESSAGE_VISIBLE_HEIGHT;
-          const currentUserAnchor = isLongUserMessage ? userTailScrollTop : currentUserTop;
           const outputBottom = outputBottomOffset + currentScrollTop;
           const outputBottomScrollTop = outputBottom - container.clientHeight;
-          if (
-            isLongUserMessage &&
-            Math.abs(currentUserBottomOffset - LONG_USER_MESSAGE_VISIBLE_HEIGHT) <= 1 &&
-            outputBottomOffset <= container.clientHeight + 1
-          ) {
-            return;
-          }
 
           const maxUsefulScrollTop = Math.max(
-            currentUserAnchor,
+            currentUserTop,
             outputBottomScrollTop,
           );
 
