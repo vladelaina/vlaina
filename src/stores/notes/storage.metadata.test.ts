@@ -9,6 +9,7 @@ import {
   saveWorkspaceState,
   setNoteEntry,
 } from './storage';
+import { getNotesRootStorageKey } from './systemStoragePaths';
 import type { MetadataFile } from './types';
 
 const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
@@ -493,6 +494,8 @@ describe('notes metadata storage', () => {
   });
 
   it('stores workspace state in the system config folder instead of the notesRoot folder', async () => {
+    const workspaceDir = `/app/.vlaina/notes/notes-roots/${getNotesRootStorageKey('/notes-root-a')}`;
+
     await saveWorkspaceState('/notes-root-a', {
       currentNotePath: 'alpha.md',
       expandedFolders: ['docs'],
@@ -500,11 +503,11 @@ describe('notes metadata storage', () => {
     });
 
     expect(adapter.mkdir).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/notes-roots/notes-root-1dwgd8k',
+      workspaceDir,
       true
     );
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/notes-roots/notes-root-1dwgd8k/workspace.json',
+      `${workspaceDir}/workspace.json`,
       JSON.stringify({
         currentNotePath: 'alpha.md',
         expandedFolders: ['docs'],
@@ -514,6 +517,8 @@ describe('notes metadata storage', () => {
   });
 
   it('merges expanded workspace folders from disk before saving', async () => {
+    const workspaceFile = `/app/.vlaina/notes/notes-roots/${getNotesRootStorageKey('/notes-root-a')}/workspace.json`;
+
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: 128 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
@@ -529,7 +534,7 @@ describe('notes metadata storage', () => {
     });
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
-      '/app/.vlaina/notes/notes-roots/notes-root-1dwgd8k/workspace.json',
+      workspaceFile,
       JSON.stringify({
         currentNotePath: 'alpha.md',
         expandedFolders: ['archive', 'docs'],
