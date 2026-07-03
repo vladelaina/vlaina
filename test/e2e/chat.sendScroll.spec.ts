@@ -171,6 +171,22 @@ async function expectShortPromptPositionBeforeAssistant(
     .toBeGreaterThan(geometry!.rootClientHeight * 0.55);
 }
 
+async function expectLastUserMessageTopVisibleBeforeAssistant(page: Page, text: string): Promise<void> {
+  await expect(page.locator(`${CHAT_MESSAGE_SELECTOR}[data-role="user"]`, { hasText: text })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.locator(`${CHAT_MESSAGE_SELECTOR}[data-role="assistant"]`, {
+    hasText: 'Delayed answer.',
+  })).toHaveCount(0);
+
+  const geometry = await readLastUserMessageGeometry(page);
+  expect(geometry).not.toBeNull();
+  expect(geometry!.userText).toContain(text);
+  expect(geometry!.userTopOffset, JSON.stringify(geometry, null, 2)).toBeGreaterThanOrEqual(-1);
+  expect(geometry!.userTopOffset, JSON.stringify(geometry, null, 2))
+    .toBeLessThan(geometry!.rootClientHeight * 0.25);
+}
+
 test.describe('chat send scroll anchoring', () => {
   test('moves the first short user message near the top while waiting for the assistant', async () => {
     const provider = await createDelayedStreamingProvider();
@@ -199,7 +215,7 @@ test.describe('chat send scroll anchoring', () => {
     }
   });
 
-  test('keeps a short user message near the composer when sent from the top of a long chat', async () => {
+  test('keeps a short user message near the top when sent from the top of a long chat', async () => {
     const provider = await createDelayedStreamingProvider();
     const { app, userDataRoot } = await launchIsolatedElectron('chat-send-scroll-history');
 
@@ -229,7 +245,46 @@ test.describe('chat send scroll anchoring', () => {
       await textarea.fill('hi');
       await textarea.press('Enter');
 
-      await expectShortPromptPositionBeforeAssistant(page, 'near-composer');
+      await expectShortPromptPositionBeforeAssistant(page, 'near-top');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+      await provider.close();
+    }
+  });
+
+  test('keeps the top of a long user message visible when sent from the top of a long chat', async () => {
+    const provider = await createDelayedStreamingProvider();
+    const { app, userDataRoot } = await launchIsolatedElectron('chat-send-scroll-long-user-history');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await createChatModelFixture(page, {
+        apiHost: provider.url,
+        apiModelId: 'e2e-send-scroll-long-user-history-model',
+        providerName: 'E2E Send Scroll Long User History Provider',
+      });
+      const fixture = await createChatFixture(page, {
+        sessions: [{
+          title: 'E2E Send Scroll Long User History',
+          messages: createHistoryMessages(24),
+        }],
+      });
+      await setAppViewMode(page, 'chat');
+      await waitForChatSession(page, {
+        sessionId: fixture.sessionIds[0]!,
+        minMessageCount: 48,
+      });
+      await scrollChatToTop(page);
+
+      const promptPrefix = 'E2E_LONG_USER_TOP_VISIBLE';
+      const prompt = `${promptPrefix} ${'这是一段会在用户气泡里自动换行的长内容。'.repeat(48)}`;
+      const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);
+      await expect(textarea).toBeVisible({ timeout: 30_000 });
+      await textarea.fill(prompt);
+      await textarea.press('Enter');
+
+      await expectLastUserMessageTopVisibleBeforeAssistant(page, promptPrefix);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
       await provider.close();

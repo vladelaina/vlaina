@@ -87,6 +87,32 @@ async function getComposerSelection(page: Page) {
   }, CHAT_COMPOSER_TEXTAREA_SELECTOR);
 }
 
+async function getScrolledMentionClipMetrics(page: Page) {
+  return page.evaluate((inputSelector) => {
+    const textarea = document.querySelector<HTMLTextAreaElement>(inputSelector);
+    const token = document.querySelector<HTMLElement>('[data-mention-preview-token="true"]');
+    if (!textarea || !token) {
+      return null;
+    }
+
+    const textareaRect = textarea.getBoundingClientRect();
+    textarea.scrollTop = 72;
+    textarea.dispatchEvent(new Event('scroll', { bubbles: true }));
+    const tokenRect = token.getBoundingClientRect();
+    const hitX = tokenRect.left + Math.min(8, Math.max(1, tokenRect.width / 2));
+    const hitY = tokenRect.top + Math.min(8, Math.max(1, tokenRect.height / 2));
+    const hit = document.elementFromPoint(hitX, hitY);
+
+    return {
+      hitIsToken: Boolean(hit && token.contains(hit)),
+      scrollTop: textarea.scrollTop,
+      textareaTop: textareaRect.top,
+      tokenBottom: tokenRect.bottom,
+      tokenTop: tokenRect.top,
+    };
+  }, CHAT_COMPOSER_TEXTAREA_SELECTOR);
+}
+
 test.describe('chat note mention caret', () => {
   test.setTimeout(120_000);
 
@@ -168,6 +194,53 @@ test.describe('chat note mention caret', () => {
         selectionStart: 0,
         selectionEnd: '@Today '.length,
       });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('clips mention preview tokens that scroll outside a long composer value', async ({}, testInfo) => {
+    const { app, userDataRoot } = await launchIsolatedElectron(`chat-mention-clip-${testInfo.workerIndex}`);
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await createChatModelFixture(page, {
+        providerName: 'E2E Mention Clip Provider',
+        apiModelId: 'e2e-mention-clip-model',
+      });
+
+      const notesRoot = await createNotesRootFilesFixture(page, {
+        name: 'mention-clip',
+        files: [
+          { filename: '3.md', content: '# 3\n\nMention target\n' },
+        ],
+      });
+      await openNotesRootInNotes(page, {
+        notesRootPath: notesRoot.notesRootPath,
+        name: 'Mention Clip NotesRoot',
+        minFileCount: 1,
+      });
+
+      await setAppViewMode(page, 'chat');
+      const textarea = page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR);
+      await expect(textarea).toBeVisible({ timeout: 30_000 });
+
+      const longValue = [
+        '@3',
+        ...Array.from({ length: 48 }, (_value, index) => `long pasted line ${index + 1}`),
+      ].join('\n');
+      await textarea.fill(longValue);
+      await expect(page.locator(MENTION_TOKEN_SELECTOR)).toBeVisible({ timeout: 10_000 });
+
+      await expect.poll(() => getScrolledMentionClipMetrics(page), { timeout: 10_000 }).toMatchObject({
+        hitIsToken: false,
+        scrollTop: expect.any(Number),
+      });
+      const metrics = await getScrolledMentionClipMetrics(page);
+      expect(metrics).not.toBeNull();
+      expect(metrics!.scrollTop).toBeGreaterThan(0);
+      expect(metrics!.tokenBottom).toBeLessThan(metrics!.textareaTop);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

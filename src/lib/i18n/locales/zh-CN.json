@@ -324,6 +324,8 @@
   "chat.copyImage": "复制图片",
   "chat.copyMessage": "复制消息",
   "chat.editMessage": "编辑消息",
+  "chat.expandMessage": "展开",
+  "chat.collapseMessage": "收起",
   "chat.regenerateResponse": "重新生成回复",
   "chat.branchConversation": "分支对话",
   "chat.previousMessageVersion": "上一条消息版本",
