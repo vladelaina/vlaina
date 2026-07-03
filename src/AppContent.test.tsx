@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   listImportedMarkdownThemesFromDirectory: vi.fn(),
   syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
+  settingsModuleImports: 0,
+  temporaryChatToggleModuleImports: 0,
   fontSize: 17,
   notesSidebarMounts: 0,
   notesSidebarUnmounts: 0,
@@ -122,13 +124,19 @@ vi.mock('@/components/Chat/features/Input/ModelSelector', () => ({
   ModelSelector: () => <div data-testid="model-selector" />,
 }));
 
-vi.mock('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle', () => ({
-  TitleBarTemporaryChatToggle: () => <div data-testid="temporary-chat-toggle" />,
-}));
+vi.mock('@/components/Chat/features/Temporary/TitleBarTemporaryChatToggle', () => {
+  mocks.temporaryChatToggleModuleImports += 1;
+  return {
+    TitleBarTemporaryChatToggle: () => <div data-testid="temporary-chat-toggle" />,
+  };
+});
 
-vi.mock('@/components/Settings', () => ({
-  SettingsModal: () => null,
-}));
+vi.mock('@/components/Settings', () => {
+  mocks.settingsModuleImports += 1;
+  return {
+    SettingsModal: () => null,
+  };
+});
 
 vi.mock('@/components/Settings/tabs/aboutCommunitySettings', () => ({
   getCachedCommunitySettings: vi.fn(() => ({
@@ -302,6 +310,16 @@ const importedTheme = {
 
 describe('AppContent view switching chrome readiness', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.appViewMode = 'notes';
+    mocks.colorMode = 'system';
+    mocks.importedMarkdownThemeId = null;
+    mocks.notesChatFloatingSize = { width: 420, height: 680 };
+    mocks.fontSize = 17;
+    mocks.settingsModuleImports = 0;
+    mocks.temporaryChatToggleModuleImports = 0;
+    mocks.notesSidebarMounts = 0;
+    mocks.notesSidebarUnmounts = 0;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
       directoryPath: '/app/.vlaina/app/themes',
@@ -311,17 +329,20 @@ describe('AppContent view switching chrome readiness', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
-    mocks.appViewMode = 'notes';
-    mocks.colorMode = 'system';
-    mocks.importedMarkdownThemeId = null;
-    mocks.notesChatFloatingSize = { width: 420, height: 680 };
-    mocks.fontSize = 17;
-    mocks.notesSidebarMounts = 0;
-    mocks.notesSidebarUnmounts = 0;
     document.documentElement.style.removeProperty('font-size');
     document.documentElement.style.removeProperty('--vlaina-markdown-font-size');
     document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.remove();
+  });
+
+  it('preloads the settings module after unified data is loaded', async () => {
+    render(<AppContent />);
+
+    await waitFor(() => {
+      expect(mocks.settingsModuleImports).toBeGreaterThanOrEqual(1);
+    });
+    await waitFor(() => {
+      expect(mocks.temporaryChatToggleModuleImports).toBeGreaterThanOrEqual(1);
+    });
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {
@@ -329,8 +350,8 @@ describe('AppContent view switching chrome readiness', () => {
 
     expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('chat-sidebar')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     expect(await screen.findByTestId('notes-tab-row', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(mocks.notesSidebarMounts).toBe(1);
 
@@ -355,28 +376,29 @@ describe('AppContent view switching chrome readiness', () => {
     expect(mocks.notesSidebarUnmounts).toBe(0);
   });
 
-  it('mounts the inactive initial view only after switching to it', async () => {
+  it('prewarms notes sidebar and view while chat is the initial active view', async () => {
     mocks.appViewMode = 'chat';
     const { rerender } = render(<AppContent />);
 
     expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('notes-sidebar')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('notes-view')).not.toBeInTheDocument();
-    expect(mocks.notesSidebarMounts).toBe(0);
+    expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('notes-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(mocks.notesSidebarMounts).toBe(1);
 
     mocks.appViewMode = 'notes';
     rerender(<AppContent />);
 
-    expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(await screen.findByTestId('notes-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
+    expect(screen.getByTestId('notes-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'true');
+    expect(screen.getByTestId('notes-view')).toHaveAttribute('data-active', 'true');
     expect(mocks.notesSidebarMounts).toBe(1);
   });
 
-  it('keeps inactive visited sidebars mounted but out of layout', async () => {
+  it('keeps inactive prewarmed sidebars mounted but out of layout', async () => {
     const { rerender } = render(<AppContent />);
 
-    expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'true');
-    expect(screen.queryByTestId('chat-sidebar')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(screen.getByTestId('chat-sidebar').parentElement).toHaveClass('hidden');
 
     mocks.appViewMode = 'chat';
     rerender(<AppContent />);

@@ -343,6 +343,18 @@ describe('message actions API transcript handling', () => {
     expect(saveSessionJson).toHaveBeenCalledWith('session-1', ai.messages['session-1']);
   });
 
+  it('stores the model used by new messages on the session', () => {
+    seedMessages([]);
+
+    createMessageActions().addMessage({
+      role: 'user',
+      content: 'use another model',
+      modelId: 'model-2',
+    }, 'session-1');
+
+    expect(useUnifiedStore.getState().data.ai?.sessions[0]?.modelId).toBe('model-2');
+  });
+
   it('assigns a unique id when adding a message with a duplicate id', () => {
     seedMessages([createUserMessage('duplicate', 'existing')]);
 

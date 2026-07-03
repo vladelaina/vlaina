@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { actions, managedProviderSync } from './providerActions';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
+import { useAIUIStore } from './chatState';
 import { useAccountSessionStore } from '../accountSession';
 import { useManagedAIStore } from '../useManagedAIStore';
 import { saveUnifiedData } from '@/lib/storage/unifiedStorage';
@@ -236,6 +237,31 @@ describe('deleteIncompleteCustomProviders', () => {
 
     expect(useUnifiedStore.getState().data.ai?.providers).toEqual([provider]);
   });
+
+  it('stores manually selected models on the current session', () => {
+    const provider = buildProvider({ id: 'provider-1' });
+    const defaultModel = buildModel({ id: 'model-default', apiModelId: 'default' });
+    const selectedModel = buildModel({ id: 'model-a', apiModelId: 'model-a' });
+    seedAI([provider], [defaultModel, selectedModel]);
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          sessions: [
+            { id: 'session-1', title: 'Chat', modelId: 'model-default', createdAt: 1, updatedAt: 1 },
+          ],
+        },
+      },
+    }));
+    useAIUIStore.setState({ currentSessionId: 'session-1' });
+
+    actions.selectModel('model-a');
+
+    const ai = useUnifiedStore.getState().data.ai!;
+    expect(ai.selectedModelId).toBe('model-a');
+    expect(ai.sessions[0]?.modelId).toBe('model-a');
+  });
 });
 
 describe('reorderCustomProviders', () => {
@@ -459,6 +485,49 @@ describe('refreshManagedProviderInBackground', () => {
     await vi.runAllTimersAsync();
 
     expect(useUnifiedStore.getState().data.ai?.selectedModelId).toBe('vlaina-managed::default-model');
+  });
+
+  it('prefers the current session model over the managed default after refresh', async () => {
+    seedAI([
+      buildProvider({
+        id: 'vlaina-managed',
+        name: 'vlaina',
+        type: 'newapi',
+        apiHost: 'https://api.vlaina.com/v1',
+      }),
+    ], []);
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          sessions: [
+            { id: 'session-1', title: 'Model A chat', modelId: 'vlaina-managed::model-a', createdAt: 1, updatedAt: 1 },
+          ],
+        },
+      },
+    }));
+    useAIUIStore.setState({ currentSessionId: 'session-1' });
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::default-model',
+        apiModelId: 'default-model',
+        name: 'Default Model',
+        providerId: 'vlaina-managed',
+        isDefault: true,
+      }),
+      buildModel({
+        id: 'vlaina-managed::model-a',
+        apiModelId: 'model-a',
+        name: 'Model A',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    actions.refreshManagedProviderInBackground();
+    await vi.runAllTimersAsync();
+
+    expect(useUnifiedStore.getState().data.ai?.selectedModelId).toBe('vlaina-managed::model-a');
   });
 
   it('skips non-forced refresh attempts inside the throttle window', async () => {

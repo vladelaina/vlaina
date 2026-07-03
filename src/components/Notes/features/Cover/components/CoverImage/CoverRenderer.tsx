@@ -9,7 +9,6 @@ export type { CoverRendererProps, LoadedCoverMedia } from './coverRenderer.types
 export const CoverRenderer = React.memo(({
   displaySrc,
   layoutPanelDragging = false,
-  isWindowResizing = false,
   isContainerResizing = false,
   placeholderSrc,
   placeholderMediaSize,
@@ -44,7 +43,7 @@ export const CoverRenderer = React.memo(({
   const placeholderDisplaySrc = placeholderSrc || displaySrc;
   const layoutBackdropVisible =
     Boolean(placeholderDisplaySrc) &&
-    (layoutPanelDragging || isWindowResizing || isContainerResizing);
+    (layoutPanelDragging || isContainerResizing);
   const cropperSuspended =
     (isResizing && frozenLayerVisible);
 

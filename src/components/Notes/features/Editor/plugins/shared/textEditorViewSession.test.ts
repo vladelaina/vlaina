@@ -251,6 +251,60 @@ describe('createTextEditorViewSession', () => {
     session.destroy();
   });
 
+  it('does not save from outside click or save shortcut while text composition is active', () => {
+    vi.useFakeTimers();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    const { refs, saveSession, session } = createSessionHarness();
+
+    session.update();
+    vi.advanceTimersByTime(0);
+    const textarea = refs.textareaElement!;
+
+    textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    }));
+    outside.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    expect(saveSession).not.toHaveBeenCalled();
+
+    textarea.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(saveSession).toHaveBeenCalledTimes(1);
+
+    session.destroy();
+  });
+
+  it('does not save from the popup save button while text composition is active', () => {
+    const { refs, saveSession, session } = createSessionHarness();
+
+    session.update();
+    const textarea = refs.textareaElement!;
+    const saveButton = document.querySelector<HTMLButtonElement>('.text-editor-action-button-primary')!;
+
+    textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+    saveButton.click();
+
+    expect(saveSession).not.toHaveBeenCalled();
+
+    textarea.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+    saveButton.click();
+
+    expect(saveSession).toHaveBeenCalledTimes(1);
+
+    session.destroy();
+  });
+
   it('can defer initial anchor measurement and use the state position first', () => {
     const frameCallbacks: FrameRequestCallback[] = [];
     const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {

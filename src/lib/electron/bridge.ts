@@ -8,6 +8,12 @@ export interface ElectronWindowApi {
   setMaximizable(maximizable: boolean): Promise<void>;
   setMinSize(width: number, height: number): Promise<void>;
   setSize(width: number, height: number): Promise<void>;
+  setThemeColors?(colors: {
+    backgroundColor: string;
+    titleBarOverlayColor: string;
+    titleBarSymbolColor: string;
+  }): Promise<boolean>;
+  setTitleBarOverlayVisible?(visible: boolean): Promise<boolean>;
   center(): Promise<void>;
   getSize(): Promise<{ width: number; height: number }>;
   getLabel(): Promise<string | null>;

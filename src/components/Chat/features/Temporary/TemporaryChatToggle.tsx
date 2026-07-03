@@ -51,7 +51,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
           return undefined;
         }
         const provider = providers.find((item) => item.id === model.providerId);
-        return provider?.enabled === false ? undefined : model;
+        return model.enabled === false || provider?.enabled === false ? undefined : model;
       })()
     : undefined;
   const hasUserMessageInCurrentSession = hasUserMessage(currentMessages);
@@ -95,7 +95,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
   };
 
   return (
-    <Tooltip delayDuration={700}>
+    <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"

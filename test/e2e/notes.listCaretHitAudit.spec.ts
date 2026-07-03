@@ -17,6 +17,7 @@ type CaretTarget = {
 };
 
 const CARET_OVERLAY_SELECTOR = '.editor-textblock-caret-overlay, .editor-forced-line-end-caret';
+const VISIBLE_LINK_TOOLTIP_SELECTOR = '.link-tooltip-container:not(.hidden)';
 
 function createCaretAuditMarkdown(): string {
   return [
@@ -387,6 +388,71 @@ async function assertClickInsertsAtTarget(page: Page, target: CaretTarget): Prom
   await expect(page.locator(`${EDITOR_SELECTOR} .editor-block-selected`)).toHaveCount(0);
 }
 
+async function assertVisualTextClickInsertsAtTarget(page: Page, target: CaretTarget): Promise<void> {
+  const clickOffset = target.offset <= 0
+    ? 0
+    : Math.max(0, Math.min(target.text.length - 1, target.offset - 1));
+  const point = await resolveTextDragPoint(
+    page,
+    target.text,
+    clickOffset,
+    target.offset <= 0 ? 'start' : 'end',
+  );
+  await page.mouse.click(point.x, point.y);
+  await waitForEditorAnimationFrame(page);
+  await page.keyboard.type(target.insertedText);
+  await waitForEditorAnimationFrame(page);
+
+  await expect.poll(async () => page.locator(EDITOR_SELECTOR).evaluate((editor) => editor.textContent ?? ''), {
+    message: `Expected typing after ${target.label} to edit the clicked text`,
+    timeout: 5_000,
+  }).toContain(target.expectedText);
+  await expect(page.locator(`${EDITOR_SELECTOR} .editor-block-selected`)).toHaveCount(0);
+}
+
+function createReportedOrderedListMarkdown(title: string): string {
+  return [
+    `# ${title}`,
+    '',
+    '1. 有钱之后必须',
+    '   1. vlaina.ai',
+    '2. [vlaina.cn](https://vlaina.cn)',
+    '3. vlainacn.com',
+    '4. vlaina.md',
+    '5. vlaina.io',
+    '6. 中美商标问题',
+  ].join('\n');
+}
+
+async function movePointerAwayFromLinkTooltip(page: Page): Promise<void> {
+  await page.mouse.move(24, 24);
+  await expect(page.locator(VISIBLE_LINK_TOOLTIP_SELECTOR)).toHaveCount(0, { timeout: 5_000 });
+}
+
+async function resolveLinkHoverPath(
+  page: Page,
+  link: { text: string; href: string },
+): Promise<{ entry: { x: number; y: number }; link: { x: number; y: number } }> {
+  const linkPoint = await resolveTextDragPoint(page, link.text, Math.min(1, link.text.length - 1), 'start');
+  const entryPoint = await page.evaluate(({ editorSelector, href, text, y }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const anchor = Array.from(editor?.querySelectorAll<HTMLAnchorElement>('a[href]') ?? [])
+      .find((candidate) => candidate.getAttribute('href') === href && (candidate.textContent ?? '').includes(text));
+    if (!anchor) return null;
+
+    const linkRect = anchor.getBoundingClientRect();
+    const rowRect = (anchor.closest('li') as HTMLElement | null)?.getBoundingClientRect() ?? linkRect;
+    let x = linkRect.left - 12;
+    if (x <= rowRect.left + 2) x = linkRect.right + 12;
+    if (x >= rowRect.right - 2 || (x >= linkRect.left && x <= linkRect.right)) x = rowRect.left + 6;
+
+    return { x: Math.round(x), y: Math.round(y) };
+  }, { editorSelector: EDITOR_SELECTOR, href: link.href, text: link.text, y: linkPoint.y });
+
+  expect(entryPoint, `Expected a same-row hover entry point for "${link.text}"`).not.toBeNull();
+  return { entry: entryPoint!, link: linkPoint };
+}
+
 test.describe('notes list caret hit audit', () => {
   test.setTimeout(120_000);
 
@@ -518,6 +584,269 @@ test.describe('notes list caret hit audit', () => {
         empty: false,
         selectedText: expect.stringContaining('Nested drag target selectable sentinel'),
       });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('allows dragging text selection from link text in ordered lists', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-ordered-list-link-drag-text-selection');
+    const linkText = 'vlaina.cn';
+    const nextItemText = 'vlainacn.com';
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'ordered-list-link-drag-text-selection.md',
+        content: createReportedOrderedListMarkdown('Ordered List Link Drag Text Selection'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText(nextItemText);
+
+      const start = await resolveTextDragPoint(page, linkText, 1, 'start');
+      const end = await resolveTextDragPoint(page, nextItemText, nextItemText.length - 1, 'end');
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(end.x, end.y, { steps: 18 });
+      await page.mouse.up();
+      await waitForEditorAnimationFrame(page);
+
+      await expect.poll(async () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        return {
+          selectedBlocks: editor?.querySelectorAll('.editor-block-selected').length ?? -1,
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        };
+      }), {
+        message: JSON.stringify({ start, end }),
+      }).toMatchObject({
+        selectedBlocks: 0,
+        selection: {
+          empty: false,
+          selectedText: expect.stringContaining(nextItemText),
+        },
+      });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps reported ordered-list items editable after a direct click', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-reported-ordered-list-click-edit');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'reported-ordered-list-click-edit.md',
+        content: createReportedOrderedListMarkdown('Reported Ordered List Click Edit'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('vlaina.cn');
+
+      const targets: CaretTarget[] = [
+        { label: 'nested domain item', text: 'vlaina.ai', offset: 6, insertedText: 'X', expectedText: 'vlainaX.ai' },
+        { label: 'explicit link item', text: 'vlaina.cn', offset: 6, insertedText: 'Y', expectedText: 'vlainaY.cn' },
+        { label: 'bare domain item', text: 'vlainacn.com', offset: 8, insertedText: 'Z', expectedText: 'vlainacnZ.com' },
+        { label: 'markdown-looking domain item', text: 'vlaina.md', offset: 6, insertedText: 'M', expectedText: 'vlainaM.md' },
+        { label: 'io domain item', text: 'vlaina.io', offset: 6, insertedText: 'I', expectedText: 'vlainaI.io' },
+      ];
+
+      for (const target of targets) {
+        await assertVisualTextClickInsertsAtTarget(page, target);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('supports editing and deleting reported ordered-list link text', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-reported-ordered-list-edit-delete');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'reported-ordered-list-edit-delete.md',
+        content: createReportedOrderedListMarkdown('Reported Ordered List Edit Delete'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('vlaina.cn');
+
+      await clickTextOffset(page, {
+        label: 'explicit link edit insertion point',
+        text: 'vlaina.cn',
+        offset: 6,
+      });
+      await page.keyboard.type('-edit');
+      await waitForEditorAnimationFrame(page);
+      await expect.poll(async () => page.locator(EDITOR_SELECTOR).evaluate((editor) => editor.textContent ?? ''), {
+        message: 'Expected typing inside an explicit link to update visible text',
+        timeout: 5_000,
+      }).toContain('vlaina-edit.cn');
+
+      for (let index = 0; index < '-edit'.length; index += 1) {
+        await page.keyboard.press('Backspace');
+      }
+      await waitForEditorAnimationFrame(page);
+      await expect.poll(async () => page.locator(EDITOR_SELECTOR).evaluate((editor) => editor.textContent ?? ''), {
+        message: 'Expected Backspace to remove inserted explicit-link text',
+        timeout: 5_000,
+      }).not.toContain('vlaina-edit.cn');
+      await expect(page.locator(`${EDITOR_SELECTOR} .editor-block-selected`)).toHaveCount(0);
+
+      await clickTextOffset(page, {
+        label: 'bare domain delete point',
+        text: 'vlainacn.com',
+        offset: 6,
+      });
+      await page.keyboard.press('Delete');
+      await page.keyboard.press('Delete');
+      await waitForEditorAnimationFrame(page);
+      await expect.poll(async () => page.locator(EDITOR_SELECTOR).evaluate((editor) => editor.textContent ?? ''), {
+        message: 'Expected Delete to remove characters from a bare-domain autolink',
+        timeout: 5_000,
+      }).toContain('vlaina.com');
+      await expect(page.locator(`${EDITOR_SELECTOR} .editor-block-selected`)).toHaveCount(0);
+
+      const selectedLinkText = 'vlaina.io';
+      const start = await resolveTextDragPoint(page, selectedLinkText, 1, 'start');
+      const end = await resolveTextDragPoint(page, selectedLinkText, selectedLinkText.length - 2, 'end');
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(end.x, end.y, { steps: 12 });
+      await page.mouse.up();
+      await waitForEditorAnimationFrame(page);
+
+      await expect.poll(async () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        return {
+          selectedBlocks: editor?.querySelectorAll('.editor-block-selected').length ?? -1,
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        };
+      }), {
+        message: 'Expected dragging link text before deletion to create a text selection',
+        timeout: 5_000,
+      }).toMatchObject({
+        selectedBlocks: 0,
+        selection: {
+          empty: false,
+          selectedText: expect.stringContaining('laina.i'),
+        },
+      });
+
+      await page.keyboard.press('Backspace');
+      await waitForEditorAnimationFrame(page);
+      await page.keyboard.type('io.test');
+      await waitForEditorAnimationFrame(page);
+      await expect.poll(async () => page.locator(EDITOR_SELECTOR).evaluate((editor) => editor.textContent ?? ''), {
+        message: 'Expected typing after deleting selected link text to keep editing in the list item',
+        timeout: 5_000,
+      }).toContain('io.test');
+      await expect(page.locator(`${EDITOR_SELECTOR} .editor-block-selected`)).toHaveCount(0);
+
+      await clickTextOffset(page, {
+        label: 'plain Chinese list item after link edits',
+        text: '中美商标问题',
+        offset: 2,
+      });
+      await page.keyboard.type('OK');
+      await waitForEditorAnimationFrame(page);
+      await expect.poll(async () => page.locator(EDITOR_SELECTOR).evaluate((editor) => editor.textContent ?? ''), {
+        message: 'Expected ordinary list text to remain editable after link edit/delete operations',
+        timeout: 5_000,
+      }).toContain('中美OK商标问题');
+      await expect(page.locator(`${EDITOR_SELECTOR} .editor-block-selected`)).toHaveCount(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('shows link tooltips for reported ordered-list links on hover', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-reported-ordered-list-link-hover');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'reported-ordered-list-link-hover.md',
+        content: createReportedOrderedListMarkdown('Reported Ordered List Link Hover'),
+      });
+
+      const links = [
+        { text: 'vlaina.ai', href: 'https://vlaina.ai' },
+        { text: 'vlaina.cn', href: 'https://vlaina.cn' },
+        { text: 'vlainacn.com', href: 'https://vlainacn.com' },
+        { text: 'vlaina.md', href: 'https://vlaina.md' },
+        { text: 'vlaina.io', href: 'https://vlaina.io' },
+      ];
+
+      for (const link of links) {
+        await movePointerAwayFromLinkTooltip(page);
+        const locator = page.locator(`${EDITOR_SELECTOR} a[href="${link.href}"]`, { hasText: link.text }).first();
+        await expect(locator).toBeVisible({ timeout: 5_000 });
+        const hoverPath = await resolveLinkHoverPath(page, link);
+        await page.mouse.move(hoverPath.entry.x, hoverPath.entry.y);
+        await waitForEditorAnimationFrame(page);
+        await page.mouse.move(hoverPath.link.x, hoverPath.link.y, { steps: 8 });
+
+        const tooltip = page.locator(VISIBLE_LINK_TOOLTIP_SELECTOR).first();
+        await expect(tooltip.locator('.link-tooltip-viewer')).toBeVisible({ timeout: 5_000 });
+        await expect(tooltip).toContainText(link.text);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('allows selecting reported ordered-list link text by dragging', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-reported-ordered-list-link-drag');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'reported-ordered-list-link-drag.md',
+        content: createReportedOrderedListMarkdown('Reported Ordered List Link Drag'),
+      });
+
+      for (const text of ['vlaina.ai', 'vlaina.cn', 'vlainacn.com', 'vlaina.md', 'vlaina.io']) {
+        await movePointerAwayFromLinkTooltip(page);
+        const start = await resolveTextDragPoint(page, text, 0, 'start');
+        const end = await resolveTextDragPoint(page, text, text.length - 1, 'end');
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(end.x, end.y, { steps: 12 });
+        await page.mouse.up();
+        await waitForEditorAnimationFrame(page);
+
+        await expect.poll(async () => page.evaluate(() => {
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          return {
+            selectedBlocks: editor?.querySelectorAll('.editor-block-selected').length ?? -1,
+            selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          };
+        }), {
+          message: `Expected dragging ${text} to create a text selection`,
+        }).toMatchObject({
+          selectedBlocks: 0,
+          selection: {
+            empty: false,
+            selectedText: expect.stringContaining(text.slice(1, -1)),
+          },
+        });
+      }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

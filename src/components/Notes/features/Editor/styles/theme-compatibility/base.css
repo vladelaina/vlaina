@@ -18,7 +18,7 @@
   --vlaina-text-tertiary: #636363;
   --vlaina-border: #e3e2e4;
   --vlaina-code-block-background: #f5f5f5;
-  --vlaina-code-inline-background: #e8eaed;
+  --vlaina-code-inline-background: var(--vlaina-code-inline-background-light);
   --vlaina-code-inline-foreground: #262626;
   --vlaina-code-syntax-foreground: #24292e;
   --vlaina-code-syntax-muted: #6a737d;
@@ -83,9 +83,8 @@
   --font-text: var(--v-fm-text, var(--v-fm-text-local, var(--font-sans)));
   --font-interface: var(--v-fm-bd, var(--v-fm-bd-local, var(--font-sans)));
   --font-monospace: var(--v-fm-code, var(--v-fm-code-local, var(--font-mono)));
-  --vlaina-markdown-font-size: var(--v-f-size, var(--vlaina-size-17px));
   --vlaina-code-block-background: var(--typora-code-editor-bg);
-  --vlaina-code-inline-background: var(--code-bg, var(--d-cb, #e8eaed));
+  --vlaina-code-inline-background: var(--code-bg, var(--d-cb, var(--vlaina-code-inline-background-light)));
   --vlaina-code-inline-foreground: var(--code-t, var(--text-code));
   --vlaina-color-editor-inline-code-bg: var(--vlaina-code-inline-background);
   --vlaina-code-syntax-foreground: var(--df, var(--code-t, currentColor));
@@ -122,7 +121,7 @@
   color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
   background: transparent;
   font-family: var(--v-fm-text, var(--font-text, var(--font-sans)));
-  font-size: var(--v-f-size, var(--vlaina-markdown-font-size, inherit));
+  font-size: var(--vlaina-markdown-font-size, inherit);
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] #write {

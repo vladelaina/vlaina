@@ -7,6 +7,13 @@ function isNativeMacOS() {
   );
 }
 
+export function isNativeWindows() {
+  return (
+    typeof navigator !== 'undefined' &&
+    /Win/.test(navigator.platform)
+  );
+}
+
 function isMacOSPreviewEnabled(platformPreview: DesktopPlatformPreview) {
   return import.meta.env.DEV && platformPreview === 'macos';
 }

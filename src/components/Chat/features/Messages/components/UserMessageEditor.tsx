@@ -43,6 +43,7 @@ export function UserMessageEditor({
     parsedContent.imageSources.map((src, index) => toEditAttachment(src, index))
   );
   const [isComposing, setIsComposing] = useState(false);
+  const isComposingRef = useRef(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const handleEditValueChange = useCallback((nextValue: string) => {
     setEditValue(limitChatComposerText(nextValue));
@@ -93,6 +94,9 @@ export function UserMessageEditor({
   });
 
   const handleSave = useCallback(() => {
+    if (isComposingRef.current) {
+      return;
+    }
     const normalized = composeUserMessageContent(limitChatComposerText(editValue), editAttachments);
     const normalizedCurrent = content.replace(/\r\n?/g, '\n');
     if (normalized.trim() !== normalizedCurrent.trim()) {
@@ -117,11 +121,11 @@ export function UserMessageEditor({
       return;
     }
 
+    if (isComposing || native.isComposing || native.keyCode === 229) {
+      return;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
-      if (isComposing || native.isComposing || native.keyCode === 229) {
-        event.preventDefault();
-        return;
-      }
       event.preventDefault();
       event.stopPropagation();
       handleSave();
@@ -180,8 +184,14 @@ export function UserMessageEditor({
             const nextValue = limitChatComposerText(event.target.value);
             handleValueChange(nextValue, Math.min(event.target.selectionStart ?? nextValue.length, nextValue.length));
           }}
-          onCompositionStart={() => setIsComposing(true)}
-          onCompositionEnd={() => setIsComposing(false)}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+            setIsComposing(true);
+          }}
+          onCompositionEnd={() => {
+            isComposingRef.current = false;
+            setIsComposing(false);
+          }}
           onKeyDown={handleKeyDown}
           onSelect={(event) => setCaretIndex(
             event.currentTarget.selectionStart ?? 0,

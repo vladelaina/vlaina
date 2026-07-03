@@ -227,7 +227,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
             <div className="fixed inset-0 z-[var(--vlaina-z-60)]" onClick={() => setIsMenuOpen(false)} />
             <div
               className={cn(
-                "absolute left-[var(--vlaina-offset-account-menu-anchor-x)] top-8 z-[var(--vlaina-z-70)] w-48 rounded-[var(--vlaina-radius-22px)] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1",
+                "absolute left-[var(--vlaina-offset-account-menu-anchor-x)] top-8 z-[var(--vlaina-z-70)] w-48 rounded-[var(--vlaina-radius-22px)] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-[var(--vlaina-duration-75)]",
                 chatComposerPillSurfaceClass
               )}
             >

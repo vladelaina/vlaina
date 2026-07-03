@@ -30,7 +30,11 @@ const MAX_NOTES_ROOT_BROADCAST_REQUEST_ID_CHARS = 128;
 export const MAX_PENDING_NOTES_ROOT_BROADCAST_QUERIES = 100;
 const UNSAFE_NOTES_ROOT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
-const MAX_RECENT_NOTES_ROOTS = 5;
+const MAX_RECENT_NOTES_ROOTS = 10;
+const MAX_DELETED_NOTES_ROOT_PATHS = 100;
+
+let notesRootStateFileWriteQueue: Promise<void> = Promise.resolve();
+let notesRootStatePersistRevision = 0;
 
 function generateNotesRootId(): string {
   return `notes-root-${crypto.randomUUID()}`;
@@ -63,6 +67,7 @@ interface PersistedNotesRootState {
   recentNotesRoots: NotesRootInfo[];
   currentNotesRootId: string | null;
   deletedNotesRootPaths?: string[];
+  restoredNotesRootPaths?: string[];
 }
 
 interface NotesRootStateFile {
@@ -110,13 +115,17 @@ function parseNotesRootStateFile(value: unknown): PersistedNotesRootState | null
   return {
     recentNotesRoots: normalizeRecentNotesRoots(Array.isArray(data.recentNotesRoots) ? data.recentNotesRoots : []),
     currentNotesRootId: typeof data.currentNotesRootId === 'string' ? data.currentNotesRootId : null,
-    deletedNotesRootPaths: Array.isArray(data.deletedNotesRootPaths)
-      ? data.deletedNotesRootPaths
-          .filter((path): path is string => typeof path === 'string')
-          .map(normalizeNotesRootPath)
-          .filter(Boolean)
-      : [],
+    deletedNotesRootPaths: normalizeDeletedNotesRootPaths(data.deletedNotesRootPaths),
   };
+}
+
+function resolvePersistedCurrentNotesRootId(
+  recentNotesRoots: NotesRootInfo[],
+  currentNotesRootId: string | null,
+): string | null {
+  return currentNotesRootId && recentNotesRoots.some((notesRoot) => notesRoot.id === currentNotesRootId)
+    ? currentNotesRootId
+    : null;
 }
 
 function mergeNotesRootStates(
@@ -127,11 +136,14 @@ function mergeNotesRootStates(
     return localState;
   }
 
+  const deletedNotesRootPaths = normalizeDeletedNotesRootPaths(fileState.deletedNotesRootPaths || []);
+  const recentNotesRoots = normalizeRecentNotesRoots([...fileState.recentNotesRoots, ...localState.recentNotesRoots])
+    .filter((notesRoot) => !deletedNotesRootPaths.includes(normalizeNotesRootPath(notesRoot.path)));
+
   return {
-    recentNotesRoots: normalizeRecentNotesRoots([...fileState.recentNotesRoots, ...localState.recentNotesRoots])
-      .filter((notesRoot) => !(fileState.deletedNotesRootPaths || []).includes(normalizeNotesRootPath(notesRoot.path))),
-    currentNotesRootId: fileState.currentNotesRootId,
-    deletedNotesRootPaths: fileState.deletedNotesRootPaths || [],
+    recentNotesRoots,
+    currentNotesRootId: resolvePersistedCurrentNotesRootId(recentNotesRoots, fileState.currentNotesRootId),
+    deletedNotesRootPaths,
   };
 }
 
@@ -171,36 +183,51 @@ function mergeNotesRootStateForSave(
   incomingState: PersistedNotesRootState,
   fileState: PersistedNotesRootState | null,
 ): PersistedNotesRootState {
-  const incomingPaths = new Set(incomingState.recentNotesRoots.map((notesRoot) => normalizeNotesRootPath(notesRoot.path)));
-  const deletedNotesRootPaths = new Set([
+  const deletedNotesRootPaths = new Set(normalizeDeletedNotesRootPaths([
     ...(fileState?.deletedNotesRootPaths || []),
     ...(incomingState.deletedNotesRootPaths || []),
-  ]);
-  incomingPaths.forEach((path) => deletedNotesRootPaths.delete(path));
+  ]));
+  normalizeDeletedNotesRootPaths(incomingState.restoredNotesRootPaths || [])
+    .forEach((path) => deletedNotesRootPaths.delete(path));
+  const normalizedDeletedNotesRootPaths = normalizeDeletedNotesRootPaths(Array.from(deletedNotesRootPaths));
+  const recentNotesRoots = normalizeRecentNotesRoots([
+    ...incomingState.recentNotesRoots,
+    ...(fileState?.recentNotesRoots || []),
+  ]).filter((notesRoot) => !deletedNotesRootPaths.has(normalizeNotesRootPath(notesRoot.path)));
 
   return {
-    recentNotesRoots: normalizeRecentNotesRoots([
-      ...incomingState.recentNotesRoots,
-      ...(fileState?.recentNotesRoots || []),
-    ]).filter((notesRoot) => !deletedNotesRootPaths.has(normalizeNotesRootPath(notesRoot.path))),
-    currentNotesRootId: incomingState.currentNotesRootId,
-    deletedNotesRootPaths: Array.from(deletedNotesRootPaths),
+    recentNotesRoots,
+    currentNotesRootId: resolvePersistedCurrentNotesRootId(recentNotesRoots, incomingState.currentNotesRootId),
+    deletedNotesRootPaths: normalizedDeletedNotesRootPaths,
   };
+}
+
+function queueNotesRootStateFileWrite(writeTask: () => Promise<void>): void {
+  notesRootStateFileWriteQueue = notesRootStateFileWriteQueue
+    .catch(() => undefined)
+    .then(writeTask)
+    .catch(() => undefined);
 }
 
 export function persistNotesRootState(
   recentNotesRoots: NotesRootInfo[],
   currentNotesRootId: string | null,
-  options: { deletedNotesRoots?: NotesRootInfo[] } = {},
+  options: { deletedNotesRoots?: NotesRootInfo[]; restoredNotesRoots?: NotesRootInfo[] } = {},
 ): void {
+  const persistRevision = ++notesRootStatePersistRevision;
   const state = {
     recentNotesRoots: normalizeRecentNotesRoots(recentNotesRoots),
     currentNotesRootId,
-    deletedNotesRootPaths: (options.deletedNotesRoots || []).map((notesRoot) => normalizeNotesRootPath(notesRoot.path)),
+    deletedNotesRootPaths: normalizeDeletedNotesRootPaths(
+      (options.deletedNotesRoots || []).map((notesRoot) => notesRoot.path)
+    ),
+    restoredNotesRootPaths: normalizeDeletedNotesRootPaths(
+      (options.restoredNotesRoots || []).map((notesRoot) => notesRoot.path)
+    ),
   };
   saveLocalNotesRootState(state);
 
-  void (async () => {
+  queueNotesRootStateFileWrite(async () => {
     try {
       const storage = getStorageAdapter();
       const statePath = await getNotesRootStatePath();
@@ -208,6 +235,9 @@ export function persistNotesRootState(
         return;
       }
       const mergedState = mergeNotesRootStateForSave(state, await readNotesRootStateFile());
+      if (persistRevision === notesRootStatePersistRevision) {
+        saveLocalNotesRootState(mergedState);
+      }
       const payload: NotesRootStateFile = {
         version: NOTES_ROOT_STATE_VERSION,
         recentNotesRoots: mergedState.recentNotesRoots,
@@ -217,7 +247,7 @@ export function persistNotesRootState(
       await storage.writeFile(statePath, JSON.stringify(payload, null, 2));
     } catch (error) {
     }
-  })();
+  });
 }
 
 export async function loadPersistedNotesRootState(): Promise<PersistedNotesRootState> {
@@ -276,6 +306,35 @@ function normalizeSafeNotesRootPath(path: string): string | null {
   }
 
   return normalizedPath;
+}
+
+function normalizeDeletedNotesRootPaths(paths: unknown): string[] {
+  if (!Array.isArray(paths)) {
+    return [];
+  }
+
+  const deletedNotesRootPaths: string[] = [];
+  const seenPaths = new Set<string>();
+
+  for (let index = paths.length - 1; index >= 0; index -= 1) {
+    const path = paths[index];
+    if (typeof path !== 'string') {
+      continue;
+    }
+    const normalizedPath = normalizeSafeNotesRootPath(path);
+    if (!normalizedPath || seenPaths.has(normalizedPath)) {
+      continue;
+    }
+
+    seenPaths.add(normalizedPath);
+    deletedNotesRootPaths.push(normalizedPath);
+
+    if (deletedNotesRootPaths.length >= MAX_DELETED_NOTES_ROOT_PATHS) {
+      break;
+    }
+  }
+
+  return deletedNotesRootPaths.reverse();
 }
 
 export function normalizeNotesRootInfo(notesRoot: NotesRootInfo): NotesRootInfo;
@@ -564,7 +623,9 @@ export function syncCurrentNotesRootExternalPathAction({
     ),
   ]);
 
-  persistNotesRootState(nextRecentNotesRoots, nextNotesRoot.id);
+  persistNotesRootState(nextRecentNotesRoots, nextNotesRoot.id, {
+    restoredNotesRoots: [nextNotesRoot],
+  });
 
   const notesState = useNotesStore.getState();
   const normalizedStarredNotesRootPath = normalizeStarredNotesRootPath(normalizedCurrentNotesRootPath);

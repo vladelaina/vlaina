@@ -306,6 +306,19 @@ describe('CoverRenderer', () => {
     expect(cropper?.className.includes('pointer-events-none')).toBe(false);
   });
 
+  it('does not show a static layout backdrop during ordinary rendering', () => {
+    const { container } = render(
+      <CoverRenderer
+        {...buildProps({
+          isImageReady: true,
+        })}
+      />
+    );
+
+    expect(container.querySelector('img[aria-hidden="true"]')).toBeNull();
+    expect(container.querySelector('[data-testid="cover-cropper"]')).not.toBeNull();
+  });
+
   it('keeps placeholder geometry aligned with the cropper when dimensions are known', () => {
     const { container } = render(
       <CoverRenderer

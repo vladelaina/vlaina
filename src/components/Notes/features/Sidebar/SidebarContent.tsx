@@ -1,51 +1,23 @@
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { SidebarSearchDrawer, useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
-import {
-  SidebarCapsulePanel,
-  SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT,
-} from '@/components/layout/sidebar/SidebarPrimitives';
+import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
+import { useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
-import { cn } from '@/lib/utils';
-import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
-import { StarredSection } from '../Starred';
-import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
-import {
-  NotesSidebarHoverEmptyHint,
-  NotesSidebarPillEmptyHint,
-  NotesSidebarScrollArea,
-} from './NotesSidebarPrimitives';
-import { NotesSidebarTopActions } from './NotesSidebarTopActions';
-import { type NotesSidebarSearchResult } from './notesSidebarSearchResults';
-import {
-  consumeSuppressedCurrentNoteSidebarReveal,
-  scheduleSidebarItemIntoView,
-  suppressNextCurrentNoteSidebarReveal,
-} from '../common/sidebarScrollIntoView';
+import { getEmptyWorkspaceRecentNotesRoots } from './SidebarEmptyWorkspacePanel';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
-import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
-import { NotesTagsSection } from './NotesTagsSection';
 import { useNotesSidebarTags } from './useNotesSidebarTags';
-import type { NotesSidebarTagPath } from './notesSidebarTags';
+import { useSidebarContentNavigation } from './useSidebarContentNavigation';
+import { useSidebarCurrentNoteReveal } from './useSidebarCurrentNoteReveal';
+import { useSidebarDisplayRootFolder } from './useSidebarDisplayRootFolder';
+import { useSidebarLiveNoteContent } from './useSidebarLiveNoteContent';
+import { useSidebarRenameShortcut } from './useSidebarRenameShortcut';
+import { SidebarContentView } from './SidebarContentView';
 
 const EMPTY_NOTE_CONTENTS_CACHE = new Map<string, { content: string; modifiedAt: number | null }>();
-const SidebarSearchResultsList = lazy(async () => {
-  const mod = await import('./SidebarSearchResultsList');
-  return { default: mod.SidebarSearchResultsList };
-});
-const RootFolderRow = lazy(async () => {
-  const mod = await import('./RootFolderRow');
-  return { default: mod.RootFolderRow };
-});
-type CurrentEditorView = Awaited<
-  ReturnType<typeof import('../Editor/utils/editorViewRegistry')['getCurrentEditorView']>
->;
-
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
@@ -89,6 +61,8 @@ export function SidebarContent({
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentNotesRoot = useNotesRootStore((s) => s.currentNotesRoot);
+  const recentNotesRoots = useNotesRootStore((s) => s.recentNotesRoots);
+  const openNotesRoot = useNotesRootStore((s) => s.openNotesRoot);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const currentDraftPreviewTitle = useUIStore((s) => {
     if (!currentNotePath || s.notesPreviewTitle?.path !== currentNotePath) {
@@ -99,9 +73,7 @@ export function SidebarContent({
   });
   const effectiveSearchOpen = active && search.isSearchOpen;
   const effectiveSearchQuery = active ? search.searchQuery : '';
-  const previousSearchQueryRef = useRef(effectiveSearchQuery);
   const deferredSearchQuery = useDeferredValue(effectiveSearchQuery);
-  const isCurrentDraftNote = Boolean(currentNotePath && isDraftNotePath(currentNotePath));
   const shouldSubscribeToSearchContents =
     active || (effectiveSearchOpen && deferredSearchQuery.trim().length >= 2);
   const noteContentsCache = useNotesStore((s) =>
@@ -117,85 +89,13 @@ export function SidebarContent({
   );
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const rootBlankAreaRef = useRef<HTMLDivElement | null>(null);
-  const [pendingNavigation, setPendingNavigation] = useState<{
-    path: string;
-    query: string;
-    contentMatchOrdinal: number | null;
-    previousView: CurrentEditorView;
-  } | null>(null);
-  const [activeSearchResultId, setActiveSearchResultId] = useState<string | null>(null);
-  const [selectedSearchResultIndex, setSelectedSearchResultIndex] = useState(0);
-  const [liveNoteContent, setLiveNoteContent] = useState<{ path: string; content: string } | null>(null);
-  const displayRootFolder = useMemo(() => {
-    if (!currentNotePath || !isCurrentDraftNote) {
-      return rootFolder;
-    }
-
-    const draftEntry = draftNotes[currentNotePath];
-    if (!draftEntry) {
-      return rootFolder;
-    }
-
-    if (
-      rootFolder &&
-      rootFolder.children.length === 0 &&
-      !draftEntry.name.trim() &&
-      !currentDraftPreviewTitle &&
-      isDraftNoteEmpty(currentDraftContent)
-    ) {
-      return rootFolder;
-    }
-
-    const draftNode = {
-      id: currentNotePath,
-      name: currentDraftPreviewTitle || resolveDraftNoteTitle(draftEntry.name),
-      path: currentNotePath,
-      isFolder: false as const,
-    };
-    const draftParentPath = draftEntry.parentPath ?? '';
-
-    if (!rootFolder) {
-      return rootFolder;
-    }
-
-    if (rootFolder.children.some((node) => node.path === currentNotePath)) {
-      return rootFolder;
-    }
-
-    if (draftParentPath !== '') {
-      let didInsert = false;
-      const injectDraftIntoFolder = (folder: FolderNode): FolderNode => {
-        if (folder.path === draftParentPath) {
-          didInsert = true;
-          return {
-            ...folder,
-            expanded: true,
-            children: folder.children.some((node) => node.path === currentNotePath)
-              ? folder.children
-              : [draftNode, ...folder.children],
-          };
-        }
-
-        const nextChildren = folder.children.map((node) => {
-          if (!node.isFolder) {
-            return node;
-          }
-
-          return injectDraftIntoFolder(node);
-        });
-
-        return didInsert ? { ...folder, children: nextChildren } : folder;
-      };
-
-      const nextRootFolder = injectDraftIntoFolder(rootFolder);
-      return didInsert ? nextRootFolder : rootFolder;
-    }
-
-    return {
-      ...rootFolder,
-      children: [draftNode, ...rootFolder.children],
-    };
-  }, [currentDraftContent, currentDraftPreviewTitle, currentNotePath, draftNotes, isCurrentDraftNote, rootFolder]);
+  const displayRootFolder = useSidebarDisplayRootFolder({
+    rootFolder,
+    currentNotePath,
+    draftNotes,
+    currentDraftPreviewTitle,
+    currentDraftContent,
+  });
   const {
     inputRef,
     scrollRootRef,
@@ -210,8 +110,6 @@ export function SidebarContent({
     onClose: search.closeSearch,
     scopeRef: sidebarRootRef,
   });
-  const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
-  const lastRevealedCurrentNotePathRef = useRef<string | null>(null);
   const hasNotesRootPendingRoot = Boolean(currentNotesRoot && notesPath === currentNotesRoot.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
@@ -226,6 +124,11 @@ export function SidebarContent({
     isSearchOpen: effectiveSearchOpen,
     starredEntries,
     currentNotesRootPath: currentNotesRoot?.path ?? notesPath,
+  });
+  const liveNoteContent = useSidebarLiveNoteContent({
+    active,
+    currentNotePath,
+    currentNoteTagContent,
   });
   const { tags } = useNotesSidebarTags({
     rootFolder: displayRootFolder,
@@ -245,300 +148,41 @@ export function SidebarContent({
   const hasLoadedRootFolder = Boolean(displayRootFolder);
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
   const shouldShowFloatingEmptyHint = !isLoading && !hasNotesRootPendingRoot && !hasLoadedRootFolder;
+  const shouldShowEmptyWorkspacePanel =
+    shouldShowInlineEmptyHint || (shouldShowFloatingEmptyHint && !sidebarCollapsed);
   const shouldRenderRootFolderRow = Boolean(
     displayRootFolder || hasNotesRootPendingRoot || shouldShowInlineEmptyHint,
   );
+  const recentEmptyWorkspaceNotesRoots = useMemo(() => (
+    getEmptyWorkspaceRecentNotesRoots(recentNotesRoots, currentNotesRoot?.path)
+  ), [currentNotesRoot?.path, recentNotesRoots]);
+  const {
+    activeSearchResultId,
+    handleOpenSearchResult,
+    handleOpenTagPath,
+    selectedSearchResult,
+    selectNextSearchResult,
+    selectPreviousSearchResult,
+  } = useSidebarContentNavigation({
+    active,
+    currentNotePath,
+    deferredSearchQuery,
+    effectiveSearchOpen,
+    effectiveSearchQuery,
+    openNote,
+    openNoteByAbsolutePath,
+    searchResults,
+  });
 
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-
-    const isMac =
-      typeof window !== 'undefined' &&
-      /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing) {
-        return;
-      }
-
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
-        return;
-      }
-
-      const isF2 = event.key === 'F2';
-      const isMacEnter = isMac && event.key === 'Enter';
-
-      if (!isF2 && !isMacEnter) {
-        return;
-      }
-
-      if (isEditableShortcutTarget(event.target) && !isF2) {
-        return;
-      }
-
-      if (!triggerHoveredSidebarRename()) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-    };
-
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [active]);
-
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-
-    const setNextLiveNoteContent = (next: { path: string; content: string } | null) => {
-      setLiveNoteContent((current) => (
-        current?.path === next?.path && current?.content === next?.content
-          ? current
-          : next
-      ));
-    };
-
-    setNextLiveNoteContent(
-      currentNotePath && currentNoteTagContent !== null
-        ? { path: currentNotePath, content: currentNoteTagContent }
-        : null,
-    );
-
-    const handleLiveMarkdownPreview = (event: Event) => {
-      const detail = (event as CustomEvent<{ path?: unknown; content?: unknown }>).detail;
-      if (
-        !detail ||
-        typeof detail.path !== 'string' ||
-        typeof detail.content !== 'string' ||
-        detail.path !== currentNotePath
-      ) {
-        return;
-      }
-
-      setNextLiveNoteContent({
-        path: detail.path,
-        content: stripManagedFrontmatter(detail.content),
-      });
-    };
-
-    window.addEventListener('editor:note-markdown-preview', handleLiveMarkdownPreview);
-    return () => {
-      window.removeEventListener('editor:note-markdown-preview', handleLiveMarkdownPreview);
-    };
-  }, [active, currentNotePath, currentNoteTagContent]);
-
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-
-    const wasShowingSearchResults = wasShowingSearchResultsRef.current;
-    wasShowingSearchResultsRef.current = shouldShowSearchResults;
-    const justLeftSearchResults = wasShowingSearchResults && !shouldShowSearchResults;
-
-    if (
-      shouldShowSearchResults ||
-      !currentNotePath ||
-      isDraftNotePath(currentNotePath) ||
-      isAbsolutePath(currentNotePath) ||
-      !displayRootFolder
-    ) {
-      return;
-    }
-
-    if (!justLeftSearchResults && lastRevealedCurrentNotePathRef.current === currentNotePath) {
-      return;
-    }
-
-    lastRevealedCurrentNotePathRef.current = currentNotePath;
-    if (consumeSuppressedCurrentNoteSidebarReveal(currentNotePath, scrollRootRef.current)) {
-      return;
-    }
-
-    revealFolder(currentNotePath);
-    scheduleSidebarItemIntoView(currentNotePath, 3);
-  }, [active, currentNotePath, displayRootFolder, revealFolder, shouldShowSearchResults]);
-
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-
-    if (previousSearchQueryRef.current !== effectiveSearchQuery) {
-      previousSearchQueryRef.current = effectiveSearchQuery;
-      setActiveSearchResultId(null);
-      setSelectedSearchResultIndex(0);
-    }
-
-    if (effectiveSearchOpen && effectiveSearchQuery.trim().length > 0) {
-      return;
-    }
-
-    void import('./sidebarSearchNavigation').then((mod) => {
-      mod.clearSidebarSearchHighlights();
-      mod.clearSidebarSearchNavigationPending();
-    }).catch(() => undefined);
-    setPendingNavigation(null);
-    setActiveSearchResultId(null);
-    setSelectedSearchResultIndex(0);
-  }, [active, effectiveSearchOpen, effectiveSearchQuery]);
-
-  useEffect(() => {
-    if (!activeSearchResultId) {
-      return;
-    }
-
-    if (!searchResults.some((result) => result.id === activeSearchResultId)) {
-      setActiveSearchResultId(null);
-    }
-  }, [activeSearchResultId, searchResults]);
-
-  useEffect(() => {
-    setSelectedSearchResultIndex((current) => {
-      if (!active || searchResults.length === 0) {
-        return 0;
-      }
-
-      return Math.min(current, searchResults.length - 1);
-    });
-  }, [active, searchResults.length]);
-
-  useEffect(() => {
-    if (!pendingNavigation || currentNotePath !== pendingNavigation.path) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void import('./sidebarSearchNavigation')
-      .then((mod) => mod.applySidebarSearchNavigation({
-        path: pendingNavigation.path,
-        query: pendingNavigation.query,
-        contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
-        previousView: pendingNavigation.previousView,
-        shouldContinue: () => !cancelled,
-      }))
-      .finally(() => {
-        if (!cancelled) {
-          setPendingNavigation((current) =>
-            current === pendingNavigation ? null : current,
-          );
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentNotePath, pendingNavigation]);
-
-  const handleOpenSearchResult = (result: NotesSidebarSearchResult) => {
-    const targetPath = result.openPath ?? result.path;
-    const isSameNote = currentNotePath === targetPath;
-    void Promise.all([
-      import('../Editor/utils/editorViewRegistry'),
-      import('./sidebarSearchNavigation'),
-    ]).then(([editorViewRegistry, searchNavigation]) => {
-      const previousView = isSameNote ? null : editorViewRegistry.getCurrentEditorView();
-      const nextNavigation = {
-        path: targetPath,
-        query: deferredSearchQuery,
-        contentMatchOrdinal: result.contentMatchOrdinal,
-        previousView,
-      };
-
-      if (!isSameNote) {
-        searchNavigation.markSidebarSearchNavigationPending(targetPath);
-      }
-      setPendingNavigation(nextNavigation);
-      setActiveSearchResultId(result.id);
-
-      if (isSameNote) {
-        return;
-      }
-
-      const openPromise = result.isExternal
-        ? openNoteByAbsolutePath(targetPath)
-        : openNote(targetPath);
-
-      void openPromise.catch(() => {
-        searchNavigation.clearSidebarSearchNavigationPending(targetPath);
-        setActiveSearchResultId((current) => (current === result.id ? null : current));
-        setPendingNavigation((current) =>
-          current === nextNavigation ? null : current,
-        );
-      });
-    }).catch(() => undefined);
-  };
-
-  const handleOpenTagPath = (target: NotesSidebarTagPath) => {
-    const isSameNote = currentNotePath === target.path;
-    if (!isSameNote && !isAbsolutePath(target.path)) {
-      suppressNextCurrentNoteSidebarReveal(target.path);
-    }
-
-    void Promise.all([
-      import('../Editor/utils/editorViewRegistry'),
-      import('./sidebarSearchNavigation'),
-    ]).then(([editorViewRegistry, searchNavigation]) => {
-      const previousView = isSameNote ? null : editorViewRegistry.getCurrentEditorView();
-      const nextNavigation = {
-        path: target.path,
-        query: target.query,
-        contentMatchOrdinal: target.contentMatchOrdinal,
-        previousView,
-      };
-
-      if (!isSameNote) {
-        searchNavigation.markSidebarSearchNavigationPending(target.path);
-      }
-      setPendingNavigation(nextNavigation);
-
-      if (isSameNote) {
-        return;
-      }
-
-      const openPromise = isAbsolutePath(target.path)
-        ? openNoteByAbsolutePath(target.path)
-        : openNote(target.path);
-
-      void openPromise.catch(() => {
-        searchNavigation.clearSidebarSearchNavigationPending(target.path);
-        setPendingNavigation((current) =>
-          current === nextNavigation ? null : current,
-        );
-      });
-    });
-  };
-
-  const selectedSearchResult = searchResults[selectedSearchResultIndex] ?? null;
-
-  const selectPreviousSearchResult = () => {
-    setSelectedSearchResultIndex((current) => {
-      if (searchResults.length === 0) {
-        return 0;
-      }
-
-      return (current - 1 + searchResults.length) % searchResults.length;
-    });
-  };
-
-  const selectNextSearchResult = () => {
-    setSelectedSearchResultIndex((current) => {
-      if (searchResults.length === 0) {
-        return 0;
-      }
-
-      return (current + 1) % searchResults.length;
-    });
-  };
+  useSidebarRenameShortcut(active);
+  useSidebarCurrentNoteReveal({
+    active,
+    currentNotePath,
+    displayRootFolder,
+    revealFolder,
+    scrollRootRef,
+    shouldShowSearchResults,
+  });
 
   const handleOpenMarkdownFile = () => {
     window.dispatchEvent(new Event('app-open-markdown-target-file'));
@@ -548,113 +192,52 @@ export function SidebarContent({
     window.dispatchEvent(new Event('app-open-markdown-target-folder'));
   };
 
+  const handleOpenRecentNotesRoot = (path: string) => {
+    void openNotesRoot(path).catch(() => undefined);
+  };
+
   return (
-    <div
-      ref={sidebarRootRef}
-      className={cn('group/sidebar-content relative flex h-full min-h-0 flex-col', className)}
-    >
-      <SidebarSearchDrawer
-        isSearchOpen={effectiveSearchOpen}
-        shouldShowTopActions={false}
-        searchQuery={effectiveSearchQuery}
-        setSearchQuery={search.setSearchQuery}
-        inputRef={inputRef}
-        hideSearch={hideSearch}
-        canSubmit={Boolean(selectedSearchResult)}
-        onSubmit={() => {
-          const result = selectedSearchResult;
-          if (!result) {
-            return;
-          }
-          handleOpenSearchResult(result);
-        }}
-        canSelectPrevious={searchResults.length > 0}
-        canSelectNext={searchResults.length > 0}
-        onSelectPrevious={selectPreviousSearchResult}
-        onSelectNext={selectNextSearchResult}
-        placeholder=""
-        closeLabel={t('notes.closeSidebarSearch')}
-        topActions={null}
-      />
-
-      <SidebarCapsulePanel>
-        {!shouldShowSearchResults ? <NotesSidebarTopActions /> : null}
-
-        <NotesSidebarScrollArea
-          ref={scrollRootRef}
-          className={cn(isPeeking ? 'app-scrollbar-rounded pt-4 pb-4' : 'pt-0')}
-          scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
-          data-notes-sidebar-scroll-root="true"
-          onScroll={handleScroll}
-        >
-          {shouldShowSearchResults ? (
-            <Suspense fallback={null}>
-              <SidebarSearchResultsList
-                results={searchResults}
-                query={deferredSearchQuery}
-                currentNotePath={currentNotePath}
-                activeResultId={activeSearchResultId}
-                highlightedResultId={selectedSearchResult?.id ?? null}
-                onOpen={handleOpenSearchResult}
-                scrollRootRef={scrollRootRef}
-                isContentScanPending={isContentScanPending}
-              />
-            </Suspense>
-          ) : (
-            <div className="relative flex min-h-full flex-col">
-              <StarredSection showTitle={false} />
-              {shouldRenderRootFolderRow ? (
-                <Suspense fallback={null}>
-                  <RootFolderRow
-                    rootFolder={displayRootFolder}
-                    isLoading={isLoading}
-                    onCreateNote={createNote}
-                    onCreateFolder={() => createFolder('')}
-                    blankContextMenuRef={rootBlankAreaRef}
-                    scrollRootRef={scrollRootRef}
-                    active={active}
-                  />
-                </Suspense>
-              ) : null}
-              <NotesTagsSection
-                tags={tags}
-                currentNotePath={currentNotePath}
-                getDisplayName={getDisplayName}
-                onOpenNote={handleOpenTagPath}
-              />
-              <div
-                ref={rootBlankAreaRef}
-                data-notes-sidebar-blank-drag-root="true"
-                className={cn(
-                  'flex flex-1 justify-center',
-                  hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[var(--vlaina-size-160px)] items-center',
-                )}
-              >
-                {shouldShowInlineEmptyHint ? (
-                  <NotesSidebarPillEmptyHint
-                    actions={[
-                      { label: t('notes.file'), onAction: handleOpenMarkdownFile },
-                      { label: t('notes.folder'), onAction: handleOpenFolder },
-                    ]}
-                  />
-                ) : null}
-              </div>
-            </div>
-          )}
-        </NotesSidebarScrollArea>
-      </SidebarCapsulePanel>
-      {shouldShowFloatingEmptyHint && !sidebarCollapsed ? (
-        <div className="pointer-events-none fixed bottom-5 left-4 z-[var(--vlaina-z-50)] flex w-[var(--vlaina-width-sidebar-content-inner)] justify-center">
-          <NotesSidebarHoverEmptyHint
-            actions={[
-              { label: t('notes.file'), onAction: handleOpenMarkdownFile },
-              { label: t('notes.folder'), onAction: handleOpenFolder },
-            ]}
-            placement="inline"
-            visible
-          />
-        </div>
-      ) : null}
-    </div>
+    <SidebarContentView
+      active={active}
+      activeSearchResultId={activeSearchResultId}
+      className={className}
+      closeSearchLabel={t('notes.closeSidebarSearch')}
+      createFolder={createFolder}
+      createNote={createNote}
+      currentNotePath={currentNotePath}
+      deferredSearchQuery={deferredSearchQuery}
+      displayRootFolder={displayRootFolder}
+      effectiveSearchOpen={effectiveSearchOpen}
+      effectiveSearchQuery={effectiveSearchQuery}
+      folderLabel={t('notes.folder')}
+      getDisplayName={getDisplayName}
+      handleOpenRecentNotesRoot={handleOpenRecentNotesRoot}
+      handleOpenSearchResult={handleOpenSearchResult}
+      handleOpenTagPath={handleOpenTagPath}
+      handleScroll={handleScroll}
+      hasFileTreeEntries={hasFileTreeEntries}
+      hideSearch={hideSearch}
+      inputRef={inputRef}
+      isContentScanPending={isContentScanPending}
+      isLoading={isLoading}
+      isPeeking={isPeeking}
+      openFileLabel={t('notes.file')}
+      openFolderLabel={t('notes.folder')}
+      onOpenFile={handleOpenMarkdownFile}
+      onOpenFolder={handleOpenFolder}
+      recentNotesRoots={recentEmptyWorkspaceNotesRoots}
+      rootBlankAreaRef={rootBlankAreaRef}
+      scrollRootRef={scrollRootRef}
+      searchResults={searchResults}
+      selectedSearchResult={selectedSearchResult}
+      setSearchQuery={search.setSearchQuery}
+      shouldRenderRootFolderRow={shouldRenderRootFolderRow}
+      shouldShowEmptyWorkspacePanel={shouldShowEmptyWorkspacePanel}
+      shouldShowSearchResults={shouldShowSearchResults}
+      sidebarRootRef={sidebarRootRef}
+      tags={tags}
+      selectNextSearchResult={selectNextSearchResult}
+      selectPreviousSearchResult={selectPreviousSearchResult}
+    />
   );
 }

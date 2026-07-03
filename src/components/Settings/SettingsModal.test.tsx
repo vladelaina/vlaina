@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearCachedDesktopUpdateInfo, writeCachedDesktopUpdateInfo } from '@/lib/desktop/updateStatus';
 import { SettingsModal } from './SettingsModal';
 
+const mocks = vi.hoisted(() => ({
+  setTitleBarOverlayVisible: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
   motion: {
@@ -72,6 +76,12 @@ vi.mock('@/stores/ai/providerActions', () => ({
   },
 }));
 
+vi.mock('@/lib/desktop/window', () => ({
+  desktopWindow: {
+    setTitleBarOverlayVisible: mocks.setTitleBarOverlayVisible,
+  },
+}));
+
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({
     t: (key: string) => ({
@@ -124,6 +134,32 @@ describe('SettingsModal', () => {
     vi.clearAllMocks();
   });
 
+  it('hides the native Windows titlebar overlay while settings is open', async () => {
+    const { rerender } = render(
+      <SettingsModal
+        open
+        communitySettings={communitySettings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mocks.setTitleBarOverlayVisible).toHaveBeenCalledWith(false);
+    });
+
+    rerender(
+      <SettingsModal
+        open={false}
+        communitySettings={communitySettings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mocks.setTitleBarOverlayVisible).toHaveBeenLastCalledWith(true);
+    });
+  });
+
   it('marks the About tab when a cached desktop update is available', async () => {
     writeCachedDesktopUpdateInfo({
       currentVersion: '0.1.16',
@@ -158,7 +194,7 @@ describe('SettingsModal', () => {
     });
   });
 
-  it('handles wheel scrolling on the settings content root', () => {
+  it('leaves wheel scrolling on the settings content root to the browser', () => {
     render(
       <SettingsModal
         open
@@ -173,10 +209,10 @@ describe('SettingsModal', () => {
     setScrollMetrics(scrollRoot!, { clientHeight: 200, scrollHeight: 800, scrollTop: 0 });
     fireEvent.wheel(scrollRoot!, { deltaY: 160 });
 
-    expect(scrollRoot!.scrollTop).toBe(160);
+    expect(scrollRoot!.scrollTop).toBe(0);
   });
 
-  it('handles wheel scrolling on the settings sidebar root', () => {
+  it('leaves wheel scrolling on the settings sidebar root to the browser', () => {
     render(
       <SettingsModal
         open
@@ -191,6 +227,6 @@ describe('SettingsModal', () => {
     setScrollMetrics(scrollRoot!, { clientHeight: 120, scrollHeight: 360, scrollTop: 10 });
     fireEvent.wheel(scrollRoot!, { deltaY: 80 });
 
-    expect(scrollRoot!.scrollTop).toBe(90);
+    expect(scrollRoot!.scrollTop).toBe(10);
   });
 });

@@ -308,6 +308,12 @@ const desktopApi = {
     setSize(width, height) {
       return ipcRenderer.invoke('desktop:window:set-size', width, height);
     },
+    setThemeColors(colors) {
+      return ipcRenderer.invoke('desktop:window:set-theme-colors', colors);
+    },
+    setTitleBarOverlayVisible(visible) {
+      return ipcRenderer.invoke('desktop:window:set-titlebar-overlay-visible', visible);
+    },
     center() {
       return ipcRenderer.invoke('desktop:window:center');
     },

@@ -15,6 +15,7 @@ export function AIBehaviorSettings() {
   } = useAIStore();
   const [draftSystemPrompt, setDraftSystemPrompt] = useState(customSystemPrompt);
   const isEditingPromptRef = useRef(false);
+  const isComposingPromptRef = useRef(false);
   const latestDraftRef = useRef(draftSystemPrompt);
   const latestPersistedPromptRef = useRef(customSystemPrompt);
 
@@ -32,6 +33,7 @@ export function AIBehaviorSettings() {
   useEffect(() => {
     return () => {
       if (!isEditingPromptRef.current) return;
+      if (isComposingPromptRef.current) return;
       const latestDraft = latestDraftRef.current;
       const latestPersistedPrompt = latestPersistedPromptRef.current;
       if (latestDraft !== latestPersistedPrompt) {
@@ -41,6 +43,9 @@ export function AIBehaviorSettings() {
   }, [setCustomSystemPrompt]);
 
   const commitPromptDraft = () => {
+    if (isComposingPromptRef.current) {
+      return;
+    }
     if (draftSystemPrompt !== customSystemPrompt) {
       setCustomSystemPrompt(draftSystemPrompt);
     }
@@ -62,6 +67,12 @@ export function AIBehaviorSettings() {
             setDraftSystemPrompt(event.target.value);
           }}
           onBlur={commitPromptDraft}
+          onCompositionStart={() => {
+            isComposingPromptRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            isComposingPromptRef.current = false;
+          }}
           maxLength={SYSTEM_PROMPT_MAX_LENGTH}
           rows={1}
           placeholder={t('settings.ai.systemPromptPlaceholder')}

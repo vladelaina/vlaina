@@ -1,6 +1,8 @@
 import type { Ctx } from '@milkdown/ctx'
+import type { EditorView } from '@milkdown/kit/prose/view'
 
 import { commandsCtx, editorViewCtx } from '@milkdown/core'
+import { Selection } from '@milkdown/kit/prose/state'
 import { TableMap } from '@milkdown/kit/prose/tables'
 import {
   addColAfterCommand,
@@ -88,6 +90,19 @@ export function useOperation(
     run()
   }
 
+  const restoreSelectionNear = (view: EditorView, from: number) => {
+    const docSize = view.state.doc.content.size
+    const safeFrom = Math.max(0, Math.min(from, docSize))
+    const selection = Selection.near(view.state.doc.resolve(safeFrom), 1)
+    view.dispatch(view.state.tr.setSelection(selection))
+  }
+
+  const markTableUserInput = (view: EditorView) => {
+    view.dom.dispatchEvent(
+      new CustomEvent('editor:block-user-input', { bubbles: true })
+    )
+  }
+
   const isCellEmpty = (rowIndex: number, colIndex: number) => {
     const table = getTableNode()
     const cell = table?.child(rowIndex)?.child(colIndex)
@@ -102,7 +117,8 @@ export function useOperation(
     const [rowIndex] = lineHoverIndex.value!
     if (rowIndex < 0) return
 
-    if (!ctx.get(editorViewCtx).editable) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
 
     const shape = getTableShape()
     if (!shape || shape.rowCount === 0 || rowIndex > shape.rowCount) return
@@ -110,7 +126,9 @@ export function useOperation(
     const commands = ctx.get(commandsCtx)
     const pos = getCommandPos()
     if (pos == null) return
+    const selectionFrom = view.state.selection.from
     preserveTableScroll(() => {
+      markTableUserInput(view)
       if (shape.rowCount === rowIndex) {
         commands.call(selectRowCommand.key, { pos, index: rowIndex - 1 })
         commands.call(addRowAfterCommand.key)
@@ -119,7 +137,7 @@ export function useOperation(
         commands.call(addRowBeforeCommand.key)
       }
 
-      commands.call(selectRowCommand.key, { pos, index: rowIndex })
+      restoreSelectionNear(view, selectionFrom)
     })
     xHandle.dataset.show = 'false'
   }
@@ -132,7 +150,8 @@ export function useOperation(
     const [_, colIndex] = lineHoverIndex.value!
     if (colIndex < 0) return
 
-    if (!ctx.get(editorViewCtx).editable) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
 
     const shape = getTableShape()
     if (!shape || shape.colCount === 0 || colIndex > shape.colCount) return
@@ -140,7 +159,9 @@ export function useOperation(
     const commands = ctx.get(commandsCtx)
     const pos = getCommandPos()
     if (pos == null) return
+    const selectionFrom = view.state.selection.from
     preserveTableScroll(() => {
+      markTableUserInput(view)
       if (shape.colCount === colIndex) {
         commands.call(selectColCommand.key, { pos, index: colIndex - 1 })
         commands.call(addColAfterCommand.key)
@@ -149,13 +170,14 @@ export function useOperation(
         commands.call(addColBeforeCommand.key)
       }
 
-      commands.call(selectColCommand.key, { pos, index: colIndex })
+      restoreSelectionNear(view, selectionFrom)
     })
   }
 
   const onAppendRow = () => {
     if (!ctx) return
-    if (!ctx.get(editorViewCtx).editable) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
 
     const shape = getTableShape()
     if (!shape || shape.rowCount === 0) return
@@ -164,16 +186,20 @@ export function useOperation(
     const pos = getCommandPos()
     if (pos == null) return
     const lastRowIndex = shape.rowCount - 1
+    const selectionFrom = view.state.selection.from
 
     preserveTableScroll(() => {
+      markTableUserInput(view)
       commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
       commands.call(addRowAfterCommand.key)
+      restoreSelectionNear(view, selectionFrom)
     })
   }
 
   const onAppendCol = () => {
     if (!ctx) return
-    if (!ctx.get(editorViewCtx).editable) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
 
     const shape = getTableShape()
     if (!shape || shape.colCount === 0) return
@@ -182,10 +208,13 @@ export function useOperation(
     const pos = getCommandPos()
     if (pos == null) return
     const lastColIndex = shape.colCount - 1
+    const selectionFrom = view.state.selection.from
 
     preserveTableScroll(() => {
+      markTableUserInput(view)
       commands.call(selectColCommand.key, { pos, index: lastColIndex })
       commands.call(addColAfterCommand.key)
+      restoreSelectionNear(view, selectionFrom)
     })
   }
 
@@ -224,6 +253,7 @@ export function useOperation(
     const lastRowIndex = shape.rowCount - 1
 
     preserveTableScroll(() => {
+      markTableUserInput(ctx.get(editorViewCtx))
       commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
       commands.call(deleteSelectedCellsCommand.key)
     })
@@ -242,6 +272,7 @@ export function useOperation(
     const lastColIndex = shape.colCount - 1
 
     preserveTableScroll(() => {
+      markTableUserInput(ctx.get(editorViewCtx))
       commands.call(selectColCommand.key, { pos, index: lastColIndex })
       commands.call(deleteSelectedCellsCommand.key)
     })
@@ -262,6 +293,7 @@ export function useOperation(
     if (pos == null) return
 
     preserveTableScroll(() => {
+      markTableUserInput(ctx.get(editorViewCtx))
       commands.call(moveColCommand.key, {
         pos,
         from,
@@ -286,6 +318,7 @@ export function useOperation(
     if (pos == null) return
 
     preserveTableScroll(() => {
+      markTableUserInput(ctx.get(editorViewCtx))
       commands.call(moveRowCommand.key, {
         pos,
         from,
@@ -296,10 +329,12 @@ export function useOperation(
 
   const runWithSelectedCol = (
     index: number,
-    effect: (commands: { call: (key: unknown, payload?: unknown) => unknown }) => void
+    effect: (commands: { call: (key: unknown, payload?: unknown) => unknown }) => void,
+    restoreSelection = false
   ) => {
     if (!ctx) return
-    if (!ctx.get(editorViewCtx).editable) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
 
     const shape = getTableShape()
     if (!shape) return
@@ -308,23 +343,26 @@ export function useOperation(
     const commands = ctx.get(commandsCtx)
     const pos = getCommandPos()
     if (pos == null) return
+    const selectionFrom = view.state.selection.from
 
     preserveTableScroll(() => {
+      markTableUserInput(view)
       commands.call(selectColCommand.key, { pos, index })
       effect(commands)
+      if (restoreSelection) restoreSelectionNear(view, selectionFrom)
     })
   }
 
   const onInsertColLeft = (index: number) => {
     runWithSelectedCol(index, (commands) => {
       commands.call(addColBeforeCommand.key)
-    })
+    }, true)
   }
 
   const onInsertColRight = (index: number) => {
     runWithSelectedCol(index, (commands) => {
       commands.call(addColAfterCommand.key)
-    })
+    }, true)
   }
 
   const onDeleteCol = (index: number) => {
@@ -357,6 +395,7 @@ export function useOperation(
     if (cells.length === 0) return
 
     preserveTableScroll(() => {
+      markTableUserInput(view)
       let tr = view.state.tr
       for (const cell of cells) {
         const emptyParagraph = paragraphType.createAndFill?.()
@@ -371,10 +410,12 @@ export function useOperation(
 
   const runWithSelectedRow = (
     index: number,
-    effect: (commands: { call: (key: unknown, payload?: unknown) => unknown }) => void
+    effect: (commands: { call: (key: unknown, payload?: unknown) => unknown }) => void,
+    restoreSelection = false
   ) => {
     if (!ctx) return
-    if (!ctx.get(editorViewCtx).editable) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
 
     const shape = getTableShape()
     if (!shape) return
@@ -383,23 +424,26 @@ export function useOperation(
     const commands = ctx.get(commandsCtx)
     const pos = getCommandPos()
     if (pos == null) return
+    const selectionFrom = view.state.selection.from
 
     preserveTableScroll(() => {
+      markTableUserInput(view)
       commands.call(selectRowCommand.key, { pos, index })
       effect(commands)
+      if (restoreSelection) restoreSelectionNear(view, selectionFrom)
     })
   }
 
   const onInsertRowAbove = (index: number) => {
     runWithSelectedRow(index, (commands) => {
       commands.call(addRowBeforeCommand.key)
-    })
+    }, true)
   }
 
   const onInsertRowBelow = (index: number) => {
     runWithSelectedRow(index, (commands) => {
       commands.call(addRowAfterCommand.key)
-    })
+    }, true)
   }
 
   const onDeleteRow = (index: number) => {
@@ -432,6 +476,7 @@ export function useOperation(
     if (cells.length === 0) return
 
     preserveTableScroll(() => {
+      markTableUserInput(view)
       let tr = view.state.tr
       for (const cell of cells) {
         const emptyParagraph = paragraphType.createAndFill?.()

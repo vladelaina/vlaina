@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('notesRootStoreSupport broadcast channel guards', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -151,6 +161,150 @@ describe('notesRootStoreSupport persistence merging', () => {
       'notes-root-other',
     ]);
     expect(payload.currentNotesRootId).toBe('notes-root-local');
+  });
+
+  it('serializes notesRoot state file writes so the latest current folder wins', async () => {
+    const firstWrite = createDeferred();
+    let writeCount = 0;
+    const storage = {
+      getBasePath: vi.fn(async () => '/app'),
+      exists: vi.fn(async () => false),
+      readFile: vi.fn(async () => {
+        throw new Error('Missing state files should not be read');
+      }),
+      stat: vi.fn(async () => null),
+      writeFile: vi.fn(async () => {
+        writeCount += 1;
+        if (writeCount === 1) {
+          await firstWrite.promise;
+        }
+      }),
+      mkdir: vi.fn(async () => undefined),
+    };
+    vi.doMock('@/lib/storage/adapter', () => ({
+      getStorageAdapter: () => storage,
+      joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
+      getBaseName: (path: string) => path.split('/').pop() || '',
+      getParentPath: (path: string) => path.split('/').slice(0, -1).join('/'),
+    }));
+    vi.doMock('@/lib/storage/paths', () => ({
+      ensureDirectories: () => Promise.resolve(),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
+    }));
+
+    const { persistNotesRootState } = await import('./notesRootStoreSupport');
+    persistNotesRootState([
+      { id: 'notes-root-a', name: 'A', path: '/notesRoot/a', lastOpened: 1 },
+    ], 'notes-root-a');
+
+    await vi.waitFor(() => {
+      expect(storage.writeFile).toHaveBeenCalledTimes(1);
+    });
+
+    persistNotesRootState([
+      { id: 'notes-root-b', name: 'B', path: '/notesRoot/b', lastOpened: 2 },
+    ], 'notes-root-b');
+    await Promise.resolve();
+    expect(storage.writeFile).toHaveBeenCalledTimes(1);
+
+    firstWrite.resolve();
+
+    await vi.waitFor(() => {
+      expect(storage.writeFile).toHaveBeenCalledTimes(2);
+    });
+
+    const writeCalls = storage.writeFile.mock.calls as unknown as Array<[string, string]>;
+    const latestPayload = JSON.parse(String(writeCalls.at(-1)?.[1]));
+    expect(latestPayload.currentNotesRootId).toBe('notes-root-b');
+    expect(latestPayload.recentNotesRoots).toEqual([
+      expect.objectContaining({ id: 'notes-root-b', path: '/notesRoot/b' }),
+    ]);
+  });
+
+  it('writes tombstone-filtered merged notesRoot state back to localStorage', async () => {
+    const removedNotesRoot = { id: 'notes-root-removed', name: 'Removed', path: '/notesRoot/removed', lastOpened: 1 };
+    const keptNotesRoot = { id: 'notes-root-kept', name: 'Kept', path: '/notesRoot/kept', lastOpened: 2 };
+    const storage = {
+      getBasePath: vi.fn(async () => '/app'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/notes/state.json'),
+      readFile: vi.fn(async () => JSON.stringify({
+        version: 1,
+        recentNotesRoots: [removedNotesRoot],
+        currentNotesRootId: 'notes-root-removed',
+        deletedNotesRootPaths: ['/notesRoot/removed'],
+      })),
+      stat: vi.fn(async () => ({ isDirectory: false, isFile: true })),
+      writeFile: vi.fn(async () => undefined),
+      mkdir: vi.fn(async () => undefined),
+    };
+    vi.doMock('@/lib/storage/adapter', () => ({
+      getStorageAdapter: () => storage,
+      joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
+      getBaseName: (path: string) => path.split('/').pop() || '',
+      getParentPath: (path: string) => path.split('/').slice(0, -1).join('/'),
+    }));
+    vi.doMock('@/lib/storage/paths', () => ({
+      ensureDirectories: () => Promise.resolve(),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
+    }));
+
+    const { NOTES_ROOTS_STORAGE_KEY, persistNotesRootState } = await import('./notesRootStoreSupport');
+    persistNotesRootState([removedNotesRoot, keptNotesRoot], 'notes-root-kept');
+
+    await vi.waitFor(() => {
+      expect(storage.writeFile).toHaveBeenCalledTimes(1);
+    });
+
+    const writeCalls = storage.writeFile.mock.calls as unknown as Array<[string, string]>;
+    const payload = JSON.parse(String(writeCalls[0]?.[1]));
+    expect(payload.recentNotesRoots).toEqual([
+      expect.objectContaining({ id: 'notes-root-kept', path: '/notesRoot/kept' }),
+    ]);
+    expect(payload.currentNotesRootId).toBe('notes-root-kept');
+    expect(payload.deletedNotesRootPaths).toEqual(['/notesRoot/removed']);
+    expect(JSON.parse(localStorage.getItem(NOTES_ROOTS_STORAGE_KEY) || '[]')).toEqual([
+      expect.objectContaining({ id: 'notes-root-kept', path: '/notesRoot/kept' }),
+    ]);
+  });
+
+  it('bounds deleted notesRoot tombstones persisted to the state file', async () => {
+    const deletedNotesRootPaths = Array.from({ length: 120 }, (_value, index) => `/notesRoot/deleted-${index}`);
+    const storage = {
+      getBasePath: vi.fn(async () => '/app'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/notes/state.json'),
+      readFile: vi.fn(async () => JSON.stringify({
+        version: 1,
+        recentNotesRoots: [],
+        currentNotesRootId: null,
+        deletedNotesRootPaths,
+      })),
+      stat: vi.fn(async () => ({ isDirectory: false, isFile: true })),
+      writeFile: vi.fn(async () => undefined),
+      mkdir: vi.fn(async () => undefined),
+    };
+    vi.doMock('@/lib/storage/adapter', () => ({
+      getStorageAdapter: () => storage,
+      joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
+      getBaseName: (path: string) => path.split('/').pop() || '',
+      getParentPath: (path: string) => path.split('/').slice(0, -1).join('/'),
+    }));
+    vi.doMock('@/lib/storage/paths', () => ({
+      ensureDirectories: () => Promise.resolve(),
+      getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
+    }));
+
+    const { persistNotesRootState } = await import('./notesRootStoreSupport');
+    persistNotesRootState([], null);
+
+    await vi.waitFor(() => {
+      expect(storage.writeFile).toHaveBeenCalledTimes(1);
+    });
+
+    const writeCalls = storage.writeFile.mock.calls as unknown as Array<[string, string]>;
+    const payload = JSON.parse(String(writeCalls[0]?.[1]));
+    expect(payload.deletedNotesRootPaths).toHaveLength(100);
+    expect(payload.deletedNotesRootPaths[0]).toBe('/notesRoot/deleted-20');
+    expect(payload.deletedNotesRootPaths.at(-1)).toBe('/notesRoot/deleted-119');
   });
 
   it('does not resurrect a notesRoot explicitly removed from recent list', async () => {

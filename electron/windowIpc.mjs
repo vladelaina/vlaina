@@ -5,6 +5,29 @@ const { BrowserWindow } = electron;
 const MIN_WINDOW_DIMENSION = 1;
 const MAX_WINDOW_DIMENSION = 8192;
 const MAX_WINDOW_DIMENSION_INPUT_CHARS = 64;
+const CSS_COLOR_PATTERN = /^(?:#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+)$/;
+const MAX_CSS_COLOR_CHARS = 80;
+const DEFAULT_TITLE_BAR_OVERLAY_OPTIONS = Object.freeze({
+  color: '#fcfcfc',
+  symbolColor: '#27262b',
+  height: 40,
+});
+const HIDDEN_TITLE_BAR_OVERLAY_HEIGHT = 0;
+
+const titleBarOverlayOptionsByWindow = new WeakMap();
+const hiddenTitleBarOverlayWindows = new WeakSet();
+
+function normalizeCssColor(value, label) {
+  if (typeof value !== 'string') {
+    throw new Error(`${label} must be a CSS color string.`);
+  }
+
+  const color = value.trim();
+  if (color.length === 0 || color.length > MAX_CSS_COLOR_CHARS || !CSS_COLOR_PATTERN.test(color)) {
+    throw new Error(`${label} must be a safe CSS color string.`);
+  }
+  return color;
+}
 
 function readFiniteWindowDimension(value) {
   if (typeof value === 'number') {
@@ -30,6 +53,27 @@ export function normalizeWindowDimension(value, label) {
     MAX_WINDOW_DIMENSION,
     Math.max(MIN_WINDOW_DIMENSION, Math.round(dimension)),
   );
+}
+
+function getTitleBarOverlayOptions(window) {
+  return titleBarOverlayOptionsByWindow.get(window) ?? DEFAULT_TITLE_BAR_OVERLAY_OPTIONS;
+}
+
+function applyTitleBarOverlayState(window) {
+  if (process.platform !== 'win32' || typeof window?.setTitleBarOverlay !== 'function') {
+    return false;
+  }
+
+  if (hiddenTitleBarOverlayWindows.has(window)) {
+    window.setTitleBarOverlay({
+      ...getTitleBarOverlayOptions(window),
+      height: HIDDEN_TITLE_BAR_OVERLAY_HEIGHT,
+    });
+    return true;
+  }
+
+  window.setTitleBarOverlay(getTitleBarOverlayOptions(window));
+  return true;
 }
 
 export function registerWindowIpc({
@@ -94,6 +138,39 @@ export function registerWindowIpc({
       normalizeWindowDimension(width, 'window width'),
       normalizeWindowDimension(height, 'window height'),
     );
+  });
+
+  handleIpc('desktop:window:set-theme-colors', (event, colors) => {
+    const window = resolveTargetWindow(event);
+    if (!window) return false;
+
+    const backgroundColor = normalizeCssColor(colors?.backgroundColor, 'background color');
+    const titleBarOverlayColor = normalizeCssColor(colors?.titleBarOverlayColor, 'titlebar overlay color');
+    const titleBarSymbolColor = normalizeCssColor(colors?.titleBarSymbolColor, 'titlebar symbol color');
+
+    window.setBackgroundColor(backgroundColor);
+    if (process.platform === 'win32') {
+      titleBarOverlayOptionsByWindow.set(window, {
+        color: titleBarOverlayColor,
+        symbolColor: titleBarSymbolColor,
+        height: getTitleBarOverlayOptions(window).height,
+      });
+      applyTitleBarOverlayState(window);
+    }
+    return true;
+  });
+
+  handleIpc('desktop:window:set-titlebar-overlay-visible', (event, visible) => {
+    const window = resolveTargetWindow(event);
+    if (!window) return false;
+
+    if (visible) {
+      hiddenTitleBarOverlayWindows.delete(window);
+    } else {
+      hiddenTitleBarOverlayWindows.add(window);
+    }
+
+    return applyTitleBarOverlayState(window);
   });
 
   handleIpc('desktop:window:center', (event) => {

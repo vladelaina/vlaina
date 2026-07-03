@@ -32,6 +32,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   const resizeTimeoutRef = useRef<number | null>(null);
   const lastInvalidToastAtRef = useRef(0);
   const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
+  const isComposingRef = useRef(false);
   const renameNote = useNotesStore(s => s.renameNote);
   const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
   const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
@@ -174,6 +175,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
 
   const commitTitleIfNeeded = useCallback(async () => {
     if (isCommittingRef.current) return;
+    if (isComposingRef.current) return;
     const trimmed = title.trim();
     if (!trimmed) {
       if (isDraftNotePath(notePath)) {
@@ -310,6 +312,12 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
       spellCheck={false}
       value={title}
       onChange={handleChange}
+      onCompositionStart={() => {
+        isComposingRef.current = true;
+      }}
+      onCompositionEnd={() => {
+        isComposingRef.current = false;
+      }}
       onFocus={handleTitleInteraction}
       onPointerDown={handleTitleInteraction}
       onBlur={handleBlur}

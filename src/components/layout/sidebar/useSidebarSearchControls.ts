@@ -105,6 +105,10 @@ export function useSidebarSearchControls({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
       if (
         event.key !== 'Escape'
       ) {

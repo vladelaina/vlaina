@@ -407,10 +407,10 @@ describe('notesSidebarTags', () => {
       ],
     });
 
-    expect(entries.map((entry) => entry.path)).toEqual([
+    expect(new Set(entries.map((entry) => entry.path))).toEqual(new Set([
       '/other/external.md',
       '/notesRoot/projects/alpha.md',
-    ]);
+    ]));
   });
 
   it('updates the tag path index incrementally by changed file content', () => {

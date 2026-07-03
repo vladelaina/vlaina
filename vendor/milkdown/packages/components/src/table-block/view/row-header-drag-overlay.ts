@@ -101,6 +101,10 @@ function renderControl(
       },
       onPointerdown: (event: PointerEvent) =>
         props.onControlPointerDown(control.index, event),
+      onMousedown: (event: MouseEvent) => {
+        event.preventDefault()
+        event.stopPropagation()
+      },
       onClick: (event: MouseEvent) => props.onControlClick(control.index, event),
       onKeydown: (event: KeyboardEvent) =>
         props.onControlKeyDown(control.index, event),

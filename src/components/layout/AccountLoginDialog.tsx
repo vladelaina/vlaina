@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { themeBackdropTokens } from '@/styles/themeTokens';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
+import { useNativeTitleBarOverlayHidden } from '@/hooks/useNativeTitleBarOverlayHidden';
 
 interface AccountLoginDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
   const closeFocusTimeoutRef = React.useRef<number | null>(null);
   const closeFocusRequestedRef = React.useRef(false);
   const wasOpenRef = React.useRef(open);
+  useNativeTitleBarOverlayHidden(open);
 
   const focusEmailInputAfterOpen = React.useCallback(() => {
     if (typeof window === 'undefined') {
@@ -165,7 +167,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           </div>
 
           {isConnecting && (
-            <div className="mt-8 text-center animate-in fade-in duration-[var(--vlaina-duration-500)]">
+            <div className="mt-8 text-center animate-in fade-in duration-[var(--vlaina-duration-100)]">
               <button
                 type="button"
                 onClick={() => cancelConnect()}

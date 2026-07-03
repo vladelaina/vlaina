@@ -64,10 +64,14 @@ export function useAIStoreRuntimeEffects(): void {
       return;
     }
 
+    const currentSessionId = resolveRestoredChatSessionId(aiData, lastChatSessionId);
     uiState.initializeSelection({
-      currentSessionId: resolveRestoredChatSessionId(aiData, lastChatSessionId),
+      currentSessionId,
       temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     });
+    if (currentSessionId && !aiData?.temporaryChatEnabled) {
+      void actions.switchSession(currentSessionId).catch(() => undefined);
+    }
   }, [
     aiData?.currentSessionId,
     aiData?.sessions,
@@ -233,10 +237,14 @@ export function startAIStoreRuntimeEffects(): void {
       return;
     }
 
+    const currentSessionId = resolveRestoredChatSessionId(aiData, lastChatSessionId);
     uiState.initializeSelection({
-      currentSessionId: resolveRestoredChatSessionId(aiData, lastChatSessionId),
+      currentSessionId,
       temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     });
+    if (currentSessionId && !aiData?.temporaryChatEnabled) {
+      void actions.switchSession(currentSessionId).catch(() => undefined);
+    }
   };
 
   const syncIntegrity = () => {
@@ -363,7 +371,7 @@ export const useAIStore = () => {
       const selectedModel = aiData.models.find(m => m.id === aiData.selectedModelId)
       if (!selectedModel) return undefined
       const provider = aiData.providers.find((item) => item.id === selectedModel.providerId)
-      return provider?.enabled === false ? undefined : selectedModel
+      return selectedModel.enabled === false || provider?.enabled === false ? undefined : selectedModel
     },
     getModelsByProvider: (pid: string) => {
       const provider = aiData?.providers.find((item) => item.id === pid)
@@ -383,7 +391,7 @@ export const useAIStore = () => {
           const model = aiData.models.find(m => m.id === aiData.selectedModelId)
           if (!model) return undefined
           const provider = aiData.providers.find((item) => item.id === model.providerId)
-          return provider?.enabled === false ? undefined : model
+          return model.enabled === false || provider?.enabled === false ? undefined : model
         })()
       : undefined
   };

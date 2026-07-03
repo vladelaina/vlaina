@@ -184,6 +184,36 @@ describe('useSidebarSearchControls', () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it('does not close the open search drawer while IME composition is active', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query="hao"
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const scopeButton = screen.getByTestId('scope-button');
+    const keyEvent = new KeyboardEvent('keydown', {
+      bubbles: true,
+      cancelable: true,
+      key: 'Escape',
+    });
+    Object.defineProperty(keyEvent, 'isComposing', { value: true });
+
+    act(() => {
+      scopeButton.dispatchEvent(keyEvent);
+    });
+
+    expect(keyEvent.defaultPrevented).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it('leaves Escape inside another editable sidebar target alone', () => {
     const onOpen = vi.fn();
     const onClose = vi.fn();

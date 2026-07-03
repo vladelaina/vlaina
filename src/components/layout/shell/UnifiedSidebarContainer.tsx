@@ -8,6 +8,8 @@ interface UnifiedSidebarContainerProps {
   children: ReactNode;
   width: number;
   collapsed: boolean;
+  peeking?: boolean;
+  onPeekChange?: (peeking: boolean) => void;
   onWidthChange: (width: number) => void;
   onLiveWidthChange?: (width: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
@@ -19,6 +21,8 @@ export function UnifiedSidebarContainer({
   children,
   width,
   collapsed,
+  peeking = false,
+  onPeekChange,
   onWidthChange,
   onLiveWidthChange,
   onDragStateChange,
@@ -39,15 +43,28 @@ export function UnifiedSidebarContainer({
       style={{ display: 'contents' }}
     >
       <aside
+        data-shell-sidebar-peek={collapsed ? 'true' : undefined}
+        data-open={collapsed ? (peeking ? 'true' : 'false') : undefined}
+        aria-hidden={collapsed ? !peeking : undefined}
         className={cn(
-          'flex-shrink-0 flex min-h-0 flex-col overflow-hidden select-none relative z-[var(--vlaina-z-20)] app-scrollbar',
+          'flex min-h-0 flex-col overflow-hidden select-none app-scrollbar',
           isDragging && 'will-change-[width]',
-          !isDragging && 'transition-[width] duration-[var(--vlaina-duration-200)] ease-out',
+          collapsed
+            ? cn(
+              'absolute inset-y-0 left-0 z-[var(--vlaina-z-40)] transition-[opacity,transform] duration-[var(--vlaina-duration-100)] ease-out',
+              peeking
+                ? 'translate-x-0 opacity-[var(--vlaina-opacity-100)] pointer-events-auto'
+                : '-translate-x-full opacity-[var(--vlaina-opacity-0)] pointer-events-none',
+            )
+            : 'relative z-[var(--vlaina-z-20)] flex-shrink-0',
+          !collapsed && !isDragging && 'transition-[width] duration-[var(--vlaina-duration-100)] ease-out',
         )}
         style={{
           backgroundColor,
-          width: collapsed ? 0 : 'var(--vlaina-shell-sidebar-width)',
+          width: 'var(--vlaina-shell-sidebar-width)',
         }}
+        onMouseEnter={collapsed ? () => onPeekChange?.(true) : undefined}
+        onMouseLeave={collapsed ? () => onPeekChange?.(false) : undefined}
       >
         {children}
       </aside>
@@ -55,6 +72,7 @@ export function UnifiedSidebarContainer({
       {!collapsed && (
         <>
           <ResizeHandle
+            dataResizeHandleScope="shell-sidebar"
             onMouseDown={handleDragStart}
             isDragging={isDragging}
             positionStyle={{

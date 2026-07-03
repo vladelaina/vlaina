@@ -131,6 +131,7 @@
   --vlaina-duration-500: 500ms;
   --vlaina-duration-800: 800ms;
   --vlaina-duration-1200: 1.2s;
+  --vlaina-duration-about-logo-aura: 3.8s;
   --vlaina-duration-chat-typing: 0.8s;
   --vlaina-duration-toolbar-enter: 0.16s;
   --vlaina-duration-toolbar-fast: 0.14s;
@@ -285,6 +286,7 @@
   --vlaina-size-132px: 132px;
   --vlaina-size-135px: 135px;
   --vlaina-size-140px: 140px;
+  --vlaina-size-144px: 144px;
   --vlaina-size-150px: 150px;
   --vlaina-size-160px: 160px;
   --vlaina-size-168px: 168px;
@@ -408,6 +410,8 @@
   --vlaina-space-y-6px: 6px;
   --vlaina-shadow-hr-selected: 0 0 0 2px var(--vlaina-accent-light);
   --vlaina-width-minus-titlebar-actions: calc(100% - var(--vlaina-space-525rem));
+  --vlaina-width-window-controls: var(--vlaina-size-144px);
+  --vlaina-window-resize-compensation-x: 0px;
   --vlaina-app-view-mode-option-count: 2;
   --vlaina-width-view-mode-thumb: calc((100% - var(--vlaina-space-075rem)) / var(--vlaina-app-view-mode-option-count));
   --vlaina-width-sidebar-floating-icon-gap: calc(var(--sidebar-width-icon) + var(--vlaina-space-1rem));
@@ -726,8 +730,8 @@
   --vlaina-color-table-drag-control-bg: color-mix(in srgb, var(--vlaina-color-setting-field), transparent 6%);
   --vlaina-color-table-drag-control-fg: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 24%);
   --vlaina-color-table-drag-control-fg-active: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 42%);
-  --vlaina-color-table-column-source-highlight-bg: color-mix(in srgb, var(--crepe-color-primary), transparent 92%);
-  --vlaina-shadow-table-column-source-highlight: inset 0 0 0 1px color-mix(in srgb, var(--crepe-color-primary), transparent 76%);
+  --vlaina-color-table-column-source-highlight-bg: transparent;
+  --vlaina-shadow-table-column-source-highlight: inset 0 0 0 var(--vlaina-border-width-2) var(--vlaina-accent);
   --vlaina-color-media-surface: #000000;
   --vlaina-color-media-overlay-border: rgba(248, 250, 252, 0.32);
   --vlaina-color-media-overlay-bg: rgba(15, 23, 42, 0.76);
@@ -838,8 +842,10 @@
   --vlaina-shadow-sidebar-row-hover: 0 8px 18px -14px rgb(15 23 42 / 0.28);
   --vlaina-shadow-accent-action: 0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28);
   --vlaina-shadow-drag-row: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 10px 24px -18px rgba(30, 150, 235, 0.65);
+  --vlaina-shadow-about-logo: 0 20px 40px rgba(122, 162, 247, 0.16), 0 8px 24px rgba(247, 125, 170, 0.12);
   --vlaina-code-block-background: #f5f5f5;
-  --vlaina-code-inline-background: #e8eaed;
+  --vlaina-code-inline-background-light: #f0f1f2;
+  --vlaina-code-inline-background: var(--vlaina-code-inline-background-light);
   --vlaina-code-inline-foreground: #262626;
   --vlaina-code-syntax-foreground: #24292e;
   --vlaina-code-syntax-muted: #6a737d;
@@ -1196,6 +1202,7 @@
   --vlaina-shadow-sidebar-row-hover: 0 10px 22px -16px color-mix(in srgb, var(--vlaina-sidebar-row-hover) 82%, white 18%), 0 14px 28px -22px rgb(0 0 0 / 0.85);
   --vlaina-shadow-accent-action: 0 0 0 3px rgba(65, 168, 234, 0.16), 0 10px 24px rgba(65, 168, 234, 0.24);
   --vlaina-shadow-drag-row: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 10px 24px -18px rgba(30, 150, 235, 0.75);
+  --vlaina-shadow-about-logo: 0 20px 40px rgba(65, 168, 234, 0.24), 0 8px 20px rgba(240, 138, 166, 0.16);
   --vlaina-sidebar-row-selected-bg: rgb(65 168 234 / 0.16);
   --vlaina-sidebar-row-selected-text: #7cc7f5;
   --vlaina-sidebar-row-selected-text-soft: rgb(124 199 245 / 0.82);
@@ -1226,4 +1233,16 @@
   --vlaina-code-block-copy-color: #9b9ba1;
   --vlaina-code-syntax-addition-bg: rgb(34 197 94 / 0.16);
   --vlaina-code-syntax-deletion-bg: rgb(239 68 68 / 0.16);
+}
+
+@keyframes vlaina-about-logo-aura {
+  0%, 100% {
+    opacity: var(--vlaina-opacity-25);
+    transform: scale(var(--vlaina-scale-98));
+  }
+
+  50% {
+    opacity: var(--vlaina-opacity-40);
+    transform: scale(var(--vlaina-scale-105));
+  }
 }

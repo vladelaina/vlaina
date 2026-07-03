@@ -9,6 +9,7 @@ interface ResizeHandleProps {
   position?: 'fixed' | 'absolute';
   zIndexClassName?: string;
   className?: string;
+  dataResizeHandleScope?: string;
 }
 
 export function ResizeHandle({
@@ -18,9 +19,11 @@ export function ResizeHandle({
   position = 'fixed',
   zIndexClassName = 'z-[var(--vlaina-z-30)]',
   className,
+  dataResizeHandleScope,
 }: ResizeHandleProps) {
   return (
     <div
+      data-resize-handle={dataResizeHandleScope ?? 'true'}
       onMouseDown={onMouseDown}
       className={cn(
         position === 'fixed' ? 'fixed' : 'absolute',

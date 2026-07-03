@@ -64,6 +64,7 @@ export function ProviderConnectionFields({
   onCopyApiKey,
   autoFocusBaseUrl = false,
   onBaseUrlAutoFocusComplete,
+  onCompositionChange,
 }: {
   providerId: string;
   name: string;
@@ -78,6 +79,7 @@ export function ProviderConnectionFields({
   onCopyApiKey: () => void;
   autoFocusBaseUrl?: boolean;
   onBaseUrlAutoFocusComplete?: () => void;
+  onCompositionChange?: (isComposing: boolean) => void;
 }) {
   const { t } = useI18n();
   const [apiKeyRevealedForEditing, setApiKeyRevealedForEditing] = useState(false);
@@ -214,6 +216,8 @@ export function ProviderConnectionFields({
               data-settings-provider-field="name"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
+              onCompositionStart={() => onCompositionChange?.(true)}
+              onCompositionEnd={() => onCompositionChange?.(false)}
               onFocus={(event) => selectDefaultChannelName(event.currentTarget)}
               onClick={(event) => selectDefaultChannelName(event.currentTarget)}
               placeholder={t('settings.ai.newChannel')}
@@ -238,6 +242,8 @@ export function ProviderConnectionFields({
               data-settings-provider-field="api-host"
               value={apiHost}
               onChange={(e) => onApiHostChange(e.target.value)}
+              onCompositionStart={() => onCompositionChange?.(true)}
+              onCompositionEnd={() => onCompositionChange?.(false)}
               placeholder="https://api.openai.com"
               name={`provider-api-host-${providerId}`}
               autoComplete="off"
@@ -267,6 +273,8 @@ export function ProviderConnectionFields({
               data-settings-provider-field="api-key"
               value={apiKeyDisplayValue}
               onChange={(e) => onApiKeyChange(e.target.value)}
+              onCompositionStart={() => onCompositionChange?.(true)}
+              onCompositionEnd={() => onCompositionChange?.(false)}
               onFocus={() => {
                 setApiKeyRevealedForEditing(true);
               }}

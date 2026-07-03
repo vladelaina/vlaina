@@ -16,6 +16,8 @@ const MAX_RESTORED_WINDOW_HEIGHT = 8192;
 const MAX_WINDOW_DIMENSION_INPUT_CHARS = 64;
 const WINDOW_STATE_WRITE_DELAY_MS = 250;
 const MAX_WINDOW_STATE_JSON_BYTES = 64 * 1024;
+const LIGHT_WINDOW_BACKGROUND_COLOR = '#fcfcfc';
+const LIGHT_WINDOW_SYMBOL_COLOR = '#27262b';
 
 function getWindowStatePath() {
   return path.join(app.getPath('userData'), '.vlaina', 'app', 'window', 'state.json');
@@ -542,10 +544,15 @@ export function createWindowManager({
       minHeight: 300,
       center: true,
       icon: appIconPath,
-      backgroundColor: '#FFFFFFFF',
+      backgroundColor: LIGHT_WINDOW_BACKGROUND_COLOR,
       show: false,
       autoHideMenuBar: true,
       titleBarStyle: 'hidden',
+      titleBarOverlay: process.platform === 'win32' ? {
+        color: LIGHT_WINDOW_BACKGROUND_COLOR,
+        symbolColor: LIGHT_WINDOW_SYMBOL_COLOR,
+        height: 40,
+      } : undefined,
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
         contextIsolation: true,

@@ -232,6 +232,7 @@ describe('EditorTopRightToolbar', () => {
     openExportMenu(getByRole);
 
     expect(container.firstElementChild).toHaveAttribute('data-no-editor-drag-box', 'true');
+    expect(container.firstElementChild).toHaveClass('translate-x-[var(--vlaina-window-resize-compensation-x)]');
     expect(getByTestId('note-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
     expect(getByTestId('note-export-menu-content')).toHaveAttribute('data-no-editor-drag-box', 'true');
   });

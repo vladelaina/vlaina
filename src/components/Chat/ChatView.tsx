@@ -105,7 +105,7 @@ export function ChatView({
     }
 
     const provider = providers.find((item) => item.id === model.providerId);
-    return provider?.enabled === false ? undefined : model;
+    return model.enabled === false || provider?.enabled === false ? undefined : model;
   }, [models, providers, selectedModelId]);
   const isSelectedManagedModel = Boolean(selectedModel && isManagedProviderId(selectedModel.providerId));
   const [hasStickyManagedQuotaExhaustion, setHasStickyManagedQuotaExhaustion] = useState(false);
@@ -195,7 +195,7 @@ export function ChatView({
     const enabledProviderIds = new Set(
       providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)
     );
-    return models.find((model) => enabledProviderIds.has(model.providerId));
+    return models.find((model) => model.enabled && enabledProviderIds.has(model.providerId));
   }, [models, providers]);
   
   useEffect(() => {
@@ -260,6 +260,10 @@ export function ChatView({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
       if (
         event.key !== 'Escape' ||
         event.shiftKey ||
@@ -289,6 +293,10 @@ export function ChatView({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
       if (
         event.key !== 'Escape' ||
         event.shiftKey ||
@@ -575,10 +583,12 @@ export function ChatView({
       </AnimatePresence>
 
       {!isEmbedded && showInChatArea && (
-        <div className={cn(
-          "absolute right-4 z-[var(--vlaina-z-30)] pointer-events-auto",
-          "top-3"
-        )}>
+        <div
+          className={cn(
+            "absolute right-4 z-[var(--vlaina-z-30)] translate-x-[var(--vlaina-window-resize-compensation-x)] pointer-events-auto",
+            "top-3"
+          )}
+        >
           <TemporaryChatToggle />
         </div>
       )}

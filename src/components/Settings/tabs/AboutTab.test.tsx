@@ -184,14 +184,14 @@ describe('AboutTab community QR pills', () => {
   });
 
   it('restores an available update from the cached desktop updater result', async () => {
-    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v99.99.99/vlaina-99.99.99-linux-x86_64.AppImage';
     writeCachedDesktopUpdateInfo({
       currentVersion: '0.1.16',
-      latestVersion: '0.1.18',
+      latestVersion: '99.99.99',
       updateAvailable: true,
       downloadUrl,
-      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.18',
-      platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v99.99.99',
+      platformAssetName: 'vlaina-99.99.99-linux-x86_64.AppImage',
       platformAssetSha256: 'a'.repeat(64),
       hasPlatformAsset: true,
       releaseNotes: 'Release notes',
@@ -208,7 +208,7 @@ describe('AboutTab community QR pills', () => {
       />,
     );
 
-    expect(await screen.findByText('v0.1.18 available')).toBeInTheDocument();
+    expect(await screen.findByText('v99.99.99 available')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Update' }));
 
     await waitFor(() => {
@@ -218,8 +218,8 @@ describe('AboutTab community QR pills', () => {
 
   it('opens the downloaded installer when the update package is already cached', async () => {
     const openDownloaded = vi.fn().mockResolvedValue(undefined);
-    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
-    const downloadedFilePath = '/tmp/vlaina/update-downloads/0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v99.99.99/vlaina-99.99.99-linux-x86_64.AppImage';
+    const downloadedFilePath = '/tmp/vlaina/update-downloads/99.99.99/vlaina-99.99.99-linux-x86_64.AppImage';
     electronBridgeMock.current = {
       update: {
         openDownloaded,
@@ -227,18 +227,18 @@ describe('AboutTab community QR pills', () => {
     };
     writeCachedDesktopUpdateInfo({
       currentVersion: '0.1.16',
-      latestVersion: '0.1.18',
+      latestVersion: '99.99.99',
       updateAvailable: true,
       downloadUrl,
-      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.18',
-      platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v99.99.99',
+      platformAssetName: 'vlaina-99.99.99-linux-x86_64.AppImage',
       platformAssetSha256: 'a'.repeat(64),
       hasPlatformAsset: true,
       releaseNotes: 'Release notes',
       publishedAt: '2026-06-27T00:00:00.000Z',
       downloadState: 'downloaded',
       downloadedFilePath,
-      downloadedFileName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      downloadedFileName: 'vlaina-99.99.99-linux-x86_64.AppImage',
       downloadedAt: '2026-06-27T00:00:00.000Z',
     });
 
@@ -256,8 +256,8 @@ describe('AboutTab community QR pills', () => {
 
     await waitFor(() => {
       expect(openDownloaded).toHaveBeenCalledWith(expect.objectContaining({
-        latestVersion: '0.1.18',
-        platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+        latestVersion: '99.99.99',
+        platformAssetName: 'vlaina-99.99.99-linux-x86_64.AppImage',
         platformAssetSha256: 'a'.repeat(64),
         downloadedFilePath,
       }));
@@ -267,7 +267,7 @@ describe('AboutTab community QR pills', () => {
 
   it('falls back to the GitHub download URL while the background update is still downloading', async () => {
     const openDownloaded = vi.fn().mockResolvedValue(undefined);
-    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v0.1.18/vlaina-0.1.18-linux-x86_64.AppImage';
+    const downloadUrl = 'https://github.com/vladelaina/vlaina/releases/download/v99.99.99/vlaina-99.99.99-linux-x86_64.AppImage';
     electronBridgeMock.current = {
       app: {
         getVersion: vi.fn().mockResolvedValue('0.1.16'),
@@ -278,11 +278,11 @@ describe('AboutTab community QR pills', () => {
     };
     writeCachedDesktopUpdateInfo({
       currentVersion: '0.1.16',
-      latestVersion: '0.1.18',
+      latestVersion: '99.99.99',
       updateAvailable: true,
       downloadUrl,
-      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v0.1.18',
-      platformAssetName: 'vlaina-0.1.18-linux-x86_64.AppImage',
+      releaseUrl: 'https://github.com/vladelaina/vlaina/releases/tag/v99.99.99',
+      platformAssetName: 'vlaina-99.99.99-linux-x86_64.AppImage',
       hasPlatformAsset: true,
       releaseNotes: 'Release notes',
       publishedAt: '2026-06-27T00:00:00.000Z',

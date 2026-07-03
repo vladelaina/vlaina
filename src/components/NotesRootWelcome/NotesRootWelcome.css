@@ -30,7 +30,7 @@
   justify-content: center;
   min-height: var(--vlaina-size-100vh);
   padding: var(--vlaina-space-40px);
-  animation: notesRootWelcomeFadeIn var(--vlaina-duration-800) var(--vlaina-ease-feedback);
+  animation: notesRootWelcomeFadeIn var(--vlaina-duration-200) var(--vlaina-ease-feedback);
   user-select: none;
   background: var(--vlaina-bg-primary);
   -webkit-font-smoothing: antialiased;
@@ -115,7 +115,7 @@
   width: 100%;
   text-align: left;
   position: relative;
-  animation: notesRootItemFadeIn var(--vlaina-duration-500) var(--vlaina-ease-out) both;
+  animation: notesRootItemFadeIn var(--vlaina-duration-150) var(--vlaina-ease-out) both;
   group: notes-root-item;
 }
 
@@ -442,7 +442,7 @@
   font-weight: var(--vlaina-font-weight-medium);
   text-align: center;
   border: var(--vlaina-border-width-1) solid var(--vlaina-color-status-danger-bg);
-  animation: notesRootItemFadeIn var(--vlaina-duration-300) var(--vlaina-ease-css-default);
+  animation: notesRootItemFadeIn var(--vlaina-duration-100) var(--vlaina-ease-css-default);
 }
 
 .notes-root-modal__actions {

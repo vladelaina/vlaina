@@ -60,7 +60,8 @@ describe('UnifiedTitleBar', () => {
       />
     );
 
-    expect(screen.getByRole('button').parentElement).toHaveClass('pl-2');
+    const toggleButton = screen.getByRole('button', { name: 'Toggle sidebar' });
+    expect(toggleButton.parentElement).toHaveClass('pl-2');
   });
 
   it('renders traffic-light preview controls when macOS preview is active off macOS', () => {
@@ -76,5 +77,17 @@ describe('UnifiedTitleBar', () => {
     );
 
     expect(screen.getByTestId('macos-traffic-light-preview')).toBeInTheDocument();
+  });
+
+  it('compensates right titlebar chrome while Windows resize events lag', () => {
+    render(
+      <UnifiedTitleBar
+        sidebarCollapsed={false}
+        rightSlot={<button type="button">Right action</button>}
+        onToggleSidebar={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Right action').parentElement).toHaveClass('translate-x-[var(--vlaina-window-resize-compensation-x)]');
   });
 });

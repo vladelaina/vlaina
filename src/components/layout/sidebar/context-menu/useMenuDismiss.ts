@@ -29,6 +29,10 @@ export function useMenuDismiss({ isOpen, onClose }: UseMenuDismissOptions) {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
       if (event.key === 'Escape') {
         onClose();
       }

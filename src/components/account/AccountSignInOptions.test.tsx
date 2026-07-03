@@ -226,6 +226,37 @@ describe('AccountSignInOptions', () => {
     });
   });
 
+  it('ignores spaces in pasted verification codes before limiting to 6 digits', async () => {
+    const onEmailCodeVerify = vi.fn().mockResolvedValue(true);
+    render(
+      <AccountEmailCodeCard
+        onEmailCodeRequest={vi.fn().mockResolvedValue(true)}
+        onEmailCodeVerify={onEmailCodeVerify}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/email address/i), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }));
+
+    const codeInput = await waitFor(() => {
+      const input = document.querySelector('input[autocomplete="one-time-code"]');
+      expect(input).toBeTruthy();
+      return input as HTMLInputElement;
+    });
+
+    expect(codeInput).not.toHaveAttribute('maxLength');
+
+    fireEvent.change(codeInput, { target: { value: '119 413' } });
+    expect(codeInput).toHaveValue('119413');
+
+    fireEvent.click(screen.getByRole('button', { name: /verify and sign in/i }));
+    await waitFor(() => {
+      expect(onEmailCodeVerify).toHaveBeenCalledWith('user@example.com', '119413');
+    });
+  });
+
   it('shows the requested email on the verification step and uses it to return to email editing', async () => {
     const onEmailCodeRequest = vi.fn().mockResolvedValue(true);
     render(

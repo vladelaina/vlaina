@@ -39,7 +39,6 @@ export function useCoverImageController({
   } | null>(null);
   const [mediaSizeSrc, setMediaSizeSrc] = useState<string | null>(null);
   const layoutPanelDragging = useUIStore((state) => state.layoutPanelDragging);
-  const windowResizeActive = useUIStore((state) => state.windowResizeActive);
   const {
     coverHeight, setCoverHeight,
     containerSize, setContainerSize,
@@ -300,7 +299,6 @@ export function useCoverImageController({
     },
     rendererProps: {
       layoutPanelDragging,
-      isWindowResizing: windowResizeActive,
       isContainerResizing,
       placeholderSrc,
       placeholderMediaSize,

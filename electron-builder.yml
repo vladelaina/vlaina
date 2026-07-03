@@ -90,6 +90,8 @@ nsis:
 portable:
   artifactName: ${productName}-${version}-windows-${arch}-portable.${ext}
   requestExecutionLevel: user
+  useZip: true
+  warningsAsErrors: false
 linux:
   category: Utility
   icon: build/icon.png

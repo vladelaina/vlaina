@@ -24,6 +24,7 @@ import {
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchToolLoop,
 } from '@/lib/ai/webSearch/openAIToolLoop'
+import { buildWebSearchCapabilityAnswer, classifyWebSearchIntent } from '@/lib/ai/webSearch/intent'
 import { buildWebSearchStatusMarkup, sanitizeWebSearchSourceUrl, stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
@@ -128,6 +129,18 @@ function emitWebSearchStatus(
   throwIfAborted(signal)
   onWebSearchStatus?.(status)
   throwIfAborted(signal)
+}
+
+function answerWebSearchCapabilityLocally(
+  message: ChatMessageContent,
+  onChunk: ((chunk: string) => void) | undefined,
+  options: ChatSendOptions | undefined,
+  signal: AbortSignal | undefined,
+): string {
+  const content = buildWebSearchCapabilityAnswer(extractTextPrompt(message))
+  emitChunk(onChunk || (() => {}), signal, content)
+  emitApiTranscript(options?.onApiTranscript, signal, [{ role: 'assistant', content }])
+  return content
 }
 
 function createHtmlRejectingChunkHandler(onChunk: (chunk: string) => void, signal?: AbortSignal): (chunk: string) => void {
@@ -889,6 +902,13 @@ export class OpenAICompatibleClient implements AIClient {
     const imagePrompt = isImageModel ? sanitizeCurrentRequestTextContent(extractTextPrompt(message)) : ''
 
     const editImageUrl = isImageModel ? getFirstImageInput(message) : null
+
+    if (!isImageModel && options?.webSearchEnabled) {
+      const localWebSearchIntent = classifyWebSearchIntent(extractTextPrompt(message))
+      if (localWebSearchIntent.action === 'answer-capability') {
+        return answerWebSearchCapabilityLocally(message, onChunk, options, signal)
+      }
+    }
 
     if (provider.id === MANAGED_PROVIDER_ID) {
       if (isImageModel && editImageUrl) {

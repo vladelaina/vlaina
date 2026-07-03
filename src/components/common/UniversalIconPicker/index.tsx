@@ -303,6 +303,10 @@ export function UniversalIconPicker({
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.isComposing) {
+        return;
+      }
+
       if (e.key === 'Escape') {
         onPreviewRef.current?.(null);
         handleClose('escape');

@@ -55,7 +55,7 @@ export function ChatComposerField({
 }: ChatComposerFieldProps) {
   return (
     <div className={chatComposerInputBlockClass}>
-      <div className="relative">
+      <div className="relative overflow-hidden">
         <textarea
           ref={textareaRef}
           value={message}

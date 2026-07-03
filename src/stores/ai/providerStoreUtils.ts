@@ -22,19 +22,21 @@ export function chooseFallbackSelectedModelId(
   models: AIModel[],
   preferredProviderId?: string | null
 ): string | null {
-  if (currentSelectedModelId && models.some((model) => model.id === currentSelectedModelId)) {
+  const enabledModels = models.filter((model) => model.enabled !== false)
+
+  if (currentSelectedModelId && enabledModels.some((model) => model.id === currentSelectedModelId)) {
     return currentSelectedModelId
   }
 
   if (preferredProviderId) {
-    const preferredDefaultModel = models.find((model) => model.providerId === preferredProviderId && model.isDefault === true)
+    const preferredDefaultModel = enabledModels.find((model) => model.providerId === preferredProviderId && model.isDefault === true)
     if (preferredDefaultModel) return preferredDefaultModel.id
 
-    const preferredModel = models.find((model) => model.providerId === preferredProviderId)
+    const preferredModel = enabledModels.find((model) => model.providerId === preferredProviderId)
     if (preferredModel) return preferredModel.id
   }
 
-  return models[0]?.id || null
+  return enabledModels[0]?.id || null
 }
 
 export function replaceProviderModels(allModels: AIModel[], providerId: string, nextModels: AIModel[]): AIModel[] {

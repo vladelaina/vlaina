@@ -276,13 +276,14 @@ describe('markdown theme CSS scoping', () => {
     expect(rootRule).not.toContain('margin-left');
     expect(rootRule).not.toContain('padding-left');
     expect(rootRule).not.toContain('transform');
+    expect(rootRule).not.toContain('font-size');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.done.max');
     const fillWidthRule = scoped.match(/\[data-markdown-theme-root="true"\]\[data-markdown-theme-platform="typora"\]#write\.fill-width\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(fillWidthRule).toContain('font-size: var(--v-f-size)');
     expect(fillWidthRule).not.toContain('margin');
     expect(fillWidthRule).not.toContain('padding');
     expect(fillWidthRule).not.toContain('width:');
     expect(fillWidthRule).not.toContain('display');
+    expect(fillWidthRule).not.toContain('font-size');
     expect(fillWidthRule).not.toContain('background');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.unsafe-root');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write p { margin-left: 2em; padding-left: 1em; max-width: 60ch; }');
@@ -291,6 +292,24 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write .content-card:before { content: ""; background: #dcdac5; }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write .content-card { box-shadow: 0 0 5px var(--ac-t2-fd); outline: 1px solid var(--ac-t2); border-left: 12px solid var(--ac-t2-a); background: var(--db); }');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write blockquote:before { position: absolute; right: 0; width: 40px; content: ""; }');
+  });
+
+  it('drops imported Typora root font-size values so app markdown sizing wins', () => {
+    const scoped = scopeImportedMarkdownThemeCss(
+      [
+        ':root { --v-f-size: 16px; --theme-color: red; font-size: 16px; }',
+        '#write { font-size: var(--v-f-size); color: var(--theme-color); }',
+        '#write p { font-size: 0.95em; }',
+      ].join('\n'),
+      'typora'
+    );
+
+    expect(scoped).toContain('--theme-color: red');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write { color: var(--theme-color); }');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write p { font-size: 0.95em; }');
+    expect(scoped).not.toContain('--v-f-size');
+    expect(scoped).not.toContain('font-size: 16px');
+    expect(scoped).not.toContain('font-size: var(--v-f-size)');
   });
 
   it('drops imported Typora page chrome while preserving content-level VLOOK styles', () => {

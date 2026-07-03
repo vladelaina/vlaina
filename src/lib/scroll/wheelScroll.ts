@@ -50,20 +50,6 @@ function canElementScrollHorizontally(element: HTMLElement) {
   );
 }
 
-function canElementConsumeVerticalDelta(element: HTMLElement, deltaY: number) {
-  const maxScrollTop = Math.max(element.scrollHeight - element.clientHeight, 0);
-
-  if (deltaY < 0) {
-    return element.scrollTop > SCROLL_EPSILON_PX;
-  }
-
-  if (deltaY > 0) {
-    return element.scrollTop < maxScrollTop - SCROLL_EPSILON_PX;
-  }
-
-  return false;
-}
-
 function canElementConsumeHorizontalDelta(element: HTMLElement, deltaX: number) {
   const maxScrollLeft = Math.max(element.scrollWidth - element.clientWidth, 0);
 
@@ -81,19 +67,15 @@ function canElementConsumeHorizontalDelta(element: HTMLElement, deltaX: number) 
 function hasNestedScrollableConsumer(
   target: EventTarget | null,
   root: HTMLElement,
-  delta: number,
-  axis: 'vertical' | 'horizontal'
+  deltaX: number,
 ) {
   let element = getElementFromTarget(target);
 
   while (element && element !== root) {
     if (
       element instanceof HTMLElement &&
-      (
-        axis === 'vertical'
-          ? canElementScrollVertically(element) && canElementConsumeVerticalDelta(element, delta)
-          : canElementScrollHorizontally(element) && canElementConsumeHorizontalDelta(element, delta)
-      )
+      canElementScrollHorizontally(element) &&
+      canElementConsumeHorizontalDelta(element, deltaX)
     ) {
       return true;
     }
@@ -104,19 +86,26 @@ function hasNestedScrollableConsumer(
   return false;
 }
 
-function scrollElementVertically(scrollRoot: HTMLElement, deltaY: number) {
-  const maxScrollTop = Math.max(scrollRoot.scrollHeight - scrollRoot.clientHeight, 0);
-  if (maxScrollTop <= 0) {
-    return false;
+function hasNestedScrollableVerticalConsumer(
+  target: EventTarget | null,
+  root: HTMLElement,
+  deltaY: number,
+) {
+  let element = getElementFromTarget(target);
+
+  while (element && element !== root) {
+    if (
+      element instanceof HTMLElement &&
+      canElementScrollVertically(element) &&
+      canElementConsumeVerticalDelta(element, deltaY)
+    ) {
+      return true;
+    }
+
+    element = element.parentElement;
   }
 
-  const nextScrollTop = clamp(scrollRoot.scrollTop + deltaY, 0, maxScrollTop);
-  if (Math.abs(nextScrollTop - scrollRoot.scrollTop) < SCROLL_EPSILON_PX) {
-    return false;
-  }
-
-  scrollRoot.scrollTop = nextScrollTop;
-  return true;
+  return false;
 }
 
 function scrollElementHorizontally(scrollRoot: HTMLElement, deltaX: number) {
@@ -134,32 +123,77 @@ function scrollElementHorizontally(scrollRoot: HTMLElement, deltaX: number) {
   return true;
 }
 
+function canElementConsumeVerticalDelta(element: HTMLElement, deltaY: number) {
+  const maxScrollTop = Math.max(element.scrollHeight - element.clientHeight, 0);
+
+  if (deltaY < 0) {
+    return element.scrollTop > SCROLL_EPSILON_PX;
+  }
+
+  if (deltaY > 0) {
+    return element.scrollTop < maxScrollTop - SCROLL_EPSILON_PX;
+  }
+
+  return false;
+}
+
+function scheduleVerticalNativeScrollFallback(
+  scrollRoot: HTMLElement,
+  deltaY: number,
+) {
+  const beforeScrollTop = scrollRoot.scrollTop;
+  if (!canElementConsumeVerticalDelta(scrollRoot, deltaY)) {
+    return;
+  }
+
+  const checkNativeScroll = () => {
+    const nativeScrollTop = scrollRoot.scrollTop;
+    if (Math.abs(nativeScrollTop - beforeScrollTop) > SCROLL_EPSILON_PX) {
+      return;
+    }
+
+    const maxScrollTop = Math.max(scrollRoot.scrollHeight - scrollRoot.clientHeight, 0);
+    const nextScrollTop = clamp(beforeScrollTop + deltaY, 0, maxScrollTop);
+    if (Math.abs(nextScrollTop - beforeScrollTop) < SCROLL_EPSILON_PX) {
+      return;
+    }
+
+    scrollRoot.scrollTop = nextScrollTop;
+  };
+
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(checkNativeScroll);
+    return;
+  }
+
+  window.setTimeout(checkNativeScroll, 0);
+}
+
 export function handleScrollableWheel(event: ReactWheelEvent<HTMLElement>) {
   if (event.defaultPrevented || event.ctrlKey || event.metaKey) {
     return;
   }
 
   const scrollRoot = event.currentTarget;
-  const deltaY = normalizeWheelDelta(event.deltaY, event.deltaMode, scrollRoot.clientHeight);
-  if (
-    deltaY !== 0 &&
-    !hasNestedScrollableConsumer(event.target, scrollRoot, deltaY, 'vertical') &&
-    scrollElementVertically(scrollRoot, deltaY)
-  ) {
-    event.preventDefault();
+  const canScrollVertically = canElementScrollVertically(scrollRoot);
+
+  if (event.deltaY !== 0 && canScrollVertically) {
+    const deltaY = normalizeWheelDelta(event.deltaY, event.deltaMode, scrollRoot.clientHeight);
+    if (!hasNestedScrollableVerticalConsumer(event.target, scrollRoot, deltaY)) {
+      scheduleVerticalNativeScrollFallback(scrollRoot, deltaY);
+    }
     return;
   }
 
-  const maxScrollTop = Math.max(scrollRoot.scrollHeight - scrollRoot.clientHeight, 0);
   const rawDeltaX = event.deltaX !== 0
     ? event.deltaX
-    : maxScrollTop <= 0
+    : !canScrollVertically
       ? event.deltaY
       : 0;
   const deltaX = normalizeWheelDelta(rawDeltaX, event.deltaMode, scrollRoot.clientWidth);
   if (
     deltaX === 0 ||
-    hasNestedScrollableConsumer(event.target, scrollRoot, deltaX, 'horizontal') ||
+    hasNestedScrollableConsumer(event.target, scrollRoot, deltaX) ||
     !scrollElementHorizontally(scrollRoot, deltaX)
   ) {
     return;

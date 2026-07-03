@@ -42,7 +42,7 @@ export function NotesSidebarPanel({
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">
       <div
-        className={effectiveSidebarView === 'workspace' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+        className={effectiveSidebarView === 'workspace' ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'hidden'}
         aria-hidden={effectiveSidebarView !== 'workspace'}
       >
         <Suspense fallback={null}>
@@ -59,7 +59,7 @@ export function NotesSidebarPanel({
         </Suspense>
       </div>
       <div
-        className={effectiveSidebarView === 'outline' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+        className={effectiveSidebarView === 'outline' ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'hidden'}
         aria-hidden={effectiveSidebarView !== 'outline'}
       >
         <Suspense fallback={null}>

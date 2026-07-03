@@ -10,6 +10,7 @@ const {
   deleteSelectedCellsCommand,
   moveColCommand,
   moveRowCommand,
+  Selection,
   selectColCommand,
   selectRowCommand,
 } = vi.hoisted(() => ({
@@ -22,6 +23,9 @@ const {
   deleteSelectedCellsCommand: { key: 'deleteSelectedCells' },
   moveColCommand: { key: 'moveCol' },
   moveRowCommand: { key: 'moveRow' },
+  Selection: {
+    near: vi.fn((pos: { pos: number }) => ({ type: 'near-selection', pos })),
+  },
   selectColCommand: { key: 'selectCol' },
   selectRowCommand: { key: 'selectRow' },
 }));
@@ -35,6 +39,10 @@ vi.mock('@milkdown/kit/prose/tables', () => ({
   TableMap: {
     get: vi.fn(),
   },
+}));
+
+vi.mock('@milkdown/kit/prose/state', () => ({
+  Selection,
 }));
 
 vi.mock('@milkdown/preset-gfm', () => ({
@@ -130,13 +138,33 @@ function createHarness(
   const commands = {
     call: vi.fn(),
   };
+  const restoreTransaction = {
+    setSelection: vi.fn(function setSelection(selection: unknown) {
+      return {
+        selection,
+      };
+    }),
+  };
+  const dom = new EventTarget();
+  const userInputListener = vi.fn();
+  dom.addEventListener('editor:block-user-input', userInputListener);
 
   const view = {
     editable: true,
+    dom,
+    dispatch: vi.fn(),
     state: {
-      doc: {
-        nodeAt: vi.fn(() => tableNode),
+      selection: {
+        from: 9,
       },
+      doc: {
+        content: {
+          size: 100,
+        },
+        nodeAt: vi.fn(() => tableNode),
+        resolve: vi.fn((pos: number) => ({ pos })),
+      },
+      tr: restoreTransaction,
     },
   };
 
@@ -161,15 +189,19 @@ function createHarness(
   return {
     commands,
     operation,
+    restoreTransaction,
+    userInputListener,
+    view,
   };
 }
 
 describe('table operation', () => {
   it('moves a column without selecting it afterwards', () => {
-    const { commands, operation } = createHarness();
+    const { commands, operation, userInputListener } = createHarness();
 
     operation.onMoveCol(0, 2);
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(commands.call).toHaveBeenCalledTimes(1);
     expect(commands.call).toHaveBeenCalledWith(moveColCommand.key, {
       pos: 6,
@@ -180,10 +212,11 @@ describe('table operation', () => {
   });
 
   it('moves a row without selecting it afterwards', () => {
-    const { commands, operation } = createHarness();
+    const { commands, operation, userInputListener } = createHarness();
 
     operation.onMoveRow(0, 2);
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(commands.call).toHaveBeenCalledTimes(1);
     expect(commands.call).toHaveBeenCalledWith(moveRowCommand.key, {
       pos: 6,
@@ -192,44 +225,84 @@ describe('table operation', () => {
     });
   });
 
-  it('selects the target column before executing a column menu command', () => {
-    const { commands, operation } = createHarness();
+  it('restores a normal selection after inserting from a column menu command', () => {
+    const { commands, operation, restoreTransaction, userInputListener, view } = createHarness();
 
     operation.onInsertColRight(1);
-    operation.onDeleteCol(1);
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(commands.call).toHaveBeenNthCalledWith(1, selectColCommand.key, {
       pos: 6,
       index: 1,
     });
     expect(commands.call).toHaveBeenNthCalledWith(2, addColAfterCommand.key);
-    expect(commands.call).toHaveBeenNthCalledWith(3, selectColCommand.key, {
+    expect(Selection.near).toHaveBeenCalledWith({ pos: 9 }, 1);
+    expect(restoreTransaction.setSelection).toHaveBeenCalledWith({
+      type: 'near-selection',
+      pos: { pos: 9 },
+    });
+    expect(view.dispatch).toHaveBeenCalledWith({
+      selection: {
+        type: 'near-selection',
+        pos: { pos: 9 },
+      },
+    });
+  });
+
+  it('selects the target column before deleting from a column menu command', () => {
+    const { commands, operation, userInputListener, view } = createHarness();
+
+    operation.onDeleteCol(1);
+
+    expect(userInputListener).toHaveBeenCalledTimes(1);
+    expect(commands.call).toHaveBeenNthCalledWith(1, selectColCommand.key, {
       pos: 6,
       index: 1,
     });
-    expect(commands.call).toHaveBeenNthCalledWith(4, deleteSelectedCellsCommand.key);
+    expect(commands.call).toHaveBeenNthCalledWith(2, deleteSelectedCellsCommand.key);
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 
-  it('selects the target row before executing a row menu command', () => {
-    const { commands, operation } = createHarness();
+  it('restores a normal selection after inserting from a row menu command', () => {
+    const { commands, operation, restoreTransaction, userInputListener, view } = createHarness();
 
     operation.onInsertRowBelow(1);
-    operation.onDeleteRow(1);
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(commands.call).toHaveBeenNthCalledWith(1, selectRowCommand.key, {
       pos: 6,
       index: 1,
     });
     expect(commands.call).toHaveBeenNthCalledWith(2, addRowAfterCommand.key);
-    expect(commands.call).toHaveBeenNthCalledWith(3, selectRowCommand.key, {
+    expect(Selection.near).toHaveBeenCalledWith({ pos: 9 }, 1);
+    expect(restoreTransaction.setSelection).toHaveBeenCalledWith({
+      type: 'near-selection',
+      pos: { pos: 9 },
+    });
+    expect(view.dispatch).toHaveBeenCalledWith({
+      selection: {
+        type: 'near-selection',
+        pos: { pos: 9 },
+      },
+    });
+  });
+
+  it('selects the target row before deleting from a row menu command', () => {
+    const { commands, operation, userInputListener, view } = createHarness();
+
+    operation.onDeleteRow(1);
+
+    expect(userInputListener).toHaveBeenCalledTimes(1);
+    expect(commands.call).toHaveBeenNthCalledWith(1, selectRowCommand.key, {
       pos: 6,
       index: 1,
     });
-    expect(commands.call).toHaveBeenNthCalledWith(4, deleteSelectedCellsCommand.key);
+    expect(commands.call).toHaveBeenNthCalledWith(2, deleteSelectedCellsCommand.key);
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 
   it('does not dispatch commands when getPos throws during a column operation', () => {
-    const { commands, operation } = createHarness(() => {
+    const { commands, operation, userInputListener } = createHarness(() => {
       throw new Error('detached');
     });
 
@@ -239,10 +312,11 @@ describe('table operation', () => {
     operation.onInsertRowBelow(1);
 
     expect(commands.call).not.toHaveBeenCalled();
+    expect(userInputListener).not.toHaveBeenCalled();
   });
 
   it('adds rows and columns from table document shape without DOM collection scans', () => {
-    const { commands, operation } = createHarness(
+    const { commands, operation, restoreTransaction, userInputListener, view } = createHarness(
       () => 5,
       {
         childCount: 3,
@@ -270,20 +344,37 @@ describe('table operation', () => {
       index: 2,
     });
     expect(commands.call).toHaveBeenNthCalledWith(2, addRowAfterCommand.key);
-    expect(commands.call).toHaveBeenNthCalledWith(3, selectRowCommand.key, {
+    expect(commands.call).toHaveBeenNthCalledWith(3, selectColCommand.key, {
       pos: 6,
       index: 3,
     });
-    expect(commands.call).toHaveBeenNthCalledWith(4, selectColCommand.key, {
-      pos: 6,
-      index: 3,
-    });
-    expect(commands.call).toHaveBeenNthCalledWith(5, addColAfterCommand.key);
-    expect(commands.call).toHaveBeenNthCalledWith(6, selectColCommand.key, {
-      pos: 6,
-      index: 4,
-    });
+    expect(commands.call).toHaveBeenNthCalledWith(4, addColAfterCommand.key);
+    expect(commands.call).toHaveBeenCalledTimes(4);
+    expect(restoreTransaction.setSelection).toHaveBeenCalledTimes(2);
+    expect(view.dispatch).toHaveBeenCalledTimes(2);
+    expect(userInputListener).toHaveBeenCalledTimes(2);
     expect(querySelectorAllSpy).not.toHaveBeenCalled();
+  });
+
+  it('restores a normal selection after appending rows and columns from edge controls', () => {
+    const { commands, operation, restoreTransaction, userInputListener, view } = createHarness();
+
+    operation.onAppendRow();
+    operation.onAppendCol();
+
+    expect(commands.call).toHaveBeenNthCalledWith(1, selectRowCommand.key, {
+      pos: 6,
+      index: 2,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(2, addRowAfterCommand.key);
+    expect(commands.call).toHaveBeenNthCalledWith(3, selectColCommand.key, {
+      pos: 6,
+      index: 2,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(4, addColAfterCommand.key);
+    expect(restoreTransaction.setSelection).toHaveBeenCalledTimes(2);
+    expect(view.dispatch).toHaveBeenCalledTimes(2);
+    expect(userInputListener).toHaveBeenCalledTimes(2);
   });
 
   it('allows shrinking from two rows down to one row when the last row is empty', () => {
@@ -306,10 +397,11 @@ describe('table operation', () => {
       },
     };
 
-    const { commands, operation } = createHarness(() => 5, tableNode);
+    const { commands, operation, userInputListener } = createHarness(() => 5, tableNode);
 
     operation.onShrinkRow();
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(commands.call).toHaveBeenNthCalledWith(1, selectRowCommand.key, {
       pos: 6,
       index: 1,

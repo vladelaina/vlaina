@@ -47,15 +47,15 @@ summary,
   opacity: var(--vlaina-opacity-100);
 }
 
-.sidebar-user-header:hover .sidebar-user-header-pill,
-.sidebar-user-header:focus-within .sidebar-user-header-pill,
+.sidebar-user-header:not([data-interaction-suppressed="true"]):hover .sidebar-user-header-pill,
+.sidebar-user-header:not([data-interaction-suppressed="true"]):focus-within .sidebar-user-header-pill,
 .sidebar-user-header[data-hovered="true"] .sidebar-user-header-pill {
   background-color: var(--vlaina-color-pill-surface);
   box-shadow: var(--vlaina-shadow-raised-soft);
 }
 
-.sidebar-user-header:hover .sidebar-user-header-collapse,
-.sidebar-user-header:focus-within .sidebar-user-header-collapse,
+.sidebar-user-header:not([data-interaction-suppressed="true"]):hover .sidebar-user-header-collapse,
+.sidebar-user-header:not([data-interaction-suppressed="true"]):focus-within .sidebar-user-header-collapse,
 .sidebar-user-header[data-hovered="true"] .sidebar-user-header-collapse {
   pointer-events: auto;
   opacity: var(--vlaina-opacity-100);

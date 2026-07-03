@@ -47,6 +47,50 @@ describe('SidebarInlineRenameInput', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('does not submit on blur or Enter while composing text', () => {
+    const onSubmit = vi.fn();
+
+    render(
+      <SidebarInlineRenameInput
+        value="nihao"
+        onValueChange={() => {}}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        aria-label="Rename"
+      />,
+    );
+
+    const input = screen.getByLabelText('Rename');
+
+    fireEvent.compositionStart(input);
+    fireEvent.blur(input);
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('submits again after composition ends', () => {
+    const onSubmit = vi.fn();
+
+    render(
+      <SidebarInlineRenameInput
+        value="你好"
+        onValueChange={() => {}}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+        aria-label="Rename"
+      />,
+    );
+
+    const input = screen.getByLabelText('Rename');
+
+    fireEvent.compositionStart(input);
+    fireEvent.compositionEnd(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
   it('normalizes pasted newlines without writing line breaks into the value', () => {
     const onValueChange = vi.fn();
 

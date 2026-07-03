@@ -124,7 +124,7 @@ describe('ModuleShortcutsDialog', () => {
     expect(screen.getByText('No results')).toBeInTheDocument();
   });
 
-  it('handles wheel scrolling on the shortcuts list', () => {
+  it('leaves wheel scrolling on the shortcuts list to the browser', () => {
     render(
       <ModuleShortcutsDialog
         module="chat"
@@ -141,6 +141,6 @@ describe('ModuleShortcutsDialog', () => {
     setScrollMetrics(scrollRoot!, { clientHeight: 180, scrollHeight: 600, scrollTop: 30 });
     fireEvent.wheel(scrollRoot!, { deltaY: 120 });
 
-    expect(scrollRoot!.scrollTop).toBe(150);
+    expect(scrollRoot!.scrollTop).toBe(30);
   });
 });

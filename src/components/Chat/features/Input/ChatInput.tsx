@@ -224,6 +224,7 @@ export const ChatInput = memo(function ChatInput({
 
   const {
     message,
+    isComposing,
     textareaRef,
     composerRootRef,
     markExplicitMultiline,
@@ -495,6 +496,10 @@ export const ChatInput = memo(function ChatInput({
     }
 
     const handleWindowUndo = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
       if (
         !isUndoShortcut(event) ||
         !isAttachmentUndoTarget(event.target, composerRootRef.current, document)
@@ -634,6 +639,11 @@ export const ChatInput = memo(function ChatInput({
 
   const handleTextareaKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
+      if (isComposing || native.isComposing || native.keyCode === 229) {
+        return;
+      }
+
       const selectionStart = e.currentTarget.selectionStart ?? 0;
       const selectionEnd = e.currentTarget.selectionEnd ?? 0;
 
@@ -660,6 +670,7 @@ export const ChatInput = memo(function ChatInput({
           altKey: e.altKey,
           ctrlKey: e.ctrlKey,
           metaKey: e.metaKey,
+          isComposing,
           preventDefault: () => e.preventDefault(),
         })
       ) {
@@ -672,6 +683,7 @@ export const ChatInput = memo(function ChatInput({
       handleHistoryKeyDown,
       handleKeyDown,
       handleMentionKeyDown,
+      isComposing,
     ]
   );
 
