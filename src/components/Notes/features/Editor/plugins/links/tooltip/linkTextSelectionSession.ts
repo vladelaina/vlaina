@@ -64,14 +64,17 @@ export function resolveLinkTextRootFromMouseEvent(view: EditorView, event: Mouse
     const root = scanRoot instanceof HTMLElement && view.dom.contains(scanRoot) ? scanRoot : view.dom;
     let best: { area: number; link: HTMLElement } | null = null;
 
-    root.querySelectorAll<HTMLElement>(LINK_TEXT_POSITION_SELECTOR).forEach((link) => {
-        if (!isPointInsideElementClientRects(link, event.clientX, event.clientY)) return;
+    const links = root.querySelectorAll<HTMLElement>(LINK_TEXT_POSITION_SELECTOR);
+    for (let index = 0; index < links.length; index += 1) {
+        const link = links[index];
+        if (!link) continue;
+        if (!isPointInsideElementClientRects(link, event.clientX, event.clientY)) continue;
         const rect = link.getBoundingClientRect();
         const area = rect.width * rect.height;
         if (best === null || area < best.area) {
             best = { area, link };
         }
-    });
+    }
 
     return best?.link ?? null;
 }
