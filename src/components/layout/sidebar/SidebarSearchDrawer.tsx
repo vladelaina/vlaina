@@ -1,5 +1,5 @@
 import {
-  type KeyboardEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type RefObject,
 } from 'react';
@@ -91,8 +91,8 @@ export function SidebarSearchDrawer({
   closeLabel,
   topActions,
 }: SidebarSearchDrawerProps) {
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    const native = event.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    const native = event.nativeEvent as globalThis.KeyboardEvent & { isComposing?: boolean; keyCode?: number };
     if (native.isComposing || native.keyCode === 229) {
       return;
     }
