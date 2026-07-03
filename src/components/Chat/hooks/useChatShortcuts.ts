@@ -126,6 +126,9 @@ export function useChatShortcuts(
       if (e.defaultPrevented) {
         return;
       }
+      if (e.isComposing) {
+        return;
+      }
 
       const isMod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();

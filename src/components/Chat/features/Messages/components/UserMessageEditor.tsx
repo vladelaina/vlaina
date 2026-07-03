@@ -121,11 +121,11 @@ export function UserMessageEditor({
       return;
     }
 
+    if (isComposing || native.isComposing || native.keyCode === 229) {
+      return;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
-      if (isComposing || native.isComposing || native.keyCode === 229) {
-        event.preventDefault();
-        return;
-      }
       event.preventDefault();
       event.stopPropagation();
       handleSave();

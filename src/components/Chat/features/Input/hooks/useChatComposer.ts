@@ -262,11 +262,11 @@ export function useChatComposer({
       }
 
       if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
         if (isComposing || native.isComposing || native.keyCode === 229) {
-          submitAfterCompositionRef.current = true;
+          submitAfterCompositionRef.current = false;
           return;
         }
+        e.preventDefault();
         submitAfterCompositionRef.current = false;
         handleSend();
       }

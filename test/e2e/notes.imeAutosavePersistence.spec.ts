@@ -69,6 +69,44 @@ async function finishImeComposition(
   }, { editorSelector: EDITOR_SELECTOR, committedText });
 }
 
+async function dispatchSplitResidueImeCommit(page: Page): Promise<void> {
+  const focused = await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditorAtEnd());
+  expect(focused).toBe(true);
+
+  const started = await page.evaluate((editorSelector) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) return false;
+
+    editor.dispatchEvent(new CompositionEvent('compositionstart', {
+      bubbles: true,
+      data: '',
+    }));
+    editor.dispatchEvent(new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      data: 'hao',
+      inputType: 'insertCompositionText',
+      isComposing: true,
+    }));
+    return true;
+  }, EDITOR_SELECTOR);
+  expect(started).toBe(true);
+
+  await page.keyboard.insertText('ha');
+  await expect(page.locator(EDITOR_SELECTOR)).toContainText('ha');
+
+  const movedIntoResidue = await page.evaluate(() => {
+    const selection = (window as any).__vlainaE2E.getEditorSelectionSummary();
+    if (!selection) return false;
+    return Boolean((window as any).__vlainaE2E.setEditorSelectionRange(selection.to - 1));
+  });
+  expect(movedIntoResidue).toBe(true);
+
+  await page.keyboard.insertText('好');
+  await expect(page.locator(EDITOR_SELECTOR)).toContainText('h好a');
+  await finishImeComposition(page, '好');
+}
+
 function expectCommittedWithoutRomanized(content: string): void {
   expect(content).toContain('你好');
   expect(content).not.toContain('nihao');
@@ -128,6 +166,36 @@ test.describe('notes IME autosave persistence', () => {
       await expect(page.locator(EDITOR_SELECTOR)).not.toContainText('nihao');
       expectCommittedWithoutRomanized(await readCurrentNoteContent(page));
       expectCommittedWithoutRomanized(await readDiskContent(page, opened.notePath));
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('repairs pinyin residue split around a committed Chinese candidate before Enter', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-ime-split-residue-enter');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const opened = await openMarkdownFixture(page, {
+        filename: 'ime-split-residue.md',
+        content: '',
+      });
+
+      await dispatchSplitResidueImeCommit(page);
+      await page.keyboard.press('Enter');
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('好');
+      await expect(page.locator(EDITOR_SELECTOR)).not.toContainText('h好a');
+      await expect.poll(async () => readCurrentNoteContent(page), { timeout: 10_000 })
+        .toContain('好');
+      expect(await readCurrentNoteContent(page)).not.toContain('h好a');
+
+      await expect.poll(async () => readDiskContent(page, opened.notePath), { timeout: 10_000 })
+        .toContain('好');
+      expect(await readDiskContent(page, opened.notePath)).not.toContain('h好a');
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

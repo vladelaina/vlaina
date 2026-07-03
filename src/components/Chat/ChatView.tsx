@@ -260,6 +260,10 @@ export function ChatView({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
       if (
         event.key !== 'Escape' ||
         event.shiftKey ||
@@ -289,6 +293,10 @@ export function ChatView({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) {
+        return;
+      }
+
       if (
         event.key !== 'Escape' ||
         event.shiftKey ||

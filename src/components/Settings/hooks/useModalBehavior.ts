@@ -18,6 +18,10 @@ export function useModalBehavior({
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.isComposing) {
+        return;
+      }
+
       if (e.key === 'Escape') {
         if (isEditing && onCancelEdit) {
           onCancelEdit();

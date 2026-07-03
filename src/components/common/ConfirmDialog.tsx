@@ -47,6 +47,10 @@ export function ConfirmDialog({
   const [showKeyboardSelection, setShowKeyboardSelection] = useState(false);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
+
     const isBackward = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
     const isForward = e.key === 'ArrowRight' || e.key === 'ArrowDown';
 

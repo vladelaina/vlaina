@@ -8,6 +8,7 @@ interface HistoryKeyInput {
   altKey: boolean;
   ctrlKey: boolean;
   metaKey: boolean;
+  isComposing?: boolean;
   preventDefault: () => void;
 }
 
@@ -49,13 +50,14 @@ export function useChatHistoryNavigation({
       altKey,
       ctrlKey,
       metaKey,
+      isComposing,
       preventDefault,
     }: HistoryKeyInput) => {
       const hasHistoryItems = sentUserMessages.length > 0;
       const hasModifier = shiftKey || altKey || ctrlKey || metaKey;
       const isCollapsedSelection = selectionStart === selectionEnd;
 
-      if (showMentionPicker || !hasHistoryItems || hasModifier || !isCollapsedSelection) {
+      if (isComposing || showMentionPicker || !hasHistoryItems || hasModifier || !isCollapsedSelection) {
         return false;
       }
 

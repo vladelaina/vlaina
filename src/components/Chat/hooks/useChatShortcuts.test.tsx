@@ -190,6 +190,23 @@ describe("useChatShortcuts", () => {
     expect(onStopGeneration).toHaveBeenCalledTimes(1);
   });
 
+  it("does not handle shortcuts while IME composition is active", () => {
+    const { onStopGeneration, onFocusInput, onToggleShortcuts } = setup({ isGenerating: true });
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, "isComposing", { value: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onStopGeneration).not.toHaveBeenCalled();
+    expect(onFocusInput).not.toHaveBeenCalled();
+    expect(onToggleShortcuts).not.toHaveBeenCalled();
+  });
+
   it("does not intercept Escape inside a dialog", () => {
     const { onStopGeneration } = setup({ isGenerating: true });
 

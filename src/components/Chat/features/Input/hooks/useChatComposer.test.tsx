@@ -313,6 +313,34 @@ describe('useChatComposer', () => {
     }
   });
 
+  it('does not submit or block default handling for IME Enter', () => {
+    const onSend = vi.fn();
+    const preventDefault = vi.fn();
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend,
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.handleCompositionStart();
+      result.current.handleMessageChange('hao');
+      result.current.handleKeyDown({
+        key: 'Enter',
+        shiftKey: false,
+        preventDefault,
+        nativeEvent: { isComposing: true },
+      } as any);
+      result.current.handleCompositionEnd();
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it('syncs textarea height right after Shift+Enter inserts a newline', () => {
     const rafCallbacks: FrameRequestCallback[] = [];
     const requestAnimationFrameSpy = vi

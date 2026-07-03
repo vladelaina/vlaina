@@ -48,4 +48,33 @@ describe('UserMessageEditor', () => {
 
     expect(onEdit).toHaveBeenCalledWith('message-1', '日本');
   });
+
+  it('does not save or block default handling for composing Enter', () => {
+    const onClose = vi.fn();
+    const onEdit = vi.fn();
+    render(
+      <UserMessageEditor
+        message={message}
+        parsedContent={{ text: 'original', imageSources: [] }}
+        onClose={onClose}
+        onEdit={onEdit}
+      />,
+    );
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.compositionStart(textarea);
+    fireEvent.change(textarea, { target: { value: 'hao' } });
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, 'isComposing', { value: true });
+    textarea.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

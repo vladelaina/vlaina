@@ -137,6 +137,40 @@ describe('UniversalIconPicker', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('does not close or switch tabs while IME composition is active', () => {
+    const onClose = vi.fn();
+
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    const escapeEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(escapeEvent, 'isComposing', { value: true });
+    document.dispatchEvent(escapeEvent);
+
+    const tabEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(tabEvent, 'isComposing', { value: true });
+    document.dispatchEvent(tabEvent);
+
+    expect(escapeEvent.defaultPrevented).toBe(false);
+    expect(tabEvent.defaultPrevented).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByTestId('emoji-tab')).toBeInTheDocument();
+    expect(screen.queryByTestId('upload-tab')).not.toBeInTheDocument();
+  });
+
   it('closes from capture when an outside target stops propagation', () => {
     const onClose = vi.fn();
 
