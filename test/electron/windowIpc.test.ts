@@ -15,6 +15,8 @@ function registerHarness() {
   const window = {
     setMinimumSize: vi.fn(),
     setSize: vi.fn(),
+    setBackgroundColor: vi.fn(),
+    setTitleBarOverlay: vi.fn(),
   };
   const createWindow = vi.fn();
 
@@ -29,6 +31,19 @@ function registerHarness() {
   });
 
   return { createWindow, handlers, window };
+}
+
+function withPlatform(platform: NodeJS.Platform, testBody: () => void) {
+  const descriptor = Object.getOwnPropertyDescriptor(process, 'platform');
+  Object.defineProperty(process, 'platform', { value: platform });
+
+  try {
+    testBody();
+  } finally {
+    if (descriptor) {
+      Object.defineProperty(process, 'platform', descriptor);
+    }
+  }
 }
 
 describe('window ipc', () => {
@@ -62,6 +77,48 @@ describe('window ipc', () => {
 
     expect(window.setSize).toHaveBeenCalledWith(981, 1);
     expect(window.setMinimumSize).toHaveBeenCalledWith(8192, 299);
+  });
+
+  it('keeps the Windows titlebar overlay hidden while theme colors change', () => {
+    const { handlers, window } = registerHarness();
+
+    withPlatform('win32', () => {
+      handlers.get('desktop:window:set-theme-colors')?.({}, {
+        backgroundColor: '#fcfcfc',
+        titleBarOverlayColor: '#fcfcfc',
+        titleBarSymbolColor: '#27262b',
+      });
+      expect(window.setTitleBarOverlay).toHaveBeenLastCalledWith({
+        color: '#fcfcfc',
+        symbolColor: '#27262b',
+        height: 40,
+      });
+
+      expect(handlers.get('desktop:window:set-titlebar-overlay-visible')?.({}, false)).toBe(true);
+      expect(window.setTitleBarOverlay).toHaveBeenLastCalledWith({
+        color: '#fcfcfc',
+        symbolColor: '#27262b',
+        height: 0,
+      });
+
+      handlers.get('desktop:window:set-theme-colors')?.({}, {
+        backgroundColor: '#050505',
+        titleBarOverlayColor: '#050505',
+        titleBarSymbolColor: '#ededee',
+      });
+      expect(window.setTitleBarOverlay).toHaveBeenLastCalledWith({
+        color: '#050505',
+        symbolColor: '#ededee',
+        height: 0,
+      });
+
+      expect(handlers.get('desktop:window:set-titlebar-overlay-visible')?.({}, true)).toBe(true);
+      expect(window.setTitleBarOverlay).toHaveBeenLastCalledWith({
+        color: '#050505',
+        symbolColor: '#ededee',
+        height: 40,
+      });
+    });
   });
 
   it('passes notes root launch targets to new windows', () => {

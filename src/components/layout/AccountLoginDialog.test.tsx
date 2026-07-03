@@ -3,10 +3,19 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountLoginDialog } from './AccountLoginDialog';
 
-const focusComposerInput = vi.fn();
+const mocks = vi.hoisted(() => ({
+  focusComposerInput: vi.fn(),
+  setTitleBarOverlayVisible: vi.fn().mockResolvedValue(false),
+}));
 
 vi.mock('@/lib/ui/composerFocusRegistry', () => ({
-  focusComposerInput: () => focusComposerInput(),
+  focusComposerInput: () => mocks.focusComposerInput(),
+}));
+
+vi.mock('@/lib/desktop/window', () => ({
+  desktopWindow: {
+    setTitleBarOverlayVisible: mocks.setTitleBarOverlayVisible,
+  },
 }));
 
 vi.mock('@/stores/accountSession', () => ({
@@ -24,6 +33,20 @@ vi.mock('@/stores/accountSession', () => ({
 describe('AccountLoginDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('hides the native Windows titlebar overlay while login is open', async () => {
+    const { rerender } = render(<AccountLoginDialog open onOpenChange={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(mocks.setTitleBarOverlayVisible).toHaveBeenCalledWith(false);
+    });
+
+    rerender(<AccountLoginDialog open={false} onOpenChange={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(mocks.setTitleBarOverlayVisible).toHaveBeenLastCalledWith(true);
+    });
   });
 
   it('keeps the dialog open when clicking outside the sign-in panel', () => {
@@ -67,7 +90,7 @@ describe('AccountLoginDialog', () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     await waitFor(() => {
-      expect(focusComposerInput).toHaveBeenCalled();
+      expect(mocks.focusComposerInput).toHaveBeenCalled();
     });
   });
 });

@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
       setMinSize: vi.fn().mockResolvedValue(undefined),
       setSize: vi.fn().mockResolvedValue(undefined),
       setThemeColors: vi.fn().mockResolvedValue(true),
+      setTitleBarOverlayVisible: vi.fn().mockResolvedValue(true),
       center: vi.fn().mockResolvedValue(undefined),
       getSize: vi.fn().mockResolvedValue({ width: 1280, height: 720 }),
       getLabel: vi.fn().mockResolvedValue('main'),
@@ -134,6 +135,7 @@ describe('desktop runtime adapters', () => {
       titleBarOverlayColor: '#fcfcfc',
       titleBarSymbolColor: '#27262b',
     });
+    await desktopWindow.setTitleBarOverlayVisible(false);
     await desktopWindow.create({ notesRootPath: '/notesRoot', notePath: '/notesRoot/a.md', viewMode: 'notes' });
 
     const size = await desktopWindow.getSize();
@@ -149,6 +151,7 @@ describe('desktop runtime adapters', () => {
       titleBarOverlayColor: '#fcfcfc',
       titleBarSymbolColor: '#27262b',
     });
+    expect(mocks.bridge.window.setTitleBarOverlayVisible).toHaveBeenCalledWith(false);
     expect(mocks.bridge.window.create).toHaveBeenCalledWith({
       notesRootPath: '/notesRoot',
       notePath: '/notesRoot/a.md',
@@ -177,6 +180,7 @@ describe('desktop runtime adapters', () => {
       titleBarOverlayColor: '#fcfcfc',
       titleBarSymbolColor: '#27262b',
     })).resolves.toBe(false);
+    await expect(desktopWindow.setTitleBarOverlayVisible(false)).resolves.toBe(false);
     await expect(desktopWindow.center()).resolves.toBeUndefined();
     await expect(desktopWindow.getSize()).resolves.toEqual({ width: 0, height: 0 });
     await expect(desktopWindow.getLabel()).resolves.toBeNull();

@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearCachedDesktopUpdateInfo, writeCachedDesktopUpdateInfo } from '@/lib/desktop/updateStatus';
 import { SettingsModal } from './SettingsModal';
 
+const mocks = vi.hoisted(() => ({
+  setTitleBarOverlayVisible: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
   motion: {
@@ -72,6 +76,12 @@ vi.mock('@/stores/ai/providerActions', () => ({
   },
 }));
 
+vi.mock('@/lib/desktop/window', () => ({
+  desktopWindow: {
+    setTitleBarOverlayVisible: mocks.setTitleBarOverlayVisible,
+  },
+}));
+
 vi.mock('@/lib/i18n', () => ({
   useI18n: () => ({
     t: (key: string) => ({
@@ -122,6 +132,32 @@ describe('SettingsModal', () => {
     cleanup();
     clearCachedDesktopUpdateInfo();
     vi.clearAllMocks();
+  });
+
+  it('hides the native Windows titlebar overlay while settings is open', async () => {
+    const { rerender } = render(
+      <SettingsModal
+        open
+        communitySettings={communitySettings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mocks.setTitleBarOverlayVisible).toHaveBeenCalledWith(false);
+    });
+
+    rerender(
+      <SettingsModal
+        open={false}
+        communitySettings={communitySettings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mocks.setTitleBarOverlayVisible).toHaveBeenLastCalledWith(true);
+    });
   });
 
   it('marks the About tab when a cached desktop update is available', async () => {

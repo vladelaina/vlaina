@@ -13,6 +13,7 @@ export interface ElectronWindowApi {
     titleBarOverlayColor: string;
     titleBarSymbolColor: string;
   }): Promise<boolean>;
+  setTitleBarOverlayVisible?(visible: boolean): Promise<boolean>;
   center(): Promise<void>;
   getSize(): Promise<{ width: number; height: number }>;
   getLabel(): Promise<string | null>;
