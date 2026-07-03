@@ -221,8 +221,8 @@ export function SidebarContent({
       isContentScanPending={isContentScanPending}
       isLoading={isLoading}
       isPeeking={isPeeking}
-      openFileLabel={t('notes.openFile')}
-      openFolderLabel={t('notes.openFolder')}
+      openFileLabel={t('notes.file')}
+      openFolderLabel={t('notes.folder')}
       onOpenFile={handleOpenMarkdownFile}
       onOpenFolder={handleOpenFolder}
       recentNotesRoots={recentEmptyWorkspaceNotesRoots}
