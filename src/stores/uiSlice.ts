@@ -106,6 +106,8 @@ interface UIStore {
 
   notesPreviewTitle: { path: string; title: string } | null;
   setNotesPreviewTitle: (path: string | null, title: string | null) => void;
+  notesSplitPanesActive: boolean;
+  setNotesSplitPanesActive: (active: boolean) => void;
 
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
@@ -495,6 +497,10 @@ export const useUIStore = create<UIStore>()((set) => ({
       set({ notesPreviewTitle: null });
     }
   },
+  notesSplitPanesActive: false,
+  setNotesSplitPanesActive: (active) => set((state) => (
+    state.notesSplitPanesActive === active ? state : { notesSplitPanesActive: active }
+  )),
 
   drawerOpen: false,
   setDrawerOpen: (open) => set({ drawerOpen: open }),

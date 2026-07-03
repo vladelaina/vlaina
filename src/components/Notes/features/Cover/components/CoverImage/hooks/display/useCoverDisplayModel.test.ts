@@ -327,6 +327,31 @@ describe('useCoverDisplayModel', () => {
     expect(result.current.sourceIsReady).toBe(false);
   });
 
+  it('does not use the previous cover when previous fallback is disabled', () => {
+    hoisted.getCachedDimensions.mockReturnValue({ width: 1500, height: 969 });
+
+    const { result } = renderHook(() =>
+      useCoverDisplayModel({
+        phase: 'ready',
+        previewSrc: null,
+        resolvedSrc: null,
+        isSourceStale: true,
+        canUsePreviousSource: false,
+        prevSrcRef: createPrevSrcRef('/covers/previous.webp'),
+        crop: { x: 0, y: 0 },
+        zoom: 1,
+        positionX: 50,
+        positionY: 50,
+        isImageReady: false,
+        setIsImageReady: vi.fn(),
+      })
+    );
+
+    expect(result.current.mediaSrc).toBe('');
+    expect(result.current.placeholderSrc).toBe('');
+    expect(result.current.sourceIsReady).toBe(false);
+  });
+
   it('holds the previous stable geometry while a new source is not ready yet', async () => {
     hoisted.getCachedDimensions.mockReturnValue(null);
     const initialProps: DisplayModelProps = {

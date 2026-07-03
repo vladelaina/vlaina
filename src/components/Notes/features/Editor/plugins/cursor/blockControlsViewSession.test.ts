@@ -149,6 +149,14 @@ function createFileTreeFileDropTarget(path: string): HTMLElement {
   return file;
 }
 
+function createSplitPaneDropTarget(path: string): HTMLElement {
+  const pane = document.createElement('div');
+  pane.dataset.notesSplitLeafPath = path;
+  pane.setAttribute('data-notes-block-drop-target', 'true');
+  document.body.appendChild(pane);
+  return pane;
+}
+
 function setOpenTabNotesState(openNote = vi.fn(async () => undefined)) {
   useNotesStore.setState({
     currentNote: { path: 'source.md', content: 'Source' },
@@ -584,6 +592,28 @@ describe('BlockControlsViewSession', () => {
     const session = new BlockControlsViewSession(view);
     const targetFile = createFileTreeFileDropTarget('target.md');
     document.elementsFromPoint = vi.fn(() => [targetFile]);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 20, buttons: 1, bubbles: true }));
+
+      await vi.advanceTimersByTimeAsync(296);
+
+      expect(openNote).toHaveBeenCalledWith('target.md');
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('opens a hovered split pane while dragging selected blocks', async () => {
+    vi.useFakeTimers();
+    const openNote = setOpenTabNotesState();
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+    const targetPane = createSplitPaneDropTarget('target.md');
+    document.elementsFromPoint = vi.fn(() => [targetPane]);
 
     try {
       document

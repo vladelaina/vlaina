@@ -45,10 +45,12 @@ interface HeroIconHeaderProps {
   onRequestRandomIcon?: () => string | null;
 
   className?: string;
+  titleClassName?: string;
   coverUrl?: string | null;
   coverLayoutActive?: boolean;
   children?: React.ReactNode;
   compact?: boolean;
+  readOnly?: boolean;
 }
 
 const resolvePixelSize = (size: number | IconSize) => {
@@ -118,10 +120,12 @@ export function HeroIconHeader({
   allowLegacyImageScheme = false,
   onRequestRandomIcon,
   className,
+  titleClassName,
   coverUrl,
   coverLayoutActive = Boolean(coverUrl),
   children,
   compact = false,
+  readOnly = false,
 }: HeroIconHeaderProps) {
   const { t } = useI18n();
   const headerRef = useRef<HTMLDivElement>(null);
@@ -249,11 +253,14 @@ export function HeroIconHeader({
   }, [commitIconChange]);
 
   const handleOpenIconPicker = useCallback(() => {
+    if (readOnly) {
+      return;
+    }
     logIconPickerDebug('header-open-picker', { id, committedIcon });
     notifyNotesOverlayOpen('header-icon-picker');
     setShowIconPicker(true);
     void Promise.resolve(onIconPickerOpen?.()).catch(() => undefined);
-  }, [committedIcon, id, onIconPickerOpen]);
+  }, [committedIcon, id, onIconPickerOpen, readOnly]);
 
   const handleRemoveIcon = useCallback(() => {
     pendingRandomRecentIconRef.current = null;
@@ -322,16 +329,13 @@ export function HeroIconHeader({
                   className="relative flex items-center"
                   style={{ height: themeDomStyleTokens.heroIconHeaderSize }}
               >
-                  <button
-                      ref={iconButtonRef}
-                      onClick={() => {
-                        handleOpenIconPicker();
-                      }}
-                      className="hover:scale-[var(--vlaina-scale-105)] transition-transform cursor-pointer flex items-center group"
+                  {readOnly ? (
+                    <div
+                      className="flex items-center"
                       style={{
                           marginLeft: !compact ? `calc(var(--vlaina-hero-icon-header-size) * -0.1)` : 0
                       }}
-                  >
+                    >
                       <HeaderIcon
                           key={committedIcon || 'empty'}
                           itemId={id}
@@ -340,8 +344,34 @@ export function HeroIconHeader({
                           imageLoader={imageLoader}
                           allowLegacyImageScheme={allowLegacyImageScheme}
                       />
-                  </button>
+                    </div>
+                  ) : (
+                    <button
+                        ref={iconButtonRef}
+                        onClick={() => {
+                          handleOpenIconPicker();
+                        }}
+                        className="hover:scale-[var(--vlaina-scale-105)] transition-transform cursor-pointer flex items-center group"
+                        style={{
+                            marginLeft: !compact ? `calc(var(--vlaina-hero-icon-header-size) * -0.1)` : 0
+                        }}
+                    >
+                        <HeaderIcon
+                            key={committedIcon || 'empty'}
+                            itemId={id}
+                            originalIcon={committedIcon}
+                            sizeVar="var(--vlaina-hero-icon-header-size)"
+                            imageLoader={imageLoader}
+                            allowLegacyImageScheme={allowLegacyImageScheme}
+                        />
+                    </button>
+                  )}
               </div>
+          ) : readOnly ? (
+              <div
+                aria-hidden="true"
+                className={compact ? "h-8" : "h-14"}
+              />
           ) : (
               <div className={cn(
                   "flex items-center gap-2 transition-all duration-[var(--vlaina-duration-150)]",
@@ -368,7 +398,7 @@ export function HeroIconHeader({
               </div>
           )}
 
-          {showIconPicker && (
+          {!readOnly && showIconPicker && (
               <div
                 className="absolute z-[var(--vlaina-z-max)] top-full mt-2"
                 style={{ left: !compact ? `calc(var(--vlaina-hero-icon-header-size) * -0.1)` : 0 }}
@@ -422,7 +452,13 @@ export function HeroIconHeader({
               </div>
           )}
           {title !== undefined && !renderTitle && (
-              <div className="mb-4 pointer-events-auto text-4xl font-bold text-[var(--vlaina-text-primary)] break-words outline-none placeholder:text-[var(--vlaina-text-tertiary)]">
+              <div
+                className={cn(
+                  "mb-4 pointer-events-auto text-4xl font-bold text-[var(--vlaina-text-primary)] break-words outline-none placeholder:text-[var(--vlaina-text-tertiary)]",
+                  titleClassName
+                )}
+                data-hero-icon-title="true"
+              >
                   {title}
               </div>
           )}

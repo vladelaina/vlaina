@@ -116,6 +116,7 @@ describe('CoverImageShell', () => {
     expect(screen.getByTestId('cover-renderer')).toBeInTheDocument();
     expect(hoisted.coverRendererSpy).toHaveBeenCalled();
     expect(container.firstElementChild?.getAttribute('style')).toContain('overflow-anchor: none');
+    expect(container.firstElementChild).not.toHaveClass('animate-in');
   });
 
   it('uses the normal cover height for pending previews before selection is saved', () => {

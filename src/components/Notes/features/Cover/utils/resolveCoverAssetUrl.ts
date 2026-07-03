@@ -24,10 +24,12 @@ interface CompletedCoverAssetUrlResolve {
 
 const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
 const completedCoverAssetUrlResolves = new Map<string, CompletedCoverAssetUrlResolve>();
+const displayedCoverAssetUrlResolves = new Map<string, string>();
 const COVER_RESOLVE_JOIN_WINDOW_MS = 50;
-const COVER_RESOLVE_REUSE_WINDOW_MS = 500;
+const COVER_RESOLVE_REUSE_WINDOW_MS = 30_000;
 export const MAX_PENDING_COVER_ASSET_URL_RESOLVES = 100;
 const MAX_COMPLETED_COVER_ASSET_URL_RESOLVES = 500;
+const MAX_DISPLAYED_COVER_ASSET_URL_RESOLVES = 500;
 const ANIMATED_REPLAY_TOKEN_REUSE_WINDOW_MS = 500;
 const MAX_ANIMATED_REPLAY_TOKEN_CACHE_ENTRIES = 500;
 let animatedReplayTokenCounter = 0;
@@ -42,6 +44,7 @@ const animatedReplayTokenCache = new Map<string, AnimatedReplayTokenEntry>();
 export function clearCoverAssetUrlResolveCacheForTests(): void {
   pendingCoverAssetUrlResolves.clear();
   completedCoverAssetUrlResolves.clear();
+  displayedCoverAssetUrlResolves.clear();
   animatedReplayTokenCache.clear();
 }
 
@@ -144,6 +147,17 @@ function setCompletedCoverAssetUrlResolve(resolveKey: string, url: string, now: 
   }
 }
 
+function getDisplayedCoverAssetUrlResolve(resolveKey: string): string | null {
+  const displayedUrl = displayedCoverAssetUrlResolves.get(resolveKey);
+  if (!displayedUrl) {
+    return null;
+  }
+
+  displayedCoverAssetUrlResolves.delete(resolveKey);
+  displayedCoverAssetUrlResolves.set(resolveKey, displayedUrl);
+  return displayedUrl;
+}
+
 export async function resolveCoverAssetUrl({
   assetPath,
   notesRootPath,
@@ -161,6 +175,11 @@ export async function resolveCoverAssetUrl({
   });
   const pendingResolve = pendingCoverAssetUrlResolves.get(resolveKey);
   const now = getNowMs();
+  const displayedResolve = replayAnimated ? getDisplayedCoverAssetUrlResolve(resolveKey) : null;
+  if (displayedResolve) {
+    return displayedResolve;
+  }
+
   if (pendingResolve && now - pendingResolve.startedAt <= COVER_RESOLVE_JOIN_WINDOW_MS) {
     return applyAnimatedReplayToken(await pendingResolve.promise, assetPath, replayAnimated);
   }
@@ -199,6 +218,60 @@ export async function resolveCoverAssetUrl({
   }
 }
 
+export function getCachedResolvedCoverAssetUrl({
+  assetPath,
+  notesRootPath,
+  currentNotePath,
+  thumbnail,
+  thumbnailMaxEdgePx,
+  replayAnimated,
+}: ResolveCoverAssetUrlOptions): string | null {
+  const resolveKey = getCoverResolveKey({
+    assetPath,
+    notesRootPath,
+    currentNotePath,
+    thumbnail,
+    thumbnailMaxEdgePx,
+  });
+  const displayedUrl = getDisplayedCoverAssetUrlResolve(resolveKey);
+  if (displayedUrl) {
+    return displayedUrl;
+  }
+
+  const resolvedUrl = getCompletedCoverAssetUrlResolve(resolveKey, getNowMs());
+  if (resolvedUrl) {
+    return applyAnimatedReplayToken(resolvedUrl, assetPath, replayAnimated);
+  }
+
+  return null;
+}
+
+export function rememberDisplayedCoverAssetUrl({
+  assetPath,
+  notesRootPath,
+  currentNotePath,
+  thumbnail,
+  thumbnailMaxEdgePx,
+}: ResolveCoverAssetUrlOptions, resolvedUrl: string): void {
+  const resolveKey = getCoverResolveKey({
+    assetPath,
+    notesRootPath,
+    currentNotePath,
+    thumbnail,
+    thumbnailMaxEdgePx,
+  });
+  displayedCoverAssetUrlResolves.delete(resolveKey);
+  displayedCoverAssetUrlResolves.set(resolveKey, resolvedUrl);
+
+  while (displayedCoverAssetUrlResolves.size > MAX_DISPLAYED_COVER_ASSET_URL_RESOLVES) {
+    const oldestKey = displayedCoverAssetUrlResolves.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    displayedCoverAssetUrlResolves.delete(oldestKey);
+  }
+}
+
 async function resolveCoverAssetUrlUncached({
   assetPath,
   notesRootPath,
@@ -228,13 +301,33 @@ async function resolveCoverAssetUrlUncached({
   if (hasInternalNoteAssetUrlPathSegment(fullPath)) {
     throw new Error('cover-path-unsupported');
   }
-  if (!thumbnail) {
-    return loadImageAsBlob(fullPath);
+  const loadResolvedAsset = (resolvedPath: string) => {
+    if (!thumbnail) {
+      return loadImageAsBlob(resolvedPath);
+    }
+    return thumbnailMaxEdgePx
+      ? loadImageThumbnailAsBlob(resolvedPath, {
+        maxEdgePx: thumbnailMaxEdgePx,
+        allowMainThreadFallback: false,
+      })
+      : loadImageThumbnailAsBlob(resolvedPath);
+  };
+
+  try {
+    return await loadResolvedAsset(fullPath);
+  } catch (error) {
+    const fallbackAssetPath = safeAssetPath.startsWith('./assets/')
+      ? safeAssetPath.slice(2)
+      : null;
+    if (!fallbackAssetPath) {
+      throw error;
+    }
+
+    const fallbackFullPath = await resolveExistingNotesRootAssetPath(notesRootPath, fallbackAssetPath, currentNotePath);
+    if (!fallbackFullPath || fallbackFullPath === fullPath || hasInternalNoteAssetUrlPathSegment(fallbackFullPath)) {
+      throw error;
+    }
+
+    return loadResolvedAsset(fallbackFullPath);
   }
-  return thumbnailMaxEdgePx
-    ? loadImageThumbnailAsBlob(fullPath, {
-      maxEdgePx: thumbnailMaxEdgePx,
-      allowMainThreadFallback: false,
-    })
-    : loadImageThumbnailAsBlob(fullPath);
 }

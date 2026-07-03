@@ -145,7 +145,9 @@ describe('useCoverSource', () => {
       expect(result.current.resolvedSrc).toBe('blob:cover-a');
     });
 
-    rerender({ url: 'assets/b.png' });
+    act(() => {
+      rerender({ url: 'assets/b.png' });
+    });
 
     expect(result.current.setIsImageReady).toBe(initialSetter);
 
@@ -176,6 +178,76 @@ describe('useCoverSource', () => {
       expect(result.current.resolvedSrc).toBeNull();
     });
     expect(result.current.prevSrcRef.current).toBe('blob:cover-a');
+  });
+
+  it('uses a cached source immediately when switching back to a previously resolved cover', async () => {
+    hoisted.resolveNotesRootAssetPath.mockImplementation(async (_notesRootPath: string, assetPath: string) => {
+      if (assetPath === 'assets/a.png') return '/notesRoot/assets/a.png';
+      return '/notesRoot/assets/b.png';
+    });
+    hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => {
+      if (fullPath.includes('/a.png')) return 'blob:cover-a';
+      return 'blob:cover-b';
+    });
+
+    const { result, rerender } = renderHook(
+      ({ url }) => useCoverSource({ url, notesRootPath: '/notes-root-a' }),
+      { initialProps: { url: 'assets/a.png' as string | null } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+
+    rerender({ url: 'assets/b.png' });
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-b');
+    });
+
+    act(() => {
+      rerender({ url: 'assets/a.png' });
+    });
+
+    expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+  });
+
+  it('does not reuse a previous note cover while resolving the same relative url for another note', async () => {
+    hoisted.resolveNotesRootAssetPath.mockImplementation(
+      async (_notesRootPath: string, _assetPath: string, currentNotePath?: string) => {
+        if (currentNotePath === 'a.md') return '/notesRoot/a/assets/cover.png';
+        return '/notesRoot/b/assets/cover.png';
+      }
+    );
+    hoisted.loadImageThumbnailAsBlob
+      .mockResolvedValueOnce('blob:cover-a')
+      .mockImplementationOnce(() => new Promise<string>(() => {}));
+
+    const { result, rerender } = renderHook(
+      ({ currentNotePath }) =>
+        useCoverSource({
+          url: './assets/cover.png',
+          notesRootPath: '/notes-root-a',
+          currentNotePath,
+        }),
+      { initialProps: { currentNotePath: 'a.md' } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+
+    rerender({ currentNotePath: 'b.md' });
+
+    expect(result.current.resolvedSrc).toBeNull();
+    expect(result.current.canUsePreviousSource).toBe(false);
+
+    await waitFor(() => {
+      expect(result.current.prevSrcRef.current).toBeNull();
+    });
   });
 
   it('clears committing state when preview starts', async () => {

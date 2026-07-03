@@ -26,6 +26,7 @@ describe('uiSlice', () => {
       fontSize: 17,
       languagePreference: 'system',
       notesPreviewTitle: null,
+      notesSplitPanesActive: false,
       drawerOpen: false,
       universalPreviewTarget: null,
       universalPreviewIcon: null,

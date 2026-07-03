@@ -73,11 +73,15 @@ export function MarkdownEditor({
   isPeeking = false,
   peekOffset = 0,
   onEditorViewReady,
+  compactHeader = false,
+  hideNoteActions = false,
 }: {
   active?: boolean;
   isPeeking?: boolean;
   peekOffset?: number;
   onEditorViewReady?: () => void;
+  compactHeader?: boolean;
+  hideNoteActions?: boolean;
 }) {
   const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
@@ -181,9 +185,36 @@ export function MarkdownEditor({
       lastRenderedCover: lastRenderedCoverRef.current,
     })
   );
-  const shouldReserveCoverSpace = hasActiveNote && Boolean(coverUrl) && !shouldRenderCover;
+  const canRenderPendingCover = hasActiveNote && Boolean(coverUrl);
+  const transitionCoverSnapshot =
+    hasActiveNote &&
+    !coverUrl &&
+    !shouldRenderCover &&
+    !isEditorViewReady &&
+    lastRenderedCoverRef.current?.notePath === currentNotePath
+      ? lastRenderedCoverRef.current
+      : null;
+  const transitionCoverController = useMemo(() => {
+    if (!transitionCoverSnapshot?.cover.url) {
+      return null;
+    }
+
+    return {
+      cover: transitionCoverSnapshot.cover,
+      notesRootPath: transitionCoverSnapshot.notesRootPath,
+      currentNotePath: transitionCoverSnapshot.notePath,
+      isPickerOpen: false,
+      setPickerOpen: () => undefined,
+      updateCover: () => undefined,
+      openCoverPicker: () => undefined,
+    };
+  }, [transitionCoverSnapshot]);
+  const renderedCoverController = (shouldRenderCover || canRenderPendingCover)
+    ? coverController
+    : transitionCoverController;
+  const shouldReserveCoverSpace = hasActiveNote && Boolean(coverUrl) && !renderedCoverController;
   const reservedCoverHeight = coverController.cover.height ?? DEFAULT_COVER_HEIGHT;
-  const coverLayoutActive = Boolean(coverUrl) || coverController.isPickerOpen;
+  const coverLayoutActive = Boolean(coverUrl) || Boolean(renderedCoverController) || coverController.isPickerOpen;
   const handleEditorViewReady = useCallback(() => {
     setEditorInitTimedOutPath(null);
     setEditorReadyTarget({
@@ -296,6 +327,8 @@ export function MarkdownEditor({
       lastRenderedCoverRef.current = {
         notePath: currentNotePath,
         coverSignature,
+        cover: { ...coverController.cover },
+        notesRootPath: coverController.notesRootPath,
       };
       return;
     }
@@ -303,7 +336,7 @@ export function MarkdownEditor({
     if (!hasActiveNote || !coverSignature) {
       lastRenderedCoverRef.current = null;
     }
-  }, [coverSignature, currentNotePath, hasActiveNote, shouldRenderCover]);
+  }, [coverController.cover, coverController.notesRootPath, coverSignature, currentNotePath, hasActiveNote, shouldRenderCover]);
 
   const handleEditorClick = (e: React.MouseEvent) => {
     if (!hasActiveNote) {
@@ -545,6 +578,7 @@ export function MarkdownEditor({
             starred={starred}
             toggleStarred={toggleStarred}
             currentNoteMetadata={currentNoteMetadata}
+            showNoteActions={!hideNoteActions}
           />
         </Suspense>
       ) : null}
@@ -560,10 +594,11 @@ export function MarkdownEditor({
         scrollbarVariant="compact"
         data-note-scroll-root="true"
       >
-        {shouldRenderCover ? (
+        {renderedCoverController ? (
           <NoteCoverCanvas
-            controller={coverController}
+            controller={renderedCoverController}
             notePath={currentNotePath}
+            readOnly={!shouldRenderCover}
           />
         ) : shouldReserveCoverSpace ? (
           <div
@@ -588,6 +623,7 @@ export function MarkdownEditor({
                 coverUrl={coverUrl}
                 coverLayoutActive={coverLayoutActive}
                 onAddCover={coverController.openCoverPicker}
+                compactTitle={compactHeader}
               />
 
               <Suspense fallback={null}>

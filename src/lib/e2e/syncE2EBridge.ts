@@ -24,7 +24,6 @@ import { collectExpandedPaths } from '@/stores/notes/fileTreeUtils';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
-import { getCachedEditorBlockTargets } from '@/components/Notes/features/Editor/utils/editorBlockPositionCache';
 import {
   blankAreaDragBoxPluginKey,
   dispatchBlockSelectionAction,
@@ -530,11 +529,6 @@ function editorTextHasMark(text: string, markName: string, anchorText?: string):
 }
 
 function getSelectableBlockTargetsForE2E(view: NonNullable<ReturnType<typeof getCurrentEditorView>>) {
-  const cachedTargets = getCachedEditorBlockTargets(view);
-  if (!cachedTargets || cachedTargets.length > 0 || view.state.doc.childCount === 0) {
-    return cachedTargets ?? collectSelectableBlockTargets(view);
-  }
-
   return collectSelectableBlockTargets(view);
 }
 

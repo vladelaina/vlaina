@@ -8,6 +8,7 @@ import {
   useFileTreePointerDragState,
 } from './fileTreePointerDragState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
+import { NOTES_TAB_SPLIT_DRAG_EVENT } from '../../Split/notesSplitDragEvents';
 
 function setRect(
   element: Element,
@@ -399,6 +400,56 @@ describe('fileTreePointerDragState', () => {
     });
 
     window.removeEventListener(FILE_TREE_CHAT_DROP_EVENT, chatDropListener);
+  });
+
+  it('suppresses file tree drop actions when a note split drop is accepted', async () => {
+    const { source, folderTarget } = setupHarness({
+      path: 'docs/Source.md',
+      folderTargetPath: 'Archive',
+    });
+    const splitDragListener = vi.fn((event: Event) => {
+      const detail = (event as CustomEvent).detail as { phase: string; source?: string };
+      if (detail.phase === 'end') {
+        event.preventDefault();
+      }
+    });
+    window.addEventListener(NOTES_TAB_SPLIT_DRAG_EVENT, splitDragListener);
+    document.elementsFromPoint = vi.fn(() => [folderTarget as Element]);
+
+    try {
+      fireEvent.pointerDown(source, {
+        button: 0,
+        clientX: 40,
+        clientY: 40,
+        pointerType: 'mouse',
+      });
+
+      dispatchDocumentPointerEvent('pointermove', {
+        clientX: 40,
+        clientY: 52,
+        buttons: 1,
+      });
+      dispatchDocumentPointerEvent('pointerup', {
+        clientX: 40,
+        clientY: 52,
+        buttons: 0,
+      });
+
+      await waitFor(() => {
+        expect(splitDragListener).toHaveBeenCalledWith(expect.objectContaining({
+          type: NOTES_TAB_SPLIT_DRAG_EVENT,
+        }));
+      });
+      const details = splitDragListener.mock.calls.map((call) => (call[0] as CustomEvent).detail);
+      expect(details).toEqual(expect.arrayContaining([
+        expect.objectContaining({ phase: 'start', source: 'sidebar', path: 'docs/Source.md' }),
+        expect.objectContaining({ phase: 'move', source: 'sidebar', path: 'docs/Source.md' }),
+        expect.objectContaining({ phase: 'end', source: 'sidebar', path: 'docs/Source.md' }),
+      ]));
+      expect(moveItemMock).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(NOTES_TAB_SPLIT_DRAG_EVENT, splitDragListener);
+    }
   });
 
   it('uses the shared drag overlay timing when returning the preview', async () => {

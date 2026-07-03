@@ -465,7 +465,7 @@ async function stopCoverLayoutShiftProbe(page: Page) {
 
 async function waitForSidebarNoteIconReady(page: Page, filePath: string) {
   const row = page.locator(`[data-file-tree-kind="file"][data-file-tree-path="${filePath}"]`).first();
-  const icon = row.locator('img[alt="icon"]').first();
+  const icon = row.locator('img').first();
   await expect(icon).toBeVisible({ timeout: 10_000 });
   await expect.poll(async () => icon.evaluate((image) => ({
     srcIsBlob: (image as HTMLImageElement).src.startsWith('blob:'),
@@ -506,7 +506,7 @@ async function startSidebarIconStabilityProbe(page: Page, filePath: string) {
       const row = rows.find((candidate) => candidate.dataset.fileTreePath === path);
       return {
         row: row ?? null,
-        icon: row?.querySelector<HTMLImageElement>('img[alt="icon"]') ?? null,
+        icon: row?.querySelector<HTMLImageElement>('img') ?? null,
       };
     };
     const read = () => {

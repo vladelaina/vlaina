@@ -4,9 +4,10 @@ import type { NoteCoverController } from '../types';
 interface NoteCoverCanvasProps {
   controller: NoteCoverController;
   notePath?: string;
+  readOnly?: boolean;
 }
 
-export function NoteCoverCanvas({ controller }: NoteCoverCanvasProps) {
+export function NoteCoverCanvas({ controller, readOnly = false }: NoteCoverCanvasProps) {
   const { cover, notesRootPath, isPickerOpen, setPickerOpen, updateCover } = controller;
 
   return (
@@ -19,6 +20,7 @@ export function NoteCoverCanvas({ controller }: NoteCoverCanvasProps) {
       onUpdate={updateCover}
       notesRootPath={notesRootPath}
       currentNotePath={controller.currentNotePath}
+      readOnly={readOnly}
       pickerOpen={isPickerOpen}
       onPickerOpenChange={setPickerOpen}
     />

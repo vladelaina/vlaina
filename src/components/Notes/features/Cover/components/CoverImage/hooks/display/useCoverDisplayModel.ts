@@ -8,6 +8,7 @@ interface UseCoverDisplayModelProps {
   previewSrc: string | null;
   resolvedSrc: string | null;
   isSourceStale: boolean;
+  canUsePreviousSource?: boolean;
   prevSrcRef: React.MutableRefObject<string | null>;
   crop: { x: number; y: number };
   zoom: number;
@@ -22,6 +23,7 @@ export function useCoverDisplayModel({
   previewSrc,
   resolvedSrc,
   isSourceStale,
+  canUsePreviousSource = true,
   prevSrcRef,
   crop,
   zoom,
@@ -39,15 +41,16 @@ export function useCoverDisplayModel({
     zoom: number;
   } | null>(null);
 
+  const previousSrc = canUsePreviousSource ? prevSrcRef.current : null;
   const mediaSrc = phase === 'idle' || phase === 'error'
     ? ''
-    : (previewSrc || resolvedSrc || prevSrcRef.current || '');
+    : (previewSrc || resolvedSrc || previousSrc || '');
   const isUsingPreviousFallback = Boolean(
     phase !== 'idle' &&
     !previewSrc &&
     !resolvedSrc &&
-    prevSrcRef.current &&
-    mediaSrc === prevSrcRef.current
+    previousSrc &&
+    mediaSrc === previousSrc
   );
   const cachedMediaDimensions = mediaSrc ? (getCachedDimensions(mediaSrc) ?? null) : null;
   const cachedPreviewDimensions =
@@ -72,8 +75,8 @@ export function useCoverDisplayModel({
     : sourceIsReady
       ? mediaSrc
       : (preferCurrentPreviewFrame
-          ? (mediaSrc || readySrc || prevSrcRef.current)
-          : (hasKnownFreshResolvedSource ? mediaSrc : (readySrc || prevSrcRef.current || mediaSrc)));
+          ? (mediaSrc || readySrc || previousSrc)
+          : (hasKnownFreshResolvedSource ? mediaSrc : (readySrc || previousSrc || mediaSrc)));
   const stableDisplayState = stableDisplayStateRef.current;
   const stableSrc = stableDisplayState?.src ?? null;
   const shouldHoldPreviousFrame =

@@ -29,6 +29,18 @@
   margin-top: 0;
 }
 
+.markdown-surface :is(h1, h2, h3, h4, h5, h6):has(+ :is(p, ul, ol, blockquote, details, .md-alert, .callout, .milkdown-table-block, table, .code-block-container, .frontmatter-block-container, .toc-block, .footnote-def, .mermaid-block, .video-block, [data-type='math-block'], [data-type='mermaid'], [data-type='video'])) {
+  margin-bottom: var(--vlaina-space-8px);
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .markdown-surface > :is(h1, h2, h3, h4, h5, h6):has(+ :is(blockquote, details, .md-alert, .callout)) {
+  margin-bottom: var(--vlaina-space-0) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .markdown-surface > :is(h1, h2, h3, h4, h5, h6) + :is(blockquote, details, .md-alert, .callout) {
+  margin-top: var(--vlaina-space-0) !important;
+}
+
 .markdown-surface h2 {
   --vlaina-markdown-heading-line-extra: var(--vlaina-markdown-heading-line-extra-large);
   color: var(--vlaina-text-primary);
@@ -91,6 +103,17 @@
 
 .markdown-surface p:first-child {
   margin-top: 0;
+}
+
+.markdown-surface .notes-readonly-markdown-blank-line {
+  min-height: var(--vlaina-height-markdown-blank-line);
+  margin: var(--vlaina-space-0);
+  padding: var(--vlaina-space-0);
+  pointer-events: none;
+}
+
+.markdown-surface .notes-readonly-markdown-blank-line + :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, .milkdown-table-block, table, .code-block-container, .frontmatter-block-container, .toc-block, .footnote-def, .mermaid-block, .video-block, [data-type='math-block'], [data-type='mermaid'], [data-type='video']) {
+  margin-block-start: var(--vlaina-space-0);
 }
 
 .markdown-surface [data-text-align='center'] {

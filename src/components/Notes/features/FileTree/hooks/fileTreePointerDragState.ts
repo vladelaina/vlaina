@@ -10,6 +10,7 @@ import {
 import type { StarredKind } from '@/stores/notes/types';
 import { resolveInternalMoveDropTargetPath, resolveStarredDropTargetFromElements } from './dropTargetDom';
 import { NOTES_DRAG_RETURN_ANIMATION } from '../../common/NotesDragOverlay';
+import { dispatchNotesTabSplitDrag } from '../../Split/notesSplitDragEvents';
 import {
   themeDomStyleTokens,
   themeIconTokens,
@@ -241,6 +242,20 @@ function updateDropTarget() {
   });
 }
 
+function dispatchActiveNoteSplitDrag(phase: 'start' | 'move' | 'end' | 'cancel'): boolean {
+  if (!activeSession || activeSession.sourceKind !== 'note') {
+    return false;
+  }
+
+  return dispatchNotesTabSplitDrag({
+    phase,
+    path: activeSession.sourcePath,
+    source: 'sidebar',
+    clientX: activeSession.lastClientX,
+    clientY: activeSession.lastClientY,
+  });
+}
+
 function stopAutoScroll() {
   if (activeSession?.autoScrollFrame == null) {
     return;
@@ -372,10 +387,13 @@ function handlePointerMove(event: PointerEvent) {
     activeSession.previewOffsetX = Math.min(Math.max(activeSession.startX - rect.left, 16), rect.width - 16);
     activeSession.previewOffsetY = Math.min(Math.max(activeSession.startY - rect.top, 12), rect.height - 12);
     updatePreviewPosition();
+    dispatchActiveNoteSplitDrag('start');
+    dispatchActiveNoteSplitDrag('move');
     updateDropTarget();
 
     activeSession.scrollRoot?.addEventListener('scroll', handleScrollRootScroll, true);
   } else {
+    dispatchActiveNoteSplitDrag('move');
     updateDropTarget();
   }
 
@@ -498,20 +516,27 @@ function finishPointerDrag(shouldCommit: boolean) {
     && document
       .elementsFromPoint(activeSession.lastClientX, activeSession.lastClientY)
       .some((element) => element.closest(FILE_TREE_CHAT_DROP_TARGET_SELECTOR));
+  const shouldSplit = shouldCommit && activeSession.activated && dispatchActiveNoteSplitDrag('end');
   const shouldSuppressClick = shouldCommit && activeSession.activated;
 
   activeSession.previewElement = null;
+  if (!shouldCommit && activeSession.activated) {
+    dispatchActiveNoteSplitDrag('cancel');
+  }
 
   teardownPointerDrag();
-  if (shouldDropToChat) {
+  if (shouldSplit || shouldDropToChat) {
     previewElement?.remove();
+  }
+
+  if (!shouldSplit && shouldDropToChat) {
     window.dispatchEvent(new CustomEvent<FileTreeChatDropDetail>(FILE_TREE_CHAT_DROP_EVENT, {
       detail: {
         path: sourcePath,
         kind: sourceKind,
       },
     }));
-  } else {
+  } else if (!shouldSplit) {
     animatePreviewBackToSource(previewElement, sourceElement);
   }
 
@@ -519,11 +544,11 @@ function finishPointerDrag(shouldCommit: boolean) {
     suppressNextClick();
   }
 
-  if (!shouldDropToChat && shouldStar) {
+  if (!shouldSplit && !shouldDropToChat && shouldStar) {
     ensureStarredPath(sourceKind === 'folder' ? 'folder' : 'note', sourcePath);
   }
 
-  if (!shouldDropToChat && shouldMove && dropTargetPath !== null) {
+  if (!shouldSplit && !shouldDropToChat && shouldMove && dropTargetPath !== null) {
     void useNotesStore.getState().moveItem(sourcePath, dropTargetPath);
   }
 }

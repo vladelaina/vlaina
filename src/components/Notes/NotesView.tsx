@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
@@ -42,11 +42,42 @@ import {
   LargeMarkdownFirstPaintPreview,
   createLargeMarkdownFirstPaintPreviewBlocks,
 } from './features/Editor/LargeMarkdownFirstPaintPreview';
+import {
+  focusCurrentEditorAtViewportPoint,
+  type EditorViewportPoint,
+} from './features/Editor/utils/focusEditorAtPoint';
+import { NoteToolbarActions } from './features/Editor/NoteToolbarActions';
+import {
+  NotesSplitPaneChrome,
+  NotesSplitDropOverlay,
+  NotesSplitPreviewPane,
+} from './features/Split/NotesSplitPreviewPane';
+import { NotesSplitDiagnosticsButton } from './features/Split/NotesSplitDiagnosticsButton';
+import { subscribeNotesTabSplitDrag, type NotesSplitDragSource } from './features/Split/notesSplitDragEvents';
+import {
+  countNotesSplitPreviewLeaves,
+  createInitialNotesSplitPaneTree,
+  findFirstNotesSplitPreviewLeaf,
+  findNotesSplitPreviewLeafByPath,
+  moveNotesSplitPaneLeaf,
+  promoteNotesSplitPreviewLeafToPrimary,
+  pruneNotesSplitPaneTree,
+  resizeNotesSplitPaneTree,
+  resolveNotesSplitDropDirection,
+  splitNotesPaneTree,
+  type NotesSplitOrientation,
+  type NotesSplitPaneTree,
+  type NotesSplitPreviewLeaf,
+  type NotesSplitDirection,
+} from './features/Split/notesSplitLayout';
+import { logNotesSplitDiagnostic } from '@/lib/diagnostics/notesSplitDiagnostics';
 import { hasFileTreeNoteFiles, shouldAutoCreateBlankDraft } from './autoCreateBlankDraftPolicy';
 import { cn } from '@/lib/utils';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { themeBackdropTokens, themeEditorLayoutTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 import type { NoteMetadataEntry } from '@/stores/notes/types';
+import { findStarredEntryByPath } from '@/stores/notes/starred';
+import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 
 let embeddedChatViewModulePromise: Promise<typeof import('@/components/Chat/ChatView')> | null = null;
 let embeddedChatViewModuleReady = false;
@@ -70,6 +101,29 @@ const MarkdownEditor = lazy(async () => {
 });
 
 const FLOATING_CHAT_VIEWPORT_MARGIN_PX = 32;
+const SPLIT_PANE_DRAG_THRESHOLD_PX = 5;
+
+type NotesSplitDropTarget = {
+  leafId: string;
+  direction: NotesSplitDirection;
+};
+
+type ActiveNotesSplitResize = {
+  splitId: string;
+  orientation: NotesSplitOrientation;
+  container: HTMLElement;
+  previousBodyCursor: string;
+  previousBodyUserSelect: string;
+};
+
+type ActiveNotesSplitPaneDrag = {
+  hasMoved: boolean;
+  initialClientX: number;
+  initialClientY: number;
+  previousBodyCursor: string;
+  previousBodyUserSelect: string;
+  sourceLeafId: string;
+};
 
 function scheduleSidebarScroll(path: string): void {
   void import('./features/common/sidebarScrollIntoView')
@@ -105,6 +159,10 @@ function isEmptyUntitledDraft({
   });
 }
 
+function isNotePathOpenInLatestTabs(path: string): boolean {
+  return useNotesStore.getState().openTabs.some((tab) => tab.path === path);
+}
+
 export function NotesView({
   active = true,
   onStartupReady,
@@ -122,6 +180,7 @@ export function NotesView({
   const closeTab = useNotesStore(s => s.closeTab);
   const reopenClosedTab = useNotesStore(s => s.reopenClosedTab);
   const openNote = useNotesStore(s => s.openNote);
+  const prefetchNote = useNotesStore(s => s.prefetchNote);
   const loadStarred = useNotesStore(s => s.loadStarred);
   const deleteNote = useNotesStore(s => s.deleteNote);
   const saveNote = useNotesStore(s => s.saveNote);
@@ -146,6 +205,18 @@ export function NotesView({
       return state.noteMetadata?.notes[currentNotePath];
     }, [currentNotePath])
   );
+  const currentNoteStarred = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath) return false;
+      return Boolean(findStarredEntryByPath(state.starredEntries, 'note', currentNotePath, state.notesPath));
+    }, [currentNotePath])
+  );
+  const toggleStarred = useNotesStore(s => s.toggleStarred);
+  const currentNoteMetadata = useNotesStore(
+    useCallback((state) => {
+      return getNoteMetadataEntry(state.noteMetadata, currentNotePath);
+    }, [currentNotePath])
+  );
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
   const adoptAbsoluteNoteIntoNotesRoot = useNotesStore(s => s.adoptAbsoluteNoteIntoNotesRoot);
   const pendingDraftDiscardPath = useNotesStore(s => s.pendingDraftDiscardPath);
@@ -154,6 +225,12 @@ export function NotesView({
   const getDisplayName = useNotesStore(s => s.getDisplayName);
   const notesError = useNotesStore(s => s.error);
   const addToast = useToastStore(s => s.addToast);
+  const noteContentsCache = useNotesStore(s => s.noteContentsCache);
+  const [splitPaneTree, setSplitPaneTree] = useState<NotesSplitPaneTree>(() => createInitialNotesSplitPaneTree());
+  const [activeSplitPreviewLeafId, setActiveSplitPreviewLeafId] = useState<string | null>(null);
+  const [primaryPreviewLeaf, setPrimaryPreviewLeaf] = useState<NotesSplitPreviewLeaf | null>(null);
+  const [splitDropTarget, setSplitDropTarget] = useState<NotesSplitDropTarget | null>(null);
+  const splitPaneTreeRef = useRef(splitPaneTree);
   const blankDropDraftContent = useNotesStore(
     useCallback((state) => {
       if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
@@ -165,7 +242,6 @@ export function NotesView({
       return state.currentNote?.path === currentNotePath ? state.currentNote.content : '';
     }, [currentNotePath, openTabs])
   );
-
   const currentNotesRoot = useNotesRootStore((state) => state.currentNotesRoot);
   const openNotesRoot = useNotesRootStore((state) => state.openNotesRoot);
   const notesRootStoreHasInitialized = useNotesRootStore((state) => state.hasInitialized);
@@ -177,6 +253,7 @@ export function NotesView({
   const setChatFloatingSize = useUIStore((s) => s.setNotesChatFloatingSize);
   const resetChatFloatingSize = useUIStore((s) => s.resetNotesChatFloatingSize);
   const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
+  const setNotesSplitPanesActive = useUIStore((s) => s.setNotesSplitPanesActive);
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
@@ -184,8 +261,20 @@ export function NotesView({
   const [isEmbeddedChatViewReady, setIsEmbeddedChatViewReady] = useState(embeddedChatViewModuleReady);
   const launchContextRef = useRef(readWindowLaunchContext());
   const notesViewRef = useRef<HTMLDivElement>(null);
+  const splitDropRootRef = useRef<HTMLDivElement>(null);
+  const splitPaneIdSequenceRef = useRef(0);
+  const activeSplitResizeRef = useRef<ActiveNotesSplitResize | null>(null);
+  const activeSplitPaneDragRef = useRef<ActiveNotesSplitPaneDrag | null>(null);
+  const stopSplitPaneDragRef = useRef<((event?: PointerEvent, commit?: boolean) => void) | null>(null);
+  const pendingSplitEditorFocusRef = useRef<{
+    path: string;
+    point: EditorViewportPoint;
+  } | null>(null);
   const floatingChatPanelRef = useRef<HTMLDivElement>(null);
   const chatPanelCaretRefreshFrameRef = useRef<number | null>(null);
+  const currentNotePathRef = useRef<string | null>(currentNotePath ?? null);
+  const activeSplitPreviewLeafIdRef = useRef<string | null>(activeSplitPreviewLeafId);
+  const primaryPreviewLeafRef = useRef<NotesSplitPreviewLeaf | null>(primaryPreviewLeaf);
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
   const hasPresentedNoteRef = useRef(false);
@@ -291,6 +380,526 @@ export function NotesView({
     scheduleSidebarScroll(path);
   }, [revealFolder]);
 
+  const nextSplitPaneId = useCallback((prefix: 'preview' | 'split') => {
+    splitPaneIdSequenceRef.current += 1;
+    return `${prefix}:${splitPaneIdSequenceRef.current}`;
+  }, []);
+
+  useEffect(() => {
+    splitPaneTreeRef.current = splitPaneTree;
+  }, [splitPaneTree]);
+
+  useEffect(() => {
+    activeSplitPreviewLeafIdRef.current = activeSplitPreviewLeafId;
+  }, [activeSplitPreviewLeafId]);
+
+  useEffect(() => {
+    primaryPreviewLeafRef.current = primaryPreviewLeaf;
+  }, [primaryPreviewLeaf]);
+
+  const hasSplitPanes = countNotesSplitPreviewLeaves(splitPaneTree) > 0;
+
+  useEffect(() => {
+    setNotesSplitPanesActive(active && hasSplitPanes);
+    return () => setNotesSplitPanesActive(false);
+  }, [active, hasSplitPanes, setNotesSplitPanesActive]);
+
+  useEffect(() => {
+    if (hasSplitPanes) return;
+    setActiveSplitPreviewLeafId(null);
+    setPrimaryPreviewLeaf(null);
+  }, [hasSplitPanes]);
+
+  useEffect(() => {
+    const previousPath = currentNotePathRef.current;
+    currentNotePathRef.current = currentNotePath ?? null;
+    if (!currentNotePath || !previousPath || currentNotePath === previousPath) {
+      return;
+    }
+
+    if (primaryPreviewLeafRef.current?.path === currentNotePath) {
+      setActiveSplitPreviewLeafId(null);
+      setPrimaryPreviewLeaf(null);
+      return;
+    }
+
+    const targetLeaf = findNotesSplitPreviewLeafByPath(splitPaneTreeRef.current, currentNotePath);
+    if (!targetLeaf) {
+      setActiveSplitPreviewLeafId(null);
+      setPrimaryPreviewLeaf(null);
+      return;
+    }
+
+    if (!activeSplitPreviewLeafIdRef.current) {
+      setPrimaryPreviewLeaf({
+        type: 'preview',
+        id: nextSplitPaneId('preview'),
+        path: previousPath,
+        requiresOpenTab: isNotePathOpenInLatestTabs(previousPath),
+      });
+    }
+    setActiveSplitPreviewLeafId(targetLeaf.id);
+  }, [currentNotePath, nextSplitPaneId]);
+
+  const resolveSplitDropTarget = useCallback((detail: {
+    path: string;
+    clientX?: number;
+    clientY?: number;
+    sourceLeafId?: string;
+  }): NotesSplitDropTarget | null => {
+    if (
+      !active ||
+      detail.clientX === undefined ||
+      detail.clientY === undefined
+    ) {
+      return null;
+    }
+
+    const dropRoot = splitDropRootRef.current;
+    if (!dropRoot) {
+      return null;
+    }
+
+    const point = {
+      clientX: detail.clientX,
+      clientY: detail.clientY,
+    };
+    const elements = typeof document.elementsFromPoint === 'function'
+      ? document.elementsFromPoint(point.clientX, point.clientY)
+      : [];
+    const leafElement = elements
+      .map((element) => element instanceof HTMLElement
+        ? element.closest<HTMLElement>('[data-notes-split-leaf-id]')
+        : null)
+      .find((element) => Boolean(
+        element &&
+        dropRoot.contains(element) &&
+        element.dataset.notesSplitLeafId !== detail.sourceLeafId
+      ));
+    const fallbackLeafElement = Array.from(dropRoot.querySelectorAll<HTMLElement>('[data-notes-split-leaf-id]'))
+      .find((element) => element.dataset.notesSplitLeafId !== detail.sourceLeafId);
+    const targetElement = leafElement ?? fallbackLeafElement;
+    if (!targetElement) {
+      return null;
+    }
+
+    const direction = resolveNotesSplitDropDirection(targetElement.getBoundingClientRect(), point)
+      ?? (leafElement ? null : resolveNotesSplitDropDirection(dropRoot.getBoundingClientRect(), point));
+    if (!direction) {
+      return null;
+    }
+
+    return {
+      leafId: targetElement.dataset.notesSplitLeafId ?? '',
+      direction,
+    };
+  }, [active]);
+
+  const openSplitPane = useCallback((path: string, target: NotesSplitDropTarget, source: NotesSplitDragSource = 'tab') => {
+    const insertPreview = () => {
+      const previewLeaf: NotesSplitPreviewLeaf = {
+        type: 'preview',
+        id: nextSplitPaneId('preview'),
+        path,
+        requiresOpenTab: source !== 'sidebar',
+      };
+      setSplitPaneTree((currentTree) => splitNotesPaneTree(
+        currentTree,
+        target.leafId,
+        previewLeaf,
+        target.direction,
+        nextSplitPaneId('split'),
+      ));
+    };
+
+    const currentPath = currentNotePathRef.current;
+    if (path === currentPath) {
+      const fallbackTab = openTabs.find((tab) => tab.path !== path);
+      if (fallbackTab) {
+        void Promise.resolve(openStoredNotePath(fallbackTab.path, {
+          openNote,
+          openNoteByAbsolutePath,
+        })).then(() => {
+          insertPreview();
+        });
+        return;
+      }
+    }
+
+    if (source === 'sidebar' && path !== currentPath) {
+      void prefetchNote(path).finally(insertPreview);
+      return;
+    }
+
+    insertPreview();
+  }, [nextSplitPaneId, openNote, openNoteByAbsolutePath, openTabs, prefetchNote]);
+
+  useEffect(() => {
+    if (!active) {
+      setSplitDropTarget(null);
+      return;
+    }
+
+    return subscribeNotesTabSplitDrag((detail) => {
+      if (detail.phase === 'move') {
+        setSplitDropTarget(resolveSplitDropTarget(detail));
+        return;
+      }
+
+      if (detail.phase === 'end') {
+        const target = resolveSplitDropTarget(detail);
+        setSplitDropTarget(null);
+        if (target) {
+          openSplitPane(detail.path, target, detail.source);
+          return true;
+        }
+        return false;
+      }
+
+      setSplitDropTarget(null);
+      return false;
+    });
+  }, [active, openSplitPane, resolveSplitDropTarget]);
+
+  useEffect(() => {
+    const openTabPaths = new Set(openTabs.map((tab) => tab.path));
+    setSplitPaneTree((currentTree) => (
+      pruneNotesSplitPaneTree(currentTree, (leaf) => (
+        leaf.requiresOpenTab && !openTabPaths.has(leaf.path)
+      )) ?? createInitialNotesSplitPaneTree()
+    ));
+  }, [openTabs]);
+
+  const closeSplitPane = useCallback((leafId: string) => {
+    setSplitPaneTree((currentTree) => (
+      pruneNotesSplitPaneTree(currentTree, (leaf) => leaf.id === leafId) ?? createInitialNotesSplitPaneTree()
+    ));
+  }, []);
+
+  const closePrimaryPreviewPane = useCallback(() => {
+    const activePreviewLeafId = activeSplitPreviewLeafIdRef.current;
+    if (!activePreviewLeafId) {
+      return;
+    }
+
+    setSplitPaneTree((currentTree) => (
+      promoteNotesSplitPreviewLeafToPrimary(currentTree, activePreviewLeafId) ?? createInitialNotesSplitPaneTree()
+    ));
+    setActiveSplitPreviewLeafId(null);
+    setPrimaryPreviewLeaf(null);
+  }, []);
+
+  const applyPendingSplitEditorFocus = useCallback(() => {
+    const pending = pendingSplitEditorFocusRef.current;
+    const latestPath = useNotesStore.getState().currentNote?.path ?? null;
+    if (!pending || pending.path !== latestPath) {
+      return;
+    }
+
+    if (focusCurrentEditorAtViewportPoint(pending.point)) {
+      pendingSplitEditorFocusRef.current = null;
+    }
+  }, []);
+
+  const activateSplitPane = useCallback((leafId: string, path: string, point?: EditorViewportPoint) => {
+    const previousPath = currentNotePathRef.current;
+    logNotesSplitDiagnostic('split-activate-preview-start', {
+      leafId,
+      path,
+      point: point ?? null,
+      previousPath,
+    });
+    pendingSplitEditorFocusRef.current = point ? { path, point } : null;
+    return Promise.resolve(openStoredNotePath(path, {
+      openNote,
+      openNoteByAbsolutePath,
+    })).then(() => {
+      if (previousPath && previousPath !== path) {
+        if (!activeSplitPreviewLeafIdRef.current) {
+          setPrimaryPreviewLeaf({
+            type: 'preview',
+            id: nextSplitPaneId('preview'),
+            path: previousPath,
+            requiresOpenTab: isNotePathOpenInLatestTabs(previousPath),
+          });
+        }
+        setActiveSplitPreviewLeafId(leafId);
+      }
+      logNotesSplitDiagnostic('split-activate-preview-complete', {
+        activeLeafId: leafId,
+        currentPath: useNotesStore.getState().currentNote?.path ?? null,
+        path,
+        previousPath,
+      });
+      window.requestAnimationFrame(applyPendingSplitEditorFocus);
+    });
+  }, [applyPendingSplitEditorFocus, nextSplitPaneId, openNote, openNoteByAbsolutePath]);
+
+  const activatePrimaryPreviewPane = useCallback((path: string, point?: EditorViewportPoint) => {
+    logNotesSplitDiagnostic('split-activate-primary-preview-start', {
+      path,
+      point: point ?? null,
+      previousPath: currentNotePathRef.current,
+    });
+    pendingSplitEditorFocusRef.current = point ? { path, point } : null;
+    return Promise.resolve(openStoredNotePath(path, {
+      openNote,
+      openNoteByAbsolutePath,
+    })).then(() => {
+      setActiveSplitPreviewLeafId(null);
+      setPrimaryPreviewLeaf(null);
+      logNotesSplitDiagnostic('split-activate-primary-preview-complete', {
+        currentPath: useNotesStore.getState().currentNote?.path ?? null,
+        path,
+      });
+      window.requestAnimationFrame(applyPendingSplitEditorFocus);
+    });
+  }, [applyPendingSplitEditorFocus, openNote, openNoteByAbsolutePath]);
+
+  const closeActiveSplitPane = useCallback(() => {
+    const activePreviewLeafId = activeSplitPreviewLeafIdRef.current;
+    if (activePreviewLeafId) {
+      const restoreLeaf = primaryPreviewLeafRef.current ?? findFirstNotesSplitPreviewLeaf(splitPaneTreeRef.current);
+      setSplitPaneTree((currentTree) => (
+        pruneNotesSplitPaneTree(currentTree, (leaf) => leaf.id === activePreviewLeafId) ?? createInitialNotesSplitPaneTree()
+      ));
+      setActiveSplitPreviewLeafId(null);
+      setPrimaryPreviewLeaf(null);
+      if (restoreLeaf) {
+        void Promise.resolve(openStoredNotePath(restoreLeaf.path, {
+          openNote,
+          openNoteByAbsolutePath,
+        })).catch(() => undefined);
+      }
+      return;
+    }
+
+    const promotedLeaf = findFirstNotesSplitPreviewLeaf(splitPaneTreeRef.current);
+    if (!promotedLeaf) {
+      return;
+    }
+
+    setSplitPaneTree((currentTree) => (
+      promoteNotesSplitPreviewLeafToPrimary(currentTree, promotedLeaf.id) ?? createInitialNotesSplitPaneTree()
+    ));
+    void Promise.resolve(openStoredNotePath(promotedLeaf.path, {
+      openNote,
+      openNoteByAbsolutePath,
+    })).catch(() => undefined);
+  }, [openNote, openNoteByAbsolutePath]);
+
+  const updateSplitResizeRatio = useCallback((clientX: number, clientY: number) => {
+    const resize = activeSplitResizeRef.current;
+    if (!resize) {
+      return;
+    }
+
+    const rect = resize.container.getBoundingClientRect();
+    const size = resize.orientation === 'horizontal' ? rect.width : rect.height;
+    if (size <= 0) {
+      return;
+    }
+
+    const offset = resize.orientation === 'horizontal'
+      ? clientX - rect.left
+      : clientY - rect.top;
+    setSplitPaneTree((currentTree) => resizeNotesSplitPaneTree(currentTree, resize.splitId, offset / size));
+  }, []);
+
+  const handleSplitResizePointerMove = useCallback((event: PointerEvent) => {
+    if (!activeSplitResizeRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    updateSplitResizeRatio(event.clientX, event.clientY);
+  }, [updateSplitResizeRatio]);
+
+  const stopSplitResize = useCallback(() => {
+    const resize = activeSplitResizeRef.current;
+    if (!resize) {
+      return;
+    }
+
+    document.removeEventListener('pointermove', handleSplitResizePointerMove, true);
+    document.removeEventListener('pointerup', stopSplitResize, true);
+    document.removeEventListener('pointercancel', stopSplitResize, true);
+    document.body.style.cursor = resize.previousBodyCursor;
+    document.body.style.userSelect = resize.previousBodyUserSelect;
+    activeSplitResizeRef.current = null;
+    setLayoutPanelDragging(false);
+    requestNativeCaretOverlayRefresh();
+  }, [handleSplitResizePointerMove, setLayoutPanelDragging]);
+
+  const beginSplitResize = useCallback((
+    splitId: string,
+    orientation: NotesSplitOrientation,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    const container = event.currentTarget.parentElement;
+    if (!container) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeSplitResizeRef.current) {
+      stopSplitResize();
+    }
+
+    activeSplitResizeRef.current = {
+      splitId,
+      orientation,
+      container,
+      previousBodyCursor: document.body.style.cursor,
+      previousBodyUserSelect: document.body.style.userSelect,
+    };
+    document.body.style.cursor = orientation === 'horizontal' ? 'col-resize' : 'row-resize';
+    document.body.style.userSelect = 'none';
+    setLayoutPanelDragging(true);
+    updateSplitResizeRatio(event.clientX, event.clientY);
+    document.addEventListener('pointermove', handleSplitResizePointerMove, true);
+    document.addEventListener('pointerup', stopSplitResize, true);
+    document.addEventListener('pointercancel', stopSplitResize, true);
+  }, [handleSplitResizePointerMove, setLayoutPanelDragging, stopSplitResize, updateSplitResizeRatio]);
+
+  useEffect(() => {
+    return () => {
+      stopSplitResize();
+    };
+  }, [stopSplitResize]);
+
+  const handleSplitPaneDragPointerMove = useCallback((event: PointerEvent) => {
+    const drag = activeSplitPaneDragRef.current;
+    if (!drag) {
+      return;
+    }
+
+    event.preventDefault();
+    const distance = Math.hypot(
+      event.clientX - drag.initialClientX,
+      event.clientY - drag.initialClientY,
+    );
+    if (!drag.hasMoved && distance < SPLIT_PANE_DRAG_THRESHOLD_PX) {
+      return;
+    }
+
+    drag.hasMoved = true;
+    setSplitDropTarget(resolveSplitDropTarget({
+      path: '',
+      sourceLeafId: drag.sourceLeafId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    }));
+  }, [resolveSplitDropTarget]);
+
+  const handleSplitPaneDragPointerUp = useCallback((event: PointerEvent) => {
+    event.preventDefault();
+    stopSplitPaneDragRef.current?.(event, true);
+  }, []);
+
+  const handleSplitPaneDragPointerCancel = useCallback(() => {
+    stopSplitPaneDragRef.current?.();
+  }, []);
+
+  const stopSplitPaneDrag = useCallback((
+    event?: PointerEvent,
+    commit = false,
+  ) => {
+    const drag = activeSplitPaneDragRef.current;
+    if (!drag) {
+      return;
+    }
+
+    document.removeEventListener('pointermove', handleSplitPaneDragPointerMove, true);
+    document.removeEventListener('pointerup', handleSplitPaneDragPointerUp, true);
+    document.removeEventListener('pointercancel', handleSplitPaneDragPointerCancel, true);
+    document.body.style.cursor = drag.previousBodyCursor;
+    document.body.style.userSelect = drag.previousBodyUserSelect;
+    activeSplitPaneDragRef.current = null;
+    setSplitDropTarget(null);
+    setLayoutPanelDragging(false);
+    requestNativeCaretOverlayRefresh();
+
+    if (!commit || !event || !drag.hasMoved) {
+      return;
+    }
+
+    const target = resolveSplitDropTarget({
+      path: '',
+      sourceLeafId: drag.sourceLeafId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+    if (!target || target.leafId === drag.sourceLeafId) {
+      return;
+    }
+
+    setSplitPaneTree((currentTree) => moveNotesSplitPaneLeaf(
+      currentTree,
+      drag.sourceLeafId,
+      target.leafId,
+      target.direction,
+      nextSplitPaneId('split'),
+    ));
+  }, [
+    handleSplitPaneDragPointerMove,
+    handleSplitPaneDragPointerCancel,
+    handleSplitPaneDragPointerUp,
+    nextSplitPaneId,
+    resolveSplitDropTarget,
+    setLayoutPanelDragging,
+  ]);
+  stopSplitPaneDragRef.current = stopSplitPaneDrag;
+
+  const beginSplitPaneDrag = useCallback((
+    event: ReactPointerEvent<HTMLDivElement>,
+    sourceLeafId: string,
+  ) => {
+    if (!active || !hasSplitPanes) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeSplitResizeRef.current) {
+      stopSplitResize();
+    }
+    if (activeSplitPaneDragRef.current) {
+      stopSplitPaneDrag();
+    }
+
+    activeSplitPaneDragRef.current = {
+      hasMoved: false,
+      initialClientX: event.clientX,
+      initialClientY: event.clientY,
+      previousBodyCursor: document.body.style.cursor,
+      previousBodyUserSelect: document.body.style.userSelect,
+      sourceLeafId,
+    };
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    setLayoutPanelDragging(true);
+    document.addEventListener('pointermove', handleSplitPaneDragPointerMove, true);
+    document.addEventListener('pointerup', handleSplitPaneDragPointerUp, true);
+    document.addEventListener('pointercancel', handleSplitPaneDragPointerCancel, true);
+  }, [
+    active,
+    handleSplitPaneDragPointerCancel,
+    handleSplitPaneDragPointerMove,
+    handleSplitPaneDragPointerUp,
+    hasSplitPanes,
+    setLayoutPanelDragging,
+    stopSplitPaneDrag,
+    stopSplitResize,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopSplitPaneDrag();
+    };
+  }, [stopSplitPaneDrag]);
+
   const focusNotesChatComposer = useNotesChatComposerFocus(setChatPanelCollapsed);
 
   useEffect(() => {
@@ -363,8 +972,9 @@ export function NotesView({
 
   const reportNotesPrimaryContentReady = useCallback(() => {
     setPrimaryContentReadyPath(currentNotePath ?? null);
+    applyPendingSplitEditorFocus();
     onPrimaryContentReady?.();
-  }, [currentNotePath, onPrimaryContentReady]);
+  }, [applyPendingSplitEditorFocus, currentNotePath, onPrimaryContentReady]);
 
   useEffect(() => {
     if (!currentNotePath || primaryContentReadyPath === currentNotePath) {
@@ -695,6 +1305,188 @@ export function NotesView({
     focusSidebarPath,
   });
 
+  const currentSplitPaneTitle = currentNotePath ? getDisplayName(currentNotePath) : '';
+  const primaryEditorContent = (
+    <div
+      className="relative h-full min-h-0 min-w-0"
+      data-notes-split-pane-content="primary"
+    >
+      {firstPaintPreviewBlocks.length > 0 ? (
+        <div className="absolute inset-x-0 top-0 z-[var(--vlaina-z-1)] flex justify-center pointer-events-none">
+          <LargeMarkdownFirstPaintPreview blocks={firstPaintPreviewBlocks} />
+        </div>
+      ) : null}
+
+      {canLoadMarkdownEditor ? (
+        <Suspense fallback={null}>
+          <MarkdownEditor
+            active={active}
+            onEditorViewReady={reportNotesPrimaryContentReady}
+            compactHeader={hasSplitPanes}
+            hideNoteActions={hasSplitPanes}
+          />
+        </Suspense>
+      ) : null}
+    </div>
+  );
+  const renderPrimaryEditorPane = (sourceLeafId?: string) => (
+    hasSplitPanes ? (
+      <section
+        className="relative flex h-full min-h-0 min-w-0 flex-col bg-[var(--vlaina-bg-primary)]"
+        data-notes-split-pane="primary"
+      >
+        <NotesSplitPaneChrome
+          path={currentNotePath ?? undefined}
+          sourceLeafId={sourceLeafId}
+          title={currentSplitPaneTitle}
+          onDragPointerDown={beginSplitPaneDrag}
+          actions={(
+            <NoteToolbarActions
+              currentNotePath={currentNotePath}
+              currentNoteTitle={currentSplitPaneTitle}
+              getCurrentNoteContent={() => currentNoteContent}
+              notesPath={notesPath}
+              starred={currentNoteStarred}
+              toggleStarred={toggleStarred}
+              currentNoteMetadata={currentNoteMetadata}
+              buttonClassName="h-7 w-7"
+              forceShowChat
+            />
+          )}
+          onClose={closeActiveSplitPane}
+        />
+        <div className="min-h-0 flex-1">
+          {primaryEditorContent}
+        </div>
+      </section>
+    ) : (
+      <div
+        className="relative h-full min-h-0 min-w-0"
+        data-notes-split-pane="primary"
+      >
+        {primaryEditorContent}
+      </div>
+    )
+  );
+
+  const getSplitPaneContent = (path: string) => (
+    currentNotePath === path
+      ? currentNoteContent
+      : noteContentsCache.get(path)?.content ?? ''
+  );
+
+  const renderLeafDropOverlay = (leafId: string) => (
+    splitDropTarget?.leafId === leafId ? (
+      <NotesSplitDropOverlay direction={splitDropTarget.direction} />
+    ) : null
+  );
+
+  function renderSplitPaneTree(node: NotesSplitPaneTree) {
+    if (node.type === 'primary') {
+      const displacedPrimaryLeaf = activeSplitPreviewLeafId && primaryPreviewLeaf
+        ? primaryPreviewLeaf
+        : null;
+      const leafPath = displacedPrimaryLeaf?.path ?? currentNotePath;
+
+      return (
+        <div
+          key={node.id}
+          className="relative h-full min-h-0 min-w-0"
+          data-notes-split-leaf-id={node.id}
+          data-notes-split-leaf-path={leafPath ?? undefined}
+          data-notes-split-pane={displacedPrimaryLeaf ? 'preview' : undefined}
+        >
+          {displacedPrimaryLeaf ? (
+            <NotesSplitPreviewPane
+              content={getSplitPaneContent(displacedPrimaryLeaf.path)}
+              path={displacedPrimaryLeaf.path}
+              sourceLeafId={node.id}
+              title={getDisplayName(displacedPrimaryLeaf.path)}
+              onActivate={(point) => activatePrimaryPreviewPane(displacedPrimaryLeaf.path, point)}
+              onPaneDragPointerDown={beginSplitPaneDrag}
+              onClose={closePrimaryPreviewPane}
+            />
+          ) : renderPrimaryEditorPane(node.id)}
+          {renderLeafDropOverlay(node.id)}
+        </div>
+      );
+    }
+
+    if (node.type === 'preview') {
+      const isActivePreviewLeaf = activeSplitPreviewLeafId === node.id && currentNotePath === node.path;
+      const content = getSplitPaneContent(node.path);
+
+      return (
+        <div
+          key={node.id}
+          className="relative h-full min-h-0 min-w-0"
+          data-notes-split-leaf-id={node.id}
+          data-notes-split-leaf-path={node.path}
+          data-notes-split-pane={isActivePreviewLeaf ? 'primary' : 'preview'}
+        >
+          {isActivePreviewLeaf ? (
+            renderPrimaryEditorPane(node.id)
+          ) : (
+            <NotesSplitPreviewPane
+              content={content}
+              path={node.path}
+              sourceLeafId={node.id}
+              title={getDisplayName(node.path)}
+              onActivate={(point) => activateSplitPane(node.id, node.path, point)}
+              onPaneDragPointerDown={beginSplitPaneDrag}
+              onClose={() => closeSplitPane(node.id)}
+            />
+          )}
+          {renderLeafDropOverlay(node.id)}
+        </div>
+      );
+    }
+
+    const isHorizontal = node.orientation === 'horizontal';
+    const divider = (
+      <div
+        role="separator"
+        aria-orientation={isHorizontal ? 'vertical' : 'horizontal'}
+        data-notes-split-divider={node.orientation}
+        data-notes-split-id={node.id}
+        className={cn(
+          'group relative z-[var(--vlaina-z-10)] touch-none bg-transparent',
+          isHorizontal ? 'cursor-col-resize' : 'cursor-row-resize'
+        )}
+        onPointerDown={(event) => beginSplitResize(node.id, node.orientation, event)}
+      >
+        <div
+          className={cn(
+            'absolute bg-[var(--vlaina-accent)]',
+            isHorizontal
+              ? 'bottom-0 left-1/2 top-0 w-[var(--vlaina-size-2px)] -translate-x-1/2'
+              : 'left-0 right-0 top-1/2 h-[var(--vlaina-size-2px)] -translate-y-1/2'
+          )}
+        />
+      </div>
+    );
+
+    return (
+      <div
+        key={node.id}
+        className="grid h-full min-h-0 w-full min-w-0"
+        data-notes-split-layout={node.direction}
+        data-notes-split-orientation={node.orientation}
+        style={isHorizontal
+          ? {
+              gridTemplateColumns: `minmax(0, ${node.ratio}fr) var(--vlaina-size-4px) minmax(0, ${1 - node.ratio}fr)`,
+            }
+          : {
+              gridTemplateRows: `minmax(0, ${node.ratio}fr) var(--vlaina-size-4px) minmax(0, ${1 - node.ratio}fr)`,
+            }}
+      >
+        <div className="min-h-0 min-w-0">{renderSplitPaneTree(node.first)}</div>
+        {divider}
+        <div className="min-h-0 min-w-0">{renderSplitPaneTree(node.second)}</div>
+      </div>
+    );
+  }
+
   return (
     <>
       <AnimatePresence>
@@ -711,21 +1503,12 @@ export function NotesView({
       </AnimatePresence>
 
       <div ref={notesViewRef} data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
-        <div className="flex-1 min-w-0 relative">
-          {firstPaintPreviewBlocks.length > 0 ? (
-            <div className="absolute inset-x-0 top-0 z-[var(--vlaina-z-1)] flex justify-center pointer-events-none">
-              <LargeMarkdownFirstPaintPreview blocks={firstPaintPreviewBlocks} />
-            </div>
-          ) : null}
-
-          {canLoadMarkdownEditor ? (
-            <Suspense fallback={null}>
-              <MarkdownEditor
-                active={active}
-                onEditorViewReady={reportNotesPrimaryContentReady}
-              />
-            </Suspense>
-          ) : null}
+        <div
+          ref={splitDropRootRef}
+          className="flex-1 min-w-0 relative"
+          data-notes-split-drop-root="true"
+        >
+          {renderSplitPaneTree(splitPaneTree)}
         </div>
 
         {active && !chatPanelCollapsed && (
@@ -811,6 +1594,7 @@ export function NotesView({
           </Suspense>
         )}
 
+        {active && hasSplitPanes ? <NotesSplitDiagnosticsButton /> : null}
       </div>
 
       <TreeItemDeleteDialog

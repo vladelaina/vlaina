@@ -143,6 +143,15 @@ describe("editor markdown presentation styles", () => {
     expect(notesCss).toContain('transition: none;');
   });
 
+  it('keeps external-theme readonly heading-to-rich-block spacing aligned with the editor', () => {
+    const commonCss = readCommonMarkdownSurfaceStyle();
+
+    expect(commonCss).toContain(
+      ".milkdown-editor[data-markdown-compat-layer='external'] .markdown-surface > :is(h1, h2, h3, h4, h5, h6):has(+ :is(blockquote, details, .md-alert, .callout)) {"
+    );
+    expect(commonCss).toContain('margin-bottom: var(--vlaina-space-0) !important;');
+  });
+
   it('keeps inline background geometry low-specificity so inline code can set its fill', () => {
     const notesCss = readStyleFile('markdown.css');
     const compatibilityCss = readStyleFile('theme-compatibility/base.css');

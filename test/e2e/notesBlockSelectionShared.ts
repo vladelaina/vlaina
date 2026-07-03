@@ -80,7 +80,16 @@ export async function selectNoteBlocksByMatchers(page: Page, matchers: BlockText
   expect(result.count).toBe(matchers.length);
 }
 
-export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator): Promise<void> {
+type MoveMouseToBlockHandleGutterOptions = {
+  assertCentered?: boolean;
+  maxCenterDelta?: number;
+};
+
+export async function moveMouseToBlockHandleGutter(
+  page: Page,
+  locator: Locator,
+  options: MoveMouseToBlockHandleGutterOptions = {},
+): Promise<void> {
   const rect = await locator.evaluateAll((elements) => {
     const resolveHandleTargetRect = (element: HTMLElement) => {
       const box = element.getBoundingClientRect();
@@ -118,11 +127,29 @@ export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator)
   if (!rect) {
     throw new Error('Could not resolve block geometry');
   }
-  const targetCenterY = rect.y + rect.height / 2;
-  const targetX = Math.max(8, rect.x - 18);
+  await moveMouseToBlockHandleGutterAtRect(page, rect, options);
+}
+
+export async function moveMouseToBlockHandleGutterAtRect(
+  page: Page,
+  rect: { x?: number; y?: number; left?: number; top?: number; width: number; height: number },
+  options: MoveMouseToBlockHandleGutterOptions = {},
+): Promise<void> {
+  const rectX = rect.x ?? rect.left;
+  const rectY = rect.y ?? rect.top;
+  if (rectX === undefined || rectY === undefined) {
+    throw new Error('Could not resolve block geometry');
+  }
+  const targetCenterY = rectY + rect.height / 2;
+  const targetX = Math.max(8, rectX - 18);
   const primingX = targetX > 8 ? targetX - 1 : targetX + 1;
   await page.mouse.move(primingX, targetCenterY);
   await page.mouse.move(targetX, targetCenterY, { steps: 3 });
+
+  if (options.assertCentered === false) {
+    await expect(page.locator('.editor-block-controls.visible')).toBeVisible({ timeout: 10_000 });
+    return;
+  }
 
   await expect.poll(async () => page.evaluate(({ x, y, expectedCenterY }) => {
     // Electron can coalesce Playwright mouse moves when the cursor is already at the same screen point.
@@ -151,7 +178,7 @@ export async function moveMouseToBlockHandleGutter(page: Page, locator: Locator)
     return Math.abs((controlsRect.top + controlsRect.height / 2) - expectedCenterY);
   }, { x: targetX, y: targetCenterY, expectedCenterY: targetCenterY }), {
     message: 'Expected block controls to align with the hovered block',
-  }).toBeLessThanOrEqual(2);
+  }).toBeLessThanOrEqual(options.maxCenterDelta ?? 2);
 }
 
 export async function measureVisibleHandleGeometry(

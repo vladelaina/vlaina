@@ -10,7 +10,7 @@ export const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 export const NOTE_SOURCE_FALLBACK_SELECTOR = '[data-note-source-fallback="true"]';
 export const NOTE_COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 export const NOTE_COVER_CROPPER_SELECTOR = '[data-testid="cover-cropper"]';
-export const NOTE_COVER_IMAGE_SELECTOR = `${NOTE_COVER_CROPPER_SELECTOR} img[alt="Cover Cropper"]`;
+export const NOTE_COVER_IMAGE_SELECTOR = `${NOTE_COVER_CROPPER_SELECTOR} img`;
 export const NOTES_VIEW_SELECTOR = '[data-notes-view-mode="true"]';
 export const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
 export const FILE_TREE_PRIMARY_SELECTOR = '[data-file-tree-primary="true"]';

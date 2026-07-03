@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useNotesRootStore } from '@/stores/useNotesRootStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import {
@@ -19,6 +20,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragMoveEvent,
   DragStartEvent,
 } from '@dnd-kit/core';
 import {
@@ -31,6 +33,7 @@ import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { NotesDragOverlay } from '../common/NotesDragOverlay';
 import { NoteTabContent } from './NoteTabContent';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { dispatchNotesTabSplitDrag } from '../Split/notesSplitDragEvents';
 
 const EMPTY_NOTE_NAVIGATION_HISTORY: never[] = [];
 
@@ -273,6 +276,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 
 export function NotesTabRow() {
   const { t } = useI18n();
+  const notesSplitPanesActive = useUIStore((s) => s.notesSplitPanesActive);
   const currentNotesRootPath = useNotesRootStore((s) => s.currentNotesRoot?.path ?? null);
   const currentNotePath = useNotesStore((s) => s.currentNote?.path);
   const notesPath = useNotesStore((s) => s.notesPath);
@@ -295,6 +299,41 @@ export function NotesTabRow() {
     noteNavigationHistoryIndex < noteNavigationHistory.length - 1;
 
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
+  const activeSplitDragPathRef = React.useRef<string | null>(null);
+  const splitDragPointRef = React.useRef<{ clientX: number; clientY: number } | null>(null);
+
+  const getSplitDragPoint = React.useCallback((event: DragMoveEvent | DragEndEvent) => {
+    const rect = event.active.rect.current.translated ?? event.active.rect.current.initial;
+    return rect
+      ? {
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+        }
+      : splitDragPointRef.current;
+  }, []);
+
+  const handleSplitDragPointerMove = React.useCallback((event: PointerEvent) => {
+    const path = activeSplitDragPathRef.current;
+    if (!path) {
+      return;
+    }
+
+    const point = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    };
+    splitDragPointRef.current = point;
+    dispatchNotesTabSplitDrag({
+      phase: 'move',
+      path,
+      source: 'tab',
+      ...point,
+    });
+  }, []);
+
+  const stopSplitDragTracking = React.useCallback(() => {
+    window.removeEventListener('pointermove', handleSplitDragPointerMove);
+  }, [handleSplitDragPointerMove]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -310,13 +349,55 @@ export function NotesTabRow() {
     createNote(folderPath, { asDraft: true });
   }, [currentNotePath, createNote]);
 
+  React.useEffect(() => {
+    return () => {
+      stopSplitDragTracking();
+    };
+  }, [stopSplitDragTracking]);
+
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveTabId(event.active.id as string);
+    const path = event.active.id as string;
+    setActiveTabId(path);
+    activeSplitDragPathRef.current = path;
+    splitDragPointRef.current = null;
+    window.addEventListener('pointermove', handleSplitDragPointerMove);
+    dispatchNotesTabSplitDrag({ phase: 'start', path });
+  };
+
+  const handleDragMove = (event: DragMoveEvent) => {
+    const path = activeSplitDragPathRef.current;
+    if (!path) {
+      return;
+    }
+
+    const point = getSplitDragPoint(event);
+    if (!point) {
+      return;
+    }
+
+    splitDragPointRef.current = point;
+    dispatchNotesTabSplitDrag({
+      phase: 'move',
+      path,
+      source: 'tab',
+      ...point,
+    });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTabId(null);
+    const path = active.id as string;
+    const point = getSplitDragPoint(event);
+    activeSplitDragPathRef.current = null;
+    splitDragPointRef.current = null;
+    stopSplitDragTracking();
+    dispatchNotesTabSplitDrag({
+      phase: 'end',
+      path,
+      source: 'tab',
+      ...(point ?? {}),
+    });
     if (over && active.id !== over.id) {
       const oldIndex = openTabs.findIndex((tab) => tab.path === active.id);
       const newIndex = openTabs.findIndex((tab) => tab.path === over.id);
@@ -326,7 +407,22 @@ export function NotesTabRow() {
     }
   };
 
+  const handleDragCancel = () => {
+    const path = activeSplitDragPathRef.current;
+    setActiveTabId(null);
+    activeSplitDragPathRef.current = null;
+    splitDragPointRef.current = null;
+    stopSplitDragTracking();
+    if (path) {
+      dispatchNotesTabSplitDrag({ phase: 'cancel', path });
+    }
+  };
+
   const activeTab = activeTabId ? openTabs.find((tab) => tab.path === activeTabId) : null;
+
+  if (notesSplitPanesActive) {
+    return null;
+  }
 
   return (
     <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
@@ -341,7 +437,9 @@ export function NotesTabRow() {
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <SortableContext items={openTabs.map((tab) => tab.path)} strategy={horizontalListSortingStrategy}>
               <div className="flex min-w-0 items-center overflow-x-auto">

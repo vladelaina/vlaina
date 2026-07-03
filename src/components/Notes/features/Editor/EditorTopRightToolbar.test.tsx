@@ -101,6 +101,31 @@ vi.mock('@/stores/useNotesStore', () => ({
   ),
 }));
 
+vi.mock('@/stores/notes/useNotesStore', () => ({
+  useNotesStore: Object.assign(
+    (selector: (state: {
+      currentNote: typeof mocks.currentNote;
+      noteContentsCache: Map<string, { content: string }>;
+    }) => unknown) =>
+      selector({
+        currentNote: mocks.currentNote,
+        noteContentsCache: new Map(
+          mocks.currentNote ? [[mocks.currentNote.path, { content: mocks.currentNote.content }]] : [],
+        ),
+      }),
+    {
+      getState: () => ({
+        currentNote: mocks.currentNote,
+        noteContentsCache: new Map(
+          mocks.currentNote ? [[mocks.currentNote.path, { content: mocks.currentNote.content }]] : [],
+        ),
+        isDirty: false,
+        openTabs: mocks.currentNote ? [{ path: mocks.currentNote.path, name: 'Current', isDirty: false }] : [],
+      }),
+    },
+  ),
+}));
+
 vi.mock('@/stores/useToastStore', () => ({
   useToastStore: (selector: (state: { addToast: typeof mocks.addToast }) => unknown) =>
     selector({ addToast: mocks.addToast }),

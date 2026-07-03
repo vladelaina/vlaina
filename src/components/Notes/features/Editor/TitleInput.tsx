@@ -18,9 +18,10 @@ interface TitleInputProps {
   initialTitle: string;
   onEnter?: () => void;
   autoFocus?: boolean;
+  compact?: boolean;
 }
 
-export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: TitleInputProps) {
+export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact = false }: TitleInputProps) {
   const { t } = useI18n();
   const [title, setTitle] = useState(initialTitle);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -314,6 +315,10 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[var(--vlaina-note-title-font-size)] font-bold leading-[var(--vlaina-leading-title)] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-[var(--vlaina-color-white)]"
+      style={compact ? {
+        fontSize: 'var(--vlaina-text-xl)',
+        lineHeight: 'var(--vlaina-size-28px)',
+      } : undefined}
       placeholder={t('notes.untitled')}
     />
   );

@@ -1,4 +1,4 @@
-interface CoverRenderState {
+export interface CoverRenderState {
   url: string | null;
   positionX: number;
   positionY: number;
@@ -9,6 +9,8 @@ interface CoverRenderState {
 export interface RenderedCoverSnapshot {
   notePath: string | undefined;
   coverSignature: string;
+  cover: CoverRenderState;
+  notesRootPath: string;
 }
 
 export function getStableCoverSignature(cover: CoverRenderState) {

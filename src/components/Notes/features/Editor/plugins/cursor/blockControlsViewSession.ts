@@ -28,6 +28,7 @@ import { serializeSelectedBlocksToText } from './blockSelectionSerializer';
 import { getCurrentMarkdownParser, getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
 import { serializeEditorMarkdownSnapshot } from '../../utils/pendingMarkdownUpdate';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { remapDraggedMarkdownImageAssets } from './blockDragImageAssets';
 import {
   getCurrentEditorBlockPositionSnapshot,
   subscribeCurrentEditorBlockPositionSnapshot,
@@ -52,6 +53,7 @@ const MIN_DROP_DISTANCE_PX = 4;
 const HANDLE_VERTICAL_GAP_PX = 24;
 const NOTES_BLOCK_DROP_TARGET_SELECTOR = '[data-notes-block-drop-target="true"]';
 const NOTES_TAB_PATH_SELECTOR = '[data-notes-tab-path]';
+const NOTES_SPLIT_LEAF_PATH_SELECTOR = '[data-notes-split-leaf-path]';
 const NOTES_FILE_TREE_FILE_PATH_SELECTOR = '[data-file-tree-kind="file"][data-file-tree-path]';
 const BLOCK_DRAG_TAB_OPEN_DELAY_MS = 280;
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
@@ -246,6 +248,10 @@ function getNotesBlockOpenTargetPathFromElements(elements: readonly Element[]): 
     const tab = element.closest(NOTES_TAB_PATH_SELECTOR) as HTMLElement | null;
     const tabPath = tab?.dataset.notesTabPath;
     if (tabPath) return tabPath;
+
+    const splitLeaf = element.closest(NOTES_SPLIT_LEAF_PATH_SELECTOR) as HTMLElement | null;
+    const splitLeafPath = splitLeaf?.dataset.notesSplitLeafPath;
+    if (splitLeafPath) return splitLeafPath;
 
     const fileTreeFile = element.closest(NOTES_FILE_TREE_FILE_PATH_SELECTOR) as HTMLElement | null;
     const fileTreePath = fileTreeFile?.dataset.fileTreePath;
@@ -660,7 +666,16 @@ export class BlockControlsViewSession {
     this.cachedScrollLeft = nextScrollLeft;
     this.cachedScrollTop = nextScrollTop;
     this.cachedSnapshotVersion = snapshotVersion;
-    const stateTargets = getHandleBlockTargets(this.view, selectedRanges);
+    const stateTargets = getHandleBlockTargets(this.view, selectedRanges).map((target) => {
+      if (!target.element?.classList.contains('editor-block-selected')) {
+        return target;
+      }
+      const rect = target.element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        return target;
+      }
+      return { ...target, rect };
+    });
     this.cachedTargets = stateTargets.length > 0
       ? stateTargets
       : this.getSelectedDomHandleTargets();
@@ -905,7 +920,7 @@ export class BlockControlsViewSession {
     return Boolean(this.dragSourceDoc && this.view.state.doc !== this.dragSourceDoc);
   }
 
-  private applyCrossNoteDrop(insertPos: number): boolean {
+  private async applyCrossNoteDrop(insertPos: number): Promise<boolean> {
     const sourceNotePath = this.dragSourceNotePath;
     const sourceMarkdownAfterDelete = this.dragSourceMarkdownAfterDelete;
     const targetNotePath = getCurrentNotePath();
@@ -918,21 +933,25 @@ export class BlockControlsViewSession {
       return false;
     }
 
+    const draggedMarkdown = await remapDraggedMarkdownImageAssets({
+      markdown: this.draggedMarkdown,
+      sourceNotePath,
+      targetNotePath,
+    });
     const targetMarkdownAfterInsert = insertCrossNoteDraggedMarkdown(
       this.view,
-      this.draggedMarkdown,
+      draggedMarkdown,
       insertPos,
       targetNotePath,
     );
     if (targetMarkdownAfterInsert === null) return false;
 
-    void saveCrossNoteBlockDropAfterTargetSave({
+    return saveCrossNoteBlockDropAfterTargetSave({
       sourceNotePath,
       sourceMarkdownAfterDelete,
       targetNotePath,
       targetMarkdownAfterInsert,
-    }).catch(() => undefined);
-    return true;
+    });
   }
 
   private readonly handleHandleMouseDown = (event: MouseEvent): void => {
@@ -1103,7 +1122,7 @@ export class BlockControlsViewSession {
       const ranges = this.draggedRanges;
       const insertPos = this.pendingDrop.insertPos;
       if (this.isCrossNoteDrag()) {
-        this.applyCrossNoteDrop(insertPos);
+        void this.applyCrossNoteDrop(insertPos).catch(() => undefined);
       } else {
         const canMove = canApplyBlockMove(this.view, ranges, insertPos);
         if (canMove) {

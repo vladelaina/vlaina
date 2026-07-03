@@ -14,6 +14,22 @@
   white-space: pre;
 }
 
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror > :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, table, .milkdown-table-block) {
+  pointer-events: auto !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write > :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, details, .md-alert, .callout, table, .milkdown-table-block) {
+  pointer-events: auto !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write > :is(h1, h2, h3, h4, h5, h6):has(+ :is(blockquote, details, .md-alert, .callout)) {
+  margin-bottom: var(--vlaina-space-0) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write > :is(h1, h2, h3, h4, h5, h6) + :is(blockquote, details, .md-alert, .callout) {
+  margin-top: var(--vlaina-space-0) !important;
+}
+
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-selected,
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-active .code-block-container.editor-block-drag-source,
 .milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror.editor-block-selection-pending .code-block-container.editor-block-selected,

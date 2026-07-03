@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearCoverAssetUrlResolveCacheForTests,
+  getCachedResolvedCoverAssetUrl,
   MAX_PENDING_COVER_ASSET_URL_RESOLVES,
+  rememberDisplayedCoverAssetUrl,
   resolveCoverAssetUrl,
 } from './resolveCoverAssetUrl';
 
@@ -132,6 +134,43 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledWith('/notes-root-a', 'assets/a.webp', undefined);
   });
 
+  it('falls back to notes root assets for imported explicit asset paths', async () => {
+    hoisted.resolveExistingNotesRootAssetPath
+      .mockResolvedValueOnce('/notesRoot/NekoTick/assets/cover.gif@1052w_!web-dynamic.webp')
+      .mockResolvedValueOnce('/notesRoot/assets/cover.gif@1052w_!web-dynamic.webp');
+    hoisted.loadImageAsBlob
+      .mockRejectedValueOnce(new Error('missing'))
+      .mockResolvedValueOnce('blob:cover');
+
+    const url = await resolveCoverAssetUrl({
+      assetPath: './assets/cover.gif@1052w_!web-dynamic.webp',
+      notesRootPath: '/notesRoot',
+      currentNotePath: 'NekoTick/HelloGitHub.md',
+    });
+
+    expect(url).toBe('blob:cover');
+    expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
+      1,
+      '/notesRoot',
+      './assets/cover.gif@1052w_!web-dynamic.webp',
+      'NekoTick/HelloGitHub.md',
+    );
+    expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenNthCalledWith(
+      2,
+      '/notesRoot',
+      'assets/cover.gif@1052w_!web-dynamic.webp',
+      'NekoTick/HelloGitHub.md',
+    );
+    expect(hoisted.loadImageAsBlob).toHaveBeenNthCalledWith(
+      1,
+      '/notesRoot/NekoTick/assets/cover.gif@1052w_!web-dynamic.webp',
+    );
+    expect(hoisted.loadImageAsBlob).toHaveBeenNthCalledWith(
+      2,
+      '/notesRoot/assets/cover.gif@1052w_!web-dynamic.webp',
+    );
+  });
+
   it('reuses a completed resolve for repeated icon renders in one render window', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
@@ -156,7 +195,7 @@ describe('resolveCoverAssetUrl', () => {
       expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
       expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime(501);
+      vi.advanceTimersByTime(30_001);
       await expect(resolveCoverAssetUrl({
         assetPath: 'assets/logo.png',
         notesRootPath: '/notes-root-a',
@@ -165,6 +204,93 @@ describe('resolveCoverAssetUrl', () => {
 
       expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(2);
       expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('exposes completed resolves synchronously during the reuse window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/cover.png');
+      hoisted.loadImageAsBlob.mockResolvedValue('blob:cover');
+
+      expect(getCachedResolvedCoverAssetUrl({
+        assetPath: 'assets/cover.png',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+      })).toBeNull();
+
+      await expect(resolveCoverAssetUrl({
+        assetPath: 'assets/cover.png',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+      })).resolves.toBe('blob:cover');
+
+      expect(getCachedResolvedCoverAssetUrl({
+        assetPath: 'assets/cover.png',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+      })).toBe('blob:cover');
+
+      vi.advanceTimersByTime(30_001);
+      expect(getCachedResolvedCoverAssetUrl({
+        assetPath: 'assets/cover.png',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+      })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps currently displayed cover urls synchronously available after the resolve cache expires', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      const options = {
+        assetPath: 'assets/cover.png',
+        notesRootPath: '/notes-root-a',
+        currentNotePath: 'notes/today.md',
+      };
+      hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/cover.png');
+      hoisted.loadImageAsBlob.mockResolvedValue('blob:cover');
+
+      await expect(resolveCoverAssetUrl(options)).resolves.toBe('blob:cover');
+      rememberDisplayedCoverAssetUrl(options, 'blob:cover');
+
+      vi.advanceTimersByTime(30_001);
+
+      expect(getCachedResolvedCoverAssetUrl(options)).toBe('blob:cover');
+      expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns displayed animated cover urls without adding another replay token', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      const options = {
+        assetPath: 'assets/a.gif',
+        notesRootPath: '/notes-root-a',
+        replayAnimated: true,
+      };
+      hoisted.resolveExistingNotesRootAssetPath.mockResolvedValue('/notesRoot/assets/a.gif');
+      hoisted.loadImageAsBlob.mockResolvedValue('blob:animated');
+
+      const displayedUrl = await resolveCoverAssetUrl(options);
+      rememberDisplayedCoverAssetUrl(options, displayedUrl);
+
+      vi.advanceTimersByTime(501);
+
+      expect(getCachedResolvedCoverAssetUrl(options)).toBe(displayedUrl);
+      await expect(resolveCoverAssetUrl(options)).resolves.toBe(displayedUrl);
+      expect(hoisted.resolveExistingNotesRootAssetPath).toHaveBeenCalledTimes(1);
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }

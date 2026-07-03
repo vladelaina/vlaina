@@ -20,9 +20,10 @@ interface NoteHeaderProps {
     coverUrl: string | null;
     coverLayoutActive?: boolean;
     onAddCover: () => void;
+    compactTitle?: boolean;
 }
 
-export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), onAddCover }: NoteHeaderProps) {
+export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), onAddCover, compactTitle = false }: NoteHeaderProps) {
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setNoteIconSize = useNotesStore(s => s.setNoteIconSize);
@@ -181,15 +182,16 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
             onIconPickerOpen={handleIconPickerOpen}
             imageLoader={imageLoader}
             onRequestRandomIcon={handleRequestRandomIcon}
-            
+
             renderTitle={() => currentNotePath && (
                 <div className="group/note-title">
-                    <NotePathBreadcrumb notePath={currentNotePath} />
+                    {!compactTitle ? <NotePathBreadcrumb notePath={currentNotePath} /> : null}
                     <TitleInput
                         notePath={currentNotePath}
                         initialTitle={titleInitialValue}
                         onEnter={focusEditorAtTop}
                         autoFocus={shouldAutoFocusTitle}
+                        compact={compactTitle}
                     />
                 </div>
             )}

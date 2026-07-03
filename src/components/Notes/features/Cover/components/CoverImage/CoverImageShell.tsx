@@ -28,6 +28,7 @@ export function CoverImageShell({
   rendererProps,
 }: CoverImageControllerModel) {
   const { t } = useI18n();
+  const shouldAnimateExistingCover = Boolean(url) && !displaySrc;
 
   if (phase === 'idle' && !showPicker) {
     return null;
@@ -70,7 +71,7 @@ export function CoverImageShell({
     <div
       className={cn(
         'relative w-full bg-[var(--vlaina-bg-primary)] shrink-0 select-none overflow-hidden group',
-        'animate-in fade-in-0 duration-[var(--vlaina-duration-150)] ease-out motion-reduce:animate-none'
+        shouldAnimateExistingCover && 'animate-in fade-in-0 duration-[var(--vlaina-duration-150)] ease-out motion-reduce:animate-none'
       )}
       style={{ height: coverHeight, overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
       ref={containerRef}
