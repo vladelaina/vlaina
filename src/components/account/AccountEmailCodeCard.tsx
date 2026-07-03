@@ -171,7 +171,6 @@ export function AccountEmailCodeCard({
           disabled={disabled || isLoading}
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={6}
           pattern="[0-9]{6}"
           className={cn(
             "h-14 w-full rounded-full text-center text-[var(--vlaina-font-26)] font-black tracking-[var(--vlaina-tracking-code-sm)] text-[var(--vlaina-color-text-strong)] transition-all duration-[var(--vlaina-duration-200)] outline-none sm:h-[var(--vlaina-size-60px)] sm:text-[var(--vlaina-font-30)] sm:tracking-[var(--vlaina-tracking-code-md)] md:h-16 md:text-3xl md:tracking-[var(--vlaina-tracking-code-lg)]",
