@@ -1,30 +1,21 @@
-import React, { isValidElement, useEffect, useState } from 'react';
+import React, { isValidElement } from 'react';
 import { getExternalLinkProps } from '@/lib/navigation/externalLinks';
-import { LocalImage } from '@/components/Chat/common/LocalImage';
-import { Icon } from '@/components/ui/icons';
-import { cn, iconButtonStyles } from '@/lib/utils';
-import { copyImageSourceToClipboard } from '@/components/Chat/common/messageClipboard';
-import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload';
-import { LazyChatImageViewer } from './components/LazyChatImageViewer';
+import { cn } from '@/lib/utils';
 import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { normalizeChatMessageImageSource } from '@/lib/ai/chatImageSourcePolicy';
 import { ReadOnlyMermaidBlock } from '@/components/common/markdown/ReadOnlyMermaidBlock';
 import { ReadOnlyVideoBlock } from '@/components/common/markdown/ReadOnlyVideoBlock';
-import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
 import { isMermaidFenceLanguage } from '@/components/common/markdown/mermaidLanguage';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
-import { translate, useI18n } from '@/lib/i18n';
+import { translate } from '@/lib/i18n';
 import { resolveCompactedChatImageSrc } from './chatInlineImageTokens';
-import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
-import { useToastStore } from '@/stores/useToastStore';
+import { MarkdownImage, type ImageGalleryItem } from './MarkdownImage';
 
 const ReadOnlyCodeBlock = React.lazy(async () => {
   const mod = await import('@/components/common/code-block');
   return { default: mod.ReadOnlyCodeBlock };
 });
-
-type ImageGalleryItem = { id: string; src: string };
 
 type CreateMarkdownComponentsOptions = {
   codeBlockIndexOffset?: number;
@@ -154,15 +145,6 @@ function ReadOnlyCodeBlockFallback({
   );
 }
 
-async function copyImageOrUrl(src: string): Promise<boolean> {
-  return copyImageSourceToClipboard(src);
-}
-
-function stopImageControlMouseDown(event: React.MouseEvent<HTMLElement>) {
-  event.preventDefault();
-  event.stopPropagation();
-}
-
 function isInternalHashHref(href: unknown): href is string {
   return typeof href === 'string' && /^#[A-Za-z0-9_-]+$/.test(href);
 }
@@ -174,131 +156,6 @@ function renderUnavailableImage() {
       data-chat-selection-excluded="true"
     >
       [{translate('chat.imageUnavailable')}]
-    </span>
-  );
-}
-
-function MarkdownImage({
-  src,
-  alt,
-  imageGallery,
-  getImageGallery,
-  currentImageId,
-  align,
-  width,
-  crop,
-}: {
-  align?: string;
-  alt?: string;
-  currentImageId?: string;
-  crop?: string | null;
-  getImageGallery?: () => ImageGalleryItem[];
-  imageGallery?: ImageGalleryItem[];
-  src: string;
-  width?: string | null;
-}) {
-  const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [resolvedImageSrc, setResolvedImageSrc] = useState<string | null>(null);
-  const addToast = useToastStore((state) => state.addToast);
-
-  useEffect(() => {
-    if (!copied) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => setCopied(false), themeUiFeedbackTokens.copyFeedbackDurationMs);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
-  const handleCopy = async () => {
-    try {
-      const didCopy = await copyImageOrUrl(src);
-      setCopied(didCopy);
-      if (!didCopy) {
-        addToast(t('chat.copyImageFailed'), 'error');
-      }
-    } catch {
-      setCopied(false);
-      addToast(t('chat.copyImageFailed'), 'error');
-    }
-  };
-
-  const gallery = getImageGallery ? getImageGallery() : imageGallery;
-  const normalizedAlign = align === 'left' || align === 'right' || align === 'center' ? align : 'center';
-  const justifyClass = normalizedAlign === 'left'
-    ? 'justify-start'
-    : normalizedAlign === 'right'
-      ? 'justify-end'
-      : 'justify-center';
-  const safeWidth = normalizeImageWidth(width);
-  const safeCrop = serializeCropValue(crop);
-
-  return (
-    <span
-      className={cn('flex max-w-full select-none', justifyClass)}
-      data-chat-selection-excluded="true"
-      data-no-focus-input="true"
-    >
-      <span className="group relative inline-block max-w-full select-none align-top">
-        <LocalImage
-          src={src}
-          alt={alt || 'image'}
-          className="block max-h-[var(--vlaina-size-420px)] w-auto max-w-full select-none object-contain"
-          style={safeWidth ? { width: safeWidth } : undefined}
-          data-vlaina-crop={safeCrop || undefined}
-          onResolvedSrc={setResolvedImageSrc}
-          onClick={() => {
-            setIsViewerOpen(true);
-          }}
-        />
-        <span
-          className="absolute right-2 top-2 z-[var(--vlaina-z-10)] flex items-center gap-1 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)] group-hover:opacity-[var(--vlaina-opacity-100)]"
-          data-no-focus-input="true"
-        >
-          <button
-            type="button"
-            data-no-focus-input="true"
-            data-action="copy"
-            aria-label={t('chat.copyImage')}
-            onMouseDown={stopImageControlMouseDown}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              void handleCopy();
-            }}
-            className={cn('toolbar-btn', copied && 'active')}
-          >
-            <Icon name={copied ? 'common.check' : 'common.copy'} size="md" />
-          </button>
-          <button
-            type="button"
-            data-no-focus-input="true"
-            aria-label={t('chat.downloadImage')}
-            onMouseDown={stopImageControlMouseDown}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              void downloadImageWithPrompt(src, alt).catch(() => undefined);
-            }}
-            className={cn('p-1.5', iconButtonStyles)}
-          >
-            <Icon name="common.download" size="md" />
-          </button>
-        </span>
-      </span>
-      {isViewerOpen ? (
-        <LazyChatImageViewer
-          open={isViewerOpen}
-          src={src}
-          alt={alt}
-          gallery={gallery}
-          currentImageId={currentImageId}
-          previewSrc={resolvedImageSrc}
-          onOpenChange={setIsViewerOpen}
-        />
-      ) : null}
     </span>
   );
 }
