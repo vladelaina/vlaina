@@ -67,6 +67,32 @@ const MAX_INLINE_IMAGE_FALLBACK_INLINE_CODE_RANGES = 4000
 export const MAX_CHAT_SESSION_DELETE_CONCURRENCY = 5
 export const MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY = 4
 
+function getAvailableSessionModelId(
+  ai: NonNullable<ReturnType<typeof useUnifiedStore.getState>['data']['ai']>,
+  session: ChatSession | undefined,
+): string | null {
+  const modelId = session?.modelId
+  if (!modelId) return null
+
+  const model = ai.models.find((item) => item.id === modelId)
+  if (!model || model.enabled === false) return null
+
+  const provider = ai.providers.find((item) => item.id === model.providerId)
+  return provider?.enabled === false ? null : model.id
+}
+
+function restoreSessionModelSelection(sessionId: string): void {
+  const state = useUnifiedStore.getState()
+  const ai = state.data.ai!
+  const session = ai.sessions.find((item) => item.id === sessionId)
+  const modelId = getAvailableSessionModelId(ai, session)
+  if (!modelId || ai.selectedModelId === modelId) {
+    return
+  }
+
+  state.updateAIData({ selectedModelId: modelId })
+}
+
 function saveSessionJsonInBackground(sessionId: string, messages: ChatMessage[]) {
   void saveSessionJson(sessionId, messages).catch(() => {})
 }
@@ -986,6 +1012,7 @@ export function createSessionActions() {
           unreadSessionIds: filterUnreadSessionIds(ai.unreadSessionIds, stripped.sessions.map((session) => session.id)),
         }, true)
         uiState.setChatSelection({ currentSessionId: sessionId, temporaryChatEnabled: false })
+        restoreSessionModelSelection(sessionId)
       } else {
         uiState.setCurrentSessionId(sessionId)
         if (isTemporarySessionId(sessionId)) {
@@ -1000,6 +1027,7 @@ export function createSessionActions() {
           }
           return
         }
+        restoreSessionModelSelection(sessionId)
       }
 
       const latestAI = useUnifiedStore.getState().data.ai!

@@ -324,7 +324,7 @@ export function ModelSelector({
     }
 
     const provider = providers.find((item) => item.id === model.providerId)
-    return provider?.enabled === false ? undefined : model
+    return model.enabled === false || provider?.enabled === false ? undefined : model
   }, [models, providers, selectedModelId])
   const styles = MODEL_SELECTOR_THEME_STYLES[theme]
   const selectedModelFamily = selectedModel ? getModelFamily(selectedModel) : null

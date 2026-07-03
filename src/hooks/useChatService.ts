@@ -350,7 +350,7 @@ export function useChatService() {
     }
 
     const provider = providers.find((item) => item.id === model.providerId);
-    return provider?.enabled === false ? undefined : model;
+    return model.enabled === false || provider?.enabled === false ? undefined : model;
   }, [models, providers, selectedModelId]);
 
   const clearActiveComposerRequest = useCallback((request: ActiveComposerRequest | null) => {

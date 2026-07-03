@@ -105,7 +105,7 @@ export function ChatView({
     }
 
     const provider = providers.find((item) => item.id === model.providerId);
-    return provider?.enabled === false ? undefined : model;
+    return model.enabled === false || provider?.enabled === false ? undefined : model;
   }, [models, providers, selectedModelId]);
   const isSelectedManagedModel = Boolean(selectedModel && isManagedProviderId(selectedModel.providerId));
   const [hasStickyManagedQuotaExhaustion, setHasStickyManagedQuotaExhaustion] = useState(false);
@@ -195,7 +195,7 @@ export function ChatView({
     const enabledProviderIds = new Set(
       providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)
     );
-    return models.find((model) => enabledProviderIds.has(model.providerId));
+    return models.find((model) => model.enabled && enabledProviderIds.has(model.providerId));
   }, [models, providers]);
   
   useEffect(() => {

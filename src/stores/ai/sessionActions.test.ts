@@ -79,6 +79,76 @@ describe('session actions conversation branching', () => {
     vi.clearAllMocks()
   })
 
+  it('restores the available model saved on the switched session', async () => {
+    useUnifiedStore.setState({
+      loaded: true,
+      data: {
+        settings: { ui: {} } as never,
+        customIcons: [],
+        ai: {
+          providers: [{
+            id: 'provider-1',
+            name: 'Provider',
+            type: 'newapi',
+            apiHost: 'https://example.com',
+            apiKey: '',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          }],
+          models: [
+            {
+              id: 'model-default',
+              apiModelId: 'default',
+              name: 'Default',
+              providerId: 'provider-1',
+              enabled: true,
+              createdAt: 1,
+            },
+            {
+              id: 'model-a',
+              apiModelId: 'model-a',
+              name: 'Model A',
+              providerId: 'provider-1',
+              enabled: true,
+              createdAt: 1,
+            },
+          ],
+          benchmarkResults: {},
+          fetchedModels: {},
+          sessions: [
+            { id: 'session-1', title: 'Default chat', modelId: 'model-default', createdAt: 1, updatedAt: 1 },
+            { id: 'session-2', title: 'Model A chat', modelId: 'model-a', createdAt: 2, updatedAt: 2 },
+          ],
+          messages: { 'session-1': [], 'session-2': [] },
+          unreadSessionIds: [],
+          selectedModelId: 'model-default',
+          currentSessionId: 'session-1',
+          temporaryChatEnabled: false,
+          customSystemPrompt: '',
+          includeTimeContext: true,
+          webSearchEnabled: false,
+        },
+      },
+      undoStack: [],
+    })
+
+    useAIUIStore.setState({
+      generatingSessions: {},
+      unreadSessions: {},
+      error: null,
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+      selectionInitialized: true,
+      temporaryReturnSessionId: null,
+      authPromptSessionId: null,
+    })
+
+    await createSessionActions().switchSession('session-2')
+
+    expect(useUnifiedStore.getState().data.ai?.selectedModelId).toBe('model-a')
+  })
+
   it('forks a standalone chat through the selected assistant reply', () => {
     const user = createMessage('user-1', 'user', 'Prompt')
     const assistant = {

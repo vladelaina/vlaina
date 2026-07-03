@@ -266,7 +266,7 @@ export function createMessageActions() {
         messages: { ...ai.messages, [targetSessionId]: newMessages },
         sessions: touchSession
           ? ai.sessions.map((session) =>
-              session.id === targetSessionId ? { ...session, updatedAt: Date.now() } : session
+              session.id === targetSessionId ? { ...session, modelId: message.modelId, updatedAt: Date.now() } : session
             )
           : ai.sessions
       }, !persistUnified)

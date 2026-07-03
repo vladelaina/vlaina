@@ -10,6 +10,7 @@ import {
 import { useAccountSessionStore } from '../accountSession'
 import { useManagedAIStore } from '../useManagedAIStore'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
+import { useAIUIStore } from './chatState'
 import { createChatActions } from './chatActions'
 import {
   areModelsEqual,
@@ -27,6 +28,35 @@ let managedModelsLastFullRefreshAt = 0;
 let managedModelsCatalogVersion: string | null = null;
 let managedModelsSyncGeneration = 0;
 const locallyCreatedProviderIds = new Set<string>();
+
+function getCurrentSessionAvailableModelId(
+  sessions: Array<{ id: string; modelId: string }>,
+  models: AIModel[],
+  providers: Provider[]
+): string | null {
+  const currentSessionId = useAIUIStore.getState().currentSessionId
+  if (!currentSessionId) return null
+
+  const sessionModelId = sessions.find((session) => session.id === currentSessionId)?.modelId
+  if (!sessionModelId) return null
+
+  const model = models.find((item) => item.id === sessionModelId)
+  if (!model || model.enabled === false) return null
+
+  const provider = providers.find((item) => item.id === model.providerId)
+  return provider?.enabled === false ? null : model.id
+}
+
+function chooseSessionAwareFallbackSelectedModelId(
+  currentSelectedModelId: string | null,
+  models: AIModel[],
+  providers: Provider[],
+  sessions: Array<{ id: string; modelId: string }>,
+  preferredProviderId?: string | null
+): string | null {
+  return getCurrentSessionAvailableModelId(sessions, models, providers) ??
+    chooseFallbackSelectedModelId(currentSelectedModelId, models, preferredProviderId)
+}
 
 async function refreshManagedBudgetIfConnected(): Promise<void> {
   if (!useAccountSessionStore.getState().isConnected) {
@@ -52,9 +82,11 @@ async function syncManagedProviderModels(
   const ai = store.data.ai!
   const nextProviders = ensureManagedProvider(ai.providers)
   const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models)
-  const selectedModelId = chooseFallbackSelectedModelId(
+  const selectedModelId = chooseSessionAwareFallbackSelectedModelId(
     ai.selectedModelId,
     nextModels,
+    nextProviders,
+    ai.sessions,
     MANAGED_PROVIDER_ID
   )
 
@@ -227,7 +259,12 @@ export const actions = {
     const enabledModels = filterModelsByEnabledProviders(nextModels, nextProviders)
     const dataUpdates: Parameters<typeof state.updateAIData>[0] = {
       providers: nextProviders,
-      selectedModelId: chooseFallbackSelectedModelId(ai.selectedModelId, enabledModels)
+      selectedModelId: chooseSessionAwareFallbackSelectedModelId(
+        ai.selectedModelId,
+        enabledModels,
+        nextProviders,
+        ai.sessions
+      )
     };
     if (connectionChanged) {
       dataUpdates.models = nextModels;
@@ -488,7 +525,21 @@ export const actions = {
   },
 
   selectModel: (modelId: string | null) => {
-    useUnifiedStore.getState().updateAIData({ selectedModelId: modelId })
+    const state = useUnifiedStore.getState()
+    const ai = state.data.ai!
+    const currentSessionId = useAIUIStore.getState().currentSessionId
+    const updates: Parameters<typeof state.updateAIData>[0] = { selectedModelId: modelId }
+
+    if (modelId && currentSessionId) {
+      const session = ai.sessions.find((item) => item.id === currentSessionId)
+      if (session && session.modelId !== modelId) {
+        updates.sessions = ai.sessions.map((item) =>
+          item.id === currentSessionId ? { ...item, modelId, updatedAt: Date.now() } : item
+        )
+      }
+    }
+
+    state.updateAIData(updates)
   },
 
   setCustomSystemPrompt: (prompt: string) => {
