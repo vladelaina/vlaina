@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { runDesktopUpdateAutoCheck } from './AppContent';
+import { runDesktopUpdateAutoCheck } from './useDesktopUpdateRuntime';
 
 describe('runDesktopUpdateAutoCheck', () => {
   it('notifies and records the check time when an update is available', async () => {
