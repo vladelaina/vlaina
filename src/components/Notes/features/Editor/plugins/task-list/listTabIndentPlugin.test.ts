@@ -400,6 +400,12 @@ function getMarkdown(editor: any): string {
   });
 }
 
+function listenForBlockUserInput(view: EditorView) {
+  const listener = vi.fn();
+  view.dom.addEventListener('editor:block-user-input', listener);
+  return listener;
+}
+
 describe('listTabIndentPlugin', () => {
   it('prevents focus from leaving the editor when tab has no editor action', async () => {
     const editor = createEditorWithContent('Plain paragraph');
@@ -407,11 +413,13 @@ describe('listTabIndentPlugin', () => {
 
     const view = editor.ctx.get(editorViewCtx);
     moveCursorToDocumentEnd(view);
+    const userInputListener = listenForBlockUserInput(view);
 
     const { event, handled } = pressTab(view);
 
     expect(handled).toBe(true);
     expect(event.defaultPrevented).toBe(true);
+    expect(userInputListener).not.toHaveBeenCalled();
   });
 
   it('prevents focus jumps when a list item cannot be indented further', async () => {
@@ -420,11 +428,13 @@ describe('listTabIndentPlugin', () => {
 
     const view = editor.ctx.get(editorViewCtx);
     moveCursorToDocumentEnd(view);
+    const userInputListener = listenForBlockUserInput(view);
 
     const { event, handled } = pressTab(view);
 
     expect(handled).toBe(true);
     expect(event.defaultPrevented).toBe(true);
+    expect(userInputListener).not.toHaveBeenCalled();
   });
 
   it('leaves modified tab shortcuts to the app and browser', async () => {
@@ -461,12 +471,14 @@ describe('listTabIndentPlugin', () => {
 
     const view = editor.ctx.get(editorViewCtx);
     moveCursorToDocumentEnd(view);
+    const userInputListener = listenForBlockUserInput(view);
 
     const { event, handled } = pressEnter(view);
     const markdown = getMarkdown(editor);
 
     expect(handled).toBe(true);
     expect(event.defaultPrevented).toBe(true);
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(markdown).toContain('- first');
     expect(markdown).not.toContain('\u2800');
     expect(markdown).not.toContain('- <br />');
@@ -964,8 +976,10 @@ describe('listTabIndentPlugin', () => {
     ]);
 
     moveCursorAfterText(view, '\u2800');
+    const userInputListener = listenForBlockUserInput(view);
     typeText(view, '2');
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(view.state.doc.child(1).type.name).toBe('paragraph');
     expect(view.state.doc.child(1).textContent).toBe('2');
 
@@ -1075,11 +1089,13 @@ describe('listTabIndentPlugin', () => {
           const view = editor.ctx.get(editorViewCtx);
           gapCase.replace(view);
           moveCursor(view, '\u2800');
+          const userInputListener = listenForBlockUserInput(view);
 
           const { event, handled } = pressKey(view);
 
           expect(handled).toBe(true);
           expect(event.defaultPrevented).toBe(true);
+          expect(userInputListener).toHaveBeenCalledTimes(1);
           expect(view.state.doc.textContent).not.toContain('\u2800');
           expect(collectListItemPrimaryTexts(view)).toEqual(gapCase.expectedAfterDelete);
           if (gapCase.expectedOrderedLabels) {
@@ -1132,11 +1148,13 @@ describe('listTabIndentPlugin', () => {
 
     const view = editor.ctx.get(editorViewCtx);
     moveCursorAfterText(view, 'two');
+    const userInputListener = listenForBlockUserInput(view);
 
     const { event, handled } = pressTab(view);
 
     expect(handled).toBe(true);
     expect(event.defaultPrevented).toBe(true);
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     const list = view.state.doc.child(0);
     expect(list.type.name).toBe('ordered_list');
     expect(list.childCount).toBe(2);
@@ -1172,11 +1190,13 @@ describe('listTabIndentPlugin', () => {
     ]);
 
     moveCursorToFirstEmptyParagraphDeep(view);
+    const userInputListener = listenForBlockUserInput(view);
 
     const { event, handled } = pressBackspace(view);
 
     expect(handled).toBe(true);
     expect(event.defaultPrevented).toBe(true);
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(view.state.doc.child(0).type.name).toBe('paragraph');
     expect(view.state.doc.child(0).content.size).toBe(0);
     expect(view.state.doc.child(1).type.name).toBe('ordered_list');
@@ -1211,10 +1231,12 @@ describe('listTabIndentPlugin', () => {
     ]);
 
     moveCursorToFirstEmptyParagraphDeep(view);
+    const userInputListener = listenForBlockUserInput(view);
 
     const { handled } = pressBackspace(view);
 
     expect(handled).toBe(true);
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(view.state.doc.childCount).toBe(3);
     expect(view.state.doc.child(0).type.name).toBe('ordered_list');
     expect(view.state.doc.child(0).textContent).toBe('one');
@@ -1248,11 +1270,13 @@ describe('listTabIndentPlugin', () => {
     ]);
 
     moveCursorToFirstEmptyParagraphDeep(view);
+    const userInputListener = listenForBlockUserInput(view);
 
     const { event, handled } = pressBackspace(view);
 
     expect(handled).toBe(true);
     expect(event.defaultPrevented).toBe(true);
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(view.state.doc.child(0).type.name).toBe('paragraph');
     expect(view.state.doc.child(0).content.size).toBe(0);
     expect(view.state.doc.child(1).type.name).toBe('bullet_list');

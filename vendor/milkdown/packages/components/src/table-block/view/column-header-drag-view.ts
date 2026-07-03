@@ -31,6 +31,7 @@ type UseColumnHeaderDragViewStateOptions = {
   contentWrapperRef: Ref<HTMLElement | undefined>
   getPressSession: () => PressSession | null
   getDragSession: () => DragSession | null
+  getPendingClickHighlightIndex: () => number | null
   syncGlobalListeners: () => void
 }
 
@@ -39,6 +40,7 @@ export function useColumnHeaderDragViewState({
   contentWrapperRef,
   getPressSession,
   getDragSession,
+  getPendingClickHighlightIndex,
   syncGlobalListeners,
 }: UseColumnHeaderDragViewStateOptions) {
   const controls = ref<ColumnHeaderControl[]>([])
@@ -128,9 +130,14 @@ export function useColumnHeaderDragViewState({
       }
     }
 
+    const sourceIndex =
+      dragSession?.from ??
+      pressSession?.index ??
+      menuState.value?.index ??
+      getPendingClickHighlightIndex()
+
     if (dragSession) {
       const target = nextControls[dragSession.to]
-      const source = nextControls[dragSession.from]
       const contentRect = content.getBoundingClientRect()
       const nextIndicator =
         target == null
@@ -145,21 +152,22 @@ export function useColumnHeaderDragViewState({
       if (!areIndicatorsEqual(dragIndicator.value, nextIndicator)) {
         dragIndicator.value = nextIndicator
       }
+    } else {
+      if (dragIndicator.value != null) dragIndicator.value = null
+    }
 
-      const nextHighlight =
-        source == null
-          ? null
-          : resolveColumnHighlight({
-              sourceIndex: dragSession.from,
-              controls: nextControls,
-              contentRect,
-              wrapperRect,
-            })
+    if (sourceIndex != null) {
+      const contentRect = content.getBoundingClientRect()
+      const nextHighlight = resolveColumnHighlight({
+        sourceIndex,
+        controls: nextControls,
+        contentRect,
+        wrapperRect,
+      })
       if (!areHighlightsEqual(dragSourceHighlight.value, nextHighlight)) {
         dragSourceHighlight.value = nextHighlight
       }
     } else {
-      if (dragIndicator.value != null) dragIndicator.value = null
       if (dragSourceHighlight.value != null) dragSourceHighlight.value = null
     }
 
@@ -229,6 +237,7 @@ export function useColumnHeaderDragViewState({
       activeColIndex.value = null
     }
     syncGlobalListeners()
+    syncControls()
   }
 
   const closeMenu = ({

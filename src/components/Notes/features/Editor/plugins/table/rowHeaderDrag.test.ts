@@ -205,6 +205,7 @@ function createHarness() {
 
   return {
     api,
+    view,
     moveRow,
     insertRowAbove,
     insertRowBelow,
@@ -290,7 +291,7 @@ describe('row header drag', () => {
   });
 
   it('opens the row menu on click without moving the row and closes it on outside pointerdown', () => {
-    const { api, moveRow } = createHarness();
+    const { api, moveRow, view } = createHarness();
 
     api.onControlPointerDown(
       1,
@@ -308,6 +309,7 @@ describe('row header drag', () => {
     api.onControlClick(1, createMouseEvent());
 
     expect(moveRow).not.toHaveBeenCalled();
+    expect(view.focus).not.toHaveBeenCalled();
     expect(api.menuState.value?.index).toBe(1);
 
     dispatchWindowPointerEvent('pointerdown', {
@@ -318,7 +320,48 @@ describe('row header drag', () => {
     expect(api.menuState.value).toBeNull();
   });
 
-  it('keeps the row handle outside first-cell content hit targets', () => {
+  it('keeps the row highlighted while opening the menu by click', () => {
+    const { api } = createHarness();
+    const expectedHighlight = {
+      left: 20,
+      top: 60,
+      width: 300,
+      height: 40,
+    };
+
+    api.onControlPointerDown(
+      1,
+      createControlPointerEvent({
+        pointerId: 9,
+        clientX: 72,
+        clientY: 160,
+      }),
+    );
+
+    expect(api.dragSourceHighlight.value).toMatchObject(expectedHighlight);
+
+    dispatchWindowPointerEvent('pointerup', {
+      pointerId: 9,
+      clientX: 72,
+      clientY: 160,
+    });
+
+    expect(api.dragSourceHighlight.value).toMatchObject(expectedHighlight);
+
+    api.onControlClick(1, createMouseEvent());
+
+    expect(api.menuState.value?.index).toBe(1);
+    expect(api.dragSourceHighlight.value).toMatchObject(expectedHighlight);
+
+    dispatchWindowPointerEvent('pointerdown', {
+      clientX: 12,
+      clientY: 12,
+    });
+
+    expect(api.dragSourceHighlight.value).toBeNull();
+  });
+
+  it('centers the row handle on the first-cell left border', () => {
     const { api } = createHarness();
 
     api.syncHoveredControl({
@@ -334,9 +377,16 @@ describe('row header drag', () => {
     } as PointerEvent);
 
     expect(api.controls.value[0]).toMatchObject({
-      handleLeft: -2,
+      handleLeft: 11,
       visible: true,
     });
+
+    api.syncHoveredControl({
+      clientX: 88,
+      clientY: 120,
+    } as PointerEvent);
+
+    expect(api.controls.value[0].visible).toBe(true);
   });
 
   it('moves the row after dragging past the threshold and suppresses the follow-up click', () => {

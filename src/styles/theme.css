@@ -729,8 +729,8 @@
   --vlaina-color-table-drag-control-bg: color-mix(in srgb, var(--vlaina-color-setting-field), transparent 6%);
   --vlaina-color-table-drag-control-fg: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 24%);
   --vlaina-color-table-drag-control-fg-active: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 42%);
-  --vlaina-color-table-column-source-highlight-bg: color-mix(in srgb, var(--crepe-color-primary), transparent 92%);
-  --vlaina-shadow-table-column-source-highlight: inset 0 0 0 1px color-mix(in srgb, var(--crepe-color-primary), transparent 76%);
+  --vlaina-color-table-column-source-highlight-bg: transparent;
+  --vlaina-shadow-table-column-source-highlight: inset 0 0 0 var(--vlaina-border-width-2) var(--vlaina-accent);
   --vlaina-color-media-surface: #000000;
   --vlaina-color-media-overlay-border: rgba(248, 250, 252, 0.32);
   --vlaina-color-media-overlay-bg: rgba(15, 23, 42, 0.76);

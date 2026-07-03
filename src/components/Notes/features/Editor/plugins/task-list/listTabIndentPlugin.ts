@@ -8,6 +8,7 @@ import {
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 export const listTabIndentPluginKey = new PluginKey('listTabIndent');
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
@@ -237,6 +238,7 @@ function handleInternalPlaceholderOrderedListTextInput(
         .setSelection(TextSelection.create(tr.doc, paragraphStart + 1 + text.length))
         .scrollIntoView();
 
+    markEditorUserInput(view);
     view.dispatch(tr);
     return true;
 }
@@ -251,6 +253,7 @@ function handleInternalPlaceholderListEnter(view: EditorView, event: KeyboardEve
     if (!isInternalPlaceholderOnlyListItem(view, listItemDepth)) return false;
 
     event.preventDefault();
+    markEditorUserInput(view);
     removeInternalListGapPlaceholdersFromListItem(view, listItemDepth);
 
     const listItemType = view.state.schema.nodes.list_item;
@@ -357,6 +360,7 @@ function handleInternalPlaceholderListDeletion(view: EditorView, event: Keyboard
         tr = tr.setSelection(TextSelection.near(tr.doc.resolve(selectionPos), -1));
     }
 
+    markEditorUserInput(view);
     view.dispatch(tr.scrollIntoView());
     view.focus();
     return true;
@@ -418,6 +422,7 @@ function handleEmptyParentListItemBackspace(view: EditorView, event: KeyboardEve
 
     let tr = state.tr.replaceWith(listFrom, listTo, replacementNodes);
     tr = tr.setSelection(TextSelection.create(tr.doc, paragraphStart + 1));
+    markEditorUserInput(view);
     view.dispatch(tr.scrollIntoView());
     view.focus();
     return true;
@@ -943,6 +948,8 @@ export const listTabIndentPlugin = $prose(() => {
                 const command = event.shiftKey
                     ? liftListItem(listItemType)
                     : sinkListItem(listItemType);
+                if (!command(view.state)) return true;
+                markEditorUserInput(view);
                 command(view.state, view.dispatch);
                 return true;
             },

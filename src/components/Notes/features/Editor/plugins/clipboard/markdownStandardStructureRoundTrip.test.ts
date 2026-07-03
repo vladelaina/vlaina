@@ -305,6 +305,14 @@ describe('standard markdown structure persistence', () => {
       markdown: ['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'),
     },
     {
+      name: 'tables with an empty trailing column',
+      markdown: ['| A | B |  |', '| --- | --- | --- |', '| 1 | 2 |  |'].join('\n'),
+    },
+    {
+      name: 'tables with an empty body row',
+      markdown: ['| A | B |', '| --- | --- |', '|  |  |', '| 1 | 2 |'].join('\n'),
+    },
+    {
       name: 'aligned tables and escaped pipes',
       markdown: [
         '| Left | Right |',

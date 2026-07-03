@@ -37,9 +37,8 @@ export type RowMenuAction =
 
 const HANDLE_WIDTH = 18
 export const ROW_HANDLE_HEIGHT = 36
-const ROW_HANDLE_GAP = 4
 const ROW_HOVER_BLEED_LEFT = 28
-const ROW_HOVER_BLEED_RIGHT = 4
+const ROW_HOVER_BLEED_RIGHT = HANDLE_WIDTH / 2
 const MENU_WIDTH = 196
 const MENU_GAP = 8
 const MENU_EDGE_PADDING = 8
@@ -154,7 +153,7 @@ export function resolveRowHit(
 }
 
 function resolveHandleLeft(rowLeft: number) {
-  return rowLeft - HANDLE_WIDTH - ROW_HANDLE_GAP
+  return rowLeft - HANDLE_WIDTH / 2
 }
 
 function resolveHandleTop(rowTop: number, height: number) {

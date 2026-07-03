@@ -214,7 +214,7 @@ test.describe('notes list blank line caret', () => {
       const [page] = await getOpenBridgePages(app, 1);
 
       for (const listCase of listBlankLineCases) {
-        await openMarkdownFixture(page, {
+        const opened = await openMarkdownFixture(page, {
           filename: listCase.filename,
           content: listCase.content,
         });
@@ -236,6 +236,13 @@ test.describe('notes list blank line caret', () => {
           },
           topLevelLists: listCase.expectedTopLevelListsAfterDelete,
         });
+        await expect.poll(async () => {
+          const markdown = await page.evaluate((pathToRead) =>
+            (window as any).__vlainaE2E.readTextFile(pathToRead), opened.notePath);
+          return markdown !== listCase.content &&
+            !markdown.includes('\u2800') &&
+            listCase.expectedAfterDelete.every((text) => markdown.includes(text));
+        }).toBe(true);
 
         await page.keyboard.type('X');
         await waitForEditorAnimationFrame(page);
