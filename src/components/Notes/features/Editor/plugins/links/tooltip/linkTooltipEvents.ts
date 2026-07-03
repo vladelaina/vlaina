@@ -3,16 +3,34 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { floatingToolbarKey } from '../../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../../floating-toolbar/types';
 import { openEditorLinkHref } from '../utils/openEditorLinkHref';
+import {
+    dispatchLinkTextCursorFromMouseEvent,
+    resolveLinkTextRootFromMouseEvent,
+    startLinkTextSelectionSession,
+} from './linkTextSelectionSession';
 
-const MOUSE_CLICK_SUPPRESSION_MS = 500;
+const LINK_DRAG_CLICK_SUPPRESSION_MS = 500;
 
-function resolveTooltipEligibleLink(target: HTMLElement | null): HTMLElement | null {
-    if (!target) return null;
+function isPlainMouseClick(event: MouseEvent): boolean {
+    return event.detail > 0 &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.shiftKey;
+}
 
-    const tocLink = target.closest('.toc-link[data-heading-pos]');
+function resolveTooltipEligibleLink(view: EditorView, event: MouseEvent): HTMLElement | null {
+    const target = event.target instanceof HTMLElement
+        ? event.target
+        : event.target instanceof Node
+            ? event.target.parentElement
+            : null;
+
+    const tocLink = target?.closest('.toc-link[data-heading-pos]');
     if (tocLink instanceof HTMLElement) return null;
 
-    const link = target.closest('.autolink') || target.closest('a[href]');
+    const link = resolveLinkTextRootFromMouseEvent(view, event);
+    if (link?.closest('.toc-link[data-heading-pos]')) return null;
     return link instanceof HTMLElement ? link : null;
 }
 
@@ -87,18 +105,19 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         setKeyboardInteraction,
         hasActiveLink,
     } = handlers;
-    let mouseOpenedLink: HTMLElement | null = null;
-    let clearMouseOpenedLinkTimer: number | null = null;
+    let suppressNextClick = false;
+    let clearSuppressNextClickTimer: number | null = null;
+    let hoveredLink: HTMLElement | null = null;
 
-    const trackMouseOpenedLink = (link: HTMLElement) => {
-        mouseOpenedLink = link;
-        if (clearMouseOpenedLinkTimer !== null) {
-            window.clearTimeout(clearMouseOpenedLinkTimer);
+    const suppressNextEditorClick = () => {
+        suppressNextClick = true;
+        if (clearSuppressNextClickTimer !== null) {
+            window.clearTimeout(clearSuppressNextClickTimer);
         }
-        clearMouseOpenedLinkTimer = window.setTimeout(() => {
-            mouseOpenedLink = null;
-            clearMouseOpenedLinkTimer = null;
-        }, MOUSE_CLICK_SUPPRESSION_MS);
+        clearSuppressNextClickTimer = window.setTimeout(() => {
+            suppressNextClick = false;
+            clearSuppressNextClickTimer = null;
+        }, LINK_DRAG_CLICK_SUPPRESSION_MS);
     };
 
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -117,8 +136,9 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         if (hasActiveLink()) hide();
     };
 
-    const handleEditorMouseDown = async (event: MouseEvent) => {
-        const link = resolveTooltipEligibleLink(event.target as HTMLElement);
+    const handleEditorMouseDown = (event: MouseEvent) => {
+        if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return;
+        const link = resolveTooltipEligibleLink(view, event);
         if (!link) {
             setKeyboardInteraction(false);
             if (!dom.classList.contains('hidden')) {
@@ -131,51 +151,72 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
             return;
         }
 
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-
-        const href = link.getAttribute('href') || link.getAttribute('data-href');
-        if (href) {
-            trackMouseOpenedLink(link);
-            await openEditorLinkHref(href, { view });
+        setKeyboardInteraction(false);
+        if (startLinkTextSelectionSession(view, event, suppressNextEditorClick)) {
+            clearShowTimer();
+            hide(true);
         }
     };
 
     const handleEditorClick = async (event: MouseEvent) => {
-        const link = resolveTooltipEligibleLink(event.target as HTMLElement);
+        if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return;
+        const link = resolveTooltipEligibleLink(view, event);
         if (!link) return;
 
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
 
-        if (link === mouseOpenedLink) {
-            mouseOpenedLink = null;
-            if (clearMouseOpenedLinkTimer !== null) {
-                window.clearTimeout(clearMouseOpenedLinkTimer);
-                clearMouseOpenedLinkTimer = null;
+        if (suppressNextClick) {
+            suppressNextClick = false;
+            if (clearSuppressNextClickTimer !== null) {
+                window.clearTimeout(clearSuppressNextClickTimer);
+                clearSuppressNextClickTimer = null;
             }
             return;
+        }
+
+        if (isPlainMouseClick(event)) {
+            clearShowTimer();
+            hide(true);
+            if (dispatchLinkTextCursorFromMouseEvent(view, event)) {
+                return;
+            }
         }
 
         const href = link.getAttribute('href') || link.getAttribute('data-href');
         if (href) await openEditorLinkHref(href, { view });
     };
 
-    const handleEditorMouseOver = (event: Event) => {
-        const link = resolveTooltipEligibleLink(event.target as HTMLElement);
-        if (!link) return;
+    const updateHoveredLinkFromMouseEvent = (event: MouseEvent) => {
+        const link = resolveTooltipEligibleLink(view, event);
+        if (!link) {
+            if (hoveredLink === null && !hasActiveLink()) return;
+            hoveredLink = null;
+            clearShowTimer();
+            if (hasActiveLink()) startHideTimer();
+            return;
+        }
 
+        if (hoveredLink === link) return;
+        hoveredLink = link;
         clearHideTimer();
         showLinkWithDelay(link, false);
     };
 
-    const handleEditorMouseOut = (event: Event) => {
-        const link = resolveTooltipEligibleLink(event.target as HTMLElement);
-        if (!link) return;
+    const handleEditorMouseOver = (event: Event) => {
+        if (event instanceof MouseEvent) updateHoveredLinkFromMouseEvent(event);
+    };
 
+    const handleEditorMouseMove = (event: Event) => {
+        if (event instanceof MouseEvent) updateHoveredLinkFromMouseEvent(event);
+    };
+
+    const handleEditorMouseOut = () => {
+        hoveredLink = null;
         clearShowTimer();
+        if (!hasActiveLink()) return;
+
         startHideTimer();
     };
 
@@ -207,9 +248,12 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     };
 
     view.dom.addEventListener('mouseover', handleEditorMouseOver);
+    view.dom.addEventListener('mousemove', handleEditorMouseMove);
     view.dom.addEventListener('mouseout', handleEditorMouseOut);
     view.dom.addEventListener('mousedown', handleEditorMouseDown, true);
     view.dom.addEventListener('click', handleEditorClick, true);
+    document.addEventListener('mousedown', handleEditorMouseDown, true);
+    document.addEventListener('click', handleEditorClick, true);
     dom.addEventListener('mouseenter', clearHideTimer);
     dom.addEventListener('mouseleave', handleTooltipMouseLeave);
     window.addEventListener('scroll', handleScroll, true);
@@ -217,13 +261,16 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     document.addEventListener('keydown', handleGlobalKeyDown, true);
 
     return () => {
-        if (clearMouseOpenedLinkTimer !== null) {
-            window.clearTimeout(clearMouseOpenedLinkTimer);
+        if (clearSuppressNextClickTimer !== null) {
+            window.clearTimeout(clearSuppressNextClickTimer);
         }
         view.dom.removeEventListener('mouseover', handleEditorMouseOver);
+        view.dom.removeEventListener('mousemove', handleEditorMouseMove);
         view.dom.removeEventListener('mouseout', handleEditorMouseOut);
         view.dom.removeEventListener('mousedown', handleEditorMouseDown, true);
         view.dom.removeEventListener('click', handleEditorClick, true);
+        document.removeEventListener('mousedown', handleEditorMouseDown, true);
+        document.removeEventListener('click', handleEditorClick, true);
         dom.removeEventListener('mouseenter', clearHideTimer);
         dom.removeEventListener('mouseleave', handleTooltipMouseLeave);
         window.removeEventListener('scroll', handleScroll, true);

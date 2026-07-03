@@ -52,6 +52,57 @@ async function flushAsyncHandlers() {
     await Promise.resolve();
 }
 
+function useTextSelectionCapableView(
+    editorDom: HTMLElement,
+    handlers: ReturnType<typeof createHandlers>['handlers'],
+    resolvePos: (point: { left: number; top: number }) => number = () => 5,
+) {
+    document.body.appendChild(editorDom);
+    const doc = {
+        content: { size: 40 },
+        resolve: vi.fn(() => ({ parent: { inlineContent: true } })),
+    };
+    const tr = {
+        setMeta: vi.fn(() => tr),
+        setSelection: vi.fn(() => tr),
+        scrollIntoView: vi.fn(() => tr),
+    };
+    handlers.view = {
+        dom: editorDom,
+        state: {
+            doc,
+            tr,
+        },
+        dispatch: vi.fn(),
+        focus: vi.fn(),
+        posAtCoords: vi.fn((point: { left: number; top: number }) => ({ pos: resolvePos(point) })),
+    } as any;
+
+    return { doc, tr };
+}
+
+function stubClientRect(element: HTMLElement, rect: Partial<DOMRect>) {
+    const nextRect = {
+        bottom: rect.bottom ?? 20,
+        height: rect.height ?? 20,
+        left: rect.left ?? 0,
+        right: rect.right ?? 80,
+        top: rect.top ?? 0,
+        width: rect.width ?? 80,
+        x: rect.x ?? rect.left ?? 0,
+        y: rect.y ?? rect.top ?? 0,
+        toJSON: () => ({}),
+    } as DOMRect;
+    Object.defineProperty(element, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => nextRect,
+    });
+    Object.defineProperty(element, 'getClientRects', {
+        configurable: true,
+        value: () => [nextRect],
+    });
+}
+
 describe('installLinkTooltipEvents', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -86,18 +137,30 @@ describe('installLinkTooltipEvents', () => {
         cleanup();
     });
 
-    it('does not open mouse-activated editor links twice on the follow-up click', async () => {
+    it('keeps mouse-activated editor links editable after preparing text selection', async () => {
         const { editorDom, handlers } = createHandlers();
         const link = document.createElement('a');
         link.href = 'https://example.com/docs';
         link.textContent = 'docs';
         editorDom.appendChild(link);
+        const { doc } = useTextSelectionCapableView(editorDom, handlers);
 
         const cleanup = installLinkTooltipEvents(handlers);
         const mouseDown = new MouseEvent('mousedown', {
             bubbles: true,
             cancelable: true,
             detail: 1,
+            button: 0,
+            buttons: 1,
+            clientX: 10,
+            clientY: 10,
+        });
+        const mouseUp = new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 10,
+            clientY: 10,
         });
         const click = new MouseEvent('click', {
             bubbles: true,
@@ -106,17 +169,238 @@ describe('installLinkTooltipEvents', () => {
         });
 
         link.dispatchEvent(mouseDown);
+        document.dispatchEvent(mouseUp);
+        await flushAsyncHandlers();
+
+        expect(mouseDown.defaultPrevented).toBe(true);
+        expect(handlers.clearShowTimer).toHaveBeenCalled();
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(openEditorLinkHref).not.toHaveBeenCalled();
+
+        link.dispatchEvent(click);
+        await flushAsyncHandlers();
+
+        expect(click.defaultPrevented).toBe(true);
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
+        expect(handlers.view.dispatch).toHaveBeenCalled();
+        expect(openEditorLinkHref).not.toHaveBeenCalled();
+
+        cleanup();
+        editorDom.remove();
+    });
+
+    it('shows editor link tooltips when a list item is the pointer target', () => {
+        const { editorDom, handlers } = createHandlers();
+        const listItem = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        stubClientRect(link, { left: 5, right: 45, top: 5, bottom: 25, width: 40, height: 20 });
+        listItem.appendChild(link);
+        editorDom.appendChild(listItem);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        listItem.dispatchEvent(new MouseEvent('mouseover', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 12,
+            clientY: 12,
+        }));
+
+        expect(handlers.clearHideTimer).toHaveBeenCalled();
+        expect(handlers.showLinkWithDelay).toHaveBeenCalledWith(link, false);
+
+        cleanup();
+    });
+
+    it('shows editor link tooltips when the pointer moves onto a link inside the same list item', () => {
+        const { editorDom, handlers } = createHandlers();
+        const listItem = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        stubClientRect(link, { left: 50, right: 90, top: 5, bottom: 25, width: 40, height: 20 });
+        listItem.appendChild(link);
+        editorDom.appendChild(listItem);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        listItem.dispatchEvent(new MouseEvent('mouseover', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 12,
+            clientY: 12,
+        }));
+        listItem.dispatchEvent(new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 55,
+            clientY: 12,
+        }));
+
+        expect(handlers.showLinkWithDelay).toHaveBeenCalledTimes(1);
+        expect(handlers.showLinkWithDelay).toHaveBeenCalledWith(link, false);
+
+        cleanup();
+    });
+
+    it('clears a pending link tooltip when the pointer leaves before it appears', () => {
+        const { editorDom, handlers } = createHandlers();
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        editorDom.appendChild(link);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        link.dispatchEvent(new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 12,
+            clientY: 12,
+        }));
+        link.dispatchEvent(new MouseEvent('mouseout', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 46,
+            clientY: 12,
+        }));
+
+        expect(handlers.showLinkWithDelay).toHaveBeenCalledWith(link, false);
+        expect(handlers.clearShowTimer).toHaveBeenCalled();
+        expect(handlers.startHideTimer).not.toHaveBeenCalled();
+
+        cleanup();
+    });
+
+    it('selects editor link text when a list item receives the mouse down', async () => {
+        const { editorDom, handlers } = createHandlers();
+        const listItem = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        stubClientRect(link, { left: 5, right: 45, top: 5, bottom: 25, width: 40, height: 20 });
+        listItem.appendChild(link);
+        editorDom.appendChild(listItem);
+        const { doc } = useTextSelectionCapableView(editorDom, handlers);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        const mouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: 12,
+            clientY: 12,
+        });
+        listItem.dispatchEvent(mouseDown);
+        document.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 12,
+            clientY: 12,
+        }));
+        await flushAsyncHandlers();
+
+        expect(mouseDown.defaultPrevented).toBe(true);
+        expect(handlers.clearShowTimer).toHaveBeenCalled();
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
+        expect(openEditorLinkHref).not.toHaveBeenCalled();
+
+        cleanup();
+        editorDom.remove();
+    });
+
+    it('hides a pending tooltip when a plain editor link click prepares text selection', async () => {
+        const { editorDom, handlers } = createHandlers();
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        editorDom.appendChild(link);
+        const { doc } = useTextSelectionCapableView(editorDom, handlers);
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        const click = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            detail: 1,
+            clientX: 10,
+            clientY: 10,
+        });
+
+        link.dispatchEvent(click);
+        await flushAsyncHandlers();
+
+        expect(click.defaultPrevented).toBe(true);
+        expect(handlers.clearShowTimer).toHaveBeenCalled();
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
+        expect(openEditorLinkHref).not.toHaveBeenCalled();
+
+        cleanup();
+        editorDom.remove();
+    });
+
+    it('selects editor link text while dragging and suppresses the follow-up click', async () => {
+        const { editorDom, handlers } = createHandlers();
+        const link = document.createElement('a');
+        link.href = 'https://example.com/docs';
+        link.textContent = 'docs';
+        editorDom.appendChild(link);
+        const { doc } = useTextSelectionCapableView(
+            editorDom,
+            handlers,
+            ({ left }) => left < 50 ? 5 : 15,
+        );
+
+        const cleanup = installLinkTooltipEvents(handlers);
+        const mouseDown = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: 10,
+            clientY: 10,
+        });
+        const mouseMove = new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            buttons: 1,
+            clientX: 100,
+            clientY: 10,
+        });
+        const mouseUp = new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 100,
+            clientY: 10,
+        });
+        const click = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            detail: 1,
+        });
+
+        link.dispatchEvent(mouseDown);
+        document.dispatchEvent(mouseMove);
+        document.dispatchEvent(mouseUp);
         link.dispatchEvent(click);
         await flushAsyncHandlers();
 
         expect(mouseDown.defaultPrevented).toBe(true);
+        expect(mouseMove.defaultPrevented).toBe(true);
+        expect(mouseUp.defaultPrevented).toBe(true);
         expect(click.defaultPrevented).toBe(true);
-        expect(openEditorLinkHref).toHaveBeenCalledTimes(1);
-        expect(openEditorLinkHref).toHaveBeenCalledWith('https://example.com/docs', {
-            view: handlers.view,
-        });
+        expect(handlers.clearShowTimer).toHaveBeenCalled();
+        expect(handlers.hide).toHaveBeenCalledWith(true);
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 5);
+        expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 5, 15);
+        expect(handlers.view.dispatch).toHaveBeenCalled();
+        expect(openEditorLinkHref).not.toHaveBeenCalled();
 
         cleanup();
+        editorDom.remove();
     });
 
     it('hides the tooltip and collapses selected editor text when clicking non-link content', () => {

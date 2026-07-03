@@ -1,6 +1,12 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import {
+  clampDocPosition,
+  isInlineTextSelectionEndpoint,
+  resolveTextNodeDocumentPosition,
+  resolveTextOffsetAtPoint,
+} from '../shared/pointerTextPosition';
 
 export const nestedListPointerCaretPluginKey = new PluginKey('nestedListPointerCaret');
 
@@ -17,11 +23,7 @@ const IGNORED_TEXT_TARGET_SELECTOR = [
 const MAX_NESTED_LIST_CARET_TEXT_NODES = 512;
 const MAX_NESTED_LIST_CARET_TEXT_CHARS = 100_000;
 const CLICK_MOVE_THRESHOLD_PX = 4;
-
-interface TextOffsetResolution {
-  offset: number;
-  distance: number;
-}
+const CLICK_SUPPRESSION_MS = 500;
 
 function isPrimaryPlainMouseDown(event: MouseEvent): boolean {
   return event.button === 0 &&
@@ -29,70 +31,6 @@ function isPrimaryPlainMouseDown(event: MouseEvent): boolean {
     !event.ctrlKey &&
     !event.altKey &&
     !event.shiftKey;
-}
-
-function isPointVerticallyInsideRect(rect: Pick<DOMRect, 'top' | 'bottom' | 'height'>, clientY: number): boolean {
-  const verticalSlack = Math.max(2, Math.min(6, rect.height * 0.2));
-  return clientY >= rect.top - verticalSlack && clientY <= rect.bottom + verticalSlack;
-}
-
-function resolveTextOffsetAtPoint(node: Text, clientX: number, clientY: number): TextOffsetResolution | null {
-  const text = node.textContent ?? '';
-  if (!text) return null;
-
-  const doc = node.ownerDocument;
-  let firstLeftOnLine: number | null = null;
-  let lastRightOnLine: number | null = null;
-  let caretOffset: number | null = null;
-
-  for (let offset = 0; offset < text.length; offset += 1) {
-    const range = doc.createRange();
-    try {
-      range.setStart(node, offset);
-      range.setEnd(node, offset + 1);
-      const rects = range.getClientRects();
-
-      for (let index = 0; index < rects.length; index += 1) {
-        const rect = rects[index];
-        if (!rect || rect.width <= 0 || rect.height <= 0) continue;
-        if (!isPointVerticallyInsideRect(rect, clientY)) continue;
-
-        firstLeftOnLine ??= rect.left;
-        lastRightOnLine = rect.right;
-
-        if (caretOffset === null || clientX > rect.left + rect.width / 2) {
-          caretOffset = clientX <= rect.left + rect.width / 2 ? offset : offset + 1;
-        }
-      }
-    } finally {
-      range.detach();
-    }
-  }
-
-  if (firstLeftOnLine === null || lastRightOnLine === null || caretOffset === null) return null;
-
-  const distance = clientX < firstLeftOnLine
-    ? firstLeftOnLine - clientX
-    : clientX > lastRightOnLine
-      ? clientX - lastRightOnLine
-      : 0;
-
-  return {
-    offset: caretOffset,
-    distance,
-  };
-}
-
-function clampDocPosition(view: EditorView, pos: number): number {
-  return Math.max(0, Math.min(pos, view.state.doc.content.size));
-}
-
-function isInlineTextSelectionEndpoint(view: EditorView, pos: number): boolean {
-  try {
-    return view.state.doc.resolve(clampDocPosition(view, pos)).parent.inlineContent;
-  } catch {
-    return false;
-  }
 }
 
 function dispatchNestedListTextSelection(view: EditorView, anchor: number, head = anchor): boolean {
@@ -160,7 +98,8 @@ export function resolveNestedListTextPositionAtPoint(
     if (resolved === null) continue;
 
     try {
-      const pos = view.posAtDOM(node, resolved.offset, -1);
+      const pos = resolveTextNodeDocumentPosition(view, node, resolved.offset) ??
+        view.posAtDOM(node, resolved.offset, -1);
       if (best === null || resolved.distance < best.distance) {
         best = { distance: resolved.distance, pos };
       }
@@ -195,6 +134,7 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
   const startY = event.clientY;
   let moved = false;
   let stopped = false;
+  let clickStopped = false;
 
   const stop = () => {
     if (stopped) return;
@@ -203,11 +143,34 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
     ownerDocument.removeEventListener('mouseup', handleMouseUp, true);
   };
 
+  const stopClick = () => {
+    if (clickStopped) return;
+    clickStopped = true;
+    ownerDocument.removeEventListener('click', handleClick, true);
+  };
+
+  const scheduleClickStop = () => {
+    window.setTimeout(stopClick, CLICK_SUPPRESSION_MS);
+  };
+
+  const handleClick = (clickEvent: MouseEvent) => {
+    clickEvent.preventDefault();
+    clickEvent.stopPropagation();
+    clickEvent.stopImmediatePropagation();
+    if (!moved) {
+      dispatchNestedListTextSelection(view, pos);
+    }
+    stopClick();
+  };
+
   const handleMouseMove = (moveEvent: MouseEvent) => {
     const hasDragged = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) > CLICK_MOVE_THRESHOLD_PX;
     if (!moved && !hasDragged) return;
 
     moved = true;
+    moveEvent.preventDefault();
+    moveEvent.stopPropagation();
+    moveEvent.stopImmediatePropagation();
     const head = resolveNestedListDragHeadAtPoint(view, moveEvent.clientX, moveEvent.clientY, scanRoot);
     if (head !== null) {
       dispatchNestedListTextSelection(view, pos, head);
@@ -216,8 +179,15 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
 
   const handleMouseUp = (upEvent: MouseEvent) => {
     stop();
+    scheduleClickStop();
+    upEvent.preventDefault();
+    upEvent.stopPropagation();
+    upEvent.stopImmediatePropagation();
     if (!moved) {
       dispatchNestedListTextSelection(view, pos);
+      window.setTimeout(() => {
+        dispatchNestedListTextSelection(view, pos);
+      }, 0);
       return;
     }
 
@@ -231,6 +201,7 @@ function startNestedListPointerSelection(view: EditorView, event: MouseEvent, po
   dispatchNestedListTextSelection(view, pos);
   ownerDocument.addEventListener('mousemove', handleMouseMove, true);
   ownerDocument.addEventListener('mouseup', handleMouseUp, true);
+  ownerDocument.addEventListener('click', handleClick, true);
 }
 
 export const nestedListPointerCaretPlugin = $prose(() => {
@@ -238,6 +209,22 @@ export const nestedListPointerCaretPlugin = $prose(() => {
     key: nestedListPointerCaretPluginKey,
     props: {
       handleDOMEvents: {
+        click(view, event) {
+          if (!(event instanceof MouseEvent)) return false;
+          if (!isPrimaryPlainMouseDown(event)) return false;
+          if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return false;
+
+          const targetElement = event.target instanceof Element ? event.target : event.target.parentElement;
+          const listItem = targetElement?.closest('li');
+          const scanRoot = listItem instanceof HTMLElement && view.dom.contains(listItem) ? listItem : view.dom;
+          const pos = resolveNestedListTextPositionAtPoint(view, event.clientX, event.clientY, scanRoot);
+          if (pos === null) return false;
+
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return dispatchNestedListTextSelection(view, pos);
+        },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
           if (!isPrimaryPlainMouseDown(event)) return false;
