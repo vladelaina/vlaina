@@ -237,7 +237,7 @@ describe('starred persistence', () => {
     const [, content] = adapter.writeFile.mock.calls[0];
     const payload = JSON.parse(content);
     expect(payload.entries).toEqual([]);
-    expect(payload.deletedEntryKeys).toEqual(['note::c:/users/me/notesRoot::removed.md']);
+    expect(payload.deletedEntryKeys).toEqual(['note::c:/users/me/notesroot::removed.md']);
   });
 
   it('bounds deleted entry tombstone scans while merging disk state', async () => {
