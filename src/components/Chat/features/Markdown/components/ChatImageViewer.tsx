@@ -1,25 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { createPortal } from "react-dom";
-import Cropper from "react-easy-crop";
-import {
-  DialogCloseIconButton,
-  dialogCloseIconButtonClassName,
-} from "@/components/common/DialogCloseIconButton";
-import { Icon } from "@/components/ui/icons";
-import { cn, iconButtonStyles } from "@/lib/utils";
-import { copyImageSourceToClipboard, MAX_CHAT_MESSAGE_IMAGE_SOURCES } from "@/components/Chat/common/messageClipboard";
-import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
-import {
-  normalizeDirectChatImageSource,
-  resolveSafeChatImageSource,
-} from "@/components/Chat/common/chatImageSourceResolution";
-import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
-import { isSvgDataUrl } from "@/components/Chat/common/svgRasterize";
+import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { useI18n } from "@/lib/i18n";
-import { createStoredAttachmentFromSource } from "@/lib/storage/attachmentStorage";
 import { useToastStore } from "@/stores/useToastStore";
-import { themeChatImageViewerTokens, themeCropperTokens, themeStyleResetTokens } from "@/styles/themeTokens";
+import { themeChatImageViewerTokens, themeCropperTokens } from "@/styles/themeTokens";
+import {
+  clampZoom,
+  getViewerFitBounds,
+  MIN_ZOOM,
+  type ViewerPoint,
+} from "./chatImageViewerGeometry";
+import { ChatImageViewerDialog } from "./ChatImageViewerDialog";
+import { useChatImageViewerGallery } from "./useChatImageViewerGallery";
+import { useChatImageViewerViewport } from "./useChatImageViewerViewport";
+
+export { RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT } from "./chatImageViewerSource";
 
 export interface ChatImageViewerProps {
   open: boolean;
@@ -32,190 +28,12 @@ export interface ChatImageViewerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const MIN_ZOOM = themeChatImageViewerTokens.minZoom;
-const MAX_ZOOM = themeChatImageViewerTokens.maxZoom;
-const ZOOM_STEP = themeChatImageViewerTokens.zoomStep;
-const TRANSPARENT_IMAGE_DATA_URL =
-  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 const VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
 const CROPPER_IMAGE_SELECTOR = '.reactEasyCrop_Image';
 const VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
-const RESOLVED_VIEWER_IMAGE_CACHE_LIMIT = 100;
-export const RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT = 32 * 1024 * 1024;
-const MAX_COMPARABLE_IMAGE_SRC_DECODE_CHARS = 4096;
-const resolvedViewerImageCache = new Map<string, Promise<string | null>>();
-const resolvedViewerImageCacheSizes = new Map<string, number>();
-let resolvedViewerImageCacheChars = 0;
-type ViewerPoint = { x: number; y: number };
-type ViewerSize = { width: number; height: number };
-
-function getViewerFitBounds(viewportSize: { width: number; height: number }) {
-  const horizontalPadding = viewportSize.width < themeChatImageViewerTokens.fitPaddingBreakpointPx
-    ? themeChatImageViewerTokens.fitHorizontalPaddingCompactPx
-    : themeChatImageViewerTokens.fitHorizontalPaddingWidePx;
-  const verticalPadding = viewportSize.height < themeChatImageViewerTokens.fitPaddingBreakpointPx
-    ? themeChatImageViewerTokens.fitVerticalPaddingCompactPx
-    : themeChatImageViewerTokens.fitVerticalPaddingWidePx;
-  return {
-    maxWidth: Math.max(themeChatImageViewerTokens.minViewportSizePx, viewportSize.width - horizontalPadding),
-    maxHeight: Math.max(themeChatImageViewerTokens.minViewportSizePx, viewportSize.height - verticalPadding),
-  };
-}
-
-function resolveInitialViewerZoom({
-  mediaHeight,
-  mediaWidth,
-  naturalHeight,
-  naturalWidth,
-  viewportSize,
-}: {
-  mediaHeight: number;
-  mediaWidth: number;
-  naturalHeight: number;
-  naturalWidth: number;
-  viewportSize: { width: number; height: number };
-}): number {
-  const { maxHeight, maxWidth } = getViewerFitBounds(viewportSize);
-  const targetWidth = Math.min(naturalWidth || mediaWidth, maxWidth);
-  const targetHeight = Math.min(naturalHeight || mediaHeight, maxHeight);
-  return clampZoom(Math.min(
-    1,
-        targetWidth / Math.max(mediaWidth, themeChatImageViewerTokens.minViewportSizePx),
-        targetHeight / Math.max(mediaHeight, themeChatImageViewerTokens.minViewportSizePx),
-  ));
-}
 
 async function copyImageOrUrl(src: string): Promise<boolean> {
   return copyImageSourceToClipboard(src);
-}
-
-function stopViewerControlMouseDown(event: React.MouseEvent<HTMLElement>) {
-  event.preventDefault();
-  event.stopPropagation();
-}
-
-function clampZoom(value: number): number {
-  if (value < MIN_ZOOM) {
-    return MIN_ZOOM;
-  }
-  if (value > MAX_ZOOM) {
-    return MAX_ZOOM;
-  }
-  return Number(value.toFixed(2));
-}
-
-function normalizeComparableSrc(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length > MAX_COMPARABLE_IMAGE_SRC_DECODE_CHARS) {
-    return trimmed;
-  }
-  try {
-    return decodeURIComponent(trimmed);
-  } catch {
-    return trimmed;
-  }
-}
-
-function requiresAttachmentResolution(src: string): boolean {
-  return createStoredAttachmentFromSource(src) !== null;
-}
-
-function removeResolvedViewerImageCacheEntry(src: string): void {
-  const cachedSize = resolvedViewerImageCacheSizes.get(src) ?? 0;
-  if (cachedSize > 0) {
-    resolvedViewerImageCacheChars = Math.max(0, resolvedViewerImageCacheChars - cachedSize);
-  }
-  resolvedViewerImageCacheSizes.delete(src);
-  resolvedViewerImageCache.delete(src);
-}
-
-function pruneResolvedViewerImageCache(): void {
-  while (resolvedViewerImageCacheChars > RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT) {
-    const oldestKey = resolvedViewerImageCacheSizes.keys().next().value;
-    if (!oldestKey) {
-      break;
-    }
-    removeResolvedViewerImageCacheEntry(oldestKey);
-  }
-}
-
-function rememberResolvedViewerImageCacheSize(src: string, resolvedSrc: string | null): void {
-  if (!resolvedViewerImageCache.has(src)) {
-    return;
-  }
-
-  const nextSize = resolvedSrc?.length ?? 0;
-  const previousSize = resolvedViewerImageCacheSizes.get(src) ?? 0;
-  resolvedViewerImageCacheChars = Math.max(0, resolvedViewerImageCacheChars - previousSize);
-  resolvedViewerImageCacheSizes.delete(src);
-
-  if (nextSize <= 0 || nextSize > RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT) {
-    removeResolvedViewerImageCacheEntry(src);
-    return;
-  }
-
-  resolvedViewerImageCacheSizes.set(src, nextSize);
-  resolvedViewerImageCacheChars += nextSize;
-  pruneResolvedViewerImageCache();
-}
-
-function getInitialViewerImageSource(src: string): string {
-  if (requiresAttachmentResolution(src)) {
-    return src;
-  }
-  return getInitialDirectViewerImageSource(src) ?? TRANSPARENT_IMAGE_DATA_URL;
-}
-
-function getInitialDirectViewerImageSource(src: string | null | undefined): string | null {
-  if (!src) {
-    return null;
-  }
-  const directSrc = normalizeDirectChatImageSource(src);
-  return directSrc && !isSvgDataUrl(directSrc) ? directSrc : null;
-}
-
-async function resolveViewerImageSource(src: string): Promise<string | null> {
-  if (!requiresAttachmentResolution(src)) {
-    return resolveSafeChatImageSource(src, "viewer-image");
-  }
-
-  const cached = resolvedViewerImageCache.get(src);
-  if (cached) {
-    resolvedViewerImageCache.delete(src);
-    resolvedViewerImageCache.set(src, cached);
-    const cachedSize = resolvedViewerImageCacheSizes.get(src);
-    if (cachedSize !== undefined) {
-      resolvedViewerImageCacheSizes.delete(src);
-      resolvedViewerImageCacheSizes.set(src, cachedSize);
-    }
-    return cached;
-  }
-
-  const resolved = resolveSafeChatImageSource(src, "viewer-image")
-    .then((resolvedSrc) => {
-      rememberResolvedViewerImageCacheSize(src, resolvedSrc);
-      return resolvedSrc;
-    })
-    .catch((error) => {
-      removeResolvedViewerImageCacheEntry(src);
-      throw error;
-    });
-  if (resolvedViewerImageCache.size >= RESOLVED_VIEWER_IMAGE_CACHE_LIMIT) {
-    const oldestKey = resolvedViewerImageCache.keys().next().value;
-    if (oldestKey) {
-      removeResolvedViewerImageCacheEntry(oldestKey);
-    }
-  }
-  resolvedViewerImageCache.set(src, resolved);
-  return resolved;
-}
-
-function warmViewerImageSource(src: string | null | undefined): void {
-  if (!src || !requiresAttachmentResolution(src) || resolvedViewerImageCache.has(src)) {
-    return;
-  }
-
-  void resolveViewerImageSource(src).catch(() => undefined);
 }
 
 export function ChatImageViewer({
@@ -237,159 +55,24 @@ export function ChatImageViewer({
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [mediaSize, setMediaSize] = useState<{ width: number; height: number; naturalWidth: number; naturalHeight: number } | null>(null);
   const [mediaReady, setMediaReady] = useState(false);
-  const [viewportSize, setViewportSize] = useState<ViewerSize>({
-    width: themeChatImageViewerTokens.defaultViewportWidthPx,
-    height: themeChatImageViewerTokens.defaultViewportHeightPx,
-  });
-  const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
-  const [resolvedActiveSrc, setResolvedActiveSrc] = useState(() => (
-    open ? getInitialViewerImageSource(src) : TRANSPARENT_IMAGE_DATA_URL
-  ));
   const imageElementRef = useRef<HTMLImageElement | null>(null);
-  const boundedGallery = useMemo(() => {
-    if (!gallery) {
-      return undefined;
-    }
-    return gallery.length > MAX_CHAT_MESSAGE_IMAGE_SOURCES
-      ? gallery.slice(0, MAX_CHAT_MESSAGE_IMAGE_SOURCES)
-      : gallery;
-  }, [gallery]);
-
-  const galleryIndex = useMemo(() => {
-    if (!open) {
-      return -1;
-    }
-    if (!boundedGallery || boundedGallery.length === 0) {
-      return -1;
-    }
-    if (currentImageId) {
-      const byId = boundedGallery.findIndex((item) => item.id === currentImageId);
-      if (byId !== -1) {
-        return byId;
-      }
-    }
-    const normalizedSrc = normalizeComparableSrc(src);
-    for (let index = 0; index < boundedGallery.length; index += 1) {
-      if (normalizeComparableSrc(boundedGallery[index]!.src) === normalizedSrc) {
-        return index;
-      }
-    }
-    return -1;
-  }, [boundedGallery, currentImageId, open, src]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setActiveGalleryIndex(galleryIndex);
-  }, [galleryIndex, open]);
-
-  const activeGalleryItem =
-    boundedGallery && activeGalleryIndex >= 0 && activeGalleryIndex < boundedGallery.length
-      ? boundedGallery[activeGalleryIndex]
-      : null;
-  const activeSrc = activeGalleryItem?.src ?? src;
+  const viewportSize = useChatImageViewerViewport(open);
+  const {
+    activeSrc,
+    boundedGallery,
+    cropperImageSrc,
+    hasNext,
+    hasPrevious,
+    setActiveGalleryIndex,
+  } = useChatImageViewerGallery({
+    currentImageId,
+    gallery,
+    onOpenChange,
+    open,
+    previewSrc,
+    src,
+  });
   const activeAlt = alt;
-  const canNavigate = !!boundedGallery && boundedGallery.length > 1 && activeGalleryIndex >= 0;
-  const hasPrevious = canNavigate && activeGalleryIndex > 0;
-  const hasNext = canNavigate && activeGalleryIndex < boundedGallery.length - 1;
-  const cropperImageSrc =
-    requiresAttachmentResolution(activeSrc) && resolvedActiveSrc === activeSrc
-      ? TRANSPARENT_IMAGE_DATA_URL
-      : resolvedActiveSrc;
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    let active = true;
-    const isStoredAttachmentSource = requiresAttachmentResolution(activeSrc);
-    const immediateSrc = activeSrc === src && previewSrc
-      ? getInitialDirectViewerImageSource(previewSrc) ?? TRANSPARENT_IMAGE_DATA_URL
-      : isStoredAttachmentSource
-        ? activeSrc
-        : getInitialDirectViewerImageSource(activeSrc) ?? TRANSPARENT_IMAGE_DATA_URL;
-    setResolvedActiveSrc(immediateSrc);
-
-    resolveViewerImageSource(activeSrc)
-      .then((resolvedSrc) => {
-        if (active) {
-          setResolvedActiveSrc(resolvedSrc ?? TRANSPARENT_IMAGE_DATA_URL);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setResolvedActiveSrc(TRANSPARENT_IMAGE_DATA_URL);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [activeSrc, open, previewSrc, src]);
-
-  useEffect(() => {
-    if (!open || !boundedGallery || activeGalleryIndex < 0) {
-      return;
-    }
-
-    warmViewerImageSource(boundedGallery[activeGalleryIndex - 1]?.src);
-    warmViewerImageSource(boundedGallery[activeGalleryIndex + 1]?.src);
-  }, [activeGalleryIndex, boundedGallery, open]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    if (!open) {
-      return;
-    }
-    const updateSize = () => {
-      setViewportSize({ width: window.innerWidth, height: window.innerHeight });
-    };
-    updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => {
-      window.removeEventListener("resize", updateSize);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || typeof document === "undefined") {
-      return;
-    }
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || typeof window === "undefined") {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onOpenChange(false);
-        return;
-      }
-      if (event.key === "ArrowLeft" && hasPrevious) {
-        event.preventDefault();
-        setActiveGalleryIndex((value) => Math.max(value - 1, 0));
-        return;
-      }
-      if (event.key === "ArrowRight" && hasNext) {
-        event.preventDefault();
-        setActiveGalleryIndex((value) => Math.min(value + 1, (boundedGallery?.length ?? 1) - 1));
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [boundedGallery?.length, hasNext, hasPrevious, onOpenChange, open]);
 
   const percentLabel = useMemo(() => `${Math.round(zoom * 100)}%`, [zoom]);
   const imageSizeLabel = useMemo(() => {
@@ -559,220 +242,37 @@ export function ChatImageViewer({
   }
 
   return createPortal(
-    <>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={activeAlt || "Image preview"}
-        className="fixed inset-0 z-[var(--vlaina-z-121)]"
-        data-no-focus-input="true"
-        data-chat-image-viewer-surface="true"
-        onPointerDownCapture={handleDialogPointerDownCapture}
-        onClick={(event) => {
-          if (isPointOnImage(event.clientX, event.clientY)) {
-            return;
-          }
-          onOpenChange(false);
-        }}
-      >
-        <DialogCloseIconButton
-          label={t('chat.closePreview')}
-          data-no-focus-input="true"
-          data-chat-image-viewer-control="true"
-          className="absolute right-12 top-[4.5rem] z-[var(--vlaina-z-10)]"
-          onMouseDown={stopViewerControlMouseDown}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onOpenChange(false);
-          }}
-        />
-
-        {hasPrevious && (
-          <div className="absolute inset-y-0 left-4 z-[var(--vlaina-z-10)] flex items-center">
-            <button
-              type="button"
-              aria-label={t('chat.previousImage')}
-              data-no-focus-input="true"
-              data-chat-image-viewer-control="true"
-              className={cn(
-                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] text-[var(--vlaina-color-text-strong)] shadow-[var(--vlaina-shadow-floating-panel)] transition-colors hover:bg-[var(--vlaina-color-setting-field)]",
-                iconButtonStyles
-              )}
-              onMouseDown={stopViewerControlMouseDown}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setActiveGalleryIndex((value) => Math.max(value - 1, 0));
-              }}
-            >
-              <Icon name="nav.chevronLeft" size="md" />
-            </button>
-          </div>
-        )}
-
-        {hasNext && (
-          <div className="absolute inset-y-0 right-4 z-[var(--vlaina-z-10)] flex items-center">
-            <button
-              type="button"
-              aria-label={t('chat.nextImage')}
-              data-no-focus-input="true"
-              data-chat-image-viewer-control="true"
-              className={cn(
-                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] text-[var(--vlaina-color-text-strong)] shadow-[var(--vlaina-shadow-floating-panel)] transition-colors hover:bg-[var(--vlaina-color-setting-field)]",
-                iconButtonStyles
-              )}
-              onMouseDown={stopViewerControlMouseDown}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setActiveGalleryIndex((value) => Math.min(value + 1, (boundedGallery?.length ?? 1) - 1));
-              }}
-            >
-              <Icon name="nav.chevronRight" size="md" />
-            </button>
-          </div>
-        )}
-
-        <div className="relative h-full w-full">
-          <div
-            className={cn(
-              "absolute inset-0 transition-opacity duration-[var(--vlaina-duration-100)]",
-              mediaReady ? "opacity-[var(--vlaina-opacity-100)]" : "opacity-[var(--vlaina-opacity-0)]"
-            )}
-          >
-            <Cropper
-              image={cropperImageSrc}
-              crop={crop}
-              cropSize={cropperViewportSize}
-              zoom={zoom}
-              minZoom={previewMetrics.minZoom}
-              maxZoom={MAX_ZOOM}
-              showGrid={false}
-              zoomWithScroll={true}
-              zoomSpeed={ZOOM_STEP}
-              restrictPosition={false}
-              objectFit="contain"
-              setImageRef={(ref) => {
-                imageElementRef.current = ref.current;
-              }}
-              onMediaLoaded={(mediaSize) => {
-                if (cropperImageSrc === TRANSPARENT_IMAGE_DATA_URL) {
-                  return;
-                }
-                const width = mediaSize.naturalWidth || mediaSize.width || themeChatImageViewerTokens.minViewportSizePx;
-                const height = mediaSize.naturalHeight || mediaSize.height || themeChatImageViewerTokens.minViewportSizePx;
-                const nextZoom = resolveInitialViewerZoom({
-                  mediaHeight: mediaSize.height || height,
-                  mediaWidth: mediaSize.width || width,
-                  naturalHeight: height,
-                  naturalWidth: width,
-                  viewportSize,
-                });
-                setAspectRatio(width / height);
-                setImageSize({ width, height });
-                setMediaSize({
-                  width: mediaSize.width || width,
-                  height: mediaSize.height || height,
-                  naturalWidth: width,
-                  naturalHeight: height,
-                });
-                setCrop({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
-                setZoom(nextZoom);
-                setMediaReady(true);
-              }}
-              onCropChange={setCrop}
-              onZoomChange={(value) => setZoom(clampZoom(value))}
-              style={{
-                containerStyle: { backgroundColor: themeStyleResetTokens.backgroundTransparent },
-                cropAreaStyle: {
-                  border: themeStyleResetTokens.borderNone,
-                  boxShadow: themeStyleResetTokens.boxShadowNone,
-                  color: themeStyleResetTokens.colorTransparent,
-                  outline: themeStyleResetTokens.outlineNone,
-                  background: themeStyleResetTokens.backgroundTransparent,
-                  pointerEvents: themeStyleResetTokens.pointerEventsNone,
-                },
-              }}
-            />
-          </div>
-
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[var(--vlaina-z-10)] flex justify-center">
-            <div
-              data-chat-image-viewer-control="true"
-              className={cn(
-                "pointer-events-auto inline-flex items-center gap-1 rounded-full px-2 py-2 text-[var(--vlaina-color-text-strong)]",
-                chatPopoverPillSurfaceClass
-              )}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                aria-label={t('chat.zoomOut')}
-                data-no-focus-input="true"
-                className={dialogCloseIconButtonClassName}
-                onMouseDown={stopViewerControlMouseDown}
-                onClick={() => setZoom((value) => clampZoom(value - ZOOM_STEP))}
-              >
-                <Icon name="common.remove" size="md" />
-              </button>
-              <span className="min-w-[var(--vlaina-size-50px)] px-1.5 text-center text-xs font-semibold tabular-nums text-[var(--vlaina-color-text-strong)]">
-                {percentLabel}
-              </span>
-              <button
-                type="button"
-                aria-label={t('chat.zoomIn')}
-                data-no-focus-input="true"
-                className={dialogCloseIconButtonClassName}
-                onMouseDown={stopViewerControlMouseDown}
-                onClick={() => setZoom((value) => clampZoom(value + ZOOM_STEP))}
-              >
-                <Icon name="common.add" size="md" />
-              </button>
-              <div className="mx-1 h-6 w-px bg-[var(--vlaina-border)]" />
-              {imageSizeLabel && (
-                <span className="min-w-[var(--vlaina-size-78px)] px-3 text-center text-[var(--vlaina-font-11)] font-medium tabular-nums text-[var(--vlaina-color-text-soft)]">
-                  {imageSizeLabel}
-                </span>
-              )}
-              <div className="mx-1 h-6 w-px bg-[var(--vlaina-border)]" />
-              <button
-                type="button"
-                aria-label={t('chat.copyImage')}
-                data-no-focus-input="true"
-                data-action="copy"
-                className={cn(
-                  dialogCloseIconButtonClassName,
-                  copied && "text-[var(--vlaina-accent)] bg-[var(--vlaina-accent-soft)]"
-                )}
-                onMouseDown={stopViewerControlMouseDown}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  void handleCopy();
-                }}
-              >
-                <Icon name={copied ? "common.check" : "common.copy"} size="md" />
-              </button>
-              <button
-                type="button"
-                aria-label={t('chat.downloadImage')}
-                data-no-focus-input="true"
-                className={dialogCloseIconButtonClassName}
-                onMouseDown={stopViewerControlMouseDown}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  void downloadImageWithPrompt(activeSrc, activeAlt).catch(() => undefined);
-                }}
-              >
-                <Icon name="common.download" size="md" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>,
+    <ChatImageViewerDialog
+      activeAlt={activeAlt}
+      activeSrc={activeSrc}
+      copied={copied}
+      crop={crop}
+      cropperImageSrc={cropperImageSrc}
+      cropperViewportSize={cropperViewportSize}
+      handleCopy={() => {
+        void handleCopy();
+      }}
+      handleDialogPointerDownCapture={handleDialogPointerDownCapture}
+      hasNext={hasNext}
+      hasPrevious={hasPrevious}
+      imageElementRef={imageElementRef}
+      imageSizeLabel={imageSizeLabel}
+      isPointOnImage={isPointOnImage}
+      mediaReady={mediaReady}
+      onNavigateNext={() => setActiveGalleryIndex((value) => Math.min(value + 1, (boundedGallery?.length ?? 1) - 1))}
+      onNavigatePrevious={() => setActiveGalleryIndex((value) => Math.max(value - 1, 0))}
+      onOpenChange={onOpenChange}
+      percentLabel={percentLabel}
+      previewMetrics={previewMetrics}
+      setAspectRatio={setAspectRatio}
+      setCrop={setCrop}
+      setImageSize={setImageSize}
+      setMediaReady={setMediaReady}
+      setMediaSize={setMediaSize}
+      setZoom={setZoom}
+      viewportSize={viewportSize}
+      zoom={zoom}
+    />,
     document.body
   );
 }
