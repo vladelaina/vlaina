@@ -106,6 +106,15 @@ function capUnrevealedBirths(births: number[], renderNow: number): void {
   }
 }
 
+function revealPriorBirths(births: number[], length: number, renderNow: number): void {
+  const revealedBirth = renderNow - CHAT_STREAM_FADE_MS;
+  for (let index = 0; index < length; index += 1) {
+    if ((births[index] ?? revealedBirth) > revealedBirth) {
+      births[index] = revealedBirth;
+    }
+  }
+}
+
 function scanStableMarkdownSplit(
   content: string,
   startState?: StableMarkdownScanState | null,
@@ -297,6 +306,7 @@ export function useChatStreamBlocks(
           : 0;
         const firstBirth = renderNow - Math.min(CHAT_STREAM_FADE_MS * 0.35, appendWindow * 0.5);
 
+        revealPriorBirths(birthsRef.current, previousLength, renderNow);
         birthsRef.current.length = previousLength;
         for (let index = 0; index < appendedLength; index += 1) {
           birthsRef.current.push(firstBirth + index * charDelay);
@@ -315,6 +325,7 @@ export function useChatStreamBlocks(
 
     capUnrevealedBirths(birthsRef.current, renderNow);
     const lastBirth = birthsRef.current.at(-1) ?? renderNow;
+    const animationNow = previousArrivalTimeRef.current;
     const stableScan = scanStableMarkdownSplit(content, stableScanRef.current);
     stableScanRef.current = stableScan;
     const stableSplit = stableScan.splitIndex;
@@ -334,7 +345,7 @@ export function useChatStreamBlocks(
                 content: stableContent,
                 imageIndexOffset: 0,
                 key: stableKey,
-                nowMs: renderNow,
+                nowMs: animationNow,
                 revealed: true,
               },
               codeBlockIndexOffset: countFencedCodeBlocks(stableContent),
@@ -351,7 +362,7 @@ export function useChatStreamBlocks(
           content: activeContent,
           imageIndexOffset: stableBlock.imageIndexOffset,
           key: 'stream',
-          nowMs: renderNow,
+          nowMs: animationNow,
           revealed: birthsRef.current.length === 0 || renderNow - lastBirth >= CHAT_STREAM_FADE_MS,
         },
       ];
@@ -366,7 +377,7 @@ export function useChatStreamBlocks(
       content,
       imageIndexOffset: 0,
       key: 'stream',
-      nowMs: renderNow,
+      nowMs: animationNow,
       revealed: birthsRef.current.length === 0 || renderNow - lastBirth >= CHAT_STREAM_FADE_MS,
     }];
   }, [content, enabled, renderNow]);

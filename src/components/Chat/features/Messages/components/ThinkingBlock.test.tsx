@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_THINKING_SELECTION_TEXT_NODES, ThinkingBlock } from './ThinkingBlock';
 import {
@@ -176,7 +176,7 @@ describe('ThinkingBlock', () => {
     expect(container.querySelector('.chat-markdown-live')).not.toBeInTheDocument();
   });
 
-  it('renders thinking code blocks through the shared markdown components', () => {
+  it('renders thinking code blocks through the shared markdown components', async () => {
     const { container } = render(
       <ThinkingBlock
         content={"```ts\nconst value = 1;\n```"}
@@ -186,6 +186,7 @@ describe('ThinkingBlock', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reasoned' }));
 
+    await waitFor(() => expect(container.querySelector('.code-block-chrome')).not.toBeNull());
     expect(container.querySelector('.code-block-chrome')).not.toBeNull();
     expect(container.querySelector('.code-block-chrome-language-label')).toHaveTextContent('ts');
   });
