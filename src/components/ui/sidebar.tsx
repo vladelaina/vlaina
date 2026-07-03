@@ -93,6 +93,10 @@ function SidebarProvider({
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) {
+        return
+      }
+
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
         event.shiftKey &&

@@ -52,6 +52,7 @@ const SELECTION_MOVEMENT_KEYS = new Set([
 const COMPOSITION_APPEND_GUARD_MS = 10_000;
 const MAX_COMPOSITION_REPAIR_LOOKBACK_CHARS = 160;
 const MAX_COMPOSITION_REPAIR_TEXT_LENGTH = 128;
+const COMPOSITION_RESIDUE_PATTERN = /^[A-Za-z']+$/;
 const ALLOW_SYNTHETIC_USER_EVENTS =
   import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST);
 const LIVE_PREVIEW_EDITOR_ARTIFACT_PATTERN =
@@ -144,6 +145,72 @@ function getCompositionClockMs(): number {
   return Date.now();
 }
 
+function isCompositionResidueText(text: string): boolean {
+  return text.length > 0 && COMPOSITION_RESIDUE_PATTERN.test(text);
+}
+
+function getCompositionResidueRepairRange(
+  text: string,
+  committedText: string,
+  staleText: string,
+): { fromOffset: number; toOffset: number } | null {
+  let bestRange: { fromOffset: number; toOffset: number; residueLength: number } | null = null;
+  let committedIndex = text.indexOf(committedText);
+
+  while (committedIndex >= 0) {
+    const committedEnd = committedIndex + committedText.length;
+    let leftStart = committedIndex;
+    while (
+      leftStart > 0 &&
+      committedIndex - leftStart < staleText.length &&
+      isCompositionResidueText(text[leftStart - 1] ?? '')
+    ) {
+      leftStart -= 1;
+    }
+
+    let rightEnd = committedEnd;
+    while (
+      rightEnd < text.length &&
+      rightEnd - committedEnd < staleText.length &&
+      isCompositionResidueText(text[rightEnd] ?? '')
+    ) {
+      rightEnd += 1;
+    }
+
+    for (let fromOffset = leftStart; fromOffset <= committedIndex; fromOffset += 1) {
+      for (let toOffset = committedEnd; toOffset <= rightEnd; toOffset += 1) {
+        if (fromOffset === committedIndex && toOffset === committedEnd) {
+          continue;
+        }
+
+        const residue = text.slice(fromOffset, committedIndex) + text.slice(committedEnd, toOffset);
+        if (
+          residue.length > staleText.length ||
+          !isCompositionResidueText(residue) ||
+          (!staleText.includes(residue) && !staleText.startsWith(residue))
+        ) {
+          continue;
+        }
+
+        if (!bestRange || residue.length > bestRange.residueLength) {
+          bestRange = { fromOffset, toOffset, residueLength: residue.length };
+        }
+      }
+    }
+
+    committedIndex = text.indexOf(committedText, committedEnd);
+  }
+
+  if (!bestRange) {
+    return null;
+  }
+
+  return {
+    fromOffset: bestRange.fromOffset,
+    toOffset: bestRange.toOffset,
+  };
+}
+
 function hasNonAsciiText(text: string | null): text is string {
   return typeof text === 'string' && /[^\x00-\x7F]/.test(text);
 }
@@ -226,23 +293,50 @@ export function replaceRecentCompositionText(
       state.doc.content.size,
       anchor + staleText.length + MAX_COMPOSITION_REPAIR_LOOKBACK_CHARS,
     );
-    const match: { current: { from: number; to: number } | null } = { current: null };
+    const match: { current: { from: number; to: number; distance: number } | null } = { current: null };
+    const mixedResidueMatch: { current: { from: number; to: number; distance: number } | null } = { current: null };
 
     state.doc.nodesBetween(searchFrom, searchTo, (node, pos) => {
-      if (match.current || !node.isText) return;
+      if (!node.isText) return;
       const text = node.text ?? '';
       const fromOffset = Math.max(0, searchFrom - pos);
       const toOffset = Math.min(text.length, searchTo - pos);
       if (fromOffset >= toOffset) return;
 
-      const index = text.slice(fromOffset, toOffset).lastIndexOf(staleText);
-      if (index < 0) return;
+      const searchedText = text.slice(fromOffset, toOffset);
+      let index = searchedText.indexOf(staleText);
+      while (index >= 0) {
+        const from = pos + fromOffset + index;
+        const to = from + staleText.length;
+        const distance = Math.min(Math.abs(anchor - from), Math.abs(anchor - to));
+        if (!match.current || distance < match.current.distance) {
+          match.current = { from, to, distance };
+        }
+        index = searchedText.indexOf(staleText, index + 1);
+      }
 
-      const from = pos + fromOffset + index;
-      match.current = { from, to: from + staleText.length };
+      if (hasNonAsciiText(committedText) && isCompositionResidueText(staleText)) {
+        const residueRange = getCompositionResidueRepairRange(searchedText, committedText, staleText);
+        if (residueRange) {
+          const from = pos + fromOffset + residueRange.fromOffset;
+          const to = pos + fromOffset + residueRange.toOffset;
+          const distance = Math.min(Math.abs(anchor - from), Math.abs(anchor - to));
+          if (!mixedResidueMatch.current || distance < mixedResidueMatch.current.distance) {
+            mixedResidueMatch.current = {
+              from,
+              to,
+              distance,
+            };
+          }
+        }
+      }
     });
 
-    const matchRange = match.current;
+    const matchRange = !match.current
+      ? mixedResidueMatch.current
+      : !mixedResidueMatch.current || match.current.distance <= mixedResidueMatch.current.distance
+        ? match.current
+        : mixedResidueMatch.current;
     if (!matchRange) return false;
     view.dispatch(view.state.tr.insertText(committedText, matchRange.from, matchRange.to));
     return true;
@@ -623,6 +717,7 @@ export function usePendingMarkdownAutosave({
   const deferredCompositionMarkdownRef = useRef<string | null>(null);
   const deferredCompositionUserInputVersionRef = useRef(0);
   const latestCompositionDataRef = useRef<string | null>(null);
+  const latestCompositionResidueDataRef = useRef<string | null>(null);
   const hasCompositionEndedRef = useRef(false);
   const compositionStartSelectionRef = useRef<CompositionStartSelection | null>(null);
   const compositionAppendPositionRef = useRef<number | null>(null);
@@ -652,6 +747,7 @@ export function usePendingMarkdownAutosave({
     deferredCompositionMarkdownRef.current = null;
     deferredCompositionUserInputVersionRef.current = 0;
     latestCompositionDataRef.current = null;
+    latestCompositionResidueDataRef.current = null;
     hasCompositionEndedRef.current = false;
     compositionStartSelectionRef.current = null;
     isCompositionSelectionRepairSuppressedRef.current = false;
@@ -930,6 +1026,7 @@ export function usePendingMarkdownAutosave({
         deferredCompositionMarkdownRef.current = null;
         deferredCompositionUserInputVersionRef.current = 0;
         latestCompositionDataRef.current = null;
+        latestCompositionResidueDataRef.current = null;
         hasCompositionEndedRef.current = false;
         compositionStartSelectionRef.current = captureCompositionStartSelection(view);
         lastCompositionCommitAtRef.current = 0;
@@ -951,7 +1048,7 @@ export function usePendingMarkdownAutosave({
           (hasNonAsciiText(latestCompositionDataRef.current) ? latestCompositionDataRef.current : null) ??
           getSelectedCompositionText(view);
         if (compositionEndData) {
-          const staleCompositionData = latestCompositionDataRef.current;
+          const staleCompositionData = latestCompositionResidueDataRef.current ?? latestCompositionDataRef.current;
           const committedCompositionData = compositionEndData;
           const startSelection = compositionStartSelectionRef.current;
           latestCompositionDataRef.current = committedCompositionData;
@@ -1089,6 +1186,9 @@ export function usePendingMarkdownAutosave({
           )
         ) {
           latestCompositionDataRef.current = inputData;
+          if (event.inputType === 'insertCompositionText' && isCompositionResidueText(inputData)) {
+            latestCompositionResidueDataRef.current = inputData;
+          }
         }
       }
 

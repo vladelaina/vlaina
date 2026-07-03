@@ -77,6 +77,44 @@ describe('SidebarSearchDrawer', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
+  it('does not navigate, submit, or close while IME composition is active', () => {
+    const hideSearch = vi.fn();
+    const onSelectNext = vi.fn();
+    const onSubmit = vi.fn();
+
+    render(
+      <SidebarSearchDrawer
+        isSearchOpen
+        shouldShowTopActions={false}
+        searchQuery="hao"
+        setSearchQuery={() => {}}
+        inputRef={createRef<HTMLInputElement>()}
+        hideSearch={hideSearch}
+        canSubmit
+        onSubmit={onSubmit}
+        canSelectNext
+        onSelectNext={onSelectNext}
+        placeholder=""
+        closeLabel="Close search"
+        topActions={null}
+      />,
+    );
+
+    const input = screen.getByRole('textbox');
+    const enterEvent = fireEvent.keyDown(input, {
+      key: 'Enter',
+      nativeEvent: { isComposing: true },
+      isComposing: true,
+    });
+    fireEvent.keyDown(input, { key: 'ArrowDown', isComposing: true });
+    fireEvent.keyDown(input, { key: 'Escape', isComposing: true });
+
+    expect(enterEvent).toBe(true);
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onSelectNext).not.toHaveBeenCalled();
+    expect(hideSearch).not.toHaveBeenCalled();
+  });
+
   it('leaves arrow keys alone when there is no selectable result', () => {
     const onSelectNext = vi.fn();
 

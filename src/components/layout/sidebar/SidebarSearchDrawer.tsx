@@ -92,6 +92,11 @@ export function SidebarSearchDrawer({
   topActions,
 }: SidebarSearchDrawerProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const native = event.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
+    if (native.isComposing || native.keyCode === 229) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       event.preventDefault();
       hideSearch();

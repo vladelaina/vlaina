@@ -89,6 +89,39 @@ describe('useChatHistoryNavigation', () => {
     expect(result.current.historyBrowseIndex).toBeNull();
   });
 
+  it('does not browse history while IME composition is active', () => {
+    const applyHistoryMessage = vi.fn();
+    const { result } = renderHook(() =>
+      useChatHistoryNavigation({
+        message: 'draft',
+        sentUserMessages: ['first'],
+        showMentionPicker: false,
+        applyHistoryMessage,
+      }),
+    );
+
+    const preventDefault = vi.fn();
+
+    act(() => {
+      const handled = result.current.handleHistoryKeyDown({
+        key: 'ArrowUp',
+        selectionStart: 0,
+        selectionEnd: 0,
+        shiftKey: false,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        isComposing: true,
+        preventDefault,
+      });
+      expect(handled).toBe(false);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(applyHistoryMessage).not.toHaveBeenCalled();
+    expect(result.current.historyBrowseIndex).toBeNull();
+  });
+
   it('clears browsing state when the user edits the draft directly', () => {
     const { result } = renderHook(() =>
       useChatHistoryNavigation({

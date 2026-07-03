@@ -83,6 +83,74 @@ describe('usePendingMarkdownAutosave', () => {
     }
   });
 
+  it('repairs pinyin residue split around committed composition text', async () => {
+    const editor = createEditor(['# alpha', '', 'h好a'].join('\n'));
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const mixedEnd = findTextEndPos(view, 'h好a');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, mixedEnd)));
+
+      expect(replaceRecentCompositionText(view, 'ha', '好')).toBe(true);
+      expect(getDocText(view)).toContain('好');
+      expect(getDocText(view)).not.toContain('h好a');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('repairs partial pinyin residue split around committed composition text', async () => {
+    const editor = createEditor(['# alpha', '', 'h好a'].join('\n'));
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const mixedEnd = findTextEndPos(view, 'h好a');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, mixedEnd)));
+
+      expect(replaceRecentCompositionText(view, 'hao', '好')).toBe(true);
+      expect(getDocText(view)).toContain('好');
+      expect(getDocText(view)).not.toContain('h好a');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('keeps pinyin residue available when committed text is inserted before compositionend', async () => {
+    const editor = createEditor(['# alpha', '', 'h好a'].join('\n'));
+    await editor.create();
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha\n\nh好a',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const mixedEnd = findTextEndPos(view, 'h好a');
+      const markUserInput = result.current.createUserInputMarker(view, null);
+
+      act(() => {
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, mixedEnd)));
+        markUserInput(new Event('compositionstart'));
+        markUserInput(new InputEvent('beforeinput', { inputType: 'insertCompositionText', data: 'ha' }));
+        markUserInput(new InputEvent('beforeinput', { inputType: 'insertText', data: '好' }));
+        markUserInput(new CompositionEvent('compositionend', { data: '好' }));
+      });
+
+      expect(getDocText(view)).toContain('好');
+      expect(getDocText(view)).not.toContain('h好a');
+    } finally {
+      unmount();
+      await editor.destroy();
+    }
+  });
+
   it('collapses a selection that still covers committed composition text', async () => {
     const editor = createEditor(['# alpha', '', '你好'].join('\n'));
     await editor.create();

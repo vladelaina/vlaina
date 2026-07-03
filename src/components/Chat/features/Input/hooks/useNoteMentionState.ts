@@ -549,6 +549,11 @@ export function useNoteMentionState({
 
   const handleMentionKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+      const native = event.nativeEvent as (KeyboardEvent & { isComposing?: boolean; keyCode?: number }) | undefined;
+      if (native?.isComposing || native?.keyCode === 229) {
+        return false;
+      }
+
       const selectionStart = event.currentTarget.selectionStart ?? 0;
       const selectionEnd = event.currentTarget.selectionEnd ?? 0;
 

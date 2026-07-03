@@ -453,6 +453,40 @@ describe('useNoteMentions', () => {
     expect(result.current.mentionPreviewParts.some((part) => part.type === 'mention')).toBe(true);
   });
 
+  it('does not apply a mention candidate on composing Enter', () => {
+    const preventDefault = vi.fn();
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@To');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'Enter',
+        shiftKey: false,
+        nativeEvent: { isComposing: true },
+        currentTarget: { selectionStart: 3, selectionEnd: 3 },
+        preventDefault,
+      } as any);
+      expect(handled).toBe(false);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(result.current.message).toBe('@To');
+    expect(result.current.mentionPreviewParts.some((part) => part.type === 'mention')).toBe(false);
+  });
+
   it('removes a mention token on Backspace when the caret is inside it', () => {
     const { result } = renderHook(() => {
       const [message, setMessage] = useState('@To');
