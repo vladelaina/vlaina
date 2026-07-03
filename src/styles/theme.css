@@ -842,7 +842,8 @@
   --vlaina-shadow-accent-action: 0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28);
   --vlaina-shadow-drag-row: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 10px 24px -18px rgba(30, 150, 235, 0.65);
   --vlaina-code-block-background: #f5f5f5;
-  --vlaina-code-inline-background: #e8eaed;
+  --vlaina-code-inline-background-light: #f0f1f2;
+  --vlaina-code-inline-background: var(--vlaina-code-inline-background-light);
   --vlaina-code-inline-foreground: #262626;
   --vlaina-code-syntax-foreground: #24292e;
   --vlaina-code-syntax-muted: #6a737d;
