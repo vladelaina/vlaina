@@ -4,8 +4,12 @@ const mocks = vi.hoisted(() => ({
   storage: {
     platform: 'electron' as const,
     exists: vi.fn(),
+    getBasePath: vi.fn(),
     mkdir: vi.fn(),
+    readFile: vi.fn(),
     rename: vi.fn(),
+    stat: vi.fn(),
+    writeFile: vi.fn(),
   },
   ensureNotesRootConfig: vi.fn(),
   saveAutoSaveableDrafts: vi.fn(),
@@ -14,8 +18,16 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
+  getBaseName: (path: string) => path.split('/').pop() || '',
+  getParentPath: (path: string) => path.split('/').slice(0, -1).join('/'),
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
+  joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
   normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/+$/, ''),
+}));
+
+vi.mock('@/lib/storage/paths', () => ({
+  ensureDirectories: () => Promise.resolve(),
+  getPaths: () => Promise.resolve({ notes: '/app/.vlaina/notes' }),
 }));
 
 vi.mock('./notesRootConfig', () => ({
@@ -31,7 +43,7 @@ vi.mock('@/stores/notes/autoSaveableDrafts', () => ({
   saveAutoSaveableDrafts: mocks.saveAutoSaveableDrafts,
 }));
 
-import { useNotesStore } from './useNotesStore';
+import { getCurrentNotesRootPath, useNotesStore } from './useNotesStore';
 import { useNotesRootStore } from './useNotesRootStore';
 
 function createDeferred<T>() {
@@ -49,6 +61,10 @@ describe('useNotesRootStore dirty note protection', () => {
     localStorage.clear();
     vi.clearAllMocks();
     mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.getBasePath.mockResolvedValue('/app');
+    mocks.storage.readFile.mockRejectedValue(new Error('state file not found'));
+    mocks.storage.stat.mockResolvedValue({ isDirectory: false, isFile: true });
+    mocks.storage.writeFile.mockResolvedValue(undefined);
     mocks.ensureNotesRootConfig.mockResolvedValue(undefined);
     mocks.saveAutoSaveableDrafts.mockResolvedValue(true);
     mocks.saveDirtyRegularOpenTabs.mockResolvedValue(true);
@@ -87,6 +103,58 @@ describe('useNotesRootStore dirty note protection', () => {
       starredFolders: [],
       noteMetadata: { version: 1, notes: {} },
     });
+  });
+
+  it('restores the latest recent notesRoot when the persisted state has no current folder', async () => {
+    const latestNotesRoot = {
+      id: 'notes-root-latest',
+      name: 'latest',
+      path: '/notesRoot/latest',
+      lastOpened: 2,
+    };
+    const olderNotesRoot = {
+      id: 'notes-root-older',
+      name: 'older',
+      path: '/notesRoot/older',
+      lastOpened: 1,
+    };
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      recentNotesRoots: [latestNotesRoot, olderNotesRoot],
+      currentNotesRootId: null,
+      deletedNotesRootPaths: [],
+    }));
+
+    useNotesRootStore.setState({
+      currentNotesRoot: null,
+      recentNotesRoots: [],
+      isLoading: false,
+      hasInitialized: false,
+      error: null,
+    });
+    useNotesStore.setState({
+      notesPath: '',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+      rootFolder: null,
+      rootFolderPath: null,
+      noteContentsCache: new Map(),
+      draftNotes: {},
+      starredEntries: [],
+      starredNotes: [],
+      starredFolders: [],
+      noteMetadata: { version: 1, notes: {} },
+    });
+
+    await useNotesRootStore.getState().initialize();
+
+    expect(useNotesRootStore.getState().currentNotesRoot).toMatchObject({
+      id: latestNotesRoot.id,
+      path: latestNotesRoot.path,
+    });
+    expect(getCurrentNotesRootPath()).toBe(latestNotesRoot.path);
+    expect(mocks.ensureNotesRootConfig).toHaveBeenCalledWith(latestNotesRoot.path);
   });
 
   it('saves dirty regular tabs before opening another notesRoot', async () => {

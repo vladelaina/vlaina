@@ -66,6 +66,7 @@ export function saveToStorage<T>(key: string, value: T): void {
 interface PersistedNotesRootState {
   recentNotesRoots: NotesRootInfo[];
   currentNotesRootId: string | null;
+  hasLocalCurrentNotesRootId?: boolean;
   deletedNotesRootPaths?: string[];
   restoredNotesRootPaths?: string[];
 }
@@ -92,13 +93,33 @@ async function getNotesRootStatePath(): Promise<string | null> {
 }
 
 function loadLocalNotesRootState(): PersistedNotesRootState {
+  const currentNotesRootId = loadLocalCurrentNotesRootId();
   return {
     recentNotesRoots: loadRecentNotesRootsFromStorage(),
-    currentNotesRootId: loadFromStorage<string | null>(CURRENT_NOTES_ROOT_KEY, null, {
-      maxLength: MAX_CURRENT_NOTES_ROOT_ID_STORAGE_CHARS,
-    }),
+    currentNotesRootId: currentNotesRootId.value,
+    hasLocalCurrentNotesRootId: currentNotesRootId.hasValue,
     deletedNotesRootPaths: [],
   };
+}
+
+function loadLocalCurrentNotesRootId(): { value: string | null; hasValue: boolean } {
+  try {
+    const saved = localStorage.getItem(CURRENT_NOTES_ROOT_KEY);
+    if (!saved || saved.length > MAX_CURRENT_NOTES_ROOT_ID_STORAGE_CHARS) {
+      return { value: null, hasValue: false };
+    }
+
+    const parsed = JSON.parse(saved);
+    if (parsed === null) {
+      return { value: null, hasValue: true };
+    }
+    if (typeof parsed === 'string') {
+      return { value: parsed, hasValue: true };
+    }
+    return { value: null, hasValue: false };
+  } catch {
+    return { value: null, hasValue: false };
+  }
 }
 
 function saveLocalNotesRootState(state: PersistedNotesRootState): void {
@@ -139,10 +160,13 @@ function mergeNotesRootStates(
   const deletedNotesRootPaths = normalizeDeletedNotesRootPaths(fileState.deletedNotesRootPaths || []);
   const recentNotesRoots = normalizeRecentNotesRoots([...fileState.recentNotesRoots, ...localState.recentNotesRoots])
     .filter((notesRoot) => !deletedNotesRootPaths.includes(normalizeNotesRootPath(notesRoot.path)));
+  const preferredCurrentNotesRootId = localState.hasLocalCurrentNotesRootId
+    ? localState.currentNotesRootId
+    : fileState.currentNotesRootId ?? recentNotesRoots[0]?.id ?? null;
 
   return {
     recentNotesRoots,
-    currentNotesRootId: resolvePersistedCurrentNotesRootId(recentNotesRoots, fileState.currentNotesRootId),
+    currentNotesRootId: resolvePersistedCurrentNotesRootId(recentNotesRoots, preferredCurrentNotesRootId),
     deletedNotesRootPaths,
   };
 }

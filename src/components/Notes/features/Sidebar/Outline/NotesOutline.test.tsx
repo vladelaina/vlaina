@@ -213,9 +213,8 @@ describe('NotesOutline', () => {
 
     render(<NotesOutline enabled={false} currentNotePath={null} />);
 
-    expect(screen.queryByText('Current')).toBeNull();
-    fireEvent.click(screen.getByText('Alpha'));
+    fireEvent.click(screen.getByText('Current'));
 
-    expect(hoisted.openNotesRoot).toHaveBeenCalledWith('/notes-roots/alpha');
+    expect(hoisted.openNotesRoot).toHaveBeenCalledWith('/notes-roots/current');
   });
 });

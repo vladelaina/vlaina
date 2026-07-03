@@ -154,8 +154,11 @@ export function SidebarContent({
     displayRootFolder || hasNotesRootPendingRoot || shouldShowInlineEmptyHint,
   );
   const recentEmptyWorkspaceNotesRoots = useMemo(() => (
-    getEmptyWorkspaceRecentNotesRoots(recentNotesRoots, currentNotesRoot?.path)
-  ), [currentNotesRoot?.path, recentNotesRoots]);
+    getEmptyWorkspaceRecentNotesRoots(
+      recentNotesRoots,
+      shouldRenderRootFolderRow ? currentNotesRoot?.path : null,
+    )
+  ), [currentNotesRoot?.path, recentNotesRoots, shouldRenderRootFolderRow]);
   const {
     activeSearchResultId,
     handleOpenSearchResult,
