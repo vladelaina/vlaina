@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppViewMode } from '@/stores/uiSlice';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import {
+  preloadChatSidebarModule,
   preloadChatViewModule,
+  preloadModelSelectorModule,
+  preloadNotesSidebarModule,
+  preloadNotesTabRowModule,
   preloadNotesViewModule,
+  preloadTemporaryChatToggleModule,
   preloadWhiteboardViewModule,
 } from './AppContentModules';
 
@@ -174,6 +179,28 @@ export function useAppContentViewLifecycle({
       return new Set([...views, effectiveAppViewMode]);
     });
   }, [effectiveAppViewMode, shouldRenderDeferredChrome]);
+
+  useEffect(() => {
+    if (!activeViewReady || !primaryContentReady) return;
+    if (effectiveAppViewMode !== 'notes' && effectiveAppViewMode !== 'chat') return;
+
+    void preloadNotesViewModule();
+    void preloadChatViewModule();
+    void preloadNotesSidebarModule();
+    void preloadChatSidebarModule();
+    void preloadNotesTabRowModule();
+    void preloadModelSelectorModule();
+    void preloadTemporaryChatToggleModule();
+
+    setMountedAppViews((views) => {
+      if (views.has('notes') && views.has('chat')) return views;
+      return new Set([...views, 'notes', 'chat']);
+    });
+    setRenderedSidebarAppViews((views) => {
+      if (views.has('notes') && views.has('chat')) return views;
+      return new Set([...views, 'notes', 'chat']);
+    });
+  }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
 
   return {
     handleActiveViewReady,
