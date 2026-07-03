@@ -37,6 +37,7 @@ export function DiagnosticsPanel() {
     : copyState === 'failed'
       ? 'Copy failed'
       : 'Copy diagnostics';
+  const clearAriaLabel = 'Clear diagnostics';
 
   return (
     <div
@@ -62,7 +63,7 @@ export function DiagnosticsPanel() {
       </button>
       <button
         type="button"
-        aria-label="Clear diagnostics"
+        aria-label={clearAriaLabel}
         data-diagnostics-action="clear"
         onClick={handleClear}
         className="inline-flex size-7 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-bg-tertiary)] hover:text-[var(--vlaina-sidebar-notes-text)]"

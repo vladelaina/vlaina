@@ -186,8 +186,9 @@ describe('ThinkingBlock', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reasoned' }));
 
-    await waitFor(() => expect(container.querySelector('.code-block-chrome')).not.toBeNull());
-    expect(container.querySelector('.code-block-chrome')).not.toBeNull();
+    await waitFor(() => {
+      expect(container.querySelector('.code-block-chrome')).not.toBeNull();
+    });
     expect(container.querySelector('.code-block-chrome-language-label')).toHaveTextContent('ts');
   });
 
