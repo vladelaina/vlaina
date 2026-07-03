@@ -35,7 +35,8 @@ export const ChatSidebarSurface = forwardRef<HTMLDivElement, ChatSidebarSurfaceP
     <SidebarSurface
       ref={ref}
       className={cn(
-        'group/chat-sidebar-surface flex h-full flex-col bg-[var(--vlaina-sidebar-chat-surface)] text-[var(--vlaina-sidebar-chat-text)]',
+        'group/chat-sidebar-surface flex h-full flex-col text-[var(--vlaina-sidebar-chat-text)]',
+        isPeeking ? 'bg-transparent' : 'bg-[var(--vlaina-sidebar-chat-surface)]',
         className
       )}
       isPeeking={isPeeking}

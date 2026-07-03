@@ -130,6 +130,24 @@ describe('SidebarUserHeader', () => {
     }
   });
 
+  it('clears focused hidden controls before collapsing the sidebar', async () => {
+    const toggleSidebar = vi.fn();
+    render(<SidebarUserHeader toggleSidebar={toggleSidebar} />);
+
+    await screen.findByTestId('workspace-switcher');
+    const collapseButton = screen.getByRole('button', { name: 'common.collapseSidebar' });
+
+    collapseButton.focus();
+    expect(collapseButton).toHaveFocus();
+
+    act(() => {
+      collapseButton.click();
+    });
+
+    expect(toggleSidebar).toHaveBeenCalledTimes(1);
+    expect(collapseButton).not.toHaveFocus();
+  });
+
   it('suppresses hover while settings are open', async () => {
     const { container, rerender } = render(<SidebarUserHeader toggleSidebar={() => {}} />);
 

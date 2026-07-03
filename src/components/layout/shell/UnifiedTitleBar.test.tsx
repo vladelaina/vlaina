@@ -60,7 +60,8 @@ describe('UnifiedTitleBar', () => {
       />
     );
 
-    expect(screen.getByRole('button').parentElement).toHaveClass('pl-2');
+    const toggleButton = screen.getByRole('button', { name: 'Toggle sidebar' });
+    expect(toggleButton.parentElement).toHaveClass('pl-2');
   });
 
   it('renders traffic-light preview controls when macOS preview is active off macOS', () => {

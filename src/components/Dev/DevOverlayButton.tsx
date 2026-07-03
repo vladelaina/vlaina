@@ -20,7 +20,7 @@ export function DevOverlayButton({
   onClick: () => void;
 }) {
   return (
-    <Tooltip delayDuration={700}>
+    <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"

@@ -40,7 +40,8 @@ export function NotesSidebarSurface({
   return (
     <SidebarSurface
       className={cn(
-        'group/notes-sidebar-surface flex h-full flex-col bg-[var(--vlaina-sidebar-notes-surface)] text-[var(--vlaina-sidebar-notes-text)]',
+        'group/notes-sidebar-surface flex h-full flex-col text-[var(--vlaina-sidebar-notes-text)]',
+        isPeeking ? 'bg-transparent' : 'bg-[var(--vlaina-sidebar-notes-surface)]',
         className
       )}
       isPeeking={isPeeking}

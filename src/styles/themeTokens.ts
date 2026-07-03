@@ -239,7 +239,7 @@ export const themeWhiteboardTokens = {
 export const themeBackdropTokens = {
   zIndex: 100,
   blurPx: 6,
-  durationSeconds: 0.2,
+  durationSeconds: 0.1,
   settingsModalBlurPx: 6,
   settingsModalDurationSeconds: 0.05,
   notesBlankWorkspaceDropZIndex: 70,
@@ -252,7 +252,7 @@ export const themeBackdropTokens = {
   accountDialogDurationSeconds: 0.05,
   createNotesRootZIndex: 9999,
   createNotesRootBlurPx: 8,
-  createNotesRootDurationSeconds: 0.3,
+  createNotesRootDurationSeconds: 0.1,
 } as const;
 
 export const themeSidebarTokens = {
@@ -311,7 +311,7 @@ export const themeMotionTokens = {
   opacityPreview: 0.92,
   standardEase: [0.22, 1, 0.36, 1],
   notesRootModalEase: [0.19, 1, 0.22, 1],
-  chatEmbeddedOverlayDuration: 0.16,
+  chatEmbeddedOverlayDuration: 0.1,
   chatEmbeddedSidebarHiddenX: '-100%',
   chatEmbeddedSidebarVisibleX: 0,
   chatEmbeddedSidebarSpringStiffness: 520,
@@ -325,7 +325,7 @@ export const themeMotionTokens = {
   notesRootModalVisibleScale: 1,
   notesRootModalY: 12,
   notesRootModalVisibleY: 0,
-  notesRootModalDuration: 0.4,
+  notesRootModalDuration: 0.1,
   noteFindInitialScale: 0.98,
   noteFindVisibleScale: 1,
   noteFindInitialY: -10,
@@ -485,7 +485,7 @@ export const themeChatImageViewerTokens = {
 } as const;
 
 export const themeUiFeedbackTokens = {
-  defaultTooltipDelayMs: 500,
+  defaultTooltipDelayMs: 250,
   copyFeedbackDurationMs: 1200,
   copyFeedbackClosingMs: 160,
   hoverPeekOpenDelayMs: 75,
@@ -505,7 +505,7 @@ export const themeUiFeedbackTokens = {
   invalidFileNameToastDurationMs: 3500,
   errorToastDurationMs: 4500,
   providerApiKeyCopyDurationMs: 1500,
-  toolbarTooltipDelayMs: 500,
+  toolbarTooltipDelayMs: 250,
   urlRailValidationErrorDurationMs: 500,
 } as const;
 

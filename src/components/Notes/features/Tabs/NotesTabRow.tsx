@@ -155,7 +155,7 @@ const SortableTab = memo(function SortableTab({
   };
 
   return (
-    <Tooltip delayDuration={1000}>
+    <Tooltip>
       <TooltipTrigger asChild>
         <div
           ref={setNodeRef}

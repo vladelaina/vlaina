@@ -33,7 +33,7 @@ import {
   type SettingsOpenTab,
 } from '@/components/Settings/settingsEvents';
 import { AppContentShell } from './AppContentShell';
-import { preloadAIStoreModule } from './AppContentModules';
+import { preloadAIStoreModule, preloadSettingsModule } from './AppContentModules';
 import {
   INITIAL_UNIFIED_VIEW_WAIT_TIMEOUT_MS,
   useAppContentViewLifecycle,
@@ -158,6 +158,13 @@ export function AppContent() {
   useEffect(() => {
     if (!unifiedLoaded) return;
     setInitialUnifiedViewWaitDone(true);
+  }, [unifiedLoaded]);
+
+  useEffect(() => {
+    if (!unifiedLoaded) return;
+
+    void preloadSettingsModule().catch((_error) => {
+    });
   }, [unifiedLoaded]);
 
   useEffect(() => {

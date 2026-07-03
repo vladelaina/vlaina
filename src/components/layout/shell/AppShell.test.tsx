@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { forwardRef, type ReactNode, type Ref } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from './AppShell';
@@ -24,12 +24,29 @@ vi.mock('./UnifiedTitleBar', () => ({
 vi.mock('./UnifiedSidebarContainer', () => ({
   UnifiedSidebarContainer: ({
     children,
+    collapsed,
+    peeking,
+    onPeekChange,
     widthScopeRef,
   }: {
     children: ReactNode;
+    collapsed: boolean;
+    peeking?: boolean;
+    onPeekChange?: (peeking: boolean) => void;
     widthScopeRef?: Ref<HTMLDivElement>;
   }) => (
-    <aside ref={widthScopeRef} data-testid="sidebar">{children}</aside>
+    <aside
+      ref={widthScopeRef}
+      data-testid="sidebar"
+      data-shell-sidebar-peek={collapsed ? 'true' : undefined}
+      data-open={collapsed ? (peeking ? 'true' : 'false') : undefined}
+      aria-hidden={collapsed ? !peeking : undefined}
+      className={collapsed ? 'duration-[var(--vlaina-duration-100)]' : undefined}
+      onMouseEnter={collapsed ? () => onPeekChange?.(true) : undefined}
+      onMouseLeave={collapsed ? () => onPeekChange?.(false) : undefined}
+    >
+      {children}
+    </aside>
   ),
 }));
 
@@ -86,5 +103,87 @@ describe('AppShell', () => {
     expect(sidebar!.style.getPropertyValue('--vlaina-width-sidebar-content-inner')).toBe(
       'calc(320px - var(--vlaina-size-32px))'
     );
+  });
+
+  it('shows collapsed sidebar content from the left-edge peek hotzone', () => {
+    const { container } = render(
+      <AppShell
+        sidebarWidth={300}
+        sidebarCollapsed
+        sidebarContent={<div data-testid="sidebar-content">Sidebar</div>}
+        onSidebarWidthChange={() => {}}
+        onSidebarToggle={() => {}}
+      >
+        <div>Main</div>
+      </AppShell>
+    );
+
+    expect(container.querySelector('[data-testid="sidebar"]')).toBeInTheDocument();
+
+    const hotzone = container.querySelector<HTMLElement>('[data-shell-sidebar-peek-hotzone="true"]');
+    const peekSidebar = container.querySelector<HTMLElement>('[data-shell-sidebar-peek="true"]');
+    expect(hotzone).not.toBeNull();
+    expect(peekSidebar).not.toBeNull();
+    expect(peekSidebar).toHaveAttribute('data-open', 'false');
+    expect(peekSidebar).toHaveAttribute('aria-hidden', 'true');
+    expect(peekSidebar!.style.getPropertyValue('--vlaina-shell-sidebar-width')).toBe('300px');
+    expect(peekSidebar).toHaveClass('duration-[var(--vlaina-duration-100)]');
+
+    fireEvent.mouseEnter(hotzone!);
+
+    expect(peekSidebar).toHaveAttribute('data-open', 'true');
+    expect(peekSidebar).toHaveAttribute('aria-hidden', 'false');
+
+    fireEvent.mouseLeave(peekSidebar!);
+
+    expect(peekSidebar).toHaveAttribute('data-open', 'false');
+    expect(peekSidebar).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('keeps the sidebar container mounted while toggling collapse state', () => {
+    const { container, rerender } = render(
+      <AppShell
+        sidebarWidth={300}
+        sidebarCollapsed={false}
+        sidebarContent={<div data-testid="sidebar-content">Sidebar</div>}
+        onSidebarWidthChange={() => {}}
+        onSidebarToggle={() => {}}
+      >
+        <div>Main</div>
+      </AppShell>
+    );
+
+    const sidebar = container.querySelector<HTMLElement>('[data-testid="sidebar"]');
+    expect(sidebar).toBeInTheDocument();
+
+    rerender(
+      <AppShell
+        sidebarWidth={300}
+        sidebarCollapsed
+        sidebarContent={<div data-testid="sidebar-content">Sidebar</div>}
+        onSidebarWidthChange={() => {}}
+        onSidebarToggle={() => {}}
+      >
+        <div>Main</div>
+      </AppShell>
+    );
+
+    expect(container.querySelector<HTMLElement>('[data-testid="sidebar"]')).toBe(sidebar);
+    expect(sidebar).toHaveAttribute('data-shell-sidebar-peek', 'true');
+
+    rerender(
+      <AppShell
+        sidebarWidth={300}
+        sidebarCollapsed={false}
+        sidebarContent={<div data-testid="sidebar-content">Sidebar</div>}
+        onSidebarWidthChange={() => {}}
+        onSidebarToggle={() => {}}
+      >
+        <div>Main</div>
+      </AppShell>
+    );
+
+    expect(container.querySelector<HTMLElement>('[data-testid="sidebar"]')).toBe(sidebar);
+    expect(sidebar).not.toHaveAttribute('data-shell-sidebar-peek');
   });
 });

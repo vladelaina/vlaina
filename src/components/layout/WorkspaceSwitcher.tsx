@@ -134,7 +134,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
         <Popover.Portal>
           <Popover.Content
             className={cn(
-              'z-[var(--vlaina-z-50)] w-[min(calc(100vw_-_var(--vlaina-size-24px)),var(--vlaina-size-300px))] rounded-[var(--vlaina-radius-26px)] p-2 text-[var(--vlaina-sidebar-chat-text)] select-none animate-in fade-in-0 zoom-in-95 duration-[var(--vlaina-duration-200)] data-[side=bottom]:slide-in-from-top-2',
+              'z-[var(--vlaina-z-50)] w-[min(calc(100vw_-_var(--vlaina-size-24px)),var(--vlaina-size-300px))] rounded-[var(--vlaina-radius-26px)] p-2 text-[var(--vlaina-sidebar-chat-text)] select-none animate-in fade-in-0 zoom-in-95 duration-[var(--vlaina-duration-75)] data-[side=bottom]:slide-in-from-top-2',
               'user-menu-popover border !border-transparent bg-[var(--vlaina-color-floating-surface)]'
             )}
             sideOffset={8}

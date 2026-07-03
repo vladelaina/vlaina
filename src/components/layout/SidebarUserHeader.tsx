@@ -50,6 +50,11 @@ export function SidebarUserHeader({ toggleSidebar, interactionSuppressed = false
         window.dispatchEvent(new Event(OPEN_SETTINGS_EVENT));
     }, [clearHeaderInteraction]);
 
+    const handleToggleSidebar = useCallback(() => {
+        clearHeaderInteraction();
+        toggleSidebar();
+    }, [clearHeaderInteraction, toggleSidebar]);
+
     useEffect(() => {
         if (!interactionSuppressed) return;
         clearHeaderInteraction();
@@ -117,11 +122,11 @@ export function SidebarUserHeader({ toggleSidebar, interactionSuppressed = false
                     className="app-drag-region h-full min-w-12 flex-1 cursor-grab active:cursor-grabbing"
                     aria-hidden="true"
                 />
-                <Tooltip delayDuration={700}>
+                <Tooltip>
                     <TooltipTrigger asChild>
                         <button
                             type="button"
-                            onClick={toggleSidebar}
+                            onClick={handleToggleSidebar}
                             aria-label={t('common.collapseSidebar')}
                             className={cn(
                                 'sidebar-user-header-collapse pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-[var(--vlaina-opacity-0)] transition-[color,opacity]',

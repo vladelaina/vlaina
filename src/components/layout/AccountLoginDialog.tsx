@@ -165,7 +165,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           </div>
 
           {isConnecting && (
-            <div className="mt-8 text-center animate-in fade-in duration-[var(--vlaina-duration-500)]">
+            <div className="mt-8 text-center animate-in fade-in duration-[var(--vlaina-duration-100)]">
               <button
                 type="button"
                 onClick={() => cancelConnect()}
