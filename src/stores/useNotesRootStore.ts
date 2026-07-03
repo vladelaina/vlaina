@@ -431,7 +431,9 @@ export const useNotesRootStore = create<NotesRootStore>()((set, get) => ({
           const nextNotesRootState = upsertRecentNotesRoot(recentNotesRoots, requestedNotesRootPath);
           recentNotesRoots = nextNotesRootState.recentNotesRoots;
           currentNotesRoot = nextNotesRootState.notesRoot;
-          persistNotesRootState(recentNotesRoots, currentNotesRoot.id);
+          persistNotesRootState(recentNotesRoots, currentNotesRoot.id, {
+            restoredNotesRoots: [currentNotesRoot],
+          });
           setWindowNotesRootPath(currentNotesRoot.path);
           setCurrentNotesRootPath(currentNotesRoot.path);
         }
@@ -513,7 +515,9 @@ export const useNotesRootStore = create<NotesRootStore>()((set, get) => ({
       const notesRoot = nextNotesRootState.notesRoot;
       const updatedRecent = nextNotesRootState.recentNotesRoots;
 
-      persistNotesRootState(updatedRecent, notesRoot.id);
+      persistNotesRootState(updatedRecent, notesRoot.id, {
+        restoredNotesRoots: [notesRoot],
+      });
 
       const previousNotesRoot = get().currentNotesRoot;
       const previousNotesRootPath = previousNotesRoot?.path ? normalizeNotesRootPath(previousNotesRoot.path) : '';
@@ -632,7 +636,9 @@ export const useNotesRootStore = create<NotesRootStore>()((set, get) => ({
           ),
         ]);
 
-        persistNotesRootState(nextRecentNotesRoots, nextNotesRoot.id);
+        persistNotesRootState(nextRecentNotesRoots, nextNotesRoot.id, {
+          restoredNotesRoots: [nextNotesRoot],
+        });
 
         const normalizedCurrentNotesRootPath = normalizeStarredNotesRootPath(normalizedCurrentNotesRoot.path);
         const nextStarredEntries = notesState.starredEntries.map((entry) =>
