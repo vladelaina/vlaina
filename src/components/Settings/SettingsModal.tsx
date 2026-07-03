@@ -26,6 +26,7 @@ import type { CommunitySettings } from './tabs/aboutCommunitySettings';
 import { themeBackdropTokens, themeMotionTokens } from '@/styles/themeTokens';
 import { handleScrollableWheel } from '@/lib/scroll/wheelScroll';
 import { DesktopUpdateBadge, useDesktopUpdateIndicatorVersion } from '@/components/desktop/DesktopUpdateIndicator';
+import { useNativeTitleBarOverlayHidden } from '@/hooks/useNativeTitleBarOverlayHidden';
 
 interface SettingsModalProps {
   open: boolean;
@@ -95,6 +96,7 @@ export function SettingsModal({ open, communitySettings, requestedTab, onClose }
     open,
     onClose: handleClose,
   });
+  useNativeTitleBarOverlayHidden(open);
 
   const { beginWindowDragTracking, stopWindowDragTracking } = useWindowDragGesture({
     errorLabel: 'settings modal drag',

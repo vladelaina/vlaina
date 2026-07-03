@@ -58,6 +58,10 @@ export const desktopWindow = {
     return getWindowApi()?.setThemeColors?.(colors) ?? Promise.resolve(false);
   },
 
+  setTitleBarOverlayVisible(visible: boolean) {
+    return getWindowApi()?.setTitleBarOverlayVisible?.(visible) ?? Promise.resolve(false);
+  },
+
   center() {
     return getWindowApi()?.center() ?? Promise.resolve();
   },

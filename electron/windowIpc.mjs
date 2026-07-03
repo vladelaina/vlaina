@@ -7,6 +7,15 @@ const MAX_WINDOW_DIMENSION = 8192;
 const MAX_WINDOW_DIMENSION_INPUT_CHARS = 64;
 const CSS_COLOR_PATTERN = /^(?:#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+)$/;
 const MAX_CSS_COLOR_CHARS = 80;
+const DEFAULT_TITLE_BAR_OVERLAY_OPTIONS = Object.freeze({
+  color: '#fcfcfc',
+  symbolColor: '#27262b',
+  height: 40,
+});
+const HIDDEN_TITLE_BAR_OVERLAY_HEIGHT = 0;
+
+const titleBarOverlayOptionsByWindow = new WeakMap();
+const hiddenTitleBarOverlayWindows = new WeakSet();
 
 function normalizeCssColor(value, label) {
   if (typeof value !== 'string') {
@@ -44,6 +53,27 @@ export function normalizeWindowDimension(value, label) {
     MAX_WINDOW_DIMENSION,
     Math.max(MIN_WINDOW_DIMENSION, Math.round(dimension)),
   );
+}
+
+function getTitleBarOverlayOptions(window) {
+  return titleBarOverlayOptionsByWindow.get(window) ?? DEFAULT_TITLE_BAR_OVERLAY_OPTIONS;
+}
+
+function applyTitleBarOverlayState(window) {
+  if (process.platform !== 'win32' || typeof window?.setTitleBarOverlay !== 'function') {
+    return false;
+  }
+
+  if (hiddenTitleBarOverlayWindows.has(window)) {
+    window.setTitleBarOverlay({
+      ...getTitleBarOverlayOptions(window),
+      height: HIDDEN_TITLE_BAR_OVERLAY_HEIGHT,
+    });
+    return true;
+  }
+
+  window.setTitleBarOverlay(getTitleBarOverlayOptions(window));
+  return true;
 }
 
 export function registerWindowIpc({
@@ -120,13 +150,27 @@ export function registerWindowIpc({
 
     window.setBackgroundColor(backgroundColor);
     if (process.platform === 'win32') {
-      window.setTitleBarOverlay({
+      titleBarOverlayOptionsByWindow.set(window, {
         color: titleBarOverlayColor,
         symbolColor: titleBarSymbolColor,
-        height: 40,
+        height: getTitleBarOverlayOptions(window).height,
       });
+      applyTitleBarOverlayState(window);
     }
     return true;
+  });
+
+  handleIpc('desktop:window:set-titlebar-overlay-visible', (event, visible) => {
+    const window = resolveTargetWindow(event);
+    if (!window) return false;
+
+    if (visible) {
+      hiddenTitleBarOverlayWindows.delete(window);
+    } else {
+      hiddenTitleBarOverlayWindows.add(window);
+    }
+
+    return applyTitleBarOverlayState(window);
   });
 
   handleIpc('desktop:window:center', (event) => {
