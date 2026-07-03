@@ -762,11 +762,36 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(screen.queryByText('Alpha')).toBeNull();
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.queryByText('/notes-roots/beta')).toBeNull();
     fireEvent.click(screen.getByText('Beta'));
 
     expect(hoisted.openNotesRoot).toHaveBeenCalledWith('/notes-roots/beta');
+  });
+
+  it('hides the current notes root from recent items when the root row is visible', () => {
+    hoisted.currentNotesRoot = { path: '/notes-roots/alpha', name: 'Alpha' };
+    hoisted.notesPath = '/notes-roots/alpha';
+    hoisted.recentNotesRoots = [
+      { id: 'notes-root-alpha', name: 'Alpha', path: '/notes-roots/alpha', lastOpened: 2 },
+      { id: 'notes-root-beta', name: 'Beta', path: '/notes-roots/beta', lastOpened: 1 },
+    ];
+
+    render(
+      <SidebarContent
+        rootFolder={{ id: 'root', path: '', name: 'Alpha', isFolder: true, expanded: true, children: [] }}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(screen.getByTestId('root-folder-row')).toBeInTheDocument();
+    const panel = screen.getByTestId('empty-workspace-panel');
+    expect(within(panel).queryByText('Alpha')).toBeNull();
+    expect(within(panel).getByText('Beta')).toBeInTheDocument();
   });
 
   it('limits recent notes roots in the empty workspace panel', () => {
