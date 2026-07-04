@@ -4,21 +4,11 @@ import {
   hasFreshBillingReturnRefreshPending,
 } from '@/lib/billing/returnRefresh'
 import { useAccountSessionStore } from '@/stores/accountSession'
-import { useManagedAIStore } from '@/stores/useManagedAIStore'
 
 const FOLLOW_UP_REFRESH_DELAYS_MS = [4000, 12_000]
 
 export function refreshBillingEntitlementsAfterReturn(): void {
-  const previousBudgetSyncAt = useManagedAIStore.getState().lastBudgetSyncAt
-  void Promise.resolve(useAccountSessionStore.getState().checkStatus({ force: true })).finally(() => {
-    if (!useAccountSessionStore.getState().isConnected) {
-      return
-    }
-    const managedAIState = useManagedAIStore.getState()
-    if (managedAIState.lastBudgetSyncAt === previousBudgetSyncAt) {
-      void managedAIState.refreshBudget().catch(() => undefined)
-    }
-  }).catch(() => undefined)
+  void useAccountSessionStore.getState().checkStatus({ force: true, refreshBudget: 'force' }).catch(() => undefined)
 }
 
 export function useBillingReturnRefresh(): void {

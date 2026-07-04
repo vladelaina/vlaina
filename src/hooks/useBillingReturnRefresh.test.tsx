@@ -4,29 +4,13 @@ import { markBillingReturnRefreshPending } from '@/lib/billing/returnRefresh'
 import { useBillingReturnRefresh } from './useBillingReturnRefresh'
 
 const mocks = vi.hoisted(() => ({
-  isConnected: true,
-  lastBudgetSyncAt: 1_700_000_000_000 as number | null,
   checkStatus: vi.fn().mockResolvedValue(undefined),
-  clearBudget: vi.fn(),
-  refreshBudget: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/stores/accountSession', () => ({
   useAccountSessionStore: {
     getState: () => ({
-      isConnected: mocks.isConnected,
       checkStatus: mocks.checkStatus,
-    }),
-  },
-}))
-
-vi.mock('@/stores/useManagedAIStore', () => ({
-  clearManagedBudgetUnlessQuotaExhausted: () => mocks.clearBudget(),
-  useManagedAIStore: {
-    getState: () => ({
-      clearBudget: mocks.clearBudget,
-      lastBudgetSyncAt: mocks.lastBudgetSyncAt,
-      refreshBudget: mocks.refreshBudget,
     }),
   },
 }))
@@ -40,12 +24,8 @@ describe('useBillingReturnRefresh', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    mocks.isConnected = true
-    mocks.lastBudgetSyncAt = 1_700_000_000_000
     mocks.checkStatus.mockResolvedValue(undefined)
     mocks.checkStatus.mockClear()
-    mocks.clearBudget.mockClear()
-    mocks.refreshBudget.mockClear()
     window.localStorage.clear()
     window.history.replaceState({}, '', '/')
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
@@ -63,30 +43,24 @@ describe('useBillingReturnRefresh', () => {
     renderHook(() => useBillingReturnRefresh())
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
-    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true })
+    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true, refreshBudget: 'force' })
     await flushPromises()
-    expect(mocks.clearBudget).not.toHaveBeenCalled()
-    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1)
 
     act(() => {
       vi.advanceTimersByTime(4000)
     })
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(2)
-    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true })
+    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true, refreshBudget: 'force' })
     await flushPromises()
-    expect(mocks.clearBudget).not.toHaveBeenCalled()
-    expect(mocks.refreshBudget).toHaveBeenCalledTimes(2)
 
     act(() => {
       vi.advanceTimersByTime(8000)
     })
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(3)
-    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true })
+    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true, refreshBudget: 'force' })
     await flushPromises()
-    expect(mocks.clearBudget).not.toHaveBeenCalled()
-    expect(mocks.refreshBudget).toHaveBeenCalledTimes(3)
   })
 
   it('does not refresh on ordinary focus when no billing return is pending', () => {
@@ -96,9 +70,7 @@ describe('useBillingReturnRefresh', () => {
       window.dispatchEvent(new Event('focus'))
     })
 
-    expect(mocks.clearBudget).not.toHaveBeenCalled()
     expect(mocks.checkStatus).not.toHaveBeenCalled()
-    expect(mocks.refreshBudget).not.toHaveBeenCalled()
   })
 
   it('lets the billing success URL handler own direct checkout returns', () => {
@@ -110,46 +82,16 @@ describe('useBillingReturnRefresh', () => {
     renderHook(() => useBillingReturnRefresh())
 
     expect(mocks.checkStatus).not.toHaveBeenCalled()
-    expect(mocks.clearBudget).not.toHaveBeenCalled()
-    expect(mocks.refreshBudget).not.toHaveBeenCalled()
-  })
-
-  it('does not request a separate budget refresh when checkStatus already returned budget', async () => {
-    mocks.checkStatus.mockImplementation(async () => {
-      mocks.lastBudgetSyncAt = 1_700_000_010_000
-    })
-    markBillingReturnRefreshPending()
-
-    renderHook(() => useBillingReturnRefresh())
-
-    expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
-    await flushPromises()
-    expect(mocks.clearBudget).not.toHaveBeenCalled()
-    expect(mocks.refreshBudget).not.toHaveBeenCalled()
-  })
-
-  it('does not request a separate budget refresh when the account is signed out after return', async () => {
-    mocks.isConnected = false
-    markBillingReturnRefreshPending()
-
-    renderHook(() => useBillingReturnRefresh())
-
-    expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
-    await flushPromises()
-    expect(mocks.refreshBudget).not.toHaveBeenCalled()
   })
 
   it('isolates rejected entitlement refresh promises after return', async () => {
     mocks.checkStatus.mockRejectedValueOnce(new Error('status failed'))
-    mocks.refreshBudget.mockRejectedValueOnce(new Error('budget failed'))
     markBillingReturnRefreshPending()
 
     renderHook(() => useBillingReturnRefresh())
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
     await flushPromises()
-    await flushPromises()
-    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1)
   })
 
   it('allows another billing return after a later checkout click in the same app session', async () => {
@@ -162,7 +104,6 @@ describe('useBillingReturnRefresh', () => {
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
     await flushPromises()
-    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1)
 
     markBillingReturnRefreshPending()
     act(() => {
@@ -171,7 +112,6 @@ describe('useBillingReturnRefresh', () => {
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(2)
     await flushPromises()
-    expect(mocks.refreshBudget).toHaveBeenCalledTimes(2)
 
     unmount()
   })

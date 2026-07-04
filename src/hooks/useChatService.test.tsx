@@ -571,6 +571,27 @@ describe('useChatService session context isolation', () => {
     expect(useAIUIStore.getState().error).toBeNull();
   });
 
+  it('shows managed network failures as network errors', async () => {
+    seedManagedConnectedState();
+    mocked.sendMessageWithEndpointFallback.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('trigger network failure', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().error).toBe('Network connection error. Please check your connection and try again.');
+    });
+
+    const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(messages.at(-1)?.content).toBe(
+      '<error type="NETWORK_ERROR" code="">Network connection error. Please check your connection and try again.</error>',
+    );
+    expect(JSON.stringify(messages)).not.toContain('upstream_unavailable');
+    expect(JSON.stringify(messages)).not.toContain('My brain needs a breather');
+  });
+
   it('handles object provider errors without coercion', async () => {
     let stringReads = 0;
     const throwingError = {

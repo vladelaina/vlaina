@@ -102,6 +102,28 @@ describe('desktop account session client', () => {
     expect(options.rotateStoredSessionToken).not.toHaveBeenCalled();
   });
 
+  it('does not request budget data during desktop session status probes', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      connected: true,
+      provider: 'google',
+      username: 'alice',
+      primaryEmail: 'alice@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { client } = createHarness();
+
+    await expect(client.getDesktopAccountSessionStatus()).resolves.toMatchObject({
+      connected: true,
+      username: 'alice',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/auth/session');
+  });
+
   it('normalizes desktop session identity payloads', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       connected: true,
@@ -123,5 +145,6 @@ describe('desktop account session client', () => {
       membershipTier: 'pro',
       membershipName: null,
     });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/auth/session');
   });
 });

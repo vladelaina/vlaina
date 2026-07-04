@@ -245,7 +245,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.INVALID_REQUEST,
       code: 'invalid_request',
-      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
+      message: 'Invalid request. Check your input and try again.',
     });
   });
 

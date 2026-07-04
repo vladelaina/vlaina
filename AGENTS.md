@@ -81,9 +81,11 @@ Verification:
 
 ## 5. Keep Files Concise
 
-**Target a maximum of 300 lines per non-test file.**
-If a non-test file exceeds 300 lines, propose a logical split into smaller modules.
-When splitting files, verify the moved behavior with focused tests; add or update tests if existing coverage is insufficient.
+**Target a maximum of 300 lines for hand-written business source files.**
+
+Do not split mechanically by line count alone. Split files that are over 300 lines and mix real business responsibilities; skip generated files, declarations, large fixtures, and dense data tables when splitting would reduce clarity.
+
+After every split, restore normal behavior before moving on: keep public imports/exports, global handlers, button wiring, request paths, payloads, responses, and user-visible behavior unchanged unless explicitly requested. Verify with focused tests or the narrowest practical syntax/runtime check, adding coverage when needed.
 
 ## 6. Commit Messages
 

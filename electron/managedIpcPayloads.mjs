@@ -1,0 +1,130 @@
+import { primitiveToString } from './managedIpcCommon.mjs';
+
+const MAX_MANAGED_BINARY_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_MANAGED_BINARY_BODY_BASE64_CHARS = Math.ceil(MAX_MANAGED_BINARY_BODY_BYTES / 3) * 4;
+
+export function normalizeManagedBinaryPayload(payload) {
+  if (typeof payload?.bodyBase64 !== 'string') {
+    throw new Error('Invalid managed binary request body.');
+  }
+  const bodyBase64 = payload.bodyBase64;
+  if (bodyBase64.length > MAX_MANAGED_BINARY_BODY_BASE64_CHARS) {
+    throw new Error('Managed binary request body is too large.');
+  }
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(bodyBase64) || bodyBase64.length % 4 !== 0) {
+    throw new Error('Invalid managed binary request body.');
+  }
+  const decodedByteLength = getBase64DecodedByteLength(bodyBase64);
+  if (decodedByteLength === null || decodedByteLength > MAX_MANAGED_BINARY_BODY_BYTES) {
+    throw new Error('Managed binary request body is too large.');
+  }
+
+  const headers = {};
+  const rawHeaders = payload?.headers;
+  if (rawHeaders && typeof rawHeaders === 'object') {
+    for (const [key, value] of Object.entries(rawHeaders)) {
+      const normalizedKey = String(key).trim();
+      const normalizedValue = primitiveToString(value);
+      if (normalizedValue === null) {
+        throw new Error('Invalid managed binary request header.');
+      }
+      if (!/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(normalizedKey) || /[\u0000\r\n]/.test(normalizedValue)) {
+        throw new Error('Invalid managed binary request header.');
+      }
+      headers[normalizedKey] = normalizedValue;
+    }
+  }
+
+  return { body: Buffer.from(bodyBase64, 'base64'), headers };
+}
+
+function getBase64DecodedByteLength(payload) {
+  if (payload.length % 4 !== 0) {
+    return null;
+  }
+
+  let padding = 0;
+  if (payload.endsWith('==')) {
+    padding = 2;
+  } else if (payload.endsWith('=')) {
+    padding = 1;
+  }
+
+  const byteLength = Math.floor((payload.length * 3) / 4) - padding;
+  return byteLength >= 0 ? byteLength : null;
+}
+
+function sanitizeManagedChatMessage(message) {
+  if (!message || typeof message !== 'object' || Array.isArray(message)) {
+    return message;
+  }
+
+  const nextMessage = { ...message };
+  const hasAssistantMetadata = Boolean(nextMessage.reasoning_content) ||
+    (Array.isArray(nextMessage.tool_calls) && nextMessage.tool_calls.length > 0);
+  if (nextMessage.role === 'assistant' && nextMessage.content == null && hasAssistantMetadata) {
+    nextMessage.content = '';
+  }
+  if (
+    (nextMessage.role === 'system' || nextMessage.role === 'user' || nextMessage.role === 'tool') &&
+    nextMessage.content == null
+  ) {
+    nextMessage.content = '';
+  }
+  return nextMessage;
+}
+
+export function sanitizeManagedChatCompletionBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return body ?? {};
+  }
+  if (!Array.isArray(body.messages)) {
+    return body;
+  }
+  return {
+    ...body,
+    messages: body.messages.map(sanitizeManagedChatMessage),
+  };
+}
+
+export function createManagedStreamAccumulator(onChunk) {
+  let fullContent = '';
+  let hasStartedReasoning = false;
+  let hasFinishedReasoning = false;
+
+  return {
+    pushDelta({ reasoning, content }) {
+      const reasoningText = typeof reasoning === 'string' ? reasoning : '';
+      const contentText = typeof content === 'string' ? content : '';
+      if (!reasoningText && !contentText) {
+        return true;
+      }
+
+      if (reasoningText) {
+        if (!hasStartedReasoning || hasFinishedReasoning) {
+          fullContent += '<think>';
+          hasStartedReasoning = true;
+          hasFinishedReasoning = false;
+        }
+        fullContent += reasoningText;
+      }
+
+      if (contentText) {
+        if (hasStartedReasoning && !hasFinishedReasoning) {
+          fullContent += '</think>';
+          hasFinishedReasoning = true;
+        }
+        fullContent += contentText;
+      }
+
+      return onChunk(fullContent);
+    },
+    finish() {
+      if (hasStartedReasoning && !hasFinishedReasoning) {
+        fullContent += '</think>';
+        hasFinishedReasoning = true;
+      }
+      return fullContent;
+    },
+  };
+}

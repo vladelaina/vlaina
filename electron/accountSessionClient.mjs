@@ -16,96 +16,14 @@ import {
   normalizeDesktopAccountMembershipName,
   normalizeDesktopAccountUsername,
 } from './accountIdentityNormalization.mjs';
+import {
+  delay,
+  raceWithAbort,
+  throwIfAborted,
+} from './accountSessionAbort.mjs';
 
 const desktopSessionRetryDelaysMs = [250, 500, 1000, 2000, 3000, 5000];
 const desktopSessionActivationGracePeriodMs = 60_000;
-
-function createAbortError() {
-  return new DOMException('Aborted', 'AbortError');
-}
-
-function throwIfAborted(signal) {
-  if (!signal?.aborted) return;
-  throw createAbortError();
-}
-
-async function raceWithAbort(promise, signal) {
-  throwIfAborted(signal);
-  if (!signal) {
-    return await promise;
-  }
-  promise.catch(() => undefined);
-
-  return await new Promise((resolve, reject) => {
-    let settled = false;
-    const cleanup = () => {
-      signal.removeEventListener('abort', abort);
-    };
-    const settle = (callback) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      callback();
-    };
-    const abort = () => {
-      settle(() => reject(createAbortError()));
-    };
-
-    signal.addEventListener('abort', abort, { once: true });
-    if (signal.aborted) {
-      abort();
-      return;
-    }
-
-    promise.then(
-      (value) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal);
-            resolve(value);
-          } catch (error) {
-            reject(error);
-          }
-        });
-      },
-      (error) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal);
-            reject(error);
-          } catch (abortError) {
-            reject(abortError);
-          }
-        });
-      },
-    );
-  });
-}
-
-function delay(ms, signal) {
-  throwIfAborted(signal);
-  return new Promise((resolve, reject) => {
-    let timeout = null;
-    const cleanup = () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      signal?.removeEventListener('abort', abort);
-    };
-    const abort = () => {
-      cleanup();
-      reject(createAbortError());
-    };
-    timeout = setTimeout(() => {
-      cleanup();
-      resolve();
-    }, ms);
-    signal?.addEventListener('abort', abort, { once: true });
-    if (signal?.aborted) {
-      abort();
-    }
-  });
-}
 
 export function createDesktopAccountSessionClient({
   apiBaseUrl,
@@ -200,11 +118,8 @@ export function createDesktopAccountSessionClient({
     return response;
   }
 
-  async function probeDesktopSession(appSessionToken, eventPrefix = 'session_status:http', options = {}) {
-    const sessionUrl = options.includeBudget
-      ? `${apiBaseUrl}/auth/session?include_budget=1`
-      : `${apiBaseUrl}/auth/session`;
-    return await fetchJson(sessionUrl, {
+  async function probeDesktopSession(appSessionToken, eventPrefix = 'session_status:http') {
+    return await fetchJson(`${apiBaseUrl}/auth/session`, {
       method: 'GET',
       cache: 'no-store',
       headers: buildDesktopSessionHeaders(appSessionToken, {
@@ -216,9 +131,9 @@ export function createDesktopAccountSessionClient({
   async function probeDesktopSessionWithRetry(
     appSessionToken,
     eventPrefix = 'session_status:http',
-    { retryUnauthorized = true, includeBudget = false } = {},
+    { retryUnauthorized = true } = {},
   ) {
-    let lastResult = await probeDesktopSession(appSessionToken, eventPrefix, { includeBudget });
+    let lastResult = await probeDesktopSession(appSessionToken, eventPrefix);
 
     for (let attempt = 0; attempt < desktopSessionRetryDelaysMs.length; attempt += 1) {
       if (lastResult.response.status !== 401 && lastResult.response.status !== 403) {
@@ -234,7 +149,6 @@ export function createDesktopAccountSessionClient({
       lastResult = await probeDesktopSession(
         appSessionToken,
         `${eventPrefix}:retry_${attempt + 1}`,
-        { includeBudget },
       );
     }
 
@@ -251,7 +165,7 @@ export function createDesktopAccountSessionClient({
       const { response, payload, text } = await probeDesktopSessionWithRetry(
         credentials.appSessionToken,
         'session_status:http',
-        { retryUnauthorized: shouldGraceDesktopSession(credentials), includeBudget: true },
+        { retryUnauthorized: shouldGraceDesktopSession(credentials) },
       );
 
       if (response.status === 401 || response.status === 403) {
@@ -295,7 +209,6 @@ export function createDesktopAccountSessionClient({
     const { response, payload, text } = await probeDesktopSessionWithRetry(
       appSessionToken,
       'session_identity:http',
-      { includeBudget: true },
     );
 
     if (response.status === 401 || response.status === 403) {
