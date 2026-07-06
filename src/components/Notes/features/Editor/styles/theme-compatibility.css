@@ -22,10 +22,6 @@
   pointer-events: auto !important;
 }
 
-.milkdown-editor[data-markdown-compat-layer='external'] #write > :is(h1, h2, h3, h4, h5, h6):has(+ :is(blockquote, details, .md-alert, .callout)) {
-  margin-bottom: var(--vlaina-space-0) !important;
-}
-
 .milkdown-editor[data-markdown-compat-layer='external'] #write > :is(h1, h2, h3, h4, h5, h6) + :is(blockquote, details, .md-alert, .callout) {
   margin-top: var(--vlaina-space-0) !important;
 }
