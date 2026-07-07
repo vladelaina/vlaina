@@ -1,5 +1,4 @@
-import type { AIModel, PersistedBenchmarkItem, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
-import type { ChatSession } from '@/lib/ai/types';
+import type { AIModel, ChatSession, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import type { UnifiedData } from './unifiedStorageTypes';
 
 export interface UnifiedSavePatch {

@@ -1,16 +1,8 @@
-import type { EditorView } from '@milkdown/kit/prose/view';
 import { normalizeWheelDelta } from '@/lib/scroll/wheelScroll';
-import { getBlockSelectionPluginState } from './blockSelectionPluginState';
-import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
-import { pickPointerBlock } from './blockControlsUtils';
+import { applyBlockMove, canApplyBlockMove } from './blockControlsInteractions';
+import { getCurrentNotePath, getElementsFromPoint, isOverNotesBlockDropTarget, MIN_DROP_DISTANCE_PX, serializeDraggedRangesForComposer, serializeDraggedRangesForMarkdown, serializeSourceMarkdownAfterDelete, setPendingCrossNoteBlockDrag, setPendingCrossNoteBlockDragPreview, updatePendingCrossNoteBlockDragPointer } from './blockControlsViewSessionHelpers';
 import { createBlockDragPreview, createBlockDragSourceMarker } from './blockDragPreview';
 import { setBlockDraggingVisualState } from './blockDragVisualState';
-import { getListItemRangeEnd } from './blockUnitResolver';
-import { getCurrentEditorBlockPositionSnapshot, type EditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
-import { applyBlockMove, canApplyBlockMove, getDraggableBlockRanges, getHandleBlockTargets, resolveBlockTargetByPos, resolveDropTarget, setControlsPosition } from './blockControlsInteractions';
-import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
-import { clearPendingCrossNoteBlockDrag, getCurrentNotePath, getElementsFromPoint, getNotesBlockOpenTargetPathFromElements, insertCrossNoteDraggedMarkdown, isOverNotesBlockDropTarget, openNotePath, pendingCrossNoteBlockDrag, saveCrossNoteBlockDropAfterTargetSave, serializeDraggedRangesForComposer, serializeDraggedRangesForMarkdown, serializeSourceMarkdownAfterDelete, setPendingCrossNoteBlockDrag, setPendingCrossNoteBlockDragPreview, updatePendingCrossNoteBlockDragPointer, MIN_DROP_DISTANCE_PX, HANDLE_VERTICAL_GAP_PX, BLOCK_DRAG_TAB_OPEN_DELAY_MS, BLOCK_SELECTION_PENDING_CLASS } from './blockControlsViewSessionHelpers';
-import { remapDraggedMarkdownImageAssets } from './blockDragImageAssets';
 
 export function installBlockControlsViewSessionDragHandlers(session: any): void {
   session.refreshDragDropAfterScroll = (): void => {
@@ -38,10 +30,10 @@ export function installBlockControlsViewSessionDragHandlers(session: any): void 
     session.draggedMarkdown = serializeDraggedRangesForMarkdown(session.view, draggableRanges);
     session.dragSourceMarkdownAfterDelete = session.draggedMarkdown
       ? serializeSourceMarkdownAfterDelete(
-          session.view,
-          draggableRanges,
-          session.dragSourceNotePath,
-        )
+        session.view,
+        draggableRanges,
+        session.dragSourceNotePath,
+      )
       : null;
     session.attachDragWheelListener();
     session.dragAutoScroll.start();

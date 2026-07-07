@@ -1,20 +1,19 @@
 import { NodeSelection, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
 import { STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES } from '../shared/blockNodeTypes';
+import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
 import {
-  EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
-  TopLevelBlock,
   createEditableMarkdownBlankLineParagraphFromState,
   createTextSelectionNearDocumentPosition,
+  EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
   findTopLevelBlockAfter,
   findTopLevelBlockAt,
   findTopLevelBlockBefore,
   isEditableMarkdownBlankLineNode,
   isMarkdownBlankLinePlaceholderNode,
   replaceBlankLinePlaceholderWithEditableParagraph,
-  replaceRangeWithEditableMarkdownBlankLine,
   replaceMarkdownBlankLineBlockInTransactionWithEditableParagraph,
+  replaceRangeWithEditableMarkdownBlankLine
 } from './markdownBlankLineShared';
 
 function getPlainDeleteDirection(event: KeyboardEvent): -1 | 1 | null {

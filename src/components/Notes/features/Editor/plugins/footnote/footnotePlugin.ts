@@ -1,46 +1,42 @@
-import { $node, $prose } from '@milkdown/kit/utils';
 import {
   Plugin,
   PluginKey,
 } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
+import { $node, $prose } from '@milkdown/kit/utils';
+import {
+  footnoteRefInputRule,
+  hasNonBlankFootnoteRefInputPrefix,
+  MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
+} from './footnoteInputRule';
+import {
+  handleEmptyFootnoteDefinitionDelete,
+  handleFootnoteArrowNavigation,
+  handleFootnoteModEnterExit,
+} from './footnoteInteractionHandlers';
 import { normalizeFootnoteLabel } from './footnoteLabels';
+import {
+  MAX_FOOTNOTE_PREVIEW_SOURCE_TEXT_CHARS,
+  readBoundedFootnotePreviewSource,
+  syncFootnoteReferencePreviews,
+} from './footnotePreviewSync';
 import {
   collectFootnoteElements,
   docHasFootnoteNodes,
   isFootnoteDefinitionElement,
 } from './footnoteScan';
 import {
-  handleEmptyFootnoteDefinitionDelete,
-  handleFootnoteArrowNavigation,
-  handleFootnoteModEnterExit,
-} from './footnoteInteractionHandlers';
-import {
-  readBoundedFootnotePreviewSource,
-  syncFootnoteReferencePreviews,
-  MAX_FOOTNOTE_PREVIEW_SOURCE_TEXT_CHARS,
-} from './footnotePreviewSync';
-import {
   transactionMayInsertFootnote,
   transactionTouchesFootnoteContext,
 } from './footnoteTransactionContext';
-import {
-  footnoteRefInputRule,
-  hasNonBlankFootnoteRefInputPrefix,
-  MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
-} from './footnoteInputRule';
+import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
 
 export const footnoteInteractionPluginKey = new PluginKey('footnoteInteraction');
-export { MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS, hasNonBlankFootnoteRefInputPrefix };
-export { MAX_FOOTNOTE_PREVIEW_SOURCE_TEXT_CHARS };
 export {
   handleEmptyFootnoteDefinitionDelete,
   handleFootnoteArrowNavigation,
-  handleFootnoteModEnterExit,
-  readBoundedFootnotePreviewSource,
+  handleFootnoteModEnterExit, hasNonBlankFootnoteRefInputPrefix, MAX_FOOTNOTE_PREVIEW_SOURCE_TEXT_CHARS, MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS, readBoundedFootnotePreviewSource,
   syncFootnoteReferencePreviews,
-  transactionTouchesFootnoteContext,
+  transactionTouchesFootnoteContext
 };
 
 interface FootnoteInteractionPluginState {

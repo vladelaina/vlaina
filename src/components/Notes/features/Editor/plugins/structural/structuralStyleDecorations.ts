@@ -2,15 +2,14 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Plugin, PluginKey, type Transaction } from '@milkdown/kit/prose/state';
 import { DecorationSet, type Decoration as ProseDecoration } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
+import { getTransactionChangedRanges } from '../shared/transactionStepText';
 import {
-  collectStructuralStyleDecorations,
   createStructuralDecoration,
   createStructuralStyleDecorations,
   isRelevantStructuralNode,
   MAX_STRUCTURAL_STYLE_DECORATIONS,
-  MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES,
+  MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES
 } from './structuralStyleNodes';
-import { getTransactionChangedRanges } from '../shared/transactionStepText';
 export {
   collectStructuralStyleDecorations,
   createStructuralStyleDecorations,
@@ -22,7 +21,7 @@ export {
   STRUCTURAL_LIST_ITEM_ALIGN_CENTER_CLASS,
   STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS,
   STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
-  STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS,
+  STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS
 } from './structuralStyleNodes';
 
 export interface StructuralStyleDecorationsState {

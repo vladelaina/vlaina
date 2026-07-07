@@ -1,14 +1,21 @@
 import {
   NOTES_SPLIT_DEFAULT_RATIO,
   clampNotesSplitRatio,
-  createInitialNotesSplitPaneTree,
   getNotesSplitOrientation,
   type NotesSplitDirection,
   type NotesSplitLeaf,
   type NotesSplitPaneTree,
-  type NotesSplitPreviewLeaf,
+  type NotesSplitPreviewLeaf
 } from './notesSplitTypes';
 
+export { resolveNotesSplitDropDirection } from './notesSplitDrop';
+export {
+  activateNotesSplitPreviewLeaf,
+  countNotesSplitPreviewLeaves,
+  findFirstNotesSplitPreviewLeaf,
+  findNotesSplitPreviewLeafByPath,
+  promoteNotesSplitPreviewLeafToPrimary
+} from './notesSplitPreviewTree';
 export {
   NOTES_SPLIT_DEFAULT_RATIO,
   NOTES_SPLIT_MAX_RATIO,
@@ -25,16 +32,8 @@ export {
   type NotesSplitPaneTree,
   type NotesSplitPreviewLeaf,
   type NotesSplitPrimaryLeaf,
-  type NotesSplitRect,
+  type NotesSplitRect
 } from './notesSplitTypes';
-export { resolveNotesSplitDropDirection } from './notesSplitDrop';
-export {
-  activateNotesSplitPreviewLeaf,
-  countNotesSplitPreviewLeaves,
-  findFirstNotesSplitPreviewLeaf,
-  findNotesSplitPreviewLeafByPath,
-  promoteNotesSplitPreviewLeafToPrimary,
-} from './notesSplitPreviewTree';
 
 export function splitNotesPaneTree(
   tree: NotesSplitPaneTree,

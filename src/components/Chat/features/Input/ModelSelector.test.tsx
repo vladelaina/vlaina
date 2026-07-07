@@ -10,10 +10,6 @@ import {
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 
-function readModelSelectorSource(): string {
-  return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/ModelSelector.tsx'), 'utf8');
-}
-
 function readModelSelectorThemeSource(): string {
   return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/modelSelectorTheme.ts'), 'utf8');
 }
@@ -308,7 +304,7 @@ describe('ModelSelector', () => {
       });
     const cancelAnimationFrameSpy = vi
       .spyOn(window, 'cancelAnimationFrame')
-      .mockImplementation(() => {});
+      .mockImplementation(() => { });
 
     try {
       fireEvent.scroll(window);

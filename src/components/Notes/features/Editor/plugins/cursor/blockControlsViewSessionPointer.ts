@@ -1,19 +1,10 @@
-import type { EditorView } from '@milkdown/kit/prose/view';
-import { normalizeWheelDelta } from '@/lib/scroll/wheelScroll';
+import { canApplyBlockMove, getDraggableBlockRanges, resolveDropTarget, type HandleBlockTarget } from './blockControlsInteractions';
+import { BLOCK_SELECTION_PENDING_CLASS, canInsertCrossNoteDraggedMarkdown, getElementsFromPoint, HANDLE_VERTICAL_GAP_PX, isOverNotesBlockDropTarget } from './blockControlsViewSessionHelpers';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
-import { pickPointerBlock } from './blockControlsUtils';
-import { createBlockDragPreview, createBlockDragSourceMarker } from './blockDragPreview';
-import { setBlockDraggingVisualState } from './blockDragVisualState';
-import { getListItemRangeEnd } from './blockUnitResolver';
-import { getCurrentEditorBlockPositionSnapshot, type EditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
-import { applyBlockMove, canApplyBlockMove, getDraggableBlockRanges, getHandleBlockTargets, resolveBlockTargetByPos, resolveDropTarget, setControlsPosition } from './blockControlsInteractions';
-import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
-import { clearPendingCrossNoteBlockDrag, getCurrentNotePath, getElementsFromPoint, getNotesBlockOpenTargetPathFromElements, insertCrossNoteDraggedMarkdown, isOverNotesBlockDropTarget, openNotePath, pendingCrossNoteBlockDrag, saveCrossNoteBlockDropAfterTargetSave, serializeDraggedRangesForComposer, serializeDraggedRangesForMarkdown, serializeSourceMarkdownAfterDelete, setPendingCrossNoteBlockDrag, setPendingCrossNoteBlockDragPreview, updatePendingCrossNoteBlockDragPointer, MIN_DROP_DISTANCE_PX, HANDLE_VERTICAL_GAP_PX, BLOCK_DRAG_TAB_OPEN_DELAY_MS, BLOCK_SELECTION_PENDING_CLASS } from './blockControlsViewSessionHelpers';
-import { remapDraggedMarkdownImageAssets } from './blockDragImageAssets';
 
 class BlockControlsViewSessionPointer {
-  private getDraggableSelection(): { ranges: BlockRange[]; key: string; selectedRanges: BlockRange[] } {
+  getDraggableSelection(this: any): { ranges: BlockRange[]; key: string; selectedRanges: BlockRange[] } {
     const selectedBlocks = getBlockSelectionPluginState(this.view.state).selectedBlocks;
     if (this.cachedSelectedBlocks === selectedBlocks) {
       return {
@@ -33,7 +24,7 @@ class BlockControlsViewSessionPointer {
     return { ranges, key, selectedRanges };
   }
 
-  private isPointerInEditorScrollRoot(): boolean {
+  isPointerInEditorScrollRoot(this: any): boolean {
     if (this.pointerX === null || this.pointerY === null) return false;
     if (typeof this.doc.elementFromPoint === 'function') {
       const hoveredElement = this.doc.elementFromPoint(this.pointerX, this.pointerY);
@@ -50,11 +41,11 @@ class BlockControlsViewSessionPointer {
       && this.pointerY <= rect.bottom;
   }
 
-  private isBlockSelectionPending(): boolean {
+  isBlockSelectionPending(this: any): boolean {
     return this.view.dom.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
   }
 
-  private isPointerNearTarget(target: HandleBlockTarget): boolean {
+  isPointerNearTarget(this: any, target: HandleBlockTarget): boolean {
     if (this.pointerY === null) return false;
     if (this.pointerY >= target.rect.top && this.pointerY <= target.rect.bottom) return true;
 
@@ -64,26 +55,26 @@ class BlockControlsViewSessionPointer {
     return distance <= HANDLE_VERTICAL_GAP_PX;
   }
 
-  private hideControls(): void {
+  hideControls(this: any): void {
     this.controls.classList.remove('visible');
   }
 
-  private clearPointer(): void {
+  clearPointer(this: any): void {
     this.pointerX = null;
     this.pointerY = null;
   }
 
-  private setPointer(clientX: number, clientY: number): void {
+  setPointer(this: any, clientX: number, clientY: number): void {
     this.pointerX = clientX;
     this.pointerY = clientY;
   }
 
-  private hideDropIndicator(): void {
+  hideDropIndicator(this: any): void {
     this.pendingDrop = null;
     this.dropIndicator.classList.remove('visible');
   }
 
-  private updateDropTargetByPointer(clientX: number, clientY: number): boolean {
+  updateDropTargetByPointer(this: any, clientX: number, clientY: number): boolean {
     const target = resolveDropTarget(this.view, clientX, clientY);
     if (!target) {
       this.hideDropIndicator();
@@ -113,7 +104,7 @@ class BlockControlsViewSessionPointer {
     return true;
   }
 
-  private applyDragPointerUpdate(clientX: number, clientY: number): void {
+  applyDragPointerUpdate(this: any, clientX: number, clientY: number): void {
     const elements = getElementsFromPoint(this.doc, clientX, clientY);
     this.updateBlockDragTabHover(elements);
     if (isOverNotesBlockDropTarget(elements)) {
@@ -127,7 +118,7 @@ class BlockControlsViewSessionPointer {
     }
   }
 
-  private scheduleDragPointerUpdate(clientX: number, clientY: number): void {
+  scheduleDragPointerUpdate(this: any, clientX: number, clientY: number): void {
     this.pendingDragClientX = clientX;
     this.pendingDragClientY = clientY;
     if (this.dragPointerRafId !== 0) return;
@@ -143,7 +134,7 @@ class BlockControlsViewSessionPointer {
     });
   }
 
-  private flushDragPointerUpdate(): void {
+  flushDragPointerUpdate(this: any): void {
     if (this.dragPointerRafId !== 0) {
       window.cancelAnimationFrame(this.dragPointerRafId);
       this.dragPointerRafId = 0;

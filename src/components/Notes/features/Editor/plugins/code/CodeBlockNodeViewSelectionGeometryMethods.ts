@@ -1,49 +1,25 @@
-import { Node } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
-import {
-  EditorView as CodeMirror,
-  drawSelection,
-  keymap as codeMirrorKeymap,
-  lineNumbers,
-  type KeyBinding,
-  type ViewUpdate,
-} from '@codemirror/view';
-import { createRoot, Root } from 'react-dom/client';
-import React from 'react';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
-import { CodeBlockView } from './CodeBlockView';
-import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
-import {
-  bindCodeBlockFontMetricsSync,
-  computeCodeBlockChange,
-  createCodeBlockEditorClipboardHandlers,
-  createCodeBlockEditorKeymap,
-  createCodeBlockEditorTheme,
-  mapCodeBlockEditorOffsetToDocumentOffset,
-  mapDocumentOffsetToCodeBlockEditorOffset,
-  moveOrExtendToTrimmedCodeBoundary,
-  normalizeCodeBlockEditorText,
-} from './codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
-import {
-  buildCodeMirrorFindHighlightRanges,
-  codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
-} from '../find/editorFindCodeMirrorHighlights';
-import {
-  applyCodeBlockCollapsedState,
-  forwardCodeBlockUpdate,
-} from './codeBlockNodeViewUtils';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { themeLazyLoadTokens } from '@/styles/themeTokens';
-import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
-import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
+import { type Text } from '@codemirror/state';
+
+type CodeMirrorLineBounds = {
+  from: number;
+  to: number;
+};
+
+type CodeMirrorSelectionLike = {
+  anchor: number;
+  empty: boolean;
+  from: number;
+  head: number;
+  to: number;
+};
+
+type NormalizedCodeMirrorSelection = {
+  anchor: number;
+  head: number;
+};
 
 class CodeBlockNodeViewSelectionGeometryMethods {
-  private getNonEmptyLineBoundsAtOrAfter(doc: Text, pos: number): CodeMirrorLineBounds | null {
+  getNonEmptyLineBoundsAtOrAfter(this: any, doc: Text, pos: number): CodeMirrorLineBounds | null {
     if (doc.lines === 0) {
       return null;
     }
@@ -60,7 +36,7 @@ class CodeBlockNodeViewSelectionGeometryMethods {
     return null;
   }
 
-  private getNonEmptyLineBoundsAtOrBefore(doc: Text, pos: number): CodeMirrorLineBounds | null {
+  getNonEmptyLineBoundsAtOrBefore(this: any, doc: Text, pos: number): CodeMirrorLineBounds | null {
     if (doc.lines === 0) {
       return null;
     }
@@ -77,7 +53,7 @@ class CodeBlockNodeViewSelectionGeometryMethods {
     return null;
   }
 
-  private getAdjacentNonEmptyLineBounds(doc: Text, pos: number): CodeMirrorLineBounds | null {
+  getAdjacentNonEmptyLineBounds(this: any, doc: Text, pos: number): CodeMirrorLineBounds | null {
     if (doc.lines === 0) {
       return null;
     }
@@ -105,7 +81,7 @@ class CodeBlockNodeViewSelectionGeometryMethods {
     return null;
   }
 
-  private orientCodeMirrorLineSelection(
+  orientCodeMirrorLineSelection(this: any,
     lineBounds: CodeMirrorLineBounds,
     direction: -1 | 1
   ): NormalizedCodeMirrorSelection {
@@ -115,7 +91,7 @@ class CodeBlockNodeViewSelectionGeometryMethods {
     };
   }
 
-  private getPureLineBreakSelectionTarget(
+  getPureLineBreakSelectionTarget(this: any,
     doc: Text,
     selection: CodeMirrorSelectionLike,
     direction: -1 | 1
@@ -136,7 +112,7 @@ class CodeBlockNodeViewSelectionGeometryMethods {
     );
   }
 
-  private normalizeCodeMirrorSelectionEdgeLineBreaks(
+  normalizeCodeMirrorSelectionEdgeLineBreaks(this: any,
     doc: Text,
     selection: CodeMirrorSelectionLike,
     previousSelection?: CodeMirrorSelectionLike

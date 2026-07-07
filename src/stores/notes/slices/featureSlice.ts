@@ -1,11 +1,7 @@
 import { StateCreator } from 'zustand';
-import { NotesStore, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from '../types';
 import {
-  loadGlobalNoteIconSize,
-  loadRecentNotes,
-  loadNoteMetadata,
-  persistGlobalNoteIconSize,
-} from '../storage';
+  pruneCachedNoteContents,
+} from '../document/noteContentCache';
 import {
   findStarredEntryByPath,
   loadStarredForNotesRoot,
@@ -13,13 +9,17 @@ import {
   toggleStarredEntry,
 } from '../starred';
 import {
-  pruneCachedNoteContents,
-} from '../document/noteContentCache';
+  loadGlobalNoteIconSize,
+  loadNoteMetadata,
+  loadRecentNotes,
+  persistGlobalNoteIconSize,
+} from '../storage';
+import { MetadataFile, NoteCoverMetadata, NotesStore } from '../types';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { isSafeStoredNotePath } from './featureSliceContentUtils';
-import { createNoteContentScanActions } from './featureSliceScanActions';
-import { getAllTagsFromCache, getBacklinksFromCache } from './featureSliceQueries';
 import { createFeatureMetadataActions } from './featureSliceMetadataActions';
+import { getAllTagsFromCache, getBacklinksFromCache } from './featureSliceQueries';
+import { createNoteContentScanActions } from './featureSliceScanActions';
 
 const ICON_SYMBOL_SCHEME_PATTERN = /^icon:/i;
 
@@ -248,12 +248,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       void Promise.resolve(metadataActions.updateSingleNoteMetadata(path, {
         cover: cover?.assetPath
           ? {
-              assetPath: cover.assetPath,
-              positionX: cover.positionX ?? 50,
-              positionY: cover.positionY ?? 50,
-              height: cover.height,
-              scale: cover.scale ?? 1,
-            }
+            assetPath: cover.assetPath,
+            positionX: cover.positionX ?? 50,
+            positionY: cover.positionY ?? 50,
+            height: cover.height,
+            scale: cover.scale ?? 1,
+          }
           : undefined,
       })).catch(() => undefined);
     },

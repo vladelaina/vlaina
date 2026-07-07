@@ -1,46 +1,24 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { FloatingToolbarState } from './types';
-import { TOOLBAR_ACTIONS } from './types';
-import { createToolbarRenderer } from './renderToolbar';
 import {
-  calculateBottomPositionForRange,
+  clampToolbarX,
+  hideToolbar,
+  showToolbar
+} from './floatingToolbarDom';
+import {
+  getContentLayoutContext,
+  resolveToolbarContainerPosition
+} from './floatingToolbarLayout';
+import type { FloatingToolbarPluginViewContext } from './floatingToolbarPluginViewTypes';
+import {
   calculatePosition,
-  calculatePositionForRange,
-  getActiveMarks,
   getBgColor,
   getCurrentAlignment,
   getCurrentBlockType,
   getLinkUrl,
-  getTextColor,
+  getTextColor
 } from './selectionHelpers';
-import {
-  clampToolbarX,
-  correctToolbarYToViewportBounds,
-  createToolbarElement,
-  hideToolbar,
-  isFloatingToolbarSuppressed,
-  showToolbar,
-} from './floatingToolbarDom';
-import {
-  getContentLayoutContext,
-  getAiReviewPanelWidth,
-  resolveToolbarContainerPosition,
-  resolveToolbarViewportPosition,
-} from './floatingToolbarLayout';
-import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
-import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
-import { correctToolbarSubmenusToContentBounds } from './floatingToolbarSubmenus';
-import { toggleMark, setLink } from './commands';
-import { openLinkTooltipFromSelection } from './linkTooltipActions';
-import { abortActiveAiSelectionReview } from './ai/reviewAbort';
-import type { FloatingToolbarPluginViewContext } from './floatingToolbarPluginViewTypes';
-import {
-  hasVisibleNativeRange,
-  isDocumentFormatShortcut,
-  isEditableShortcutTarget,
-  shouldLockPreviewToolbarPosition,
-} from './floatingToolbarPluginViewUtils';
+import type { FloatingToolbarState } from './types';
 
 
 export function installFloatingToolbarPluginViewToolbarRenderMethods(ctx: FloatingToolbarPluginViewContext): void {
@@ -57,31 +35,31 @@ export function installFloatingToolbarPluginViewToolbarRenderMethods(ctx: Floati
   ) => {
     const cacheKey = pluginState.subMenu === 'aiReview' && pluginState.aiReview
       ? [
-          'aiReview',
-          pluginState.aiReview.requestKey,
-          pluginState.aiReview.from,
-          pluginState.aiReview.to,
-          pluginState.aiReview.instruction || '',
-          pluginState.aiReview.commandId || '',
-          pluginState.aiReview.toneId || '',
-          pluginState.aiReview.originalText || '',
-          pluginState.aiReview.suggestedText || '',
-          pluginState.aiReview.errorMessage || '',
-          pluginState.aiReview.errorType || '',
-          pluginState.aiReview.errorCode || '',
-          pluginState.aiReview.isLoading ? 'loading' : '',
-        ].join('|')
+        'aiReview',
+        pluginState.aiReview.requestKey,
+        pluginState.aiReview.from,
+        pluginState.aiReview.to,
+        pluginState.aiReview.instruction || '',
+        pluginState.aiReview.commandId || '',
+        pluginState.aiReview.toneId || '',
+        pluginState.aiReview.originalText || '',
+        pluginState.aiReview.suggestedText || '',
+        pluginState.aiReview.errorMessage || '',
+        pluginState.aiReview.errorType || '',
+        pluginState.aiReview.errorCode || '',
+        pluginState.aiReview.isLoading ? 'loading' : '',
+      ].join('|')
       : [
-          Array.from(toolbarState.activeMarks).sort().join(','),
-          toolbarState.currentBlockType,
-          toolbarState.currentAlignment,
-          toolbarState.linkUrl || '',
-          toolbarState.textColor || '',
-          toolbarState.bgColor || '',
-          pluginState.selectionRange ? `${pluginState.selectionRange.from}:${pluginState.selectionRange.to}` : '',
-          pluginState.copied ? 'copied' : '',
-          pluginState.subMenu || '',
-        ].join('|');
+        Array.from(toolbarState.activeMarks).sort().join(','),
+        toolbarState.currentBlockType,
+        toolbarState.currentAlignment,
+        toolbarState.linkUrl || '',
+        toolbarState.textColor || '',
+        toolbarState.bgColor || '',
+        pluginState.selectionRange ? `${pluginState.selectionRange.from}:${pluginState.selectionRange.to}` : '',
+        pluginState.copied ? 'copied' : '',
+        pluginState.subMenu || '',
+      ].join('|');
 
     if (cacheKey === ctx.lastRenderState) {
       return;

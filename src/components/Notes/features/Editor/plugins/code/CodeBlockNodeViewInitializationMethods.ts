@@ -1,50 +1,32 @@
-import { Node } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
+import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { themeLazyLoadTokens } from '@/styles/themeTokens';
+import { EditorState, Prec } from '@codemirror/state';
 import {
   EditorView as CodeMirror,
-  drawSelection,
   keymap as codeMirrorKeymap,
+  drawSelection,
   lineNumbers,
-  type KeyBinding,
-  type ViewUpdate,
+  type KeyBinding
 } from '@codemirror/view';
-import { createRoot, Root } from 'react-dom/client';
+import { Node } from '@milkdown/kit/prose/model';
 import React from 'react';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
+import {
+  codeMirrorFindHighlightExtensions
+} from '../find/editorFindCodeMirrorHighlights';
+import { MAX_LAZY_CODE_BLOCK_LINE_NUMBER_PLACEHOLDER_LINES } from './CodeBlockNodeViewConstants';
 import { CodeBlockView } from './CodeBlockView';
-import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
+import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
 import {
   bindCodeBlockFontMetricsSync,
-  computeCodeBlockChange,
   createCodeBlockEditorClipboardHandlers,
   createCodeBlockEditorKeymap,
   createCodeBlockEditorTheme,
-  mapCodeBlockEditorOffsetToDocumentOffset,
-  mapDocumentOffsetToCodeBlockEditorOffset,
-  moveOrExtendToTrimmedCodeBoundary,
-  normalizeCodeBlockEditorText,
+  normalizeCodeBlockEditorText
 } from './codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
-import {
-  buildCodeMirrorFindHighlightRanges,
-  codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
-} from '../find/editorFindCodeMirrorHighlights';
-import {
-  applyCodeBlockCollapsedState,
-  forwardCodeBlockUpdate,
-} from './codeBlockNodeViewUtils';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { themeLazyLoadTokens } from '@/styles/themeTokens';
-import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
-import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
-import { MAX_LAZY_CODE_BLOCK_LINE_NUMBER_PLACEHOLDER_LINES } from './CodeBlockNodeViewConstants';
 
 class CodeBlockNodeViewInitializationMethods {
-  private shouldLazyInitializeCodeMirror() {
+  shouldLazyInitializeCodeMirror(this: any) {
     return (
       Boolean(this.options.lazyCodeMirror) &&
       typeof window !== 'undefined' &&
@@ -52,7 +34,7 @@ class CodeBlockNodeViewInitializationMethods {
     );
   }
 
-  private installLazyPlaceholder() {
+  installLazyPlaceholder(this: any) {
     this.dom.dataset.cmLazy = 'true';
     this.editorDOM.classList.add('code-block-lazy-editable');
 
@@ -78,11 +60,11 @@ class CodeBlockNodeViewInitializationMethods {
     this.intersectionObserver.observe(this.dom);
   }
 
-  private readonly activateCodeMirrorFromInteraction = () => {
+  readonly activateCodeMirrorFromInteraction = () => {
     this.initializeCodeMirror();
   };
 
-  private initializeCodeMirror() {
+  initializeCodeMirror(this: any) {
     if (this.cm) {
       return;
     }
@@ -162,11 +144,11 @@ class CodeBlockNodeViewInitializationMethods {
     void this.syncLanguage();
   }
 
-  private getLineNumberExtensions(node: Node) {
+  getLineNumberExtensions(this: any, node: Node) {
     return this.showLineNumbers && node.attrs.lineNumbers !== false ? [lineNumbers()] : [];
   }
 
-  private createLineNumberPlaceholder(text: string) {
+  createLineNumberPlaceholder(this: any, text: string) {
     const lineNumbers = document.createElement('pre');
     lineNumbers.className = 'code-block-lazy-line-numbers';
     let lineCount = 1;
@@ -183,15 +165,15 @@ class CodeBlockNodeViewInitializationMethods {
     return lineNumbers;
   }
 
-  private getLineNumbersStateKey(node: Node) {
+  getLineNumbersStateKey(this: any, node: Node) {
     return `${this.showLineNumbers ? '1' : '0'}:${node.attrs.lineNumbers !== false ? '1' : '0'}`;
   }
 
-  private getWrapStateKey(node: Node) {
+  getWrapStateKey(this: any, node: Node) {
     return node.attrs.wrap ? '1' : '0';
   }
 
-  private syncThemeCompatibilityAttrs() {
+  syncThemeCompatibilityAttrs(this: any) {
     const language = typeof this.node.attrs.language === 'string' ? this.node.attrs.language : '';
     this.dom.dataset.language = language;
     this.dom.setAttribute('lang', language);
@@ -207,7 +189,7 @@ class CodeBlockNodeViewInitializationMethods {
     }
   }
 
-  private render() {
+  render(this: any) {
     this.headerStateKey = this.getHeaderStateKey(this.node);
     this.root.render(
       React.createElement(CodeBlockView, {
@@ -220,14 +202,14 @@ class CodeBlockNodeViewInitializationMethods {
     this.scheduleMeasure();
   }
 
-  private getHeaderStateKey(node: Node) {
+  getHeaderStateKey(this: any, node: Node) {
     return JSON.stringify({
       language: node.attrs.language ?? '',
       collapsed: Boolean(node.attrs.collapsed),
     });
   }
 
-  private createKeymap(): KeyBinding[] {
+  createKeymap(this: any): KeyBinding[] {
     return createCodeBlockEditorKeymap({
       getCodeMirror: () => this.cm ?? undefined,
       view: this.view,
@@ -236,7 +218,7 @@ class CodeBlockNodeViewInitializationMethods {
     });
   }
 
-  private createClipboardHandlers() {
+  createClipboardHandlers(this: any) {
     return createCodeBlockEditorClipboardHandlers({
       view: this.view,
       getNode: () => this.node,

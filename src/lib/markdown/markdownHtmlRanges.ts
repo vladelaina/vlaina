@@ -5,8 +5,7 @@ import {
   getOverflowHtmlTagProtectionEnd,
   isEscapedMarkdownPunctuation,
   isSelfClosingTag,
-  readHtmlTagStart,
-  MAX_HTML_TAG_END_SCAN_CHARS,
+  readHtmlTagStart
 } from './markdownHtmlTagScanner';
 export { findHtmlTagEnd, MAX_HTML_TAG_END_SCAN_CHARS } from './markdownHtmlTagScanner';
 

@@ -1,20 +1,18 @@
+import { fetchManagedModels, MANAGED_PROVIDER_ID, requestManagedChatCompletion, requestManagedChatCompletionStream } from '@/lib/ai/managedService'
+import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
+import { sanitizeCurrentRequestTextContent, sanitizeHistory } from '@/lib/ai/requestContext'
+import { buildWebSearchCapabilityAnswer, classifyWebSearchIntent } from '@/lib/ai/webSearch/intent'
+import { runOpenAIWebSearchJsonToolLoop, runOpenAIWebSearchTextProtocolRequest, runOpenAIWebSearchTextProtocolTextRequest, runOpenAIWebSearchToolLoop } from '@/lib/ai/webSearch/openAIToolLoop'
 import type { AIClient } from '../client'
 import type { AIModel, ChatMessage, ChatMessageContent, ChatSendOptions, Provider } from '../types'
-import { createAIError } from '../errors'
-import { AIErrorType } from '../types'
 import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
 import { sendAnthropicMessage } from './anthropic'
 import { detectProviderEndpointModels, type ModelFetchResult } from './modelDetection'
-import { fetchManagedModels, MANAGED_PROVIDER_ID, requestManagedChatCompletion, requestManagedChatCompletionStream } from '@/lib/ai/managedService'
-import { runOpenAIWebSearchTextProtocolRequest, runOpenAIWebSearchTextProtocolTextRequest, runOpenAIWebSearchJsonToolLoop, runOpenAIWebSearchToolLoop } from '@/lib/ai/webSearch/openAIToolLoop'
-import { buildWebSearchCapabilityAnswer, classifyWebSearchIntent } from '@/lib/ai/webSearch/intent'
-import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
-import { sanitizeHistory, sanitizeCurrentRequestTextContent } from '@/lib/ai/requestContext'
-import { buildOpenAIChatRequest, extractTextPrompt, isGrokModel, shouldUseWebSearchTextProtocol, shouldUseXaiNativeWebSearch } from './openaiRouting'
 import { getFirstImageInput } from './openaiImages'
-import { createHtmlRejectingChunkHandler, emitApiTranscript, emitChunk, throwIfAborted } from './openaiRuntime'
 import { sendManagedImageEdit, sendManagedImageGeneration, sendManagedMessage } from './openaiManaged'
 import { requestOpenAIChatCompletionWithRetry, sendImageEdit, sendImageGeneration, streamResponse } from './openaiRequests'
+import { buildOpenAIChatRequest, extractTextPrompt, isGrokModel, shouldUseWebSearchTextProtocol, shouldUseXaiNativeWebSearch } from './openaiRouting'
+import { createHtmlRejectingChunkHandler, emitApiTranscript, emitChunk, throwIfAborted } from './openaiRuntime'
 import { sendXaiNativeWebSearchMessage } from './openaiXaiWebSearch'
 
 function createUnsupportedWebSearchError(): Error {
@@ -28,7 +26,7 @@ function answerWebSearchCapabilityLocally(
   signal: AbortSignal | undefined,
 ): string {
   const content = buildWebSearchCapabilityAnswer(extractTextPrompt(message))
-  emitChunk(onChunk || (() => {}), signal, content)
+  emitChunk(onChunk || (() => { }), signal, content)
   emitApiTranscript(options?.onApiTranscript, signal, [{ role: 'assistant', content }])
   return content
 }
@@ -89,9 +87,9 @@ export class OpenAICompatibleClient implements AIClient {
 
     if (isImageModel) {
       if (editImageUrl) {
-        return sendImageEdit(`${baseUrl}/images/edits`, headers, { model: resolveApiModelId(model), prompt: imagePrompt, imageUrl: editImageUrl }, onChunk || (() => {}), signal)
+        return sendImageEdit(`${baseUrl}/images/edits`, headers, { model: resolveApiModelId(model), prompt: imagePrompt, imageUrl: editImageUrl }, onChunk || (() => { }), signal)
       }
-      return sendImageGeneration(`${baseUrl}/images/generations`, headers, { model: resolveApiModelId(model), prompt: imagePrompt, n: 1 }, onChunk || (() => {}), signal)
+      return sendImageGeneration(`${baseUrl}/images/generations`, headers, { model: resolveApiModelId(model), prompt: imagePrompt, n: 1 }, onChunk || (() => { }), signal)
     }
 
     if (provider.endpointType === 'anthropic') {
@@ -103,7 +101,7 @@ export class OpenAICompatibleClient implements AIClient {
         provider,
         apiKey,
         timeoutMs: this.timeout,
-        onChunk: onChunk || (() => {}),
+        onChunk: onChunk || (() => { }),
         signal,
         options,
       })
@@ -114,7 +112,7 @@ export class OpenAICompatibleClient implements AIClient {
       return this.sendOpenAIWebSearchMessage({ provider, model, baseUrl, url, headers, body, onChunk, signal, options })
     }
 
-    return streamResponse({ url, headers, body, onChunk: onChunk || (() => {}), signal, options, timeoutMs: this.timeout })
+    return streamResponse({ url, headers, body, onChunk: onChunk || (() => { }), signal, options, timeoutMs: this.timeout })
   }
 
   private sendManagedWebSearchMessage(
@@ -128,7 +126,7 @@ export class OpenAICompatibleClient implements AIClient {
     if (shouldUseWebSearchTextProtocol(provider, model)) {
       return runOpenAIWebSearchTextProtocolTextRequest({
         body,
-        onChunk: onChunk || (() => {}),
+        onChunk: onChunk || (() => { }),
         onStatus: options.onWebSearchStatus,
         onApiTranscript: options.onApiTranscript,
         signal,
@@ -141,7 +139,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
     return runOpenAIWebSearchJsonToolLoop({
       body,
-      onChunk: onChunk || (() => {}),
+      onChunk: onChunk || (() => { }),
       onStatus: options.onWebSearchStatus,
       onApiTranscript: options.onApiTranscript,
       signal,
@@ -180,18 +178,18 @@ export class OpenAICompatibleClient implements AIClient {
         baseUrl,
         headers,
         body,
-        onChunk: onChunk || (() => {}),
+        onChunk: onChunk || (() => { }),
         signal,
         options,
       })
     }
     if (isGrokModel(provider, model)) {
-      return streamResponse({ url, headers, body, onChunk: onChunk || (() => {}), signal, options, timeoutMs: this.timeout })
+      return streamResponse({ url, headers, body, onChunk: onChunk || (() => { }), signal, options, timeoutMs: this.timeout })
     }
     if (shouldUseWebSearchTextProtocol(provider, model)) {
       return runOpenAIWebSearchTextProtocolRequest({
         body,
-        onChunk: onChunk || (() => {}),
+        onChunk: onChunk || (() => { }),
         onStatus: options.onWebSearchStatus,
         onApiTranscript: options.onApiTranscript,
         signal,
@@ -207,7 +205,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
     return runOpenAIWebSearchToolLoop({
       body,
-      onChunk: onChunk || (() => {}),
+      onChunk: onChunk || (() => { }),
       onStatus: options.onWebSearchStatus,
       onApiTranscript: options.onApiTranscript,
       signal,

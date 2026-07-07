@@ -1,6 +1,6 @@
-import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import { $prose } from '@milkdown/kit/utils';
 import {
   getTransactionChangedRanges,
   transactionInsertedTextMatches,
@@ -10,17 +10,16 @@ import {
 import {
   collectTagTokenDecorationsInRange,
   createTagTokenDecorations,
-  MAX_TAG_TOKEN_DECORATIONS,
-  MAX_TAG_TOKEN_DOC_SCAN_NODES,
   MAX_TAG_TOKEN_CHARS,
-  TAG_TOKEN_HAS_NEXT_CLASS,
+  MAX_TAG_TOKEN_DECORATIONS,
+  MAX_TAG_TOKEN_DOC_SCAN_NODES
 } from './tagTokenDecorations';
 export {
   collectTagTokenDecorationsInRange,
   createTagTokenDecorations,
   MAX_TAG_TOKEN_DECORATIONS,
   MAX_TAG_TOKEN_DOC_SCAN_NODES,
-  TAG_TOKEN_HAS_NEXT_CLASS,
+  TAG_TOKEN_HAS_NEXT_CLASS
 } from './tagTokenDecorations';
 
 export const tagTokenPluginKey = new PluginKey<DecorationSet>('editorTagToken');

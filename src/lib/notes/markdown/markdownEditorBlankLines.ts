@@ -1,8 +1,4 @@
 import {
-  mapMarkdownOutsideProtectedBlocks,
-  mapMarkdownOutsideProtectedSegments,
-} from './markdownProtectedBlocks';
-import {
   isAlignmentCommentBoundaryBlankLine,
   isBetweenListItemsBlankLine,
   isDefinitionListBoundaryBlankLine,
@@ -12,14 +8,17 @@ import {
   isListBoundaryBlankLine,
   isMarkdownImageStructuralBoundaryBlankLine,
 } from './markdownBlankLineBoundaries';
-import { escapeParagraphTrailingBackslashesForEditor } from './plainTextBackslashHardBreaks';
+import {
+  mapMarkdownOutsideProtectedBlocks,
+  mapMarkdownOutsideProtectedSegments,
+} from './markdownProtectedBlocks';
 import { exposeRenderedHtmlBoundaryBlankLinesForEditor } from './markdownRenderedHtmlBlankLines';
+import { escapeParagraphTrailingBackslashesForEditor } from './plainTextBackslashHardBreaks';
 
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
 const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
 const EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER = '<br />';
 const EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
-const EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const EDITOR_TIGHT_HEADING_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
 const EDITOR_NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER = EDITOR_TIGHT_HEADING_PLACEHOLDER;
 const LIST_GAP_PLACEHOLDER = '\u2800';

@@ -1,5 +1,12 @@
 import { getStorageAdapter } from '@/lib/storage/adapter';
-import { MAX_BOUNDED_ID_LIST_SCAN_RECORDS } from './unifiedStorageSaveTypes';
+import {
+  MAX_BOUNDED_ID_LIST_SCAN_RECORDS,
+  SETTINGS_NOTES_CHAT_FLOATING_MAX_HEIGHT,
+  SETTINGS_NOTES_CHAT_FLOATING_MAX_WIDTH,
+  SETTINGS_NOTES_CHAT_FLOATING_MIN_HEIGHT,
+  SETTINGS_NOTES_CHAT_FLOATING_MIN_WIDTH,
+} from './unifiedStorageSaveTypes';
+import type { UnifiedData } from './unifiedStorageTypes';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

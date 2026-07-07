@@ -1,26 +1,19 @@
-import type { EditorView } from '@milkdown/kit/prose/view';
-import type { BlockRange } from './blockSelectionUtils';
-import {
-  isInlineSelectableBlockRange,
-  resolveSelectableBlockTargetByPos,
-} from './blockUnitResolver';
 import { themeOffscreenTokens } from '@/styles/themeTokens';
-import {
-  collectBlockDragPreviewElements,
-  clamp,
-  copyCssVariables,
-  resolvePreviewOffsetX,
-  resolvePreviewOffsetY,
-  sanitizeCloneTree,
-} from './blockDragPreviewDom';
-import {
-  collectBlockDragSourceParentMarkerElements,
-  createBlockDragSourceMarker,
-} from './blockDragPreviewSourceMarker';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import {
   createContentLayer,
   revealAfterVideoCaptures,
 } from './blockDragPreviewContent';
+import {
+  clamp,
+  copyCssVariables,
+  resolvePreviewOffsetX,
+  resolvePreviewOffsetY,
+  sanitizeCloneTree
+} from './blockDragPreviewDom';
+import {
+  collectBlockDragSourceParentMarkerElements
+} from './blockDragPreviewSourceMarker';
 import {
   MIN_PREVIEW_WIDTH,
   PREVIEW_CLASS,
@@ -31,7 +24,14 @@ import {
   type CaptureJob,
   type PreviewItem,
 } from './blockDragPreviewTypes';
+import type { BlockRange } from './blockSelectionUtils';
+import {
+  isInlineSelectableBlockRange,
+  resolveSelectableBlockTargetByPos,
+} from './blockUnitResolver';
 
+export { collectBlockDragPreviewElements } from './blockDragPreviewDom';
+export { createBlockDragSourceMarker } from './blockDragPreviewSourceMarker';
 export {
   MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY,
   MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS,
@@ -39,10 +39,8 @@ export {
   type BlockDragPreviewHandle,
   type BlockDragPreviewOptions,
   type BlockDragSourceMarkerHandle,
-  type BlockDragSourceMarkerOptions,
+  type BlockDragSourceMarkerOptions
 } from './blockDragPreviewTypes';
-export { collectBlockDragPreviewElements } from './blockDragPreviewDom';
-export { createBlockDragSourceMarker } from './blockDragPreviewSourceMarker';
 
 function createInlineRangePreviewContent(
   view: EditorView,

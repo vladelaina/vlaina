@@ -237,7 +237,7 @@ export function MarkdownEditor({
                   />
                 ) : shouldUseSourceFallback ? (
                   <MarkdownSourceEditor
-                    currentNotePath={currentNotePath}
+                    currentNotePath={currentNotePath ?? ''}
                     showBodyLineNumbers={showBodyLineNumbers}
                     saveNote={saveNote}
                     mode="fallback"

@@ -1,50 +1,23 @@
-import { Node } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
-import {
-  EditorView as CodeMirror,
-  drawSelection,
-  keymap as codeMirrorKeymap,
-  lineNumbers,
-  type KeyBinding,
-  type ViewUpdate,
-} from '@codemirror/view';
-import { createRoot, Root } from 'react-dom/client';
-import React from 'react';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
-import { CodeBlockView } from './CodeBlockView';
-import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
-import {
-  bindCodeBlockFontMetricsSync,
-  computeCodeBlockChange,
-  createCodeBlockEditorClipboardHandlers,
-  createCodeBlockEditorKeymap,
-  createCodeBlockEditorTheme,
-  mapCodeBlockEditorOffsetToDocumentOffset,
-  mapDocumentOffsetToCodeBlockEditorOffset,
-  moveOrExtendToTrimmedCodeBoundary,
-  normalizeCodeBlockEditorText,
-} from './codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
 import {
   buildCodeMirrorFindHighlightRanges,
-  codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
+  syncCodeMirrorFindHighlights
 } from '../find/editorFindCodeMirrorHighlights';
-import {
-  applyCodeBlockCollapsedState,
-  forwardCodeBlockUpdate,
-} from './codeBlockNodeViewUtils';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { themeLazyLoadTokens } from '@/styles/themeTokens';
-import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
-import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
+import { getEditorFindState } from '../find/editorFindCommands';
 import { FOCUSED_CODE_BLOCK_FORWARD_DEBOUNCE_MS } from './CodeBlockNodeViewConstants';
+import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
+import {
+  applyCodeBlockCollapsedState
+} from './codeBlockNodeViewUtils';
+import {
+  computeCodeBlockChange,
+  mapCodeBlockEditorOffsetToDocumentOffset,
+  mapDocumentOffsetToCodeBlockEditorOffset,
+  normalizeCodeBlockEditorText
+} from './codemirror';
 
 class CodeBlockNodeViewStateMethods {
-  private scheduleForwardFocusedCodeMirrorSnapshot() {
+  scheduleForwardFocusedCodeMirrorSnapshot(this: any) {
     const window = this.getOwnerWindow();
     if (!window) {
       this.forwardFocusedCodeMirrorSnapshot();
@@ -61,7 +34,7 @@ class CodeBlockNodeViewStateMethods {
     }, FOCUSED_CODE_BLOCK_FORWARD_DEBOUNCE_MS);
   }
 
-  private clearPendingForwardUpdate() {
+  clearPendingForwardUpdate(this: any) {
     const window = this.getOwnerWindow();
     if (window && this.pendingForwardTimer !== null) {
       window.clearTimeout(this.pendingForwardTimer);
@@ -69,7 +42,7 @@ class CodeBlockNodeViewStateMethods {
     this.pendingForwardTimer = null;
   }
 
-  private forwardFocusedCodeMirrorSnapshot() {
+  forwardFocusedCodeMirrorSnapshot(this: any) {
     if (!this.cm || this.updating || this.destroyed) {
       return;
     }
@@ -115,7 +88,7 @@ class CodeBlockNodeViewStateMethods {
     this.mirroredOuterSelection = false;
   }
 
-  private syncCollapsedState() {
+  syncCollapsedState(this: any) {
     const nextCollapsedState = Boolean(this.node.attrs.collapsed);
     if (nextCollapsedState === this.collapsedState) {
       return;
@@ -126,7 +99,7 @@ class CodeBlockNodeViewStateMethods {
     this.scheduleMeasure();
   }
 
-  private syncFindHighlights() {
+  syncFindHighlights(this: any) {
     if (!this.cm) {
       return;
     }
@@ -158,7 +131,7 @@ class CodeBlockNodeViewStateMethods {
     );
   }
 
-  private syncFindHighlightRanges(ranges: ReturnType<typeof buildCodeMirrorFindHighlightRanges>) {
+  syncFindHighlightRanges(this: any, ranges: ReturnType<typeof buildCodeMirrorFindHighlightRanges>) {
     if (!this.cm) {
       return;
     }
@@ -172,7 +145,7 @@ class CodeBlockNodeViewStateMethods {
     syncCodeMirrorFindHighlights(this.cm, ranges);
   }
 
-  private clearMirroredOuterSelection() {
+  clearMirroredOuterSelection(this: any) {
     if (!this.mirroredOuterSelection || !this.cm || this.cm.hasFocus) {
       if (!this.cm?.hasFocus) {
         this.mirroredOuterSelection = false;
@@ -194,7 +167,7 @@ class CodeBlockNodeViewStateMethods {
     this.mirroredOuterSelection = false;
   }
 
-  private scheduleMeasure() {
+  scheduleMeasure(this: any) {
     if (!this.cm) {
       return;
     }
@@ -214,7 +187,7 @@ class CodeBlockNodeViewStateMethods {
     });
   }
 
-  private async syncLanguage() {
+  async syncLanguage(this: any) {
     if (this.destroyed || !this.cm) {
       return;
     }

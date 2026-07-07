@@ -1,46 +1,26 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import type { FloatingToolbarState } from './types';
-import { TOOLBAR_ACTIONS } from './types';
-import { createToolbarRenderer } from './renderToolbar';
-import {
-  calculateBottomPositionForRange,
-  calculatePosition,
-  calculatePositionForRange,
-  getActiveMarks,
-  getBgColor,
-  getCurrentAlignment,
-  getCurrentBlockType,
-  getLinkUrl,
-  getTextColor,
-} from './selectionHelpers';
 import {
   clampToolbarX,
-  correctToolbarYToViewportBounds,
-  createToolbarElement,
-  hideToolbar,
-  isFloatingToolbarSuppressed,
-  showToolbar,
+  correctToolbarYToViewportBounds
 } from './floatingToolbarDom';
 import {
-  getContentLayoutContext,
   getAiReviewPanelWidth,
+  getContentLayoutContext,
   resolveToolbarContainerPosition,
   resolveToolbarViewportPosition,
 } from './floatingToolbarLayout';
-import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
-import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
-import { correctToolbarSubmenusToContentBounds } from './floatingToolbarSubmenus';
-import { toggleMark, setLink } from './commands';
-import { openLinkTooltipFromSelection } from './linkTooltipActions';
-import { abortActiveAiSelectionReview } from './ai/reviewAbort';
 import type { FloatingToolbarPluginViewContext } from './floatingToolbarPluginViewTypes';
 import {
-  hasVisibleNativeRange,
-  isDocumentFormatShortcut,
-  isEditableShortcutTarget,
-  shouldLockPreviewToolbarPosition,
+  shouldLockPreviewToolbarPosition
 } from './floatingToolbarPluginViewUtils';
+import { correctToolbarSubmenusToContentBounds } from './floatingToolbarSubmenus';
+import { hasActiveAppliedPreview } from './previewStyles';
+import {
+  calculateBottomPositionForRange,
+  calculatePosition,
+  calculatePositionForRange
+} from './selectionHelpers';
+import type { FloatingToolbarState } from './types';
 
 export function installFloatingToolbarPluginViewLayoutMethods(ctx: FloatingToolbarPluginViewContext): void {
   ctx.correctToolbarToContentBounds = (toolbar: HTMLElement, x: number) => {
@@ -94,13 +74,13 @@ export function installFloatingToolbarPluginViewLayoutMethods(ctx: FloatingToolb
       : window.innerHeight;
     const bounds = containerRect
       ? {
-          top: Math.max(viewportTop, containerRect.top),
-          bottom: Math.min(viewportBottom, containerRect.bottom),
-        }
+        top: Math.max(viewportTop, containerRect.top),
+        bottom: Math.min(viewportBottom, containerRect.bottom),
+      }
       : {
-          top: viewportTop,
-          bottom: viewportBottom,
-        };
+        top: viewportTop,
+        bottom: viewportBottom,
+      };
 
     return correctToolbarYToViewportBounds(toolbar, y, bounds);
   };
@@ -151,9 +131,9 @@ export function installFloatingToolbarPluginViewLayoutMethods(ctx: FloatingToolb
     const { pluginState, isReviewModeActive, selection } = args;
     const reviewRange = isReviewModeActive && pluginState.aiReview
       ? {
-          from: pluginState.aiReview.from,
-          to: pluginState.aiReview.to,
-        }
+        from: pluginState.aiReview.from,
+        to: pluginState.aiReview.to,
+      }
       : null;
     const selectionPosition = reviewRange
       ? calculatePositionForRange(ctx.editorView, reviewRange.from, reviewRange.to)

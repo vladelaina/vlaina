@@ -1,46 +1,14 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { FloatingToolbarState } from './types';
-import { TOOLBAR_ACTIONS } from './types';
-import { createToolbarRenderer } from './renderToolbar';
 import {
-  calculateBottomPositionForRange,
-  calculatePosition,
-  calculatePositionForRange,
-  getActiveMarks,
-  getBgColor,
-  getCurrentAlignment,
-  getCurrentBlockType,
-  getLinkUrl,
-  getTextColor,
-} from './selectionHelpers';
-import {
-  clampToolbarX,
-  correctToolbarYToViewportBounds,
   createToolbarElement,
-  hideToolbar,
-  isFloatingToolbarSuppressed,
-  showToolbar,
+  hideToolbar
 } from './floatingToolbarDom';
-import {
-  getContentLayoutContext,
-  getAiReviewPanelWidth,
-  resolveToolbarContainerPosition,
-  resolveToolbarViewportPosition,
-} from './floatingToolbarLayout';
-import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
-import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
-import { correctToolbarSubmenusToContentBounds } from './floatingToolbarSubmenus';
-import { toggleMark, setLink } from './commands';
-import { openLinkTooltipFromSelection } from './linkTooltipActions';
-import { abortActiveAiSelectionReview } from './ai/reviewAbort';
 import type { FloatingToolbarPluginViewContext } from './floatingToolbarPluginViewTypes';
-import {
-  hasVisibleNativeRange,
-  isDocumentFormatShortcut,
-  isEditableShortcutTarget,
-  shouldLockPreviewToolbarPosition,
-} from './floatingToolbarPluginViewUtils';
+import { clearFormatPreview } from './previewStyles';
+import { createToolbarRenderer } from './renderToolbar';
+import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
+import type { FloatingToolbarState } from './types';
 
 export function installFloatingToolbarPluginViewCore(ctx: FloatingToolbarPluginViewContext): void {
   ctx.ensureToolbarParent = (_isReviewMode: boolean) => {

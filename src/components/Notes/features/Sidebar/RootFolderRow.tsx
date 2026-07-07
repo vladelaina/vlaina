@@ -1,24 +1,24 @@
-import { type RefObject } from 'react';
-import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
-import { type FolderNode } from '@/stores/useNotesStore';
-import { cn, iconButtonStyles } from '@/lib/utils';
 import {
   getSidebarLabelClass,
   getSidebarTextClass,
   SIDEBAR_LABEL_TEXT_METRICS_CLASS,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
-import { NotesSidebarList } from './NotesSidebarPrimitives';
-import { NotesSidebarRow } from './NotesSidebarRow';
-import { RootFolderMenu } from './RootFolderMenu';
+import { Icon } from '@/components/ui/icons';
+import { cn, iconButtonStyles } from '@/lib/utils';
+import { type FolderNode } from '@/stores/useNotesStore';
+import { themeIconTokens } from '@/styles/themeTokens';
+import { type RefObject } from 'react';
 import { FileTreeItem } from '../FileTree';
 import { VirtualizedFileTree } from '../FileTree/VirtualizedFileTree';
 import {
   CollapseTriangleAffordance,
   getSidebarCollapseTriangleColorClassName,
 } from '../common/collapseTrianglePrimitive';
-import { themeIconTokens } from '@/styles/themeTokens';
+import { NotesSidebarList } from './NotesSidebarPrimitives';
+import { NotesSidebarRow } from './NotesSidebarRow';
+import { RootFolderMenu } from './RootFolderMenu';
 import { useRootFolderRowController } from './useRootFolderRowController';
 
 interface RootFolderRowProps {
@@ -120,7 +120,7 @@ export function RootFolderRow({
         'py-1',
         isRootBusy && 'pointer-events-none',
         isExpandedRootDragOver &&
-          'rounded-xl bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]',
+        'rounded-xl bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]',
       )}
       aria-busy={isRootBusy || undefined}
       data-file-tree-root-drop-target="true"
@@ -213,7 +213,7 @@ export function RootFolderRow({
 
           const nextExpanded = typeof value === 'function' ? value(expanded) : value;
           if (nextExpanded !== expanded) {
-            toggleFolder('');
+            setExpanded(value);
           }
         }}
         onCreateNote={onCreateNote}

@@ -1,14 +1,12 @@
-import type { EditorView } from '@milkdown/kit/prose/view';
+import { themeDomStyleTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { getScrollRoot } from '../floating-toolbar/floatingToolbarDom';
+import { createTextEditorAnchorPositionRefreshScheduler } from './textEditorAnchorPositionRefresh';
+import { createTextEditorOutsideMouseDownSuppression } from './textEditorOutsideMouseDownSuppression';
 import { createTextEditorPopupAnchorResizeTracker } from './textEditorPopupAnchorResize';
 import { mountTextEditorPopup } from './textEditorPopupDom';
 import { resolveTextEditorPopupPlacement } from './textEditorPopupPlacement';
-import { themeDomStyleTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
-import { markEditorUserInput } from './userInputEvents';
-import { createTextEditorAnchorPositionRefreshScheduler } from './textEditorAnchorPositionRefresh';
-import { createTextEditorOutsideMouseDownSuppression } from './textEditorOutsideMouseDownSuppression';
-import { createTextEditorPreviewScheduler } from './textEditorPreviewScheduler';
 import { createTextEditorPopupVisibilityScrollScheduler } from './textEditorPopupVisibilityScroll';
+import { createTextEditorPreviewScheduler } from './textEditorPreviewScheduler';
 import { createTextEditorTextareaFocusController } from './textEditorTextareaFocus';
 import { createTextEditorTextareaResizeController } from './textEditorTextareaResize';
 import type {
@@ -17,13 +15,14 @@ import type {
   TextEditorSessionRefs,
   TextEditorSessionState,
 } from './textEditorViewSessionTypes';
+import { markEditorUserInput } from './userInputEvents';
 
 export type {
   CreateTextEditorViewSessionArgs,
   TextEditorPreviewArgs,
   TextEditorSessionActionArgs,
   TextEditorSessionRefs,
-  TextEditorSessionState,
+  TextEditorSessionState
 } from './textEditorViewSessionTypes';
 
 export function createTextEditorViewSession<

@@ -1,8 +1,6 @@
-import { $prose } from '@milkdown/kit/utils';
-import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
-import { Selection } from '@milkdown/kit/prose/state';
+import { Plugin, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { deleteRow } from '@milkdown/kit/prose/tables';
-import type { EditorView } from '@milkdown/kit/prose/view';
+import { $prose } from '@milkdown/kit/utils';
 
 import {
   createTableNodeFromPipeCells,
@@ -16,7 +14,6 @@ import {
   findLeadingTableDeleteRange,
   shouldDeleteTrailingEmptyRowOnDelete,
 } from './tableDeleteShortcut';
-import { handleTableSelectAll } from './tableSelectAll';
 import {
   dispatchDeleteRangeWithTextSelection,
   dispatchKeepHeadingGapTextSelection,
@@ -26,11 +23,11 @@ import {
   resolveTableKeydownContext,
   shouldSuppressComposingPipeTableShortcut,
 } from './tableKeyboardNavigation';
+import { handleTableSelectAll } from './tableSelectAll';
 
 export {
-  MAX_TABLE_KEYBOARD_DOC_SCAN_NODES,
   findAdjacentTableCellPos,
-  findFirstTableBodyCellPos,
+  findFirstTableBodyCellPos, MAX_TABLE_KEYBOARD_DOC_SCAN_NODES
 } from './tableKeyboardNavigation';
 
 export const tableKeyboardPlugin = $prose(() => {

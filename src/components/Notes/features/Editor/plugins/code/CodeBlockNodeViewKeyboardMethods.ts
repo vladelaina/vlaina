@@ -1,49 +1,17 @@
-import { Node } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
+import { EditorSelection, Transaction, type TransactionSpec } from '@codemirror/state';
 import {
-  EditorView as CodeMirror,
-  drawSelection,
-  keymap as codeMirrorKeymap,
-  lineNumbers,
-  type KeyBinding,
-  type ViewUpdate,
+  EditorView as CodeMirror
 } from '@codemirror/view';
-import { createRoot, Root } from 'react-dom/client';
-import React from 'react';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
-import { CodeBlockView } from './CodeBlockView';
-import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
-import {
-  bindCodeBlockFontMetricsSync,
-  computeCodeBlockChange,
-  createCodeBlockEditorClipboardHandlers,
-  createCodeBlockEditorKeymap,
-  createCodeBlockEditorTheme,
-  mapCodeBlockEditorOffsetToDocumentOffset,
-  mapDocumentOffsetToCodeBlockEditorOffset,
-  moveOrExtendToTrimmedCodeBoundary,
-  normalizeCodeBlockEditorText,
-} from './codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
-import {
-  buildCodeMirrorFindHighlightRanges,
-  codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
-} from '../find/editorFindCodeMirrorHighlights';
-import {
-  applyCodeBlockCollapsedState,
-  forwardCodeBlockUpdate,
-} from './codeBlockNodeViewUtils';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { themeLazyLoadTokens } from '@/styles/themeTokens';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
+import {
+  moveOrExtendToTrimmedCodeBoundary
+} from './codemirror';
+
+type CodeMirrorSelectionArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
 
 class CodeBlockNodeViewKeyboardMethods {
-  private getArrowKey(key: string): CodeMirrorSelectionArrowKey | null {
+  getArrowKey(this: any, key: string): CodeMirrorSelectionArrowKey | null {
     return key === 'ArrowUp' ||
       key === 'ArrowDown' ||
       key === 'ArrowLeft' ||
@@ -52,7 +20,7 @@ class CodeBlockNodeViewKeyboardMethods {
       : null;
   }
 
-  private clearCodeMirrorSelectionArrowKey() {
+  clearCodeMirrorSelectionArrowKey(this: any) {
     const ownerWindow = this.getOwnerWindow();
     if (ownerWindow && this.codeMirrorSelectionArrowResetTimer !== null) {
       ownerWindow.clearTimeout(this.codeMirrorSelectionArrowResetTimer);
@@ -61,7 +29,7 @@ class CodeBlockNodeViewKeyboardMethods {
     this.codeMirrorSelectionArrowKey = null;
   }
 
-  private rememberCodeMirrorSelectionArrowKey(event: KeyboardEvent) {
+  rememberCodeMirrorSelectionArrowKey(this: any, event: KeyboardEvent) {
     const arrowKey = this.getArrowKey(event.key);
     if (!arrowKey) {
       return;
@@ -82,12 +50,12 @@ class CodeBlockNodeViewKeyboardMethods {
     }, 750);
   }
 
-  private shouldNormalizeCodeMirrorSelectionEdgeLineBreaks() {
+  shouldNormalizeCodeMirrorSelectionEdgeLineBreaks(this: any) {
     return this.codeMirrorSelectionArrowKey === 'ArrowUp' ||
       this.codeMirrorSelectionArrowKey === 'ArrowDown';
   }
 
-  private filterCodeMirrorSelectionEdgeLineBreaks(
+  filterCodeMirrorSelectionEdgeLineBreaks(this: any,
     transaction: Transaction
   ): Transaction | readonly TransactionSpec[] {
     if (!transaction.selection || !transaction.isUserEvent('select')) {
@@ -118,7 +86,7 @@ class CodeBlockNodeViewKeyboardMethods {
     ];
   }
 
-  private handleCodeMirrorKeydown(event: KeyboardEvent, cm: CodeMirror) {
+  handleCodeMirrorKeydown(this: any, event: KeyboardEvent, cm: CodeMirror) {
     if (
       !event.defaultPrevented &&
       !event.ctrlKey &&

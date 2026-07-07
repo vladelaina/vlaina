@@ -1,6 +1,5 @@
 import {
   isUnescapedMarkdownTextRange,
-  type MarkdownSourcePosition,
 } from './delimitedMarkdown';
 import {
   canTransformMarkdownAst,
@@ -23,7 +22,6 @@ import {
   MAX_ABBR_USAGE_TEXT_NODE_CHARS,
   SKIPPED_ABBR_NODE_TYPES,
   escapeRegex,
-  extractAbbrDefinitionsFromText,
   normalizeAbbrDefinitions,
   type AbbrDefinition,
   type AbbrMdastNode,

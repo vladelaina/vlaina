@@ -1,72 +1,24 @@
-import { Node } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
+import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { Compartment, Transaction } from '@codemirror/state';
 import {
   EditorView as CodeMirror,
-  drawSelection,
-  keymap as codeMirrorKeymap,
-  lineNumbers,
-  type KeyBinding,
-  type ViewUpdate,
+  type ViewUpdate
 } from '@codemirror/view';
+import { Node } from '@milkdown/kit/prose/model';
+import { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import { createRoot, Root } from 'react-dom/client';
-import React from 'react';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
-import { CodeBlockView } from './CodeBlockView';
-import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
-import {
-  bindCodeBlockFontMetricsSync,
-  computeCodeBlockChange,
-  createCodeBlockEditorClipboardHandlers,
-  createCodeBlockEditorKeymap,
-  createCodeBlockEditorTheme,
-  mapCodeBlockEditorOffsetToDocumentOffset,
-  mapDocumentOffsetToCodeBlockEditorOffset,
-  moveOrExtendToTrimmedCodeBoundary,
-  normalizeCodeBlockEditorText,
-} from './codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
-import {
-  buildCodeMirrorFindHighlightRanges,
-  codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
-} from '../find/editorFindCodeMirrorHighlights';
-import {
-  applyCodeBlockCollapsedState,
-  forwardCodeBlockUpdate,
-} from './codeBlockNodeViewUtils';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { themeLazyLoadTokens } from '@/styles/themeTokens';
-import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
-import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 import { installCodeBlockNodeViewInitializationMethods } from './CodeBlockNodeViewInitializationMethods';
 import { installCodeBlockNodeViewKeyboardMethods } from './CodeBlockNodeViewKeyboardMethods';
 import { installCodeBlockNodeViewLifecycleMethods } from './CodeBlockNodeViewLifecycleMethods';
 import { installCodeBlockNodeViewSelectionGeometryMethods } from './CodeBlockNodeViewSelectionGeometryMethods';
 import { installCodeBlockNodeViewSelectionSyncMethods } from './CodeBlockNodeViewSelectionSyncMethods';
 import { installCodeBlockNodeViewStateMethods } from './CodeBlockNodeViewStateMethods';
+import {
+  mapDocumentOffsetToCodeBlockEditorOffset
+} from './codemirror';
 type CodeBlockNodeViewOptions = {
   lazyCodeMirror?: boolean;
-};
-
-type CodeMirrorLineBounds = {
-  from: number;
-  to: number;
-};
-
-type CodeMirrorSelectionLike = {
-  anchor: number;
-  empty: boolean;
-  from: number;
-  head: number;
-  to: number;
-};
-
-type NormalizedCodeMirrorSelection = {
-  anchor: number;
-  head: number;
 };
 
 type CodeMirrorSelectionArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
@@ -81,45 +33,61 @@ export class CodeBlockNodeView implements NodeView {
   getPos: () => number | undefined;
   root: Root;
   headerDOM: HTMLElement;
+  declare update: (node: Node) => boolean;
+  declare selectNode: () => void;
+  declare deselectNode: () => void;
+  declare setSelection: (anchor: number, head: number) => void;
+  declare stopEvent: (event: Event) => boolean;
+  declare ignoreMutation: (mutation: MutationRecord | { type: 'selection'; target: globalThis.Node }) => boolean;
+  declare destroy: () => void;
+  declare shouldLazyInitializeCodeMirror: () => boolean;
+  declare installLazyPlaceholder: () => void;
+  declare initializeCodeMirror: () => void;
+  declare syncThemeCompatibilityAttrs: () => void;
+  declare render: () => void;
+  declare clearPendingForwardUpdate: () => void;
+  declare forwardFocusedCodeMirrorSnapshot: () => void;
+  declare rememberCodeMirrorSelectionArrowKey: (event: KeyboardEvent) => void;
+  declare clearMirroredOuterSelection: () => void;
 
-  private readonly editorDOM: HTMLElement;
-  private placeholderDOM: HTMLPreElement | null = null;
-  private lineNumberPlaceholderDOM: HTMLPreElement | null = null;
-  private cm: CodeMirror | null = null;
-  private intersectionObserver: IntersectionObserver | null = null;
-  private readonly languageCompartment = new Compartment();
-  private readonly readOnlyCompartment = new Compartment();
-  private readonly lineNumbersCompartment = new Compartment();
-  private readonly wrapCompartment = new Compartment();
-  private updating = false;
-  private language = '';
-  private pendingLanguage: string | null = null;
-  private selected = false;
-  private headerStateKey = '';
-  private pendingMeasureFrame: number | null = null;
-  private pendingForwardTimer: number | null = null;
-  private disposeFontMetricsSync: () => void = () => {};
-  private unsubscribeSettings: () => void = () => {};
-  private unsubscribeSelectionSync: () => void = () => {};
-  private destroyed = false;
-  private showLineNumbers = selectCodeBlockLineNumbersEnabled(useUnifiedStore.getState());
-  private lineNumbersStateKey = '';
-  private wrapStateKey = '';
-  private collapsedState: boolean | null = null;
-  private findHighlightStateKey = '[]';
-  private mirroredOuterSelection = false;
-  private languageClassName: string | null = null;
-  private codeMirrorSelectionArrowKey: CodeMirrorSelectionArrowKey | null = null;
-  private codeMirrorSelectionArrowResetTimer: number | null = null;
+  readonly editorDOM: HTMLElement;
+  placeholderDOM: HTMLPreElement | null = null;
+  lineNumberPlaceholderDOM: HTMLPreElement | null = null;
+  cm: CodeMirror | null = null;
+  intersectionObserver: IntersectionObserver | null = null;
+  readonly languageCompartment = new Compartment();
+  readonly readOnlyCompartment = new Compartment();
+  readonly lineNumbersCompartment = new Compartment();
+  readonly wrapCompartment = new Compartment();
+  updating = false;
+  language = '';
+  pendingLanguage: string | null = null;
+  selected = false;
+  headerStateKey = '';
+  pendingMeasureFrame: number | null = null;
+  pendingForwardTimer: number | null = null;
+  disposeFontMetricsSync: () => void = () => { };
+  unsubscribeSettings: () => void = () => { };
+  unsubscribeSelectionSync: () => void = () => { };
+  destroyed = false;
+  showLineNumbers = selectCodeBlockLineNumbersEnabled(useUnifiedStore.getState());
+  lineNumbersStateKey = '';
+  wrapStateKey = '';
+  collapsedState: boolean | null = null;
+  findHighlightStateKey = '[]';
+  mirroredOuterSelection = false;
+  languageClassName: string | null = null;
+  codeMirrorSelectionArrowKey: CodeMirrorSelectionArrowKey | null = null;
+  codeMirrorSelectionArrowResetTimer: number | null = null;
 
-  private isPasteUpdate(update: ViewUpdate) {
+  isPasteUpdate(update: ViewUpdate) {
     return update.transactions.some((transaction) => {
       const userEvent = transaction.annotation(Transaction.userEvent);
       return userEvent === 'input.paste' || userEvent?.startsWith('input.paste.');
     });
   }
 
-  private readonly clearEditorSelectionOnBlur = (event: FocusEvent) => {
+  readonly clearEditorSelectionOnBlur = (event: FocusEvent) => {
     if (!this.cm) {
       return;
     }
@@ -148,7 +116,7 @@ export class CodeBlockNodeView implements NodeView {
     this.updating = false;
   };
 
-  private getOwnerDocument(): Document | null {
+  getOwnerDocument(): Document | null {
     return (
       this.dom.ownerDocument ??
       this.editorDOM.ownerDocument ??
@@ -157,7 +125,7 @@ export class CodeBlockNodeView implements NodeView {
     );
   }
 
-  private getOwnerWindow(): Window | null {
+  getOwnerWindow(): Window | null {
     return this.getOwnerDocument()?.defaultView ?? null;
   }
 
@@ -165,7 +133,7 @@ export class CodeBlockNodeView implements NodeView {
     node: Node,
     view: EditorView,
     getPos: () => number | undefined,
-    private readonly options: CodeBlockNodeViewOptions = {},
+    readonly options: CodeBlockNodeViewOptions = {},
   ) {
     this.node = node;
     this.view = view;
@@ -207,15 +175,15 @@ export class CodeBlockNodeView implements NodeView {
     this.initializeCodeMirror();
   }
 
-  private readonly activateCodeMirrorFromInteraction = () => {
+  readonly activateCodeMirrorFromInteraction = () => {
     this.initializeCodeMirror();
   };
 
-  private readonly trackCodeMirrorSelectionKeydown = (event: KeyboardEvent) => {
+  readonly trackCodeMirrorSelectionKeydown = (event: KeyboardEvent) => {
     this.rememberCodeMirrorSelectionArrowKey(event);
   };
 
-  private readonly syncProseMirrorSelection = () => {
+  readonly syncProseMirrorSelection = () => {
     const nodePos = this.getPos();
     if (nodePos === undefined) {
       this.dom.dataset.pmSelected = 'false';

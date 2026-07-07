@@ -1,8 +1,9 @@
-import * as proseState from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
 import type { EditorView as CodeMirror, KeyBinding } from '@codemirror/view';
+import type { Node } from '@milkdown/kit/prose/model';
 import { exitCode } from '@milkdown/kit/prose/commands';
 import { redo, undo } from '@milkdown/kit/prose/history';
+import * as proseState from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { deleteSelectedBlocks } from '../../cursor/blockSelectionCommands';
 import {
   blankAreaDragBoxPluginKey,
@@ -15,8 +16,8 @@ import {
   createCodeBlockEditorClipboardHandlers,
   cutCodeMirrorSelection,
 } from './codeBlockEditorClipboard';
-import { moveOrExtendToTrimmedCodeBoundary } from './codeBlockEditorSelectionNavigation';
 import type { CreateCodeBlockKeymapOptions } from './codeBlockEditorKeymapTypes';
+import { moveOrExtendToTrimmedCodeBoundary } from './codeBlockEditorSelectionNavigation';
 
 const { TextSelection } = proseState;
 const AllSelection = (

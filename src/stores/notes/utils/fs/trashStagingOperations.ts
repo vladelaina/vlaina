@@ -1,7 +1,7 @@
 import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import { getStorageAdapter, joinPath, normalizeAbsolutePath } from '@/lib/storage/adapter';
-import { ensureSystemDirectory, getNotesRootSystemStorePath } from '../../systemStoragePaths';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
+import { ensureSystemDirectory, getNotesRootSystemStorePath } from '../../systemStoragePaths';
 import { isSafeNotesRootPathSegment } from './notesRootPathContainment';
 import type { PendingSystemTrashItem } from './trashOperations';
 
@@ -159,11 +159,6 @@ export function markExpectedItemChange(item: PendingSystemTrashItem, path: strin
   markExpectedExternalChange(path, item.kind === 'folder');
 }
 
-async function trashStagingPath(item: PendingSystemTrashItem): Promise<void> {
-  await moveDesktopItemToTrash(item.stagingPath);
-  await deleteStagingContainer(item);
-}
-
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -206,8 +201,7 @@ export async function trashViaOriginalPath(item: PendingSystemTrashItem): Promis
       await moveOriginalBackToStaging(item);
     } catch (rollbackError) {
       throw new Error(
-        `Failed to move deleted item to system trash and restore pending state: ${
-          getErrorMessage(error)
+        `Failed to move deleted item to system trash and restore pending state: ${getErrorMessage(error)
         }; rollback failed: ${getErrorMessage(rollbackError)}`
       );
     }

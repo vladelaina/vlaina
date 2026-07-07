@@ -1,11 +1,6 @@
-import type { ChatCompletionRequest } from '@/lib/ai/types';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 import { createWebSearchClient } from './client';
 import { formatBatchPagesForModel, formatSearchResultsForModel } from './format';
-import { sanitizeWebSearchStatus } from './statusMarkup';
-import type { WebSearchStatus } from './types';
-import type { OpenAIWireMessage } from './openAIToolTypes';
-import type { PrefetchOptions } from './openAIToolLoopTypes';
 import {
   appendSuccessfulReadSources,
   emitWebSearchStatus,
@@ -18,6 +13,10 @@ import {
   sanitizeSearchResults,
 } from './openAIToolLoopTextProtocolParsing';
 import { getPrefetchReadUrls } from './openAIToolLoopToolRuntime';
+import type { PrefetchOptions } from './openAIToolLoopTypes';
+import type { OpenAIWireMessage } from './openAIToolTypes';
+import { sanitizeWebSearchStatus } from './statusMarkup';
+import type { WebSearchStatus } from './types';
 
 export async function buildTextProtocolSearchMessages({
   body,

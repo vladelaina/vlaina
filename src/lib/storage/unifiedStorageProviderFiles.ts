@@ -1,12 +1,5 @@
-import type { AIModel, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
+import type { AIModel, Provider } from '@/lib/ai/types';
 import { isSafeProviderId } from './unifiedStorageAI';
-import {
-  AI_PROVIDER_FILE_VERSION,
-  MAX_AI_PROVIDER_FILE_BYTES,
-  MAX_AI_PROVIDER_MODELS,
-  type AIProviderFile,
-  type AIProviderFileData,
-} from './unifiedStorageSaveTypes';
 import {
   isRecord,
   isSerializedWithinLimit,
@@ -17,6 +10,13 @@ import {
   normalizeFetchedModelsForSave,
   normalizeProviderBenchmarkRecord,
 } from './unifiedStorageProviderNormalize';
+import {
+  AI_PROVIDER_FILE_VERSION,
+  MAX_AI_PROVIDER_FILE_BYTES,
+  MAX_AI_PROVIDER_MODELS,
+  type AIProviderFile,
+  type AIProviderFileData,
+} from './unifiedStorageSaveTypes';
 
 export function parseAIProviderFile(
   expectedProviderId: string,

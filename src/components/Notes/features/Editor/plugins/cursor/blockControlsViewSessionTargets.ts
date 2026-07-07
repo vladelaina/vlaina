@@ -1,19 +1,13 @@
-import type { EditorView } from '@milkdown/kit/prose/view';
-import { normalizeWheelDelta } from '@/lib/scroll/wheelScroll';
-import { getBlockSelectionPluginState } from './blockSelectionPluginState';
-import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
-import { pickPointerBlock } from './blockControlsUtils';
-import { createBlockDragPreview, createBlockDragSourceMarker } from './blockDragPreview';
-import { setBlockDraggingVisualState } from './blockDragVisualState';
-import { getListItemRangeEnd } from './blockUnitResolver';
-import { getCurrentEditorBlockPositionSnapshot, type EditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
-import { applyBlockMove, canApplyBlockMove, getDraggableBlockRanges, getHandleBlockTargets, resolveBlockTargetByPos, resolveDropTarget, setControlsPosition } from './blockControlsInteractions';
+import { getCurrentEditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
 import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
-import { clearPendingCrossNoteBlockDrag, getCurrentNotePath, getElementsFromPoint, getNotesBlockOpenTargetPathFromElements, insertCrossNoteDraggedMarkdown, isOverNotesBlockDropTarget, openNotePath, pendingCrossNoteBlockDrag, saveCrossNoteBlockDropAfterTargetSave, serializeDraggedRangesForComposer, serializeDraggedRangesForMarkdown, serializeSourceMarkdownAfterDelete, setPendingCrossNoteBlockDrag, setPendingCrossNoteBlockDragPreview, updatePendingCrossNoteBlockDragPointer, MIN_DROP_DISTANCE_PX, HANDLE_VERTICAL_GAP_PX, BLOCK_DRAG_TAB_OPEN_DELAY_MS, BLOCK_SELECTION_PENDING_CLASS } from './blockControlsViewSessionHelpers';
-import { remapDraggedMarkdownImageAssets } from './blockDragImageAssets';
+import { getHandleBlockTargets, resolveBlockTargetByPos, setControlsPosition, type HandleBlockTarget } from './blockControlsInteractions';
+import { pickPointerBlock } from './blockControlsUtils';
+import { BLOCK_DRAG_TAB_OPEN_DELAY_MS, getCurrentNotePath, getNotesBlockOpenTargetPathFromElements, openNotePath } from './blockControlsViewSessionHelpers';
+import { getBlockRangesKey, type BlockRange } from './blockSelectionUtils';
+import { getListItemRangeEnd } from './blockUnitResolver';
 
 class BlockControlsViewSessionTargets {
-  private invalidateTargetCache(): void {
+  invalidateTargetCache(this: any): void {
     this.cachedTargets = [];
     this.cachedSelectionKey = '';
     this.cachedDoc = this.view.state.doc;
@@ -22,14 +16,14 @@ class BlockControlsViewSessionTargets {
     this.cachedSnapshotVersion = Number.NaN;
   }
 
-  private invalidateSelectionCache(): void {
+  invalidateSelectionCache(this: any): void {
     this.cachedSelectedBlocks = null;
     this.cachedNormalizedSelectedRanges = [];
     this.cachedDraggableRanges = [];
     this.cachedDraggableSelectionKey = '';
   }
 
-  private getCachedHandleTargets(): HandleBlockTarget[] {
+  getCachedHandleTargets(this: any): HandleBlockTarget[] {
     const {
       selectedRanges,
     } = this.getDraggableSelection();
@@ -40,7 +34,7 @@ class BlockControlsViewSessionTargets {
     const nextScrollLeft = this.scrollRoot?.scrollLeft ?? 0;
     const nextScrollTop = this.scrollRoot?.scrollTop ?? 0;
     const snapshot = getCurrentEditorBlockPositionSnapshot();
-    const snapshotVersion = snapshot?.view === this.view ? snapshot.version : 0;
+    const snapshotVersion = snapshot && snapshot.view === this.view ? snapshot.version : 0;
     if (
       this.cachedSelectionKey === selectionKey
       && this.cachedDoc === this.view.state.doc
@@ -72,8 +66,9 @@ class BlockControlsViewSessionTargets {
     return this.cachedTargets;
   }
 
-  private getSelectedDomHandleTargets(): HandleBlockTarget[] {
-    return Array.from(this.view.dom.querySelectorAll<HTMLElement>('.editor-block-selected'))
+  getSelectedDomHandleTargets(this: any): HandleBlockTarget[] {
+    const elements = Array.from(this.view.dom.querySelectorAll('.editor-block-selected')) as HTMLElement[];
+    return elements
       .map((element, index): HandleBlockTarget | null => {
         const rect = element.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return null;
@@ -97,7 +92,7 @@ class BlockControlsViewSessionTargets {
       ));
   }
 
-  private resolveDomHorizontalAnchor(target: HandleBlockTarget): HandleBlockTarget | null {
+  resolveDomHorizontalAnchor(this: any, target: HandleBlockTarget): HandleBlockTarget | null {
     const element = target.element;
     if (!element || element.tagName !== 'LI') return null;
 
@@ -128,7 +123,7 @@ class BlockControlsViewSessionTargets {
     };
   }
 
-  private resolveGroupedListHorizontalAnchor(
+  resolveGroupedListHorizontalAnchor(this: any,
     target: HandleBlockTarget,
     targets: readonly HandleBlockTarget[],
     draggableRanges: readonly BlockRange[],
@@ -153,7 +148,7 @@ class BlockControlsViewSessionTargets {
     return anchor ?? target;
   }
 
-  private showHandleForPointer(): void {
+  showHandleForPointer(this: any): void {
     if (this.draggedRanges) return;
     if (this.isBlockSelectionPending()) {
       this.hideControls();
@@ -164,8 +159,8 @@ class BlockControlsViewSessionTargets {
       return;
     }
     const { selectedRanges } = this.getDraggableSelection();
-    const targets = this.getCachedHandleTargets();
-    const nextTarget = pickPointerBlock(targets, this.pointerY);
+    const targets: HandleBlockTarget[] = this.getCachedHandleTargets();
+    const nextTarget = pickPointerBlock<HandleBlockTarget>(targets, this.pointerY);
     if (!nextTarget || !this.isPointerNearTarget(nextTarget)) {
       this.hideControls();
       return;
@@ -184,7 +179,7 @@ class BlockControlsViewSessionTargets {
     this.controls.classList.add('visible');
   }
 
-  private scheduleHandleRefresh(): void {
+  scheduleHandleRefresh(this: any): void {
     if (!this.draggedRanges && this.isBlockSelectionPending()) {
       this.hideControls();
       return;
@@ -196,19 +191,19 @@ class BlockControlsViewSessionTargets {
     });
   }
 
-  private attachDragWheelListener(): void {
+  attachDragWheelListener(this: any): void {
     if (this.dragWheelListenerAttached) return;
     this.dragWheelListenerAttached = true;
     this.doc.addEventListener('wheel', this.handleDocumentWheel, { capture: true, passive: false });
   }
 
-  private detachDragWheelListener(): void {
+  detachDragWheelListener(this: any): void {
     if (!this.dragWheelListenerAttached) return;
     this.dragWheelListenerAttached = false;
     this.doc.removeEventListener('wheel', this.handleDocumentWheel, true);
   }
 
-  private scheduleBlockDragTabOpen(path: string): void {
+  scheduleBlockDragTabOpen(this: any, path: string): void {
     if (!this.draggedRanges || path === getCurrentNotePath()) {
       this.clearBlockDragTabOpen();
       return;
@@ -240,7 +235,7 @@ class BlockControlsViewSessionTargets {
     }, BLOCK_DRAG_TAB_OPEN_DELAY_MS);
   }
 
-  private clearBlockDragTabOpen(): void {
+  clearBlockDragTabOpen(this: any): void {
     if (this.blockDragTabOpenTimerId !== null) {
       window.clearTimeout(this.blockDragTabOpenTimerId);
       this.blockDragTabOpenTimerId = null;
@@ -248,7 +243,7 @@ class BlockControlsViewSessionTargets {
     this.blockDragTabOpenPath = null;
   }
 
-  private updateBlockDragTabHover(elements: readonly Element[]): void {
+  updateBlockDragTabHover(this: any, elements: readonly Element[]): void {
     const targetPath = getNotesBlockOpenTargetPathFromElements(elements);
     if (!targetPath || targetPath === getCurrentNotePath()) {
       this.clearBlockDragTabOpen();

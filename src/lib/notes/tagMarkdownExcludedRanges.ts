@@ -3,12 +3,12 @@ import {
   getRawTextHtmlRanges,
 } from '../markdown/markdownHtmlRanges';
 import { getHtmlCommentRanges, getMarkdownHtmlBlockRanges } from '../markdown/markdownRanges';
-import { collectMarkdownLinkTargetRanges } from './tagMarkdownLinkTargets';
 import {
   collectAutolinkRanges,
   collectFencedCodeRanges,
   collectInlineCodeRanges,
 } from './tagMarkdownCodeRanges';
+import { collectMarkdownLinkTargetRanges } from './tagMarkdownLinkTargets';
 import {
   MAX_EXCLUDED_RANGES,
   MAX_FRONTMATTER_CHARS,
@@ -179,14 +179,6 @@ function collectHtmlTagRanges(content: string, ranges: NoteMarkdownExcludedRange
       return;
     }
   }
-}
-
-function scanRepeatedChar(content: string, start: number, character: string): number {
-  let index = start;
-  while (content[index] === character) {
-    index += 1;
-  }
-  return index;
 }
 
 export function isEscaped(content: string, index: number): boolean {

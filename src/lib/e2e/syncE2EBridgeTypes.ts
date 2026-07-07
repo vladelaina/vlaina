@@ -1,10 +1,10 @@
-import type { ChatE2EMockRequest, ChatE2EMockResponse } from './chatE2EMock';
-import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
-import type { ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types';
-import type { NotesState, StarredEntry } from '@/stores/notes/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
-import type { NotesRootInfo } from '@/stores/useNotesRootStore';
+import type { ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types';
+import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
+import type { NotesState } from '@/stores/notes/types';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import type { NotesRootInfo } from '@/stores/useNotesRootStore';
+import type { ChatE2EMockRequest, ChatE2EMockResponse } from './chatE2EMock';
 
 export interface EditorSelectionSummary {
   from: number;

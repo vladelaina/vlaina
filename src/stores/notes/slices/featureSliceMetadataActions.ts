@@ -1,36 +1,33 @@
-import type { StateCreator } from 'zustand';
-import { isAbsolutePath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import type { MetadataFile, NoteMetadataEntry, NotesStore } from '../types';
-import {
-  createEmptyMetadataFile,
-  mergeNoteMetadataWithFileInfo,
-} from '../storage';
-import { isDraftNotePath } from '../draftNote';
-import { setNoteTabDirtyState } from '../document/noteTabState';
+import { isAbsolutePath } from '@/lib/storage/adapter';
+import type { StateCreator } from 'zustand';
+import { getCachedNoteModifiedAt, setCachedNoteContent } from '../document/noteContentCache';
 import {
   assertEditorSafeMarkdownContent,
   saveNoteDocument,
 } from '../document/noteDocumentPersistence';
-import { getCachedNoteModifiedAt, setCachedNoteContent } from '../document/noteContentCache';
-import { updateNoteMetadataInMarkdown } from '../frontmatter';
+import { setNoteTabDirtyState } from '../document/noteTabState';
+import { isDraftNotePath } from '../draftNote';
+import {
+  createEmptyMetadataFile,
+  mergeNoteMetadataWithFileInfo,
+} from '../storage';
+import type { MetadataFile, NoteMetadataEntry, NotesStore } from '../types';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
   normalizeNotesRootRelativePath,
   resolveNotesRootRelativeFullPath,
 } from '../utils/fs/notesRootPathContainment';
-import {
-  MAX_METADATA_UPDATE_NOTE_BYTES,
-  canReadBoundedMarkdownFile,
-  hasUnsafeNotePathSegment,
-  isMetadataUpdateSourceContentWithinReadLimit,
-} from './featureSliceContentUtils';
 import type { FeatureSlice } from './featureSlice';
-import { updateNoteMetadataInsideRoot } from './featureSliceMetadataRootActions';
+import {
+  hasUnsafeNotePathSegment,
+  isMetadataUpdateSourceContentWithinReadLimit
+} from './featureSliceContentUtils';
 import {
   updateAbsoluteNoteMetadataWithoutRoot,
   updateDraftMetadataWithoutRoot,
 } from './featureSliceMetadataNoRootActions';
+import { updateNoteMetadataInsideRoot } from './featureSliceMetadataRootActions';
 
 interface CreateFeatureMetadataActionsOptions {
   get: Parameters<StateCreator<NotesStore, [], [], FeatureSlice>>[1];
@@ -82,13 +79,13 @@ export function createFeatureMetadataActions({
     const nextContent = hasNewerContent ? latestContent : content;
     const nextMetadata = metadata
       ? replaceNoteEntry(
-          latestState.noteMetadata ?? createEmptyMetadataFile(),
-          path,
-          mergeNoteMetadataWithFileInfo(metadata, {
-            createdAt: metadata.createdAt ?? latestState.noteMetadata?.notes[path]?.createdAt,
-            modifiedAt,
-          }),
-        )
+        latestState.noteMetadata ?? createEmptyMetadataFile(),
+        path,
+        mergeNoteMetadataWithFileInfo(metadata, {
+          createdAt: metadata.createdAt ?? latestState.noteMetadata?.notes[path]?.createdAt,
+          modifiedAt,
+        }),
+      )
       : latestState.noteMetadata;
 
     set({

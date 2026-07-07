@@ -1,17 +1,16 @@
 import { NodeSelection, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
 import {
   EDITABLE_MARKDOWN_BLANK_LINE_CLASS,
-  EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
-  MARKDOWN_BLANK_LINE_VALUE,
-  MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS,
   findTopLevelBlockAfter,
   findTopLevelBlockBefore,
   isEditableMarkdownBlankLineNode,
   isMarkdownBlankLinePlaceholderNode,
+  MARKDOWN_BLANK_LINE_VALUE,
+  MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS
 } from './markdownBlankLineShared';
-import type { EditorView } from '@milkdown/kit/prose/view';
 
 const editableMarkdownBlankLineDecorationsCache = new WeakMap<EditorState['doc'], DecorationSet>();
 

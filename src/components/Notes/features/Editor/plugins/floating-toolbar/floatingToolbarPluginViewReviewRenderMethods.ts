@@ -1,46 +1,28 @@
-import { TextSelection } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import type { FloatingToolbarState } from './types';
-import { TOOLBAR_ACTIONS } from './types';
-import { createToolbarRenderer } from './renderToolbar';
+import {
+  hideToolbar,
+  isFloatingToolbarSuppressed,
+  showToolbar
+} from './floatingToolbarDom';
+import {
+  getAiReviewPanelWidth,
+  getContentLayoutContext,
+  resolveToolbarContainerPosition,
+  resolveToolbarViewportPosition,
+} from './floatingToolbarLayout';
+import type { FloatingToolbarPluginViewContext } from './floatingToolbarPluginViewTypes';
+import { hasActiveAppliedPreview } from './previewStyles';
 import {
   calculateBottomPositionForRange,
-  calculatePosition,
   calculatePositionForRange,
   getActiveMarks,
   getBgColor,
   getCurrentAlignment,
   getCurrentBlockType,
   getLinkUrl,
-  getTextColor,
+  getTextColor
 } from './selectionHelpers';
-import {
-  clampToolbarX,
-  correctToolbarYToViewportBounds,
-  createToolbarElement,
-  hideToolbar,
-  isFloatingToolbarSuppressed,
-  showToolbar,
-} from './floatingToolbarDom';
-import {
-  getContentLayoutContext,
-  getAiReviewPanelWidth,
-  resolveToolbarContainerPosition,
-  resolveToolbarViewportPosition,
-} from './floatingToolbarLayout';
-import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
-import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
-import { correctToolbarSubmenusToContentBounds } from './floatingToolbarSubmenus';
-import { toggleMark, setLink } from './commands';
-import { openLinkTooltipFromSelection } from './linkTooltipActions';
-import { abortActiveAiSelectionReview } from './ai/reviewAbort';
-import type { FloatingToolbarPluginViewContext } from './floatingToolbarPluginViewTypes';
-import {
-  hasVisibleNativeRange,
-  isDocumentFormatShortcut,
-  isEditableShortcutTarget,
-  shouldLockPreviewToolbarPosition,
-} from './floatingToolbarPluginViewUtils';
+import { hasUsableTextSelection } from './selectionValidity';
+import type { FloatingToolbarState } from './types';
 
 
 export function installFloatingToolbarPluginViewReviewRenderMethods(ctx: FloatingToolbarPluginViewContext): void {

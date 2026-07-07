@@ -1,15 +1,6 @@
-import type { EditorView } from '@milkdown/kit/prose/view';
-import { createBlockRectResolver } from './blockRectResolver';
-import {
-  clampViewportRectTop,
-  resolveDisplayedDragViewportRect,
-  type RectBounds,
-} from './blockSelectionUtils';
 import {
   resolveBlankAreaPlainClickAction,
 } from './blankAreaPlainClick';
-import { startBlockDragSession, type BlockDragSessionHandle, type BlockDragStartZone } from './blockDragSession';
-import { createVerticalEdgeAutoScroll } from './edgeAutoScroll';
 import {
   blurActiveEditableElement,
   createDragBox,
@@ -24,13 +15,21 @@ import {
 } from './blankAreaSelectionGeometry';
 import { createBlankAreaSelectionResolver } from './blankAreaSelectionResolver';
 import type { StartBlankAreaSelectionSessionOptions } from './blankAreaSelectionSessionTypes';
+import { startBlockDragSession, type BlockDragSessionHandle } from './blockDragSession';
+import { createBlockRectResolver } from './blockRectResolver';
+import {
+  clampViewportRectTop,
+  resolveDisplayedDragViewportRect,
+  type RectBounds,
+} from './blockSelectionUtils';
+import { createVerticalEdgeAutoScroll } from './edgeAutoScroll';
 
 const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 
 export {
   blurActiveEditableElement,
   filterExternalBlankAreaSelectionEdgeGrazes,
-  resolveBlankAreaSelectionAutoScrollDelta,
+  resolveBlankAreaSelectionAutoScrollDelta
 };
 
 export function startBlankAreaSelectionSession(

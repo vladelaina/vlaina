@@ -1,49 +1,14 @@
-import { Node } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
+import { Transaction } from '@codemirror/state';
 import {
   EditorView as CodeMirror,
-  drawSelection,
-  keymap as codeMirrorKeymap,
-  lineNumbers,
-  type KeyBinding,
-  type ViewUpdate,
+  type ViewUpdate
 } from '@codemirror/view';
-import { createRoot, Root } from 'react-dom/client';
-import React from 'react';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
-import { CodeBlockView } from './CodeBlockView';
-import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
 import {
-  bindCodeBlockFontMetricsSync,
-  computeCodeBlockChange,
-  createCodeBlockEditorClipboardHandlers,
-  createCodeBlockEditorKeymap,
-  createCodeBlockEditorTheme,
-  mapCodeBlockEditorOffsetToDocumentOffset,
-  mapDocumentOffsetToCodeBlockEditorOffset,
-  moveOrExtendToTrimmedCodeBoundary,
-  normalizeCodeBlockEditorText,
-} from './codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
-import {
-  buildCodeMirrorFindHighlightRanges,
-  codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
-} from '../find/editorFindCodeMirrorHighlights';
-import {
-  applyCodeBlockCollapsedState,
-  forwardCodeBlockUpdate,
+  forwardCodeBlockUpdate
 } from './codeBlockNodeViewUtils';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { themeLazyLoadTokens } from '@/styles/themeTokens';
-import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
-import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 
 class CodeBlockNodeViewSelectionSyncMethods {
-  private restoreCodeMirrorSelectionAfterNativeKeyHandling(
+  restoreCodeMirrorSelectionAfterNativeKeyHandling(this: any,
     cm: CodeMirror,
     anchor: number,
     head: number
@@ -74,7 +39,7 @@ class CodeBlockNodeViewSelectionSyncMethods {
     });
   }
 
-  private syncE2ECodeMirrorSelection() {
+  syncE2ECodeMirrorSelection(this: any) {
     if (!this.cm) {
       return;
     }
@@ -92,7 +57,7 @@ class CodeBlockNodeViewSelectionSyncMethods {
     this.cm.dom.dataset.e2eSelectionText = this.cm.state.sliceDoc(main.from, main.to);
   }
 
-  private trimCodeMirrorSelectionEdgeLineBreaks(update: ViewUpdate) {
+  trimCodeMirrorSelectionEdgeLineBreaks(this: any, update: ViewUpdate) {
     if (!this.cm || !update.selectionSet) {
       return false;
     }
@@ -124,7 +89,7 @@ class CodeBlockNodeViewSelectionSyncMethods {
     return true;
   }
 
-  private forwardUpdate(update: ViewUpdate) {
+  forwardUpdate(this: any, update: ViewUpdate) {
     this.syncE2ECodeMirrorSelection();
 
     if (this.trimCodeMirrorSelectionEdgeLineBreaks(update)) {

@@ -1,9 +1,10 @@
-import type { ChatCompletionRequest, ChatSendOptions } from '../types'
+import { stringifyProviderJsonRequestBody } from '@/lib/ai/providerRequestBody'
+import { consumeOpenAIStream } from '@/lib/ai/streaming'
+import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
 import { parseHTTPError } from '../errors'
 import { providerFetch } from '../providerHttp'
-import { consumeOpenAIStream } from '@/lib/ai/streaming'
-import { stringifyProviderJsonRequestBody } from '@/lib/ai/providerRequestBody'
-import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
+import type { ChatCompletionRequest, ChatSendOptions } from '../types'
+import { buildImageEditMultipartBody, normalizeGeneratedImageMarkdown } from './openaiImages'
 import {
   createAbortError,
   createHtmlRejectingChunkHandler,
@@ -20,7 +21,6 @@ import {
   throwParsedOpenAIError,
   waitForProviderRetry,
 } from './openaiRuntime'
-import { buildImageEditMultipartBody, normalizeGeneratedImageMarkdown } from './openaiImages'
 
 export async function requestOpenAIChatCompletionWithRetry({
   url,
@@ -221,7 +221,7 @@ export async function streamResponse({
       if (timedOut) throw new Error('The AI request timed out.')
       throw error
     }
-    throwParsedOpenAIError(error, url)
+    return throwParsedOpenAIError(error, url)
   } finally {
     clearTimeout(timeoutId)
     signal?.removeEventListener('abort', forwardAbort)

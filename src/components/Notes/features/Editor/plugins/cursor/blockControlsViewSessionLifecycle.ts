@@ -1,19 +1,9 @@
-import type { EditorView } from '@milkdown/kit/prose/view';
-import { normalizeWheelDelta } from '@/lib/scroll/wheelScroll';
-import { getBlockSelectionPluginState } from './blockSelectionPluginState';
-import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
-import { pickPointerBlock } from './blockControlsUtils';
-import { createBlockDragPreview, createBlockDragSourceMarker } from './blockDragPreview';
-import { setBlockDraggingVisualState } from './blockDragVisualState';
-import { getListItemRangeEnd } from './blockUnitResolver';
-import { getCurrentEditorBlockPositionSnapshot, type EditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
-import { applyBlockMove, canApplyBlockMove, getDraggableBlockRanges, getHandleBlockTargets, resolveBlockTargetByPos, resolveDropTarget, setControlsPosition } from './blockControlsInteractions';
-import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
-import { clearPendingCrossNoteBlockDrag, getCurrentNotePath, getElementsFromPoint, getNotesBlockOpenTargetPathFromElements, insertCrossNoteDraggedMarkdown, isOverNotesBlockDropTarget, openNotePath, pendingCrossNoteBlockDrag, saveCrossNoteBlockDropAfterTargetSave, serializeDraggedRangesForComposer, serializeDraggedRangesForMarkdown, serializeSourceMarkdownAfterDelete, setPendingCrossNoteBlockDrag, setPendingCrossNoteBlockDragPreview, updatePendingCrossNoteBlockDragPointer, MIN_DROP_DISTANCE_PX, HANDLE_VERTICAL_GAP_PX, BLOCK_DRAG_TAB_OPEN_DELAY_MS, BLOCK_SELECTION_PENDING_CLASS } from './blockControlsViewSessionHelpers';
+import { clearPendingCrossNoteBlockDrag, getCurrentNotePath, insertCrossNoteDraggedMarkdown, pendingCrossNoteBlockDrag, saveCrossNoteBlockDropAfterTargetSave } from './blockControlsViewSessionHelpers';
 import { remapDraggedMarkdownImageAssets } from './blockDragImageAssets';
+import { setBlockDraggingVisualState } from './blockDragVisualState';
 
 class BlockControlsViewSessionLifecycle {
-  update(): void {
+  update(this: any): void {
     if (this.isBlockSelectionPending()) {
       this.hideControls();
       return;
@@ -28,7 +18,7 @@ class BlockControlsViewSessionLifecycle {
     this.scheduleHandleRefresh();
   }
 
-  private adoptPendingCrossNoteBlockDrag(): void {
+  adoptPendingCrossNoteBlockDrag(this: any): void {
     const pending = pendingCrossNoteBlockDrag;
     const currentNotePath = getCurrentNotePath();
     if (!pending || !currentNotePath || currentNotePath === pending.sourceNotePath) {
@@ -53,7 +43,7 @@ class BlockControlsViewSessionLifecycle {
     this.scheduleDragPointerUpdate(pending.lastClientX, pending.lastClientY);
   }
 
-  private shouldPreserveCrossNoteDragOnDestroy(): boolean {
+  shouldPreserveCrossNoteDragOnDestroy(this: any): boolean {
     const pending = pendingCrossNoteBlockDrag;
     const currentNotePath = getCurrentNotePath();
     return Boolean(
@@ -64,7 +54,7 @@ class BlockControlsViewSessionLifecycle {
     );
   }
 
-  destroy(): void {
+  destroy(this: any): void {
     const preserveCrossNoteDrag = this.shouldPreserveCrossNoteDragOnDestroy();
     if (this.refreshRafId !== 0) {
       window.cancelAnimationFrame(this.refreshRafId);
@@ -106,7 +96,7 @@ class BlockControlsViewSessionLifecycle {
     this.dropIndicator.remove();
   }
 
-  private finishDrag(): void {
+  finishDrag(this: any): void {
     this.draggedRanges = null;
     this.dragStartClientX = null;
     this.dragStartClientY = null;
@@ -139,7 +129,7 @@ class BlockControlsViewSessionLifecycle {
     this.detachDragWheelListener();
   }
 
-  private isCrossNoteDrag(): boolean {
+  isCrossNoteDrag(this: any): boolean {
     if (!this.draggedRanges) return false;
     const currentNotePath = getCurrentNotePath();
     if (this.dragSourceNotePath && currentNotePath && currentNotePath !== this.dragSourceNotePath) {
@@ -148,7 +138,7 @@ class BlockControlsViewSessionLifecycle {
     return Boolean(this.dragSourceDoc && this.view.state.doc !== this.dragSourceDoc);
   }
 
-  private async applyCrossNoteDrop(insertPos: number): Promise<boolean> {
+  async applyCrossNoteDrop(this: any, insertPos: number): Promise<boolean> {
     const sourceNotePath = this.dragSourceNotePath;
     const sourceMarkdownAfterDelete = this.dragSourceMarkdownAfterDelete;
     const targetNotePath = getCurrentNotePath();

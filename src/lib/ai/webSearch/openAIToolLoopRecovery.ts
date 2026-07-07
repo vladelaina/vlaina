@@ -1,12 +1,10 @@
-import type { ChatCompletionRequest } from '@/lib/ai/types';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import type { ChatCompletionRequest } from '@/lib/ai/types';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 import { consumeOpenAIStreamWithTools } from './openAIStreamWithTools';
-import { extractOpenAIMessageFromJson } from './openAIToolParsing';
-import type { WebSearchStatus } from './types';
-import type { OpenAIWireMessage } from './openAIToolTypes';
 import {
   buildFinalAssistantTranscriptMessage,
+  buildNoSearchResultsAnswer,
   buildVisibleAnswerReminderMessage,
   emitApiTranscript,
   emitChunk,
@@ -19,6 +17,9 @@ import {
   withoutTools,
 } from './openAIToolLoopShared';
 import { boundedToolNameForLog } from './openAIToolLoopToolArgs';
+import { extractOpenAIMessageFromJson } from './openAIToolParsing';
+import type { OpenAIWireMessage } from './openAIToolTypes';
+import type { WebSearchStatus } from './types';
 
 export function buildNoToolRecoveryMessages(
   body: ChatCompletionRequest,

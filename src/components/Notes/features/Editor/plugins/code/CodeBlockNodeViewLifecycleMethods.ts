@@ -1,49 +1,16 @@
-import { Node } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorSelection, EditorState, Prec, Transaction, type Text, type TransactionSpec } from '@codemirror/state';
+import { EditorState } from '@codemirror/state';
 import {
-  EditorView as CodeMirror,
-  drawSelection,
-  keymap as codeMirrorKeymap,
-  lineNumbers,
-  type KeyBinding,
-  type ViewUpdate,
+  EditorView as CodeMirror
 } from '@codemirror/view';
-import { createRoot, Root } from 'react-dom/client';
-import React from 'react';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
-import { CodeBlockView } from './CodeBlockView';
-import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
+import { Node } from '@milkdown/kit/prose/model';
 import {
-  bindCodeBlockFontMetricsSync,
   computeCodeBlockChange,
-  createCodeBlockEditorClipboardHandlers,
-  createCodeBlockEditorKeymap,
-  createCodeBlockEditorTheme,
-  mapCodeBlockEditorOffsetToDocumentOffset,
   mapDocumentOffsetToCodeBlockEditorOffset,
-  moveOrExtendToTrimmedCodeBoundary,
-  normalizeCodeBlockEditorText,
+  normalizeCodeBlockEditorText
 } from './codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
-import {
-  buildCodeMirrorFindHighlightRanges,
-  codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
-} from '../find/editorFindCodeMirrorHighlights';
-import {
-  applyCodeBlockCollapsedState,
-  forwardCodeBlockUpdate,
-} from './codeBlockNodeViewUtils';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
-import { themeLazyLoadTokens } from '@/styles/themeTokens';
-import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
-import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 
 class CodeBlockNodeViewLifecycleMethods {
-  update(node: Node) {
+  update(this: any, node: Node) {
     if (node.type !== this.node.type) {
       return false;
     }
@@ -112,7 +79,7 @@ class CodeBlockNodeViewLifecycleMethods {
     return true;
   }
 
-  selectNode() {
+  selectNode(this: any) {
     this.selected = true;
     this.dom.classList.add('ProseMirror-selectednode', 'md-focus');
     if (!this.node.attrs.collapsed) {
@@ -121,12 +88,12 @@ class CodeBlockNodeViewLifecycleMethods {
     }
   }
 
-  deselectNode() {
+  deselectNode(this: any) {
     this.selected = false;
     this.dom.classList.remove('ProseMirror-selectednode', 'md-focus');
   }
 
-  setSelection(anchor: number, head: number) {
+  setSelection(this: any, anchor: number, head: number) {
     this.initializeCodeMirror();
     if (!this.cm || !this.cm.dom.isConnected || this.node.attrs.collapsed) {
       return;
@@ -147,7 +114,7 @@ class CodeBlockNodeViewLifecycleMethods {
     this.updating = false;
   }
 
-  stopEvent(event: Event) {
+  stopEvent(this: any, event: Event) {
     const target = event.target;
     if (this.dom.dataset.pmSelected === 'true' || this.dom.classList.contains('editor-block-selected')) {
       if (event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
@@ -176,11 +143,11 @@ class CodeBlockNodeViewLifecycleMethods {
     return target instanceof globalThis.Node && this.dom.contains(target);
   }
 
-  ignoreMutation(mutation: MutationRecord | { type: 'selection'; target: globalThis.Node }) {
+  ignoreMutation(this: any, mutation: MutationRecord | { type: 'selection'; target: globalThis.Node }) {
     return mutation.type !== 'selection';
   }
 
-  destroy() {
+  destroy(this: any) {
     this.destroyed = true;
     this.intersectionObserver?.disconnect();
     this.intersectionObserver = null;
