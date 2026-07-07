@@ -269,22 +269,22 @@ describe("editor floating toolbar and preview styles", () => {
     const source = readFloatingToolbarPluginViewSource();
 
     expect(source).toContain('reviewWidth === null ?');
-    expect(source).toContain('const renderState = getReviewRenderState(review, reviewWidth);');
+    expect(source).toContain('const renderState = ctx.getReviewRenderState(review, reviewWidth);');
   });
 
   it('clears applied toolbar previews whenever the toolbar is hidden or reset', () => {
     const source = readFloatingToolbarPluginViewSource();
 
-    expect(source).toContain('const hideToolbarAndReset = () => {');
-    expect(source).toContain('clearFormatPreview(editorView);');
+    expect(source).toContain('ctx.hideToolbarAndReset = () => {');
+    expect(source).toContain('clearFormatPreview(ctx.editorView);');
   });
 
   it('self-heals stale applied toolbar previews on the next outside mouse down', () => {
     const source = readFloatingToolbarPluginViewSource();
 
-    expect(source).toContain('const isToolbarEventTarget = (target: EventTarget | null) => {');
-    expect(source).toContain('if (hasActiveAppliedPreview(editorView) && !isToolbarEventTarget(event.target)) {');
-    expect(source).toContain('clearFormatPreview(editorView);');
+    expect(source).toContain('ctx.isToolbarEventTarget = (target: EventTarget | null) => {');
+    expect(source).toContain('if (hasActiveAppliedPreview(ctx.editorView) && !ctx.isToolbarEventTarget(event.target)) {');
+    expect(source).toContain('clearFormatPreview(ctx.editorView);');
   });
 
   it('keeps the code block theme aligned with the CSS padding model', () => {

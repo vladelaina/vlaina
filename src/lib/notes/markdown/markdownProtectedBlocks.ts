@@ -1,21 +1,16 @@
+import { getMarkdownBlockContent } from '@/lib/markdown/markdownHtmlBlockClassification';
 import {
-  getMarkdownBlockContent,
-  getMarkdownHtmlBlockClosePattern,
-} from '@/lib/markdown/markdownHtmlBlockClassification';
-import { getHtmlTagRanges } from '@/lib/markdown/markdownHtmlRanges';
+  getMarkdownRawHtmlBlockClosePattern,
+  isHtmlBlockCloseLine,
+  nextHtmlBlockState,
+  type HtmlBlockState,
+} from './markdownProtectedHtmlBlocks';
+import { getLeadingFrontmatterEndIndex } from './markdownProtectedFrontmatter';
 
-const HTML_RAW_BLOCK_OPEN_PATTERN = /^(?: {0,3})<(pre|script|style|textarea|title|xmp|noembed|noframes|plaintext|math|noscript|svg)(?:\s|>|$)/i;
 const INDENTED_CODE_LINE_PATTERN = /^(?: {4,}|\t)/;
-const UTF8_BOM = '\uFEFF';
-const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
-const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
-const MAX_FRONTMATTER_CHARS = 256 * 1024;
-const MAX_FRONTMATTER_LINES = 2048;
-const NEVER_CLOSE_HTML_BLOCK_PATTERN = /$a/;
 
 type FenceLine = { infoStart: number; length: number; marker: string };
 type FenceState = { marker: string; length: number };
-type HtmlBlockState = { closePattern: RegExp; rawTagName?: string };
 type MathBlockState = { style: 'dollar' | 'bracket' };
 
 interface ProtectedSegmentOptions {
@@ -249,50 +244,6 @@ function isFenceClosingLine(content: string, marker: string, minimumLength: numb
   return true;
 }
 
-function nextHtmlBlockState(line: string, activeHtmlBlock: HtmlBlockState | null): HtmlBlockState | null {
-  const content = getMarkdownBlockContent(line);
-  const closePattern = activeHtmlBlock ?? getMarkdownRawHtmlBlockClosePattern(content);
-  if (!closePattern) return null;
-  return isHtmlBlockCloseLine(content, closePattern) ? null : closePattern;
-}
-
-function getLeadingFrontmatterEndIndex(lines: readonly string[]): number | null {
-  if (!isFrontmatterDelimiterLine(lines[0] ?? '', { allowLeadingBom: true })) {
-    return null;
-  }
-
-  let frontmatterChars = 0;
-  let frontmatterLines = 0;
-
-  for (let index = 1; index < lines.length; index += 1) {
-    if (frontmatterLines >= MAX_FRONTMATTER_LINES) {
-      return null;
-    }
-
-    const line = lines[index] ?? '';
-    frontmatterChars += line.length + 1;
-    if (frontmatterChars > MAX_FRONTMATTER_CHARS) {
-      return null;
-    }
-
-    if (isFrontmatterDelimiterLine(line)) {
-      return index;
-    }
-
-    frontmatterLines += 1;
-  }
-
-  return null;
-}
-
-function isFrontmatterDelimiterLine(
-  line: string,
-  options: { allowLeadingBom?: boolean } = {},
-): boolean {
-  const candidate = options.allowLeadingBom && line.startsWith(UTF8_BOM) ? line.slice(1) : line;
-  return candidate.length <= MAX_FRONTMATTER_DELIMITER_LINE_CHARS && FRONTMATTER_DELIMITER_PATTERN.test(candidate);
-}
-
 function isIndentedCodeBlockLine(line: string): boolean {
   return INDENTED_CODE_LINE_PATTERN.test(line);
 }
@@ -319,41 +270,6 @@ function getNextNonBlankMarkdownBlockContentByIndex(lines: readonly string[]): A
   }
 
   return nextNonBlankContentByIndex;
-}
-
-function getMarkdownRawHtmlBlockClosePattern(
-  line: string,
-  options: { protectHtmlComments?: boolean } = {},
-): HtmlBlockState | null {
-  const rawBlockMatch = HTML_RAW_BLOCK_OPEN_PATTERN.exec(line);
-  if (rawBlockMatch) {
-    const rawTagName = rawBlockMatch[1]?.toLowerCase() ?? '';
-    if (rawTagName === 'plaintext') {
-      return { closePattern: NEVER_CLOSE_HTML_BLOCK_PATTERN, rawTagName };
-    }
-    return {
-      closePattern: new RegExp(`</${rawTagName}(?:\\s[^>]*)?>`, 'i'),
-      rawTagName,
-    };
-  }
-  const closePattern = getMarkdownHtmlBlockClosePattern(line, options);
-  return closePattern === undefined ? null : { closePattern: closePattern ?? /^\s*$/ };
-}
-
-function isHtmlBlockCloseLine(line: string, state: HtmlBlockState): boolean {
-  if (state.closePattern === NEVER_CLOSE_HTML_BLOCK_PATTERN) {
-    return false;
-  }
-
-  if (!state.rawTagName) {
-    return state.closePattern.test(line);
-  }
-
-  return getHtmlTagRanges(line, { start: 0, end: line.length }, 1024)
-    .some((range) => {
-      const tagNameMatch = /^<\/([A-Za-z][A-Za-z0-9:-]*)\b/i.exec(line.slice(range.start, range.end));
-      return tagNameMatch?.[1]?.toLowerCase() === state.rawTagName;
-    });
 }
 
 function isValidMarkdownFenceOpener(content: string, fence: FenceLine): boolean {

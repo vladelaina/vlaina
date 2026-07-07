@@ -5,10 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { cn } from '@/lib/utils';
-import { getCroppedImg } from '@/lib/assets/processing/crop';
 import { useToastStore } from '@/stores/useToastStore';
 import { PremiumSlider } from '@/components/ui/premium-slider';
-import { AppIcon } from '@/components/common/AppIcon';
 import { useI18n } from '@/lib/i18n';
 import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
 import {
@@ -16,8 +14,11 @@ import {
     type SidebarMenuEntry,
 } from '@/components/layout/sidebar/context-menu/SidebarContextMenuContent';
 import type { SidebarMenuPosition } from '@/components/layout/sidebar/context-menu/shared';
-import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { readUploadPreviewDataUrl } from './uploadPreviewDataUrl';
+import { UploadTabLibrary } from './UploadTabLibrary';
+import { UploadFormatBadge } from './UploadFormatBadge';
+import { UploadSaveSpinner } from './UploadSaveSpinner';
+import { createUploadIconFile } from './uploadIconFile';
 
 export interface CustomIcon {
     id: string;
@@ -98,21 +99,13 @@ export function UploadTab({
         try {
             setIsUploading(true);
 
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
-            const finalName = `icon_${timestamp[0]}_${timestamp[1].split('Z')[0]}`;
-
-            let fileToUpload: File;
-
-            if (shouldPreserve && originalFile) {
-                const ext = isGif ? 'gif' : 'webp';
-                fileToUpload = new File([originalFile], `${finalName}.${ext}`, { type: originalFile.type });
-            } else {
-                const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-                if (!croppedBlob) throw new Error('Failed to crop image');
-
-                fileToUpload = new File([croppedBlob], `${finalName}.png`, { type: 'image/png' });
-            }
-
+            const fileToUpload = await createUploadIconFile({
+                imageSrc,
+                croppedAreaPixels,
+                originalFile,
+                isGif,
+                isWebP,
+            });
             const result = await onUploadFile(fileToUpload);
             
             if (!result.success || !result.url) {
@@ -186,13 +179,10 @@ export function UploadTab({
                                     className="max-w-full max-h-full object-contain"
                                     alt={t('cover.previewAlt')}
                                 />
-                                <div className="absolute bottom-3 left-3 bg-[var(--vlaina-color-overlay)] text-[var(--vlaina-color-inverse-text)] text-[var(--vlaina-font-10)] px-2 py-1 rounded-full backdrop-blur-[var(--vlaina-backdrop-blur-sm)] border border-[var(--vlaina-color-panel-border)] flex items-center gap-1.5 pointer-events-none">
-                                    <span className="relative flex h-2 w-2">
-                                        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-[var(--vlaina-opacity-75)] animate-ping", isGif ? "bg-[var(--vlaina-color-status-success-fg)]" : "bg-[var(--vlaina-color-status-info-fg)]")}></span>
-                                        <span className={cn("relative inline-flex rounded-full h-2 w-2", isGif ? "bg-[var(--vlaina-color-status-success-fg)]" : "bg-[var(--vlaina-color-status-info-fg)]")}></span>
-                                    </span>
-                                    {isGif ? t('icon.animationPreserved') : t('icon.originalFormat')}
-                                </div>
+                                <UploadFormatBadge
+                                    isGif={isGif}
+                                    label={isGif ? t('icon.animationPreserved') : t('icon.originalFormat')}
+                                />
                             </>
                         ) : (
                             <Cropper
@@ -256,30 +246,7 @@ export function UploadTab({
                                 disabled={isUploading}
                                 className="bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-[var(--vlaina-color-white)] px-8 h-9 rounded-full font-medium shadow-[var(--vlaina-shadow-sm)] transition-all active:scale-[var(--vlaina-scale-95)] inline-flex items-center justify-center min-w-[var(--vlaina-size-80px)]"
                             >
-                                {isUploading ? (
-                                    <svg
-                                        aria-hidden="true"
-                                        className="animate-spin w-[var(--vlaina-size-18px)] h-[var(--vlaina-size-18px)] text-current"
-                                        focusable="false"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill={themeStyleResetTokens.fillNone}
-                                        viewBox={themeIconTokens.viewBoxDefault}
-                                    >
-                                        <circle
-                                            className="opacity-[var(--vlaina-opacity-25)]"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke={themeStyleResetTokens.currentColor}
-                                            strokeWidth={themeIconTokens.strokeUploadSpinner}
-                                        />
-                                        <path
-                                            className="opacity-[var(--vlaina-opacity-100)]"
-                                            fill={themeStyleResetTokens.currentColor}
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                        />
-                                    </svg>
-                                ) : t('app.unsavedDraftsCancel')}
+                                {isUploading ? <UploadSaveSpinner /> : t('app.unsavedDraftsCancel')}
                             </Button>
                         </div>
                     </div>
@@ -307,31 +274,15 @@ export function UploadTab({
                     </div>
 
                     <div className="flex-1 flex flex-col min-h-0 bg-[var(--vlaina-bg-primary)] px-3">
-                        <div className="flex-1 overflow-y-auto app-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
-                            {customIcons.map((emoji) => (
-                                <div
-                                    key={emoji.id}
-                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-[var(--vlaina-scale-95)]"
-                                    onClick={() => handleLibraryItemClick(emoji.url)}
-                                    onContextMenu={(event) => handleLibraryItemContextMenu(event, emoji)}
-                                    onMouseEnter={() => onPreview?.(emoji.url)}
-                                    onMouseLeave={() => onPreview?.(null)}
-                                >
-                                    <AppIcon
-                                        icon={emoji.url}
-                                        size={themeIconTokens.sizeUploadPreview}
-                                        className="w-full h-full object-contain"
-                                        imageLoader={imageLoader}
-                                        allowLegacyImageScheme={allowLegacyImageScheme}
-                                    />
-                                </div>
-                            ))}
-                            {customIcons.length === 0 && (
-                                <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">
-                                    {t('icon.uploadImageForNoteIcon')}
-                                </div>
-                            )}
-                        </div>
+                        <UploadTabLibrary
+                            customIcons={customIcons}
+                            emptyLabel={t('icon.uploadImageForNoteIcon')}
+                            imageLoader={imageLoader}
+                            allowLegacyImageScheme={allowLegacyImageScheme}
+                            onSelect={handleLibraryItemClick}
+                            onPreview={onPreview}
+                            onContextMenu={handleLibraryItemContextMenu}
+                        />
                     </div>
                 </div>
             )}

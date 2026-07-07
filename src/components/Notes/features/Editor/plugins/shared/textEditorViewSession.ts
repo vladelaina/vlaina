@@ -1,73 +1,30 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getScrollRoot } from '../floating-toolbar/floatingToolbarDom';
 import { createTextEditorPopupAnchorResizeTracker } from './textEditorPopupAnchorResize';
-import {
-  mountTextEditorPopup,
-  resizeTextEditorPopupTextareaToContent,
-  TEXT_EDITOR_POPUP_CARD_SELECTOR,
-} from './textEditorPopupDom';
+import { mountTextEditorPopup } from './textEditorPopupDom';
 import { resolveTextEditorPopupPlacement } from './textEditorPopupPlacement';
 import { themeDomStyleTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { markEditorUserInput } from './userInputEvents';
+import { createTextEditorAnchorPositionRefreshScheduler } from './textEditorAnchorPositionRefresh';
+import { createTextEditorOutsideMouseDownSuppression } from './textEditorOutsideMouseDownSuppression';
+import { createTextEditorPreviewScheduler } from './textEditorPreviewScheduler';
+import { createTextEditorPopupVisibilityScrollScheduler } from './textEditorPopupVisibilityScroll';
+import { createTextEditorTextareaFocusController } from './textEditorTextareaFocus';
+import { createTextEditorTextareaResizeController } from './textEditorTextareaResize';
+import type {
+  CreateTextEditorViewSessionArgs,
+  TextEditorSessionActionArgs,
+  TextEditorSessionRefs,
+  TextEditorSessionState,
+} from './textEditorViewSessionTypes';
 
-export interface TextEditorSessionState {
-  isOpen: boolean;
-  nodePos: number;
-  position: { x: number; y: number };
-}
-
-export interface TextEditorSessionRefs {
-  textareaElement: HTMLTextAreaElement | null;
-}
-
-export interface TextEditorSessionActionArgs<
-  TState extends TextEditorSessionState,
-  TRefs extends TextEditorSessionRefs,
-> {
-  editorView: EditorView;
-  refs: TRefs;
-  getEditorState: () => TState | undefined;
-  resetSessionDom: () => void;
-}
-
-export interface TextEditorPreviewArgs<
-  TState extends TextEditorSessionState,
-  TRefs extends TextEditorSessionRefs,
-> {
-  state: TState;
-  refs: TRefs;
-  value: string;
-  resolveAnchor: () => HTMLElement | null;
-  scheduleResize: () => void;
-}
-
-export interface CreateTextEditorViewSessionArgs<
-  TState extends TextEditorSessionState,
-  TRefs extends TextEditorSessionRefs,
-> {
-  editorView: EditorView;
-  onOutsideCloseIntent: () => void;
-  refs: TRefs;
-  popupClassName: string;
-  placeholder: string;
-  getEditorState: () => TState | undefined;
-  getStateRenderKey: (state: TState) => string;
-  getValue: (state: TState) => string;
-  setInitialValue: (refs: TRefs, value: string) => void;
-  setDraftValue: (refs: TRefs, value: string) => void;
-  getInitialValue: (refs: TRefs) => string;
-  resetRefs: (refs: TRefs) => void;
-  resolveAnchorElement: (state: TState | undefined, nodeDom: Node | null) => HTMLElement | null;
-  getAnchorViewportPosition: (anchorElement: HTMLElement | null) => { x: number; y: number };
-  preferStatePositionOnInitialRender?: (state: TState) => boolean;
-  scrollPopupIntoViewOnInitialRender?: boolean;
-  constrainTextareaHeightToViewport?: boolean;
-  previewInput: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
-  previewInputDebounceMs?: number;
-  previewCancel: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
-  cancelSession: (args: TextEditorSessionActionArgs<TState, TRefs>) => void;
-  saveSession: (args: TextEditorSessionActionArgs<TState, TRefs>) => void;
-}
+export type {
+  CreateTextEditorViewSessionArgs,
+  TextEditorPreviewArgs,
+  TextEditorSessionActionArgs,
+  TextEditorSessionRefs,
+  TextEditorSessionState,
+} from './textEditorViewSessionTypes';
 
 export function createTextEditorViewSession<
   TState extends TextEditorSessionState,
@@ -99,18 +56,22 @@ export function createTextEditorViewSession<
   } = args;
   let editorElement: HTMLElement | null = null;
   let renderedKey: string | null = null;
-  let suppressOutsideMouseDown = false;
-  let suppressOutsideMouseDownTimer: number | null = null;
-  let focusTextareaTimer: number | null = null;
-  let previewInputTimer: number | null = null;
-  let textareaResizeFrame: number | null = null;
-  let anchorPositionFrame: number | null = null;
-  let popupVisibilityFrame: number | null = null;
-  let pendingPreviewInputArgs: TextEditorPreviewArgs<TState, TRefs> | null = null;
   let isComposing = false;
   const scrollRoot = getScrollRoot(editorView);
   const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
   const positionRoot = contentRoot ?? scrollRoot;
+  const outsideMouseDownSuppression = createTextEditorOutsideMouseDownSuppression();
+  const previewScheduler = createTextEditorPreviewScheduler(previewInput, previewInputDebounceMs);
+  const textareaResizeController = createTextEditorTextareaResizeController({
+    getEditorElement: () => editorElement,
+    getTextarea: () => refs.textareaElement,
+    constrainToViewport: constrainTextareaHeightToViewport,
+  });
+  const textareaFocusController = createTextEditorTextareaFocusController(() => refs.textareaElement);
+  const popupVisibilityScrollScheduler = createTextEditorPopupVisibilityScrollScheduler({
+    shouldScroll: Boolean(scrollPopupIntoViewOnInitialRender),
+    scrollIntoView: () => editorElement?.scrollIntoView({ block: 'nearest', inline: 'nearest' }),
+  });
 
   const resolveCurrentAnchorElement = (state: TState | undefined) => {
     if (!state?.isOpen) {
@@ -129,88 +90,10 @@ export function createTextEditorViewSession<
     refs.textareaElement = null;
   };
 
-  const clearPendingPreviewInput = () => {
-    pendingPreviewInputArgs = null;
-    if (previewInputTimer !== null && typeof window !== 'undefined') {
-      window.clearTimeout(previewInputTimer);
-    }
-    previewInputTimer = null;
-  };
-
-  const clearPendingTextareaResize = () => {
-    if (textareaResizeFrame !== null && typeof window !== 'undefined') {
-      window.cancelAnimationFrame(textareaResizeFrame);
-    }
-    textareaResizeFrame = null;
-  };
-
-  const clearPendingPopupVisibilityScroll = () => {
-    if (popupVisibilityFrame !== null && typeof window !== 'undefined') {
-      window.cancelAnimationFrame(popupVisibilityFrame);
-    }
-    popupVisibilityFrame = null;
-  };
-
-  const resizeTextareaToContent = () => {
-    if (!editorElement || !refs.textareaElement) {
-      return;
-    }
-
-    const card = editorElement.querySelector(TEXT_EDITOR_POPUP_CARD_SELECTOR);
-    if (card instanceof HTMLElement) {
-      resizeTextEditorPopupTextareaToContent({
-        card,
-        textarea: refs.textareaElement,
-        constrainToViewport: constrainTextareaHeightToViewport,
-      });
-    }
-  };
-
-  const scheduleTextareaResize = () => {
-    if (typeof window === 'undefined') {
-      resizeTextareaToContent();
-      return;
-    }
-
-    if (textareaResizeFrame !== null) {
-      return;
-    }
-
-    textareaResizeFrame = window.requestAnimationFrame(() => {
-      textareaResizeFrame = null;
-      resizeTextareaToContent();
-    });
-  };
-
-  const flushPendingPreviewInput = () => {
-    if (!pendingPreviewInputArgs) {
-      return;
-    }
-    const nextArgs = pendingPreviewInputArgs;
-    clearPendingPreviewInput();
-    previewInput(nextArgs);
-  };
-
-  const schedulePreviewInput = (previewArgs: TextEditorPreviewArgs<TState, TRefs>) => {
-    pendingPreviewInputArgs = previewArgs;
-    if (previewInputDebounceMs <= 0 || typeof window === 'undefined') {
-      flushPendingPreviewInput();
-      return;
-    }
-
-    if (previewInputTimer !== null) {
-      window.clearTimeout(previewInputTimer);
-    }
-    previewInputTimer = window.setTimeout(() => {
-      previewInputTimer = null;
-      flushPendingPreviewInput();
-    }, previewInputDebounceMs);
-  };
-
   const resetSessionDom = () => {
-    clearPendingPreviewInput();
-    clearPendingTextareaResize();
-    clearPendingPopupVisibilityScroll();
+    previewScheduler.clear();
+    textareaResizeController.clear();
+    popupVisibilityScrollScheduler.clear();
     clearEditorElements();
     resetRefs(refs);
     renderedKey = null;
@@ -224,24 +107,8 @@ export function createTextEditorViewSession<
     resetSessionDom,
   });
 
-  const scheduleOutsideMouseDownSuppression = () => {
-    suppressOutsideMouseDown = true;
-    if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
-      window.clearTimeout(suppressOutsideMouseDownTimer);
-    }
-
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    suppressOutsideMouseDownTimer = window.setTimeout(() => {
-      suppressOutsideMouseDown = false;
-      suppressOutsideMouseDownTimer = null;
-    }, 0);
-  };
-
   const handleClickOutside = (event: MouseEvent) => {
-    if (suppressOutsideMouseDown) {
+    if (outsideMouseDownSuppression.isSuppressed()) {
       return;
     }
 
@@ -250,7 +117,7 @@ export function createTextEditorViewSession<
         return;
       }
       onOutsideCloseIntent();
-      clearPendingPreviewInput();
+      previewScheduler.clear();
       saveSession(getSessionActionArgs());
     }
   };
@@ -283,10 +150,10 @@ export function createTextEditorViewSession<
     editorElement.style.top = `${nextPosition.y}px`;
 
     if (options?.deferResize) {
-      scheduleTextareaResize();
+      textareaResizeController.schedule();
     } else {
-      clearPendingTextareaResize();
-      resizeTextareaToContent();
+      textareaResizeController.clear();
+      textareaResizeController.resizeToContent();
     }
 
     if (!options?.deferAnchorUpdate) {
@@ -303,84 +170,10 @@ export function createTextEditorViewSession<
       }
     },
   });
-
-  const scheduleAnchorPositionRefresh = () => {
-    if (typeof window === 'undefined') {
-      const state = getEditorState();
-      if (state?.isOpen) {
-        updateEditorPosition(state);
-      }
-      return;
-    }
-
-    if (anchorPositionFrame !== null) {
-      return;
-    }
-
-    anchorPositionFrame = window.requestAnimationFrame(() => {
-      anchorPositionFrame = null;
-      const state = getEditorState();
-      if (state?.isOpen) {
-        updateEditorPosition(state, { deferResize: true });
-      }
-    });
-  };
-
-  const scrollPopupIntoView = () => {
-    editorElement?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  };
-
-  const scheduleInitialPopupVisibilityScroll = () => {
-    if (!scrollPopupIntoViewOnInitialRender) {
-      return;
-    }
-
-    if (typeof window === 'undefined') {
-      scrollPopupIntoView();
-      return;
-    }
-
-    if (popupVisibilityFrame !== null) {
-      return;
-    }
-
-    popupVisibilityFrame = window.requestAnimationFrame(() => {
-      popupVisibilityFrame = null;
-      scrollPopupIntoView();
-    });
-  };
-
-  const focusTextareaNow = () => {
-    const nextTextarea = refs.textareaElement;
-    if (!nextTextarea) {
-      return;
-    }
-
-    try {
-      nextTextarea.focus({ preventScroll: true });
-    } catch {
-      nextTextarea.focus();
-    }
-    const length = nextTextarea.value.length;
-    nextTextarea.setSelectionRange(length, length);
-  };
-
-  const focusTextareaAtEnd = () => {
-    if (focusTextareaTimer !== null && typeof window !== 'undefined') {
-      window.clearTimeout(focusTextareaTimer);
-    }
-
-    if (typeof window === 'undefined') {
-      focusTextareaNow();
-      return;
-    }
-
-    focusTextareaNow();
-    focusTextareaTimer = window.setTimeout(() => {
-      focusTextareaTimer = null;
-      focusTextareaNow();
-    }, 0);
-  };
+  const anchorPositionRefreshScheduler = createTextEditorAnchorPositionRefreshScheduler({
+    getEditorState,
+    updateEditorPosition,
+  });
 
   const ensureEditorElement = () => {
     if (editorElement) {
@@ -405,11 +198,11 @@ export function createTextEditorViewSession<
       container,
       value,
       placeholder,
-      onResizeRequest: scheduleTextareaResize,
+      onResizeRequest: textareaResizeController.schedule,
       onInput(nextValue) {
         markEditorUserInput(editorView);
         setDraftValue(refs, nextValue);
-        schedulePreviewInput({
+        previewScheduler.schedule({
           state,
           refs,
           value: nextValue,
@@ -418,7 +211,7 @@ export function createTextEditorViewSession<
         });
       },
       onCancel() {
-        clearPendingPreviewInput();
+        previewScheduler.clear();
         previewCancel({
           state,
           refs,
@@ -432,7 +225,7 @@ export function createTextEditorViewSession<
         if (isComposing) {
           return;
         }
-        clearPendingPreviewInput();
+        previewScheduler.clear();
         saveSession(getSessionActionArgs());
       },
       onCompositionStart() {
@@ -445,8 +238,8 @@ export function createTextEditorViewSession<
 
     refs.textareaElement = textarea;
     renderedKey = getStateRenderKey(state);
-    scheduleOutsideMouseDownSuppression();
-    focusTextareaAtEnd();
+    outsideMouseDownSuppression.schedule();
+    textareaFocusController.focusAtEnd();
   };
 
   document.addEventListener('mousedown', handleClickOutside, true);
@@ -475,33 +268,22 @@ export function createTextEditorViewSession<
         useStatePosition: useInitialStatePosition,
       });
       if (useInitialStatePosition) {
-        scheduleAnchorPositionRefresh();
+        anchorPositionRefreshScheduler.schedule();
       }
       if (didRenderEditor) {
-        scheduleInitialPopupVisibilityScroll();
+        popupVisibilityScrollScheduler.schedule();
       }
     },
     destroy() {
       document.removeEventListener('mousedown', handleClickOutside, true);
-      if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
-        window.clearTimeout(suppressOutsideMouseDownTimer);
-      }
-      if (focusTextareaTimer !== null && typeof window !== 'undefined') {
-        window.clearTimeout(focusTextareaTimer);
-      }
-      if (anchorPositionFrame !== null && typeof window !== 'undefined') {
-        window.cancelAnimationFrame(anchorPositionFrame);
-      }
-      clearPendingPopupVisibilityScroll();
-      clearPendingTextareaResize();
-      clearPendingPreviewInput();
+      outsideMouseDownSuppression.clear();
+      anchorPositionRefreshScheduler.clear();
+      popupVisibilityScrollScheduler.clear();
+      textareaResizeController.clear();
+      previewScheduler.clear();
+      textareaFocusController.clear();
       anchorResizeTracker.destroy();
       resetSessionDom();
-      suppressOutsideMouseDown = false;
-      suppressOutsideMouseDownTimer = null;
-      focusTextareaTimer = null;
-      anchorPositionFrame = null;
-      popupVisibilityFrame = null;
       isComposing = false;
     },
   };

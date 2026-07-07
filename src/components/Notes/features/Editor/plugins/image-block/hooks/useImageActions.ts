@@ -1,24 +1,28 @@
 import { useCallback, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
-import { getMimeType, isImageFilename, sanitizeFilename } from '@/lib/assets/core/naming';
 import { writeImageBlobToClipboard, writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { fetchBoundedImageBlobResult, MAX_FETCHED_IMAGE_BYTES } from '@/lib/markdown/fetchBoundedImageBlob';
-import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from '@/lib/markdown/svgRasterize';
-import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
+import { isSvgImageMimeType } from '@/lib/markdown/svgRasterize';
 import { saveDialog } from '@/lib/storage/dialog';
-import { getStorageAdapter } from '@/lib/storage/adapter';
-import { toBlobPart } from '@/lib/blobPart';
 import { ensureImageFileExists } from '../utils/fileUtils';
-import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { deleteImageNodeAtPos } from '../commands/imageNodeCommands';
 import type { CropArea, ImageNodeAttrs } from '../types';
 import type { CropParams } from '../utils/imageSourceFragment';
+import {
+    createImageDownloadDefaultName,
+    getImageActionResourceSrc,
+    isBlobByteLengthWithinLimit,
+    isLikelySvgImageSource,
+    normalizeActionImageBlob,
+    readBlobBytes,
+    readLocalActionImageBlob,
+} from './imageActionResources';
 
-const DOWNLOAD_IMAGE_EXTENSIONS = new Set(['gif', 'jpeg', 'jpg', 'png', 'webp']);
+export { createImageDownloadDefaultName } from './imageActionResources';
 
 function isValidCropArea(value: CropArea): boolean {
     return Number.isFinite(value.x)
@@ -27,145 +31,6 @@ function isValidCropArea(value: CropArea): boolean {
         && Number.isFinite(value.height)
         && value.width > 0
         && value.height > 0;
-}
-
-function getSafeDownloadExtension(src: string) {
-    const extension = src.split('#')[0]?.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
-    return DOWNLOAD_IMAGE_EXTENSIONS.has(extension) ? extension : 'png';
-}
-
-function isLikelySvgImageSource(src: string | null | undefined): boolean {
-    const normalized = src?.split('#')[0]?.split('?')[0]?.trim().toLowerCase() ?? '';
-    return normalized.endsWith('.svg') || normalized.endsWith('.svgz');
-}
-
-function isBlobByteLengthWithinLimit(size: number, maxBytes: number): boolean {
-    return Number.isFinite(size) && size >= 0 && size <= maxBytes;
-}
-
-type LocalActionImageBlobResult =
-    | { status: 'ok'; blob: Blob }
-    | { status: 'too-large' }
-    | { status: 'not-local' | 'not-found' };
-
-function isTooLargeReadError(error: unknown): boolean {
-    return error instanceof Error && /too large/i.test(error.message);
-}
-
-async function normalizeActionImageBlob(blob: Blob): Promise<Blob | null> {
-    if (!blob.type.startsWith('image/')) {
-        return null;
-    }
-
-    const outputBlob = isSvgImageMimeType(blob.type)
-        ? await rasterizeSvgBlobToPngBlob(blob)
-        : blob;
-
-    if (
-        !outputBlob ||
-        !outputBlob.type.startsWith('image/') ||
-        !isBlobByteLengthWithinLimit(outputBlob.size, MAX_FETCHED_IMAGE_BYTES)
-    ) {
-        return null;
-    }
-
-    return outputBlob;
-}
-
-export function createImageDownloadDefaultName(alt: string, src: string) {
-    const sanitizedBase = sanitizeFilename(alt.replace(/[\u0000-\u001f\u007f]/g, ''))
-        .replace(/^\.+|\.+$/g, '') || 'image';
-    return `${sanitizedBase}.${getSafeDownloadExtension(src)}`;
-}
-
-function getImageActionResourceSrc(baseSrc: string, resolvedSrc?: string): string {
-    const baseResourceSrc = getImageSourceBase(baseSrc);
-    const remoteResourceSrc = normalizePublicRemoteMediaUrl(baseResourceSrc);
-    if (remoteResourceSrc) {
-        return remoteResourceSrc;
-    }
-    if (baseResourceSrc && isVirtualImageSource(baseResourceSrc)) {
-        return baseResourceSrc;
-    }
-    return resolvedSrc || '';
-}
-
-async function readLocalActionImageBlob(
-    baseSrc: string,
-    notesPath: string,
-    currentNotePath?: string,
-): Promise<LocalActionImageBlobResult> {
-    const baseResourceSrc = getImageSourceBase(baseSrc);
-    if (!baseResourceSrc || normalizePublicRemoteMediaUrl(baseResourceSrc) || isVirtualImageSource(baseResourceSrc)) {
-        return { status: 'not-local' };
-    }
-
-    const candidatePaths = await resolveImageSourcePathCandidates({
-        rawSrc: baseResourceSrc,
-        notesPath,
-        currentNotePath,
-    });
-    if (candidatePaths.length === 0) {
-        return { status: 'not-found' };
-    }
-
-    const storage = getStorageAdapter();
-    let sawTooLargeCandidate = false;
-
-    for (const candidatePath of candidatePaths) {
-        if (!isImageFilename(candidatePath)) {
-            continue;
-        }
-
-        const info = await storage.stat(candidatePath).catch(() => null);
-        if (info?.isDirectory || info?.isFile === false) {
-            continue;
-        }
-        if (typeof info?.size === 'number' && !isBlobByteLengthWithinLimit(info.size, MAX_FETCHED_IMAGE_BYTES)) {
-            sawTooLargeCandidate = true;
-            continue;
-        }
-
-        try {
-            const bytes = await storage.readBinaryFile(candidatePath, MAX_FETCHED_IMAGE_BYTES);
-            if (!isBlobByteLengthWithinLimit(bytes.byteLength, MAX_FETCHED_IMAGE_BYTES)) {
-                sawTooLargeCandidate = true;
-                continue;
-            }
-
-            return {
-                status: 'ok',
-                blob: new Blob([toBlobPart(bytes)], { type: getMimeType(candidatePath) }),
-            };
-        } catch (error) {
-            if (isTooLargeReadError(error)) {
-                sawTooLargeCandidate = true;
-            }
-        }
-    }
-
-    return sawTooLargeCandidate ? { status: 'too-large' } : { status: 'not-found' };
-}
-
-async function readBlobBytes(blob: Blob): Promise<Uint8Array> {
-    if (typeof blob.arrayBuffer === 'function') {
-        return new Uint8Array(await blob.arrayBuffer());
-    }
-
-    return await new Promise<Uint8Array>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = reader.result;
-            if (result instanceof ArrayBuffer) {
-                resolve(new Uint8Array(result));
-                return;
-            }
-            reject(new Error('Unable to read image blob.'));
-        };
-        reader.onerror = () => reject(reader.error ?? new Error('Unable to read image blob.'));
-        reader.onabort = () => reject(new Error('Image blob read was aborted.'));
-        reader.readAsArrayBuffer(blob);
-    });
 }
 
 interface UseImageActionsProps {

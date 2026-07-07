@@ -1,5 +1,11 @@
 import postcss from 'postcss';
 import { findTopLevelBoundary, splitSelectorList } from '../cssScoping/selectorList';
+import {
+  isSafeAppThemeBackgroundLayer,
+  isSafeAppThemeBackgroundLayerValue,
+  isSafeAppThemeCustomPropertyValue,
+  isShellOnlyBackgroundValue,
+} from './backgroundValueSafety';
 import type { CollectedThemeCustomProperties, ThemeColorSchemeBucket } from './types';
 
 const IMPORTED_APP_BACKGROUND_PROPERTY = '--vlaina-imported-app-background';
@@ -11,25 +17,6 @@ const IMPORTED_APP_BACKGROUND_ORIGIN_PROPERTY = '--vlaina-imported-app-backgroun
 const IMPORTED_APP_BACKGROUND_POSITION_PROPERTY = '--vlaina-imported-app-background-position';
 const IMPORTED_APP_BACKGROUND_REPEAT_PROPERTY = '--vlaina-imported-app-background-repeat';
 const IMPORTED_APP_BACKGROUND_SIZE_PROPERTY = '--vlaina-imported-app-background-size';
-const NON_COLOR_BACKGROUND_KEYWORDS = new Set([
-  'border-box',
-  'bottom',
-  'center',
-  'contain',
-  'content-box',
-  'cover',
-  'fixed',
-  'left',
-  'local',
-  'no-repeat',
-  'padding-box',
-  'repeat',
-  'repeat-x',
-  'repeat-y',
-  'right',
-  'scroll',
-  'top',
-]);
 
 function isThemeShellRule(selector: string): boolean {
   const normalized = selector.trim();
@@ -115,57 +102,8 @@ function getRuleBuckets(
   return Array.from(buckets);
 }
 
-function isSafeAppThemeCustomPropertyValue(value: string): boolean {
-  const normalized = value.replace(/\s+/g, '').toLowerCase();
-  if (normalized.includes('javascript:') || normalized.includes('vbscript:')) {
-    return false;
-  }
-
-  return !/url\(/i.test(value);
-}
-
 function isTyporaDocumentBackgroundImageProperty(property: string): boolean {
   return /^--d-bi(?:-(?:lg|dk))?$/i.test(property);
-}
-
-function isSafeAppThemeBackgroundLayerValue(value: string): boolean {
-  const normalized = value.replace(/\s+/g, '').toLowerCase();
-  return !normalized.includes('javascript:') && !normalized.includes('vbscript:');
-}
-
-function isSafeAppThemeBackgroundValue(
-  declaration: postcss.Declaration
-): boolean {
-  if (!isSafeAppThemeCustomPropertyValue(declaration.value)) {
-    return false;
-  }
-
-  const property = declaration.prop.toLowerCase();
-  if (property === 'background-color') {
-    return isColorLikeCssValue(declaration.value);
-  }
-
-  if (property !== 'background') {
-    return false;
-  }
-
-  const tokens = splitCssValueTokens(declaration.value);
-  return tokens.length === 1 && isColorLikeCssValue(tokens[0]);
-}
-
-function isSafeAppThemeBackgroundLayer(
-  declaration: postcss.Declaration
-): boolean {
-  const property = declaration.prop.toLowerCase();
-  if (property !== 'background' && property !== 'background-color' && property !== 'background-image') {
-    return false;
-  }
-  if (!isSafeAppThemeBackgroundLayerValue(declaration.value)) {
-    return false;
-  }
-
-  const normalized = declaration.value.trim();
-  return Boolean(normalized) && !/^(?:none|transparent|initial|inherit|unset|revert|revert-layer)$/i.test(normalized);
 }
 
 function getBackgroundLonghandBridgeProperty(property: string): string | null {
@@ -185,62 +123,6 @@ function getBackgroundLonghandBridgeProperty(property: string): string | null {
     default:
       return null;
   }
-}
-
-function isShellOnlyBackgroundValue(
-  declaration: postcss.Declaration
-): boolean {
-  return isSafeAppThemeBackgroundValue(declaration);
-}
-
-function isColorLikeCssValue(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return false;
-  if (/^(?:none|transparent|initial|inherit|unset|revert|revert-layer)$/i.test(normalized)) {
-    return false;
-  }
-  if (normalized.startsWith('#')) return true;
-  if (/^(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|var)\(/i.test(normalized)) {
-    return true;
-  }
-  return /^[a-z]+$/i.test(normalized) && !NON_COLOR_BACKGROUND_KEYWORDS.has(normalized);
-}
-
-function splitCssValueTokens(value: string): string[] {
-  const tokens: string[] = [];
-  let start = 0;
-  let quote: string | null = null;
-  let parenDepth = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    const previous = value[index - 1];
-    if (quote) {
-      if (char === quote && previous !== '\\') quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === '(') {
-      parenDepth += 1;
-      continue;
-    }
-    if (char === ')') {
-      parenDepth = Math.max(0, parenDepth - 1);
-      continue;
-    }
-    if (parenDepth === 0 && /\s/.test(char)) {
-      const token = value.slice(start, index).trim();
-      if (token) tokens.push(token);
-      start = index + 1;
-    }
-  }
-
-  const token = value.slice(start).trim();
-  if (token) tokens.push(token);
-  return tokens;
 }
 
 export function collectThemeCustomProperties(css: string): CollectedThemeCustomProperties {

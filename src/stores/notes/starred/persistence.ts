@@ -17,6 +17,7 @@ import {
   isValidStarredNotesRootPath,
   normalizeStarredRelativePath,
 } from './pathUtils';
+import { pruneInvalidStarredEntries } from './prune';
 
 const MAX_STARRED_ENTRIES = 5000;
 const MAX_STARRED_ENTRY_SCAN_ITEMS = 20_000;
@@ -192,71 +193,6 @@ async function writeStarredRegistry(payload: StarredSavePayload): Promise<void> 
   );
   await storage.writeFile(starredPath, JSON.stringify(registry, null, 2));
   emitStorageAutoSyncEvent({ kind: 'notes-starred' });
-}
-
-async function isStarredEntryValid(entry: StarredEntry): Promise<boolean> {
-  const storage = getStorageAdapter();
-
-  const notesRootExists = await storage.exists(entry.notesRootPath);
-  if (!notesRootExists) {
-    return false;
-  }
-
-  const notesRootInfo = await storage.stat(entry.notesRootPath);
-  if (notesRootInfo?.isDirectory === false) {
-    return false;
-  }
-
-  const fullPath = await joinPath(entry.notesRootPath, entry.relativePath);
-  const targetExists = await storage.exists(fullPath);
-  if (!targetExists) {
-    return false;
-  }
-
-  const targetInfo = await storage.stat(fullPath);
-  if (!targetInfo) {
-    return true;
-  }
-
-  return entry.kind === 'folder'
-    ? targetInfo.isDirectory !== false
-    : targetInfo.isFile !== false;
-}
-
-async function pruneInvalidStarredEntries(entries: StarredEntry[]): Promise<{
-  entries: StarredEntry[];
-  changed: boolean;
-}> {
-  if (entries.length === 0) {
-    return { entries, changed: false };
-  }
-
-  const validEntries: StarredEntry[] = [];
-  const batchSize = 12;
-
-  for (let index = 0; index < entries.length; index += batchSize) {
-    const batch = entries.slice(index, index + batchSize);
-    const results = await Promise.all(
-      batch.map(async (entry) => ({
-        entry,
-        valid: await isStarredEntryValid(entry),
-      }))
-    );
-
-    results.forEach((result) => {
-      if (result.valid) {
-        validEntries.push(result.entry);
-      }
-    });
-  }
-
-  const dedupedEntries = dedupeStarredEntries(validEntries);
-  const changed = dedupedEntries.length !== entries.length;
-
-  return {
-    entries: dedupedEntries,
-    changed,
-  };
 }
 
 const starredPersistenceQueue = createPersistenceQueue<StarredSavePayload>({

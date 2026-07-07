@@ -81,6 +81,27 @@ describe('chooseAvailablePort', () => {
 
     expect(checkPortAvailable).toHaveBeenLastCalledWith(3001);
   });
+
+  it('skips available ports that are not usable by the desktop host', async () => {
+    const delay = vi.fn(async () => {});
+    const checkPortAvailable = vi.fn(async () => true);
+    const isPortUsable = vi.fn((port) => port !== 3000);
+
+    await expect(
+      chooseAvailablePort(3000, {
+        checkPortAvailable,
+        delay,
+        isPortUsable,
+        maxPort: 3003,
+        reuseGraceMs: 200,
+        retryIntervalMs: 100,
+      })
+    ).resolves.toBe(3001);
+
+    expect(delay).not.toHaveBeenCalled();
+    expect(isPortUsable).toHaveBeenCalledWith(3000);
+    expect(isPortUsable).toHaveBeenCalledWith(3001);
+  });
 });
 
 describe('configureDevelopmentProfileEnv', () => {

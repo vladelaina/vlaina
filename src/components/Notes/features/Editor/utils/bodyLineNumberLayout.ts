@@ -1,22 +1,29 @@
+import { getMarkdownBodyLineNumbers } from './bodyLineNumbers';
 import {
-  getMarkdownBodyLineNumbers,
-  isNonNumberedMarkdownBodyLinePlaceholder,
-} from './bodyLineNumbers';
+  collectBodyLineNumberTargets,
+  MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS,
+  MAX_BODY_LINE_NUMBER_TARGETS,
+} from './bodyLineNumberTargets';
+import {
+  collectSelectedBlockDescendantTargets,
+  isInsideSelectedBlock,
+  shouldCollectSelectedBlockDescendantTargets,
+  syncBodyLineNumberLabelSelection,
+  MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS,
+} from './bodyLineNumberSelection';
 
 const BODY_LINE_NUMBER_LABEL_WIDTH = 40;
 const BODY_LINE_NUMBER_LABEL_GAP = 18;
 const MAX_BODY_LINE_NUMBER_TEXT_ANCHOR_SCAN_NODES = 256;
 const MAX_BODY_LINE_NUMBER_TABLE_CELL_ANCHOR_SCAN_ELEMENTS = 128;
-const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
-const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
-const MAX_INCREMENTAL_BODY_LINE_NUMBER_SELECTION_SYNC_ELEMENTS = 64;
-const HIDDEN_DEFINITION_TEXT_PATTERN = /^(?:\[[^\]\n]+]:\s+\S|\*\[[^\]\n]+]:\s+\S)/;
-const SELF_CLOSING_RAW_MEDIA_HTML_TEXT_PATTERN = /^<(?:video|audio)\b[^>]*\/>$/i;
-
-export const MAX_BODY_LINE_NUMBER_TARGETS = 5000;
 export const MAX_BODY_LINE_NUMBER_PRECISE_TEXT_ANCHOR_TARGETS = 400;
-export const MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS = 10000;
-export const MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS = 20000;
+export {
+  collectBodyLineNumberTargets,
+  syncBodyLineNumberLabelSelection,
+  MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS,
+  MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS,
+  MAX_BODY_LINE_NUMBER_TARGETS,
+};
 
 export interface BodyLineNumberLabel {
   lineNumber: number;
@@ -28,160 +35,6 @@ export interface BodyLineNumberLabel {
 export interface BodyLineNumberLabelLayout {
   labels: BodyLineNumberLabel[];
   targets: HTMLElement[];
-}
-
-function isFrontmatterBlock(element: HTMLElement): boolean {
-  return element.classList.contains('frontmatter-block-container');
-}
-
-function isNonNumberedPlaceholderElement(element: HTMLElement): boolean {
-  return element.dataset.type === 'html-block'
-    && isNonNumberedMarkdownBodyLinePlaceholder(element.dataset.value ?? '');
-}
-
-function isHiddenDefinitionElement(element: HTMLElement): boolean {
-  return HIDDEN_DEFINITION_TEXT_PATTERN.test((element.textContent ?? '').trim());
-}
-
-function isUnsupportedSelfClosingRawMediaElement(element: HTMLElement): boolean {
-  return SELF_CLOSING_RAW_MEDIA_HTML_TEXT_PATTERN.test((element.textContent ?? '').trim());
-}
-
-function shouldSkipBodyLineNumberTarget(element: HTMLElement): boolean {
-  return isFrontmatterBlock(element)
-    || isNonNumberedPlaceholderElement(element)
-    || isHiddenDefinitionElement(element)
-    || isUnsupportedSelfClosingRawMediaElement(element);
-}
-
-function isCodeBlockTarget(element: HTMLElement): boolean {
-  return element.classList.contains('code-block-container')
-    || element.matches('pre[data-language], pre.code-block-wrapper');
-}
-
-function collectCodeBlockLineNumberTargets(codeBlock: HTMLElement): HTMLElement[] {
-  const codeRoot = codeBlock.querySelector<HTMLElement>('.cm-content')
-    ?? codeBlock.querySelector<HTMLElement>('.code-block-lazy-preview, pre, code')
-    ?? codeBlock;
-  const lines = Array.from(codeRoot.querySelectorAll<HTMLElement>('.cm-line'))
-    .filter((line) =>
-      line.closest('.code-block-container, pre[data-language], pre.code-block-wrapper') === codeBlock
-      && line.closest('.cm-gutters, .cm-gutter, .cm-lineNumbers') === null
-    );
-
-  if (lines.length > 0) return lines;
-  return [codeRoot];
-}
-
-function isTableBlockTarget(element: HTMLElement): boolean {
-  return element.classList.contains('milkdown-table-block') || element.tagName.toLowerCase() === 'table';
-}
-
-function collectTableRowLineNumberTargets(tableBlock: HTMLElement): HTMLElement[] {
-  const table = tableBlock.tagName.toLowerCase() === 'table'
-    ? tableBlock
-    : tableBlock.querySelector<HTMLElement>('table');
-  if (!table) return [tableBlock];
-
-  const rows = Array.from(table.querySelectorAll<HTMLElement>('tr'))
-    .filter((row) => row.closest('table') === table);
-  return rows.length > 0 ? rows : [tableBlock];
-}
-
-export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLElement[] {
-  const targets: HTMLElement[] = [];
-
-  for (let index = 0; index < editorRoot.children.length && targets.length < MAX_BODY_LINE_NUMBER_TARGETS; index += 1) {
-    const child = editorRoot.children.item(index);
-    if (!(child instanceof HTMLElement)) continue;
-    if (shouldSkipBodyLineNumberTarget(child)) continue;
-    if (isCodeBlockTarget(child)) {
-      for (const lineTarget of collectCodeBlockLineNumberTargets(child)) {
-        if (targets.length >= MAX_BODY_LINE_NUMBER_TARGETS) break;
-        targets.push(lineTarget);
-      }
-      continue;
-    }
-    if (isTableBlockTarget(child)) {
-      for (const rowTarget of collectTableRowLineNumberTargets(child)) {
-        if (targets.length >= MAX_BODY_LINE_NUMBER_TARGETS) break;
-        targets.push(rowTarget);
-      }
-      continue;
-    }
-
-    const tagName = child.tagName.toLowerCase();
-    if (tagName === 'ul' || tagName === 'ol') {
-      const walker = child.ownerDocument.createTreeWalker(child, NodeFilter.SHOW_ELEMENT);
-      let scanned = 0;
-      for (
-        let node = walker.nextNode();
-        node && targets.length < MAX_BODY_LINE_NUMBER_TARGETS && scanned < MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS;
-        node = walker.nextNode()
-      ) {
-        scanned += 1;
-        if (!(node instanceof HTMLElement)) continue;
-        if (node.tagName.toLowerCase() !== 'li') continue;
-        if (node.closest('.frontmatter-block-container')) continue;
-        if (isNonNumberedPlaceholderElement(node)) continue;
-        if (isHiddenDefinitionElement(node)) continue;
-        if (isUnsupportedSelfClosingRawMediaElement(node)) continue;
-        targets.push(node);
-      }
-      continue;
-    }
-
-    targets.push(child);
-  }
-
-  return targets;
-}
-
-function collectSelectedBlockDescendantTargets(editorRoot: HTMLElement): WeakSet<HTMLElement> {
-  const selectedDescendantTargets = new WeakSet<HTMLElement>();
-  const walker = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
-  let scanned = 0;
-
-  for (
-    let node = walker.nextNode();
-    node && scanned < MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS;
-    node = walker.nextNode()
-  ) {
-    scanned += 1;
-    if (!(node instanceof HTMLElement) || !node.classList.contains('editor-block-selected')) {
-      continue;
-    }
-
-    for (
-      let ancestor = node.parentElement;
-      ancestor && ancestor !== editorRoot;
-      ancestor = ancestor.parentElement
-    ) {
-      selectedDescendantTargets.add(ancestor);
-    }
-  }
-
-  return selectedDescendantTargets;
-}
-
-function shouldCollectSelectedBlockDescendantTargets(editorRoot: HTMLElement): boolean {
-  return editorRoot.classList.contains(BLOCK_SELECTION_ACTIVE_CLASS)
-    || editorRoot.classList.contains(BLOCK_SELECTION_PENDING_CLASS);
-}
-
-function isInsideSelectedBlock(
-  target: HTMLElement,
-  selectedDescendantTargets: WeakSet<HTMLElement> | null,
-): boolean {
-  return target.classList.contains('editor-block-selected')
-    || target.closest('.editor-block-selected') !== null
-    || selectedDescendantTargets?.has(target) === true;
-}
-
-function isInsideSelectedBlockFromCurrentDom(target: HTMLElement): boolean {
-  return target.classList.contains('editor-block-selected')
-    || target.closest('.editor-block-selected') !== null
-    || target.querySelector('.editor-block-selected') !== null;
 }
 
 interface BodyLineNumberAnchorOptions {
@@ -410,109 +263,4 @@ export function resolveBodyLineNumberLabelLayout(shell: HTMLElement, markdown: s
 
 export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string): BodyLineNumberLabel[] {
   return resolveBodyLineNumberLabelLayout(shell, markdown).labels;
-}
-
-interface SyncBodyLineNumberLabelSelectionOptions {
-  changedElements?: readonly Element[];
-}
-
-function collectIncrementalSelectionSyncIndexes(
-  editorRoot: HTMLElement,
-  targets: readonly HTMLElement[],
-  changedElements: readonly Element[] | undefined,
-): Set<number> | null {
-  if (!changedElements || changedElements.length === 0) {
-    return null;
-  }
-  if (changedElements.length > MAX_INCREMENTAL_BODY_LINE_NUMBER_SELECTION_SYNC_ELEMENTS) {
-    return null;
-  }
-
-  const relevantChangedElements: HTMLElement[] = [];
-  for (const element of changedElements) {
-    if (!(element instanceof HTMLElement) || !editorRoot.contains(element) || element === editorRoot) {
-      return null;
-    }
-    relevantChangedElements.push(element);
-  }
-
-  const indexes = new Set<number>();
-  for (let index = 0; index < targets.length; index += 1) {
-    const target = targets[index];
-    if (!target || !editorRoot.contains(target)) {
-      continue;
-    }
-
-    for (const element of relevantChangedElements) {
-      if (target === element || target.contains(element) || element.contains(target)) {
-        indexes.add(index);
-        break;
-      }
-    }
-  }
-
-  return indexes;
-}
-
-export function syncBodyLineNumberLabelSelection(
-  editorRoot: HTMLElement | null,
-  layout: BodyLineNumberLabelLayout,
-  options: SyncBodyLineNumberLabelSelectionOptions = {},
-): BodyLineNumberLabelLayout {
-  if (!editorRoot || layout.labels.length === 0 || layout.targets.length === 0) {
-    return layout;
-  }
-
-  const incrementalSyncIndexes = collectIncrementalSelectionSyncIndexes(
-    editorRoot,
-    layout.targets,
-    options.changedElements,
-  );
-  if (incrementalSyncIndexes && incrementalSyncIndexes.size === 0) {
-    return layout;
-  }
-
-  const selectedDescendantTargets = incrementalSyncIndexes === null && shouldCollectSelectedBlockDescendantTargets(editorRoot)
-    ? collectSelectedBlockDescendantTargets(editorRoot)
-    : null;
-  let changed = false;
-  const labels = layout.labels.map((label, index) => {
-    if (incrementalSyncIndexes && !incrementalSyncIndexes.has(index)) {
-      return label;
-    }
-
-    const target = layout.targets[index];
-    const selected = target instanceof HTMLElement
-      && editorRoot.contains(target)
-      && (
-        incrementalSyncIndexes
-          ? isInsideSelectedBlockFromCurrentDom(target)
-          : isInsideSelectedBlock(target, selectedDescendantTargets)
-      );
-
-    if (selected === (label.selected === true)) {
-      return label;
-    }
-
-    changed = true;
-    if (selected) {
-      return {
-        ...label,
-        selected: true,
-      };
-    }
-
-    return {
-      lineNumber: label.lineNumber,
-      top: label.top,
-      left: label.left,
-    };
-  });
-
-  return changed
-    ? {
-        ...layout,
-        labels,
-      }
-    : layout;
 }

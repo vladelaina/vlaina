@@ -1,19 +1,29 @@
 import electron from 'electron';
-import fs from 'node:fs';
-import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createDesktopAccountService } from './accountAuthFlow.mjs';
 import { readSecretsStore, updateSecretsStore } from './aiProviderSecretStore.mjs';
-import { readBoundedJsonResponse } from './boundedJsonResponse.mjs';
+import { resolveVideoUrl as resolveBilibiliVideoUrl } from './bilibiliVideoResolver.mjs';
+import { normalizeCaptureRect } from './captureRect.mjs';
+import { registerDesktopAppIpc } from './desktopAppIpc.mjs';
 import { openPathInFileManager, registerDesktopIpc } from './desktopIpc.mjs';
 import { registerManagedIpc } from './managedIpc.mjs';
-import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
 import { createWindowManager } from './windowManager.mjs';
 import { configureDevelopmentUserDataPath } from './userDataPath.mjs';
 import { authorizeFsPath } from './fsAccess.mjs';
 import { installApplicationMenu } from './appMenu.mjs';
 import { createErrorLogService } from './errorLog.mjs';
+import { createManagedRequestHelpers } from './managedRequestHelpers.mjs';
+import { createMarkdownOpenController } from './markdownOpenController.mjs';
+import {
+  configureDefaultSessionSafely,
+  installDevelopmentParentProcessGuard,
+} from './mainSessionSetup.mjs';
+import { createTrayController } from './trayController.mjs';
+import { registerDesktopUpdateIpc } from './desktopUpdateIpc.mjs';
+import { registerDesktopSecretsIpc } from './desktopSecretsIpc.mjs';
+import { createProxyConfiguration } from './proxyConfiguration.mjs';
+import { createTrustedIpc } from './trustedIpc.mjs';
 import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
 import { normalizeMarkdownOpenPath } from './markdownOpenPath.mjs';
 import {
@@ -21,9 +31,6 @@ import {
   normalizeProxyConfig,
   summarizeUrlForLog,
 } from './externalUrlPolicy.mjs';
-import { compareVersions, fetchUpdateManifest as fetchDesktopUpdateManifest } from './updateManifest.mjs';
-import { deleteDownloadedUpdate, downloadUpdateAsset, normalizeDownloadedUpdateForOpen } from './updateDownload.mjs';
-import { resolveDesktopUpdatePolicy } from './updatePolicy.mjs';
 
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, session, shell } = electron;
 
@@ -36,89 +43,39 @@ configureDevelopmentUserDataPath({ app, repoRoot });
 const rendererDevUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://127.0.0.1:3000';
 const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').trim().replace(/\/+$/, '');
 const managedApiBaseUrl = `${apiBaseUrl}/v1`;
-const updateManifestUrl = (
-  process.env.APP_UPDATE_MANIFEST_URL
-  ?? 'https://vlaina.com/api/update/latest'
-).trim();
-const defaultDownloadUrl = (
-  process.env.APP_DOWNLOAD_URL
-  ?? 'https://vlaina.com/download'
-).trim();
-const desktopUpdatePolicy = resolveDesktopUpdatePolicy();
 const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'logo.png');
 const trayIconSize = process.platform === 'darwin' ? 18 : 16;
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
 const errorLogService = createErrorLogService({ app });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
-let tray = null;
-let trayQuitRequested = false;
-let trayLanguage = 'en';
-let pendingOpenMarkdownPath = null;
-let updateDownloadJob = null;
 const readOnlyNetworkRetryDelaysMs = [300];
-const updateManifestRetryDelaysMs = [300, 1000];
 const readOnlyFastFailureRetryWindowMs = 2000;
 const managedReadOnlyRequestTimeoutMs = 15_000;
 const desktopAccountRequestTimeoutMs = 15_000;
-
-const supportedTrayLanguages = new Set([
-  'en',
-  'zh-CN',
-  'zh-Hant',
-  'ja',
-  'ko',
-  'fr',
-  'de',
-  'es',
-  'pt-BR',
-  'it',
-  'ru',
-  'tr',
-  'vi',
-  'id',
-  'th',
-]);
-
-const trayMessages = {
-  en: { open: 'Open vlaina', quit: 'Quit' },
-  'zh-CN': { open: '打开 vlaina', quit: '退出' },
-  'zh-Hant': { open: '開啟 vlaina', quit: '結束' },
-  ja: { open: 'vlaina を開く', quit: '終了' },
-  ko: { open: 'vlaina 열기', quit: '종료' },
-  fr: { open: 'Ouvrir vlaina', quit: 'Quitter' },
-  de: { open: 'vlaina öffnen', quit: 'Beenden' },
-  es: { open: 'Abrir vlaina', quit: 'Salir' },
-  'pt-BR': { open: 'Abrir vlaina', quit: 'Sair' },
-  it: { open: 'Apri vlaina', quit: 'Esci' },
-  ru: { open: 'Открыть vlaina', quit: 'Выйти' },
-  tr: { open: 'vlaina aç', quit: 'Çık' },
-  vi: { open: 'Mở vlaina', quit: 'Thoát' },
-  id: { open: 'Buka vlaina', quit: 'Keluar' },
-  th: { open: 'เปิด vlaina', quit: 'ออก' },
-};
-
-function installDevelopmentParentProcessGuard() {
-  if (app.isPackaged) {
-    return;
-  }
-
-  const parentPid = process.ppid;
-  if (!parentPid || parentPid <= 1) {
-    return;
-  }
-
-  const interval = setInterval(() => {
-    if (process.ppid === parentPid && process.ppid > 1) {
-      return;
-    }
-
-    app.quit();
-    setTimeout(() => app.exit(0), 1000).unref?.();
-  }, 1000);
-
-  interval.unref?.();
-}
+const {
+  createElectronBillingCheckout,
+  requestManagedJson,
+  requestManagedPublicJson,
+  submitElectronFeedback,
+} = createManagedRequestHelpers({
+  apiBaseUrl,
+  managedApiBaseUrl,
+  fetchWithStoredSession,
+  readJsonResponse,
+  readOnlyNetworkRetryDelaysMs,
+  readOnlyFastFailureRetryWindowMs,
+  managedReadOnlyRequestTimeoutMs,
+  desktopAccountRequestTimeoutMs,
+});
+const {
+  configureProxySafely,
+  configuredProxyConfig,
+} = createProxyConfiguration({
+  app,
+  normalizeProxyConfig,
+  session,
+});
 
 process.on('uncaughtException', (error) => {
   errorLogService.logMainError(error, 'uncaughtException');
@@ -130,556 +87,12 @@ process.on('unhandledRejection', (reason) => {
   console.error('[vlaina] Unhandled rejection in Electron main process:', reason);
 });
 
-function getConfiguredProxyConfig() {
-  const rawProxy = process.env.LOCAL_PROXY_URL
-    ?? process.env.HTTPS_PROXY
-    ?? process.env.HTTP_PROXY
-    ?? process.env.ALL_PROXY
-    ?? process.env.https_proxy
-    ?? process.env.http_proxy
-    ?? process.env.all_proxy
-    ?? '';
-  const source = process.env.LOCAL_PROXY_URL ? 'LOCAL_PROXY_URL' : 'standard-proxy-env';
-  return normalizeProxyConfig(rawProxy, source);
-}
-
-function canConnectToLocalProxy(port) {
-  return new Promise((resolve) => {
-    const socket = net.createConnection({ host: '127.0.0.1', port });
-    const finish = (available) => {
-      socket.removeAllListeners();
-      socket.destroy();
-      resolve(available);
-    };
-    socket.setTimeout(250);
-    socket.once('connect', () => finish(true));
-    socket.once('timeout', () => finish(false));
-    socket.once('error', () => finish(false));
-  });
-}
-
-async function resolveProxyConfig() {
-  const configured = getConfiguredProxyConfig();
-  if (configured) return configured;
-  if (await canConnectToLocalProxy(10808)) {
-    return normalizeProxyConfig('http://127.0.0.1:10808', 'auto-detected-local-10808');
-  }
-  return null;
-}
-
-const configuredProxyConfig = getConfiguredProxyConfig();
-if (configuredProxyConfig) {
-  app.commandLine.appendSwitch('proxy-server', configuredProxyConfig.proxyRules);
-  app.commandLine.appendSwitch('proxy-bypass-list', '127.0.0.1;localhost;<local>');
-}
-
-async function configureProxySafely() {
-  try {
-    const proxyConfig = await resolveProxyConfig();
-    if (!proxyConfig) return;
-
-    await session.defaultSession.setProxy({
-      proxyRules: proxyConfig.proxyRules,
-      proxyBypassRules: '127.0.0.1;localhost;<local>',
-    });
-  } catch (error) {
-  }
-}
-
-function configureDefaultSessionSafely() {
-  try {
-    session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-      callback(false);
-    });
-    session.defaultSession.setPermissionCheckHandler(() => false);
-  } catch (error) {
-  }
-}
-
 function fetchWithElectronSession(url, init) {
   return electron.net.fetch(url, init);
 }
 
-function createAbortError() {
-  return new DOMException('Aborted', 'AbortError');
-}
-
-function throwIfAborted(signal) {
-  if (!signal?.aborted) return;
-  throw createAbortError();
-}
-
-async function raceWithAbort(promise, signal) {
-  throwIfAborted(signal);
-  if (!signal) {
-    return await promise;
-  }
-  promise.catch(() => undefined);
-
-  return await new Promise((resolve, reject) => {
-    let settled = false;
-    const cleanup = () => {
-      signal.removeEventListener('abort', abort);
-    };
-    const settle = (callback) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      callback();
-    };
-    const abort = () => {
-      settle(() => reject(createAbortError()));
-    };
-
-    signal.addEventListener('abort', abort, { once: true });
-    if (signal.aborted) {
-      abort();
-      return;
-    }
-
-    promise.then(
-      (value) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal);
-            resolve(value);
-          } catch (error) {
-            reject(error);
-          }
-        });
-      },
-      (error) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal);
-            reject(error);
-          } catch (abortError) {
-            reject(abortError);
-          }
-        });
-      },
-    );
-  });
-}
-
-function createTimedRequestInit(init = {}, timeoutMs = null) {
-  if (!timeoutMs || init.signal?.aborted) {
-    return {
-      requestInit: init,
-      cleanup: () => {},
-    };
-  }
-
-  const timeoutController = new AbortController();
-  const timeout = setTimeout(() => {
-    timeoutController.abort();
-  }, timeoutMs);
-  let cleanupExternalAbort = () => {};
-  let signal = timeoutController.signal;
-
-  if (init.signal) {
-    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
-      signal = AbortSignal.any([init.signal, timeoutController.signal]);
-    } else {
-      const abortFromExternal = () => {
-        timeoutController.abort();
-      };
-      init.signal.addEventListener('abort', abortFromExternal, { once: true });
-      cleanupExternalAbort = () => {
-        init.signal.removeEventListener('abort', abortFromExternal);
-      };
-    }
-  }
-
-  return {
-    requestInit: {
-      ...init,
-      signal,
-    },
-    cleanup: () => {
-      clearTimeout(timeout);
-      cleanupExternalAbort();
-    },
-  };
-}
-
-function delayReadOnlyNetworkRetry(ms, signal) {
-  if (signal?.aborted) {
-    return Promise.reject(createAbortError());
-  }
-
-  return new Promise((resolve, reject) => {
-    let timeout = null;
-    const cleanup = () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      signal?.removeEventListener('abort', abort);
-    };
-    const abort = () => {
-      cleanup();
-      reject(createAbortError());
-    };
-    timeout = setTimeout(() => {
-      cleanup();
-      resolve();
-    }, ms);
-    signal?.addEventListener('abort', abort, { once: true });
-  });
-}
-
-async function retryReadOnlyNetworkFailure(operation, init = {}) {
-  const method = String(init.method ?? 'GET').toUpperCase();
-  if (method !== 'GET') {
-    return await operation();
-  }
-
-  for (let attempt = 0; ; attempt += 1) {
-    const startedAt = Date.now();
-    try {
-      return await operation();
-    } catch (error) {
-      const retryDelayMs = readOnlyNetworkRetryDelaysMs[attempt];
-      const failedQuickly = Date.now() - startedAt <= readOnlyFastFailureRetryWindowMs;
-      if (init.signal?.aborted || retryDelayMs == null || !failedQuickly) {
-        throw error;
-      }
-      await delayReadOnlyNetworkRetry(retryDelayMs, init.signal);
-    }
-  }
-}
-
-async function requestManagedJson(pathname, init = {}) {
-  const method = String(init.method ?? 'GET').toUpperCase();
-  const { requestInit, cleanup } = createTimedRequestInit({
-    ...init,
-    cache: 'no-store',
-  }, method === 'GET' ? managedReadOnlyRequestTimeoutMs : null);
-  try {
-    const response = await retryReadOnlyNetworkFailure(
-      () => fetchWithStoredSession(`${managedApiBaseUrl}${pathname}`, requestInit),
-      requestInit,
-    );
-    return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`, requestInit.signal);
-  } finally {
-    cleanup();
-  }
-}
-
-async function requestManagedPublicJson(pathname, init = {}) {
-  const method = String(init.method ?? 'GET').toUpperCase();
-  const { requestInit, cleanup } = createTimedRequestInit({
-    ...init,
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-      ...(init.headers ?? {}),
-    },
-  }, method === 'GET' ? managedReadOnlyRequestTimeoutMs : null);
-  try {
-    const response = await retryReadOnlyNetworkFailure(
-      () => {
-        throwIfAborted(requestInit.signal);
-        return raceWithAbort(fetch(`${managedApiBaseUrl}${pathname}`, requestInit), requestInit.signal);
-      },
-      requestInit,
-    );
-    return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`, requestInit.signal);
-  } finally {
-    cleanup();
-  }
-}
-
-async function createElectronBillingCheckout(tier) {
-  const { requestInit, cleanup } = createTimedRequestInit({
-    method: 'POST',
-    cache: 'no-store',
-    body: JSON.stringify({ tier }),
-  }, desktopAccountRequestTimeoutMs);
-  try {
-    const response = await fetchWithStoredSession(`${apiBaseUrl}/billing/checkout`, requestInit);
-    return await readJsonResponse(response, `Failed to create checkout session: HTTP ${response.status}`, requestInit.signal);
-  } finally {
-    cleanup();
-  }
-}
-
-function primitiveToString(value) {
-  if (value == null) {
-    return '';
-  }
-  switch (typeof value) {
-    case 'string':
-      return value;
-    case 'number':
-    case 'boolean':
-    case 'bigint':
-    case 'symbol':
-      return String(value);
-    default:
-      return null;
-  }
-}
-
-async function submitElectronFeedback(message) {
-  const { requestInit, cleanup } = createTimedRequestInit({
-    method: 'POST',
-    cache: 'no-store',
-    body: JSON.stringify({ message: primitiveToString(message) ?? '' }),
-  }, desktopAccountRequestTimeoutMs);
-  try {
-    const response = await fetchWithStoredSession(`${apiBaseUrl}/feedback`, requestInit);
-    return await readJsonResponse(response, `Failed to submit feedback: HTTP ${response.status}`, requestInit.signal);
-  } finally {
-    cleanup();
-  }
-}
-
 function isDevelopment() {
   return !app.isPackaged;
-}
-
-function findMarkdownPathInArgv(argv) {
-  for (const value of Array.isArray(argv) ? argv : []) {
-    const filePath = normalizeMarkdownOpenPath(value);
-    if (filePath) {
-      return filePath;
-    }
-  }
-
-  return null;
-}
-
-async function authorizeMarkdownOpenPath(filePath) {
-  await authorizeFsPath(filePath, 'file');
-
-  const parentPath = path.dirname(filePath);
-  await authorizeFsPath(parentPath, 'root');
-  await authorizeFsPath(path.dirname(parentPath), 'watch-root');
-}
-
-function showMainWindow() {
-  const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
-  const window = existingWindow ?? createMainWindow();
-
-  focusWindow(window, { forceShow: Boolean(existingWindow) });
-}
-
-function focusWindow(window, { forceShow = false } = {}) {
-  if (!window || window.isDestroyed()) {
-    return;
-  }
-
-  if (window.isMinimized()) {
-    window.restore();
-  }
-
-  if (forceShow || isReadyToReveal(window)) {
-    window.show();
-    window.focus();
-  }
-}
-
-function sendOpenMarkdownShortcut(window, { waitForStartupReady = false } = {}) {
-  if (!window || window.isDestroyed()) {
-    return false;
-  }
-
-  const send = () => {
-    if (window.isDestroyed()) return;
-    window.webContents.send('desktop:shortcut:open-markdown-file');
-  };
-
-  if (waitForStartupReady && !isReadyToReveal(window)) {
-    const handleStartupReady = (_event, channel) => {
-      if (channel !== 'desktop:startup-ready') {
-        return;
-      }
-
-      window.webContents.off?.('ipc-message', handleStartupReady);
-      send();
-    };
-    window.webContents.on('ipc-message', handleStartupReady);
-    return true;
-  }
-
-  if (window.webContents.isLoading()) {
-    window.webContents.once('did-finish-load', send);
-  } else {
-    send();
-  }
-
-  return true;
-}
-
-function requestOpenMarkdownFile() {
-  const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
-  const window = existingWindow ?? createMainWindow();
-  focusWindow(window, { forceShow: Boolean(existingWindow) });
-  return sendOpenMarkdownShortcut(window, { waitForStartupReady: !existingWindow });
-}
-
-async function sendOpenMarkdownPath(window, filePath) {
-  const normalizedPath = normalizeMarkdownOpenPath(filePath);
-  if (!window || window.isDestroyed() || !normalizedPath) {
-    return false;
-  }
-
-  try {
-    await authorizeMarkdownOpenPath(normalizedPath);
-  } catch {
-    return false;
-  }
-
-  const send = () => {
-    if (window.isDestroyed()) return;
-    window.webContents.send('desktop:app:open-markdown-file', normalizedPath);
-  };
-
-  if (window.webContents.isLoading()) {
-    window.webContents.once('did-finish-load', send);
-  } else {
-    send();
-  }
-
-  return true;
-}
-
-async function openMarkdownPath(filePath) {
-  const normalizedPath = normalizeMarkdownOpenPath(filePath);
-  if (!normalizedPath) {
-    return false;
-  }
-
-  try {
-    await authorizeMarkdownOpenPath(normalizedPath);
-  } catch {
-    return false;
-  }
-
-  const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
-  if (!existingWindow) {
-    pendingOpenMarkdownPath = normalizedPath;
-    return false;
-  }
-
-  focusWindow(existingWindow, { forceShow: true });
-  pendingOpenMarkdownPath = null;
-  return await sendOpenMarkdownPath(existingWindow, normalizedPath);
-}
-
-function requestTrayQuit() {
-  trayQuitRequested = true;
-
-  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed());
-  if (windows.length === 0) {
-    app.quit();
-    return;
-  }
-
-  for (const window of windows) {
-    window.close();
-  }
-}
-
-function getTrayMessages() {
-  return trayMessages[trayLanguage] ?? trayMessages.en;
-}
-
-function setTrayContextMenu() {
-  if (!tray) return;
-  const messages = getTrayMessages();
-  tray.setContextMenu(Menu.buildFromTemplate([
-    {
-      label: messages.open,
-      click: showMainWindow,
-    },
-    { type: 'separator' },
-    {
-      label: messages.quit,
-      click: requestTrayQuit,
-    },
-  ]));
-}
-
-function setTrayLanguage(language) {
-  if (!supportedTrayLanguages.has(language)) return false;
-  trayLanguage = language;
-  setTrayContextMenu();
-  return true;
-}
-
-function createTrayIcon() {
-  const icon = nativeImage.createFromPath(appIconPath);
-  if (icon.isEmpty()) {
-    return appIconPath;
-  }
-
-  const trayIcon = icon.resize({
-    width: trayIconSize,
-    height: trayIconSize,
-    quality: 'best',
-  });
-  return trayIcon;
-}
-
-function createTray() {
-  if (tray) return;
-
-  try {
-    tray = new Tray(createTrayIcon());
-    tray.setToolTip('vlaina');
-    setTrayContextMenu();
-    tray.on('click', showMainWindow);
-  } catch (error) {
-    tray = null;
-  }
-}
-
-async function fetchUpdateManifest() {
-  return fetchDesktopUpdateManifest({
-    manifestUrl: updateManifestUrl,
-    defaultDownloadUrl,
-    appVersion: app.getVersion(),
-    readJsonResponse: readBoundedJsonResponse,
-    allowLocalManifestUrl: !app.isPackaged,
-    retryDelaysMs: updateManifestRetryDelaysMs,
-  });
-}
-
-function isTrustedRendererUrl(rawUrl) {
-  return isTrustedRendererUrlForConfig(rawUrl, { rendererDevUrl, rendererFile });
-}
-
-function resolveTrustedSenderUrl(event) {
-  const candidates = [
-    event?.senderFrame?.url,
-    event?.senderFrame?.top?.url,
-    event?.sender?.getURL?.(),
-    BrowserWindow.fromWebContents(event?.sender ?? null)?.webContents?.getURL?.(),
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim()) {
-      return candidate;
-    }
-  }
-
-  return '';
-}
-
-function assertTrustedIpcSender(event) {
-  const senderUrl = resolveTrustedSenderUrl(event);
-  if (!isTrustedRendererUrl(senderUrl)) {
-    throw new Error(`Blocked IPC from untrusted renderer: ${senderUrl || 'unknown sender'}`);
-  }
-}
-
-function handleIpc(channel, listener) {
-  ipcMain.handle(channel, async (event, ...args) => {
-    assertTrustedIpcSender(event);
-    return await listener(event, ...args);
-  });
 }
 
 function requireNonEmptyString(value, label) {
@@ -698,260 +111,11 @@ function requireStringArray(values, label) {
   return values.map((value, index) => requireNonEmptyString(value, `${label} value at index ${index}`));
 }
 
-function isSafeProviderId(value) {
-  return (
-    typeof value === 'string' &&
-    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value)
-  );
-}
-
-function requireSafeProviderId(value) {
-  const providerId = requireNonEmptyString(value, 'provider id').trim();
-  if (!isSafeProviderId(providerId)) {
-    throw new Error('Provider id contains unsupported characters.');
-  }
-  return providerId;
-}
-
 function tryNormalizeExternalUrl(rawUrl) {
   try {
     return normalizeExternalUrl(rawUrl);
   } catch {
     return null;
-  }
-}
-
-const BILIBILI_METADATA_TIMEOUT_MS = 15000;
-const MAX_BILIBILI_PAGELIST_RESPONSE_BYTES = 256 * 1024;
-const MAX_BILIBILI_METADATA_RESPONSE_BYTES = 4 * 1024 * 1024;
-const BILIBILI_API_HEADERS = {
-  accept: 'application/json',
-  referer: 'https://www.bilibili.com/',
-  'user-agent': 'Mozilla/5.0 vlaina desktop',
-};
-
-function extractBilibiliBvid(rawUrl) {
-  if (typeof rawUrl !== 'string') {
-    return null;
-  }
-
-  return rawUrl.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/)?.[1]
-    ?? rawUrl.match(/[?&]bvid=(BV[a-zA-Z0-9]+)/)?.[1]
-    ?? null;
-}
-
-function buildBilibiliEmbedUrl({ bvid, aid, cid, page }) {
-  const params = new URLSearchParams({
-    isOutside: 'true',
-    bvid,
-    p: String(page ?? 1),
-    danmaku: '0',
-    autoplay: '0',
-  });
-
-  if (typeof aid === 'number' && Number.isFinite(aid)) {
-    params.set('aid', String(aid));
-  }
-
-  if (typeof cid === 'number' && Number.isFinite(cid)) {
-    params.set('cid', String(cid));
-  }
-
-  return `https://player.bilibili.com/player.html?${params.toString()}`;
-}
-
-function readBilibiliPage(rawUrl) {
-  try {
-    const url = new URL(rawUrl);
-    return parsePositiveInteger(url.searchParams.get('p') ?? url.searchParams.get('page'));
-  } catch {
-    return null;
-  }
-}
-
-function selectBilibiliPage(pages, requestedPage) {
-  if (!Array.isArray(pages) || pages.length === 0) {
-    return null;
-  }
-
-  if (requestedPage) {
-    return pages.find((page) => parsePositiveInteger(page?.page) === requestedPage)
-      ?? pages[requestedPage - 1]
-      ?? pages[0]
-      ?? null;
-  }
-
-  return pages[0] ?? null;
-}
-
-async function fetchBilibiliJson(path, bvid, {
-  signal,
-  maxBytes,
-  tooLargeMessage,
-}) {
-  const response = await fetch(`https://api.bilibili.com${path}?bvid=${encodeURIComponent(bvid)}`, {
-    cache: 'no-store',
-    signal,
-    headers: BILIBILI_API_HEADERS,
-  });
-  const payload = await readBoundedJsonResponse(response, {
-    maxBytes,
-    signal,
-    tooLargeMessage,
-  });
-
-  return { response, payload };
-}
-
-function readFiniteNumber(value) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
-  }
-  if (typeof value === 'string' && value.length <= 64) {
-    const trimmed = value.trim();
-    if (/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(trimmed)) {
-      const parsed = Number(trimmed);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-  }
-  return null;
-}
-
-function parsePositiveInteger(value) {
-  const parsed = readFiniteNumber(value);
-  return parsed !== null && Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function normalizeCaptureRect(rect) {
-  const rawX = readFiniteNumber(rect?.x);
-  const rawY = readFiniteNumber(rect?.y);
-  const rawWidth = readFiniteNumber(rect?.width);
-  const rawHeight = readFiniteNumber(rect?.height);
-  const x = rawX === null ? Number.NaN : Math.max(0, Math.floor(rawX));
-  const y = rawY === null ? Number.NaN : Math.max(0, Math.floor(rawY));
-  const width = rawWidth === null ? Number.NaN : Math.max(1, Math.ceil(rawWidth));
-  const height = rawHeight === null ? Number.NaN : Math.max(1, Math.ceil(rawHeight));
-
-  if (![x, y, width, height].every(Number.isFinite)) {
-    throw new Error('A valid capture rectangle is required.');
-  }
-
-  return { x, y, width, height };
-}
-
-async function resolveVideoUrl(rawUrl) {
-  const startedAt = Date.now();
-  const inputUrl = requireNonEmptyString(rawUrl, 'video URL').trim();
-  const bvid = extractBilibiliBvid(inputUrl);
-  if (!bvid) {
-    return {
-      resolvedUrl: inputUrl,
-      source: 'unchanged',
-      durationMs: Date.now() - startedAt,
-      stage: 'no-bvid',
-    };
-  }
-
-  const timeoutMs = BILIBILI_METADATA_TIMEOUT_MS;
-  let timeoutFired = false;
-  let stage = 'start';
-  let timeout = null;
-  try {
-    const controller = new AbortController();
-    timeout = setTimeout(() => {
-      timeoutFired = true;
-      stage = 'timeout';
-      controller.abort();
-    }, timeoutMs);
-    const requestedPage = readBilibiliPage(inputUrl);
-    stage = 'fetching-pagelist';
-    const pageListResult = await fetchBilibiliJson('/x/player/pagelist', bvid, {
-      signal: controller.signal,
-      maxBytes: MAX_BILIBILI_PAGELIST_RESPONSE_BYTES,
-      tooLargeMessage: 'Bilibili page list response body is too large.',
-    });
-    stage = 'parsed-pagelist';
-    const selectedPage = selectBilibiliPage(pageListResult.payload?.data, requestedPage);
-    const pageListCid = parsePositiveInteger(selectedPage?.cid);
-    if (pageListResult.response.ok && pageListResult.payload?.code === 0 && pageListCid) {
-      const page = parsePositiveInteger(selectedPage?.page) ?? requestedPage;
-      const resolvedUrl = buildBilibiliEmbedUrl({
-        bvid,
-        cid: pageListCid,
-        page: page ?? undefined,
-      });
-      return {
-        resolvedUrl,
-        source: 'bilibili',
-        bvid,
-        aid: null,
-        cid: pageListCid,
-        page,
-        stage,
-        timeoutFired,
-        durationMs: Date.now() - startedAt,
-      };
-    }
-
-    stage = 'fetching-view';
-    const viewResult = await fetchBilibiliJson('/x/web-interface/view', bvid, {
-      signal: controller.signal,
-      maxBytes: MAX_BILIBILI_METADATA_RESPONSE_BYTES,
-      tooLargeMessage: 'Bilibili metadata response body is too large.',
-    });
-    stage = 'parsed-view';
-    const viewSelectedPage = selectBilibiliPage(viewResult.payload?.data?.pages, requestedPage);
-    const aid = parsePositiveInteger(viewResult.payload?.data?.aid);
-    const cid = parsePositiveInteger(viewSelectedPage?.cid ?? viewResult.payload?.data?.cid);
-    const page = parsePositiveInteger(viewSelectedPage?.page) ?? requestedPage;
-
-    if (!viewResult.response.ok || viewResult.payload?.code !== 0 || !cid) {
-      return {
-        resolvedUrl: inputUrl,
-        source: 'fallback',
-        error: `Bilibili resolve failed: HTTP ${viewResult.response.status}, code ${viewResult.payload?.code ?? 'unknown'}`,
-        bvid,
-        stage,
-        timeoutFired,
-        durationMs: Date.now() - startedAt,
-      };
-    }
-
-    const resolvedUrl = buildBilibiliEmbedUrl({
-      bvid,
-      aid: aid ?? undefined,
-      cid,
-      page: page ?? undefined,
-    });
-    return {
-      resolvedUrl,
-      source: 'bilibili',
-      bvid,
-      aid,
-      cid,
-      page,
-      stage,
-      timeoutFired,
-      durationMs: Date.now() - startedAt,
-    };
-  } catch (error) {
-    return {
-      resolvedUrl: inputUrl,
-      source: 'fallback',
-      error: error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : 'Unknown error',
-      bvid,
-      stage,
-      timeoutFired,
-      durationMs: Date.now() - startedAt,
-    };
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
   }
 }
 
@@ -965,6 +129,17 @@ function openExternalIfAllowed(rawUrl) {
   return true;
 }
 
+const {
+  assertTrustedIpcSender,
+  handleIpc,
+  isTrustedRendererUrl,
+} = createTrustedIpc({
+  BrowserWindow,
+  ipcMain,
+  rendererDevUrl,
+  rendererFile,
+});
+
 const windowManager = createWindowManager({
   rendererDevUrl,
   appIconPath,
@@ -976,28 +151,47 @@ const windowManager = createWindowManager({
   },
 });
 const { createMainWindow, isReadyToReveal, resolveTargetWindow } = windowManager;
+const markdownOpenController = createMarkdownOpenController({
+  BrowserWindow,
+  authorizeFsPath,
+  createMainWindow,
+  isReadyToReveal,
+  normalizeMarkdownOpenPath,
+});
+const trayController = createTrayController({
+  app,
+  BrowserWindow,
+  Menu,
+  Tray,
+  nativeImage,
+  appIconPath,
+  trayIconSize,
+  showMainWindow: markdownOpenController.showMainWindow,
+});
 windowManager.registerWindowIpc(handleIpc);
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.exit(0);
 } else {
-  installDevelopmentParentProcessGuard();
-  pendingOpenMarkdownPath = findMarkdownPathInArgv(process.argv);
+  installDevelopmentParentProcessGuard(app);
+  markdownOpenController.setPendingOpenMarkdownPath(
+    markdownOpenController.findMarkdownPathInArgv(process.argv),
+  );
 
   app.on('second-instance', (_event, argv) => {
-    const markdownPath = findMarkdownPathInArgv(argv);
+    const markdownPath = markdownOpenController.findMarkdownPathInArgv(argv);
     if (markdownPath) {
-      void openMarkdownPath(markdownPath);
+      void markdownOpenController.openMarkdownPath(markdownPath);
       return;
     }
 
-    showMainWindow();
+    markdownOpenController.showMainWindow();
   });
 
   app.on('open-file', (event, filePath) => {
     event.preventDefault();
-    void openMarkdownPath(filePath);
+    void markdownOpenController.openMarkdownPath(filePath);
   });
 }
 
@@ -1014,36 +208,16 @@ registerWebSearchIpc({
   services: createWebSearchServices({ fetchImpl: fetchWithElectronSession }),
 });
 
-handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds) => {
-  const { data } = await readSecretsStore();
-  const result = {};
-
-  for (const providerId of requireStringArray(providerIds, 'provider id')) {
-    const normalizedProviderId = requireSafeProviderId(providerId);
-    if (typeof data[normalizedProviderId] === 'string') {
-      result[normalizedProviderId] = data[normalizedProviderId];
-    }
-  }
-
-  return result;
-});
-
-handleIpc('desktop:secrets:set-ai-provider-secret', async (_event, providerId, apiKey) => {
-  const normalizedProviderId = requireSafeProviderId(providerId);
-  await updateSecretsStore((data) => {
-    data[normalizedProviderId] = primitiveToString(apiKey) ?? '';
-  });
-});
-
-handleIpc('desktop:secrets:delete-ai-provider-secret', async (_event, providerId) => {
-  const normalizedProviderId = requireSafeProviderId(providerId);
-  await updateSecretsStore((data) => {
-    delete data[normalizedProviderId];
-  });
+registerDesktopSecretsIpc({
+  handleIpc,
+  readSecretsStore,
+  requireNonEmptyString,
+  requireStringArray,
+  updateSecretsStore,
 });
 
 handleIpc('desktop:media:resolve-video-url', async (_event, url) => {
-  return await resolveVideoUrl(url);
+  return await resolveBilibiliVideoUrl(url, requireNonEmptyString);
 });
 
 handleIpc('desktop:media:diagnose-url', async (_event, url) => {
@@ -1062,136 +236,21 @@ handleIpc('desktop:media:capture-page', async (event, rect) => {
   return image.toDataURL();
 });
 
-handleIpc('desktop:get-version', async () => {
-  return app.getVersion();
+registerDesktopAppIpc({
+  app,
+  assertTrustedIpcSender,
+  errorLogService,
+  handleIpc,
+  ipcMain,
+  openPathInFileManager,
+  trayController,
 });
 
-handleIpc('desktop:app:set-language', async (_event, language) => {
-  return setTrayLanguage(language);
-});
-
-handleIpc('desktop:app:get-error-log-info', async () => {
-  return errorLogService.getInfo();
-});
-
-handleIpc('desktop:app:open-error-log-folder', async () => {
-  const { logsDir } = errorLogService.getInfo();
-  fs.mkdirSync(logsDir, { recursive: true });
-  await openPathInFileManager(logsDir);
-});
-
-handleIpc('desktop:app:report-renderer-error', async (_event, payload) => {
-  const logFilePath = errorLogService.logRendererError(payload, 'renderer-reported-error');
-  return {
-    ...errorLogService.getInfo(),
-    logFilePath,
-  };
-});
-
-ipcMain.on('desktop:app:report-renderer-error', (event, payload) => {
-  try {
-    assertTrustedIpcSender(event);
-    errorLogService.logRendererError(payload, 'renderer-global-error');
-  } catch (error) {
-    errorLogService.logMainError(error, 'renderer-error-report-blocked');
-  }
-});
-
-handleIpc('desktop:update:check', async () => {
-  const currentVersion = app.getVersion();
-  if (!desktopUpdatePolicy.checkEnabled) {
-    return {
-      currentVersion,
-      latestVersion: currentVersion,
-      updateAvailable: false,
-      downloadUrl: '',
-      releaseUrl: '',
-      platformAssetName: '',
-      platformAssetSha256: '',
-      hasPlatformAsset: false,
-      releaseNotes: '',
-      publishedAt: '',
-      updatePolicy: desktopUpdatePolicy,
-    };
-  }
-
-  const manifest = await fetchUpdateManifest();
-
-  return {
-    currentVersion,
-    ...manifest,
-    updateAvailable: compareVersions(manifest.latestVersion, currentVersion) > 0,
-    updatePolicy: desktopUpdatePolicy,
-  };
-});
-
-handleIpc('desktop:update:get-policy', async () => desktopUpdatePolicy);
-
-handleIpc('desktop:update:download', async (_event, updateInfo) => {
-  if (!desktopUpdatePolicy.backgroundDownloadEnabled) {
-    throw new Error('Background update downloads are disabled for this distribution.');
-  }
-  if (!updateInfo?.hasPlatformAsset) {
-    throw new Error('No platform update asset is available.');
-  }
-  if (!updateInfo?.platformAssetSha256) {
-    throw new Error('Update asset SHA-256 is required.');
-  }
-  if (compareVersions(updateInfo.latestVersion, app.getVersion()) <= 0) {
-    throw new Error('Update version is not newer than the current app version.');
-  }
-
-  const downloadKey = [
-    updateInfo?.latestVersion,
-    updateInfo?.platformAssetName,
-    updateInfo?.platformAssetSha256,
-    updateInfo?.downloadUrl,
-  ].join('\n');
-
-  if (updateDownloadJob) {
-    if (updateDownloadJob.key === downloadKey) {
-      return await updateDownloadJob.promise;
-    }
-    updateDownloadJob.controller.abort();
-    await updateDownloadJob.promise.catch(() => {
-    });
-  }
-
-  const controller = new AbortController();
-  const promise = downloadUpdateAsset({
-    app,
-    updateInfo,
-    fetchImpl: fetchWithElectronSession,
-    signal: controller.signal,
-  });
-  updateDownloadJob = { key: downloadKey, promise, controller };
-
-  try {
-    return await promise;
-  } finally {
-    if (updateDownloadJob?.promise === promise) {
-      updateDownloadJob = null;
-    }
-  }
-});
-
-handleIpc('desktop:update:open-downloaded', async (_event, updateInfo) => {
-  if (!desktopUpdatePolicy.localInstallerEnabled) {
-    throw new Error('Opening downloaded update installers is disabled for this distribution.');
-  }
-
-  const normalizedPath = await normalizeDownloadedUpdateForOpen(app, updateInfo);
-  const result = await shell.openPath(normalizedPath);
-  if (result) {
-    throw new Error(result);
-  }
-});
-
-handleIpc('desktop:update:delete-downloaded', async (_event, updateInfoOrFilePath) => {
-  if (!desktopUpdatePolicy.cleanupDownloadedUpdatesEnabled) {
-    return;
-  }
-  deleteDownloadedUpdate(app, updateInfoOrFilePath);
+registerDesktopUpdateIpc({
+  app,
+  fetchImpl: fetchWithElectronSession,
+  handleIpc,
+  shell,
 });
 
 desktopAccountService.registerAccountIpc({ handleIpc });
@@ -1215,15 +274,12 @@ app.whenReady().then(async () => {
   } catch (error) {
   }
   await configureProxySafely();
-  configureDefaultSessionSafely();
-  installApplicationMenu({ Menu, app, onOpenMarkdownFile: requestOpenMarkdownFile });
+  configureDefaultSessionSafely(session);
+  installApplicationMenu({ Menu, app, onOpenMarkdownFile: markdownOpenController.requestOpenMarkdownFile });
 
-  createTray();
+  trayController.createTray();
   const mainWindow = createMainWindow();
-  if (pendingOpenMarkdownPath) {
-    await sendOpenMarkdownPath(mainWindow, pendingOpenMarkdownPath);
-    pendingOpenMarkdownPath = null;
-  }
+  await markdownOpenController.flushPendingOpenMarkdownPath(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1235,7 +291,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (trayQuitRequested || process.platform !== 'darwin') {
+  if (trayController.isTrayQuitRequested() || process.platform !== 'darwin') {
     app.quit();
   }
 });

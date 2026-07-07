@@ -4,30 +4,23 @@ import { Compartment, EditorState } from '@codemirror/state';
 import {
   EditorView as CodeMirror,
   drawSelection,
-  keymap as codeMirrorKeymap,
-  type KeyBinding,
   type ViewUpdate,
 } from '@codemirror/view';
 import { codeBlockLanguageLoader } from '../code/codeBlockLanguageLoader';
 import {
   bindCodeBlockFontMetricsSync,
   computeCodeBlockChange,
-  createCodeBlockEditorClipboardHandlers,
-  createCodeBlockEditorKeymap,
   createCodeBlockEditorTheme,
   mapDocumentOffsetToCodeBlockEditorOffset,
   normalizeCodeBlockEditorText,
 } from '../code/codemirror';
-import { getEditorFindState } from '../find/editorFindCommands';
 import {
-  buildCodeMirrorFindHighlightRanges,
   codeMirrorFindHighlightExtensions,
-  syncCodeMirrorFindHighlights,
 } from '../find/editorFindCodeMirrorHighlights';
 import { forwardCodeBlockUpdate } from '../code/codeBlockNodeViewUtils';
 import { subscribeCodeBlockSelectionSync } from '../code/codeBlockSelectionSync';
-import { deleteSelectedFrontmatterBlocks } from './frontmatterBlockSelection';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { buildFrontmatterFindHighlightRanges, clearMirroredFrontmatterSelection, createFrontmatterClipboardHandlers, createFrontmatterCodeMirrorKeymap, getFrontmatterOwnerWindow, getFrontmatterSelectionMirror, scheduleFrontmatterMeasure, shouldStopFrontmatterEvent, syncFrontmatterFindHighlightRanges } from './FrontmatterNodeViewUtils';
 
 export class FrontmatterNodeView implements NodeView {
   dom: HTMLElement;
@@ -48,19 +41,6 @@ export class FrontmatterNodeView implements NodeView {
   private destroyed = false;
   private findHighlightStateKey = '[]';
   private mirroredOuterSelection = false;
-
-  private getOwnerDocument(): Document | null {
-    return (
-      this.dom.ownerDocument ??
-      this.editorDOM.ownerDocument ??
-      (this.view.root instanceof Document ? this.view.root : this.view.root.ownerDocument) ??
-      null
-    );
-  }
-
-  private getOwnerWindow(): Window | null {
-    return this.getOwnerDocument()?.defaultView ?? null;
-  }
 
   constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
@@ -86,8 +66,17 @@ export class FrontmatterNodeView implements NodeView {
           drawSelection(),
           ...codeMirrorFindHighlightExtensions,
           ...createCodeBlockEditorTheme(),
-          codeMirrorKeymap.of(this.createKeymap()),
-          CodeMirror.domEventHandlers(this.createClipboardHandlers()),
+          createFrontmatterCodeMirrorKeymap({
+            getCodeMirror: () => this.cm,
+            getNode: () => this.node,
+            getPos: this.getPos,
+            view: this.view,
+          }),
+          CodeMirror.domEventHandlers(createFrontmatterClipboardHandlers({
+            getNode: () => this.node,
+            getPos: this.getPos,
+            view: this.view,
+          })),
           EditorState.changeFilter.of(() => this.view.editable),
           CodeMirror.updateListener.of(this.handleUpdate),
         ],
@@ -108,84 +97,26 @@ export class FrontmatterNodeView implements NodeView {
     void this.syncLanguage();
   }
 
-  private createKeymap(): KeyBinding[] {
-    return [
-      {
-        key: 'Backspace',
-        run: () => deleteSelectedFrontmatterBlocks(this.view, this.getPos(), this.node.nodeSize),
-      },
-      {
-        key: 'Delete',
-        run: () => deleteSelectedFrontmatterBlocks(this.view, this.getPos(), this.node.nodeSize),
-      },
-      ...createCodeBlockEditorKeymap({
-        getCodeMirror: () => this.cm,
-        view: this.view,
-        getNode: () => this.node,
-        getPos: this.getPos,
-      }),
-    ];
-  }
-
-  private createClipboardHandlers() {
-    return createCodeBlockEditorClipboardHandlers({
-      view: this.view,
-      getNode: () => this.node,
-      getPos: this.getPos,
-    });
-  }
-
   private syncFindHighlights() {
-    const nodePos = this.getPos();
-    if (nodePos === undefined) {
-      this.syncFindHighlightRanges([]);
-      return;
-    }
-
-    const state = getEditorFindState(this.view);
-    if (!state || state.matches.length === 0) {
-      this.syncFindHighlightRanges([]);
-      return;
-    }
-
-    const contentFrom = nodePos + 1;
-    const contentTo = nodePos + this.node.nodeSize - 1;
-
     this.syncFindHighlightRanges(
-      buildCodeMirrorFindHighlightRanges({
-        matches: state.matches,
-        activeIndex: state.activeIndex,
-        contentFrom,
-        contentTo,
-        rawText: this.node.textContent ?? '',
-        mapDocumentOffsetToEditorOffset: mapDocumentOffsetToCodeBlockEditorOffset,
-      }),
+      buildFrontmatterFindHighlightRanges(this.view, this.node, this.getPos()),
     );
   }
 
-  private syncFindHighlightRanges(ranges: ReturnType<typeof buildCodeMirrorFindHighlightRanges>) {
+  private syncFindHighlightRanges(ranges: ReturnType<typeof buildFrontmatterFindHighlightRanges>) {
     const nextFindHighlightStateKey = JSON.stringify(ranges);
     if (nextFindHighlightStateKey === this.findHighlightStateKey) {
       return;
     }
 
     this.findHighlightStateKey = nextFindHighlightStateKey;
-    syncCodeMirrorFindHighlights(this.cm, ranges);
+    syncFrontmatterFindHighlightRanges(this.cm, ranges);
   }
 
   private readonly syncProseMirrorSelection = () => {
     const nodePos = this.getPos();
-    if (nodePos === undefined) {
-      this.dom.dataset.pmSelected = 'false';
-      this.clearMirroredOuterSelection();
-      return;
-    }
-
-    const contentFrom = nodePos + 1;
-    const contentTo = nodePos + this.node.nodeSize - 1;
-    const selectionFrom = Math.max(this.view.state.selection.from, contentFrom);
-    const selectionTo = Math.min(this.view.state.selection.to, contentTo);
-    const hasSelection = selectionTo > selectionFrom;
+    const selectionMirror = getFrontmatterSelectionMirror(this.view, this.node, nodePos);
+    const hasSelection = selectionMirror !== null;
 
     this.dom.dataset.pmSelected = hasSelection ? 'true' : 'false';
 
@@ -198,15 +129,11 @@ export class FrontmatterNodeView implements NodeView {
       return;
     }
 
-    const rawText = this.node.textContent ?? '';
-    const nextAnchor = mapDocumentOffsetToCodeBlockEditorOffset(rawText, selectionFrom - contentFrom);
-    const nextHead = mapDocumentOffsetToCodeBlockEditorOffset(rawText, selectionTo - contentFrom);
-
     this.updating = true;
     this.cm.dispatch({
       selection: {
-        anchor: nextAnchor,
-        head: nextHead,
+        anchor: selectionMirror.anchor,
+        head: selectionMirror.head,
       },
     });
     this.updating = false;
@@ -214,25 +141,9 @@ export class FrontmatterNodeView implements NodeView {
   };
 
   private clearMirroredOuterSelection() {
-    if (!this.mirroredOuterSelection || this.cm.hasFocus) {
-      if (!this.cm.hasFocus) {
-        this.mirroredOuterSelection = false;
-      }
-      return;
-    }
-
-    const { main } = this.cm.state.selection;
-    if (!main.empty) {
-      this.updating = true;
-      this.cm.dispatch({
-        selection: {
-          anchor: main.head,
-          head: main.head,
-        },
-      });
-      this.updating = false;
-    }
-    this.mirroredOuterSelection = false;
+    this.updating = true;
+    this.mirroredOuterSelection = clearMirroredFrontmatterSelection(this.cm, this.mirroredOuterSelection);
+    this.updating = false;
   }
 
   private handleUpdate = (update: ViewUpdate) => {
@@ -266,19 +177,15 @@ export class FrontmatterNodeView implements NodeView {
       return;
     }
 
-    const window = this.getOwnerWindow();
-    if (!window) {
-      this.cm.requestMeasure();
-      return;
-    }
-
-    if (this.pendingMeasureFrame !== null) {
-      window.cancelAnimationFrame(this.pendingMeasureFrame);
-    }
-
-    this.pendingMeasureFrame = window.requestAnimationFrame(() => {
-      this.pendingMeasureFrame = null;
-      this.cm.requestMeasure();
+    scheduleFrontmatterMeasure({
+      cm: this.cm,
+      dom: this.dom,
+      editorDOM: this.editorDOM,
+      pendingMeasureFrame: this.pendingMeasureFrame,
+      setPendingMeasureFrame: (frame) => {
+        this.pendingMeasureFrame = frame;
+      },
+      view: this.view,
     });
   }
 
@@ -368,35 +275,7 @@ export class FrontmatterNodeView implements NodeView {
   }
 
   stopEvent(event: Event) {
-    const target = event.target;
-    if (
-      this.dom.dataset.pmSelected === 'true' ||
-      this.dom.classList.contains('editor-block-selected')
-    ) {
-      if (event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
-        return false;
-      }
-
-      if (event instanceof KeyboardEvent) {
-        if (event.isComposing) {
-          return true;
-        }
-
-        const key = event.key.toLowerCase();
-        if (
-          key === 'delete' ||
-          key === 'backspace' ||
-          ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && key === 'insert') ||
-          (!(event.ctrlKey || event.metaKey) && event.shiftKey && !event.altKey && key === 'insert') ||
-          key === 'x' ||
-          key === 'c'
-        ) {
-          return false;
-        }
-      }
-    }
-
-    return target instanceof globalThis.Node && this.dom.contains(target);
+    return shouldStopFrontmatterEvent(this.dom, event);
   }
 
   ignoreMutation(mutation: MutationRecord | { type: 'selection'; target: globalThis.Node }) {
@@ -405,7 +284,7 @@ export class FrontmatterNodeView implements NodeView {
 
   destroy() {
     this.destroyed = true;
-    const window = this.getOwnerWindow();
+    const window = getFrontmatterOwnerWindow(this.dom, this.editorDOM, this.view);
     if (window && this.pendingMeasureFrame !== null) {
       window.cancelAnimationFrame(this.pendingMeasureFrame);
       this.pendingMeasureFrame = null;

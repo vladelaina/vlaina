@@ -1,32 +1,42 @@
+import type { ChatMessage } from '@/lib/ai/types';
 import { getStorageAdapter, joinPath } from './adapter';
-import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
-import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
-import { normalizeChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy';
-import { parseMarkdownAndHtmlImageTokens } from '@/lib/markdown/markdownImageTokens';
-import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 import { getStorageBasePath } from './basePath';
-import { isSafeChatSessionId } from './unifiedStorageAI';
+import { notifyChatStorageAutoSync } from './chatStorageAutoSync';
+import {
+  DEFAULT_CHAT_SESSION_SAVE_DEBOUNCE_MS,
+  MAX_CHAT_SESSION_FLUSH_CONCURRENCY,
+  MAX_DELETED_SESSION_JSON_TOMBSTONES,
+  MAX_SESSION_MESSAGES_BYTES,
+} from './chatStorageLimits';
+import { mergeSessionMessages } from './chatStorageMerge';
+import { parseSessionMessagesPayload } from './chatStorageNormalization';
+import { isWithinSessionMessagesByteLimit, serializeSessionMessages } from './chatStorageSerialization';
+import { assertSafeChatSessionId } from './chatStorageSessionId';
+import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
+
+export {
+  registerChatStorageAutoSyncTrigger,
+  setChatStorageAutoSyncTrigger,
+} from './chatStorageAutoSync';
+export {
+  MAX_CHAT_SESSION_FLUSH_CONCURRENCY,
+  MAX_SESSION_MESSAGES_BYTES,
+  MAX_SESSION_MESSAGE_NODES,
+  MAX_SESSION_MESSAGE_SCAN_RECORDS,
+} from './chatStorageLimits';
+export {
+  mergeSessionMessages,
+  preserveUnknownPersistedMessages,
+} from './chatStorageMerge';
+export {
+  normalizeSessionMessages,
+  parseSessionMessagesPayload,
+} from './chatStorageNormalization';
+export { serializeSessionMessages } from './chatStorageSerialization';
 
 const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
 const deletingSessionJsons = new Set<string>();
 const deletedSessionJsons = new Set<string>();
-const DEFAULT_DEBOUNCE_MS = 180;
-const SESSION_MESSAGES_FILE_VERSION = 1;
-export const MAX_SESSION_MESSAGES_BYTES = 25 * 1024 * 1024;
-export const MAX_SESSION_MESSAGE_NODES = 10_000;
-export const MAX_SESSION_MESSAGE_SCAN_RECORDS = 20_000;
-const MAX_SESSION_MESSAGE_VERSIONS = 20;
-const MAX_SESSION_MESSAGE_BRANCH_MESSAGES = 100;
-const MAX_SESSION_MESSAGE_BRANCH_DEPTH = 1;
-const MAX_SESSION_IMAGE_SOURCE_ENTRIES = 2000;
-const MAX_SESSION_IMAGE_SOURCES = 1000;
-const MAX_SESSION_MESSAGE_ID_CHARS = 512;
-const MAX_SESSION_MESSAGE_CONTENT_CHARS = 1024 * 1024;
-const MAX_SESSION_MESSAGE_MODEL_ID_CHARS = 512;
-const MAX_DELETED_SESSION_JSON_TOMBSTONES = 4096;
-export const MAX_CHAT_SESSION_FLUSH_CONCURRENCY = 5;
-let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
-let autoSyncTriggerRegistrationId = 0;
 
 function isSessionJsonDeleteBlocked(sessionId: string): boolean {
   return deletingSessionJsons.has(sessionId) || deletedSessionJsons.has(sessionId);
@@ -42,649 +52,6 @@ function rememberDeletedSessionJson(sessionId: string): void {
   }
 }
 
-interface SessionMessagesFile {
-  version: typeof SESSION_MESSAGES_FILE_VERSION;
-  sessionId: string;
-  updatedAt: number;
-  messages: ChatMessage[];
-}
-
-export function setChatStorageAutoSyncTrigger(
-  trigger: ((sessionId?: string) => void) | null,
-): void {
-  autoSyncTriggerRegistrationId += 1;
-  autoSyncTrigger = trigger;
-}
-
-export function registerChatStorageAutoSyncTrigger(
-  trigger: (sessionId?: string) => void,
-): () => void {
-  const registrationId = autoSyncTriggerRegistrationId + 1;
-  autoSyncTriggerRegistrationId = registrationId;
-  autoSyncTrigger = trigger;
-
-  return () => {
-    if (autoSyncTriggerRegistrationId !== registrationId) {
-      return;
-    }
-    autoSyncTriggerRegistrationId += 1;
-    autoSyncTrigger = null;
-  };
-}
-
-export function serializeSessionMessages(sessionId: string, messages: ChatMessage[]): string {
-  assertSafeChatSessionId(sessionId);
-  return serializeBoundedSessionMessages(sessionId, normalizeSessionMessages(messages));
-}
-
-function stringifySessionMessagesPayload(sessionId: string, messages: ChatMessage[]): string {
-  const payload: SessionMessagesFile = {
-    version: SESSION_MESSAGES_FILE_VERSION,
-    sessionId,
-    updatedAt: Date.now(),
-    messages,
-  };
-  return JSON.stringify(payload, null, 2);
-}
-
-function getBoundedUtf8ByteLength(value: string, maxBytes: number): number {
-  let bytes = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code <= 0x7f) {
-      bytes += 1;
-    } else if (code <= 0x7ff) {
-      bytes += 2;
-    } else if (
-      code >= 0xd800 &&
-      code <= 0xdbff &&
-      index + 1 < value.length
-    ) {
-      const next = value.charCodeAt(index + 1);
-      if (next >= 0xdc00 && next <= 0xdfff) {
-        bytes += 4;
-        index += 1;
-      } else {
-        bytes += 3;
-      }
-    } else {
-      bytes += 3;
-    }
-
-    if (bytes > maxBytes) {
-      return maxBytes + 1;
-    }
-  }
-
-  return bytes;
-}
-
-function isWithinSessionMessagesByteLimit(value: string): boolean {
-  return getBoundedUtf8ByteLength(value, MAX_SESSION_MESSAGES_BYTES) <= MAX_SESSION_MESSAGES_BYTES;
-}
-
-function serializeBoundedSessionMessages(sessionId: string, messages: ChatMessage[]): string {
-  let best = stringifySessionMessagesPayload(sessionId, []);
-  if (messages.length === 0) return best;
-
-  let lastFit = 0;
-  let nextCount = 1;
-  while (nextCount <= messages.length) {
-    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(messages.length - nextCount));
-    if (!isWithinSessionMessagesByteLimit(candidate)) {
-      break;
-    }
-    best = candidate;
-    lastFit = nextCount;
-    nextCount *= 2;
-  }
-
-  if (lastFit === messages.length) {
-    return best;
-  }
-
-  let low = lastFit + 1;
-  let high = Math.min(nextCount - 1, messages.length);
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(messages.length - mid));
-    if (isWithinSessionMessagesByteLimit(candidate)) {
-      best = candidate;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
-    }
-  }
-
-  return best;
-}
-
-function collectMessageIds(messages: ChatMessage[]): Set<string> {
-  const ids = new Set<string>();
-  const stack: Array<{ depth: number; messages: ChatMessage[] }> = [{ depth: 0, messages }];
-  let visited = 0;
-
-  while (stack.length > 0 && visited < MAX_SESSION_MESSAGE_NODES) {
-    const frame = stack.pop()!;
-    for (const message of frame.messages) {
-      if (visited >= MAX_SESSION_MESSAGE_NODES) {
-        break;
-      }
-      visited += 1;
-      ids.add(message.id);
-
-      if (frame.depth >= MAX_SESSION_MESSAGE_BRANCH_DEPTH) {
-        continue;
-      }
-
-      for (const version of (message.versions || []).slice(0, MAX_SESSION_MESSAGE_VERSIONS)) {
-        if (Array.isArray(version.subsequentMessages) && version.subsequentMessages.length > 0) {
-          stack.push({
-            depth: frame.depth + 1,
-            messages: version.subsequentMessages.slice(0, MAX_SESSION_MESSAGE_BRANCH_MESSAGES),
-          });
-        }
-      }
-    }
-  }
-
-  return ids;
-}
-
-export function preserveUnknownPersistedMessages(
-  incomingMessages: ChatMessage[],
-  persistedMessages: ChatMessage[] | null,
-): ChatMessage[] {
-  return mergeSessionMessages(incomingMessages, persistedMessages, {
-    preferredSource: 'incoming',
-  });
-}
-
-function createVersionFromMessage(message: ChatMessage): ChatMessage['versions'][number] {
-  return {
-    content: message.content || '',
-    createdAt: message.timestamp || Date.now(),
-    kind: 'original',
-    subsequentMessages: [],
-    ...(message.apiTranscript ? { apiTranscript: message.apiTranscript } : {}),
-  };
-}
-
-function areApiTranscriptsEquivalent(
-  left: ChatMessage['versions'][number]['apiTranscript'] | undefined,
-  right: ChatMessage['versions'][number]['apiTranscript'] | undefined,
-): boolean {
-  const normalizedLeft = normalizeApiTranscriptMessages(left);
-  const normalizedRight = normalizeApiTranscriptMessages(right);
-  if (!normalizedLeft && !normalizedRight) {
-    return true;
-  }
-  if (!normalizedLeft || !normalizedRight || normalizedLeft.length !== normalizedRight.length) {
-    return false;
-  }
-
-  for (let index = 0; index < normalizedLeft.length; index += 1) {
-    if (!areApiTranscriptMessagesEquivalent(normalizedLeft[index], normalizedRight[index])) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function areApiTranscriptMessagesEquivalent(left: ApiTranscriptMessage, right: ApiTranscriptMessage): boolean {
-  return (
-    left.role === right.role &&
-    areApiTranscriptContentsEquivalent(left.content, right.content) &&
-    (left.reasoning_content ?? '') === (right.reasoning_content ?? '') &&
-    (left.tool_call_id ?? '') === (right.tool_call_id ?? '') &&
-    (left.name ?? '') === (right.name ?? '') &&
-    areApiTranscriptToolCallsEquivalent(left.tool_calls, right.tool_calls)
-  );
-}
-
-function areApiTranscriptContentsEquivalent(
-  left: ChatMessageContent | null | undefined,
-  right: ChatMessageContent | null | undefined,
-): boolean {
-  if (left === right) return true;
-  if (left == null || right == null) return left === right;
-  if (typeof left === 'string' || typeof right === 'string') return left === right;
-  if (left.length !== right.length) return false;
-
-  for (let index = 0; index < left.length; index += 1) {
-    if (!areApiTranscriptContentPartsEquivalent(left[index], right[index])) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function areApiTranscriptContentPartsEquivalent(
-  left: ChatMessageContentPart,
-  right: ChatMessageContentPart,
-): boolean {
-  if (left.type !== right.type) return false;
-  if (left.type === 'text' && right.type === 'text') {
-    return left.text === right.text;
-  }
-  if (left.type === 'image_url' && right.type === 'image_url') {
-    return (
-      left.image_url.url === right.image_url.url &&
-      (left.image_url.detail ?? '') === (right.image_url.detail ?? '')
-    );
-  }
-  return false;
-}
-
-function areApiTranscriptToolCallsEquivalent(
-  left: ApiTranscriptMessage['tool_calls'] | undefined,
-  right: ApiTranscriptMessage['tool_calls'] | undefined,
-): boolean {
-  if (!left && !right) return true;
-  if (!left || !right || left.length !== right.length) return false;
-
-  for (let index = 0; index < left.length; index += 1) {
-    const leftCall = left[index];
-    const rightCall = right[index];
-    if (
-      leftCall.id !== rightCall.id ||
-      leftCall.type !== rightCall.type ||
-      leftCall.function.name !== rightCall.function.name ||
-      leftCall.function.arguments !== rightCall.function.arguments
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function isSameMessageVersion(
-  left: ChatMessage['versions'][number],
-  right: ChatMessage['versions'][number],
-): boolean {
-  return (
-    left.content === right.content &&
-    left.createdAt === right.createdAt &&
-    left.kind === right.kind &&
-    (!Array.isArray(left.subsequentMessages) || left.subsequentMessages.length === 0) &&
-    (!Array.isArray(right.subsequentMessages) || right.subsequentMessages.length === 0) &&
-    areApiTranscriptsEquivalent(left.apiTranscript, right.apiTranscript)
-  );
-}
-
-function getNormalizedMessageVersions(message: ChatMessage): ChatMessage['versions'] {
-  return Array.isArray(message.versions) && message.versions.length > 0
-    ? message.versions.slice(0, MAX_SESSION_MESSAGE_VERSIONS)
-    : [createVersionFromMessage(message)];
-}
-
-function mergeMatchingMessages(preferred: ChatMessage): ChatMessage {
-  const versions = getNormalizedMessageVersions(preferred);
-  const preferredVersion = createVersionFromMessage(preferred);
-  const preferredVersionIndex = versions.findIndex((version) => isSameMessageVersion(version, preferredVersion));
-
-  return {
-    ...preferred,
-    versions,
-    currentVersionIndex: preferredVersionIndex >= 0
-      ? preferredVersionIndex
-      : Math.min(Math.max(preferred.currentVersionIndex ?? 0, 0), Math.max(versions.length - 1, 0)),
-  };
-}
-
-export function mergeSessionMessages(
-  incomingMessages: ChatMessage[],
-  persistedMessages: ChatMessage[] | null,
-  options: { preferredSource: 'incoming' | 'persisted' } = { preferredSource: 'incoming' },
-): ChatMessage[] {
-  if (!persistedMessages || persistedMessages.length === 0) {
-    return incomingMessages;
-  }
-
-  const incomingToMerge = incomingMessages.slice(0, MAX_SESSION_MESSAGE_NODES);
-  const persistedToMerge = persistedMessages.slice(0, MAX_SESSION_MESSAGE_NODES);
-  const incomingById = new Map(incomingToMerge.map((message) => [message.id, message]));
-  const persistedById = new Map(persistedToMerge.map((message) => [message.id, message]));
-  const incomingIds = collectMessageIds(incomingToMerge);
-  const mergedById = new Map<string, ChatMessage>();
-
-  for (const incoming of incomingToMerge) {
-    const persisted = persistedById.get(incoming.id);
-    mergedById.set(
-      incoming.id,
-      persisted
-        ? mergeMatchingMessages(options.preferredSource === 'persisted' ? persisted : incoming)
-        : incoming
-    );
-  }
-
-  for (const persisted of persistedToMerge) {
-    if (incomingIds.has(persisted.id)) {
-      continue;
-    }
-    if (mergedById.has(persisted.id)) {
-      continue;
-    }
-    const incoming = incomingById.get(persisted.id);
-    if (incoming) {
-      continue;
-    }
-    mergedById.set(persisted.id, persisted);
-  }
-
-  return [...mergedById.values()];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function normalizeTimestamp(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
-}
-
-function normalizeMessageContent(value: unknown, fallback = ''): string {
-  const content = typeof value === 'string' ? value : fallback;
-  return content.length > MAX_SESSION_MESSAGE_CONTENT_CHARS
-    ? content.slice(0, MAX_SESSION_MESSAGE_CONTENT_CHARS)
-    : content;
-}
-
-interface NormalizeSessionMessagesContext {
-  messageNodes: number;
-  scannedMessageRecords: number;
-  messageIds: Set<string>;
-  topLevelMessageIds: Set<string>;
-}
-
-function createUniqueMessageId(context: NormalizeSessionMessagesContext): string {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const id = `msg-${crypto.randomUUID()}`;
-    if (!context.messageIds.has(id)) {
-      return id;
-    }
-  }
-  return `msg-${Date.now()}-${context.messageNodes}-${context.messageIds.size}`;
-}
-
-function normalizeMessageId(value: unknown, context: NormalizeSessionMessagesContext, depth: number): string {
-  const id = typeof value === 'string'
-    ? value.trim().slice(0, MAX_SESSION_MESSAGE_ID_CHARS)
-    : '';
-  if (
-    id &&
-    !context.messageIds.has(id) &&
-    (depth === 0 || !context.topLevelMessageIds.has(id))
-  ) {
-    context.messageIds.add(id);
-    return id;
-  }
-
-  const fallbackId = createUniqueMessageId(context);
-  context.messageIds.add(fallbackId);
-  return fallbackId;
-}
-
-function normalizeMessageVersion(
-  value: unknown,
-  fallbackContent: string,
-  context: NormalizeSessionMessagesContext,
-  depth: number,
-): ChatMessage['versions'][number] | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const content = normalizeMessageContent(value.content, fallbackContent);
-  const createdAt = normalizeTimestamp(value.createdAt);
-  const kind = value.kind;
-  if (kind !== 'regeneration' && kind !== 'edit' && kind !== 'original') {
-    return null;
-  }
-  const subsequentMessages = Array.isArray(value.subsequentMessages) && depth < MAX_SESSION_MESSAGE_BRANCH_DEPTH
-    ? normalizeSessionMessagesInternal(
-        value.subsequentMessages.slice(0, MAX_SESSION_MESSAGE_BRANCH_MESSAGES),
-        context,
-        depth + 1,
-      )
-    : [];
-  const apiTranscript = normalizeApiTranscriptMessages(value.apiTranscript);
-  return {
-    content,
-    createdAt,
-    kind,
-    subsequentMessages,
-    ...(apiTranscript ? { apiTranscript } : {}),
-  };
-}
-
-function selectSessionMessageVersionEntries(
-  value: unknown,
-  currentVersionIndex: number,
-): Array<{ index: number; value: unknown }> {
-  if (!Array.isArray(value) || value.length === 0) {
-    return [];
-  }
-
-  const activeIndex = currentVersionIndex >= 0 && currentVersionIndex < value.length
-    ? currentVersionIndex
-    : 0;
-  const keepIndexes = new Set<number>([activeIndex]);
-  for (let index = value.length - 1; index >= 0 && keepIndexes.size < MAX_SESSION_MESSAGE_VERSIONS; index -= 1) {
-    keepIndexes.add(index);
-  }
-
-  return Array.from(keepIndexes)
-    .sort((left, right) => left - right)
-    .map((index) => ({ index, value: value[index] }));
-}
-
-function canRoleUseVersionKind(
-  role: ChatMessage['role'],
-  kind: ChatMessage['versions'][number]['kind'],
-): boolean {
-  if (role === 'assistant') {
-    return kind === 'original' || kind === 'regeneration';
-  }
-  if (role === 'user') {
-    return kind === 'original' || kind === 'edit';
-  }
-  return kind === 'original';
-}
-
-function normalizeImageSourceCandidates(value: readonly unknown[]): string[] | undefined {
-  const sources = normalizeChatMessageImageSources(
-    value
-      .slice(0, MAX_SESSION_IMAGE_SOURCE_ENTRIES)
-      .filter((item): item is string => typeof item === 'string'),
-    {
-      maxEntries: MAX_SESSION_IMAGE_SOURCE_ENTRIES,
-      maxSources: MAX_SESSION_IMAGE_SOURCES,
-      persistable: true,
-    },
-  );
-
-  return sources.length > 0 ? sources : undefined;
-}
-
-function extractActiveVersionImageSources(role: ChatMessage['role'], content: string): string[] | undefined {
-  if (role === 'user') {
-    return normalizeImageSourceCandidates(
-      parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_SESSION_IMAGE_SOURCE_ENTRIES })
-        .map((token) => token.src),
-    );
-  }
-  if (role === 'assistant') {
-    return normalizeImageSourceCandidates(
-      parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_SESSION_IMAGE_SOURCE_ENTRIES })
-        .map((token) => token.src),
-    );
-  }
-  return undefined;
-}
-
-function normalizeSessionMessage(
-  value: unknown,
-  context: NormalizeSessionMessagesContext,
-  depth: number,
-): ChatMessage | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const role = value.role;
-  if (role !== 'user' && role !== 'assistant' && role !== 'system') {
-    return null;
-  }
-  if (context.messageNodes >= MAX_SESSION_MESSAGE_NODES) {
-    return null;
-  }
-  context.messageNodes += 1;
-
-  const content = normalizeMessageContent(value.content);
-  const timestamp = normalizeTimestamp(value.timestamp);
-  const rawCurrentVersionIndex = typeof value.currentVersionIndex === 'number'
-    ? Math.floor(value.currentVersionIndex)
-    : 0;
-  const versionEntries = selectSessionMessageVersionEntries(value.versions, rawCurrentVersionIndex);
-  const normalizedVersionEntries = versionEntries
-    .map((entry) => ({
-      index: entry.index,
-      version: normalizeMessageVersion(entry.value, content, context, depth),
-    }))
-    .filter((entry): entry is { index: number; version: ChatMessage['versions'][number] } =>
-      entry.version !== null && canRoleUseVersionKind(role, entry.version.kind)
-    );
-  const versions = normalizedVersionEntries.map((entry) => entry.version);
-  const candidateVersions: ChatMessage['versions'] = versions.length > 0
-    ? versions
-    : [{
-        content,
-        createdAt: timestamp,
-        kind: 'original',
-        subsequentMessages: [],
-      }];
-  const selectedCurrentVersionIndex = normalizedVersionEntries.findIndex(
-    (entry) => entry.index === rawCurrentVersionIndex,
-  );
-  const normalizedVersions = candidateVersions;
-  const currentVersionIndex = selectedCurrentVersionIndex >= 0 ? selectedCurrentVersionIndex : 0;
-  const activeVersion = normalizedVersions[currentVersionIndex] ?? normalizedVersions[0]!;
-  const activeContent = activeVersion.content;
-  const topLevelMatchesActiveVersion = content === activeContent;
-  const normalizedTopLevelApiTranscript = normalizeApiTranscriptMessages(value.apiTranscript);
-  const apiTranscript = activeVersion.apiTranscript
-    ?? (topLevelMatchesActiveVersion ? normalizedTopLevelApiTranscript : undefined);
-
-  if (apiTranscript && !normalizedVersions[currentVersionIndex]?.apiTranscript) {
-    normalizedVersions[currentVersionIndex] = {
-      ...normalizedVersions[currentVersionIndex],
-      apiTranscript,
-    };
-  }
-  const activeVersionImageSources = extractActiveVersionImageSources(role, activeContent);
-
-  return {
-    id: normalizeMessageId(value.id, context, depth),
-    role,
-    content: activeContent,
-    ...(apiTranscript ? { apiTranscript } : {}),
-    ...(activeVersionImageSources ? { imageSources: activeVersionImageSources } : {}),
-    modelId: typeof value.modelId === 'string'
-      ? value.modelId.slice(0, MAX_SESSION_MESSAGE_MODEL_ID_CHARS)
-      : '',
-    timestamp,
-    versions: normalizedVersions,
-    currentVersionIndex,
-  };
-}
-
-function normalizeSessionMessagesInternal(
-  value: unknown,
-  context: NormalizeSessionMessagesContext,
-  depth: number,
-): ChatMessage[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  const normalized: ChatMessage[] = [];
-  for (const item of value) {
-    if (
-      context.scannedMessageRecords >= MAX_SESSION_MESSAGE_SCAN_RECORDS ||
-      context.messageNodes >= MAX_SESSION_MESSAGE_NODES
-    ) {
-      break;
-    }
-    context.scannedMessageRecords += 1;
-
-    const message = normalizeSessionMessage(item, context, depth);
-    if (!message) {
-      continue;
-    }
-
-    normalized.push(message);
-  }
-
-  return normalized;
-}
-
-export function normalizeSessionMessages(value: unknown): ChatMessage[] {
-  const topLevelMessageIds = new Set<string>();
-  if (Array.isArray(value)) {
-    const scanLimit = Math.min(value.length, MAX_SESSION_MESSAGE_SCAN_RECORDS);
-    for (let index = 0; index < scanLimit; index += 1) {
-      const item = value[index];
-      if (!isRecord(item)) {
-        continue;
-      }
-      const id = typeof item.id === 'string'
-        ? item.id.trim().slice(0, MAX_SESSION_MESSAGE_ID_CHARS)
-        : '';
-      if (id && !topLevelMessageIds.has(id)) {
-        topLevelMessageIds.add(id);
-      }
-    }
-  }
-  return normalizeSessionMessagesInternal(value, {
-    messageNodes: 0,
-    scannedMessageRecords: 0,
-    messageIds: new Set(),
-    topLevelMessageIds,
-  }, 0);
-}
-
-export function parseSessionMessagesPayload(
-  expectedSessionId: string,
-  value: unknown,
-): ChatMessage[] | null {
-  assertSafeChatSessionId(expectedSessionId);
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  if (value.version !== SESSION_MESSAGES_FILE_VERSION) {
-    return null;
-  }
-
-  if (value.sessionId !== expectedSessionId) {
-    return null;
-  }
-
-  if (!Array.isArray(value.messages)) {
-    return null;
-  }
-
-  return normalizeSessionMessages(value.messages);
-}
-
-function assertSafeChatSessionId(sessionId: string): void {
-  if (!isSafeChatSessionId(sessionId)) {
-    throw new Error(`Unsafe chat session id: ${sessionId}`);
-  }
-}
-
 function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
   assertSafeChatSessionId(sessionId);
   const existing = sessionQueues.get(sessionId);
@@ -692,7 +59,7 @@ function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
 
   let queue: PersistenceQueue<ChatMessage[]>;
   queue = createPersistenceQueue<ChatMessage[]>({
-    debounceMs: DEFAULT_DEBOUNCE_MS,
+    debounceMs: DEFAULT_CHAT_SESSION_SAVE_DEBOUNCE_MS,
     write: async (messages) => {
       await writeSessionJsonRaw(sessionId, messages);
     },
@@ -742,7 +109,7 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
   }
 
   await storage.writeFile(path, serializeSessionMessages(sessionId, messagesToWrite));
-  autoSyncTrigger?.(sessionId);
+  notifyChatStorageAutoSync(sessionId);
 }
 
 async function getSessionJsonPath(sessionId: string): Promise<string> {
@@ -790,7 +157,7 @@ export async function saveSessionJson(sessionId: string, messages: ChatMessage[]
 export function scheduleSessionJsonSave(
   sessionId: string,
   messages: ChatMessage[],
-  debounceMs = DEFAULT_DEBOUNCE_MS
+  debounceMs = DEFAULT_CHAT_SESSION_SAVE_DEBOUNCE_MS
 ) {
   assertSafeChatSessionId(sessionId);
   if (isSessionJsonDeleteBlocked(sessionId)) return;
@@ -889,7 +256,7 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
       if (typeof storage.deleteDir === 'function') {
         await storage.deleteDir(await joinPath(await getStorageBasePath(), '.vlaina', 'chat', 'sessions', sessionId), false).catch(() => undefined);
       }
-      autoSyncTrigger?.(sessionId);
+      notifyChatStorageAutoSync(sessionId);
     }
     deleted = true;
   } finally {
@@ -910,18 +277,18 @@ export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] 
   assertSafeChatSessionId(sessionId);
   const storage = getStorageAdapter();
   const path = await getSessionJsonPath(sessionId);
-  
+
   if (await storage.exists(path)) {
-      try {
-          const content = await readSessionJsonContent(path);
-          if (content === null) {
-            return null;
-          }
-          const parsed: unknown = JSON.parse(content);
-          return parseSessionMessagesPayload(sessionId, parsed);
-      } catch (error) {
-          return null;
+    try {
+      const content = await readSessionJsonContent(path);
+      if (content === null) {
+        return null;
       }
+      const parsed: unknown = JSON.parse(content);
+      return parseSessionMessagesPayload(sessionId, parsed);
+    } catch (error) {
+      return null;
+    }
   }
   return null;
 }

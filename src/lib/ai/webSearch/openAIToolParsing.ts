@@ -1,103 +1,28 @@
-import { WEB_SEARCH_SYSTEM_INSTRUCTION } from './toolDefinitions';
-import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
+import {
+  appendOpenAIToolArguments,
+  boundedToolString,
+  limitOpenAIToolArguments,
+  normalizeOpenAIToolArgumentsValue,
+} from './openAIToolArguments';
+import type { OpenAIToolCall } from './openAIToolTypes';
+export {
+  canParseOpenAIToolArguments,
+  limitOpenAIToolArguments,
+  normalizeOpenAIToolArgumentsValue,
+  MAX_OPENAI_TOOL_ARGUMENT_CHARS,
+} from './openAIToolArguments';
+export { appendWebSearchSystemInstruction } from './openAIToolSystemInstruction';
 
 export const MAX_OPENAI_TOOL_CALLS = 16;
-export const MAX_OPENAI_TOOL_ARGUMENT_CHARS = 64 * 1024;
 export const MAX_DSML_TOOL_MARKUP_CHARS = 256 * 1024;
 export const MAX_OPENAI_PAYLOAD_TEXT_CHARS = 1024 * 1024;
 export const MAX_OPENAI_PAYLOAD_LINE_CHARS = MAX_OPENAI_PAYLOAD_TEXT_CHARS + 32;
-const MAX_OPENAI_TOOL_ARGUMENT_OBJECT_KEYS = 32;
-const MAX_OPENAI_TOOL_ARGUMENT_ARRAY_ITEMS = 16;
-const MAX_OPENAI_TOOL_ARGUMENT_DEPTH = 4;
-const MAX_OPENAI_TOOL_ARGUMENT_VALUE_CHARS = 4096;
 const MAX_OPENAI_TOOL_CALL_INDEX_STRING_CHARS = 16;
 const MAX_OPENAI_TEXT_NODES = 2000;
 const MAX_OPENAI_TEXT_CHARS = 1024 * 1024;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function boundedToolString(value: unknown, maxChars: number): string {
-  return typeof value === 'string' ? value.slice(0, maxChars) : '';
-}
-
-export function canParseOpenAIToolArguments(value: string): boolean {
-  return value.length <= MAX_OPENAI_TOOL_ARGUMENT_CHARS;
-}
-
-export function limitOpenAIToolArguments(value: string): string {
-  return value.length > MAX_OPENAI_TOOL_ARGUMENT_CHARS
-    ? value.slice(0, MAX_OPENAI_TOOL_ARGUMENT_CHARS)
-    : value;
-}
-
-function normalizeToolArgumentJsonValue(value: unknown, depth = 0): unknown {
-  if (value === null) {
-    return null;
-  }
-
-  switch (typeof value) {
-    case 'string':
-      return value.slice(0, MAX_OPENAI_TOOL_ARGUMENT_VALUE_CHARS);
-    case 'number':
-      return Number.isFinite(value) ? value : null;
-    case 'boolean':
-      return value;
-    case 'object':
-      break;
-    default:
-      return undefined;
-  }
-
-  if (depth >= MAX_OPENAI_TOOL_ARGUMENT_DEPTH) {
-    return null;
-  }
-
-  if (Array.isArray(value)) {
-    const items: unknown[] = [];
-    for (let index = 0; index < value.length && items.length < MAX_OPENAI_TOOL_ARGUMENT_ARRAY_ITEMS; index += 1) {
-      const item = normalizeToolArgumentJsonValue(value[index], depth + 1);
-      items.push(item === undefined ? null : item);
-    }
-    return items;
-  }
-
-  const record = value as Record<string, unknown>;
-  const output: Record<string, unknown> = {};
-  let keyCount = 0;
-  for (const key in record) {
-    if (keyCount >= MAX_OPENAI_TOOL_ARGUMENT_OBJECT_KEYS) break;
-    if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
-    const item = normalizeToolArgumentJsonValue(record[key], depth + 1);
-    if (item === undefined) continue;
-    output[key.slice(0, 128)] = item;
-    keyCount += 1;
-  }
-  return output;
-}
-
-export function normalizeOpenAIToolArgumentsValue(value: unknown): string {
-  if (typeof value === 'string') {
-    return limitOpenAIToolArguments(value);
-  }
-
-  try {
-    const normalized = normalizeToolArgumentJsonValue(value);
-    const serialized = JSON.stringify(normalized ?? {});
-    return serialized.length <= MAX_OPENAI_TOOL_ARGUMENT_CHARS ? serialized : '{}';
-  } catch {
-    return '{}';
-  }
-}
-
-function appendOpenAIToolArguments(existing: string, next: unknown): string {
-  if (typeof next !== 'string' || existing.length >= MAX_OPENAI_TOOL_ARGUMENT_CHARS) {
-    return existing;
-  }
-
-  const remaining = MAX_OPENAI_TOOL_ARGUMENT_CHARS - existing.length;
-  return existing + next.slice(0, remaining);
 }
 
 export function parseOpenAIPayloadText(text: string): Record<string, unknown> | null {
@@ -339,14 +264,6 @@ export function extractOpenAIContentDelta(payload: Record<string, unknown>): { r
     reasoning: extractOpenAIText(source.reasoning_content ?? source.reasoning) || undefined,
     content: extractOpenAIText(source.content) || undefined,
   };
-}
-
-export function appendWebSearchSystemInstruction(messages: OpenAIWireMessage[]): OpenAIWireMessage[] {
-  const [first, ...rest] = messages;
-  if (first?.role === 'system' && typeof first.content === 'string') {
-    return [{ ...first, content: `${first.content}\n\n${WEB_SEARCH_SYSTEM_INSTRUCTION}` }, ...rest];
-  }
-  return [{ role: 'system', content: WEB_SEARCH_SYSTEM_INSTRUCTION }, ...messages];
 }
 
 export function extractOpenAIMessageFromJson(payload: Record<string, unknown>): {

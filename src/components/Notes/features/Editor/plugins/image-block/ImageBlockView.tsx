@@ -1,14 +1,12 @@
-import { useRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRef, useCallback, useMemo, useState } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { LazyChatImageViewer } from '@/components/Chat/features/Markdown/components/LazyChatImageViewer';
-import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { cn } from '@/lib/utils';
 import { getContainerStyle, computeAspectRatio } from './utils/styleUtils';
 import { ImageContent } from './components/ImageContent';
 import { ImageDragOverlay } from './components/ImageDragOverlay';
 import { ImageBlockChrome } from './components/ImageBlockChrome';
-import { getImageSourceBase, isVirtualImageSource } from './utils/imageSourcePath';
 import { useImageBlockState } from './hooks/useImageBlockState';
 import { useImageActions } from './hooks/useImageActions';
 import { useImageBlockFrame } from './hooks/useImageBlockFrame';
@@ -17,6 +15,8 @@ import { useImageResize } from './hooks/useImageResize';
 import { useImageMediaLifecycle } from './hooks/useImageMediaLifecycle';
 import { useBlockDragState } from './hooks/useBlockDragState';
 import { useNearViewport } from './hooks/useNearViewport';
+import { useImageBlockViewHandlers } from './hooks/useImageBlockViewHandlers';
+import { getImageViewerResourceSrc } from './utils/imageViewerResource';
 import type { CropperViewportState } from './types';
 
 const WRAPPER_ALIGNMENT_CLASSES: Record<'left' | 'center' | 'right', string> = {
@@ -31,18 +31,10 @@ interface ImageBlockProps {
     getPos: () => number | undefined;
 }
 
-interface LockedEditFrame {
-    width: number;
-    height: number;
-    left: number;
-}
-
 export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const latestStateRef = useRef<CropperViewportState | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [lockedEditFrame, setLockedEditFrame] = useState<LockedEditFrame | null>(null);
     const [mediaLoadError, setMediaLoadError] = useState(false);
-    const [isViewerOpen, setIsViewerOpen] = useState(false);
     const isBlockDragging = useBlockDragState();
     const imageLoadGate = useNearViewport(containerRef);
 
@@ -160,16 +152,38 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const computedAspectRatio = computeAspectRatio(height, cropParams, naturalRatio);
     const viewerResourceSrc = useMemo(() => {
-        const baseResourceSrc = getImageSourceBase(baseSrc);
-        const remoteResourceSrc = normalizePublicRemoteMediaUrl(baseResourceSrc);
-        if (remoteResourceSrc) {
-            return remoteResourceSrc;
-        }
-        if (baseResourceSrc && isVirtualImageSource(baseResourceSrc)) {
-            return baseResourceSrc;
-        }
-        return resolvedSrc || baseResourceSrc;
+        return getImageViewerResourceSrc(baseSrc, resolvedSrc);
     }, [baseSrc, resolvedSrc]);
+    const hasLoadError = !!loadError || mediaLoadError;
+    const {
+        lockedEditFrame,
+        isViewerOpen,
+        setIsViewerOpen,
+        handleCaptionSubmit,
+        handleCaptionCancel,
+        handleAlign,
+        handleEdit,
+        handleOpenViewer,
+    } = useImageBlockViewHandlers({
+        captionInput,
+        nodeAlt,
+        finalContainerSize,
+        containerRef,
+        isActive,
+        isDragging,
+        isBlockDragging,
+        hasLoadError,
+        resolvedSrc,
+        markImageUserInput,
+        restoreIfNeeded,
+        updateNodeAttrs,
+        setCaptionInput,
+        setIsEditingCaption,
+        setAlignment,
+        setHeight,
+        setIsActive,
+        setIsHovered,
+    });
     const lockedEditSize = lockedEditFrame
         ? { width: lockedEditFrame.width, height: lockedEditFrame.height }
         : null;
@@ -188,86 +202,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             marginLeft: `${lockedEditFrame.left}px`,
         }
         : containerStyle;
-    const hasLoadError = !!loadError || mediaLoadError;
-
-    const handleCaptionSubmit = useCallback(async () => {
-        setIsEditingCaption(false);
-        if (captionInput !== nodeAlt) {
-            markImageUserInput();
-            await restoreIfNeeded();
-            updateNodeAttrs({ alt: captionInput });
-        }
-    }, [captionInput, markImageUserInput, nodeAlt, restoreIfNeeded, setIsEditingCaption, updateNodeAttrs]);
-
-    const handleCaptionCancel = useCallback(() => {
-        setIsEditingCaption(false);
-        setCaptionInput(nodeAlt);
-    }, [nodeAlt, setCaptionInput, setIsEditingCaption]);
-
-    const handleAlign = useCallback(async (align: 'left' | 'center' | 'right') => {
-        markImageUserInput();
-        await restoreIfNeeded();
-        setAlignment(align);
-        updateNodeAttrs({ align });
-    }, [markImageUserInput, restoreIfNeeded, setAlignment, updateNodeAttrs]);
-
-    const handleEdit = useCallback(async () => {
-        await restoreIfNeeded();
-        markImageUserInput();
-        if (finalContainerSize.width > 0 && finalContainerSize.height > 0) {
-            const elementRect = containerRef.current?.getBoundingClientRect();
-            const parentRect = containerRef.current?.parentElement?.getBoundingClientRect();
-            const left = elementRect && parentRect
-                ? Math.max(0, elementRect.left - parentRect.left)
-                : 0;
-            const nextSize = {
-                width: finalContainerSize.width,
-                height: finalContainerSize.height,
-                left,
-            };
-            setLockedEditFrame(nextSize);
-            setHeight(nextSize.height);
-        }
-        setIsActive(true);
-    }, [
-        finalContainerSize,
-        markImageUserInput,
-        restoreIfNeeded,
-        setIsActive,
-        setHeight,
-    ]);
-
-    const handleOpenViewer = useCallback((event: React.MouseEvent) => {
-        const target = event.target as HTMLElement;
-        if (
-            target.closest('button')
-            || target.closest('input')
-            || target.closest('[data-resize-handle]')
-            || isActive
-            || isDragging
-            || isBlockDragging
-            || hasLoadError
-            || !resolvedSrc
-        ) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        setIsViewerOpen(true);
-    }, [hasLoadError, isActive, isBlockDragging, isDragging, resolvedSrc]);
-
-    useEffect(() => {
-        if (!isBlockDragging) return;
-        setIsHovered(false);
-        setIsEditingCaption(false);
-    }, [isBlockDragging, setIsHovered, setIsEditingCaption]);
-
-    useEffect(() => {
-        if (!isActive && lockedEditFrame) {
-            setLockedEditFrame(null);
-        }
-    }, [isActive, lockedEditFrame]);
 
     return (
         <>

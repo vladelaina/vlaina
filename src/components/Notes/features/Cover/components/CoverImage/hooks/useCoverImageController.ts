@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { useCoverState } from './state/useCoverState';
 import { useCoverDisplayModel } from './display/useCoverDisplayModel';
@@ -6,9 +5,9 @@ import { useCoverPreviewReset } from './display/useCoverPreviewReset';
 import { useCoverSelectionFlow } from './source/useCoverSelectionFlow';
 import { useCoverInteractionController } from './useCoverInteractionController';
 import { useCoverMediaController } from './display/useCoverMediaController';
+import { useCoverStableMediaState } from './display/useCoverStableMediaState';
 import type { CoverImageControllerModel, CoverImageProps } from '../coverImage.types';
 import { DEFAULT_POSITION_PERCENT } from '../../../utils/coverConstants';
-import { getCachedDimensions } from '../../../utils/coverDimensionCache';
 
 interface UseCoverImageControllerProps extends Omit<CoverImageProps, 'height' | 'scale' | 'readOnly'> {
   initialHeight?: number;
@@ -29,15 +28,6 @@ export function useCoverImageController({
   pickerOpen,
   onPickerOpenChange,
 }: UseCoverImageControllerProps): CoverImageControllerModel {
-  const stableMediaStateRef = useRef<{
-    src: string;
-    size: { width: number; height: number };
-  } | null>(null);
-  const stableCoverHeightRef = useRef<{
-    src: string;
-    height: number;
-  } | null>(null);
-  const [mediaSizeSrc, setMediaSizeSrc] = useState<string | null>(null);
   const layoutPanelDragging = useUIStore((state) => state.layoutPanelDragging);
   const {
     coverHeight, setCoverHeight,
@@ -109,107 +99,22 @@ export function useCoverImageController({
     setIsImageReady,
   });
 
-  useEffect(() => {
-    if (!sourceIsReady || !mediaSrc) {
-      return;
-    }
-
-    stableCoverHeightRef.current = {
-      src: mediaSrc,
-      height: coverHeight,
-    };
-  }, [coverHeight, mediaSrc, sourceIsReady]);
-
-  const displayCoverHeight = useMemo(() => {
-    if (
-      isHoldingPreviousFrame &&
-      placeholderSrc &&
-      stableCoverHeightRef.current?.src === placeholderSrc
-    ) {
-      return stableCoverHeightRef.current.height;
-    }
-
-    return coverHeight;
-  }, [coverHeight, isHoldingPreviousFrame, placeholderSrc]);
-
-  const effectiveContainerSize = useMemo(() => {
-    if (!containerSize) return null;
-    if (containerSize.width <= 0 || displayCoverHeight <= 0) return null;
-    return { width: containerSize.width, height: displayCoverHeight };
-  }, [containerSize, displayCoverHeight]);
-
-  const cachedMediaSize = useMemo(() => {
-    if (!mediaSrc) {
-      return null;
-    }
-
-    return getCachedDimensions(mediaSrc) ?? null;
-  }, [mediaSrc]);
-
-  const effectiveMediaSize = useMemo(() => {
-    if (mediaSize && mediaSizeSrc === mediaSrc) {
-      return mediaSize;
-    }
-
-    return cachedMediaSize;
-  }, [cachedMediaSize, mediaSize, mediaSizeSrc, mediaSrc]);
-
-  useEffect(() => {
-    if (!sourceIsReady || !mediaSrc || !effectiveMediaSize) {
-      return;
-    }
-
-    stableMediaStateRef.current = {
-      src: mediaSrc,
-      size: effectiveMediaSize,
-    };
-  }, [effectiveMediaSize, mediaSrc, sourceIsReady]);
-
-  const placeholderMediaSize = useMemo(() => {
-    if (
-      isHoldingPreviousFrame &&
-      placeholderSrc &&
-      stableMediaStateRef.current?.src === placeholderSrc
-    ) {
-      return stableMediaStateRef.current.size;
-    }
-
-    return effectiveMediaSize;
-  }, [effectiveMediaSize, isHoldingPreviousFrame, placeholderSrc]);
-
-  const handleResolvedMediaSize = useCallback((src: string, size: { width: number; height: number }) => {
-    setMediaSizeSrc((prevSrc) => (prevSrc === src ? prevSrc : src));
-    setMediaSize((prev) => {
-      if (prev?.width === size.width && prev?.height === size.height) {
-        return prev;
-      }
-      return size;
-    });
-  }, [setMediaSize]);
-
-  useEffect(() => {
-    if (!mediaSrc) {
-      setMediaSizeSrc(null);
-      setMediaSize(null);
-      return;
-    }
-
-    if (!cachedMediaSize) {
-      if (mediaSizeSrc !== mediaSrc) {
-        setMediaSizeSrc(null);
-        setMediaSize(null);
-      }
-      return;
-    }
-
-    setMediaSizeSrc(mediaSrc);
-    setMediaSize((prev) => {
-      if (prev?.width === cachedMediaSize.width && prev?.height === cachedMediaSize.height) {
-        return prev;
-      }
-      return { width: cachedMediaSize.width, height: cachedMediaSize.height };
-    });
-  }, [cachedMediaSize, mediaSizeSrc, mediaSrc, setMediaSize]);
+  const {
+    displayCoverHeight,
+    effectiveContainerSize,
+    effectiveMediaSize,
+    placeholderMediaSize,
+    handleResolvedMediaSize,
+  } = useCoverStableMediaState({
+    sourceIsReady,
+    mediaSrc,
+    coverHeight,
+    containerSize,
+    mediaSize,
+    setMediaSize,
+    isHoldingPreviousFrame,
+    placeholderSrc,
+  });
 
   const {
     objectFitMode,

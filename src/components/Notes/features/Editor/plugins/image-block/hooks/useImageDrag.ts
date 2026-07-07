@@ -6,7 +6,6 @@ import {
 } from '../imageDragPlugin';
 import type { Alignment } from '../types';
 import { moveImageNode } from '../commands/imageNodeCommands';
-import { getPlaceholderMargin } from '../utils/imageDragPlaceholder';
 import { calculateDropPosition, calculateAlignmentFromPosition } from '../utils/imageDropPosition';
 import {
     beginDragSession,
@@ -16,11 +15,13 @@ import {
     shouldCommitDragSession,
     type DragSession,
 } from './imageDragSession';
+import {
+    getImageDragSourceGeometry,
+    markImageUserInput,
+    shouldIgnoreImageDragPointerDown,
+    updateImageDragPlaceholderMargin,
+} from './imageDragStart';
 import { useImageDragPreview } from './useImageDragPreview';
-
-function markImageUserInput(view: EditorView): void {
-    view.dom.dispatchEvent(new CustomEvent('editor:image-user-input', { bubbles: true }));
-}
 
 interface UseImageDragOptions {
     view: EditorView;
@@ -66,12 +67,6 @@ export function useImageDrag({
             clearTimeout(session.longPressTimeoutId);
             session.longPressTimeoutId = undefined;
         }
-    }, []);
-
-    const updatePlaceholderMargin = useCallback((alignment: Alignment) => {
-        const placeholder = document.querySelector('.image-drag-placeholder') as HTMLElement | null;
-        if (!placeholder) return;
-        placeholder.style.margin = getPlaceholderMargin(alignment);
     }, []);
 
     const syncPluginDragState = useCallback((session: DragSession) => {
@@ -123,26 +118,14 @@ export function useImageDrag({
     }, [clearLongPressTimeout, resetPreview, view]);
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
-        if (isActive || loadError) return;
-        if (!e.isPrimary || e.button !== 0) return;
-
-        const target = e.target as HTMLElement;
-        if (target.closest('button') || target.closest('input') || target.closest('[data-resize-handle]')) {
-            return;
-        }
-
-        if (e.ctrlKey || e.metaKey) {
-            return;
-        }
+        if (shouldIgnoreImageDragPointerDown(e, isActive, loadError)) return;
 
         const sourcePos = getPos();
         if (sourcePos === undefined) return;
         e.preventDefault();
         markImageUserInput(view);
 
-        const containerRect = containerRef.current?.getBoundingClientRect();
-        const sourceWidth = containerRef.current?.offsetWidth || 200;
-        const sourceHeight = containerRef.current?.offsetHeight || 100;
+        const sourceGeometry = getImageDragSourceGeometry(containerRef.current);
         let pendingPointer: { clientX: number; clientY: number } | null = null;
         let dragFrame: number | null = null;
 
@@ -150,10 +133,7 @@ export function useImageDrag({
             sourcePos,
             clientX: e.clientX,
             clientY: e.clientY,
-            initialLeft: containerRect?.left || 0,
-            initialTop: containerRect?.top || 0,
-            sourceWidth,
-            sourceHeight,
+            ...sourceGeometry,
             alignment: currentAlignment,
         });
 
@@ -171,7 +151,7 @@ export function useImageDrag({
             const alignment = calculateAlignmentFromPosition(view, clientX);
             active.alignment = alignment;
             setPreviewAlignment(alignment);
-            updatePlaceholderMargin(alignment);
+            updateImageDragPlaceholderMargin(alignment);
 
             if (active.sourcePos !== null) {
                 const targetPos = calculateDropPosition(view, clientY, active.sourcePos);
@@ -292,7 +272,6 @@ export function useImageDrag({
         updatePreviewPosition,
         setPreviewAlignment,
         syncPluginDragState,
-        updatePlaceholderMargin,
         view,
         finishSession,
     ]);

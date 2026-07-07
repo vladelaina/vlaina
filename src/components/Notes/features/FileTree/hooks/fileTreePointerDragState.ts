@@ -1,209 +1,47 @@
-import { useSyncExternalStore } from 'react';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../../Sidebar/context-menu/shared';
 import { useNotesStore } from '@/stores/useNotesStore';
-import {
-  createStarredEntryIfValid,
-  getStarredEntryKey,
-  getNotesRootStarredPaths,
-  saveStarredRegistry,
-} from '@/stores/notes/starred';
-import type { StarredKind } from '@/stores/notes/types';
-import { resolveInternalMoveDropTargetPath, resolveStarredDropTargetFromElements } from './dropTargetDom';
-import { NOTES_DRAG_RETURN_ANIMATION } from '../../common/NotesDragOverlay';
 import { dispatchNotesTabSplitDrag } from '../../Split/notesSplitDragEvents';
 import {
   themeDomStyleTokens,
-  themeIconTokens,
-  themeMotionTokens,
   themeRenderingTokens,
-  themeStyleResetTokens,
-  themeUiFeedbackTokens,
 } from '@/styles/themeTokens';
+import {
+  animatePreviewBackToSource,
+  createPreviewElement,
+  setPreviewStarred,
+  updatePreviewPosition,
+} from './fileTreePointerDragPreview';
+import {
+  FILE_TREE_CHAT_DROP_EVENT,
+  FILE_TREE_CHAT_DROP_TARGET_SELECTOR,
+  type FileTreeChatDropDetail,
+  type FileTreePointerDragSession,
+  type FileTreePointerDragSourceKind,
+} from './fileTreePointerDragTypes';
+import {
+  getFileTreePointerDragSnapshot,
+  setFileTreePointerDragSnapshot,
+  useFileTreePointerDragState,
+} from './fileTreePointerDragStore';
+import { ensureStarredPath } from './fileTreePointerDragStarred';
+import {
+  queueFileTreePointerAutoScroll,
+  stopFileTreePointerAutoScroll,
+} from './fileTreePointerDragAutoScroll';
+import { suppressNextFileTreePointerClick } from './fileTreePointerDragClickSuppression';
+import { resolveFileTreePointerDragDropTarget } from './fileTreePointerDragDropTarget';
 
-export type FileTreePointerDragSourceKind = 'note' | 'folder';
-type FileTreePointerDropTargetKind = 'folder' | 'starred' | null;
-export const FILE_TREE_CHAT_DROP_TARGET_SELECTOR = '[data-file-tree-chat-drop-target="true"]';
-export const FILE_TREE_CHAT_DROP_EVENT = 'file-tree-chat-drop';
-
-export interface FileTreeChatDropDetail {
-  path: string;
-  kind: FileTreePointerDragSourceKind;
-}
-
-interface FileTreePointerDragSnapshot {
-  activeSourcePath: string | null;
-  dropTargetPath: string | null;
-  dropTargetKind: FileTreePointerDropTargetKind;
-}
-
-interface FileTreePointerDragSession {
-  sourcePath: string;
-  sourceKind: FileTreePointerDragSourceKind;
-  sourceElement: HTMLElement;
-  startX: number;
-  startY: number;
-  lastClientX: number;
-  lastClientY: number;
-  activated: boolean;
-  autoScrollFrame: number | null;
-  scrollRoot: HTMLElement | null;
-  previewElement: HTMLElement | null;
-  previewOffsetX: number;
-  previewOffsetY: number;
-  pendingStarredDrop: boolean;
-  previousBodyCursor: string;
-  previousBodyUserSelect: string;
-  suppressClickTimeout: number | null;
-}
+export {
+  FILE_TREE_CHAT_DROP_EVENT,
+  FILE_TREE_CHAT_DROP_TARGET_SELECTOR,
+  useFileTreePointerDragState,
+  type FileTreeChatDropDetail,
+  type FileTreePointerDragSourceKind,
+};
 
 const DRAG_THRESHOLD_PX = 4;
 
-let snapshot: FileTreePointerDragSnapshot = {
-  activeSourcePath: null,
-  dropTargetPath: null,
-  dropTargetKind: null,
-};
-
 let activeSession: FileTreePointerDragSession | null = null;
-let pendingClickSuppressionCleanup: (() => void) | null = null;
-
-const listeners = new Set<() => void>();
-
-function emitSnapshot() {
-  listeners.forEach((listener) => listener());
-}
-
-function setSnapshot(nextSnapshot: FileTreePointerDragSnapshot) {
-  if (
-    snapshot.activeSourcePath === nextSnapshot.activeSourcePath &&
-    snapshot.dropTargetPath === nextSnapshot.dropTargetPath &&
-    snapshot.dropTargetKind === nextSnapshot.dropTargetKind
-  ) {
-    return;
-  }
-
-  snapshot = nextSnapshot;
-  emitSnapshot();
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function getSnapshot() {
-  return snapshot;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function createPreviewElement(sourceElement: HTMLElement) {
-  const rect = sourceElement.getBoundingClientRect();
-  const previewElement = sourceElement.cloneNode(true) as HTMLElement;
-  previewElement.style.position = themeDomStyleTokens.positionFixed;
-  previewElement.style.left = themeDomStyleTokens.sizeZero;
-  previewElement.style.top = themeDomStyleTokens.sizeZero;
-  previewElement.style.width = `${Math.round(rect.width)}px`;
-  previewElement.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
-  previewElement.style.zIndex = themeDomStyleTokens.zIndexMax;
-  previewElement.style.margin = themeDomStyleTokens.marginNone;
-  previewElement.style.opacity = String(themeMotionTokens.opacityVisible);
-  previewElement.style.backgroundColor = themeDomStyleTokens.fileTreePreviewSurface;
-  previewElement.style.transform = themeRenderingTokens.translate3dOffscreen;
-  previewElement.style.boxShadow = themeStyleResetTokens.boxShadowNone;
-  previewElement.style.borderRadius = themeDomStyleTokens.previewBorderRadius;
-  previewElement.style.filter = themeDomStyleTokens.previewSaturateFilter;
-  previewElement.style.willChange = themeRenderingTokens.transformWillChange;
-  previewElement.dataset.fileTreeDragOriginalPaddingRight = previewElement.style.paddingRight;
-  document.body.appendChild(previewElement);
-  return { previewElement, rect };
-}
-
-function createPreviewStarBadge() {
-  const badge = document.createElement('span');
-  badge.dataset.fileTreeDragStarBadge = 'true';
-  badge.setAttribute('aria-hidden', 'true');
-  badge.style.position = themeDomStyleTokens.positionAbsolute;
-  badge.style.right = themeDomStyleTokens.badgeRight;
-  badge.style.top = themeDomStyleTokens.badgeTop;
-  badge.style.transform = themeRenderingTokens.translateYCenter;
-  badge.style.display = themeDomStyleTokens.displayInlineFlex;
-  badge.style.alignItems = themeDomStyleTokens.alignCenter;
-  badge.style.justifyContent = themeDomStyleTokens.justifyCenter;
-  badge.style.width = themeDomStyleTokens.badgeSize;
-  badge.style.height = themeDomStyleTokens.badgeSize;
-  badge.style.color = themeDomStyleTokens.fileTreePreviewBadgeColor;
-  badge.innerHTML = `<svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="${themeIconTokens.viewBoxStarBadge}" fill="${themeStyleResetTokens.currentColor}" width="${themeIconTokens.sizeStarBadge}" height="${themeIconTokens.sizeStarBadge}"><path d="M9.1 2.5a1 1 0 0 1 1.8 0l1.6 3.3 3.6.5a1 1 0 0 1 .6 1.7l-2.6 2.5.6 3.6a1 1 0 0 1-1.5 1.1L10 13.5l-3.2 1.7a1 1 0 0 1-1.5-1.1l.6-3.6L3.3 8a1 1 0 0 1 .6-1.7l3.6-.5 1.6-3.3Z"/></svg>`;
-  return badge;
-}
-
-function setPreviewStarred(starred: boolean) {
-  const previewElement = activeSession?.previewElement;
-  if (!previewElement) return;
-
-  const existing = previewElement.querySelector('[data-file-tree-drag-star-badge="true"]');
-  if (!starred) {
-    existing?.remove();
-    previewElement.style.paddingRight = previewElement.dataset.fileTreeDragOriginalPaddingRight ?? '';
-    return;
-  }
-
-  if (existing) return;
-  previewElement.style.paddingRight = themeDomStyleTokens.starredPreviewPaddingRight;
-  previewElement.appendChild(createPreviewStarBadge());
-}
-
-function updatePreviewPosition() {
-  if (!activeSession?.previewElement) {
-    return;
-  }
-
-  activeSession.previewElement.style.transform = `translate3d(${Math.round(activeSession.lastClientX - activeSession.previewOffsetX)}px, ${Math.round(activeSession.lastClientY - activeSession.previewOffsetY)}px, 0)`;
-}
-
-function animatePreviewBackToSource(
-  previewElement: HTMLElement | null,
-  sourceElement: HTMLElement | null,
-) {
-  if (!previewElement?.isConnected || !sourceElement?.isConnected) {
-    previewElement?.remove();
-    return;
-  }
-
-  const sourceRect = sourceElement.getBoundingClientRect();
-  const currentTransform = previewElement.style.transform;
-  const targetTransform = `translate3d(${Math.round(sourceRect.left)}px, ${Math.round(sourceRect.top)}px, 0)`;
-  const animate = previewElement.animate?.bind(previewElement);
-
-  if (!animate) {
-    previewElement.remove();
-    return;
-  }
-
-  previewElement.style.transform = targetTransform;
-  previewElement.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
-
-  const animation = animate(
-    [
-      { transform: currentTransform, opacity: previewElement.style.opacity || '1' },
-      { transform: targetTransform, opacity: previewElement.style.opacity || '1' },
-    ],
-    {
-      duration: NOTES_DRAG_RETURN_ANIMATION.duration,
-      easing: NOTES_DRAG_RETURN_ANIMATION.easing,
-      fill: 'forwards',
-    },
-  );
-
-  void animation.finished.then(
-    () => previewElement.remove(),
-    () => previewElement.remove(),
-  );
-}
 
 function getScrollRoot() {
   return document.querySelector<HTMLElement>(SIDEBAR_SCROLL_ROOT_SELECTOR);
@@ -214,31 +52,13 @@ function updateDropTarget() {
     return;
   }
 
-  const elements = document.elementsFromPoint(activeSession.lastClientX, activeSession.lastClientY);
-  const isStarredDropTarget = resolveStarredDropTargetFromElements(elements);
-
-  if (isStarredDropTarget) {
-    activeSession.pendingStarredDrop = true;
-    setPreviewStarred(true);
-    setSnapshot({
-      activeSourcePath: activeSession.sourcePath,
-      dropTargetPath: null,
-      dropTargetKind: 'starred',
-    });
-    return;
-  }
-
-  activeSession.pendingStarredDrop = false;
-  setPreviewStarred(false);
-  const folderDropTargetPath = resolveInternalMoveDropTargetPath(
-    activeSession.lastClientX,
-    activeSession.lastClientY,
-    activeSession.sourcePath,
-  );
-  setSnapshot({
+  const dropTarget = resolveFileTreePointerDragDropTarget(activeSession);
+  activeSession.pendingStarredDrop = dropTarget.pendingStarredDrop;
+  setPreviewStarred(activeSession, dropTarget.pendingStarredDrop);
+  setFileTreePointerDragSnapshot({
     activeSourcePath: activeSession.sourcePath,
-    dropTargetPath: folderDropTargetPath,
-    dropTargetKind: folderDropTargetPath == null ? null : 'folder',
+    dropTargetPath: dropTarget.dropTargetPath,
+    dropTargetKind: dropTarget.dropTargetKind,
   });
 }
 
@@ -256,104 +76,8 @@ function dispatchActiveNoteSplitDrag(phase: 'start' | 'move' | 'end' | 'cancel')
   });
 }
 
-function stopAutoScroll() {
-  if (activeSession?.autoScrollFrame == null) {
-    return;
-  }
-
-  window.cancelAnimationFrame(activeSession.autoScrollFrame);
-  activeSession.autoScrollFrame = null;
-}
-
-function stepAutoScroll() {
-  if (!activeSession?.activated) {
-    return;
-  }
-
-  const scrollRoot = activeSession.scrollRoot;
-  activeSession.autoScrollFrame = null;
-
-  if (!scrollRoot) {
-    return;
-  }
-
-  const rect = scrollRoot.getBoundingClientRect();
-  const maxScrollTop = Math.max(scrollRoot.scrollHeight - scrollRoot.clientHeight, 0);
-  if (maxScrollTop <= 0) {
-    return;
-  }
-
-  const edgeSize = Math.min(96, Math.max(40, rect.height * 0.24));
-  let delta = 0;
-
-  if (activeSession.lastClientY < rect.top + edgeSize) {
-    delta = -((rect.top + edgeSize - activeSession.lastClientY) / edgeSize) * 28;
-  } else if (activeSession.lastClientY > rect.bottom - edgeSize) {
-    delta = ((activeSession.lastClientY - (rect.bottom - edgeSize)) / edgeSize) * 28;
-  }
-
-  if (delta === 0) {
-    return;
-  }
-
-  const nextScrollTop = clamp(scrollRoot.scrollTop + delta, 0, maxScrollTop);
-  if (nextScrollTop === scrollRoot.scrollTop) {
-    return;
-  }
-
-  scrollRoot.scrollTop = nextScrollTop;
-  updateDropTarget();
-  activeSession.autoScrollFrame = window.requestAnimationFrame(stepAutoScroll);
-}
-
 function queueAutoScroll() {
-  if (!activeSession?.activated || activeSession.autoScrollFrame != null) {
-    return;
-  }
-
-  activeSession.autoScrollFrame = window.requestAnimationFrame(stepAutoScroll);
-}
-
-function suppressNextClick() {
-  pendingClickSuppressionCleanup?.();
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
-    return;
-  }
-
-  let timeoutId: number | null = null;
-  const handleClick = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    cleanup();
-  };
-
-  const cleanup = () => {
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('click', handleClick, true);
-    }
-    if (timeoutId != null) {
-      globalThis.clearTimeout(timeoutId);
-      timeoutId = null;
-    }
-    if (activeSession?.suppressClickTimeout != null) {
-      globalThis.clearTimeout(activeSession.suppressClickTimeout);
-      activeSession.suppressClickTimeout = null;
-    }
-    if (pendingClickSuppressionCleanup === cleanup) {
-      pendingClickSuppressionCleanup = null;
-    }
-  };
-
-  document.addEventListener('click', handleClick, true);
-  timeoutId = window.setTimeout(
-    cleanup,
-    themeUiFeedbackTokens.fileTreeClickSuppressionCleanupDelayMs
-  );
-  pendingClickSuppressionCleanup = cleanup;
-
-  if (activeSession) {
-    activeSession.suppressClickTimeout = timeoutId;
-  }
+  queueFileTreePointerAutoScroll(activeSession, updateDropTarget);
 }
 
 function handlePointerMove(event: PointerEvent) {
@@ -386,7 +110,7 @@ function handlePointerMove(event: PointerEvent) {
     activeSession.previewElement = previewElement;
     activeSession.previewOffsetX = Math.min(Math.max(activeSession.startX - rect.left, 16), rect.width - 16);
     activeSession.previewOffsetY = Math.min(Math.max(activeSession.startY - rect.top, 12), rect.height - 12);
-    updatePreviewPosition();
+    updatePreviewPosition(activeSession);
     dispatchActiveNoteSplitDrag('start');
     dispatchActiveNoteSplitDrag('move');
     updateDropTarget();
@@ -398,7 +122,7 @@ function handlePointerMove(event: PointerEvent) {
   }
 
   event.preventDefault();
-  updatePreviewPosition();
+  updatePreviewPosition(activeSession);
   queueAutoScroll();
 }
 
@@ -435,33 +159,8 @@ function handleScrollRootScroll() {
   queueAutoScroll();
 }
 
-function ensureStarredPath(kind: StarredKind, relativePath: string) {
-  const state = useNotesStore.getState();
-  const { notesPath, starredEntries } = state;
-  if (!notesPath) return;
-
-  const nextEntry = createStarredEntryIfValid(kind, notesPath, relativePath);
-  if (!nextEntry) {
-    return;
-  }
-
-  const key = getStarredEntryKey(nextEntry);
-  if (starredEntries.some((entry) => getStarredEntryKey(entry) === key)) {
-    return;
-  }
-
-  const updatedEntries = [...starredEntries, nextEntry];
-  const starredPaths = getNotesRootStarredPaths(updatedEntries, notesPath);
-  useNotesStore.setState({
-    starredEntries: updatedEntries,
-    starredNotes: starredPaths.notes,
-    starredFolders: starredPaths.folders,
-  });
-  saveStarredRegistry(updatedEntries);
-}
-
 function teardownPointerDrag() {
-  stopAutoScroll();
+  stopFileTreePointerAutoScroll(activeSession);
   document.removeEventListener('pointermove', handlePointerMove, true);
   document.removeEventListener('pointerup', handlePointerUp, true);
   document.removeEventListener('pointercancel', handlePointerCancel, true);
@@ -486,7 +185,7 @@ function teardownPointerDrag() {
   }
 
   activeSession = null;
-  setSnapshot({
+  setFileTreePointerDragSnapshot({
     activeSourcePath: null,
     dropTargetPath: null,
     dropTargetKind: null,
@@ -505,6 +204,7 @@ function finishPointerDrag(shouldCommit: boolean) {
   const hasVisibleStarBadge = Boolean(
     previewElement?.querySelector('[data-file-tree-drag-star-badge="true"]'),
   );
+  const snapshot = getFileTreePointerDragSnapshot();
   const shouldStar = shouldCommit && activeSession.activated && (
     activeSession.pendingStarredDrop || hasVisibleStarBadge || snapshot.dropTargetKind === 'starred'
   );
@@ -541,7 +241,7 @@ function finishPointerDrag(shouldCommit: boolean) {
   }
 
   if (shouldSuppressClick) {
-    suppressNextClick();
+    suppressNextFileTreePointerClick(activeSession);
   }
 
   if (!shouldSplit && !shouldDropToChat && shouldStar) {
@@ -592,12 +292,4 @@ export function startFileTreePointerDrag(
 
 export function requestFileTreePointerDragDropTargetUpdate() {
   updateDropTarget();
-}
-
-export function useFileTreePointerDragState<T>(selector: (snapshot: FileTreePointerDragSnapshot) => T) {
-  return useSyncExternalStore(
-    subscribe,
-    () => selector(getSnapshot()),
-    () => selector(getSnapshot()),
-  );
 }

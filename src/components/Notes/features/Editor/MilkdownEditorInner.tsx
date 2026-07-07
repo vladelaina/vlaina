@@ -1,92 +1,30 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTheme } from 'next-themes';
-import {
-  Editor,
-  rootCtx,
-  defaultValueCtx,
-  editorViewCtx,
-  parserCtx,
-  prosePluginsCtx,
-  remarkStringifyOptionsCtx,
-  serializerCtx,
-} from '@milkdown/kit/core';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { gfm } from '@milkdown/kit/preset/gfm';
-import { history } from '@milkdown/kit/plugin/history';
-import { tableBlock } from '@milkdown/kit/component/table-block';
-import type { Ctx } from '@milkdown/kit/ctx';
-import { Slice, type Node as ProseNode, type Schema } from '@milkdown/kit/prose/model';
-import { Selection, TextSelection } from '@milkdown/kit/prose/state';
-import type { Parser } from '@milkdown/kit/transformer';
-import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
+import { Milkdown, MilkdownProvider } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import {
-  selectMarkdownImportedThemeId,
-  selectMarkdownTypewriterModeEnabled,
-} from '@/stores/unified/settings/markdownSettings';
-import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
-import { cn } from '@/lib/utils';
-import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
-import { normalizeColorModePreference } from '@/lib/theme/colorModeSync';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
-import {
-  normalizeAlternativeMathBlockFences,
-  normalizeEditorStateMarkdownDocument,
-  preserveMarkdownBlankLinesForEditor,
-} from '@/lib/notes/markdown/markdownSerializationUtils';
-import { themeEditorLayoutTokens } from '@/styles/themeTokens';
-import { configureTheme } from './theme';
-import { customPlugins } from './config/plugins';
-import { notesRemarkStringifyOptions } from './config/stringifyOptions';
+import { normalizeAlternativeMathBlockFences } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { useEditorSave } from './hooks/useEditorSave';
 import { usePendingMarkdownAutosave } from './hooks/usePendingMarkdownAutosave';
-import {
-  clearCurrentMarkdownRuntime,
-  getCurrentEditorView,
-  setCurrentEditorBlockSelectionClearer,
-  setCurrentEditorView,
-  setCurrentMarkdownRuntime,
-} from './utils/editorViewRegistry';
-import {
-  clearCurrentEditorBlockPositionSnapshot,
-  createCurrentEditorBlockPositionController,
-} from './utils/editorBlockPositionCache';
-import {
-  normalizeLeadingFrontmatterMarkdown,
-} from './plugins/frontmatter/frontmatterMarkdown';
-import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
-import {
-  normalizeMarkdownParagraphSeparatorsForEditorComparison,
-  serializeEditorMarkdownSnapshot,
-} from './utils/pendingMarkdownUpdate';
-import {
-  createDocumentFirstLineEndTextSelection,
-  createDocumentStartTextSelection,
-} from './utils/editorSelection';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
-import {
-  blankAreaDragBoxPluginKey,
-  CLEAR_BLOCKS_ACTION,
-  clearBlockSelection,
-} from './plugins/cursor/blockSelectionPluginState';
-import { clipboardPlugin } from './plugins/clipboard/clipboardPlugin';
-import {
-  applyMarkdownThemeRuntimeAttributes,
-  resolveMarkdownThemeRuntimeColorScheme,
-  resolveMarkdownThemeViewport,
-  resolveTyporaRuntimePlatformClasses,
-} from './markdownThemeRuntime';
+import { logE2EMilkdownTiming } from './milkdownE2ETiming';
+import type { ActiveMilkdownEditor } from './MilkdownEditorInnerTypes';
+import { useMilkdownAutoFocus } from './useMilkdownAutoFocus';
+import { useMilkdownEditorActivation } from './useMilkdownEditorActivation';
+import { useMilkdownEditorFactory } from './useMilkdownEditorFactory';
+import { useMilkdownExternalContentSync } from './useMilkdownExternalContentSync';
+import { useMilkdownThemeRuntime } from './useMilkdownThemeRuntime';
+import { getMilkdownEditorClassName } from './milkdownEditorClassName';
 
-interface MilkdownEditorInnerProps {
-  active?: boolean;
-  showBodyLineNumbers?: boolean;
-  preserveStartupEditorPosition?: boolean;
-  onEditorViewReady?: () => void;
-}
+export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
+export {
+  isEditorMarkdownEquivalentToNoteContent,
+  isSameVisibleNoteContentIgnoringManagedFrontmatter,
+  normalizeInitialEditorSelection,
+  replaceEditorMarkdown,
+} from './milkdownEditorMarkdownReplacement';
+
+interface MilkdownEditorInnerProps { active?: boolean; showBodyLineNumbers?: boolean; preserveStartupEditorPosition?: boolean; onEditorViewReady?: () => void; }
 
 export function MilkdownEditorRuntime({
   active = true,
@@ -106,339 +44,6 @@ export function MilkdownEditorRuntime({
   );
 }
 
-type ActiveMilkdownEditor = {
-  ctx: {
-    get: (slice: unknown) => unknown;
-  };
-  action?: <T>(action: (ctx: Ctx) => T) => T;
-  onStatusChange?: (onChange: (status: string) => void) => unknown;
-  status?: string;
-};
-
-type ProseMirrorJSONNode = {
-  type: string;
-  attrs?: Record<string, unknown>;
-  text?: string;
-  content?: ProseMirrorJSONNode[];
-};
-
-type MilkdownDefaultValue =
-  | string
-  | {
-      type: 'json';
-      value: ProseMirrorJSONNode;
-    };
-
-function logE2EMilkdownTiming(label: string, detail: Record<string, unknown>): void {
-  if (
-    typeof window === 'undefined' ||
-    !(window as { __vlainaE2E?: unknown }).__vlainaE2E
-  ) {
-    return;
-  }
-
-  console.info(`[notes-milkdown-timing:${label}]`, {
-    ...detail,
-    atMs: Math.round(performance.now()),
-  });
-}
-
-const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
-const LAZY_BLOCK_VISIBILITY_MIN_LENGTH = 100_000;
-const LAZY_BLOCK_VISIBILITY_MIN_NON_EMPTY_LINES = 500;
-const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
-const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|&]/;
-const FAST_PARSE_GFM_AUTOLINK_TEXT_PATTERN = /(?:https?:\/\/|www\.|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i;
-const FAST_PARSE_HEADING_PATTERN = /^(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/;
-const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|:\s+|(?:[-*_][ \t]*){3,}$|=+[ \t]*$)/;
-
-function needsFullMarkdownInlineParsing(text: string): boolean {
-  return FAST_PARSE_DISALLOWED_TEXT_PATTERN.test(text) || FAST_PARSE_GFM_AUTOLINK_TEXT_PATTERN.test(text);
-}
-
-export function shouldUseLazyBlockVisibility(markdown: string): boolean {
-  return createLargePlainMarkdownDocJSON(markdown) !== null || hasLargeScrollableMarkdownShape(markdown);
-}
-
-function hasLargeScrollableMarkdownShape(markdown: string): boolean {
-  if (markdown.length < LAZY_BLOCK_VISIBILITY_MIN_LENGTH) {
-    return false;
-  }
-
-  let nonEmptyLines = 0;
-  let lineStart = 0;
-  while (lineStart < markdown.length) {
-    const nextBreak = markdown.indexOf('\n', lineStart);
-    const lineEnd = nextBreak === -1 ? markdown.length : nextBreak;
-    if (markdown.slice(lineStart, lineEnd).trim().length > 0) {
-      nonEmptyLines += 1;
-      if (nonEmptyLines >= LAZY_BLOCK_VISIBILITY_MIN_NON_EMPTY_LINES) {
-        return true;
-      }
-    }
-
-    if (nextBreak === -1) {
-      break;
-    }
-    lineStart = nextBreak + 1;
-  }
-
-  return false;
-}
-
-export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJSONNode | null {
-  if (markdown.length < LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH || markdown.includes('\r')) {
-    return null;
-  }
-
-  const content: ProseMirrorJSONNode[] = [];
-  let lineStart = 0;
-  let previousLineWasParagraph = false;
-  while (lineStart < markdown.length) {
-    const nextBreak = markdown.indexOf('\n', lineStart);
-    const lineEnd = nextBreak === -1 ? markdown.length : nextBreak;
-    const line = markdown.slice(lineStart, lineEnd);
-    const trimmed = line.trim();
-    if (!trimmed) {
-      previousLineWasParagraph = false;
-      if (nextBreak === -1) {
-        break;
-      }
-      lineStart = nextBreak + 1;
-      continue;
-    }
-
-    if (trimmed === MARKDOWN_BLANK_LINE_COMMENT) {
-      content.push({
-        type: 'html_block',
-        attrs: { value: MARKDOWN_BLANK_LINE_COMMENT },
-      });
-      previousLineWasParagraph = false;
-      if (nextBreak === -1) {
-        break;
-      }
-      lineStart = nextBreak + 1;
-      continue;
-    }
-
-    const headingMatch = FAST_PARSE_HEADING_PATTERN.exec(line);
-    if (headingMatch) {
-      const text = (headingMatch[2] ?? '').replace(/(?:^|[ \t]+)#+[ \t]*$/, '').trimEnd();
-      if (!text || needsFullMarkdownInlineParsing(text)) {
-        return null;
-      }
-      content.push({
-        type: 'heading',
-        attrs: { level: Math.min(6, headingMatch[1]?.length ?? 1) },
-        content: [{ type: 'text', text: text.trimEnd() }],
-      });
-      previousLineWasParagraph = false;
-      if (nextBreak === -1) {
-        break;
-      }
-      lineStart = nextBreak + 1;
-      continue;
-    }
-
-    if (
-      /^\s/.test(line)
-      || FAST_PARSE_STRUCTURAL_LINE_PATTERN.test(line)
-      || needsFullMarkdownInlineParsing(line)
-    ) {
-      return null;
-    }
-
-    if (previousLineWasParagraph) {
-      return null;
-    }
-
-    content.push({
-      type: 'paragraph',
-      content: [{ type: 'text', text: line }],
-    });
-    previousLineWasParagraph = true;
-
-    if (nextBreak === -1) {
-      break;
-    }
-    lineStart = nextBreak + 1;
-  }
-
-  return content.length > 0 ? { type: 'doc', content } : null;
-}
-
-function createLargePlainMarkdownDoc(schema: Schema, markdown: string): ProseNode | null {
-  const json = createLargePlainMarkdownDocJSON(markdown);
-  if (!json) {
-    return null;
-  }
-
-  try {
-    return schema.nodeFromJSON(json);
-  } catch {
-    return null;
-  }
-}
-
-interface ReplaceEditorMarkdownOptions {
-  resetSelection?: boolean;
-}
-
-function canPreserveSelection(
-  doc: unknown,
-  selection: unknown,
-): doc is ProseNode {
-  return Boolean(
-    doc &&
-    typeof (doc as { resolve?: unknown }).resolve === 'function' &&
-    selection &&
-    typeof (selection as { from?: unknown }).from === 'number' &&
-    typeof (selection as { to?: unknown }).to === 'number'
-  );
-}
-
-function createInlineTextSelection(doc: ProseNode, from: number, to = from): TextSelection | null {
-  try {
-    const $from = doc.resolve(from);
-    const $to = doc.resolve(to);
-    if (!$from.parent.inlineContent || !$to.parent.inlineContent) {
-      return null;
-    }
-    return TextSelection.create(doc, from, to);
-  } catch {
-    return null;
-  }
-}
-
-function createPreservedEditorSelection(doc: ProseNode, previousSelection: Selection): Selection {
-  const maxPos = doc.content.size;
-  const clampPos = (pos: number) => Math.max(0, Math.min(maxPos, pos));
-
-  if (previousSelection.empty) {
-    const pos = clampPos(previousSelection.from);
-    const textSelection = createInlineTextSelection(doc, pos);
-    if (textSelection) {
-      return textSelection;
-    }
-    try {
-      return Selection.near(doc.resolve(pos), previousSelection.from >= maxPos ? -1 : 1);
-    } catch {
-      return createDocumentStartTextSelection(doc);
-    }
-  }
-
-  const from = clampPos(previousSelection.from);
-  const to = clampPos(previousSelection.to);
-  if (from < to) {
-    const textSelection = createInlineTextSelection(doc, from, to);
-    if (textSelection) {
-      return textSelection;
-    }
-  }
-
-  try {
-    return Selection.near(doc.resolve(from), 1);
-  } catch {
-    return createDocumentStartTextSelection(doc);
-  }
-}
-
-export function normalizeInitialEditorSelection(view: EditorView): boolean {
-  const nextSelection = createDocumentFirstLineEndTextSelection(view.state.doc);
-  if (!(nextSelection instanceof TextSelection) || nextSelection.eq(view.state.selection)) {
-    return false;
-  }
-
-  view.dispatch(
-    view.state.tr
-      .setSelection(nextSelection)
-      .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
-  );
-  return true;
-}
-
-export function replaceEditorMarkdown(
-  ctx: Ctx,
-  markdown: string,
-  options: ReplaceEditorMarkdownOptions = {},
-): boolean {
-  let view: EditorView;
-  let doc: ReturnType<Parser> | ProseNode | null;
-
-  try {
-    view = ctx.get(editorViewCtx);
-    const fastDocStartedAt = performance.now();
-    doc = createLargePlainMarkdownDoc(view.state.schema, markdown);
-    if (doc) {
-      logE2EMilkdownTiming('replace-fast-doc', {
-        inputLength: markdown.length,
-        durationMs: Math.round(performance.now() - fastDocStartedAt),
-      });
-    } else {
-      const parser = ctx.get(parserCtx);
-      doc = parser(markdown);
-    }
-  } catch {
-    return false;
-  }
-
-  if (!doc) {
-    return false;
-  }
-
-  const { state } = view;
-  const previousSelection = state.selection;
-  let tr = state.tr.replace(
-    0,
-    state.doc.content.size,
-    new Slice(doc.content as never, 0, 0),
-  );
-
-  if (options.resetSelection) {
-    tr = tr
-      .setSelection(createDocumentFirstLineEndTextSelection(tr.doc))
-      .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
-  } else if (canPreserveSelection(tr.doc, previousSelection)) {
-    tr = tr.setSelection(createPreservedEditorSelection(tr.doc, previousSelection));
-  }
-
-  view.dispatch(tr);
-  return true;
-}
-
-function normalizeComparableEditorMarkdown(markdown: string): string {
-  return normalizeMarkdownParagraphSeparatorsForEditorComparison(
-    normalizeEditorStateMarkdownDocument(
-      normalizeMarkdownParagraphSeparatorsForEditorComparison(stripManagedFrontmatter(markdown))
-    )
-  );
-}
-
-function normalizeNoteContentWithoutManagedFrontmatter(markdown: string): string {
-  return stripManagedFrontmatter(markdown).replace(/\r\n?/g, '\n');
-}
-
-export function isSameVisibleNoteContentIgnoringManagedFrontmatter(
-  previousNoteContent: string,
-  nextNoteContent: string,
-): boolean {
-  return (
-    normalizeNoteContentWithoutManagedFrontmatter(previousNoteContent) ===
-    normalizeNoteContentWithoutManagedFrontmatter(nextNoteContent)
-  );
-}
-
-export function isEditorMarkdownEquivalentToNoteContent(
-  editorMarkdown: string,
-  noteContent: string,
-): boolean {
-  const serializedEditorMarkdown = serializeEditorMarkdownSnapshot(editorMarkdown, noteContent);
-  return (
-    normalizeComparableEditorMarkdown(serializedEditorMarkdown) ===
-    normalizeComparableEditorMarkdown(noteContent)
-  );
-}
-
 export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   active = true,
   showBodyLineNumbers = false,
@@ -455,18 +60,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     useCallback((state) => (
       currentNotePath ? state.draftNotes?.[currentNotePath]?.name : undefined
     ), [currentNotePath])
-  );
-  const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
-  const typewriterMode = useUnifiedStore(selectMarkdownTypewriterModeEnabled);
-  const appColorModePreference = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
-  const { resolvedTheme } = useTheme();
-  const normalizedAppColorMode = normalizeColorModePreference(appColorModePreference);
-  const appMarkdownThemeColorScheme = normalizedAppColorMode === 'system'
-    ? (resolvedTheme === 'dark' ? 'dark' : 'light')
-    : normalizedAppColorMode;
-  const importedMarkdownThemePlatform = useImportedMarkdownThemePlatform(importedMarkdownThemeId);
-  const [markdownThemeViewport, setMarkdownThemeViewport] = useState(() =>
-    resolveMarkdownThemeViewport(typeof window === 'undefined' ? 1024 : window.innerWidth)
   );
   const currentNoteContentRef = useRef(useNotesStore.getState().currentNote?.content ?? '');
   const lastAppliedNoteRef = useRef({
@@ -530,22 +123,14 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     });
     return normalized;
   }, []);
-  const typoraRuntimePlatformClasses = useMemo(() => {
-    return importedMarkdownThemePlatform === 'typora'
-      ? resolveTyporaRuntimePlatformClasses().join(' ')
-      : '';
-  }, [importedMarkdownThemePlatform]);
-  const markdownThemeRuntimeColorScheme = useMemo(() => {
-    return resolveMarkdownThemeRuntimeColorScheme({
-      importedThemeId: importedMarkdownThemeId,
-      importedThemePlatform: importedMarkdownThemePlatform,
-      appColorScheme: appMarkdownThemeColorScheme,
-    });
-  }, [
-    appMarkdownThemeColorScheme,
+  const {
     importedMarkdownThemeId,
     importedMarkdownThemePlatform,
-  ]);
+    markdownThemeRuntimeColorScheme,
+    markdownThemeViewport,
+    typewriterMode,
+    typoraRuntimePlatformClasses,
+  } = useMilkdownThemeRuntime({ activatedRevision, editorShellRef });
 
   useEffect(() => {
     onEditorViewReadyRef.current = onEditorViewReady;
@@ -560,40 +145,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [currentNoteContent]);
 
   useEffect(() => {
-    const updateViewport = () => {
-      setMarkdownThemeViewport(resolveMarkdownThemeViewport(window.innerWidth));
-    };
-
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
-    return () => window.removeEventListener('resize', updateViewport);
-  }, []);
-
-  useEffect(() => {
-    const shell = editorShellRef.current;
-    if (!shell) return;
-
-    const root = shell.querySelector<HTMLElement>('[data-markdown-theme-root="true"], #write, .ProseMirror');
-    for (const element of [shell, root].filter((element): element is HTMLElement => Boolean(element))) {
-      applyMarkdownThemeRuntimeAttributes(element, {
-        importedThemeId: importedMarkdownThemeId,
-        importedThemePlatform: importedMarkdownThemePlatform,
-        colorScheme: markdownThemeRuntimeColorScheme.colorScheme,
-        colorSchemeMode: markdownThemeRuntimeColorScheme.mode,
-        viewport: markdownThemeViewport,
-        typewriterMode,
-      });
-    }
-  }, [
-    activatedRevision,
-    importedMarkdownThemeId,
-    importedMarkdownThemePlatform,
-    markdownThemeRuntimeColorScheme,
-    markdownThemeViewport,
-    typewriterMode,
-  ]);
-
-  useEffect(() => {
     const handleBlur = () => {
       flushCurrentPendingEditorMarkdown();
       flushSave();
@@ -602,202 +153,30 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     return () => window.removeEventListener('blur', handleBlur);
   }, [flushSave]);
 
-  const cleanupActivatedEditor = useCallback(() => {
-    activationCleanupRef.current?.();
-    activationCleanupRef.current = null;
-    activatedEditorRef.current = null;
-  }, []);
-
-  const reportEditorReady = useCallback((editor: ActiveMilkdownEditor) => {
-    const readyReported = readyReportedRef.current;
-    if (
-      readyReported?.editor === editor &&
-      readyReported.path === currentNotePath &&
-      readyReported.diskRevision === currentNoteDiskRevision &&
-      readyReported.content === currentNoteContentRef.current
-    ) {
-      return;
-    }
-
-    readyReportedRef.current = {
-      editor,
-      path: currentNotePath,
-      diskRevision: currentNoteDiskRevision,
-      content: currentNoteContentRef.current,
-    };
-    onEditorViewReadyRef.current?.();
-  }, [currentNoteDiskRevision, currentNotePath]);
-
-  const activateEditor = useCallback((editor: ActiveMilkdownEditor) => {
-    if (activatedEditorRef.current === editor) {
-      return;
-    }
-
-    cleanupActivatedEditor();
-    let activatedView: EditorView | null = null;
-    try {
-      const view = editor.ctx.get(editorViewCtx) as EditorView;
-      activatedView = view;
-      let parser: Parser | null = null;
-      let liveSerializer: ((doc: unknown) => string) | null = null;
-      try {
-        parser = editor.ctx.get(parserCtx) as Parser;
-      } catch {
-        parser = null;
-      }
-      try {
-        liveSerializer = editor.ctx.get(serializerCtx) as (doc: unknown) => string;
-      } catch {
-        liveSerializer = null;
-      }
-
-      if (!activeRef.current) {
-        return;
-      }
-
-      setCurrentEditorView(view);
-      setCurrentEditorBlockSelectionClearer(() => clearBlockSelection(view));
-      if (!preserveStartupEditorPosition) {
-        try {
-          normalizeInitialEditorSelection(view);
-        } catch {
-          // Keep editor activation alive even if a plugin rejects the startup selection normalization.
-        }
-      }
-      setActivatedRevision((revision) => revision + 1);
-
-      const markUserInput = createUserInputMarker(view, liveSerializer);
-      const markScopedUserInput = (event: Event) => {
-        const target = event.target;
-        if (!(target instanceof Node) || (target !== view.dom && !view.dom.contains(target))) {
-          return;
-        }
-        markUserInput(event);
-      };
-      document.addEventListener('beforeinput', markScopedUserInput, { capture: true });
-      document.addEventListener('keydown', markScopedUserInput, { capture: true });
-      document.addEventListener('compositionstart', markScopedUserInput, { capture: true });
-      document.addEventListener('compositionend', markScopedUserInput, { capture: true });
-      document.addEventListener('pointerdown', markScopedUserInput, { capture: true });
-      document.addEventListener('mousedown', markScopedUserInput, { capture: true });
-      view.dom.addEventListener('editor:image-user-input', markUserInput);
-      view.dom.addEventListener('editor:block-user-input', markUserInput);
-      document.addEventListener('paste', markScopedUserInput, { capture: true });
-      document.addEventListener('cut', markScopedUserInput, { capture: true });
-      document.addEventListener('drop', markScopedUserInput, { capture: true });
-      const blockPositionController = createCurrentEditorBlockPositionController(view);
-      setCurrentMarkdownRuntime({ parser, serializer: liveSerializer });
-      activatedEditorRef.current = editor;
-      activationCleanupRef.current = () => {
-        document.removeEventListener('beforeinput', markScopedUserInput, { capture: true });
-        document.removeEventListener('keydown', markScopedUserInput, { capture: true });
-        document.removeEventListener('compositionstart', markScopedUserInput, { capture: true });
-        document.removeEventListener('compositionend', markScopedUserInput, { capture: true });
-        document.removeEventListener('pointerdown', markScopedUserInput, { capture: true });
-        document.removeEventListener('mousedown', markScopedUserInput, { capture: true });
-        view.dom.removeEventListener('editor:image-user-input', markUserInput);
-        view.dom.removeEventListener('editor:block-user-input', markUserInput);
-        document.removeEventListener('paste', markScopedUserInput, { capture: true });
-        document.removeEventListener('cut', markScopedUserInput, { capture: true });
-        document.removeEventListener('drop', markScopedUserInput, { capture: true });
-        blockPositionController.destroy();
-        if (getCurrentEditorView() === view) {
-          setCurrentEditorView(null);
-          setCurrentEditorBlockSelectionClearer(null);
-          clearCurrentEditorBlockPositionSnapshot();
-          clearCurrentMarkdownRuntime();
-        }
-      };
-    } catch {
-      if (activatedView && getCurrentEditorView() === activatedView) {
-        setCurrentEditorView(null);
-        setCurrentEditorBlockSelectionClearer(null);
-        clearCurrentEditorBlockPositionSnapshot();
-        clearCurrentMarkdownRuntime();
-      }
-    }
-  }, [
-    cleanupActivatedEditor,
+  const { activateEditor, cleanupActivatedEditor, reportEditorReady } = useMilkdownEditorActivation({
+    activeRef,
+    activatedEditorRef,
+    activationCleanupRef,
     createUserInputMarker,
+    currentNoteContentRef,
+    currentNoteDiskRevision,
+    currentNotePath,
+    onEditorViewReadyRef,
     preserveStartupEditorPosition,
-  ]);
+    readyReportedRef,
+    setActivatedRevision,
+  });
 
-  const { get } = useEditor((root) => {
-    const editorFactoryStartedAt = performance.now();
-    const editor = Editor.make()
-      .config((ctx) => {
-        const configStartedAt = performance.now();
-        const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(initialContent);
-        const blankLineStartedAt = performance.now();
-        const defaultMarkdown = preserveMarkdownBlankLinesForEditor(
-          normalizedFrontmatter
-        );
-        const defaultJsonStartedAt = performance.now();
-        const defaultJson = createLargePlainMarkdownDocJSON(defaultMarkdown);
-        const defaultValue: MilkdownDefaultValue = defaultJson
-          ? { type: 'json', value: defaultJson }
-          : defaultMarkdown;
-        if (defaultJson) {
-          logE2EMilkdownTiming('default-json', {
-            notePath: currentNotePath,
-            inputLength: defaultMarkdown.length,
-            blockCount: defaultJson.content?.length ?? 0,
-            durationMs: Math.round(performance.now() - defaultJsonStartedAt),
-          });
-        }
-        logE2EMilkdownTiming('default-value', {
-          notePath: currentNotePath,
-          inputLength: initialContent.length,
-          outputLength: defaultMarkdown.length,
-          valueType: typeof defaultValue === 'string' ? 'markdown' : defaultValue.type,
-          durationMs: Math.round(performance.now() - blankLineStartedAt),
-        });
-
-        ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, defaultValue as never);
-        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
-          ...prev,
-          ...notesRemarkStringifyOptions,
-        }));
-
-        const handleMarkdownUpdated = configureMarkdownListener(ctx, initialContent);
-        ctx.update(prosePluginsCtx, (plugins) => plugins.concat(
-          createDeferredMarkdownUpdatePlugin(ctx, handleMarkdownUpdated, {
-            shouldSerialize: shouldSerializeEditorMarkdown,
-          })
-        ));
-        logE2EMilkdownTiming('config', {
-          notePath: currentNotePath,
-          durationMs: Math.round(performance.now() - configStartedAt),
-        });
-      })
-      .use(clipboardPlugin)
-      .use(commonmark)
-      .use(gfm)
-      .use(history)
-      .use(configureTheme)
-      .use(tableBlock)
-      .use(customPlugins);
-
-    const statusEditor = editor as unknown as ActiveMilkdownEditor;
-    statusEditor.onStatusChange?.((status: string) => {
-      if (status === 'Created') {
-        logE2EMilkdownTiming('created', {
-          notePath: currentNotePath,
-          totalSinceFactoryMs: Math.round(performance.now() - editorFactoryStartedAt),
-        });
-        activateEditor(statusEditor);
-        reportEditorReady(statusEditor);
-      }
-      if (status === 'OnDestroy' || status === 'Destroyed') {
-        if (activatedEditorRef.current === statusEditor) {
-          cleanupActivatedEditor();
-        }
-      }
-    });
-
-    return editor;
-  }, []);
+  const { get } = useMilkdownEditorFactory({
+    activateEditor,
+    activatedEditorRef,
+    cleanupActivatedEditor,
+    configureMarkdownListener,
+    currentNotePath,
+    initialContent,
+    reportEditorReady,
+    shouldSerializeEditorMarkdown,
+  });
 
   useEffect(() => {
     hasAutoFocused.current = false;
@@ -809,138 +188,16 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     setEditorGetter(get);
   }, [get, setEditorGetter]);
 
-  useEffect(() => {
-    const lastAppliedNote = lastAppliedNoteRef.current;
-    if (
-      lastAppliedNote.path === currentNotePath &&
-      lastAppliedNote.diskRevision === currentNoteDiskRevision &&
-      lastAppliedNote.content === currentNoteContent
-    ) {
-      return;
-    }
-
-    let restoreFrame = 0;
-    let restoreTimeout = 0;
-
-    try {
-      const editor = get?.() as ActiveMilkdownEditor | undefined;
-      const runEditorAction = editor?.action;
-      if (!editor || !runEditorAction) {
-        return;
-      }
-
-      const view = editor.ctx.get(editorViewCtx) as EditorView;
-      const isSameNotePath = lastAppliedNote.path === currentNotePath;
-      if (
-        isSameNotePath &&
-        hasLocalMarkdownCommitRef.current &&
-        lastAppliedNote.content === currentNoteContent
-      ) {
-        lastAppliedNoteRef.current = {
-          path: currentNotePath,
-          diskRevision: currentNoteDiskRevision,
-          content: currentNoteContent,
-        };
-        return;
-      }
-      if (
-        isSameNotePath &&
-        lastAppliedNote.content !== currentNoteContent &&
-        isSameVisibleNoteContentIgnoringManagedFrontmatter(lastAppliedNote.content, currentNoteContent)
-      ) {
-        lastAppliedNoteRef.current = {
-          path: currentNotePath,
-          diskRevision: currentNoteDiskRevision,
-          content: currentNoteContent,
-        };
-        return;
-      }
-      let liveSerializer: ((doc: unknown) => string) | null = null;
-      let shouldPreserveSameRevisionWithoutReplace = false;
-      try {
-        liveSerializer = editor.ctx.get(serializerCtx) as (doc: unknown) => string;
-      } catch {
-        liveSerializer = null;
-      }
-      if (liveSerializer && isSameNotePath) {
-        try {
-          const serializedCurrentDoc = liveSerializer(view.state.doc);
-          if (isEditorMarkdownEquivalentToNoteContent(serializedCurrentDoc, currentNoteContent)) {
-            lastAppliedNoteRef.current = {
-              path: currentNotePath,
-              diskRevision: currentNoteDiskRevision,
-              content: currentNoteContent,
-            };
-            return;
-          }
-        } catch {
-          shouldPreserveSameRevisionWithoutReplace = true;
-        }
-      }
-      if (
-        isSameNotePath &&
-        lastAppliedNote.diskRevision === currentNoteDiskRevision &&
-        (!liveSerializer || shouldPreserveSameRevisionWithoutReplace)
-      ) {
-        lastAppliedNoteRef.current = {
-          path: currentNotePath,
-          diskRevision: currentNoteDiskRevision,
-          content: currentNoteContent,
-        };
-        return;
-      }
-      const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
-      const scrollTop = isSameNotePath ? scrollRoot?.scrollTop ?? null : null;
-      const prepareStartedAt = performance.now();
-      const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(
-        normalizeAlternativeMathBlockFences(currentNoteContent)
-      );
-      const nextMarkdown = preserveMarkdownBlankLinesForEditor(normalizedFrontmatter);
-      logE2EMilkdownTiming('replace-prepare', {
-        notePath: currentNotePath,
-        inputLength: currentNoteContent.length,
-        outputLength: nextMarkdown.length,
-        durationMs: Math.round(performance.now() - prepareStartedAt),
-      });
-
-      const replaceStartedAt = performance.now();
-      const replaced = runEditorAction((ctx) => replaceEditorMarkdown(ctx, nextMarkdown, {
-        resetSelection: !isSameNotePath,
-      }));
-      logE2EMilkdownTiming('replace-dispatch', {
-        notePath: currentNotePath,
-        replaced,
-        durationMs: Math.round(performance.now() - replaceStartedAt),
-      });
-      if (!replaced) {
-        return;
-      }
-
-      lastAppliedNoteRef.current = {
-        path: currentNotePath,
-        diskRevision: currentNoteDiskRevision,
-        content: currentNoteContent,
-      };
-      reportEditorReady(editor);
-
-      if (scrollRoot && scrollTop !== null) {
-        const restoreScroll = () => {
-          scrollRoot.scrollTop = scrollTop;
-        };
-        restoreFrame = requestAnimationFrame(restoreScroll);
-        restoreTimeout = window.setTimeout(
-          restoreScroll,
-          themeEditorLayoutTokens.restoreScrollFallbackDelayMs
-        );
-      }
-    } catch {
-    }
-
-    return () => {
-      cancelAnimationFrame(restoreFrame);
-      window.clearTimeout(restoreTimeout);
-    };
-  }, [activatedRevision, currentNoteContent, currentNoteDiskRevision, currentNotePath, get, reportEditorReady]);
+  useMilkdownExternalContentSync({
+    activatedRevision,
+    currentNoteContent,
+    currentNoteDiskRevision,
+    currentNotePath,
+    get,
+    hasLocalMarkdownCommitRef,
+    lastAppliedNoteRef,
+    reportEditorReady,
+  });
 
   useEffect(() => {
     return () => {
@@ -986,115 +243,34 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     reportEditorReady,
   ]);
 
-  const isEmptyContent = useMemo(() => {
-    const content = currentNoteContent.trim();
-    return content.length === 0 || /^#\s*$/.test(content);
-  }, [currentNoteContent]);
-
-  const shouldKeepFocusOnEmptyDraftTitle = isDraftNote && isEmptyContent && !currentDraftName?.trim();
-  const shouldFocusEmptyDraftBody =
-    isDraftNote && !isNewlyCreated && isEmptyContent && !shouldKeepFocusOnEmptyDraftTitle;
-  if (
-    lazyBlockVisibilityRef.current?.path !== currentNotePath ||
-    lazyBlockVisibilityRef.current?.diskRevision !== currentNoteDiskRevision ||
-    lazyBlockVisibilityRef.current?.content !== currentNoteContent
-  ) {
-    lazyBlockVisibilityRef.current = {
-      content: currentNoteContent,
-      diskRevision: currentNoteDiskRevision,
-      path: currentNotePath,
-      value: shouldUseLazyBlockVisibility(currentNoteContent),
-    };
-  }
-  const useLazyBlockVisibility = lazyBlockVisibilityRef.current.value;
-
-  const focusEditorBody = useCallback(() => {
-    try {
-      const editor = get?.();
-      if (!editor) {
-        return false;
-      }
-
-      const view = editor.ctx.get(editorViewCtx);
-      if (!view) {
-        return false;
-      }
-
-      view.focus();
-      return true;
-    } catch {
-      return false;
-    }
-  }, [get]);
-
-  useEffect(() => {
-    if (!active || !get || hasAutoFocused.current || hasScheduledAutoFocus.current) return;
-    if (preserveStartupEditorPosition || isNewlyCreated || shouldKeepFocusOnEmptyDraftTitle) {
-      return;
-    }
-
-    hasScheduledAutoFocus.current = true;
-
-    const timer = setTimeout(() => {
-      const focused = focusEditorBody();
-      hasScheduledAutoFocus.current = false;
-      if (focused) {
-        hasAutoFocused.current = true;
-      }
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      hasScheduledAutoFocus.current = false;
-    };
-  }, [
+  const { useLazyBlockVisibility } = useMilkdownAutoFocus({
     active,
     activatedRevision,
+    currentDraftName,
+    currentNoteContent,
+    currentNoteDiskRevision,
     currentNotePath,
-    focusEditorBody,
     get,
+    hasAutoFocused,
+    hasScheduledAutoFocus,
+    isDraftNote,
     isNewlyCreated,
+    lazyBlockVisibilityRef,
     preserveStartupEditorPosition,
-    shouldKeepFocusOnEmptyDraftTitle,
-  ]);
-
-  useEffect(() => {
-    if (!active || preserveStartupEditorPosition || !shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
-    const frame = requestAnimationFrame(() => {
-      if (!shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
-      const focused = focusEditorBody();
-      if (focused) {
-        hasAutoFocused.current = true;
-      }
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  }, [active, currentNotePath, focusEditorBody, preserveStartupEditorPosition, shouldFocusEmptyDraftBody]);
+  });
 
   return (
     <div
       ref={editorShellRef}
-      className={cn(
-        "milkdown-editor",
-        showBodyLineNumbers && 'markdown-body-line-numbers',
-        !importedMarkdownThemeId && 'theme-vlaina',
-        importedMarkdownThemeId && 'theme-external-markdown',
-        importedMarkdownThemePlatform === 'typora' && 'theme-typora typora-export typora-export-content typora-node',
+      className={getMilkdownEditorClassName({
+        importedMarkdownThemeId,
+        importedMarkdownThemePlatform,
+        markdownThemeColorScheme: markdownThemeRuntimeColorScheme.colorScheme,
+        markdownThemeViewport,
+        showBodyLineNumbers,
+        typewriterMode,
         typoraRuntimePlatformClasses,
-        importedMarkdownThemePlatform === 'obsidian' && 'theme-obsidian',
-        markdownThemeRuntimeColorScheme.colorScheme === 'dark' && 'theme-dark',
-        markdownThemeRuntimeColorScheme.colorScheme === 'light' && 'theme-light',
-        'is-live-preview',
-        'max',
-        'is-readable-line-width',
-        markdownThemeViewport === 'mobile' && 'is-mobile',
-        markdownThemeViewport === 'tablet' && 'is-tablet',
-        markdownThemeViewport === 'desktop' && 'is-desktop',
-        typewriterMode && 'ty-on-typewriter-mode',
-        EDITOR_LAYOUT_CLASS
-      )}
+      })}
       data-note-content-root="true"
       data-note-lazy-block-visibility={useLazyBlockVisibility ? 'true' : undefined}
       data-markdown-theme-root="true"

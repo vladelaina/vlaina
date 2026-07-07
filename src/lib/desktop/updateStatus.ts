@@ -1,6 +1,8 @@
 import { APP_VERSION } from '@/lib/appVersion';
 import type { ElectronUpdatePolicy } from '@/lib/electron/bridge';
 
+export { createSimulatedDesktopUpdateInfo } from './simulatedUpdateStatus';
+
 export const UPDATE_LAST_AUTO_CHECK_KEY = 'vlaina:update:lastAutoCheckAt';
 export const UPDATE_INFO_CACHE_KEY = 'vlaina:update:lastResult';
 export const UPDATE_INFO_CHANGED_EVENT = 'vlaina:update:info-changed';
@@ -272,32 +274,4 @@ export function markDesktopUpdateDownloadFailed(updateInfo: DesktopUpdateInfo, e
     downloadState: 'error',
     downloadError: error instanceof Error ? error.message : 'Update download failed.',
   });
-}
-
-export function createSimulatedDesktopUpdateInfo(): DesktopUpdateInfo {
-  return {
-    currentVersion: APP_VERSION,
-    latestVersion: '99.99.99',
-    updateAvailable: true,
-    downloadUrl: 'https://github.com/vladelaina/vlaina/releases/latest',
-    releaseUrl: 'https://github.com/vladelaina/vlaina/releases/latest',
-    platformAssetName: 'vlaina-simulated-update',
-    platformAssetSha256: '',
-    hasPlatformAsset: true,
-    releaseNotes: 'Simulated desktop update for local preview.',
-    publishedAt: new Date().toISOString(),
-    simulated: true,
-    downloadState: 'downloaded',
-    downloadedFilePath: '',
-    downloadedFileName: 'vlaina-simulated-update',
-    downloadedAt: new Date().toISOString(),
-    updatePolicy: {
-      distribution: 'direct',
-      checkEnabled: true,
-      backgroundDownloadEnabled: false,
-      localInstallerEnabled: false,
-      externalDownloadEnabled: true,
-      cleanupDownloadedUpdatesEnabled: true,
-    },
-  };
 }

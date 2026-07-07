@@ -1,137 +1,25 @@
-import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import { getStorageAdapter } from '@/lib/storage/adapter';
-import type { NotesStore } from '../types';
-import { addNodeToTree } from '../fileTreeUtils';
 import {
   createEmptyMetadataFile,
   ensureNotesFolder,
   getCurrentNotesRootPath,
   getNotesBasePath,
-  addToRecentNotes,
-  mergeNoteMetadataWithFileInfo,
   setNoteEntry,
 } from '../storage';
 import { createNoteImpl } from '../utils/fs/crudOperations';
-import { getParentPath, resolveUniquePath } from '../utils/fs/pathOperations';
-import { resolveNotesRootRelativeFullPath } from '../utils/fs/notesRootPathContainment';
-import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
-import { setCachedNoteContent } from '../document/noteContentCache';
 import { pushNoteNavigationHistory } from '../document/noteNavigationHistory';
-import { markExpectedExternalChange } from '../document/externalChangeRegistry';
-import { persistWorkspaceSnapshot } from '../workspacePersistence';
-import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import {
   createBlankDraftState,
   ensureRootFolderState,
-  replaceCurrentTabOrAppend,
 } from './fileSystemSliceHelpers';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
-
-type CreateNoteResult = Awaited<ReturnType<typeof createNoteImpl>>;
-
-function isActiveNotesPath(get: FileSystemSliceGet, notesPath: string) {
-  return get().notesPath === notesPath;
-}
-
-async function ensureCurrentNoteSaved(get: FileSystemSliceGet, options?: { skipDraft?: boolean }) {
-  flushCurrentPendingEditorMarkdown();
-  const state = get();
-  if (!state.isDirty) {
-    return state;
-  }
-
-  if (options?.skipDraft && state.currentNote && state.draftNotes[state.currentNote.path]) {
-    return state;
-  }
-
-  await state.saveNote();
-
-  return get();
-}
-
-function getStateAfterFlushingCurrentNote(get: FileSystemSliceGet) {
-  flushCurrentPendingEditorMarkdown();
-  return get();
-}
-
-function finalizeCreatedNote({
-  set,
-  notesPath,
-  relativePath,
-  content,
-  fileName,
-  updatedMetadata,
-  recentNotes,
-  modifiedAt,
-  size,
-  fileTreeSortMode,
-  noteContentsCache,
-  openTabs,
-  currentNote,
-  currentRootFolder,
-  navigationState,
-}: {
-  set: FileSystemSliceSet;
-  notesPath: string;
-  relativePath: CreateNoteResult['relativePath'];
-  content: CreateNoteResult['content'];
-  fileName: CreateNoteResult['fileName'];
-  updatedMetadata: CreateNoteResult['updatedMetadata'];
-  recentNotes: NotesStore['recentNotes'];
-  modifiedAt: CreateNoteResult['modifiedAt'];
-  size: CreateNoteResult['size'];
-  fileTreeSortMode: NotesStore['fileTreeSortMode'];
-  noteContentsCache: NotesStore['noteContentsCache'];
-  openTabs: NotesStore['openTabs'];
-  currentNote: NotesStore['currentNote'];
-  currentRootFolder: NonNullable<NotesStore['rootFolder']>;
-  navigationState: Pick<NotesStore, 'currentNote' | 'noteNavigationHistory' | 'noteNavigationHistoryIndex'>;
-}) {
-  const parentPath = relativePath.includes('/')
-    ? relativePath.slice(0, relativePath.lastIndexOf('/'))
-    : undefined;
-  const nextRootFolder = buildSortedRootFolder(
-    currentRootFolder,
-    addNodeToTree(currentRootFolder.children, parentPath, {
-      id: relativePath,
-      name: getNoteTitleFromPath(fileName),
-      path: relativePath,
-      isFolder: false,
-    }),
-    fileTreeSortMode,
-    updatedMetadata,
-  );
-  const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, {
-    path: relativePath,
-    name: getNoteTitleFromPath(fileName),
-    isDirty: false,
-  });
-
-  set({
-    rootFolder: nextRootFolder,
-    noteMetadata: updatedMetadata,
-    currentNote: { path: relativePath, content },
-    isDirty: false,
-    openTabs: updatedTabs,
-    recentNotes,
-    isNewlyCreated: true,
-    noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, modifiedAt, {
-      updateBaseline: true,
-      size,
-    }),
-    ...pushNoteNavigationHistory(navigationState, relativePath),
-  });
-
-  persistWorkspaceSnapshot(notesPath, {
-    rootFolder: nextRootFolder,
-    currentNotePath: relativePath,
-    fileTreeSortMode,
-  });
-
-  return relativePath;
-}
+import { createCreateFolderAction } from './fileSystemSliceCreateFolderAction';
+import { finalizeCreatedNote } from './fileSystemSliceCreateFinalize';
+import { createDuplicateNoteAction } from './fileSystemSliceDuplicateAction';
+import {
+  ensureCurrentNoteSaved,
+  getStateAfterFlushingCurrentNote,
+  isActiveNotesPath,
+} from './fileSystemSliceCreateShared';
 
 export function createFileSystemCreateActions(
   set: FileSystemSliceSet,
@@ -243,18 +131,12 @@ export function createFileSystemCreateActions(
           result.relativePath,
           result.updatedMetadata.notes[result.relativePath] ?? {},
         );
-        const latestRecentNotes = addToRecentNotes(result.relativePath, latestState.recentNotes);
 
         return finalizeCreatedNote({
           set,
           notesPath,
-          relativePath: result.relativePath,
-          content: result.content,
-          fileName: result.fileName,
+          result,
           updatedMetadata: latestMetadata,
-          recentNotes: latestRecentNotes,
-          modifiedAt: result.modifiedAt,
-          size: result.size,
           fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
           noteContentsCache: latestState.noteContentsCache,
           openTabs: latestState.openTabs,
@@ -271,104 +153,7 @@ export function createFileSystemCreateActions(
       }
     },
 
-    duplicateNote: async (path: string) => {
-      let notesPathForError = '';
-      try {
-        let {
-          notesPath,
-          rootFolder,
-          fileTreeSortMode,
-        } = await ensureCurrentNoteSaved(get, { skipDraft: true });
-        notesPathForError = notesPath;
-
-        if (!notesPath) {
-          const currentNotesRootPath = getCurrentNotesRootPath();
-          if (!currentNotesRootPath) {
-            throw new Error('Notes path is not available');
-          }
-
-          notesPath = currentNotesRootPath;
-          notesPathForError = notesPath;
-          await ensureNotesFolder(notesPath);
-          set({ notesPath });
-        }
-
-        const storage = getStorageAdapter();
-        const { relativePath: sourcePath, fullPath: sourceFullPath } =
-          await resolveNotesRootRelativeFullPath(notesPath, path);
-        if (!isSupportedMarkdownPath(sourcePath)) {
-          throw new Error('Only Markdown files can be duplicated as notes.');
-        }
-        if (hasInternalNotePathSegment(sourcePath)) {
-          throw new Error('Path must not be inside an internal notes folder.');
-        }
-
-        const sourceName = sourcePath.split('/').filter(Boolean).pop() || 'Untitled.md';
-        const parentPath = getParentPath(sourcePath) || undefined;
-        const {
-          relativePath: duplicatePath,
-          fullPath: duplicateFullPath,
-          fileName,
-        } = await resolveUniquePath(notesPath, parentPath, sourceName, false);
-
-        markExpectedExternalChange(duplicateFullPath);
-        await storage.copyFile(sourceFullPath, duplicateFullPath);
-        if (!isActiveNotesPath(get, notesPath)) {
-          return duplicatePath;
-        }
-
-        const duplicateFileInfo = await storage.stat(duplicateFullPath).catch(() => null);
-        if (!isActiveNotesPath(get, notesPath)) {
-          return duplicatePath;
-        }
-
-        const duplicateTitle = getNoteTitleFromPath(fileName);
-        const latestState = get();
-        const duplicateMetadata = mergeNoteMetadataWithFileInfo(
-          latestState.noteMetadata?.notes[sourcePath],
-          duplicateFileInfo,
-        );
-        const latestRootFolder = ensureRootFolderState(latestState.rootFolder ?? rootFolder);
-        const latestMetadata = setNoteEntry(
-          latestState.noteMetadata ?? createEmptyMetadataFile(),
-          duplicatePath,
-          duplicateMetadata,
-        );
-        const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
-        const nextRootFolder = buildSortedRootFolder(
-          latestRootFolder,
-          addNodeToTree(latestRootFolder.children, parentPath, {
-            id: duplicatePath,
-            name: duplicateTitle,
-            path: duplicatePath,
-            isFolder: false,
-          }),
-          latestSortMode,
-          latestMetadata,
-        );
-
-        set({
-          rootFolder: nextRootFolder,
-          noteMetadata: latestMetadata,
-          isNewlyCreated: false,
-          error: null,
-        });
-
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder,
-          currentNotePath: latestState.currentNote?.path ?? null,
-          fileTreeSortMode: latestSortMode,
-        });
-
-        return duplicatePath;
-      } catch (error) {
-        if (notesPathForError && !isActiveNotesPath(get, notesPathForError)) {
-          throw error;
-        }
-        set({ error: error instanceof Error ? error.message : 'Failed to duplicate note' });
-        throw error;
-      }
-    },
+    duplicateNote: createDuplicateNoteAction(set, get),
 
     createNoteWithContent: async (folderPath: string | undefined, name: string, content: string) => {
       let {
@@ -400,18 +185,12 @@ export function createFileSystemCreateActions(
           result.relativePath,
           result.updatedMetadata.notes[result.relativePath] ?? {},
         );
-        const latestRecentNotes = addToRecentNotes(result.relativePath, latestState.recentNotes);
 
         return finalizeCreatedNote({
           set,
           notesPath,
-          relativePath: result.relativePath,
-          content: result.content,
-          fileName: result.fileName,
+          result,
           updatedMetadata: latestMetadata,
-          recentNotes: latestRecentNotes,
-          modifiedAt: result.modifiedAt,
-          size: result.size,
           fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
           noteContentsCache: latestState.noteContentsCache,
           openTabs: latestState.openTabs,
@@ -428,74 +207,7 @@ export function createFileSystemCreateActions(
       }
     },
 
-    createFolder: async (parentPath: string, name?: string) => {
-      let {
-        notesPath,
-        fileTreeSortMode,
-        noteMetadata,
-      } = get();
-      const storage = getStorageAdapter();
-
-      try {
-        if (!notesPath) {
-          const currentNotesRootPath = getCurrentNotesRootPath();
-          if (!currentNotesRootPath) {
-            return null;
-          }
-
-          notesPath = currentNotesRootPath;
-          await ensureNotesFolder(notesPath);
-          set({ notesPath });
-        }
-
-        const { relativePath, fullPath, fileName } = await resolveUniquePath(
-          notesPath,
-          parentPath || undefined,
-          name || 'Untitled',
-          true,
-        );
-
-        markExpectedExternalChange(fullPath, true);
-        await storage.mkdir(fullPath, true);
-        if (!isActiveNotesPath(get, notesPath)) {
-          return relativePath;
-        }
-
-        const latestState = get();
-        const latestRootFolder = ensureRootFolderState(latestState.rootFolder);
-        const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
-        const nextRootFolder = buildSortedRootFolder(
-          latestRootFolder,
-          addNodeToTree(latestRootFolder.children, parentPath, {
-            id: relativePath,
-            name: fileName,
-            path: relativePath,
-            isFolder: true,
-            children: [],
-            expanded: false,
-          }),
-          latestSortMode,
-          latestState.noteMetadata ?? noteMetadata,
-        );
-
-        set({
-          rootFolder: nextRootFolder,
-          newlyCreatedFolderPath: !name ? relativePath : null,
-        });
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder,
-          currentNotePath: latestState.currentNote?.path ?? null,
-          fileTreeSortMode: latestSortMode,
-        });
-        return relativePath;
-      } catch (error) {
-        if (notesPath && !isActiveNotesPath(get, notesPath)) {
-          return null;
-        }
-        set({ error: error instanceof Error ? error.message : 'Failed to create folder' });
-        return null;
-      }
-    },
+    createFolder: createCreateFolderAction(set, get),
 
     clearNewlyCreatedFolder: () => set({ newlyCreatedFolderPath: null }),
   };

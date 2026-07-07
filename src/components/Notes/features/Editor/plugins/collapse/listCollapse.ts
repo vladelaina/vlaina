@@ -1,21 +1,26 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
+import { DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import {
-    createCollapseToggleButton,
-    COLLAPSED_CONTENT_CLASS,
-    isCollapseToggleTarget
-} from './collapseUtils';
-import {
-    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
-    STOP_PROSE_SCAN,
-    scanProseDescendants,
-    type BoundedProseScanNode,
-} from '../shared/boundedProseNodeScan';
-import {
-    getTransactionChangedRanges,
-    transactionTouchesDecorations,
-} from '../shared/transactionStepText';
+    buildListCollapsePluginState,
+    type ListCollapsePluginState,
+} from './listCollapseDecorations';
+import { createNestedListHoverView } from './listCollapseHover';
+import { MAX_LIST_COLLAPSE_STRUCTURE_SCAN_NODES } from './listCollapseConstants';
+import { getTransactionChangedRanges, transactionTouchesDecorations } from '../shared/transactionStepText';
+
+export {
+    LIST_NESTED_LIST_HOVER_CLASS,
+    MAX_LIST_COLLAPSE_CHILD_SCAN_NODES,
+    MAX_LIST_COLLAPSE_ITEMS,
+    MAX_LIST_COLLAPSE_STRUCTURE_SCAN_NODES,
+} from './listCollapseConstants';
+export {
+    buildListCollapsePluginState,
+    findNestedListCollapseRange,
+    type ListCollapsePluginState,
+} from './listCollapseDecorations';
+export { collectNestedListHoverParents } from './listCollapseHover';
 
 type ListCollapseActionType = 'toggle' | 'expand' | 'collapse';
 
@@ -24,28 +29,7 @@ interface ListCollapseAction {
     pos: number;
 }
 
-export interface ListCollapsePluginState {
-    decorations: DecorationSet;
-    collapsedItems: Set<number>;
-}
-
 const LIST_COLLAPSE_KEY = new PluginKey<ListCollapsePluginState>('listCollapse');
-const COLLAPSE_TYPE = 'list-item';
-const ORDERED_MARKER_BASE_CHARS = 2;
-export const LIST_NESTED_LIST_HOVER_CLASS = 'editor-list-nested-list-hover';
-export const MAX_LIST_COLLAPSE_ITEMS = 1000;
-export const MAX_LIST_COLLAPSE_CHILD_SCAN_NODES = 2000;
-export const MAX_LIST_COLLAPSE_STRUCTURE_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
-
-function getOrderedListMarkerExtraOffset(node: any): string {
-    if (node.attrs?.listType !== 'ordered') return '';
-
-    const label = typeof node.attrs?.label === 'string' ? node.attrs.label.trim() : '';
-    const markerChars = label.length;
-    if (markerChars <= ORDERED_MARKER_BASE_CHARS) return '';
-
-    return `${markerChars - ORDERED_MARKER_BASE_CHARS}ch`;
-}
 
 function parseListCollapseAction(meta: unknown): ListCollapseAction | null {
     if (!meta || typeof meta !== 'object') return null;
@@ -102,120 +86,6 @@ function remapCollapsedListItems(
     });
 
     return mapped;
-}
-
-export function findNestedListCollapseRange(
-    node: BoundedProseScanNode,
-    pos: number,
-): { from: number; to: number } | null {
-    if (typeof node.child === 'function' && typeof node.childCount === 'number') {
-        const childCount = Math.min(
-            Math.max(0, Math.floor(node.childCount)),
-            MAX_LIST_COLLAPSE_CHILD_SCAN_NODES,
-        );
-        let offset = 0;
-        for (let index = 0; index < childCount; index += 1) {
-            const child = node.child(index) as BoundedProseScanNode | null | undefined;
-            if (!child) continue;
-            if (child.type?.name === 'bullet_list' || child.type?.name === 'ordered_list') {
-                const from = pos + 1 + offset;
-                return {
-                    from,
-                    to: from + (child.nodeSize ?? 0),
-                };
-            }
-            offset += child.nodeSize ?? 0;
-        }
-        return null;
-    }
-
-    if (typeof node.forEach !== 'function') return null;
-
-    let nestedListRange: { from: number; to: number } | null = null;
-    let scannedChildren = 0;
-    node.forEach((child, offset) => {
-        if (nestedListRange || scannedChildren >= MAX_LIST_COLLAPSE_CHILD_SCAN_NODES) {
-            return;
-        }
-        scannedChildren += 1;
-        if (child.type?.name === 'bullet_list' || child.type?.name === 'ordered_list') {
-            const from = pos + 1 + offset;
-            nestedListRange = {
-                from,
-                to: from + (child.nodeSize ?? 0),
-            };
-        }
-    });
-
-    return nestedListRange;
-}
-
-function buildListCollapseDecorations(
-    doc: any,
-    collapsedItems: Set<number>,
-    dispatchToggle: (view: EditorView, pos: number) => void,
-): DecorationSet {
-    const decorations: Decoration[] = [];
-    let decoratedItems = 0;
-
-    scanProseDescendants(doc, (node, pos) => {
-        if (decoratedItems >= MAX_LIST_COLLAPSE_ITEMS) return STOP_PROSE_SCAN;
-        if (node.type?.name !== 'list_item') return true;
-        const nestedListRange = findNestedListCollapseRange(node, pos);
-
-        if (!nestedListRange) return true;
-        decoratedItems += 1;
-
-        const isCollapsed = collapsedItems.has(pos);
-        const markerExtraOffset = getOrderedListMarkerExtraOffset(node);
-        decorations.push(
-            Decoration.widget(pos + 1, (view) => {
-                const button = createCollapseToggleButton({
-                    collapseType: COLLAPSE_TYPE,
-                    collapsed: isCollapsed,
-                    hasContent: true,
-                    onToggle: () => {
-                        dispatchToggle(view, pos);
-                    },
-                });
-
-                if (markerExtraOffset) {
-                    button.style.setProperty('--vlaina-list-marker-extra', markerExtraOffset);
-                }
-
-                return button;
-            }, {
-                side: -1,
-                key: `list-toggle-${pos}-${isCollapsed ? '1' : '0'}-1`,
-                stopEvent(event) {
-                    return isCollapseToggleTarget(event.target);
-                },
-            })
-        );
-
-        if (isCollapsed) {
-            decorations.push(
-                Decoration.node(nestedListRange.from, nestedListRange.to, {
-                    class: COLLAPSED_CONTENT_CLASS,
-                })
-            );
-        }
-
-        return decoratedItems < MAX_LIST_COLLAPSE_ITEMS ? true : STOP_PROSE_SCAN;
-    });
-
-    return DecorationSet.create(doc, decorations);
-}
-
-export function buildListCollapsePluginState(
-    doc: any,
-    collapsedItems: Set<number>,
-    dispatchToggle: (view: EditorView, pos: number) => void,
-): ListCollapsePluginState {
-    return {
-        collapsedItems,
-        decorations: buildListCollapseDecorations(doc, collapsedItems, dispatchToggle),
-    };
 }
 
 const LIST_COLLAPSE_STRUCTURE_NODE_NAMES = new Set(['bullet_list', 'ordered_list', 'list_item']);
@@ -315,84 +185,6 @@ function dispatchListCollapseToggle(view: EditorView, pos: number) {
         type: 'toggle',
         pos,
     } satisfies ListCollapseAction));
-}
-
-function getEventTargetElement(root: HTMLElement, target: EventTarget | null): Element | null {
-    if (!target) return null;
-    if (target instanceof Element) {
-        return root.contains(target) ? target : null;
-    }
-    if (target instanceof Node && target.parentElement) {
-        return root.contains(target.parentElement) ? target.parentElement : null;
-    }
-    return null;
-}
-
-export function collectNestedListHoverParents(root: HTMLElement, target: EventTarget | null): HTMLElement[] {
-    const element = getEventTargetElement(root, target);
-    if (!element) return [];
-
-    const parents: HTMLElement[] = [];
-    let currentList: Element | null = element.closest('ul, ol');
-
-    while (currentList && root.contains(currentList)) {
-        const parent = currentList.parentElement;
-        if (parent instanceof HTMLLIElement && root.contains(parent)) {
-            parents.push(parent);
-        }
-
-        const parentList = parent?.parentElement ?? null;
-        currentList = parentList?.matches('ul, ol') ? parentList : null;
-    }
-
-    return parents;
-}
-
-function syncNestedListHoverParents(current: Set<HTMLElement>, nextParents: readonly HTMLElement[]): Set<HTMLElement> {
-    const next = new Set(nextParents);
-    current.forEach((element) => {
-        if (!next.has(element)) {
-            element.classList.remove(LIST_NESTED_LIST_HOVER_CLASS);
-        }
-    });
-    next.forEach((element) => {
-        if (!current.has(element)) {
-            element.classList.add(LIST_NESTED_LIST_HOVER_CLASS);
-        }
-    });
-    return next;
-}
-
-function createNestedListHoverView(editorView: EditorView) {
-    const root = editorView.dom;
-    let currentParents = new Set<HTMLElement>();
-
-    const updateFromTarget = (target: EventTarget | null) => {
-        currentParents = syncNestedListHoverParents(
-            currentParents,
-            collectNestedListHoverParents(root, target),
-        );
-    };
-    const clear = () => {
-        currentParents = syncNestedListHoverParents(currentParents, []);
-    };
-    const handlePointerOver = (event: PointerEvent) => updateFromTarget(event.target);
-    const handlePointerOut = (event: PointerEvent) => updateFromTarget(event.relatedTarget);
-
-    root.addEventListener('pointerover', handlePointerOver);
-    root.addEventListener('pointerout', handlePointerOut);
-    root.addEventListener('pointercancel', clear);
-    root.addEventListener('mouseleave', clear);
-
-    return {
-        destroy() {
-            root.removeEventListener('pointerover', handlePointerOver);
-            root.removeEventListener('pointerout', handlePointerOut);
-            root.removeEventListener('pointercancel', clear);
-            root.removeEventListener('mouseleave', clear);
-            clear();
-        },
-    };
 }
 
 export const listCollapsePlugin = $prose(() => {

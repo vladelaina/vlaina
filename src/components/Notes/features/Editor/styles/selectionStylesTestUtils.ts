@@ -46,36 +46,40 @@ export function readCommonMarkdownSurfaceStyle() {
 }
 
 export function readCodeBlockThemeSource() {
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/code/codemirror');
   return normalizeLineEndings(
-    readFileSync(
-      resolve(
-        process.cwd(),
-        'src/components/Notes/features/Editor/plugins/code/codemirror/codeBlockEditorTheme.ts'
-      ),
-      'utf8'
-    ),
+    [
+      'codeBlockEditorTheme.ts',
+      'codeBlockEditorThemeStyles.ts',
+    ].map((fileName) => readFileSync(resolve(root, fileName), 'utf8')).join('\n'),
   );
 }
 
 export function readPreviewStylesSource() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', 'previewStyles.ts'),
-    'utf8'
-  );
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar');
+  return [
+    'previewStyles.ts',
+    'previewAppliedRenderer.ts',
+  ].map((fileName) => readFileSync(resolve(root, fileName), 'utf8')).join('\n');
 }
 
 export function readAppliedPreviewSource() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', 'appliedPreviewState.ts'),
-    'utf8'
-  );
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar');
+  return [
+    'appliedPreviewState.ts',
+    'appliedPreviewCodeBlocks.ts',
+    'appliedPreviewRootTypography.ts',
+  ].map((fileName) => readFileSync(resolve(root, fileName), 'utf8')).join('\n');
 }
 
 export function readFloatingToolbarPluginViewSource() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', 'floatingToolbarPluginView.ts'),
-    'utf8'
-  );
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar');
+  return [
+    'floatingToolbarPluginView.ts',
+    'floatingToolbarPluginViewCore.ts',
+    'floatingToolbarPluginViewEventMethods.ts',
+    'floatingToolbarPluginViewReviewRenderMethods.ts',
+  ].map((fileName) => readFileSync(resolve(root, fileName), 'utf8')).join('\n');
 }
 
 export function readBlankAreaInteractionUtilsSource() {
@@ -86,10 +90,12 @@ export function readBlankAreaInteractionUtilsSource() {
 }
 
 export function readBlockSelectionLineFillOverlaySource() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor', 'blockSelectionLineFillOverlay.ts'),
-    'utf8'
-  );
+  const cursorPluginDir = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor');
+  return [
+    readFileSync(resolve(cursorPluginDir, 'blockSelectionLineFillOverlay.ts'), 'utf8'),
+    readFileSync(resolve(cursorPluginDir, 'blockSelectionLineFillMetrics.ts'), 'utf8'),
+    readFileSync(resolve(cursorPluginDir, 'blockSelectionLineFillConstants.ts'), 'utf8'),
+  ].join('\n');
 }
 
 export function readFloatingToolbarSourceFiles() {
@@ -224,10 +230,14 @@ export function extractSelectorListsContaining(source: string, functionName: ':i
 }
 
 export function readTextSelectionOverlaySource() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/selection', 'textSelectionOverlayPlugin.ts'),
-    'utf8'
-  );
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/selection');
+  return [
+    'textSelectionOverlayPlugin.ts',
+    'textSelectionOverlayState.ts',
+    'textSelectionOverlayDecorations.ts',
+    'textSelectionOverlayKeyboard.ts',
+    'textSelectionOverlayPointerHandlers.ts',
+  ].map((fileName) => readFileSync(resolve(root, fileName), 'utf8')).join('\n');
 }
 
 export function readSharedBlockNodeTypesSource() {
@@ -273,13 +283,11 @@ export function readUrlRailEditorSource() {
 }
 
 export function readToolbarInteractionsSource() {
-  return readFileSync(
-    resolve(
-      process.cwd(),
-      'src/components/Notes/features/Editor/plugins/floating-toolbar/toolbarInteractions.ts'
-    ),
-    'utf8'
-  );
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar');
+  return [
+    'toolbarInteractions.ts',
+    'toolbarTooltipController.ts',
+  ].map((fileName) => readFileSync(resolve(root, fileName), 'utf8')).join('\n');
 }
 
 export function readMilkdownLinkTooltipThemeSource() {

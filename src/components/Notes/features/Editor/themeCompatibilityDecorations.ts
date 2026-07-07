@@ -3,19 +3,21 @@ import { Plugin, PluginKey, type Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
-import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from './plugins/shared/boundedProseNodeScan';
 import { getTransactionChangedRanges } from './plugins/shared/transactionStepText';
 import { listContainsTaskItems } from './themeCompatibilityDecorations/typoraBlockAttrs';
 import { buildTyporaCompatibilityDecorations } from './themeCompatibilityDecorations/typoraDecorations';
+import { createThemeCompatibilityDecorationRebuildController } from './themeCompatibilityDecorations/rebuildController';
 
 export { listContainsTaskItems };
+export {
+  DEFAULT_THEME_COMPATIBILITY_DECORATION_DEBOUNCE_MS,
+  createThemeCompatibilityDecorationRebuildController,
+} from './themeCompatibilityDecorations/rebuildController';
 
 export const MAX_THEME_COMPATIBILITY_DECORATIONS = 2500;
 export const MAX_THEME_COMPATIBILITY_LIVE_MAP_DECORATIONS = 800;
 export const MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
-export const DEFAULT_THEME_COMPATIBILITY_DECORATION_DEBOUNCE_MS =
-  themeUiFeedbackTokens.editorThemeCompatibilityDecorationDebounceMs;
 export interface ThemeCompatibilityDecorationsState {
   decorations: DecorationSet;
   decorationCount: number;
@@ -100,60 +102,6 @@ export function transactionMayAffectThemeCompatibilityDecorations(
     rangeIsInsideThemeCompatibilitySafeContent(prevDoc, range.oldFrom, range.oldTo) &&
     rangeIsInsideThemeCompatibilitySafeContent(nextDoc, range.newFrom, range.newTo)
   ));
-}
-
-export function createThemeCompatibilityDecorationRebuildController({
-  delayMs = DEFAULT_THEME_COMPATIBILITY_DECORATION_DEBOUNCE_MS,
-  dispatchRebuild,
-}: {
-  delayMs?: number;
-  dispatchRebuild: () => void;
-}) {
-  let pendingTimer: ReturnType<typeof setTimeout> | null = null;
-  let destroyed = false;
-
-  const clearPendingTimer = () => {
-    if (pendingTimer === null) {
-      return;
-    }
-    clearTimeout(pendingTimer);
-    pendingTimer = null;
-  };
-
-  const flush = () => {
-    clearPendingTimer();
-    if (destroyed) {
-      return;
-    }
-    dispatchRebuild();
-  };
-
-  const schedule = () => {
-    if (destroyed) {
-      return;
-    }
-    clearPendingTimer();
-    pendingTimer = setTimeout(flush, Math.max(0, delayMs));
-  };
-
-  const deferIfPending = () => {
-    if (pendingTimer === null) {
-      return;
-    }
-    schedule();
-  };
-
-  const destroy = () => {
-    destroyed = true;
-    clearPendingTimer();
-  };
-
-  return {
-    deferIfPending,
-    destroy,
-    flush,
-    schedule,
-  };
 }
 
 function createThemeCompatibilityDecorationsState(

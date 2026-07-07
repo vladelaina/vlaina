@@ -3,6 +3,7 @@ import {
   themeDomStyleTokens,
   themeRenderingTokens,
 } from '@/styles/themeTokens'
+export { getEngineProfile, type EngineProfile } from './engineProfile.js'
 
 export type SegmentMetrics = {
   width: number
@@ -12,19 +13,10 @@ export type SegmentMetrics = {
   breakableFitAdvances?: number[] | null
 }
 
-export type EngineProfile = {
-  lineFitEpsilon: number
-  carryCJKAfterClosingQuote: boolean
-  breakKeepAllAfterPunctuation: boolean
-  preferPrefixWidthsForBreakableRuns: boolean
-  preferEarlySoftHyphenBreak: boolean
-}
-
 export type BreakableFitMode = 'sum-graphemes' | 'segment-prefixes' | 'pair-context'
 
 let measureContext: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null
 const segmentMetricCaches = new Map<string, Map<string, SegmentMetrics>>()
-let cachedEngineProfile: EngineProfile | null = null
 export const MAX_SEGMENT_METRIC_CACHE_FONTS = 32
 export const MAX_SEGMENT_METRICS_PER_FONT = 2000
 const MAX_EMOJI_CORRECTION_CACHE_FONTS = 32
@@ -96,46 +88,6 @@ export function getSegmentMetrics(seg: string, cache: Map<string, SegmentMetrics
   }
   cache.set(seg, metrics)
   return metrics
-}
-
-export function getEngineProfile(): EngineProfile {
-  if (cachedEngineProfile !== null) return cachedEngineProfile
-
-  if (typeof navigator === 'undefined') {
-    cachedEngineProfile = {
-      lineFitEpsilon: 0.005,
-      carryCJKAfterClosingQuote: false,
-      breakKeepAllAfterPunctuation: true,
-      preferPrefixWidthsForBreakableRuns: false,
-      preferEarlySoftHyphenBreak: false,
-    }
-    return cachedEngineProfile
-  }
-
-  const ua = navigator.userAgent
-  const vendor = navigator.vendor
-  const isSafari =
-    vendor === 'Apple Computer, Inc.' &&
-    ua.includes('Safari/') &&
-    !ua.includes('Chrome/') &&
-    !ua.includes('Chromium/') &&
-    !ua.includes('CriOS/') &&
-    !ua.includes('FxiOS/') &&
-    !ua.includes('EdgiOS/')
-  const isChromium =
-    ua.includes('Chrome/') ||
-    ua.includes('Chromium/') ||
-    ua.includes('CriOS/') ||
-    ua.includes('Edg/')
-
-  cachedEngineProfile = {
-    lineFitEpsilon: isSafari ? 1 / 64 : 0.005,
-    carryCJKAfterClosingQuote: isChromium,
-    breakKeepAllAfterPunctuation: !isSafari,
-    preferPrefixWidthsForBreakableRuns: isSafari,
-    preferEarlySoftHyphenBreak: isSafari,
-  }
-  return cachedEngineProfile
 }
 
 export function parseFontSize(font: string): number {

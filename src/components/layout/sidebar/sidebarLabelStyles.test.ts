@@ -60,7 +60,7 @@ describe('sidebarLabelStyles', () => {
   });
 
   it('keeps settings sidebar tab hover surfaces transparent with blue text and icons', () => {
-    const source = readSource('src/components/Settings/SettingsModal.tsx');
+    const source = readSource('src/components/Settings/SettingsSidebar.tsx');
 
     expect(source).toContain('group/settings-sidebar-tab');
     expect(source).toContain('hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]');

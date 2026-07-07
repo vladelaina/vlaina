@@ -14,6 +14,22 @@ function readModelSelectorSource(): string {
   return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/ModelSelector.tsx'), 'utf8');
 }
 
+function readModelSelectorThemeSource(): string {
+  return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/modelSelectorTheme.ts'), 'utf8');
+}
+
+function readModelSelectorOptionSource(): string {
+  return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/components/ModelSelectorOption.tsx'), 'utf8');
+}
+
+function readModelSelectorDropdownSource(): string {
+  return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/components/ModelSelectorDropdown.tsx'), 'utf8');
+}
+
+function readModelSelectorEmbeddedPositionSource(): string {
+  return readFileSync(resolve(process.cwd(), 'src/components/Chat/features/Input/hooks/useModelSelectorEmbeddedPosition.ts'), 'utf8');
+}
+
 const mocks = vi.hoisted(() => ({
   refreshManagedProviderInBackground: vi.fn(),
   selectModel: vi.fn(),
@@ -348,18 +364,20 @@ describe('ModelSelector', () => {
   });
 
   it('uses transparent hover surfaces with blue emphasis in the model selector', () => {
-    const source = readModelSelectorSource();
+    const source = readModelSelectorThemeSource();
+    const optionSource = readModelSelectorOptionSource();
+    const dropdownSource = readModelSelectorDropdownSource();
 
     expect(source).toContain("triggerHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]'");
     expect(source).toContain("categoryHover: 'hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]'");
-    expect(source).toContain('isSelected || isFocused');
-    expect(source).toContain('group-hover/model-category:text-[var(--vlaina-sidebar-row-selected-text)]');
+    expect(optionSource).toContain('isSelected || isFocused');
+    expect(dropdownSource).toContain('group-hover/model-category:text-[var(--vlaina-sidebar-row-selected-text)]');
     expect(source).not.toContain('hover:bg-[var(--vlaina-sidebar-chat-row-hover)]');
     expect(source).not.toContain('hover:bg-[var(--vlaina-sidebar-notes-row-hover)]');
   });
 
   it('guards embedded dropdown style updates against equal layout measurements', () => {
-    const source = readModelSelectorSource();
+    const source = readModelSelectorEmbeddedPositionSource();
 
     expect(source).toContain('areEmbeddedDropdownStylesEqual(currentStyle, nextStyle) ? currentStyle : nextStyle');
     expect(source).toContain('setEmbeddedDropdownStyle((currentStyle) => (currentStyle === null ? currentStyle : null))');

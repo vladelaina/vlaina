@@ -1,19 +1,19 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { commandsCtx, editorViewCtx } from '@milkdown/kit/core';
-import { TextSelection } from '@milkdown/kit/prose/state';
 import { insertHrCommand } from '@milkdown/kit/preset/commonmark';
 import { insertTableCommand } from '@milkdown/kit/preset/gfm';
 import type { IconName } from '@/components/ui/icons';
 import type { MessageKey } from '@/lib/i18n';
-import { convertBlockType } from '../floating-toolbar/blockCommands';
 import { insertImageFromFilePicker, insertFrontmatter } from './slashFileCommands';
 import { insertFootnoteDef, insertFootnoteRef } from './slashFootnoteCommands';
 import { insertHtmlBlockNodeAndOpenEditor } from './slashHtmlCommands';
 import {
-  findInsertedNodePos,
-  moveSelectionAfterInsertedNode,
-  replaceSelectionOrCurrentBlankTextBlockWithNode,
-} from './slashInsertUtils';
+  convertCurrentBlock,
+  insertAbbreviationDefinitionTemplate,
+  insertNode,
+  markSlashUserInput,
+} from './slashCommandActions';
+import { localizedSearchTerms } from './slashLocalizedSearchTerms';
 import { insertMathNodeAndOpenEditor } from './slashMathCommands';
 import { insertMermaidNodeAndOpenEditor } from './slashMermaidCommands';
 import { openSlashEmojiPicker } from './slashEmojiCommand';
@@ -33,119 +33,6 @@ interface SlashCommandDefinition {
   commandId: string;
   run: (ctx: Ctx) => boolean | void | Promise<void>;
 }
-
-function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
-}
-
-function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
-  const view = ctx.get(editorViewCtx);
-  const { state, dispatch } = view;
-  const type = state.schema.nodes[nodeType];
-  if (!type) return;
-
-  try {
-    const node = type.createAndFill?.(attrs) ?? type.create(attrs);
-    if (!node) return;
-    const tr = replaceSelectionOrCurrentBlankTextBlockWithNode(state, node);
-    if (node.isAtom || node.isLeaf) {
-      const preferredPos = tr.mapping.map(state.selection.from, -1);
-      const nodePos = findInsertedNodePos({
-        doc: tr.doc,
-        preferredPos,
-        nodeTypeName: nodeType,
-      });
-      moveSelectionAfterInsertedNode({
-        tr,
-        nodePos,
-        insertedNodeFallback: node,
-        paragraphType: state.schema.nodes.paragraph,
-        convertFollowingMarkdownBlankLine: false,
-      });
-    }
-    markSlashUserInput(view);
-    dispatch(tr.scrollIntoView());
-  } catch (error) {
-  }
-}
-
-function replaceCurrentTextBlockWithParagraphText(
-  ctx: Ctx,
-  text: string,
-  selectionRange?: { from: number; to: number }
-) {
-  const view = ctx.get(editorViewCtx);
-  const { state, dispatch } = view;
-  const { $from } = state.selection;
-  const paragraph = state.schema.nodes.paragraph;
-  if (!paragraph || !$from.parent.isTextblock) return;
-
-  const textNode = state.schema.text(text);
-  const from = $from.before();
-  const to = $from.after();
-  const nextNode = paragraph.create(null, textNode);
-  const tr = state.tr.replaceWith(from, to, nextNode);
-
-  const selectionFrom = selectionRange
-    ? from + 1 + Math.max(0, Math.min(selectionRange.from, text.length))
-    : from + 1 + text.length;
-  const selectionTo = selectionRange
-    ? from + 1 + Math.max(0, Math.min(selectionRange.to, text.length))
-    : selectionFrom;
-  tr.setSelection(TextSelection.create(tr.doc, selectionFrom, selectionTo)).scrollIntoView();
-  markSlashUserInput(view);
-  dispatch(tr);
-}
-
-function insertAbbreviationDefinitionTemplate(ctx: Ctx) {
-  const template = '*[ABBR]: Full phrase';
-  replaceCurrentTextBlockWithParagraphText(ctx, template, {
-    from: template.indexOf('ABBR'),
-    to: template.indexOf('ABBR') + 'ABBR'.length,
-  });
-}
-
-function convertCurrentBlock(ctx: Ctx, blockType: Parameters<typeof convertBlockType>[1]) {
-  const view = ctx.get(editorViewCtx);
-  convertBlockType(view, blockType);
-}
-
-const localizedSearchTerms = {
-  heading: ['titre', 'encabezado', 'titulo', 'uberschrift', 'intestazione', 'cabecalho', 'заголовок', 'baslik', 'tieu de', 'judul', 'หัวข้อ', '見出し', '제목'],
-  taskList: ['tache', 'aufgabe', 'tarea', 'tarefa', 'attivita', 'задача', 'gorev', 'nhiem vu', 'cong viec', 'tugas', 'งาน', 'タスク', '할 일'],
-  orderedList: ['liste numerotee', 'nummerierte liste', 'lista numerada', 'elenco numerato', 'нумерованный список', 'sirali liste', 'danh sach danh so', 'daftar bernomor', 'รายการลำดับเลข', '番号付き', '번호'],
-  bulletList: ['liste a puces', 'aufzahlung', 'vinetas', 'marcadores', 'elenco puntato', 'маркированный список', 'madde imi', 'danh sach gach dau dong', 'daftar berpoin', '箇条書き', '글머리'],
-  quote: ['citation', 'cita', 'citacao', 'citazione', 'zitat', 'цитата', 'alinti', 'trich dan', 'kutipan', '引用', '인용'],
-  callout: ['remarque', 'nota', 'hinweis', 'advertencia', 'aviso', 'attenzione', 'предупреждение', 'uyari', 'chu y', 'peringatan', '注意', '주의'],
-  divider: ['separateur', 'trenner', 'divisor', 'separador', 'разделитель', 'ayirici', 'phan cach', 'pemisah', '区切り', '구분선'],
-  code: ['codigo', 'codice', 'код', 'kod', 'ma', 'kode', 'コード', '코드'],
-  table: ['tableau', 'tabelle', 'tabla', 'tabela', 'tabella', 'таблица', 'tablo', 'bang', 'tabel', 'ตาราง', '表', '테이블'],
-  image: ['imagen', 'imagem', 'bild', 'immagine', 'изображение', 'resim', 'anh', 'gambar', 'รูปภาพ', '画像', '이미지'],
-  frontmatter: ['proprietes', 'propiedades', 'eigenschaften', 'metadados', 'metadati', 'свойства', 'ozellikler', 'thuoc tinh', 'properti', 'メタデータ', '속성'],
-  equation: ['equation', 'ecuacion', 'gleichung', 'equazione', 'equacao', 'уравнение', 'denklem', 'phuong trinh', 'persamaan', '数式', '수식'],
-  inlineMath: ['inline equation', 'equation inline', 'ecuacion en linea', 'formule en ligne', 'inline gleichung', 'formula em linha', '行内', 'インライン', '인라인'],
-  toc: ['sommaire', 'table des matieres', 'indice', 'inhaltsverzeichnis', 'sumario', 'оглавление', 'icindekiler', 'muc luc', 'daftar isi', '目次', '목차'],
-  mermaid: ['diagramme', 'diagrama', 'диаграмма', 'diyagram', 'so do', 'bagan', 'แผนภาพ', '図', '다이어그램'],
-  html: ['html block', 'bloc html', 'bloque html', 'bloco html', 'html-block', 'html块', 'html區塊', 'htmlブロック', 'html 블록'],
-  footnote: ['note de bas de page', 'nota al pie', 'fussnote', 'nota de rodape', 'nota a pie', 'сноска', 'dipnot', 'catatan kaki', 'chu thich', '脚注', '각주'],
-  abbreviation: ['abreviation', 'abreviatura', 'abkurzung', 'abbreviazione', 'сокращение', 'kisaltma', 'singkatan', 'tu viet tat', '略語', '약어'],
-  video: ['video', 'film', 'filme', 'vídeo', 'видео', 'vidyo', 'phim', 'วิดีโอ', '動画', '동영상'],
-  emoji: [
-    'emoji', 'emote', 'emoticon', 'smiley', 'face', 'reaction',
-    '表情', '表情符号', '表情符號', '颜文字', '顔文字', '絵文字', 'biaoqing',
-    '이모지', '이모티콘', '표정',
-    'emoji', 'émoji', 'emoticone', 'émoticône', 'smiley', 'visage', 'reaction', 'réaction',
-    'emoticon', 'smiley', 'gesicht', 'reaktion',
-    'emoticono', 'emoticón', 'cara', 'reaccion', 'reacción',
-    'emoticon', 'carinha', 'reacao', 'reação',
-    'faccina', 'reazione',
-    'эмодзи', 'смайлик', 'смайл', 'реакция',
-    'emoji', 'ifade', 'gulen yuz', 'gülen yüz', 'tepki',
-    'bieu tuong cam xuc', 'biểu tượng cảm xúc', 'cam xuc', 'cảm xúc',
-    'emotikon', 'reaksi', 'wajah',
-    'อีโมจิ', 'อิโมจิ', 'หน้ายิ้ม', 'อารมณ์', 'สัญลักษณ์แสดงอารมณ์',
-  ],
-} as const;
 
 export const slashCommandDefinitions = [
   {

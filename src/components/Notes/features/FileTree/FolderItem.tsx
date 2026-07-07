@@ -4,7 +4,6 @@ import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInl
 import type { FolderNode } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { FileItem } from './FileItem';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn } from '@/lib/utils';
 import {
@@ -19,9 +18,9 @@ import {
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { TreeItemShell } from './components/TreeItemShell';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
-import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { useI18n } from '@/lib/i18n';
 import { themeIconTokens } from '@/styles/themeTokens';
+import { createFolderMenuEntries } from './FolderItemMenuEntries';
 
 const TreeItemMenu = lazy(async () => {
   const mod = await import('./components/TreeItemMenu');
@@ -115,84 +114,19 @@ export const FolderItem = memo(function FolderItem({
   ) : (
     <Icon name="file.folder" size={themeIconTokens.sizeRow} className="text-[var(--vlaina-sidebar-notes-folder-icon)]" />
   );
-  const menuEntries: NotesSidebarMenuEntry[] = [
-    {
-      key: 'rename',
-      icon: <Icon name="common.compose" size="md" />,
-      label: t('sidebar.rename'),
-      onClick: () => {
-        setIsRenaming(true);
-        setShowMenu(false);
-      },
-    },
-    {
-      key: 'new-note',
-      icon: <Icon name="file.add" size="md" />,
-      label: t('sidebar.newNote'),
-      onClick: async () => {
-        setShowMenu(false);
-        await createNote(node.path, { asDraft: true });
-      },
-    },
-    {
-      key: 'toggle-star',
-      icon: <Icon name="misc.star" size="md" className={isItemStarred ? 'fill-[var(--vlaina-color-favorite-fg)] text-[var(--vlaina-color-favorite-fg)]' : undefined} />,
-      label: isItemStarred ? t('sidebar.removeFromStarred') : t('sidebar.addToStarred'),
-      onClick: () => {
-        toggleFolderStarred(node.path);
-        setShowMenu(false);
-      },
-    },
-    {
-      kind: 'submenu',
-      key: 'more',
-      icon: <Icon name="common.more" size="md" />,
-      label: t('sidebar.more'),
-      children: [
-        {
-          key: 'copy-path',
-          icon: <Icon name="common.copy" size="md" />,
-          label: t('sidebar.copyPath'),
-          onClick: async () => {
-            setShowMenu(false);
-            await handleCopyPath();
-          },
-        },
-        {
-          key: 'open-new-window',
-          icon: <Icon name="file.folderOutput" size="md" />,
-          label: t('sidebar.openInNewWindow'),
-          onClick: async () => {
-            setShowMenu(false);
-            await handleOpenInNewWindow('folder');
-          },
-        },
-        {
-          key: 'open-location',
-          icon: <Icon name="file.folderOpenArrow" size="md" />,
-          label: t('sidebar.openFolderLocation'),
-          onClick: async () => {
-            setShowMenu(false);
-            await handleOpenLocation('folder');
-          },
-        },
-      ],
-    },
-    {
-      kind: 'divider',
-      key: 'divider-danger',
-    },
-    {
-      key: 'delete',
-      icon: <DeleteIcon />,
-      label: t('sidebar.moveToTrash'),
-      onClick: () => {
-        setShowMenu(false);
-        setShowDeleteDialog(true);
-      },
-      danger: true,
-    },
-  ];
+  const menuEntries = createFolderMenuEntries({
+    t,
+    nodePath: node.path,
+    isItemStarred,
+    setIsRenaming,
+    setShowMenu,
+    setShowDeleteDialog,
+    createNote,
+    toggleFolderStarred,
+    handleCopyPath,
+    handleOpenInNewWindow,
+    handleOpenLocation,
+  });
 
   useEffect(() => {
     if (!node.expanded) {

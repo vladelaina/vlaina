@@ -2,7 +2,6 @@ import {
   isUnescapedMarkdownTextRange,
   type MarkdownSourcePosition,
 } from './delimitedMarkdown';
-import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
 import {
   canTransformMarkdownAst,
   countMarkdownAstNodeList,
@@ -13,81 +12,37 @@ import {
   createMarkdownTextSliceNode,
   createMarkdownTextSourceMap,
 } from './markdownSourcePosition';
+import {
+  collectAbbrDefinitions,
+  isAbbrDefinitionText,
+  markEscapedAbbrDefinitionParagraphs,
+  stripAbbrDefinitionsFromTree,
+} from './abbrMarkdownDefinitions';
+import {
+  MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE,
+  MAX_ABBR_USAGE_TEXT_NODE_CHARS,
+  SKIPPED_ABBR_NODE_TYPES,
+  escapeRegex,
+  extractAbbrDefinitionsFromText,
+  normalizeAbbrDefinitions,
+  type AbbrDefinition,
+  type AbbrMdastNode,
+} from './abbrMarkdownShared';
 
-export interface AbbrDefinition {
-  abbr: string;
-  fullText: string;
-}
-
-export interface AbbrMdastNode {
-  type: string;
-  value?: string;
-  children?: AbbrMdastNode[];
-  data?: {
-    hName?: string;
-    hProperties?: Record<string, unknown>;
-    vlainaEscapedBlockSyntax?: string;
-  };
-  position?: MarkdownSourcePosition;
-}
-
-const ABBR_DEF_REGEX = /^\*\[([^\]]+)\]:\s*(.+)$/gm;
-const SKIPPED_ABBR_NODE_TYPES = new Set(['code', 'inlineCode', 'html']);
-export const MAX_ABBR_DEFINITIONS = 512;
-export const MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE = 2000;
-export const MAX_ABBR_USAGE_TEXT_NODE_CHARS = 100_000;
-const MAX_ABBR_TEXT_CHARS = 128;
-const MAX_ABBR_TITLE_CHARS = 2048;
+export {
+  MAX_ABBR_DEFINITIONS,
+  MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE,
+  MAX_ABBR_USAGE_TEXT_NODE_CHARS,
+  appendBoundedAbbrDefinitions,
+  extractAbbrDefinitionsFromText,
+  type AbbrDefinition,
+  type AbbrMdastNode,
+} from './abbrMarkdownShared';
 
 export interface ApplyAbbrDefinitionsOptions {
   markdown?: string;
   stripDefinitions?: boolean;
   growthBudget?: MarkdownAstGrowthBudget;
-}
-
-function escapeRegex(value: string): string {
-  let result = '';
-  for (const char of value) {
-    if ('.*+?^${}()|[]\\'.includes(char)) {
-      result += '\\' + char;
-    } else {
-      result += char;
-    }
-  }
-  return result;
-}
-
-function normalizeAbbrDefinitionFullText(value: string): string | null {
-  if (value.length > MAX_ABBR_TITLE_CHARS) {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length <= MAX_ABBR_TITLE_CHARS ? trimmed : null;
-}
-
-export function extractAbbrDefinitionsFromText(
-  text: string,
-  options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition } = {}
-): AbbrDefinition[] {
-  if (text.length > MAX_ABBR_USAGE_TEXT_NODE_CHARS) {
-    return [];
-  }
-
-  const definitionsByAbbr = new Map<string, string>();
-  let match: RegExpExecArray | null;
-
-  ABBR_DEF_REGEX.lastIndex = 0;
-  while ((match = ABBR_DEF_REGEX.exec(text)) !== null) {
-    if (!isUnescapedMarkdownTextRange(text, match.index, 1, options)) continue;
-    const fullText = normalizeAbbrDefinitionFullText(match[2]);
-    if (!fullText) continue;
-    addBoundedAbbrDefinition(definitionsByAbbr, {
-      abbr: match[1],
-      fullText,
-    });
-  }
-
-  return Array.from(definitionsByAbbr, ([abbr, fullText]) => ({ abbr, fullText }));
 }
 
 export function createAbbrUsagePattern(definitions: readonly AbbrDefinition[]): RegExp | null {
@@ -97,228 +52,6 @@ export function createAbbrUsagePattern(definitions: readonly AbbrDefinition[]): 
     .sort((a, b) => b.abbr.length - a.abbr.length)
     .map((definition) => escapeRegex(definition.abbr));
   return new RegExp(`(?<![\\p{L}\\p{N}_])(${escapedAbbrs.join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
-}
-
-function isBoundedAbbrDefinition(definition: AbbrDefinition): boolean {
-  return (
-    definition.abbr.length > 0 &&
-    definition.abbr.length <= MAX_ABBR_TEXT_CHARS &&
-    definition.fullText.length > 0 &&
-    definition.fullText.length <= MAX_ABBR_TITLE_CHARS
-  );
-}
-
-function addBoundedAbbrDefinition(byAbbr: Map<string, string>, definition: AbbrDefinition): void {
-  if (!isBoundedAbbrDefinition(definition)) {
-    return;
-  }
-
-  if (byAbbr.size >= MAX_ABBR_DEFINITIONS && !byAbbr.has(definition.abbr)) {
-    return;
-  }
-  byAbbr.set(definition.abbr, definition.fullText);
-}
-
-export function appendBoundedAbbrDefinitions(
-  target: AbbrDefinition[],
-  definitions: readonly AbbrDefinition[]
-): void {
-  const byAbbr = new Map(target.map((definition) => [definition.abbr, definition.fullText]));
-  for (const definition of definitions) {
-    addBoundedAbbrDefinition(byAbbr, definition);
-  }
-
-  target.length = 0;
-  for (const [abbr, fullText] of byAbbr) {
-    target.push({ abbr, fullText });
-  }
-}
-
-function normalizeAbbrDefinitions(definitions: readonly AbbrDefinition[]): AbbrDefinition[] {
-  const normalized: AbbrDefinition[] = [];
-  appendBoundedAbbrDefinitions(normalized, definitions);
-  return normalized;
-}
-
-function collectAbbrDefinitions(tree: AbbrMdastNode, markdown = ''): AbbrDefinition[] {
-  const definitions: AbbrDefinition[] = [];
-
-  function visit(node: AbbrMdastNode): void {
-    if (SKIPPED_ABBR_NODE_TYPES.has(node.type)) return;
-
-    if (node.type === 'text' && typeof node.value === 'string') {
-      appendBoundedAbbrDefinitions(
-        definitions,
-        extractAbbrDefinitionsFromText(node.value, {
-          markdown,
-          position: node.position,
-        })
-      );
-    }
-
-    for (const child of node.children ?? []) {
-      visit(child);
-    }
-  }
-
-  visit(tree);
-  return definitions;
-}
-
-function isAbbrDefinitionLine(
-  value: string,
-  lineStart: number,
-  line: string,
-  options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition }
-): boolean {
-  let match: RegExpExecArray | null;
-
-  ABBR_DEF_REGEX.lastIndex = 0;
-  while ((match = ABBR_DEF_REGEX.exec(line)) !== null) {
-    if (isUnescapedMarkdownTextRange(value, lineStart + match.index, 1, options)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function hasEscapedAbbrDefinitionText(
-  value: string,
-  options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition }
-): boolean {
-  if (value.length > MAX_ABBR_USAGE_TEXT_NODE_CHARS) {
-    return false;
-  }
-
-  let match: RegExpExecArray | null;
-
-  ABBR_DEF_REGEX.lastIndex = 0;
-  while ((match = ABBR_DEF_REGEX.exec(value)) !== null) {
-    if (!isUnescapedMarkdownTextRange(value, match.index, 1, options)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function markEscapedAbbrDefinitionParagraphs(tree: AbbrMdastNode, markdown = ''): void {
-  function visit(node: AbbrMdastNode): void {
-    if (SKIPPED_ABBR_NODE_TYPES.has(node.type)) return;
-
-    if (node.type === 'paragraph') {
-      for (const child of node.children ?? []) {
-        if (
-          child.type === 'text' &&
-          typeof child.value === 'string' &&
-          hasEscapedAbbrDefinitionText(child.value, {
-            markdown,
-            position: child.position,
-          })
-        ) {
-          markEscapedMarkdownBlockSyntax(node, 'abbrDefinition');
-          break;
-        }
-      }
-    }
-
-    for (const child of node.children ?? []) {
-      visit(child);
-    }
-  }
-
-  visit(tree);
-}
-
-function stripAbbrDefinitionLineNodes(
-  node: AbbrMdastNode,
-  markdown: string
-): AbbrMdastNode[] | null {
-  const value = node.value || '';
-  if (value.length > MAX_ABBR_USAGE_TEXT_NODE_CHARS) {
-    return null;
-  }
-
-  const parts = value.split(/(\r?\n)/);
-  let offset = 0;
-  let removedLine = false;
-  const ranges: Array<{ start: number; end: number }> = [];
-
-  for (let index = 0; index < parts.length; index += 2) {
-    const line = parts[index] ?? '';
-    const newline = parts[index + 1] ?? '';
-    const end = offset + line.length + newline.length;
-    if (isAbbrDefinitionLine(value, offset, line, {
-      markdown,
-      position: node.position,
-    })) {
-      removedLine = true;
-    } else if (end > offset) {
-      const previous = ranges.at(-1);
-      if (previous && previous.end === offset) {
-        previous.end = end;
-      } else {
-        ranges.push({ start: offset, end });
-      }
-    }
-    offset = end;
-  }
-
-  if (!removedLine) return null;
-
-  const sourceMap = markdown
-    ? createMarkdownTextSourceMap(value, markdown, node.position)
-    : null;
-  return ranges.map((range) => createMarkdownTextSliceNode(node, sourceMap, range.start, range.end));
-}
-
-function stripAbbrDefinitionsFromTree(
-  tree: AbbrMdastNode,
-  markdown = '',
-  growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
-): void {
-  function visit(node: AbbrMdastNode): boolean {
-    if (SKIPPED_ABBR_NODE_TYPES.has(node.type)) return false;
-
-    if (node.children) {
-      for (let childIndex = node.children.length - 1; childIndex >= 0; childIndex -= 1) {
-        const child = node.children[childIndex];
-        if (child.type === 'text' && typeof child.value === 'string') {
-          const strippedNodes = stripAbbrDefinitionLineNodes(child, markdown);
-          if (strippedNodes) {
-            if (!growthBudget.consume(countMarkdownAstNodeList(strippedNodes) - 1)) {
-              continue;
-            }
-            node.children.splice(childIndex, 1, ...strippedNodes);
-          }
-          continue;
-        }
-
-        if (visit(child)) {
-          node.children.splice(childIndex, 1);
-        }
-      }
-    }
-
-    return node.type === 'paragraph' && (node.children?.length ?? 0) === 0;
-  }
-
-  visit(tree);
-}
-
-function isAbbrDefinitionText(
-  value: string,
-  options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition } = {}
-): boolean {
-  ABBR_DEF_REGEX.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = ABBR_DEF_REGEX.exec(value)) !== null) {
-    if (isUnescapedMarkdownTextRange(value, match.index, 1, options)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 function createAbbrNode(value: string, title: string): AbbrMdastNode {

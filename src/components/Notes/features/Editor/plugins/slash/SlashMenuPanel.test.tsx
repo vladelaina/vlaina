@@ -7,8 +7,8 @@ import { slashMenuItems } from './slashItems';
 
 describe('SlashMenuPanel', () => {
   it('uses the shared composer pill surface for slash popups', () => {
-    const menuViewSource = readFileSync(
-      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/slash/SlashMenuView.ts'),
+    const menuDomSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/slash/slashMenuDom.ts'),
       'utf8',
     );
     const videoPromptSource = readFileSync(
@@ -16,9 +16,9 @@ describe('SlashMenuPanel', () => {
       'utf8',
     );
 
-    expect(menuViewSource).toContain('chatComposerPillSurfaceClass');
-    expect(menuViewSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
-    expect(menuViewSource).toContain("menu.setAttribute('data-no-editor-drag-box', 'true')");
+    expect(menuDomSource).toContain('chatComposerPillSurfaceClass');
+    expect(menuDomSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(menuDomSource).toContain("menu.setAttribute('data-no-editor-drag-box', 'true')");
     expect(videoPromptSource).toContain('chatComposerPillSurfaceClass');
     expect(videoPromptSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
     expect(videoPromptSource).toContain("prompt.setAttribute('data-no-editor-drag-box', 'true')");
