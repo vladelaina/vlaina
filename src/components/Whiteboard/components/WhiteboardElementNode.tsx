@@ -1,4 +1,4 @@
-import type { PointerEvent } from 'react';
+import { memo, type PointerEvent } from 'react';
 import { cn } from '@/lib/utils';
 import type { WhiteboardElement, WhiteboardTool } from '../model/whiteboardModel';
 
@@ -16,7 +16,7 @@ interface WhiteboardElementNodeProps {
   onTextChange: (id: string, text: string) => void;
 }
 
-export function WhiteboardElementNode({
+export const WhiteboardElementNode = memo(function WhiteboardElementNode({
   connectorSource,
   element,
   elementTextLabel,
@@ -31,6 +31,7 @@ export function WhiteboardElementNode({
 }: WhiteboardElementNodeProps) {
   const isNote = element.type === 'note';
   const isEllipse = element.type === 'ellipse';
+  const isImage = element.type === 'image';
 
   return (
     <div
@@ -40,6 +41,7 @@ export function WhiteboardElementNode({
         'absolute flex select-none flex-col border text-[var(--vlaina-color-text-primary)] shadow-[var(--vlaina-shadow-whiteboard-element)]',
         isNote ? 'rounded-[var(--vlaina-radius-8px)]' : 'items-center justify-center',
         isEllipse ? 'rounded-[var(--vlaina-radius-circle)]' : 'rounded-[var(--vlaina-radius-8px)]',
+        isImage && 'overflow-hidden bg-[var(--vlaina-color-whiteboard-element)]',
         tool === 'connector' ? 'cursor-crosshair' : 'cursor-move',
       )}
       onPointerDown={(event) => onPointerDown(event, element)}
@@ -49,7 +51,7 @@ export function WhiteboardElementNode({
         onConnectorTarget(element.id);
       }}
       style={{
-        background: isNote ? 'var(--vlaina-color-whiteboard-note)' : 'var(--vlaina-color-whiteboard-shape)',
+        background: isImage ? 'var(--vlaina-color-whiteboard-element)' : isNote ? 'var(--vlaina-color-whiteboard-note)' : 'var(--vlaina-color-whiteboard-shape)',
         borderColor: selected || connectorSource
           ? 'var(--vlaina-color-whiteboard-selected)'
           : isNote
@@ -66,19 +68,23 @@ export function WhiteboardElementNode({
       {isNote ? (
         <div className="h-[var(--vlaina-size-28px)] shrink-0 rounded-t-[var(--vlaina-radius-8px)] bg-[var(--vlaina-color-whiteboard-element)]" />
       ) : null}
-      <textarea
-        aria-label={elementTextLabel}
-        spellCheck={false}
-        value={element.text}
-        onChange={(event) => onTextChange(element.id, event.target.value)}
-        onFocus={() => onSelect(element.id)}
-        onPointerDown={(event) => event.stopPropagation()}
-        className={cn(
-          'min-h-0 w-full resize-none bg-transparent text-center text-[var(--vlaina-font-15)] font-medium leading-[var(--vlaina-leading-15)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]',
-          isNote ? 'flex-1 px-4 pb-4 pt-2 text-left' : 'h-full px-5 py-6',
-          isEllipse && 'rounded-[var(--vlaina-radius-circle)]',
-        )}
-      />
+      {isImage && element.imageSrc ? (
+        <img alt={element.text} draggable={false} src={element.imageSrc} className="size-full object-cover" />
+      ) : (
+        <textarea
+          aria-label={elementTextLabel}
+          spellCheck={false}
+          value={element.text}
+          onChange={(event) => onTextChange(element.id, event.target.value)}
+          onFocus={() => onSelect(element.id)}
+          onPointerDown={(event) => event.stopPropagation()}
+          className={cn(
+            'min-h-0 w-full resize-none bg-transparent text-center text-[var(--vlaina-font-15)] font-medium leading-[var(--vlaina-leading-15)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]',
+            isNote ? 'flex-1 px-4 pb-4 pt-2 text-left' : 'h-full px-5 py-6',
+            isEllipse && 'rounded-[var(--vlaina-radius-circle)]',
+          )}
+        />
+      )}
       {tool === 'select' ? (
         <button
           type="button"
@@ -89,4 +95,4 @@ export function WhiteboardElementNode({
       ) : null}
     </div>
   );
-}
+});

@@ -1,0 +1,43 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { WhiteboardDrawingTool, WhiteboardStroke, WhiteboardStrokePoint } from '../model/whiteboardModel';
+import { appendStrokePointsInPlace } from '../model/whiteboardStrokeGeometry';
+
+export function useWhiteboardDraftStroke() {
+  const [draftStroke, setDraftStrokeState] = useState<WhiteboardStroke | null>(null);
+  const draftStrokeRef = useRef<WhiteboardStroke | null>(null);
+  const frameRef = useRef<number | null>(null);
+
+  const publishDraftStroke = useCallback(() => {
+    frameRef.current = null;
+    setDraftStrokeState((current) => {
+      const draft = draftStrokeRef.current;
+      return draft && draft !== current ? draft : draft ? { ...draft } : null;
+    });
+  }, []);
+
+  const setDraftStroke = useCallback((stroke: WhiteboardStroke | null) => {
+    draftStrokeRef.current = stroke;
+    setDraftStrokeState(stroke);
+  }, []);
+
+  const appendDraftPoints = useCallback((tool: WhiteboardDrawingTool, points: WhiteboardStrokePoint[]) => {
+    const current = draftStrokeRef.current;
+    if (!current || current.tool !== tool) return;
+    appendStrokePointsInPlace(current.points, points);
+    if (frameRef.current !== null) return;
+    frameRef.current = window.requestAnimationFrame(publishDraftStroke);
+  }, [publishDraftStroke]);
+
+  const getDraftStroke = useCallback(() => draftStrokeRef.current, []);
+
+  const clearDraftStroke = useCallback(() => {
+    draftStrokeRef.current = null;
+    setDraftStrokeState(null);
+  }, []);
+
+  useEffect(() => () => {
+    if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+  }, []);
+
+  return { appendDraftPoints, clearDraftStroke, draftStroke, getDraftStroke, setDraftStroke };
+}
