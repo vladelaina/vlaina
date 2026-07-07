@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UnifiedTitleBar } from './UnifiedTitleBar';
 import { useUIStore } from '@/stores/uiSlice';
@@ -62,6 +62,25 @@ describe('UnifiedTitleBar', () => {
 
     const toggleButton = screen.getByRole('button', { name: 'Toggle sidebar' });
     expect(toggleButton.parentElement).toHaveClass('pl-2');
+  });
+
+  it('reports hover on the collapsed sidebar toggle', () => {
+    const handleHoverChange = vi.fn();
+
+    render(
+      <UnifiedTitleBar
+        sidebarCollapsed
+        onToggleSidebar={() => {}}
+        onCollapsedSidebarToggleHoverChange={handleHoverChange}
+      />
+    );
+
+    const toggleButton = screen.getByRole('button', { name: 'Toggle sidebar' });
+    fireEvent.mouseEnter(toggleButton);
+    fireEvent.mouseLeave(toggleButton);
+
+    expect(handleHoverChange).toHaveBeenNthCalledWith(1, true);
+    expect(handleHoverChange).toHaveBeenNthCalledWith(2, false);
   });
 
   it('renders traffic-light preview controls when macOS preview is active off macOS', () => {

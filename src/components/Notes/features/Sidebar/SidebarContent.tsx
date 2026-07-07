@@ -149,7 +149,7 @@ export function SidebarContent({
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
   const shouldShowFloatingEmptyHint = !isLoading && !hasNotesRootPendingRoot && !hasLoadedRootFolder;
   const shouldShowEmptyWorkspacePanel =
-    shouldShowInlineEmptyHint || (shouldShowFloatingEmptyHint && !sidebarCollapsed);
+    shouldShowInlineEmptyHint || (shouldShowFloatingEmptyHint && (!sidebarCollapsed || isPeeking));
   const shouldRenderRootFolderRow = Boolean(
     displayRootFolder || hasNotesRootPendingRoot || shouldShowInlineEmptyHint,
   );

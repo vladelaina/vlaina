@@ -39,7 +39,7 @@ export function NotesOutline({
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const hasCurrentFile = Boolean(currentNotePath && !isDraftNotePath(currentNotePath));
-  const shouldShowEmptyWorkspacePanel = headings.length === 0 && !hasCurrentFile && !sidebarCollapsed;
+  const shouldShowEmptyWorkspacePanel = headings.length === 0 && !hasCurrentFile && (!sidebarCollapsed || isPeeking);
   const shouldShowOutlineEmpty = hasCurrentFile && headings.length === 0;
   const recentEmptyWorkspaceNotesRoots = useMemo(() => (
     getEmptyWorkspaceRecentNotesRoots(recentNotesRoots, null)

@@ -16,6 +16,7 @@ interface UnifiedTitleBarProps {
   rightSlot?: ReactNode;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  onCollapsedSidebarToggleHoverChange?: (hovered: boolean) => void;
   backgroundColor?: string;
   centerOverflowVisible?: boolean;
   showWindowControls?: boolean;
@@ -58,6 +59,7 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
   rightSlot,
   sidebarCollapsed,
   onToggleSidebar,
+  onCollapsedSidebarToggleHoverChange,
   backgroundColor = 'transparent',
   centerOverflowVisible = false,
   showWindowControls = true
@@ -97,6 +99,8 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
             type="button"
             aria-label={translate('shortcut.action.toggleSidebar')}
             onClick={onToggleSidebar}
+            onMouseEnter={() => onCollapsedSidebarToggleHoverChange?.(true)}
+            onMouseLeave={() => onCollapsedSidebarToggleHoverChange?.(false)}
             className={cn(
               "app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",
               chatComposerGhostIconButtonClass

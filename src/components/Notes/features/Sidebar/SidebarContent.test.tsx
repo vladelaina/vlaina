@@ -612,6 +612,24 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(queryByTestId('empty-workspace-panel')).toBeNull();
   });
 
+  it('shows the empty hint when the collapsed sidebar is peeking', () => {
+    hoisted.uiState.sidebarCollapsed = true;
+
+    const { getByTestId } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+        isPeeking
+      />,
+    );
+
+    expect(getByTestId('empty-workspace-panel')).toBeInTheDocument();
+  });
+
   it('does not show the open hint while a notesRoot root is still loading', () => {
     hoisted.currentNotesRoot = { path: '/notesRoot', name: 'NotesRoot' };
     hoisted.notesPath = '/notesRoot';

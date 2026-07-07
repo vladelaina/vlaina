@@ -202,6 +202,16 @@ describe('NotesOutline', () => {
     expect(screen.queryByRole('button', { name: 'notes.file' })).toBeNull();
   });
 
+  it('shows the empty workspace panel when the collapsed sidebar is peeking', () => {
+    hoisted.outlineState.headings = [];
+    hoisted.uiState.sidebarCollapsed = true;
+
+    render(<NotesOutline enabled={false} currentNotePath={null} isPeeking />);
+
+    expect(screen.getByTestId('empty-workspace-panel')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'notes.file' })).toBeInTheDocument();
+  });
+
   it('opens a recent notes root from the outline empty workspace panel', () => {
     hoisted.outlineState.headings = [];
     hoisted.notesRootState.currentNotesRoot = { path: '/notes-roots/current', name: 'Current' };
