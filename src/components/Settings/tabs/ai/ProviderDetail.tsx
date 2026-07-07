@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { Provider } from '@/lib/ai/types';
-import { writeTextToClipboard } from '@/lib/clipboard';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ManagedProviderPanel } from './provider-detail/ManagedProviderPanel';
 import { ProviderModelsPanel } from './provider-detail/ProviderModelsPanel';
 import { ProviderConnectionFields } from './provider-detail/ProviderConnectionFields';
 import { useProviderBenchmark } from './provider-detail/useProviderBenchmark';
+import { useProviderConnectionDraft } from './provider-detail/useProviderConnectionDraft';
 import { useProviderModelActions } from './provider-detail/useProviderModelActions';
 import { useProviderModelFilters } from './provider-detail/useProviderModelFilters';
 import type { OauthAccountProvider } from '@/lib/account/provider';
-import { SETTINGS_BEFORE_CLOSE_EVENT } from '../../settingsEvents';
-import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 const EMPTY_FETCHED_MODELS: string[] = [];
 
@@ -53,34 +51,16 @@ export function ProviderDetail({
     signOut,
   } = useAccountSessionStore();
 
-  const [name, setName] = useState(initialProvider?.name || '');
-  const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
-  const [apiHost, setApiHost] = useState(initialProvider?.apiHost || '');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [modelQuery, setModelQuery] = useState('');
   const [quickAddModelId, setQuickAddModelId] = useState('');
   const [quickAddError, setQuickAddError] = useState('');
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
-  const apiKeyCopiedTimerRef = useRef<number | null>(null);
-  const isConnectionComposingRef = useRef(false);
-  const latestConnectionDraftRef = useRef({
-    providerId: initialProvider?.id || '',
-    name: initialProvider?.name || '',
-    apiHost: initialProvider?.apiHost || '',
-    apiKey: initialProvider?.apiKey || '',
-    endpointType: initialProvider?.endpointType,
-    endpointTypeCheckedAt: initialProvider?.endpointTypeCheckedAt,
-    persistedApiHost: initialProvider?.apiHost || '',
-    persistedApiKey: initialProvider?.apiKey || '',
+  const connectionDraft = useProviderConnectionDraft({
+    provider: initialProvider,
+    updateProvider,
+    onDraftChange,
+    onDraftClear,
   });
-  const syncedProviderSnapshotRef = useRef({
-    providerId: initialProvider?.id || '',
-    name: initialProvider?.name || '',
-    apiHost: initialProvider?.apiHost || '',
-    apiKey: initialProvider?.apiKey || '',
-  });
-  const updateProviderRef = useRef(updateProvider);
 
   const providerId = initialProvider?.id;
   const providerModels = useMemo(
@@ -90,6 +70,7 @@ export function ProviderDetail({
   const providerModelIdSet = useMemo(() => new Set(providerModels.map((m) => m.apiModelId.toLowerCase())), [providerModels]);
   const isManagedProvider = initialProvider?.id === MANAGED_PROVIDER_ID;
   const enabled = initialProvider?.enabled ?? true;
+  const { apiHost, apiKey, name } = connectionDraft;
   const canUseConnectionActions = Boolean(initialProvider && apiHost.trim() && apiKey.trim());
   const persistedProviderFetchedModels = useMemo(
     () => (providerId ? persistedFetchedModels[providerId] ?? EMPTY_FETCHED_MODELS : EMPTY_FETCHED_MODELS),
@@ -97,177 +78,14 @@ export function ProviderDetail({
   );
 
   useEffect(() => {
-    if (initialProvider) {
-      setName(initialProvider.name);
-      setApiKey(initialProvider.apiKey || '');
-      setApiHost(initialProvider.apiHost || '');
-      syncedProviderSnapshotRef.current = {
-        providerId: initialProvider.id,
-        name: initialProvider.name,
-        apiHost: initialProvider.apiHost || '',
-        apiKey: initialProvider.apiKey || '',
-      };
-    } else {
-      setName('');
-      setApiKey('');
-      setApiHost('');
-      syncedProviderSnapshotRef.current = {
-        providerId: '',
-        name: '',
-        apiHost: '',
-        apiKey: '',
-      };
-    }
-
     setQuickAddModelId('');
     setQuickAddError('');
     setModelQuery('');
-    setShowApiKey(false);
-    setApiKeyCopied(false);
-    if (apiKeyCopiedTimerRef.current !== null) {
-      window.clearTimeout(apiKeyCopiedTimerRef.current);
-      apiKeyCopiedTimerRef.current = null;
-    }
-    onDraftClear?.();
   }, [providerId]);
-
-  useEffect(() => {
-    const nextSnapshot = {
-      providerId: initialProvider?.id || '',
-      name: initialProvider?.name || '',
-      apiHost: initialProvider?.apiHost || '',
-      apiKey: initialProvider?.apiKey || '',
-    };
-    const previousSnapshot = syncedProviderSnapshotRef.current;
-    if (nextSnapshot.providerId !== previousSnapshot.providerId) {
-      syncedProviderSnapshotRef.current = nextSnapshot;
-      return;
-    }
-
-    const providerChanged =
-      nextSnapshot.name !== previousSnapshot.name ||
-      nextSnapshot.apiHost !== previousSnapshot.apiHost ||
-      nextSnapshot.apiKey !== previousSnapshot.apiKey;
-    if (!providerChanged) {
-      return;
-    }
-
-    const hasLocalDraft =
-      name !== previousSnapshot.name ||
-      apiHost !== previousSnapshot.apiHost ||
-      apiKey !== previousSnapshot.apiKey;
-    if (!hasLocalDraft) {
-      setName(nextSnapshot.name);
-      setApiHost(nextSnapshot.apiHost);
-      setApiKey(nextSnapshot.apiKey);
-      onDraftClear?.();
-    }
-
-    syncedProviderSnapshotRef.current = nextSnapshot;
-  }, [
-    apiHost,
-    apiKey,
-    initialProvider?.apiHost,
-    initialProvider?.apiKey,
-    initialProvider?.id,
-    initialProvider?.name,
-    name,
-    onDraftClear,
-  ]);
 
   useEffect(() => {
     setFetchedModels(persistedProviderFetchedModels);
   }, [persistedProviderFetchedModels]);
-
-  useEffect(() => {
-    updateProviderRef.current = updateProvider;
-  }, [updateProvider]);
-
-  useEffect(() => {
-    return () => {
-      if (apiKeyCopiedTimerRef.current !== null) {
-        window.clearTimeout(apiKeyCopiedTimerRef.current);
-        apiKeyCopiedTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    latestConnectionDraftRef.current = {
-      providerId: initialProvider?.id || '',
-      name,
-      apiHost,
-      apiKey,
-      endpointType: initialProvider?.endpointType,
-      endpointTypeCheckedAt: initialProvider?.endpointTypeCheckedAt,
-      persistedApiHost: initialProvider?.apiHost || '',
-      persistedApiKey: initialProvider?.apiKey || '',
-    };
-  }, [
-    initialProvider?.id,
-    initialProvider?.apiHost,
-    initialProvider?.apiKey,
-    initialProvider?.endpointType,
-    initialProvider?.endpointTypeCheckedAt,
-    name,
-    apiHost,
-    apiKey,
-  ]);
-
-  useEffect(() => {
-    const flushConnectionDraft = () => {
-      if (isConnectionComposingRef.current) {
-        return;
-      }
-      const draft = latestConnectionDraftRef.current;
-      if (!draft.providerId || draft.providerId === MANAGED_PROVIDER_ID) {
-        return;
-      }
-      const sameApiHost = draft.apiHost === draft.persistedApiHost;
-      const sameApiKey = draft.apiKey === draft.persistedApiKey;
-      const sameConnection = sameApiHost && sameApiKey;
-      updateProviderRef.current(draft.providerId, {
-        name: draft.name,
-        apiHost: draft.apiHost,
-        apiKey: draft.apiKey,
-        endpointType: sameConnection ? draft.endpointType : undefined,
-        endpointTypeCheckedAt: sameConnection ? draft.endpointTypeCheckedAt : undefined,
-        updatedAt: Date.now(),
-      });
-    };
-
-    window.addEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushConnectionDraft);
-    return () => {
-      window.removeEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushConnectionDraft);
-      flushConnectionDraft();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!initialProvider) return;
-
-    const sameName = name === initialProvider.name;
-    const sameApiHost = apiHost === (initialProvider.apiHost || '');
-    const sameApiKey = apiKey === (initialProvider.apiKey || '');
-    const sameConnection = sameApiHost && sameApiKey;
-    if (sameName && sameApiHost && sameApiKey) return;
-
-    const timer = setTimeout(() => {
-      if (isConnectionComposingRef.current) {
-        return;
-      }
-      updateProvider(initialProvider.id, {
-        name,
-        apiKey,
-        apiHost,
-        endpointType: sameConnection ? initialProvider.endpointType : undefined,
-        endpointTypeCheckedAt: sameConnection ? initialProvider.endpointTypeCheckedAt : undefined,
-        updatedAt: Date.now(),
-      });
-    }, 240);
-
-    return () => clearTimeout(timer);
-  }, [initialProvider, name, apiHost, apiKey, updateProvider]);
 
   const {
     sortedFetchedModels,
@@ -313,23 +131,6 @@ export function ProviderDetail({
     await refreshManagedProvider();
   };
 
-  const handleCopyApiKey = async () => {
-    if (!apiKey) return;
-    try {
-      const didCopy = await writeTextToClipboard(apiKey);
-      if (didCopy) {
-        setApiKeyCopied(true);
-        if (apiKeyCopiedTimerRef.current !== null) {
-          window.clearTimeout(apiKeyCopiedTimerRef.current);
-        }
-        apiKeyCopiedTimerRef.current = window.setTimeout(() => {
-          setApiKeyCopied(false);
-          apiKeyCopiedTimerRef.current = null;
-        }, themeUiFeedbackTokens.providerApiKeyCopyDurationMs);
-      }
-    } catch {}
-  };
-
   if (!initialProvider) return null;
 
   if (isManagedProvider) {
@@ -354,28 +155,26 @@ export function ProviderDetail({
         name={name}
         apiHost={apiHost}
         apiKey={apiKey}
-        showApiKey={showApiKey}
-        apiKeyCopied={apiKeyCopied}
+        showApiKey={connectionDraft.showApiKey}
+        apiKeyCopied={connectionDraft.apiKeyCopied}
         autoFocusBaseUrl={focusBaseUrlOnMount}
         onBaseUrlAutoFocusComplete={onBaseUrlAutoFocusComplete}
         onNameChange={(nextName) => {
-          setName(nextName);
-          onDraftChange?.({ name: nextName });
+          connectionDraft.handleNameChange(nextName);
         }}
         onApiHostChange={(nextApiHost) => {
-          setApiHost(nextApiHost);
-          onDraftChange?.({ apiHost: nextApiHost });
+          connectionDraft.handleApiHostChange(nextApiHost);
           modelActions.setFetchError('');
         }}
         onApiKeyChange={(nextApiKey) => {
-          setApiKey(nextApiKey);
+          connectionDraft.handleApiKeyChange(nextApiKey);
           modelActions.setFetchError('');
         }}
         onCompositionChange={(isComposing) => {
-          isConnectionComposingRef.current = isComposing;
+          connectionDraft.isConnectionComposingRef.current = isComposing;
         }}
-        onToggleApiKey={() => setShowApiKey((prev) => !prev)}
-        onCopyApiKey={handleCopyApiKey}
+        onToggleApiKey={() => connectionDraft.setShowApiKey((prev) => !prev)}
+        onCopyApiKey={connectionDraft.handleCopyApiKey}
       />
 
       <ProviderModelsPanel

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -7,12 +7,15 @@ import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
 import { useChatShortcuts } from './hooks/useChatShortcuts';
 import { useComposerClickFocus } from './hooks/useComposerClickFocus';
+import { useChatEmbeddedSidebar } from './hooks/useChatEmbeddedSidebar';
+import { useChatViewFocusLifecycle } from './hooks/useChatViewFocusLifecycle';
 import { useStableChatMessageDerivatives } from './hooks/useStableChatMessageDerivatives';
+import { useChatViewMessageActions } from './hooks/useChatViewMessageActions';
+import { useChatViewModelSelection } from './hooks/useChatViewModelSelection';
+import { useEmbeddedComposerInsert } from './hooks/useEmbeddedComposerInsert';
 import { cn } from '@/lib/utils';
-import { Attachment } from '@/lib/storage/attachmentStorage';
-import { blurComposerInput, focusComposerInput, insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
-import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
-import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
+import type { Attachment } from '@/lib/storage/attachmentStorage';
+import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { useUIStore } from '@/stores/uiSlice';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
@@ -25,29 +28,10 @@ import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialo
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/chatMessageLayout';
-import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
-import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
-import { Icon } from '@/components/ui/icons';
-import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-import { useI18n } from '@/lib/i18n';
-import { themeChatLayoutTokens, themeIconTokens, themeMotionTokens, themeStyleResetTokens } from '@/styles/themeTokens';
-import { isManagedProviderId } from '@/lib/ai/managedService';
-import { isManagedBudgetExhausted } from '@/lib/ai/managedQuota';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
-
-interface ChatViewProps {
-  mode?: 'full' | 'embedded';
-  active?: boolean;
-  onCloseEmbeddedPanel?: () => void;
-  onPromoteEmbeddedPanel?: () => void;
-  onStartupReady?: () => void;
-  onPrimaryContentReady?: () => void;
-}
-
-const EMPTY_MESSAGES: never[] = [];
-const EMPTY_SESSIONS: never[] = [];
-const EMPTY_PROVIDERS: never[] = [];
-const EMPTY_MODELS: never[] = [];
+import { ChatEmbeddedHeader } from './ChatEmbeddedHeader';
+import { ChatEmbeddedSidebarOverlay } from './ChatEmbeddedSidebarOverlay';
+import { EMPTY_MESSAGES, EMPTY_MODELS, EMPTY_PROVIDERS, EMPTY_SESSIONS, type ChatViewProps } from './ChatViewState';
 
 export function ChatView({
   mode = 'full',
@@ -57,9 +41,7 @@ export function ChatView({
   onStartupReady,
   onPrimaryContentReady,
 }: ChatViewProps) {
-  const { t } = useI18n();
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const [isEmbeddedSidebarOpen, setIsEmbeddedSidebarOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
   const isEmbedded = mode === 'embedded';
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
@@ -94,43 +76,12 @@ export function ChatView({
   const consumePendingComposerInsert = useUIStore((state) => state.consumePendingNotesChatComposerInsert);
 
   const { imageGallery, sentUserMessages } = useStableChatMessageDerivatives(messages);
-  const selectedModel = useMemo(() => {
-    if (!selectedModelId) {
-      return undefined;
-    }
-
-    const model = models.find((item) => item.id === selectedModelId);
-    if (!model) {
-      return undefined;
-    }
-
-    const provider = providers.find((item) => item.id === model.providerId);
-    return model.enabled === false || provider?.enabled === false ? undefined : model;
-  }, [models, providers, selectedModelId]);
-  const isSelectedManagedModel = Boolean(selectedModel && isManagedProviderId(selectedModel.providerId));
-  const [hasStickyManagedQuotaExhaustion, setHasStickyManagedQuotaExhaustion] = useState(false);
-  useEffect(() => {
-    if (!isSelectedManagedModel) {
-      setHasStickyManagedQuotaExhaustion(false);
-      return;
-    }
-    if (isManagedBudgetExhausted(managedBudget)) {
-      setHasStickyManagedQuotaExhaustion(true);
-      return;
-    }
-    if (
-      managedBudget &&
-      typeof managedBudget.remainingPercent === 'number' &&
-      Number.isFinite(managedBudget.remainingPercent) &&
-      managedBudget.remainingPercent > 0
-    ) {
-      setHasStickyManagedQuotaExhaustion(false);
-    }
-  }, [isSelectedManagedModel, managedBudget]);
-  const isSelectedManagedQuotaExhausted = Boolean(
-    isSelectedManagedModel &&
-    (isManagedBudgetExhausted(managedBudget) || hasStickyManagedQuotaExhaustion)
-  );
+  const { isSelectedManagedQuotaExhausted, selectedModel } = useChatViewModelSelection({
+    managedBudget,
+    models,
+    providers,
+    selectedModelId,
+  });
   
   useEffect(() => {
     if (currentSessionId && !isMessagesLoaded) {
@@ -148,22 +99,6 @@ export function ChatView({
     recalledComposerDraft,
     clearRecalledComposerDraft,
   } = useChatService();
-  const regenerateRef = useRef(regenerate);
-  const editMessageRef = useRef(editMessage);
-  const switchMessageVersionRef = useRef(switchMessageVersion);
-  const currentSessionIdRef = useRef(currentSessionId);
-  const imageGalleryRef = useRef(imageGallery);
-  const wasActiveRef = useRef(active);
-  const embeddedSidebarFocusFrameRef = useRef<number | null>(null);
-  const focusComposerAfterEmbeddedSidebarExitRef = useRef(false);
-
-  useEffect(() => {
-    if (!active) return;
-    onStartupReady?.();
-    if (loaded) {
-      onPrimaryContentReady?.();
-    }
-  }, [active, loaded, onPrimaryContentReady, onStartupReady]);
   
   const isSessionActive = useAIUIStore((state) =>
     currentSessionId ? !!state.generatingSessions[currentSessionId] : false
@@ -191,172 +126,21 @@ export function ChatView({
     ignoreEditableTargets: true,
   });
 
-  const firstEnabledModel = useMemo(() => {
-    const enabledProviderIds = new Set(
-      providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)
-    );
-    return models.find((model) => model.enabled && enabledProviderIds.has(model.providerId));
-  }, [models, providers]);
-  
-  useEffect(() => {
-    regenerateRef.current = regenerate;
-  }, [regenerate]);
+  useChatViewFocusLifecycle({
+    active,
+    currentSessionId,
+    isEmbedded,
+    loaded,
+    onPrimaryContentReady,
+    onStartupReady,
+    setFocusInputTrigger,
+  });
 
-  useEffect(() => {
-    editMessageRef.current = editMessage;
-  }, [editMessage]);
-
-  useEffect(() => {
-    switchMessageVersionRef.current = switchMessageVersion;
-  }, [switchMessageVersion]);
-
-  useEffect(() => {
-    currentSessionIdRef.current = currentSessionId;
-  }, [currentSessionId]);
-
-  useEffect(() => {
-    imageGalleryRef.current = imageGallery;
-  }, [imageGallery]);
-
-  useEffect(() => {
-      if (!selectedModel && firstEnabledModel) {
-          aiActions.selectModel(firstEnabledModel.id);
-      }
-  }, [firstEnabledModel, selectedModel]);
-
-  useEffect(() => {
-      setFocusInputTrigger(n => n + 1);
-  }, [currentSessionId]);
-
-  useEffect(() => {
-    if (isEmbedded || !active || wasActiveRef.current) {
-      wasActiveRef.current = active;
-      return;
-    }
-
-    wasActiveRef.current = active;
-    let secondFrameId = 0;
-    const firstFrameId = requestAnimationFrame(() => {
-      if (focusComposerInput()) {
-        return;
-      }
-      setFocusInputTrigger(n => n + 1);
-      secondFrameId = requestAnimationFrame(() => {
-        focusComposerInput();
-      });
-    });
-
-    return () => {
-      cancelAnimationFrame(firstFrameId);
-      if (secondFrameId) {
-        cancelAnimationFrame(secondFrameId);
-      }
-    };
-  }, [active, isEmbedded]);
-
-  useEffect(() => {
-    if (!isEmbedded || !isSessionActive) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.isComposing) {
-        return;
-      }
-
-      if (
-        event.key !== 'Escape' ||
-        event.shiftKey ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey
-      ) {
-        return;
-      }
-
-      if (isEventInsideDialog(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      stop();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEmbedded, isSessionActive, stop]);
-
-  useEffect(() => {
-    if (!isEmbedded || !isEmbeddedSidebarOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.isComposing) {
-        return;
-      }
-
-      if (
-        event.key !== 'Escape' ||
-        event.shiftKey ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey
-      ) {
-        return;
-      }
-
-      if (isEventInsideDialog(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      setIsEmbeddedSidebarOpen(false);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEmbedded, isEmbeddedSidebarOpen]);
-
-  useEffect(() => {
-    if (!isEmbedded || !pendingComposerInsert) {
-      return;
-    }
-
-    let frameId = 0;
-    let attempts = 0;
-    let cancelled = false;
-
-    const tryInsert = () => {
-      if (cancelled) {
-        return;
-      }
-
-      if (insertTextIntoComposer(pendingComposerInsert.text)) {
-        focusComposerInput();
-        consumePendingComposerInsert(pendingComposerInsert.id);
-        return;
-      }
-
-      attempts += 1;
-      if (attempts >= 24) {
-        consumePendingComposerInsert(pendingComposerInsert.id);
-        return;
-      }
-
-      frameId = requestAnimationFrame(tryInsert);
-    };
-
-    tryInsert();
-
-    return () => {
-      cancelled = true;
-      if (frameId) {
-        cancelAnimationFrame(frameId);
-      }
-    };
-  }, [consumePendingComposerInsert, isEmbedded, pendingComposerInsert]);
+  useEmbeddedComposerInsert({
+    consumePendingComposerInsert,
+    isEmbedded,
+    pendingComposerInsert,
+  });
 
   useChatShortcuts({
     onFocusInput: () => {
@@ -370,28 +154,20 @@ export function ChatView({
     scrollRef: containerRef,
   }, active && !isEmbedded);
 
-  const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
-  const getImageGallery = useCallback(() => imageGalleryRef.current, []);
-  const handleRegenerate = useCallback((messageId: string) => {
-    regenerateRef.current(messageId);
-  }, []);
-  const handleFork = useCallback((messageId: string) => {
-    const sessionId = currentSessionIdRef.current;
-    if (!sessionId) {
-      return;
-    }
-    aiActions.forkSessionFromMessage(sessionId, messageId);
-  }, []);
-  const handleEdit = useCallback((messageId: string, newContent: string) => {
-    editMessageRef.current(messageId, newContent);
-  }, []);
-  const handleSwitchVersion = useCallback((messageId: string, versionIndex: number) => {
-    const sessionId = currentSessionIdRef.current;
-    if (!sessionId) {
-      return;
-    }
-    switchMessageVersionRef.current(sessionId, messageId, versionIndex);
-  }, []);
+  const {
+    copyToClipboard,
+    getImageGallery,
+    handleEdit,
+    handleFork,
+    handleRegenerate,
+    handleSwitchVersion,
+  } = useChatViewMessageActions({
+    currentSessionId,
+    editMessage,
+    imageGallery,
+    regenerate,
+    switchMessageVersion,
+  });
 
   const handleSend = useCallback(async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => {
       const accepted = await sendMessage(text, attachments, noteMentions);
@@ -407,44 +183,16 @@ export function ChatView({
     }
   });
 
-  const openEmbeddedSidebar = useCallback(() => {
-    focusComposerAfterEmbeddedSidebarExitRef.current = false;
-    if (embeddedSidebarFocusFrameRef.current !== null) {
-      cancelAnimationFrame(embeddedSidebarFocusFrameRef.current);
-      embeddedSidebarFocusFrameRef.current = null;
-    }
-    blurComposerInput();
-    setIsEmbeddedSidebarOpen(true);
-  }, []);
-
-  const closeEmbeddedSidebar = useCallback(() => {
-    focusComposerAfterEmbeddedSidebarExitRef.current = true;
-    setIsEmbeddedSidebarOpen(false);
-  }, []);
-
-  const handleEmbeddedSidebarExitComplete = useCallback(() => {
-    if (!focusComposerAfterEmbeddedSidebarExitRef.current) {
-      return;
-    }
-    focusComposerAfterEmbeddedSidebarExitRef.current = false;
-    if (embeddedSidebarFocusFrameRef.current !== null) {
-      cancelAnimationFrame(embeddedSidebarFocusFrameRef.current);
-    }
-    embeddedSidebarFocusFrameRef.current = requestAnimationFrame(() => {
-      embeddedSidebarFocusFrameRef.current = null;
-      focusComposerInput();
-    });
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      focusComposerAfterEmbeddedSidebarExitRef.current = false;
-      if (embeddedSidebarFocusFrameRef.current !== null) {
-        cancelAnimationFrame(embeddedSidebarFocusFrameRef.current);
-        embeddedSidebarFocusFrameRef.current = null;
-      }
-    };
-  }, []);
+  const {
+    closeEmbeddedSidebar,
+    handleEmbeddedSidebarExitComplete,
+    isEmbeddedSidebarOpen,
+    openEmbeddedSidebar,
+  } = useChatEmbeddedSidebar({
+    isEmbedded,
+    isSessionActive,
+    stop,
+  });
 
   if (!loaded) return null;
 
@@ -457,128 +205,21 @@ export function ChatView({
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
       {isEmbedded && (
-        <div className="relative z-[var(--vlaina-z-20)] flex h-10 flex-none items-center gap-2 bg-transparent px-3">
-          <button
-            type="button"
-            aria-label={t('chat.openChatSidebar')}
-            onPointerDown={(event) => {
-              event.preventDefault();
-              openEmbeddedSidebar();
-            }}
-            className={cn(
-              "group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",
-              chatComposerGhostIconButtonClass
-            )}
-          >
-            {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              fill={themeStyleResetTokens.fillNone}
-              viewBox={themeIconTokens.viewBoxDefault}
-              stroke={themeStyleResetTokens.currentColor}
-              strokeWidth={themeIconTokens.strokeDefault}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-text-align-start-icon lucide-text-align-start size-5 group-hover:hidden"
-            >
-              <path d="M21 5H3" />
-              <path d="M15 12H3" />
-              <path d="M17 19H3" />
-            </svg>
-            <Icon name="nav.expand" size="titlebarToggle" className="hidden group-hover:block" />
-          </button>
-
-          <div className="min-w-0">
-            <ModelSelector
-              dropdownPlacement="bottom"
-              dropdownAlign="right"
-              isEmbedded
-            />
-          </div>
-
-          <div className="ml-auto flex h-8 items-center gap-1">
-            {showEmbeddedTemporaryToggle && (
-              <TemporaryChatToggle mode={showInTitleBar ? 'promote' : 'toggle'} />
-            )}
-            {onPromoteEmbeddedPanel && (
-              <button
-                type="button"
-                aria-label={t('notes.rightChat')}
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  onPromoteEmbeddedPanel();
-                }}
-                className={cn(
-                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:text-[var(--vlaina-accent)]",
-                  chatComposerPillSurfaceClass
-                )}
-              >
-                <Icon name="nav.panelRight" size="md" />
-              </button>
-            )}
-            {onCloseEmbeddedPanel && (
-              <button
-                type="button"
-                aria-label={t('chat.closeChatPanel')}
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  onCloseEmbeddedPanel();
-                }}
-                className={cn(
-                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)]",
-                  chatComposerPillSurfaceClass
-                )}
-              >
-                <Icon name="nav.chevronRight" size="md" />
-              </button>
-            )}
-          </div>
-        </div>
+        <ChatEmbeddedHeader
+          onCloseEmbeddedPanel={onCloseEmbeddedPanel}
+          onOpenEmbeddedSidebar={openEmbeddedSidebar}
+          onPromoteEmbeddedPanel={onPromoteEmbeddedPanel}
+          showEmbeddedTemporaryToggle={showEmbeddedTemporaryToggle}
+          showInTitleBar={showInTitleBar}
+        />
       )}
 
       <AnimatePresence onExitComplete={handleEmbeddedSidebarExitComplete}>
         {isEmbedded && isEmbeddedSidebarOpen && (
-          <div
-            className="absolute inset-0 z-[var(--vlaina-z-40)]"
-            aria-hidden={!isEmbeddedSidebarOpen}
-            onMouseDownCapture={(event) => event.stopPropagation()}
-          >
-            <motion.button
-              type="button"
-              aria-label={t('chat.closeChatSidebar')}
-              className="absolute inset-0 h-full w-full bg-[var(--vlaina-color-overlay-weak)]"
-              initial={{ opacity: themeMotionTokens.opacityHidden }}
-              animate={{ opacity: themeMotionTokens.opacityVisible }}
-              exit={{ opacity: themeMotionTokens.opacityHidden }}
-              transition={{
-                duration: themeMotionTokens.chatEmbeddedOverlayDuration,
-                ease: themeMotionTokens.standardEase,
-              }}
-              onPointerDown={(event) => {
-                event.preventDefault();
-                closeEmbeddedSidebar();
-              }}
-            />
-            <motion.div
-              className="relative h-full transform-gpu overflow-hidden rounded-r-[var(--vlaina-chat-embedded-sidebar-radius)] shadow-[var(--vlaina-shadow-none)] will-change-transform"
-              style={{ width: themeChatLayoutTokens.embeddedSidebarWidth }}
-              initial={{ x: themeMotionTokens.chatEmbeddedSidebarHiddenX }}
-              animate={{ x: themeMotionTokens.chatEmbeddedSidebarVisibleX }}
-              exit={{ x: themeMotionTokens.chatEmbeddedSidebarHiddenX }}
-              transition={{
-                type: 'spring',
-                stiffness: themeMotionTokens.chatEmbeddedSidebarSpringStiffness,
-                damping: themeMotionTokens.chatEmbeddedSidebarSpringDamping,
-                mass: themeMotionTokens.chatEmbeddedSidebarSpringMass,
-              }}
-            >
-              <ChatSidebar embedded onRequestClose={closeEmbeddedSidebar} />
-            </motion.div>
-          </div>
+          <ChatEmbeddedSidebarOverlay
+            isOpen={isEmbeddedSidebarOpen}
+            onClose={closeEmbeddedSidebar}
+          />
         )}
       </AnimatePresence>
 

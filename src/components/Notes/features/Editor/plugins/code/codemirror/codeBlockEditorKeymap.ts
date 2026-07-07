@@ -1,18 +1,23 @@
-import * as proseState from '@milkdown/kit/prose/state';
+import type { EditorView as CodeMirror, KeyBinding } from '@codemirror/view';
 import type { Node } from '@milkdown/kit/prose/model';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import type { DOMEventHandlers, EditorView as CodeMirror, KeyBinding } from '@codemirror/view';
-import { EditorSelection } from '@codemirror/state';
 import { exitCode } from '@milkdown/kit/prose/commands';
 import { redo, undo } from '@milkdown/kit/prose/history';
-import { deleteSelectedBlocks, writeTextToClipboard } from '../../cursor/blockSelectionCommands';
+import * as proseState from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { deleteSelectedBlocks } from '../../cursor/blockSelectionCommands';
 import {
   blankAreaDragBoxPluginKey,
   CLEAR_BLOCKS_ACTION,
   getBlockSelectionPluginState,
 } from '../../cursor/blockSelectionPluginState';
 import { getCodeBlockSourceText } from '../codeBlockText';
-import { mapCodeBlockEditorOffsetToDocumentOffset } from './codeBlockEditorUtils';
+import {
+  copyCodeMirrorSelection,
+  createCodeBlockEditorClipboardHandlers,
+  cutCodeMirrorSelection,
+} from './codeBlockEditorClipboard';
+import type { CreateCodeBlockKeymapOptions } from './codeBlockEditorKeymapTypes';
+import { moveOrExtendToTrimmedCodeBoundary } from './codeBlockEditorSelectionNavigation';
 
 const { TextSelection } = proseState;
 const AllSelection = (
@@ -23,12 +28,7 @@ const AllSelection = (
   }
 ).AllSelection;
 
-type CreateCodeBlockKeymapOptions = {
-  getCodeMirror: () => CodeMirror | undefined;
-  view: EditorView;
-  getNode: () => Node;
-  getPos: () => number | undefined;
-};
+export { createCodeBlockEditorClipboardHandlers, moveOrExtendToTrimmedCodeBoundary };
 
 function createAllSelection(doc: unknown) {
   if (typeof AllSelection.create === 'function') {
@@ -82,246 +82,6 @@ function deleteLeadingEmptyLine(cm: CodeMirror): boolean {
   return true;
 }
 
-function getCurrentOrNearestNonEmptyLineBounds(
-  cm: CodeMirror,
-  direction: -1 | 1
-): { from: number; to: number } | null {
-  const currentLine = cm.state.doc.lineAt(cm.state.selection.main.head);
-  if (currentLine.text.trim().length > 0) {
-    return { from: currentLine.from, to: currentLine.to };
-  }
-
-  for (
-    let lineNumber = currentLine.number + direction;
-    lineNumber >= 1 && lineNumber <= cm.state.doc.lines;
-    lineNumber += direction
-  ) {
-    const line = cm.state.doc.line(lineNumber);
-    if (line.text.trim().length > 0) {
-      return { from: line.from, to: line.to };
-    }
-  }
-
-  return null;
-}
-
-function getNonEmptyLineBoundsFromLineNumber(
-  cm: CodeMirror,
-  lineNumber: number,
-  direction: -1 | 1
-): { from: number; to: number } | null {
-  for (
-    let currentLineNumber = lineNumber;
-    currentLineNumber >= 1 && currentLineNumber <= cm.state.doc.lines;
-    currentLineNumber += direction
-  ) {
-    const line = cm.state.doc.line(currentLineNumber);
-    if (line.text.trim().length > 0) {
-      return { from: line.from, to: line.to };
-    }
-  }
-
-  return null;
-}
-
-function getNextNonEmptyLineBoundsOutsideSelection(
-  cm: CodeMirror,
-  direction: -1 | 1
-): { from: number; to: number } | null {
-  const selection = cm.state.selection.main;
-  if (selection.empty) {
-    return getCurrentOrNearestNonEmptyLineBounds(cm, direction);
-  }
-
-  if (direction < 0) {
-    const topLine = cm.state.doc.lineAt(selection.from);
-    const startLineNumber =
-      topLine.text.trim().length > 0 && selection.from <= topLine.from
-        ? topLine.number - 1
-        : topLine.number;
-    return getNonEmptyLineBoundsFromLineNumber(cm, startLineNumber, direction);
-  }
-
-  const bottomLine = cm.state.doc.lineAt(selection.to);
-  const startLineNumber =
-    bottomLine.text.trim().length > 0 && selection.to >= bottomLine.to
-      ? bottomLine.number + 1
-      : bottomLine.number;
-  return getNonEmptyLineBoundsFromLineNumber(cm, startLineNumber, direction);
-}
-
-export function moveOrExtendToTrimmedCodeBoundary(
-  getCodeMirror: () => CodeMirror | undefined,
-  direction: -1 | 1,
-  extend: boolean
-): boolean {
-  const cm = getCodeMirror();
-  if (!cm) {
-    return false;
-  }
-
-  const currentSelection = cm.state.selection.main;
-  const targetLine = extend && !currentSelection.empty
-    ? getNextNonEmptyLineBoundsOutsideSelection(cm, direction)
-    : getCurrentOrNearestNonEmptyLineBounds(cm, direction);
-  if (!targetLine) {
-    return false;
-  }
-
-  const nextSelection = extend
-    ? currentSelection.empty
-      ? EditorSelection.single(
-        direction < 0 ? targetLine.to : targetLine.from,
-        direction < 0 ? targetLine.from : targetLine.to
-      )
-      : EditorSelection.single(
-        direction < 0 ? currentSelection.to : currentSelection.from,
-        direction < 0 ? targetLine.from : targetLine.to
-      )
-    : EditorSelection.cursor(direction < 0 ? targetLine.from : targetLine.to);
-
-  cm.dispatch({ selection: nextSelection });
-  cm.focus();
-  return true;
-}
-
-function getSelectedCodeMirrorText(cm: CodeMirror): string {
-  return cm.state.selection.ranges
-    .filter((range) => !range.empty)
-    .map((range) => cm.state.sliceDoc(range.from, range.to))
-    .join('\n');
-}
-
-function collapseCodeMirrorSelection(cm: CodeMirror) {
-  const { main } = cm.state.selection;
-  cm.dispatch({
-    selection: {
-      anchor: main.to,
-      head: main.to,
-    },
-  });
-}
-
-function collapseProseMirrorSelectionToCodeMirrorHead(
-  cm: CodeMirror,
-  view: EditorView,
-  getNode: () => Node,
-  getPos: () => number | undefined
-) {
-  const pos = getPos();
-  if (pos === undefined) {
-    return;
-  }
-
-  const node = getNode();
-  const rawText = getCodeBlockSourceText(node);
-  const codeBlockStart = pos + 1;
-  const head = codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(
-    rawText,
-    cm.state.selection.main.head
-  );
-  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, head)).scrollIntoView());
-}
-
-function copyCodeMirrorSelection(
-  getCodeMirror: () => CodeMirror | undefined,
-  view: EditorView,
-  getNode: () => Node,
-  getPos: () => number | undefined,
-  event?: ClipboardEvent
-) {
-  const cm = getCodeMirror();
-  if (!cm) {
-    return false;
-  }
-
-  const text = getSelectedCodeMirrorText(cm);
-  if (!text) {
-    return false;
-  }
-
-  if (event?.clipboardData) {
-    event.preventDefault();
-    event.clipboardData.setData('text/plain', text);
-    collapseCodeMirrorSelection(cm);
-    collapseProseMirrorSelectionToCodeMirrorHead(cm, view, getNode, getPos);
-    view.focus();
-    return true;
-  }
-
-  event?.preventDefault();
-  void writeTextToClipboard(text).then((didCopy) => {
-    if (!didCopy) {
-      return;
-    }
-
-    collapseCodeMirrorSelection(cm);
-    collapseProseMirrorSelectionToCodeMirrorHead(cm, view, getNode, getPos);
-    view.focus();
-  }).catch(() => undefined);
-  return true;
-}
-
-function cutCodeMirrorSelection(
-  getCodeMirror: () => CodeMirror | undefined,
-  view: EditorView,
-  getNode: () => Node,
-  getPos: () => number | undefined,
-  event?: ClipboardEvent
-) {
-  const cm = getCodeMirror();
-  if (!cm || !view.editable) {
-    return false;
-  }
-
-  const text = getSelectedCodeMirrorText(cm);
-  if (!text) {
-    return false;
-  }
-
-  const deleteSelection = () => {
-    cm.dispatch(
-      cm.state.changeByRange((range) => ({
-        changes: range.empty ? [] : { from: range.from, to: range.to, insert: '' },
-        range: range.empty ? range : EditorSelection.cursor(range.from),
-      }))
-    );
-    collapseProseMirrorSelectionToCodeMirrorHead(cm, view, getNode, getPos);
-    cm.focus();
-  };
-
-  if (event?.clipboardData) {
-    event.preventDefault();
-    event.clipboardData.setData('text/plain', text);
-    deleteSelection();
-    return true;
-  }
-
-  event?.preventDefault();
-  void writeTextToClipboard(text).then((didCopy) => {
-    if (!didCopy) {
-      return;
-    }
-
-    deleteSelection();
-  }).catch(() => undefined);
-  return true;
-}
-
-export function createCodeBlockEditorClipboardHandlers({
-  view,
-  getNode,
-  getPos,
-}: Omit<CreateCodeBlockKeymapOptions, 'getCodeMirror'>): DOMEventHandlers<unknown> {
-  return {
-    copy(event, cm) {
-      return copyCodeMirrorSelection(() => cm, view, getNode, getPos, event);
-    },
-    cut(event, cm) {
-      return cutCodeMirrorSelection(() => cm, view, getNode, getPos, event);
-    },
-  };
-}
 
 function maybeEscape(
   getCodeMirror: () => CodeMirror | undefined,

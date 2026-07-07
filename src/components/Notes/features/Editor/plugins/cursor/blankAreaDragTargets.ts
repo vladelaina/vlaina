@@ -5,123 +5,32 @@ import {
   getCachedEditorBlockTargetsNearY,
   refreshCurrentEditorBlockPositionSnapshot,
 } from '../../utils/editorBlockPositionCache';
-
-const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
-const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
-const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
-const NOTE_CONTENT_ROOT_SELECTOR = '[data-note-content-root="true"]';
-const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
-const IGNORED_BLANK_AREA_DRAG_BOX_SELECTOR = [
+import {
+  INTERACTIVE_SELECTOR,
+  resolveTextLinePointerHit,
+  type CachedTextLinePointerHitResult,
+  type TextLinePointerHit,
+} from './blankAreaTextLineHit';
+import {
   COVER_REGION_SELECTOR,
-  NO_EDITOR_DRAG_BOX_SELECTOR,
-].join(', ');
-const MARKDOWN_BLANK_LINE_SELECTOR = "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']";
-const TRAILING_TEXT_SELECTION_GUTTER_PX = 48;
-const TRAILING_TEXT_SELECTION_TEXT_OVERLAP_PX = 24;
-const LEADING_TEXT_SELECTION_GUTTER_PX = 32;
-const INTERACTIVE_SELECTOR = [
-  'a',
-  'button',
-  'input',
-  'textarea',
-  'select',
-  'summary',
-  'label',
-  '[role="button"]',
-  '[contenteditable="false"]',
-  NO_EDITOR_DRAG_BOX_SELECTOR,
-].join(', ');
-const TEXT_BLOCK_SURFACE_SELECTOR = [
-  'p',
-  'li',
-  'blockquote',
+  IGNORED_BLANK_AREA_DRAG_BOX_SELECTOR,
   MARKDOWN_BLANK_LINE_SELECTOR,
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-].join(', ');
-const STRUCTURED_BLOCK_SELECTOR = [
-  'table',
-  'pre',
-  `[data-type]:not(${MARKDOWN_BLANK_LINE_SELECTOR})`,
-  '[data-node-view-root]',
-].join(', ');
-export const MAX_BLANK_AREA_TEXT_HIT_CHARS = 100_000;
-export const MAX_BLANK_AREA_TEXT_HIT_NODES = 512;
-export const MAX_BLANK_AREA_TEXT_HIT_RECTS = 1024;
+  NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR,
+  STRUCTURED_BLOCK_SELECTOR,
+  TEXT_BLOCK_SURFACE_SELECTOR,
+  getElementFromEventTarget,
+  getScrollRoot,
+  isPointInsideElementClientRects,
+  isSameEditorExternalBlankAreaTarget,
+} from './blankAreaDragTargetDom';
 
-interface TextLineRectLike {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-  width: number;
-  height: number;
-}
-
-interface TextSelectionGutterHit {
-  edge: 'leading' | 'trailing';
-}
-
-type TextLinePointerHit =
-  | { type: 'content' }
-  | ({ type: 'gutter' } & TextSelectionGutterHit)
-  | { type: 'measurement-limit' };
-
-interface CachedTextLinePointerHitResult {
-  checked: boolean;
-  hit: TextLinePointerHit | null;
-}
-
-function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
-  if (!element) return null;
-  return element.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
-}
-
-function getElementFromEventTarget(target: EventTarget | null): Element | null {
-  if (target instanceof Element) return target;
-  if (target instanceof Node) return target.parentElement;
-  return null;
-}
-
-function isPointInsideElementClientRects(element: Element, clientX: number, clientY: number): boolean {
-  const rects = element.getClientRects();
-  for (let index = 0; index < rects.length; index += 1) {
-    const rect = rects.item?.(index) ?? rects[index];
-    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
-    if (
-      clientX >= rect.left &&
-      clientX <= rect.right &&
-      clientY >= rect.top &&
-      clientY <= rect.bottom
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isSameEditorExternalBlankAreaTarget(
-  view: EditorView,
-  target: HTMLElement,
-  editorScrollRoot: HTMLElement | null,
-): boolean {
-  if (!editorScrollRoot || getScrollRoot(target) !== editorScrollRoot) {
-    return false;
-  }
-  if (target === editorScrollRoot) {
-    return true;
-  }
-
-  const contentRoot = view.dom.closest(NOTE_CONTENT_ROOT_SELECTOR);
-  return contentRoot instanceof HTMLElement && (
-    target === contentRoot ||
-    contentRoot.contains(target)
-  );
-}
+export {
+  MAX_BLANK_AREA_TEXT_HIT_CHARS,
+  MAX_BLANK_AREA_TEXT_HIT_NODES,
+  MAX_BLANK_AREA_TEXT_HIT_RECTS,
+  isPointInTrailingTextSelectionGutter,
+  resolveTextLinePointerHit,
+} from './blankAreaTextLineHit';
 
 export function isSameEditorBlankAreaInteractionTarget(view: EditorView, target: EventTarget | null): boolean {
   if (!(target instanceof Node)) return false;
@@ -157,111 +66,6 @@ export function isPointInsideIgnoredBlankAreaDragBoxElement(view: EditorView, ev
     }
   }
   return false;
-}
-
-export function isPointInTrailingTextSelectionGutter(
-  rect: TextLineRectLike,
-  clientX: number,
-  clientY: number,
-  gutterPx = TRAILING_TEXT_SELECTION_GUTTER_PX,
-): boolean {
-  if (rect.width <= 0 || rect.height <= 0) return false;
-
-  const verticalSlack = Math.max(2, Math.min(6, rect.height * 0.2));
-  const isVerticallyAligned = clientY >= rect.top - verticalSlack && clientY <= rect.bottom + verticalSlack;
-  if (!isVerticallyAligned) return false;
-
-  const textOverlapPx = Math.min(TRAILING_TEXT_SELECTION_TEXT_OVERLAP_PX, Math.max(2, rect.width));
-  return clientX >= rect.right - textOverlapPx && clientX <= rect.right + gutterPx;
-}
-
-function isPointInLeadingTextSelectionGutter(
-  rect: TextLineRectLike,
-  clientX: number,
-  clientY: number,
-  gutterPx = LEADING_TEXT_SELECTION_GUTTER_PX,
-): boolean {
-  if (rect.width <= 0 || rect.height <= 0) return false;
-
-  const verticalSlack = Math.max(2, Math.min(6, rect.height * 0.2));
-  const isVerticallyAligned = clientY >= rect.top - verticalSlack && clientY <= rect.bottom + verticalSlack;
-  if (!isVerticallyAligned) return false;
-
-  return clientX >= rect.left - gutterPx && clientX <= rect.left + 2;
-}
-
-function isPointInTextLineContent(rect: TextLineRectLike, clientX: number, clientY: number): boolean {
-  if (rect.width <= 0 || rect.height <= 0) return false;
-
-  const verticalSlack = Math.max(2, Math.min(6, rect.height * 0.2));
-  return (
-    clientY >= rect.top - verticalSlack &&
-    clientY <= rect.bottom + verticalSlack &&
-    clientX >= rect.left &&
-    clientX <= rect.right
-  );
-}
-
-function isIgnoredTextLineElement(element: Element): boolean {
-  return Boolean(element.closest(INTERACTIVE_SELECTOR));
-}
-
-export function resolveTextLinePointerHit(root: HTMLElement, clientX: number, clientY: number): TextLinePointerHit | null {
-  const doc = root.ownerDocument;
-  let measuredTextChars = 0;
-  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      const text = node.textContent ?? '';
-      measuredTextChars += text.length;
-      if (measuredTextChars > MAX_BLANK_AREA_TEXT_HIT_CHARS) return NodeFilter.FILTER_ACCEPT;
-      if (!text.trim()) return NodeFilter.FILTER_REJECT;
-      const parent = node.parentElement;
-      if (!parent || isIgnoredTextLineElement(parent)) return NodeFilter.FILTER_REJECT;
-      return NodeFilter.FILTER_ACCEPT;
-    },
-  });
-
-  let measuredTextNodes = 0;
-  let measuredRects = 0;
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    if (measuredTextChars > MAX_BLANK_AREA_TEXT_HIT_CHARS) {
-      return { type: 'measurement-limit' };
-    }
-
-    measuredTextNodes += 1;
-    if (measuredTextNodes > MAX_BLANK_AREA_TEXT_HIT_NODES) {
-      return { type: 'measurement-limit' };
-    }
-
-    const range = doc.createRange();
-    try {
-      range.selectNodeContents(node);
-      const rects = range.getClientRects();
-
-      for (let index = 0; index < rects.length; index += 1) {
-        measuredRects += 1;
-        if (measuredRects > MAX_BLANK_AREA_TEXT_HIT_RECTS) {
-          return { type: 'measurement-limit' };
-        }
-
-        const rect = rects[index];
-        if (!rect) continue;
-        if (isPointInTextLineContent(rect, clientX, clientY)) {
-          return { type: 'content' };
-        }
-        if (isPointInTrailingTextSelectionGutter(rect, clientX, clientY)) {
-          return { type: 'gutter', edge: 'trailing' };
-        }
-        if (isPointInLeadingTextSelectionGutter(rect, clientX, clientY)) {
-          return { type: 'gutter', edge: 'leading' };
-        }
-      }
-    } finally {
-      range.detach();
-    }
-  }
-
-  return null;
 }
 
 function isPointNearBlockY(

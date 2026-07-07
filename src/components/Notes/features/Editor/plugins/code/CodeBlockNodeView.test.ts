@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TextSelection } from '@milkdown/kit/prose/state';
-import type { Node as ProseNode } from '@milkdown/kit/prose/model';
-import type { EditorView } from '@milkdown/kit/prose/view';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import { TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CodeBlockNodeView } from './CodeBlockNodeView';
 
 const renderMock = vi.fn();

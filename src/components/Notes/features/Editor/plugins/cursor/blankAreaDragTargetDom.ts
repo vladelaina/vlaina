@@ -1,0 +1,77 @@
+import type { EditorView } from '@milkdown/kit/prose/view';
+
+export const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+export const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
+export const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
+export const NOTE_CONTENT_ROOT_SELECTOR = '[data-note-content-root="true"]';
+export const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
+export const IGNORED_BLANK_AREA_DRAG_BOX_SELECTOR = [
+  COVER_REGION_SELECTOR,
+  NO_EDITOR_DRAG_BOX_SELECTOR,
+].join(', ');
+export const MARKDOWN_BLANK_LINE_SELECTOR = "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']";
+export const TEXT_BLOCK_SURFACE_SELECTOR = [
+  'p',
+  'li',
+  'blockquote',
+  MARKDOWN_BLANK_LINE_SELECTOR,
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+].join(', ');
+export const STRUCTURED_BLOCK_SELECTOR = [
+  'table',
+  'pre',
+  `[data-type]:not(${MARKDOWN_BLANK_LINE_SELECTOR})`,
+  '[data-node-view-root]',
+].join(', ');
+
+export function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  return element.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
+}
+
+export function getElementFromEventTarget(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  if (target instanceof Node) return target.parentElement;
+  return null;
+}
+
+export function isPointInsideElementClientRects(element: Element, clientX: number, clientY: number): boolean {
+  const rects = element.getClientRects();
+  for (let index = 0; index < rects.length; index += 1) {
+    const rect = rects.item?.(index) ?? rects[index];
+    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isSameEditorExternalBlankAreaTarget(
+  view: EditorView,
+  target: HTMLElement,
+  editorScrollRoot: HTMLElement | null,
+): boolean {
+  if (!editorScrollRoot || getScrollRoot(target) !== editorScrollRoot) {
+    return false;
+  }
+  if (target === editorScrollRoot) {
+    return true;
+  }
+
+  const contentRoot = view.dom.closest(NOTE_CONTENT_ROOT_SELECTOR);
+  return contentRoot instanceof HTMLElement && (
+    target === contentRoot ||
+    contentRoot.contains(target)
+  );
+}

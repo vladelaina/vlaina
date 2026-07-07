@@ -3,7 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readNotesTabRowSource() {
-  return readFileSync(resolve(process.cwd(), 'src/components/Notes/features/Tabs/NotesTabRow.tsx'), 'utf8');
+  return [
+    'src/components/Notes/features/Tabs/NotesTabRow.tsx',
+    'src/components/Notes/features/Tabs/NotesTabRowItems.tsx',
+  ]
+    .map((path) => readFileSync(resolve(process.cwd(), path), 'utf8'))
+    .join('\n');
 }
 
 function readUnifiedTitleBarSource() {

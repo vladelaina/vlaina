@@ -25,13 +25,11 @@ function readEditorCoreStyles() {
 }
 
 function readCodeBlockEditorTheme() {
-  return readFileSync(
-    resolve(
-      process.cwd(),
-      'src/components/Notes/features/Editor/plugins/code/codemirror/codeBlockEditorTheme.ts'
-    ),
-    'utf8'
-  );
+  const basePath = 'src/components/Notes/features/Editor/plugins/code/codemirror';
+  return [
+    readFileSync(resolve(process.cwd(), `${basePath}/codeBlockEditorTheme.ts`), 'utf8'),
+    readFileSync(resolve(process.cwd(), `${basePath}/codeBlockEditorThemeStyles.ts`), 'utf8'),
+  ].join('\n');
 }
 
 function readFrontmatterNodeView() {
@@ -45,23 +43,19 @@ function readFrontmatterNodeView() {
 }
 
 function readBlankAreaDragBoxPlugin() {
-  return readFileSync(
-    resolve(
-      process.cwd(),
-      'src/components/Notes/features/Editor/plugins/cursor/blankAreaDragBoxPlugin.ts'
-    ),
-    'utf8'
-  );
+  const basePath = 'src/components/Notes/features/Editor/plugins/cursor';
+  return [
+    readFileSync(resolve(process.cwd(), `${basePath}/blankAreaDragBoxPlugin.ts`), 'utf8'),
+    readFileSync(resolve(process.cwd(), `${basePath}/blankAreaDragBoxPluginView.ts`), 'utf8'),
+  ].join('\n');
 }
 
 function readForcedLineEdgeCaret() {
-  return readFileSync(
-    resolve(
-      process.cwd(),
-      'src/components/Notes/features/Editor/plugins/cursor/forcedLineEdgeCaret.ts'
-    ),
-    'utf8'
-  );
+  const basePath = 'src/components/Notes/features/Editor/plugins/cursor';
+  return [
+    readFileSync(resolve(process.cwd(), `${basePath}/forcedLineEdgeCaret.ts`), 'utf8'),
+    readFileSync(resolve(process.cwd(), `${basePath}/forcedLineEdgeCaretOverlay.ts`), 'utf8'),
+  ].join('\n');
 }
 
 function readTextBlockCaretOverlayPlugin() {
@@ -85,7 +79,10 @@ function readExternalTextDropCursorPlugin() {
 }
 
 function readNativeCaretOverlayHook() {
-  return readFileSync(resolve(process.cwd(), 'src/hooks/useNativeCaretOverlay.ts'), 'utf8');
+  return [
+    readFileSync(resolve(process.cwd(), 'src/hooks/useNativeCaretOverlay.ts'), 'utf8'),
+    readFileSync(resolve(process.cwd(), 'src/hooks/nativeCaretOverlayGeometry.ts'), 'utf8'),
+  ].join('\n');
 }
 
 function readCaretOverlayStyles() {

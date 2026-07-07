@@ -24,13 +24,16 @@ import {
   MARKDOWN_LIST_MARGIN_Y,
 } from '@/components/common/markdown/markdownMetrics';
 import { setCacheEntry, touchCacheEntry } from './chatLayoutCache';
-import {
-  parseMarkdownAndHtmlImageTokens,
-  type ImageToken,
-} from '@/components/Chat/common/messageImageTokens';
 import { stripChatMessageImageTokens } from '@/lib/ai/chatImageSourcePolicy';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
-import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import {
+  collectMarkdownSectionLines,
+  readNormalizedMarkdownLine,
+} from './chatAssistantMarkdownLineScanner';
+import {
+  getVideoImageTokens,
+  MAX_LAYOUT_VIDEO_IMAGE_TOKENS,
+  stripVideoImageTokens,
+} from './chatAssistantMarkdownVideoTokens';
 
 const HR_RE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
 const HEADING_RE = /^\s{0,3}(#{1,6})\s+(.*)$/;
@@ -42,11 +45,8 @@ const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const MAX_CACHED_MARKDOWN_BLOCK_CHARS = 50_000;
 const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS = 50_000;
-const MAX_LAYOUT_VIDEO_IMAGE_TOKENS = 2000;
 export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS = 200_000;
 export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS = 5_000;
-const CARRIAGE_RETURN_CODE = 13;
-const LINE_FEED_CODE = 10;
 const HEADING_MEASUREMENTS: Array<{ lineHeight: number; variant: TextBlockVariant }> = [
   { variant: 'heading-1', lineHeight: MARKDOWN_HEADING_ONE_LINE_HEIGHT },
   { variant: 'heading-2', lineHeight: MARKDOWN_HEADING_TWO_LINE_HEIGHT },
@@ -62,81 +62,6 @@ export { getMarkdownFenceState, isMarkdownFenceClose, type MarkdownFenceState };
 
 function getHeadingMeasurement(depth: number): { lineHeight: number; variant: TextBlockVariant } {
   return HEADING_MEASUREMENTS[depth - 1] ?? HEADING_MEASUREMENTS[5]!;
-}
-
-function readNormalizedMarkdownLine(
-  markdown: string,
-  offset: number,
-  maxEnd = markdown.length,
-): { line: string; nextOffset: number } | null {
-  const length = Math.min(markdown.length, maxEnd);
-  if (offset > length) {
-    return null;
-  }
-  if (offset === length) {
-    const lastCode = markdown.charCodeAt(length - 1);
-    return lastCode === LINE_FEED_CODE || lastCode === CARRIAGE_RETURN_CODE
-      ? { line: '', nextOffset: length + 1 }
-      : null;
-  }
-
-  for (let index = offset; index < length; index += 1) {
-    const code = markdown.charCodeAt(index);
-    if (code === LINE_FEED_CODE || code === CARRIAGE_RETURN_CODE) {
-      return {
-        line: markdown.slice(offset, index),
-        nextOffset: code === CARRIAGE_RETURN_CODE && markdown.charCodeAt(index + 1) === LINE_FEED_CODE
-          ? index + 2
-          : index + 1,
-      };
-    }
-  }
-
-  return {
-    line: markdown.slice(offset),
-    nextOffset: length,
-  };
-}
-
-function collectSectionLines(
-  markdown: string,
-  startOffset: number,
-  maxEnd = markdown.length,
-): { endOffset: number; lines: string[] } {
-  const sectionLines: string[] = [];
-  let offset = startOffset;
-
-  while (true) {
-    const current = readNormalizedMarkdownLine(markdown, offset, maxEnd);
-    if (!current) {
-      break;
-    }
-
-    const line = current.line;
-    if (!line.trim()) {
-      break;
-    }
-    if (offset !== startOffset && (getMarkdownFenceState(line) || HEADING_RE.test(line) || HR_RE.test(line))) {
-      break;
-    }
-
-    sectionLines.push(line);
-    offset = current.nextOffset;
-  }
-
-  return { endOffset: offset, lines: sectionLines };
-}
-
-function getVideoImageTokens(markdown: string): ImageToken[] {
-  return parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: MAX_LAYOUT_VIDEO_IMAGE_TOKENS }).filter((token) => {
-    const src = token.src ? normalizeRenderableImageSrc(token.src) : null;
-    return !!src && !!parseVideoUrl(src);
-  });
-}
-
-function stripVideoImageTokens(markdown: string, videoTokens: ImageToken[]): string {
-  return videoTokens
-    .reduceRight((next, token) => `${next.slice(0, token.start)}${next.slice(token.end)}`, markdown);
 }
 
 function pushMeasurementBlock(
@@ -241,7 +166,12 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       continue;
     }
 
-    const { endOffset, lines: sectionLines } = collectSectionLines(markdown, offset, scanEnd);
+    const { endOffset, lines: sectionLines } = collectMarkdownSectionLines(
+      markdown,
+      offset,
+      scanEnd,
+      (sectionLine) => getMarkdownFenceState(sectionLine) !== null || HEADING_RE.test(sectionLine) || HR_RE.test(sectionLine),
+    );
     if (sectionLines.length === 0) {
       offset = current.nextOffset;
       continue;

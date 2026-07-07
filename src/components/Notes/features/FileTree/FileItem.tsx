@@ -3,7 +3,6 @@ import { useDisplayName } from '@/hooks/useTitleSync';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
-import type { NoteFile } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { useFileItemState } from './hooks/useFileItemState';
@@ -23,6 +22,7 @@ import { TreeItemShell } from './components/TreeItemShell';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { useI18n } from '@/lib/i18n';
+import { areFileItemPropsEqual, type FileItemProps } from './FileItemProps';
 
 const TreeItemMenu = lazy(async () => {
   const mod = await import('./components/TreeItemMenu');
@@ -32,15 +32,6 @@ const TreeItemDeleteDialog = lazy(async () => {
   const mod = await import('./components/TreeItemDeleteDialog');
   return { default: mod.TreeItemDeleteDialog };
 });
-
-interface FileItemProps {
-  node: NoteFile;
-  depth: number;
-  parentFolderPath?: string;
-  showStarBadge?: boolean;
-  dragEnabled?: boolean;
-  showMenuButton?: boolean;
-}
 
 export const FileItem = memo(function FileItem({
   node,
@@ -299,16 +290,3 @@ export const FileItem = memo(function FileItem({
     </TreeItemShell>
   );
 }, areFileItemPropsEqual);
-
-function areFileItemPropsEqual(prevProps: FileItemProps, nextProps: FileItemProps) {
-  return (
-    prevProps.node.id === nextProps.node.id &&
-    prevProps.node.name === nextProps.node.name &&
-    prevProps.node.path === nextProps.node.path &&
-    prevProps.depth === nextProps.depth &&
-    prevProps.parentFolderPath === nextProps.parentFolderPath &&
-    prevProps.showStarBadge === nextProps.showStarBadge &&
-    prevProps.dragEnabled === nextProps.dragEnabled &&
-    prevProps.showMenuButton === nextProps.showMenuButton
-  );
-}

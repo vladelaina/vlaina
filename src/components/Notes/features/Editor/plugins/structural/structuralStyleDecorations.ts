@@ -1,26 +1,28 @@
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Plugin, PluginKey, type Transaction } from '@milkdown/kit/prose/state';
-import { Decoration, DecorationSet, type Decoration as ProseDecoration } from '@milkdown/kit/prose/view';
+import { DecorationSet, type Decoration as ProseDecoration } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
-import {
-  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
-  SKIP_PROSE_DESCENDANTS,
-  STOP_PROSE_SCAN,
-  scanProseDescendants,
-} from '../shared/boundedProseNodeScan';
 import { getTransactionChangedRanges } from '../shared/transactionStepText';
-
-export const STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS = 'editor-paragraph-has-image-block';
-export const STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS = 'editor-paragraph-has-multiple-image-blocks';
-export const STRUCTURAL_EMPTY_PARAGRAPH_CLASS = 'editor-empty-paragraph';
-export const STRUCTURAL_LIST_ITEM_ALIGN_CENTER_CLASS = 'editor-list-item-align-center';
-export const STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS = 'editor-list-item-align-right';
-
-export const MAX_STRUCTURAL_STYLE_DECORATIONS = 4000;
-export const MAX_STRUCTURAL_STYLE_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
-export const MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES = MAX_STRUCTURAL_STYLE_SCAN_NODES;
-
-const STRUCTURAL_STYLE_NODE_TYPES = new Set(['paragraph', 'list_item']);
+import {
+  createStructuralDecoration,
+  createStructuralStyleDecorations,
+  isRelevantStructuralNode,
+  MAX_STRUCTURAL_STYLE_DECORATIONS,
+  MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES
+} from './structuralStyleNodes';
+export {
+  collectStructuralStyleDecorations,
+  createStructuralStyleDecorations,
+  getStructuralStyleDecorationClass,
+  MAX_STRUCTURAL_STYLE_DECORATIONS,
+  MAX_STRUCTURAL_STYLE_RANGE_SCAN_NODES,
+  MAX_STRUCTURAL_STYLE_SCAN_NODES,
+  STRUCTURAL_EMPTY_PARAGRAPH_CLASS,
+  STRUCTURAL_LIST_ITEM_ALIGN_CENTER_CLASS,
+  STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS,
+  STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS,
+  STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS
+} from './structuralStyleNodes';
 
 export interface StructuralStyleDecorationsState {
   decorations: DecorationSet;
@@ -34,111 +36,6 @@ type Range = {
 
 export const structuralStyleDecorationsPluginKey =
   new PluginKey<StructuralStyleDecorationsState>('structuralStyleDecorations');
-
-function isRelevantStructuralNode(node: ProseNode): boolean {
-  return STRUCTURAL_STYLE_NODE_TYPES.has(node.type.name);
-}
-
-function getDirectImageChildCount(node: ProseNode): number {
-  let count = 0;
-  for (let index = 0; index < node.childCount; index += 1) {
-    if (node.child(index).type.name === 'image') {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-function getDirectListItemTextAlignment(node: ProseNode): 'center' | 'right' | null {
-  let hasCenter = false;
-
-  for (let index = 0; index < node.childCount; index += 1) {
-    const child = node.child(index);
-    const align = child.attrs?.align;
-    if (align === 'right') {
-      return 'right';
-    }
-    if (align === 'center') {
-      hasCenter = true;
-    }
-  }
-
-  return hasCenter ? 'center' : null;
-}
-
-export function getStructuralStyleDecorationClass(node: ProseNode): string | null {
-  const classes: string[] = [];
-
-  if (node.type.name === 'paragraph') {
-    if (node.content.size === 0) {
-      classes.push(STRUCTURAL_EMPTY_PARAGRAPH_CLASS);
-    }
-
-    const imageChildCount = getDirectImageChildCount(node);
-    if (imageChildCount > 0) {
-      classes.push(STRUCTURAL_PARAGRAPH_HAS_IMAGE_BLOCK_CLASS);
-    }
-    if (imageChildCount > 1) {
-      classes.push(STRUCTURAL_PARAGRAPH_HAS_MULTIPLE_IMAGE_BLOCKS_CLASS);
-    }
-  }
-
-  if (node.type.name === 'list_item') {
-    const align = getDirectListItemTextAlignment(node);
-    if (align === 'center') {
-      classes.push(STRUCTURAL_LIST_ITEM_ALIGN_CENTER_CLASS);
-    } else if (align === 'right') {
-      classes.push(STRUCTURAL_LIST_ITEM_ALIGN_RIGHT_CLASS);
-    }
-  }
-
-  return classes.length > 0 ? classes.join(' ') : null;
-}
-
-function createStructuralDecoration(node: ProseNode, pos: number): ProseDecoration | null {
-  const className = getStructuralStyleDecorationClass(node);
-  if (!className) {
-    return null;
-  }
-  return Decoration.node(pos, pos + node.nodeSize, { class: className });
-}
-
-export function collectStructuralStyleDecorations(
-  doc: ProseNode,
-  maxDecorations = MAX_STRUCTURAL_STYLE_DECORATIONS,
-  maxScanNodes = MAX_STRUCTURAL_STYLE_SCAN_NODES,
-): ProseDecoration[] {
-  const decorations: ProseDecoration[] = [];
-
-  scanProseDescendants(doc, (node, pos) => {
-    if (decorations.length >= maxDecorations) {
-      return STOP_PROSE_SCAN;
-    }
-
-    const typedNode = node as ProseNode;
-    if (!isRelevantStructuralNode(typedNode)) {
-      return true;
-    }
-
-    const decoration = createStructuralDecoration(typedNode, pos);
-    if (decoration) {
-      decorations.push(decoration);
-    }
-
-    if (typedNode.type.name === 'paragraph') {
-      return SKIP_PROSE_DESCENDANTS;
-    }
-
-    return decorations.length < maxDecorations ? true : STOP_PROSE_SCAN;
-  }, maxScanNodes);
-
-  return decorations;
-}
-
-export function createStructuralStyleDecorations(doc: ProseNode): DecorationSet {
-  const decorations = collectStructuralStyleDecorations(doc);
-  return decorations.length > 0 ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
-}
 
 function clampDocPosition(doc: ProseNode, pos: number): number {
   return Math.max(0, Math.min(pos, doc.content.size));

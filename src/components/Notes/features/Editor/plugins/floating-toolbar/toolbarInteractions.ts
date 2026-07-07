@@ -10,23 +10,15 @@ import {
   hasFormatPreview,
 } from './previewStyles';
 import { collapseSelectionAfterToolbarApply } from './selectionCollapse';
-import { escapeToolbarHtml } from './htmlEscape';
 import { createToolbarActionController } from './toolbarActions';
 import type { ToolbarActionControllerOptions } from './toolbarActions';
-import { themeDomStyleTokens, themeRenderingTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { ToolbarTooltipController } from './toolbarTooltipController';
+import {
+  COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS,
+  PREVIEWED_DIRECT_APPLY_ACTIONS,
+} from './toolbarDirectApplyActions';
 
 export { focusSelectedCodeBlockAfterDelete } from './toolbarActions';
-
-const PREVIEWED_DIRECT_APPLY_ACTIONS = new Set([
-  'bold',
-  'italic',
-  'underline',
-  'strike',
-  'code',
-  'highlight',
-]);
-
-const COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS = PREVIEWED_DIRECT_APPLY_ACTIONS;
 
 export interface ToolbarEventDelegationController {
   update: (view: EditorView, state: FloatingToolbarState) => void;
@@ -40,51 +32,9 @@ export function createToolbarEventDelegation(
 ): ToolbarEventDelegationController {
   let currentView: EditorView | null = null;
   let currentState: FloatingToolbarState | null = null;
-  let tooltipElement: HTMLElement | null = null;
-  let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
   let handledPointerDownAction: string | null = null;
   const actionController = createToolbarActionController(() => currentState, options);
-
-  const getTooltipElement = () => {
-    if (!tooltipElement) {
-      tooltipElement = document.createElement('div');
-      tooltipElement.className = 'toolbar-tooltip';
-      document.body.appendChild(tooltipElement);
-    }
-    return tooltipElement;
-  };
-
-  const hideTooltip = () => {
-    if (tooltipTimer) {
-      clearTimeout(tooltipTimer);
-      tooltipTimer = null;
-    }
-
-    if (tooltipElement) {
-      tooltipElement.classList.remove('visible');
-    }
-  };
-
-  const showTooltip = (button: HTMLElement) => {
-    const shortcut = button.dataset.shortcut;
-    if (!shortcut) {
-      return;
-    }
-
-    const tooltip = getTooltipElement();
-    const keys = shortcut.split('+').map((k) => `<kbd>${escapeToolbarHtml(k)}</kbd>`).join('');
-    tooltip.innerHTML = `
-      <span class="toolbar-tooltip-shortcut">${keys}</span>
-      <span class="toolbar-tooltip-arrow" aria-hidden="true"></span>
-    `;
-    tooltip.dataset.side = 'bottom';
-
-    const rect = button.getBoundingClientRect();
-    tooltip.style.left = `${rect.left + rect.width / 2}px`;
-    tooltip.style.top = `${rect.bottom + themeDomStyleTokens.toolbarTooltipOffsetPx}px`;
-    tooltip.style.transform = themeRenderingTokens.translateCenterTop;
-    tooltip.classList.add('visible');
-  };
+  const tooltipController = new ToolbarTooltipController();
 
   const executeToolbarAction = (button: HTMLElement, action: string) => {
     if (!currentView || !currentState) {
@@ -123,7 +73,7 @@ export function createToolbarEventDelegation(
         : true;
       if (didPreviewChangeDoc) {
         clearFormatPreview(view);
-        hideTooltip();
+        tooltipController.hide();
         view.dispatch(
           view.state.tr.setMeta(floatingToolbarKey, {
             type: TOOLBAR_ACTIONS.HIDE,
@@ -158,7 +108,7 @@ export function createToolbarEventDelegation(
         }
 
         clearFormatPreview(view);
-        hideTooltip();
+        tooltipController.hide();
         view.dispatch(
           view.state.tr.setMeta(floatingToolbarKey, {
             type: TOOLBAR_ACTIONS.HIDE,
@@ -272,8 +222,8 @@ export function createToolbarEventDelegation(
     }
 
     if (button.dataset.shortcut) {
-      hideTooltip();
-      tooltipTimer = setTimeout(() => showTooltip(button), themeUiFeedbackTokens.toolbarTooltipDelayMs);
+      tooltipController.hide();
+      tooltipController.schedule(button);
     }
   };
 
@@ -291,7 +241,7 @@ export function createToolbarEventDelegation(
     }
 
     if (relatedTarget && toolbarElement.contains(relatedTarget)) {
-      hideTooltip();
+      tooltipController.hide();
       return;
     }
 
@@ -300,14 +250,14 @@ export function createToolbarEventDelegation(
       clearFormatPreview(currentView);
     }
 
-    hideTooltip();
+    tooltipController.hide();
   };
 
   const handleToolbarMouseLeave = () => {
     if (currentView) {
       clearFormatPreview(currentView);
     }
-    hideTooltip();
+    tooltipController.hide();
   };
 
   toolbarElement.addEventListener('pointerdown', handlePointerDown);
@@ -326,7 +276,7 @@ export function createToolbarEventDelegation(
       if (currentView) {
         clearFormatPreview(currentView);
       }
-      hideTooltip();
+      tooltipController.hide();
     },
     destroy() {
       toolbarElement.removeEventListener('pointerdown', handlePointerDown);
@@ -336,13 +286,9 @@ export function createToolbarEventDelegation(
       toolbarElement.removeEventListener('mouseout', handleMouseOut);
       toolbarElement.removeEventListener('mouseleave', handleToolbarMouseLeave);
 
-      hideTooltip();
+      tooltipController.hide();
       actionController.destroy();
-
-      if (tooltipElement) {
-        tooltipElement.remove();
-        tooltipElement = null;
-      }
+      tooltipController.destroy();
 
       currentView = null;
       currentState = null;

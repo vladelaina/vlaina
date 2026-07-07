@@ -10,8 +10,9 @@ import { useI18n } from '@/lib/i18n';
 import { getInvalidFileNameReason } from '@/stores/notes/noteUtils';
 import { useToastStore } from '@/stores/useToastStore';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
-import { themeTextAreaTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { clearCurrentEditorBlockSelection } from './utils/editorViewRegistry';
+import { useTitleInputAutoResize } from './hooks/useTitleInputAutoResize';
 
 interface TitleInputProps {
   notePath: string;
@@ -28,8 +29,6 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   const skipNextBlurCommitRef = useRef(false);
   const isCommittingRef = useRef(false);
   const titleActionFrameRef = useRef<number | null>(null);
-  const resizeFrameRef = useRef<number | null>(null);
-  const resizeTimeoutRef = useRef<number | null>(null);
   const lastInvalidToastAtRef = useRef(0);
   const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
   const isComposingRef = useRef(false);
@@ -41,75 +40,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
   const addToast = useToastStore(s => s.addToast);
   const titleInputDataAttrs = { [NOTE_TITLE_INPUT_DATA_ATTR]: 'true' as const };
 
-  const resizeTitleInput = useCallback(() => {
-    const input = inputRef.current;
-    if (!input) return;
-
-    if (input.getBoundingClientRect().width <= 0) {
-      input.style.height = '';
-      return;
-    }
-
-    input.style.height = themeTextAreaTokens.heightAuto;
-    input.style.height = `${input.scrollHeight}px`;
-    input.scrollTop = 0;
-    input.scrollLeft = 0;
-
-    if (input.ownerDocument.activeElement === input) {
-      requestNativeCaretOverlayRefresh();
-    }
-  }, []);
-
-  const scheduleResizeTitleInput = useCallback(() => {
-    if (resizeFrameRef.current !== null) {
-      cancelAnimationFrame(resizeFrameRef.current);
-    }
-
-    resizeFrameRef.current = requestAnimationFrame(() => {
-      resizeFrameRef.current = null;
-      resizeTitleInput();
-    });
-  }, [resizeTitleInput]);
-
-  useEffect(() => {
-    resizeTitleInput();
-    scheduleResizeTitleInput();
-  }, [resizeTitleInput, scheduleResizeTitleInput, title]);
-
-  useEffect(() => {
-    const input = inputRef.current;
-    if (!input) return;
-
-    const observedElements = [input, input.parentElement].filter(Boolean) as Element[];
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(() => {
-        scheduleResizeTitleInput();
-      });
-      observedElements.forEach((element) => resizeObserver?.observe(element));
-    }
-
-    resizeTimeoutRef.current = window.setTimeout(() => {
-      resizeTimeoutRef.current = null;
-      resizeTitleInput();
-    }, themeTextAreaTokens.titleResizeFallbackDelayMs);
-
-    void document.fonts?.ready.then(() => {
-      scheduleResizeTitleInput();
-    });
-
-    return () => {
-      resizeObserver?.disconnect();
-      if (resizeFrameRef.current !== null) {
-        cancelAnimationFrame(resizeFrameRef.current);
-        resizeFrameRef.current = null;
-      }
-      if (resizeTimeoutRef.current !== null) {
-        window.clearTimeout(resizeTimeoutRef.current);
-        resizeTimeoutRef.current = null;
-      }
-    };
-  }, [resizeTitleInput, scheduleResizeTitleInput]);
+  const resizeTitleInput = useTitleInputAutoResize(inputRef, title);
 
   const showInvalidFileNameToast = useCallback((message: string) => {
     const now = Date.now();
@@ -289,14 +220,6 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus, compact
       if (titleActionFrameRef.current !== null) {
         cancelAnimationFrame(titleActionFrameRef.current);
         titleActionFrameRef.current = null;
-      }
-      if (resizeFrameRef.current !== null) {
-        cancelAnimationFrame(resizeFrameRef.current);
-        resizeFrameRef.current = null;
-      }
-      if (resizeTimeoutRef.current !== null) {
-        window.clearTimeout(resizeTimeoutRef.current);
-        resizeTimeoutRef.current = null;
       }
       isCommittingRef.current = false;
       skipNextBlurCommitRef.current = false;

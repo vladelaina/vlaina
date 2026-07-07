@@ -1,60 +1,20 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type HTMLAttributes,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-  type WheelEvent as ReactWheelEvent,
-} from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { normalizeWheelDelta } from '@/lib/scroll/wheelScroll';
-
-const MIN_THUMB_HEIGHT = 36;
-const SCROLL_EPSILON_PX = 1;
-const scrollbarThumbIdleColor = 'bg-[var(--vlaina-color-scrollbar-thumb)]';
-const scrollbarThumbActiveColor = 'bg-[var(--vlaina-color-scrollbar-thumb-hover)]';
-const scrollbarThumbHoverColor = 'hover:bg-[var(--vlaina-color-scrollbar-thumb-hover)]';
-
-const scrollbarVariantClasses = {
-  default: {
-    rail: 'w-4',
-    railHover: 'w-4',
-    railAlign: 'justify-center',
-    track: 'w-3',
-    trackHover: 'w-3',
-    thumbOffset: 'right-[var(--vlaina-scrollbar-thumb-offset)]',
-    thumbHoverOffset: 'right-[var(--vlaina-scrollbar-thumb-offset)]',
-    thumbIdleWidth: 'w-2',
-    thumbHoverWidth: 'w-2',
-    thumbDraggingWidth: 'w-[var(--vlaina-size-9px)]',
-  },
-  compact: {
-    rail: 'w-[var(--vlaina-size-7px)]',
-    railHover: 'w-4',
-    railAlign: 'justify-end',
-    track: 'w-[var(--vlaina-size-7px)]',
-    trackHover: 'w-3',
-    thumbOffset: 'right-0',
-    thumbHoverOffset: 'right-[var(--vlaina-scrollbar-thumb-offset)]',
-    thumbIdleWidth: 'w-[var(--vlaina-size-5px)]',
-    thumbHoverWidth: 'w-2',
-    thumbDraggingWidth: 'w-[var(--vlaina-size-9px)]',
-  },
-} as const;
-
-type ScrollbarVariant = keyof typeof scrollbarVariantClasses;
-
-interface ScrollMetrics {
-  canScroll: boolean;
-  viewportHeight: number;
-  scrollHeight: number;
-  scrollTop: number;
-  thumbHeight: number;
-  thumbOffset: number;
-}
+import { OverlayScrollbar } from './OverlayScrollbar';
+import {
+  SCROLL_EPSILON_PX,
+  clamp,
+  getScrollMetrics,
+  scrollbarVariantClasses,
+  type ScrollMetrics,
+  type ScrollbarVariant,
+} from './overlayScrollAreaUtils';
+import {
+  useCancelOverlayScrollbarMetricsFrame,
+  useOverlayScrollbarDraggingClass,
+  useOverlayScrollbarWindowDrag,
+} from './overlayScrollAreaHooks';
 
 interface OverlayScrollAreaProps extends Omit<HTMLAttributes<HTMLDivElement>, 'className' | 'children'> {
   children?: ReactNode;
@@ -63,44 +23,6 @@ interface OverlayScrollAreaProps extends Omit<HTMLAttributes<HTMLDivElement>, 'c
   draggingBodyClassName?: string;
   scrollbarInsetRight?: number;
   scrollbarVariant?: ScrollbarVariant;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function getScrollMetrics(element: HTMLDivElement): ScrollMetrics {
-  const viewportHeight = element.clientHeight;
-  const scrollHeight = element.scrollHeight;
-  const scrollTop = element.scrollTop;
-  const maxScrollTop = Math.max(scrollHeight - viewportHeight, 0);
-  const canScroll = maxScrollTop > 0;
-
-  if (!canScroll) {
-    return {
-      canScroll,
-      viewportHeight,
-      scrollHeight,
-      scrollTop,
-      thumbHeight: viewportHeight,
-      thumbOffset: 0,
-    };
-  }
-
-  const thumbHeight = clamp((viewportHeight / scrollHeight) * viewportHeight, MIN_THUMB_HEIGHT, viewportHeight);
-  const maxThumbOffset = Math.max(viewportHeight - thumbHeight, 0);
-  const thumbOffset = maxScrollTop === 0
-    ? 0
-    : (scrollTop / maxScrollTop) * maxThumbOffset;
-
-  return {
-    canScroll,
-    viewportHeight,
-    scrollHeight,
-    scrollTop,
-    thumbHeight,
-    thumbOffset,
-  };
 }
 
 export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaProps>(function OverlayScrollArea({
@@ -227,58 +149,9 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
     updateMetrics();
   }, [updateMetrics]);
 
-  useEffect(() => {
-    if (!isDragging) {
-      return;
-    }
-
-    window.addEventListener('pointermove', handleWindowPointerMove);
-    window.addEventListener('pointerup', stopDragging);
-    window.addEventListener('pointercancel', stopDragging);
-
-    return () => {
-      window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.removeEventListener('pointerup', stopDragging);
-      window.removeEventListener('pointercancel', stopDragging);
-    };
-  }, [handleWindowPointerMove, isDragging, stopDragging]);
-
-  useEffect(() => {
-    return () => {
-      if (metricsFrameRef.current !== null) {
-        window.cancelAnimationFrame(metricsFrameRef.current);
-        metricsFrameRef.current = null;
-      }
-      pendingMetricsForceRenderRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) {
-      return;
-    }
-
-    if (isDragging) {
-      viewport.dataset.overlayScrollbarDragging = 'true';
-      if (draggingBodyClassName) {
-        document.body.classList.add(draggingBodyClassName);
-      }
-      return;
-    }
-
-    delete viewport.dataset.overlayScrollbarDragging;
-    if (draggingBodyClassName) {
-      document.body.classList.remove(draggingBodyClassName);
-    }
-
-    return () => {
-      delete viewport.dataset.overlayScrollbarDragging;
-      if (draggingBodyClassName) {
-        document.body.classList.remove(draggingBodyClassName);
-      }
-    };
-  }, [draggingBodyClassName, isDragging]);
+  useOverlayScrollbarWindowDrag(isDragging, handleWindowPointerMove, stopDragging);
+  useCancelOverlayScrollbarMetricsFrame(metricsFrameRef, pendingMetricsForceRenderRef);
+  useOverlayScrollbarDraggingClass(viewportRef, draggingBodyClassName, isDragging);
 
   useEffect(() => {
     scheduleMetricsUpdate();
@@ -398,18 +271,14 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
       </div>
 
       {metrics.canScroll ? (
-        <div
-          aria-hidden="true"
-          data-overlay-scrollbar-rail="true"
-          data-no-focus-input="true"
-          className={cn(
-            'absolute inset-y-0 right-0 z-[var(--vlaina-z-20)] flex cursor-default transition-[opacity,width] duration-[var(--vlaina-duration-100)]',
-            isVisible ? 'pointer-events-auto' : 'pointer-events-none',
-            isScrollbarExpanded ? scrollbarClasses.railHover : scrollbarClasses.rail,
-            scrollbarClasses.railAlign,
-            isVisible ? 'opacity-[var(--vlaina-opacity-100)]' : 'opacity-[var(--vlaina-opacity-0)]',
-          )}
-          style={{ right: `${scrollbarInsetRight}px` }}
+        <OverlayScrollbar
+          metrics={metrics}
+          isVisible={isVisible}
+          isScrollbarExpanded={isScrollbarExpanded}
+          isDragging={isDragging}
+          scrollbarInsetRight={scrollbarInsetRight}
+          scrollbarClasses={scrollbarClasses}
+          thumbRef={thumbRef}
           onPointerEnter={() => {
             updateMetrics({ forceRenderPosition: true });
             setIsScrollbarHovered(true);
@@ -418,38 +287,8 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
             updateMetrics({ forceRenderPosition: true });
             setIsScrollbarHovered(false);
           }}
-        >
-          <div
-            className={cn(
-              'relative h-full cursor-default transition-[width] duration-[var(--vlaina-duration-100)]',
-              isScrollbarExpanded ? scrollbarClasses.trackHover : scrollbarClasses.track,
-            )}
-          >
-            <div
-              ref={thumbRef}
-              data-overlay-scrollbar-thumb="true"
-              className={cn(
-                'pointer-events-auto absolute cursor-default rounded-full transition-[width,background-color] duration-[var(--vlaina-duration-100)]',
-                isScrollbarExpanded ? scrollbarClasses.thumbHoverOffset : scrollbarClasses.thumbOffset,
-                isDragging
-                  ? scrollbarThumbActiveColor
-                  : isScrollbarExpanded
-                    ? scrollbarThumbActiveColor
-                    : cn(scrollbarThumbIdleColor, scrollbarThumbHoverColor),
-                isDragging
-                  ? scrollbarClasses.thumbDraggingWidth
-                  : isScrollbarExpanded
-                    ? scrollbarClasses.thumbHoverWidth
-                    : scrollbarClasses.thumbIdleWidth,
-              )}
-              style={{
-                height: `${metrics.thumbHeight}px`,
-                transform: `translateY(${metrics.thumbOffset}px)`,
-              }}
-              onPointerDown={handleThumbPointerDown}
-            />
-          </div>
-        </div>
+          onThumbPointerDown={handleThumbPointerDown}
+        />
       ) : null}
     </div>
   );

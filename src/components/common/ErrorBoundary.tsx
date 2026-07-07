@@ -1,7 +1,8 @@
 import { Component, Fragment, version as reactVersion, type ErrorInfo, type ReactNode } from 'react';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { translate, type MessageKey } from '@/lib/i18n';
+import { ErrorWindowChrome } from './ErrorBoundaryChrome';
+import { GITHUB_ISSUES_URL, SUPPORT_EMAIL, SUPPORT_EMAIL_HREF, safeTranslate } from './errorBoundaryMessages';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -18,138 +19,8 @@ interface ErrorBoundaryState {
   reportedAt: string | null;
 }
 
-const GITHUB_ISSUES_URL = 'https://github.com/vladelaina/vlaina/issues';
-const SUPPORT_EMAIL = 'hi@vlaina.com';
-const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}`;
 const SUPPORT_EMAIL_LINK_CLASS =
   'inline p-0 font-medium text-[var(--vlaina-accent)] underline-offset-4 hover:text-[var(--vlaina-accent-hover)] hover:underline';
-const FALLBACK_MESSAGES = {
-  'common.somethingWentWrong': 'Something went wrong',
-  'common.errorReportInstruction': `Please copy this error report and email it to ${SUPPORT_EMAIL} as soon as possible. A diagnostic log was also saved in the system configuration folder.`,
-  'common.logFile': 'Log file',
-  'common.errorDetails': 'Error details',
-  'common.copied': 'Copied',
-  'common.copyErrorReport': 'Copy error report',
-  'common.closeWindow': 'Close window',
-  'common.minimizeWindow': 'Minimize window',
-  'common.maximizeWindow': 'Maximize window',
-  'common.openLogFolder': 'Open log folder',
-  'common.tryAgain': 'Try again',
-  'common.reload': 'Reload',
-  'common.reportOnGitHub': 'Open GitHub Issues',
-} satisfies Partial<Record<MessageKey, string>>;
-
-function isNativeMacOS() {
-  return (
-    typeof navigator !== 'undefined' &&
-    /Mac|iPod|iPhone|iPad/.test(navigator.platform)
-  );
-}
-
-function shouldPreviewMacOSChrome() {
-  return (
-    import.meta.env.DEV &&
-    !isNativeMacOS() &&
-    typeof document !== 'undefined' &&
-    document.documentElement.getAttribute('data-vlaina-dev-platform-preview') === 'macos'
-  );
-}
-
-function safeTranslate(key: keyof typeof FALLBACK_MESSAGES) {
-  try {
-    return translate(key);
-  } catch {
-    return FALLBACK_MESSAGES[key];
-  }
-}
-
-function ErrorWindowButton({
-  children,
-  className = '',
-  label,
-  onClick,
-}: {
-  children: ReactNode;
-  className?: string;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className={`app-no-drag flex h-10 w-12 items-center justify-center text-sm text-foreground/75 transition-colors hover:bg-muted hover:text-foreground ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ErrorMacOSTrafficLightControls() {
-  const buttonClass =
-    'app-no-drag h-3 w-3 rounded-full border border-black/15 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.35)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-accent-focus-ring)]';
-
-  return (
-    <div className="absolute left-3 top-0 z-[var(--vlaina-z-60)] flex h-10 items-center gap-2">
-      <button
-        type="button"
-        aria-label={safeTranslate('common.closeWindow')}
-        onClick={() => void getElectronBridge()?.window?.close?.()}
-        className={`${buttonClass} bg-[#ff5f57]`}
-      />
-      <button
-        type="button"
-        aria-label={safeTranslate('common.minimizeWindow')}
-        onClick={() => void getElectronBridge()?.window?.minimize?.()}
-        className={`${buttonClass} bg-[#febc2e]`}
-      />
-      <button
-        type="button"
-        aria-label={safeTranslate('common.maximizeWindow')}
-        onClick={() => void getElectronBridge()?.window?.toggleMaximize?.()}
-        className={`${buttonClass} bg-[#28c840]`}
-      />
-    </div>
-  );
-}
-
-function ErrorWindowChrome() {
-  const nativeMacOS = isNativeMacOS();
-  const showMacOSPreview = shouldPreviewMacOSChrome();
-  const useMacOSLayout = nativeMacOS || showMacOSPreview;
-
-  return (
-    <div className="app-drag-region app-title-bar relative flex h-10 shrink-0 select-none items-center bg-background/95">
-      {showMacOSPreview ? <ErrorMacOSTrafficLightControls /> : null}
-      <div className={useMacOSLayout ? 'w-[var(--vlaina-space-76px)]' : 'w-3'} />
-      <div className="min-w-0 flex-1" />
-      {!useMacOSLayout ? (
-        <div className="app-no-drag flex shrink-0">
-          <ErrorWindowButton
-            label={safeTranslate('common.minimizeWindow')}
-            onClick={() => void getElectronBridge()?.window?.minimize?.()}
-          >
-            -
-          </ErrorWindowButton>
-          <ErrorWindowButton
-            label={safeTranslate('common.maximizeWindow')}
-            onClick={() => void getElectronBridge()?.window?.toggleMaximize?.()}
-          >
-            □
-          </ErrorWindowButton>
-          <ErrorWindowButton
-            label={safeTranslate('common.closeWindow')}
-            onClick={() => void getElectronBridge()?.window?.close?.()}
-            className="hover:bg-[var(--vlaina-color-danger)] hover:text-[var(--vlaina-color-white)]"
-          >
-            ×
-          </ErrorWindowButton>
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {

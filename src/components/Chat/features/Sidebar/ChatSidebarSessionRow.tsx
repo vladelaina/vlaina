@@ -2,7 +2,6 @@ import { memo, useCallback, useState, type MouseEvent } from 'react';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
 import { useSidebarHoverPrefetch } from '@/components/layout/sidebar/useSidebarHoverPrefetch';
@@ -23,6 +22,7 @@ import {
   CHAT_SIDEBAR_SESSION_ROW_VERTICAL_PADDING_CLASS,
   CHAT_SIDEBAR_TITLE_WRAP_CLASS,
 } from './chatSidebarLayout';
+import { ChatSidebarLoadingTitle, getChatSessionTitleClass } from './ChatSidebarSessionTitle';
 import { themeIconTokens } from '@/styles/themeTokens';
 
 interface ChatSidebarSessionRowProps {
@@ -40,54 +40,6 @@ interface ChatSidebarSessionRowProps {
   onTogglePin: (sessionId: string, isPinned?: boolean) => void;
   onHideSearch?: () => void;
   shouldHideSearchResults: boolean;
-}
-
-function getChatSessionTitleClass({
-  isActive,
-  isMenuTarget,
-  isGenerating,
-  isUnread,
-}: {
-  isActive: boolean;
-  isMenuTarget: boolean;
-  isGenerating: boolean;
-  isUnread: boolean;
-}) {
-  return cn(
-    isActive || isMenuTarget
-      ? 'text-[var(--vlaina-sidebar-row-selected-text)]'
-      : getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
-  );
-}
-
-function ChatSidebarLoadingTitle({
-  title,
-  fullWrap = false,
-  selected = false,
-}: {
-  title: string;
-  fullWrap?: boolean;
-  selected?: boolean;
-}) {
-  return (
-    <span className={cn('chat-sidebar-loading-title', fullWrap && 'chat-sidebar-loading-title-unclamped')}>
-      <span className={cn(
-        'chat-sidebar-loading-title-base',
-        selected && '!text-[var(--vlaina-sidebar-row-selected-text)]',
-      )}>
-        {title}
-      </span>
-      <span
-        className={cn(
-          'chat-sidebar-loading-title-overlay',
-          selected && '!text-[var(--vlaina-sidebar-row-selected-text)]',
-        )}
-        aria-hidden
-      >
-        {title}
-      </span>
-    </span>
-  );
 }
 
 function ChatSidebarSessionRowInner({

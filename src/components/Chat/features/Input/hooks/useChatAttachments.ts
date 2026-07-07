@@ -1,181 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { deleteAttachment, saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
+import { saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useToastStore } from '@/stores/useToastStore';
-import { translate } from '@/lib/i18n';
+import {
+  collectChatAttachmentClipboardFiles,
+  collectChatAttachmentFiles,
+  collectChatAttachmentTransferFiles,
+  hasChatAttachmentFileTransfer,
+  hasChatAttachmentFileType,
+  hasChatAttachmentTransferItem,
+  MAX_CHAT_ATTACHMENT_INPUT_FILES,
+  MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN,
+} from './chatAttachmentInputFiles';
+import {
+  deleteAttachmentQuietly,
+  getAttachmentSaveFailureToastMessage,
+  settleWithConcurrencyLimit,
+  MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY,
+} from './chatAttachmentPersistence';
+import { useChatAttachmentUndoStack } from './chatAttachmentUndoStack';
+import { useChatAttachmentWindowDrop } from './chatAttachmentWindowDrop';
 
-export const MAX_CHAT_ATTACHMENT_INPUT_FILES = 64;
-export const MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN = 1024;
-export const MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY = 4;
-const MAX_CHAT_ATTACHMENT_REMOVAL_UNDO = 32;
-
-interface RemovedAttachmentUndoEntry {
-  attachment: Attachment;
-  index: number;
-}
-
-function getTransferType(types: DataTransfer['types'], index: number): string | null {
-  const maybeTypes = types as DataTransfer['types'] & { item?: (index: number) => string | null };
-  if (typeof maybeTypes.item === 'function') {
-    return maybeTypes.item(index);
-  }
-  return maybeTypes[index] ?? null;
-}
-
-export function hasChatAttachmentFileType(types: DataTransfer['types'] | null | undefined): boolean {
-  if (!types) {
-    return false;
-  }
-
-  const length = Math.min(types.length, MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN);
-  for (let index = 0; index < length; index += 1) {
-    if (getTransferType(types, index) === 'Files') {
-      return true;
-    }
-  }
-  return false;
-}
-
-export function hasChatAttachmentTransferItem(items: DataTransferItemList | null | undefined): boolean {
-  if (!items) {
-    return false;
-  }
-
-  const length = Math.min(items.length, MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN);
-  for (let index = 0; index < length; index += 1) {
-    if (items[index]?.kind === 'file') {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isChatAttachmentFileCandidate(value: unknown): value is File {
-  if (value instanceof File) {
-    return true;
-  }
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const candidate = value as Partial<File>;
-  return (
-    typeof candidate.name === 'string' &&
-    typeof candidate.type === 'string' &&
-    typeof candidate.size === 'number' &&
-    typeof candidate.arrayBuffer === 'function'
-  );
-}
-
-export function collectChatAttachmentFiles(
-  files: FileList | readonly File[] | null | undefined,
-  maxFiles = MAX_CHAT_ATTACHMENT_INPUT_FILES
-): File[] {
-  if (!files) {
-    return [];
-  }
-
-  const collected: File[] = [];
-  const length = Math.min(files.length, maxFiles);
-  for (let index = 0; index < length; index += 1) {
-    const file = files[index];
-    if (isChatAttachmentFileCandidate(file)) {
-      collected.push(file);
-    }
-  }
-  return collected;
-}
-
-export function collectChatAttachmentClipboardFiles(items: DataTransferItemList | null | undefined): File[] {
-  if (!items) {
-    return [];
-  }
-
-  const files: File[] = [];
-  const length = Math.min(items.length, MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN);
-  for (let index = 0; index < length; index += 1) {
-    const item = items[index];
-    if (item?.kind !== 'file') {
-      continue;
-    }
-
-    const file = item.getAsFile();
-    if (!file) {
-      continue;
-    }
-
-    files.push(file);
-    if (files.length >= MAX_CHAT_ATTACHMENT_INPUT_FILES) {
-      break;
-    }
-  }
-  return files;
-}
-
-export function collectChatAttachmentTransferFiles(
-  transfer: DataTransfer | null | undefined
-): File[] {
-  if (!transfer) {
-    return [];
-  }
-
-  const files = collectChatAttachmentFiles(transfer.files);
-  if (files.length > 0) {
-    return files;
-  }
-
-  return collectChatAttachmentClipboardFiles(transfer.items);
-}
-
-async function settleWithConcurrencyLimit<T, R>(
-  items: readonly T[],
-  concurrency: number,
-  worker: (item: T) => Promise<R>
-): Promise<PromiseSettledResult<R>[]> {
-  const results = new Array<PromiseSettledResult<R>>(items.length);
-  let nextIndex = 0;
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      while (nextIndex < items.length) {
-        const index = nextIndex;
-        nextIndex += 1;
-        try {
-          results[index] = { status: 'fulfilled', value: await worker(items[index]!) };
-        } catch (reason) {
-          results[index] = { status: 'rejected', reason };
-        }
-      }
-    }
-  );
-
-  await Promise.all(workers);
-  return results;
-}
-
-function deleteAttachmentQuietly(attachment: Attachment): void {
-  try {
-    void Promise.resolve(deleteAttachment(attachment)).catch(() => {});
-  } catch {
-  }
-}
-
-function getAttachmentSaveFailureToastMessage(results: PromiseSettledResult<Attachment>[]): string | null {
-  const rejectedResults = results.filter((result) => result.status === 'rejected');
-  if (rejectedResults.length === 0) {
-    return null;
-  }
-
-  const hasUnsupportedFile = rejectedResults.some((result) =>
-    result.reason instanceof Error && /unsupported attachment type/i.test(result.reason.message)
-  );
-  if (hasUnsupportedFile) {
-    return translate('notes.unsupportedFile');
-  }
-
-  return translate('asset.uploadFailed');
-}
+export {
+  collectChatAttachmentClipboardFiles,
+  collectChatAttachmentFiles,
+  collectChatAttachmentTransferFiles,
+  hasChatAttachmentFileTransfer,
+  hasChatAttachmentFileType,
+  hasChatAttachmentTransferItem,
+  MAX_CHAT_ATTACHMENT_INPUT_FILES,
+  MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY,
+  MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN,
+};
 
 export function useChatAttachments() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -183,23 +39,15 @@ export function useChatAttachments() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const attachmentsRef = useRef<Attachment[]>([]);
-  const removedAttachmentUndoStackRef = useRef<RemovedAttachmentUndoEntry[]>([]);
   const pendingAttachmentSaveCountRef = useRef(0);
   const attachmentGenerationRef = useRef(0);
   const isMountedRef = useRef(true);
-
-  const flushRemovedAttachmentUndoStack = useCallback((preserveIds?: ReadonlySet<string>) => {
-    const removedEntries = removedAttachmentUndoStackRef.current;
-    if (removedEntries.length === 0) {
-      return;
-    }
-    removedAttachmentUndoStackRef.current = [];
-    removedEntries.forEach(({ attachment }) => {
-      if (!preserveIds?.has(attachment.id)) {
-        deleteAttachmentQuietly(attachment);
-      }
-    });
-  }, []);
+  const {
+    flushRemovedAttachmentUndoStack,
+    removeAttachment,
+    undoLastRemovedAttachment,
+    discardRemovedAttachmentUndoStack,
+  } = useChatAttachmentUndoStack({ attachmentsRef, setAttachments });
 
   useEffect(() => {
     attachmentsRef.current = attachments;
@@ -212,19 +60,10 @@ export function useChatAttachments() {
     attachmentsRef.current = [];
   }, [flushRemovedAttachmentUndoStack]);
 
-  const hasFileTransfer = useCallback((transfer: DataTransfer | null | undefined) => {
-    if (!transfer) {
-      return false;
-    }
-    const types = transfer.types;
-    if (hasChatAttachmentFileType(types)) {
-      return true;
-    }
-    if (hasChatAttachmentTransferItem(transfer.items)) {
-      return true;
-    }
-    return transfer.files.length > 0;
-  }, []);
+  const hasFileTransfer = useCallback(
+    (transfer: DataTransfer | null | undefined) => hasChatAttachmentFileTransfer(transfer),
+    []
+  );
 
   const hasFileDrag = useCallback(
     (event: React.DragEvent) => hasFileTransfer(event.dataTransfer),
@@ -311,55 +150,12 @@ export function useChatAttachments() {
     }
   }, [flushRemovedAttachmentUndoStack]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const onWindowDragOver = (event: DragEvent) => {
-      if (!hasFileTransfer(event.dataTransfer)) {
-        return;
-      }
-      event.preventDefault();
-      if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'copy';
-      }
-      setIsDragging(true);
-    };
-
-    const onWindowDrop = (event: DragEvent) => {
-      if (event.defaultPrevented || !hasFileTransfer(event.dataTransfer)) {
-        return;
-      }
-      event.preventDefault();
-      dragDepthRef.current = 0;
-      setIsDragging(false);
-      const files = collectChatAttachmentTransferFiles(event.dataTransfer);
-      if (files.length > 0) {
-        void processFiles(files).catch(() => undefined);
-      }
-    };
-
-    const onWindowDragLeave = (event: DragEvent) => {
-      if (!hasFileTransfer(event.dataTransfer)) {
-        return;
-      }
-      if (event.clientX === 0 && event.clientY === 0) {
-        dragDepthRef.current = 0;
-        setIsDragging(false);
-      }
-    };
-
-    window.addEventListener('dragover', onWindowDragOver);
-    window.addEventListener('drop', onWindowDrop);
-    window.addEventListener('dragleave', onWindowDragLeave);
-
-    return () => {
-      window.removeEventListener('dragover', onWindowDragOver);
-      window.removeEventListener('drop', onWindowDrop);
-      window.removeEventListener('dragleave', onWindowDragLeave);
-    };
-  }, [hasFileTransfer, processFiles]);
+  useChatAttachmentWindowDrop({
+    dragDepthRef,
+    hasFileTransfer,
+    processFiles,
+    setIsDragging,
+  });
 
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent) => {
@@ -423,64 +219,6 @@ export function useChatAttachments() {
     dragDepthRef.current = 0;
     setIsDragging(false);
   }, []);
-
-  const removeAttachment = useCallback((id: string) => {
-    const removedIndex = attachmentsRef.current.findIndex((item) => item.id === id);
-    if (removedIndex < 0) {
-      return;
-    }
-
-    const removedAttachment = attachmentsRef.current[removedIndex];
-    if (!removedAttachment) {
-      return;
-    }
-
-    const nextAttachments = attachmentsRef.current.filter((item) => item.id !== id);
-    attachmentsRef.current = nextAttachments;
-    setAttachments(nextAttachments);
-    removedAttachmentUndoStackRef.current.push({
-      attachment: removedAttachment,
-      index: removedIndex,
-    });
-
-    while (removedAttachmentUndoStackRef.current.length > MAX_CHAT_ATTACHMENT_REMOVAL_UNDO) {
-      const staleEntry = removedAttachmentUndoStackRef.current.shift();
-      if (staleEntry) {
-        deleteAttachmentQuietly(staleEntry.attachment);
-      }
-    }
-  }, []);
-
-  const undoLastRemovedAttachment = useCallback(() => {
-    const removedEntry = removedAttachmentUndoStackRef.current.pop();
-    if (!removedEntry) {
-      return false;
-    }
-
-    const currentAttachments = attachmentsRef.current;
-    if (currentAttachments.some((attachment) => attachment.id === removedEntry.attachment.id)) {
-      return false;
-    }
-
-    if (currentAttachments.length >= MAX_CHAT_ATTACHMENT_INPUT_FILES) {
-      deleteAttachmentQuietly(removedEntry.attachment);
-      return false;
-    }
-
-    const insertIndex = Math.max(0, Math.min(removedEntry.index, currentAttachments.length));
-    const nextAttachments = [
-      ...currentAttachments.slice(0, insertIndex),
-      removedEntry.attachment,
-      ...currentAttachments.slice(insertIndex),
-    ];
-    attachmentsRef.current = nextAttachments;
-    setAttachments(nextAttachments);
-    return true;
-  }, []);
-
-  const discardRemovedAttachmentUndoStack = useCallback(() => {
-    flushRemovedAttachmentUndoStack();
-  }, [flushRemovedAttachmentUndoStack]);
 
   const clearAttachments = useCallback(() => {
     flushRemovedAttachmentUndoStack();

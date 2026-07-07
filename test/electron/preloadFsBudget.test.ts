@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -52,7 +53,32 @@ async function loadPreloadApi(): Promise<{
   const webUtils = {
     getPathForFile: vi.fn(),
   };
-  const preloadPath = path.resolve(process.cwd(), 'electron/preload.cjs');
+  const preloadPath = path.resolve(process.cwd(), 'electron/preload.bundle.cjs');
+  const moduleCache = new Map<string, { exports: unknown }>();
+  const loadLocalCommonJsModule = (filePath: string) => {
+    const resolvedPath = path.resolve(filePath);
+    const cached = moduleCache.get(resolvedPath);
+    if (cached) {
+      return cached.exports;
+    }
+
+    const module = { exports: {} };
+    moduleCache.set(resolvedPath, module);
+    const moduleCode = readFileSync(resolvedPath, 'utf8');
+    const wrapped = `(function (require, module, exports) {\n${moduleCode}\n})`;
+    const moduleRequire = (id: string) => {
+      if (id === 'electron') {
+        return { contextBridge, ipcRenderer, webUtils };
+      }
+      if (id.startsWith('./')) {
+        return loadLocalCommonJsModule(path.resolve(path.dirname(resolvedPath), id));
+      }
+      throw new Error(`Unexpected preload require: ${id}`);
+    };
+    const factory = vm.runInContext(wrapped, context, { filename: resolvedPath });
+    factory(moduleRequire, module, module.exports);
+    return module.exports;
+  };
   const code = await readFile(preloadPath, 'utf8');
   const context = vm.createContext({
     Buffer,
@@ -60,6 +86,9 @@ async function loadPreloadApi(): Promise<{
     require: (id: string) => {
       if (id === 'electron') {
         return { contextBridge, ipcRenderer, webUtils };
+      }
+      if (id.startsWith('./')) {
+        return loadLocalCommonJsModule(path.resolve(path.dirname(preloadPath), id));
       }
       throw new Error(`Unexpected preload require: ${id}`);
     },

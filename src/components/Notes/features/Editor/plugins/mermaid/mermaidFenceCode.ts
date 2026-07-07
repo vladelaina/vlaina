@@ -3,6 +3,13 @@ import {
   normalizeMermaidFenceLanguage,
 } from './mermaidLanguage';
 import { parseStandaloneFencedCodeBlock } from '../clipboard/fencedCodePaste';
+import {
+  findLeadingFlowchartDirectiveLine,
+  hasClassicFlowchartSyntax,
+  normalizeClassicFlowchartCode,
+  startsWithClassicFlowchartNode,
+} from './mermaidClassicFlowchart';
+import { splitLeadingMermaidPrefix } from './mermaidFencePrefix';
 
 const MERMAID_DIAGRAM_DIRECTIVE_PATTERN = new RegExp(
   [
@@ -74,40 +81,11 @@ const STANDARD_DIRECTIVE_BY_LANGUAGE = new Map<string, string>([
   ['zenuml', 'zenuml'],
 ]);
 
-const YAML_FRONTMATTER_PREFIX_PATTERN =
-  /^(\s*---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$))/;
-const MERMAID_PREFIX_LINE_PATTERN =
-  /^(\s*(?:%%\{[\s\S]*?\}%%|%%[^\r\n]*)[ \t]*(?:\r?\n|$))/;
-
 const FIRST_LINE_PATTERN = /^([ \t]*)([^\r\n]*?)([ \t]*)(\r?\n|$)/;
 const FLOW_DIRECTION_TOKENS = new Set(['BT', 'LR', 'RL', 'TB', 'TD']);
-const CLASSIC_FLOWCHART_NODE_PATTERN =
-  /^\s*[\w-]+\s*=>\s*(?:start|end|operation|subroutine|condition|inputoutput|parallel)\s*:/i;
-const CLASSIC_FLOWCHART_NODE_LINE_PATTERN =
-  /^\s*([\w-]+)\s*=>\s*(start|end|operation|subroutine|condition|inputoutput|parallel)\s*:\s*([\s\S]*?)\s*$/i;
-const CLASSIC_FLOWCHART_PATH_LINE_PATTERN =
-  /^\s*[\w-]+(?:\([^)]*\))?(?:\s*->\s*[\w-]+(?:\([^)]*\))?)+\s*$/;
-const MODERN_FLOWCHART_DIRECTIVE_LINE_PATTERN =
-  /^\s*(flowchart(?:-elk)?|graph)\s+(BT|LR|RL|TB|TD)\s*$/i;
-const CLASSIC_FLOWCHART_DIRECTION_HINTS = new Set(['bottom', 'left', 'right', 'top']);
 
 function normalizeMermaidDirectiveAlias(directive: string) {
   return directive.trim().toLowerCase().replace(/[\s_-]+/g, '');
-}
-
-function splitLeadingMermaidPrefix(code: string) {
-  const frontmatterMatch = YAML_FRONTMATTER_PREFIX_PATTERN.exec(code);
-  let prefix = frontmatterMatch?.[1] ?? '';
-  let body = prefix ? code.slice(prefix.length) : code;
-
-  let mermaidPrefixLineMatch = MERMAID_PREFIX_LINE_PATTERN.exec(body);
-  while (mermaidPrefixLineMatch?.[1]) {
-    prefix += mermaidPrefixLineMatch[1];
-    body = body.slice(mermaidPrefixLineMatch[1].length);
-    mermaidPrefixLineMatch = MERMAID_PREFIX_LINE_PATTERN.exec(body);
-  }
-
-  return { prefix, body };
 }
 
 function normalizeLeadingDirectiveAlias(code: string) {
@@ -154,128 +132,6 @@ function normalizeLeadingDirectiveAlias(code: string) {
   }
 
   return `${prefix}${indent}${standardDirective}${trailingSpace}${newline}${body.slice(firstLineMatch[0].length)}`;
-}
-
-function startsWithClassicFlowchartNode(code: string) {
-  const { body } = splitLeadingMermaidPrefix(code);
-  const firstContentLine = body
-    .split(/\r?\n/)
-    .find((line) => line.trim().length > 0);
-  return firstContentLine ? CLASSIC_FLOWCHART_NODE_PATTERN.test(firstContentLine) : false;
-}
-
-function findLeadingFlowchartDirectiveLine(lines: readonly string[]) {
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (!line.trim()) {
-      continue;
-    }
-
-    return MODERN_FLOWCHART_DIRECTIVE_LINE_PATTERN.test(line) ? { index, line: line.trim() } : null;
-  }
-
-  return null;
-}
-
-function hasClassicFlowchartSyntax(lines: readonly string[], skipIndex: number | null = null) {
-  return lines.some((line, index) => {
-    if (index === skipIndex || !line.trim()) {
-      return false;
-    }
-
-    return CLASSIC_FLOWCHART_NODE_PATTERN.test(line) || CLASSIC_FLOWCHART_PATH_LINE_PATTERN.test(line);
-  });
-}
-
-function escapeMermaidQuotedText(text: string) {
-  return text.replace(/\\/g, '\\\\').replace(/"/g, '#quot;');
-}
-
-function formatClassicFlowchartNode(id: string, type: string, label: string) {
-  const escapedLabel = escapeMermaidQuotedText(label.trim());
-  switch (type.toLowerCase()) {
-    case 'start':
-    case 'end':
-      return `${id}(["${escapedLabel}"])`;
-    case 'condition':
-      return `${id}{"${escapedLabel}"}`;
-    case 'subroutine':
-      return `${id}[["${escapedLabel}"]]`;
-    case 'inputoutput':
-      return `${id}[/"${escapedLabel}"/]`;
-    case 'parallel':
-    case 'operation':
-    default:
-      return `${id}["${escapedLabel}"]`;
-  }
-}
-
-function parseClassicFlowchartPathTerm(term: string) {
-  const match = /^\s*([\w-]+)(?:\(([^)]*)\))?\s*$/.exec(term);
-  if (!match) {
-    return null;
-  }
-
-  const [, id = '', modifier = ''] = match;
-  return {
-    id,
-    label: CLASSIC_FLOWCHART_DIRECTION_HINTS.has(modifier.trim().toLowerCase())
-      ? ''
-      : modifier.trim(),
-  };
-}
-
-function formatClassicFlowchartPath(line: string) {
-  const terms = line.split(/\s*->\s*/).map(parseClassicFlowchartPathTerm);
-  if (terms.some((term) => term === null)) {
-    return null;
-  }
-
-  const pathTerms = terms as Array<{ id: string; label: string }>;
-  const edges: string[] = [];
-  for (let index = 0; index < pathTerms.length - 1; index += 1) {
-    const from = pathTerms[index];
-    const to = pathTerms[index + 1];
-    const connector = from.label ? ` -- "${escapeMermaidQuotedText(from.label)}" --> ` : ' --> ';
-    edges.push(`${from.id}${connector}${to.id}`);
-  }
-
-  return edges;
-}
-
-function normalizeClassicFlowchartCode(code: string) {
-  const { prefix, body } = splitLeadingMermaidPrefix(code);
-  const inputLines = body.split(/\r?\n/);
-  const leadingDirective = findLeadingFlowchartDirectiveLine(inputLines);
-  const outputLines: string[] = [leadingDirective?.line ?? 'graph TD'];
-
-  for (const [index, line] of inputLines.entries()) {
-    if (leadingDirective && index === leadingDirective.index) {
-      continue;
-    }
-    if (!line.trim()) {
-      continue;
-    }
-
-    const nodeMatch = CLASSIC_FLOWCHART_NODE_LINE_PATTERN.exec(line);
-    if (nodeMatch) {
-      const [, id = '', type = '', label = ''] = nodeMatch;
-      outputLines.push(formatClassicFlowchartNode(id, type, label));
-      continue;
-    }
-
-    if (CLASSIC_FLOWCHART_PATH_LINE_PATTERN.test(line)) {
-      const edges = formatClassicFlowchartPath(line);
-      if (edges) {
-        outputLines.push(...edges);
-        continue;
-      }
-    }
-
-    outputLines.push(line.trim());
-  }
-
-  return `${prefix}${outputLines.join('\n')}`;
 }
 
 export function normalizeMermaidCodeForRender(code: string) {

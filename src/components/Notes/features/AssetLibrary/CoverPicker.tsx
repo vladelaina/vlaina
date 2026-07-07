@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n } from '@/lib/i18n';
 import { themeLazyLoadTokens } from '@/styles/themeTokens';
+import { AssetLibraryLoadingState } from './AssetLibraryLoadingState';
 
 export function CoverPicker({
   isOpen,
@@ -283,22 +284,5 @@ export function CoverPicker({
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-function AssetLibraryLoadingState() {
-  return (
-    <div
-      data-testid="asset-library-loading"
-      className="grid grid-cols-3 gap-2 p-3"
-      aria-busy="true"
-    >
-      {Array.from({ length: 9 }, (_value, index) => (
-        <div
-          key={index}
-          className="aspect-square rounded-lg bg-[var(--vlaina-bg-tertiary)] animate-pulse"
-        />
-      ))}
-    </div>
   );
 }

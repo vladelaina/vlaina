@@ -3,16 +3,20 @@ import { Plugin, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
-  parseChatHeadingDragPayload,
-  CHAT_HEADING_DRAG_MIME,
-} from '@/lib/drag/chatHeadingDrag';
-import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
-import type { HeadingDropPayload } from './externalHeadingDrop';
-import { parseSingleHeadingDropHtml } from './externalHeadingDrop';
+  getHeadingDropPayload,
+  hasExternalTextDrag,
+  hasHeadingDropPayload,
+} from './externalTextDropPayload';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
+
+export {
+  MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN,
+  hasExternalTextDrag,
+  hasHeadingDropPayload,
+} from './externalTextDropPayload';
 
 const EXTERNAL_TEXT_DROP_CURSOR_CLASS = 'editor-external-text-drop-cursor';
-export const MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN = 1024;
 
 type EditorViewWithDragging = EditorView & {
   dragging?: unknown;
@@ -28,37 +32,6 @@ interface CursorRect {
 interface BlockDropTarget {
   pos: number;
   rect: CursorRect;
-}
-
-function getDataTransferType(types: DataTransfer['types'], index: number): string | null {
-  const maybeTypes = types as DataTransfer['types'] & { item?: (index: number) => string | null };
-  if (typeof maybeTypes.item === 'function') {
-    return maybeTypes.item(index);
-  }
-  return maybeTypes[index] ?? null;
-}
-
-export function hasExternalTextDrag(dataTransfer: DataTransfer | null | undefined): boolean {
-  if (!dataTransfer) return false;
-  const types = dataTransfer.types;
-  if (!types) return false;
-  const length = Math.min(types.length, MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN);
-  let hasTextType = false;
-
-  for (let index = 0; index < length; index += 1) {
-    const type = getDataTransferType(types, index);
-    if (type === 'Files') return false;
-    if (
-      type === CHAT_HEADING_DRAG_MIME ||
-      type === 'text/plain' ||
-      type === 'text/html' ||
-      type === 'text/uri-list'
-    ) {
-      hasTextType = true;
-    }
-  }
-
-  return hasTextType && types.length <= MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN;
 }
 
 function getCursorRect(view: EditorView, event: DragEvent): CursorRect | null {
@@ -95,44 +68,6 @@ function positionBlockCursor(cursor: HTMLElement, rect: CursorRect) {
   cursor.style.width = `${Math.max(24, Math.round(right - rect.left))}px`;
   cursor.style.height = '';
   cursor.classList.add('visible');
-}
-
-function getSingleHeadingFromHtml(dataTransfer: DataTransfer | null | undefined): HeadingDropPayload | null {
-  const html = dataTransfer?.getData('text/html');
-  return html ? parseSingleHeadingDropHtml(html) : null;
-}
-
-function getHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): HeadingDropPayload | null {
-  if (!dataTransfer) return null;
-
-  const customPayload = parseChatHeadingDragPayload(dataTransfer.getData(CHAT_HEADING_DRAG_MIME));
-  if (customPayload) return customPayload;
-
-  return getSingleHeadingFromHtml(dataTransfer);
-}
-
-export function hasHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): boolean {
-  if (!dataTransfer) return false;
-
-  const types = dataTransfer.types;
-  if (!types) return false;
-  const length = Math.min(types.length, MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN);
-  let hasCustomPayload = false;
-  let hasHtml = false;
-
-  for (let index = 0; index < length; index += 1) {
-    const type = getDataTransferType(types, index);
-    if (type === CHAT_HEADING_DRAG_MIME) {
-      hasCustomPayload = true;
-    }
-    if (type === 'text/html') {
-      hasHtml = true;
-    }
-  }
-
-  if (types.length > MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN) return false;
-  if (hasCustomPayload && parseChatHeadingDragPayload(dataTransfer.getData(CHAT_HEADING_DRAG_MIME))) return true;
-  return hasHtml && Boolean(getSingleHeadingFromHtml(dataTransfer));
 }
 
 function isInternalTextSelectionDrag(view: EditorView): boolean {

@@ -5,7 +5,6 @@ import {
   getCachedNoteSize,
   setCachedNoteContent,
 } from '../document/noteContentCache';
-import { assertEditorSafeMarkdownContent } from '../document/noteDocumentPersistence';
 import { shouldIgnoreExpectedExternalChange } from '../document/externalChangeRegistry';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import {
@@ -17,67 +16,18 @@ import { isDraftNotePath } from '../draftNote';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { resolveNotesRootRelativeFullPath } from '../utils/fs/notesRootPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
-import { normalizeEditorStateMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
-
-const MAX_NOTE_DISK_SYNC_BYTES = 10 * 1024 * 1024;
-const diskSyncUtf8Encoder = new TextEncoder();
+import {
+  canReadDiskSyncNote,
+  getKnownFileSize,
+  getKnownModifiedAt,
+  hasKnownFileSizeChanged,
+  readNormalizedDiskSyncContent,
+} from './workspaceDiskSyncContent';
 
 function isCurrentDiskSyncTarget(get: NotesGet, notesPath: string, notePath: string) {
   const state = get();
   return state.notesPath === notesPath && state.currentNote?.path === notePath;
-}
-
-function canReadDiskSyncNote(fileInfo: {
-  isFile?: boolean;
-  isDirectory?: boolean;
-  size?: number | null;
-} | null | undefined): boolean {
-  const size = fileInfo?.size;
-  return (
-    fileInfo?.isDirectory !== true &&
-    fileInfo?.isFile !== false &&
-    Boolean(fileInfo) &&
-    (
-      typeof size !== 'number' ||
-      (Number.isFinite(size) && size >= 0 && size <= MAX_NOTE_DISK_SYNC_BYTES)
-    )
-  );
-}
-
-function getKnownFileSize(fileInfo: { size?: number | null } | null | undefined): number | null {
-  return typeof fileInfo?.size === 'number' && Number.isFinite(fileInfo.size) && fileInfo.size >= 0
-    ? fileInfo.size
-    : null;
-}
-
-function getKnownModifiedAt(fileInfo: { modifiedAt?: number | null } | null | undefined): number | null {
-  return typeof fileInfo?.modifiedAt === 'number' && Number.isFinite(fileInfo.modifiedAt)
-    ? fileInfo.modifiedAt
-    : null;
-}
-
-function hasKnownFileSizeChanged(cachedSize: number | null, diskSize: number | null): boolean {
-  return cachedSize !== null && diskSize !== null && cachedSize !== diskSize;
-}
-
-function assertDiskSyncContentWithinReadLimit(content: string): void {
-  if (
-    content.length > MAX_NOTE_DISK_SYNC_BYTES ||
-    diskSyncUtf8Encoder.encode(content).length > MAX_NOTE_DISK_SYNC_BYTES
-  ) {
-    throw new Error('Current note is too large to reload from disk.');
-  }
-}
-
-async function readNormalizedDiskSyncContent(
-  storage: { readFile: (path: string, maxBytes?: number) => Promise<string> },
-  fullPath: string,
-): Promise<string> {
-  const rawDiskContent = await storage.readFile(fullPath, MAX_NOTE_DISK_SYNC_BYTES);
-  assertDiskSyncContentWithinReadLimit(rawDiskContent);
-  assertEditorSafeMarkdownContent(rawDiskContent);
-  return normalizeEditorStateMarkdownDocument(rawDiskContent);
 }
 
 export function createWorkspaceDiskSyncAction(

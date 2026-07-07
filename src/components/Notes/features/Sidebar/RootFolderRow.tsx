@@ -1,41 +1,25 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react';
-import { Icon } from '@/components/ui/icons';
-import { useNotesStore } from '@/stores/useNotesStore';
-import { useNotesRootStore } from '@/stores/useNotesRootStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
-import { type FolderNode } from '@/stores/useNotesStore';
-import { useI18n } from '@/lib/i18n';
-import { cn, iconButtonStyles } from '@/lib/utils';
 import {
   getSidebarLabelClass,
   getSidebarTextClass,
   SIDEBAR_LABEL_TEXT_METRICS_CLASS,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
-import { NotesSidebarList } from './NotesSidebarPrimitives';
-import { NotesSidebarRow } from './NotesSidebarRow';
-import { RootFolderMenu } from './RootFolderMenu';
+import { Icon } from '@/components/ui/icons';
+import { cn, iconButtonStyles } from '@/lib/utils';
+import { type FolderNode } from '@/stores/useNotesStore';
+import { themeIconTokens } from '@/styles/themeTokens';
+import { type RefObject } from 'react';
 import { FileTreeItem } from '../FileTree';
-import { shouldVirtualizeFileTree, VirtualizedFileTree } from '../FileTree/VirtualizedFileTree';
-import { countVisibleFileTreeRows } from '../FileTree/virtualFileTree';
+import { VirtualizedFileTree } from '../FileTree/VirtualizedFileTree';
 import {
   CollapseTriangleAffordance,
   getSidebarCollapseTriangleColorClassName,
 } from '../common/collapseTrianglePrimitive';
-import { getSidebarContextMenuPosition } from '../common/sidebarMenuPosition';
-import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
-import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTreeDropState';
-import { useRootBlankContextMenu } from './useRootBlankContextMenu';
-import {
-  clearHoveredSidebarRenamePath,
-  registerSidebarHoverRenameTarget,
-  setHoveredSidebarRenamePath,
-} from '../common/sidebarHoverRename';
-import { themeIconTokens } from '@/styles/themeTokens';
-
-const INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 120;
-const EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 560;
-const RENAMEABLE_ROW_CLICK_DELAY_MS = 180;
+import { NotesSidebarList } from './NotesSidebarPrimitives';
+import { NotesSidebarRow } from './NotesSidebarRow';
+import { RootFolderMenu } from './RootFolderMenu';
+import { useRootFolderRowController } from './useRootFolderRowController';
 
 interface RootFolderRowProps {
   rootFolder: FolderNode | null;
@@ -56,151 +40,45 @@ export function RootFolderRow({
   scrollRootRef,
   active = true,
 }: RootFolderRowProps) {
-  const { t } = useI18n();
-  const currentNotesRoot = useNotesRootStore((state) => state.currentNotesRoot);
-  const renameCurrentNotesRoot = useNotesRootStore((state) => state.renameCurrentNotesRoot);
-  const notesPath = useNotesStore((state) => state.notesPath);
-  const fileTreeSortMode = useNotesStore((state) => state.fileTreeSortMode);
-  const setFileTreeSortMode = useNotesStore((state) => state.setFileTreeSortMode);
-  const toggleFolder = useNotesStore((state) => state.toggleFolder);
-  const [showMenu, setShowMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState('');
-  const [shouldRenderChildren, setShouldRenderChildren] = useState(rootFolder?.expanded ?? true);
-  const rootRowRef = useRef<HTMLDivElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const isRenamingRef = useRef(false);
-  const clickTimerRef = useRef<number | null>(null);
-  const isInternalRootDragOver = useFileTreePointerDragState(
-    (state) => active && state.dropTargetKind === 'folder' && state.dropTargetPath === '',
-  );
-  const isExternalRootDragOver = useExternalFileTreeDropState(
-    (state) => active && state.dropTargetKind === 'folder' && state.dropTargetPath === '',
-  );
-  const isRootDragOver = isInternalRootDragOver || isExternalRootDragOver;
-  const autoExpandDelayMs = isInternalRootDragOver
-    ? INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS
-    : EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS;
-  const autoExpandTimeoutRef = useRef<number | null>(null);
-
-  const rootFolderTitle = rootFolder?.name === 'Notes' ? t('app.viewNotes') : rootFolder?.name;
-  const title = currentNotesRoot?.name || rootFolderTitle || t('app.viewNotes');
-  const notesRootPath = currentNotesRoot?.path ?? '';
-  const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
-  const expanded = rootFolder?.expanded ?? true;
-  const displayExpanded = !hasChildren || expanded;
-  const visibleFileTreeRowCount = useMemo(
-    () => rootFolder ? countVisibleFileTreeRows(rootFolder.children) : 0,
-    [rootFolder],
-  );
-  const isExpandedRootDragOver = (
-    isRootDragOver &&
-    expanded &&
-    shouldRenderChildren &&
-    hasChildren
-  );
-  const useVirtualFileTree = Boolean(
-    scrollRootRef && shouldVirtualizeFileTree(visibleFileTreeRowCount),
-  );
-  const isRootTreePending = Boolean(currentNotesRoot && notesPath === currentNotesRoot.path && !rootFolder);
-  const isRootBusy = isLoading || isRootTreePending;
-  const setExpanded = (value: boolean | ((value: boolean) => boolean)) => {
-    if (!hasChildren) {
-      return;
-    }
-
-    const nextValue = typeof value === 'function' ? value(expanded) : value;
-    if (nextValue !== expanded) {
-      toggleFolder('');
-    }
-  };
-
-  const cancelPendingClick = () => {
-    if (clickTimerRef.current !== null) {
-      window.clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    isRenamingRef.current = isRenaming;
-  }, [isRenaming]);
-
-  useEffect(() => () => cancelPendingClick(), []);
-
-  useEffect(() => {
-    if (!expanded) {
-      setShouldRenderChildren(false);
-      return;
-    }
-
-    const frameId = window.requestAnimationFrame(() => {
-      setShouldRenderChildren(true);
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [expanded]);
-
-  useEffect(() => {
-    if (isRenaming) {
-      return;
-    }
-
-    setRenameValue(title);
-  }, [isRenaming, title]);
-
-  useEffect(() => {
-    if (!active || !rootFolder) {
-      return;
-    }
-
-    return registerSidebarHoverRenameTarget(rootFolder.path, {
-      startRename: () => {
-        setIsRenaming(true);
-        setShowMenu(false);
-      },
-      cancelRename: () => {
-        setIsRenaming(false);
-      },
-      isRenaming: () => isRenamingRef.current,
-    });
-  }, [active, rootFolder]);
-
-  useRootBlankContextMenu({
-    enabled: active && Boolean(rootFolder),
-    blankContextMenuRef,
+  const {
+    displayExpanded,
+    expanded,
+    fileTreeSortMode,
+    handleClick,
+    handleContextMenu,
+    handleMenuOpen,
+    handleRenameFromDoubleClick,
+    handleRenameSubmit,
+    hasChildren,
+    isExpandedRootDragOver,
+    isRenaming,
+    isRootBusy,
+    isRootDragOver,
+    isRootTreePending,
+    menuButtonRef,
+    menuPosition,
+    notesRootPath,
+    openRootFolderMenuLabel,
+    renameValue,
     rootRowRef,
-    onOpen: (position) => {
-      setMenuPosition(position);
-      setShowMenu(true);
-    },
+    setExpanded,
+    setFileTreeSortMode,
+    setIsRenaming,
+    setRenameValue,
+    setShowMenu,
+    setHoveredSidebarRenamePath,
+    clearHoveredSidebarRenamePath,
+    shouldRenderChildren,
+    showMenu,
+    title,
+    useVirtualFileTree,
+  } = useRootFolderRowController({
+    rootFolder,
+    isLoading,
+    blankContextMenuRef,
+    scrollRootRef,
+    active,
   });
-
-  useEffect(() => {
-    if (autoExpandTimeoutRef.current !== null) {
-      window.clearTimeout(autoExpandTimeoutRef.current);
-      autoExpandTimeoutRef.current = null;
-    }
-
-    if (!active || !isRootDragOver || expanded) {
-      return;
-    }
-
-    autoExpandTimeoutRef.current = window.setTimeout(() => {
-      setExpanded(true);
-      autoExpandTimeoutRef.current = null;
-    }, autoExpandDelayMs);
-
-    return () => {
-      if (autoExpandTimeoutRef.current !== null) {
-        window.clearTimeout(autoExpandTimeoutRef.current);
-        autoExpandTimeoutRef.current = null;
-      }
-    };
-  }, [active, autoExpandDelayMs, expanded, isInternalRootDragOver, isRootDragOver]);
 
   if (!rootFolder && isRootTreePending) {
     return (
@@ -235,59 +113,6 @@ export function RootFolderRow({
     return null;
   }
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
-    const rowElement = event.currentTarget.closest('[data-notes-root-folder-row="true"]');
-    const rowRect = (rowElement ?? event.currentTarget).getBoundingClientRect();
-    setMenuPosition(getSidebarContextMenuPosition(rowRect, event.clientY));
-    setShowMenu(true);
-  };
-
-  const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setMenuPosition(
-      getSidebarContextMenuPosition(
-        event.currentTarget.getBoundingClientRect(),
-        event.clientY,
-        event.clientX,
-      ),
-    );
-    setShowMenu(true);
-  };
-
-  const handleClick = () => {
-    if (!hasChildren) {
-      return;
-    }
-
-    cancelPendingClick();
-    clickTimerRef.current = window.setTimeout(() => {
-      clickTimerRef.current = null;
-      toggleFolder('');
-    }, RENAMEABLE_ROW_CLICK_DELAY_MS);
-  };
-
-  const handleRenameFromDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    if (target?.closest('button,a,input,textarea,select,[role="button"]')) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    cancelPendingClick();
-    setShowMenu(false);
-    setIsRenaming(true);
-  };
-
-  const handleRenameSubmit = async () => {
-    const trimmedValue = renameValue.trim();
-    if (trimmedValue && trimmedValue !== title) {
-      await renameCurrentNotesRoot(trimmedValue);
-    }
-    setIsRenaming(false);
-  };
-
   return (
     <div
       ref={rootRowRef}
@@ -295,7 +120,7 @@ export function RootFolderRow({
         'py-1',
         isRootBusy && 'pointer-events-none',
         isExpandedRootDragOver &&
-          'rounded-xl bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]',
+        'rounded-xl bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]',
       )}
       aria-busy={isRootBusy || undefined}
       data-file-tree-root-drop-target="true"
@@ -361,7 +186,7 @@ export function RootFolderRow({
         actions={
           <SidebarRowActionButton
             ref={menuButtonRef}
-            aria-label={t('notes.openRootFolderMenu')}
+            aria-label={openRootFolderMenuLabel}
             onClick={(event) => {
               handleMenuOpen(event);
             }}
@@ -388,7 +213,7 @@ export function RootFolderRow({
 
           const nextExpanded = typeof value === 'function' ? value(expanded) : value;
           if (nextExpanded !== expanded) {
-            toggleFolder('');
+            setExpanded(value);
           }
         }}
         onCreateNote={onCreateNote}

@@ -1,44 +1,26 @@
 import { getSessionIdAliasesResolvingTo, resolveSessionIdAlias } from './sessionIdAliases';
 import { isSafeChatSessionId } from '@/lib/storage/unifiedStorageAI';
+import {
+  createToken,
+  LOCK_KEY_PREFIX,
+  LOCK_TTL_MS,
+  readLockRecord,
+  removeLockRecord,
+  sessionMutationLockSourceId,
+  tryAcquireLock,
+  writeLockRecord,
+} from './sessionMutationLockStorage';
 
-type SessionMutationLockRecord = {
-  ownerId: string;
-  token: string;
-  expiresAt: number;
-};
-
-const LOCK_KEY_PREFIX = 'vlaina-session-mutation-lock:';
 const CHANNEL_NAME = 'vlaina-session-mutation-lock';
-const LOCK_TTL_MS = 15000;
 const LOCK_RENEW_MS = 5000;
 const LOCK_WAIT_MS = 350;
-const MAX_LOCK_RECORD_STORAGE_CHARS = 8 * 1024;
 const MAX_LOCK_CHANGE_FIELD_CHARS = 512;
-
-const sourceId = (() => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-})();
+const sourceId = sessionMutationLockSourceId;
 
 const queuedMutations = new Map<string, Promise<void>>();
 const listeners = new Set<(sessionId: string) => void>();
 let broadcastChannel: BroadcastChannel | null = null;
 let storageListenerBound = false;
-
-function createToken() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function getLockKey(sessionId: string) {
-  return `${LOCK_KEY_PREFIX}${sessionId}`;
-}
 
 function notifyListeners(sessionId: string) {
   listeners.forEach((listener) => {
@@ -127,110 +109,6 @@ function emitLockChange(sessionId: string) {
     broadcastChannel?.postMessage({ sessionId, sourceId, nonce: createToken() });
   } catch {
   }
-}
-
-function parseLockRecord(value: string | null): SessionMutationLockRecord | null {
-  if (!value) {
-    return null;
-  }
-  if (value.length > MAX_LOCK_RECORD_STORAGE_CHARS) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(value) as Partial<SessionMutationLockRecord>;
-    if (
-      typeof parsed.ownerId !== 'string' ||
-      parsed.ownerId.length > 512 ||
-      typeof parsed.token !== 'string' ||
-      parsed.token.length > 512 ||
-      typeof parsed.expiresAt !== 'number' ||
-      !Number.isFinite(parsed.expiresAt)
-    ) {
-      return null;
-    }
-
-    return {
-      ownerId: parsed.ownerId,
-      token: parsed.token,
-      expiresAt: parsed.expiresAt,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function readLockRecord(sessionId: string): SessionMutationLockRecord | null {
-  if (typeof localStorage === 'undefined') {
-    return null;
-  }
-
-  try {
-    return parseLockRecord(localStorage.getItem(getLockKey(sessionId)));
-  } catch {
-    return null;
-  }
-}
-
-function isLockActive(record: SessionMutationLockRecord | null) {
-  return !!record && record.expiresAt > Date.now();
-}
-
-function writeLockRecord(sessionId: string, record: SessionMutationLockRecord) {
-  if (typeof localStorage === 'undefined') {
-    return false;
-  }
-
-  try {
-    localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function removeLockRecord(sessionId: string, token: string) {
-  if (typeof localStorage === 'undefined') {
-    return;
-  }
-
-  const current = readLockRecord(sessionId);
-  if (!current || current.token !== token || current.ownerId !== sourceId) {
-    return;
-  }
-
-  try {
-    localStorage.removeItem(getLockKey(sessionId));
-  } catch {
-  }
-}
-
-function tryAcquireLock(sessionId: string, token: string): boolean {
-  if (typeof localStorage === 'undefined') {
-    return true;
-  }
-
-  const current = readLockRecord(sessionId);
-  if (isLockActive(current)) {
-    return false;
-  }
-
-  const nextRecord: SessionMutationLockRecord = {
-    ownerId: sourceId,
-    token,
-    expiresAt: Date.now() + LOCK_TTL_MS,
-  };
-
-  if (!writeLockRecord(sessionId, nextRecord)) {
-    return true;
-  }
-
-  const verified = readLockRecord(sessionId);
-  if (!verified) {
-    return false;
-  }
-
-  return verified.ownerId === sourceId && verified.token === token;
 }
 
 function waitForLockChange(sessionId: string): Promise<void> {

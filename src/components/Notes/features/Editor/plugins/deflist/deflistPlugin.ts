@@ -1,13 +1,7 @@
-// Definition list plugin
-// Supports: term\n: definition syntax
-
-import { remarkPluginsCtx, schemaTimerCtx } from '@milkdown/core';
-import { createTimer, type MilkdownPlugin } from '@milkdown/ctx';
-import { $node, $prose } from '@milkdown/kit/utils';
+import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
-import { remarkDefinitionLists } from '@/components/common/markdown/definitionListMarkdown';
 import {
     DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     SKIP_PROSE_DESCENDANTS,
@@ -21,121 +15,18 @@ import {
     transactionTouchesDecorations,
     type DecorationSetLike,
 } from '../shared/transactionStepText';
-
-const definitionListsRemarkReady = createTimer('definitionListsRemarkReady');
-
-export const remarkDefinitionListsPlugin: MilkdownPlugin = (ctx) => {
-    ctx.record(definitionListsRemarkReady);
-    ctx.update(schemaTimerCtx, (timers) => timers.concat(definitionListsRemarkReady));
-
-    return async () => {
-        const remarkPlugin = {
-            plugin: remarkDefinitionLists,
-            options: undefined,
-        };
-
-        ctx.update(remarkPluginsCtx, (plugins) => plugins.concat(remarkPlugin as any));
-        ctx.done(definitionListsRemarkReady);
-
-        return () => {
-            ctx.update(remarkPluginsCtx, (plugins) => plugins.filter((plugin) => plugin !== (remarkPlugin as any)));
-            ctx.update(schemaTimerCtx, (timers) => timers.filter((timer) => timer !== definitionListsRemarkReady));
-            ctx.clearTimer(definitionListsRemarkReady);
-        };
-    };
-};
-
-// Definition List container
-export const definitionListSchema = $node('definition_list', () => ({
-    content: '(definition_term definition_desc)+',
-    group: 'block',
-    defining: true,
-    parseDOM: [{
-        tag: 'dl'
-    }],
-    toDOM: () => ['dl', { class: 'definition-list' }, 0],
-    parseMarkdown: {
-        match: (node) => node.type === 'definitionList',
-        runner: (state, node, type) => {
-            state.openNode(type);
-            state.next(node.children);
-            state.closeNode();
-        }
-    },
-    toMarkdown: {
-        match: (node) => node.type.name === 'definition_list',
-        runner: (state, node) => {
-            // Output as plain text with term: definition format
-            node.forEach((child) => {
-                state.next(child);
-            });
-        }
-    }
-}));
-
-// Definition Term (dt)
-export const definitionTermSchema = $node('definition_term', () => ({
-    content: 'inline*',
-    group: 'block',
-    defining: true,
-    parseDOM: [{
-        tag: 'dt'
-    }],
-    toDOM: () => ['dt', { class: 'definition-term' }, 0],
-    parseMarkdown: {
-        match: (node) => node.type === 'definitionTerm',
-        runner: (state, node, type) => {
-            state.openNode(type);
-            state.next(node.children);
-            state.closeNode();
-        }
-    },
-    toMarkdown: {
-        match: (node) => node.type.name === 'definition_term',
-        runner: (state, node) => {
-            state.openNode('paragraph');
-            state.next(node.content);
-            state.closeNode();
-        }
-    }
-}));
-
-// Definition Description (dd)
-export const definitionDescSchema = $node('definition_desc', () => ({
-    content: 'block+',
-    group: 'block',
-    defining: true,
-    parseDOM: [{
-        tag: 'dd'
-    }],
-    toDOM: () => ['dd', { class: 'definition-desc' }, 0],
-    parseMarkdown: {
-        match: (node) => node.type === 'definitionDescription',
-        runner: (state, node, type) => {
-            state.openNode(type);
-            state.next(node.children);
-            state.closeNode();
-        }
-    },
-    toMarkdown: {
-        match: (node) => node.type.name === 'definition_desc',
-        runner: (state, node) => {
-            state.openNode('paragraph');
-            state.addNode('text', undefined, ': ');
-            const firstChild = node.firstChild;
-            if (firstChild?.type.name === 'paragraph') {
-                state.next(firstChild.content);
-                state.closeNode();
-                for (let index = 1; index < node.childCount; index += 1) {
-                    state.next(node.child(index));
-                }
-                return;
-            }
-            state.closeNode();
-            state.next(node.content);
-        }
-    }
-}));
+import {
+    definitionDescSchema,
+    definitionListSchema,
+    definitionTermSchema,
+    remarkDefinitionListsPlugin,
+} from './deflistSchema';
+export {
+    definitionDescSchema,
+    definitionListSchema,
+    definitionTermSchema,
+    remarkDefinitionListsPlugin,
+} from './deflistSchema';
 
 // Visual emulation plugin for pseudo definition lists (Term \n : Definition)
 // This handles the case where lack of remark-deflist causes DLs to be parsed as paragraphs

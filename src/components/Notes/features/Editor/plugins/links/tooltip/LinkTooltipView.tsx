@@ -1,32 +1,35 @@
 import { EditorState } from '@milkdown/kit/prose/state';
 import { EditorView } from '@milkdown/kit/prose/view';
-import { createRoot, Root } from 'react-dom/client';
-import LinkTooltip from './LinkTooltip';
-import {
-    findLinkElementNearPos,
-    hasAdjacentLinkMark,
-    hasLinkMarkAroundCursor,
-    resolveLinkMarkRangeAtPos,
-} from '../utils/helpers';
+import { createRoot, type Root } from 'react-dom/client';
+import { findLinkElementNearPos } from '../utils/helpers';
 import {
     applyLinkTooltipPosition,
     getLinkTooltipPositionRoot,
     type LinkTooltipAnchor,
 } from './linkTooltipPositioning';
-import { themeRenderingTokens } from '@/styles/themeTokens';
 import { installLinkTooltipEvents } from './linkTooltipEvents';
 import { LinkTooltipTimers } from './linkTooltipTimers';
 import { getBoundedTextBetween } from '../../shared/selectionTextLimits';
 import {
     editExistingLink,
-    getBoundedLinkTooltipText,
     editLinkAtPosition,
     removeExistingLink,
     unlinkExistingLink,
 } from './linkTooltipTransactions';
-import { openEditorLinkHref } from '../utils/openEditorLinkHref';
-
-const LINK_TOOLTIP_SHOW_DELAY = 70;
+import { renderExistingLinkTooltip, renderNewLinkTooltip } from './linkTooltipRender';
+import {
+    applyLinkTooltipEditorWhitespace,
+    createLinkTooltipContainer,
+    createLinkTooltipMutationObserver,
+    createLinkTooltipResizeObserver,
+    focusLinkTooltipEditor,
+} from './linkTooltipDom';
+import { resolveKeyboardLinkTooltipTarget } from './linkTooltipKeyboard';
+import {
+    scheduleLinkTooltipEditorFocus,
+    startLinkTooltipHideTimer,
+    startLinkTooltipShowTimer,
+} from './linkTooltipTimerActions';
 
 export class LinkTooltipView {
     dom: HTMLElement;
@@ -45,60 +48,38 @@ export class LinkTooltipView {
     constructor(view: EditorView) {
         this.view = view;
         this.positionRoot = getLinkTooltipPositionRoot(view);
-        this.view.dom.style.whiteSpace = themeRenderingTokens.whiteSpacePreWrap;
+        applyLinkTooltipEditorWhitespace(this.view.dom);
 
-        this.dom = document.createElement('div');
-        this.dom.className = 'link-tooltip-container absolute hidden z-[var(--vlaina-z-50)]';
-        this.dom.setAttribute('data-no-editor-drag-box', 'true');
-        (this.positionRoot ?? document.body).appendChild(this.dom);
+        this.dom = createLinkTooltipContainer(this.positionRoot);
         this.root = createRoot(this.dom);
 
-        this.resizeObserver = typeof ResizeObserver !== 'undefined'
-            ? new ResizeObserver(() => this.scheduleReposition())
-            : null;
-
-        this.mutationObserver = typeof MutationObserver !== 'undefined'
-            ? new MutationObserver(() => this.scheduleReposition())
-            : null;
+        this.resizeObserver = createLinkTooltipResizeObserver(() => this.scheduleReposition());
+        this.mutationObserver = createLinkTooltipMutationObserver(() => this.scheduleReposition());
 
         this.cleanupEvents = installLinkTooltipEvents({
             view: this.view,
             dom: this.dom,
             showLinkWithDelay: (link, shouldValidateCursor) => {
                 if (this.activeLink === link) return;
-                this.startShowTimer(link, shouldValidateCursor);
+                startLinkTooltipShowTimer(
+                    this.timers,
+                    this.view,
+                    link,
+                    (nextLink) => this.show(nextLink),
+                    shouldValidateCursor,
+                );
             },
             hide: (force) => this.hide(force),
-            scheduleFocus: () => this.scheduleFocus(),
+            scheduleFocus: () => scheduleLinkTooltipEditorFocus(this.timers, this.view),
             reposition: () => this.scheduleReposition(),
-            clearHideTimer: () => this.clearHideTimer(),
-            startHideTimer: () => this.startHideTimer(),
-            clearShowTimer: () => this.clearShowTimer(),
+            clearHideTimer: () => this.timers.clearHide(),
+            startHideTimer: () => startLinkTooltipHideTimer(this.timers, () => this.hide()),
+            clearShowTimer: () => this.timers.clearShow(),
             setKeyboardInteraction: (value) => {
                 this.isKeyboardInteraction = value;
             },
             hasActiveLink: () => this.activeLink !== null,
         });
-    }
-
-    startShowTimer(link: HTMLElement, shouldValidateCursor = true) {
-        this.timers.scheduleShow(() => {
-            if (!shouldValidateCursor || hasLinkMarkAroundCursor(this.view.state, this.view.state.selection.$from.pos)) {
-                this.show(link);
-            }
-        }, LINK_TOOLTIP_SHOW_DELAY);
-    }
-    clearShowTimer() {
-        this.timers.clearShow();
-    }
-    startHideTimer() {
-        this.timers.scheduleHide(() => this.hide(), 300);
-    }
-    clearHideTimer() {
-        this.timers.clearHide();
-    }
-    scheduleFocus() {
-        this.timers.scheduleFocus(() => this.view.focus(), 10);
     }
 
     applyPosition(anchor: LinkTooltipAnchor) {
@@ -141,14 +122,14 @@ export class LinkTooltipView {
         if (start === null) {
             if (shouldClose) {
                 this.hide(true);
-                this.scheduleFocus();
+                scheduleLinkTooltipEditorFocus(this.timers, this.view);
             }
             return;
         }
 
         if (shouldClose) {
             this.hide(true);
-            this.scheduleFocus();
+            scheduleLinkTooltipEditorFocus(this.timers, this.view);
             return;
         }
 
@@ -162,19 +143,17 @@ export class LinkTooltipView {
         this.activeLink = link;
         this.activeAnchor = { type: 'link', link };
 
-        this.root?.render(
-            <LinkTooltip
-                key={Date.now()}
-                href={href}
-                initialText={getBoundedLinkTooltipText(link)}
-                containerElement={this.dom}
-                onOpen={() => void openEditorLinkHref(href, { view: this.view })}
-                onEdit={(text, url, shouldClose) => this.handleEdit(link, text, url, shouldClose)}
-                onUnlink={() => this.handleUnlink(link)}
-                onRemove={() => this.handleRemove(link)}
-                onClose={() => this.hide()}
-            />
-        );
+        renderExistingLinkTooltip({
+            root: this.root,
+            view: this.view,
+            containerElement: this.dom,
+            link,
+            href,
+            onEdit: (text, url, shouldClose) => this.handleEdit(link, text, url, shouldClose),
+            onUnlink: () => this.handleUnlink(link),
+            onRemove: () => this.handleRemove(link),
+            onClose: () => this.hide(),
+        });
 
         this.dom.classList.remove('hidden');
         this.observePositionDependencies();
@@ -209,46 +188,20 @@ export class LinkTooltipView {
 
     update(view: EditorView, prevState?: EditorState) {
         if (this.activeLink && !document.contains(this.activeLink)) this.hide();
-        if (!this.isKeyboardInteraction || !prevState || view.state.selection.eq(prevState.selection)) return;
+        if (!this.isKeyboardInteraction || !prevState) return;
 
-        const pos = view.state.selection.$from.pos;
-        if (!hasAdjacentLinkMark(view.state, pos)) {
+        const target = resolveKeyboardLinkTooltipTarget(view, prevState);
+        if (target === 'hide') {
             this.hideFromKeyboardMove();
             return;
         }
-
-        const range = resolveLinkMarkRangeAtPos(view.state, pos);
-        if (!range) return;
-
-        const linkText = getBoundedTextBetween(view.state.doc, range.start, range.end, ' ');
-        const trimStart = linkText.search(/\S|$/);
-        const trimEnd = linkText.search(/\S\s*$/) + 1;
-        const relativePos = pos - range.start;
-        const isInsideTrimmed = relativePos > trimStart && relativePos < trimEnd;
-
-        if (!isInsideTrimmed) {
-            this.hideFromKeyboardMove();
-            return;
-        }
-
-        const link = findLinkElementNearPos(view, pos);
-        if (link) this.startShowTimer(link, true);
+        if (target) startLinkTooltipShowTimer(this.timers, this.view, target, (link) => this.show(link), true);
     }
 
     hideFromKeyboardMove() {
-        this.clearShowTimer();
+        this.timers.clearShow();
         if (this.activeLink && !this.dom.contains(document.activeElement)) {
-            this.startHideTimer();
-        }
-    }
-
-    focusTooltipEditor() {
-        const input = this.dom.querySelector<HTMLTextAreaElement>('textarea');
-        if (!input?.isConnected) return;
-
-        input.focus({ preventScroll: true });
-        if (document.activeElement === input) {
-            input.select();
+            startLinkTooltipHideTimer(this.timers, () => this.hide());
         }
     }
 
@@ -258,20 +211,15 @@ export class LinkTooltipView {
         this.activeLink = null;
         this.activeAnchor = { type: 'range', from, to };
 
-        this.root?.render(
-            <LinkTooltip
-                key={Date.now()}
-                href=""
-                initialText={selectedText}
-                autoFocus={autoFocus}
-                containerElement={this.dom}
-                onOpen={() => { }}
-                onEdit={(text, url, shouldClose) => this.handleEditAtPosition(from, to, text, url, shouldClose)}
-                onUnlink={() => { }}
-                onRemove={() => this.hide()}
-                onClose={() => this.hide()}
-            />
-        );
+        renderNewLinkTooltip({
+            root: this.root,
+            containerElement: this.dom,
+            selectedText,
+            autoFocus,
+            onEdit: (text, url, shouldClose) => this.handleEditAtPosition(from, to, text, url, shouldClose),
+            onRemove: () => this.hide(),
+            onClose: () => this.hide(),
+        });
 
         this.dom.classList.remove('hidden');
         this.observePositionDependencies();
@@ -279,8 +227,8 @@ export class LinkTooltipView {
             this.applyPosition(this.activeAnchor);
             this.timers.scheduleRaf(() => this.reposition());
             if (autoFocus) {
-                this.timers.scheduleFocus(() => this.focusTooltipEditor(), 0);
-                this.timers.scheduleRaf(() => this.focusTooltipEditor());
+                this.timers.scheduleFocus(() => focusLinkTooltipEditor(this.dom), 0);
+                this.timers.scheduleRaf(() => focusLinkTooltipEditor(this.dom));
             }
         } catch {
         }
@@ -295,7 +243,7 @@ export class LinkTooltipView {
 
         if (shouldClose) {
             this.hide(true);
-            this.scheduleFocus();
+            scheduleLinkTooltipEditorFocus(this.timers, this.view);
             return;
         }
 
@@ -318,8 +266,8 @@ export class LinkTooltipView {
     }
 
     destroy() {
-        this.clearShowTimer();
-        this.clearHideTimer();
+        this.timers.clearShow();
+        this.timers.clearHide();
         this.timers.clearAll();
         this.cleanupEvents?.();
         this.disconnectPositionDependencies();

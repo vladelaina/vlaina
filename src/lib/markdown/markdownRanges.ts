@@ -9,23 +9,21 @@ import {
   getHtmlTagRanges,
   getRawTextHtmlRanges,
 } from './markdownHtmlRanges';
-import {
-  getMarkdownBlockContent,
-  getMarkdownBlockContentStartOffset,
-  getMarkdownHtmlBlockClosePattern,
-  getMarkdownInvisibleHtmlBlockClosePattern,
-} from './markdownHtmlBlockClassification';
+import { isEscapedMarkdownPunctuation } from './markdownEscapes';
+import { normalizeRangeLimit } from './markdownRangeLimits';
 
 export { collectHtmlTagRanges, findHtmlTagEnd, getHtmlTagRanges, getRawTextHtmlRanges };
+export {
+  getMarkdownHtmlBlockRanges,
+  getMarkdownInvisibleHtmlBlockRanges,
+} from './markdownHtmlBlockRanges';
+export { isEscapedMarkdownPunctuation } from './markdownEscapes';
 
 export interface ContentRange {
   start: number;
   end: number;
 }
 
-const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
-  Array.from('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
-);
 export function* iterateNonFencedContentRanges(content: string): Iterable<ContentRange> {
   let rangeStart = 0;
   let offset = 0;
@@ -98,14 +96,6 @@ function findClosingCodeSpan(content: string, start: number, end: number, tickCo
   return -1;
 }
 
-function normalizeRangeLimit(maxRanges: number): number {
-  return Number.isFinite(maxRanges)
-    ? Math.max(0, Math.floor(maxRanges))
-    : maxRanges === Number.POSITIVE_INFINITY
-      ? Number.POSITIVE_INFINITY
-      : 0;
-}
-
 export function getInlineCodeRanges(
   content: string,
   range: ContentRange,
@@ -167,19 +157,6 @@ export function isOffsetInRanges(offset: number, ranges: readonly ContentRange[]
   return getRangeEndAtOffset(offset, ranges) !== null;
 }
 
-export function isEscapedMarkdownPunctuation(content: string, offset: number, lowerBound: number): boolean {
-  const char = content[offset];
-  if (!char || !MARKDOWN_ESCAPABLE_PUNCTUATION.has(char)) {
-    return false;
-  }
-
-  let backslashCount = 0;
-  for (let cursor = offset - 1; cursor >= lowerBound && content[cursor] === "\\"; cursor -= 1) {
-    backslashCount += 1;
-  }
-  return backslashCount % 2 === 1;
-}
-
 export function getHtmlCommentRanges(
   content: string,
   range: ContentRange,
@@ -210,138 +187,6 @@ export function getHtmlCommentRanges(
       break;
     }
     cursor = end;
-  }
-
-  return ranges;
-}
-
-export function getMarkdownHtmlBlockRanges(
-  content: string,
-  range: ContentRange,
-  maxRanges = Number.POSITIVE_INFINITY,
-): ContentRange[] {
-  const rangeLimit = normalizeRangeLimit(maxRanges);
-  if (rangeLimit <= 0) {
-    return [];
-  }
-
-  const ranges: ContentRange[] = [];
-  let offset = range.start;
-  let activeStart: number | null = null;
-  let activeClosePattern: RegExp | null = null;
-
-  while (offset < range.end) {
-    const lineEnd = content.indexOf("\n", offset);
-    const lineContentEnd = lineEnd === -1 ? range.end : Math.min(lineEnd, range.end);
-    const nextOffset = lineEnd === -1 ? range.end : Math.min(range.end, lineEnd + 1);
-    const line = content.slice(offset, lineContentEnd).replace(/\r$/, "");
-    const blockContent = getMarkdownBlockContent(line);
-    const blockContentStartOffset = getMarkdownBlockContentStartOffset(line);
-    const firstNonBlank = blockContent.search(/\S/);
-
-    if (activeStart !== null) {
-      const closePattern = activeClosePattern;
-      if (
-        (closePattern && closePattern.test(blockContent))
-        || (!closePattern && blockContent.trim() === "")
-      ) {
-        ranges.push({ start: activeStart, end: closePattern ? nextOffset : offset });
-        if (ranges.length >= rangeLimit) {
-          return ranges;
-        }
-        activeStart = null;
-        activeClosePattern = null;
-      }
-      offset = nextOffset;
-      continue;
-    }
-
-    const closePattern =
-      firstNonBlank >= 0
-      && !isEscapedMarkdownPunctuation(content, offset + blockContentStartOffset + firstNonBlank, range.start)
-        ? getMarkdownHtmlBlockClosePattern(blockContent)
-        : undefined;
-    if (closePattern !== undefined) {
-      activeStart = offset;
-      activeClosePattern = closePattern;
-      if (closePattern?.test(line)) {
-        ranges.push({ start: activeStart, end: nextOffset });
-        if (ranges.length >= rangeLimit) {
-          return ranges;
-        }
-        activeStart = null;
-        activeClosePattern = null;
-      }
-    }
-    offset = nextOffset;
-  }
-
-  if (activeStart !== null) {
-    ranges.push({ start: activeStart, end: range.end });
-  }
-
-  return ranges;
-}
-
-export function getMarkdownInvisibleHtmlBlockRanges(
-  content: string,
-  range: ContentRange,
-  maxRanges = Number.POSITIVE_INFINITY,
-): ContentRange[] {
-  const rangeLimit = normalizeRangeLimit(maxRanges);
-  if (rangeLimit <= 0) {
-    return [];
-  }
-
-  const ranges: ContentRange[] = [];
-  let offset = range.start;
-  let activeStart: number | null = null;
-  let activeClosePattern: RegExp | null = null;
-
-  while (offset < range.end) {
-    const lineEnd = content.indexOf("\n", offset);
-    const lineContentEnd = lineEnd === -1 ? range.end : Math.min(lineEnd, range.end);
-    const nextOffset = lineEnd === -1 ? range.end : Math.min(range.end, lineEnd + 1);
-    const line = content.slice(offset, lineContentEnd).replace(/\r$/, "");
-    const blockContent = getMarkdownBlockContent(line);
-    const blockContentStartOffset = getMarkdownBlockContentStartOffset(line);
-    const firstNonBlank = blockContent.search(/\S/);
-
-    if (activeStart !== null) {
-      if (activeClosePattern?.test(blockContent)) {
-        ranges.push({ start: activeStart, end: nextOffset });
-        if (ranges.length >= rangeLimit) {
-          return ranges;
-        }
-        activeStart = null;
-        activeClosePattern = null;
-      }
-      offset = nextOffset;
-      continue;
-    }
-
-    const closePattern =
-      firstNonBlank >= 0
-      && !isEscapedMarkdownPunctuation(content, offset + blockContentStartOffset + firstNonBlank, range.start)
-        ? getMarkdownInvisibleHtmlBlockClosePattern(blockContent)
-        : undefined;
-    if (closePattern) {
-      activeStart = offset;
-      activeClosePattern = closePattern;
-      if (closePattern.test(line)) {
-        ranges.push({ start: activeStart, end: nextOffset });
-        if (ranges.length >= rangeLimit) {
-          return ranges;
-        }
-        activeStart = null;
-        activeClosePattern = null;
-      }
-    }
-    offset = nextOffset;
-  }
-
-  if (activeStart !== null) {
-    ranges.push({ start: activeStart, end: range.end });
   }
 
   return ranges;

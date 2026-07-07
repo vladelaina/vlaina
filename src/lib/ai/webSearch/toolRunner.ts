@@ -5,18 +5,22 @@ import {
   formatSafeReadFailure,
   formatSearchResultsForModel,
 } from './format';
-import { canParseOpenAIToolArguments } from './openAIToolParsing';
 import { sanitizeWebSearchSourceUrl, sanitizeWebSearchStatus } from './statusMarkup';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
+import {
+  contentLimitArg,
+  normalizeToolName,
+  parseArguments,
+  readBatchUrlsArg,
+  readUrlArg,
+  searchCategoryArg,
+  searchQueryArg,
+  searchTimeRangeArg,
+} from './toolRunnerArgs';
 import type { WebSearchStatus } from './types';
 
 const AUTO_READ_AFTER_SEARCH_LIMIT = 3;
 const AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT = 3000;
-const MAX_WEB_SEARCH_QUERY_ARG_CHARS = 1000;
-const MAX_WEB_SEARCH_URL_ARG_CHARS = 16 * 1024;
-const MAX_WEB_SEARCH_OPTION_ARG_CHARS = 64;
-const MAX_WEB_SEARCH_BATCH_URLS = 8;
-const MAX_WEB_SEARCH_TOOL_NAME_CHARS = 128;
 
 interface WebSearchToolCall {
   name: string;
@@ -28,46 +32,6 @@ export interface WebSearchToolRunnerOptions {
   onStatus?: (status: WebSearchStatus) => void;
   signal?: AbortSignal;
   autoReadAfterSearch?: boolean;
-}
-
-function parseArguments(rawArguments: string): Record<string, unknown> {
-  const trimmed = rawArguments.trim();
-  if (!trimmed || !canParseOpenAIToolArguments(trimmed)) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-function stringArg(args: Record<string, unknown>, key: string, maxChars: number): string {
-  const value = args[key];
-  if (typeof value !== 'string') return '';
-  const trimmed = value.trim();
-  return trimmed.length <= maxChars ? trimmed : '';
-}
-
-function stringArrayArg(args: Record<string, unknown>, key: string, maxChars: number, maxItems: number): string[] {
-  const value = args[key];
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const result: string[] = [];
-  for (const item of value) {
-    if (result.length >= maxItems) break;
-    if (typeof item !== 'string') continue;
-    const trimmed = item.trim();
-    if (trimmed.length > 0 && trimmed.length <= maxChars) {
-      result.push(trimmed);
-    }
-  }
-  return result;
 }
 
 function collectUniqueSearchResultUrls(
@@ -93,67 +57,12 @@ function sanitizeSearchResults<T extends { url?: unknown }>(results: T[], limit:
   });
 }
 
-function numberArg(args: Record<string, unknown>, key: string): number | undefined {
-  const value = args[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function contentLimitArg(args: Record<string, unknown>): number {
-  const limit = numberArg(args, 'contentLimit');
-  if (!limit) return 3000;
-  return Math.min(3000, Math.max(500, Math.round(limit)));
-}
-
 function invalidToolArgumentsResult(
   options: Pick<WebSearchToolRunnerOptions, 'onStatus' | 'signal'>,
 ): string {
   const message = 'Tool call arguments were invalid.';
   emitStatus(options, { phase: 'error', message });
   return `Tool error: ${message}`;
-}
-
-function normalizeToolName(name: string): string {
-  const boundedName = name.slice(0, MAX_WEB_SEARCH_TOOL_NAME_CHARS);
-  const normalized = boundedName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  if (
-    normalized === WEB_SEARCH_TOOL_NAMES.search ||
-    normalized === 'search' ||
-    normalized === 'search_web' ||
-    normalized === 'searchweb' ||
-    normalized === 'web_search_tool' ||
-    normalized === 'websearch'
-  ) {
-    return WEB_SEARCH_TOOL_NAMES.search;
-  }
-  if (
-    normalized === WEB_SEARCH_TOOL_NAMES.read ||
-    normalized === 'read' ||
-    normalized === 'read_page' ||
-    normalized === 'read_webpage' ||
-    normalized === 'read_url' ||
-    normalized === 'readurl' ||
-    normalized === 'fetch_web_page' ||
-    normalized === 'fetchwebpage' ||
-    normalized === 'fetch_url' ||
-    normalized === 'fetchurl'
-  ) {
-    return WEB_SEARCH_TOOL_NAMES.read;
-  }
-  if (
-    normalized === WEB_SEARCH_TOOL_NAMES.readBatch ||
-    normalized === 'read_pages' ||
-    normalized === 'read_batch' ||
-    normalized === 'read_webpages' ||
-    normalized === 'read_urls' ||
-    normalized === 'readurls' ||
-    normalized === 'fetch_web_pages' ||
-    normalized === 'fetchwebpages' ||
-    normalized === 'fetch_urls' ||
-    normalized === 'fetchurls'
-  ) {
-    return WEB_SEARCH_TOOL_NAMES.readBatch;
-  }
-  return normalized || boundedName;
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -221,15 +130,15 @@ export async function runWebSearchToolCall(
   try {
     throwIfAborted(options.signal);
     if (toolName === WEB_SEARCH_TOOL_NAMES.search) {
-      const query = stringArg(args, 'query', MAX_WEB_SEARCH_QUERY_ARG_CHARS);
+      const query = searchQueryArg(args);
       if (!query) {
         return invalidToolArgumentsResult(options);
       }
       const startedAt = performance.now();
       emitStatus(options, { phase: 'searching', query });
       const searchOptions = {
-        category: stringArg(args, 'category', MAX_WEB_SEARCH_OPTION_ARG_CHARS) || undefined,
-        timeRange: stringArg(args, 'timeRange', MAX_WEB_SEARCH_OPTION_ARG_CHARS) || undefined,
+        category: searchCategoryArg(args),
+        timeRange: searchTimeRangeArg(args),
         limit: 5,
       };
       const response = await callWebSearchClient(
@@ -293,7 +202,7 @@ export async function runWebSearchToolCall(
     }
 
     if (toolName === WEB_SEARCH_TOOL_NAMES.read) {
-      const url = sanitizeWebSearchSourceUrl(stringArg(args, 'url', MAX_WEB_SEARCH_URL_ARG_CHARS));
+      const url = sanitizeWebSearchSourceUrl(readUrlArg(args));
       if (!url) {
         return invalidToolArgumentsResult(options);
       }
@@ -319,7 +228,7 @@ export async function runWebSearchToolCall(
     }
 
     if (toolName === WEB_SEARCH_TOOL_NAMES.readBatch) {
-      const urls = stringArrayArg(args, 'urls', MAX_WEB_SEARCH_URL_ARG_CHARS, MAX_WEB_SEARCH_BATCH_URLS)
+      const urls = readBatchUrlsArg(args)
         .map(sanitizeWebSearchSourceUrl)
         .filter((url): url is string => Boolean(url));
       if (urls.length === 0) {

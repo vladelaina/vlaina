@@ -1,32 +1,15 @@
-import { lazy, Suspense, useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { lazy, Suspense } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-import { isInsideMenuLayer } from '@/components/layout/sidebar/context-menu/shared';
 import { EmojiTab } from './EmojiTab';
-import {
-  TabType,
-  ACTIVE_TAB_KEY,
-  RECENT_ICONS_KEY,
-  SKIN_TONE_KEY,
-  loadActiveTab,
-  saveActiveTab,
-  loadRecentIcons,
-  addToRecentIcons,
-  MAX_RECENT_EMOJIS,
-  loadSkinTone,
-  EMOJI_CATEGORIES,
-} from './constants';
 import { useI18n } from '@/lib/i18n';
-import { hasIconImageScheme, hasIconSymbolScheme, isIconImageValue } from './iconImageValue';
 import type { CustomIcon } from './UploadTab';
 import {
-  describeIconPickerDebugTarget,
-  getIconPickerDebugLogText,
   isIconPickerDebugEnabled,
-  logIconPickerDebug,
 } from './debugLog';
+import { useUniversalIconPickerController } from './useUniversalIconPickerController';
 
 const LazyUploadTab = lazy(async () => {
   const mod = await import('./UploadTab');
@@ -92,238 +75,35 @@ export function UniversalIconPicker({
   fixedPanelHeight = false,
 }: UniversalIconPickerProps) {
   const { t } = useI18n();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  const onPreviewRef = useRef(onPreview);
-  const uploadTabEnabled = !emojiOnly && showUploadTab;
-  const [activeTab, setActiveTab] = useState<TabType>(() => uploadTabEnabled ? loadActiveTab() : 'emoji');
-  const effectiveActiveTab = uploadTabEnabled ? activeTab : 'emoji';
-  const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
-  const [skinTone, setSkinTone] = useState(loadSkinTone);
-  const [debugCopied, setDebugCopied] = useState(false);
-
-  const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
-  const lastRandomIconRef = useRef<string | null>(null);
-
-  const visibleRecentIcons = useMemo(() =>
-    recentIcons
-      .filter((icon) => allowLegacyImageScheme || !hasIconImageScheme(icon))
-      .filter((icon) => (
-        !emojiOnly ||
-        (!hasIconSymbolScheme(icon) && !isIconImageValue(icon) && !hasIconImageScheme(icon))
-      ))
-      .slice(0, MAX_RECENT_EMOJIS),
-    [allowLegacyImageScheme, emojiOnly, recentIcons]
-  );
-
-  const handleTabChange = useCallback((tab: TabType) => {
-    if (tab === 'upload' && !uploadTabEnabled) return;
-    setActiveTab(tab);
-    if (uploadTabEnabled) {
-      saveActiveTab(tab);
-    }
-  }, [uploadTabEnabled]);
-
-  const recentIconsRef = useRef(recentIcons);
-  recentIconsRef.current = recentIcons;
-  onCloseRef.current = onClose;
-  onPreviewRef.current = onPreview;
-
-  const handleEmojiSelect = useCallback((emoji: string) => {
-    lastRandomIconRef.current = null;
-    const updated = addToRecentIcons(emoji, recentIconsRef.current);
-    setRecentIcons(updated);
-    logIconPickerDebug('select-emoji', { emoji });
-    onSelect(emoji);
-    onCloseRef.current();
-  }, [onSelect]);
-  
-  const handleSkinToneChangeInternal = useCallback((tone: number) => {
-    setSkinTone(tone);
-    onSkinToneChange?.(tone);
-  }, [onSkinToneChange]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === ACTIVE_TAB_KEY) {
-        if (!uploadTabEnabled) {
-          setActiveTab('emoji');
-          return;
-        }
-        setActiveTab(loadActiveTab());
-        return;
-      }
-
-      if (event.key === RECENT_ICONS_KEY) {
-        setRecentIcons(loadRecentIcons());
-        return;
-      }
-
-      if (event.key === SKIN_TONE_KEY) {
-        const nextTone = loadSkinTone();
-        setSkinTone(nextTone);
-        onSkinToneChange?.(nextTone);
-      }
-    };
-
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, [onSkinToneChange, uploadTabEnabled]);
-
-  useEffect(() => {
-    if (!uploadTabEnabled && activeTab !== 'emoji') {
-      setActiveTab('emoji');
-    }
-  }, [activeTab, uploadTabEnabled]);
-
-  const handleUploadSelect = useCallback((assetUrl: string) => {
-    lastRandomIconRef.current = null;
-    const updated = addToRecentIcons(assetUrl, recentIconsRef.current);
-    setRecentIcons(updated);
-    logIconPickerDebug('select-upload', { assetUrl });
-    onSelect(assetUrl);
-    onCloseRef.current();
-  }, [onSelect]);
-
-  const removeTriggeredRef = useRef(false);
-
-  const handleRemove = useCallback(() => {
-    if (removeTriggeredRef.current) return;
-    removeTriggeredRef.current = true;
-    lastRandomIconRef.current = null;
-    onPreviewRef.current?.(null);
-    onPreviewSkinTone?.(null);
-    logIconPickerDebug('remove');
-    onRemove?.();
-    onCloseRef.current();
-  }, [onPreviewSkinTone, onRemove]);
-
-  const handleClose = useCallback((reason = 'close') => {
-    logIconPickerDebug('close', {
-      reason,
-      lastRandomIcon: lastRandomIconRef.current,
-    });
-    if (lastRandomIconRef.current) {
-      const updated = addToRecentIcons(lastRandomIconRef.current, recentIconsRef.current);
-      setRecentIcons(updated);
-      lastRandomIconRef.current = null;
-    }
-    onCloseRef.current();
-  }, []);
-
-  const handleRemoveEvent = useCallback((event: React.SyntheticEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    handleRemove();
-  }, [handleRemove]);
-
-  const handleRandom = useCallback(() => {
-    if (effectiveActiveTab === 'emoji') {
-      const currentCategory = EMOJI_CATEGORIES.find(c => c.id === activeEmojiCategory);
-      const emojis = currentCategory?.emojis || [];
-      if (emojis.length > 0) {
-        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-        lastRandomIconRef.current = randomEmoji.native;
-        logIconPickerDebug('random-emoji', {
-          icon: randomEmoji.native,
-          category: activeEmojiCategory,
-        });
-        onSelect(randomEmoji.native);
-      }
-    } else if (effectiveActiveTab === 'upload') {
-      if (customIcons.length > 0) {
-        const randomEmoji = customIcons[Math.floor(Math.random() * customIcons.length)];
-        lastRandomIconRef.current = randomEmoji.url;
-        logIconPickerDebug('random-upload', { icon: randomEmoji.url });
-        onSelect(randomEmoji.url);
-      }
-    }
-  }, [activeEmojiCategory, effectiveActiveTab, onSelect, customIcons]);
-
-  const handleCopyDebugLog = useCallback(async () => {
-    const text = getIconPickerDebugLogText();
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        try {
-          textArea.focus();
-          textArea.select();
-          document.execCommand('copy');
-        } finally {
-          textArea.remove();
-        }
-      }
-      setDebugCopied(true);
-      window.setTimeout(() => setDebugCopied(false), 1200);
-    } catch (error) {
-      logIconPickerDebug('copy-debug-log-failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (embedded) return;
-
-    const onPointerDownCapture = (e: PointerEvent) => {
-      const target = e.target;
-      const targetElement = target instanceof Element ? target : null;
-      const insidePicker = Boolean(containerRef.current && target instanceof Node && containerRef.current.contains(target));
-      const preventClose = Boolean(targetElement?.closest('[data-prevent-picker-close]'));
-      const insideMenuLayer = isInsideMenuLayer(target);
-      logIconPickerDebug('document-pointerdown-capture', {
-        target: describeIconPickerDebugTarget(target),
-        insidePicker,
-        preventClose,
-        insideMenuLayer,
-      });
-
-      if (preventClose) return;
-      if (insideMenuLayer) return;
-      if (!insidePicker) {
-        onPreviewRef.current?.(null);
-        handleClose('outside-pointerdown');
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDownCapture, true);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDownCapture, true);
-    };
-  }, [handleClose, embedded]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.isComposing) {
-        return;
-      }
-
-      if (e.key === 'Escape') {
-        onPreviewRef.current?.(null);
-        handleClose('escape');
-      }
-      if (e.key === 'Tab' && e.ctrlKey) {
-        if (!uploadTabEnabled) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const tabs: TabType[] = ['emoji', 'upload'];
-        const currentIndex = tabs.indexOf(activeTab);
-        const nextIndex = (currentIndex + 1) % tabs.length;
-        handleTabChange(tabs[nextIndex]);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown, true);
-    return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [activeTab, handleClose, handleTabChange, uploadTabEnabled]);
+  const {
+    containerRef,
+    uploadTabEnabled,
+    effectiveActiveTab,
+    visibleRecentIcons,
+    skinTone,
+    debugCopied,
+    activeEmojiCategory,
+    setActiveEmojiCategory,
+    handleTabChange,
+    handleEmojiSelect,
+    handleSkinToneChangeInternal,
+    handleUploadSelect,
+    handleRemoveEvent,
+    handleRandom,
+    handleCopyDebugLog,
+  } = useUniversalIconPickerController({
+    onSelect,
+    onPreview,
+    onRemove,
+    onClose,
+    customIcons,
+    onSkinToneChange,
+    onPreviewSkinTone,
+    embedded,
+    emojiOnly,
+    allowLegacyImageScheme,
+    showUploadTab,
+  });
 
   return (
     <div

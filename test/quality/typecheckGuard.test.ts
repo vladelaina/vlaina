@@ -101,12 +101,12 @@ describe('typecheck quality gate', () => {
       'src/stores/accountSession/authSupport.ts:localStorage.removeItem(ACCOUNT_STATUS_REFRESH_KEY);',
       'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_STATUS_REFRESH_KEY, String(Date.now()));',
       'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(normalized));',
-      'src/stores/notes/storage.ts:localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));',
-      'src/stores/uiSlice.ts:localStorage.setItem(key, value);',
-      'src/stores/uiSlice.ts:localStorage.removeItem(key);',
+      'src/stores/notes/storagePreferences.ts:localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));',
+      'src/stores/uiPreferences.ts:localStorage.setItem(key, value);',
+      'src/stores/uiPreferences.ts:localStorage.removeItem(key);',
       'src/stores/useManagedAIStore.ts:localStorage.setItem(BUDGET_SYNC_STORAGE_KEY, JSON.stringify({ budget, syncedAt }))',
       'src/stores/useManagedAIStore.ts:localStorage.removeItem(BUDGET_SYNC_STORAGE_KEY)',
-      'src/stores/notesRootStoreSupport.ts:localStorage.setItem(key, JSON.stringify(value));',
+      'src/stores/notesRootLocalStorage.ts:localStorage.setItem(key, JSON.stringify(value));',
 
       // Window-local/layout-local preferences.
       'src/components/layout/ResizablePanel.tsx:localStorage.setItem(storageKey, String(width));',
@@ -117,7 +117,7 @@ describe('typecheck quality gate', () => {
       'src/components/Notes/features/Editor/plugins/floating-toolbar/components/ai-dropdown/usageRanking.ts:window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));',
 
       // Navigation/history caches that do not drive live cross-window state.
-      'src/stores/notes/storage.ts:localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));',
+      'src/stores/notes/storagePreferences.ts:localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));',
 
       // Future-facing shortcut customization storage. There is no editing UI yet; adding one should revisit sync.
       'src/lib/shortcuts/storage.ts:localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));',
@@ -125,8 +125,8 @@ describe('typecheck quality gate', () => {
 
       // Web auth and inter-window mutation lock internals.
       'src/lib/account/webSession.ts:localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);',
-      'src/lib/ai/sessionMutationLock.ts:localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));',
-      'src/lib/ai/sessionMutationLock.ts:localStorage.removeItem(getLockKey(sessionId));',
+      'src/lib/ai/sessionMutationLockStorage.ts:localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));',
+      'src/lib/ai/sessionMutationLockStorage.ts:localStorage.removeItem(getLockKey(sessionId));',
 
       // Desktop update cache/check throttle, with cache change events for update UI listeners.
       'src/lib/desktop/updateStatus.ts:window.localStorage.removeItem(UPDATE_INFO_CACHE_KEY);',
@@ -134,7 +134,7 @@ describe('typecheck quality gate', () => {
       'src/lib/desktop/updateStatus.ts:window.localStorage.setItem(UPDATE_LAST_AUTO_CHECK_KEY, String(value));',
 
       // E2E-only bridge activation persistence, guarded behind import.meta.env.DEV.
-      "src/lib/e2e/syncE2EBridge.ts:window.localStorage.setItem(E2E_LOCAL_STORAGE_KEY, '1');",
+      "src/lib/e2e/syncE2EBridgeState.ts:window.localStorage.setItem(E2E_LOCAL_STORAGE_KEY, '1');",
     ];
 
     expect(findStorageWriteSites()).toEqual([...expectedSites].sort());

@@ -1,8 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { EditorView } from '@milkdown/kit/prose/view';
 import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { BlockControlsViewSession, __testing__ } from './blockControlsViewSession';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  clearCurrentEditorBlockPositionSnapshot,
+  setCurrentEditorBlockPositionSnapshot,
+} from '../../utils/editorBlockPositionCache';
+import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
 import {
   applyBlockMove,
   getDraggableBlockRanges,
@@ -10,13 +14,9 @@ import {
   resolveBlockTargetByPos,
   resolveDropTarget,
 } from './blockControlsInteractions';
+import { BlockControlsViewSession, __testing__ } from './blockControlsViewSession';
 import { getBlockDragComposerPayload } from './blockDragVisualState';
 import { serializeSelectedBlocksToText } from './blockSelectionSerializer';
-import {
-  clearCurrentEditorBlockPositionSnapshot,
-  setCurrentEditorBlockPositionSnapshot,
-} from '../../utils/editorBlockPositionCache';
-import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
 
 const originalElementsFromPoint = document.elementsFromPoint;
 

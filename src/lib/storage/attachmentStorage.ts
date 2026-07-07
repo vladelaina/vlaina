@@ -1,8 +1,6 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
-import { getBase64DecodedByteLength, MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 import { normalizeRenderableDataImageSrc } from '@/lib/markdown/renderableImagePolicy';
-import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import { getStorageAdapter, joinPath } from './adapter';
 import {
     extractStoredAttachmentFilename,
@@ -13,17 +11,40 @@ import {
     getPrimaryAttachmentDir,
     getPrimaryAttachmentPath,
 } from './attachmentPaths';
+import {
+    assertAttachmentImageSize,
+    assertAttachmentTextSize,
+    assertReadableAttachmentInfo,
+    decodeAttachmentTextBytes,
+    getAttachmentFilename,
+    normalizeAttachmentFileType,
+    prepareAttachmentImageBytes,
+} from './attachmentStorageMime';
+import {
+    dataUrlToBytes,
+    encodeAttachmentDataUrl,
+    inferDataUrlExtension,
+    isAttachmentDataUrlWithinSizeLimit,
+    prepareAttachmentOutputBytes,
+    sanitizeInlineAttachmentDataUrl,
+    uint8ArrayToBase64,
+} from './attachmentStorageDataUrl';
+import {
+    MAX_ATTACHMENT_IMAGE_BYTES,
+    type Attachment,
+    type ConvertAttachmentOptions,
+    type SaveAttachmentOptions,
+} from './attachmentStorageTypes';
 
-export interface Attachment {
-    id: string;
-    path: string;
-    previewUrl: string;
-    assetUrl: string;
-    name: string;
-    type: string;
-    size: number;
-    textContent?: string;
-}
+export type { Attachment, ConvertAttachmentOptions, SaveAttachmentOptions } from './attachmentStorageTypes';
+export {
+    MAX_ATTACHMENT_IMAGE_BYTES,
+    MAX_ATTACHMENT_TEXT_BYTES,
+    MAX_ATTACHMENT_TEXT_CHARS,
+    SUPPORTED_ATTACHMENT_IMAGE_INPUT_ACCEPT,
+    SUPPORTED_ATTACHMENT_INPUT_ACCEPT,
+} from './attachmentStorageTypes';
+export { isAttachmentDataUrlWithinSizeLimit } from './attachmentStorageDataUrl';
 
 export function createStoredAttachmentFromSource(src: string, id = 'stored-attachment'): Attachment | null {
     const filename = extractStoredAttachmentFilename(src);
@@ -47,136 +68,6 @@ export function createStoredAttachmentFromSource(src: string, id = 'stored-attac
     };
 }
 
-const DATA_URL_REGEX = /^data:([^;,]+)(;base64)?,(.*)$/i;
-export const MAX_ATTACHMENT_IMAGE_BYTES = MAX_INLINE_IMAGE_BYTES;
-export const MAX_ATTACHMENT_TEXT_BYTES = 512 * 1024;
-export const MAX_ATTACHMENT_TEXT_CHARS = 120_000;
-const SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
-    'image/avif': ['avif'],
-    'image/bmp': ['bmp'],
-    'image/gif': ['gif'],
-    'image/jpeg': ['jpg', 'jpeg'],
-    'image/png': ['png'],
-    'image/svg+xml': ['svg'],
-    'image/webp': ['webp'],
-};
-const SUPPORTED_ATTACHMENT_MIME_BY_EXTENSION: Record<string, string> = Object.fromEntries(
-    Object.entries(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME).flatMap(([mimeType, extensions]) =>
-        extensions.map((extension) => [extension, mimeType])
-    )
-);
-const SUPPORTED_ATTACHMENT_TEXT_MIME_TYPES = new Set([
-    'application/json',
-    'application/ld+json',
-    'application/toml',
-    'application/x-ndjson',
-    'application/xml',
-    'application/yaml',
-    'application/x-yaml',
-    'text/css',
-    'text/csv',
-    'text/html',
-    'text/javascript',
-    'text/markdown',
-    'text/plain',
-    'text/tab-separated-values',
-    'text/xml',
-    'text/x-c',
-    'text/x-c++src',
-    'text/x-go',
-    'text/x-java-source',
-    'text/x-python',
-    'text/x-ruby',
-    'text/x-shellscript',
-]);
-const SUPPORTED_ATTACHMENT_TEXT_EXTENSIONS = new Set([
-    'bash',
-    'c',
-    'cc',
-    'conf',
-    'cpp',
-    'cs',
-    'css',
-    'csv',
-    'env',
-    'fish',
-    'go',
-    'h',
-    'hpp',
-    'html',
-    'ini',
-    'java',
-    'js',
-    'json',
-    'jsonl',
-    'jsx',
-    'kt',
-    'kts',
-    'log',
-    'md',
-    'markdown',
-    'php',
-    'ps1',
-    'py',
-    'rb',
-    'rs',
-    'sh',
-    'sql',
-    'swift',
-    'toml',
-    'ts',
-    'tsx',
-    'txt',
-    'xml',
-    'yaml',
-    'yml',
-    'zsh',
-]);
-const SUPPORTED_ATTACHMENT_TEXT_MIME_BY_EXTENSION: Record<string, string> = {
-    csv: 'text/csv',
-    html: 'text/html',
-    js: 'text/javascript',
-    json: 'application/json',
-    jsonl: 'application/x-ndjson',
-    md: 'text/markdown',
-    markdown: 'text/markdown',
-    toml: 'application/toml',
-    txt: 'text/plain',
-    xml: 'application/xml',
-    yaml: 'application/yaml',
-    yml: 'application/yaml',
-};
-const SUPPORTED_ATTACHMENT_IMAGE_ACCEPT_ITEMS = Object.entries(
-    SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME,
-).flatMap(([mimeType, extensions]) => [
-    mimeType,
-    ...extensions.map((extension) => `.${extension}`),
-]);
-const SUPPORTED_ATTACHMENT_TEXT_ACCEPT_ITEMS = [
-    ...SUPPORTED_ATTACHMENT_TEXT_MIME_TYPES,
-    ...Array.from(SUPPORTED_ATTACHMENT_TEXT_EXTENSIONS, (extension) => `.${extension}`),
-];
-export const SUPPORTED_ATTACHMENT_INPUT_ACCEPT = [
-    ...SUPPORTED_ATTACHMENT_IMAGE_ACCEPT_ITEMS,
-    ...SUPPORTED_ATTACHMENT_TEXT_ACCEPT_ITEMS,
-].join(',');
-export const SUPPORTED_ATTACHMENT_IMAGE_INPUT_ACCEPT = SUPPORTED_ATTACHMENT_IMAGE_ACCEPT_ITEMS.join(',');
-
-type AttachmentFileKind = 'image' | 'text';
-
-interface NormalizedAttachmentFileType {
-    kind: AttachmentFileKind;
-    mimeType: string;
-}
-
-interface SaveAttachmentOptions {
-    persist?: boolean;
-}
-
-interface ConvertAttachmentOptions {
-    allowPath?: (path: string) => boolean | Promise<boolean>;
-}
-
 function getPathApi() {
     const bridge = getElectronBridge();
     return bridge?.path ?? null;
@@ -189,208 +80,6 @@ async function buildAttachmentAssetUrl(absolutePath: string, previewUrl: string)
     }
 
     return await pathApi.toFileUrl(absolutePath);
-}
-
-function getFileExtension(fileName: string): string {
-    return fileName.split('.').pop()?.trim().toLowerCase() ?? '';
-}
-
-function normalizeAttachmentImageMimeType(file: File): string | null {
-    const rawMimeType = file.type.split(';')[0]?.trim().toLowerCase() ?? '';
-    const mimeType = rawMimeType === 'image/jpg' ? 'image/jpeg' : rawMimeType;
-    if (mimeType) {
-        return Object.prototype.hasOwnProperty.call(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME, mimeType)
-            ? mimeType
-            : null;
-    }
-
-    return SUPPORTED_ATTACHMENT_MIME_BY_EXTENSION[getFileExtension(file.name)] ?? null;
-}
-
-function normalizeAttachmentTextMimeType(file: File): string | null {
-    const rawMimeType = file.type.split(';')[0]?.trim().toLowerCase() ?? '';
-    if (rawMimeType) {
-        if (rawMimeType.startsWith('text/') || SUPPORTED_ATTACHMENT_TEXT_MIME_TYPES.has(rawMimeType)) {
-            return rawMimeType;
-        }
-        return null;
-    }
-
-    const extension = getFileExtension(file.name);
-    if (!SUPPORTED_ATTACHMENT_TEXT_EXTENSIONS.has(extension)) {
-        return null;
-    }
-    return SUPPORTED_ATTACHMENT_TEXT_MIME_BY_EXTENSION[extension] ?? 'text/plain';
-}
-
-function normalizeAttachmentFileType(file: File): NormalizedAttachmentFileType | null {
-    const imageMimeType = normalizeAttachmentImageMimeType(file);
-    if (imageMimeType) {
-        return { kind: 'image', mimeType: imageMimeType };
-    }
-
-    const textMimeType = normalizeAttachmentTextMimeType(file);
-    if (textMimeType) {
-        return { kind: 'text', mimeType: textMimeType };
-    }
-
-    return null;
-}
-
-function getAttachmentExtensionFromMimeType(mimeType: string, kind: AttachmentFileKind): string {
-    if (mimeType === 'image/jpeg') {
-        return 'jpg';
-    }
-    if (kind === 'text') {
-        if (mimeType === 'application/json') return 'json';
-        if (mimeType === 'application/toml') return 'toml';
-        if (mimeType === 'application/xml') return 'xml';
-        if (mimeType === 'application/yaml' || mimeType === 'application/x-yaml') return 'yaml';
-        if (mimeType === 'text/csv') return 'csv';
-        if (mimeType === 'text/html') return 'html';
-        if (mimeType === 'text/markdown') return 'md';
-        return 'txt';
-    }
-    return SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME[mimeType]?.[0] ?? 'bin';
-}
-
-function getAttachmentFilename(fileName: string, mimeType: string, kind: AttachmentFileKind): string {
-    const extension = getAttachmentExtensionFromMimeType(mimeType, kind);
-    const currentExtension = getFileExtension(fileName);
-    const allowedExtensions = kind === 'image'
-        ? SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME[mimeType] ?? []
-        : Array.from(SUPPORTED_ATTACHMENT_TEXT_EXTENSIONS);
-    if (allowedExtensions.includes(currentExtension)) {
-        return `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${currentExtension}`;
-    }
-    return `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${extension}`;
-}
-
-function prepareAttachmentImageBytes(bytes: Uint8Array, mimeType: string): Uint8Array {
-    return mimeType === 'image/svg+xml' ? sanitizeSvgBytes(bytes) : bytes;
-}
-
-function normalizeSupportedAttachmentMimeType(value: string): string | null {
-    const rawMimeType = value.split(';')[0]?.trim().toLowerCase() ?? '';
-    const mimeType = rawMimeType === 'image/jpg' ? 'image/jpeg' : rawMimeType;
-    return Object.prototype.hasOwnProperty.call(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME, mimeType)
-        ? mimeType
-        : null;
-}
-
-function encodeAttachmentDataUrl(bytes: Uint8Array, mimeType: string): string {
-    return `data:${mimeType};base64,${uint8ArrayToBase64(bytes)}`;
-}
-
-function prepareAttachmentOutputBytes(bytes: Uint8Array, mimeType: string): {
-    bytes: Uint8Array;
-    mimeType: string;
-} {
-    const outputMimeType = normalizeSupportedAttachmentMimeType(mimeType) ?? mimeType;
-    const outputBytes = prepareAttachmentImageBytes(bytes, outputMimeType);
-    assertAttachmentImageSize(outputBytes.byteLength);
-    return {
-        bytes: outputBytes,
-        mimeType: outputMimeType,
-    };
-}
-
-function sanitizeInlineAttachmentDataUrl(dataUrl: string): string | null {
-    if (!isAttachmentDataUrlWithinSizeLimit(dataUrl)) {
-        return null;
-    }
-
-    const decoded = dataUrlToBytes(dataUrl);
-    const mimeType = decoded ? normalizeSupportedAttachmentMimeType(decoded.mimeType) : null;
-    if (!decoded || !mimeType) {
-        return null;
-    }
-
-    if (mimeType !== 'image/svg+xml') {
-        return dataUrl;
-    }
-
-    const prepared = prepareAttachmentOutputBytes(decoded.bytes, mimeType);
-    return encodeAttachmentDataUrl(prepared.bytes, prepared.mimeType);
-}
-
-function assertAttachmentImageSize(byteLength: number | null | undefined): void {
-    if (
-        typeof byteLength !== 'number' ||
-        !Number.isFinite(byteLength) ||
-        byteLength < 0 ||
-        byteLength > MAX_ATTACHMENT_IMAGE_BYTES
-    ) {
-        throw new Error('Attachment image is too large.');
-    }
-}
-
-function assertAttachmentTextSize(byteLength: number | null | undefined): void {
-    if (
-        typeof byteLength !== 'number' ||
-        !Number.isFinite(byteLength) ||
-        byteLength < 0 ||
-        byteLength > MAX_ATTACHMENT_TEXT_BYTES
-    ) {
-        throw new Error('Attachment file is too large.');
-    }
-}
-
-function decodeAttachmentTextBytes(bytes: Uint8Array): string {
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-    if (text.includes('\u0000')) {
-        throw new Error('Unsupported attachment type');
-    }
-
-    const replacementCount = (text.match(/\uFFFD/g) ?? []).length;
-    if (replacementCount > 0 && replacementCount / Math.max(text.length, 1) > 0.01) {
-        throw new Error('Unsupported attachment type');
-    }
-
-    return text.slice(0, MAX_ATTACHMENT_TEXT_CHARS);
-}
-
-function assertReadableAttachmentInfo(
-    info: { isDirectory?: boolean; isFile?: boolean; size?: number } | null | undefined,
-): void {
-    if (
-        info?.isFile === false ||
-        info?.isDirectory === true ||
-        (typeof info?.size === 'number' && (
-            !Number.isFinite(info.size) ||
-            info.size < 0 ||
-            info.size > MAX_ATTACHMENT_IMAGE_BYTES
-        ))
-    ) {
-        throw new Error('Attachment image is too large.');
-    }
-}
-
-export function isAttachmentDataUrlWithinSizeLimit(dataUrl: string): boolean {
-    const match = DATA_URL_REGEX.exec(dataUrl.trim());
-    if (!match) {
-        return false;
-    }
-
-    const mimeType = match[1]?.trim().toLowerCase() ?? '';
-    if (!Object.prototype.hasOwnProperty.call(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME, mimeType)) {
-        return false;
-    }
-
-    const payload = match[3] || '';
-    if (!match[2]) {
-        if (payload.length > MAX_ATTACHMENT_IMAGE_BYTES * 3) {
-            return false;
-        }
-        try {
-            return new TextEncoder().encode(decodeURIComponent(payload)).byteLength <= MAX_ATTACHMENT_IMAGE_BYTES;
-        } catch {
-            return false;
-        }
-    }
-
-    const byteLength = getBase64DecodedByteLength(payload);
-    return byteLength !== null && byteLength <= MAX_ATTACHMENT_IMAGE_BYTES;
 }
 
 function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {
@@ -526,49 +215,6 @@ export async function deleteAttachment(attachment: Attachment): Promise<void> {
     await storage.deleteFile(await getPrimaryAttachmentPath(basePath, storedFilename)).catch(() => {});
 }
 
-function inferDataUrlExtension(mimeType: string): string {
-    const normalized = mimeType.toLowerCase();
-    if (normalized === 'image/jpeg') return 'jpg';
-    if (normalized === 'image/svg+xml') return 'svg';
-    const subtype = normalized.split('/')[1]?.replace(/[^a-z0-9]+/g, '');
-    return subtype || 'bin';
-}
-
-function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mimeType: string } | null {
-    const match = DATA_URL_REGEX.exec(dataUrl.trim());
-    if (!match) {
-        return null;
-    }
-
-    const mimeType = match[1] || 'application/octet-stream';
-    const isBase64 = Boolean(match[2]);
-    const payload = match[3] || '';
-
-    if (!isBase64) {
-        try {
-            return {
-                bytes: new TextEncoder().encode(decodeURIComponent(payload)),
-                mimeType,
-            };
-        } catch {
-            return null;
-        }
-    }
-
-    let binary = '';
-    try {
-        binary = window.atob(payload);
-    } catch {
-        return null;
-    }
-
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index);
-    }
-    return { bytes, mimeType };
-}
-
 export async function persistDataUrlAttachment(dataUrl: string): Promise<string | null> {
     const normalizedDataUrl = normalizeRenderableDataImageSrc(dataUrl);
     if (!normalizedDataUrl) {
@@ -599,16 +245,6 @@ export async function persistDataUrlAttachment(dataUrl: string): Promise<string 
     const absolutePath = await joinPath(dirPath, filename);
     await storage.writeBinaryFile(absolutePath, decoded.bytes, { recursive: true });
     return `attachment://${encodeURIComponent(filename)}`;
-}
-
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-    const CHUNK_SIZE = 0x8000;
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-        const chunk = bytes.subarray(i, i + CHUNK_SIZE);
-        binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
-    }
-    return window.btoa(binary);
 }
 
 export async function convertToBase64(attachment: Attachment, options: ConvertAttachmentOptions = {}): Promise<string> {

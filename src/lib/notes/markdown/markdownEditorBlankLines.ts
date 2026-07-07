@@ -1,8 +1,4 @@
 import {
-  mapMarkdownOutsideProtectedBlocks,
-  mapMarkdownOutsideProtectedSegments,
-} from './markdownProtectedBlocks';
-import {
   isAlignmentCommentBoundaryBlankLine,
   isBetweenListItemsBlankLine,
   isDefinitionListBoundaryBlankLine,
@@ -12,13 +8,17 @@ import {
   isListBoundaryBlankLine,
   isMarkdownImageStructuralBoundaryBlankLine,
 } from './markdownBlankLineBoundaries';
+import {
+  mapMarkdownOutsideProtectedBlocks,
+  mapMarkdownOutsideProtectedSegments,
+} from './markdownProtectedBlocks';
+import { exposeRenderedHtmlBoundaryBlankLinesForEditor } from './markdownRenderedHtmlBlankLines';
 import { escapeParagraphTrailingBackslashesForEditor } from './plainTextBackslashHardBreaks';
 
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
 const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
 const EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER = '<br />';
 const EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
-const EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER = '<!--vlaina-rendered-html-boundary-blank-line-->';
 const EDITOR_TIGHT_HEADING_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
 const EDITOR_NON_PERSISTED_BLOCK_BOUNDARY_PLACEHOLDER = EDITOR_TIGHT_HEADING_PLACEHOLDER;
 const LIST_GAP_PLACEHOLDER = '\u2800';
@@ -30,33 +30,6 @@ const USER_BR_SENTINEL_LINE_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKDOWN_HEADING_LINE_PATTERN = /^\s{0,3}#{1,6}\s+/;
 const STANDALONE_ESCAPED_BACKSLASH_LINE_PATTERN = /^[ \t]*\\\\[ \t]*$/;
-const HTML_ONE_LINE_RENDERED_BLOCK_PATTERN =
-  /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)[\s\S]*?(?:<\/\1>|\/>)[ \t]*$/;
-const HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN =
-  /^(?: {0,3})<(?:img|hr|br)(?:\s|\/?>|$)[\s\S]*$/i;
-const HTML_CLOSING_RENDERED_BLOCK_PATTERN =
-  /^(?: {0,3})<\/([A-Za-z][A-Za-z0-9-]*)\s*>[ \t]*$/;
-const NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES = new Set([
-  'base',
-  'basefont',
-  'link',
-  'meta',
-  'param',
-  'source',
-  'track',
-  'script',
-  'style',
-  'pre',
-  'textarea',
-  'title',
-  'xmp',
-  'noembed',
-  'noframes',
-  'plaintext',
-  'math',
-  'noscript',
-  'svg',
-]);
 const EMPTY_LIST_ITEM_LINE_PATTERN =
   /^([ \t]*(?:>[ \t]*)*(?:[-+*]|\d+[.)]))[ \t]*$/;
 const EMPTY_TASK_LIST_ITEM_LINE_PATTERN =
@@ -195,57 +168,6 @@ function createEditableListGapPlaceholderLine(lines: readonly string[], index: n
   if (!match) return LIST_GAP_PLACEHOLDER;
 
   return `${match[1] ?? ''}- ${LIST_GAP_PLACEHOLDER}`;
-}
-
-function exposeRenderedHtmlBoundaryBlankLinesForEditor(text: string): string {
-  if (!text.includes('\n\n')) return text;
-
-  const lines = text.split('\n');
-  let changed = false;
-  const output: string[] = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? '';
-    output.push(line);
-    if (line.trim() !== '') continue;
-
-    const previous = findNearestNonBlankLine(lines, index, -1);
-    const next = findNearestNonBlankLine(lines, index, 1);
-    if (!next || !isRenderedHtmlBoundaryBlockLine(previous)) continue;
-    if ((lines[index + 1] ?? '').trim() === EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER) continue;
-    if ((lines[index + 1] ?? '').trim() === EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER) continue;
-
-    changed = true;
-    output.push(EDITOR_RENDERED_HTML_BOUNDARY_PLACEHOLDER);
-  }
-
-  return changed ? output.join('\n') : text;
-}
-
-function isRenderedHtmlBoundaryBlockLine(line: string | null): boolean {
-  if (line === null) return false;
-
-  const match = HTML_ONE_LINE_RENDERED_BLOCK_PATTERN.exec(line)
-    ?? HTML_ONE_LINE_RENDERED_VOID_BLOCK_PATTERN.exec(line);
-  const closingTagName = HTML_CLOSING_RENDERED_BLOCK_PATTERN.exec(line)?.[1]?.toLowerCase();
-  const tagName = match?.[1]?.toLowerCase() ?? closingTagName ?? getHtmlStartTagName(line);
-  return Boolean(tagName && !NON_EDITABLE_HTML_BOUNDARY_TAG_NAMES.has(tagName));
-}
-
-function getHtmlStartTagName(line: string): string | null {
-  const match = /^(?: {0,3})<([A-Za-z][A-Za-z0-9-]*)(?:\s|>|\/>)/.exec(line);
-  return match?.[1]?.toLowerCase() ?? null;
-}
-
-function findNearestNonBlankLine(
-  lines: readonly string[],
-  startIndex: number,
-  direction: -1 | 1,
-): string | null {
-  for (let index = startIndex + direction; index >= 0 && index < lines.length; index += direction) {
-    const line = lines[index] ?? '';
-    if (line.trim() !== '') return line;
-  }
-  return null;
 }
 
 function findNearestListItemLine(

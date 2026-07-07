@@ -2,7 +2,7 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import React from 'react';
 import { flushSync } from 'react-dom';
-import { createRoot, type Root } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
 import { SlashMenuPanel } from './SlashMenuPanel';
 import { applySlashCommand } from './slashCommands';
 import { getSlashMenuItems } from './slashItems';
@@ -12,17 +12,13 @@ import { filterSlashItems } from './slashQuery';
 import {
   createDismissedSlashState,
   createSlashState,
-  getSlashMenuPosition,
   getSlashTextRange,
 } from './slashState';
-import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
-import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { getScrollRoot, getToolbarRoot } from '../floating-toolbar/floatingToolbarDom';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
-
-const SLASH_MENU_MARGIN_PX = 12;
-const SLASH_MENU_MAX_HEIGHT_PX = 360;
-const SLASH_MENU_MIN_HEIGHT_PX = 160;
+import { applySlashMenuPosition } from './slashMenuPositioning';
+import { createSlashMenuElement, destroySlashMenuElement } from './slashMenuDom';
+import { keepSlashMenuSelectedItemVisible } from './slashMenuScroll';
 
 function markSlashUserInput(view: EditorView): void {
   view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
@@ -159,68 +155,23 @@ export class SlashMenuView {
       return this.menuElement;
     }
 
-    const menu = document.createElement('div');
-    menu.className = `slash-menu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
-    menu.setAttribute('data-no-editor-drag-box', 'true');
-    menu.style.position = this.positionRoot ? 'absolute' : 'fixed';
-    (this.positionRoot ?? document.body).appendChild(menu);
-    this.root = createRoot(menu);
-    this.menuElement = menu;
-    return menu;
+    const { menuElement, root } = createSlashMenuElement(this.positionRoot);
+    this.root = root;
+    this.menuElement = menuElement;
+    return menuElement;
   }
 
   private destroyMenu() {
     const root = this.root;
+    const menuElement = this.menuElement;
     this.root = null;
-    if (root) {
-      window.setTimeout(() => root.unmount(), 0);
-    }
-
-    if (!this.menuElement) return;
-    this.menuElement.remove();
     this.menuElement = null;
+    destroySlashMenuElement(menuElement, root);
   }
 
   private syncPosition() {
     if (!this.menuElement) return;
-
-    const viewportPosition = getSlashMenuPosition(this.editorView);
-    const containerPosition = toContainerPosition(viewportPosition, this.positionRoot);
-    const layout = getContentLayoutContext(this.editorView, this.positionRoot);
-    const menuWidth = this.menuElement.offsetWidth || 320;
-    const menuHeight = this.menuElement.offsetHeight || SLASH_MENU_MAX_HEIGHT_PX;
-    const horizontalBounds = this.positionRoot
-      ? {
-          left: layout.containerBounds?.left ?? SLASH_MENU_MARGIN_PX,
-          right: layout.containerBounds?.right ?? this.positionRoot.clientWidth,
-        }
-      : {
-          left: layout.viewportBounds.left,
-          right: layout.viewportBounds.right,
-        };
-    const minX = horizontalBounds.left + SLASH_MENU_MARGIN_PX;
-    const maxX = horizontalBounds.right - SLASH_MENU_MARGIN_PX - menuWidth;
-    const nextX = maxX < minX
-      ? minX
-      : Math.max(minX, Math.min(containerPosition.x, maxX));
-    const availableBelow = this.positionRoot
-      ? this.positionRoot.clientHeight - containerPosition.y - 24
-      : window.innerHeight - viewportPosition.y - 24;
-    const availableAbove = containerPosition.y - 24;
-    const shouldPlaceAbove =
-      availableBelow < Math.min(menuHeight, 220) &&
-      availableAbove > availableBelow;
-    const nextY = shouldPlaceAbove
-      ? Math.max(24, containerPosition.y - menuHeight - 8)
-      : containerPosition.y;
-    const availableHeight = shouldPlaceAbove ? availableAbove : availableBelow;
-
-    this.menuElement.style.left = `${Math.round(nextX)}px`;
-    this.menuElement.style.top = `${Math.round(nextY)}px`;
-    this.menuElement.style.maxHeight = `${Math.max(
-      SLASH_MENU_MIN_HEIGHT_PX,
-      Math.min(SLASH_MENU_MAX_HEIGHT_PX, availableHeight),
-    )}px`;
+    applySlashMenuPosition(this.editorView, this.menuElement, this.positionRoot);
   }
 
   private scheduleViewportChange() {
@@ -250,23 +201,7 @@ export class SlashMenuView {
 
   private keepSelectedItemVisible() {
     if (!this.menuElement) return;
-
-    const selectedItem = this.menuElement.querySelector<HTMLElement>('.slash-menu-item.selected');
-    if (!selectedItem) return;
-
-    const itemTop = selectedItem.offsetTop;
-    const itemBottom = itemTop + selectedItem.offsetHeight;
-    const viewTop = this.menuElement.scrollTop;
-    const viewBottom = viewTop + this.menuElement.clientHeight;
-
-    if (itemTop < viewTop) {
-      this.menuElement.scrollTop = itemTop;
-      return;
-    }
-
-    if (itemBottom > viewBottom) {
-      this.menuElement.scrollTop = itemBottom - this.menuElement.clientHeight;
-    }
+    keepSlashMenuSelectedItemVisible(this.menuElement);
   }
 
   private handleViewportChange = () => {
