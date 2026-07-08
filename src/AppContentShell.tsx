@@ -84,6 +84,20 @@ function ConnectedAppShell({
   );
 }
 
+function SidebarPane({ children, visible }: { children: ReactNode; visible: boolean }) {
+  return (
+    <div
+      className={cn(
+        'col-start-1 row-start-1 h-full min-h-0 min-w-0 overflow-hidden',
+        !visible && 'pointer-events-none hidden',
+      )}
+      aria-hidden={!visible}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function AppContentShell({
   communitySettings,
   effectiveAppViewMode,
@@ -109,40 +123,33 @@ export function AppContentShell({
   const shouldMountWhiteboard = import.meta.env.DEV && mountedAppViews.has('whiteboard');
   const shouldRenderNotesSidebar = renderedSidebarAppViews.has('notes');
   const shouldRenderChatSidebar = renderedSidebarAppViews.has('chat');
+  const shouldRenderWhiteboardSidebar = import.meta.env.DEV && renderedSidebarAppViews.has('whiteboard');
   const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
   const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
+  const shouldShowWhiteboardSidebar = import.meta.env.DEV && effectiveAppViewMode === 'whiteboard';
 
-  const renderSidebarContent = (isPeeking: boolean) => shouldRenderSidebar ? effectiveAppViewMode === 'whiteboard' ? (
-    <Suspense fallback={null}>
-      {WhiteboardSidebar ? <WhiteboardSidebar /> : null}
-    </Suspense>
-  ) : (
+  const renderSidebarContent = (isPeeking: boolean) => shouldRenderSidebar ? (
     <div className="grid h-full min-h-0 min-w-0 overflow-hidden">
       {shouldRenderChatSidebar ? (
-        <div
-          className={cn(
-            'col-start-1 row-start-1 h-full min-h-0 min-w-0 overflow-hidden',
-            !shouldShowChatSidebar && 'pointer-events-none hidden',
-          )}
-          aria-hidden={!shouldShowChatSidebar}
-        >
+        <SidebarPane visible={shouldShowChatSidebar}>
           <Suspense fallback={null}>
             <ChatSidebar isPeeking={isPeeking} active={shouldShowChatSidebar} />
           </Suspense>
-        </div>
+        </SidebarPane>
       ) : null}
       {shouldRenderNotesSidebar ? (
-        <div
-          className={cn(
-            'col-start-1 row-start-1 h-full min-h-0 min-w-0 overflow-hidden',
-            !shouldShowNotesSidebar && 'pointer-events-none hidden',
-          )}
-          aria-hidden={!shouldShowNotesSidebar}
-        >
+        <SidebarPane visible={shouldShowNotesSidebar}>
           <Suspense fallback={null}>
             <NotesSidebarWrapper isPeeking={isPeeking} active={shouldShowNotesSidebar} />
           </Suspense>
-        </div>
+        </SidebarPane>
+      ) : null}
+      {shouldRenderWhiteboardSidebar ? (
+        <SidebarPane visible={shouldShowWhiteboardSidebar}>
+          <Suspense fallback={null}>
+            {WhiteboardSidebar ? <WhiteboardSidebar /> : null}
+          </Suspense>
+        </SidebarPane>
       ) : null}
     </div>
   ) : null;

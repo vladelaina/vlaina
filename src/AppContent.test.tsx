@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppContent } from './AppContent';
 import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 
-type AppViewMode = 'notes' | 'chat' | 'lab';
+type AppViewMode = 'notes' | 'chat' | 'whiteboard' | 'lab';
 
 const mocks = vi.hoisted(() => ({
   appViewMode: 'notes' as AppViewMode,
@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
   fontSize: 17,
   notesSidebarMounts: 0,
   notesSidebarUnmounts: 0,
+  whiteboardMounts: 0,
+  whiteboardSidebarMounts: 0,
 }));
 
 vi.mock('@/components/layout/shell/AppShell', () => ({
@@ -94,6 +96,36 @@ vi.mock('@/components/Chat/ChatView', () => ({
     }, [active, onPrimaryContentReady, onStartupReady]);
 
     return <div data-testid="chat-view" data-active={String(active)} />;
+  },
+}));
+
+vi.mock('@/components/Whiteboard', () => ({
+  WhiteboardView: ({
+    active,
+    onStartupReady,
+    onPrimaryContentReady,
+  }: {
+    active?: boolean;
+    onStartupReady?: () => void;
+    onPrimaryContentReady?: () => void;
+  }) => {
+    React.useEffect(() => {
+      mocks.whiteboardMounts += 1;
+    }, []);
+
+    React.useEffect(() => {
+      onStartupReady?.();
+      onPrimaryContentReady?.();
+    }, [onPrimaryContentReady, onStartupReady]);
+
+    return <div data-testid="whiteboard-view" data-active={String(active)} />;
+  },
+  WhiteboardSidebar: () => {
+    React.useEffect(() => {
+      mocks.whiteboardSidebarMounts += 1;
+    }, []);
+
+    return <div data-testid="whiteboard-sidebar" />;
   },
 }));
 
@@ -320,6 +352,8 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.temporaryChatToggleModuleImports = 0;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;
+    mocks.whiteboardMounts = 0;
+    mocks.whiteboardSidebarMounts = 0;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
     mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
       directoryPath: '/app/.vlaina/app/themes',
@@ -392,6 +426,26 @@ describe('AppContent view switching chrome readiness', () => {
     expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'true');
     expect(screen.getByTestId('notes-view')).toHaveAttribute('data-active', 'true');
     expect(mocks.notesSidebarMounts).toBe(1);
+  });
+
+  it('prewarms the whiteboard view and sidebar after the initial notes view is ready', async () => {
+    const { rerender } = render(<AppContent />);
+
+    expect(await screen.findByTestId('whiteboard-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('whiteboard-sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('whiteboard-sidebar').parentElement).toHaveClass('hidden');
+    expect(mocks.whiteboardMounts).toBe(1);
+    expect(mocks.whiteboardSidebarMounts).toBe(1);
+
+    mocks.appViewMode = 'whiteboard';
+    rerender(<AppContent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('whiteboard-view')).toHaveAttribute('data-active', 'true');
+    });
+    expect(screen.getByTestId('whiteboard-sidebar').parentElement).not.toHaveClass('hidden');
+    expect(mocks.whiteboardMounts).toBe(1);
+    expect(mocks.whiteboardSidebarMounts).toBe(1);
   });
 
   it('keeps inactive prewarmed sidebars mounted but out of layout', async () => {
