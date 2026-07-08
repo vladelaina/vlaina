@@ -16,6 +16,7 @@ import { useMilkdownExternalContentSync } from './useMilkdownExternalContentSync
 import { useMilkdownThemeRuntime } from './useMilkdownThemeRuntime';
 import { getMilkdownEditorClassName } from './milkdownEditorClassName';
 import { focusCurrentEditorAtViewportPoint } from './utils/focusEditorAtPoint';
+import { focusCurrentEmptyUntitledDraftTitle } from './utils/emptyUntitledDraftTitleFocus';
 
 export { createLargePlainMarkdownDocJSON, shouldUseLazyBlockVisibility } from './milkdownLargePlainMarkdown';
 export {
@@ -26,6 +27,17 @@ export {
 } from './milkdownEditorMarkdownReplacement';
 
 interface MilkdownEditorInnerProps { active?: boolean; showBodyLineNumbers?: boolean; preserveStartupEditorPosition?: boolean; onEditorViewReady?: () => void; }
+
+const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+const EDITOR_CONTENT_INTERACTIVE_SELECTOR = [
+  'button',
+  'input',
+  'textarea',
+  'select',
+  'a[href]',
+  '[contenteditable="false"]',
+  '[data-no-editor-drag-box="true"]',
+].join(',');
 
 export function MilkdownEditorRuntime({
   active = true,
@@ -260,16 +272,27 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     preserveStartupEditorPosition,
   });
 
-  const handleEditorShellMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+  const handleContentMouseDownCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    if (!activeRef.current) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest(EDITOR_CONTENT_INTERACTIVE_SELECTOR)
+    ) {
+      return;
+    }
+
+    if (focusCurrentEmptyUntitledDraftTitle(
+      event.currentTarget.closest(NOTE_SCROLL_ROOT_SELECTOR) ?? event.currentTarget.ownerDocument,
+    )) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
 
     const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
-    if (target.closest('.ProseMirror, [data-no-editor-drag-box="true"]')) {
+    if (!(target instanceof Element) || target.closest('.ProseMirror')) {
       return;
     }
 
@@ -287,6 +310,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   return (
     <div
       ref={editorShellRef}
+      onMouseDownCapture={handleContentMouseDownCapture}
       className={getMilkdownEditorClassName({
         importedMarkdownThemeId,
         importedMarkdownThemePlatform,
@@ -306,7 +330,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       data-markdown-theme-color-scheme={markdownThemeRuntimeColorScheme.colorScheme}
       data-markdown-theme-color-scheme-mode={markdownThemeRuntimeColorScheme.mode}
       data-theme={markdownThemeRuntimeColorScheme.colorScheme}
-      onMouseDown={handleEditorShellMouseDown}
     >
       {showBodyLineNumbers && (
         <BodyLineNumberGutter

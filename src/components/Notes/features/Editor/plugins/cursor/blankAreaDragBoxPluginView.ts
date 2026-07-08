@@ -19,6 +19,7 @@ import { handleListGapPlaceholderPointerDown } from './listGapPlaceholder';
 import { handleMarkdownBlankLinePointerDown } from './markdownBlankLineInteraction';
 import { clearForcedCaretForOwner } from './forcedLineEdgeCaret';
 import {
+  focusEmptyUntitledDraftTitleFromBlankAreaClick,
   handleTrailingBlankClickInsideLastList,
   resolveInsideBlockTrailingPlainClick,
   scheduleExternalTextLineGutterWhitespaceSelectionCleanup,
@@ -103,6 +104,11 @@ export function createBlankAreaDragBoxPluginView(
     collapseNativeNodeSelectionForExternalMouseDown(view, event);
     if (event.button !== 0) return;
     if (shouldIgnoreBlankAreaDragBoxMouseDown(view, event)) {
+      return;
+    }
+    if (focusEmptyUntitledDraftTitleFromBlankAreaClick(view, event)) {
+      event.preventDefault();
+      stopHandledDocumentMouseDown(view, event);
       return;
     }
     if (handleMarkdownBlankLinePointerDown(view, event)) {

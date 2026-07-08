@@ -21,6 +21,7 @@ import {
 import { dispatchBlankAreaPlainClick } from './forcedLineEdgeCaret';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
+import { focusCurrentEmptyUntitledDraftTitle } from '../../utils/emptyUntitledDraftTitleFocus';
 
 function snapshotSelection(state: EditorState) {
   return {
@@ -137,6 +138,16 @@ export function shouldIgnoreBlankAreaDragBoxMouseDown(view: EditorView, event: M
   }
   event.preventDefault();
   return true;
+}
+
+export function focusEmptyUntitledDraftTitleFromBlankAreaClick(view: EditorView, event: MouseEvent): boolean {
+  if (event.button !== 0) return false;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+  if (!isSameEditorBlankAreaInteractionTarget(view, event.target)) return false;
+
+  return focusCurrentEmptyUntitledDraftTitle(
+    view.dom.closest(SCROLL_ROOT_SELECTOR) ?? view.dom.ownerDocument
+  );
 }
 
 function deferUntilPointerClickSettles(view: EditorView, callback: () => void): void {

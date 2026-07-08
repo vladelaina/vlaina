@@ -387,6 +387,35 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
+  it('allows wide layout whitespace beside the editor content root to start block selection', () => {
+    const { view, scrollRoot, editorWrapper, cleanup } = createView();
+    const wideContentContainer = document.createElement('div');
+    scrollRoot.insertBefore(wideContentContainer, editorWrapper);
+    wideContentContainer.append(editorWrapper);
+
+    const scrollRootRect = vi.spyOn(scrollRoot, 'getBoundingClientRect').mockReturnValue(rect(0, 800, 0, 1600));
+    const editorWrapperRect = vi.spyOn(editorWrapper, 'getBoundingClientRect').mockReturnValue(rect(120, 600, 350, 1250));
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(wideContentContainer, { clientX: 240, clientY: 180 }),
+      )).toBe('outside-editor');
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(wideContentContainer, { clientX: 1360, clientY: 180 }),
+      )).toBe('outside-editor');
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(wideContentContainer, { clientX: 240, clientY: 80 }),
+      )).toBeNull();
+    } finally {
+      cleanup();
+      scrollRootRect.mockRestore();
+      editorWrapperRect.mockRestore();
+    }
+  });
+
   it('allows the editor scroll root itself to start blank-area selection', () => {
     const { view, scrollRoot, cleanup } = createView();
 
@@ -714,12 +743,33 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('ignores interactive controls inside the empty-workspace notes sidebar blank area', () => {
+  it('allows the file tree root sidebar blank area to start drag-only block selection', () => {
     const { view, cleanup } = createView();
     const sidebarScrollRoot = document.createElement('div');
     sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
     const blankArea = document.createElement('div');
     blankArea.setAttribute('data-notes-sidebar-blank-drag-root', 'true');
+    blankArea.setAttribute('data-notes-external-block-selection-root', 'true');
+    blankArea.setAttribute('data-file-tree-root-drop-target', 'true');
+    sidebarScrollRoot.append(blankArea);
+    document.body.append(sidebarScrollRoot);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(blankArea))).toBe('external-sidebar-blank');
+    } finally {
+      sidebarScrollRoot.remove();
+      cleanup();
+    }
+  });
+
+  it('ignores interactive controls inside the file tree root sidebar blank area', () => {
+    const { view, cleanup } = createView();
+    const sidebarScrollRoot = document.createElement('div');
+    sidebarScrollRoot.setAttribute('data-notes-sidebar-scroll-root', 'true');
+    const blankArea = document.createElement('div');
+    blankArea.setAttribute('data-notes-sidebar-blank-drag-root', 'true');
+    blankArea.setAttribute('data-notes-external-block-selection-root', 'true');
+    blankArea.setAttribute('data-file-tree-root-drop-target', 'true');
     const button = document.createElement('button');
     blankArea.append(button);
     sidebarScrollRoot.append(blankArea);
@@ -729,6 +779,161 @@ describe('blankAreaDragTargets', () => {
       expect(resolveBlankAreaDragStartZone(view, createMouseDown(button))).toBeNull();
     } finally {
       sidebarScrollRoot.remove();
+      cleanup();
+    }
+  });
+
+  it('allows marked docked chat blank surfaces to start drag-only block selection', () => {
+    const { view, cleanup } = createView();
+    const chatPanel = document.createElement('div');
+    chatPanel.setAttribute('data-notes-chat-panel', 'true');
+    chatPanel.setAttribute('data-notes-external-block-selection-root', 'true');
+    document.body.append(chatPanel);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(chatPanel))).toBe('external-sidebar-blank');
+    } finally {
+      chatPanel.remove();
+      cleanup();
+    }
+  });
+
+  it('allows marked floating chat blank surfaces to start drag-only block selection', () => {
+    const { view, cleanup } = createView();
+    const floatingChatPanel = document.createElement('div');
+    floatingChatPanel.setAttribute('data-notes-chat-floating', 'true');
+    floatingChatPanel.setAttribute('data-notes-external-block-selection-root', 'true');
+    document.body.append(floatingChatPanel);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(floatingChatPanel))).toBe('external-sidebar-blank');
+    } finally {
+      floatingChatPanel.remove();
+      cleanup();
+    }
+  });
+
+  it('does not start block selection from chat input regions inside a marked external blank root', () => {
+    const { view, cleanup } = createView();
+    const chatPanel = document.createElement('div');
+    chatPanel.setAttribute('data-notes-external-block-selection-root', 'true');
+    const inputRegion = document.createElement('div');
+    inputRegion.setAttribute('data-notes-external-block-selection-excluded', 'true');
+    chatPanel.append(inputRegion);
+    document.body.append(chatPanel);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(inputRegion))).toBeNull();
+    } finally {
+      chatPanel.remove();
+      cleanup();
+    }
+  });
+
+  it('does not start block selection from chat message content inside a marked external blank root', () => {
+    const { view, cleanup } = createView();
+    const chatPanel = document.createElement('div');
+    chatPanel.setAttribute('data-notes-external-block-selection-root', 'true');
+    const messageSurface = document.createElement('div');
+    messageSurface.setAttribute('data-chat-selection-surface', 'true');
+    messageSurface.textContent = 'Chat message text';
+    chatPanel.append(messageSurface);
+    document.body.append(chatPanel);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(messageSurface, { clientX: 150, clientY: 50 }),
+      )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      chatPanel.remove();
+      cleanup();
+    }
+  });
+
+  it('allows blank space inside chat message containers to start drag-only block selection', () => {
+    const { view, cleanup } = createView();
+    const chatPanel = document.createElement('div');
+    chatPanel.setAttribute('data-notes-external-block-selection-root', 'true');
+    const messageSurface = document.createElement('div');
+    messageSurface.setAttribute('data-chat-selection-surface', 'true');
+    messageSurface.textContent = 'Chat message text';
+    chatPanel.append(messageSurface);
+    document.body.append(chatPanel);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(messageSurface, { clientX: 330, clientY: 50 }),
+      )).toBe('external-sidebar-blank');
+    } finally {
+      document.createRange = originalCreateRange;
+      chatPanel.remove();
+      cleanup();
+    }
+  });
+
+  it('allows chat message trailing text gutters to start drag-only block selection', () => {
+    const { view, cleanup } = createView();
+    const chatPanel = document.createElement('div');
+    chatPanel.setAttribute('data-notes-external-block-selection-root', 'true');
+    const messageSurface = document.createElement('div');
+    messageSurface.setAttribute('data-chat-selection-surface', 'true');
+    messageSurface.textContent = 'Chat message text';
+    chatPanel.append(messageSurface);
+    document.body.append(chatPanel);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(messageSurface, { clientX: 250, clientY: 50 }),
+      )).toBe('external-sidebar-blank');
+    } finally {
+      document.createRange = originalCreateRange;
+      chatPanel.remove();
       cleanup();
     }
   });

@@ -1,8 +1,11 @@
-import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 import { UnifiedSidebarContainer } from './UnifiedSidebarContainer';
 import { UnifiedTitleBar } from './UnifiedTitleBar';
+
+const TITLEBAR_SIDEBAR_PEEK_CLOSE_DELAY_MS = 140;
 
 interface AppShellProps {
   children: ReactNode;
@@ -43,9 +46,46 @@ export function AppShell({
 }: AppShellProps) {
   const titleBarWidthScopeRef = useRef<HTMLDivElement>(null);
   const sidebarWidthScopeRef = useRef<HTMLDivElement>(null);
+  const sidebarPeekCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSidebarDragging, setIsSidebarDragging] = useState(false);
   const [isSidebarPeeking, setIsSidebarPeeking] = useState(false);
   const setLayoutPanelDragging = useUIStore((state) => state.setLayoutPanelDragging);
+
+  const clearSidebarPeekCloseTimer = useCallback(() => {
+    if (!sidebarPeekCloseTimerRef.current) return;
+    clearTimeout(sidebarPeekCloseTimerRef.current);
+    sidebarPeekCloseTimerRef.current = null;
+  }, []);
+
+  const openSidebarPeek = useCallback(() => {
+    clearSidebarPeekCloseTimer();
+    if (!sidebarCollapsed) return;
+    setIsSidebarPeeking(true);
+  }, [clearSidebarPeekCloseTimer, sidebarCollapsed]);
+
+  const scheduleSidebarPeekClose = useCallback(() => {
+    clearSidebarPeekCloseTimer();
+    if (!sidebarCollapsed) return;
+
+    sidebarPeekCloseTimerRef.current = setTimeout(() => {
+      sidebarPeekCloseTimerRef.current = null;
+      setIsSidebarPeeking(false);
+    }, TITLEBAR_SIDEBAR_PEEK_CLOSE_DELAY_MS);
+  }, [clearSidebarPeekCloseTimer, sidebarCollapsed]);
+
+  const handleSidebarPeekChange = useCallback((peeking: boolean) => {
+    clearSidebarPeekCloseTimer();
+    setIsSidebarPeeking(peeking);
+  }, [clearSidebarPeekCloseTimer]);
+
+  const handleCollapsedSidebarToggleHoverChange = useCallback((hovered: boolean) => {
+    if (hovered) {
+      openSidebarPeek();
+      return;
+    }
+
+    scheduleSidebarPeekClose();
+  }, [openSidebarPeek, scheduleSidebarPeekClose]);
 
   const applySidebarWidth = useCallback((width: number) => {
     const sidebarWidthValue = `${width}px`;
@@ -69,9 +109,12 @@ export function AppShell({
 
   useLayoutEffect(() => {
     if (!sidebarCollapsed) {
+      clearSidebarPeekCloseTimer();
       setIsSidebarPeeking(false);
     }
-  }, [sidebarCollapsed]);
+  }, [clearSidebarPeekCloseTimer, sidebarCollapsed]);
+
+  useEffect(() => clearSidebarPeekCloseTimer, [clearSidebarPeekCloseTimer]);
 
   return (
     <div
@@ -90,6 +133,7 @@ export function AppShell({
         centerOverflowVisible={titleBarCenterOverflowVisible}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={onSidebarToggle}
+        onCollapsedSidebarToggleHoverChange={handleCollapsedSidebarToggleHoverChange}
         backgroundColor={backgroundColor}
       />
       
@@ -102,9 +146,10 @@ export function AppShell({
           >
             <div
               data-shell-sidebar-peek-hotzone="true"
-              className="pointer-events-auto absolute inset-y-0 left-0 w-3"
+              className="pointer-events-auto absolute inset-y-0 left-0"
+              style={{ width: themeDomStyleTokens.hoverPeekTriggerWidthPx }}
               aria-hidden="true"
-              onMouseEnter={() => setIsSidebarPeeking(true)}
+              onMouseEnter={openSidebarPeek}
             />
           </div>
         ) : null}
@@ -114,7 +159,7 @@ export function AppShell({
             width={sidebarWidth}
             collapsed={sidebarCollapsed}
             peeking={isSidebarPeeking}
-            onPeekChange={setIsSidebarPeeking}
+            onPeekChange={handleSidebarPeekChange}
             onWidthChange={onSidebarWidthChange}
             onLiveWidthChange={applySidebarWidth}
             onDragStateChange={handleSidebarDragStateChange}

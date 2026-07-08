@@ -214,6 +214,16 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
     notes: 'Icon picker listens for storage updates, sanitizes recent icons and skin tone, and shares the debug logging toggle.',
   },
   {
+    id: 'whiteboard.snapshot',
+    owner: 'whiteboard',
+    scope: 'document',
+    persistence: ['localStorage'],
+    mergePolicy: 'last-writer-wins',
+    storageKeys: ['vlaina:whiteboard:v1'],
+    crossWindow: false,
+    notes: 'Whiteboard state is a single local snapshot loaded on mount; open windows do not live-merge edits.',
+  },
+  {
     id: 'notesRoot.recent',
     owner: 'notesRoot',
     scope: 'shared-config',

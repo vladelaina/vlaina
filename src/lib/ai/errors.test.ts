@@ -198,8 +198,23 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.NETWORK_ERROR,
       code: '',
+      message: 'The custom channel still could not be reached after automatic retries. Check your network or the upstream service, then try again.',
+    });
+  });
+
+  it('localizes wrapped Electron direct provider fetch failure details', () => {
+    const result = getUserFacingAIError({
+      type: AIErrorType.NETWORK_ERROR,
       message:
         "Error invoking remote method 'desktop:ai-provider:request:start': Error: AI provider request to https://api.example.com/v1/chat/completions failed before an HTTP response was received: TypeError: fetch failed",
+      details:
+        "OpenAI-compatible chat request to https://api.example.com/v1/chat/completions failed: Error invoking remote method 'desktop:ai-provider:request:start': Error: AI provider request to https://api.example.com/v1/chat/completions failed before an HTTP response was received: TypeError: fetch failed",
+    });
+
+    expect(result).toEqual({
+      type: AIErrorType.NETWORK_ERROR,
+      code: '',
+      message: 'The custom channel still could not be reached after automatic retries. Check your network or the upstream service, then try again.',
     });
   });
 

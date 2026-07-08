@@ -16,6 +16,7 @@ interface UnifiedTitleBarProps {
   rightSlot?: ReactNode;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  onCollapsedSidebarToggleHoverChange?: (hovered: boolean) => void;
   backgroundColor?: string;
   centerOverflowVisible?: boolean;
   showWindowControls?: boolean;
@@ -58,6 +59,7 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
   rightSlot,
   sidebarCollapsed,
   onToggleSidebar,
+  onCollapsedSidebarToggleHoverChange,
   backgroundColor = 'transparent',
   centerOverflowVisible = false,
   showWindowControls = true
@@ -92,7 +94,11 @@ export const UnifiedTitleBar = forwardRef<HTMLDivElement, UnifiedTitleBarProps>(
       {shouldShowTrafficLightPreview ? <MacOSTrafficLightPreviewControls /> : null}
 
       {sidebarCollapsed ? (
-        <div className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-transparent ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}>
+        <div
+          className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-transparent ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}
+          onMouseEnter={() => onCollapsedSidebarToggleHoverChange?.(true)}
+          onMouseLeave={() => onCollapsedSidebarToggleHoverChange?.(false)}
+        >
           <button
             type="button"
             aria-label={translate('shortcut.action.toggleSidebar')}
