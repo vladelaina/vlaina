@@ -91,6 +91,35 @@ describe('UploadZone', () => {
     expect(container.firstElementChild).toHaveClass('bg-[var(--vlaina-color-accent-muted-bg)]');
   });
 
+  it('opens the native image picker when clicked', () => {
+    const originalShowPicker = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'showPicker');
+    const showPicker = vi.fn();
+    Object.defineProperty(HTMLInputElement.prototype, 'showPicker', {
+      configurable: true,
+      value: showPicker,
+    });
+
+    try {
+      render(
+        <UploadZone
+          onUploadComplete={vi.fn()}
+          currentNotePath="note.md"
+          compact
+        />,
+      );
+
+      fireEvent.click(screen.getByTestId('icon-common.upload').parentElement!);
+
+      expect(showPicker).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalShowPicker) {
+        Object.defineProperty(HTMLInputElement.prototype, 'showPicker', originalShowPicker);
+      } else {
+        delete HTMLInputElement.prototype.showPicker;
+      }
+    }
+  });
+
   it('completes the upload callback even if the zone unmounts during upload', async () => {
     let resolveUpload: (value: {
       success: true;

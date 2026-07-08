@@ -129,7 +129,7 @@ export function ChatInputComposerFrame({
         spellCheck={false}
         multiple
         accept={SUPPORTED_ATTACHMENT_INPUT_ACCEPT}
-        className="hidden"
+        className="sr-only"
         ref={fileInputRef}
         onChange={handleHiddenFileInputChange}
       />
